@@ -125,4 +125,107 @@ module SacredPhysics {
             f_gamma_pred    = f_gamma,
         };
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for Sacred Physics
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test trinity_identity_holds
+        given trinity = TRINITY
+        and   expected = 3.0
+        and   tolerance = MAX_ABS_ERROR_TRINITY
+        when diff = abs(trinity - expected)
+        then diff < tolerance
+
+    test phi_squared_plus_inverse_squared
+        given phi_sq = PHI * PHI
+        and   phi_inv_sq = PHI_INV * PHI_INV
+        and   trinity = phi_sq + phi_inv_sq
+        then abs(trinity - 3.0) < 1e-12
+
+    test gamma_from_phi_inverse_cubed
+        given gamma_expected = pow(PHI, -3.0)
+        and   gamma_actual = GAMMA_LQG
+        then abs(gamma_expected - gamma_actual) < 1e-15
+
+    test consciousness_threshold_equals_phi_inverse
+        given c_threshold = C_THRESHOLD
+        and   phi_inv = PHI_INV
+        then abs(c_threshold - phi_inv) < 1e-15
+
+    test specious_present_in_milliseconds
+        given t_sec = T_PRESENT_SEC
+        and   t_ms = T_PRESENT_MS
+        then abs(t_ms - t_sec * 1000.0) < 1e-12
+
+    test neural_gamma_center_around_40hz
+        given f_gamma = neural_gamma_center(PI)
+        then f_gamma > 30.0 and f_gamma < 50.0
+
+    test sacred_gravity_close_to_measured
+        given report = verify_sacred_physics()
+        and   tolerance = MAX_REL_ERROR_G
+        when rel_error = report.g_rel_error
+        then rel_error < tolerance
+
+    test sacred_dark_energy_close_to_measured
+        given report = verify_sacred_physics()
+        and   tolerance = MAX_REL_ERROR_OMEGA
+        when rel_error = report.omega_rel_error
+        then rel_error < tolerance
+
+    test verify_report_contains_all_fields
+        given report = verify_sacred_physics()
+        then report.trinity_ok == true
+        and   report.f_gamma_pred > 0.0
+        and   report.t_present_ms > 0.0
+
+    invariant phi_greater_than_one
+        assert PHI > 1.6 and PHI < 1.7
+
+    invariant phi_inverse_less_than_one
+        assert PHI_INV > 0.6 and PHI_INV < 0.7
+
+    invariant phi_squared_equals_phi_plus_one
+        assert abs(PHI_SQ - (PHI + 1.0)) < 1e-15
+
+    invariant phi_times_inverse_equals_one
+        assert abs(PHI * PHI_INV - 1.0) < 1e-15
+
+    invariant gamma_lqg_less_than_one
+        assert GAMMA_LQG > 0.2 and GAMMA_LQG < 0.3
+
+    invariant consciousness_threshold_in_range
+        assert C_THRESHOLD > 0.0 and C_THRESHOLD < 1.0
+
+    invariant specious_present_positive
+        assert T_PRESENT_SEC > 0.0 and T_PRESENT_MS > 0.0
+
+    invariant trinity_equals_three
+        assert abs(TRINITY - 3.0) < 1e-12
+
+    invariant gamma_from_phi_formula
+        assert abs(GAMMA_LQG - pow(PHI, -3.0)) < 1e-15
+
+    invariant neural_gamma_positive
+        assert neural_gamma_center(PI) > 0.0
+
+    invariant sacred_gravity_positive
+        assert sacred_gravity(PI) > 0.0
+
+    invariant sacred_dark_energy_in_range
+        given omega = sacred_dark_energy(PI)
+        assert omega > 0.0 and omega < 1.0
+
+    bench verify_sacred_physics_computation_time
+        measure: nanoseconds to compute verify_sacred_physics()
+        target: < 1000ns
+
+    bench sacred_gravity_computation_time
+        measure: nanoseconds to compute sacred_gravity(PI)
+        target: < 500ns
+
+    bench sacred_dark_energy_computation_time
+        measure: nanoseconds to compute sacred_dark_energy(PI)
+        target: < 500ns
 }

@@ -199,4 +199,143 @@ module GoldenFloatFamily {
         // Memory efficiency vs FP32 (1.0 = same, 0.5 = half size)
         return format.bits as f64 / 32.0;
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GoldenFloatFamily
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gffamily_get_format_by_name_gf16
+        given fmt = get_format_by_name("GF16")
+        then fmt != null and fmt.?.name == "GF16" and fmt.?.bits == 16
+
+    test gffamily_get_format_by_bits_8
+        given fmt = get_format_by_bits(8)
+        then fmt != null and fmt.?.name == "GF8" and fmt.?.bits == 8
+
+    test gffamily_get_primary_format_is_gf16
+        given primary = get_primary_format()
+        then primary.name == "GF16" and primary.is_primary == true
+
+    test gffamily_family_size_7
+        given size = GOLDEN_FLOAT_FAMILY.len()
+        then size == 7
+
+    test gffamily_phi_ratio_target_is_phi_inverse
+        given target = PHI_RATIO_TARGET
+        and   phi_inv = sacred_physics::PHI_INV
+        then abs(target - phi_inv) < 0.000001
+
+    test gffamily_gf4_has_correct_bit_counts
+        given fmt = get_format_by_name("GF4").?
+        then fmt.sign_bits == 1 and fmt.exp_bits == 1 and fmt.mant_bits == 2
+
+    test gffamily_gf32_has_correct_bit_counts
+        given fmt = get_format_by_name("GF32").?
+        then fmt.sign_bits == 1 and fmt.exp_bits == 12 and fmt.mant_bits == 19
+
+    test gffamily_only_gf16_is_primary
+        var count = 0
+        for (const GOLDEN_FLOAT_FAMILY) |fmt| {
+            if (fmt.is_primary) { count = count + 1; }
+        }
+        then count == 1
+
+    test gffamily_verify_primary_is_gf16
+        given report = verify_golden_family()
+        then report.primary_is_gf16 == true
+
+    test gffamily_phi_distances_within_tolerance
+        given report = verify_golden_family()
+        then report.phi_distances_ok == true
+
+    test gffamily_best_phi_format_is_gf12
+        given report = verify_golden_family()
+        then report.best_phi_format == "GF12"
+
+    test gffamily_memory_efficiency_gf8
+        given fmt = get_format_by_name("GF8").?
+        and   eff = memory_efficiency(fmt)
+        then abs(eff - 0.25) < 0.01
+
+    test gffamily_memory_efficiency_gf16
+        given fmt = get_format_by_name("GF16").?
+        and   eff = memory_efficiency(fmt)
+        then abs(eff - 0.5) < 0.01
+
+    test gffamily_max_value_positive
+        given fmt = get_format_by_name("GF8").?
+        and   max_val = max_value(fmt)
+        then max_val > 0.0
+
+    test gffamily_min_positive_greater_than_zero
+        given fmt = get_format_by_name("GF8").?
+        and   min_pos = min_positive(fmt)
+        then min_pos > 0.0
+
+    test gffamily_get_format_by_unknown_name
+        given fmt = get_format_by_name("GF999")
+        then fmt == null
+
+    test gffamily_get_format_by_unknown_bits
+        given fmt = get_format_by_bits(100)
+        then fmt == null
+
+    invariant gffamily_phi_ratio_target_positive
+        assert PHI_RATIO_TARGET > 0.0
+
+    invariant gffamily_phi_ratio_target_less_than_one
+        assert PHI_RATIO_TARGET < 1.0
+
+    invariant gffamily_family_size_constant
+        assert GOLDEN_FLOAT_FAMILY.len() == 7
+
+    invariant gffamily_gf4_at_index_0
+        assert GOLDEN_FLOAT_FAMILY[0].name == "GF4"
+
+    invariant gffamily_gf32_at_index_6
+        assert GOLDEN_FLOAT_FAMILY[6].name == "GF32"
+
+    invariant gffamily_all_formats_have_sign_bits_1
+        for (const GOLDEN_FLOAT_FAMILY) |fmt| {
+            assert fmt.sign_bits == 1;
+        }
+
+    invariant gffamily_all_formats_bits_sum_correct
+        for (const GOLDEN_FLOAT_FAMILY) |fmt| {
+            assert fmt.sign_bits + fmt.exp_bits + fmt.mant_bits == fmt.bits;
+        }
+
+    invariant gffamily_primary_is_gf16
+        assert GOLDEN_FLOAT_FAMILY[3].is_primary == true
+
+    invariant gffamily_phi_distances_non_negative
+        for (const GOLDEN_FLOAT_FAMILY) |fmt| {
+            assert fmt.phi_distance >= 0.0;
+        }
+
+    invariant gffamily_memory_efficiency_gf4
+        assert abs(memory_efficiency(GOLDEN_FLOAT_FAMILY[0]) - 0.125) < 0.01
+
+    invariant gffamily_memory_efficiency_gf32
+        assert abs(memory_efficiency(GOLDEN_FLOAT_FAMILY[6]) - 1.0) < 0.01
+
+    bench gffamily_get_format_by_name_latency
+        measure: nanoseconds to get_format_by_name("GF16")
+        target: < 100ns
+
+    bench gffamily_get_format_by_bits_latency
+        measure: nanoseconds to get_format_by_bits(16)
+        target: < 100ns
+
+    bench gffamily_get_primary_format_latency
+        measure: nanoseconds to get_primary_format()
+        target: < 50ns
+
+    bench gffamily_verify_golden_family_latency
+        measure: nanoseconds to verify_golden_family()
+        target: < 500ns
+
+    bench gffamily_memory_efficiency_latency
+        measure: nanoseconds to memory_efficiency(GOLDEN_FLOAT_FAMILY[3])
+        target: < 100ns
 }

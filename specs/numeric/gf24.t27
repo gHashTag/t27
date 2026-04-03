@@ -177,4 +177,76 @@ module GF24 {
     fn pow(base: f32, exp: f32) -> f32 {
         return 1.0;  // TODO: implement
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GF24
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gf24_decode_zero
+        given gf = GF24{ raw = 0 }
+        when value = decode(gf)
+        then value == 0.0
+
+    test gf24_encode_zero_roundtrip
+        given original = 0.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded == original
+
+    test gf24_bits_sum_correct
+        given total = SIGN_BITS + EXP_BITS + MANT_BITS
+        then total == BITS
+
+    test gf24_max_value_positive
+        given max_val = max_value()
+        then max_val > 0.0
+
+    test gf24_min_positive_greater_than_zero
+        given min_pos = min_positive()
+        then min_pos > 0.0
+
+    test gf24_epsilon_positive
+        given eps = epsilon()
+        then eps > 0.0
+
+    test gf24_phi_distance_within_tolerance
+        given phi_dist = PHI_DISTANCE
+        then phi_dist < 0.03
+
+    test gf24_memory_ratio_vs_fp32
+        given ratio = MEMORY_RATIO_VS_FP32
+        then abs(ratio - 0.75) < 0.01
+
+    test gf24_validate_format_success
+        given valid = validate_format()
+        then valid == true
+
+    invariant gf24_bits_constant
+        assert BITS == 24
+
+    invariant gf24_sign_bits_is_one
+        assert SIGN_BITS == 1
+
+    invariant gf24_exp_bits_is_nine
+        assert EXP_BITS == 9
+
+    invariant gf24_mant_bits_is_fourteen
+        assert MANT_BITS == 14
+
+    invariant gf24_max_ge_min_positive
+        assert max_value() >= min_positive()
+
+    invariant gf24_phi_distance_below_threshold
+        assert PHI_DISTANCE < 0.03
+
+    invariant gf24_exp_bias_positive
+        assert EXP_BIAS > 0
+
+    bench gf24_encode_latency
+        measure: nanoseconds to encode(1.0)
+        target: < 250ns
+
+    bench gf24_decode_latency
+        measure: nanoseconds to decode(GF24{raw = 8388608})
+        target: < 200ns
 }

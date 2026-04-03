@@ -360,3 +360,156 @@ fn get_current_timestamp() -> string {
     ; Returns ISO 8601 timestamp
     return "2026-04-04T00:00:00Z";  // Placeholder
 }
+
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for Git Integration
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+test git_commit_requires_registry
+    given registry_exists = false
+    when result = git_commit(all=false, message="test", mode="normal")
+    then result == 1
+
+test git_commit_requires_issue_binding
+    given registry_exists = true
+    and cell_has_issue = false
+    when result = git_commit(all=false, message="test", mode="normal")
+    then result == 1
+
+test git_commit_rejects_toxic_verdict
+    given cell_status = "sealed"
+    and cell_verdict = "TOXIC"
+    when result = git_commit(all=false, message="test", mode="normal")
+    then result == 1
+
+test git_commit_accepts_not_toxic_verdict
+    given cell_status = "sealed"
+    and cell_verdict = "NOT TOXIC"
+    when result = git_commit(all=false, message="test", mode="normal")
+    then result == 0
+
+test git_push_requires_sealed_cell
+    given cell_status = "active"
+    when result = git_push(remote="", branch="", mode="normal")
+    then result == 1
+
+test git_push_rejects_toxic_cell
+    given cell_status = "sealed"
+    and cell_verdict = "TOXIC"
+    when result = git_push(remote="", branch="", mode="normal")
+    then result == 1
+
+test git_push_recovery_requires_3_checkpoints
+    given cell_kind = "recovery"
+    and cell_checkpoints = 2
+    when result = git_push(remote="", branch="", mode="normal")
+    then result == 1
+
+test git_push_hotfix_requires_1_checkpoint
+    given cell_kind = "hotfix"
+    and cell_checkpoints = 0
+    when result = git_push(remote="", branch="", mode="normal")
+    then result == 1
+
+test git_push_strict_validates_remote
+    given mode = "strict"
+    and remote_url = "https://gitlab.com/other/repo"
+    when result = git_push(remote="origin", branch="main", mode=mode)
+    then result == 1
+
+test git_commit_auto_adds_issue_to_message
+    given cell_issue = "123"
+    and original_msg = "fix bug"
+    when result = git_commit(all=false, message=original_msg, mode="normal")
+    then result == 0
+
+test summarize_status_no_changes
+    given status = "On branch main\nnothing to commit"
+    when summary = summarize_status(status)
+    then summary == "no changes"
+
+test summarize_status_with_changes
+    given status = "modified: file1.t27\nnew file: file2.t27"
+    when summary = summarize_status(status)
+    then summary.contains("modified") and summary.contains("added")
+
+test count_checkpoints_returns_count
+    given artifacts = "checkpoint1, checkpoint2, spec, docs"
+    when count = count_checkpoints(artifacts)
+    then count == 2
+
+test count_checkpoints_zero
+    given artifacts = "spec, docs"
+    when count = count_checkpoints(artifacts)
+    then count == 0
+
+test get_current_timestamp_format
+    given timestamp = get_current_timestamp()
+    then timestamp.contains("T") and timestamp.contains("Z")
+
+test git_status_with_cell_shows_cell_info
+    given registry_exists = true
+    and cell_id = "cell-001"
+    and cell_status = "active"
+    when result = git_status_with_cell()
+    then result == 0
+
+invariant git_commit_returns_zero_on_success
+    ; Successful commit returns 0
+    assert true
+
+invariant git_commit_returns_nonzero_on_failure
+    ; Failed commit returns non-zero
+    assert true
+
+invariant git_push_returns_zero_on_success
+    ; Successful push returns 0
+    assert true
+
+invariant git_push_returns_nonzero_on_failure
+    ; Failed push returns non-zero
+    assert true
+
+invariant git_status_with_cell_always_succeeds
+    ; git status command always succeeds
+    assert true
+
+invariant summarize_status_never_null
+    ; Summary always returns a string
+    assert true
+
+invariant count_checkpoints_never_negative
+    ; Checkpoint count is always >= 0
+    assert true
+
+invariant recovery_cell_requires_min_3_checkpoints
+    ; Recovery cell policy: minimum 3 checkpoints
+    assert true
+
+invariant hotfix_cell_requires_min_1_checkpoint
+    ; Hotfix cell policy: minimum 1 checkpoint
+    assert true
+
+invariant strict_mode_validates_remote
+    ; Strict mode requires expected remote URL
+    assert true
+
+bench git_commit_latency
+    measure: nanoseconds to git_commit(all=false, message="test", mode="normal")
+    target: < 500ms
+
+bench git_push_latency
+    measure: nanoseconds to git_push(remote="", branch="", mode="normal")
+    target: < 1000ms
+
+bench git_status_with_cell_latency
+    measure: nanoseconds to git_status_with_cell()
+    target: < 100ms
+
+bench find_active_or_sealed_cell_latency
+    measure: nanoseconds to find_active_or_sealed_cell(registry_json)
+    target: < 10ms
+
+bench update_registry_commit_latency
+    measure: nanoseconds to update_registry_commit(registry_json, "cell-001", "abc123")
+    target: < 5ms

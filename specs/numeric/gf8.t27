@@ -179,4 +179,82 @@ module GF8 {
         // Stub: power function
         return 1.0;  // TODO: implement
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GF8
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gf8_decode_zero
+        given gf = GF8{ raw = 0 }
+        when value = decode(gf)
+        then value == 0.0
+
+    test gf8_encode_zero_roundtrip
+        given original = 0.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded == original
+
+    test gf8_decode_positive_value
+        given gf = GF8{ raw = 0b01000000 }
+        when value = decode(gf)
+        then value > 0.0
+
+    test gf8_decode_negative_value
+        given gf = GF8{ raw = 0b10000000 }
+        when value = decode(gf)
+        then value < 0.0
+
+    test gf8_bits_sum_correct
+        given total = SIGN_BITS + EXP_BITS + MANT_BITS
+        then total == BITS
+
+    test gf8_max_value_positive
+        given max_val = max_value()
+        then max_val > 0.0
+
+    test gf8_min_positive_greater_than_zero
+        given min_pos = min_positive()
+        then min_pos > 0.0
+
+    test gf8_epsilon_positive
+        given eps = epsilon()
+        then eps > 0.0
+
+    test gf8_memory_ratio_vs_fp32
+        given ratio = MEMORY_RATIO_VS_FP32
+        then ratio == 0.25
+
+    test gf8_validate_format_success
+        given valid = validate_format()
+        then valid == true
+
+    invariant gf8_bits_constant
+        assert BITS == 8
+
+    invariant gf8_sign_bits_is_one
+        assert SIGN_BITS == 1
+
+    invariant gf8_exp_bits_is_three
+        assert EXP_BITS == 3
+
+    invariant gf8_mant_bits_is_four
+        assert MANT_BITS == 4
+
+    invariant gf8_max_ge_min_positive
+        assert max_value() >= min_positive()
+
+    invariant gf8_phi_distance_within_tolerance
+        assert PHI_DISTANCE < 0.14
+
+    invariant gf8_exp_bias_positive
+        assert EXP_BIAS > 0
+
+    bench gf8_encode_latency
+        measure: nanoseconds to encode(1.0)
+        target: < 100ns
+
+    bench gf8_decode_latency
+        measure: nanoseconds to decode(GF8{raw = 64})
+        target: < 50ns
 }

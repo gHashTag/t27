@@ -177,4 +177,76 @@ module GF20 {
     fn pow(base: f32, exp: f32) -> f32 {
         return 1.0;  // TODO: implement
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GF20
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gf20_decode_zero
+        given gf = GF20{ raw = 0 }
+        when value = decode(gf)
+        then value == 0.0
+
+    test gf20_encode_zero_roundtrip
+        given original = 0.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded == original
+
+    test gf20_bits_sum_correct
+        given total = SIGN_BITS + EXP_BITS + MANT_BITS
+        then total == BITS
+
+    test gf20_max_value_positive
+        given max_val = max_value()
+        then max_val > 0.0
+
+    test gf20_min_positive_greater_than_zero
+        given min_pos = min_positive()
+        then min_pos > 0.0
+
+    test gf20_epsilon_positive
+        given eps = epsilon()
+        then eps > 0.0
+
+    test gf20_phi_distance_within_tolerance
+        given phi_dist = PHI_DISTANCE
+        then phi_dist < 0.04
+
+    test gf20_memory_ratio_vs_fp32
+        given ratio = MEMORY_RATIO_VS_FP32
+        then abs(ratio - 0.625) < 0.01
+
+    test gf20_validate_format_success
+        given valid = validate_format()
+        then valid == true
+
+    invariant gf20_bits_constant
+        assert BITS == 20
+
+    invariant gf20_sign_bits_is_one
+        assert SIGN_BITS == 1
+
+    invariant gf20_exp_bits_is_seven
+        assert EXP_BITS == 7
+
+    invariant gf20_mant_bits_is_twelve
+        assert MANT_BITS == 12
+
+    invariant gf20_max_ge_min_positive
+        assert max_value() >= min_positive()
+
+    invariant gf20_phi_distance_below_threshold
+        assert PHI_DISTANCE < 0.04
+
+    invariant gf20_exp_bias_positive
+        assert EXP_BIAS > 0
+
+    bench gf20_encode_latency
+        measure: nanoseconds to encode(1.0)
+        target: < 200ns
+
+    bench gf20_decode_latency
+        measure: nanoseconds to decode(GF20{raw = 524288})
+        target: < 150ns
 }

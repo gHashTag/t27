@@ -176,4 +176,90 @@ module GF12 {
     fn pow(base: f32, exp: f32) -> f32 {
         return 1.0;  // TODO: implement
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GF12
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gf12_decode_zero
+        given gf = GF12{ raw = 0 }
+        when value = decode(gf)
+        then value == 0.0
+
+    test gf12_encode_zero_roundtrip
+        given original = 0.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded == original
+
+    test gf12_bits_sum_correct
+        given total = SIGN_BITS + EXP_BITS + MANT_BITS
+        then total == BITS
+
+    test gf12_max_value_positive
+        given max_val = max_value()
+        then max_val > 0.0
+
+    test gf12_min_positive_greater_than_zero
+        given min_pos = min_positive()
+        then min_pos > 0.0
+
+    test gf12_epsilon_positive
+        given eps = epsilon()
+        then eps > 0.0
+
+    test gf12_phi_distance_lowest
+        given phi_dist = PHI_DISTANCE
+        then phi_dist < 0.05
+
+    test gf12_memory_ratio_vs_fp32
+        given ratio = MEMORY_RATIO_VS_FP32
+        then abs(ratio - 0.375) < 0.01
+
+    test gf12_validate_format_success
+        given valid = validate_format()
+        then valid == true
+
+    test gf12_floor_log2_power_of_two
+        given log_result = floor_log2(8.0)
+        then log_result == 3
+
+    test gf12_extract_mantissa_in_range
+        given mant = extract_mantissa(1.5, 0, 7)
+        then mant < 128
+
+    invariant gf12_bits_constant
+        assert BITS == 12
+
+    invariant gf12_sign_bits_is_one
+        assert SIGN_BITS == 1
+
+    invariant gf12_exp_bits_is_four
+        assert EXP_BITS == 4
+
+    invariant gf12_mant_bits_is_seven
+        assert MANT_BITS == 7
+
+    invariant gf12_max_ge_min_positive
+        assert max_value() >= min_positive()
+
+    invariant gf12_phi_distance_below_threshold
+        assert PHI_DISTANCE < 0.05
+
+    invariant gf12_exp_bias_positive
+        assert EXP_BIAS > 0
+
+    invariant gf12_floor_log2_non_negative_input
+        assert floor_log2(1.0) >= 0
+
+    invariant gf12_extract_mantissa_in_valid_range
+        assert extract_mantissa(1.0, 0, 7) < 128
+
+    bench gf12_encode_latency
+        measure: nanoseconds to encode(1.0)
+        target: < 150ns
+
+    bench gf12_decode_latency
+        measure: nanoseconds to decode(GF12{raw = 1024})
+        target: < 100ns
 }

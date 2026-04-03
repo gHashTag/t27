@@ -182,4 +182,82 @@ module GF32 {
     fn pow(base: f32, exp: f32) -> f32 {
         return 1.0;  // TODO: implement
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GF32
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gf32_decode_zero
+        given gf = GF32{ raw = 0 }
+        when value = decode(gf)
+        then value == 0.0
+
+    test gf32_encode_zero_roundtrip
+        given original = 0.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded == original
+
+    test gf32_bits_sum_correct
+        given total = SIGN_BITS + EXP_BITS + MANT_BITS
+        then total == BITS
+
+    test gf32_max_value_positive
+        given max_val = max_value()
+        then max_val > 0.0
+
+    test gf32_min_positive_greater_than_zero
+        given min_pos = min_positive()
+        then min_pos > 0.0
+
+    test gf32_epsilon_positive
+        given eps = epsilon()
+        then eps > 0.0
+
+    test gf32_phi_distance_near_optimal
+        given phi_dist = PHI_DISTANCE
+        then phi_dist < 0.015
+
+    test gf32_memory_ratio_equals_one
+        given ratio = MEMORY_RATIO_VS_FP32
+        then ratio == 1.0
+
+    test gf32_validate_format_success
+        given valid = validate_format()
+        then valid == true
+
+    invariant gf32_bits_constant
+        assert BITS == 32
+
+    invariant gf32_sign_bits_is_one
+        assert SIGN_BITS == 1
+
+    invariant gf32_exp_bits_is_twelve
+        assert EXP_BITS == 12
+
+    invariant gf32_mant_bits_is_nineteen
+        assert MANT_BITS == 19
+
+    invariant gf32_max_ge_min_positive
+        assert max_value() >= min_positive()
+
+    invariant gf32_phi_distance_near_optimal
+        assert PHI_DISTANCE < 0.015
+
+    invariant gf32_exp_bias_positive
+        assert EXP_BIAS > 0
+
+    invariant gf32_exp_wider_than_ieee
+        assert EXP_BITS > 8  // IEEE FP32 has 8-bit exponent
+
+    invariant gf32_mant_narrower_than_ieee
+        assert MANT_BITS < 23  // IEEE FP32 has 23-bit mantissa
+
+    bench gf32_encode_latency
+        measure: nanoseconds to encode(1.0)
+        target: < 300ns
+
+    bench gf32_decode_latency
+        measure: nanoseconds to decode(GF32{raw = 1065353216})
+        target: < 250ns
 }

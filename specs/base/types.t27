@@ -297,4 +297,100 @@ pack_word_error:
     MOV r0, NEGONE  ; Error: count > 27
     HALT
 
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for Base Types
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+.test
+    ; test_trit_add_neg_plus_pos_equals_zero
+    ; Verify: -1 + +1 = 0 in balanced ternary
+    ; Setup: r0 = NEGONE, r1 = ONE
+    ; Expected: r2 = ZERO after trit_add
+
+    ; test_trit_add_identity
+    ; Verify: 0 + x = x for all trit values
+    ; Setup: r0 = ZERO, r1 = any trit
+    ; Expected: r2 = r1
+
+    ; test_trit_mul_neg_times_neg_equals_pos
+    ; Verify: -1 * -1 = +1 in balanced ternary
+    ; Setup: r0 = NEGONE, r1 = NEGONE
+    ; Expected: r2 = ONE after trit_multiply
+
+    ; test_trit_mul_zero_annihilates
+    ; Verify: 0 * x = 0 for all trit values
+    ; Setup: r0 = ZERO, r1 = any trit
+    ; Expected: r2 = ZERO
+
+    ; test_pack_unpack_roundtrip
+    ; Verify: pack_trit then unpack_trit returns original value
+    ; Setup: create trit value, pack at position 3, unpack at same position
+    ; Expected: unpacked value equals original trit
+
+    ; test_pack_trit_all_positions
+    ; Verify: pack_trit works for all valid positions (0-7)
+    ; Setup: pack ONE at each position 0-7
+    ; Expected: each position correctly stores and retrieves ONE
+
+    ; test_pack_trit_invalid_position_rejected
+    ; Verify: pack_trit rejects position >= 8
+    ; Setup: r0 = ONE, r1 = 8 (invalid)
+    ; Expected: HALT with error or return value = NEGONE
+
+    ; test_ternary_word_pack_max_trits
+    ; Verify: ternary_word_pack accepts exactly 27 trits
+    ; Setup: r1 = 27, valid src pointer
+    ; Expected: valid TernaryWord returned
+
+    ; test_ternary_word_pack_exceeds_max
+    ; Verify: ternary_word_pack rejects count > 27
+    ; Setup: r1 = 28 (exceeds TRITS_PER_WORD)
+    ; Expected: HALT with error or return value = NEGONE
+
+.invariant
+    ; trit_value_range
+    ; All Trit values are in {-1, 0, +1}
+    ; Rationale: Balanced ternary requires strict 3-value domain
+
+    ; packed_trit_encoding_valid
+    ; All packed trit encodings are in {0, 1, 2}
+    ; Rationale: 2-bit encoding must be valid
+
+    ; trit_add_result_in_range
+    ; trit_add result is always in {-1, 0, +1}
+    ; Rationale: Addition preserves trit domain
+
+    ; trit_mul_result_in_range
+    ; trit_multiply result is always in {-1, 0, +1}
+    ; Rationale: Multiplication preserves trit domain
+
+    ; pack_position_bounds
+    ; pack_trit position must be in [0, 7]
+    ; Rationale: PackedTrit has exactly 8 trits
+
+    ; ternary_word_max_trits
+    ; TernaryWord contains exactly 27 trits
+    ; Rationale: Coptic word size is fixed
+
+    ; trit_multiply_commutative
+    ; trit_multiply(a, b) == trit_multiply(b, a)
+    ; Rationale: Multiplication is commutative
+
+.bench
+    ; bench_trit_add_latency
+    ; Measure: cycles for single trit_add operation
+    ; Target: < 10 cycles on t27-hardware
+
+    ; bench_trit_multiply_latency
+    ; Measure: cycles for single trit_multiply operation
+    ; Target: < 10 cycles on t27-hardware
+
+    ; bench_pack_trit_latency
+    ; Measure: cycles for single pack_trit operation
+    ; Target: < 20 cycles on t27-hardware
+
+    ; bench_unpack_trit_latency
+    ; Measure: cycles for single unpack_trit operation
+    ; Target: < 15 cycles on t27-hardware
+
 HALT

@@ -126,4 +126,89 @@ module GF4 {
 
     // Memory: 4 bits = 0.5 bytes (8x FP32 in same space)
     const MEMORY_RATIO_VS_FP32 : f32 = 4.0 / 32.0;  // 0.125
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for GF4
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test gf4_decode_zero
+        given gf = GF4{ raw = 0b0000 }
+        when value = decode(gf)
+        then value == 0.0
+
+    test gf4_decode_positive_max
+        given gf = GF4{ raw = 0b0111 }
+        when value = decode(gf)
+        then value == 1.5
+
+    test gf4_decode_negative
+        given gf = GF4{ raw = 0b1001 }
+        when value = decode(gf)
+        then value < 0.0
+
+    test gf4_encode_zero_roundtrip
+        given original = 0.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded == original
+
+    test gf4_max_value_is_1_5
+        given max_val = max_value()
+        then max_val == 1.5
+
+    test gf4_min_positive_is_0_25
+        given min_pos = min_positive()
+        then min_pos == 0.25
+
+    test gf4_bits_sum_correct
+        given total = SIGN_BITS + EXP_BITS + MANT_BITS
+        then total == BITS
+
+    test gf4_exp_mant_ratio_matches_phi_split
+        given ratio = (EXP_BITS as f64) / (MANT_BITS as f64)
+        and   expected = 0.5
+        then abs(ratio - expected) < 0.01
+
+    test gf4_memory_ratio_vs_fp32
+        given ratio = MEMORY_RATIO_VS_FP32
+        then ratio == 0.125
+
+    test gf4_validate_format_success
+        given valid = validate_format()
+        then valid == true
+
+    invariant gf4_bits_constant
+        assert BITS == 4
+
+    invariant gf4_sign_bits_is_one
+        assert SIGN_BITS == 1
+
+    invariant gf4_exp_bits_is_one
+        assert EXP_BITS == 1
+
+    invariant gf4_mant_bits_is_two
+        assert MANT_BITS == 2
+
+    invariant gf4_max_value_positive
+        assert max_value() > 0.0
+
+    invariant gf4_min_positive_greater_than_zero
+        assert min_positive() > 0.0
+
+    invariant gf4_epsilon_positive
+        assert epsilon() > 0.0
+
+    invariant gf4_max_ge_min_positive
+        assert max_value() >= min_positive()
+
+    invariant gf4_phi_distance_within_tolerance
+        assert PHI_DISTANCE < 0.12
+
+    bench gf4_encode_latency
+        measure: nanoseconds to encode(1.0)
+        target: < 100ns
+
+    bench gf4_decode_latency
+        measure: nanoseconds to decode(GF4{raw = 0b0101})
+        target: < 50ns
 }

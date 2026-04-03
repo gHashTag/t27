@@ -283,4 +283,123 @@ max_return_a:
     ; r0 already has a
     RET
 
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for Trit Operations
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+.test
+    ; test_trit_multiply_table_all_combinations
+    ; Verify: lookup table returns correct product for all 9 combinations
+    ; Setup: iterate a,b in {-1,0,+1}, call trit_multiply_table
+    ; Expected: matches balanced ternary multiplication
+
+    ; test_trit_add_with_carry_no_carry
+    ; Verify: a + b with zero carry_in gives correct result
+    ; Setup: r0 = ONE, r1 = NEGONE, r2 = ZERO
+    ; Expected: r0 = ZERO, r1 = ZERO (no carry)
+
+    ; test_trit_add_with_carry_positive_overflow
+    ; Verify: +1 + +1 = -1 with carry +1
+    ; Setup: r0 = ONE, r1 = ONE, r2 = ZERO
+    ; Expected: r0 = NEGONE, r1 = ONE
+
+    ; test_trit_add_with_carry_negative_overflow
+    ; Verify: -1 + -1 = +1 with carry -1
+    ; Setup: r0 = NEGONE, r1 = NEGONE, r2 = ZERO
+    ; Expected: r0 = ONE, r1 = NEGONE
+
+    ; test_trit_add_with_carry_propagation
+    ; Verify: carry propagates correctly through addition
+    ; Setup: r0 = ONE, r1 = ONE, r2 = ONE
+    ; Expected: r0 = ZERO, r1 = ONE
+
+    ; test_trit_compare_less_than
+    ; Verify: trit_compare returns -1 when a < b
+    ; Setup: r0 = NEGONE, r1 = ZERO
+    ; Expected: r0 = NEGONE
+
+    ; test_trit_compare_equal
+    ; Verify: trit_compare returns 0 when a == b
+    ; Setup: r0 = ONE, r1 = ONE
+    ; Expected: r0 = ZERO
+
+    ; test_trit_compare_greater_than
+    ; Verify: trit_compare returns +1 when a > b
+    ; Setup: r0 = ONE, r1 = ZERO
+    ; Expected: r0 = ONE
+
+    ; test_trit_negate_involutive
+    ; Verify: trit_negate(trit_negate(a)) == a
+    ; Setup: a = any trit, negate twice
+    ; Expected: result equals original a
+
+    ; test_trit_abs_non_negative
+    ; Verify: trit_abs result is always 0 or +1
+    ; Setup: all three trit values
+    ; Expected: NEGONE maps to ONE, ZERO to ZERO, ONE to ONE
+
+    ; test_trit_min_returns_minimum
+    ; Verify: trit_min(a, b) returns the smaller value
+    ; Setup: r0 = NEGONE, r1 = ONE
+    ; Expected: r0 = NEGONE
+
+    ; test_trit_max_returns_maximum
+    ; Verify: trit_max(a, b) returns the larger value
+    ; Setup: r0 = NEGONE, r1 = ONE
+    ; Expected: r0 = ONE
+
+.invariant
+    ; trit_multiply_table_commutative
+    ; trit_multiply_table(a, b) == trit_multiply_table(b, a)
+    ; Rationale: Multiplication is commutative
+
+    ; trit_add_with_carry_result_in_range
+    ; trit_add_with_carry result is always in {-1, 0, +1}
+    ; Rationale: Function must normalize to trit domain
+
+    ; trit_add_with_carry_carry_in_range
+    ; trit_add_with_carry carry_out is always in {-1, 0, +1}
+    ; Rationale: Carry is also a trit
+
+    ; trit_compare_total_ordering
+    ; trit_compare is transitive: if a<b and b<c then a<c
+    ; Rationale: Compare must define valid ordering
+
+    ; trit_negate_double_identity
+    ; trit_negate(trit_negate(a)) == a for all a
+    ; Rationale: Negation is an involution
+
+    ; trit_abs_result_non_negative
+    ; trit_abs(a) is always in {0, +1}
+    ; Rationale: Absolute value is non-negative
+
+    ; trit_min_idempotent
+    ; trit_min(a, a) == a for all a
+    ; Rationale: Minimum of identical values is that value
+
+    ; trit_max_idempotent
+    ; trit_max(a, a) == a for all a
+    ; Rationale: Maximum of identical values is that value
+
+    ; trit_min_max_antisymmetric
+    ; trit_min(a, b) == trit_max(b, a) for all a, b
+    ; Rationale: Min/max are related operations
+
+.bench
+    ; bench_trit_multiply_table_latency
+    ; Measure: cycles for table-based multiplication
+    ; Target: < 15 cycles on t27-hardware
+
+    ; bench_trit_add_with_carry_latency
+    ; Measure: cycles for full addition with carry
+    ; Target: < 25 cycles on t27-hardware
+
+    ; bench_trit_compare_latency
+    ; Measure: cycles for trit comparison
+    ; Target: < 15 cycles on t27-hardware
+
+    ; bench_trit_min_max_latency
+    ; Measure: cycles for trit_min or trit_max
+    ; Target: < 10 cycles on t27-hardware
+
 HALT

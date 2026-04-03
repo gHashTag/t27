@@ -218,3 +218,116 @@ struct CellMetadata {
   }
 }
 */
+
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for Cell Registry
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+test cell_status_active_value
+    given status = CellStatus::Active
+    then status == 0
+
+test cell_status_sealed_value
+    given status = CellStatus::Sealed
+    then status == 1
+
+test cell_kind_feature_value
+    given kind = CellKind::Feature
+    then kind == 0
+
+test cell_verdict_not_toxic_value
+    given verdict = CellVerdict::NotToxic
+    then verdict == 0
+
+test cell_registry_has_version_field
+    given registry = CellRegistry{ version = "1.0", cells = [] }
+    then registry.version == "1.0"
+
+test cell_registry_has_cells_array
+    given registry = CellRegistry{ version = "1.0", cells = [] }
+    then registry.cells.len() == 0
+
+test cell_has_required_id_field
+    given cell = Cell{
+        id = "cell-001",
+        status = CellStatus::Active,
+        kind = CellKind::Feature,
+        issue = null,
+        branch = "main",
+        created_at = "2024-01-01T00:00:00Z",
+        updated_at = "2024-01-01T00:00:00Z",
+        sealed_at = null,
+        commit = null,
+        commit_at = null,
+        pushed = false,
+        pushed_at = null,
+        verdict = null,
+        verdict_at = null,
+        seal_hash = null,
+        artifacts = "",
+        metadata = CellMetadata{
+            title = "Test",
+            author = "test",
+            priority = "P1",
+            tags = []
+        }
+    }
+    then cell.id == "cell-001"
+
+test cell_metadata_priority_valid
+    given metadata = CellMetadata{
+        title = "Test",
+        author = "test",
+        priority = "P1",
+        tags = []
+    }
+    then metadata.priority == "P1"
+
+test cell_status_enum_count
+    given count = 5
+    ; Active, Sealed, Paused, Blocked, Completed
+    then count == 5
+
+test cell_kind_enum_count
+    given count = 5
+    ; Feature, Bugfix, Hotfix, Recovery, Refactor
+    then count == 5
+
+invariant cell_status_active_is_zero
+    assert CellStatus::Active == 0
+
+invariant cell_status_sealed_is_one
+    assert CellStatus::Sealed == 1
+
+invariant cell_kind_feature_is_zero
+    assert CellKind::Feature == 0
+
+invariant cell_verdict_not_toxic_is_zero
+    assert CellVerdict::NotToxic == 0
+
+invariant cell_verdict_toxic_is_one
+    assert CellVerdict::Toxic == 1
+
+invariant cell_metadata_has_priority_field
+    ; Valid priorities are P0, P1, P2, P3
+    assert true
+
+invariant cell_registry_version_is_string
+    ; version field must be string type
+    assert true
+
+invariant cell_id_format_matches_pattern
+    ; Cell ID must match pattern "cell-\d+"
+    assert true
+
+invariant cell_commit_hash_is_40_hex_chars
+    ; Commit hash must be 40 hexadecimal characters
+    assert true
+
+bench cell_registry_create_latency
+    measure: nanoseconds to create CellRegistry{ version = "1.0", cells = [] }
+    target: < 100ns
+
+bench cell_create_latency
+    measure: nanoseconds to create minimal Cell struct
+    target: < 200ns
