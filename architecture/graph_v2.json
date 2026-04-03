@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "2.1",
   "invariant": "phi^2 + phi^-2 = 3",
   "description": "Trinity t27 Dependency Graph — machine-readable format for incremental builds, impact analysis, benchmark traceability",
 
@@ -241,6 +241,36 @@
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
+    },
+    {
+      "id": 17,
+      "name": "docs/NUMERIC-STANDARD-001",
+      "path": "t27/docs/NUMERIC-STANDARD-001.md",
+      "strand": "IV",
+      "tier": 0,
+      "kind": "standard",
+      "exports": ["GoldenFloatFamily", "GF4", "GF8", "GF12", "GF16", "GF20", "GF24", "GF32", "PHI_RATION"],
+      "bench_suite": ["gf_family"],
+      "status": "done",
+      "last_verdict": null,
+      "last_bench": null,
+      "failure_count": 0,
+      "agent": "S"
+    },
+    {
+      "id": 18,
+      "name": "docs/SACRED-PHYSICS-001",
+      "path": "t27/docs/SACRED-PHYSICS-001.md",
+      "strand": "IV",
+      "tier": 0,
+      "kind": "standard",
+      "exports": ["PHI", "PHI_INV", "TRINITY", "GAMMA_LQG", "G_SACRED", "OMEGA_LAMBDA", "C_THRESHOLD", "HOTFIX_SP-1"],
+      "bench_suite": ["sacred_physics"],
+      "status": "done",
+      "last_verdict": null,
+      "last_bench": null,
+      "failure_count": 0,
+      "agent": "P"
     }
   ],
 
@@ -382,19 +412,49 @@
       "to": 9,
       "kind": "codegen",
       "invariant": "verilog-target-for-mac"
+    },
+    {
+      "from": 17,
+      "to": 2,
+      "kind": "standardizes",
+      "invariant": "numeric-standard-defines-GF16"
+    },
+    {
+      "from": 17,
+      "to": 3,
+      "kind": "standardizes",
+      "invariant": "numeric-standard-defines-TF3"
+    },
+    {
+      "from": 4,
+      "to": 18,
+      "kind": "documented-by",
+      "invariant": "constants-standardized-in-doc"
+    },
+    {
+      "from": 16,
+      "to": 18,
+      "kind": "documented-by",
+      "invariant": "sacred-physics-standardized-in-doc"
+    },
+    {
+      "from": 18,
+      "to": 17,
+      "kind": "references",
+      "invariant": "sacred-physics-references-numeric-standard"
     }
   ],
 
   "actions": [
     {
       "trigger": "change:math/constants",
-      "downstream": ["math/sacred_physics", "nn/attention", "nn/hslm", "numeric/gf16"],
+      "downstream": ["math/sacred_physics", "nn/attention", "nn/hslm", "numeric/gf16", "docs/SACRED-PHYSICS-001"],
       "commands": ["tri gen", "tri test", "tri verdict --toxic", "tri bench"],
       "priority": "critical"
     },
     {
       "trigger": "change:math/sacred_physics",
-      "downstream": ["nn/attention", "nn/hslm"],
+      "downstream": ["nn/attention", "nn/hslm", "docs/SACRED-PHYSICS-001"],
       "commands": ["tri gen", "tri test", "tri verdict"],
       "priority": "high"
     },
@@ -406,9 +466,15 @@
     },
     {
       "trigger": "change:numeric/gf16",
-      "downstream": ["conformance/gf16_vectors", "docs/GF_FAMILY_BENCH.md"],
+      "downstream": ["conformance/gf16_vectors", "docs/NUMERIC-STANDARD-001", "docs/GF_FAMILY_BENCH.md"],
       "commands": ["tri gen", "tri bench"],
       "priority": "normal"
+    },
+    {
+      "trigger": "change:docs/NUMERIC-STANDARD-001",
+      "downstream": ["conformance/gf_family_bench.json", "specs/numeric/gf16.t27"],
+      "commands": ["tri test", "tri bench"],
+      "priority": "high"
     }
   ],
 
@@ -427,10 +493,22 @@
       "from": 16,
       "to": "conformance/sacred_physics_*.json",
       "metric": "conformance_score"
+    },
+    {
+      "from": 17,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "standard_bench"
+    },
+    {
+      "from": 18,
+      "to": "conformance/sacred_physics_*.json",
+      "metric": "standard_bench"
     }
   ],
 
   "topological_order": [
+    "docs/NUMERIC-STANDARD-001",
+    "docs/SACRED-PHYSICS-001",
     "base/types",
     "base/ops",
     "numeric/gf16",
@@ -452,6 +530,8 @@
 
   "contracts": {
     "topological_order": [
+      "docs/NUMERIC-STANDARD-001",
+      "docs/SACRED-PHYSICS-001",
       "base/types",
       "base/ops",
       "numeric/gf16",
@@ -476,8 +556,9 @@
 
   "metadata": {
     "created": "2026-04-04",
-    "schema_version": "2.0",
-    "phi_critical_nodes": [4, 7, 8, 16],
-    "bench_critical_nodes": [2, 16]
+    "schema_version": "2.1",
+    "phi_critical_nodes": [4, 7, 8, 16, 18],
+    "bench_critical_nodes": [2, 16, 17],
+    "standard_nodes": [17, 18]
   }
 }
