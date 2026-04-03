@@ -968,6 +968,13 @@ fn Parser.parse_bench_section() -> BenchSection {
 
 ; Main parsing entry point
 fn parse(source : string, source_file : string) -> CompilerContext {
+    ; Language Policy: No Cyrillic in source files (SOUL.md Law #1)
+    let policy_parser = Parser.new([], source_file);
+    if !policy_parser.validate_no_cyrillic(source, source_file) {
+        ; Return context with the error added
+        return policy_parser.context;
+    }
+
     ; Tokenize
     let tokens = tokenize(source, source_file);
 
@@ -996,6 +1003,67 @@ fn ast_node_from_label(token : Token) -> ASTNode {
         column: token.column,
         source_file: token.source_file
     };
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Language Policy: No Cyrillic in Source Files (SOUL.md Law #1)
+; ═════════════════════════════════════════════════════════════════════
+
+; Validate source file contains no Cyrillic characters
+fn Parser.validate_no_cyrillic(source : string, source_file : string) -> bool {
+    ; Check if file is in docs/ directory (Cyrillic allowed in docs)
+    if source_file.contains("/docs/") or source_file.starts_with("docs/") {
+        return true;
+    }
+
+    ; Scan for Cyrillic characters (U+0400–U+04FF)
+    for i in 0..source.len() {
+        let c = source.u8_at(i);
+
+        ; Check for Cyrillic range
+        ; U+0400 (1040) to U+04FF (1279)
+        if c >= 0xD0 and c <= 0xD0 {  ; May be start of 2-byte Cyrillic
+            if i + 1 < source.len() {
+                let next_c = source.u8_at(i + 1);
+                let codepoint = (c as u32) << 8 | (next_c as u32);
+                ; Cyrillic block: U+0400–U+04FF
+                if codepoint >= 0x0400 and codepoint <= 0x04FF {
+                    self.context.add_error(
+                        "Language policy violation: source file contains Cyrillic characters (U+0400-U+04FF). Source files (.t27, .tri, .zig, .c, .v) must be ASCII-only. See SOUL.md Law #1.",
+                        self.get_line_at_pos(source, i),
+                        self.get_column_at_pos(source, i)
+                    );
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+; Helper: get line number at position
+fn Parser.get_line_at_pos(source : string, pos : u32) -> u32 {
+    let line = 1;
+    for i in 0..pos {
+        if source.u8_at(i) == '\n' {
+            line = line + 1;
+        }
+    }
+    return line;
+}
+
+; Helper: get column number at position
+fn Parser.get_column_at_pos(source : string, pos : u32) -> u32 {
+    let column = 1;
+    let i = pos;
+
+    while i > 0 and source.u8_at(i - 1) != '\n' {
+        i = i - 1;
+        column = column + 1;
+    }
+
+    return column;
 }
 
 ; ═════════════════════════════════════════════════════════════════════
