@@ -227,9 +227,21 @@ module PhiRatio {
     // ═════════════════════════════════════════════════════════════════════════
 
     fn round(x: f64) -> f64 {
-        // Stub: round to nearest integer
-        // Actual implementation would use standard library
-        return x;  // TODO: implement
+        // Round to nearest integer (round half away from zero)
+        if (x < 0.0) {
+            let xi = x as i64;
+            let frac = x - (xi as f64);
+            if (frac <= -0.5) {
+                return (xi - 1) as f64;
+            }
+            return xi as f64;
+        }
+        let xi = x as i64;
+        let frac = x - (xi as f64);
+        if (frac >= 0.5) {
+            return (xi + 1) as f64;
+        }
+        return xi as f64;
     }
 
     fn abs(x: f64) -> f64 {
@@ -240,8 +252,121 @@ module PhiRatio {
     }
 
     fn pow(base: f64, exp: f64) -> f64 {
-        // Stub: power function
-        return 0.0;  // TODO: implement
+        // Power function with binary exponentiation for integer exponents
+        // and logarithm approximation for fractional exponents
+        if (base <= 0.0) {
+            if (exp == 0.0) {
+                return 1.0;  // 0^0 defined as 1 in this context
+            }
+            if (base == 0.0 && exp > 0.0) {
+                return 0.0;
+            }
+            if (base < 0.0 && exp == floor(exp)) {
+                // Negative base with integer exponent: handle via absolute value
+                let exp_int = exp as i64;
+                let result = pow(-base, exp);
+                if (exp_int % 2 == 0) {
+                    return result;
+                }
+                return -result;
+            }
+            return 0.0 / 0.0;  // NaN for negative base with non-integer exp
+        }
+
+        // Handle n = 0
+        if (exp == 0.0) {
+            return 1.0;
+        }
+
+        // Check if exponent is an integer
+        let is_integer = exp == floor(exp);
+
+        if is_integer {
+            // Integer exponent: use binary exponentiation
+            let exp_int = exp as i64;
+            let mut result = 1.0;
+            let mut base_acc = base;
+            let mut e = exp_int;
+
+            if e < 0 {
+                e = -e;
+                base_acc = 1.0 / base_acc;
+            }
+
+            while e > 0 {
+                if e % 2 == 1 {
+                    result = result * base_acc;
+                }
+                base_acc = base_acc * base_acc;
+                e = e / 2;
+            }
+
+            return result;
+        }
+
+        // Fractional exponent: x^y = exp(y * ln(x))
+        let ln_x = ln_approx(base);
+        let result = exp_approx(exp * ln_x);
+
+        return result;
+    }
+
+    // Natural logarithm approximation
+    fn ln_approx(x: f64) -> f64 {
+        if x <= 0.0 {
+            return 0.0 / 0.0;  // NaN for non-positive
+        }
+        if x == 1.0 {
+            return 0.0;
+        }
+
+        // Use series: ln(x) = 2 * ((x-1)/(x+1) + 1/3*((x-1)/(x+1))^3 + ...)
+        let t = (x - 1.0) / (x + 1.0);
+        let t2 = t * t;
+        let t3 = t2 * t;
+        let t5 = t3 * t2;
+        let t7 = t5 * t2;
+
+        return 2.0 * (t + t3 / 3.0 + t5 / 5.0 + t7 / 7.0);
+    }
+
+    // Exponential approximation
+    fn exp_approx(x: f64) -> f64 {
+        if x == 0.0 {
+            return 1.0;
+        }
+
+        // Use Taylor series: e^x = 1 + x + x^2/2! + x^3/3! + ...
+        let mut result = 1.0;
+        let mut term = 1.0;
+        let mut n = 1;
+
+        // For better range, use x/2^k approach
+        let mut exp_x = x;
+        if x > 10.0 {
+            let k = floor(x / 10.0) as i64;
+            exp_x = x - (k as f64) * 10.0;
+        } else if x < -10.0 {
+            let k = floor(-x / 10.0) as i64;
+            exp_x = x + (k as f64) * 10.0;
+        }
+
+        // Taylor series (10 terms)
+        for i in 1..=10 {
+            term = term * exp_x / (i as f64);
+            result = result + term;
+        }
+
+        return result;
+    }
+
+    // Floor function
+    fn floor(x: f64) -> f64 {
+        let xi = x as i64;
+        if x >= 0.0 || x == xi as f64 {
+            return xi as f64;
+        }
+        return (xi - 1) as f64;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -308,6 +433,151 @@ module PhiRatio {
         when has_threshold = connection.contains("C_THRESHOLD")
         and   has_phi_inverse = connection.contains("PHI_INV")
         then has_threshold == true and has_phi_inverse == true
+
+    test phi_ratio_round_positive
+        given result = round(3.7)
+        then result == 4.0
+
+    test phi_ratio_round_negative
+        given result = round(-3.7)
+        then result == -4.0
+
+    test phi_ratio_round_half_up
+        given result = round(3.5)
+        then result == 4.0
+
+    test phi_ratio_round_half_down
+        given result = round(-3.5)
+        then result == -4.0
+
+    test phi_ratio_round_integer
+        given result = round(5.0)
+        then result == 5.0
+
+    test phi_ratio_round_zero
+        given result = round(0.0)
+        then result == 0.0
+
+    test phi_ratio_pow_zero_exponent_returns_one
+        given result = pow(2.0, 0.0)
+        then abs(result - 1.0) < 1e-15
+
+    test phi_ratio_pow_one_exponent_returns_base
+        given result = pow(5.0, 1.0)
+        then abs(result - 5.0) < 1e-15
+
+    test phi_ratio_pow_positive_integer_exponent
+        given result = pow(2.0, 10.0)
+        and expected = 1024.0
+        then abs(result - expected) < 1e-10
+
+    test phi_ratio_pow_negative_integer_exponent
+        given result = pow(2.0, -3.0)
+        and expected = 0.125
+        then abs(result - expected) < 1e-10
+
+    test phi_ratio_pow_fractional_exponent
+        given result = pow(4.0, 0.5)
+        and expected = 2.0
+        then abs(result - expected) < 1e-6
+
+    test phi_ratio_pow_phi_squared
+        given result = pow(PHI, 2.0)
+        and expected = PHI * PHI
+        then abs(result - expected) < 1e-10
+
+    test phi_ratio_pow_zero_base_positive_exponent
+        given result = pow(0.0, 5.0)
+        then result == 0.0
+
+    test phi_ratio_pow_one_base_any_exponent
+        given result1 = pow(1.0, 10.0)
+        and result2 = pow(1.0, -5.0)
+        then abs(result1 - 1.0) < 1e-15 and abs(result2 - 1.0) < 1e-15
+
+    test phi_ratio_ln_approx_of_one
+        given result = ln_approx(1.0)
+        then abs(result) < 1e-15
+
+    test phi_ratio_ln_approx_of_e
+        given e = 2.718281828459045
+        and result = ln_approx(e)
+        then abs(result - 1.0) < 0.01
+
+    test phi_ratio_ln_approx_negative_returns_nan
+        given result = ln_approx(-1.0)
+        then result != result  // NaN check
+
+    test phi_ratio_exp_approx_zero
+        given result = exp_approx(0.0)
+        then abs(result - 1.0) < 1e-15
+
+    test phi_ratio_exp_approx_one
+        given e = 2.718281828459045
+        and result = exp_approx(1.0)
+        then abs(result - e) < 0.01
+
+    test phi_ratio_exp_approx_negative
+        given result = exp_approx(-1.0)
+        and expected = 1.0 / 2.718281828459045
+        then abs(result - expected) < 0.01
+
+    test phi_ratio_floor_positive
+        given result = floor(3.7)
+        then result == 3.0
+
+    test phi_ratio_floor_negative
+        given result = floor(-3.2)
+        then result == -4.0
+
+    test phi_ratio_floor_integer
+        given result = floor(5.0)
+        then result == 5.0
+
+    test phi_ratio_floor_zero
+        given result = floor(0.0)
+        then result == 0.0
+
+    invariant phi_round_returns_integer
+        assert round(x) == i64 for all f64 x
+
+    invariant phi_round_half_away_from_zero
+        assert round(2.5) == 3.0 and round(-2.5) == -3.0
+
+    invariant phi_round_symmetric
+        assert round(-x) == -round(x) for all x >= 0.0
+
+    invariant phi_pow_zero_exponent_identity
+        assert pow(x, 0.0) == 1.0 for all positive x
+
+    invariant phi_pow_one_exponent_identity
+        assert pow(x, 1.0) == x for all valid x
+
+    invariant phi_pow_multiply_exponents
+        given a = 2.0
+        and b = 3.0
+        assert abs(pow(pow(a, 2.0), b) - pow(a, 6.0)) < 1e-10
+
+    invariant phi_ln_exp_inversion
+        given x = 2.0
+        and y = ln_approx(x)
+        then abs(exp_approx(y) - x) < 0.01
+
+    invariant phi_exp_ln_inversion
+        given x = 1.5
+        and y = exp_approx(x)
+        then abs(ln_approx(y) - x) < 0.01
+
+    invariant phi_floor_returns_integer
+        assert floor(x) == i64 for all f64 x
+
+    invariant phi_floor_monotonic
+        given x1 = 2.5
+        and x2 = 3.5
+        assert floor(x1) <= floor(x2)
+
+    invariant phi_floor_zero_or_less
+        assert floor(x) <= x for all f64 x
 
     invariant phi_split_sum_equals_available_bits
         assert forall bits: u8, phi_split(bits).exp_bits + phi_split(bits).mant_bits == bits - 1
