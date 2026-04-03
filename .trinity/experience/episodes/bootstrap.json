@@ -1,0 +1,20 @@
+{
+  "episode_id": "bootstrap-agents",
+  "timestamp": "2026-04-04T03:10:00Z",
+  "type": "bootstrap",
+  "agent": "T",
+  "phase": "Evolve",
+  "description": "Bootstrap .trinity/ agent infrastructure",
+  "steps": [
+    {"step": 1, "action": "PLAN", "status": "complete"},
+    {"step": 2, "action": "SPECIFY", "status": "complete"},
+    {"step": 3, "action": "COPY", "status": "complete"},
+    {"step": 4, "action": "CREATE_SEED", "status": "complete"},
+    {"step": 5, "action": "TEST", "status": "pending"},
+    {"step": 6, "action": "SEAL", "status": "pending"},
+    {"step": 7, "action": "COMMIT", "status": "pending"},
+    {"step": 8, "action": "PUSH", "status": "pending"}
+  ],
+  "learnings": [],
+  "mistakes": []
+}
