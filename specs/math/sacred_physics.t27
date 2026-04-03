@@ -33,6 +33,46 @@ module SacredPhysics {
     }
 
     // ─────────────────────────────────────────────────────
+    // 1.5 φ power helper functions
+    // ─────────────────────────────────────────────────────
+
+    // phi_pow(n: i64) -> f64
+    // Efficient computation of φ^n using recurrence φ^2 = φ + 1
+    // Handles positive, zero, and negative exponents
+    fn phi_pow(n: i64) -> f64 {
+        if n == 0 {
+            return 1.0;
+        }
+        if n > 0 {
+            // Use binary exponentiation for efficiency
+            let result = 1.0;
+            let base = PHI;
+            let exp = n;
+            while exp > 0 {
+                if exp % 2 == 1 {
+                    result = result * base;
+                }
+                base = base * base;
+                exp = exp / 2;
+            }
+            return result;
+        }
+        // n < 0: use inverse
+        let abs_n = -n;
+        let result = 1.0;
+        let base = PHI_INV;
+        let exp = abs_n;
+        while exp > 0 {
+            if exp % 2 == 1 {
+                result = result * base;
+            }
+            base = base * base;
+            exp = exp / 2;
+        }
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────
     // 2. Gravity & dark energy from TRINITY
     // ─────────────────────────────────────────────────────
 
@@ -251,6 +291,41 @@ module SacredPhysics {
         given result = verify_trinity(1.0)
         then result.target == 3.0
 
+    test phi_pow_zero_equals_one
+        given result = phi_pow(0)
+        then abs(result - 1.0) < 1e-15
+
+    test phi_pow_one_equals_phi
+        given result = phi_pow(1)
+        then abs(result - PHI) < 1e-15
+
+    test phi_pow_negative_one_equals_phi_inverse
+        given result = phi_pow(-1)
+        then abs(result - PHI_INV) < 1e-15
+
+    test phi_pow_two_equals_phi_plus_one
+        given result = phi_pow(2)
+        and expected = PHI + 1.0
+        then abs(result - expected) < 1e-15
+
+    test phi_pow_three_matches_multiplication
+        given result = phi_pow(3)
+        and expected = PHI * PHI * PHI
+        then abs(result - expected) < 1e-15
+
+    test phi_pow_negative_two_matches_inverse_square
+        given result = phi_pow(-2)
+        and expected = PHI_INV * PHI_INV
+        then abs(result - expected) < 1e-15
+
+    test phi_pow_positive_returns_greater_than_one
+        given result = phi_pow(5)
+        then result > 1.0
+
+    test phi_pow_negative_returns_less_than_one
+        given result = phi_pow(-5)
+        then result > 0.0 and result < 1.0
+
     invariant phi_greater_than_one
         assert PHI > 1.6 and PHI < 1.7
 
@@ -262,6 +337,18 @@ module SacredPhysics {
 
     invariant phi_times_inverse_equals_one
         assert abs(PHI * PHI_INV - 1.0) < 1e-15
+
+    invariant phi_pow_zero_equals_one
+        assert abs(phi_pow(0) - 1.0) < 1e-15
+
+    invariant phi_pow_one_equals_phi
+        assert abs(phi_pow(1) - PHI) < 1e-15
+
+    invariant phi_pow_inverse_reciprocal
+        assert abs(phi_pow(n) * phi_pow(-n) - 1.0) < 1e-12 for n in {1, 2, 3, 4, 5}
+
+    invariant phi_pow_additive_exponents
+        assert abs(phi_pow(a + b) - phi_pow(a) * phi_pow(b)) < 1e-12 for a, b in {1, 2, 3}
 
     invariant gamma_lqg_less_than_one
         assert GAMMA_LQG > 0.2 and GAMMA_LQG < 0.3
@@ -299,4 +386,8 @@ module SacredPhysics {
     bench sacred_dark_energy_computation_time
         measure: nanoseconds to compute sacred_dark_energy(PI)
         target: < 500ns
+
+    bench phi_pow_computation_time
+        measure: nanoseconds to compute phi_pow(10)
+        target: < 200ns
 }
