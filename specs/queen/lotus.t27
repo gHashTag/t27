@@ -1,0 +1,630 @@
+; queen/lotus.t27 — Queen Lotus 6-Phase Orchestration Specification
+; Self-improving agent orchestration with episode-based learning
+; φ² + 1/φ² = 3 | TRINITY
+
+.use base::types
+.use nn::hslm
+.use compiler::runtime
+
+; Lotus configuration
+.const NUM_PHASES 6           ; 6 phases in Lotus cycle
+.const EPISODE_BUFFER_SIZE 100 ; Max episodes in buffer
+.const POLICY_WINDOW_SIZE 10   ; Window for policy evaluation
+
+; Phase definitions
+.data
+    .const PHASE_OBSERVE 0      ; Observe current state
+    .const PHASE_RECALL 1       ; Recall relevant episodes
+    .const PHASE_EVALUATE 2     ; Evaluate situation quality
+    .const PHASE_PLAN 3         ; Plan next actions
+    .const PHASE_ACT 4          ; Execute actions
+    .const PHASE_RECORD 5       ; Record episode outcome
+
+    ; Outcome types
+    .const OUTCOME_UNKNOWN 0    ; Unknown/insufficient data
+    .const OUTCOME_SUCCESS 1    ; Success
+    .const OUTCOME_PARTIAL 2    ; Partial success
+    .const OUTCOME_FAILURE 3    ; Failure (expected)
+    .const OUTCOME_FATAL 4      ; Fatal/unexpected failure
+
+    ; Quality levels
+    .const QUALITY_UNKNOWN 0    ; Unknown quality
+    .const QUALITY_GOOD 1      ; Good quality
+    .const QUALITY_UNSTABLE 2  ; Unstable quality
+    .const QUALITY_BAD 3       ; Bad quality
+
+    ; Policy delta types
+    .const DELTA_SCALE_UP 0     ; Scale up resources
+    .const DELTA_SCALE_DOWN 1   ; Scale down resources
+    .const DELTA_SET 2          ; Set parameter
+    .const DELTA_WAIT 3         ; Wait/observe
+
+    ; Lotus state
+    current_phase: .byte 0
+    current_episode: .dword 0
+    episode_buffer: .byte 0:10000  ; 100 episodes × 100 bytes each
+    policy_state: .byte 0:256        ; Current policy
+    eval_window: .byte 0:10          ; Last 10 episode indices
+
+.code
+    ; ═════════════════════════════════════════════════════════════════════
+    ; lotus_orchestrate() → CycleResult
+    ; Run complete 6-phase Lotus cycle
+    ; Returns: context, evaluation, plan, result, outcome
+    ; ═════════════════════════════════════════════════════════════════════
+lotus_orchestrate:
+    PUSH r0
+    PUSH r1
+    PUSH r2
+
+    ; Phase 1: Observe
+    MOV r0, PHASE_OBSERVE
+    CALL lotus_phase
+    ; Store context
+
+    ; Phase 2: Recall
+    MOV r0, PHASE_RECALL
+    CALL lotus_phase
+
+    ; Phase 3: Evaluate
+    MOV r0, PHASE_EVALUATE
+    CALL lotus_phase
+    ; Store evaluation
+
+    ; Phase 4: Plan
+    MOV r0, PHASE_PLAN
+    CALL lotus_phase
+    ; Store plan
+
+    ; Phase 5: Act
+    MOV r0, PHASE_ACT
+    CALL lotus_phase
+    ; Store result
+
+    ; Phase 6: Record
+    MOV r0, PHASE_RECORD
+    CALL lotus_phase
+    ; Store outcome
+
+    ; Prepare result
+    CALL lotus_prepare_result
+
+    POP r2
+    POP r1
+    POP r0
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; lotus_phase(phase: u8) → PhaseResult
+    ; Execute a single phase of the Lotus cycle
+    ; ═════════════════════════════════════════════════════════════════════
+lotus_phase:
+    ; Input: r0 = phase
+
+    ; Update current phase
+    STORE r0, [current_phase]
+
+    CMP r0, PHASE_OBSERVE
+    JEQ phase_observe
+    CMP r0, PHASE_RECALL
+    JEQ phase_recall
+    CMP r0, PHASE_EVALUATE
+    JEQ phase_evaluate
+    CMP r0, PHASE_PLAN
+    JEQ phase_plan
+    CMP r0, PHASE_ACT
+    JEQ phase_act
+    CMP r0, PHASE_RECORD
+    JEQ phase_record
+
+    ; Unknown phase
+    RET
+
+phase_observe:
+    ; Observe current state: active issues, system metrics, context
+    CALL observe_state
+    RET
+
+phase_recall:
+    ; Recall relevant episodes from memory
+    CALL recall_episodes
+    RET
+
+phase_evaluate:
+    ; Evaluate situation quality based on context and recalled episodes
+    CALL evaluate_quality
+    RET
+
+phase_plan:
+    ; Generate plan based on evaluation
+    CALL generate_plan
+    RET
+
+phase_act:
+    ; Execute the planned action
+    CALL execute_action
+    RET
+
+phase_record:
+    ; Record episode outcome to buffer
+    CALL record_episode
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; observe_state() → Context
+    ; Gather current state information
+    ; ═════════════════════════════════════════════════════════════════════
+observe_state:
+    ; Collect: active issues, system metrics, policy state
+    MOV r1, #0           ; r1 = context buffer index
+
+    ; Get active issues count
+    CALL get_active_issues_count
+    STORE r0, [context_buffer + r1]
+    ADD r1, r1, ONE
+
+    ; Get system health score
+    CALL get_system_health
+    STORE r0, [context_buffer + r1]
+    ADD r1, r1, ONE
+
+    ; Get current timestamp
+    CALL get_timestamp
+    STORE r0, [context_buffer + r1]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; recall_episodes() → []Episode
+    ; Recall relevant episodes from episode buffer
+    ; Uses HSLM for semantic similarity search
+    ; ═════════════════════════════════════════════════════════════════════
+recall_episodes:
+    ; Use HSLM to find similar episodes
+    ; For now: return recent episodes
+
+    MOV r0, #0           ; r0 = recall count
+    MOV r1, EPISODE_BUFFER_SIZE
+    SUB r1, r1, POLICY_WINDOW_SIZE
+
+    ; Return last POLICY_WINDOW_SIZE episodes
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; evaluate_quality(episodes: []Episode) → Evaluation
+    ; Evaluate quality based on episode outcomes
+    ; ═════════════════════════════════════════════════════════════════════
+evaluate_quality:
+    ; Count success, partial, failure outcomes
+    MOV r10, #0          ; r10 = success count
+    MOV r11, #0          ; r11 = partial count
+    MOV r12, #0          ; r12 = failure count
+
+eval_loop:
+    ; For each episode in window
+    CMP r0, #0
+    JLE eval_done
+
+    ; Get episode outcome
+    LOAD r13, [episode_ptr + outcome_offset]
+
+    CMP r13, OUTCOME_SUCCESS
+    JEQ eval_success
+    CMP r13, OUTCOME_PARTIAL
+    JEQ eval_partial
+    CMP r13, OUTCOME_FAILURE
+    JEQ eval_failure
+
+    JMP eval_next
+
+eval_success:
+    ADD r10, r10, ONE
+    JMP eval_next
+
+eval_partial:
+    ADD r11, r11, ONE
+    JMP eval_next
+
+eval_failure:
+    ADD r12, r12, ONE
+
+eval_next:
+    ADD r0, r0, ONE
+    JMP eval_loop
+
+eval_done:
+    ; Determine quality based on counts
+    ; If success > 70%: good
+    ; If failure > 50%: bad
+    ; Otherwise: unstable
+    MOV r0, r10
+    MOV r1, r11
+    ADD r0, r0, r1       ; total non-fatal
+    ADD r0, r0, r12       ; total
+
+    CMP r0, #0
+    JEQ eval_unknown
+
+    ; Calculate success ratio
+    MOV f0, r10
+    MOV f1, r0
+    DIV f0, f0, f1       ; success_ratio
+
+    MOV f2, #0.7
+    CMP f0, f2
+    JGE eval_quality_good
+
+    MOV f2, #0.5
+    MOV f3, r12
+    MOV f4, r0
+    DIV f3, f3, f4       ; failure_ratio
+    CMP f3, f2
+    JGE eval_quality_bad
+
+    ; Unstable
+    MOV r0, QUALITY_UNSTABLE
+    RET
+
+eval_quality_good:
+    MOV r0, QUALITY_GOOD
+    RET
+
+eval_quality_bad:
+    MOV r0, QUALITY_BAD
+    RET
+
+eval_unknown:
+    MOV r0, QUALITY_UNKNOWN
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; generate_plan(evaluation: Evaluation) → Plan
+    ; Generate action plan based on quality evaluation
+    ; ═════════════════════════════════════════════════════════════════════
+generate_plan:
+    ; Input: r0 = quality
+
+    CMP r0, QUALITY_GOOD
+    JEQ plan_scale_up
+    CMP r0, QUALITY_BAD
+    JEQ plan_scale_down
+    CMP r0, QUALITY_UNSTABLE
+    JEQ plan_wait
+
+    ; Unknown: wait
+    MOV r0, DELTA_WAIT
+    JMP plan_done
+
+plan_scale_up:
+    ; Scale up: increase resources/agents
+    MOV r0, DELTA_SCALE_UP
+    JMP plan_done
+
+plan_scale_down:
+    ; Scale down: decrease resources
+    MOV r0, DELTA_SCALE_DOWN
+    JMP plan_done
+
+plan_wait:
+    ; Wait: observe more
+    MOV r0, DELTA_WAIT
+
+plan_done:
+    ; Store plan action
+    STORE r0, [plan_buffer]
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; execute_action(plan: Plan) → Result
+    ; Execute the planned action
+    ; ═════════════════════════════════════════════════════════════════════
+execute_action:
+    ; Input: r0 = plan action
+
+    CMP r0, DELTA_SCALE_UP
+    JEQ exec_scale_up
+    CMP r0, DELTA_SCALE_DOWN
+    JEQ exec_scale_down
+    CMP r0, DELTA_SET
+    JEQ exec_set
+    CMP r0, DELTA_WAIT
+    JEQ exec_wait
+
+    ; Unknown action
+    MOV r0, #0
+    RET
+
+exec_scale_up:
+    ; Scale up: spawn more agents, increase capacity
+    CALL scale_up_resources
+    MOV r0, #1           ; success
+    RET
+
+exec_scale_down:
+    ; Scale down: reduce agents, decrease capacity
+    CALL scale_down_resources
+    MOV r0, #1           ; success
+    RET
+
+exec_set:
+    ; Set parameter
+    CALL set_parameter
+    MOV r0, #1           ; success
+    RET
+
+exec_wait:
+    ; Wait: do nothing, observe
+    MOV r0, #1           ; success
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; record_episode() → void
+    ; Record episode to buffer
+    ; ═════════════════════════════════════════════════════════════════════
+record_episode:
+    ; Allocate episode slot
+    LOAD r0, [current_episode]
+    MOV r1, EPISODE_BUFFER_SIZE
+    MOD r0, r0, r1       ; r0 = slot index
+
+    ; Store episode data
+    MOV r1, r0
+    MUL r1, r1, #100      ; r1 = byte offset
+
+    ; Store context
+    CALL copy_context_to_episode
+
+    ; Store evaluation
+    CALL copy_eval_to_episode
+
+    ; Store plan
+    CALL copy_plan_to_episode
+
+    ; Store result
+    CALL copy_result_to_episode
+
+    ; Increment episode counter
+    LOAD r0, [current_episode]
+    ADD r0, r0, ONE
+    STORE r0, [current_episode]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; lotus_spawn(agent_type: u8, count: u8) → void
+    ; Spawn new agents for orchestration
+    ; ═════════════════════════════════════════════════════════════════════
+lotus_spawn:
+    ; Input: r0 = agent_type, r1 = count
+
+    ; For each agent to spawn
+    MOV r2, #0
+
+spawn_loop:
+    CMP r2, r1
+    JGE spawn_done
+
+    ; Spawn agent of given type
+    CALL spawn_agent
+
+    ADD r2, r2, ONE
+    JMP spawn_loop
+
+spawn_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; lotus_phase_management() → void
+    ; Manage phase transitions and timeouts
+    ; ═════════════════════════════════════════════════════════════════════
+lotus_phase_management:
+    ; Check for phase timeout
+    CALL check_phase_timeout
+
+    ; If timeout, force transition
+    CMP r0, #0
+    JEQ phase_mgmt_normal
+
+    CALL force_phase_transition
+
+phase_mgmt_normal:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; lotus_prepare_result() → CycleResult
+    ; Prepare cycle result for return
+    ; ═════════════════════════════════════════════════════════════════════
+lotus_prepare_result:
+    ; Assemble result from phase outputs
+    MOV r0, #0           ; r0 = result pointer
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; scale_up_resources() → void
+    ; Increase system resources
+    ; ═════════════════════════════════════════════════════════════════════
+scale_up_resources:
+    ; Increase agent count, memory allocation, etc.
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; scale_down_resources() → void
+    ; Decrease system resources
+    ; ═════════════════════════════════════════════════════════════════════
+scale_down_resources:
+    ; Decrease agent count, free memory, etc.
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; set_parameter() → void
+    ; Set a policy parameter
+    ; ═════════════════════════════════════════════════════════════════════
+set_parameter:
+    ; Set parameter from plan
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; spawn_agent() → void
+    ; Spawn a single agent
+    ; ═════════════════════════════════════════════════════════════════════
+spawn_agent:
+    ; Spawn agent of type specified
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; check_phase_timeout() → bool
+    ; Check if current phase has timed out
+    ; ═════════════════════════════════════════════════════════════════════
+check_phase_timeout:
+    ; Compare current time with phase start time
+    MOV r0, #0           ; r0 = false (no timeout)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; force_phase_transition() → void
+    ; Force transition to next phase
+    ; ═════════════════════════════════════════════════════════════════════
+force_phase_transition:
+    ; Move to next phase
+    LOAD r0, [current_phase]
+    ADD r0, r0, ONE
+    CMP r0, NUM_PHASES
+    JLT store_next_phase
+    MOV r0, #0           ; Wrap around
+
+store_next_phase:
+    STORE r0, [current_phase]
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; get_active_issues_count() → usize
+    ; Get number of active issues
+    ; ═════════════════════════════════════════════════════════════════════
+get_active_issues_count:
+    ; Query issue tracker
+    MOV r0, #0           ; r0 = count (placeholder)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; get_system_health() → f64
+    ; Get system health score (0.0 to 1.0)
+    ; ═════════════════════════════════════════════════════════════════════
+get_system_health:
+    MOV f0, #1.0         ; f0 = health score (placeholder)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; get_timestamp() → u64
+    ; Get current timestamp
+    ; ═════════════════════════════════════════════════════════════════════
+get_timestamp:
+    ; Return current time
+    MOV r0, #0           ; r0 = timestamp (placeholder)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; copy_context_to_episode() → void
+    ; Copy context data to episode buffer
+    ; ═════════════════════════════════════════════════════════════════════
+copy_context_to_episode:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; copy_eval_to_episode() → void
+    ; Copy evaluation to episode buffer
+    ; ═════════════════════════════════════════════════════════════════════
+copy_eval_to_episode:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; copy_plan_to_episode() → void
+    ; Copy plan to episode buffer
+    ; ═══════════════════════════════════════════════════════════════════
+copy_plan_to_episode:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; copy_result_to_episode() → void
+    ; Copy result to episode buffer
+    ; ═══════════════════════════════════════════════════════════════════
+copy_result_to_episode:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; TDD-Inside-Spec: Invariants and Tests
+    ; ═════════════════════════════════════════════════════════════════════
+.test
+    ; test_six_phases_complete
+    ; Verify: orchestrator cycles through all 6 phases in order
+    ; Setup: run full orchestration cycle, track phase transitions
+    ; Expected: phases visited in order [Observe, Recall, Evaluate, Plan, Act, Record]
+
+    ; test_phase_transition_order
+    ; Verify: phases transition in correct order, no skips
+    ; Setup: instrument lotus_phase to record transitions
+    ; Expected: phase[i+1] = next(phase[i]) for all i
+
+    ; test_episode_recording
+    ; Verify: episode contains all phase data
+    ; Setup: run full cycle, check episode buffer
+    ; Expected: episode has context, eval, plan, action, result
+
+    ; test_quality_evaluation_bounds
+    ; Verify: quality score is in [0.0, 1.0]
+    ; Setup: run evaluate_quality with various outcomes
+    ; Expected: 0.0 <= quality <= 1.0 for all evaluations
+
+    ; test_spawn_agent_initialization
+    ; Verify: spawned agents have valid initial state
+    ; Setup: spawn agent with lotus_spawn
+    ; Expected: agent has non-null context, valid phase state
+
+    ; test_timeout_handling
+    ; Verify: phases respect timeout limits
+    ; Setup: set phase timeout to minimum, trigger timeout
+    ; Expected: forced phase transition occurs
+
+    ; test_system_health_computation
+    ; Verify: system health score is reasonable
+    ; Setup: call get_system_health
+    ; Expected: 0.0 <= health <= 1.0
+
+.invariant
+    ; six_phases_complete
+    ; NUM_PHASES == 6 and all phases are visited each cycle
+    ; Rationale: Lotus orchestration requires all 6 phases
+
+    ; phase_transition_deterministic
+    ; next(phase) is deterministic (no random skips)
+    ; Rationale: Orchestration must be predictable and debuggable
+
+    ; episode_completeness
+    ; Every completed episode has all 6 phase records
+    ; Rationale: Episodes must be complete for learning
+
+    ; quality_bounds
+    ; For all evaluations: 0.0 <= quality <= 1.0
+    ; Rationale: Quality score is a probability/confidence measure
+
+    ; agent_lifecycle_valid
+    ; Agents transition: SPAWNED → ACTIVE → TERMINATED
+    ; Rationale: Agent lifecycle must be well-defined
+
+    ; timestamp_monotonic
+    ; get_timestamp() returns monotonically increasing values
+    ; Rationale: Episodes must be ordered chronologically
+
+.bench
+    ; bench_orchestration_cycle_time
+    ; Measure: ms for full 6-phase cycle
+    ; Target: < 100ms for typical orchestration
+
+    ; bench_phase_duration_distribution
+    ; Measure: time spent in each phase
+    ; Target: no phase exceeds 50ms of cycle time
+
+    ; test_episode_memory_overhead
+    ; Measure: bytes per episode
+    ; Target: < 10KB per episode (efficient memory usage)
+
+HALT

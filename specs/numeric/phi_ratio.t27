@@ -243,4 +243,105 @@ module PhiRatio {
         // Stub: power function
         return 0.0;  // TODO: implement
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for φ-Ratio
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test phi_split_for_gf4_perfect_match
+        given bits = 4
+        when result = phi_split(bits)
+        then result.exp_bits == 1 and result.mant_bits == 2 and result.phi_dist < 0.01
+
+    test phi_split_for_gf16_primary_format
+        given bits = 16
+        when result = phi_split(bits)
+        then result.exp_bits == 4 and result.mant_bits == 11 and result.phi_dist < 0.05
+
+    test phi_split_for_gf32_near_optimal
+        given bits = 32
+        when result = phi_split(bits)
+        then result.exp_bits == 8 and result.mant_bits == 23 and result.phi_dist < 0.02
+
+    test phi_split_sum_constraint
+        given bits = 16
+        when result = phi_split(bits)
+        then result.exp_bits + result.mant_bits == bits - 1
+
+    test phi_ratio_target_equals_phi_inverse
+        given target = PHI_RATIO_TARGET
+        when inverse = sacred_physics::PHI_INV
+        then abs(target - inverse) < 1e-15
+
+    test phi_split_ratio_approximates_phi_inverse
+        given bits = 16
+        when result = phi_split(bits)
+        and   ratio = result.exp_bits as f64 / result.mant_bits as f64
+        then abs(ratio - PHI_RATIO_TARGET) < 0.05
+
+    test phi_optimality_proof_derivative
+        given proof = phi_optimality_proof()
+        when contains_optimal = proof.contains("exp/mant = 1/φ")
+        then contains_optimal == true
+
+    test compute_phi_distance_for_gf16
+        given exp = 6
+        and   mant = 9
+        when distance = compute_phi_distance(exp, mant)
+        then distance > 0.1  ; GF16 intentionally deviates for ML range
+
+    test is_phi_optimal_tolerance_check
+        given exp = 4
+        and   mant = 11
+        and   tolerance = 0.05
+        when optimal = is_phi_optimal(exp, mant, tolerance)
+        then optimal == true
+
+    test verify_phi_split_all_formats_compared
+        given comparisons = verify_phi_split()
+        when gf4_matches = comparisons[0].matches_phi_split
+        and   gf16_primary = comparisons[3].tradeoff_note.contains("PRIMARY")
+        then gf4_matches == true and gf16_primary == true
+
+    test sacred_connection_phi_ratio_equals_threshold
+        given connection = sacred_connection()
+        when has_threshold = connection.contains("C_THRESHOLD")
+        and   has_phi_inverse = connection.contains("PHI_INV")
+        then has_threshold == true and has_phi_inverse == true
+
+    invariant phi_split_sum_equals_available_bits
+        assert forall bits: u8, phi_split(bits).exp_bits + phi_split(bits).mant_bits == bits - 1
+
+    invariant phi_ratio_target_is_phi_inverse
+        assert PHI_RATIO_TARGET == sacred_physics::PHI_INV
+
+    invariant phi_distance_non_negative
+        assert forall exp, mant: u8, compute_phi_distance(exp, mant) >= 0.0
+
+    invariant phi_optimal_proof_valid
+        assert phi_optimality_proof().contains("1/φ")
+
+    invariant gf4_format_is_phi_optimal
+        assert phi_split(4).phi_dist < 0.01
+
+    invariant exp_bits_less_than_total
+        assert forall bits: u8, phi_split(bits).exp_bits < bits
+
+    invariant mant_bits_less_than_total
+        assert forall bits: u8, phi_split(bits).mant_bits < bits
+
+    invariant phi_distance_bound_by_zero
+        assert compute_phi_distance(0, 1) == abs(0.0 - PHI_RATIO_TARGET)
+
+    bench phi_split_computation_time
+        measure: nanoseconds to compute phi_split(32)
+        target: < 100ns
+
+    bench verify_phi_split_computation_time
+        measure: nanoseconds to verify all 7 formats
+        target: < 500ns
+
+    bench compute_phi_distance_throughput
+        measure: phi_distance computations per second
+        target: > 1M computations/sec
 }

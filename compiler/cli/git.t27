@@ -1,0 +1,362 @@
+; git.t27 — Git Integration with Tri Cell Workflow (ADR-002)
+; Commands for git operations with cell validation and issue binding
+
+; tri git commit [--all] [-m "msg"] [--mode strict|normal|local]
+fn git_commit(all : bool, message : string, mode : string) -> i32 {
+    let registry_path = ".trinity/cells/registry.json";
+
+    ; Check if registry exists
+    if !file_exists(registry_path) {
+        error("ERROR: no active or sealed cell; NO-COMMIT-WITHOUT-ISSUE violated");
+        error("Run 'tri cell begin --issue N' first to create a cell");
+        return 1;
+    }
+
+    ; Read registry
+    let registry_content = read_file(registry_path);
+    if registry_content == null {
+        error("ERROR: failed to read cell registry");
+        return 1;
+    }
+
+    ; Parse registry and find active or last sealed cell
+    let cell = find_active_or_sealed_cell(registry_content);
+
+    if cell == null {
+        error("ERROR: no active or sealed cell; NO-COMMIT-WITHOUT-ISSUE violated");
+        error("Run 'tri cell begin --issue N' first to create a cell");
+        return 1;
+    }
+
+    ; Check issue-binding
+    if !cell.has("issue") {
+        error("ERROR: cell has no bound issue");
+        error("Run 'tri cell begin --issue N' first to bind an issue");
+        return 1;
+    }
+
+    let issue_id = cell.get("issue");
+
+    ; Check verdict for sealed cells
+    if cell.get("status") == "sealed" and cell.has("verdict") {
+        let verdict = cell.get("verdict");
+        if verdict == "TOXIC" {
+            error("ERROR: cannot commit toxic cell; fix or supersede");
+            error("Run 'tri experience save' to address toxic verdict");
+            return 1;
+        }
+    }
+
+    ; Build commit message
+    let commit_msg = message;
+    let cell_id = cell.get("id");
+
+    if commit_msg == "" {
+        ; Generate auto-summary from git status
+        let status = git_status();
+        commit_msg = "cell:" + cell_id + " issue:" + issue_id + " " + summarize_status(status);
+    } else {
+        ; Check if message has issue: prefix
+        if !commit_msg.contains("issue:" + issue_id) {
+            commit_msg = commit_msg + " issue:" + issue_id;
+        }
+    }
+
+    ; In strict mode, add metadata
+    if mode == "strict" and cell.get("status") == "sealed" {
+        let seal_hash = cell.get("seal_hash");
+        if seal_hash != "" {
+            commit_msg = commit_msg + " seal:" + seal_hash;
+        }
+    }
+
+    ; Stage files
+    if all {
+        let add_result = git_add_all();
+        if add_result != 0 {
+            return add_result;
+        }
+    }
+
+    ; Create commit
+    let commit_result = git_commit_message(commit_msg);
+    if commit_result != 0 {
+        ; Check if it was a git error vs policy error
+        if commit_result == 2 {
+            error("Git error: commit failed");
+        }
+        return commit_result;
+    }
+
+    ; Get commit hash
+    let commit_hash = git_get_head_hash();
+
+    ; Update registry with commit hash
+    let updated_registry = update_registry_commit(registry_content, cell_id, commit_hash);
+    write_file(registry_path, updated_registry);
+
+    print("Committed: " + commit_hash.substring(0, 7));
+    print("  Cell: " + cell_id);
+    print("  Issue: " + issue_id);
+
+    if mode == "strict" and cell.get("status") == "sealed" {
+        print("  Seal: " + cell.get("seal_hash"));
+        print("");
+        print("NOTE: In strict mode, you must run 'tri git push' after committing");
+    }
+
+    return 0;
+}
+
+; tri git push [<remote> <branch>] [--mode strict|normal|local]
+fn git_push(remote : string, branch : string, mode : string) -> i32 {
+    let registry_path = ".trinity/cells/registry.json";
+
+    ; Check if registry exists
+    if !file_exists(registry_path) {
+        error("ERROR: cannot push; cell not sealed (tri cell seal required)");
+        return 1;
+    }
+
+    ; Read registry
+    let registry_content = read_file(registry_path);
+    if registry_content == null {
+        error("ERROR: failed to read cell registry");
+        return 1;
+    }
+
+    ; Find last sealed cell
+    let cell = find_last_sealed_cell(registry_content);
+
+    if cell == null {
+        error("ERROR: cannot push; cell not sealed (tri cell seal required)");
+        error("Run 'tri cell seal' to seal the current cell");
+        return 1;
+    }
+
+    ; Check verdict
+    if cell.has("verdict") {
+        let verdict = cell.get("verdict");
+        if verdict == "TOXIC" {
+            error("ERROR: cannot push toxic cell");
+            return 1;
+        }
+    }
+
+    ; Check artifacts by Policy Matrix
+    let kind = cell.get("kind");
+    let artifacts = if cell.has("artifacts") { cell.get("artifacts") } else { "" };
+
+    if kind == "recovery" {
+        ; Require minimum 3 checkpoints + spec and docs
+        let checkpoints = count_checkpoints(artifacts);
+        let has_spec = artifacts.contains("spec");
+        let has_docs = artifacts.contains("docs");
+
+        if checkpoints < 3 or !has_spec or !has_docs {
+            error("ERROR: policy gate failed for cell kind " + kind);
+            error("Recovery cells require:");
+            error("  - At least 3 checkpoints");
+            error("  - Spec changes");
+            error("  - Docs changes");
+            return 1;
+        }
+    } else if kind == "hotfix" {
+        ; Require >=1 checkpoint and only fix-only areas
+        let checkpoints = count_checkpoints(artifacts);
+        if checkpoints < 1 {
+            error("ERROR: policy gate failed for cell kind " + kind);
+            error("Hotfix cells require at least 1 checkpoint");
+            return 1;
+        }
+    }
+
+    ; Check remote in strict mode
+    if mode == "strict" {
+        let default_remote = if remote == "" { "origin" } else { remote };
+        let remote_url = git_get_remote_url(default_remote);
+
+        if !remote_url.contains("github.com/gHashTag/t27") {
+            error("ERROR: forbidden remote; expected github.com/gHashTag/t27");
+            error("Current remote: " + remote_url);
+            return 1;
+        }
+    }
+
+    ; Determine target
+    let push_remote = if remote == "" { "origin" } else { remote };
+    let push_branch = if branch == "" { git_get_current_branch() } else { branch };
+
+    ; Execute push
+    let push_result = git_push_remote(push_remote, push_branch);
+
+    if push_result != 0 {
+        if push_result == 1 {
+            error("Push failed: gate violations");
+        } else if push_result == 2 {
+            error("Push failed: git error (reject, network, etc.)");
+        }
+        return push_result;
+    }
+
+    ; Update registry with push status
+    let cell_id = cell.get("id");
+    let timestamp = get_current_timestamp();
+    let updated_registry = update_registry_push(registry_content, cell_id, true, timestamp);
+    write_file(registry_path, updated_registry);
+
+    print("Pushed to " + push_remote + "/" + push_branch);
+    print("  Cell: " + cell_id);
+    print("  Pushed at: " + timestamp);
+
+    return 0;
+}
+
+; tri git status — Show git status with cell info
+fn git_status_with_cell() -> i32 {
+    let registry_path = ".trinity/cells/registry.json";
+
+    ; Show git status
+    let status = git_status();
+    print("Git status:");
+    print(status);
+    print("");
+
+    ; Show cell info if available
+    if file_exists(registry_path) {
+        let registry_content = read_file(registry_path);
+        let cell = find_active_or_sealed_cell(registry_content);
+
+        if cell != null {
+            print("Current cell:");
+            print("  ID: " + cell.get("id"));
+            print("  Status: " + cell.get("status"));
+            if cell.has("issue") {
+                print("  Issue: " + cell.get("issue"));
+            }
+            if cell.has("verdict") {
+                print("  Verdict: " + cell.get("verdict"));
+            }
+        } else {
+            print("No active or sealed cell found");
+        }
+    } else {
+        print("No cell registry found");
+    }
+
+    return 0;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Helper functions
+; ═════════════════════════════════════════════════════════════════════
+
+; Find active or last sealed cell from registry
+fn find_active_or_sealed_cell(registry_json : string) -> map<string, string>? {
+    let registry = parse_json(registry_json);
+
+    ; First look for active cell
+    for cell in registry.get("cells") {
+        if cell.get("status") == "active" {
+            return cell;
+        }
+    }
+
+    ; Then look for last sealed cell on current branch
+    let current_branch = git_get_current_branch();
+    let last_sealed = null;
+
+    for cell in registry.get("cells") {
+        if cell.get("status") == "sealed" and cell.get("branch") == current_branch {
+            let timestamp = cell.get("timestamp");
+            if last_sealed == null or timestamp > last_sealed.get("timestamp") {
+                last_sealed = cell;
+            }
+        }
+    }
+
+    return last_sealed;
+}
+
+; Find last sealed cell from registry
+fn find_last_sealed_cell(registry_json : string) -> map<string, string>? {
+    let registry = parse_json(registry_json);
+    let last_sealed = null;
+
+    for cell in registry.get("cells") {
+        if cell.get("status") == "sealed" {
+            let timestamp = cell.get("timestamp");
+            if last_sealed == null or timestamp > last_sealed.get("timestamp") {
+                last_sealed = cell;
+            }
+        }
+    }
+
+    return last_sealed;
+}
+
+; Update registry with commit hash
+fn update_registry_commit(registry_json : string, cell_id : string, commit_hash : string) -> string {
+    let registry = parse_json(registry_json);
+
+    for cell in registry.get("cells") {
+        if cell.get("id") == cell_id {
+            cell.put("commit", commit_hash);
+            cell.put("commit_at", get_current_timestamp());
+            break;
+        }
+    }
+
+    return serialize_json(registry);
+}
+
+; Update registry with push status
+fn update_registry_push(registry_json : string, cell_id : string, pushed : bool, timestamp : string) -> string {
+    let registry = parse_json(registry_json);
+
+    for cell in registry.get("cells") {
+        if cell.get("id") == cell_id {
+            cell.put("pushed", if pushed { "true" } else { "false" });
+            cell.put("pushed_at", timestamp);
+            break;
+        }
+    }
+
+    return serialize_json(registry);
+}
+
+; Summarize git status
+fn summarize_status(status : string) -> string {
+    ; Extract modified/added/deleted files count
+    let modified = status.count("modified:");
+    let added = status.count("new file:");
+    let deleted = status.count("deleted:");
+
+    let parts = [];
+    if modified > 0 {
+        parts.push(string.from_int(modified) + " modified");
+    }
+    if added > 0 {
+        parts.push(string.from_int(added) + " added");
+    }
+    if deleted > 0 {
+        parts.push(string.from_int(deleted) + " deleted");
+    }
+
+    if parts.len() == 0 {
+        return "no changes";
+    }
+
+    return parts.join(", ");
+}
+
+; Count checkpoints in artifacts
+fn count_checkpoints(artifacts : string) -> i32 {
+    return artifacts.count("checkpoint");
+}
+
+; Get current timestamp
+fn get_current_timestamp() -> string {
+    ; Returns ISO 8601 timestamp
+    return "2026-04-04T00:00:00Z";  // Placeholder
+}

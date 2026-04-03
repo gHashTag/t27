@@ -1,0 +1,270 @@
+; gen.t27 — Code Generation with TDD Validation
+; Commands for generating code from t27 specs with TDD enforcement
+
+use parser
+use codegen.zig
+use codegen.testgen
+
+; Codegen options
+struct GenOptions {
+    backend : string           ; Target backend (zig, c, verilog, etc.)
+    output_dir : string        ; Output directory
+    emit_tests : bool          ; Generate test code
+    emit_conformance : bool    ; Generate conformance JSON
+    optimize_level : u8        ; Optimization level
+    no_prototype : bool        ; Disable prototype mode (always true - no tests allowed)
+}
+
+; tri gen <spec> — Generate code from spec with TDD validation
+fn gen(spec_path : string, options : GenOptions) -> i32 {
+    ; Check if spec exists
+    if !file_exists(spec_path) {
+        error("Spec not found: " + spec_path);
+        return 1;
+    }
+
+    ; Read spec content
+    let content = read_file(spec_path);
+    if content == null {
+        error("Failed to read spec: " + spec_path);
+        return 1;
+    }
+
+    ; Parse spec
+    let context = parse(content, spec_path);
+
+    if context.has_errors() {
+        error("Parse errors in " + spec_path + ":");
+        for err in context.errors {
+            error("  Line " + err.line + ":" + err.column + ": " + err.message);
+        }
+        return 1;
+    }
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; TDD CONTRACT ENFORCEMENT (Per User Requirement: No prototype mode)
+    ; ═════════════════════════════════════════════════════════════════════
+    let has_tests = false;
+    let test_count = 0;
+    let invariant_count = 0;
+
+    ; Count tests and invariants
+    if context.ast_root.test_section != null {
+        test_count = test_count + context.ast_root.test_section.test_cases.len();
+    }
+
+    if context.ast_root.invariant_section != null {
+        invariant_count = invariant_count + context.ast_root.invariant_section.invariants.len();
+    }
+
+    if context.ast_root.spec_decl != null {
+        let spec = context.ast_root.spec_decl;
+        test_count = test_count + spec.test_blocks.len();
+        invariant_count = invariant_count + spec.invariants.len();
+    }
+
+    has_tests = (test_count > 0) or (invariant_count > 0);
+
+    if !has_tests {
+        error("TDD contract violated: no tests in spec");
+        error("");
+        error("The t27 project follows Test-Driven Development where:");
+        error("  1. Every spec MUST have at least one 'test' or 'invariant' block");
+        error("  2. Tests are written BEFORE or WITH the implementation");
+        error("  3. Conformance JSON is generated FROM tests, not hand-written");
+        error("");
+        error("To fix this error:");
+        error("  1. Add a .test section with test cases to your spec");
+        error("  2. Or add a .invariant section with invariant declarations");
+        error("  3. Or use the high-level TDD syntax with 'test' and 'invariant' blocks");
+        error("");
+        error("Example:");
+        error("  .test");
+        error("      ; my_test");
+        error("      ; Verify: functionality works");
+        error("      ; Expected: correct result");
+        error("");
+        error("  .invariant");
+        error("      ; my_invariant");
+        error("      ; For all valid inputs: output is valid");
+        error("      ; Rationale: ensures correctness");
+        error("");
+        error("NOTE: There is NO --allow-no-tests flag (prototype mode is disabled per policy)");
+        return 1;
+    }
+
+    print("TDD contract validated: " + test_count + " tests, " + invariant_count + " invariants");
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; Generate code
+    ; ═════════════════════════════════════════════════════════════════════
+
+    ; Determine output paths
+    let output_dir = options.output_dir;
+    if output_dir == "" {
+        output_dir = "backend/" + options.backend;
+    }
+
+    ; Create output directory if needed
+    if !dir_exists(output_dir) {
+        let mkdir_result = mkdir(output_dir);
+        if mkdir_result != 0 {
+            error("Failed to create output directory: " + output_dir);
+            return mkdir_result;
+        }
+    }
+
+    ; Generate implementation code
+    let impl_output = output_dir + "/" + basename_without_ext(spec_path) + "." + options.backend;
+
+    let codegen_result = 0;
+    if options.backend == "zig" {
+        let codegen_opts = CodegenOptions {
+            emit_comments: true,
+            emit_debug: true,
+            optimize_level: options.optimize_level,
+            target_triple: "native",
+            include_runtime: true
+        };
+        let zig_code = generate_zig(content, spec_path, codegen_opts);
+        codegen_result = write_file(impl_output, zig_code);
+    } else {
+        error("Unsupported backend: " + options.backend);
+        return 1;
+    }
+
+    if codegen_result != 0 {
+        error("Failed to write implementation code");
+        return codegen_result;
+    }
+
+    print("Generated implementation: " + impl_output);
+
+    ; Generate test code if requested
+    if options.emit_tests {
+        let testgen_opts = TestGenOptions {
+            backend: options.backend,
+            emit_comments: true,
+            emit_benchmarks: true,
+            output_format: "code"
+        };
+
+        let testgen = TestGen.new(context.ast_root, testgen_opts);
+        let test_code = testgen.generate();
+
+        let test_output = output_dir + "/" + basename_without_ext(spec_path) + "_test." + options.backend;
+        let test_result = write_file(test_output, test_code);
+
+        if test_result != 0 {
+            error("Failed to write test code");
+            return test_result;
+        }
+
+        print("Generated tests: " + test_output);
+    }
+
+    ; Generate conformance JSON if requested
+    if options.emit_conformance {
+        let testgen_opts = TestGenOptions {
+            backend: "json",
+            emit_comments: true,
+            emit_benchmarks: true,
+            output_format: "json"
+        };
+
+        let testgen = TestGen.new(context.ast_root, testgen_opts);
+        let conformance_json = testgen.generate();
+
+        ; Create conformance directory if needed
+        let conf_dir = "conformance";
+        if !dir_exists(conf_dir) {
+            mkdir(conf_dir);
+        }
+
+        let conf_output = conf_dir + "/" + basename_without_ext(spec_path) + ".json";
+        let conf_result = write_file(conf_output, conformance_json);
+
+        if conf_result != 0 {
+            error("Failed to write conformance JSON");
+            return conf_result;
+        }
+
+        print("Generated conformance: " + conf_output);
+    }
+
+    print("");
+    print("Code generation complete!");
+    print("  Implementation: " + impl_output);
+    if options.emit_tests {
+        print("  Tests: " + output_dir + "/" + basename_without_ext(spec_path) + "_test." + options.backend);
+    }
+    if options.emit_conformance {
+        print("  Conformance: " + conf_output);
+    }
+
+    return 0;
+}
+
+; tri gen all — Generate code for all specs in project
+fn gen_all(options : GenOptions) -> i32 {
+    let spec_files = glob("specs/**/*.t27");
+
+    if spec_files.len() == 0 {
+        print("No spec files found");
+        return 0;
+    }
+
+    print("Found " + spec_files.len() + " spec file(s)");
+    print("");
+
+    let success_count = 0;
+    let fail_count = 0;
+
+    for spec_path in spec_files {
+        print("Generating: " + spec_path);
+        let result = gen(spec_path, options);
+
+        if result == 0 {
+            success_count = success_count + 1;
+        } else {
+            fail_count = fail_count + 1;
+            error("  Failed: " + spec_path);
+        }
+        print("");
+    }
+
+    print("");
+    print("Generation complete:");
+    print("  Success: " + success_count);
+    print("  Failed: " + fail_count);
+
+    return if fail_count > 0 { 1 } else { 0 };
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Helper functions
+; ═════════════════════════════════════════════════════════════════════
+
+; Get basename without extension
+fn basename_without_ext(path : string) -> string {
+    let start = path.len() - 1;
+
+    ; Find last path separator
+    while start >= 0 and path.u8_at(start) != '/' and path.u8_at(start) != '\\' {
+        start = start - 1;
+    }
+
+    let filename_start = start + 1;
+    let end = path.len() - 1;
+
+    ; Find extension
+    while end >= filename_start and path.u8_at(end) != '.' {
+        end = end - 1;
+    }
+
+    if end == filename_start - 1 {
+        return path.substring(filename_start);
+    }
+
+    return path.substring(filename_start, end - filename_start);
+}

@@ -1,417 +1,510 @@
-; runtime.t27 — Bootstrap Runtime for TRI-27 Assembly
-; Minimal runtime for executing t27 programs
-
-; Trit type (-1, 0, +1)
-enum Trit {
-    NEG = -1
-    ZERO = 0
-    POS = 1
-}
-
-; Packed trit storage (2 bits per trit)
-struct PackedTrit {
-    value : u8  ; 2 bits: 00=ZERO, 01=POS, 10=NEG, 11=reserved
-}
-
-; Ternary word (27 trits = 54 bits = 7 bytes + 2 bits)
-struct TernaryWord {
-    trits : [27]Trit
-}
-
-; Register file (27 Coptic registers)
-struct RegisterFile {
-    regs : [27]i64  ; r0-r25 general, r26 = zero
-}
-
-; Memory model
-struct Memory {
-    data : []u8
-    size : u32
-}
-
-; Cyclic Redundancy Check for trit vectors
-struct TrinaryCRC {
-    state : i64
-    polynomial : i64
-}
-
-; Create new register file
-fn RegisterFile.new() -> RegisterFile {
-    let rf = RegisterFile {
-        regs: [0; 27]
-    };
-    rf.regs[26] = 0;  ; Zero register
-    return rf;
-}
-
-; Read register
-fn RegisterFile.read(rf : RegisterFile, reg_num : u8) -> i64 {
-    if reg_num >= 27 {
-        return 0;
-    }
-    if reg_num == 26 {
-        return 0;  ; Zero register always returns 0
-    }
-    return rf.regs[reg_num];
-}
-
-; Write register
-fn RegisterFile.write(rf : RegisterFile, reg_num : u8, value : i64) {
-    if reg_num >= 27 or reg_num == 26 {
-        return;  ; Can't write to zero register
-    }
-    rf.regs[reg_num] = value;
-}
-
-; Create new memory
-fn Memory.new(size : u32) -> Memory {
-    return Memory {
-        data: new [size]u8,
-        size: size
-    };
-}
-
-; Read word from memory (little-endian)
-fn Memory.read_word(mem : Memory, addr : u32) -> i64 {
-    if addr + 4 > mem.size {
-        return 0;
-    }
-
-    let result : i64 = 0;
-    result = result | (mem.data[addr] as i64);
-    result = result | ((mem.data[addr + 1] as i64) << 8);
-    result = result | ((mem.data[addr + 2] as i64) << 16);
-    result = result | ((mem.data[addr + 3] as i64) << 24);
-
-    return result;
-}
-
-; Write word to memory (little-endian)
-fn Memory.write_word(mem : Memory, addr : u32, value : i64) {
-    if addr + 4 > mem.size {
-        return;
-    }
-
-    mem.data[addr] = (value & 0xFF) as u8;
-    mem.data[addr + 1] = ((value >> 8) & 0xFF) as u8;
-    mem.data[addr + 2] = ((value >> 16) & 0xFF) as u8;
-    mem.data[addr + 3] = ((value >> 24) & 0xFF) as u8;
-}
-
-; Pack trit into 2 bits
-fn pack_trit(t : Trit) -> PackedTrit {
-    let value = 0 as u8;
-
-    switch t {
-        case Trit.NEG:
-            value = 0b10;  ; 10 = -1
-        case Trit.ZERO:
-            value = 0b00;  ; 00 = 0
-        case Trit.POS:
-            value = 0b01;  ; 01 = +1
-    }
-
-    return PackedTrit { value: value };
-}
-
-; Unpack trit from 2 bits
-fn unpack_trit(packed : PackedTrit) -> Trit {
-    switch packed.value & 0b11 {
-        case 0b00: return Trit.ZERO;
-        case 0b01: return Trit.POS;
-        case 0b10: return Trit.NEG;
-        default: return Trit.ZERO;
-    }
-}
-
-; Convert trit to integer
-fn trit_to_int(t : Trit) -> i64 {
-    switch t {
-        case Trit.NEG: return -1;
-        case Trit.ZERO: return 0;
-        case Trit.POS: return 1;
-    }
-}
-
-; Convert integer to trit (-1, 0, +1)
-fn int_to_trit(i : i64) -> Trit {
-    if i < 0 { return Trit.NEG; }
-    if i > 0 { return Trit.POS; }
-    return Trit.ZERO;
-}
-
-; Ternary addition with carry
-fn trit_add(a : Trit, b : Trit, carry_in : Trit) -> (result : Trit, carry_out : Trit) {
-    let sum = trit_to_int(a) + trit_to_int(b) + trit_to_int(carry_in);
-
-    if sum <= -2 {
-        return (int_to_trit(sum + 3), Trit.NEG);
-    } else if sum >= 2 {
-        return (int_to_trit(sum - 3), Trit.POS);
-    } else {
-        return (int_to_trit(sum), Trit.ZERO);
-    }
-}
-
-; Ternary multiplication
-fn trit_mul(a : Trit, b : Trit) -> Trit {
-    let ai = trit_to_int(a);
-    let bi = trit_to_int(b);
-    return int_to_trit(ai * bi);
-}
-
-; Balanced ternary to decimal conversion
-fn balanced_ternary_to_decimal(trits : []Trit) -> i64 {
-    let result : i64 = 0;
-    let power : i64 = 1;
-
-    for i in 0..trits.len() {
-        result = result + (trit_to_int(trits[i]) * power);
-        power = power * 3;
-    }
-
-    return result;
-}
-
-; Decimal to balanced ternary conversion
-fn decimal_to_balanced_ternary(value : i64, num_trits : u32) -> []Trit {
-    let trits = new [num_trits]Trit;
-    let v = value;
-
-    for i in 0..num_trits {
-        let rem = ((v % 3) + 3) % 3;  ; Handle negative numbers
-        trits[i] = int_to_trit(rem as i64);
-
-        if rem == 2 {
-            v = (v / 3) + 1;
-        } else {
-            v = v / 3;
-        }
-    }
-
-    return trits;
-}
-
-; Ternary NOT (negate)
-fn trit_not(t : Trit) -> Trit {
-    switch t {
-        case Trit.NEG: return Trit.POS;
-        case Trit.ZERO: return Trit.ZERO;
-        case Trit.POS: return Trit.NEG;
-    }
-}
-
-; VSA bind operation (HDC)
-fn vsa_bind(a : []Trit, b : []Trit) -> []Trit {
-    let len = min(a.len(), b.len());
-    let result = new [len]Trit;
-
-    for i in 0..len {
-        result[i] = trit_mul(a[i], b[i]);
-    }
-
-    return result;
-}
-
-; VSA bundle operation (HDC)
-fn vsa_bundle(vectors : [][]Trit) -> []Trit {
-    if vectors.len() == 0 {
-        return [];
-    }
-
-    let len = vectors[0].len();
-    let result = new [len]Trit;
-
-    ; Initialize with first vector
-    for i in 0..len {
-        result[i] = vectors[0][i];
-    }
-
-    ; Bundle remaining vectors
-    for v in 1..vectors.len() {
-        for i in 0..min(len, v.len()) {
-            let t = trit_add(result[i], v[i], Trit.ZERO).result;
-            ; Normalize: if outside -1..1, wrap around
-            if trit_to_int(t) < -1 {
-                result[i] = Trit.POS;
-            } else if trit_to_int(t) > 1 {
-                result[i] = Trit.NEG;
-            } else {
-                result[i] = t;
-            }
-        }
-    }
-
-    return result;
-}
-
-; Hamming similarity for trit vectors
-fn trit_similarity(a : []Trit, b : []Trit) -> f64 {
-    let len = min(a.len(), b.len());
-    if len == 0 { return 0.0; }
-
-    let matches = 0 as u32;
-
-    for i in 0..len {
-        if a[i] == b[i] {
-            matches = matches + 1;
-        }
-    }
-
-    return (matches as f64) / (len as f64);
-}
-
-; TrinaryCRC initialization
-fn TrinaryCRC.new(polynomial : i64) -> TrinaryCRC {
-    return TrinaryCRC {
-        state: 0,
-        polynomial: polynomial
-    };
-}
-
-; Update CRC with trit
-fn TrinaryCRC.update(crc : TrinaryCRC, t : Trit) {
-    let t_int = trit_to_int(t);
-    crc.state = crc.state ^ t_int;
-
-    for i in 0..6 {  ; 6 bits for polynomial
-        let bit = (crc.state >> 6) & 1;
-        crc.state = crc.state << 1;
-
-        if bit != 0 {
-            crc.state = crc.state ^ crc.polynomial;
-        }
-    }
-}
-
-; Get final CRC value
-fn TrinaryCRC.final(crc : TrinaryCRC) -> u64 {
-    return (crc.state & 0x7F) as u64;  ; 7-bit result
-}
-
-; CPU execution context
-struct CPU {
-    rf : RegisterFile
-    mem : Memory
-    pc : u32
-    halted : bool
-}
-
-; Create new CPU
-fn CPU.new(mem_size : u32) -> CPU {
-    return CPU {
-        rf: RegisterFile.new(),
-        mem: Memory.new(mem_size),
-        pc: 0,
-        halted: false
-    };
-}
-
-; Execute single instruction (simplified)
-fn CPU.step(cpu : CPU, instruction : u32) {
-    if cpu.halted {
-        return;
-    }
-
-    let opcode = (instruction >> 28) & 0xF;
-
-    switch opcode {
-        case 0:  ; MOV
-            let dst = (instruction >> 20) & 0x1F;
-            let src = (instruction >> 10) & 0x3FF;
-            RegisterFile.write(cpu.rf, dst as u8, cpu.regs[src as u8]);
-        case 15:  ; HALT
-            cpu.halted = true;
-        default:
-            ; Other opcodes...
-    }
-
-    cpu.pc = cpu.pc + 1;
-}
-
-; Execute program
-fn CPU.run(cpu : CPU, instructions : []u32) -> u32 {
-    let cycles = 0 as u32;
-
-    while !cpu.halted and cpu.pc < instructions.len() {
-        CPU.step(cpu, instructions[cpu.pc]);
-        cycles = cycles + 1;
-    }
-
-    return cycles;
-}
-
-; Sacred phi constant (1.61803398874989484820458683436563811772)
-const PHI : f64 = 1.618033988749895;
-const PHI_INV : f64 = 0.618033988749895;
-const PHI_SQ : f64 = 2.618033988749895;
-const TRINITY : f64 = 3.0;  ; phi^2 + phi^-2
-
-; Verify sacred identity phi^2 + phi^-2 = 3
-fn verify_trinity_identity() -> bool {
-    let lhs = PHI_SQ + (1.0 / PHI_SQ);
-    let error = abs(lhs - TRINITY);
-    return error < 1e-12;
-}
-
-; Sacred gravity constant (simplified)
-const G_SACRED : f64 = 6.67430e-11;
-
-; Sacred dark energy constant
-const OMEGA_LAMBDA : f64 = 0.685;
-
-; Gamma LQG (Barbero-Immirzi parameter)
-const GAMMA_LQG : f64 = 0.2360679775;
-
-; Consciousness threshold (phi^-1)
-const CONSCIOUSNESS_THRESHOLD : f64 = PHI_INV;
-
-; Check if value represents consciousness
-fn is_conscious(value : f64) -> bool {
-    let diff = abs(value - CONSCIOUSNESS_THRESHOLD);
-    return diff < 0.1;  ; Within 10% threshold
-}
-
-; Time dilation factor (relativistic)
-fn time_dilation_factor(velocity_c : f64) -> f64 {
-    let beta = velocity_c;  ; v/c
-    if beta >= 1.0 { return INFINITY; }
-    return 1.0 / sqrt(1.0 - beta * beta);
-}
-
-; Golden ratio Fibonacci relation
-fn fib_phi(n : u32) -> f64 {
-    ; Using Binet's formula: F(n) ≈ phi^n / sqrt(5)
-    let sqrt5 = sqrt(5.0);
-    return pow(PHI, n as f64) / sqrt5;
-}
-
-; Export table for runtime symbols
-export {
-    RegisterFile,
-    RegisterFile.new,
-    RegisterFile.read,
-    RegisterFile.write,
-    Memory,
-    Memory.new,
-    Memory.read_word,
-    Memory.write_word,
-    Trit,
-    pack_trit,
-    unpack_trit,
-    trit_add,
-    trit_mul,
-    balanced_ternary_to_decimal,
-    decimal_to_balanced_ternary,
-    vsa_bind,
-    vsa_bundle,
-    trit_similarity,
-    CPU,
-    CPU.new,
-    CPU.step,
-    CPU.run,
-    PHI,
-    PHI_INV,
-    TRINITY,
-    verify_trinity_identity
-}
+; compiler/runtime/runtime.t27 — T27 Runtime Specification
+; Runtime environment for executing t27 programs
+; φ² + 1/φ² = 3 | TRINITY
+
+.use base::types
+.use isa::registers
+
+; Runtime configuration
+.const STACK_SIZE 4096       ; Stack size in bytes
+.const HEAP_SIZE 65536        ; Heap size in bytes
+.const MAX_THREADS 8          ; Maximum concurrent threads
+.const MAX_CHANNELS 16        ; Maximum communication channels
+
+; Runtime state
+.data
+    ; Stack
+    stack_base: .dword 0      ; Stack base address
+    stack_ptr: .dword 0       ; Current stack pointer
+
+    ; Heap
+    heap_base: .dword 0       ; Heap base address
+    heap_ptr: .dword 0        ; Current heap pointer (bump allocator)
+    heap_end: .dword 0        ; Heap end address
+
+    ; Thread management
+    thread_states: .byte 0:8   ; Thread states (0=idle, 1=running, 2=blocked)
+    thread_sp: .dword 0:8     ; Thread stack pointers
+
+    ; Channels
+    channel_buffers: .dword 0:16  ; Channel buffers
+    channel_sizes: .word 0:16      ; Channel sizes
+    channel_readers: .byte 0:16    ; Reader counts
+    channel_writers: .byte 0:16    ; Writer counts
+
+    ; Exception handling
+    exception_handler: .dword 0 ; Exception handler address
+    exception_code: .byte 0     ; Last exception code
+
+    ; Performance monitoring
+    cycle_counter: .dword 0    ; Cycle counter
+    instruction_counter: .dword 0  ; Instruction counter
+
+.code
+    ; ═════════════════════════════════════════════════════════════════════
+    ; runtime_init() → void
+    ; Initialize runtime environment
+    ; ═════════════════════════════════════════════════════════════════════
+runtime_init:
+    ; Initialize stack
+    CALL alloc_stack
+
+    ; Initialize heap
+    CALL alloc_heap
+
+    ; Initialize threads
+    CALL init_threads
+
+    ; Initialize channels
+    CALL init_channels
+
+    ; Initialize counters
+    MOV r0, #0
+    STORE r0, [cycle_counter]
+    STORE r0, [instruction_counter]
+
+    ; Set up exception handler
+    CALL setup_exception_handler
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; runtime_execute(entry: usize) → i32
+    ; Execute t27 program starting from entry point
+    ; Returns exit code
+    ; ═════════════════════════════════════════════════════════════════════
+runtime_execute:
+    ; Input: r0 = entry point address
+
+    ; Set up initial stack frame
+    CALL setup_stack_frame
+
+    ; Jump to entry point
+    CALL r0
+
+    ; Return exit code (in r0)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; runtime_shutdown() → void
+    ; Clean up and shutdown runtime
+    ; ═════════════════════════════════════════════════════════════════════
+runtime_shutdown:
+    ; Free heap (if managed)
+    ; Print performance stats
+    CALL print_stats
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; alloc_stack() → void
+    ; Allocate stack memory
+    ; ═════════════════════════════════════════════════════════════════════
+alloc_stack:
+    ; Allocate STACK_SIZE bytes
+    ; For spec: assume allocation succeeds
+    ; Set stack_base and stack_ptr
+
+    MOV r0, STACK_SIZE
+    ; (In real implementation: call malloc)
+    ; For spec: set base address
+    MOV r1, #0xDEADBEEF  ; Placeholder
+    STORE r1, [stack_base]
+
+    ; Stack grows downward, so SP starts at base + size
+    ADD r1, r1, STACK_SIZE
+    STORE r1, [stack_ptr]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; alloc_heap() → void
+    ; Allocate heap memory
+    ; ═════════════════════════════════════════════════════════════════════
+alloc_heap:
+    ; Allocate HEAP_SIZE bytes
+    MOV r0, HEAP_SIZE
+    ; (In real implementation: call malloc)
+    MOV r1, #0xBADDCAFE  ; Placeholder
+    STORE r1, [heap_base]
+
+    ; Heap grows upward
+    MOV r2, r1
+    STORE r2, [heap_ptr]
+
+    ; Calculate heap end
+    ADD r2, r2, HEAP_SIZE
+    STORE r2, [heap_end]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; init_threads() → void
+    ; Initialize thread management
+    ; ═══════════════════════════════════════════════════════════════════
+init_threads:
+    ; Set all threads to idle
+    MOV r0, #0
+    MOV r1, MAX_THREADS
+
+init_threads_loop:
+    CMP r0, r1
+    JGE init_threads_done
+
+    MOV r2, #0           ; idle state
+    STORE r2, [thread_states + r0]
+
+    ADD r0, r0, ONE
+    JMP init_threads_loop
+
+init_threads_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; init_channels() → void
+    ; Initialize communication channels
+    ; ═════════════════════════════════════════════════════════════════════
+init_channels:
+    ; Set all channels to empty
+    MOV r0, #0
+    MOV r1, MAX_CHANNELS
+
+init_channels_loop:
+    CMP r0, r1
+    JGE init_channels_done
+
+    MOV r2, #0
+    STORE r2, [channel_sizes + r0 * 4]
+    STORE r2, [channel_readers + r0]
+    STORE r2, [channel_writers + r0]
+
+    ADD r0, r0, ONE
+    JMP init_channels_loop
+
+init_channels_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; setup_exception_handler() → void
+    ; Set up exception handler
+    ; ═════════════════════════════════════════════════════════════════════
+setup_exception_handler:
+    ; Set default exception handler
+    MOV r0, #0x1000      ; Default handler address
+    STORE r0, [exception_handler]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; setup_stack_frame() → void
+    ; Set up initial stack frame for program entry
+    ; ═════════════════════════════════════════════════════════════════════
+setup_stack_frame:
+    ; Push return address (dummy for entry point)
+    LOAD r0, [stack_ptr]
+    SUB r0, r0, #4
+    STORE r0, [stack_ptr]
+
+    ; Push frame pointer
+    SUB r0, r0, #4
+    MOV r1, R16           ; FP register
+    CALL reg_read
+    STORE r0, [r0]
+    MOV r1, r0
+    MOV r0, R16
+    MOV r2, r1
+    CALL reg_write
+
+    ; Set up initial register state
+    MOV r0, R17
+    MOV r1, #0xBADF00D   ; Initial SP
+    CALL reg_write
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; runtime_alloc(size: usize) → usize
+    ; Allocate memory from heap (bump allocator)
+    ; Returns pointer or 0 on failure
+    ; ═══════════════════════════════════════════════════════════════════
+runtime_alloc:
+    ; Input: r0 = size
+    ; Output: r0 = pointer (or 0 on failure)
+
+    LOAD r1, [heap_ptr]
+    LOAD r2, [heap_end]
+
+    ; Check if enough space
+    ADD r3, r1, r0
+    CMP r3, r2
+    JGT alloc_fail
+
+    ; Allocate: return old ptr, update heap_ptr
+    MOV r0, r1
+    ADD r1, r1, r0
+    STORE r1, [heap_ptr]
+    RET
+
+alloc_fail:
+    MOV r0, #0           ; Return null
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; runtime_free(ptr: usize) → void
+    ; Free memory (no-op for bump allocator)
+    ; ═════════════════════════════════════════════════════════════════════
+runtime_free:
+    ; Input: r0 = pointer
+    ; No-op for bump allocator
+    ; (Full implementation would use free list)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; channel_create(size: usize) → usize
+    ; Create a new channel
+    ; Returns channel ID or -1 on failure
+    ; ═══════════════════════════════════════════════════════════════════
+channel_create:
+    ; Input: r0 = size
+    ; Output: r0 = channel ID
+
+    ; Find free channel
+    MOV r1, #0          ; r1 = channel ID
+
+channel_find_loop:
+    CMP r1, MAX_CHANNELS
+    JGE channel_create_fail
+
+    LOAD r2, [channel_sizes + r1 * 4]
+    CMP r2, #0
+    JNE channel_next
+
+    ; Found free channel
+    ; Allocate buffer
+    CALL runtime_alloc
+    CMP r0, #0
+    JEQ channel_create_fail
+
+    ; Set up channel
+    STORE r0, [channel_buffers + r1 * 4]
+    MOV r2, r0           ; r2 = size
+    STORE r2, [channel_sizes + r1 * 4]
+
+    MOV r0, r1
+    RET
+
+channel_next:
+    ADD r1, r1, ONE
+    JMP channel_find_loop
+
+channel_create_fail:
+    MOV r0, #0xFFFFFFFF   ; -1 on failure
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; channel_send(channel: usize, data: usize) → bool
+    ; Send data to channel
+    ; Returns true on success
+    ; ═══════════════════════════════════════════════════════════════════
+channel_send:
+    ; Input: r0 = channel ID, r1 = data
+    ; Output: r0 = success
+
+    ; Validate channel
+    CMP r0, MAX_CHANNELS
+    JGE channel_send_fail
+
+    ; Check if channel has space
+    LOAD r2, [channel_sizes + r0 * 4]
+    CMP r2, #0
+    JEQ channel_send_fail
+
+    ; Store data
+    LOAD r3, [channel_buffers + r0 * 4]
+    STORE r1, [r3]
+
+    ; Decrement size
+    SUB r2, r2, ONE
+    STORE r2, [channel_sizes + r0 * 4]
+
+    MOV r0, #1           ; success
+    RET
+
+channel_send_fail:
+    MOV r0, #0           ; failure
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; channel_recv(channel: usize) → usize
+    ; Receive data from channel
+    ; Returns data or 0 if empty
+    ; ═════════════════════════════════════════════════════════════════════
+channel_recv:
+    ; Input: r0 = channel ID
+    ; Output: r0 = data (or 0 if empty)
+
+    ; Validate channel
+    CMP r0, MAX_CHANNELS
+    JGE channel_recv_fail
+
+    ; Check if channel has data
+    LOAD r2, [channel_sizes + r0 * 4]
+    CMP r2, #0
+    JNE channel_recv_data
+
+channel_recv_fail:
+    MOV r0, #0
+    RET
+
+channel_recv_data:
+    ; Load data
+    LOAD r3, [channel_buffers + r0 * 4]
+    LOAD r0, [r3]
+
+    ; Increment size
+    ADD r2, r2, ONE
+    STORE r2, [channel_sizes + r0 * 4]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; thread_spawn(entry: usize, arg: usize) → usize
+    ; Spawn a new thread
+    ; Returns thread ID or -1 on failure
+    ; ═════════════════════════════════════════════════════════════════════
+thread_spawn:
+    ; Input: r0 = entry point, r1 = argument
+    ; Output: r0 = thread ID
+
+    ; Find free thread slot
+    MOV r2, #0
+
+thread_find_loop:
+    CMP r2, MAX_THREADS
+    JGE thread_spawn_fail
+
+    LOAD r3, [thread_states + r2]
+    CMP r3, #0           ; idle?
+    JNE thread_next
+
+    ; Found free thread
+    MOV r3, #1           ; running
+    STORE r3, [thread_states + r2]
+
+    ; Allocate stack for thread
+    ; (For spec: skip actual allocation)
+
+    ; Set up thread stack pointer
+    LOAD r3, [stack_base]
+    ADD r3, r3, STACK_SIZE
+    STORE r3, [thread_sp + r2 * 4]
+
+    MOV r0, r2           ; return thread ID
+    RET
+
+thread_next:
+    ADD r2, r2, ONE
+    JMP thread_find_loop
+
+thread_spawn_fail:
+    MOV r0, #0xFFFFFFFF   ; -1 on failure
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; thread_yield() → void
+    ; Yield execution to another thread
+    ; ═════════════════════════════════════════════════════════════════════
+thread_yield:
+    ; Simple round-robin scheduling
+    ; Find next running thread
+
+    ; (For spec: simplified)
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; print_stats() → void
+    ; Print performance statistics
+    ; ═════════════════════════════════════════════════════════════════════
+print_stats:
+    ; Print cycle counter
+    ; Print instruction counter
+    ; Print memory usage
+
+    RET
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; TDD-Inside-Spec: Invariants and Tests
+    ; ═════════════════════════════════════════════════════════════════════
+.test
+    ; test_bootstrap_init_sequence
+    ; Verify: runtime_init initializes all components in correct order
+    ; Setup: call runtime_init on fresh runtime
+    ; Expected: stack allocated, heap allocated, threads idle, channels empty
+
+    ; test_arena_no_leak
+    ; Verify: all allocations are freed (or tracked) in bump allocator
+    ; Setup: allocate various sizes, check heap state
+    ; Expected: no untracked allocations, heap_ptr <= heap_end
+
+    ; test_channel_send_recv_roundtrip
+    ; Verify: data sent through channel is received correctly
+    ; Setup: create channel, send value, recv value
+    ; Expected: received value == sent value
+
+    ; test_thread_yield_fairness
+    ; Verify: thread_yield cycles through all running threads
+    ; Setup: spawn 3 threads, each yields, verify round-robin
+    ; Expected: each thread gets CPU time
+
+    ; test_exception_handler_invocation
+    ; Verify: exception handler is called on trap
+    ; Setup: trigger TRAP, check exception_code
+    ; Expected: exception_handler called, exception_code set
+
+    ; test_stack_growth_direction
+    ; Verify: stack grows downward (SP decreases)
+    ; Setup: push values, track SP before/after
+    ; Expected: SP after < SP before
+
+    ; test_heap_bump_allocator_properties
+    ; Verify: bump allocator is O(1) and contiguous
+    ; Setup: allocate multiple times, check addresses
+    ; Expected: addresses are contiguous and increasing
+
+.invariant
+    ; arena_no_leak
+    ; heap_ptr never exceeds heap_end
+    ; Rationale: Bump allocator must stay within bounds
+
+    ; stack_bounds_valid
+    ; stack_ptr stays within [stack_base, stack_base + STACK_SIZE)
+    ; Rationale: Stack must not overflow or underflow
+
+    ; thread_count_limit
+    ; Active threads never exceed MAX_THREADS
+    ; Rationale: Thread pool has fixed size
+
+    ; channel_capacity_limit
+    ; Channel size never exceeds initial allocation
+    ; Rationale: Channels have bounded capacity
+
+    ; exception_handler_set
+    ; exception_handler is never NULL after init
+    ; Rationale: System must have default error handler
+
+.bench
+    ; bench_alloc_latency_cycles
+    ; Measure: cycles for runtime_alloc
+    ; Target: < 10 cycles for bump allocation
+
+    ; test_channel_throughput_ops_per_sec
+    ; Measure: channel operations per second
+    ; Target: > 1M send/recv ops/sec on empty channels
+
+    ; test_thread_context_switch_cycles
+    ; Measure: cycles for thread_yield and reschedule
+    ; Target: < 100 cycles for thread switch
+
+HALT

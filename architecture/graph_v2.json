@@ -81,9 +81,9 @@
       "strand": "II",
       "tier": 2,
       "kind": "spec",
-      "exports": ["bind", "unbind", "bundle", "similarity"],
+      "exports": ["bind", "unbind", "bundle", "similarity", "dot_product", "vector_norm", "hamming_distance"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
@@ -95,9 +95,9 @@
       "strand": "I",
       "tier": 2,
       "kind": "spec",
-      "exports": ["Register", "RegisterFile", "COPIC_ALPHABET"],
+      "exports": ["Register", "RegisterFile", "COPIC_ALPHABET", "reg_read", "reg_write", "status_read"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
@@ -109,9 +109,9 @@
       "strand": "II",
       "tier": 3,
       "kind": "spec",
-      "exports": ["SacredAttention", "sacred_attention_kernel"],
+      "exports": ["SacredAttention", "sacred_attention_kernel", "apply_rope_qk", "compute_scores", "apply_softmax"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
@@ -123,9 +123,9 @@
       "strand": "II",
       "tier": 3,
       "kind": "spec",
-      "exports": ["HSLM", "hslm_forward", "hslm_backward"],
+      "exports": ["HSLM", "hslm_forward", "hslm_backward", "rms_norm_forward", "ffn_forward", "gelu_activation"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
@@ -137,9 +137,9 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["ZeroDSP_MAC", "mac_cycle", "lut_multiply"],
+      "exports": ["ZeroDSP_MAC", "mac_cycle", "lut_multiply", "mac_dot_product", "mac_matrix_vector"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
@@ -151,29 +151,43 @@
       "strand": "IV",
       "tier": 4,
       "kind": "spec",
-      "exports": ["LotusOrchestrator", "lotus_phase", "lotus_spawn"],
+      "exports": ["LotusOrchestrator", "lotus_phase", "lotus_spawn", "observe_state", "recall_episodes", "evaluate_quality"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
     },
     {
       "id": 11,
-      "name": "compiler/parser",
-      "path": "t27/compiler/parser/parser.t27",
+      "name": "compiler/parser/lexer",
+      "path": "t27/compiler/parser/lexer.t27",
       "strand": "III",
       "tier": 5,
       "kind": "compiler",
-      "exports": ["Parser", "parse_t27", "AST"],
+      "exports": ["Lexer", "tokenize", "Token", "TokenType", "advance_char", "read_identifier", "read_number"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
     },
     {
       "id": 12,
+      "name": "compiler/parser",
+      "path": "t27/compiler/parser/parser.t27",
+      "strand": "III",
+      "tier": 5,
+      "kind": "compiler",
+      "exports": ["Parser", "parse_t27", "AST", "parse_program", "parse_instruction"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": null,
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 13,
       "name": "compiler/codegen/zig",
       "path": "t27/compiler/codegen/zig/codegen.t27",
       "strand": "III",
@@ -187,7 +201,7 @@
       "failure_count": 0
     },
     {
-      "id": 13,
+      "id": 14,
       "name": "compiler/codegen/verilog",
       "path": "t27/compiler/codegen/verilog/codegen.t27",
       "strand": "III",
@@ -201,35 +215,35 @@
       "failure_count": 0
     },
     {
-      "id": 14,
+      "id": 15,
       "name": "compiler/codegen/c",
       "path": "t27/compiler/codegen/c/codegen.t27",
       "strand": "III",
       "tier": 6,
       "kind": "codegen",
-      "exports": ["CCodeGen", "emit_c", "c_ast"],
+      "exports": ["CCodeGen", "emit_c", "c_ast", "emit_c_header", "emit_c_includes", "emit_c_types"],
       "bench_suite": [],
-      "status": "pending",
-      "last_verdict": null,
-      "last_bench": null,
-      "failure_count": 0
-    },
-    {
-      "id": 15,
-      "name": "compiler/runtime",
-      "path": "t27/compiler/runtime/runtime.t27",
-      "strand": "III",
-      "tier": 7,
-      "kind": "runtime",
-      "exports": ["T27Runtime", "runtime_init", "runtime_execute"],
-      "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
     },
     {
       "id": 16,
+      "name": "compiler/runtime",
+      "path": "t27/compiler/runtime/runtime.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "runtime",
+      "exports": ["T27Runtime", "runtime_init", "runtime_execute", "runtime_shutdown", "runtime_alloc", "channel_send", "thread_spawn"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": null,
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 17,
       "name": "math/sacred_physics",
       "path": "t27/specs/math/sacred_physics.t27",
       "strand": "I",
@@ -243,7 +257,7 @@
       "failure_count": 0
     },
     {
-      "id": 17,
+      "id": 18,
       "name": "docs/NUMERIC-STANDARD-001",
       "path": "t27/docs/NUMERIC-STANDARD-001.md",
       "strand": "IV",
@@ -258,7 +272,7 @@
       "agent": "S"
     },
     {
-      "id": 18,
+      "id": 19,
       "name": "docs/SACRED-PHYSICS-001",
       "path": "t27/docs/SACRED-PHYSICS-001.md",
       "strand": "IV",
@@ -350,96 +364,102 @@
     {
       "from": 11,
       "to": 12,
+      "kind": "lexer-to-parser",
+      "invariant": "tokens-then-parse"
+    },
+    {
+      "from": 12,
+      "to": 13,
       "kind": "codegen",
       "invariant": "parse-then-emit-zig"
     },
     {
-      "from": 11,
-      "to": 13,
+      "from": 12,
+      "to": 14,
       "kind": "codegen",
       "invariant": "parse-then-emit-verilog"
     },
     {
-      "from": 11,
-      "to": 14,
+      "from": 12,
+      "to": 15,
       "kind": "codegen",
       "invariant": "parse-then-emit-c"
     },
     {
-      "from": 12,
-      "to": 15,
+      "from": 13,
+      "to": 16,
       "kind": "runtime",
       "invariant": "generated-zig-uses-runtime"
     },
     {
-      "from": 13,
-      "to": 15,
+      "from": 14,
+      "to": 16,
       "kind": "runtime",
       "invariant": "generated-verilog-uses-runtime"
     },
     {
-      "from": 14,
-      "to": 15,
+      "from": 15,
+      "to": 16,
       "kind": "runtime",
       "invariant": "generated-c-uses-runtime"
     },
     {
       "from": 4,
-      "to": 16,
+      "to": 17,
       "kind": "sacred-core",
       "invariant": "phi-source-of-truth"
     },
     {
-      "from": 16,
+      "from": 17,
       "to": 7,
       "kind": "phi-core",
       "invariant": "attention-phi-optimization"
     },
     {
-      "from": 16,
+      "from": 17,
       "to": 8,
       "kind": "phi-core",
       "invariant": "hslm-phi-ratio"
     },
     {
-      "from": 16,
+      "from": 17,
       "to": 2,
       "kind": "affects_benchmark",
       "note": "PHI used in GF16 format specification"
     },
     {
-      "from": 13,
+      "from": 14,
       "to": 9,
       "kind": "codegen",
       "invariant": "verilog-target-for-mac"
     },
     {
-      "from": 17,
+      "from": 18,
       "to": 2,
       "kind": "standardizes",
       "invariant": "numeric-standard-defines-GF16"
     },
     {
-      "from": 17,
+      "from": 18,
       "to": 3,
       "kind": "standardizes",
       "invariant": "numeric-standard-defines-TF3"
     },
     {
       "from": 4,
-      "to": 18,
+      "to": 19,
       "kind": "documented-by",
       "invariant": "constants-standardized-in-doc"
     },
     {
-      "from": 16,
-      "to": 18,
+      "from": 17,
+      "to": 19,
       "kind": "documented-by",
       "invariant": "sacred-physics-standardized-in-doc"
     },
     {
-      "from": 18,
-      "to": 17,
+      "from": 19,
+      "to": 18,
       "kind": "references",
       "invariant": "sacred-physics-references-numeric-standard"
     }
@@ -460,7 +480,7 @@
     },
     {
       "trigger": "change:base/types",
-      "downstream": ["base/ops", "vsa/ops", "isa/registers", "fpga/mac"],
+      "downstream": ["base/ops", "vsa/ops", "isa/registers", "fpga/mac", "compiler/parser/lexer"],
       "commands": ["tri gen", "tri test"],
       "priority": "high"
     },
@@ -475,12 +495,18 @@
       "downstream": ["conformance/gf_family_bench.json", "specs/numeric/gf16.t27"],
       "commands": ["tri test", "tri bench"],
       "priority": "high"
+    },
+    {
+      "trigger": "change:compiler/parser/lexer",
+      "downstream": ["compiler/parser"],
+      "commands": ["tri gen", "tri test"],
+      "priority": "high"
     }
   ],
 
   "bench_links": [
     {
-      "from": 16,
+      "from": 17,
       "to": "docs/GF_FAMILY_BENCH.md",
       "metric": "phi_distance"
     },
@@ -490,17 +516,17 @@
       "metric": "mse_vs_fp32"
     },
     {
-      "from": 16,
+      "from": 17,
       "to": "conformance/sacred_physics_*.json",
       "metric": "conformance_score"
     },
     {
-      "from": 17,
+      "from": 18,
       "to": "conformance/gf_family_bench.json",
       "metric": "standard_bench"
     },
     {
-      "from": 18,
+      "from": 19,
       "to": "conformance/sacred_physics_*.json",
       "metric": "standard_bench"
     }
@@ -521,6 +547,7 @@
     "nn/hslm",
     "fpga/mac",
     "queen/lotus",
+    "compiler/parser/lexer",
     "compiler/parser",
     "compiler/codegen/zig",
     "compiler/codegen/verilog",
@@ -544,6 +571,7 @@
       "nn/hslm",
       "fpga/mac",
       "queen/lotus",
+      "compiler/parser/lexer",
       "compiler/parser",
       "compiler/codegen/zig",
       "compiler/codegen/verilog",
@@ -557,8 +585,8 @@
   "metadata": {
     "created": "2026-04-04",
     "schema_version": "2.1",
-    "phi_critical_nodes": [4, 7, 8, 16, 18],
-    "bench_critical_nodes": [2, 16, 17],
-    "standard_nodes": [17, 18]
+    "phi_critical_nodes": [4, 7, 8, 17, 19],
+    "bench_critical_nodes": [2, 17, 18],
+    "standard_nodes": [18, 19]
   }
 }

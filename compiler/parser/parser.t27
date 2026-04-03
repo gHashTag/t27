@@ -20,7 +20,9 @@ fn Parser.new(tokens : []Token, source_file : string) -> Parser {
         current: Token { type: TokenType.EOF, text: "", value: 0, line: 0, column: 0, source_file: source_file },
         context: CompilerContext {
             ast_root: Program { node_type: NodeType.Program, line: 1, column: 1, source_file: source_file,
+                             spec_decl: null,
                              constants: [], data_section: DataSection {}, code_section: CodeSection {},
+                             test_section: null, invariant_section: null, bench_section: null,
                              exports: [], imports: [] },
             symbol_table: SymbolTable.new(null),
             errors: [],
@@ -96,21 +98,81 @@ fn Parser.match(types : []TokenType) -> bool {
 fn Parser.parse_program() -> Program {
     self.skip_newlines();
 
-    ; Parse constants (.const declarations)
-    while self.check(TokenType.Const) or self.check(TokenType.Dot) {
-        self.parse_const_def();
+    ; Check for spec-style header (high-level TDD)
+    if self.check(TokenType.Spec) {
+        self.parse_spec_decl();
         self.skip_newlines();
-    }
 
-    ; Parse data section
-    if self.match([TokenType.Data]) {
-        self.parse_data_section();
-        self.skip_newlines();
-    }
+        ; Parse test blocks in spec
+        while self.check(TokenType.Test) {
+            let test_block = self.parse_test_block();
+            if self.context.ast_root.spec_decl != null {
+                self.context.ast_root.spec_decl.test_blocks.push(test_block);
+            }
+            self.skip_newlines();
+        }
 
-    ; Parse code section
-    if self.match([TokenType.Code]) {
-        self.parse_code_section();
+        ; Parse invariants in spec
+        while self.check(TokenType.Invariant) {
+            let inv = self.parse_invariant_block();
+            if self.context.ast_root.spec_decl != null {
+                self.context.ast_root.spec_decl.invariants.push(inv);
+            }
+            self.skip_newlines();
+        }
+
+        ; Parse rules in spec
+        while self.check(TokenType.Rule) {
+            let rule = self.parse_rule_block();
+            if self.context.ast_root.spec_decl != null {
+                self.context.ast_root.spec_decl.rules.push(rule);
+            }
+            self.skip_newlines();
+        }
+
+        ; Validate spec has tests
+        self.validate_spec();
+    } else {
+        ; Assembly-style parsing
+
+        ; Parse constants (.const declarations)
+        while self.check(TokenType.Const) or self.check(TokenType.Dot) {
+            self.parse_const_def();
+            self.skip_newlines();
+        }
+
+        ; Parse data section
+        if self.match([TokenType.Data]) {
+            self.parse_data_section();
+            self.skip_newlines();
+        }
+
+        ; Parse code section
+        if self.match([TokenType.Code]) {
+            self.parse_code_section();
+            self.skip_newlines();
+        }
+
+        ; Parse test section (assembly-style)
+        if self.match([TokenType.Test]) {
+            self.parse_test_section();
+            self.skip_newlines();
+        }
+
+        ; Parse invariant section (assembly-style)
+        if self.match([TokenType.Invariant]) {
+            self.parse_invariant_section();
+            self.skip_newlines();
+        }
+
+        ; Parse bench section
+        if self.match([TokenType.Bench]) {
+            self.parse_bench_section();
+            self.skip_newlines();
+        }
+
+        ; Validate assembly spec has tests
+        self.validate_spec();
     }
 
     return self.context.ast_root;
@@ -466,6 +528,444 @@ fn Parser.get_opcode(mnemonic : string) -> Opcode? {
     return null;
 }
 
+; ═════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: High-level TDD parsing (spec-style)
+; ═════════════════════════════════════════════════════════════════════
+
+; Parse spec declaration
+fn Parser.parse_spec_decl() -> SpecDecl {
+    let spec_token = self.consume(TokenType.Spec, "Expected 'spec' keyword");
+    let name_token = self.consume(TokenType.Identifier, "Expected spec name");
+
+    let spec_decl = SpecDecl {
+        node_type: NodeType.SpecDecl,
+        line: spec_token.line,
+        column: spec_token.column,
+        source_file: self.context.ast_root.source_file,
+        name: name_token.text,
+        constants: [],
+        test_blocks: [],
+        invariants: [],
+        rules: []
+    };
+
+    self.context.ast_root.spec_decl = spec_decl;
+    return spec_decl;
+}
+
+; Parse test block with given/when/then clauses
+fn Parser.parse_test_block() -> TestBlock {
+    let test_token = self.consume(TokenType.Test, "Expected 'test' keyword");
+    let name_token = self.consume(TokenType.Identifier, "Expected test name");
+
+    let test_block = TestBlock {
+        node_type: NodeType.TestBlock,
+        line: test_token.line,
+        column: test_token.column,
+        source_file: self.context.ast_root.source_file,
+        name: name_token.text,
+        given_clauses: [],
+        when_clauses: [],
+        then_clauses: []
+    };
+
+    ; Parse clauses
+    while !self.check(TokenType.EOF) and !self.check(TokenType.Test)
+          and !self.check(TokenType.Invariant) and !self.check(TokenType.Bench) {
+        self.skip_newlines();
+
+        if self.check(TokenType.Given) {
+            self.advance();
+            let var_token = self.consume(TokenType.Identifier, "Expected variable name in given");
+            self.consume(TokenType.Eq, "Expected '=' in given");
+            ; Parse expression (simplified - consume rest of line)
+            let expr_token = self.current;
+            self.skip_to_newline();
+
+            test_block.given_clauses.push(GivenClause {
+                node_type: NodeType.GivenClause,
+                line: var_token.line,
+                column: var_token.column,
+                source_file: self.context.ast_root.source_file,
+                variable: var_token.text,
+                expression: expr_token.text
+            });
+        } else if self.check(TokenType.When) {
+            self.advance();
+            let var_token = self.consume(TokenType.Identifier, "Expected variable name in when");
+            self.consume(TokenType.Eq, "Expected '=' in when");
+            let expr_token = self.current;
+            self.skip_to_newline();
+
+            test_block.when_clauses.push(WhenClause {
+                node_type: NodeType.WhenClause,
+                line: var_token.line,
+                column: var_token.column,
+                source_file: self.context.ast_root.source_file,
+                variable: var_token.text,
+                expression: expr_token.text
+            });
+        } else if self.check(TokenType.And) {
+            self.advance();
+            ; Determine if this is and/given, and/when, or and/then
+            let clause_type = "given";
+            if test_block.when_clauses.len() > 0 {
+                clause_type = "when";
+            }
+            if test_block.then_clauses.len() > 0 {
+                clause_type = "then";
+            }
+
+            let var_token = self.current;
+            if self.check(TokenType.Identifier) {
+                var_token = self.advance();
+                self.consume(TokenType.Eq, "Expected '=' in and clause");
+            }
+            let expr_token = self.current;
+            self.skip_to_newline();
+
+            test_block.given_clauses.push(AndClause {
+                node_type: NodeType.AndClause,
+                line: var_token.line,
+                column: var_token.column,
+                source_file: self.context.ast_root.source_file,
+                expression: expr_token.text,
+                clause_type: clause_type
+            });
+        } else if self.check(TokenType.Then) {
+            self.advance();
+            let expr_token = self.current;
+            self.skip_to_newline();
+
+            test_block.then_clauses.push(ThenClause {
+                node_type: NodeType.ThenClause,
+                line: expr_token.line,
+                column: expr_token.column,
+                source_file: self.context.ast_root.source_file,
+                expression: expr_token.text
+            });
+        } else {
+            ; Unknown token, skip
+            self.advance();
+        }
+    }
+
+    return test_block;
+}
+
+; Parse invariant with assert
+fn Parser.parse_invariant_block() -> InvariantDecl {
+    let inv_token = self.consume(TokenType.Invariant, "Expected 'invariant' keyword");
+    let name_token = self.consume(TokenType.Identifier, "Expected invariant name");
+
+    ; Parse formal statement (rest of line or until next keyword)
+    let formal_stmt = "";
+    if self.check(TokenType.Assert) {
+        self.advance();
+        formal_stmt = self.current.text;
+        self.skip_to_newline();
+    } else {
+        ; Old-style assembly invariant
+        while !self.check(TokenType.Newline) and !self.check(TokenType.EOF) {
+            formal_stmt = formal_stmt + self.current.text + " ";
+            self.advance();
+        }
+    }
+
+    let inv_decl = InvariantDecl {
+        node_type: NodeType.InvariantDecl,
+        line: inv_token.line,
+        column: inv_token.column,
+        source_file: self.context.ast_root.source_file,
+        name: name_token.text,
+        formal_statement: formal_stmt,
+        rationale: ""
+    };
+
+    return inv_decl;
+}
+
+; Parse rule block with expect
+fn Parser.parse_rule_block() -> RuleDecl {
+    let rule_token = self.consume(TokenType.Rule, "Expected 'rule' keyword");
+    let name_token = self.consume(TokenType.Identifier, "Expected rule name");
+
+    let rule_decl = RuleDecl {
+        node_type: NodeType.RuleDecl,
+        line: rule_token.line,
+        column: rule_token.column,
+        source_file: self.context.ast_root.source_file,
+        name: name_token.text,
+        expect_clauses: []
+    };
+
+    ; Parse expect clauses
+    while self.check(TokenType.Expect) {
+        self.advance();
+        let expr_token = self.current;
+        self.skip_to_newline();
+
+        rule_decl.expect_clauses.push(ExpectClause {
+            node_type: NodeType.ExpectClause,
+            line: expr_token.line,
+            column: expr_token.column,
+            source_file: self.context.ast_root.source_file,
+            expression: expr_token.text
+        });
+    }
+
+    return rule_decl;
+}
+
+; Validate spec has at least one test or invariant
+fn Parser.validate_spec() -> bool {
+    let has_tests = false;
+
+    if self.context.ast_root.test_section != null
+       and self.context.ast_root.test_section.test_cases.len() > 0 {
+        has_tests = true;
+    }
+
+    if self.context.ast_root.spec_decl != null {
+        let spec = self.context.ast_root.spec_decl;
+        if spec.test_blocks.len() > 0 or spec.invariants.len() > 0 {
+            has_tests = true;
+        }
+    }
+
+    if !has_tests {
+        self.context.add_error(
+            "TDD contract violated: spec must contain at least one 'test' or 'invariant' block",
+            self.context.ast_root.line, 1);
+        return false;
+    }
+
+    return true;
+}
+
+; Skip to end of line (for expression parsing)
+fn Parser.skip_to_newline() {
+    while !self.check(TokenType.Newline) and !self.check(TokenType.EOF) {
+        self.advance();
+    }
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Assembly-style TDD parsing (.test, .invariant, .bench)
+; ═════════════════════════════════════════════════════════════════════
+
+; Parse test section (assembly-style)
+; Format: .test followed by comment-style test definitions
+fn Parser.parse_test_section() -> TestSection {
+    let test_token = self.advance();  ; Consume 'test'
+
+    let test_section = TestSection {
+        node_type: NodeType.Test,
+        line: test_token.line,
+        column: test_token.column,
+        source_file: self.context.ast_root.source_file,
+        test_cases: []
+    };
+
+    ; Parse test cases (comment-style)
+    while !self.check(TokenType.Data) and !self.check(TokenType.Code)
+          and !self.check(TokenType.Invariant) and !self.check(TokenType.Bench)
+          and !self.check(TokenType.EOF) {
+        self.skip_newlines();
+
+        ; Look for comment-style test definition: ; test_name
+        if self.check(TokenType.Semicolon) {
+            self.advance();
+            if self.check(TokenType.Identifier) {
+                let name_token = self.advance();
+
+                ; Skip to next test or section
+                let verify_desc = "";
+                let expected_desc = "";
+                let setup_desc = "";
+                let rationale = "";
+
+                ; Parse optional annotations
+                while !self.check(TokenType.Semicolon) and !self.check(TokenType.EOF) {
+                    if self.check(TokenType.Identifier) {
+                        let id = self.current.text;
+                        self.advance();
+                        if id == "Verify:" or id == "verify" {
+                            verify_desc = self.current.text;
+                        } else if id == "Expected:" or id == "expected" {
+                            expected_desc = self.current.text;
+                        } else if id == "Setup:" or id == "setup" {
+                            setup_desc = self.current.text;
+                        } else if id == "Rationale:" or id == "rationale" {
+                            rationale = self.current.text;
+                        }
+                    }
+                    self.advance();
+                    if self.check(TokenType.Newline) {
+                        break;
+                    }
+                }
+
+                let test_case = TestCase {
+                    node_type: NodeType.TestCase,
+                    line: name_token.line,
+                    column: name_token.column,
+                    source_file: self.context.ast_root.source_file,
+                    name: name_token.text,
+                    verify_description: verify_desc,
+                    expected_outcome: expected_desc,
+                    setup_description: setup_desc,
+                    rationale: rationale
+                };
+
+                test_section.test_cases.push(test_case);
+            }
+        } else {
+            self.advance();
+        }
+    }
+
+    self.context.ast_root.test_section = test_section;
+    return test_section;
+}
+
+; Parse invariant section (assembly-style)
+fn Parser.parse_invariant_section() -> InvariantSection {
+    let inv_token = self.advance();  ; Consume 'invariant'
+
+    let inv_section = InvariantSection {
+        node_type: NodeType.Invariant,
+        line: inv_token.line,
+        column: inv_token.column,
+        source_file: self.context.ast_root.source_file,
+        invariants: []
+    };
+
+    ; Parse invariants (comment-style)
+    while !self.check(TokenType.Data) and !self.check(TokenType.Code)
+          and !self.check(TokenType.Test) and !self.check(TokenType.Bench)
+          and !self.check(TokenType.EOF) {
+        self.skip_newlines();
+
+        ; Look for comment-style invariant: ; invariant_name
+        if self.check(TokenType.Semicolon) {
+            self.advance();
+            if self.check(TokenType.Identifier) {
+                let name_token = self.advance();
+
+                ; Parse formal statement and rationale
+                let formal_stmt = "";
+                let rationale = "";
+
+                while !self.check(TokenType.Semicolon) and !self.check(TokenType.EOF) {
+                    if self.check(TokenType.Identifier) {
+                        let id = self.current.text;
+                        self.advance();
+                        if id == "Rationale:" or id == "rationale" {
+                            rationale = self.current.text;
+                        } else {
+                            formal_stmt = formal_stmt + id + " ";
+                        }
+                    } else {
+                        formal_stmt = formal_stmt + self.current.text + " ";
+                        self.advance();
+                    }
+                    if self.check(TokenType.Newline) {
+                        break;
+                    }
+                }
+
+                let inv_decl = InvariantDecl {
+                    node_type: NodeType.InvariantDecl,
+                    line: name_token.line,
+                    column: name_token.column,
+                    source_file: self.context.ast_root.source_file,
+                    name: name_token.text,
+                    formal_statement: formal_stmt,
+                    rationale: rationale
+                };
+
+                inv_section.invariants.push(inv_decl);
+            }
+        } else {
+            self.advance();
+        }
+    }
+
+    self.context.ast_root.invariant_section = inv_section;
+    return inv_section;
+}
+
+; Parse bench section (assembly-style)
+fn Parser.parse_bench_section() -> BenchSection {
+    let bench_token = self.advance();  ; Consume 'bench'
+
+    let bench_section = BenchSection {
+        node_type: NodeType.Bench,
+        line: bench_token.line,
+        column: bench_token.column,
+        source_file: self.context.ast_root.source_file,
+        benchmarks: []
+    };
+
+    ; Parse benchmarks (comment-style)
+    while !self.check(TokenType.Data) and !self.check(TokenType.Code)
+          and !self.check(TokenType.Test) and !self.check(TokenType.Invariant)
+          and !self.check(TokenType.EOF) {
+        self.skip_newlines();
+
+        ; Look for comment-style benchmark: ; bench_name
+        if self.check(TokenType.Semicolon) {
+            self.advance();
+            if self.check(TokenType.Identifier) {
+                let name_token = self.advance();
+
+                ; Parse measure description and target
+                let measure_desc = "";
+                let target = "";
+                let units = "";
+
+                while !self.check(TokenType.Semicolon) and !self.check(TokenType.EOF) {
+                    if self.check(TokenType.Identifier) {
+                        let id = self.current.text;
+                        self.advance();
+                        if id == "Measure:" or id == "measure" {
+                            measure_desc = self.current.text;
+                        } else if id == "Target:" or id == "target" {
+                            target = self.current.text;
+                        } else {
+                            units = units + id + " ";
+                        }
+                    } else {
+                        self.advance();
+                    }
+                    if self.check(TokenType.Newline) {
+                        break;
+                    }
+                }
+
+                let bench_decl = BenchDecl {
+                    node_type: NodeType.BenchDecl,
+                    line: name_token.line,
+                    column: name_token.column,
+                    source_file: self.context.ast_root.source_file,
+                    name: name_token.text,
+                    measure_description: measure_desc,
+                    target: if target.len() > 0 { target } else { null },
+                    units: units
+                };
+
+                bench_section.benchmarks.push(bench_decl);
+            }
+        } else {
+            self.advance();
+        }
+    }
+
+    self.context.ast_root.bench_section = bench_section;
+    return bench_section;
+}
+
 ; Main parsing entry point
 fn parse(source : string, source_file : string) -> CompilerContext {
     ; Tokenize
@@ -496,4 +996,279 @@ fn ast_node_from_label(token : Token) -> ASTNode {
         column: token.column,
         source_file: token.source_file
     };
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec section parsing
+; ═════════════════════════════════════════════════════════════════════
+
+; Parse .test section
+fn Parser.parse_test_section() -> TestSection {
+    let test_token = self.advance();  ; Consume 'test'
+    self.skip_newlines();
+
+    let test_section = TestSection {
+        node_type: NodeType.Test,
+        line: test_token.line,
+        column: test_token.column,
+        source_file: self.context.ast_root.source_file,
+        test_cases: []
+    };
+
+    ; Parse test cases until .invariant, .bench, or EOF
+    while !self.check(TokenType.Invariant) and !self.check(TokenType.Bench) and !self.check(TokenType.EOF) {
+        self.skip_newlines();
+
+        ; Test case format: ; test_name
+        if self.check(TokenType.Semicolon) {
+            self.advance();  ; Consume ';'
+
+            ; Get test name
+            let name_token = self.consume(TokenType.Identifier, "Expected test name after ';'");
+            let test_name = name_token.text;
+
+            ; Parse fields
+            let verify_desc = "";
+            let expected_outcome = "";
+            let setup_desc = "";
+            let rationale = "";
+
+            ; Parse comment fields (Verify:, Expected:, Setup:, Rationale:)
+            while self.check(TokenType.Semicolon) {
+                self.advance();  ; Consume ';'
+                self.skip_newlines();
+
+                ; Check for field keywords
+                if self.match([TokenType.Verify]) {
+                    verify_desc = self.parse_field_description();
+                } else if self.match([TokenType.Expected]) {
+                    expected_outcome = self.parse_field_description();
+                } else if self.match([TokenType.Setup]) {
+                    setup_desc = self.parse_field_description();
+                } else if self.match([TokenType.Rationale]) {
+                    rationale = self.parse_field_description();
+                } else {
+                    ; Skip unknown field
+                    self.skip_line();
+                }
+            }
+
+            let test_case = TestCase {
+                node_type: NodeType.TestCase,
+                line: name_token.line,
+                column: name_token.column,
+                source_file: self.context.ast_root.source_file,
+                name: test_name,
+                verify_description: verify_desc,
+                expected_outcome: expected_outcome,
+                setup_description: setup_desc,
+                rationale: rationale
+            };
+
+            test_section.test_cases.push(test_case);
+        }
+
+        self.skip_newlines();
+    }
+
+    self.context.ast_root.test_section = test_section;
+    return test_section;
+}
+
+; Parse .invariant section
+fn Parser.parse_invariant_section() -> InvariantSection {
+    let invariant_token = self.advance();  ; Consume 'invariant'
+    self.skip_newlines();
+
+    let invariant_section = InvariantSection {
+        node_type: NodeType.Invariant,
+        line: invariant_token.line,
+        column: invariant_token.column,
+        source_file: self.context.ast_root.source_file,
+        invariants: []
+    };
+
+    ; Parse invariants until .bench or EOF
+    while !self.check(TokenType.Bench) and !self.check(TokenType.EOF) {
+        self.skip_newlines();
+
+        ; Invariant format: ; invariant_name
+        if self.check(TokenType.Semicolon) {
+            self.advance();  ; Consume ';'
+
+            ; Get invariant name
+            let name_token = self.consume(TokenType.Identifier, "Expected invariant name after ';'");
+            let invariant_name = name_token.text;
+
+            ; Parse fields
+            let formal_stmt = "";
+            let rationale = "";
+
+            ; Parse comment fields (formal statement, Rationale:)
+            while self.check(TokenType.Semicolon) {
+                self.advance();  ; Consume ';'
+                self.skip_newlines();
+
+                if self.match([TokenType.Rationale]) {
+                    rationale = self.parse_field_description();
+                } else {
+                    ; First comment is the formal statement
+                    if formal_stmt == "" {
+                        formal_stmt = self.parse_comment_rest();
+                    } else {
+                        self.skip_line();
+                    }
+                }
+            }
+
+            let invariant = InvariantDecl {
+                node_type: NodeType.InvariantDecl,
+                line: name_token.line,
+                column: name_token.column,
+                source_file: self.context.ast_root.source_file,
+                name: invariant_name,
+                formal_statement: formal_stmt,
+                rationale: rationale
+            };
+
+            invariant_section.invariants.push(invariant);
+        }
+
+        self.skip_newlines();
+    }
+
+    self.context.ast_root.invariant_section = invariant_section;
+    return invariant_section;
+}
+
+; Parse .bench section
+fn Parser.parse_bench_section() -> BenchSection {
+    let bench_token = self.advance();  ; Consume 'bench'
+    self.skip_newlines();
+
+    let bench_section = BenchSection {
+        node_type: NodeType.Bench,
+        line: bench_token.line,
+        column: bench_token.column,
+        source_file: self.context.ast_root.source_file,
+        benchmarks: []
+    };
+
+    ; Parse benchmarks until EOF
+    while !self.check(TokenType.EOF) {
+        self.skip_newlines();
+
+        ; Benchmark format: ; bench_name
+        if self.check(TokenType.Semicolon) {
+            self.advance();  ; Consume ';'
+
+            ; Get benchmark name
+            let name_token = self.consume(TokenType.Identifier, "Expected benchmark name after ';'");
+            let bench_name = name_token.text;
+
+            ; Parse fields
+            let measure_desc = "";
+            let target = "";
+            let units = "";
+
+            ; Parse comment fields (Measure:, Target:, units inference)
+            while self.check(TokenType.Semicolon) {
+                self.advance();  ; Consume ';'
+                self.skip_newlines();
+
+                if self.match([TokenType.Measure]) {
+                    measure_desc = self.parse_field_description();
+                } else if self.match([TokenType.Target]) {
+                    target = self.parse_field_description();
+                } else {
+                    self.skip_line();
+                }
+            }
+
+            ; Infer units from measure_desc if not explicitly set
+            if units == "" {
+                units = self.infer_units(measure_desc);
+            }
+
+            let benchmark = BenchDecl {
+                node_type: NodeType.BenchDecl,
+                line: name_token.line,
+                column: name_token.column,
+                source_file: self.context.ast_root.source_file,
+                name: bench_name,
+                measure_description: measure_desc,
+                target: target,
+                units: units
+            };
+
+            bench_section.benchmarks.push(benchmark);
+        }
+
+        self.skip_newlines();
+    }
+
+    self.context.ast_root.bench_section = bench_section;
+    return bench_section;
+}
+
+; Parse field description after field keyword (e.g., "Verify: description text")
+fn Parser.parse_field_description() -> string {
+    ; Skip colon if present
+    if self.check(TokenType.Colon) {
+        self.advance();
+    }
+
+    ; Collect rest of comment as description
+    return self.parse_comment_rest();
+}
+
+; Parse the rest of a comment line as text
+fn Parser.parse_comment_rest() -> string {
+    let result = "";
+
+    while !self.check(TokenType.Newline) and !self.check(TokenType.EOF) {
+        let token = self.advance();
+        if token.type == TokenType.Identifier or token.type == TokenType.Integer {
+            if result.len() > 0 {
+                result = result + " ";
+            }
+            result = result + token.text;
+        }
+    }
+
+    return result;
+}
+
+; Skip to end of line
+fn Parser.skip_line() {
+    while !self.check(TokenType.Newline) and !self.check(TokenType.EOF) {
+        self.advance();
+    }
+}
+
+; Infer units from measurement description
+fn Parser.infer_units(desc : string) -> string {
+    let lower = desc.to_lower_case();
+
+    if lower.contains("cycle") {
+        return "cycles";
+    } else if lower.contains("ns") {
+        return "ns";
+    } else if lower.contains("ms") {
+        return "ms";
+    } else if lower.contains("sec") {
+        return "s";
+    } else if lower.contains("ops") {
+        return "ops/sec";
+    } else if lower.contains("throughput") {
+        return "lines/sec";
+    } else if lower.contains("latency") {
+        return "ns";
+    } else if lower.contains("overhead") {
+        return "bytes";
+    } else if lower.contains("memory") {
+        return "bytes";
+    }
+
+    return "units";
 }

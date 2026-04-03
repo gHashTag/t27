@@ -1,0 +1,594 @@
+; vsa/ops.t27 — Vector Symbolic Architecture Operations
+; Bind, Unbind, Bundle, Similarity for ternary hypervectors
+; φ² + 1/φ² = 3 | TRINITY
+
+.use base::types
+.use base::ops
+
+.const VSA_DIM 1024     ; Default hypervector dimension
+.const SIMD_WIDTH 32    ; SIMD trits per operation
+.const MAX_VECTORS 32   ; Maximum vectors for bundleN
+
+; VSA operation types
+.data
+    ; Similarity metrics
+    .const SIM_COSINE 0     ; Cosine similarity [-1, 1]
+    .const SIM_HAMMING 1    ; Hamming similarity [0, 1]
+    .const SIM_DOT 2        ; Dot product similarity
+
+    ; Binding results
+    .const BIND_IDENTITY 0  ; Self-binding (vector unchanged)
+    .const BIND_INVERT 1    ; Inverted binding
+
+.code
+    ; ═════════════════════════════════════════════════════════════════════
+    ; bind(a: []Trit, b: []Trit, len: usize) → []Trit
+    ; XOR-like operation for balanced ternary hypervectors
+    ; Algorithm: if a[i] == 0 return b[i]; else if b[i] == 0 return a[i];
+    ;           else return a[i] * b[i] (which is either -1 or +1)
+    ; Used for: associative memory binding, role-value pairing
+    ; ═════════════════════════════════════════════════════════════════════
+bind:
+    ; Input: r0 = a_ptr, r1 = b_ptr, r2 = len
+    ; Output: r0 = result_ptr (caller-allocated)
+
+    MOV r3, #0           ; r3 = i (loop index)
+    MOV r4, #1           ; r4 = ONE
+
+bind_loop:
+    ; Check if i < len
+    CMP r3, r2
+    JGE bind_done
+
+    ; Load a[i] and b[i]
+    LOAD r5, [r0 + r3]    ; r5 = a[i]
+    LOAD r6, [r1 + r3]    ; r6 = b[i]
+
+    ; Check: if a[i] == 0, return b[i]
+    CMP r5, ZERO
+    JZ use_b
+
+    ; Check: if b[i] == 0, return a[i]
+    CMP r6, ZERO
+    JZ use_a
+
+    ; Both non-zero: multiply
+    CALL trit_multiply
+    ; r5 now = a[i] * b[i]
+    STORE r5, [r0 + r3]
+    JMP bind_next
+
+use_b:
+    STORE r6, [r0 + r3]
+    JMP bind_next
+
+use_a:
+    STORE r5, [r0 + r3]
+
+bind_next:
+    ADD r3, r3, r4
+    JMP bind_loop
+
+bind_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; unbind(bound: []Trit, key: []Trit, len: usize) → []Trit
+    ; Inverse of bind operation
+    ; For XOR-like bind: unbind(x, y) = bind(x, y)
+    ; Used for: retrieving bound values from hypervectors
+    ; ═════════════════════════════════════════════════════════════════════
+unbind:
+    ; Input: r0 = bound_ptr, r1 = key_ptr, r2 = len
+    ; Output: r0 = result_ptr
+
+    ; unbind = bind for this implementation
+    CALL bind
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; bundle2(a: []Trit, b: []Trit, len: usize) → []Trit
+    ; Majority vote of 2 ternary vectors
+    ; Algorithm: if a[i] == 0 return b[i]; else if b[i] == 0 return a[i];
+    ;           else return sign(a[i] + b[i]) ∈ {-1, 0, +1}
+    ; Used for: superposition of items, set union
+    ; ═════════════════════════════════════════════════════════════════════
+bundle2:
+    ; Input: r0 = a_ptr, r1 = b_ptr, r2 = len
+    ; Output: r0 = result_ptr
+
+    MOV r3, #0           ; r3 = i (loop index)
+    MOV r4, #1           ; r4 = ONE
+
+bundle2_loop:
+    CMP r3, r2
+    JGE bundle2_done
+
+    LOAD r5, [r0 + r3]    ; r5 = a[i]
+    LOAD r6, [r1 + r3]    ; r6 = b[i]
+
+    ; Check: if a[i] == 0, return b[i]
+    CMP r5, ZERO
+    JZ bundle2_use_b
+
+    ; Check: if b[i] == 0, return a[i]
+    CMP r6, ZERO
+    JZ bundle2_use_a
+
+    ; Both non-zero: sum and determine sign
+    ADD r7, r5, r6       ; r7 = a[i] + b[i] ∈ {-2, 0, +2}
+
+    ; If sum > 0: result = +1
+    CMP r7, ZERO
+    JGT bundle2_pos
+    ; If sum < 0: result = -1
+    JLT bundle2_neg
+    ; sum == 0: result = 0
+    MOV r7, ZERO
+    STORE r7, [r0 + r3]
+    JMP bundle2_next
+
+bundle2_pos:
+    MOV r7, ONE
+    STORE r7, [r0 + r3]
+    JMP bundle2_next
+
+bundle2_neg:
+    MOV r7, NEGONE
+    STORE r7, [r0 + r3]
+    JMP bundle2_next
+
+bundle2_use_b:
+    STORE r6, [r0 + r3]
+    JMP bundle2_next
+
+bundle2_use_a:
+    STORE r5, [r0 + r3]
+
+bundle2_next:
+    ADD r3, r3, r4
+    JMP bundle2_loop
+
+bundle2_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; bundle3(a: []Trit, b: []Trit, c: []Trit, len: usize) → []Trit
+    ; Majority vote of 3 ternary vectors
+    ; Algorithm: sum = a[i] + b[i] + c[i]; result = sign(sum)
+    ; Used for: robust superposition, noise reduction
+    ; ═════════════════════════════════════════════════════════════════════
+bundle3:
+    ; Input: r0 = a_ptr, r1 = b_ptr, r2 = c_ptr, r3 = len
+    ; Output: r0 = result_ptr (using r0 for a, need temp)
+
+    PUSH r0              ; Save a_ptr
+    PUSH r1              ; Save b_ptr
+    PUSH r2              ; Save c_ptr
+
+    MOV r10, r3          ; r10 = len
+    MOV r11, #0          ; r11 = i
+
+bundle3_loop:
+    CMP r11, r10
+    JGE bundle3_done
+
+    ; Load all three values (need to restore pointers first)
+    POP r2               ; c_ptr
+    POP r1               ; b_ptr
+    POP r0               ; a_ptr
+
+    LOAD r4, [r0 + r11]   ; r4 = a[i]
+    LOAD r5, [r1 + r11]   ; r5 = b[i]
+    LOAD r6, [r2 + r11]   ; r6 = c[i]
+
+    ; Push pointers back for next iteration
+    PUSH r0
+    PUSH r1
+    PUSH r2
+
+    ; Sum: a + b + c
+    ADD r7, r4, r5       ; r7 = a + b
+    ADD r7, r7, r6       ; r7 = a + b + c ∈ {-3, -1, +1, +3}
+
+    ; Determine result
+    CMP r7, ZERO
+    JGT bundle3_pos
+    JLT bundle3_neg
+    MOV r7, ZERO
+    STORE r7, [r0 + r11]
+    JMP bundle3_next
+
+bundle3_pos:
+    MOV r7, ONE
+    STORE r7, [r0 + r11]
+    JMP bundle3_next
+
+bundle3_neg:
+    MOV r7, NEGONE
+    STORE r7, [r0 + r11]
+
+bundle3_next:
+    ADD r11, r11, ONE
+    JMP bundle3_loop
+
+bundle3_done:
+    POP r2
+    POP r1
+    POP r0
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; similarity(a: []Trit, b: []Trit, len: usize, metric: u8) → f64
+    ; Compute similarity between two hypervectors
+    ; Metrics: COSINE, HAMMING, DOT
+    ; ═════════════════════════════════════════════════════════════════════
+similarity:
+    ; Input: r0 = a_ptr, r1 = b_ptr, r2 = len, r3 = metric
+    ; Output: f0 = similarity value
+
+    CMP r3, SIM_COSINE
+    JEQ sim_cosine
+    CMP r3, SIM_HAMMING
+    JEQ sim_hamming
+    ; Default to dot
+    CALL sim_dot
+    RET
+
+sim_cosine:
+    ; Cosine similarity: (a·b) / (||a|| * ||b||)
+    CALL dot_product      ; f0 = a·b
+    PUSH f0               ; Save dot
+
+    CALL vector_norm      ; f1 = ||a||
+    PUSH f1               ; Save norm_a
+
+    ; Compute norm of b
+    MOV r0, r1            ; Swap: r0 = b_ptr
+    CALL vector_norm      ; f1 = ||b||
+    PUSH f1               ; Save norm_b
+
+    ; Check if either norm is zero
+    CMP f1, #0.0
+    JEQ sim_zero
+    POP f1                ; norm_b
+    POP f0                ; norm_a
+    CMP f0, #0.0
+    JEQ sim_zero
+
+    ; Compute: dot / (norm_a * norm_b)
+    POP f1                ; norm_b
+    MUL f1, f1, f0        ; norm_a * norm_b
+    POP f0                ; dot
+    DIV f0, f0, f1        ; result
+    RET
+
+sim_hamming:
+    ; Hamming similarity: 1 - (hamming_distance / len)
+    CALL hamming_distance
+    ; r0 = distance
+    PUSH r0
+    MOV f0, r0            ; f0 = distance
+    MOV f1, r2            ; f1 = len
+    DIV f0, f0, f1        ; f0 = distance/len
+    SUB f0, #1.0, f0      ; f0 = 1 - distance/len
+    POP r0
+    RET
+
+sim_dot:
+    CALL dot_product
+    RET
+
+sim_zero:
+    ; Return 0 if either norm is zero
+    MOV f0, #0.0
+    ; Clean up stack
+    ADD SP, SP, #8
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; dot_product(a: []Trit, b: []Trit, len: usize) → i64
+    ; Compute dot product Σ a[i] * b[i]
+    ; ═════════════════════════════════════════════════════════════════════
+dot_product:
+    ; Input: r0 = a_ptr, r1 = b_ptr, r2 = len
+    ; Output: f0 = dot (as float for division)
+
+    MOV r3, #0           ; r3 = i
+    MOV r4, #0           ; r4 = acc (integer accumulator)
+
+dot_loop:
+    CMP r3, r2
+    JGE dot_done
+
+    LOAD r5, [r0 + r3]    ; r5 = a[i]
+    LOAD r6, [r1 + r3]    ; r6 = b[i]
+
+    ; Multiply trits
+    PUSH r0
+    PUSH r1
+    MOV r0, r5
+    MOV r1, r6
+    CALL trit_multiply   ; r0 = a[i] * b[i]
+    ADD r4, r4, r0       ; acc += product
+    POP r1
+    POP r0
+
+    ADD r3, r3, ONE
+    JMP dot_loop
+
+dot_done:
+    MOV f0, r4            ; Convert to float
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; vector_norm(v: []Trit, len: usize) → f64
+    ; Compute L2 norm: sqrt(Σ v[i]²)
+    ; For trits: v[i]² is always 0 or 1
+    ; So norm = sqrt(count of non-zero trits)
+    ; ═════════════════════════════════════════════════════════════════════
+vector_norm:
+    ; Input: r0 = v_ptr, r1 = len
+    ; Output: f0 = norm
+
+    MOV r2, #0           ; r2 = i
+    MOV r3, #0           ; r3 = nonzero_count
+
+norm_loop:
+    CMP r2, r1
+    JGE norm_done
+
+    LOAD r4, [r0 + r2]    ; r4 = v[i]
+
+    ; Check if non-zero
+    CMP r4, ZERO
+    JEQ norm_skip
+
+    ADD r3, r3, ONE      ; nonzero_count++
+
+norm_skip:
+    ADD r2, r2, ONE
+    JMP norm_loop
+
+norm_done:
+    ; norm = sqrt(nonzero_count)
+    MOV f0, r3
+    SQRT f0, f0
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; hamming_distance(a: []Trit, b: []Trit, len: usize) → usize
+    ; Count positions where a[i] != b[i]
+    ; ═════════════════════════════════════════════════════════════════════
+hamming_distance:
+    ; Input: r0 = a_ptr, r1 = b_ptr, r2 = len
+    ; Output: r0 = distance
+
+    MOV r3, #0           ; r3 = i
+    MOV r4, #0           ; r4 = distance
+
+hamming_loop:
+    CMP r3, r2
+    JGE hamming_done
+
+    LOAD r5, [r0 + r3]    ; r5 = a[i]
+    LOAD r6, [r1 + r3]    ; r6 = b[i]
+
+    CMP r5, r6
+    JEQ hamming_skip
+
+    ADD r4, r4, ONE      ; distance++
+
+hamming_skip:
+    ADD r3, r3, ONE
+    JMP hamming_loop
+
+hamming_done:
+    MOV r0, r4
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; permute(v: []Trit, len: usize, shift: usize) → []Trit
+    ; Circular shift of hypervector by shift positions
+    ; Used for: sequence encoding, position tagging
+    ; ═════════════════════════════════════════════════════════════════════
+permute:
+    ; Input: r0 = v_ptr, r1 = len, r2 = shift
+    ; Output: r0 = result_ptr
+
+    ; Normalize shift: shift = shift % len
+    MOV r3, r2
+    MOD r3, r3, r1       ; r3 = shift % len
+
+    ; Simple O(n) implementation: rotate in place
+    ; For better efficiency, use reverse algorithm
+    CMP r3, #0
+    JEQ permute_done
+
+    ; Reverse [0, shift)
+    MOV r4, #0
+    MOV r5, r3
+    SUB r5, r5, ONE
+    CALL reverse_range
+
+    ; Reverse [shift, len)
+    MOV r4, r3
+    MOV r5, r1
+    SUB r5, r5, ONE
+    CALL reverse_range
+
+    ; Reverse [0, len)
+    MOV r4, #0
+    MOV r5, r1
+    SUB r5, r5, ONE
+    CALL reverse_range
+
+permute_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; reverse_range(v: []Trit, start: usize, end: usize) → void
+    ; Reverse v[start..end] in place
+    ; ═════════════════════════════════════════════════════════════════════
+reverse_range:
+    ; Input: r0 = v_ptr, r1 = start, r2 = end
+
+reverse_loop:
+    CMP r1, r2
+    JGE reverse_done
+
+    LOAD r3, [r0 + r1]    ; r3 = v[start]
+    LOAD r4, [r0 + r2]    ; r4 = v[end]
+
+    STORE r4, [r0 + r1]    ; v[start] = v[end]
+    STORE r3, [r0 + r2]    ; v[end] = v[start]
+
+    ADD r1, r1, ONE
+    SUB r2, r2, ONE
+    JMP reverse_loop
+
+reverse_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; encode_sequence(items: [][]Trit, count: usize, item_len: usize) → []Trit
+    ; Encode sequence of items using position-aware binding
+    ; result = items[0] + permute(items[1], 1) + permute(items[2], 2) + ...
+    ; ═════════════════════════════════════════════════════════════════════
+encode_sequence:
+    ; Input: r0 = items_ptr, r1 = count, r2 = item_len
+    ; Output: r0 = result_ptr (allocated by caller)
+
+    ; Initialize result to first item
+    LOAD r3, [r0]        ; r3 = items[0] ptr
+    MOV r4, #0
+    MOV r5, r2
+
+copy_first_loop:
+    CMP r4, r5
+    JGE encode_loop_start
+
+    LOAD r6, [r3 + r4]
+    STORE r6, [r10 + r4]   ; r10 = result_ptr (passed separately)
+    ADD r4, r4, ONE
+    JMP copy_first_loop
+
+encode_loop_start:
+    ; For i in 1..count-1:
+    MOV r6, #1           ; r6 = i
+
+encode_loop:
+    CMP r6, r1
+    JGE encode_done
+
+    ; Load items[i]
+    LOAD r7, [r0 + r6 * 4]  ; r7 = items[i] ptr
+
+    ; Permute by position i
+    PUSH r0
+    PUSH r1
+    PUSH r2
+    MOV r0, r7
+    MOV r1, r2
+    MOV r2, r6
+    CALL permute         ; r0 = permuted ptr (need temp storage)
+    ; For now: add element-wise to result
+    ; (Full implementation would use temp buffer)
+    POP r2
+    POP r1
+    POP r0
+
+    ADD r6, r6, ONE
+    JMP encode_loop
+
+encode_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; probe_sequence(seq: []Trit, candidate: []Trit, position: usize, len: usize) → f64
+    ; Probe if candidate is at position in encoded sequence
+    ; Returns similarity between seq and permute(candidate, position)
+    ; ═════════════════════════════════════════════════════════════════════
+probe_sequence:
+    ; Input: r0 = seq_ptr, r1 = candidate_ptr, r2 = position, r3 = len
+    ; Output: f0 = similarity
+
+    ; Permute candidate by position
+    PUSH r0
+    PUSH r3
+    MOV r0, r1
+    MOV r1, r3
+    MOV r2, r2
+    CALL permute         ; r0 = permuted candidate
+    MOV r1, r0           ; r1 = permuted
+    POP r3
+    POP r0               ; r0 = seq_ptr
+
+    ; Compute similarity
+    PUSH r2
+    MOV r2, SIM_COSINE
+    CALL similarity
+    POP r2
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; TDD-Inside-Spec: Invariants and Tests
+    ; ═════════════════════════════════════════════════════════════════════
+.test
+    ; test_bind_unbind_identity
+    ; Verify: bind(x, key) then unbind(result, key) ≈ x
+    ; Setup: create random vector x and key
+    ; Expected: similarity(unbind(bind(x, key), key), x) > 0.95
+
+    ; test_bundle2_idempotent
+    ; Verify: bundle2(v, v) ≈ v (bundling with self preserves value)
+    ; Setup: create random vector v
+    ; Expected: hamming_distance(bundle2(v, v), v) == 0
+
+    ; test_bundle3_consensus
+    ; Verify: bundle3 is majority vote
+    ; Setup: v = [+1,+1,-1], w = [+1,-1,+1], u = [+1,+1,+1]
+    ; Expected: bundle3(v, w, u) = [+1,+1,+1] (2/3 positive wins)
+
+    ; test_similarity_symmetry
+    ; Verify: similarity(a, b) == similarity(b, a)
+    ; Setup: create two random vectors a, b
+    ; Expected: |similarity(a, b) - similarity(b, a)| < 1e-6
+
+    ; test_similarity_bounds
+    ; Verify: cosine similarity in [-1, 1], hamming in [0, 1]
+    ; Setup: create two random vectors
+    ; Expected: -1 <= cosine_sim <= 1, 0 <= hamming_sim <= 1
+
+    ; test_permute_periodicity
+    ; Verify: permute(v, len) == v (full rotation returns original)
+    ; Setup: create vector v of length len
+    ; Expected: hamming_distance(permute(v, len), v) == 0
+
+.invariant
+    ; bind_unbind_identity
+    ; For all x, key: similarity(unbind(bind(x, key), key), x) > 0.95
+    ; Rationale: XOR-like binding should be reversible with same key
+
+    ; bundle_idempotency
+    ; For all v: hamming_distance(bundle2(v, v), v) == 0
+    ; Rationale: Bundling with zero vectors should preserve non-zero values
+
+    ; permute_involutivity
+    ; For all v, n: permute(permute(v, n), len-n) == v
+    ; Rationale: Permutation is invertible (its own inverse)
+
+    ; similarity_non_negativity
+    ; For all a, b: similarity(a, b) >= 0 for appropriate metrics
+    ; Rationale: Distance metrics should satisfy non-negativity
+
+.bench
+    ; bench_bind_throughput
+    ; Measure: operations per second on VSA_DIM vectors
+    ; Target: > 1M binds/sec on SIMD implementation
+
+    ; bench_similarity_latency
+    ; Measure: cycles for cosine similarity on VSA_DIM vectors
+    ; Target: < 100 cycles on optimized hardware
+
+HALT

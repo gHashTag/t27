@@ -1,0 +1,581 @@
+; nn/hslm.t27 — HSLM (Hierarchical Sacred Learning Model) Specification
+; Ternary neural network with sacred constants and VSA attention
+; φ² + 1/φ² = 3 | TRINITY
+
+.use base::types
+.use base::ops
+.use math::constants
+.use math::sacred_physics
+.use numeric::gf16
+.use nn::attention
+
+; HSLM configuration
+.const NUM_LAYERS 6           ; 6 transformer-like layers
+.const NUM_HEADS 3            ; 3 attention heads per layer
+.const HEAD_DIM 81            ; 81 dim per head (3⁴)
+.const EMBED_DIM 243          ; 243 total embedding (3 × 81)
+.const FF_DIM 972             ; 4 × EMBED_DIM (3⁴ × 4)
+.const CONTEXT_LEN 81         ; Max sequence length
+.const VSA_DIM 1024            ; VSA hypervector dimension
+
+; Layer phases
+.data
+    .const PHASE_NORM 0        ; Layer normalization
+    .const PHASE_ATTN 1        ; Attention block
+    .const PHASE_FFN 2         ; Feed-forward network
+    .const PHASE_RESIDUAL 3    ; Residual connection
+
+    ; HSLM activation functions
+    .const ACT_RELU 0          ; ReLU
+    .const ACT_GELU 1          ; GELU
+    .const ACT_SWISH 2         ; Swish
+    .const ACT_TERNARY 3       ; Ternary (sign)
+
+    ; HSLM training phases
+    .const PHASE_FORWARD 0      ; Forward pass
+    .const PHASE_BACKWARD 1     ; Backward pass
+    .const PHASE_UPDATE 2       ; Weight update
+
+.code
+    ; ═════════════════════════════════════════════════════════════════════
+    ; hslm_forward(
+    ;   input: []f32,           ; [seq_len][EMBED_DIM] input embeddings
+    ;   weights: []Trit,        ; Ternary weight matrices
+    ;   seq_len: usize,
+    ;   output: []f32           ; [seq_len][EMBED_DIM] output
+    ; ) → void
+    ; Full forward pass through all HSLM layers
+    ; ═════════════════════════════════════════════════════════════════════
+hslm_forward:
+    ; Input: r0 = input_ptr, r1 = weights_ptr, r2 = seq_len, r3 = output_ptr
+
+    PUSH r0
+    PUSH r1
+    PUSH r2
+    PUSH r3
+
+    ; For each position in sequence
+    MOV r10, #0          ; r10 = position
+
+hslm_pos_loop:
+    CMP r10, r2
+    JGE hslm_forward_done
+
+    ; Get position input
+    MOV r11, r10
+    MUL r11, r11, EMBED_DIM
+
+    ; Copy input to layer_0_input
+    CALL copy_embedding
+
+    ; Process through layers
+    MOV r12, #0          ; r12 = layer index
+
+hslm_layer_loop:
+    CMP r12, NUM_LAYERS
+    JGE hslm_next_pos
+
+    ; Layer forward: norm -> attention -> residual -> norm -> ffn -> residual
+    CALL hslm_layer_forward
+
+    ADD r12, r12, ONE
+    JMP hslm_layer_loop
+
+hslm_next_pos:
+    ; Copy final layer output to result
+    CALL copy_to_output
+
+    ADD r10, r10, ONE
+    JMP hslm_pos_loop
+
+hslm_forward_done:
+    POP r3
+    POP r2
+    POP r1
+    POP r0
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; hslm_layer_forward() → void
+    ; Single transformer layer: Attention + FFN with residual connections
+    ; ═════════════════════════════════════════════════════════════════════
+hslm_layer_forward:
+    ; Input: r10 = position, r12 = layer
+    ; Uses: layer_input, layer_output buffers
+
+    ; Step 1: RMSNorm before attention
+    CALL rms_norm_forward
+
+    ; Step 2: Multi-head sacred attention
+    CALL sacred_attention_kernel
+
+    ; Step 3: Residual connection (attention + input)
+    CALL add_residual_layer
+
+    ; Step 4: RMSNorm before FFN
+    CALL rms_norm_forward
+
+    ; Step 5: Feed-forward network
+    ; FFN: Gelu(x @ W1) @ W2
+    CALL ffn_forward
+
+    ; Step 6: Residual connection (ffn + attention_output)
+    CALL add_residual_ffn
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; rms_norm_forward() → void
+    ; RMSNorm: output = (input / sqrt(mean(input²) + eps)) * gamma
+    ; Uses sacred gamma from math/sacred_physics
+    ; ═════════════════════════════════════════════════════════════════════
+rms_norm_forward:
+    ; Compute mean of squares
+    MOV f0, #0.0         ; f0 = sum of squares
+    MOV r13, #0          ; r13 = dim index
+
+rms_square_loop:
+    CMP r13, EMBED_DIM
+    JGE rms_compute
+
+    LOAD f1, [layer_input + r13 * 4]
+    MUL f1, f1, f1
+    ADD f0, f0, f1
+
+    ADD r13, r13, ONE
+    JMP rms_square_loop
+
+rms_compute:
+    ; rms = sqrt(mean + eps)
+    MOV f1, EMBED_DIM
+    DIV f0, f0, f1       ; mean
+    ADD f0, f0, #1e-6     ; eps
+    SQRT f0, f0           ; rms
+
+    ; Normalize and scale by gamma
+    MOV r13, #0
+
+rms_norm_loop:
+    CMP r13, EMBED_DIM
+    JGE rms_norm_done
+
+    LOAD f1, [layer_input + r13 * 4]
+    DIV f1, f1, f0        ; x / rms
+
+    ; Scale by gamma (sacred ratio per dimension)
+    ; For simplicity: use uniform gamma = 1.0
+    ; Full implementation: learnable gamma per dimension
+
+    STORE f1, [layer_output + r13 * 4]
+
+    ADD r13, r13, ONE
+    JMP rms_norm_loop
+
+rms_norm_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; ffn_forward() → void
+    ; Feed-forward network: Gelu(x @ W1) @ W2
+    ; Using ternary weights, sacred expansion
+    ; ═════════════════════════════════════════════════════════════════════
+ffn_forward:
+    ; Step 1: Project to FF_DIM: intermediate = input @ W1
+    CALL ffn_project_1
+
+    ; Step 2: Apply GELU activation
+    CALL gelu_activation
+
+    ; Step 3: Project back to EMBED_DIM: output = intermediate @ W2
+    CALL ffn_project_2
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; ffn_project_1() → void
+    ; First FFN projection: EMBED_DIM -> FF_DIM
+    ; Using ternary weights
+    ; ═════════════════════════════════════════════════════════════════════
+ffn_project_1:
+    MOV r13, #0          ; r13 = output index
+
+ffn1_loop:
+    CMP r13, FF_DIM
+    JGE ffn1_done
+
+    MOV f0, #0.0
+    MOV r14, #0          ; r14 = input index
+
+ffn1_inner:
+    CMP r14, EMBED_DIM
+    JGE ffn1_store
+
+    LOAD f1, [layer_output + r14 * 4]
+
+    ; Load W1[r14][r13] (ternary)
+    ; Weight offset: r14 * FF_DIM + r13
+    MOV r15, r14
+    MUL r15, r15, FF_DIM
+    ADD r15, r15, r13
+    LOAD r16, [w1_buffer + r15]
+
+    CMP r16, ZERO
+    JEQ ffn1_skip
+    JLT ffn1_neg
+
+    ADD f0, f0, f1
+    JMP ffn1_skip
+
+ffn1_neg:
+    SUB f0, f0, f1
+
+ffn1_skip:
+    ADD r14, r14, ONE
+    JMP ffn1_inner
+
+ffn1_store:
+    STORE f0, [ffn_intermediate + r13 * 4]
+    ADD r13, r13, ONE
+    JMP ffn1_loop
+
+ffn1_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; gelu_activation() → void
+    ; GELU: x * Φ(x) where Φ is standard normal CDF
+    ; Approximation: x * 0.5 * (1 + tanh(√(2/π) * (x + 0.044715x³)))
+    ; ═════════════════════════════════════════════════════════════════════
+gelu_activation:
+    MOV r13, #0
+
+gelu_loop:
+    CMP r13, FF_DIM
+    JGE gelu_done
+
+    LOAD f0, [ffn_intermediate + r13 * 4]
+
+    ; Compute: 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715x³)))
+
+    ; x³
+    MOV f1, f0
+    MUL f1, f1, f0
+    MUL f1, f1, f0
+
+    ; 0.044715 * x³
+    MOV f2, #0.044715
+    MUL f2, f2, f1
+
+    ; x + 0.044715x³
+    ADD f2, f0, f2
+
+    ; √(2/π) = sqrt(2/π)
+    MOV f3, #2.0
+    MOV f4, #3.14159265
+    DIV f3, f3, f4
+    SQRT f3, f3
+
+    ; √(2/π) * (x + 0.044715x³)
+    MUL f2, f3, f2
+
+    ; tanh(...)
+    TANH f2, f2
+
+    ; 1 + tanh(...)
+    ADD f2, f2, #1.0
+
+    ; 0.5 * (1 + tanh(...))
+    MOV f3, #0.5
+    MUL f3, f3, f2
+
+    ; x * 0.5 * (1 + tanh(...))
+    MUL f0, f0, f3
+
+    STORE f0, [ffn_intermediate + r13 * 4]
+
+    ADD r13, r13, ONE
+    JMP gelu_loop
+
+gelu_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; ffn_project_2() → void
+    ; Second FFN projection: FF_DIM -> EMBED_DIM
+    ; Using ternary weights
+    ; ═════════════════════════════════════════════════════════════════════
+ffn_project_2:
+    MOV r13, #0          ; r13 = output index
+
+ffn2_loop:
+    CMP r13, EMBED_DIM
+    JGE ffn2_done
+
+    MOV f0, #0.0
+    MOV r14, #0          ; r14 = input index
+
+ffn2_inner:
+    CMP r14, FF_DIM
+    JGE ffn2_store
+
+    LOAD f1, [ffn_intermediate + r14 * 4]
+
+    ; Load W2[r14][r13] (ternary)
+    MOV r15, r14
+    MUL r15, r15, EMBED_DIM
+    ADD r15, r15, r13
+    LOAD r16, [w2_buffer + r15]
+
+    CMP r16, ZERO
+    JEQ ffn2_skip
+    JLT ffn2_neg
+
+    ADD f0, f0, f1
+    JMP ffn2_skip
+
+ffn2_neg:
+    SUB f0, f0, f1
+
+ffn2_skip:
+    ADD r14, r14, ONE
+    JMP ffn2_inner
+
+ffn2_store:
+    STORE f0, [layer_output + r13 * 4]
+    ADD r13, r13, ONE
+    JMP ffn2_loop
+
+ffn2_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; hslm_backward(
+    ;   grad_output: []f32,    ; [seq_len][EMBED_DIM] gradient w.r.t. output
+    ;   weights: []Trit,       ; Ternary weight matrices
+    ;   seq_len: usize,
+    ;   grad_input: []f32      ; [seq_len][EMBED_DIM] gradient w.r.t. input
+    ; ) → void
+    ; Full backward pass with gradient computation
+    ; ═════════════════════════════════════════════════════════════════════
+hslm_backward:
+    ; Input: r0 = grad_output_ptr, r1 = weights_ptr, r2 = seq_len, r3 = grad_input_ptr
+
+    PUSH r0
+    PUSH r1
+    PUSH r2
+    PUSH r3
+
+    ; Zero out all weight gradients
+    CALL zero_weight_gradients
+
+    ; Backward through layers (reverse order)
+    MOV r10, NUM_LAYERS
+    SUB r10, r10, ONE      ; r10 = last layer index
+
+hslm_bwd_layer_loop:
+    CMP r10, #0
+    JLT hslm_bwd_done
+
+    ; Layer backward
+    CALL hslm_layer_backward
+
+    SUB r10, r10, ONE
+    JMP hslm_bwd_layer_loop
+
+hslm_bwd_done:
+    POP r3
+    POP r2
+    POP r1
+    POP r0
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; hslm_layer_backward() → void
+    ; Single layer backward: FFN + Attention gradients
+    ; ═════════════════════════════════════════════════════════════════════
+hslm_layer_backward:
+    ; Input: r10 = layer index
+    ; Gradient flows backward through: residual -> ffn -> norm -> residual -> attn -> norm
+
+    ; FFN backward (with residual)
+    CALL ffn_backward
+
+    ; Attention backward (with residual)
+    CALL attention_backward
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; ffn_backward() → void
+    ; Backward through FFN: compute gradients for W2, W1, and input
+    ; ═════════════════════════════════════════════════════════════════════
+ffn_backward:
+    ; Step 1: Gradient through second projection (W2)
+    CALL ffn_backward_w2
+
+    ; Step 2: Gradient through GELU activation
+    CALL gelu_backward
+
+    ; Step 3: Gradient through first projection (W1)
+    CALL ffn_backward_w1
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; hslm_phase(phase: u8) → void
+    ; Switch HSLM phase (forward, backward, update)
+    ; Used for streaming inference and training
+    ; ═════════════════════════════════════════════════════════════════════
+hslm_phase:
+    ; Input: r0 = phase
+
+    CMP r0, PHASE_FORWARD
+    JEQ set_forward_phase
+    CMP r0, PHASE_BACKWARD
+    JEQ set_backward_phase
+    CMP r0, PHASE_UPDATE
+    JEQ set_update_phase
+
+set_forward_phase:
+    ; Set caches for forward pass
+    MOV r1, #1
+    STORE r1, [hslm_mode]
+    RET
+
+set_backward_phase:
+    ; Set caches for backward pass
+    MOV r1, #2
+    STORE r1, [hslm_mode]
+    RET
+
+set_update_phase:
+    ; Set mode for weight update
+    MOV r1, #3
+    STORE r1, [hslm_mode]
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; add_residual_layer() → void
+    ; Add residual: output = attention_output + layer_input
+    ; ═════════════════════════════════════════════════════════════════════
+add_residual_layer:
+    MOV r13, #0
+
+residual_layer_loop:
+    CMP r13, EMBED_DIM
+    JGE residual_layer_done
+
+    LOAD f0, [layer_output + r13 * 4]   ; attention output
+    LOAD f1, [layer_input + r13 * 4]    ; input
+
+    ADD f0, f0, f1
+    STORE f0, [layer_output + r13 * 4]
+
+    ADD r13, r13, ONE
+    JMP residual_layer_loop
+
+residual_layer_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; add_residual_ffn() → void
+    ; Add residual: output = ffn_output + attention_output
+    ; ═════════════════════════════════════════════════════════════════════
+add_residual_ffn:
+    ; Assumes attention_output is in temp buffer
+    MOV r13, #0
+
+residual_ffn_loop:
+    CMP r13, EMBED_DIM
+    JGE residual_ffn_done
+
+    LOAD f0, [layer_output + r13 * 4]   ; ffn output
+    LOAD f1, [temp_buffer + r13 * 4]    ; attention output
+
+    ADD f0, f0, f1
+    STORE f0, [layer_output + r13 * 4]
+
+    ADD r13, r13, ONE
+    JMP residual_ffn_loop
+
+residual_ffn_done:
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
+    ; TDD-Inside-Spec: Invariants and Tests
+    ; ═════════════════════════════════════════════════════════════════════
+.test
+    ; test_hslm_forward_pass_shape
+    ; Verify: forward pass preserves [seq_len, EMBED_DIM] shape
+    ; Setup: input [81, 243], run hslm_forward
+    ; Expected: output shape is [81, 243]
+
+    ; test_layer_count_matches_spec
+    ; Verify: exactly NUM_LAYERS = 6 layers processed
+    ; Setup: instrument layer counter during forward pass
+    ; Expected: layer_count == 6
+
+    ; test_rms_norm_unit_variance
+    ; Verify: RMSNorm output has unit variance when input has non-zero variance
+    ; Setup: create input with variance, apply RMSNorm
+    ; Expected: output variance ≈ 1.0 (within tolerance)
+
+    ; test_gelu_smoothness
+    ; Verify: GELU is smooth (no discontinuities)
+    ; Setup: compute GELU derivative numerically
+    ; Expected: derivative is continuous, no jumps
+
+    ; test_residual_connections
+    ; Verify: residual connections are actually applied
+    ; Setup: zero out attention and FFN outputs
+    ; Expected: output equals input (residual path works)
+
+    ; test_backward_pass_gradient_flow
+    ; Verify: gradients flow through all layers
+    ; Setup: run forward, compute loss, run backward
+    ; Expected: all layers receive non-zero gradients
+
+    ; test_ffn_expansion_ratio
+    ; Verify: FFN expands to FF_DIM = 4 * EMBED_DIM
+    ; Setup: check intermediate buffer size
+    ; Expected: intermediate dimension == 972
+
+.invariant
+    ; hslm_layer_count
+    ; NUM_LAYERS == 6 (canonical depth)
+    ; Rationale: Depth is fixed by architecture specification
+
+    ; embedding_dimensional_consistency
+    ; EMBED_DIM == NUM_HEADS * HEAD_DIM
+    ; Rationale: 3 * 81 = 243 ensures even distribution
+
+    ; rms_normalization_invariant
+    ; After RMSNorm: mean(output) ≈ 0, std(output) ≈ 1
+    ; Rationale: RMSNorm produces normalized activations
+
+    ; ffn_expansion_ratio
+    ; FF_DIM == 4 * EMBED_DIM (standard transformer ratio)
+    ; Rationale: Balances expressiveness and compute
+
+    ; gelu_smoothness
+    ; GELU is C1 continuous (smooth)
+    ; Rationale: Smooth activations enable better gradient flow
+
+    ; gradient_flow_preservation
+    ; For all non-trivial inputs: gradients flow through all layers
+    ; Rationale: Deep networks require gradient flow
+
+.bench
+    ; bench_hslm_forward_throughput
+    ; Measure: tokens per second forward pass
+    ; Target: > 10K tokens/sec on [81, 243] input
+
+    ; bench_layer_breakdown
+    ; Measure: time spent per layer component (norm, attn, ffn)
+    ; Target: each component < 1ms per token
+
+    ; test_backward_vs_forward_ratio
+    ; Measure: backward pass time / forward pass time
+    ; Target: < 3x (backward is more expensive but not 10x)
+
+HALT

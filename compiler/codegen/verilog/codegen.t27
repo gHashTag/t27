@@ -93,10 +93,13 @@ fn VerilogCodegen.generate() -> string {
     ; Sequential logic
     self.emit_sequential();
 
+    ; TDD-Inside-Spec: Emit assertions from .invariant section
+    self.emit_verilog_assertions();
+
     ; Footer
     self.emit_footer();
 
-    ; Optional testbench
+    ; Optional testbench (includes tests from .test section)
     if self.options.include_testbench {
         self.emit_testbench();
     }
@@ -438,6 +441,45 @@ fn VerilogCodegen.emit_sequential() {
     self.emit_line("");
 }
 
+; ═════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Emit Verilog assertions from .invariant section
+; ═════════════════════════════════════════════════════════════════════
+
+; Emit Verilog assertions for invariants
+fn VerilogCodegen.emit_verilog_assertions() {
+    if self.ast.invariant_section == null {
+        return;
+    }
+
+    let invariant_section = self.ast.invariant_section;
+
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Invariant Assertions");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    for invariant in invariant_section.invariants {
+        self.emit_verilog_assertion(invariant);
+    }
+}
+
+; Emit a single invariant as Verilog assertion
+fn VerilogCodegen.emit_verilog_assertion(invariant : InvariantDecl) {
+    let verilog_name = self.mangle_verilog_name(invariant.name);
+
+    self.emit_line("// Invariant: " + invariant.formal_statement);
+    self.emit_line("// Rationale: " + invariant.rationale);
+    self.emit_line("// TODO: Implement invariant assertion: assert (property) ");
+    self.emit_line("//");
+    self.emit_line("always @(posedge clk) begin");
+    self.indent();
+    self.emit_line("// invariant_" + verilog_name + "()");
+    self.emit_line("// TODO: Add assertion check here");
+    self.dedent();
+    self.emit_line("end");
+    self.emit_line("");
+}
+
 ; Emit footer
 fn VerilogCodegen.emit_footer() {
     self.emit_line("endmodule");
@@ -479,6 +521,10 @@ fn VerilogCodegen.emit_testbench() {
     self.emit_line("// Clock: 100MHz = 10ns period");
     self.emit_line("localparam CLK_PERIOD = 10;");
     self.emit_line("");
+
+    ; Emit test tasks from .test section
+    self.emit_test_tasks();
+
     self.emit_line("initial begin");
     self.indent();
     self.emit_line("clk = 0;");
@@ -493,6 +539,10 @@ fn VerilogCodegen.emit_testbench() {
     self.emit_line("#(CLK_PERIOD * 5);");
     self.emit_line("rst_n = 1;");
     self.emit_line("");
+
+    ; Emit test calls from .test section
+    self.emit_test_calls();
+
     self.emit_line("// Wait for halt or timeout");
     self.emit_line("wait (halted || (pc >= " + string.from_int(self.ast.code_section.instructions.len()) + "));");
     self.emit_line("#(CLK_PERIOD * 10);");
@@ -504,6 +554,75 @@ fn VerilogCodegen.emit_testbench() {
     self.dedent();
     self.emit_line("endmodule");
     self.emit_line("");
+}
+
+; Emit test tasks from .test section
+fn VerilogCodegen.emit_test_tasks() {
+    if self.ast.test_section == null {
+        return;
+    }
+
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Test Tasks");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    for test_case in self.ast.test_section.test_cases {
+        self.emit_verilog_test_task(test_case);
+    }
+}
+
+; Emit a single test case as Verilog task
+fn VerilogCodegen.emit_verilog_test_task(test_case : TestCase) {
+    let verilog_name = self.mangle_verilog_name(test_case.name);
+
+    self.emit_line("// Test: " + test_case.name);
+    self.emit_line("// Verify: " + test_case.verify_description);
+    self.emit_line("// Expected: " + test_case.expected_outcome);
+    self.emit_line("task test_" + verilog_name + ";");
+    self.indent();
+    self.emit_line("// TODO: Implement test: " + test_case.name);
+    self.emit_line("begin");
+    self.indent();
+    self.emit_line("// Setup: " + test_case.setup_description);
+    self.emit_line("// $display(\"Running test: " + test_case.name + "\");");
+    self.emit_line("// assert (expected == actual);");
+    self.dedent();
+    self.emit_line("end");
+    self.dedent();
+    self.emit_line("endtask");
+    self.emit_line("");
+}
+
+; Emit test calls from .test section
+fn VerilogCodegen.emit_test_calls() {
+    if self.ast.test_section == null {
+        return;
+    }
+
+    self.emit_line("// Run tests");
+    for test_case in self.ast.test_section.test_cases {
+        let verilog_name = self.mangle_verilog_name(test_case.name);
+        self.emit_line("test_" + verilog_name + "();");
+    }
+    self.emit_line("");
+}
+
+; Mangle name to valid Verilog identifier
+fn VerilogCodegen.mangle_verilog_name(name : string) -> string {
+    let result = "";
+
+    for i in 0..name.len() {
+        let c = name.u8_at(i);
+        if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_' {
+            result = result + string.from_char(c);
+        } else if c == '-' or c == ' ' {
+            result = result + "_";
+        }
+    }
+
+    return result;
+}
 }
 
 ; Format integer as hex string with padding

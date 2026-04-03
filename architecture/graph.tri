@@ -1,0 +1,146 @@
+// T27 Canonical Architecture Graph
+// Defines all 4 tiers, 8 libraries, and dependency relationships
+// This graph is the single source of truth for T27
+
+// Tier 0: Base Types (no dependencies)
+spec "tritype-base" {
+    tier = 0;
+    description = "Fundamental types: Trit, PackedTrit, TernaryWord";
+    exports = ["Trit", "PackedTrit", "TernaryWord"];
+    exports_zig = ["enum u2", "u8", "u32"];
+    deps = [];
+    competency = "BaseTypes";
+}
+
+// Tier 1: Core Arithmetic (depends on tritype-base)
+spec "tritype-numeric" {
+    tier = 1;
+    description = "Core arithmetic operations: add, subtract, multiply, compare";
+    exports = ["tritAdd", "tritSubtract", "tritMultiply", "tritNegate",
+                        "tritAnd", "tritOr", "tritXor", "tritCompare"];
+    deps = ["tritype-base"];
+    competency = "TernaryArithmetic";
+}
+
+// Tier 1: Numeric Formats (depends on tritype-base)
+spec "triformat-gf16" {
+    tier = 1;
+    description = "GoldenFloat16 encoding/decode: [S:1][E:6][M:9]";
+    exports = ["encodeGF16", "decodeGF16", "verifyGF16Chain"];
+    deps = ["tritype-base"];
+    competency = "FloatEncoding";
+}
+
+spec "triformat-tf3" {
+    tier = 1;
+    description = "TF3 ternary format: 8 weights in 16 bits";
+    exports = ["encodeTF3", "decodeTF3", "tf3ToGF16"];
+    deps = ["tritype-base"];
+    competency = "TernaryFormat";
+}
+
+// Tier 1: Sacred Mathematics (depends on tritype-base, tritype-numeric)
+spec "trisacred-constants" {
+    tier = 1;
+    description = "Sacred constants: PHI, PI, E, TRINITY_SUM, sacred chains";
+    exports = ["PHI", "PI", "E", "TRINITY_SUM", "verifySacredChain"];
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "SacredConstants";
+}
+
+spec "trisacred-gamma" {
+    tier = 1;
+    description = "Riemann zeta function for complex number theory";
+    exports = ["riemannZeta", "riemannGamma"];
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "ComplexAnalysis";
+}
+
+// Tier 2: VSA Primitives (depends on tritype-base, tritype-numeric)
+spec "trivsa-ops" {
+    tier = 2;
+    description = "VSA operations: bind/unbind, bundle, similarity";
+    exports = ["bindTritVector", "unbindTritVector", "bundleTritVectors",
+                        "tritVectorSimilarity", "tritVectorCosine"];
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "VectorOperations";
+}
+
+// Tier 2: ISA (depends on tritype-base)
+spec "triisa-registers" {
+    tier = 2;
+    description = "27 registers with Coptic encoding";
+    exports = ["getRegister", "setRegister", "decodeCoptic"];
+    deps = ["tritype-base"];
+    competency = "RegisterFile";
+}
+
+// Tier 2: Attention (depends on tritype-base, tritype-numeric)
+spec "triatt-sacred" {
+    tier = 2;
+    description = "Sacred Attention: d_k^(-φ³) kernel";
+    exports = ["sacredAttention", "queryAttention"];
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "AttentionKernel";
+}
+
+// Tier 2: HSLM (depends on tritype-base, trisacred-constants)
+spec "trinhslm" {
+    tier = 2;
+    description = "HSLM 1.95M architecture: d_k^(-φ³), self-attention";
+    exports = ["hslmForward", "hslmGenerate", "sacredAttention"];
+    deps = ["tritype-base", "trisacred-constants", "triatt-sacred"];
+    competency = "NeuralArchitecture";
+}
+
+// Tier 2: FPGA MAC (depends on tritype-base, triisa-registers)
+spec "trifpga-mac" {
+    tier = 2;
+    description = "Zero-DSP LUT-based multiplication";
+    exports = ["zeroDSPMultiply", "lutConfigure", "macExecute"];
+    deps = ["tritype-base", "triisa-registers"];
+    competency = "HardwareMultiply";
+}
+
+// Tier 3: Orchestrator (depends on all tier 2)
+spec "triquenn" {
+    tier = 3;
+    description = "6-phase orchestration cycle: Spec → Gen → Verify → Deploy → Monitor";
+    exports = ["orchestratePhase", "verifyQualityGate", "monitorDeployment"];
+    deps = ["trivinhslm", "trihslm", "trifpga-mac"];
+    competency = "Orchestration";
+}
+
+// Tier 4: Language Tooling (depends on tritype-base)
+spec "trilang-cli" {
+    tier = 4;
+    description = "T27 CLI tools: parse, compile, verify, doc";
+    exports = ["parseT27", "compileT27", "verifySpec", "generateDocs"];
+    deps = ["tritype-base"];
+    competency = "LanguageTools";
+}
+
+// Backends
+spec "backend-zig" {
+    tier = 99;
+    description = "Generated Zig backend from .tri specs";
+    exports = ["generateZigCode", "triCompile"];
+    deps = ["tritype-base", "tritype-numeric", "triformat-gf16", "triformat-tf3"];
+    competency = "ZigBackend";
+}
+
+spec "backend-verilog" {
+    tier = 99;
+    description = "Verilog synthesis from .tri specs";
+    exports = ["generateVerilog", "synthesizeFPGA"];
+    deps = ["tritype-base", "tritype-numeric", "triisa-registers"];
+    competency = "VerilogBackend";
+}
+
+spec "backend-c" {
+    tier = 99;
+    description = "C ABI from .tri specs";
+    exports = ["generateCHeaders", "triCompile"];
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "CBackend";
+}

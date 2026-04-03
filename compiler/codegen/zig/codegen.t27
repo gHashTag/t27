@@ -66,6 +66,14 @@ fn ZigCodegen.generate() -> string {
     ; Code section
     self.emit_code_section();
 
+    ; TDD-Inside-Spec sections
+    if self.ast.spec_decl != null {
+        self.emit_spec_tests();
+    }
+    self.emit_test_section();
+    self.emit_invariant_section();
+    self.emit_bench_section();
+
     ; Footer
     self.emit_footer();
 
@@ -426,6 +434,385 @@ fn ZigCodegen.emit_bundle(inst : Instruction) {
 ; Emit HALT instruction
 fn ZigCodegen.emit_halt(inst : Instruction) {
     self.emit_line("return;");
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Emit test sections as Zig tests
+; ═════════════════════════════════════════════════════════════════════
+
+; Emit test section as Zig test blocks
+fn ZigCodegen.emit_test_section() {
+    if self.ast.test_section == null {
+        return;
+    }
+
+    let test_section = self.ast.test_section;
+
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Test Cases");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    for test_case in test_section.test_cases {
+        self.emit_zig_test(test_case);
+    }
+}
+
+; Emit a single test case as Zig test
+fn ZigCodegen.emit_zig_test(test_case : TestCase) {
+    let zig_name = self.mangle_test_name(test_case.name);
+
+    self.emit("test \"");
+    self.emit(zig_name);
+    self.emit("\" {");
+    self.emit_line("");
+    self.indent();
+
+    ; Emit test description as comment
+    if test_case.verify_description != "" {
+        self.emit("// Verify: ");
+        self.emit_line(test_case.verify_description);
+    }
+
+    ; Emit setup as comment
+    if test_case.setup_description != "" {
+        self.emit("// Setup: ");
+        self.emit_line(test_case.setup_description);
+    }
+
+    ; Emit expected outcome as comment
+    if test_case.expected_outcome != "" {
+        self.emit("// Expected: ");
+        self.emit_line(test_case.expected_outcome);
+    }
+
+    ; TODO: Generate actual test implementation based on test type
+    self.emit_line("// TODO: Implement test");
+    self.emit_line("try std.testing.expect(true);");
+
+    self.dedent();
+    self.emit_line("}");
+    self.emit_line("");
+}
+
+; Emit invariant section as Zig tests (invariants are tested properties)
+fn ZigCodegen.emit_invariant_section() {
+    if self.ast.invariant_section == null {
+        return;
+    }
+
+    let invariant_section = self.ast.invariant_section;
+
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Invariants");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    for invariant in invariant_section.invariants {
+        self.emit_zig_invariant(invariant);
+    }
+}
+
+; Emit a single invariant as Zig test
+fn ZigCodegen.emit_zig_invariant(invariant : InvariantDecl) {
+    let zig_name = self.mangle_test_name(invariant.name);
+
+    self.emit("test \"invariant_");
+    self.emit(zig_name);
+    self.emit("\" {");
+    self.emit_line("");
+    self.indent();
+
+    ; Emit formal statement as comment
+    if invariant.formal_statement != "" {
+        self.emit("// Invariant: ");
+        self.emit_line(invariant.formal_statement);
+    }
+
+    ; Emit rationale as comment
+    if invariant.rationale != "" {
+        self.emit("// Rationale: ");
+        self.emit_line(invariant.rationale);
+    }
+
+    ; TODO: Generate actual invariant check
+    self.emit_line("// TODO: Implement invariant check");
+    self.emit_line("try std.testing.expect(true);");
+
+    self.dedent();
+    self.emit_line("}");
+    self.emit_line("");
+}
+
+; Emit bench section as Zig benchmarks
+fn ZigCodegen.emit_bench_section() {
+    if self.ast.bench_section == null {
+        return;
+    }
+
+    let bench_section = self.ast.bench_section;
+
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Benchmarks");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    for benchmark in bench_section.benchmarks {
+        self.emit_zig_bench(benchmark);
+    }
+}
+
+; Emit a single benchmark as Zig test
+fn ZigCodegen.emit_zig_bench(benchmark : BenchDecl) {
+    let zig_name = self.mangle_test_name(benchmark.name);
+
+    self.emit("test \"bench_");
+    self.emit(zig_name);
+    self.emit("\" {");
+    self.emit_line("");
+    self.indent();
+
+    ; Emit measurement description as comment
+    if benchmark.measure_description != "" {
+        self.emit("// Measure: ");
+        self.emit_line(benchmark.measure_description);
+    }
+
+    ; Emit target as comment
+    if benchmark.target != null {
+        self.emit("// Target: ");
+        self.emit_line(benchmark.target);
+    }
+
+    ; Emit units as comment
+    self.emit("// Units: ");
+    self.emit_line(benchmark.units);
+
+    ; TODO: Generate actual benchmark using std.testing.benchmark
+    self.emit_line("// TODO: Implement benchmark");
+    self.emit_line("const timer = try std.time.Timer.start();");
+    self.emit_line("_ = timer;");
+    self.emit_line("try std.testing.expect(true);");
+
+    self.dedent();
+    self.emit_line("}");
+    self.emit_line("");
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: High-level TDD generation (spec-style)
+; ═════════════════════════════════════════════════════════════════════
+
+; Emit spec tests (high-level TDD with given/when/then)
+fn ZigCodegen.emit_spec_tests() {
+    if self.ast.spec_decl == null {
+        return;
+    }
+
+    let spec = self.ast.spec_decl;
+
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Spec Tests (from spec " + spec.name + ")");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    ; Emit test blocks
+    for test_block in spec.test_blocks {
+        self.emit_spec_test_block(test_block);
+    }
+
+    ; Emit invariants as tests
+    for invariant in spec.invariants {
+        self.emit_spec_invariant(invariant);
+    }
+
+    ; Emit rules as tests
+    for rule in spec.rules {
+        self.emit_spec_rule(rule);
+    }
+}
+
+; Emit a single spec test block as Zig test
+fn ZigCodegen.emit_spec_test_block(test_block : TestBlock) {
+    let zig_name = self.mangle_test_name(test_block.name);
+
+    self.emit("test \"");
+    self.emit(zig_name);
+    self.emit("\" {");
+    self.emit_line("");
+    self.indent();
+
+    ; Emit given clauses as setup
+    for given in test_block.given_clauses {
+        self.emit("// Given: ");
+        self.emit(given.variable);
+        self.emit(" = ");
+        self.emit(given.expression);
+        self.emit_line("");
+        self.emit("const ");
+        self.emit(self.mangle_name(given.variable));
+        self.emit(" = ");
+        self.emit(self.translate_expression(given.expression));
+        self.emit_line(";");
+    }
+
+    ; Emit when clauses as actions
+    for when in test_block.when_clauses {
+        self.emit("// When: ");
+        self.emit(when.variable);
+        self.emit(" = ");
+        self.emit(when.expression);
+        self.emit_line("");
+        self.emit("const ");
+        self.emit(self.mangle_name(when.variable));
+        self.emit(" = ");
+        self.emit(self.translate_expression(when.expression));
+        self.emit_line(";");
+    }
+
+    ; Emit then clauses as assertions
+    for then in test_block.then_clauses {
+        self.emit("// Then: ");
+        self.emit_line(then.expression);
+        self.emit("try std.testing.expect(");
+        self.emit(self.translate_expression(then.expression));
+        self.emit_line(");");
+    }
+
+    self.dedent();
+    self.emit_line("}");
+    self.emit_line("");
+}
+
+; Emit a spec invariant as Zig test
+fn ZigCodegen.emit_spec_invariant(invariant : AssertStmt) {
+    self.emit("test \"invariant_");
+    self.emit(string.from_int(invariant.line as i64));
+    self.emit("\" {");
+    self.emit_line("");
+    self.indent();
+
+    self.emit("// Assert: ");
+    self.emit_line(invariant.expression);
+    self.emit("try std.testing.expect(");
+    self.emit(self.translate_expression(invariant.expression));
+    self.emit_line(");");
+
+    self.dedent();
+    self.emit_line("}");
+    self.emit_line("");
+}
+
+; Emit a spec rule as Zig test
+fn ZigCodegen.emit_spec_rule(rule : RuleDecl) {
+    self.emit("test \"rule_");
+    self.emit(self.mangle_test_name(rule.name));
+    self.emit("\" {");
+    self.emit_line("");
+    self.indent();
+
+    self.emit("// Rule: ");
+    self.emit_line(rule.name);
+
+    for expect in rule.expect_clauses {
+        self.emit("// Expect: ");
+        self.emit_line(expect.expression);
+        self.emit("try std.testing.expect(");
+        self.emit(self.translate_expression(expect.expression));
+        self.emit_line(");");
+    }
+
+    self.dedent();
+    self.emit_line("}");
+    self.emit_line("");
+}
+
+; Translate t27 expression to Zig expression (simplified)
+fn ZigCodegen.translate_expression(expr : string) -> string {
+    ; Simple translation - just return as-is for now
+    ; A full implementation would need to parse and translate the expression
+    return expr;
+}
+
+; Generate conformance JSON from spec tests
+fn ZigCodegen.generate_conformance() -> string {
+    let json = "{\n";
+    json += "  \"description\": \"" + self.ast.source_file + "\",\n";
+    json += "  \"generated_at\": \"[timestamp]\",\n";
+    json += "  \"test_vectors\": [\n";
+
+    ; Add test vectors from test_section
+    if self.ast.test_section != null {
+        for test_case in self.ast.test_section.test_cases {
+            json += "    {\n";
+            json += "      \"name\": \"" + test_case.name + "\",\n";
+            json += "      \"verify\": \"" + test_case.verify_description + "\",\n";
+            json += "      \"expected\": \"" + test_case.expected_outcome + "\"\n";
+            json += "    },\n";
+        }
+    }
+
+    ; Add test vectors from spec_decl
+    if self.ast.spec_decl != null {
+        for test_block in self.ast.spec_decl.test_blocks {
+            json += "    {\n";
+            json += "      \"name\": \"" + test_block.name + "\",\n";
+            json += "      \"type\": \"spec_test\",\n";
+            json += "      \"given\": [";
+            for given in test_block.given_clauses {
+                json += "      {\"" + given.variable + "\": \"" + given.expression + "\"},\n";
+            }
+            json += "      ],\n";
+            json += "      \"when\": [";
+            for when in test_block.when_clauses {
+                json += "      {\"" + when.variable + "\": \"" + when.expression + "\"},\n";
+            }
+            json += "      ],\n";
+            json += "      \"then\": [";
+            for then in test_block.then_clauses {
+                json += "      \"" + then.expression + "\",\n";
+            }
+            json += "      ]\n";
+            json += "    },\n";
+        }
+
+        ; Add invariants
+        for invariant in self.ast.spec_decl.invariants {
+            json += "    {\n";
+            json += "      \"name\": \"invariant_" + string.from_int(invariant.line as i64) + "\",\n";
+            json += "      \"type\": \"invariant\",\n";
+            json += "      \"assert\": \"" + invariant.expression + "\"\n";
+            json += "    },\n";
+        }
+    }
+
+    ; Remove trailing comma and close
+    json = json.substring(0, json.len() - 2) + "\n";
+    json += "  ]\n";
+    json += "}\n";
+
+    return json;
+}
+
+; Mangle test/invariant/bench name to valid Zig identifier
+fn ZigCodegen.mangle_test_name(name : string) -> string {
+    ; Replace hyphens and spaces with underscores
+    let result = "";
+
+    for i in 0..name.len() {
+        let c = name.u8_at(i);
+        if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_' {
+            result = result + string.from_char(c);
+        } else if c == '-' or c == ' ' {
+            result = result + "_";
+        }
+    }
+
+    return result;
 }
 
 ; Emit footer

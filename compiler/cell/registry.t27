@@ -1,0 +1,220 @@
+; registry.t27 — Cell Registry JSON Structure (ADR-002)
+; Defines the structure for tri cell workflow registry
+
+; Cell Registry JSON Structure
+; {
+;   "version": "1.0",
+;   "cells": [
+;     {
+;       "id": "cell-001",
+;       "status": "active|sealed|paused|blocked",
+;       "kind": "feature|bugfix|hotfix|recovery|refactor",
+;       "issue": "GitHub issue ID or number",
+;       "branch": "git branch name",
+;       "created_at": "ISO 8601 timestamp",
+;       "updated_at": "ISO 8601 timestamp",
+;       "sealed_at": "ISO 8601 timestamp (when status=sealed)",
+;       "commit": "git commit hash",
+;       "commit_at": "ISO 8601 timestamp",
+;       "pushed": "true|false",
+;       "pushed_at": "ISO 8601 timestamp",
+;       "verdict": "NOT TOXIC|TOXIC|null",
+;       "verdict_at": "ISO 8601 timestamp",
+;       "seal_hash": "hash of sealed state",
+;       "artifacts": "comma-separated list of artifacts (spec, docs, checkpoints, etc.)",
+;       "metadata": {
+;         "title": "Cell title/description",
+;         "author": "Agent or user who created cell",
+;         "priority": "P0|P1|P2|P3",
+;         "tags": ["tag1", "tag2"]
+;       }
+;     }
+;   ]
+; }
+
+; Cell Registry structure
+struct CellRegistry {
+    version : string
+    cells : []Cell
+}
+
+; Cell structure
+struct Cell {
+    id : string                ; Unique cell identifier
+    status : CellStatus         ; Current status
+    kind : CellKind             ; Type of work
+    issue : string?             ; Bound GitHub issue ID
+    branch : string             ; Git branch
+    created_at : string         ; Creation timestamp
+    updated_at : string         ; Last update timestamp
+    sealed_at : string?         ; Seal timestamp
+    commit : string?            ; Last commit hash
+    commit_at : string?         ; Commit timestamp
+    pushed : bool               ; Whether pushed to remote
+    pushed_at : string?         ; Push timestamp
+    verdict : CellVerdict?      ; Toxicity verdict
+    verdict_at : string?        ; Verdict timestamp
+    seal_hash : string?         ; Hash of sealed state
+    artifacts : string          ; Artifact list
+    metadata : CellMetadata     ; Additional metadata
+}
+
+; Cell status enum
+enum CellStatus {
+    Active = 0      ; Cell is currently being worked on
+    Sealed = 1      ; Cell has been sealed, ready for commit/push
+    Paused = 2      ; Cell work is paused
+    Blocked = 3     ; Cell is blocked, cannot proceed
+    Completed = 4   ; Cell work is complete
+}
+
+; Cell kind enum
+enum CellKind {
+    Feature = 0     ; New feature implementation
+    Bugfix = 1      ; Bug fix
+    Hotfix = 2      ; Urgent hotfix (limited scope)
+    Recovery = 3    ; Recovery from previous failure
+    Refactor = 4    ; Code refactoring
+}
+
+; Cell verdict enum
+enum CellVerdict {
+    NotToxic = 0    ; Cell is safe to proceed
+    Toxic = 1       ; Cell has toxic elements, must be fixed
+}
+
+; Cell metadata
+struct CellMetadata {
+    title : string
+    author : string
+    priority : string          ; P0, P1, P2, P3
+    tags : []string
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Policy Matrix (for git push validation)
+; ═════════════════════════════════════════════════════════════════════
+
+; Recovery cell requirements:
+;   - Minimum 3 checkpoints
+;   - Spec must be modified
+;   - Docs must be modified
+;   - Verdict must be NOT TOXIC
+
+; Hotfix cell requirements:
+;   - Minimum 1 checkpoint
+;   - Changes only in "fix only" areas (no breaking changes)
+;   - Verdict must be NOT TOXIC
+
+; Feature cell requirements:
+;   - At least 1 test (per TDD contract)
+;   - Spec has at least one test/invariant
+;   - Verdict must be NOT TOXIC
+
+; ═════════════════════════════════════════════════════════════════════
+; Registry file location
+; ═════════════════════════════════════════════════════════════════════
+
+; Default registry path: .trinity/cells/registry.json
+; This file is the single source of truth for cell state.
+
+; ═════════════════════════════════════════════════════════════════════
+; JSON Schema
+; ═════════════════════════════════════════════════════════════════════
+
+/*
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["version", "cells"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "kind", "branch", "created_at", "updated_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^cell-\\d+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "sealed", "paused", "blocked", "completed"]
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["feature", "bugfix", "hotfix", "recovery", "refactor"]
+          },
+          "issue": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sealed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "commit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$"
+          },
+          "commit_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pushed": {
+            "type": "boolean"
+          },
+          "pushed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": ["NOT TOXIC", "TOXIC"]
+          },
+          "verdict_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "seal_hash": {
+            "type": "string"
+          },
+          "artifacts": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "author": { "type": "string" },
+              "priority": {
+                "type": "string",
+                "enum": ["P0", "P1", "P2", "P3"]
+              },
+              "tags": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+*/

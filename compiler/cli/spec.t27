@@ -1,0 +1,252 @@
+; spec.t27 — Spec Management Commands
+; Commands for creating and managing t27 specs with TDD enforcement
+
+; tri spec create <name> — Create a new spec with TDD template
+fn spec_create(name : string, path : string) -> i32 {
+    ; Validate spec name
+    if !is_valid_spec_name(name) {
+        error("Invalid spec name: " + name);
+        error("Spec names must be lowercase alphanumeric with underscores");
+        return 1;
+    }
+
+    ; Determine output path
+    let output_path = path;
+    if output_path == "" {
+        output_path = "specs/" + name + ".t27";
+    }
+
+    ; Check if file exists
+    if file_exists(output_path) {
+        error("Spec already exists: " + output_path);
+        error("Use --force to overwrite");
+        return 1;
+    }
+
+    ; Create spec with TDD template
+    let content = generate_spec_template(name);
+    let result = write_file(output_path, content);
+
+    if result != 0 {
+        error("Failed to create spec: " + output_path);
+        return result;
+    }
+
+    print("Created spec: " + output_path);
+    print("");
+    print("Next steps:");
+    print("  1. Add constants, functions to your spec");
+    print("  2. Add test cases using 'test <name>' blocks");
+    print("  3. Add invariants using 'invariant <name>' blocks");
+    print("  4. Run 'tri gen " + output_path + "' to generate code");
+    print("  5. Run 'tri test' to execute tests");
+
+    return 0;
+}
+
+; tri spec validate <path> — Validate spec has TDD compliance
+fn spec_validate(path : string) -> i32 {
+    if !file_exists(path) {
+        error("Spec not found: " + path);
+        return 1;
+    }
+
+    ; Read spec content
+    let content = read_file(path);
+    if content == null {
+        error("Failed to read spec: " + path);
+        return 1;
+    }
+
+    ; Parse spec
+    let context = parse(content, path);
+
+    if context.has_errors() {
+        error("Parse errors in " + path + ":");
+        for err in context.errors {
+            error("  Line " + err.line + ":" + err.column + ": " + err.message);
+        }
+        return 1;
+    }
+
+    ; Validate TDD compliance
+    let tdd_errors = validate_tdd_compliance(context.ast_root);
+
+    if tdd_errors.len() > 0 {
+        error("TDD compliance violations in " + path + ":");
+        for err in tdd_errors {
+            error("  " + err);
+        }
+        return 1;
+    }
+
+    print("Spec " + path + " is TDD compliant");
+    print("");
+    print("Summary:");
+    print("  Constants: " + context.ast_root.constants.len());
+    if context.ast_root.spec_decl != null {
+        print("  Tests (spec-style): " + context.ast_root.spec_decl.test_blocks.len());
+        print("  Invariants (spec-style): " + context.ast_root.spec_decl.invariants.len());
+    }
+    if context.ast_root.test_section != null {
+        print("  Tests (assembly-style): " + context.ast_root.test_section.test_cases.len());
+    }
+    if context.ast_root.invariant_section != null {
+        print("  Invariants (assembly-style): " + context.ast_root.invariant_section.invariants.len());
+    }
+
+    return 0;
+}
+
+; tri spec list — List all specs in project
+fn spec_list() -> i32 {
+    let spec_dir = "specs";
+    if !dir_exists(spec_dir) {
+        print("No specs directory found");
+        return 0;
+    }
+
+    let spec_files = glob("specs/**/*.t27");
+
+    if spec_files.len() == 0 {
+        print("No spec files found");
+        return 0;
+    }
+
+    print("Spec files in project:");
+    print("");
+    for spec_path in spec_files {
+        let rel_path = spec_path.substring("specs/".len());
+        let content = read_file(spec_path);
+
+        ; Check if spec has tests
+        let has_tests = false;
+        if content != null {
+            let context = parse(content, spec_path);
+            if context.ast_root.test_section != null
+               or (context.ast_root.spec_decl != null and context.ast_root.spec_decl.test_blocks.len() > 0) {
+                has_tests = true;
+            }
+        }
+
+        let status = if has_tests { "✓" } else { "✗" };
+        print("  " + status + " " + rel_path);
+    }
+
+    return 0;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Helper functions
+; ═════════════════════════════════════════════════════════════════════
+
+; Validate spec name
+fn is_valid_spec_name(name : string) -> bool {
+    if name.len() == 0 {
+        return false;
+    }
+
+    ; Must start with lowercase letter
+    let first = name.u8_at(0);
+    if first < 'a' or first > 'z' {
+        return false;
+    }
+
+    ; Only alphanumeric and underscores allowed
+    for i in 1..name.len() {
+        let c = name.u8_at(i);
+        if (c < 'a' or c > 'z') and (c < '0' or c > '9') and c != '_' {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+; Generate spec template with TDD blocks
+fn generate_spec_template(name : string) -> string {
+    let template = "";
+    template += "; " + name + ".t27 — Specification for " + name + "\n";
+    template += "; φ² + 1/φ² = 3 | TRINITY\n";
+    template += ";\n";
+    template += "; This file is the source of truth for " + name + ".\n";
+    template += "; Generated code is a derived artifact - DO NOT EDIT generated files.\n";
+    template += ";\n";
+    template += "; TDD Contract: This spec MUST include at least one test or invariant.\n";
+    template += ";\n";
+    template += "\n";
+    template += ".use base::types\n";
+    template += "\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "; Constants\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "\n";
+    template += ".const EXAMPLE_CONSTANT 42\n";
+    template += "\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "; Data Section\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "\n";
+    template += ".data\n";
+    template += "    .const DATA_INIT 0\n";
+    template += "\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "; Code Section\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "\n";
+    template += ".code\n";
+    template += "main:\n";
+    template += "    ; Your code here\n";
+    template += "    HALT\n";
+    template += "\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "; TDD-Inside-Spec: Tests and Invariants\n";
+    template += "; ═══════════════════════════════════════════════════════════════\n";
+    template += "\n";
+    template += ".test\n";
+    template += "    ; example_test\n";
+    template += "    ; Verify: example functionality works correctly\n";
+    template += "    ; Setup: initialize with EXAMPLE_CONSTANT\n";
+    template += "    ; Expected: returns expected value\n";
+    template += "\n";
+    template += ".invariant\n";
+    template += "    ; example_invariant\n";
+    template += "    ; For all valid inputs: output is in valid range\n";
+    template += "    ; Rationale: Ensures function correctness\n";
+    template += "\n";
+    template += ".bench\n";
+    template += "    ; example_benchmark\n";
+    template += "    ; Measure: operations per second\n";
+    template += "    ; Target: > 1M ops/sec\n";
+
+    return template;
+}
+
+; Validate TDD compliance
+fn validate_tdd_compliance(ast_root : Program) -> []string {
+    let errors = [];
+
+    ; Check if spec has any tests or invariants
+    let has_tests = false;
+
+    if ast_root.test_section != null and ast_root.test_section.test_cases.len() > 0 {
+        has_tests = true;
+    }
+
+    if ast_root.invariant_section != null and ast_root.invariant_section.invariants.len() > 0 {
+        has_tests = true;
+    }
+
+    if ast_root.spec_decl != null {
+        let spec = ast_root.spec_decl;
+        if spec.test_blocks.len() > 0 or spec.invariants.len() > 0 {
+            has_tests = true;
+        }
+    }
+
+    if !has_tests {
+        errors.push("TDD contract violated: spec must contain at least one 'test' or 'invariant' block");
+    }
+
+    return errors;
+}

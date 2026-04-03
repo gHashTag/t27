@@ -61,4 +61,89 @@ module Constants {
         // This is the mathematical signature
         return 0.0; // TODO: implement
     }
+
+    // ═════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for Sacred Physics Constants
+    // ═════════════════════════════════════════════════════════════════════════════════════════
+
+    test phi_squared_plus_inverse_squared_equals_3
+        given phi = PHI
+        and   phi_sq = PHI * PHI
+        and   phi_inv_sq = PHI_INV * PHI_INV
+        when  sum = phi_sq + phi_inv_sq
+        then  abs(sum - TRINITY) < 1e-12
+
+    test phi_inverse_is_phi_minus_one
+        given phi = PHI
+        and   expected = PHI - 1.0
+        when  actual = PHI_INV
+        then  abs(actual - expected) < 1e-15
+
+    test phi_multiplicative_persistence
+        given phi = PHI
+        when  squared = phi * phi
+        and   result = squared - phi
+        then  abs(result - 1.0) < 1e-12
+
+    test trinity_constant_accuracy
+        given trinity = TRINITY
+        when  is_three = abs(trinity - 3.0) < 1e-15
+        then  is_three == true
+
+    test pi_range_validity
+        given pi = PI
+        when  lower_bound = 3.1415926535
+        and   upper_bound = 3.1415926536
+        then  pi >= lower_bound and pi <= upper_bound
+
+    test euler_number_range_validity
+        given e = E
+        when  lower_bound = 2.7182818284
+        and   upper_bound = 2.7182818285
+        then  e >= lower_bound and e <= upper_bound
+
+    invariant phi_squared_plus_inverse_squared_equals_3
+        assert |PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12
+
+    invariant phi_self_similarity
+        assert |PHI - (1.0 + 1.0/PHI)| < 1e-15
+
+    invariant phi_inverse_property
+        assert |PHI_INV - (PHI - 1.0)| < 1e-15
+
+    invariant phi_golden_conjugate
+        assert |PHI + PHI_INV - 1.0/PHI_INV| < 1e-12
+
+    invariant phi_fibonacci_convergence
+        assert lim(n->inf) Fib(n+1)/Fib(n) = PHI
+        // Rationale: Ratio of consecutive Fibonacci numbers converges to phi
+
+    invariant trinity_exact
+        assert TRINITY == 3.0
+
+    invariant pi_transcendental
+        assert PI is transcendental
+        // Rationale: Lindemann-Weierstrass theorem proves pi is transcendental
+
+    invariant euler_irrational
+        assert E is irrational
+        // Rationale: e is proven to be irrational (Euler, 1737)
+
+    invariant codata_gravitational_constant
+        assert G_MEASURED = 6.67430e-11 +/- 1.5e-15
+        // Rationale: CODATA 2022 measured value with uncertainty
+
+    invariant cosmological_constant_positive
+        assert LAMBDA_COSMO > 0
+
+    invariant dark_energy_dominance
+        assert OMEGA_LAMBDA_MEASURED > 0.5 and OMEGA_LAMBDA_MEASURED < 1.0
+
+    bench phi_computation_cost
+        measure: cycles per PHI computation
+        target: < 10 cycles (constant-time lookup)
+
+    bench trinity_verification_cost
+        measure: cycles to verify PHI^2 + 1/PHI^2 = 3
+        target: < 100 cycles
 }

@@ -443,3 +443,121 @@ f32_exp_clamped:
     RET
 
 HALT
+
+; ═══════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for GF16
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+.test
+    ; gf16_roundtrip_phi
+    ; Verify: encoding f32 PHI to GF16 and decoding back preserves value within tolerance
+    ; Setup: PHI = 1.61803398874989484820458683436563811772
+    ; Expected: |decoded - PHI| < 0.001 (1e-3)
+
+    ; gf16_zero_encoding
+    ; Verify: zero (positive and negative) encodes to correct GF16 patterns
+    ; Setup: x = 0.0, x = -0.0
+    ; Expected: GF16_ZERO_POS = 0x0000, GF16_ZERO_NEG = 0x8000
+
+    ; gf16_phi_roundtrip_high_precision
+    ; Verify: PHI roundtrip with higher tolerance for golden ratio
+    ; Setup: x = PHI = 1.6180339887498948
+    ; Expected: |decoded - x| < 0.01 (1e-2 for GF16 limited precision)
+
+    ; gf16_inf_encoding
+    ; Verify: overflow encodes to Inf correctly
+    ; Setup: x = 1.0e38 (beyond GF16 range)
+    ; Expected: encoded = GF16_INF_POS or GF16_INF_NEG based on sign
+
+    ; gf16_sign_extraction
+    ; Verify: sign bit extraction works correctly
+    ; Setup: gf16 = 0x8000 (negative), gf16 = 0x3C00 (positive)
+    ; Expected: gf16_extract_sign(0x8000) = -1, gf16_extract_sign(0x3C00) = 0
+
+    ; gf16_exponent_extraction
+    ; Verify: exponent bits extraction works correctly
+    ; Setup: gf16 = 0x3C00 (exp = 0, value = 1.0), gf16 = 0x3D00 (exp = 1, value = 2.0)
+    ; Expected: gf16_extract_exponent(0x3C00) = 0, gf16_extract_exponent(0x3D00) = 1
+
+    ; gf16_mantissa_extraction
+    ; Verify: mantissa bits extraction works correctly
+    ; Setup: gf16 with known mantissa patterns
+    ; Expected: extracted mantissa matches bits [8:0]
+
+    ; gf16_zero_detection
+    ; Verify: zero detection works for both positive and negative zero
+    ; Setup: gf16 = 0x0000, gf16 = 0x8000
+    ; Expected: gf16_is_zero(0x0000) = 1, gf16_is_zero(0x8000) = 1
+
+    ; gf16_special_detection
+    ; Verify: special values (Inf/NaN) are detected
+    ; Setup: gf16 = 0x7E00 (Inf), gf16 = 0xFE01 (NaN)
+    ; Expected: gf16_is_special(0x7E00) = 1, gf16_is_special(0xFE01) = 1
+
+    ; gf16_from_components
+    ; Verify: component assembly works correctly
+    ; Setup: sign=0, exp=0, mant=0
+    ; Expected: result = 0x3C00 (1.0 in GF16)
+
+    ; gf16_nan_encoding
+    ; Verify: NaN encodes and decodes correctly
+    ; Setup: create NaN with exp=63, mant!=0
+    ; Expected: decode returns IEEE NaN pattern 0x7FC00000
+
+.invariant
+    ; gf16_identity_encoding
+    ; For GF16 representing 1.0: sign=0, exp=0, mant=0, raw value = 0x3C00
+    ; Rationale: 1.0 is the unit value in floating point, must encode correctly
+
+    ; gf16_sign_mask_bit_position
+    ; SIGN_MASK = 0x8000 has bit 15 set (MSB)
+    ; Rationale: Sign bit is always the most significant bit in IEEE-style formats
+
+    ; gf16_exp_mask_range
+    ; EXP_MASK = 0x7E00 covers bits 14-9 (6 bits for exponent)
+    ; Rationale: GF16 has 6 exponent bits (biased by 31)
+
+    ; gf16_mant_mask_range
+    ; MANT_MASK = 0x01FF covers bits 8-0 (9 bits for mantissa)
+    ; Rationale: GF16 has 9 mantissa bits (8 stored + 1 implied)
+
+    ; gf16_exp_bias_identity
+    ; BIAS = 31, so unbiased exp = encoded_exp - 31
+    ; Rationale: Allows representation of values from 2^-31 to 2^32
+
+    ; gf16_roundtrip_symmetry
+    ; For all normal values x: |decode(encode(x)) - x| < epsilon
+    ; Rationale: Encoding/decoding should be inverses within precision limits
+
+    ; gf16_zero_uniqueness
+    ; Both 0x0000 and 0x8000 represent zero (positive/negative)
+    ; Rationale: IEEE 754 standard requires signed zero support
+
+    ; gf16_special_exp_all_ones
+    ; EXP_MAX = 0x3F (63) all ones indicates Inf/NaN
+    ; Rationale: IEEE 754 uses all-ones exponent for special values
+
+    ; gf16_pow2_table_consistency
+    ; pow2_table[n] encodes 2^n for n = 0 to 31
+    ; Rationale: Table must be consistent with GF16 encoding rules
+
+    ; gf16_mantissa_implicit_one
+    ; For normal numbers: actual mantissa = 1 + (stored_mant / 512)
+    ; Rationale: IEEE 754 uses implicit leading 1 for efficiency
+
+.bench
+    ; gf16_encode_throughput
+    ; Measure: gf16_encode_f32 calls per second
+    ; Target: > 10M encodes/sec on typical hardware
+
+    ; gf16_decode_throughput
+    ; Measure: gf16_decode_to_f32 calls per second
+    ; Target: > 10M decodes/sec on typical hardware
+
+    ; gf16_roundtrip_latency
+    ; Measure: encode + decode latency in nanoseconds
+    ; Target: < 100ns for typical values
+
+    ; gf16_code_size
+    ; Measure: total instructions in GF16 module
+    ; Target: < 1000 instructions for complete encode/decode

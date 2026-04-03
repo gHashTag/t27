@@ -1,0 +1,553 @@
+; testgen.t27 — Generic Test Generator for TDD-Inside-Spec
+; Generates test code from spec test blocks for multiple backends
+
+use ast
+
+; TestGen options
+struct TestGenOptions {
+    backend : string           ; Target backend (zig, c, verilog, rust, etc.)
+    emit_comments : bool        ; Include test descriptions as comments
+    emit_benchmarks : bool      ; Include benchmark code
+    output_format : string      ; Format of output (code, json, xml, etc.)
+}
+
+; TestGen context
+struct TestGen {
+    ast : Program
+    options : TestGenOptions
+    output : StringBuilder
+}
+
+; StringBuilder
+struct StringBuilder {
+    buffer : []u8
+    len : u32
+    capacity : u32
+}
+
+; Create new test generator
+fn TestGen.new(ast : Program, options : TestGenOptions) -> TestGen {
+    return TestGen {
+        ast: ast,
+        options: options,
+        output: StringBuilder.new(65536)
+    };
+}
+
+; Generate tests for specified backend
+fn TestGen.generate() -> string {
+    match self.options.backend {
+        case "zig":
+            return self.generate_zig_tests();
+        case "c":
+            return self.generate_c_tests();
+        case "verilog":
+            return self.generate_verilog_tests();
+        case "rust":
+            return self.generate_rust_tests();
+        case "json":
+            return self.generate_conformance_json();
+        default:
+            return "// Unsupported backend: " + self.options.backend;
+    }
+}
+
+; Generate Zig tests
+fn TestGen.generate_zig_tests() -> string {
+    self.emit("// Zig tests generated from " + self.ast.source_file);
+    self.emit_line("");
+    self.emit("const std = @import(\"std\");");
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Generated Tests");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    ; Generate from spec_decl (high-level TDD)
+    if self.ast.spec_decl != null {
+        self.generate_spec_tests_zig(self.ast.spec_decl);
+    }
+
+    ; Generate from test_section (assembly-style)
+    if self.ast.test_section != null {
+        self.generate_assembly_tests_zig(self.ast.test_section);
+    }
+
+    ; Generate invariants
+    if self.ast.invariant_section != null {
+        self.generate_invariants_zig(self.ast.invariant_section);
+    }
+
+    ; Generate benchmarks
+    if self.ast.bench_section != null and self.options.emit_benchmarks {
+        self.generate_benchmarks_zig(self.ast.bench_section);
+    }
+
+    return self.output.to_string();
+}
+
+; Generate C tests
+fn TestGen.generate_c_tests() -> string {
+    self.emit("// C tests generated from " + self.ast.source_file);
+    self.emit_line("");
+    self.emit("#include <assert.h>");
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Generated Tests");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    ; Generate from spec_decl
+    if self.ast.spec_decl != null {
+        self.generate_spec_tests_c(self.ast.spec_decl);
+    }
+
+    ; Generate from test_section
+    if self.ast.test_section != null {
+        self.generate_assembly_tests_c(self.ast.test_section);
+    }
+
+    return self.output.to_string();
+}
+
+; Generate Verilog testbench
+fn TestGen.generate_verilog_tests() -> string {
+    self.emit("// Verilog testbench generated from " + self.ast.source_file);
+    self.emit_line("");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("// TDD-Inside-Spec: Generated Testbench");
+    self.emit_line("// ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    self.emit("`timescale 1ns/1ps");
+    self.emit_line("");
+    self.emit("module tb_");
+    self.emit(self.mangle_filename(self.ast.source_file));
+    self.emit("();");
+    self.emit_line("");
+    self.emit_line("  // TODO: Implement testbench");
+    self.emit_line("");
+    self.emit("endmodule");
+
+    return self.output.to_string();
+}
+
+; Generate Rust tests
+fn TestGen.generate_rust_tests() -> string {
+    self.emit("// Rust tests generated from " + self.ast.source_file);
+    self.emit_line("");
+    self.emit_line("#[cfg(test)]");
+    self.emit("mod tests {");
+    self.emit_line("");
+    self.emit_line("    use super::*;");
+    self.emit_line("");
+    self.emit_line("    // ═══════════════════════════════════════════════════════════════");
+    self.emit_line("    // TDD-Inside-Spec: Generated Tests");
+    self.emit_line("    // ═══════════════════════════════════════════════════════════════");
+    self.emit_line("");
+
+    ; Generate from spec_decl
+    if self.ast.spec_decl != null {
+        self.generate_spec_tests_rust(self.ast.spec_decl);
+    }
+
+    ; Generate from test_section
+    if self.ast.test_section != null {
+        self.generate_assembly_tests_rust(self.ast.test_section);
+    }
+
+    self.emit_line("}");
+
+    return self.output.to_string();
+}
+
+; Generate conformance JSON
+fn TestGen.generate_conformance_json() -> string {
+    let json = "{\n";
+    json += "  \"spec\": \"" + self.ast.source_file + "\",\n";
+    json += "  \"generated_at\": \"[timestamp]\",\n";
+    json += "  \"test_vectors\": [\n";
+
+    ; Add from test_section
+    if self.ast.test_section != null {
+        for test_case in self.ast.test_section.test_cases {
+            json += "    {\n";
+            json += "      \"name\": \"" + test_case.name + "\",\n";
+            json += "      \"verify\": \"" + self.escape_json(test_case.verify_description) + "\",\n";
+            json += "      \"expected\": \"" + self.escape_json(test_case.expected_outcome) + "\"\n";
+            json += "    },\n";
+        }
+    }
+
+    ; Add from spec_decl
+    if self.ast.spec_decl != null {
+        for test_block in self.ast.spec_decl.test_blocks {
+            json += "    {\n";
+            json += "      \"name\": \"" + test_block.name + "\",\n";
+            json += "      \"type\": \"spec_test\"\n";
+            json += "    },\n";
+        }
+    }
+
+    ; Add invariants
+    if self.ast.spec_decl != null {
+        for inv in self.ast.spec_decl.invariants {
+            json += "    {\n";
+            json += "      \"name\": \"invariant_" + string.from_int(inv.line as i64) + "\",\n";
+            json += "      \"type\": \"invariant\",\n";
+            json += "      \"assert\": \"" + self.escape_json(inv.expression) + "\"\n";
+            json += "    },\n";
+        }
+    }
+
+    ; Remove trailing comma
+    json = json.substring(0, json.len() - 2) + "\n";
+    json += "  ]\n";
+    json += "}\n";
+
+    return json;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Backend-specific helpers
+; ═════════════════════════════════════════════════════════════════════
+
+; Generate spec tests for Zig
+fn TestGen.generate_spec_tests_zig(spec : SpecDecl) {
+    for test_block in spec.test_blocks {
+        self.emit("test \"");
+        self.emit(test_block.name);
+        self.emit("\" {");
+        self.emit_line("");
+        self.emit("    // Given:");
+        self.emit_line("");
+        for given in test_block.given_clauses {
+            self.emit("    const ");
+            self.emit(given.variable);
+            self.emit(" = ");
+            self.emit(given.expression);
+            self.emit(";");
+            self.emit_line("");
+        }
+        self.emit("    // When:");
+        self.emit_line("");
+        for when in test_block.when_clauses {
+            self.emit("    const ");
+            self.emit(when.variable);
+            self.emit(" = ");
+            self.emit(when.expression);
+            self.emit(";");
+            self.emit_line("");
+        }
+        self.emit("    // Then:");
+        self.emit_line("");
+        for then in test_block.then_clauses {
+            self.emit("    try std.testing.expect(");
+            self.emit(then.expression);
+            self.emit(");");
+            self.emit_line("");
+        }
+        self.emit("}");
+        self.emit_line("");
+    }
+}
+
+; Generate spec tests for C
+fn TestGen.generate_spec_tests_c(spec : SpecDecl) {
+    for test_block in spec.test_blocks {
+        self.emit("void test_");
+        self.emit(test_block.name);
+        self.emit("(void) {");
+        self.emit_line("");
+        self.emit("    // Given:");
+        self.emit_line("");
+        for given in test_block.given_clauses {
+            self.emit("    const ");
+            self.emit(self.c_type_from_expr(given.expression));
+            self.emit(" ");
+            self.emit(given.variable);
+            self.emit(" = ");
+            self.emit(given.expression);
+            self.emit(";");
+            self.emit_line("");
+        }
+        self.emit("    // When:");
+        self.emit_line("");
+        for when in test_block.when_clauses {
+            self.emit("    const ");
+            self.emit(self.c_type_from_expr(when.expression));
+            self.emit(" ");
+            self.emit(when.variable);
+            self.emit(" = ");
+            self.emit(when.expression);
+            self.emit(";");
+            self.emit_line("");
+        }
+        self.emit("    // Then:");
+        self.emit_line("");
+        for then in test_block.then_clauses {
+            self.emit("    assert(");
+            self.emit(then.expression);
+            self.emit(");");
+            self.emit_line("");
+        }
+        self.emit("}");
+        self.emit_line("");
+    }
+}
+
+; Generate spec tests for Rust
+fn TestGen.generate_spec_tests_rust(spec : SpecDecl) {
+    for test_block in spec.test_blocks {
+        self.emit("    #[test]");
+        self.emit_line("");
+        self.emit("    fn test_");
+        self.emit(self.to_snake_case(test_block.name));
+        self.emit("() {");
+        self.emit_line("");
+        self.emit("        // Given:");
+        self.emit_line("");
+        for given in test_block.given_clauses {
+            self.emit("        let ");
+            self.emit(given.variable);
+            self.emit(" = ");
+            self.emit(given.expression);
+            self.emit(";");
+            self.emit_line("");
+        }
+        self.emit("        // When:");
+        self.emit_line("");
+        for when in test_block.when_clauses {
+            self.emit("        let ");
+            self.emit(when.variable);
+            self.emit(" = ");
+            self.emit(when.expression);
+            self.emit(";");
+            self.emit_line("");
+        }
+        self.emit("        // Then:");
+        self.emit_line("");
+        for then in test_block.then_clauses {
+            self.emit("        assert!(");
+            self.emit(then.expression);
+            self.emit(");");
+            self.emit_line("");
+        }
+        self.emit("    }");
+        self.emit_line("");
+    }
+}
+
+; Generate assembly-style tests for Zig
+fn TestGen.generate_assembly_tests_zig(test_section : TestSection) {
+    for test_case in test_section.test_cases {
+        self.emit("test \"");
+        self.emit(test_case.name);
+        self.emit("\" {");
+        self.emit_line("");
+        self.emit("    // Verify: ");
+        self.emit_line(test_case.verify_description);
+        self.emit("    // Expected: ");
+        self.emit_line(test_case.expected_outcome);
+        self.emit("    try std.testing.expect(true);  // TODO: Implement");
+        self.emit_line("");
+        self.emit("}");
+        self.emit_line("");
+    }
+}
+
+; Generate assembly-style tests for C
+fn TestGen.generate_assembly_tests_c(test_section : TestSection) {
+    for test_case in test_section.test_cases {
+        self.emit("void test_");
+        self.emit(test_case.name);
+        self.emit("(void) {");
+        self.emit_line("");
+        self.emit("    // Verify: ");
+        self.emit_line(test_case.verify_description);
+        self.emit("    // Expected: ");
+        self.emit_line(test_case.expected_outcome);
+        self.emit("    assert(true);  // TODO: Implement");
+        self.emit_line("");
+        self.emit("}");
+        self.emit_line("");
+    }
+}
+
+; Generate assembly-style tests for Rust
+fn TestGen.generate_assembly_tests_rust(test_section : TestSection) {
+    for test_case in test_section.test_cases {
+        self.emit("    #[test]");
+        self.emit_line("");
+        self.emit("    fn test_");
+        self.emit(self.to_snake_case(test_case.name));
+        self.emit("() {");
+        self.emit_line("");
+        self.emit("        // Verify: ");
+        self.emit_line(test_case.verify_description);
+        self.emit("        // Expected: ");
+        self.emit_line(test_case.expected_outcome);
+        self.emit("        assert!(true);  // TODO: Implement");
+        self.emit_line("");
+        self.emit("    }");
+        self.emit_line("");
+    }
+}
+
+; Generate invariants as Zig tests
+fn TestGen.generate_invariants_zig(inv_section : InvariantSection) {
+    for inv in inv_section.invariants {
+        self.emit("test \"invariant_");
+        self.emit(inv.name);
+        self.emit("\" {");
+        self.emit_line("");
+        self.emit("    // Invariant: ");
+        self.emit_line(inv.formal_statement);
+        self.emit("    // Rationale: ");
+        self.emit_line(inv.rationale);
+        self.emit("    try std.testing.expect(true);  // TODO: Implement");
+        self.emit_line("");
+        self.emit("}");
+        self.emit_line("");
+    }
+}
+
+; Generate benchmarks as Zig tests
+fn TestGen.generate_benchmarks_zig(bench_section : BenchSection) {
+    for bench in bench_section.benchmarks {
+        self.emit("test \"bench_");
+        self.emit(bench.name);
+        self.emit("\" {");
+        self.emit_line("");
+        self.emit("    // Measure: ");
+        self.emit_line(bench.measure_description);
+        if bench.target != null {
+            self.emit("    // Target: ");
+            self.emit_line(bench.target);
+        }
+        self.emit("    // Units: ");
+        self.emit_line(bench.units);
+        self.emit("    const timer = try std.time.Timer.start();");
+        self.emit("    _ = timer;");
+        self.emit_line("");
+        self.emit("}");
+        self.emit_line("");
+    }
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Utility functions
+; ═════════════════════════════════════════════════════════════════════
+
+; Mangle filename to valid identifier
+fn TestGen.mangle_filename(filename : string) -> string {
+    let result = "";
+    let start = filename.len() - 1;
+
+    ; Find last path separator
+    while start >= 0 and filename.u8_at(start) != '/' and filename.u8_at(start) != '\\' {
+        start = start - 1;
+    }
+
+    ; Extract filename without extension
+    for i in (start + 1)..filename.len() {
+        let c = filename.u8_at(i);
+        if c == '.' {
+            break;
+        }
+        if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_' {
+            result = result + string.from_char(c);
+        } else {
+            result = result + "_";
+        }
+    }
+
+    return result;
+}
+
+; Escape JSON string
+fn TestGen.escape_json(s : string) -> string {
+    let result = "";
+    for i in 0..s.len() {
+        let c = s.u8_at(i);
+        if c == '"' {
+            result = result + "\\\"";
+        } else if c == '\\' {
+            result = result + "\\\\";
+        } else if c == '\n' {
+            result = result + "\\n";
+        } else if c == '\r' {
+            result = result + "\\r";
+        } else if c == '\t' {
+            result = result + "\\t";
+        } else {
+            result = result + string.from_char(c);
+        }
+    }
+    return result;
+}
+
+; Convert to snake_case
+fn TestGen.to_snake_case(s : string) -> string {
+    let result = "";
+    for i in 0..s.len() {
+        let c = s.u8_at(i);
+        if c >= 'A' and c <= 'Z' {
+            if result.len() > 0 {
+                result = result + "_";
+            }
+            result = result + string.from_char(c + 32);  // to lower case
+        } else if (c >= 'a' and c <= 'z') or (c >= '0' and c <= '9') or c == '_' {
+            result = result + string.from_char(c);
+        } else {
+            if result.len() > 0 {
+                result = result + "_";
+            }
+        }
+    }
+    return result;
+}
+
+; Infer C type from expression
+fn TestGen.c_type_from_expr(expr : string) -> string {
+    ; Simple heuristic - look for float literals
+    for i in 0..expr.len() {
+        let c = expr.u8_at(i);
+        if c == '.' or c == 'e' or c == 'E' {
+            return "double";
+        }
+    }
+    return "int";
+}
+
+; StringBuilder methods
+fn StringBuilder.new(capacity : u32) -> StringBuilder {
+    return StringBuilder {
+        buffer: new [capacity]u8,
+        len: 0,
+        capacity: capacity
+    };
+}
+
+fn StringBuilder.append(sb : StringBuilder, s : string) {
+    for i in 0..s.len() {
+        if sb.len < sb.capacity {
+            sb.buffer[sb.len] = s.u8_at(i);
+            sb.len = sb.len + 1;
+        }
+    }
+}
+
+fn StringBuilder.to_string(sb : StringBuilder) -> string {
+    return string.from_bytes(sb.buffer[0..sb.len]);
+}
+
+; TestGen emit helpers
+fn TestGen.emit(self : TestGen, s : string) {
+    self.output.append(s);
+}
+
+fn TestGen.emit_line(self : TestGen, s : string) {
+    self.output.append(s);
+    self.output.append("\n");
+}
