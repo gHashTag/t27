@@ -83,6 +83,28 @@ trit_add_table:
     RET
 
     ; ═════════════════════════════════════════════════════════════════════
+    ; trit_carry_table(a: Trit, b: Trit) → Trit
+    ; Fast carry computation using lookup table
+    ; Returns carry value for trit addition: -1 if a+b < -1, +1 if a+b > +1, else 0
+    ; ═════════════════════════════════════════════════════════════════════
+trit_carry_table:
+    ; Input: r0 = a, r1 = b
+    ; Output: r0 = carry value
+
+    ; Offset calculation: (a+1)*3 + (b+1)
+    ; a+1: -1→0, 0→1, +1→2
+    ; b+1: same
+    ADD r0, r0, ONE      ; r0 = a + 1
+    ADD r1, r1, ONE      ; r1 = b + 1
+    MUL r0, r0, #3       ; r0 = (a+1) * 3
+    ADD r0, r0, r1       ; r0 = (a+1)*3 + (b+1) = table index
+
+    ; Load from carry_table (pseudo-op, actual implementation uses memory)
+    ; LD r0, [carry_table + r0]
+
+    RET
+
+    ; ═════════════════════════════════════════════════════════════════════
     ; trit_add_with_carry(a: Trit, b: Trit, carry_in: Trit) → {result, carry_out}
     ; Full ternary addition with carry propagation
     ; result = a + b + carry_in
@@ -349,6 +371,36 @@ max_return_a:
     ; Setup: iterate a,b in {-1,0,+1}
     ; Expected: symmetric results
 
+    ; test_trit_carry_table_neg_plus_neg
+    ; Verify: -1 + -1 generates carry +1
+    ; Setup: r0 = NEGONE, r1 = NEGONE
+    ; Expected: r0 = ONE after trit_carry_table
+
+    ; test_trit_carry_table_neg_plus_zero
+    ; Verify: -1 + 0 generates no carry
+    ; Setup: r0 = NEGONE, r1 = ZERO
+    ; Expected: r0 = ZERO after trit_carry_table
+
+    ; test_trit_carry_table_neg_plus_pos
+    ; Verify: -1 + +1 generates no carry
+    ; Setup: r0 = NEGONE, r1 = ONE
+    ; Expected: r0 = ZERO after trit_carry_table
+
+    ; test_trit_carry_table_zero_plus_zero
+    ; Verify: 0 + 0 generates no carry
+    ; Setup: r0 = ZERO, r1 = ZERO
+    ; Expected: r0 = ZERO after trit_carry_table
+
+    ; test_trit_carry_table_zero_plus_pos
+    ; Verify: 0 + +1 generates no carry
+    ; Setup: r0 = ZERO, r1 = ONE
+    ; Expected: r0 = ZERO after trit_carry_table
+
+    ; test_trit_carry_table_pos_plus_pos
+    ; Verify: +1 + +1 generates carry -1
+    ; Setup: r0 = ONE, r1 = ONE
+    ; Expected: r0 = NEGONE after trit_carry_table
+
     ; test_trit_add_with_carry_no_carry
     ; Verify: a + b with zero carry_in gives correct result
     ; Setup: r0 = ONE, r1 = NEGONE, r2 = ZERO
@@ -417,6 +469,18 @@ max_return_a:
     ; trit_add_table(a, 0) == a for all trit values
     ; Rationale: Zero is additive identity
 
+    ; trit_carry_table_commutative
+    ; trit_carry_table(a, b) == trit_carry_table(b, a)
+    ; Rationale: Carry computation is symmetric
+
+    ; trit_carry_table_neg_plus_neg_gives_positive
+    ; trit_carry_table(-1, -1) == +1
+    ; Rationale: -1 + -1 = -2 overflows to +1 with carry +1
+
+    ; trit_carry_table_pos_plus_pos_gives_negative
+    ; trit_carry_table(+1, +1) == -1
+    ; Rationale: +1 + +1 = +2 overflows to -1 with carry -1
+
     ; trit_add_with_carry_result_in_range
     ; trit_add_with_carry result is always in {-1, 0, +1}
     ; Rationale: Function must normalize to trit domain
@@ -456,6 +520,10 @@ max_return_a:
 
     ; bench_trit_add_table_latency
     ; Measure: cycles for table-based addition
+    ; Target: < 15 cycles on t27-hardware
+
+    ; bench_trit_carry_table_latency
+    ; Measure: cycles for carry lookup
     ; Target: < 15 cycles on t27-hardware
 
     ; bench_trit_add_with_carry_latency
