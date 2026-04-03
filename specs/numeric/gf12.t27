@@ -174,7 +174,116 @@ module GF12 {
     }
 
     fn pow(base: f32, exp: f32) -> f32 {
-        return 1.0;  // TODO: implement
+        // Efficient power function for GF12
+        // Integer exponent: binary exponentiation
+        // Fractional exponent: use logarithm approximation
+
+        if (base <= 0.0 || exp == 0.0) {
+            if (exp == 0.0) {
+                return 1.0;
+            }
+            if (base == 0.0 && exp > 0.0) {
+                return 0.0;
+            }
+            return 0.0 / 0.0;  // NaN for negative base with non-integer exp
+        }
+
+        // Check if exponent is (approximately) integer
+        const is_integer = exp == floor(exp);
+
+        if (is_integer) {
+            // Binary exponentiation for integer exponents
+            let exp_int = exp as i32;
+            let result = 1.0;
+            let base_acc = base;
+            let e = exp_int;
+
+            if (e < 0) {
+                e = -e;
+                base_acc = 1.0 / base_acc;
+            }
+
+            while (e > 0) {
+                if (e % 2 == 1) {
+                    result = result * base_acc;
+                }
+                base_acc = base_acc * base_acc;
+                e = e / 2;
+            }
+
+            return result;
+        }
+
+        // Fractional exponent: x^y = exp(y * ln(x))
+        const ln_val = ln_approx(base);
+        return exp_approx(exp * ln_val);
+    }
+
+    // Natural logarithm approximation
+    fn ln_approx(x: f32) -> f32 {
+        if (x <= 0.0) {
+            return 0.0 / 0.0;  // NaN
+        }
+        if (x == 1.0) {
+            return 0.0;
+        }
+
+        // Series: ln(x) = 2 * ((x-1)/(x+1) + 1/3*((x-1)/(x+1))^3 + ...)
+        const t = (x - 1.0) / (x + 1.0);
+        const t2 = t * t;
+        const t3 = t2 * t;
+        const t5 = t3 * t2;
+        const t7 = t5 * t2;
+
+        return 2.0 * (t + t3 / 3.0 + t5 / 5.0 + t7 / 7.0);
+    }
+
+    // Exponential approximation
+    fn exp_approx(x: f32) -> f32 {
+        if (x == 0.0) {
+            return 1.0;
+        }
+
+        // Taylor series: e^x = 1 + x + x^2/2! + x^3/3! + ...
+        let result = 1.0;
+        let term = 1.0;
+        let exp_x = x;
+
+        // Scale down for large inputs
+        if (exp_x > 5.0 || exp_x < -5.0) {
+            const k = floor(exp_x / 5.0) as i32;
+            exp_x = exp_x - (k as f32) * 5.0;
+        }
+
+        for (i in 1..=8) {
+            term = term * exp_x / (i as f32);
+            result = result + term;
+        }
+
+        // Scale back if needed
+        if (x > 5.0 || x < -5.0) {
+            const k = floor(x / 5.0) as i32;
+            if (k > 0) {
+                for (i in 0..k) {
+                    result = result * exp_approx(5.0);
+                }
+            } else if (k < 0) {
+                for (i in k..0) {
+                    result = result / exp_approx(5.0);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // Floor function
+    fn floor(x: f32) -> f32 {
+        let xi = x as i32;
+        if (x >= 0.0 || x == xi as f32) {
+            return xi as f32;
+        }
+        return (xi - 1) as f32;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -248,6 +357,112 @@ module GF12 {
 
     invariant gf12_exp_bias_positive
         assert EXP_BIAS > 0
+
+    test gf12_pow_zero_exponent_returns_one
+        given result = pow(2.0, 0.0)
+        then abs(result - 1.0) < 1e-6
+
+    test gf12_pow_one_exponent_returns_base
+        given result = pow(5.0, 1.0)
+        then abs(result - 5.0) < 1e-6
+
+    test gf12_pow_positive_integer_exponent
+        given result = pow(2.0, 5.0)
+        and expected = 32.0
+        then abs(result - expected) < 1e-5
+
+    test gf12_pow_negative_integer_exponent
+        given result = pow(2.0, -3.0)
+        and expected = 0.125
+        then abs(result - expected) < 1e-5
+
+    test gf12_pow_fractional_exponent
+        given result = pow(4.0, 0.5)
+        and expected = 2.0
+        then abs(result - expected) < 1e-4
+
+    test gf12_pow_zero_base_positive_exponent
+        given result = pow(0.0, 5.0)
+        then result == 0.0
+
+    test gf12_pow_one_base_any_exponent
+        given result1 = pow(1.0, 10.0)
+        and result2 = pow(1.0, -5.0)
+        then abs(result1 - 1.0) < 1e-6 and abs(result2 - 1.0) < 1e-6
+
+    test gf12_ln_approx_of_one
+        given result = ln_approx(1.0)
+        then abs(result) < 1e-6
+
+    test gf12_ln_approx_of_e
+        given e = 2.718281828459045 as f32
+        and result = ln_approx(e)
+        then abs(result - 1.0) < 0.01
+
+    test gf12_ln_approx_negative_returns_nan
+        given result = ln_approx(-1.0)
+        then result != result  // NaN check
+
+    test gf12_exp_approx_zero
+        given result = exp_approx(0.0)
+        then abs(result - 1.0) < 1e-6
+
+    test gf12_exp_approx_one
+        given e = 2.718281828459045 as f32
+        and result = exp_approx(1.0)
+        then abs(result - e) < 0.01
+
+    test gf12_exp_approx_negative
+        given result = exp_approx(-1.0)
+        and expected = 1.0 / 2.718281828459045 as f32
+        then abs(result - expected) < 0.01
+
+    test gf12_floor_positive
+        given result = floor(3.7)
+        then abs(result - 3.0) < 1e-6
+
+    test gf12_floor_negative
+        given result = floor(-3.2)
+        then abs(result - (-4.0)) < 1e-6
+
+    test gf12_floor_integer
+        given result = floor(5.0)
+        then abs(result - 5.0) < 1e-6
+
+    invariant gf12_pow_zero_exponent_identity
+        assert pow(x, 0.0) == 1.0 for all positive x
+
+    invariant gf12_pow_one_exponent_identity
+        assert pow(x, 1.0) == x for all valid x
+
+    invariant gf12_ln_exp_inversion
+        given x = 2.0
+        and y = ln_approx(x)
+        then abs(exp_approx(y) - x) < 0.01
+
+    invariant gf12_floor_returns_integer
+        assert floor(x) == i32 for all f32 x
+
+    invariant gf12_floor_monotonic
+        given x1 = 2.5
+        and x2 = 3.5
+        assert floor(x1) <= floor(x2)
+
+    bench gf12_pow_integer_exponent
+        measure: nanoseconds to compute pow(2.0, 10.0)
+        target: < 500ns
+
+    bench gf12_ln_latency
+        measure: nanoseconds to compute ln_approx(2.0)
+        target: < 300ns
+
+    bench gf12_exp_latency
+        measure: nanoseconds to compute exp_approx(1.0)
+        target: < 500ns
+
+    bench gf12_floor_latency
+        measure: nanoseconds to compute floor(3.7)
+        target: < 50ns
 
     invariant gf12_floor_log2_non_negative_input
         assert floor_log2(1.0) >= 0
