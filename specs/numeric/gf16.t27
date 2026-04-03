@@ -504,6 +504,26 @@ HALT
     ; Setup: create NaN with exp=63, mant!=0
     ; Expected: decode returns IEEE NaN pattern 0x7FC00000
 
+    ; gf16_round_phi_preserves_phi
+    ; Verify: phi-optimized rounding preserves PHI value better than standard
+    ; Setup: x = PHI = 1.6180339887498948
+    ; Expected: |decode(gf16_round_phi(x)) - x| < 0.005
+
+    ; gf16_round_phi_zero
+    ; Verify: zero values handled correctly
+    ; Setup: x = 0.0, x = -0.0
+    ; Expected: gf16_round_phi(0.0) = GF16_ZERO_POS, gf16_round_phi(-0.0) = GF16_ZERO_NEG
+
+    ; gf16_round_phi_positive
+    ; Verify: positive values round correctly
+    ; Setup: x = 1.0, x = 2.0, x = 3.0
+    ; Expected: decoded values within 0.01 of original
+
+    ; gf16_round_phi_negative
+    ; Verify: negative values round correctly
+    ; Setup: x = -1.0, x = -2.0, x = -PHI
+    ; Expected: decoded values within 0.01 of original
+
 .invariant
     ; gf16_identity_encoding
     ; For GF16 representing 1.0: sign=0, exp=0, mant=0, raw value = 0x3C00
@@ -545,6 +565,18 @@ HALT
     ; For normal numbers: actual mantissa = 1 + (stored_mant / 512)
     ; Rationale: IEEE 754 uses implicit leading 1 for efficiency
 
+    ; gf16_phi_bias_positive
+    ; PHI_BIAS = 60 > 0
+    ; Rationale: Positive bias improves golden ratio representation
+
+    ; gf16_phi_bias_less_than_mantissa_scale
+    ; PHI_BIAS = 60 < 512 (MANT_DIVISOR)
+    ; Rationale: Bias must be smaller than mantissa scale to avoid overflow
+
+    ; gf16_round_phi_preserves_sign
+    ; For all x: sign(gf16_round_phi(x)) = sign(x)
+    ; Rationale: Rounding must not change sign
+
 .bench
     ; gf16_encode_throughput
     ; Measure: gf16_encode_f32 calls per second
@@ -562,41 +594,6 @@ HALT
     ; Measure: total instructions in GF16 module
     ; Target: < 1000 instructions for complete encode/decode
 
-.test
-    ; gf16_round_phi_preserves_phi
-    ; Verify: phi-optimized rounding preserves PHI value better than standard
-    ; Setup: x = PHI = 1.6180339887498948
-    ; Expected: |decode(gf16_round_phi(x)) - x| < 0.005
-
-    ; gf16_round_phi_zero
-    ; Verify: zero values handled correctly
-    ; Setup: x = 0.0, x = -0.0
-    ; Expected: gf16_round_phi(0.0) = GF16_ZERO_POS, gf16_round_phi(-0.0) = GF16_ZERO_NEG
-
-    ; gf16_round_phi_positive
-    ; Verify: positive values round correctly
-    ; Setup: x = 1.0, x = 2.0, x = 3.0
-    ; Expected: decoded values within 0.01 of original
-
-    ; gf16_round_phi_negative
-    ; Verify: negative values round correctly
-    ; Setup: x = -1.0, x = -2.0, x = -PHI
-    ; Expected: decoded values within 0.01 of original
-
-.invariant
-    ; gf16_phi_bias_positive
-    ; PHI_BIAS = 60 > 0
-    ; Rationale: Positive bias improves golden ratio representation
-
-    ; gf16_phi_bias_less_than_mantissa_scale
-    ; PHI_BIAS = 60 < 512 (MANT_DIVISOR)
-    ; Rationale: Bias must be smaller than mantissa scale to avoid overflow
-
-    ; gf16_round_phi_preserves_sign
-    ; For all x: sign(gf16_round_phi(x)) = sign(x)
-    ; Rationale: Rounding must not change sign
-
-.bench
     ; gf16_round_phi_latency
     ; Measure: nanoseconds to gf16_round_phi(1.0)
     ; Target: < 200ns
