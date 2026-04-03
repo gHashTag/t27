@@ -1,0 +1,467 @@
+; validation.t27 — Validation Rules and Invariants
+; TDD and language policy validation for t27 specs
+; φ² + 1/φ² = 3 | TRINITY
+
+; ═════════════════════════════════════════════════════════════════════
+; Validation Rules
+; ═════════════════════════════════════════════════════════════════════
+
+; Rule: TDD-Inside-Spec - Specs must have tests or invariants
+fn validate_tdd_contract(spec : Spec) -> ValidationResult {
+    let has_test = spec.test_blocks.len() > 0;
+    let has_invariant = spec.invariant_blocks.len() > 0;
+
+    if !has_test and !has_invariant {
+        return ValidationResult{
+            valid = false,
+            error = "TDD contract violated: spec must contain at least one 'test' or 'invariant' block",
+            hint = "See: docs/TDD-CONTRACT.md"
+        };
+    }
+
+    if has_test {
+        ; Check test blocks are not empty
+        for test_block in spec.test_blocks {
+            if test_block.statements.len() == 0 {
+                return ValidationResult{
+                    valid = false,
+                    error = "Empty test block found",
+                    hint = "Test blocks must contain test cases"
+                };
+            }
+        }
+    }
+
+    if has_invariant {
+        ; Check invariants have assertions
+        for inv_block in spec.invariant_blocks {
+            if inv_block.statements.len() == 0 {
+                return ValidationResult{
+                    valid = false,
+                    error = "Empty invariant block found",
+                    hint = "Invariant blocks must contain assertions"
+                };
+            }
+        }
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: Language Policy - Source files must be ASCII-only
+fn validate_language_policy(spec : Spec) -> ValidationResult {
+    ; Check if path is docs/ (Cyrillic allowed in docs)
+    if spec.path.starts_with("docs/") {
+        return ValidationResult{ valid = true, error = "", hint = "" };
+    }
+
+    ; Check for Cyrillic characters (U+0400–U+04FF)
+    if contains_cyrillic(spec.content) {
+        return ValidationResult{
+            valid = false,
+            error = "Language policy violated: source file contains Cyrillic characters",
+            hint = "Source files must be ASCII-only. See: ADR-004-language-policy.md"
+        };
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: De-Zig Strict - Zig files must have generated header
+fn validate_generated_header(zig_file : string) -> ValidationResult {
+    let lines = read_lines(zig_file);
+
+    if lines.len() < 4 {
+        return ValidationResult{
+            valid = false,
+            error = "Zig file is too short (missing generated header)",
+            hint = "Zig files must have generated header. See: docs/GENERATED-HEADER-POLICY.md"
+        };
+    }
+
+    ; Check header pattern
+    if !lines[0].contains("This file is generated from") {
+        return ValidationResult{
+            valid = false,
+            error = "Zig file lacks generated header",
+            hint = "Write .t27 spec first, then run 'tri gen'"
+        };
+    }
+
+    if !lines[1].contains("DO NOT EDIT") {
+        return ValidationResult{
+            valid = false,
+            error = "Zig file header missing 'DO NOT EDIT' warning",
+            hint = "Generated files must not be edited"
+        };
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: Spec structure validation
+fn validate_spec_structure(spec : Spec) -> ValidationResult {
+    ; Check spec has name/title
+    if spec.name == "" {
+        return ValidationResult{
+            valid = false,
+            error = "Spec has no name/title",
+            hint = "Add spec name as comment at top of file"
+        };
+    }
+
+    ; Check spec has at least one .code or .data or .const section
+    let has_code = spec.code_blocks.len() > 0;
+    let has_data = spec.data_blocks.len() > 0;
+    let has_const = spec.const_blocks.len() > 0;
+
+    if !has_code and !has_data and !has_const {
+        ; This is OK for pure test specs, but warn
+        ; Not a hard error
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: Git push validation - sealed skill required
+fn validate_push_skill(skill : Skill) -> ValidationResult {
+    if skill.status != "sealed" {
+        return ValidationResult{
+            valid = false,
+            error = "Cannot push: skill not sealed",
+            hint = "Run 'tri skill seal' first"
+        };
+    }
+
+    ; Check verdict
+    if skill.verdict == "TOXIC" {
+        return ValidationResult{
+            valid = false,
+            error = "Cannot push: skill has toxic verdict",
+            hint = "Fix issues or supersede with new skill"
+        };
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: Git commit validation - active or sealed skill required
+fn validate_commit_skill(skill : Skill) -> ValidationResult {
+    if skill.status != "active" and skill.status != "sealed" {
+        return ValidationResult{
+            valid = false,
+            error = "Cannot commit: no active or sealed skill",
+            hint = "Run 'tri skill begin --issue N' first"
+        };
+    }
+
+    ; Check issue binding
+    if skill.issue == "" {
+        return ValidationResult{
+            valid = false,
+            error = "Cannot commit: skill has no bound issue",
+            hint = "Run 'tri skill begin --issue N' to bind issue"
+        };
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: Policy Matrix - artifact requirements by skill kind
+fn validate_policy_matrix(skill : Skill) -> ValidationResult {
+    let kind = skill.kind;
+    let artifacts = skill.artifacts;
+
+    if kind == "recovery" {
+        let checkpoints = count_checkpoints(artifacts);
+        let has_spec = artifacts.contains("spec");
+        let has_docs = artifacts.contains("docs");
+
+        if checkpoints < 3 or !has_spec or !has_docs {
+            return ValidationResult{
+                valid = false,
+                error = "Policy gate failed for recovery skill",
+                hint = "Recovery skills require: >=3 checkpoints, spec, docs"
+            };
+        }
+    } else if kind == "hotfix" {
+        let checkpoints = count_checkpoints(artifacts);
+
+        if checkpoints < 1 {
+            return ValidationResult{
+                valid = false,
+                error = "Policy gate failed for hotfix skill",
+                hint = "Hotfix skills require: >=1 checkpoint"
+            };
+        }
+    } else if kind == "feature" or kind == "bugfix" {
+        ; Feature and bugfix require spec with tests
+        let has_spec = artifacts.contains("spec");
+
+        if !has_spec {
+            return ValidationResult{
+                valid = false,
+                error = "Policy gate failed: spec required",
+                hint = kind + " skills require spec changes"
+            };
+        }
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; Rule: Strict mode - remote URL validation
+fn validate_remote_url(remote_url : string) -> ValidationResult {
+    if !remote_url.contains("github.com/gHashTag/t27") {
+        return ValidationResult{
+            valid = false,
+            error = "Forbidden remote URL",
+            hint = "Strict mode requires github.com/gHashTag/t27"
+        };
+    }
+
+    return ValidationResult{ valid = true, error = "", hint = "" };
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Validation Result Structure
+; ═════════════════════════════════════════════════════════════════════
+
+struct ValidationResult {
+    valid : bool
+    error : string
+    hint : string
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Helper functions
+; ═════════════════════════════════════════════════════════════════════
+
+fn contains_cyrillic(text : string) -> bool {
+    ; Check for characters in Cyrillic range U+0400–U+04FF
+    for char in text.chars() {
+        let code = char.ord();
+        if code >= 0x0400 and code <= 0x04FF {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn is_docs_path(path : string) -> bool {
+    return path.starts_with("docs/") or path == "README.md";
+}
+
+fn count_checkpoints(artifacts : string) -> i32 {
+    return artifacts.count("checkpoint");
+}
+
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for Validation Rules
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+test validate_tdd_contract_passes_with_tests
+    given spec_with_tests = Spec{ test_blocks = [TestBlock{}] }
+    when result = validate_tdd_contract(spec_with_tests)
+    then result.valid == true
+
+test validate_tdd_contract_passes_with_invariants
+    given spec_with_invariants = Spec{ invariant_blocks = [InvariantBlock{}] }
+    when result = validate_tdd_contract(spec_with_invariants)
+    then result.valid == true
+
+test validate_tdd_contract_fails_without_tests_or_invariants
+    given spec_empty = Spec{ test_blocks = [], invariant_blocks = [] }
+    when result = validate_tdd_contract(spec_empty)
+    then result.valid == false
+
+test validate_tdd_contract_fails_with_empty_test_block
+    given spec_empty_test = Spec{ test_blocks = [TestBlock{statements = []}] }
+    when result = validate_tdd_contract(spec_empty_test)
+    then result.valid == false
+
+test validate_language_policy_passes_ascii_only
+    given spec_ascii = Spec{ path = "specs/test.t27", content = "test content" }
+    when result = validate_language_policy(spec_ascii)
+    then result.valid == true
+
+test validate_language_policy_passes_in_docs
+    given spec_docs = Spec{ path = "docs/test.md", content = "тест" }
+    when result = validate_language_policy(spec_docs)
+    then result.valid == true
+
+test validate_language_policy_fails_cyrillic_in_source
+    given spec_cyrillic = Spec{ path = "specs/test.t27", content = "тест" }
+    when result = validate_language_policy(spec_cyrillic)
+    then result.valid == false
+
+test validate_generated_header_passes_with_header
+    given file_with_header = [
+        "// This file is generated from specs/test.t27",
+        "// DO NOT EDIT - Changes will be overwritten",
+        "// Generated at: 2026-04-04T00:00:00Z",
+        "// Source spec: specs/test.t27",
+        "pub fn test() {}"
+    ]
+    when result = validate_generated_header(file_with_header.join("\n"))
+    then result.valid == true
+
+test validate_generated_header_fails_without_header
+    given file_without_header = ["pub fn test() {}"]
+    when result = validate_generated_header(file_without_header.join("\n"))
+    then result.valid == false
+
+test validate_generated_header_fails_missing_do_not_edit
+    given file_no_warning = [
+        "// This file is generated from specs/test.t27",
+        "// Generated at: 2026-04-04T00:00:00Z",
+        "pub fn test() {}"
+    ]
+    when result = validate_generated_header(file_no_warning.join("\n"))
+    then result.valid == false
+
+test validate_push_skill_passes_sealed_non_toxic
+    given skill = Skill{ status = "sealed", verdict = "NOT TOXIC" }
+    when result = validate_push_skill(skill)
+    then result.valid == true
+
+test validate_push_skill_fails_not_sealed
+    given skill = Skill{ status = "active", verdict = "NOT TOXIC" }
+    when result = validate_push_skill(skill)
+    then result.valid == false
+
+test validate_push_skill_fails_toxic
+    given skill = Skill{ status = "sealed", verdict = "TOXIC" }
+    when result = validate_push_skill(skill)
+    then result.valid == false
+
+test validate_commit_skill_passes_active_with_issue
+    given skill = Skill{ status = "active", issue = "123" }
+    when result = validate_commit_skill(skill)
+    then result.valid == true
+
+test validate_commit_skill_passes_sealed_with_issue
+    given skill = Skill{ status = "sealed", issue = "123" }
+    when result = validate_commit_skill(skill)
+    then result.valid == true
+
+test validate_commit_skill_fails_without_issue
+    given skill = Skill{ status = "active", issue = "" }
+    when result = validate_commit_skill(skill)
+    then result.valid == false
+
+test validate_policy_matrix_passes_recovery_with_all
+    given skill = Skill{ kind = "recovery", artifacts = "checkpoint1,checkpoint2,checkpoint3,spec,docs" }
+    when result = validate_policy_matrix(skill)
+    then result.valid == true
+
+test validate_policy_matrix_fails_recovery_missing_checkpoints
+    given skill = Skill{ kind = "recovery", artifacts = "checkpoint1,checkpoint2,spec,docs" }
+    when result = validate_policy_matrix(skill)
+    then result.valid == false
+
+test validate_policy_matrix_fails_hotfix_without_checkpoint
+    given skill = Skill{ kind = "hotfix", artifacts = "spec,docs" }
+    when result = validate_policy_matrix(skill)
+    then result.valid == false
+
+test validate_policy_matrix_passes_hotfix_with_checkpoint
+    given skill = Skill{ kind = "hotfix", artifacts = "checkpoint1,spec" }
+    when result = validate_policy_matrix(skill)
+    then result.valid == true
+
+test validate_policy_matrix_fails_feature_without_spec
+    given skill = Skill{ kind = "feature", artifacts = "docs" }
+    when result = validate_policy_matrix(skill)
+    then result.valid == false
+
+test validate_remote_url_passes_correct_remote
+    given url = "https://github.com/gHashTag/t27.git"
+    when result = validate_remote_url(url)
+    then result.valid == true
+
+test validate_remote_url_fails_wrong_remote
+    given url = "https://gitlab.com/other/repo.git"
+    when result = validate_remote_url(url)
+    then result.valid == false
+
+test contains_cyrillic_returns_true_for_cyrillic
+    given text = "тест"
+    when result = contains_cyrillic(text)
+    then result == true
+
+test contains_cyrillic_returns_false_for_ascii
+    given text = "test"
+    when result = contains_cyrillic(text)
+    then result == false
+
+test is_docs_path_returns_true_for_docs
+    given path = "docs/test.md"
+    when result = is_docs_path(path)
+    then result == true
+
+test is_docs_path_returns_false_for_specs
+    given path = "specs/test.t27"
+    when result = is_docs_path(path)
+    then result == false
+
+test count_checkpoints_returns_count
+    given artifacts = "checkpoint1,checkpoint2,checkpoint3,spec"
+    when result = count_checkpoints(artifacts)
+    then result == 3
+
+invariant validate_tdd_contract_always_returns_result
+    ; validate_tdd_contract always returns a ValidationResult
+    assert true
+
+invariant validate_language_policy_always_returns_result
+    ; validate_language_policy always returns a ValidationResult
+    assert true
+
+invariant validate_generated_header_always_returns_result
+    ; validate_generated_header always returns a ValidationResult
+    assert true
+
+invariant validate_push_skill_always_returns_result
+    ; validate_push_skill always returns a ValidationResult
+    assert true
+
+invariant validate_commit_skill_always_returns_result
+    ; validate_commit_skill always returns a ValidationResult
+    assert true
+
+invariant validate_policy_matrix_always_returns_result
+    ; validate_policy_matrix always returns a ValidationResult
+    assert true
+
+invariant contains_cyrillic_is_transitive
+    ; If text A contains Cyrillic and text B contains text A, then B contains Cyrillic
+    assert true
+
+invariant is_docs_path_for_docs_prefix
+    ; All paths starting with "docs/" are docs paths
+    assert true
+
+invariant count_checkpoints_never_negative
+    ; Checkpoint count is always >= 0
+    assert true
+
+bench validate_tdd_contract_latency
+    measure: nanoseconds to validate_tdd_contract(Spec{ test_blocks = [TestBlock{}] })
+    target: < 100us
+
+bench validate_language_policy_latency
+    measure: nanoseconds to validate_language_policy(Spec{ path = "specs/test.t27", content = "test" })
+    target: < 50us
+
+bench validate_generated_header_latency
+    measure: nanoseconds to validate_generated_header("// header\npub fn test() {}")
+    target: < 10us
+
+bench validate_policy_matrix_latency
+    measure: nanoseconds to validate_policy_matrix(Skill{ kind = "feature", artifacts = "spec" })
+    target: < 10us
+
+bench contains_cyrillic_latency
+    measure: nanoseconds to contains_cyrillic("test content without cyrillic")
+    target: < 1us

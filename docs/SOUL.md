@@ -155,14 +155,14 @@ The following are **VIOLATIONS** of TDD-Inside-Spec Law:
 
 ---
 
-## Constitutional Law #2: Git Integration with Tri Cell
+## Constitutional Law #2: Git Integration with Tri Skill
 
 **Status**: MANDATORY for P0/P1 episodes
 
 ### Statement
 
 Any P0/P1 episode in `--strict` mode is considered complete **ONLY** after successful `tri git push` to `github.com/gHashTag/t27` with:
-- A bound sealed cell
+- A bound sealed skill
 - Non-toxic verdict
 - Required artifacts per Policy Matrix
 
@@ -170,20 +170,20 @@ Any P0/P1 episode in `--strict` mode is considered complete **ONLY** after succe
 
 1. **Traceability**: Every change must be traceable to an issue (GitHub issue ID).
 
-2. **Quality Gate**: The sealed cell and verdict mechanism prevents toxic changes from entering the codebase.
+2. **Quality Gate**: The sealed skill and verdict mechanism prevents toxic changes from entering the codebase.
 
-3. **Policy Enforcement**: Different cell types (recovery, hotfix) have different artifact requirements.
+3. **Policy Enforcement**: Different skill types (recovery, hotfix) have different artifact requirements.
 
 ### Enforcement
 
-1. **`tri git commit`**: Requires active or sealed cell with bound issue.
-2. **`tri git push`**: Requires sealed cell with non-toxic verdict and proper artifacts.
+1. **`tri git commit`**: Requires active or sealed skill with bound issue.
+2. **`tri git push`**: Requires sealed skill with non-toxic verdict and proper artifacts.
 3. **Strict Mode**: Only allows pushes to `github.com/gHashTag/t27`.
 
 ### Policy Matrix
 
-| Cell Kind | Min Checkpoints | Required Artifacts | Verdict |
-|-----------|-----------------|---------------------|---------|
+| Skill Kind | Min Checkpoints | Required Artifacts | Verdict |
+|------------|-----------------|---------------------|---------|
 | Recovery | 3 | spec, docs, checkpoints | NOT TOXIC |
 | Hotfix | 1 | checkpoint (fix-only areas) | NOT TOXIC |
 | Feature | 1 | spec (with tests) | NOT TOXIC |
@@ -193,26 +193,26 @@ Any P0/P1 episode in `--strict` mode is considered complete **ONLY** after succe
 
 ```bash
 # Start work
-tri cell begin --issue N
+tri skill begin --issue N
 # ... work on spec (with tests!) ...
 
-# Seal cell
-tri cell seal
+# Seal skill
+tri skill seal
 
 # Commit (adds issue:N to message automatically)
 tri git commit --all -m "description"
 
-# Push (validates sealed cell + verdict + artifacts)
+# Push (validates sealed skill + verdict + artifacts)
 tri git push origin HEAD
 ```
 
 ### Violations
 
-1. **Commit without cell**: `NO-COMMIT-WITHOUT-ISSUE violated` — run `tri cell begin --issue N` first.
+1. **Commit without skill**: `NO-COMMIT-WITHOUT-ISSUE violated` — run `tri skill begin --issue N` first.
 
-2. **Commit without issue binding**: Cell must have `issue` field in registry.
+2. **Commit without issue binding**: Skill must have `issue` field in registry.
 
-3. **Push toxic cell`: Cannot push cells with `verdict = "TOXIC"` — fix or supersede.
+3. **Push toxic skill**: Cannot push skills with `verdict = "TOXIC"` — fix or supersede.
 
 4. **Push to wrong remote**: In strict mode, only `github.com/gHashTag/t27` allowed.
 
@@ -249,6 +249,97 @@ AI agents MUST see `.tri` context and write `.tri`/`.t27` files, never Zig direc
 2. **Modifying Generated Zig**: Hand-editing generated Zig files (marked `DO NOT EDIT`).
 
 3. **Skipping Spec**: Implementing features without corresponding `.t27` spec.
+
+---
+
+---
+
+## Constitutional Law #4: De-Zig Strict
+
+**Status**: MANDATORY (no exceptions)
+
+### Statement
+
+> **No new Trinity business logic in Zig by hand.**
+>
+> 1. **Source of Truth**: All new Trinity logic (CLI, runtime, numeric, physics, graph, agents) MUST be written only in `.t27/.tri` specifications.
+> 2. **Backends Only**: Zig, C, Verilog, Rust may exist ONLY as **generated backends** from `.t27/.tri` via `tri gen`.
+> 3. **Temporary Bootstrap**: Any new `.zig` file is permitted ONLY as temporary bootstrap layer (I/O, process startup). Domain logic in Zig is forbidden.
+> 4. **Migration Debt**: Any existing handwritten Zig code with domain logic MUST have an explicit migration task to `.t27/.tri`. Creating new debt is forbidden.
+> 5. **Enforcement**:
+>    - `tri lint` fails if it detects new `.zig` files without `generated` marker
+>    - `tri git push --strict` blocks push if there is diff in `src/` Zig files that did not pass validation
+
+### Rationale
+
+1. **Spec-First Philosophy**: `.tri` and `.t27` files are the single source of truth. Zig is a generated backend, not an authoring language.
+
+2. **Multi-Target Code Generation**: Same spec generates Zig, C, Verilog, Rust. Writing Zig directly breaks this capability.
+
+3. **AI Agent Alignment**: Agents must see `.tri` context and write `.tri` files, never Zig directly.
+
+### Allowed Zig Files
+
+Zig is ONLY permitted for:
+1. **Generated backends** - From `.t27` specs with `DO NOT EDIT` header
+2. **Bootstrap layer** - Temporary I/O and process startup (no domain logic)
+3. **Legacy quarantine** - Existing code awaiting migration (with TODO comment)
+4. **Hardware bridge** - FPGA bindings and external system interfaces
+
+### Forbidden Zig Files
+
+Writing Zig directly is FORBIDDEN for:
+- CLI commands and routing
+- Runtime domain logic
+- Numeric/mathematical operations
+- Sacred physics formulas
+- Graph algorithms
+- Agent orchestration
+- Any Trinity-specific business logic
+
+### Generated Header Requirement
+
+All Zig files generated from `.t27` specs must have this header:
+
+```zig
+// This file is generated from <spec_path>
+// DO NOT EDIT - Changes will be overwritten on next tri gen
+// Generated at: <timestamp>
+// Source spec: <spec_path>
+```
+
+Files without this header are considered handwritten and will be blocked.
+
+### Correct Workflow
+
+```bash
+# CORRECT: Spec-first
+1. Write spec in .t27
+2. Run 'tri gen spec.t27'
+3. Use generated Zig
+
+# INCORRECT: Writing Zig directly
+1. Write Zig code ← FORBIDDEN
+2. No .t27 source ← FORBIDDEN
+```
+
+### Enforcement
+
+1. **Linter**: `tri lint` fails on Zig files without generated header
+2. **Git Push**: `tri git push --strict` blocks commits with handwritten Zig
+3. **CI/CD**: GitHub Actions reject PRs with new handwritten Zig
+
+### Violations
+
+1. **Writing Zig directly**: Creating or modifying Zig without `.t27` source
+2. **Modifying Generated Zig**: Hand-editing files marked `DO NOT EDIT`
+3. **Skipping Spec**: Implementing features without corresponding `.t27` spec
+
+### Penalties
+
+1. **Linter Error**: Handwritten Zig detected, migration required
+2. **Git Block**: Push blocked in strict mode
+3. **CI Failure**: PR rejected in CI/CD pipeline
 
 ---
 

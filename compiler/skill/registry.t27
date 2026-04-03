@@ -1,12 +1,12 @@
-; registry.t27 — Cell Registry JSON Structure (ADR-002)
-; Defines the structure for tri cell workflow registry
+; registry.t27 — Skill Registry JSON Structure (ADR-002)
+; Defines the structure for tri skill workflow registry
 
-; Cell Registry JSON Structure
+; Skill Registry JSON Structure
 ; {
 ;   "version": "1.0",
-;   "cells": [
+;   "skills": [
 ;     {
-;       "id": "cell-001",
+;       "id": "skill-001",
 ;       "status": "active|sealed|paused|blocked",
 ;       "kind": "feature|bugfix|hotfix|recovery|refactor",
 ;       "issue": "GitHub issue ID or number",
@@ -23,8 +23,8 @@
 ;       "seal_hash": "hash of sealed state",
 ;       "artifacts": "comma-separated list of artifacts (spec, docs, checkpoints, etc.)",
 ;       "metadata": {
-;         "title": "Cell title/description",
-;         "author": "Agent or user who created cell",
+;         "title": "Skill title/description",
+;         "author": "Agent or user who created skill",
 ;         "priority": "P0|P1|P2|P3",
 ;         "tags": ["tag1", "tag2"]
 ;       }
@@ -32,44 +32,44 @@
 ;   ]
 ; }
 
-; Cell Registry structure
-struct CellRegistry {
+; Skill Registry structure
+struct SkillRegistry {
     version : string
-    cells : []Cell
+    skills : []Skill
 }
 
-; Cell structure
-struct Cell {
-    id : string                ; Unique cell identifier
-    status : CellStatus         ; Current status
-    kind : CellKind             ; Type of work
-    issue : string?             ; Bound GitHub issue ID
-    branch : string             ; Git branch
-    created_at : string         ; Creation timestamp
-    updated_at : string         ; Last update timestamp
-    sealed_at : string?         ; Seal timestamp
-    commit : string?            ; Last commit hash
-    commit_at : string?         ; Commit timestamp
-    pushed : bool               ; Whether pushed to remote
-    pushed_at : string?         ; Push timestamp
-    verdict : CellVerdict?      ; Toxicity verdict
-    verdict_at : string?        ; Verdict timestamp
-    seal_hash : string?         ; Hash of sealed state
-    artifacts : string          ; Artifact list
-    metadata : CellMetadata     ; Additional metadata
+; Skill structure
+struct Skill {
+    id : string                ; Unique skill identifier
+    status : SkillStatus       ; Current status
+    kind : SkillKind           ; Type of work
+    issue : string?            ; Bound GitHub issue ID
+    branch : string            ; Git branch
+    created_at : string        ; Creation timestamp
+    updated_at : string        ; Last update timestamp
+    sealed_at : string?        ; Seal timestamp
+    commit : string?           ; Last commit hash
+    commit_at : string?        ; Commit timestamp
+    pushed : bool              ; Whether pushed to remote
+    pushed_at : string?        ; Push timestamp
+    verdict : SkillVerdict?    ; Toxicity verdict
+    verdict_at : string?       ; Verdict timestamp
+    seal_hash : string?        ; Hash of sealed state
+    artifacts : string         ; Artifact list
+    metadata : SkillMetadata   ; Additional metadata
 }
 
-; Cell status enum
-enum CellStatus {
-    Active = 0      ; Cell is currently being worked on
-    Sealed = 1      ; Cell has been sealed, ready for commit/push
-    Paused = 2      ; Cell work is paused
-    Blocked = 3     ; Cell is blocked, cannot proceed
-    Completed = 4   ; Cell work is complete
+; Skill status enum
+enum SkillStatus {
+    Active = 0      ; Skill is currently being worked on
+    Sealed = 1      ; Skill has been sealed, ready for commit/push
+    Paused = 2      ; Skill work is paused
+    Blocked = 3     ; Skill is blocked, cannot proceed
+    Completed = 4   ; Skill work is complete
 }
 
-; Cell kind enum
-enum CellKind {
+; Skill kind enum
+enum SkillKind {
     Feature = 0     ; New feature implementation
     Bugfix = 1      ; Bug fix
     Hotfix = 2      ; Urgent hotfix (limited scope)
@@ -77,14 +77,14 @@ enum CellKind {
     Refactor = 4    ; Code refactoring
 }
 
-; Cell verdict enum
-enum CellVerdict {
-    NotToxic = 0    ; Cell is safe to proceed
-    Toxic = 1       ; Cell has toxic elements, must be fixed
+; Skill verdict enum
+enum SkillVerdict {
+    NotToxic = 0    ; Skill is safe to proceed
+    Toxic = 1       ; Skill has toxic elements, must be fixed
 }
 
-; Cell metadata
-struct CellMetadata {
+; Skill metadata
+struct SkillMetadata {
     title : string
     author : string
     priority : string          ; P0, P1, P2, P3
@@ -95,18 +95,18 @@ struct CellMetadata {
 ; Policy Matrix (for git push validation)
 ; ═════════════════════════════════════════════════════════════════════
 
-; Recovery cell requirements:
+; Recovery skill requirements:
 ;   - Minimum 3 checkpoints
 ;   - Spec must be modified
 ;   - Docs must be modified
 ;   - Verdict must be NOT TOXIC
 
-; Hotfix cell requirements:
+; Hotfix skill requirements:
 ;   - Minimum 1 checkpoint
 ;   - Changes only in "fix only" areas (no breaking changes)
 ;   - Verdict must be NOT TOXIC
 
-; Feature cell requirements:
+; Feature skill requirements:
 ;   - At least 1 test (per TDD contract)
 ;   - Spec has at least one test/invariant
 ;   - Verdict must be NOT TOXIC
@@ -115,8 +115,8 @@ struct CellMetadata {
 ; Registry file location
 ; ═════════════════════════════════════════════════════════════════════
 
-; Default registry path: .trinity/cells/registry.json
-; This file is the single source of truth for cell state.
+; Default registry path: .trinity/skills/registry.json
+; This file is the single source of truth for skill state.
 
 ; ═════════════════════════════════════════════════════════════════════
 ; JSON Schema
@@ -126,13 +126,13 @@ struct CellMetadata {
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["version", "cells"],
+  "required": ["version", "skills"],
   "properties": {
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+$"
     },
-    "cells": {
+    "skills": {
       "type": "array",
       "items": {
         "type": "object",
@@ -140,7 +140,7 @@ struct CellMetadata {
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^cell-\\d+$"
+            "pattern": "^skill-\\d+$"
           },
           "status": {
             "type": "string",
@@ -220,38 +220,38 @@ struct CellMetadata {
 */
 
 ; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-; TDD-Inside-Spec: Tests and Invariants for Cell Registry
+; TDD-Inside-Spec: Tests and Invariants for Skill Registry
 ; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-test cell_status_active_value
-    given status = CellStatus::Active
+test skill_status_active_value
+    given status = SkillStatus::Active
     then status == 0
 
-test cell_status_sealed_value
-    given status = CellStatus::Sealed
+test skill_status_sealed_value
+    given status = SkillStatus::Sealed
     then status == 1
 
-test cell_kind_feature_value
-    given kind = CellKind::Feature
+test skill_kind_feature_value
+    given kind = SkillKind::Feature
     then kind == 0
 
-test cell_verdict_not_toxic_value
-    given verdict = CellVerdict::NotToxic
+test skill_verdict_not_toxic_value
+    given verdict = SkillVerdict::NotToxic
     then verdict == 0
 
-test cell_registry_has_version_field
-    given registry = CellRegistry{ version = "1.0", cells = [] }
+test skill_registry_has_version_field
+    given registry = SkillRegistry{ version = "1.0", skills = [] }
     then registry.version == "1.0"
 
-test cell_registry_has_cells_array
-    given registry = CellRegistry{ version = "1.0", cells = [] }
-    then registry.cells.len() == 0
+test skill_registry_has_skills_array
+    given registry = SkillRegistry{ version = "1.0", skills = [] }
+    then registry.skills.len() == 0
 
-test cell_has_required_id_field
-    given cell = Cell{
-        id = "cell-001",
-        status = CellStatus::Active,
-        kind = CellKind::Feature,
+test skill_has_required_id_field
+    given skill = Skill{
+        id = "skill-001",
+        status = SkillStatus::Active,
+        kind = SkillKind::Feature,
         issue = null,
         branch = "main",
         created_at = "2024-01-01T00:00:00Z",
@@ -265,17 +265,17 @@ test cell_has_required_id_field
         verdict_at = null,
         seal_hash = null,
         artifacts = "",
-        metadata = CellMetadata{
+        metadata = SkillMetadata{
             title = "Test",
             author = "test",
             priority = "P1",
             tags = []
         }
     }
-    then cell.id == "cell-001"
+    then skill.id == "skill-001"
 
-test cell_metadata_priority_valid
-    given metadata = CellMetadata{
+test skill_metadata_priority_valid
+    given metadata = SkillMetadata{
         title = "Test",
         author = "test",
         priority = "P1",
@@ -283,51 +283,51 @@ test cell_metadata_priority_valid
     }
     then metadata.priority == "P1"
 
-test cell_status_enum_count
+test skill_status_enum_count
     given count = 5
     ; Active, Sealed, Paused, Blocked, Completed
     then count == 5
 
-test cell_kind_enum_count
+test skill_kind_enum_count
     given count = 5
     ; Feature, Bugfix, Hotfix, Recovery, Refactor
     then count == 5
 
-invariant cell_status_active_is_zero
-    assert CellStatus::Active == 0
+invariant skill_status_active_is_zero
+    assert SkillStatus::Active == 0
 
-invariant cell_status_sealed_is_one
-    assert CellStatus::Sealed == 1
+invariant skill_status_sealed_is_one
+    assert SkillStatus::Sealed == 1
 
-invariant cell_kind_feature_is_zero
-    assert CellKind::Feature == 0
+invariant skill_kind_feature_is_zero
+    assert SkillKind::Feature == 0
 
-invariant cell_verdict_not_toxic_is_zero
-    assert CellVerdict::NotToxic == 0
+invariant skill_verdict_not_toxic_is_zero
+    assert SkillVerdict::NotToxic == 0
 
-invariant cell_verdict_toxic_is_one
-    assert CellVerdict::Toxic == 1
+invariant skill_verdict_toxic_is_one
+    assert SkillVerdict::Toxic == 1
 
-invariant cell_metadata_has_priority_field
+invariant skill_metadata_has_priority_field
     ; Valid priorities are P0, P1, P2, P3
     assert true
 
-invariant cell_registry_version_is_string
+invariant skill_registry_version_is_string
     ; version field must be string type
     assert true
 
-invariant cell_id_format_matches_pattern
-    ; Cell ID must match pattern "cell-\d+"
+invariant skill_id_format_matches_pattern
+    ; Skill ID must match pattern "skill-\d+"
     assert true
 
-invariant cell_commit_hash_is_40_hex_chars
+invariant skill_commit_hash_is_40_hex_chars
     ; Commit hash must be 40 hexadecimal characters
     assert true
 
-bench cell_registry_create_latency
-    measure: nanoseconds to create CellRegistry{ version = "1.0", cells = [] }
+bench skill_registry_create_latency
+    measure: nanoseconds to create SkillRegistry{ version = "1.0", skills = [] }
     target: < 100ns
 
-bench cell_create_latency
-    measure: nanoseconds to create minimal Cell struct
+bench skill_create_latency
+    measure: nanoseconds to create minimal Skill struct
     target: < 200ns

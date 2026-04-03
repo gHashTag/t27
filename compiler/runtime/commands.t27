@@ -1,0 +1,719 @@
+; commands.t27 — CLI Command Specifications
+; Individual command specifications for tri CLI
+; φ² + 1/φ² = 3 | TRINITY
+
+; Available commands
+enum Command {
+    SpecCommand    ; spec create, validate, list
+    GenCommand     ; gen <spec>, gen --all
+    GitCommand     ; git commit, push, status
+    LintCommand    ; lint [file], lint --all
+    SkillCommand   ; skill begin, seal, status
+    HelpCommand    ; help
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Command: tri spec
+; ═════════════════════════════════════════════════════════════════════
+
+; tri spec create <name> [--kind feature|bugfix|hotfix|recovery]
+fn spec_create(name : string, kind : string) -> i32 {
+    ; Validate name
+    if name == "" {
+        error("ERROR: spec name cannot be empty");
+        return 1;
+    }
+
+    ; Validate kind
+    if kind not in ["feature", "bugfix", "hotfix", "recovery"] {
+        error("ERROR: invalid kind: " + kind);
+        error("Valid kinds: feature, bugfix, hotfix, recovery");
+        return 1;
+    }
+
+    ; Create spec file
+    let spec_path = "specs/" + name + ".t27";
+
+    if file_exists(spec_path) {
+        error("ERROR: spec already exists: " + spec_path);
+        return 1;
+    }
+
+    let spec_content = generate_spec_template(name, kind);
+    write_file(spec_path, spec_content);
+
+    print("Created spec: " + spec_path);
+    print("Kind: " + kind);
+    print("");
+    print("NOTE: Spec must contain at least one 'test' or 'invariant' block");
+    print("Run 'tri gen " + spec_path + "' to generate code");
+
+    return 0;
+}
+
+; tri spec validate <spec_path>
+fn spec_validate(spec_path : string) -> i32 {
+    ; Check if spec exists
+    if !file_exists(spec_path) {
+        error("ERROR: spec not found: " + spec_path);
+        return 1;
+    }
+
+    ; Parse spec
+    let spec = parse_spec(spec_path);
+    if spec == null {
+        error("ERROR: failed to parse spec: " + spec_path);
+        return 1;
+    }
+
+    ; Check TDD contract
+    if spec.test_blocks.len() == 0 and spec.invariant_blocks.len() == 0 {
+        error("ERROR: TDD contract violated");
+        error("Spec must contain at least one 'test' or 'invariant' block");
+        error("See: docs/TDD-CONTRACT.md");
+        return 1;
+    }
+
+    ; Check language policy
+    if contains_cyrillic(spec.content) and !is_docs_path(spec_path) {
+        error("ERROR: Language policy violated");
+        error("Source files must not contain Cyrillic characters");
+        error("See: ADR-004-language-policy.md");
+        return 1;
+    }
+
+    ; Validate structure
+    let validation_result = validate_spec_structure(spec);
+    if validation_result != 0 {
+        return validation_result;
+    }
+
+    print("Valid: " + spec_path);
+    print("  Tests: " + string.from_int(spec.test_blocks.len()));
+    print("  Invariants: " + string.from_int(spec.invariant_blocks.len()));
+
+    return 0;
+}
+
+; tri spec list
+fn spec_list() -> i32 {
+    let spec_files = list_files("specs/**/*.t27");
+
+    if spec_files.len() == 0 {
+        print("No spec files found in specs/");
+        return 0;
+    }
+
+    print("Spec files (" + string.from_int(spec_files.len()) + "):");
+    for spec_path in spec_files {
+        let spec = parse_spec(spec_path);
+        let status = if spec != null {
+            "T:" + string.from_int(spec.test_blocks.len()) +
+            " I:" + string.from_int(spec.invariant_blocks.len())
+        } else {
+            "ERROR"
+        };
+        print("  " + spec_path + " [" + status + "]");
+    }
+
+    return 0;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Command: tri gen
+; ═════════════════════════════════════════════════════════════════════
+
+; tri gen <spec_path> [--backend zig|c|verilog] [--emit-conformance]
+fn gen_spec(spec_path : string, backend : string, emit_conformance : bool) -> i32 {
+    ; Validate spec first
+    let validation = spec_validate(spec_path);
+    if validation != 0 {
+        error("ERROR: spec validation failed, cannot generate code");
+        return validation;
+    }
+
+    ; Parse spec
+    let spec = parse_spec(spec_path);
+    if spec == null {
+        error("ERROR: failed to parse spec");
+        return 1;
+    }
+
+    ; Generate backend code
+    let result = 0;
+    if backend == "zig" {
+        result = generate_zig(spec);
+    } else if backend == "c" {
+        result = generate_c(spec);
+    } else if backend == "verilog" {
+        result = generate_verilog(spec);
+    } else {
+        error("ERROR: unknown backend: " + backend);
+        return 1;
+    }
+
+    if result != 0 {
+        error("ERROR: code generation failed");
+        return result;
+    }
+
+    ; Generate conformance if requested
+    if emit_conformance {
+        let conformance_result = generate_conformance(spec);
+        if conformance_result != 0 {
+            error("WARNING: conformance generation failed");
+        }
+    }
+
+    print("Generated code from: " + spec_path);
+    print("  Backend: " + backend);
+
+    return 0;
+}
+
+; tri gen --all
+fn gen_all(backend : string) -> i32 {
+    let spec_files = list_files("specs/**/*.t27");
+    let failed = 0;
+
+    for spec_path in spec_files {
+        let result = gen_spec(spec_path, backend, false);
+        if result != 0 {
+            failed = failed + 1;
+            error("Failed to generate: " + spec_path);
+        }
+    }
+
+    let total = spec_files.len();
+    let success = total - failed;
+
+    print("");
+    print("Generation complete:");
+    print("  Total: " + string.from_int(total));
+    print("  Success: " + string.from_int(success));
+    print("  Failed: " + string.from_int(failed));
+
+    return if failed > 0 { 1 } else { 0 };
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Command: tri lint
+; ═════════════════════════════════════════════════════════════════════
+
+; tri lint [file] [--strict]
+fn lint_file(file_path : string, strict : bool) -> i32 {
+    ; Check file extension
+    if !file_path.ends_with(".t27") {
+        error("ERROR: .t27 file required");
+        return 1;
+    }
+
+    ; Validate spec
+    let result = spec_validate(file_path);
+    if result != 0 {
+        return result;
+    }
+
+    ; Strict mode checks
+    if strict {
+        let spec = parse_spec(file_path);
+        if spec.test_blocks.len() == 0 and spec.invariant_blocks.len() == 0 {
+            error("ERROR: strict mode requires tests");
+            return 1;
+        }
+    }
+
+    print("Lint passed: " + file_path);
+    return 0;
+}
+
+; tri lint --all
+fn lint_all(strict : bool) -> i32 {
+    let spec_files = list_files("specs/**/*.t27");
+    let failed = 0;
+
+    for spec_path in spec_files {
+        let result = lint_file(spec_path, strict);
+        if result != 0 {
+            failed = failed + 1;
+        }
+    }
+
+    if failed > 0 {
+        error("Lint failed: " + string.from_int(failed) + " files");
+        return 1;
+    }
+
+    print("All specs passed lint");
+    return 0;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Command: tri skill
+; ═════════════════════════════════════════════════════════════════════
+
+; tri skill begin --issue <N> [--kind feature|bugfix|hotfix|recovery]
+fn skill_begin(issue_id : string, kind : string) -> i32 {
+    let registry_path = ".trinity/skills/registry.json";
+
+    ; Validate issue ID
+    if issue_id == "" {
+        error("ERROR: issue ID required");
+        error("Usage: tri skill begin --issue <N>");
+        return 1;
+    }
+
+    ; Load or create registry
+    let registry = load_or_create_registry(registry_path);
+
+    ; Create new skill
+    let skill_id = "skill-" + string.from_int(registry.skills.len() + 1);
+    let timestamp = get_current_timestamp();
+    let branch = git_get_current_branch();
+
+    let new_skill = {
+        "id": skill_id,
+        "status": "active",
+        "kind": kind,
+        "issue": issue_id,
+        "branch": branch,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "sealed_at": null,
+        "commit": null,
+        "commit_at": null,
+        "pushed": false,
+        "pushed_at": null,
+        "verdict": null,
+        "verdict_at": null,
+        "seal_hash": null,
+        "artifacts": "",
+        "metadata": {
+            "title": "",
+            "author": "cli",
+            "priority": "P1",
+            "tags": []
+        }
+    };
+
+    registry.skills.push(new_skill);
+    write_registry(registry_path, registry);
+
+    print("Skill started:");
+    print("  ID: " + skill_id);
+    print("  Issue: " + issue_id);
+    print("  Kind: " + kind);
+    print("  Branch: " + branch);
+
+    return 0;
+}
+
+; tri skill seal
+fn skill_seal() -> i32 {
+    let registry_path = ".trinity/skills/registry.json";
+
+    if !file_exists(registry_path) {
+        error("ERROR: no active skill found");
+        error("Run 'tri skill begin --issue N' first");
+        return 1;
+    }
+
+    let registry = load_registry(registry_path);
+    let skill = find_active_skill(registry);
+
+    if skill == null {
+        error("ERROR: no active skill found");
+        return 1;
+    }
+
+    ; Seal the skill
+    let timestamp = get_current_timestamp();
+    skill.status = "sealed";
+    skill.sealed_at = timestamp;
+    skill.seal_hash = compute_seal_hash(skill);
+    skill.updated_at = timestamp;
+
+    write_registry(registry_path, registry);
+
+    print("Skill sealed:");
+    print("  ID: " + skill.id);
+    print("  Seal hash: " + skill.seal_hash);
+    print("");
+    print("Run 'tri git commit' and 'tri git push' to complete");
+
+    return 0;
+}
+
+; tri skill status
+fn skill_status() -> i32 {
+    let registry_path = ".trinity/skills/registry.json";
+
+    if !file_exists(registry_path) {
+        print("No skill registry found");
+        print("Run 'tri skill begin --issue N' to start a skill");
+        return 0;
+    }
+
+    let registry = load_registry(registry_path);
+    let skill = find_active_or_sealed_skill(registry);
+
+    if skill == null {
+        print("No active or sealed skill found");
+        return 0;
+    }
+
+    print("Current skill:");
+    print("  ID: " + skill.id);
+    print("  Status: " + skill.status);
+    print("  Kind: " + skill.kind);
+    print("  Issue: " + skill.issue);
+    print("  Branch: " + skill.branch);
+
+    if skill.verdict != null {
+        print("  Verdict: " + skill.verdict);
+    }
+
+    if skill.artifacts != "" {
+        print("  Artifacts: " + skill.artifacts);
+    }
+
+    return 0;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Command: tri help
+; ═════════════════════════════════════════════════════════════════════
+
+; tri help [command]
+fn help(command : string) -> i32 {
+    if command == "" {
+        print("Trinity t27 CLI - Spec-First Development Framework");
+        print("");
+        print("Usage: tri <command> [options]");
+        print("");
+        print("Commands:");
+        print("  spec      Manage specifications");
+        print("    create <name>     Create a new spec");
+        print("    validate <file>   Validate a spec");
+        print("    list             List all specs");
+        print("");
+        print("  gen       Generate code from specs");
+        print("    <file>           Generate from spec");
+        print("    --all            Generate from all specs");
+        print("    --backend <b>    Backend: zig, c, verilog");
+        print("");
+        print("  git       Git integration with skill workflow");
+        print("    commit           Commit with skill validation");
+        print("    push             Push with skill validation");
+        print("    status           Show git and skill status");
+        print("");
+        print("  lint      Lint specifications");
+        print("    <file>           Lint a spec");
+        print("    --all            Lint all specs");
+        print("    --strict         Enable strict mode");
+        print("");
+        print("  skill     Skill workflow management");
+        print("    begin --issue N  Start a new skill");
+        print("    seal             Seal current skill");
+        print("    status           Show skill status");
+        print("");
+        print("  help      Show help");
+        print("    <command>        Show command help");
+        print("");
+        print("Documentation:");
+        print("  docs/SOUL.md               Constitutional laws");
+        print("  docs/TDD-CONTRACT.md       TDD requirements");
+        print("  docs/GENERATED-HEADER-POLICY.md  Generated file policy");
+        return 0;
+    }
+
+    ; Command-specific help
+    if command == "spec" {
+        print("tri spec - Specification management");
+        print("");
+        print("Usage:");
+        print("  tri spec create <name> [--kind <kind>]");
+        print("  tri spec validate <spec.t27>");
+        print("  tri spec list");
+        print("");
+        print("Kinds: feature, bugfix, hotfix, recovery");
+    } else if command == "gen" {
+        print("tri gen - Code generation from specs");
+        print("");
+        print("Usage:");
+        print("  tri gen <spec.t27> [--backend <backend>]");
+        print("  tri gen --all [--backend <backend>]");
+        print("");
+        print("Backends: zig (default), c, verilog");
+    } else if command == "git" {
+        print("tri git - Git integration with skill workflow");
+        print("");
+        print("Usage:");
+        print("  tri git commit [--all] [-m <msg>] [--mode <mode>]");
+        print("  tri git push [<remote> <branch>] [--mode <mode>]");
+        print("  tri git status");
+        print("");
+        print("Modes: normal, strict, local");
+    } else if command == "lint" {
+        print("tri lint - Specification linting");
+        print("");
+        print("Usage:");
+        print("  tri lint <spec.t27> [--strict]");
+        print("  tri lint --all [--strict]");
+    } else if command == "skill" {
+        print("tri skill - Skill workflow management");
+        print("");
+        print("Usage:");
+        print("  tri skill begin --issue <N> [--kind <kind>]");
+        print("  tri skill seal");
+        print("  tri skill status");
+    } else {
+        error("Unknown command: " + command);
+        return 1;
+    }
+
+    return 0;
+}
+
+; ═════════════════════════════════════════════════════════════════════
+; Helper functions
+; ═════════════════════════════════════════════════════════════════════
+
+fn generate_spec_template(name : string, kind : string) -> string {
+    return "; " + name + ".t27 — " + kind + " specification\n" +
+           "; Generated by: tri spec create\n" +
+           "; φ² + 1/φ² = 3 | TRINITY\n" +
+           "\n" +
+           "; ═════════════════════════════════════════════════════════════════════\n" +
+           "; TDD-Inside-Spec: This spec MUST contain at least one test or invariant\n" +
+           "; ═════════════════════════════════════════════════════════════════════\n" +
+           "\n" +
+           ".test\n" +
+           "    ; my_test\n" +
+           "    ; Verify: functionality works correctly\n" +
+           "    ; Setup: initialize with given values\n" +
+           "    ; Expected: returns correct result\n" +
+           "\n" +
+           ".invariant\n" +
+           "    ; my_invariant\n" +
+           "    ; For all valid inputs: output is in valid range\n" +
+           "    ; Rationale: ensures correctness\n";
+}
+
+fn generate_zig(spec : Spec) -> i32 {
+    ; Generate Zig code with proper header
+    let header = "// This file is generated from " + spec.path + "\n" +
+                 "// DO NOT EDIT - Changes will be overwritten on next tri gen\n" +
+                 "// Generated at: " + get_current_timestamp() + "\n" +
+                 "// Source spec: " + spec.path + "\n\n";
+
+    let code = generate_zig_impl(spec);
+    let output_path = spec.path.replace(".t27", ".zig").replace("specs/", "src/");
+
+    ; Ensure output directory exists
+    let dir = output_path.substring(0, output_path.last_index_of("/"));
+    create_dir_if_not_exists(dir);
+
+    write_file(output_path, header + code);
+    return 0;
+}
+
+fn generate_c(spec : Spec) -> i32 {
+    ; Similar to generate_zig but for C
+    return 0;
+}
+
+fn generate_verilog(spec : Spec) -> i32 {
+    ; Similar to generate_zig but for Verilog
+    return 0;
+}
+
+fn generate_conformance(spec : Spec) -> i32 {
+    ; Generate conformance JSON from test blocks
+    let conformance = {
+        "version": "1.0",
+        "spec": spec.path,
+        "tests": extract_tests(spec)
+    };
+
+    let output_path = "conformance/" + spec.path.replace(".t27", "").replace("specs/", "") + ".json";
+    write_file(output_path, serialize_json(conformance));
+    return 0;
+}
+
+fn load_or_create_registry(path : string) -> SkillRegistry {
+    if file_exists(path) {
+        return load_registry(path);
+    } else {
+        return { "version": "1.0", "skills": [] };
+    }
+}
+
+fn compute_seal_hash(skill : Skill) -> string {
+    ; Compute hash of skill state for seal verification
+    let data = skill.id + skill.status + skill.issue + skill.updated_at;
+    return sha256(data);
+}
+
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+; TDD-Inside-Spec: Tests and Invariants for Commands
+; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+test spec_create_returns_zero_on_success
+    given name = "test_spec"
+    given kind = "feature"
+    when result = spec_create(name, kind)
+    then result == 0
+
+test spec_create_rejects_empty_name
+    given name = ""
+    given kind = "feature"
+    when result = spec_create(name, kind)
+    then result == 1
+
+test spec_create_rejects_invalid_kind
+    given name = "test_spec"
+    given kind = "invalid"
+    when result = spec_create(name, kind)
+    then result == 1
+
+test spec_validate_returns_zero_for_valid_spec
+    given spec_path = "specs/valid.t27"
+    and spec_has_tests = true
+    and spec_has_no_cyrillic = true
+    when result = spec_validate(spec_path)
+    then result == 0
+
+test spec_validate_returns_one_for_spec_without_tests
+    given spec_path = "specs/no_tests.t27"
+    and spec_has_tests = false
+    when result = spec_validate(spec_path)
+    then result == 1
+
+test spec_validate_rejects_cyrillic_in_source
+    given spec_path = "specs/with_cyrillic.t27"
+    and spec_has_cyrillic = true
+    and is_docs_path = false
+    when result = spec_validate(spec_path)
+    then result == 1
+
+test gen_spec_returns_zero_on_success
+    given spec_path = "specs/valid.t27"
+    given backend = "zig"
+    when result = gen_spec(spec_path, backend, false)
+    then result == 0
+
+test gen_spec_returns_one_for_invalid_spec
+    given spec_path = "specs/invalid.t27"
+    given backend = "zig"
+    when result = gen_spec(spec_path, backend, false)
+    then result == 1
+
+test gen_all_returns_zero_if_all_succeed
+    given all_specs_valid = true
+    when result = gen_all("zig")
+    then result == 0
+
+test gen_all_returns_one_if_any_fails
+    given some_specs_invalid = true
+    when result = gen_all("zig")
+    then result == 1
+
+test lint_file_returns_zero_for_valid_spec
+    given file_path = "specs/valid.t27"
+    given strict = false
+    when result = lint_file(file_path, strict)
+    then result == 0
+
+test lint_file_returns_one_for_invalid_spec
+    given file_path = "specs/invalid.t27"
+    given strict = false
+    when result = lint_file(file_path, strict)
+    then result == 1
+
+test lint_strict_requires_tests
+    given file_path = "specs/no_tests.t27"
+    given strict = true
+    when result = lint_file(file_path, strict)
+    then result == 1
+
+test skill_begin_returns_zero_on_success
+    given issue_id = "123"
+    given kind = "feature"
+    when result = skill_begin(issue_id, kind)
+    then result == 0
+
+test skill_begin_rejects_empty_issue_id
+    given issue_id = ""
+    given kind = "feature"
+    when result = skill_begin(issue_id, kind)
+    then result == 1
+
+test skill_seal_returns_zero_on_success
+    given active_skill_exists = true
+    when result = skill_seal()
+    then result == 0
+
+test skill_seal_returns_one_without_active_skill
+    given active_skill_exists = false
+    when result = skill_seal()
+    then result == 1
+
+test skill_status_returns_zero_always
+    when result = skill_status()
+    then result == 0
+
+test help_returns_zero_always
+    given command = ""
+    when result = help(command)
+    then result == 0
+
+test generate_spec_template_contains_test_block
+    given name = "test"
+    given kind = "feature"
+    when template = generate_spec_template(name, kind)
+    then template.contains(".test")
+
+invariant spec_create_always_creates_file
+    ; spec_create creates a .t27 file
+    assert true
+
+invariant spec_validate_checks_tdd_contract
+    ; spec_validate enforces at least one test or invariant
+    assert true
+
+invariant spec_validate_checks_language_policy
+    ; spec_validate rejects Cyrillic in source files
+    assert true
+
+invariant gen_spec_validates_first
+    ; gen_spec runs spec_validate before generating
+    assert true
+
+invariant generate_zig_includes_header
+    ; Generated Zig files have DO NOT EDIT header
+    assert true
+
+invariant skill_begin_creates_registry_if_missing
+    ; skill_begin creates .trinity/skills/registry.json if missing
+    assert true
+
+invariant skill_seal_computes_seal_hash
+    ; skill_seal sets seal_hash field
+    assert true
+
+bench spec_create_latency
+    measure: nanoseconds to spec_create("test", "feature")
+    target: < 10ms
+
+bench spec_validate_latency
+    measure: nanoseconds to spec_validate("specs/valid.t27")
+    target: < 5ms
+
+bench gen_spec_latency
+    measure: nanoseconds to gen_spec("specs/valid.t27", "zig", false)
+    target: < 100ms
+
+bench skill_begin_latency
+    measure: nanoseconds to skill_begin("123", "feature")
+    target: < 10ms

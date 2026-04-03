@@ -1,47 +1,47 @@
-; git.t27 — Git Integration with Tri Cell Workflow (ADR-002)
-; Commands for git operations with cell validation and issue binding
+; git.t27 — Git Integration with Tri Skill Workflow (ADR-002)
+; Commands for git operations with skill validation and issue binding
 
 ; tri git commit [--all] [-m "msg"] [--mode strict|normal|local]
 fn git_commit(all : bool, message : string, mode : string) -> i32 {
-    let registry_path = ".trinity/cells/registry.json";
+    let registry_path = ".trinity/skills/registry.json";
 
     ; Check if registry exists
     if !file_exists(registry_path) {
-        error("ERROR: no active or sealed cell; NO-COMMIT-WITHOUT-ISSUE violated");
-        error("Run 'tri cell begin --issue N' first to create a cell");
+        error("ERROR: no active or sealed skill; NO-COMMIT-WITHOUT-ISSUE violated");
+        error("Run 'tri skill begin --issue N' first to create a skill");
         return 1;
     }
 
     ; Read registry
     let registry_content = read_file(registry_path);
     if registry_content == null {
-        error("ERROR: failed to read cell registry");
+        error("ERROR: failed to read skill registry");
         return 1;
     }
 
-    ; Parse registry and find active or last sealed cell
-    let cell = find_active_or_sealed_cell(registry_content);
+    ; Parse registry and find active or last sealed skill
+    let skill = find_active_or_sealed_skill(registry_content);
 
-    if cell == null {
-        error("ERROR: no active or sealed cell; NO-COMMIT-WITHOUT-ISSUE violated");
-        error("Run 'tri cell begin --issue N' first to create a cell");
+    if skill == null {
+        error("ERROR: no active or sealed skill; NO-COMMIT-WITHOUT-ISSUE violated");
+        error("Run 'tri skill begin --issue N' first to create a skill");
         return 1;
     }
 
     ; Check issue-binding
-    if !cell.has("issue") {
-        error("ERROR: cell has no bound issue");
-        error("Run 'tri cell begin --issue N' first to bind an issue");
+    if !skill.has("issue") {
+        error("ERROR: skill has no bound issue");
+        error("Run 'tri skill begin --issue N' first to bind an issue");
         return 1;
     }
 
-    let issue_id = cell.get("issue");
+    let issue_id = skill.get("issue");
 
-    ; Check verdict for sealed cells
-    if cell.get("status") == "sealed" and cell.has("verdict") {
-        let verdict = cell.get("verdict");
+    ; Check verdict for sealed skills
+    if skill.get("status") == "sealed" and skill.has("verdict") {
+        let verdict = skill.get("verdict");
         if verdict == "TOXIC" {
-            error("ERROR: cannot commit toxic cell; fix or supersede");
+            error("ERROR: cannot commit toxic skill; fix or supersede");
             error("Run 'tri experience save' to address toxic verdict");
             return 1;
         }
@@ -49,12 +49,12 @@ fn git_commit(all : bool, message : string, mode : string) -> i32 {
 
     ; Build commit message
     let commit_msg = message;
-    let cell_id = cell.get("id");
+    let skill_id = skill.get("id");
 
     if commit_msg == "" {
         ; Generate auto-summary from git status
         let status = git_status();
-        commit_msg = "cell:" + cell_id + " issue:" + issue_id + " " + summarize_status(status);
+        commit_msg = "skill:" + skill_id + " issue:" + issue_id + " " + summarize_status(status);
     } else {
         ; Check if message has issue: prefix
         if !commit_msg.contains("issue:" + issue_id) {
@@ -63,8 +63,8 @@ fn git_commit(all : bool, message : string, mode : string) -> i32 {
     }
 
     ; In strict mode, add metadata
-    if mode == "strict" and cell.get("status") == "sealed" {
-        let seal_hash = cell.get("seal_hash");
+    if mode == "strict" and skill.get("status") == "sealed" {
+        let seal_hash = skill.get("seal_hash");
         if seal_hash != "" {
             commit_msg = commit_msg + " seal:" + seal_hash;
         }
@@ -92,15 +92,15 @@ fn git_commit(all : bool, message : string, mode : string) -> i32 {
     let commit_hash = git_get_head_hash();
 
     ; Update registry with commit hash
-    let updated_registry = update_registry_commit(registry_content, cell_id, commit_hash);
+    let updated_registry = update_registry_commit(registry_content, skill_id, commit_hash);
     write_file(registry_path, updated_registry);
 
     print("Committed: " + commit_hash.substring(0, 7));
-    print("  Cell: " + cell_id);
+    print("  Cell: " + skill_id);
     print("  Issue: " + issue_id);
 
-    if mode == "strict" and cell.get("status") == "sealed" {
-        print("  Seal: " + cell.get("seal_hash"));
+    if mode == "strict" and skill.get("status") == "sealed" {
+        print("  Seal: " + skill.get("seal_hash"));
         print("");
         print("NOTE: In strict mode, you must run 'tri git push' after committing");
     }
@@ -110,42 +110,42 @@ fn git_commit(all : bool, message : string, mode : string) -> i32 {
 
 ; tri git push [<remote> <branch>] [--mode strict|normal|local]
 fn git_push(remote : string, branch : string, mode : string) -> i32 {
-    let registry_path = ".trinity/cells/registry.json";
+    let registry_path = ".trinity/skills/registry.json";
 
     ; Check if registry exists
     if !file_exists(registry_path) {
-        error("ERROR: cannot push; cell not sealed (tri cell seal required)");
+        error("ERROR: cannot push; skill not sealed (tri skill seal required)");
         return 1;
     }
 
     ; Read registry
     let registry_content = read_file(registry_path);
     if registry_content == null {
-        error("ERROR: failed to read cell registry");
+        error("ERROR: failed to read skill registry");
         return 1;
     }
 
-    ; Find last sealed cell
-    let cell = find_last_sealed_cell(registry_content);
+    ; Find last sealed skill
+    let skill = find_last_sealed_skill(registry_content);
 
-    if cell == null {
-        error("ERROR: cannot push; cell not sealed (tri cell seal required)");
-        error("Run 'tri cell seal' to seal the current cell");
+    if skill == null {
+        error("ERROR: cannot push; skill not sealed (tri skill seal required)");
+        error("Run 'tri skill seal' to seal the current skill");
         return 1;
     }
 
     ; Check verdict
-    if cell.has("verdict") {
-        let verdict = cell.get("verdict");
+    if skill.has("verdict") {
+        let verdict = skill.get("verdict");
         if verdict == "TOXIC" {
-            error("ERROR: cannot push toxic cell");
+            error("ERROR: cannot push toxic skill");
             return 1;
         }
     }
 
     ; Check artifacts by Policy Matrix
-    let kind = cell.get("kind");
-    let artifacts = if cell.has("artifacts") { cell.get("artifacts") } else { "" };
+    let kind = skill.get("kind");
+    let artifacts = if skill.has("artifacts") { skill.get("artifacts") } else { "" };
 
     if kind == "recovery" {
         ; Require minimum 3 checkpoints + spec and docs
@@ -154,8 +154,8 @@ fn git_push(remote : string, branch : string, mode : string) -> i32 {
         let has_docs = artifacts.contains("docs");
 
         if checkpoints < 3 or !has_spec or !has_docs {
-            error("ERROR: policy gate failed for cell kind " + kind);
-            error("Recovery cells require:");
+            error("ERROR: policy gate failed for skill kind " + kind);
+            error("Recovery skills require:");
             error("  - At least 3 checkpoints");
             error("  - Spec changes");
             error("  - Docs changes");
@@ -165,8 +165,8 @@ fn git_push(remote : string, branch : string, mode : string) -> i32 {
         ; Require >=1 checkpoint and only fix-only areas
         let checkpoints = count_checkpoints(artifacts);
         if checkpoints < 1 {
-            error("ERROR: policy gate failed for cell kind " + kind);
-            error("Hotfix cells require at least 1 checkpoint");
+            error("ERROR: policy gate failed for skill kind " + kind);
+            error("Hotfix skills require at least 1 checkpoint");
             return 1;
         }
     }
@@ -200,21 +200,21 @@ fn git_push(remote : string, branch : string, mode : string) -> i32 {
     }
 
     ; Update registry with push status
-    let cell_id = cell.get("id");
+    let skill_id = skill.get("id");
     let timestamp = get_current_timestamp();
-    let updated_registry = update_registry_push(registry_content, cell_id, true, timestamp);
+    let updated_registry = update_registry_push(registry_content, skill_id, true, timestamp);
     write_file(registry_path, updated_registry);
 
     print("Pushed to " + push_remote + "/" + push_branch);
-    print("  Cell: " + cell_id);
+    print("  Cell: " + skill_id);
     print("  Pushed at: " + timestamp);
 
     return 0;
 }
 
-; tri git status — Show git status with cell info
-fn git_status_with_cell() -> i32 {
-    let registry_path = ".trinity/cells/registry.json";
+; tri git status — Show git status with skill info
+fn git_status_with_skill() -> i32 {
+    let registry_path = ".trinity/skills/registry.json";
 
     ; Show git status
     let status = git_status();
@@ -222,26 +222,26 @@ fn git_status_with_cell() -> i32 {
     print(status);
     print("");
 
-    ; Show cell info if available
+    ; Show skill info if available
     if file_exists(registry_path) {
         let registry_content = read_file(registry_path);
-        let cell = find_active_or_sealed_cell(registry_content);
+        let skill = find_active_or_sealed_skill(registry_content);
 
-        if cell != null {
-            print("Current cell:");
-            print("  ID: " + cell.get("id"));
-            print("  Status: " + cell.get("status"));
-            if cell.has("issue") {
-                print("  Issue: " + cell.get("issue"));
+        if skill != null {
+            print("Current skill:");
+            print("  ID: " + skill.get("id"));
+            print("  Status: " + skill.get("status"));
+            if skill.has("issue") {
+                print("  Issue: " + skill.get("issue"));
             }
-            if cell.has("verdict") {
-                print("  Verdict: " + cell.get("verdict"));
+            if skill.has("verdict") {
+                print("  Verdict: " + skill.get("verdict"));
             }
         } else {
-            print("No active or sealed cell found");
+            print("No active or sealed skill found");
         }
     } else {
-        print("No cell registry found");
+        print("No skill registry found");
     }
 
     return 0;
@@ -251,26 +251,26 @@ fn git_status_with_cell() -> i32 {
 ; Helper functions
 ; ═════════════════════════════════════════════════════════════════════
 
-; Find active or last sealed cell from registry
-fn find_active_or_sealed_cell(registry_json : string) -> map<string, string>? {
+; Find active or last sealed skill from registry
+fn find_active_or_sealed_skill(registry_json : string) -> map<string, string>? {
     let registry = parse_json(registry_json);
 
-    ; First look for active cell
-    for cell in registry.get("cells") {
-        if cell.get("status") == "active" {
-            return cell;
+    ; First look for active skill
+    for skill in registry.get("skills") {
+        if skill.get("status") == "active" {
+            return skill;
         }
     }
 
-    ; Then look for last sealed cell on current branch
+    ; Then look for last sealed skill on current branch
     let current_branch = git_get_current_branch();
     let last_sealed = null;
 
-    for cell in registry.get("cells") {
-        if cell.get("status") == "sealed" and cell.get("branch") == current_branch {
-            let timestamp = cell.get("timestamp");
+    for skill in registry.get("skills") {
+        if skill.get("status") == "sealed" and skill.get("branch") == current_branch {
+            let timestamp = skill.get("timestamp");
             if last_sealed == null or timestamp > last_sealed.get("timestamp") {
-                last_sealed = cell;
+                last_sealed = skill;
             }
         }
     }
@@ -278,16 +278,16 @@ fn find_active_or_sealed_cell(registry_json : string) -> map<string, string>? {
     return last_sealed;
 }
 
-; Find last sealed cell from registry
-fn find_last_sealed_cell(registry_json : string) -> map<string, string>? {
+; Find last sealed skill from registry
+fn find_last_sealed_skill(registry_json : string) -> map<string, string>? {
     let registry = parse_json(registry_json);
     let last_sealed = null;
 
-    for cell in registry.get("cells") {
-        if cell.get("status") == "sealed" {
-            let timestamp = cell.get("timestamp");
+    for skill in registry.get("skills") {
+        if skill.get("status") == "sealed" {
+            let timestamp = skill.get("timestamp");
             if last_sealed == null or timestamp > last_sealed.get("timestamp") {
-                last_sealed = cell;
+                last_sealed = skill;
             }
         }
     }
@@ -296,13 +296,13 @@ fn find_last_sealed_cell(registry_json : string) -> map<string, string>? {
 }
 
 ; Update registry with commit hash
-fn update_registry_commit(registry_json : string, cell_id : string, commit_hash : string) -> string {
+fn update_registry_commit(registry_json : string, skill_id : string, commit_hash : string) -> string {
     let registry = parse_json(registry_json);
 
-    for cell in registry.get("cells") {
-        if cell.get("id") == cell_id {
-            cell.put("commit", commit_hash);
-            cell.put("commit_at", get_current_timestamp());
+    for skill in registry.get("skills") {
+        if skill.get("id") == skill_id {
+            skill.put("commit", commit_hash);
+            skill.put("commit_at", get_current_timestamp());
             break;
         }
     }
@@ -311,13 +311,13 @@ fn update_registry_commit(registry_json : string, cell_id : string, commit_hash 
 }
 
 ; Update registry with push status
-fn update_registry_push(registry_json : string, cell_id : string, pushed : bool, timestamp : string) -> string {
+fn update_registry_push(registry_json : string, skill_id : string, pushed : bool, timestamp : string) -> string {
     let registry = parse_json(registry_json);
 
-    for cell in registry.get("cells") {
-        if cell.get("id") == cell_id {
-            cell.put("pushed", if pushed { "true" } else { "false" });
-            cell.put("pushed_at", timestamp);
+    for skill in registry.get("skills") {
+        if skill.get("id") == skill_id {
+            skill.put("pushed", if pushed { "true" } else { "false" });
+            skill.put("pushed_at", timestamp);
             break;
         }
     }
@@ -372,42 +372,42 @@ test git_commit_requires_registry
 
 test git_commit_requires_issue_binding
     given registry_exists = true
-    and cell_has_issue = false
+    and skill_has_issue = false
     when result = git_commit(all=false, message="test", mode="normal")
     then result == 1
 
 test git_commit_rejects_toxic_verdict
-    given cell_status = "sealed"
-    and cell_verdict = "TOXIC"
+    given skill_status = "sealed"
+    and skill_verdict = "TOXIC"
     when result = git_commit(all=false, message="test", mode="normal")
     then result == 1
 
 test git_commit_accepts_not_toxic_verdict
-    given cell_status = "sealed"
-    and cell_verdict = "NOT TOXIC"
+    given skill_status = "sealed"
+    and skill_verdict = "NOT TOXIC"
     when result = git_commit(all=false, message="test", mode="normal")
     then result == 0
 
-test git_push_requires_sealed_cell
-    given cell_status = "active"
+test git_push_requires_sealed_skill
+    given skill_status = "active"
     when result = git_push(remote="", branch="", mode="normal")
     then result == 1
 
-test git_push_rejects_toxic_cell
-    given cell_status = "sealed"
-    and cell_verdict = "TOXIC"
+test git_push_rejects_toxic_skill
+    given skill_status = "sealed"
+    and skill_verdict = "TOXIC"
     when result = git_push(remote="", branch="", mode="normal")
     then result == 1
 
 test git_push_recovery_requires_3_checkpoints
-    given cell_kind = "recovery"
-    and cell_checkpoints = 2
+    given skill_kind = "recovery"
+    and skill_checkpoints = 2
     when result = git_push(remote="", branch="", mode="normal")
     then result == 1
 
 test git_push_hotfix_requires_1_checkpoint
-    given cell_kind = "hotfix"
-    and cell_checkpoints = 0
+    given skill_kind = "hotfix"
+    and skill_checkpoints = 0
     when result = git_push(remote="", branch="", mode="normal")
     then result == 1
 
@@ -418,7 +418,7 @@ test git_push_strict_validates_remote
     then result == 1
 
 test git_commit_auto_adds_issue_to_message
-    given cell_issue = "123"
+    given skill_issue = "123"
     and original_msg = "fix bug"
     when result = git_commit(all=false, message=original_msg, mode="normal")
     then result == 0
@@ -447,11 +447,11 @@ test get_current_timestamp_format
     given timestamp = get_current_timestamp()
     then timestamp.contains("T") and timestamp.contains("Z")
 
-test git_status_with_cell_shows_cell_info
+test git_status_with_skill_shows_skill_info
     given registry_exists = true
-    and cell_id = "cell-001"
-    and cell_status = "active"
-    when result = git_status_with_cell()
+    and skill_id = "skill-001"
+    and skill_status = "active"
+    when result = git_status_with_skill()
     then result == 0
 
 invariant git_commit_returns_zero_on_success
@@ -470,7 +470,7 @@ invariant git_push_returns_nonzero_on_failure
     ; Failed push returns non-zero
     assert true
 
-invariant git_status_with_cell_always_succeeds
+invariant git_status_with_skill_always_succeeds
     ; git status command always succeeds
     assert true
 
@@ -482,12 +482,12 @@ invariant count_checkpoints_never_negative
     ; Checkpoint count is always >= 0
     assert true
 
-invariant recovery_cell_requires_min_3_checkpoints
-    ; Recovery cell policy: minimum 3 checkpoints
+invariant recovery_skill_requires_min_3_checkpoints
+    ; Recovery skill policy: minimum 3 checkpoints
     assert true
 
-invariant hotfix_cell_requires_min_1_checkpoint
-    ; Hotfix cell policy: minimum 1 checkpoint
+invariant hotfix_skill_requires_min_1_checkpoint
+    ; Hotfix skill policy: minimum 1 checkpoint
     assert true
 
 invariant strict_mode_validates_remote
@@ -502,14 +502,14 @@ bench git_push_latency
     measure: nanoseconds to git_push(remote="", branch="", mode="normal")
     target: < 1000ms
 
-bench git_status_with_cell_latency
-    measure: nanoseconds to git_status_with_cell()
+bench git_status_with_skill_latency
+    measure: nanoseconds to git_status_with_skill()
     target: < 100ms
 
-bench find_active_or_sealed_cell_latency
-    measure: nanoseconds to find_active_or_sealed_cell(registry_json)
+bench find_active_or_sealed_skill_latency
+    measure: nanoseconds to find_active_or_sealed_skill(registry_json)
     target: < 10ms
 
 bench update_registry_commit_latency
-    measure: nanoseconds to update_registry_commit(registry_json, "cell-001", "abc123")
+    measure: nanoseconds to update_registry_commit(registry_json, "skill-001", "abc123")
     target: < 5ms
