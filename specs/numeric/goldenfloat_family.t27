@@ -149,8 +149,17 @@ module GoldenFloatFamily {
         var best_dist : f64 = 1.0;
         var best_name : string = "";
         var total_dist : f64 = 0.0;
+        var format_count : u8 = 0;
+        var all_names_unique : bool = true;
+        var all_bit_sums_valid : bool = true;
+        var all_phi_distances_non_negative : bool = true;
+
+        // Check for duplicate names
+        var names_seen : [7]string = ["", "", "", "", "", "", ""];
 
         for (const GOLDEN_FLOAT_FAMILY) |fmt| {
+            format_count = format_count + 1;
+
             // Count primary formats (should be exactly 1)
             if (fmt.is_primary) {
                 primary_count = primary_count + 1;
@@ -163,12 +172,38 @@ module GoldenFloatFamily {
             }
 
             total_dist = total_dist + fmt.phi_distance;
+
+            // Check for duplicate names
+            for (const names_seen) |name| {
+                if (name != "" && name == fmt.name) {
+                    all_names_unique = false;
+                }
+            }
+            names_seen[format_count - 1] = fmt.name;
+
+            // Check that exp_bits + mant_bits + 1 = bits (sign bit)
+            if (fmt.exp_bits + fmt.mant_bits + 1 != fmt.bits) {
+                all_bit_sums_valid = false;
+            }
+
+            // Check phi_distance is non-negative
+            if (fmt.phi_distance < 0.0) {
+                all_phi_distances_non_negative = false;
+            }
         }
 
         const avg_dist = total_dist / 7.0;
 
+        // All checks must pass
+        const all_checks_valid =
+            format_count == 7 &&
+            all_names_unique &&
+            all_bit_sums_valid &&
+            all_phi_distances_non_negative &&
+            primary_count == 1;
+
         return VerificationReport{
-            all_valid = true,  // TODO: add more checks
+            all_valid = all_checks_valid,
             primary_is_gf16 = (primary_count == 1) && (GOLDEN_FLOAT_FAMILY[3].is_primary),
             phi_distances_ok = best_dist < 0.1,  // All within 0.1 of 1/φ
             best_phi_format = best_name,
@@ -279,6 +314,39 @@ module GoldenFloatFamily {
     test gffamily_get_format_by_unknown_bits
         given fmt = get_format_by_bits(100)
         then fmt == null
+
+    test gffamily_verify_all_valid
+        given report = verify_golden_family()
+        then report.all_valid == true
+
+    test gffamily_verify_format_count_is_7
+        given report = verify_golden_family()
+        then report.all_valid == true  // implies format_count == 7
+
+    test gffamily_verify_names_unique
+        given report = verify_golden_family()
+        then report.all_valid == true  // implies names are unique
+
+    test gffamily_verify_bit_sums_valid
+        given report = verify_golden_family()
+        then report.all_valid == true  // implies bit sums are valid
+
+    test gffamily_verify_phi_distances_non_negative
+        given report = verify_golden_family()
+        then report.all_valid == true  // implies phi_distances are non-negative
+
+    test gffamily_verify_exactly_one_primary
+        given report = verify_golden_family()
+        then report.all_valid == true  // implies exactly 1 primary format
+
+    test gffamily_best_phi_distance_is_small
+        given report = verify_golden_family()
+        then report.best_phi_distance < 0.05
+
+    test gffamily_avg_phi_distance_reasonable
+        given report = verify_golden_family()
+        and avg = report.avg_phi_distance
+        then avg > 0.0 and avg < 0.2
 
     invariant gffamily_phi_ratio_target_positive
         assert PHI_RATIO_TARGET > 0.0
