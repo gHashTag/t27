@@ -57,9 +57,129 @@ module Constants {
 
     // Power function (for simple integer exponents)
     fn pow(x: f64, n: f64) -> f64 {
-        // Placeholder: actual implementation would compute x^n
-        // This is the mathematical signature
-        return 0.0; // TODO: implement
+        // Handle negative base with fractional exponent -> NaN
+        if x < 0.0 and n != floor(n) {
+            return 0.0 / 0.0; // NaN
+        }
+
+        // Handle zero base
+        if x == 0.0 {
+            if n > 0.0 {
+                return 0.0;
+            } else if n == 0.0 {
+                return 1.0; // 0^0 defined as 1 in this context
+            }
+            return 1.0 / 0.0; // Infinity (division by zero)
+        }
+
+        // Handle n = 0
+        if n == 0.0 {
+            return 1.0;
+        }
+
+        // Handle negative exponent: x^(-n) = 1/(x^n)
+        let negative = n < 0.0;
+        let exp = if negative { -n } else { n };
+
+        // Check if exponent is an integer
+        let is_integer = exp == floor(exp);
+
+        if is_integer {
+            // Integer exponent: use binary exponentiation
+            let exp_int = exp as i64;
+            let mut result = 1.0;
+            let mut base = x;
+            let mut e = exp_int;
+
+            while e > 0 {
+                if e % 2 == 1 {
+                    result = result * base;
+                }
+                base = base * base;
+                e = e / 2;
+            }
+
+            if negative {
+                result = 1.0 / result;
+            }
+            return result;
+        }
+
+        // Fractional exponent: use logarithm approximation
+        // x^y = exp(y * ln(x))
+        // This is a simplified version for spec purposes
+        let ln_x = ln_approx(x);
+        let result = exp_approx(exp * ln_x);
+
+        if negative {
+            result = 1.0 / result;
+        }
+        return result;
+    }
+
+    // Natural logarithm approximation (for power function)
+    fn ln_approx(x: f64) -> f64 {
+        // Handle edge cases
+        if x <= 0.0 {
+            return 0.0 / 0.0; // NaN for non-positive
+        }
+        if x == 1.0 {
+            return 0.0;
+        }
+
+        // Use series: ln(x) = 2 * ((x-1)/(x+1) + 1/3*((x-1)/(x+1))^3 + ...)
+        // For x > 0, compute (x-1)/(x+1) and use convergence
+        let t = (x - 1.0) / (x + 1.0);
+        let t2 = t * t;
+        let t3 = t2 * t;
+        let t5 = t3 * t2;
+        let t7 = t5 * t2;
+
+        return 2.0 * (t + t3 / 3.0 + t5 / 5.0 + t7 / 7.0);
+    }
+
+    // Exponential approximation (for power function)
+    fn exp_approx(x: f64) -> f64 {
+        // Handle edge cases
+        if x == 0.0 {
+            return 1.0;
+        }
+
+        // Use Taylor series: e^x = 1 + x + x^2/2! + x^3/3! + ...
+        // For small x (|x| < 1), series converges quickly
+        let mut result = 1.0;
+        let mut term = 1.0;
+        let mut n = 1;
+
+        // For better range, use x/2^k approach
+        let mut exp_x = x;
+        let scale = 1.0;
+        if x > 10.0 {
+            let k = floor(x / 10.0) as i64;
+            exp_x = x - (k as f64) * 10.0;
+            scale = pow(E, (k as f64) * 10.0);
+        } else if x < -10.0 {
+            let k = floor(-x / 10.0) as i64;
+            exp_x = x + (k as f64) * 10.0;
+            scale = 1.0 / pow(E, (k as f64) * 10.0);
+        }
+
+        // Taylor series (10 terms sufficient for reasonable accuracy)
+        for i in 1..=10 {
+            term = term * exp_x / (i as f64);
+            result = result + term;
+        }
+
+        return result * scale;
+    }
+
+    // Floor function (helper for power)
+    fn floor(x: f64) -> f64 {
+        let xi = x as i64;
+        if x >= 0.0 || x == xi as f64 {
+            return xi as f64;
+        }
+        return (xi - 1) as f64;
     }
 
     // ═════════════════════════════════════════════════════════════════════════════
@@ -102,6 +222,56 @@ module Constants {
         and   upper_bound = 2.7182818285
         then  e >= lower_bound and e <= upper_bound
 
+    test pow_zero_exponent_returns_one
+        given result = pow(2.0, 0.0)
+        then abs(result - 1.0) < 1e-15
+
+    test pow_one_exponent_returns_base
+        given result = pow(5.0, 1.0)
+        then abs(result - 5.0) < 1e-15
+
+    test pow_positive_integer_exponent
+        given result = pow(2.0, 10.0)
+        and expected = 1024.0
+        then abs(result - expected) < 1e-10
+
+    test pow_negative_integer_exponent
+        given result = pow(2.0, -3.0)
+        and expected = 0.125
+        then abs(result - expected) < 1e-10
+
+    test pow_fractional_exponent
+        given result = pow(4.0, 0.5)
+        and expected = 2.0
+        then abs(result - expected) < 1e-6
+
+    test pow_phi_squared
+        given result = pow(PHI, 2.0)
+        and expected = PHI * PHI
+        then abs(result - expected) < 1e-10
+
+    test pow_zero_base_positive_exponent
+        given result = pow(0.0, 5.0)
+        then result == 0.0
+
+    test pow_one_base_any_exponent
+        given result1 = pow(1.0, 10.0)
+        and result2 = pow(1.0, -5.0)
+        and result3 = pow(1.0, 0.5)
+        then abs(result1 - 1.0) < 1e-15 and abs(result2 - 1.0) < 1e-15 and abs(result3 - 1.0) < 1e-6
+
+    test floor_function_positive
+        given result = floor(3.7)
+        then result == 3.0
+
+    test floor_function_negative
+        given result = floor(-3.2)
+        then result == -4.0
+
+    test floor_function_integer
+        given result = floor(5.0)
+        then result == 5.0
+
     invariant phi_squared_plus_inverse_squared_equals_3
         assert |PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12
 
@@ -139,9 +309,39 @@ module Constants {
     invariant dark_energy_dominance
         assert OMEGA_LAMBDA_MEASURED > 0.5 and OMEGA_LAMBDA_MEASURED < 1.0
 
+    invariant pow_zero_exponent_identity
+        assert pow(x, 0.0) == 1.0 for all valid x
+
+    invariant pow_one_exponent_identity
+        assert pow(x, 1.0) == x for all valid x
+
+    invariant pow_multiply_exponents
+        assert pow(pow(x, a), b) == pow(x, a * b) for positive x, integer a, b
+
+    invariant pow_product_rule
+        assert pow(x * y, n) == pow(x, n) * pow(y, n) for positive x, y, integer n
+
+    invariant floor_returns_integer
+        assert floor(x) == i64 for all f64 x
+
+    invariant floor_monotonic
+        assert floor(x) <= floor(y) when x <= y
+
     bench phi_computation_cost
         measure: cycles per PHI computation
         target: < 10 cycles (constant-time lookup)
+
+    bench pow_integer_exponent
+        measure: cycles to compute pow(2.0, 10.0)
+        target: < 500 cycles
+
+    bench pow_fractional_exponent
+        measure: cycles to compute pow(4.0, 0.5)
+        target: < 1000 cycles
+
+    bench floor_latency
+        measure: cycles to compute floor(3.7)
+        target: < 50 cycles
 
     bench trinity_verification_cost
         measure: cycles to verify PHI^2 + 1/PHI^2 = 3
