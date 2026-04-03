@@ -50,11 +50,35 @@ module GF4 {
             return GF4{ raw = pos | 0b1000 };  // Set sign bit
         }
 
-        // Extract sign, exponent, mantissa
-        // For GF4, we use a simple quantization
+        // For GF4, quantize to available values
+        // Available positive values (mant * exp_scale):
+        // mant=0.00, exp=1.0 → 0.00
+        // mant=0.25, exp=1.0 → 0.25
+        // mant=0.50, exp=1.0 → 0.50
+        // mant=0.75, exp=1.0 → 0.75
+        // mant=0.00, exp=2.0 → 0.00
+        // mant=0.25, exp=2.0 → 0.50
+        // mant=0.50, exp=2.0 → 1.00
+        // mant=0.75, exp=2.0 → 1.50
 
-        // TODO: Implement full encoding
-        return GF4{ raw = 0 };
+        // Unique positive non-zero values: 0.25, 0.5, 0.75, 1.0, 1.5
+
+        if (value <= 0.375) {
+            // 0.25
+            return GF4{ raw = 0b0001 };
+        } else if (value <= 0.625) {
+            // 0.5
+            return GF4{ raw = 0b0010 };
+        } else if (value <= 0.875) {
+            // 0.75
+            return GF4{ raw = 0b0011 };
+        } else if (value <= 1.25) {
+            // 1.0
+            return GF4{ raw = 0b0101 };
+        } else {
+            // 1.5 (max)
+            return GF4{ raw = 0b0111 };
+        }
     }
 
     // Decode GF4 to f32
@@ -152,6 +176,54 @@ module GF4 {
         and   decoded = decode(encoded)
         then decoded == original
 
+    test gf4_encode_0_25
+        given original = 0.25
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then abs(decoded - 0.25) < 0.01
+
+    test gf4_encode_0_5
+        given original = 0.5
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then abs(decoded - 0.5) < 0.01
+
+    test gf4_encode_0_75
+        given original = 0.75
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then abs(decoded - 0.75) < 0.01
+
+    test gf4_encode_1_0
+        given original = 1.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then abs(decoded - 1.0) < 0.01
+
+    test gf4_encode_1_5
+        given original = 1.5
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then abs(decoded - 1.5) < 0.01
+
+    test gf4_encode_negative_values
+        given original = -0.5
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded < 0.0 and abs(decoded - (-0.5)) < 0.01
+
+    test gf4_encode_clamps_to_max
+        given original = 10.0
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then decoded <= 1.5
+
+    test gf4_encode_quantization_small
+        given original = 0.3
+        and   encoded = encode(original)
+        and   decoded = decode(encoded)
+        then abs(decoded - 0.25) < 0.01
+
     test gf4_max_value_is_1_5
         given max_val = max_value()
         then max_val == 1.5
@@ -203,6 +275,24 @@ module GF4 {
 
     invariant gf4_phi_distance_within_tolerance
         assert PHI_DISTANCE < 0.12
+
+    invariant gf4_encode_decode_roundtrip
+        given encoded = encode(x) for x in {0.25, 0.5, 0.75, 1.0, 1.5}
+        when decoded = decode(encoded)
+        then abs(decoded - x) < 0.01
+
+    invariant gf4_encode_zero_returns_zero
+        assert encode(0.0).raw == 0b0000
+
+    invariant gf4_encode_positive_no_sign_bit
+        given result = encode(1.0)
+        when has_sign = (result.raw & 0b1000) != 0
+        then has_sign == false
+
+    invariant gf4_encode_negative_has_sign_bit
+        given result = encode(-1.0)
+        when has_sign = (result.raw & 0b1000) != 0
+        then has_sign == true
 
     bench gf4_encode_latency
         measure: nanoseconds to encode(1.0)
