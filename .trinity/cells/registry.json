@@ -1,1 +1,13 @@
-{"cells":[]}
+{
+  "version": "1.0",
+  "cells": [
+    {
+      "id": "bootstrap-agents",
+      "timestamp": "2026-04-04T03:10:00Z",
+      "agent": "T",
+      "episode": "bootstrap-agents",
+      "commit": "aae1f34",
+      "seal": "sha256:7a3b2c1d4e5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1"
+    }
+  ]
+}
