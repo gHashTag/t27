@@ -150,6 +150,36 @@ result_one:
     MOV r2, ONE
     RET
 
+    ; ═════════════════════════════════════════════════════
+    ; trit_negate(a: Trit) → Trit
+    ; Negate a trit: -1 → +1, 0 → 0, +1 → -1
+    ; Truth table:
+    ;   trit_negate(-1) = +1
+    ;   trit_negate(0) = 0
+    ;   trit_negate(+1) = -1
+    ; ═════════════════════════════════════════════════════
+trit_negate:
+    ; Input: r0 = a
+    ; Output: r0 = result
+
+    CMP r0, NEGONE
+    JZ negate_to_pos
+    CMP r0, ZERO
+    JZ negate_to_zero
+    ; a = +1 → result = -1
+    MOV r0, NEGONE
+    RET
+
+negate_to_pos:
+    ; a = -1 → result = +1
+    MOV r0, ONE
+    RET
+
+negate_to_zero:
+    ; a = 0 → result = 0
+    MOV r0, ZERO
+    RET
+
     ; ═══════════════════════════════════════════════════════════════════
     ; pack_trit(trit: Trit, position: u8, packed: PackedTrit) → void
     ; Pack a single trit into PackedTrit at given position (0-7)
@@ -347,6 +377,26 @@ pack_word_error:
     ; Setup: r1 = 28 (exceeds TRITS_PER_WORD)
     ; Expected: HALT with error or return value = NEGONE
 
+    ; test_trit_negate_neg_to_pos
+    ; Verify: trit_negate(-1) = +1
+    ; Setup: r0 = NEGONE
+    ; Expected: r0 = ONE after trit_negate
+
+    ; test_trit_negate_zero_to_zero
+    ; Verify: trit_negate(0) = 0
+    ; Setup: r0 = ZERO
+    ; Expected: r0 = ZERO after trit_negate
+
+    ; test_trit_negate_pos_to_neg
+    ; Verify: trit_negate(+1) = -1
+    ; Setup: r0 = ONE
+    ; Expected: r0 = NEGONE after trit_negate
+
+    ; test_trit_negate_double_negate_identity
+    ; Verify: trit_negate(trit_negate(x)) = x
+    ; Setup: x = any trit, apply trit_negate twice
+    ; Expected: result equals original x
+
 .invariant
     ; trit_value_range
     ; All Trit values are in {-1, 0, +1}
@@ -376,6 +426,10 @@ pack_word_error:
     ; trit_multiply(a, b) == trit_multiply(b, a)
     ; Rationale: Multiplication is commutative
 
+    ; trit_negate_involutive
+    ; trit_negate(trit_negate(x)) = x for all trit values
+    ; Rationale: Negation is its own inverse
+
 .bench
     ; bench_trit_add_latency
     ; Measure: cycles for single trit_add operation
@@ -384,6 +438,10 @@ pack_word_error:
     ; bench_trit_multiply_latency
     ; Measure: cycles for single trit_multiply operation
     ; Target: < 10 cycles on t27-hardware
+
+    ; bench_trit_negate_latency
+    ; Measure: cycles for single trit_negate operation
+    ; Target: < 5 cycles on t27-hardware
 
     ; bench_pack_trit_latency
     ; Measure: cycles for single pack_trit operation
