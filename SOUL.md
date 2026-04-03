@@ -13,9 +13,46 @@ T27 is a **spec-first** architecture where mathematical truth, not implementatio
 
 ---
 
-## Article I: The TDD Mandate
+## Article I: The Language Policy
 
-### §1.1. The Iron Law
+### §1.1. ASCII-Only Source Files
+**Source files MUST be ASCII-only. Documentation MAY use any language.**
+
+All files in the following categories MUST contain only ASCII characters (U+0000–U+007F):
+- `.t27` — TRI-27 assembly specifications
+- `.tri` — TRI high-level specifications
+- `.zig` — Zig source code
+- `.c` / `.h` — C source/header files
+- `.v` / `.verilog` — Verilog hardware descriptions
+- Build scripts, makefiles, etc.
+
+**FORBIDDEN in source files:**
+- **Cyrillic** (U+0400–U+04FF): А-Я а-я ё Ё
+- **Other non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc.
+
+### §1.2. Documentation Exception
+Files in the following locations MAY contain any language including Cyrillic:
+- `docs/` — All documentation
+- `*.md` — Markdown files (except in source trees)
+- `README.md`, `LICENSE` — Project metadata
+
+### §1.3. Enforcement
+The parser rejects Cyrillic with:
+```
+error: Language policy violation: source file contains Cyrillic characters (U+0400-U+04FF). Source files must be ASCII-only. See SOUL.md Article I.
+```
+
+### §1.4. Rationale
+1. **Universality**: ASCII is universally supported across all platforms and tools
+2. **Clarity**: English (ASCII) is the lingua franca of programming
+3. **Separation of Concerns**: Code expresses logic, docs express explanations in any language
+4. **Git Compatibility**: No encoding issues in diffs, patches, or blame output
+
+---
+
+## Article II: The TDD Mandate
+
+### §2.1. The Iron Law
 Every `.t27` specification MUST contain at least one of:
 - A `.test` section with one or more test cases
 - An `.invariant` section with one or more invariant declarations
@@ -23,7 +60,7 @@ Every `.t27` specification MUST contain at least one of:
 
 **No exceptions.** A spec without tests is not a specification—it is a draft.
 
-### §1.2. Test Format (Assembly-Style)
+### §2.2. Test Format (Assembly-Style)
 ```t27
 .test
     ; test_bind_unbind_identity
@@ -51,7 +88,7 @@ Every `.t27` specification MUST contain at least one of:
     ; Target: < 50 cycles on typical hardware
 ```
 
-### §1.3. Test Format (Spec-Style)
+### §2.3. Test Format (Spec-Style)
 ```t27
 spec vsa_ops {
     test bind_unbind_identity {
@@ -74,9 +111,9 @@ spec vsa_ops {
 
 ---
 
-## Article II: No Prototype Mode
+## Article III: No Prototype Mode
 
-### §2.1. The Ban on Temporary Code
+### §3.1. The Ban on Temporary Code
 T27 **does not have** a prototype mode. There is no `--allow-no-tests` flag. There is no "I'll add tests later" grace period.
 
 If you write a spec without tests, the parser **will reject it** with:
@@ -85,7 +122,7 @@ If you write a spec without tests, the parser **will reject it** with:
 TDD contract violated: spec must contain at least one 'test' or 'invariant' block
 ```
 
-### §2.2. The Rationale
+### §3.2. The Rationale
 Tests written after implementation are not tests—they are retroactive justification. True TDD requires the test to exist **before** the implementation, serving as:
 1. A contract between specifier and implementer
 2. Executable documentation
@@ -94,21 +131,21 @@ Tests written after implementation are not tests—they are retroactive justific
 
 ---
 
-## Article III: Validation Requirements
+## Article IV: Validation Requirements
 
-### §3.1. Parser-Level Enforcement
+### §4.1. Parser-Level Enforcement
 The **parser** (`compiler/parser/parser.t27`) MUST call `validate_spec()` after parsing. This function:
 1. Checks for presence of test_section, invariant_section, or bench_section
 2. Checks spec_decl.test_blocks or spec_decl.invariants for spec-style
 3. Emits a hard error ("TDD contract violated") if none exist
 
-### §3.2. Codegen-Level Emission
+### §4.2. Codegen-Level Emission
 All code generators MUST emit test code:
 - **Zig**: `test "test_name" {}` and `test "invariant_name" {}`
 - **C**: `void test_name(void)` and `void invariant_name(void)`
 - **Verilog**: `task test_name();` and `assert (property)`
 
-### §3.3. Build-Time Execution
+### §4.3. Build-Time Execution
 Generated tests MUST be executed at build time:
 - Zig: `zig test` runs automatically in build.tri
 - C: tests compiled into test binary and run
@@ -116,38 +153,39 @@ Generated tests MUST be executed at build time:
 
 ---
 
-## Article IV: Amendment Process
+## Article V: Amendment Process
 
-### §4.1. What Can Be Amended
+### §5.1. What Can Be Amended
 This constitution may be amended by:
 1. Opening an ADR (Architectural Decision Record)
 2. Documenting the proposed change with full rationale
 3. Obtaining **unanimous consent** from all architectural stewards
 
-### §4.2. What Cannot Be Amended
+### §5.2. What Cannot Be Amended
 The following are **immutable** and may never be changed:
-- The TDD Mandate (Article I)
-- The Ban on Prototype Mode (Article II)
-- The Validation Requirements (Article III)
+- The Language Policy (Article I)
+- The TDD Mandate (Article II)
+- The Ban on Prototype Mode (Article III)
+- The Validation Requirements (Article IV)
 
 ---
 
-## Article V: Enforcement
+## Article VI: Enforcement
 
-### §5.1. Agent Compliance
+### §6.1. Agent Compliance
 All AI agents working on T27 MUST:
 1. Check for test/invariant/bench sections before creating new specs
 2. Reject specs without tests with a hard error
 3. Add test blocks when retrofiting existing code
 4. Never bypass or disable validation
 
-### §5.2. Human Compliance
+### §6.2. Human Compliance
 Human contributors MUST:
 1. Review test coverage in every PR
 2. Request tests for any spec lacking them
 3. Treat test failures as blocking issues
 
-### §5.3. Automated Enforcement
+### §6.3. Automated Enforcement
 The CI/CD pipeline MUST:
 1. Run all generated tests on every commit
 2. Block PRs where any test fails
@@ -155,13 +193,15 @@ The CI/CD pipeline MUST:
 
 ---
 
-## Article VI: Sacred Trinity
+## Article VII: Sacred Trinity
 
 T27 rests on three pillars. Violating any violates the whole:
 
 1. **φ² + 1/φ² = 3** — The mathematical foundation
 2. **Ternary Computation** — The computational substrate
 3. **TDD-Inside-Spec** — The verification mechanism
+
+Additionally, the **Language Policy** (Article I) ensures universality and clarity.
 
 ---
 
