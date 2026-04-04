@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:28bef8dccbfe7181f4e1efb849b5d9ee366f10e5a282c134e4eb08957a041c3d",
   "module": "git_commands",
   "ring": 12,
-  "sealed_at": "2026-04-04T12:46:48Z",
+  "sealed_at": "2026-04-04T12:59:11Z",
   "spec_hash": "sha256:a2ed7ccff916e322f238d01ec8a8ba31e0c24cbcd2bcabf7c36c190f8ad74c2e",
   "spec_path": "compiler/cli/git.t27"
 }
