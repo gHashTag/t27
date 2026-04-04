@@ -1,0 +1,303 @@
+{
+  "module": "Composition",
+  "spec_path": "specs/ar/composition.t27",
+  "ring": 30,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "description": "ML+AR composition conformance vectors — CNN+Rules, MLP+Bayesian, Transformer+XAI, RL+Guardrails",
+  "constants": {
+    "MAX_COMPOSITION_DEPTH": 5,
+    "GF16_ONE": "0x3C00",
+    "GF16_ZERO": "0x0000",
+    "MAX_STEPS": 10
+  },
+  "encoding": {
+    "K_FALSE": -1,
+    "K_UNKNOWN": 0,
+    "K_TRUE": 1,
+    "CompositionPattern": {
+      "CNN_RULES": 0,
+      "MLP_BAYESIAN": 1,
+      "TRANSFORMER_XAI": 2,
+      "RL_GUARDRAILS": 3
+    }
+  },
+  "vectors": {
+    "compose_cnn_rules_returns_result": {
+      "description": "CNN features with high score produce K_TRUE prediction",
+      "cases": [
+        {
+          "inputs": {
+            "features": [0.8, 0.3, 0.6],
+            "confidence_f32": 0.9,
+            "rules": [],
+            "rule_count": 0,
+            "confidence_threshold_f32": 0.0
+          },
+          "expected": {
+            "prediction": 1,
+            "note": "High feature[0]=0.8 > 0.5 → K_TRUE"
+          }
+        }
+      ]
+    },
+    "compose_mlp_bayesian_updates_belief": {
+      "description": "MLP+Bayesian update should increase confidence from prior",
+      "cases": [
+        {
+          "inputs": {
+            "input": [0.5, 0.5, 0.5],
+            "confidence_f32": 0.8,
+            "prior": 0.5,
+            "confidence_threshold_f32": 0.0
+          },
+          "expected": {
+            "confidence_gt_f32": 0.5,
+            "note": "Bayesian update with uniform prior and moderate likelihood increases confidence"
+          }
+        }
+      ]
+    },
+    "compose_transformer_xai_respects_10_step_limit": {
+      "description": "Transformer+XAI explanation never exceeds 10 steps (CLARA bound)",
+      "cases": [
+        {
+          "inputs": {
+            "input": [0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7],
+            "confidence_f32": 1.0,
+            "max_steps": 15,
+            "style": "natural"
+          },
+          "expected": {
+            "explanation_step_count_lte": 10,
+            "note": "Even with max_steps=15, clamped to <=10 per CLARA requirement"
+          }
+        }
+      ]
+    },
+    "compose_rl_guardrails_blocks_unsafe_action": {
+      "description": "RL+Guardrails blocks action when restraint triggers",
+      "cases": [
+        {
+          "inputs": {
+            "state": [0.9],
+            "confidence_f32": 1.0,
+            "guardrails": [{}],
+            "guardrail_count": 1,
+            "params": {
+              "max_depth": 0,
+              "max_rules": 1,
+              "confidence_threshold_f32": 1.0,
+              "timeout_ms": 100
+            }
+          },
+          "expected": {
+            "prediction_ne": 1,
+            "note": "Blocked by restraint — max_depth=0 triggers K_FALSE"
+          }
+        }
+      ]
+    },
+    "compose_dispatches_correctly": {
+      "description": "compose() dispatches to correct pattern handler",
+      "cases": [
+        {
+          "inputs": {
+            "pattern": "CNN_RULES",
+            "ml_input": [],
+            "ml_confidence_f32": 1.0,
+            "ar_rules": [],
+            "ar_rule_count": 0
+          },
+          "expected": {
+            "dispatches_to": "compose_cnn_rules",
+            "returns_valid_result": true
+          }
+        },
+        {
+          "inputs": {
+            "pattern": "MLP_BAYESIAN",
+            "ml_input": [],
+            "ml_confidence_f32": 1.0,
+            "bayesian_prior": 0.5
+          },
+          "expected": {
+            "dispatches_to": "compose_mlp_bayesian",
+            "returns_valid_result": true
+          }
+        },
+        {
+          "inputs": {
+            "pattern": "TRANSFORMER_XAI",
+            "ml_input": [],
+            "ml_confidence_f32": 1.0,
+            "max_steps": 10,
+            "style": "natural"
+          },
+          "expected": {
+            "dispatches_to": "compose_transformer_xai",
+            "returns_valid_result": true
+          }
+        },
+        {
+          "inputs": {
+            "pattern": "RL_GUARDRAILS",
+            "ml_input": [],
+            "ml_confidence_f32": 1.0,
+            "ar_rules": [],
+            "ar_rule_count": 0
+          },
+          "expected": {
+            "dispatches_to": "compose_rl_guardrails",
+            "returns_valid_result": true
+          }
+        }
+      ]
+    },
+    "confidence_in_unit_interval": {
+      "description": "All composition results have confidence in [0, 1]",
+      "cases": [
+        {
+          "inputs": {
+            "pattern": "CNN_RULES",
+            "ml_input": [0.5],
+            "ml_confidence_f32": 1.0,
+            "ar_rules": [],
+            "ar_rule_count": 0
+          },
+          "expected": {
+            "confidence_gte_f32": 0.0,
+            "confidence_lte_f32": 1.0
+          }
+        }
+      ]
+    },
+    "satisfaction_penalty_for_terminated_pipeline": {
+      "description": "Terminated pipelines receive satisfaction penalty < 1.0",
+      "cases": [
+        {
+          "inputs": {
+            "pattern": "CNN_RULES",
+            "ml_input": [0.5],
+            "ml_confidence_f32": 1.0,
+            "terminated": true
+          },
+          "expected": {
+            "satisfaction_lt_f32": 1.0,
+            "note": "Terminated pipeline applies 0.7 penalty factor"
+          }
+        }
+      ]
+    },
+    "combine_confidence": {
+      "description": "Confidence combination uses geometric mean: sqrt(ml * ar)",
+      "cases": [
+        {
+          "inputs": { "ml_confidence_f32": 1.0, "ar_confidence_f32": 1.0 },
+          "expected": { "combined_f32": 1.0, "tolerance": 1e-3 }
+        },
+        {
+          "inputs": { "ml_confidence_f32": 0.5, "ar_confidence_f32": 0.5 },
+          "expected": { "combined_f32": 0.5, "tolerance": 1e-3 }
+        },
+        {
+          "inputs": { "ml_confidence_f32": 0.9, "ar_confidence_f32": 0.4 },
+          "expected": { "combined_f32": 0.6, "tolerance": 1e-1, "note": "sqrt(0.36) = 0.6" }
+        }
+      ]
+    },
+    "f32_to_trit": {
+      "description": "Float-to-Trit conversion thresholds",
+      "cases": [
+        { "input": 0.7, "expected": 1, "note": "> 0.6 → K_TRUE" },
+        { "input": 0.6, "expected": 0, "note": "= 0.6 → K_UNKNOWN (not strictly > 0.6)" },
+        { "input": 0.5, "expected": 0, "note": "0.4..0.6 → K_UNKNOWN" },
+        { "input": 0.3, "expected": -1, "note": "< 0.4 → K_FALSE" },
+        { "input": 0.4, "expected": 0, "note": "= 0.4 → K_UNKNOWN (not strictly < 0.4)" },
+        { "input": 0.0, "expected": -1, "note": "0.0 < 0.4 → K_FALSE" },
+        { "input": 1.0, "expected": 1, "note": "1.0 > 0.6 → K_TRUE" }
+      ]
+    },
+    "calculate_satisfaction": {
+      "description": "Satisfaction scoring with CLARA compliance bonuses and penalties",
+      "cases": [
+        {
+          "inputs": {
+            "step_count": 5,
+            "confidence_f32": 0.8,
+            "terminated": false
+          },
+          "expected": {
+            "satisfaction_f32": 1.0,
+            "note": "<=10 steps (1.2x) + conf>=0.7 (1.1x) = 1.32, clamped to 1.0"
+          }
+        },
+        {
+          "inputs": {
+            "step_count": 12,
+            "confidence_f32": 0.8,
+            "terminated": false
+          },
+          "expected": {
+            "satisfaction_f32": 0.55,
+            "tolerance": 1e-2,
+            "note": ">10 steps (0.5x) + conf>=0.7 (1.1x) = 0.55"
+          }
+        },
+        {
+          "inputs": {
+            "step_count": 5,
+            "confidence_f32": 0.8,
+            "terminated": true
+          },
+          "expected": {
+            "satisfaction_f32": 0.924,
+            "tolerance": 1e-2,
+            "note": "<=10 (1.2x) * conf>=0.7 (1.1x) * terminated (0.7x) = 0.924, clamped to 0.924"
+          }
+        }
+      ]
+    },
+    "simulate_cnn_inference": {
+      "description": "CNN simulation: features[0] > 0.5 → K_TRUE, else K_FALSE",
+      "cases": [
+        { "features": [0.8, 0.3], "expected_decision": 1, "expected_probability": 0.8 },
+        { "features": [0.3, 0.9], "expected_decision": -1, "expected_probability": 0.3 },
+        { "features": [0.5, 0.5], "expected_decision": -1, "expected_probability": 0.5, "note": "0.5 is not > 0.5" }
+      ]
+    },
+    "simulate_mlp_forward": {
+      "description": "MLP simulation returns average of inputs",
+      "cases": [
+        { "input": [0.5, 0.5, 0.5], "expected_probability": 0.5, "tolerance": 1e-6 },
+        { "input": [1.0, 0.0], "expected_probability": 0.5, "tolerance": 1e-6 },
+        { "input": [0.2, 0.4, 0.6], "expected_probability": 0.4, "tolerance": 1e-6 }
+      ]
+    },
+    "apply_bayesian_update": {
+      "description": "Bayesian posterior proportional to prior * likelihood (log-space)",
+      "cases": [
+        {
+          "inputs": { "prior": 0.5, "likelihood": 0.5 },
+          "expected": {
+            "posterior_gt": 0.0,
+            "posterior_lt": 1.0,
+            "note": "exp(log(0.5001) + log(0.5001)) ≈ 0.2501"
+          }
+        },
+        {
+          "inputs": { "prior": 0.9, "likelihood": 0.9 },
+          "expected": {
+            "posterior_gt": 0.5,
+            "note": "High prior * high likelihood → high posterior"
+          }
+        }
+      ]
+    }
+  },
+  "invariants": {
+    "composition_pattern_coverage": "All 4 patterns defined: CNN_RULES=0, MLP_BAYESIAN=1, TRANSFORMER_XAI=2, RL_GUARDRAILS=3",
+    "explanation_bounded_by_clara": "All explanations respect step_count <= 10 (MAX_STEPS)",
+    "confidence_in_valid_range": "For all patterns: 0.0 <= gf16_decode_to_f32(result.confidence) <= 1.0",
+    "satisfaction_in_valid_range": "For all patterns: 0.0 <= gf16_decode_to_f32(result.satisfaction) <= 1.0"
+  }
+}
