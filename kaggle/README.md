@@ -36,11 +36,11 @@
 
 | Track | Notebook |
 |-------|----------|
-| THLP  | [Trinity Hippocampal Learning THLP MC](https://www.kaggle.com/code/playra/trinity-hippocampal-learning-thlp-mc-update-v1) |
-| TTM   | [TTM Metacognition](https://www.kaggle.com/code/playra/ttm-metacognition) |
-| TSCP  | [Trinity Social Cognition](https://www.kaggle.com/code/playra/trinity-social-cognition) |
-| TEFB  | [TEFB Executive Function](https://www.kaggle.com/code/playra/tefb-executive-function-mc-v3-1-final-clean) |
-| TAGP  | [Trinity Executive Function](https://www.kaggle.com/code/playra/trinity-executive-function) |
+| THLP  | [THLP Hippocampal Learning MC](https://www.kaggle.com/code/playra/trinity-thlp-hippocampal-learning-mc-benchmark) |
+| TTM   | [TTM Metacognition MC](https://www.kaggle.com/code/playra/trinity-ttm-metacognition-mc-benchmark) |
+| TSCP  | [TSCP Social Cognition MC](https://www.kaggle.com/code/playra/trinity-tscp-social-cognition-mc-benchmark) |
+| TEFB  | [TEFB Executive Function MC](https://www.kaggle.com/code/playra/trinity-tefb-executive-function-mc-benchmark) |
+| TAGP  | [TAGP Attentional Gateway MC](https://www.kaggle.com/code/playra/trinity-tagp-attentional-gateway-mc-benchmark) |
 
 ## Data Format
 

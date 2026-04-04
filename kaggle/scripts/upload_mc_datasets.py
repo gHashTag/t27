@@ -19,7 +19,7 @@ MC_DATASETS = {
     "tmp": {
         "title": "Trinity Metacognition Probe - MC Format",
         "slug": "trinity-cognitive-probes-tmp-mc",
-        "csv": "kaggle/data/converted_mc/tmp_mc.csv",
+        "csv": "kaggle/data/ttm_mc.csv",
         "description": """# Trinity Metacognition Probe (TTM) - Multiple Choice Format
 
 **Track 2**: Tests confidence calibration, error detection, meta-learning.
@@ -44,7 +44,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "thlp": {
         "title": "Trinity Hippocampal Learning Probe - MC Format",
         "slug": "trinity-cognitive-probes-thlp-mc",
-        "csv": "kaggle/data/converted_mc/thlp_mc.csv",
+        "csv": "kaggle/data/thlp_mc.csv",
         "description": """# Trinity Hippocampal Learning Probe (THLP) - Multiple Choice Format
 
 **Track 1**: Tests pattern learning, belief update, rule induction.
@@ -69,7 +69,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "tefb": {
         "title": "Trinity Executive Function Battery - MC Format",
         "slug": "trinity-cognitive-probes-tefb-mc",
-        "csv": "kaggle/data/converted_mc/tefb_mc.csv",
+        "csv": "kaggle/data/tefb_mc.csv",
         "description": """# Trinity Executive Function Battery (TEFB) - Multiple Choice Format
 
 **Track 4**: Tests multi-step planning, working memory, cognitive flexibility.
@@ -95,7 +95,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "tscp": {
         "title": "Trinity Social Cognition Probe - MC Format",
         "slug": "trinity-cognitive-probes-tscp-mc",
-        "csv": "kaggle/data/converted_mc/tscp_mc.csv",
+        "csv": "kaggle/data/tscp_mc.csv",
         "description": """# Trinity Social Cognition Probe (TSCP) - Multiple Choice Format
 
 **Track 5**: Tests Theory of Mind, pragmatic inference, social norms.
@@ -119,25 +119,25 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
 """
     },
     "tagp": {
-        "title": "Trinity Attentional Gateway Probe",
-        "slug": "trinity-cognitive-probes-tagp",
-        "csv": "kaggle/data/tagp_attention.csv",
-        "description": """# Trinity Attentional Gateway Probe (TAGP)
+        "title": "Trinity Attentional Gateway Probe - MC Format",
+        "slug": "trinity-cognitive-probes-tagp-mc",
+        "csv": "kaggle/data/tagp_mc.csv",
+        "description": """# Trinity Attentional Gateway Probe (TAGP) - Multiple Choice Format
 
 **Track 3**: Tests selective filtering, sustained attention, attention shifting.
 
 ## Format
-- All questions are factual short-answer (no MC needed)
-- `query`: Attention question
-- `expected_focus`: Correct answer
+- `question`: Attention scenario
+- `choices`: 4 options (A, B, C, D)
+- `answer`: Correct letter (A-D)
 
 ## Contents
-- 2200 factual questions
+- 2200 MC questions
 
 ## Brain Zone
+- **Parietal Cortex** — Spatial attention
+- **Frontal Eye Fields** — Top-down attention control
 - **Thalamus** — Attentional gateway
-- **Reticular Formation** — Arousal control
-- **Superior Colliculus** — Eye movement control
 
 ## Citation
 Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
