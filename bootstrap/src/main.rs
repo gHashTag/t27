@@ -166,6 +166,7 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
 // Main Entry Point
 // ============================================================================
 
+#[cfg(feature = "server")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -173,9 +174,19 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
-        #[cfg(feature = "server")]
         Commands::Serve { port } => run_server(&port).await?,
-        #[cfg(not(feature = "server"))]
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "server"))]
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Parse { input } => run_parse(&input)?,
+        Commands::Gen { input } => run_gen(&input)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
