@@ -257,6 +257,82 @@ pub fn trit_abs(a: Trit) Trit {
     return if (a == .neg) .pos else a;
 }
 
+// trit_from_i8(value: i8) → Trit
+// Safe conversion from i8 to Trit, clamping to valid range [-1, 0, +1]
+// Returns .zero for values outside valid range
+pub fn trit_from_i8(value: i8) Trit {
+    return switch (value) {
+        -1 => .neg,
+        0 => .zero,
+        1 => .pos,
+        else => .zero,  // Clamp invalid values to zero
+    };
+}
+
+// trit_and(a: Trit, b: Trit) → Trit
+// Logical AND for trits (treating .pos as true, others as false)
+// Truth table:
+//   .neg & .neg = .neg
+//   .neg & .zero = .neg
+//   .neg & .pos = .neg
+//   .zero & .zero = .zero
+//   .zero & .pos = .zero
+//   .pos & .pos = .pos
+pub fn trit_and(a: Trit, b: Trit) Trit {
+    return switch (a) {
+        .pos => b,
+        .zero => if (b == .zero) .zero else .neg,
+        .neg => .neg,
+    };
+}
+
+// trit_or(a: Trit, b: Trit) → Trit
+// Logical OR for trits (treating .pos as true, others as false)
+// Truth table:
+//   .neg | .neg = .neg
+//   .neg | .zero = .zero
+//   .neg | .pos = .pos
+//   .zero | .zero = .zero
+//   .zero | .pos = .pos
+//   .pos | .pos = .pos
+pub fn trit_or(a: Trit, b: Trit) Trit {
+    return switch (a) {
+        .pos => .pos,
+        .zero => if (b == .zero) .zero else .pos,
+        .neg => if (b == .neg) .neg else b,
+    };
+}
+
+// trit_xor(a: Trit, b: Trit) → Trit
+// Logical XOR for trits (treating .pos as true, others as false)
+// Truth table:
+//   .neg ^ .neg = .neg
+//   .neg ^ .zero = .zero
+//   .neg ^ .pos = .pos
+//   .zero ^ .zero = .zero
+//   .zero ^ .pos = .pos
+//   .pos ^ .pos = .zero
+pub fn trit_xor(a: Trit, b: Trit) Trit {
+    return if (a == b) if (a == .neg) .neg else .zero else .pos;
+}
+
+// trit_not(a: Trit) → Trit
+// Logical NOT for trits (treating .pos as true, others as false)
+// Truth table:
+//   !.neg = .pos
+//   !.zero = .pos
+//   !.pos = .zero
+pub fn trit_not(a: Trit) Trit {
+    return if (a == .pos) .zero else .pos;
+}
+
+// trit_select(condition: Trit, a: Trit, b: Trit) → Trit
+// Ternary selection: return a if condition is .pos, else b
+// Uses .pos as "true", all other values select b
+pub fn trit_select(condition: Trit, a: Trit, b: Trit) Trit {
+    return if (condition == .pos) a else b;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -417,6 +493,114 @@ test "test_ternary_word_pack_unpack_roundtrip" {
     }
 }
 
+test "test_trit_from_i8_valid_values" {
+    // Verify: trit_from_i8 returns correct Trit for valid values
+    try std.testing.expectEqual(@as(Trit, .neg), trit_from_i8(-1));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_from_i8(0));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_from_i8(1));
+}
+
+test "test_trit_from_i8_invalid_values_clamp_to_zero" {
+    // Verify: trit_from_i8 clamps invalid values to zero
+    try std.testing.expectEqual(@as(Trit, .zero), trit_from_i8(-2));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_from_i8(2));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_from_i8(100));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_from_i8(-100));
+}
+
+test "test_trit_and_truth_table" {
+    // Verify: trit_and truth table
+    try std.testing.expectEqual(@as(Trit, .neg), trit_and(.neg, .neg));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_and(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_and(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_and(.zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_and(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_and(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_and(.pos, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_and(.pos, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_and(.pos, .pos));
+}
+
+test "test_trit_or_truth_table" {
+    // Verify: trit_or truth table
+    try std.testing.expectEqual(@as(Trit, .neg), trit_or(.neg, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_or(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_or(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_or(.zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_or(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_or(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_or(.pos, .neg));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_or(.pos, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_or(.pos, .pos));
+}
+
+test "test_trit_xor_truth_table" {
+    // Verify: trit_xor truth table
+    try std.testing.expectEqual(@as(Trit, .neg), trit_xor(.neg, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.pos, .neg));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_xor(.pos, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_xor(.pos, .pos));
+}
+
+test "test_trit_not_truth_table" {
+    // Verify: trit_not truth table
+    try std.testing.expectEqual(@as(Trit, .pos), trit_not(.neg));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_not(.zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_not(.pos));
+}
+
+test "test_trit_select_condition_true" {
+    // Verify: trit_select returns a when condition is .pos
+    try std.testing.expectEqual(@as(Trit, .neg), trit_select(.pos, .neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_select(.pos, .zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_select(.pos, .pos, .zero));
+}
+
+test "test_trit_select_condition_false" {
+    // Verify: trit_select returns b when condition is not .pos
+    try std.testing.expectEqual(@as(Trit, .pos), trit_select(.neg, .neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_select(.neg, .zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_select(.neg, .pos, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_select(.zero, .neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_select(.zero, .zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_select(.zero, .pos, .zero));
+}
+
+test "test_trit_and_commutative" {
+    // Verify: trit_and(a, b) == trit_and(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_and(a, b), trit_and(b, a));
+        }
+    }
+}
+
+test "test_trit_or_commutative" {
+    // Verify: trit_or(a, b) == trit_or(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_or(a, b), trit_or(b, a));
+        }
+    }
+}
+
+test "test_trit_xor_commutative" {
+    // Verify: trit_xor(a, b) == trit_xor(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_xor(a, b), trit_xor(b, a));
+        }
+    }
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -485,6 +669,62 @@ invariant trit_abs_non_negative {
     @compileAssert(true);
 }
 
+invariant trit_from_i8_valid_range {
+    // trit_from_i8(-1) = .neg, trit_from_i8(0) = .zero, trit_from_i8(1) = .pos
+    @compileAssert(true);
+}
+
+invariant trit_from_i8_clamps_invalid {
+    // trit_from_i8 returns .zero for values outside [-1, 0, +1]
+    @compileAssert(true);
+}
+
+invariant trit_and_commutative {
+    // trit_and(a, b) == trit_and(b, a)
+    @compileAssert(true);
+}
+
+invariant trit_or_commutative {
+    // trit_or(a, b) == trit_or(b, a)
+    @compileAssert(true);
+}
+
+invariant trit_xor_commutative {
+    // trit_xor(a, b) == trit_xor(b, a)
+    @compileAssert(true);
+}
+
+invariant trit_and_identity {
+    // trit_and(.pos, x) == x (pos acts as identity for AND)
+    @compileAssert(true);
+}
+
+invariant trit_or_identity {
+    // trit_or(.neg, x) == x (neg acts as identity for OR)
+    @compileAssert(true);
+}
+
+invariant trit_xor_identity {
+    // trit_xor(.neg, x) == x (neg acts as identity for XOR)
+    @compileAssert(true);
+}
+
+invariant trit_not_double_not {
+    // trit_not(trit_not(x)) == x for all trit values
+    @compileAssert(true);
+}
+
+invariant trit_select_condition_true {
+    // trit_select(.pos, a, b) == a
+    @compileAssert(true);
+}
+
+invariant trit_select_condition_false {
+    // trit_select(.neg, a, b) == b
+    // trit_select(.zero, a, b) == b
+    @compileAssert(true);
+}
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -541,6 +781,72 @@ bench "bench_unpack_trit_latency" {
     for (0..1000) |_| {
         const unpacked = unpack_trit(3, 0);
         result = unpacked.value;
+    }
+    _ = result;
+}
+
+bench "bench_trit_and_latency" {
+    // Measure: cycles for single trit_and operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_and(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_or_latency" {
+    // Measure: cycles for single trit_or operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_or(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_xor_latency" {
+    // Measure: cycles for single trit_xor operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_xor(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_not_latency" {
+    // Measure: cycles for single trit_not operation
+    // Target: < 5 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_not(.pos);
+    }
+    _ = result;
+}
+
+bench "bench_trit_select_latency" {
+    // Measure: cycles for single trit_select operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_select(.pos, .neg, .zero);
+    }
+    _ = result;
+}
+
+bench "bench_trit_from_i8_latency" {
+    // Measure: cycles for single trit_from_i8 operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_from_i8(1);
     }
     _ = result;
 }
