@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:0031a0fe8b826c6365745f134d47e0b5f6d843fff1fbc818099c44ba765a8e54",
   "module": "spec_commands",
   "ring": 12,
-  "sealed_at": "2026-04-04T12:59:11Z",
+  "sealed_at": "2026-04-04T13:02:54Z",
   "spec_hash": "sha256:66f48663fb58c54066c3c13d0fa2afcfbfd38536ded273d84cd63bab51325b5a",
   "spec_path": "compiler/cli/spec.t27"
 }

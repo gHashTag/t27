@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:3a59a55732b53ecfcd1538cb8bc59bce4a4160f8124b34884021f3bc5dc58f73",
   "module": "ZeroDSP_MAC",
   "ring": 12,
-  "sealed_at": "2026-04-04T12:46:48Z",
+  "sealed_at": "2026-04-04T13:02:54Z",
   "spec_hash": "sha256:4fc1bfe163420d737cd9497385f7203e4c4476d6f48e152476ea8c1e80dd3927",
   "spec_path": "specs/fpga/mac.t27"
 }
