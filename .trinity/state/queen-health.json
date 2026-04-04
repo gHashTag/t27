@@ -8,9 +8,15 @@
     "compiler": 1.0,
     "runtime": 1.0,
     "queenlotus": 1.0,
-    "ar": 1.0
+    "ar": 1.0,
+    "gen": 1.0,
+    "base": 1.0,
+    "vsa": 1.0,
+    "isa": 1.0,
+    "fpga": 1.0,
+    "nn": 1.0
   },
-  "last_updated": "2026-04-04T18:00:00Z",
+  "last_updated": "2026-04-04T19:00:00Z",
   "thresholds": {
     "critical": 0.5,
     "warning": 0.7
