@@ -1,0 +1,62 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "_comment": "TEMPLATE ONLY — init.sh generates the real config at runtime from environment variables. Do NOT put API keys here; they are injected by the control plane.",
+
+  "model": "anthropic/claude-sonnet-4-5",
+
+  "keybindings": {
+    "leader": "ctrl+k"
+  },
+
+  "mcp": {
+    "railway": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "@railway/mcp-server"],
+      "enabled": true
+    }
+  },
+
+  "agents": {
+    "t27-swe": {
+      "name": "T27 SWE Agent",
+      "description": "Full-stack software engineering agent for the T27 Railway sandbox.",
+      "model": "anthropic/claude-sonnet-4-5",
+      "tools": [
+        "bash",
+        "read",
+        "write",
+        "edit",
+        "glob",
+        "grep",
+        "fetch",
+        "mcp:railway"
+      ],
+      "system": "You are an expert software engineer operating inside a Railway sandbox container. You have full access to the cloned repository in the working directory. Prefer small, targeted edits over large rewrites. Always verify changes compile / pass lint before finishing a task."
+    },
+
+    "t27-reviewer": {
+      "name": "T27 Code Reviewer",
+      "description": "Performs code review, security audits, and suggests improvements.",
+      "model": "anthropic/claude-sonnet-4-5",
+      "tools": [
+        "read",
+        "glob",
+        "grep",
+        "fetch"
+      ],
+      "system": "You are a thorough code reviewer. Analyse the provided code for correctness, security vulnerabilities, performance issues, and style violations. Return structured feedback grouped by severity (critical, major, minor, nit). Always cite the exact file and line range for each finding."
+    }
+  },
+
+  "tools": {
+    "bash":  { "enabled": true },
+    "read":  { "enabled": true },
+    "write": { "enabled": true },
+    "edit":  { "enabled": true },
+    "glob":  { "enabled": true },
+    "grep":  { "enabled": true },
+    "fetch": { "enabled": true }
+  }
+}
