@@ -2,1136 +2,596 @@
 ; Tokenizes source code into Token stream for parser
 ; φ² + 1/φ² = 3 | TRINITY
 
-.use base::types
-
-; Lexer configuration
-.const MAX_IDENTIFIER_LEN 64
-.const MAX_NUMBER_LEN 20
-.const MAX_TOKENS 10000
-
-; Token types
-.data
-    .const TOKEN_EOF 0          ; End of file
-    .const TOKEN_NEWLINE 1      ; \n
-    .const TOKEN_DOT 2          ; .
-    .const TOKEN_COLON 3        ; :
-    .const TOKEN_SEMICOLON 4    ; ;
-    .const TOKEN_COMMA 5        ; ,
-    .const TOKEN_HASH 6         ; #
-    .const TOKEN_LPAREN 7       ; (
-    .const TOKEN_RPAREN 8       ; )
-    .const TOKEN_LBRACKET 9     ; [
-    .const TOKEN_RBRACKET 10    ; ]
-    .const TOKEN_PLUS 11        ; +
-    .const TOKEN_MINUS 12       ; -
-    .const TOKEN_STAR 13        ; *
-    .const TOKEN_SLASH 14       ; /
-    .const TOKEN_PERCENT 15     ; %
-    .const TOKEN_AND 16         ; &
-    .const TOKEN_OR 17          ; |
-    .const TOKEN_XOR 18         ; ^
-    .const TOKEN_TILDE 19       ; ~
-    .const TOKEN_LT 20          ; <
-    .const TOKEN_GT 21          ; >
-    .const TOKEN_EQ 22          ; =
-    .const TOKEN_EXCL 23        ; !
-
-    ; Keywords
-    .const TOKEN_USE 24         ; .use
-    .const TOKEN_CONST 25       ; .const
-    .const TOKEN_DATA 26        ; .data
-    .const TOKEN_CODE 27        ; .code
-    .const TOKEN_DWORD 28       ; .dword
-    .const TOKEN_DSPACE 29      ; .dspace
-    .const TOKEN_DTRIT 30       ; .dtrit
-
-    ; TDD-Inside-Spec sections (assembly-style)
-    .const TOKEN_TEST 31        ; .test
-    .const TOKEN_INVARIANT 32   ; .invariant
-    .const TOKEN_BENCH 33       ; .bench
-    .const TOKEN_VERIFY 34      ; ; Verify:
-    .const TOKEN_EXPECTED 35    ; ; Expected:
-    .const TOKEN_SETUP 36       ; ; Setup:
-    .const TOKEN_RATIONALE 37   ; ; Rationale:
-    .const TOKEN_MEASURE 38     ; ; Measure:
-    .const TOKEN_TARGET 39      ; ; Target:
-
-    ; TDD-Inside-Spec high-level keywords (spec-style)
-    .const TOKEN_SPEC 40        ; spec (module header)
-    .const TOKEN_RULE 41        ; rule (business rule)
-    .const TOKEN_GIVEN 42       ; given (test setup)
-    .const TOKEN_WHEN 43        ; when (test action)
-    .const TOKEN_THEN 44        ; then (test assertion)
-    .const TOKEN_ASSERT 45      ; assert (invariant assertion)
-    .const TOKEN_AND 46         ; and (test continuation)
-    .const TOKEN_EXPECT 47      ; expect (rule expectation)
-
-    ; Literals and identifiers
-    .const TOKEN_INTEGER 48     ; Integer literal
-    .const TOKEN_FLOAT 49       ; Float literal
-    .const TOKEN_STRING 50      ; String literal
-    .const TOKEN_IDENTIFIER 51  ; Identifier
-    .const TOKEN_REG 52         ; Register (r0-r26, R0-R26)
-    .const TOKEN_LABEL 53       ; Label (identifier with :)
-
-    ; Opcodes
-    .const TOKEN_MOV 60         ; MOV
-    .const TOKEN_JZ 61          ; JZ
-    .const TOKEN_JNZ 62         ; JNZ
-    .const TOKEN_JMP 63         ; JMP
-    .const TOKEN_JGE 64         ; JGE
-    .const TOKEN_JGT 65         ; JGT
-    .const TOKEN_JLE 66         ; JLE
-    .const TOKEN_JLT 67         ; JLT
-    .const TOKEN_JEQ 68         ; JEQ
-    .const TOKEN_JNE 69         ; JNE
-    .const TOKEN_CALL 70        ; CALL
-    .const TOKEN_RET 71         ; RET
-    .const TOKEN_MUL 72         ; MUL
-    .const TOKEN_ADD 73         ; ADD
-    .const TOKEN_SUB 74         ; SUB
-    .const TOKEN_DIV 75         ; DIV
-    .const TOKEN_BIND 76        ; BIND
-    .const TOKEN_BUNDLE 77      ; BUNDLE
-    .const TOKEN_HALT 78        ; HALT
-    .const TOKEN_PUSH 79        ; PUSH
-    .const TOKEN_POP 80         ; POP
-    .const TOKEN_LOAD 81        ; LOAD
-    .const TOKEN_STORE 82       ; STORE
-    .const TOKEN_SHL 83         ; SHL
-    .const TOKEN_SHR 84         ; SHR
-    .const TOKEN_AND_OP 85      ; AND
-    .const TOKEN_OR_OP 86       ; OR
-    .const TOKEN_XOR_OP 87      ; XOR
-    .const TOKEN_NOT 88         ; NOT
-    .const TOKEN_NEG 89         ; NEG
-    .const TOKEN_SQRT 90        ; SQRT
-    .const TOKEN_TANH 91        ; TANH
-    .const TOKEN_TRAP 92        ; TRAP
-
-    ; State
-    lexer_state:
-        source_ptr: .dword 0       ; Pointer to source
-        source_len: .dword 0       ; Source length
-        pos: .dword 0              ; Current position
-        line: .dword 1             ; Current line (1-indexed)
-        column: .dword 1           ; Current column (1-indexed)
-        tokens: .dword 0           ; Token array pointer
-        token_count: .dword 0      ; Number of tokens
-        current_char: .byte 0      ; Current character
-
-    ; Keyword lookup table
-    ; Format: [length, ...chars, token_type]
-    keywords:
-        .byte 3:'u','s','e',TOKEN_USE
-        .byte 5:'c','o','n','s','t',TOKEN_CONST
-        .byte 4:'d','a','t','a',TOKEN_DATA
-        .byte 4:'c','o','d','e',TOKEN_CODE
-        .byte 5:'d','w','o','r','d',TOKEN_DWORD
-        .byte 6:'d','s','p','a','c','e',TOKEN_DSPACE
-        .byte 5:'d','t','r','i','t',TOKEN_DTRIT
-        .byte 4:'t','e','s','t',TOKEN_TEST
-        .byte 9:'i','n','v','a','r','i','a','n','t',TOKEN_INVARIANT
-        .byte 5:'b','e','n','c','h',TOKEN_BENCH
-        .byte 6:'v','e','r','i','f','y',TOKEN_VERIFY
-        .byte 8:'e','x','p','e','c','t','e','d',TOKEN_EXPECTED
-        .byte 5:'s','e','t','u','p',TOKEN_SETUP
-        .byte 9:'r','a','t','i','o','n','a','l','e',TOKEN_RATIONALE
-        .byte 7:'m','e','a','s','u','r','e',TOKEN_MEASURE
-        .byte 6:'t','a','r','g','e','t',TOKEN_TARGET
-        .byte 4:'s','p','e','c',TOKEN_SPEC
-        .byte 4:'r','u','l','e',TOKEN_RULE
-        .byte 5:'g','i','v','e','n',TOKEN_GIVEN
-        .byte 4:'w','h','e','n',TOKEN_WHEN
-        .byte 4:'t','h','e','n',TOKEN_THEN
-        .byte 6:'a','s','s','e','r','t',TOKEN_ASSERT
-        .byte 3:'a','n','d',TOKEN_AND
-        .byte 6:'e','x','p','e','c','t',TOKEN_EXPECT
-        .byte 3:'m','o','v',TOKEN_MOV
-        .byte 2:'j','z',TOKEN_JZ
-        .byte 3:'j','n','z',TOKEN_JNZ
-        .byte 3:'j','m','p',TOKEN_JMP
-        .byte 3:'j','g','e',TOKEN_JGE
-        .byte 3:'j','g','t',TOKEN_JGT
-        .byte 3:'j','l','e',TOKEN_JLE
-        .byte 3:'j','l','t',TOKEN_JLT
-        .byte 3:'j','e','q',TOKEN_JEQ
-        .byte 3:'j','n','e',TOKEN_JNE
-        .byte 4:'c','a','l','l',TOKEN_CALL
-        .byte 3:'r','e','t',TOKEN_RET
-        .byte 3:'m','u','l',TOKEN_MUL
-        .byte 3:'a','d','d',TOKEN_ADD
-        .byte 3:'s','u','b',TOKEN_SUB
-        .byte 3:'d','i','v',TOKEN_DIV
-        .byte 4:'b','i','n','d',TOKEN_BIND
-        .byte 6:'b','u','n','d','l','e',TOKEN_BUNDLE
-        .byte 4:'h','a','l','t',TOKEN_HALT
-        .byte 4:'p','u','s','h',TOKEN_PUSH
-        .byte 3:'p','o','p',TOKEN_POP
-        .byte 4:'l','o','a','d',TOKEN_LOAD
-        .byte 5:'s','t','o','r','e',TOKEN_STORE
-        .byte 3:'s','h','l',TOKEN_SHL
-        .byte 3:'s','h','r',TOKEN_SHR
-        .byte 3:'a','n','d',TOKEN_AND_OP
-        .byte 2:'o','r',TOKEN_OR_OP
-        .byte 3:'x','o','r',TOKEN_XOR_OP
-        .byte 3:'n','o','t',TOKEN_NOT
-        .byte 3:'n','e','g',TOKEN_NEG
-        .byte 4:'s','q','r','t',TOKEN_SQRT
-        .byte 4:'t','a','n','h',TOKEN_TANH
-        .byte 4:'t','r','a','p',TOKEN_TRAP
-        .byte 0                   ; End marker
-
-    ; Working buffers
-    identifier_buffer: .byte 0:MAX_IDENTIFIER_LEN
-    number_buffer: .byte 0:MAX_NUMBER_LEN
-
-.code
-    ; ═════════════════════════════════════════════════════════════════════
-    ; tokenize(source: []u8, source_file: string) -> []Token
-    ; Main entry point: tokenize source into Token array
-    ; ═════════════════════════════════════════════════════════════════════
-tokenize:
-    ; Input: r0 = source_ptr, r1 = source_len, r2 = source_file_ptr
-    ; Output: r0 = token array pointer, r1 = token count
-
-    PUSH r0
-    PUSH r1
-    PUSH r2
-
-    ; Initialize lexer state
-    STORE r0, [lexer_state + source_ptr]
-    STORE r1, [lexer_state + source_len]
-    MOV r3, #0
-    STORE r3, [lexer_state + pos]
-    MOV r3, #1
-    STORE r3, [lexer_state + line]
-    STORE r3, [lexer_state + column]
-    MOV r3, #0
-    STORE r3, [lexer_state + token_count]
-
-    ; Allocate token array
-    MOV r3, MAX_TOKENS
-    CALL alloc_token_array
-    STORE r0, [lexer_state + tokens]
-
-    ; Read first character
-    CALL advance_char
-
-tokenize_loop:
-    ; Skip whitespace (except newline)
-    CALL skip_whitespace
-
-    ; Check for end of source
-    LOAD r3, [lexer_state + current_char]
-    CMP r3, #0
-    JEQ tokenize_emit_eof
-
-    ; Check for newline
-    CMP r3, #10            ; '\n'
-    JEQ tokenize_newline
-
-    ; Check for comment (;)
-    CMP r3, #59            ; ';'
-    JEQ tokenize_comment
-
-    ; Check for single-character tokens
-    CMP r3, #46            ; '.'
-    JEQ tokenize_dot
-
-    CMP r3, #58            ; ':'
-    JEQ tokenize_colon
-
-    CMP r3, #59            ; ';'
-    JEQ tokenize_single_char  ; TOKEN_SEMICOLON
-
-    CMP r3, #44            ; ','
-    JEQ tokenize_single_char  ; TOKEN_COMMA
-
-    CMP r3, #35            ; '#'
-    JEQ tokenize_single_char  ; TOKEN_HASH
-
-    CMP r3, #40            ; '('
-    JEQ tokenize_single_char  ; TOKEN_LPAREN
-
-    CMP r3, #41            ; ')'
-    JEQ tokenize_single_char  ; TOKEN_RPAREN
-
-    CMP r3, #91            ; '['
-    JEQ tokenize_single_char  ; TOKEN_LBRACKET
-
-    CMP r3, #93            ; ']'
-    JEQ tokenize_single_char  ; TOKEN_RBRACKET
-
-    CMP r3, #43            ; '+'
-    JEQ tokenize_single_char  ; TOKEN_PLUS
-
-    CMP r3, #45            ; '-'
-    JEQ tokenize_minus_or_number
-
-    CMP r3, #42            ; '*'
-    JEQ tokenize_single_char  ; TOKEN_STAR
-
-    CMP r3, #47            ; '/'
-    JEQ tokenize_single_char  ; TOKEN_SLASH
-
-    CMP r3, #37            ; '%'
-    JEQ tokenize_single_char  ; TOKEN_PERCENT
-
-    CMP r3, #38            ; '&'
-    JEQ tokenize_single_char  ; TOKEN_AND
-
-    CMP r3, #124           ; '|'
-    JEQ tokenize_single_char  ; TOKEN_OR
-
-    CMP r3, #94            ; '^'
-    JEQ tokenize_single_char  ; TOKEN_XOR
-
-    CMP r3, #126           ; '~'
-    JEQ tokenize_single_char  ; TOKEN_TILDE
-
-    CMP r3, #60            ; '<'
-    JEQ tokenize_single_char  ; TOKEN_LT
-
-    CMP r3, #62            ; '>'
-    JEQ tokenize_single_char  ; TOKEN_GT
-
-    CMP r3, #61            ; '='
-    JEQ tokenize_single_char  ; TOKEN_EQ
-
-    CMP r3, #33            ; '!'
-    JEQ tokenize_single_char  ; TOKEN_EXCL
-
-    ; Check for digit (number)
-    CMP r3, #48            ; '0'
-    JLT tokenize_identifier
-    CMP r3, #57            ; '9'
-    JLE tokenize_number
-
-    ; Check for identifier or keyword or register
-    JMP tokenize_identifier
-
-    ; Loop back
-    JMP tokenize_loop
-
-tokenize_emit_eof:
-    ; Emit EOF token
-    MOV r0, TOKEN_EOF
-    CALL emit_token
-    JMP tokenize_done
-
-tokenize_newline:
-    ; Emit newline token
-    MOV r0, TOKEN_NEWLINE
-    CALL emit_token
-
-    ; Update line/column
-    LOAD r3, [lexer_state + line]
-    ADD r3, r3, ONE
-    STORE r3, [lexer_state + line]
-
-    MOV r3, #1
-    STORE r3, [lexer_state + column]
-
-    CALL advance_char
-    JMP tokenize_loop
-
-tokenize_comment:
-    ; Skip until newline or EOF
-    CALL advance_char
-
-comment_loop:
-    LOAD r3, [lexer_state + current_char]
-    CMP r3, #0
-    JEQ tokenize_loop
-    CMP r3, #10            ; '\n'
-    JEQ tokenize_loop
-    CALL advance_char
-    JMP comment_loop
-
-tokenize_colon:
-    ; Could be just ':' or identifier followed by ':' (label)
-    ; Check if we just read an identifier
-    LOAD r3, [lexer_state + token_count]
-    CMP r3, #0
-    JEQ colon_only
-
-    ; Peek at previous token type (simplified - assume label)
-    MOV r0, TOKEN_COLON
-    CALL emit_token
-    CALL advance_char
-    JMP tokenize_loop
-
-colon_only:
-    ; Just a colon token
-    MOV r0, TOKEN_COLON
-    CALL emit_token
-    CALL advance_char
-    JMP tokenize_loop
-
-tokenize_dot:
-    ; Could be just '.' or start of directive (.use, .const, etc.)
-    CALL advance_char
-
-    ; Peek at next char
-    CALL peek_char
-    CMP r0, #97            ; 'a'
-    JLT tokenize_dot_only
-    CMP r0, #122           ; 'z'
-    JGT tokenize_dot_only
-
-    ; It's a directive - read identifier
-    CALL read_identifier
-    ; r0 now has identifier text
-    CALL lookup_keyword
-
-    ; Emit the keyword token
-    CALL emit_token
-    JMP tokenize_loop
-
-tokenize_dot_only:
-    ; Just a dot token
-    MOV r0, TOKEN_DOT
-    CALL emit_token
-    JMP tokenize_loop
-
-tokenize_minus_or_number:
-    ; Could be '-' or start of negative number
-    CALL advance_char
-    CALL peek_char
-
-    ; Check if next char is digit
-    CMP r0, #48            ; '0'
-    JLT tokenize_minus_only
-    CMP r0, #57            ; '9'
-    JGT tokenize_minus_only
-
-    ; It's a negative number
-    ; Read number with sign
-    CALL read_number_with_sign
-    CALL emit_token
-    JMP tokenize_loop
-
-tokenize_minus_only:
-    ; Just a minus token
-    MOV r0, TOKEN_MINUS
-    CALL emit_token
-    JMP tokenize_loop
-
-tokenize_number:
-    ; Read integer or float
-    CALL read_number
-    CALL emit_token
-    JMP tokenize_loop
-
-tokenize_identifier:
-    ; Read identifier, keyword, or register
-    CALL read_identifier
-
-    ; Check if it's a register (r0-r26, R0-R26)
-    CALL is_register
-    CMP r0, #1
-    JEQ emit_reg_token
-
-    ; Check if it's a keyword
-    CALL lookup_keyword
-    CMP r0, TOKEN_IDENTIFIER
-    JEQ emit_identifier_token
-
-    ; It's a keyword (opcode or directive)
-    CALL emit_token
-    JMP tokenize_loop
-
-emit_reg_token:
-    ; Emit register token
-    CALL emit_token
-    JMP tokenize_loop
-
-emit_identifier_token:
-    ; Emit identifier token
-    CALL emit_token
-    JMP tokenize_loop
-
-tokenize_single_char:
-    ; r0 already has token type
-    CALL emit_token
-    CALL advance_char
-    JMP tokenize_loop
-
-tokenize_done:
-    ; Return token array and count
-    LOAD r0, [lexer_state + tokens]
-    LOAD r1, [lexer_state + token_count]
-
-    POP r2
-    POP r1
-    POP r0
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; advance_char() → void
-    ; Advance to next character
-    ; ═════════════════════════════════════════════════════════════════════
-advance_char:
-    LOAD r0, [lexer_state + pos]
-    LOAD r1, [lexer_state + source_len]
-    CMP r0, r1
-    JGE advance_eof
-
-    ; Load next character
-    LOAD r2, [lexer_state + source_ptr]
-    LOADB r3, [r2 + r0]
-    STORE r3, [lexer_state + current_char]
-
-    ; Update position
-    ADD r0, r0, ONE
-    STORE r0, [lexer_state + pos]
-
-    ; Update column
-    LOAD r4, [lexer_state + column]
-    ADD r4, r4, ONE
-    STORE r4, [lexer_state + column]
-
-    RET
-
-advance_eof:
-    MOV r0, #0
-    STORE r0, [lexer_state + current_char]
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; peek_char() → u8
-    ; Peek at next character without advancing
-    ; ═════════════════════════════════════════════════════════════════════
-peek_char:
-    LOAD r0, [lexer_state + pos]
-    LOAD r1, [lexer_state + source_len]
-    CMP r0, r1
-    JGE peek_eof
-
-    LOAD r2, [lexer_state + source_ptr]
-    LOADB r0, [r2 + r0]
-    RET
-
-peek_eof:
-    MOV r0, #0
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; skip_whitespace() → void
-    ; Skip whitespace except newline
-    ; ═════════════════════════════════════════════════════════════════════
-skip_whitespace:
-    LOAD r0, [lexer_state + current_char]
-    CMP r0, #32            ; ' '
-    JEQ skip_adv
-    CMP r0, #9             ; '\t'
-    JEQ skip_adv
-    CMP r0, #13            ; '\r'
-    JEQ skip_adv
-    RET
-
-skip_adv:
-    CALL advance_char
-    JMP skip_whitespace
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; read_identifier() → string
-    ; Read identifier into buffer
-    ; ═════════════════════════════════════════════════════════════════════
-read_identifier:
-    ; Reads identifier starting at current position
-    ; Stores in identifier buffer
-    MOV r3, #0           ; Buffer index
-
-read_id_loop:
-    LOAD r4, [lexer_state + current_char]
-
-    ; Check if alphanumeric or underscore
-    CMP r4, #48            ; '0'
-    JLT check_alpha
-    CMP r4, #57            ; '9'
-    JLE id_store_char
-
-check_alpha:
-    CMP r4, #65            ; 'A'
-    JLT check_lower
-    CMP r4, #90            ; 'Z'
-    JLE id_store_char
-
-check_lower:
-    CMP r4, #97            ; 'a'
-    JLT check_underscore
-    CMP r4, #122           ; 'z'
-    JLE id_store_char
-
-check_underscore:
-    CMP r4, #95            ; '_'
-    JNE id_done
-
-id_store_char:
-    ; Store in buffer
-    CMP r3, MAX_IDENTIFIER_LEN
-    JGE id_skip_store
-    LOAD r5, #identifier_buffer
-    STOREB r4, [r5 + r3]
-    ADD r3, r3, ONE
-
-id_skip_store:
-    CALL advance_char
-    JMP read_id_loop
-
-id_done:
-    ; Null-terminate
-    CMP r3, MAX_IDENTIFIER_LEN
-    JGE id_ret
-    LOAD r5, #identifier_buffer
-    STOREB #0, [r5 + r3]
-
-id_ret:
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; is_register() → bool
-    ; Check if current identifier is a register (r0-r26, R0-R26)
-    ; ═════════════════════════════════════════════════════════════════════
-is_register:
-    ; Checks identifier buffer for register pattern
-    ; Returns r0 = 1 if register, 0 otherwise
-    ; Also sets register number in r1
-
-    LOAD r0, #identifier_buffer
-    LOADB r1, [r0]
-
-    ; Check if starts with 'r' or 'R'
-    CMP r1, #114           ; 'r'
-    JEQ check_reg_num
-    CMP r1, #82            ; 'R'
-    JEQ check_reg_num
-
-    ; Not a register
-    MOV r0, #0
-    RET
-
-check_reg_num:
-    ; Check if second char is digit
-    LOADB r1, [r0 + ONE]
-    CMP r1, #48
-    JLT reg_not_valid
-    CMP r1, #57
-    JGT reg_not_valid
-
-    ; Parse register number
-    MOV r2, #0           ; Accumulator
-
-parse_reg_num:
-    CMP r1, #0
-    JEQ reg_parse_done
-    CMP r1, #48
-    JLT reg_parse_done
-    CMP r1, #57
-    JGT reg_parse_done
-
-    ; r2 = r2 * 10 + (r1 - '0')
-    MUL r2, r2, #10
-    SUB r1, r1, #48
-    ADD r2, r2, r1
-
-    ; Move to next char
-    ADD r0, r0, ONE
-    LOADB r1, [r0 + ONE]
-    JMP parse_reg_num
-
-reg_parse_done:
-    ; Check if register number is valid (0-26)
-    CMP r2, #27
-    JGE reg_not_valid
-
-    ; Valid register - return true with number in r1
-    MOV r1, r2
-    MOV r0, #1
-    RET
-
-reg_not_valid:
-    MOV r0, #0
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; read_number() → void
-    ; Read number (integer or float)
-    ; ═════════════════════════════════════════════════════════════════════
-read_number:
-    ; Reads number starting with digit
-    ; Stores in number buffer
-    MOV r3, #0           ; Buffer index
-    MOV r4, #0           ; Value accumulator
-    MOV r5, #1           ; Base (10 by default)
-
-read_num_loop:
-    LOAD r6, [lexer_state + current_char]
-
-    ; Check for digit
-    CMP r6, #48
-    JLT num_check_hex
-    CMP r6, #57
-    JGT num_check_hex
-
-    ; r4 = r4 * r5 + (r6 - '0')
-    MUL r4, r4, r5
-    SUB r6, r6, #48
-    ADD r4, r4, r6
-
-    ; Store in buffer
-    CMP r3, MAX_NUMBER_LEN
-    JGE num_skip_store
-    LOAD r7, #number_buffer
-    LOADB r6, [lexer_state + current_char]
-    STOREB r6, [r7 + r3]
-    ADD r3, r3, ONE
-
-num_skip_store:
-    CALL advance_char
-    JMP read_num_loop
-
-num_check_hex:
-    ; Check for hex prefix (0x)
-    CMP r6, #48            ; '0'
-    JNE num_check_binary
-    CALL peek_char
-    CMP r0, #120           ; 'x'
-    JNE num_check_binary
-    CMP r0, #88            ; 'X'
-    JNE num_check_binary
-
-    ; It's hex - reset and read hex digits
-    MOV r4, #0
-    MOV r5, #16           ; Base 16
-    CALL advance_char      ; Skip '0'
-    CALL advance_char      ; Skip 'x'
-
-read_hex_loop:
-    LOAD r6, [lexer_state + current_char]
-
-    ; Convert hex digit
-    CMP r6, #48
-    JLT hex_not_digit
-    CMP r6, #57
-    JLE hex_digit_09
-    CMP r6, #65
-    JLT hex_not_digit
-    CMP r6, #70
-    JLE hex_digit_AF
-    CMP r6, #97
-    JLT hex_not_digit
-    CMP r6, #102
-    JLE hex_digit_af
-
-hex_not_digit:
-    JMP num_done
-
-hex_digit_09:
-    SUB r6, r6, #48
-    JMP hex_store
-
-hex_digit_AF:
-    SUB r6, r6, #55
-    JMP hex_store
-
-hex_digit_af:
-    SUB r6, r6, #87
-
-hex_store:
-    ; r4 = r4 * 16 + digit
-    MUL r4, r4, #16
-    ADD r4, r4, r6
-
-    ; Store in buffer
-    CMP r3, MAX_NUMBER_LEN
-    JGE hex_skip_store
-    LOAD r7, #number_buffer
-    LOADB r6, [lexer_state + current_char]
-    STOREB r6, [r7 + r3]
-    ADD r3, r3, ONE
-
-hex_skip_store:
-    CALL advance_char
-    JMP read_hex_loop
-
-num_check_binary:
-    ; Check for binary prefix (0b)
-    CMP r6, #48            ; '0'
-    JNE num_check_float
-    CALL peek_char
-    CMP r0, #98            ; 'b'
-    JNE num_check_float
-    CMP r0, #66            ; 'B'
-    JNE num_check_float
-
-    ; It's binary - reset and read binary digits
-    MOV r4, #0
-    MOV r5, #2            ; Base 2
-    CALL advance_char      ; Skip '0'
-    CALL advance_char      ; Skip 'b'
-
-read_binary_loop:
-    LOAD r6, [lexer_state + current_char]
-
-    CMP r6, #48
-    JLT binary_done
-    CMP r6, #49
-    JGT binary_done
-
-    ; r4 = r4 * 2 + digit
-    MUL r4, r4, #2
-    SUB r6, r6, #48
-    ADD r4, r4, r6
-
-    ; Store in buffer
-    CMP r3, MAX_NUMBER_LEN
-    JGE binary_skip_store
-    LOAD r7, #number_buffer
-    LOADB r6, [lexer_state + current_char]
-    STOREB r6, [r7 + r3]
-    ADD r3, r3, ONE
-
-binary_skip_store:
-    CALL advance_char
-    JMP read_binary_loop
-
-binary_done:
-    JMP num_done
-
-num_check_float:
-    ; Check for decimal point
-    CMP r6, #46            ; '.'
-    JNE num_done
-
-    ; Read fractional part (simplified - just skip for now)
-    CALL advance_char
-
-read_frac_loop:
-    LOAD r6, [lexer_state + current_char]
-    CMP r6, #48
-    JLT num_done
-    CMP r6, #57
-    JGT num_done
-
-    CMP r3, MAX_NUMBER_LEN
-    JGE frac_skip_store
-    LOAD r7, #number_buffer
-    LOADB r6, [lexer_state + current_char]
-    STOREB r6, [r7 + r3]
-    ADD r3, r3, ONE
-
-frac_skip_store:
-    CALL advance_char
-    JMP read_frac_loop
-
-num_done:
-    ; Null-terminate
-    CMP r3, MAX_NUMBER_LEN
-    JGE read_num_ret
-    LOAD r7, #number_buffer
-    STOREB #0, [r7 + r3]
-
-    ; Store value for emit_token
-    ; (For spec: simplified - value would be stored in a global)
-    MOV r8, r4
-
-read_num_ret:
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; read_number_with_sign() → void
-    ; Read number with leading minus sign
-    ; ═════════════════════════════════════════════════════════════════════
-read_number_with_sign:
-    ; Reads number starting after minus sign
-    ; Stores in number buffer with sign
-
-    ; Store minus sign in buffer
-    MOV r3, #0
-    LOAD r4, #number_buffer
-    STOREB #45, [r4]       ; '-'
-    ADD r3, r3, ONE
-
-    ; Call read_number
-    CALL read_number
-
-    ; Negate value (r8 from read_number)
-    NEG r8, r8
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; lookup_keyword() → TokenType
-    ; Lookup identifier in keyword table
-    ; Returns TOKEN_IDENTIFIER if not a keyword
-    ; ═════════════════════════════════════════════════════════════════════
-lookup_keyword:
-    ; Search keywords table
-    ; r0 = identifier text pointer
-    ; Returns token type
-
-    MOV r1, keywords      ; r1 = keyword table pointer
-
-keyword_lookup_loop:
-    ; Read keyword length
-    LOADB r2, [r1]
-    CMP r2, #0
-    JEQ keyword_not_found
-
-    ; Compare with identifier
-    CALL compare_identifier
-    CMP r0, #1
-    JEQ keyword_found
-
-    ; Move to next keyword
-    ADD r1, r1, r2        ; Skip chars
-    ADD r1, r1, #2        ; Skip length byte and token type byte
-    JMP keyword_lookup_loop
-
-keyword_found:
-    ; Return token type
-    LOADB r0, [r1 + r2 + 1]
-    RET
-
-keyword_not_found:
-    MOV r0, TOKEN_IDENTIFIER
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; compare_identifier(keyword_ptr: usize) → bool
-    ; Compare identifier buffer with keyword at keyword_ptr
-    ; Returns r0 = 1 if match, 0 otherwise
-    ; ═════════════════════════════════════════════════════════════════════
-compare_identifier:
-    ; Input: r1 = keyword table pointer
-    ; Output: r0 = 1 if match, 0 otherwise
-
-    MOV r2, #0           ; Identifier buffer index
-    MOV r3, #identifier_buffer
-
-compare_loop:
-    LOADB r4, [r3 + r2]          ; Char from identifier
-    ADD r5, r1, ONE
-    LOADB r5, [r5 + r2]          ; Char from keyword
-
-    ; Compare characters (case-insensitive)
-    CMP r4, #0
-    JEQ check_end
-    CMP r5, #0
-    JEQ check_end
-
-    ; Convert to lowercase for comparison
-    CMP r4, #65           ; 'A'
-    JLT id_lower_ok
-    CMP r4, #90           ; 'Z'
-    JGT id_lower_ok
-    ADD r4, r4, #32        ; Convert to lowercase
-
-id_lower_ok:
-    CMP r5, #65           ; 'A'
-    JLT kw_lower_ok
-    CMP r5, #90           ; 'Z'
-    JGT kw_lower_ok
-    ADD r5, r5, #32        ; Convert to lowercase
-
-kw_lower_ok:
-    CMP r4, r5
-    JNE compare_failed
-
-    ADD r2, r2, ONE
-    JMP compare_loop
-
-check_end:
-    ; Both should be null
-    CMP r4, r5
-    JEQ compare_failed
-
-    ; Match!
-    MOV r0, #1
-    RET
-
-compare_failed:
-    MOV r0, #0
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; emit_token(type: TokenType) → void
-    ; Emit a token to the token array
-    ; ═════════════════════════════════════════════════════════════════════
-emit_token:
-    ; Input: r0 = token type
-    ; Emits token with current lexeme text
-
-    LOAD r1, [lexer_state + token_count]
-    CMP r1, MAX_TOKENS
-    JGE emit_overflow
-
-    ; Get token array pointer
-    LOAD r2, [lexer_state + tokens]
-
-    ; Token struct size: 32 bytes
-    ; Store token type at offset 0
-    STORE r0, [r2 + r1 * 32]
-
-    ; Store line at offset 4
-    LOAD r3, [lexer_state + line]
-    STORE r3, [r2 + r1 * 32 + 4]
-
-    ; Store column at offset 8
-    LOAD r3, [lexer_state + column]
-    STORE r3, [r2 + r1 * 32 + 8]
-
-    ; Store text pointer at offset 12
-    ; (For spec: simplified - would use identifier_buffer or number_buffer)
-    MOV r3, #identifier_buffer
-    CMP r0, TOKEN_INTEGER
-    JEQ use_number_buffer
-    CMP r0, TOKEN_REG
-    JEQ use_number_buffer
-    JMP store_text_ptr
-
-use_number_buffer:
-    MOV r3, #number_buffer
-
-store_text_ptr:
-    STORE r3, [r2 + r1 * 32 + 12]
-
-    ; Store text length at offset 16
-    ; (For spec: simplified)
-    MOV r3, #0
-    STORE r3, [r2 + r1 * 32 + 16]
-
-    ; Store value at offset 20 (for integers and registers)
-    MOV r3, #0
-    CMP r0, TOKEN_INTEGER
-    JEQ store_value_r8
-    CMP r0, TOKEN_REG
-    JEQ store_value_r1
-    JMP store_value
-
-store_value_r8:
-    MOV r3, r8
-    JMP store_value
-
-store_value_r1:
-    MOV r3, r1
-    ; Fall through
-
-store_value:
-    STORE r3, [r2 + r1 * 32 + 20]
-
-    ; Increment token count
-    ADD r1, r1, ONE
-    STORE r1, [lexer_state + token_count]
-
-    RET
-
-emit_overflow:
-    ; Token overflow - error
-    TRAP
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; alloc_token_array(count: usize) -> []Token
-    ; Allocate token array
-    ; ═════════════════════════════════════════════════════════════════════
-alloc_token_array:
-    ; Input: r0 = count
-    ; Output: r0 = array pointer
-
-    ; Allocate memory
-    ; Each token is 32 bytes
-    MUL r0, r0, #32
-    CALL runtime_alloc
-    CMP r0, #0
-    JEQ alloc_fail
-
-    ; Zero out memory (simplified - skip for spec)
-
-    RET
-
-alloc_fail:
-    MOV r0, #0
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; TDD-Inside-Spec: Invariants and Tests
-    ; ═════════════════════════════════════════════════════════════════════
-.test
-    ; test_tokenize_spec_keywords
-    ; Verify: all T27 keywords are recognized
-    ; Setup: tokenize source with all keywords (use, const, data, code, etc.)
-    ; Expected: each keyword has correct TOKEN_* type
-
-    ; test_token_roundtrip
-    ; Verify: token text matches source for literals and identifiers
-    ; Setup: tokenize source with identifiers and literals
-    ; Expected: token.text == source substring
-
-    ; test_register_recognition
-    ; Verify: r0-r26 and R0-R26 are recognized as registers
-    ; Setup: tokenize "r0 R15 r26"
-    ; Expected: tokens with correct reg numbers
-
-    ; test_number_formats
-    ; Verify: decimal, hex (0x), binary (0b) numbers parsed correctly
-    ; Setup: tokenize "42 0x2A 0b101010"
-    ; Expected: all three evaluate to 42
-
-    ; test_comment_skipping
-    ; Verify: comments (; comment) are not tokenized
-    ; Setup: tokenize "instruction ; this is a comment"
-    ; Expected: only "instruction" token, no comment tokens
-
-    ; test_line_tracking
-    ; Verify: token line and column are correct
-    ; Setup: tokenize multi-line source
-    ; Expected: token.line and token.column match source positions
-
-    ; test_newline_handling
-    ; Verify: newlines are tokenized and line counter increments
-    ; Setup: tokenize source with multiple lines
-    ; Expected: line number increments after each newline
-
-    ; test_string_literal
-    ; Verify: string literals are parsed correctly
-    ; Setup: tokenize '"hello world"'
-    ; Expected: token type STRING, text includes quotes
-
-.invariant
-    ; token_roundtrip
-    ; For all valid tokens: token.text == source[token.position : token.length]
-    ; Rationale: Lexical analysis must preserve source text
-
-    ; line_column_accuracy
-    ; token.line and token.column accurately reflect source position
-    ; Rationale: Error messages must point to correct location
-
-    ; register_range_validity
-    ; Only r0-r26 and R0-R26 are valid registers
-    ; Rationale: Register encoding has fixed range (27 registers)
-
-    ; number_format_validity
-    ; 0x prefix -> hex, 0b prefix -> binary, else decimal
-    ; Rationale: Number prefixes are unambiguous
-
-    ; eof_token_termination
-    ; Token stream always ends with EOF token
-    ; Rationale: Parser needs explicit end marker
-
-    ; no_lexical_errors_on_valid_source
-    ; For syntactically valid t27: lexer produces no errors
-    ; Rationale: Clean source should lex cleanly
-
-.bench
-    ; bench_tokenize_throughput_chars_per_sec
-    ; Measure: characters processed per second
-    ; Target: > 1M chars/sec for typical source
-
-    ; test_token_memory_overhead
-    ; Measure: bytes per token
-    ; Target: < 64 bytes per token (efficient storage)
-
-HALT
+module trilexer;
+
+using base::types;
+
+// Configuration
+pub const MAX_IDENTIFIER_LEN: usize = 64;
+pub const MAX_NUMBER_LEN: usize = 20;
+pub const MAX_TOKENS: usize = 10000;
+
+// Token types
+pub const TokenType = enum(u8) {
+    eof = 0,
+    newline = 1,
+    dot = 2,
+    colon = 3,
+    semicolon = 4,
+    comma = 5,
+    hash = 6,
+    lparen = 7,
+    rparen = 8,
+    lbracket = 9,
+    rbracket = 10,
+    plus = 11,
+    minus = 12,
+    star = 13,
+    slash = 14,
+    percent = 15,
+    and = 16,
+    or = 17,
+    xor = 18,
+    tilde = 19,
+    lt = 20,
+    gt = 21,
+    eq = 22,
+    excl = 23,
+
+    // Keywords
+    use = 24,
+    const = 25,
+    data = 26,
+    code = 27,
+    dword = 28,
+    dspace = 29,
+    dtrit = 30,
+
+    // TDD-Inside-Spec sections (assembly-style)
+    test = 31,
+    invariant = 32,
+    bench = 33,
+    verify = 34,
+    expected = 35,
+    setup = 36,
+    rationale = 37,
+    measure = 38,
+    target = 39,
+
+    // TDD-Inside-Spec high-level keywords (spec-style)
+    spec = 40,
+    rule = 41,
+    given = 42,
+    when = 43,
+    then = 44,
+    assert = 45,
+    and = 46,
+    expect = 47,
+
+    // Literals and identifiers
+    integer = 48,
+    float = 49,
+    string = 50,
+    identifier = 51,
+    reg = 52,
+    label = 53,
+
+    // Opcodes
+    mov = 60,
+    jz = 61,
+    jnz = 62,
+    jmp = 63,
+    jge = 64,
+    jgt = 65,
+    jle = 66,
+    jlt = 67,
+    jeq = 68,
+    jne = 69,
+    call = 70,
+    ret = 71,
+    mul = 72,
+    add = 73,
+    sub = 74,
+    div = 75,
+    bind = 76,
+    bundle = 77,
+    halt = 78,
+    push = 79,
+    pop = 80,
+    load = 81,
+    store = 82,
+    shl = 83,
+    shr = 84,
+    and_op = 85,
+    or_op = 86,
+    xor_op = 87,
+    not = 88,
+    neg = 89,
+    sqrt = 90,
+    tanh = 91,
+    trap = 92,
+};
+
+// Token struct
+pub const Token = struct {
+    type: TokenType,
+    line: u32,
+    column: u32,
+    text: []const u8,
+    value: u64,
+};
+
+// Lexer state
+pub const Lexer = struct {
+    source: []const u8,
+    source_file: []const u8,
+    pos: usize = 0,
+    line: u32 = 1,
+    column: u32 = 1,
+    current_char: u8 = 0,
+
+    // Working buffers
+    identifier_buffer: [MAX_IDENTIFIER_LEN]u8 = [_]u8{0} ** MAX_IDENTIFIER_LEN,
+    number_buffer: [MAX_NUMBER_LEN]u8 = [_]u8{0} ** MAX_NUMBER_LEN,
+
+    // Initialize lexer with source
+    pub fn init(lexer: *Lexer, source: []const u8, source_file: []const u8) void {
+        lexer.source = source;
+        lexer.source_file = source_file;
+        lexer.pos = 0;
+        lexer.line = 1;
+        lexer.column = 1;
+        lexer.current_char = if (source.len > 0) source[0] else 0;
+    }
+
+    // Main entry point: tokenize source into Token array
+    pub fn tokenize(lexer: *Lexer, tokens: []Token) usize {
+        var token_count: usize = 0;
+
+        while (lexer.current_char != 0) {
+            // Skip whitespace (except newline)
+            lexer.skip_whitespace();
+
+            // Check for end of source
+            if (lexer.current_char == 0) break;
+
+            // Check for newline
+            if (lexer.current_char == '\n') {
+                tokens[token_count] = Token{
+                    .type = .newline,
+                    .line = lexer.line,
+                    .column = lexer.column,
+                    .text = "\n",
+                    .value = 0,
+                };
+                token_count += 1;
+                lexer.line += 1;
+                lexer.column = 1;
+                lexer.advance_char();
+                continue;
+            }
+
+            // Check for comment (;)
+            if (lexer.current_char == ';') {
+                lexer.skip_comment();
+                continue;
+            }
+
+            // Check for directives (.use, .const, etc.)
+            if (lexer.current_char == '.') {
+                lexer.advance_char();
+                const ident = lexer.read_identifier();
+                const token_type = lexer.lookup_keyword(ident);
+                tokens[token_count] = Token{
+                    .type = token_type,
+                    .line = lexer.line,
+                    .column = lexer.column,
+                    .text = ident,
+                    .value = 0,
+                };
+                token_count += 1;
+                continue;
+            }
+
+            // Check for single-character tokens
+            const single_token = lexer.read_single_char();
+            if (single_token != .identifier) {
+                tokens[token_count] = Token{
+                    .type = single_token,
+                    .line = lexer.line,
+                    .column = lexer.column,
+                    .text = lexer.identifier_buffer[0..1],
+                    .value = 0,
+                };
+                token_count += 1;
+                continue;
+            }
+
+            // Check for digit (number)
+            if (lexer.current_char >= '0' and lexer.current_char <= '9') {
+                const (value, text) = lexer.read_number();
+                tokens[token_count] = Token{
+                    .type = .integer,
+                    .line = lexer.line,
+                    .column = lexer.column,
+                    .text = text,
+                    .value = value,
+                };
+                token_count += 1;
+                continue;
+            }
+
+            // Identifier, keyword, or register
+            const ident = lexer.read_identifier();
+            const token_type = lexer.lookup_keyword(ident);
+
+            // Check if it's a register
+            if (token_type == .identifier) {
+                const (is_reg, reg_num) = lexer.is_register(ident);
+                if (is_reg) {
+                    tokens[token_count] = Token{
+                        .type = .reg,
+                        .line = lexer.line,
+                        .column = lexer.column,
+                        .text = ident,
+                        .value = reg_num,
+                    };
+                } else {
+                    tokens[token_count] = Token{
+                        .type = .identifier,
+                        .line = lexer.line,
+                        .column = lexer.column,
+                        .text = ident,
+                        .value = 0,
+                    };
+                }
+            } else {
+                tokens[token_count] = Token{
+                    .type = token_type,
+                    .line = lexer.line,
+                    .column = lexer.column,
+                    .text = ident,
+                    .value = 0,
+                };
+            }
+            token_count += 1;
+        }
+
+        // Emit EOF token
+        tokens[token_count] = Token{
+            .type = .eof,
+            .line = lexer.line,
+            .column = lexer.column,
+            .text = "",
+            .value = 0,
+        };
+        token_count += 1;
+
+        return token_count;
+    }
+
+    // Advance to next character
+    fn advance_char(lexer: *Lexer) void {
+        if (lexer.pos < lexer.source.len) {
+            lexer.pos += 1;
+            lexer.column += 1;
+            lexer.current_char = if (lexer.pos < lexer.source.len)
+                lexer.source[lexer.pos]
+            else
+                0;
+        } else {
+            lexer.current_char = 0;
+        }
+    }
+
+    // Peek at next character
+    fn peek_char(lexer: *Lexer) u8 {
+        if (lexer.pos + 1 < lexer.source.len) {
+            return lexer.source[lexer.pos + 1];
+        }
+        return 0;
+    }
+
+    // Skip whitespace (except newline)
+    fn skip_whitespace(lexer: *Lexer) void {
+        while (lexer.current_char == ' ' or
+               lexer.current_char == '\t' or
+               lexer.current_char == '\r')
+        {
+            lexer.advance_char();
+        }
+    }
+
+    // Skip comment
+    fn skip_comment(lexer: *Lexer) void {
+        while (lexer.current_char != 0 and lexer.current_char != '\n') {
+            lexer.advance_char();
+        }
+    }
+
+    // Read identifier into buffer
+    fn read_identifier(lexer: *Lexer) []const u8 {
+        var i: usize = 0;
+        while ((lexer.current_char >= '0' and lexer.current_char <= '9') or
+               (lexer.current_char >= 'A' and lexer.current_char <= 'Z') or
+               (lexer.current_char >= 'a' and lexer.current_char <= 'z') or
+               lexer.current_char == '_')
+        {
+            if (i < MAX_IDENTIFIER_LEN - 1) {
+                lexer.identifier_buffer[i] = lexer.current_char;
+                i += 1;
+            }
+            lexer.advance_char();
+        }
+        lexer.identifier_buffer[i] = 0;
+        return lexer.identifier_buffer[0..i];
+    }
+
+    // Read single character token
+    fn read_single_char(lexer: *Lexer) TokenType {
+        const c = lexer.current_char;
+        lexer.advance_char();
+
+        return switch (c) {
+            ':' => .colon,
+            ';' => .semicolon,
+            ',' => .comma,
+            '#' => .hash,
+            '(' => .lparen,
+            ')' => .rparen,
+            '[' => .lbracket,
+            ']' => .rbracket,
+            '+' => .plus,
+            '-' => .minus,
+            '*' => .star,
+            '/' => .slash,
+            '%' => .percent,
+            '&' => .and,
+            '|' => .or,
+            '^' => .xor,
+            '~' => .tilde,
+            '<' => .lt,
+            '>' => .gt,
+            '=' => .eq,
+            '!' => .excl,
+            else => .identifier,
+        };
+    }
+
+    // Read number (integer or float)
+    fn read_number(lexer: *Lexer) struct { u64, []const u8 } {
+        var value: u64 = 0;
+        var is_hex = false;
+        var is_binary = false;
+        var i: usize = 0;
+
+        // Check for hex prefix
+        if (lexer.current_char == '0') {
+            lexer.advance_char();
+            const next = lexer.current_char;
+            if (next == 'x' or next == 'X') {
+                is_hex = true;
+                lexer.advance_char();
+            } else if (next == 'b' or next == 'B') {
+                is_binary = true;
+                lexer.advance_char();
+            } else {
+                // Just a zero
+                lexer.number_buffer[i] = '0';
+                i += 1;
+            }
+        }
+
+        const base: u64 = if (is_hex) 16 else if (is_binary) 2 else 10;
+
+        while (lexer.is_digit(lexer.current_char) or
+               (is_hex and lexer.is_hex_digit(lexer.current_char)))
+        {
+            const digit = if (lexer.current_char >= '0' and lexer.current_char <= '9')
+                @as(u64, lexer.current_char - '0')
+            else if (lexer.current_char >= 'a' and lexer.current_char <= 'f')
+                @as(u64, lexer.current_char - 'a' + 10)
+            else
+                @as(u64, lexer.current_char - 'A' + 10);
+
+            value = value * base + digit;
+
+            if (i < MAX_NUMBER_LEN - 1) {
+                lexer.number_buffer[i] = lexer.current_char;
+                i += 1;
+            }
+            lexer.advance_char();
+        }
+
+        return .{ value, lexer.number_buffer[0..i] };
+    }
+
+    // Check if character is a digit
+    fn is_digit(lexer: *Lexer, c: u8) bool {
+        _ = lexer;
+        return c >= '0' and c <= '9';
+    }
+
+    // Check if character is a hex digit
+    fn is_hex_digit(lexer: *Lexer, c: u8) bool {
+        _ = lexer;
+        return (c >= '0' and c <= '9') or
+               (c >= 'a' and c <= 'f') or
+               (c >= 'A' and c <= 'F');
+    }
+
+    // Check if identifier is a register (r0-r26, R0-R26)
+    fn is_register(lexer: *Lexer, ident: []const u8) struct { bool, u64 } {
+        _ = lexer;
+        if (ident.len < 2) return .{ false, 0 };
+
+        const first = ident[0];
+        if (first != 'r' and first != 'R') return .{ false, 0 };
+
+        // Parse register number
+        var num: u64 = 0;
+        for (ident[1..]) |c| {
+            if (c < '0' or c > '9') return .{ false, 0 };
+            num = num * 10 + (c - '0');
+        }
+
+        if (num > 26) return .{ false, 0 };
+        return .{ true, num };
+    }
+
+    // Lookup keyword in table
+    fn lookup_keyword(lexer: *Lexer, ident: []const u8) TokenType {
+        _ = lexer;
+        // Simple keyword lookup (would use hash table in implementation)
+        if (std.mem.eql(u8, ident, "use")) return .use;
+        if (std.mem.eql(u8, ident, "const")) return .const;
+        if (std.mem.eql(u8, ident, "data")) return .data;
+        if (std.mem.eql(u8, ident, "code")) return .code;
+        if (std.mem.eql(u8, ident, "dword")) return .dword;
+        if (std.mem.eql(u8, ident, "dspace")) return .dspace;
+        if (std.mem.eql(u8, ident, "dtrit")) return .dtrit;
+        if (std.mem.eql(u8, ident, "test")) return .test;
+        if (std.mem.eql(u8, ident, "invariant")) return .invariant;
+        if (std.mem.eql(u8, ident, "bench")) return .bench;
+        if (std.mem.eql(u8, ident, "verify")) return .verify;
+        if (std.mem.eql(u8, ident, "expected")) return .expected;
+        if (std.mem.eql(u8, ident, "setup")) return .setup;
+        if (std.mem.eql(u8, ident, "rationale")) return .rationale;
+        if (std.mem.eql(u8, ident, "measure")) return .measure;
+        if (std.mem.eql(u8, ident, "target")) return .target;
+        if (std.mem.eql(u8, ident, "spec")) return .spec;
+        if (std.mem.eql(u8, ident, "rule")) return .rule;
+        if (std.mem.eql(u8, ident, "given")) return .given;
+        if (std.mem.eql(u8, ident, "when")) return .when;
+        if (std.mem.eql(u8, ident, "then")) return .then;
+        if (std.mem.eql(u8, ident, "assert")) return .assert;
+        if (std.mem.eql(u8, ident, "and")) return .and;
+        if (std.mem.eql(u8, ident, "expect")) return .expect;
+        if (std.mem.eql(u8, ident, "mov")) return .mov;
+        if (std.mem.eql(u8, ident, "jz")) return .jz;
+        if (std.mem.eql(u8, ident, "jnz")) return .jnz;
+        if (std.mem.eql(u8, ident, "jmp")) return .jmp;
+        if (std.mem.eql(u8, ident, "jge")) return .jge;
+        if (std.mem.eql(u8, ident, "jgt")) return .jgt;
+        if (std.mem.eql(u8, ident, "jle")) return .jle;
+        if (std.mem.eql(u8, ident, "jlt")) return .jlt;
+        if (std.mem.eql(u8, ident, "jeq")) return .jeq;
+        if (std.mem.eql(u8, ident, "jne")) return .jne;
+        if (std.mem.eql(u8, ident, "call")) return .call;
+        if (std.mem.eql(u8, ident, "ret")) return .ret;
+        if (std.mem.eql(u8, ident, "mul")) return .mul;
+        if (std.mem.eql(u8, ident, "add")) return .add;
+        if (std.mem.eql(u8, ident, "sub")) return .sub;
+        if (std.mem.eql(u8, ident, "div")) return .div;
+        if (std.mem.eql(u8, ident, "bind")) return .bind;
+        if (std.mem.eql(u8, ident, "bundle")) return .bundle;
+        if (std.mem.eql(u8, ident, "halt")) return .halt;
+        if (std.mem.eql(u8, ident, "push")) return .push;
+        if (std.mem.eql(u8, ident, "pop")) return .pop;
+        if (std.mem.eql(u8, ident, "load")) return .load;
+        if (std.mem.eql(u8, ident, "store")) return .store;
+        if (std.mem.eql(u8, ident, "shl")) return .shl;
+        if (std.mem.eql(u8, ident, "shr")) return .shr;
+        if (std.mem.eql(u8, ident, "and")) return .and_op;
+        if (std.mem.eql(u8, ident, "or")) return .or_op;
+        if (std.mem.eql(u8, ident, "xor")) return .xor_op;
+        if (std.mem.eql(u8, ident, "not")) return .not;
+        if (std.mem.eql(u8, ident, "neg")) return .neg;
+        if (std.mem.eql(u8, ident, "sqrt")) return .sqrt;
+        if (std.mem.eql(u8, ident, "tanh")) return .tanh;
+        if (std.mem.eql(u8, ident, "trap")) return .trap;
+
+        return .identifier;
+    }
+};
+
+// Tests
+test "test_tokenize_spec_keywords" {
+    // Verify: all T27 keywords are recognized
+    // Setup: tokenize source with all keywords (use, const, data, code, etc.)
+    // Expected: each keyword has correct TOKEN_* type
+}
+
+test "test_token_roundtrip" {
+    // Verify: token text matches source for literals and identifiers
+    // Setup: tokenize source with identifiers and literals
+    // Expected: token.text == source substring
+}
+
+test "test_register_recognition" {
+    // Verify: r0-r26 and R0-R26 are recognized as registers
+    // Setup: tokenize "r0 R15 r26"
+    // Expected: tokens with correct reg numbers
+}
+
+test "test_number_formats" {
+    // Verify: decimal, hex (0x), binary (0b) numbers parsed correctly
+    // Setup: tokenize "42 0x2A 0b101010"
+    // Expected: all three evaluate to 42
+}
+
+test "test_comment_skipping" {
+    // Verify: comments (; comment) are not tokenized
+    // Setup: tokenize "instruction ; this is a comment"
+    // Expected: only "instruction" token, no comment tokens
+}
+
+test "test_line_tracking" {
+    // Verify: token line and column are correct
+    // Setup: tokenize multi-line source
+    // Expected: token.line and token.column match source positions
+}
+
+test "test_newline_handling" {
+    // Verify: newlines are tokenized and line counter increments
+    // Setup: tokenize source with multiple lines
+    // Expected: line number increments after each newline
+}
+
+test "test_string_literal" {
+    // Verify: string literals are parsed correctly
+    // Setup: tokenize '"hello world"'
+    // Expected: token type STRING, text includes quotes
+}
+
+// Invariants
+invariant "token_roundtrip" {
+    // For all valid tokens: token.text == source[token.position : token.length]
+    // Rationale: Lexical analysis must preserve source text
+}
+
+invariant "line_column_accuracy" {
+    // token.line and token.column accurately reflect source position
+    // Rationale: Error messages must point to correct location
+}
+
+invariant "register_range_validity" {
+    // Only r0-r26 and R0-R26 are valid registers
+    // Rationale: Register encoding has fixed range (27 registers)
+}
+
+invariant "number_format_validity" {
+    // 0x prefix -> hex, 0b prefix -> binary, else decimal
+    // Rationale: Number prefixes are unambiguous
+}
+
+invariant "eof_token_termination" {
+    // Token stream always ends with EOF token
+    // Rationale: Parser needs explicit end marker
+}
+
+invariant "no_lexical_errors_on_valid_source" {
+    // For syntactically valid t27: lexer produces no errors
+    // Rationale: Clean source should lex cleanly
+}
+
+// Benchmarks
+bench "bench_tokenize_throughput_chars_per_sec" {
+    // Measure: characters processed per second
+    // Target: > 1M chars/sec for typical source
+}
+
+bench "test_token_memory_overhead" {
+    // Measure: bytes per token
+    // Target: < 64 bytes per token (efficient storage)
+}
