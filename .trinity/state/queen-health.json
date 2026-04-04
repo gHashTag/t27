@@ -7,9 +7,10 @@
     "graph": 1.0,
     "compiler": 1.0,
     "runtime": 1.0,
-    "queenlotus": 1.0
+    "queenlotus": 1.0,
+    "ar": 1.0
   },
-  "last_updated": "2026-04-04T00:00:00Z",
+  "last_updated": "2026-04-04T18:00:00Z",
   "thresholds": {
     "critical": 0.5,
     "warning": 0.7
