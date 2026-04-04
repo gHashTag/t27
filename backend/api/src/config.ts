@@ -101,6 +101,8 @@ export const config = {
   sandboxRepoUrl:
     process.env.SANDBOX_REPO_URL ?? "https://github.com/gHashTag/t27.git",
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL,
+  anthropicAuthToken: process.env.ANTHROPIC_AUTH_TOKEN,
   openaiApiKey: process.env.OPENAI_API_KEY,
 };
 
