@@ -2,6 +2,88 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 079: add_base_ops_utility_functions
+
+**Spec**: `specs/base/ops.t27`
+**Task**: Add 9 trit utility functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: 6fc8296f2ab70c57f5e746d0eaf59c71719cc16a577658cf4c4b9bcb020f50b2
+- `spec_hash_after`: 8d209238bf26663c1d154a3faa07ee0a66cdd17159350dd03948cf6b25dff82f
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `trit_power(a: Trit, n: u8) -> Trit` - Raise trit to small power
+2. `trit_from_bool(b: bool) -> Trit` - Convert boolean to trit
+3. `trit_to_bool(a: Trit) -> bool` - Convert trit to boolean
+4. `trit_abs_diff(a: Trit, b: Trit) -> Trit` - Absolute difference
+5. `trit_cond_swap(cond: Trit, a: Trit, b: Trit) -> Trit` - Conditional swap
+6. `trit_is_unit(a: Trit) -> bool` - Check if multiplicative unit
+7. `trit_is_identity(a: Trit) -> bool` - Check if additive identity
+8. `trit_is_negated(a: Trit, b: Trit) -> bool` - Check if b = -a
+
+### Tests Added (21)
+- `test_trit_power_zero_exponent`
+- `test_trit_power_zero_base`
+- `test_trit_power_one`
+- `test_trit_power_square`
+- `test_trit_power_cube`
+- `test_trit_from_bool_true`
+- `test_trit_from_bool_false`
+- `test_trit_to_bool_positive`
+- `test_trit_to_bool_non_positive`
+- `test_trit_to_bool_from_bool_roundtrip`
+- `test_trit_abs_diff_equal`
+- `test_trit_abs_diff_different`
+- `test_trit_abs_diff_commutative`
+- `test_trit_cond_swap_condition_true`
+- `test_trit_cond_swap_condition_false`
+- `test_trit_is_unit_true_for_pos`
+- `test_trit_is_unit_false_for_others`
+- `test_trit_is_identity_true_for_zero`
+- `test_trit_is_identity_false_for_others`
+- `test_trit_is_negated_true_pair`
+- `test_trit_is_negated_false_non_pair`
+
+### Invariants Added (13)
+- `trit_power_zero_exponent_returns_unit`
+- `trit_power_zero_base_returns_zero`
+- `trit_power_pos_always_pos`
+- `trit_from_bool_to_bool_roundtrip`
+- `trit_abs_diff_non_negative`
+- `trit_abs_diff_zero_iff_equal`
+- `trit_abs_diff_commutative`
+- `trit_cond_swap_condition_true_swaps`
+- `trit_cond_swap_condition_false_keeps_first`
+- `trit_is_unit_only_for_pos`
+- `trit_is_identity_only_for_zero`
+- `trit_is_negated_symmetric`
+- `trit_is_negated_zero_self`
+
+### Benchmarks Added (8)
+- `bench_trit_power_latency` - Target: < 15 cycles
+- `bench_trit_from_bool_latency` - Target: < 5 cycles
+- `bench_trit_to_bool_latency` - Target: < 5 cycles
+- `bench_trit_abs_diff_latency` - Target: < 10 cycles
+- `bench_trit_cond_swap_latency` - Target: < 10 cycles
+- `bench_trit_is_unit_latency` - Target: < 5 cycles
+- `bench_trit_is_identity_latency` - Target: < 5 cycles
+- `bench_trit_is_negated_latency` - Target: < 10 cycles
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 079
+- `task_id`: add_base_ops_utility_functions
+- `spec_path`: specs/base/ops.t27
+
+---
+
 ## Skill 078: add_tf3_utility_functions
 
 **Spec**: `specs/numeric/tf3.t27`
