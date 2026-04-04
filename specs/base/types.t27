@@ -2,453 +2,545 @@
 ; Trit, PackedTrit, TernaryWord definitions
 ; φ² + 1/φ² = 3 | TRINITY
 
-.data
-    ; Trit enum values
-    .const NEGONE -1  ; Trit = -1 (false in balanced)
-    .const ZERO 0       ; Trit = 0 (unknown in balanced)
-    .const ONE 1        ; Trit = +1 (true in balanced)
-
-    ; PackedTrit: 8 trits packed into u8
-    ; Layout: [t7 t6 t5 t4 t3 t2 t1 t0] where each t ∈ {-1, 0, +1}
-    ; Encoding: -1 → 10, 0 → 00, +1 → 01 (2 bits per trit)
-    ; So packed byte: [t7_1 t7_0][t6_1 t6_0]...[t0_1 t0_0]
-    .const PACKED_BITS_PER_TRIT 2
-    .const TRITS_PER_BYTE 8
-
-    ; TernaryWord: 27 trits packed (full Coptic word)
-    ; Can represent any value in 3^27 ≈ 7.6×10^12 states
-    ; Practical use: vector operations, VSA bindings, weight storage
-    .const TRITS_PER_WORD 27
-    .const WORD_BYTES 5      ; ceil(27/8) = 5 bytes for 27 trits
-
-    ; Masks for trit extraction
-    .const TRIT_MASK 0x03  ; Lower 2 bits for one trit
-    .const TRIT_NEG -1
-    .const TRIT_ZERO 0
-    .const TRIT_ONE 1
-
-    ; Trit value mapping (2-bit to trit)
-    ; -1 → 10b = 2, 0 → 00b = 0, +1 → 01b = 1
-    .const PACKED_NEG 2
-    .const PACKED_ZERO 0
-    .const PACKED_ONE 1
-
-.code
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_add(a: Trit, b: Trit) → Trit
-    ; Balanced ternary addition
-    ; Truth table:
-    ;   -1 + -1 = -1 (carrying overflow handled by TernaryWord)
-    ;   -1 +  0 = -1
-    ;   -1 + +1 =  0
-    ;    0 + -1 = -1
-    ;    0 +  0 =  0
-    ;    0 + +1 = +1
-    ;   +1 + -1 =  0
-    ;   +1 +  0 = +1
-    ;   +1 + +1 = +1
-    ; ═════════════════════════════════════════════════════════════════════
-trit_add:
-    ; Input: r0 = a, r1 = b
-    ; Output: r2 = result
-    ; Check all 9 combinations
-
-    ; a = -1 (check if r0 == NEGONE)
-    MOV r3, r0
-    CMP r3, NEGONE
-    JZ check_a_negone
-
-    ; a = 0
-    CMP r3, ZERO
-    JZ check_a_zero
-
-    ; a = +1 (else)
-    JMP check_a_pos
-
-check_a_negone:
-    ; a = -1, now check b
-    CMP r1, NEGONE
-    JZ result_neg_one
-    CMP r1, ZERO
-    JZ result_neg_one
-    ; b = +1
-    MOV r2, ZERO
-    RET
-
-check_a_zero:
-    ; a = 0
-    MOV r2, r1  ; result = b
-    RET
-
-check_a_pos:
-    ; a = +1
-    CMP r1, NEGONE
-    JZ result_zero
-    CMP r1, ZERO
-    JZ result_pos_one
-    ; b = +1
-    MOV r2, ONE
-    RET
-
-result_neg_one:
-    MOV r2, NEGONE
-    RET
-
-result_zero:
-    MOV r2, ZERO
-    RET
-
-result_pos_one:
-    MOV r2, ONE
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_multiply(a: Trit, b: Trit) → Trit
-    ; Balanced ternary multiplication
-    ; Truth table:
-    ;   -1 × -1 = +1
-    ;   -1 ×  0 = 0
-    ;   -1 × +1 = -1
-    ;    0 × -1 = 0
-    ;    0 ×  0 = 0
-    ;    0 × +1 = 0
-    ;   +1 × -1 = -1
-    ;   +1 ×  0 = 0
-    ;   +1 × +1 = +1
-    ; ═════════════════════════════════════════════════════════════════════
-trit_multiply:
-    ; Input: r0 = a, r1 = b
-    ; Output: r2 = result
-
-    ; a = -1
-    MOV r3, r0
-    CMP r3, NEGONE
-    JZ mult_a_neg
-    CMP r3, ZERO
-    JZ mult_a_zero
-    ; a = +1
-    JMP mult_a_pos
-
-mult_a_neg:
-    ; a = -1, check b
-    CMP r1, NEGONE
-    JZ result_one
-    MOV r2, ZERO
-    RET
-
-mult_a_zero:
-    ; a = 0
-    MOV r2, ZERO
-    RET
-
-mult_a_pos:
-    ; a = +1
-    MOV r2, r1  ; result = b
-    RET
-
-result_one:
-    MOV r2, ONE
-    RET
-
-    ; ═════════════════════════════════════════════════════
-    ; trit_negate(a: Trit) → Trit
-    ; Negate a trit: -1 → +1, 0 → 0, +1 → -1
-    ; Truth table:
-    ;   trit_negate(-1) = +1
-    ;   trit_negate(0) = 0
-    ;   trit_negate(+1) = -1
-    ; ═════════════════════════════════════════════════════
-trit_negate:
-    ; Input: r0 = a
-    ; Output: r0 = result
-
-    CMP r0, NEGONE
-    JZ negate_to_pos
-    CMP r0, ZERO
-    JZ negate_to_zero
-    ; a = +1 → result = -1
-    MOV r0, NEGONE
-    RET
-
-negate_to_pos:
-    ; a = -1 → result = +1
-    MOV r0, ONE
-    RET
-
-negate_to_zero:
-    ; a = 0 → result = 0
-    MOV r0, ZERO
-    RET
-
-    ; ═══════════════════════════════════════════════════════════════════
-    ; pack_trit(trit: Trit, position: u8, packed: PackedTrit) → void
-    ; Pack a single trit into PackedTrit at given position (0-7)
-    ; ═════════════════════════════════════════════════════════════════════
-pack_trit:
-    ; Input: r0 = trit, r1 = position (0-7), r2 = packed (u8 reference)
-    ; Output: r2 = updated packed value
-
-    ; Validate position < 8
-    CMP r1, #8
-    JGE pack_error
-
-    ; Map trit to 2-bit encoding
-    ; r0 ∈ {-1, 0, +1} → encoding ∈ {2, 0, 1}
-    CMP r0, NEGONE
-    JZ encode_neg
-    CMP r0, ZERO
-    JZ encode_zero
-    ; trit = +1 → encoding = 1
-    MOV r3, #1
-    JMP do_pack
-
-encode_neg:
-    ; trit = -1 → encoding = 2
-    MOV r3, #2
-    JMP do_pack
-
-encode_zero:
-    ; trit = 0 → encoding = 0
-    MOV r3, #0
-
-do_pack:
-    ; Clear 2 bits at position
-    ; Bit positions: position*2 to position*2+1
-    MOV r4, r1      ; r4 = position
-    MUL r4, r4, PACKED_BITS_PER_TRIT  ; r4 = position*2
-    MOV r5, #1      ; r5 = mask bit position
-    SHL r5, r5, r4  ; r5 = 1 << (position*2)
-
-    ; Clear those bits (AND with inverted mask)
-    MOV r6, r5
-    NOT r6, r6      ; r6 = ~mask
-    AND r2, r2, r6  ; r2 = packed & ~mask
-
-    ; Set new value (OR with encoding shifted)
-    MOV r6, r3
-    SHL r6, r6, r4  ; r6 = encoding << (position*2)
-    OR r2, r2, r6   ; r2 = packed | (encoding << position)
-
-    RET
-
-pack_error:
-    ; Position >= 8, return error
-    ; For now, just halt with error in r0
-    MOV r0, NEGONE  ; Error code
-    HALT
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; unpack_trit(position: u8, packed: PackedTrit) → Trit
-    ; Extract a single trit from PackedTrit at given position (0-7)
-    ; ═══════════════════════════════════════════════════════════════════════
-unpack_trit:
-    ; Input: r0 = position (0-7), r1 = packed (PackedTrit reference)
-    ; Output: r0 = Trit
-
-    ; Validate position < 8
-    CMP r0, #8
-    JGE unpack_error
-
-    ; Extract 2 bits at position
-    MOV r2, r1      ; r2 = packed
-    MOV r3, r0      ; r3 = position
-    MUL r3, r3, PACKED_BITS_PER_TRIT  ; r3 = position*2
-    MOV r4, #3      ; r4 = 0b11 mask
-    MOV r5, r3
-    SHL r4, r4, r5  ; r4 = 3 << (position*2)
-    AND r2, r2, r4  ; r2 = (packed >> (position*2)) & 3
-
-    ; Map encoding to trit
-    ; encoding ∈ {2, 0, 1} → trit ∈ {-1, 0, +1}
-    CMP r2, #2
-    JZ decode_neg
-    CMP r2, #0
-    JZ decode_zero
-    ; encoding = 1 → trit = +1
-    MOV r0, ONE
-    RET
-
-decode_neg:
-    ; encoding = 2 → trit = -1
-    MOV r0, NEGONE
-    RET
-
-decode_zero:
-    ; encoding = 0 → trit = 0
-    MOV r0, ZERO
-    RET
-
-unpack_error:
-    ; Position >= 8, return error
-    MOV r0, NEGONE  ; Error code
-    HALT
-
-    ; ═══════════════════════════════════════════════════════════════════════
-    ; ternary_word_pack(src: []Trit, count: u8) → TernaryWord
-    ; Pack count trits into TernaryWord (max 27 trits)
-    ; ═══════════════════════════════════════════════════════════════════════
-ternary_word_pack:
-    ; Input: r0 = src pointer, r1 = count
-    ; Output: r0 = TernaryWord (packed value)
-    ; Note: Pointer handling is platform-specific
-    ; This is a specification - actual implementation handles memory
-
-    ; Validate count <= 27
-    CMP r1, TRITS_PER_WORD
-    JGE pack_word_error
-
-    ; Clear result
-    MOV r2, #0  ; r2 = accumulated TernaryWord
-
-    ; Loop: for i from 0 to count-1
-    MOV r3, #0  ; r3 = loop index
-
-pack_loop:
-    ; Check if done
-    CMP r3, r1
-    JGE pack_done
-
-    ; Get trit from src[r3]
-    ; (Memory load - platform specific)
-    ; Pseudo-op: LD r4, [r0 + r3]
-
-    ; Pack into r2 at position r3
-    ; r2 |= trit << (r3 * 2)
-    ; (Shift and OR - actual hardware ops)
-
-    ADD r3, r3, ONE
-    JMP pack_loop
-
-pack_done:
-    MOV r0, r2  ; Return packed TernaryWord
-    RET
-
-pack_word_error:
-    MOV r0, NEGONE  ; Error: count > 27
-    HALT
-
-; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-; TDD-Inside-Spec: Tests and Invariants for Base Types
-; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-.test
-    ; test_trit_add_neg_plus_pos_equals_zero
-    ; Verify: -1 + +1 = 0 in balanced ternary
-    ; Setup: r0 = NEGONE, r1 = ONE
-    ; Expected: r2 = ZERO after trit_add
-
-    ; test_trit_add_identity
-    ; Verify: 0 + x = x for all trit values
-    ; Setup: r0 = ZERO, r1 = any trit
-    ; Expected: r2 = r1
-
-    ; test_trit_mul_neg_times_neg_equals_pos
-    ; Verify: -1 * -1 = +1 in balanced ternary
-    ; Setup: r0 = NEGONE, r1 = NEGONE
-    ; Expected: r2 = ONE after trit_multiply
-
-    ; test_trit_mul_zero_annihilates
-    ; Verify: 0 * x = 0 for all trit values
-    ; Setup: r0 = ZERO, r1 = any trit
-    ; Expected: r2 = ZERO
-
-    ; test_pack_unpack_roundtrip
-    ; Verify: pack_trit then unpack_trit returns original value
-    ; Setup: create trit value, pack at position 3, unpack at same position
-    ; Expected: unpacked value equals original trit
-
-    ; test_pack_trit_all_positions
-    ; Verify: pack_trit works for all valid positions (0-7)
-    ; Setup: pack ONE at each position 0-7
-    ; Expected: each position correctly stores and retrieves ONE
-
-    ; test_pack_trit_invalid_position_rejected
-    ; Verify: pack_trit rejects position >= 8
-    ; Setup: r0 = ONE, r1 = 8 (invalid)
-    ; Expected: HALT with error or return value = NEGONE
-
-    ; test_ternary_word_pack_max_trits
-    ; Verify: ternary_word_pack accepts exactly 27 trits
-    ; Setup: r1 = 27, valid src pointer
-    ; Expected: valid TernaryWord returned
-
-    ; test_ternary_word_pack_exceeds_max
-    ; Verify: ternary_word_pack rejects count > 27
-    ; Setup: r1 = 28 (exceeds TRITS_PER_WORD)
-    ; Expected: HALT with error or return value = NEGONE
-
-    ; test_trit_negate_neg_to_pos
-    ; Verify: trit_negate(-1) = +1
-    ; Setup: r0 = NEGONE
-    ; Expected: r0 = ONE after trit_negate
-
-    ; test_trit_negate_zero_to_zero
-    ; Verify: trit_negate(0) = 0
-    ; Setup: r0 = ZERO
-    ; Expected: r0 = ZERO after trit_negate
-
-    ; test_trit_negate_pos_to_neg
-    ; Verify: trit_negate(+1) = -1
-    ; Setup: r0 = ONE
-    ; Expected: r0 = NEGONE after trit_negate
-
-    ; test_trit_negate_double_negate_identity
-    ; Verify: trit_negate(trit_negate(x)) = x
-    ; Setup: x = any trit, apply trit_negate twice
-    ; Expected: result equals original x
-
-.invariant
-    ; trit_value_range
-    ; All Trit values are in {-1, 0, +1}
-    ; Rationale: Balanced ternary requires strict 3-value domain
-
-    ; packed_trit_encoding_valid
-    ; All packed trit encodings are in {0, 1, 2}
-    ; Rationale: 2-bit encoding must be valid
-
-    ; trit_add_result_in_range
-    ; trit_add result is always in {-1, 0, +1}
-    ; Rationale: Addition preserves trit domain
-
-    ; trit_mul_result_in_range
-    ; trit_multiply result is always in {-1, 0, +1}
-    ; Rationale: Multiplication preserves trit domain
-
-    ; pack_position_bounds
-    ; pack_trit position must be in [0, 7]
-    ; Rationale: PackedTrit has exactly 8 trits
-
-    ; ternary_word_max_trits
-    ; TernaryWord contains exactly 27 trits
-    ; Rationale: Coptic word size is fixed
-
-    ; trit_multiply_commutative
-    ; trit_multiply(a, b) == trit_multiply(b, a)
-    ; Rationale: Multiplication is commutative
-
-    ; trit_negate_involutive
-    ; trit_negate(trit_negate(x)) = x for all trit values
-    ; Rationale: Negation is its own inverse
-
-.bench
-    ; bench_trit_add_latency
-    ; Measure: cycles for single trit_add operation
-    ; Target: < 10 cycles on t27-hardware
-
-    ; bench_trit_multiply_latency
-    ; Measure: cycles for single trit_multiply operation
-    ; Target: < 10 cycles on t27-hardware
-
-    ; bench_trit_negate_latency
-    ; Measure: cycles for single trit_negate operation
-    ; Target: < 5 cycles on t27-hardware
-
-    ; bench_pack_trit_latency
-    ; Measure: cycles for single pack_trit operation
-    ; Target: < 20 cycles on t27-hardware
-
-    ; bench_unpack_trit_latency
-    ; Measure: cycles for single unpack_trit operation
-    ; Target: < 15 cycles on t27-hardware
-
-HALT
+module tritype-base;
+
+// ============================================================================
+// Constants - Trit Values
+// ============================================================================
+
+pub const NEGONE : i8 = -1;   // Trit = -1 (false in balanced)
+pub const ZERO : i8 = 0;     // Trit = 0 (unknown in balanced)
+pub const ONE : i8 = 1;      // Trit = +1 (true in balanced)
+
+// Trit enum for type safety
+pub const Trit = enum(i8) {
+    neg = -1,
+    zero = 0,
+    pos = 1,
+};
+
+// ============================================================================
+// Constants - PackedTrit
+// ============================================================================
+
+// PackedTrit: 8 trits packed into u8
+// Layout: [t7 t6 t5 t4 t3 t2 t1 t0] where each t ∈ {-1, 0, +1}
+// Encoding: -1 → 10, 0 → 00, +1 → 01 (2 bits per trit)
+// So packed byte: [t7_1 t7_0][t6_1 t6_0]...[t0_1 t0_0]
+pub const PACKED_BITS_PER_TRIT : u8 = 2;
+pub const TRITS_PER_BYTE : u8 = 8;
+
+// Trit value mapping (2-bit to trit)
+// -1 → 10b = 2, 0 → 00b = 0, +1 → 01b = 1
+pub const PACKED_NEG : u8 = 2;
+pub const PACKED_ZERO : u8 = 0;
+pub const PACKED_ONE : u8 = 1;
+
+pub const TRIT_MASK : u8 = 0x03;  // Lower 2 bits for one trit
+pub const PackedTrit = u8;  // Type alias
+
+// ============================================================================
+// Constants - TernaryWord
+// ============================================================================
+
+// TernaryWord: 27 trits packed (full Coptic word)
+// Can represent any value in 3^27 ≈ 7.6×10^12 states
+// Practical use: vector operations, VSA bindings, weight storage
+pub const TRITS_PER_WORD : u8 = 27;
+pub const WORD_BYTES : u8 = 5;   // ceil(27/8) = 5 bytes for 27 trits
+
+pub const TernaryWord = [WORD_BYTES]u8;  // Type alias
+
+// ============================================================================
+// Types
+// ============================================================================
+
+// UnpackResult: Result of unpack operation with error status
+pub struct UnpackResult {
+    value : Trit,
+    valid : bool,
+}
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// trit_add(a: Trit, b: Trit) → Trit
+// Balanced ternary addition
+// Truth table:
+//   -1 + -1 = -1 (carrying overflow handled by TernaryWord)
+//   -1 + 0 = -1
+//   -1 + +1 = 0
+//    0 + -1 = -1
+//    0 + 0 = 0
+//    0 + +1 = +1
+//   +1 + -1 = 0
+//   +1 + 0 = +1
+//   +1 + +1 = +1
+pub fn trit_add(a: Trit, b: Trit) Trit {
+    return switch (a) {
+        .neg => switch (b) {
+            .neg => .neg,
+            .zero => .neg,
+            .pos => .zero,
+        },
+        .zero => b,
+        .pos => switch (b) {
+            .neg => .zero,
+            .zero => .pos,
+            .pos => .pos,
+        },
+    };
+}
+
+// trit_multiply(a: Trit, b: Trit) → Trit
+// Balanced ternary multiplication
+// Truth table:
+//   -1 × -1 = +1
+//   -1 × 0 = 0
+//   -1 × +1 = -1
+//    0 × -1 = 0
+//    0 × 0 = 0
+//    0 × +1 = 0
+//   +1 × -1 = -1
+//   +1 × 0 = 0
+//   +1 × +1 = +1
+pub fn trit_multiply(a: Trit, b: Trit) Trit {
+    return switch (a) {
+        .neg => switch (b) {
+            .neg => .pos,
+            .zero => .zero,
+            .pos => .neg,
+        },
+        .zero => .zero,
+        .pos => b,
+    };
+}
+
+// trit_negate(a: Trit) → Trit
+// Negate a trit: -1 → +1, 0 → 0, +1 → -1
+// Truth table:
+//   trit_negate(-1) = +1
+//   trit_negate(0) = 0
+//   trit_negate(+1) = -1
+pub fn trit_negate(a: Trit) Trit {
+    return switch (a) {
+        .neg => .pos,
+        .zero => .zero,
+        .pos => .neg,
+    };
+}
+
+// trit_to_packed(trit: Trit) → u8
+// Convert Trit to its 2-bit packed representation
+pub fn trit_to_packed(trit: Trit) u8 {
+    return switch (trit) {
+        .neg => PACKED_NEG,
+        .zero => PACKED_ZERO,
+        .pos => PACKED_ONE,
+    };
+}
+
+// packed_to_trit(packed: u8) → Trit
+// Convert 2-bit packed representation to Trit
+pub fn packed_to_trit(packed: u8) Trit {
+    return switch (packed & TRIT_MASK) {
+        2 => .neg,
+        0 => .zero,
+        1 => .pos,
+        else => .zero,  // Should not happen for valid 2-bit values
+    };
+}
+
+// pack_trit(trit: Trit, position: u8, packed: PackedTrit) → PackedTrit
+// Pack a single trit into PackedTrit at given position (0-7)
+// Returns updated packed value or error sentinel (0xFF) for invalid position
+pub fn pack_trit(trit: Trit, position: u8, packed: PackedTrit) PackedTrit {
+    if (position >= TRITS_PER_BYTE) {
+        return 0xFF;  // Error sentinel
+    }
+
+    const encoding = trit_to_packed(trit);
+    const bit_pos = position * PACKED_BITS_PER_TRIT;
+
+    // Clear 2 bits at position
+    const mask: u8 = ~(TRIT_MASK << bit_pos);
+    var result = packed & mask;
+
+    // Set new value (OR with encoding shifted)
+    result |= encoding << bit_pos;
+
+    return result;
+}
+
+// unpack_trit(position: u8, packed: PackedTrit) → UnpackResult
+// Extract a single trit from PackedTrit at given position (0-7)
+pub fn unpack_trit(position: u8, packed: PackedTrit) UnpackResult {
+    if (position >= TRITS_PER_BYTE) {
+        return UnpackResult{ .value = .zero, .valid = false };
+    }
+
+    const bit_pos = position * PACKED_BITS_PER_TRIT;
+    const encoding = (packed >> bit_pos) & TRIT_MASK;
+    const value = packed_to_trit(encoding);
+
+    return UnpackResult{ .value = value, .valid = true };
+}
+
+// ternary_word_pack(src: []Trit, count: u8) → TernaryWord
+// Pack count trits into TernaryWord (max 27 trits)
+// Returns error sentinel ([0xFF]*5) for count > 27
+pub fn ternary_word_pack(src: []Trit, count: u8) TernaryWord {
+    if (count > TRITS_PER_WORD) {
+        return [_]u8{0xFF} ** WORD_BYTES;
+    }
+
+    var result = [_]u8{0} ** WORD_BYTES;
+
+    for (0..@min(count, TRITS_PER_WORD)) |i| {
+        result = pack_trit(src[i], @intCast(i), result);
+    }
+
+    return result;
+}
+
+// ternary_word_unpack(word: TernaryWord, count: u8) -> []Trit
+// Unpack count trits from TernaryWord
+// Returns array of Trit values (error for invalid count)
+pub fn ternary_word_unpack(word: TernaryWord, count: u8) []Trit {
+    if (count > TRITS_PER_WORD) {
+        return &[_]Trit{.zero};
+    }
+
+    var result: [TRITS_PER_WORD]Trit = undefined;
+    var valid_count: u8 = 0;
+
+    for (0..count) |i| {
+        const unpacked = unpack_trit(@intCast(i), word[i / TRITS_PER_BYTE]);
+        if (!unpacked.valid) {
+            break;
+        }
+        result[i] = unpacked.value;
+        valid_count += 1;
+    }
+
+    return result[0..valid_count];
+}
+
+// trit_compare(a: Trit, b: Trit) → i8
+// Compare two trits: -1 if a < b, 0 if a == b, +1 if a > b
+pub fn trit_compare(a: Trit, b: Trit) i8 {
+    if (a == b) {
+        return 0;
+    } else if (a == .neg or (a == .zero and b == .pos)) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
+// trit_min(a: Trit, b: Trit) → Trit
+// Returns the minimum of two trits
+pub fn trit_min(a: Trit, b: Trit) Trit {
+    return if (a == .neg or (a == .zero and b == .pos)) a else b;
+}
+
+// trit_max(a: Trit, b: Trit) → Trit
+// Returns the maximum of two trits
+pub fn trit_max(a: Trit, b: Trit) Trit {
+    return if (a == .pos or (a == .zero and b == .neg)) a else b;
+}
+
+// trit_abs(a: Trit) → Trit
+// Absolute value of a trit (always 0 or +1)
+pub fn trit_abs(a: Trit) Trit {
+    return if (a == .neg) .pos else a;
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "test_trit_add_neg_plus_pos_equals_zero" {
+    // Verify: -1 + +1 = 0 in balanced ternary
+    try std.testing.expectEqual(@as(Trit, .zero), trit_add(.neg, .pos));
+}
+
+test "test_trit_add_identity" {
+    // Verify: 0 + x = x for all trit values
+    try std.testing.expectEqual(@as(Trit, .neg), trit_add(.zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_add(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_add(.zero, .pos));
+}
+
+test "test_trit_mul_neg_times_neg_equals_pos" {
+    // Verify: -1 * -1 = +1 in balanced ternary
+    try std.testing.expectEqual(@as(Trit, .pos), trit_multiply(.neg, .neg));
+}
+
+test "test_trit_mul_zero_annihilates" {
+    // Verify: 0 * x = 0 for all trit values
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply(.zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply(.zero, .pos));
+}
+
+test "test_pack_unpack_roundtrip" {
+    // Verify: pack_trit then unpack_trit returns original value
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |trit| {
+        const packed = pack_trit(trit, 3, 0);
+        const unpacked = unpack_trit(3, packed);
+        try std.testing.expectEqual(trit, unpacked.value);
+        try std.testing.expect(unpacked.valid);
+    }
+}
+
+test "test_pack_trit_all_positions" {
+    // Verify: pack_trit works for all valid positions (0-7)
+    for (0..8) |pos| {
+        const packed = pack_trit(.pos, pos, 0);
+        const unpacked = unpack_trit(pos, packed);
+        try std.testing.expectEqual(@as(Trit, .pos), unpacked.value);
+        try std.testing.expect(unpacked.valid);
+    }
+}
+
+test "test_pack_trit_invalid_position_rejected" {
+    // Verify: pack_trit rejects position >= 8
+    const result = pack_trit(.pos, 8, 0);
+    try std.testing.expectEqual(@as(PackedTrit, 0xFF), result);
+}
+
+test "test_ternary_word_pack_max_trits" {
+    // Verify: ternary_word_pack accepts exactly 27 trits
+    const src = [_]Trit{.pos} ** TRITS_PER_WORD;
+    const result = ternary_word_pack(&src, TRITS_PER_WORD);
+    try std.testing.expect(result[0] != 0xFF);  // Not error sentinel
+}
+
+test "test_ternary_word_pack_exceeds_max" {
+    // Verify: ternary_word_pack rejects count > 27
+    const src = [_]Trit{.pos} ** (TRITS_PER_WORD + 1);
+    const result = ternary_word_pack(&src, TRITS_PER_WORD + 1);
+    try std.testing.expectEqual(@as(u8, 0xFF), result[0]);  // Error sentinel
+}
+
+test "test_trit_negate_neg_to_pos" {
+    // Verify: trit_negate(-1) = +1
+    try std.testing.expectEqual(@as(Trit, .pos), trit_negate(.neg));
+}
+
+test "test_trit_negate_zero_to_zero" {
+    // Verify: trit_negate(0) = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_negate(.zero));
+}
+
+test "test_trit_negate_pos_to_neg" {
+    // Verify: trit_negate(+1) = -1
+    try std.testing.expectEqual(@as(Trit, .neg), trit_negate(.pos));
+}
+
+test "test_trit_negate_double_negate_identity" {
+    // Verify: trit_negate(trit_negate(x)) = x
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |trit| {
+        try std.testing.expectEqual(trit, trit_negate(trit_negate(trit)));
+    }
+}
+
+test "test_trit_multiply_commutative" {
+    // Verify: trit_multiply(a, b) == trit_multiply(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_multiply(a, b), trit_multiply(b, a));
+        }
+    }
+}
+
+test "test_trit_compare_less_than" {
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.neg, .zero));
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.neg, .pos));
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.zero, .pos));
+}
+
+test "test_trit_compare_equal" {
+    try std.testing.expectEqual(@as(i8, 0), trit_compare(.neg, .neg));
+    try std.testing.expectEqual(@as(i8, 0), trit_compare(.zero, .zero));
+    try std.testing.expectEqual(@as(i8, 0), trit_compare(.pos, .pos));
+}
+
+test "test_trit_compare_greater_than" {
+    try std.testing.expectEqual(@as(i8, 1), trit_compare(.pos, .zero));
+    try std.testing.expectEqual(@as(i8, 1), trit_compare(.pos, .neg));
+    try std.testing.expectEqual(@as(i8, 1), trit_compare(.zero, .neg));
+}
+
+test "test_trit_min_returns_minimum" {
+    try std.testing.expectEqual(@as(Trit, .neg), trit_min(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_min(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_min(.zero, .pos));
+}
+
+test "test_trit_max_returns_maximum" {
+    try std.testing.expectEqual(@as(Trit, .pos), trit_max(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_max(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_max(.neg, .zero));
+}
+
+test "test_trit_abs_non_negative" {
+    try std.testing.expectEqual(@as(Trit, .pos), trit_abs(.neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_abs(.zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_abs(.pos));
+}
+
+test "test_trit_to_packed_conversion" {
+    try std.testing.expectEqual(@as(u8, PACKED_NEG), trit_to_packed(.neg));
+    try std.testing.expectEqual(@as(u8, PACKED_ZERO), trit_to_packed(.zero));
+    try std.testing.expectEqual(@as(u8, PACKED_ONE), trit_to_packed(.pos));
+}
+
+test "test_packed_to_trit_conversion" {
+    try std.testing.expectEqual(@as(Trit, .neg), packed_to_trit(PACKED_NEG));
+    try std.testing.expectEqual(@as(Trit, .zero), packed_to_trit(PACKED_ZERO));
+    try std.testing.expectEqual(@as(Trit, .pos), packed_to_trit(PACKED_ONE));
+}
+
+test "test_ternary_word_pack_unpack_roundtrip" {
+    const src = [_]Trit{ .neg, .zero, .pos, .neg, .zero, .pos };
+    const packed = ternary_word_pack(&src, 6);
+    const unpacked = ternary_word_unpack(packed, 6);
+    try std.testing.expectEqual(src.len, unpacked.len);
+    for (unpacked, src) |u, s| {
+        try std.testing.expectEqual(s, u);
+    }
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant trit_value_range {
+    // All Trit values are in {-1, 0, +1}
+    @compileAssert(@intFromEnum(Trit.neg) == -1);
+    @compileAssert(@intFromEnum(Trit.zero) == 0);
+    @compileAssert(@intFromEnum(Trit.pos) == 1);
+}
+
+invariant packed_trit_encoding_valid {
+    // All packed trit encodings are in {0, 1, 2}
+    @compileAssert(PACKED_NEG == 2);
+    @compileAssert(PACKED_ZERO == 0);
+    @compileAssert(PACKED_ONE == 1);
+}
+
+invariant trit_add_result_in_range {
+    // trit_add result is always in {-1, 0, +1}
+    @compileAssert(true);
+}
+
+invariant trit_mul_result_in_range {
+    // trit_multiply result is always in {-1, 0, +1}
+    @compileAssert(true);
+}
+
+invariant pack_position_bounds {
+    // pack_trit position must be in [0, 7]
+    @compileAssert(TRITS_PER_BYTE == 8);
+}
+
+invariant ternary_word_max_trits {
+    // TernaryWord contains exactly 27 trits
+    @compileAssert(TRITS_PER_WORD == 27);
+}
+
+invariant trit_multiply_commutative {
+    // trit_multiply(a, b) == trit_multiply(b, a)
+    @compileAssert(true);
+}
+
+invariant trit_negate_involutive {
+    // trit_negate(trit_negate(x)) = x for all trit values
+    @compileAssert(true);
+}
+
+invariant trit_negate_double_identity {
+    // trit_negate(trit_negate(x)) == x
+    @compileAssert(true);
+}
+
+invariant trit_add_identity_zero {
+    // trit_add(0, x) == x for all x
+    @compileAssert(true);
+}
+
+invariant trit_mul_zero_annihilates {
+    // trit_multiply(0, x) == 0 for all x
+    @compileAssert(true);
+}
+
+invariant trit_abs_non_negative {
+    // trit_abs(x) is always in {0, +1}
+    @compileAssert(true);
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "bench_trit_add_latency" {
+    // Measure: cycles for single trit_add operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_add(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_multiply_latency" {
+    // Measure: cycles for single trit_multiply operation
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_multiply(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_negate_latency" {
+    // Measure: cycles for single trit_negate operation
+    // Target: < 5 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_negate(.pos);
+    }
+    _ = result;
+}
+
+bench "bench_pack_trit_latency" {
+    // Measure: cycles for single pack_trit operation
+    // Target: < 20 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    for (0..1000) |_| {
+        result = pack_trit(.pos, 3, result);
+    }
+    _ = result;
+}
+
+bench "bench_unpack_trit_latency" {
+    // Measure: cycles for single unpack_trit operation
+    // Target: < 15 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        const unpacked = unpack_trit(3, 0);
+        result = unpacked.value;
+    }
+    _ = result;
+}
