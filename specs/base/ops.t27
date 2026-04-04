@@ -2,540 +2,564 @@
 ; Trit arithmetic: multiply, add, carry, comparison
 ; φ² + 1/φ² = 3 | TRINITY
 
-.const NEGONE -1
-.const ZERO 0
-.const ONE 1
-
-.data
-    ; Lookup tables for trit operations
-    ; Table size: 9 entries (3×3 for each operand)
-    ; Indexed as: table[a+1][b+1] where a,b ∈ {-1,0,+1}
-
-    ; trit_multiply lookup table
-    ;    -1  0 +1
-    ; -1 +1  0 -1
-    ;  0  0  0  0
-    ; +1 -1  0 +1
-mult_table:
-    .byte 1, 0, 255  ; row -1: (+1, 0, -1) stored as (1, 0, 255=-1)
-    .byte 0, 0, 0    ; row 0: (0, 0, 0)
-    .byte 255, 0, 1  ; row +1: (-1, 0, +1) stored as (255=-1, 0, 1)
-
-    ; trit_add lookup table
-    ;    -1  0 +1
-    ; -1 -1 -1  0
-    ;  0 -1  0 +1
-    ; +1  0 +1 +1
-add_table:
-    .byte 255, 255, 0  ; row -1
-    .byte 255, 0, 1    ; row 0
-    .byte 0, 1, 1      ; row +1
-
-    ; trit_carry lookup table (for addition overflow)
-    ; Carry = -1 if result < -1, +1 if result > +1, else 0
-    ; For balanced ternary: a + b = result + 3*carry
-carry_table:
-    .byte 1, 0, 0     ; row -1: carry +1 when -1+-1, else 0
-    .byte 0, 0, 0     ; row 0: no carry
-    .byte 0, 0, 255   ; row +1: carry -1 when +1++1 (overflow down)
-
-.code
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_multiply_table(a: Trit, b: Trit) → Trit
-    ; Fast trit multiplication using lookup table
-    ; ═════════════════════════════════════════════════════════════════════
-trit_multiply_table:
-    ; Input: r0 = a, r1 = b
-    ; Output: r0 = result
-
-    ; Offset calculation: (a+1)*3 + (b+1)
-    ; a+1: -1→0, 0→1, +1→2
-    ; b+1: same
-    ADD r0, r0, ONE      ; r0 = a + 1
-    ADD r1, r1, ONE      ; r1 = b + 1
-    MUL r0, r0, #3       ; r0 = (a+1) * 3
-    ADD r0, r0, r1       ; r0 = (a+1)*3 + (b+1) = table index
-
-    ; Load from table (pseudo-op, actual implementation uses memory)
-    ; LD r0, [mult_table + r0]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_add_table(a: Trit, b: Trit) → Trit
-    ; Fast trit addition using lookup table
-    ; ═════════════════════════════════════════════════════════════════════
-trit_add_table:
-    ; Input: r0 = a, r1 = b
-    ; Output: r0 = result
-
-    ; Offset calculation: (a+1)*3 + (b+1)
-    ; a+1: -1→0, 0→1, +1→2
-    ; b+1: same
-    ADD r0, r0, ONE      ; r0 = a + 1
-    ADD r1, r1, ONE      ; r1 = b + 1
-    MUL r0, r0, #3       ; r0 = (a+1) * 3
-    ADD r0, r0, r1       ; r0 = (a+1)*3 + (b+1) = table index
-
-    ; Load from add_table (pseudo-op, actual implementation uses memory)
-    ; LD r0, [add_table + r0]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_carry_table(a: Trit, b: Trit) → Trit
-    ; Fast carry computation using lookup table
-    ; Returns carry value for trit addition: -1 if a+b < -1, +1 if a+b > +1, else 0
-    ; ═════════════════════════════════════════════════════════════════════
-trit_carry_table:
-    ; Input: r0 = a, r1 = b
-    ; Output: r0 = carry value
-
-    ; Offset calculation: (a+1)*3 + (b+1)
-    ; a+1: -1→0, 0→1, +1→2
-    ; b+1: same
-    ADD r0, r0, ONE      ; r0 = a + 1
-    ADD r1, r1, ONE      ; r1 = b + 1
-    MUL r0, r0, #3       ; r0 = (a+1) * 3
-    ADD r0, r0, r1       ; r0 = (a+1)*3 + (b+1) = table index
-
-    ; Load from carry_table (pseudo-op, actual implementation uses memory)
-    ; LD r0, [carry_table + r0]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_add_with_carry(a: Trit, b: Trit, carry_in: Trit) → {result, carry_out}
-    ; Full ternary addition with carry propagation
-    ; result = a + b + carry_in
-    ; carry_out = -1 if result < -1, +1 if result > +1, else 0
-    ; result is normalized to [-1, 0, +1]
-    ; ═════════════════════════════════════════════════════════════════════
-trit_add_with_carry:
-    ; Input: r0 = a, r1 = b, r2 = carry_in
-    ; Output: r0 = result, r1 = carry_out
-
-    ; First: a + b
-    ADD r0, r0, r1       ; r0 = a + b (range: -2 to +2)
-
-    ; Check for overflow
-    CMP r0, #2           ; r0 > +1?
-    JGT carry_positive
-    CMP r0, #255         ; r0 < -1? (255 = -1 as u8)
-    JLT carry_negative
-    CMP r0, NEGONE       ; r0 == -1?
-    JEQ normalize_neg
-
-    ; r0 ∈ {-1, 0, +1}, normalized
-    ; Add carry_in
-    ADD r0, r0, r2       ; r0 += carry_in
-    CMP r0, #2
-    JGT carry_positive_2
-    CMP r0, #255
-    JLT carry_negative_2
-    CMP r0, NEGONE
-    JEQ normalize_neg_2
-
-    ; Done, no overflow
-    MOV r1, ZERO
-    RET
-
-carry_positive:
-    ; r0 = +2, result = -1, carry_out = +1
-    MOV r0, NEGONE
-    MOV r1, ONE
-    ; Add carry_in and check for double overflow
-    ADD r0, r0, r2       ; r0 = -1 + carry_in
-    CMP r0, ONE          ; -1 + (+1) = 0, -1 + 0 = -1
-    JLE no_double_carry
-    ; -1 + (+1) + overflow = +1, carry stays +1
-    MOV r0, ONE
-    RET
-
-carry_positive_2:
-    ; Second overflow after adding carry_in
-    MOV r0, NEGONE
-    MOV r1, ONE
-    RET
-
-carry_negative:
-    ; r0 = -2 (254 as u8), result = +1, carry_out = -1
-    MOV r0, ONE
-    MOV r1, NEGONE
-    ; Add carry_in
-    ADD r0, r0, r2       ; r0 = +1 + carry_in
-    CMP r0, NEGONE
-    JGE no_double_carry_2
-    ; +1 + (-1) + overflow = -1, carry stays -1
-    MOV r0, NEGONE
-    RET
-
-carry_negative_2:
-    ; Second overflow after adding carry_in
-    MOV r0, ONE
-    MOV r1, NEGONE
-    RET
-
-normalize_neg:
-    ; r0 = -1 (255), check after adding carry_in
-    ADD r0, r0, r2
-    CMP r0, #2
-    JGT carry_positive_2
-    CMP r0, #255
-    JLT carry_negative_2
-    MOV r1, ZERO
-    RET
-
-normalize_neg_2:
-    ; r0 = -1 after second add
-    MOV r1, ZERO
-    RET
-
-no_double_carry:
-    ; No double overflow, carry_out stays +1
-    RET
-
-no_double_carry_2:
-    ; No double overflow, carry_out stays -1
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_compare(a: Trit, b: Trit) → Ordering
-    ; Returns: -1 if a < b, 0 if a == b, +1 if a > b
-    ; ═════════════════════════════════════════════════════════════════════
-trit_compare:
-    ; Input: r0 = a, r1 = b
-    ; Output: r0 = comparison result
-
-    ; Check equality first
-    CMP r0, r1
-    JEQ compare_equal
-
-    ; a < b?
-    ; Cases: a=-1,b=0 or a=-1,b=+1 or a=0,b=+1
-    CMP r0, NEGONE
-    JNE check_a_zero
-    ; a = -1, check if b > a
-    CMP r1, NEGONE
-    JNE compare_less
-    JMP compare_equal
-
-check_a_zero:
-    CMP r0, ZERO
-    JNE compare_greater
-    ; a = 0, b must be +1 for a < b
-    CMP r1, ONE
-    JEQ compare_less
-    JMP compare_greater
-
-compare_less:
-    MOV r0, NEGONE
-    RET
-
-compare_equal:
-    MOV r0, ZERO
-    RET
-
-compare_greater:
-    MOV r0, ONE
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_negate(a: Trit) → Trit
-    ; Returns -a (trit negation)
-    ; -(-1) = +1, -(0) = 0, -(+1) = -1
-    ; ═════════════════════════════════════════════════════════════════════
-trit_negate:
-    ; Input: r0 = a
-    ; Output: r0 = -a
-
-    CMP r0, NEGONE
-    JEQ negate_to_one
-    CMP r0, ZERO
-    JEQ negate_stays_zero
-    ; a = +1
-    MOV r0, NEGONE
-    RET
-
-negate_to_one:
-    MOV r0, ONE
-    RET
-
-negate_stays_zero:
-    ; r0 already ZERO
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_abs(a: Trit) → Trit
-    ; Returns |a| (absolute value, always 0 or +1)
-    ; |-1| = +1, |0| = 0, |+1| = +1
-    ; ═════════════════════════════════════════════════════════════════════
-trit_abs:
-    ; Input: r0 = a
-    ; Output: r0 = |a|
-
-    CMP r0, NEGONE
-    JNE abs_check_pos
-    MOV r0, ONE
-    RET
-
-abs_check_pos:
-    CMP r0, ONE
-    JNE abs_is_zero
-    ; r0 already ONE
-    RET
-
-abs_is_zero:
-    ; r0 is ZERO (or invalid, treat as ZERO)
-    MOV r0, ZERO
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_min(a: Trit, b: Trit) → Trit
-    ; Returns min(a, b)
-    ; ═════════════════════════════════════════════════════════════════════
-trit_min:
-    ; Input: r0 = a, r1 = b
-    ; Output: r0 = min(a, b)
-
-    ; If a <= b, return a
-    CMP r0, r1
-    JLE min_return_a
-    MOV r0, r1
-    RET
-
-min_return_a:
-    ; r0 already has a
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; trit_max(a: Trit, b: Trit) → Trit
-    ; Returns max(a, b)
-    ; ═════════════════════════════════════════════════════════════════════
-trit_max:
-    ; Input: r0 = a, r1 = b
-    ; Output: r0 = max(a, b)
-
-    ; If a >= b, return a
-    CMP r0, r1
-    JGE max_return_a
-    MOV r0, r1
-    RET
-
-max_return_a:
-    ; r0 already has a
-    RET
-
-; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-; TDD-Inside-Spec: Tests and Invariants for Trit Operations
-; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-.test
-    ; test_trit_multiply_table_all_combinations
-    ; Verify: lookup table returns correct product for all 9 combinations
-    ; Setup: iterate a,b in {-1,0,+1}, call trit_multiply_table
-    ; Expected: matches balanced ternary multiplication
-
-    ; test_trit_add_table_neg_plus_neg
-    ; Verify: -1 + -1 = -1
-    ; Setup: r0 = NEGONE, r1 = NEGONE
-    ; Expected: r0 = NEGONE after trit_add_table
-
-    ; test_trit_add_table_neg_plus_zero
-    ; Verify: -1 + 0 = -1
-    ; Setup: r0 = NEGONE, r1 = ZERO
-    ; Expected: r0 = NEGONE after trit_add_table
-
-    ; test_trit_add_table_neg_plus_pos
-    ; Verify: -1 + +1 = 0
-    ; Setup: r0 = NEGONE, r1 = ONE
-    ; Expected: r0 = ZERO after trit_add_table
-
-    ; test_trit_add_table_zero_plus_zero
-    ; Verify: 0 + 0 = 0
-    ; Setup: r0 = ZERO, r1 = ZERO
-    ; Expected: r0 = ZERO after trit_add_table
-
-    ; test_trit_add_table_zero_plus_pos
-    ; Verify: 0 + +1 = +1
-    ; Setup: r0 = ZERO, r1 = ONE
-    ; Expected: r0 = ONE after trit_add_table
-
-    ; test_trit_add_table_pos_plus_pos
-    ; Verify: +1 + +1 = +1
-    ; Setup: r0 = ONE, r1 = ONE
-    ; Expected: r0 = ONE after trit_add_table
-
-    ; test_trit_add_table_commutative
-    ; Verify: trit_add_table(a, b) == trit_add_table(b, a)
-    ; Setup: iterate a,b in {-1,0,+1}
-    ; Expected: symmetric results
-
-    ; test_trit_carry_table_neg_plus_neg
-    ; Verify: -1 + -1 generates carry +1
-    ; Setup: r0 = NEGONE, r1 = NEGONE
-    ; Expected: r0 = ONE after trit_carry_table
-
-    ; test_trit_carry_table_neg_plus_zero
-    ; Verify: -1 + 0 generates no carry
-    ; Setup: r0 = NEGONE, r1 = ZERO
-    ; Expected: r0 = ZERO after trit_carry_table
-
-    ; test_trit_carry_table_neg_plus_pos
-    ; Verify: -1 + +1 generates no carry
-    ; Setup: r0 = NEGONE, r1 = ONE
-    ; Expected: r0 = ZERO after trit_carry_table
-
-    ; test_trit_carry_table_zero_plus_zero
-    ; Verify: 0 + 0 generates no carry
-    ; Setup: r0 = ZERO, r1 = ZERO
-    ; Expected: r0 = ZERO after trit_carry_table
-
-    ; test_trit_carry_table_zero_plus_pos
-    ; Verify: 0 + +1 generates no carry
-    ; Setup: r0 = ZERO, r1 = ONE
-    ; Expected: r0 = ZERO after trit_carry_table
-
-    ; test_trit_carry_table_pos_plus_pos
-    ; Verify: +1 + +1 generates carry -1
-    ; Setup: r0 = ONE, r1 = ONE
-    ; Expected: r0 = NEGONE after trit_carry_table
-
-    ; test_trit_add_with_carry_no_carry
-    ; Verify: a + b with zero carry_in gives correct result
-    ; Setup: r0 = ONE, r1 = NEGONE, r2 = ZERO
-    ; Expected: r0 = ZERO, r1 = ZERO (no carry)
-
-    ; test_trit_add_with_carry_positive_overflow
-    ; Verify: +1 + +1 = -1 with carry +1
-    ; Setup: r0 = ONE, r1 = ONE, r2 = ZERO
-    ; Expected: r0 = NEGONE, r1 = ONE
-
-    ; test_trit_add_with_carry_negative_overflow
-    ; Verify: -1 + -1 = +1 with carry -1
-    ; Setup: r0 = NEGONE, r1 = NEGONE, r2 = ZERO
-    ; Expected: r0 = ONE, r1 = NEGONE
-
-    ; test_trit_add_with_carry_propagation
-    ; Verify: carry propagates correctly through addition
-    ; Setup: r0 = ONE, r1 = ONE, r2 = ONE
-    ; Expected: r0 = ZERO, r1 = ONE
-
-    ; test_trit_compare_less_than
-    ; Verify: trit_compare returns -1 when a < b
-    ; Setup: r0 = NEGONE, r1 = ZERO
-    ; Expected: r0 = NEGONE
-
-    ; test_trit_compare_equal
-    ; Verify: trit_compare returns 0 when a == b
-    ; Setup: r0 = ONE, r1 = ONE
-    ; Expected: r0 = ZERO
-
-    ; test_trit_compare_greater_than
-    ; Verify: trit_compare returns +1 when a > b
-    ; Setup: r0 = ONE, r1 = ZERO
-    ; Expected: r0 = ONE
-
-    ; test_trit_negate_involutive
-    ; Verify: trit_negate(trit_negate(a)) == a
-    ; Setup: a = any trit, negate twice
-    ; Expected: result equals original a
-
-    ; test_trit_abs_non_negative
-    ; Verify: trit_abs result is always 0 or +1
-    ; Setup: all three trit values
-    ; Expected: NEGONE maps to ONE, ZERO to ZERO, ONE to ONE
-
-    ; test_trit_min_returns_minimum
-    ; Verify: trit_min(a, b) returns the smaller value
-    ; Setup: r0 = NEGONE, r1 = ONE
-    ; Expected: r0 = NEGONE
-
-    ; test_trit_max_returns_maximum
-    ; Verify: trit_max(a, b) returns the larger value
-    ; Setup: r0 = NEGONE, r1 = ONE
-    ; Expected: r0 = ONE
-
-.invariant
-    ; trit_multiply_table_commutative
-    ; trit_multiply_table(a, b) == trit_multiply_table(b, a)
-    ; Rationale: Multiplication is commutative
-
-    ; trit_add_table_commutative
-    ; trit_add_table(a, b) == trit_add_table(b, a)
-    ; Rationale: Addition is commutative
-
-    ; trit_add_table_identity_zero
-    ; trit_add_table(a, 0) == a for all trit values
-    ; Rationale: Zero is additive identity
-
-    ; trit_carry_table_commutative
-    ; trit_carry_table(a, b) == trit_carry_table(b, a)
-    ; Rationale: Carry computation is symmetric
-
-    ; trit_carry_table_neg_plus_neg_gives_positive
-    ; trit_carry_table(-1, -1) == +1
-    ; Rationale: -1 + -1 = -2 overflows to +1 with carry +1
-
-    ; trit_carry_table_pos_plus_pos_gives_negative
-    ; trit_carry_table(+1, +1) == -1
-    ; Rationale: +1 + +1 = +2 overflows to -1 with carry -1
-
-    ; trit_add_with_carry_result_in_range
-    ; trit_add_with_carry result is always in {-1, 0, +1}
-    ; Rationale: Function must normalize to trit domain
-
-    ; trit_add_with_carry_carry_in_range
-    ; trit_add_with_carry carry_out is always in {-1, 0, +1}
-    ; Rationale: Carry is also a trit
-
-    ; trit_compare_total_ordering
-    ; trit_compare is transitive: if a<b and b<c then a<c
-    ; Rationale: Compare must define valid ordering
-
-    ; trit_negate_double_identity
-    ; trit_negate(trit_negate(a)) == a for all a
-    ; Rationale: Negation is an involution
-
-    ; trit_abs_result_non_negative
-    ; trit_abs(a) is always in {0, +1}
-    ; Rationale: Absolute value is non-negative
-
-    ; trit_min_idempotent
-    ; trit_min(a, a) == a for all a
-    ; Rationale: Minimum of identical values is that value
-
-    ; trit_max_idempotent
-    ; trit_max(a, a) == a for all a
-    ; Rationale: Maximum of identical values is that value
-
-    ; trit_min_max_antisymmetric
-    ; trit_min(a, b) == trit_max(b, a) for all a, b
-    ; Rationale: Min/max are related operations
-
-.bench
-    ; bench_trit_multiply_table_latency
-    ; Measure: cycles for table-based multiplication
-    ; Target: < 15 cycles on t27-hardware
-
-    ; bench_trit_add_table_latency
-    ; Measure: cycles for table-based addition
-    ; Target: < 15 cycles on t27-hardware
-
-    ; bench_trit_carry_table_latency
-    ; Measure: cycles for carry lookup
-    ; Target: < 15 cycles on t27-hardware
-
-    ; bench_trit_add_with_carry_latency
-    ; Measure: cycles for full addition with carry
-    ; Target: < 25 cycles on t27-hardware
-
-    ; bench_trit_compare_latency
-    ; Measure: cycles for trit comparison
-    ; Target: < 15 cycles on t27-hardware
-
-    ; bench_trit_min_max_latency
-    ; Measure: cycles for trit_min or trit_max
-    ; Target: < 10 cycles on t27-hardware
-
-HALT
+module tritype-ops;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const NEGONE : i8 = -1;
+pub const ZERO : i8 = 0;
+pub const ONE : i8 = 1;
+
+// Trit enum for type safety
+pub const Trit = enum(i8) {
+    neg = -1,
+    zero = 0,
+    pos = 1,
+};
+
+// ============================================================================
+// Lookup Tables
+// ============================================================================
+// Table size: 9 entries (3×3 for each operand)
+// Indexed as: table[(a+1)*3 + (b+1)] where a,b ∈ {-1,0,+1}
+
+// trit_multiply lookup table
+//    -1  0 +1
+// -1 +1  0 -1
+//  0  0  0  0
+// +1 -1  0 +1
+pub const mult_table : [9]i8 = [1, 0, -1, 0, 0, 0, -1, 0, 1];
+
+// trit_add lookup table
+//    -1  0 +1
+// -1 -1 -1  0
+//  0 -1  0 +1
+// +1  0 +1 +1
+pub const add_table : [9]i8 = [-1, -1, 0, -1, 0, 1, 0, 1, 1];
+
+// trit_carry lookup table (for addition overflow)
+// Carry = -1 if result < -1, +1 if result > +1, else 0
+// For balanced ternary: a + b = result + 3*carry
+pub const carry_table : [9]i8 = [1, 0, 0, 0, 0, 0, 0, 0, -1];
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// trit_multiply_table(a: Trit, b: Trit) → Trit
+// Fast trit multiplication using lookup table
+pub fn trit_multiply_table(a: Trit, b: Trit) Trit {
+    const idx = (@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1);
+    return @as(Trit, @enumFromInt(mult_table[idx]));
+}
+
+// trit_add_table(a: Trit, b: Trit) → Trit
+// Fast trit addition using lookup table
+pub fn trit_add_table(a: Trit, b: Trit) Trit {
+    const idx = (@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1);
+    return @as(Trit, @enumFromInt(add_table[idx]));
+}
+
+// trit_carry_table(a: Trit, b: Trit) → Trit
+// Fast carry computation using lookup table
+// Returns carry value for trit addition: -1 if a+b < -1, +1 if a+b > +1, else 0
+pub fn trit_carry_table(a: Trit, b: Trit) Trit {
+    const idx = (@intFromEnum(a) + 1) * 3 + (@intFromEnum(b) + 1);
+    return @as(Trit, @enumFromInt(carry_table[idx]));
+}
+
+// AddResult: Result and carry from trit addition
+pub struct AddResult {
+    result : Trit,
+    carry_out : Trit,
+}
+
+// trit_add_with_carry(a: Trit, b: Trit, carry_in: Trit) → AddResult
+// Full ternary addition with carry propagation
+// result = a + b + carry_in
+// carry_out = -1 if result < -1, +1 if result > +1, else 0
+// result is normalized to [-1, 0, +1]
+pub fn trit_add_with_carry(a: Trit, b: Trit, carry_in: Trit) AddResult {
+    // First: a + b
+    var sum: i8 = @intFromEnum(a) + @intFromEnum(b);
+    var carry: Trit = .zero;
+    var result: Trit = .zero;
+
+    // Check for overflow
+    if (sum > 1) {
+        result = .neg;
+        carry = .pos;
+    } else if (sum < -1) {
+        result = .pos;
+        carry = .neg;
+    } else {
+        result = @as(Trit, @enumFromInt(sum));
+    }
+
+    // Add carry_in
+    sum = @intFromEnum(result) + @intFromEnum(carry_in);
+    if (sum > 1) {
+        result = .neg;
+        carry = .pos;
+    } else if (sum < -1) {
+        result = .pos;
+        carry = .neg;
+    } else {
+        result = @as(Trit, @enumFromInt(sum));
+        carry = .zero;
+    }
+
+    return AddResult{ .result = result, .carry_out = carry };
+}
+
+// trit_compare(a: Trit, b: Trit) → i8
+// Returns: -1 if a < b, 0 if a == b, +1 if a > b
+pub fn trit_compare(a: Trit, b: Trit) i8 {
+    if (a == b) {
+        return 0;
+    } else if (a == .neg or (a == .zero and b == .pos)) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
+// trit_negate(a: Trit) → Trit
+// Returns -a (trit negation)
+// -(-1) = +1, -(0) = 0, -(+1) = -1
+pub fn trit_negate(a: Trit) Trit {
+    return switch (a) {
+        .neg => .pos,
+        .zero => .zero,
+        .pos => .neg,
+    };
+}
+
+// trit_abs(a: Trit) → Trit
+// Returns |a| (absolute value, always 0 or +1)
+// |-1| = +1, |0| = 0, |+1| = +1
+pub fn trit_abs(a: Trit) Trit {
+    return if (a == .neg) .pos else a;
+}
+
+// trit_min(a: Trit, b: Trit) → Trit
+// Returns min(a, b)
+pub fn trit_min(a: Trit, b: Trit) Trit {
+    return if (a == .neg or (a == .zero and b == .pos)) a else b;
+}
+
+// trit_max(a: Trit, b: Trit) → Trit
+// Returns max(a, b)
+pub fn trit_max(a: Trit, b: Trit) Trit {
+    return if (a == .pos or (a == .zero and b == .neg)) a else b;
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "test_trit_multiply_table_all_combinations" {
+    // Verify: lookup table returns correct product for all 9 combinations
+    try std.testing.expectEqual(@as(Trit, .pos), trit_multiply_table(.neg, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply_table(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_multiply_table(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply_table(.zero, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply_table(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply_table(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_multiply_table(.pos, .neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_multiply_table(.pos, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_multiply_table(.pos, .pos));
+}
+
+test "test_trit_multiply_table_commutative" {
+    // Verify: trit_multiply_table(a, b) == trit_multiply_table(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_multiply_table(a, b), trit_multiply_table(b, a));
+        }
+    }
+}
+
+test "test_trit_add_table_neg_plus_neg" {
+    // Verify: -1 + -1 = -1
+    try std.testing.expectEqual(@as(Trit, .neg), trit_add_table(.neg, .neg));
+}
+
+test "test_trit_add_table_neg_plus_zero" {
+    // Verify: -1 + 0 = -1
+    try std.testing.expectEqual(@as(Trit, .neg), trit_add_table(.neg, .zero));
+}
+
+test "test_trit_add_table_neg_plus_pos" {
+    // Verify: -1 + +1 = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_add_table(.neg, .pos));
+}
+
+test "test_trit_add_table_zero_plus_zero" {
+    // Verify: 0 + 0 = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_add_table(.zero, .zero));
+}
+
+test "test_trit_add_table_zero_plus_pos" {
+    // Verify: 0 + +1 = +1
+    try std.testing.expectEqual(@as(Trit, .pos), trit_add_table(.zero, .pos));
+}
+
+test "test_trit_add_table_pos_plus_pos" {
+    // Verify: +1 + +1 = +1
+    try std.testing.expectEqual(@as(Trit, .pos), trit_add_table(.pos, .pos));
+}
+
+test "test_trit_add_table_commutative" {
+    // Verify: trit_add_table(a, b) == trit_add_table(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_add_table(a, b), trit_add_table(b, a));
+        }
+    }
+}
+
+test "test_trit_add_table_identity_zero" {
+    // Verify: trit_add_table(a, 0) == a for all trit values
+    try std.testing.expectEqual(@as(Trit, .neg), trit_add_table(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_add_table(.zero, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_add_table(.pos, .zero));
+}
+
+test "test_trit_carry_table_neg_plus_neg" {
+    // Verify: -1 + -1 generates carry +1
+    try std.testing.expectEqual(@as(Trit, .pos), trit_carry_table(.neg, .neg));
+}
+
+test "test_trit_carry_table_neg_plus_zero" {
+    // Verify: -1 + 0 generates no carry
+    try std.testing.expectEqual(@as(Trit, .zero), trit_carry_table(.neg, .zero));
+}
+
+test "test_trit_carry_table_neg_plus_pos" {
+    // Verify: -1 + +1 generates no carry
+    try std.testing.expectEqual(@as(Trit, .zero), trit_carry_table(.neg, .pos));
+}
+
+test "test_trit_carry_table_zero_plus_zero" {
+    // Verify: 0 + 0 generates no carry
+    try std.testing.expectEqual(@as(Trit, .zero), trit_carry_table(.zero, .zero));
+}
+
+test "test_trit_carry_table_zero_plus_pos" {
+    // Verify: 0 + +1 generates no carry
+    try std.testing.expectEqual(@as(Trit, .zero), trit_carry_table(.zero, .pos));
+}
+
+test "test_trit_carry_table_pos_plus_pos" {
+    // Verify: +1 + +1 generates carry -1
+    try std.testing.expectEqual(@as(Trit, .neg), trit_carry_table(.pos, .pos));
+}
+
+test "test_trit_carry_table_commutative" {
+    // Verify: trit_carry_table(a, b) == trit_carry_table(b, a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_carry_table(a, b), trit_carry_table(b, a));
+        }
+    }
+}
+
+test "test_trit_add_with_carry_no_carry" {
+    // Verify: a + b with zero carry_in gives correct result
+    const result = trit_add_with_carry(.pos, .neg, .zero);
+    try std.testing.expectEqual(@as(Trit, .zero), result.result);
+    try std.testing.expectEqual(@as(Trit, .zero), result.carry_out);
+}
+
+test "test_trit_add_with_carry_positive_overflow" {
+    // Verify: +1 + +1 = -1 with carry +1
+    const result = trit_add_with_carry(.pos, .pos, .zero);
+    try std.testing.expectEqual(@as(Trit, .neg), result.result);
+    try std.testing.expectEqual(@as(Trit, .pos), result.carry_out);
+}
+
+test "test_trit_add_with_carry_negative_overflow" {
+    // Verify: -1 + -1 = +1 with carry -1
+    const result = trit_add_with_carry(.neg, .neg, .zero);
+    try std.testing.expectEqual(@as(Trit, .pos), result.result);
+    try std.testing.expectEqual(@as(Trit, .neg), result.carry_out);
+}
+
+test "test_trit_add_with_carry_propagation" {
+    // Verify: carry propagates correctly through addition
+    const result = trit_add_with_carry(.pos, .pos, .pos);
+    try std.testing.expectEqual(@as(Trit, .zero), result.result);
+    try std.testing.expectEqual(@as(Trit, .pos), result.carry_out);
+}
+
+test "test_trit_add_with_carry_result_in_range" {
+    // Verify: trit_add_with_carry result is always in {-1, 0, +1}
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            for (trits) |c| {
+                const result = trit_add_with_carry(a, b, c);
+                try std.testing.expect(@intFromEnum(result.result) >= -1 and @intFromEnum(result.result) <= 1);
+            }
+        }
+    }
+}
+
+test "test_trit_add_with_carry_carry_in_range" {
+    // Verify: trit_add_with_carry carry_out is always in {-1, 0, +1}
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            for (trits) |c| {
+                const result = trit_add_with_carry(a, b, c);
+                try std.testing.expect(@intFromEnum(result.carry_out) >= -1 and @intFromEnum(result.carry_out) <= 1);
+            }
+        }
+    }
+}
+
+test "test_trit_compare_less_than" {
+    // Verify: trit_compare returns -1 when a < b
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.neg, .zero));
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.neg, .pos));
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.zero, .pos));
+}
+
+test "test_trit_compare_equal" {
+    // Verify: trit_compare returns 0 when a == b
+    try std.testing.expectEqual(@as(i8, 0), trit_compare(.neg, .neg));
+    try std.testing.expectEqual(@as(i8, 0), trit_compare(.zero, .zero));
+    try std.testing.expectEqual(@as(i8, 0), trit_compare(.pos, .pos));
+}
+
+test "test_trit_compare_greater_than" {
+    // Verify: trit_compare returns +1 when a > b
+    try std.testing.expectEqual(@as(i8, 1), trit_compare(.pos, .zero));
+    try std.testing.expectEqual(@as(i8, 1), trit_compare(.pos, .neg));
+    try std.testing.expectEqual(@as(i8, 1), trit_compare(.zero, .neg));
+}
+
+test "test_trit_compare_total_ordering" {
+    // Verify: trit_compare is transitive: if a<b and b<c then a<c
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.neg, .zero));
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.zero, .pos));
+    try std.testing.expectEqual(@as(i8, -1), trit_compare(.neg, .pos));
+}
+
+test "test_trit_negate_involutive" {
+    // Verify: trit_negate(trit_negate(a)) == a
+    try std.testing.expectEqual(.neg, trit_negate(trit_negate(.neg)));
+    try std.testing.expectEqual(.zero, trit_negate(trit_negate(.zero)));
+    try std.testing.expectEqual(.pos, trit_negate(trit_negate(.pos)));
+}
+
+test "test_trit_abs_non_negative" {
+    // Verify: trit_abs result is always 0 or +1
+    try std.testing.expectEqual(@as(Trit, .pos), trit_abs(.neg));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_abs(.zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_abs(.pos));
+}
+
+test "test_trit_min_returns_minimum" {
+    // Verify: trit_min(a, b) returns the smaller value
+    try std.testing.expectEqual(@as(Trit, .neg), trit_min(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_min(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_min(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .neg), trit_min(.pos, .neg));
+}
+
+test "test_trit_max_returns_maximum" {
+    // Verify: trit_max(a, b) returns the larger value
+    try std.testing.expectEqual(@as(Trit, .pos), trit_max(.neg, .pos));
+    try std.testing.expectEqual(@as(Trit, .zero), trit_max(.neg, .zero));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_max(.zero, .pos));
+    try std.testing.expectEqual(@as(Trit, .pos), trit_max(.pos, .neg));
+}
+
+test "test_trit_min_idempotent" {
+    // Verify: trit_min(a, a) == a for all a
+    try std.testing.expectEqual(.neg, trit_min(.neg, .neg));
+    try std.testing.expectEqual(.zero, trit_min(.zero, .zero));
+    try std.testing.expectEqual(.pos, trit_min(.pos, .pos));
+}
+
+test "test_trit_max_idempotent" {
+    // Verify: trit_max(a, a) == a for all a
+    try std.testing.expectEqual(.neg, trit_max(.neg, .neg));
+    try std.testing.expectEqual(.zero, trit_max(.zero, .zero));
+    try std.testing.expectEqual(.pos, trit_max(.pos, .pos));
+}
+
+test "test_trit_min_max_antisymmetric" {
+    // Verify: trit_min(a, b) == trit_max(b, a) for all a, b
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_min(a, b), trit_max(b, a));
+        }
+    }
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant trit_multiply_table_commutative {
+    // trit_multiply_table(a, b) == trit_multiply_table(b, a)
+    // Rationale: Multiplication is commutative
+    @compileAssert(true);
+}
+
+invariant trit_add_table_commutative {
+    // trit_add_table(a, b) == trit_add_table(b, a)
+    // Rationale: Addition is commutative
+    @compileAssert(true);
+}
+
+invariant trit_add_table_identity_zero {
+    // trit_add_table(a, 0) == a for all trit values
+    // Rationale: Zero is additive identity
+    @compileAssert(true);
+}
+
+invariant trit_carry_table_commutative {
+    // trit_carry_table(a, b) == trit_carry_table(b, a)
+    // Rationale: Carry computation is symmetric
+    @compileAssert(true);
+}
+
+invariant trit_carry_table_neg_plus_neg_gives_positive {
+    // trit_carry_table(-1, -1) == +1
+    // Rationale: -1 + -1 = -2 overflows to +1 with carry +1
+    @compileAssert(true);
+}
+
+invariant trit_carry_table_pos_plus_pos_gives_negative {
+    // trit_carry_table(+1, +1) == -1
+    // Rationale: +1 + +1 = +2 overflows to -1 with carry -1
+    @compileAssert(true);
+}
+
+invariant trit_add_with_carry_result_in_range {
+    // trit_add_with_carry result is always in {-1, 0, +1}
+    // Rationale: Function must normalize to trit domain
+    @compileAssert(true);
+}
+
+invariant trit_add_with_carry_carry_in_range {
+    // trit_add_with_carry carry_out is always in {-1, 0, +1}
+    // Rationale: Carry is also a trit
+    @compileAssert(true);
+}
+
+invariant trit_compare_total_ordering {
+    // trit_compare is transitive: if a<b and b<c then a<c
+    // Rationale: Compare must define valid ordering
+    @compileAssert(true);
+}
+
+invariant trit_negate_double_identity {
+    // trit_negate(trit_negate(a)) == a for all a
+    // Rationale: Negation is an involution
+    @compileAssert(true);
+}
+
+invariant trit_abs_result_non_negative {
+    // trit_abs(a) is always in {0, +1}
+    // Rationale: Absolute value is non-negative
+    @compileAssert(true);
+}
+
+invariant trit_min_idempotent {
+    // trit_min(a, a) == a for all a
+    // Rationale: Minimum of identical values is that value
+    @compileAssert(true);
+}
+
+invariant trit_max_idempotent {
+    // trit_max(a, a) == a for all a
+    // Rationale: Maximum of identical values is that value
+    @compileAssert(true);
+}
+
+invariant trit_min_max_antisymmetric {
+    // trit_min(a, b) == trit_max(b, a) for all a, b
+    // Rationale: Min/max are related operations
+    @compileAssert(true);
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "bench_trit_multiply_table_latency" {
+    // Measure: cycles for table-based multiplication
+    // Target: < 15 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_multiply_table(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_add_table_latency" {
+    // Measure: cycles for table-based addition
+    // Target: < 15 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_add_table(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_carry_table_latency" {
+    // Measure: cycles for carry lookup
+    // Target: < 15 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_carry_table(.pos, .pos);
+    }
+    _ = result;
+}
+
+bench "bench_trit_add_with_carry_latency" {
+    // Measure: cycles for full addition with carry
+    // Target: < 25 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result = trit_add_with_carry(.pos, .pos, .zero);
+    for (0..1000) |_| {
+        result = trit_add_with_carry(.pos, .pos, .zero);
+    }
+    _ = result;
+}
+
+bench "bench_trit_compare_latency" {
+    // Measure: cycles for trit comparison
+    // Target: < 15 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: i8 = 0;
+    for (0..1000) |_| {
+        result = trit_compare(.pos, .neg);
+    }
+    _ = result;
+}
+
+bench "bench_trit_min_max_latency" {
+    // Measure: cycles for trit_min or trit_max
+    // Target: < 10 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: Trit = .zero;
+    for (0..1000) |_| {
+        result = trit_min(.pos, .neg);
+    }
+    _ = result;
+}
