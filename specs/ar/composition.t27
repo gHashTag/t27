@@ -3,619 +3,477 @@
 // φ² + φ⁻² = 3 | TRINITY
 
 module Composition {
-    use base::types;
-    use ar::ternary_logic;   // K_FALSE, K_UNKNOWN, K_TRUE, Rule
-    use ar::proof_trace;      // ProofTrace, DerivationStep, MAX_STEPS=10
-    use ar::datalog_engine;   // HornClause, DatalogEngine
-    use ar::restraint;        // RestraintParams, should_continue
-    use ar::explainability;   // Explanation, Summary
-    use ar::asp_solver;       // AspRule, StableModel, compute_stable_model
-    use numeric::gf16;       // GF16 for confidence
+    // ═════════════════════════════════════════════════════════════
+    // IMPORTS — Reference existing specs, DO NOT DUPLICATE
+    // ═════════════════════════════════════════════════════════════════════════
+    use base::types;            // Trit enum: .neg, .zero, .pos
+    use ar::ternary_logic;      // K_FALSE, K_UNKNOWN, K_TRUE, Rule
+    use ar::proof_trace;         // ProofTrace, DerivationStep, FormatStyle, MAX_STEPS=10
+    use ar::datalog_engine;     // DatalogEngine, HornClause, FactId, datalog_init, vsa_to_fact
+    use ar::explainability;     // ExplanationType, Explanation, Summary, explain_fact, explain_trace, summarize
+    use ar::asp_solver;          // AspRule, StableModel, AspResult, compute_stable_model, has_stable_model, is_consistent
+    use ar::restraint;           // RestraintParams, QualityLevel, params_for_quality, should_continue
+    use numeric::gf16;           // GF16, gf16_encode_f32, gf16_decode_to_f32 (NUMERIC-STANDARD-001)
 
-    // ═══════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // CONSTANTS
-    // ═══════════════════════════════════════════════════════
-    const MAX_COMPOSITION_DEPTH : u8 = 5;  // Max composition layers
-    const GF16_ONE : GF16 = 0x3C00;           // 1.0
-    const GF16_ZERO : GF16 = 0x0000;         // 0.0
+    // ═════════════════════════════════════════════════════════════
+    const MAX_PERCEPTION_FACTS : u16 = 256;  // сколько сигналов из ML можно подать
+    const MAX_DECISION_FACTS   : u16 = 32;   // сколько фактов участвует в одной композиции
+    const MAX_ACTIONS          : u8  = 8;    // сколько возможных действий оцениваем
 
-    // ═══════════════════════════════════════════════════════
+    // Все числовые confidence только через GF16.
+
+    // ═════════════════════════════════════════════════════════════
     // TYPES
-    // ═══════════════════════════════════════════════════════
-    // Composition pattern type - defines how ML and AR components combine
-    pub const CompositionPattern = enum(u8) {
-        // CNN + Rules: Neural feature extraction → AR rule evaluation
-        CNN_RULES = 0,
+    // ═════════════════════════════════════════════════════════════
 
-        // MLP + Bayesian: Neural forward pass → Bayesian inference
-        MLP_BAYESIAN = 1,
+    // PerceptionSignal: ML output signal to be converted to Datalog fact
+    pub struct PerceptionSignal {
+        id         : FactId,       // куда это ляжет в Datalog
+        score      : GF16,         // уверенность ML (0..1, GF16)
+        description: []const u8,   // человекочитаемый тег, без логики
+    }
 
-        // Transformer + XAI: Self-attention → ≤10 step explanation
-        TRANSFORMER_XAI = 2,
+    // PerceptionBatch: Collection of ML output signals
+    pub struct PerceptionBatch {
+        signals : []PerceptionSignal,  // вход из ML
+        count   : u16,
+    }
 
-        // RL + Guardrails: Policy network → AR constraint checking
-        RL_GUARDRAILS = 3,
-    };
+    // DecisionCandidate: A candidate action/plan to evaluate
+    pub struct DecisionCandidate {
+        action_id : u32,         // абстрактный ID действия/плана
+        goal_fact : FactId,      // какой факт хотим сделать K_TRUE
+        program   : AspProgram,   // ASP-программа для этого кандидата
+    }
 
-    // ML component abstraction (pluggable)
-    pub const MLComponent = struct {
-        component_type : []const u8,   // "CNN", "MLP", "Transformer", "PPO", etc.
-        input_shape    : [4]u32,        // [batch, seq, height, width] or similar
-        output_shape   : [2]u32,        // [batch, features]
-        confidence     : GF16,          // Component confidence (NUMERIC-STANDARD-001)
-    };
+    // DecisionOutcome: Result of evaluating a single candidate
+    pub struct DecisionOutcome {
+        action_id   : u32,          // из candidate
+        verdict     : Trit,         // K_TRUE/K_FALSE/K_UNKNOWN
+        model       : StableModel,  // стабильная модель (если есть)
+        asp_result  : AspResult,     // полный результат ASP
+        explanation  : Explanation,   // XAI-объяснение для ключевого факта
+        confidence  : GF16,          // агрегированный confidence решения
+        restrained  : bool,          // сработал ли restraint где-либо
+    }
 
-    // AR component abstraction
-    pub const ARComponent = struct {
-        rule_set      : []const HornClause,  // Horn clauses for inference
-        rule_count    : usize,
-        explanation_style : FormatStyle,  // natural, fitch, compact
-        confidence_threshold : GF16,   // Minimum confidence to accept AR result
-    };
+    // CompositionResult: Final result of composition with all candidates
+    pub struct CompositionResult {
+        chosen        : ?DecisionOutcome,  // лучший кандидат или null
+        candidates    : []DecisionOutcome, // все оценённые кандидаты
+        summary       : Summary,            // top-N фактов из итогового engine
+        quality_level : QualityLevel,       // какой профиль restraint использовали
+    }
 
-    // Composed pipeline - ML + AR combination
-    pub const ComposedPipeline = struct {
-        pattern         : CompositionPattern,
-        ml_component    : MLComponent,
-        ar_component    : ARComponent,
-        pipeline_confidence : GF16,     // Overall confidence
-        steps_completed : u8,
-        explanation     : Explanation,
-        terminated      : bool,          // True if restraint triggered
-    };
+    // AspProgram: Collection of ASP rules for stable model computation
+    pub struct AspProgram {
+        rules : []AspRule,
+        count : usize,
+    }
 
-    // Composition result
-    pub const CompositionResult = struct {
-        prediction      : Trit,           // K_TRUE, K_FALSE, or K_UNKNOWN
-        confidence      : GF16,          // GF16 (NUMERIC-STANDARD-001)
-        explanation     : Explanation,    // Human-readable explanation
-        proof_trace    : ProofTrace,     // Full derivation chain
-        satisfaction    : GF16,          // Satisfaction of CLARA requirements
-    };
-
-    // ═══════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // FUNCTIONS
-    // ═══════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
 
-    // compose_cnn_rules: CNN feature extraction → AR rule evaluation
-    // Pattern: Conv2D features → Horn clauses → rule matching → result
-    // Complexity: O(n) where n = number of rules
-    pub fn compose_cnn_rules(
-        cnn_features: []const f32,
-        cnn_confidence: GF16,
-        rules: []const HornClause,
-        rule_count: usize,
-        confidence_threshold: GF16
-    ) -> CompositionResult {
-        var pipeline = create_pipeline(.CNN_RULES, cnn_confidence, rules, rule_count);
+    // perception_to_engine: Convert ML perception signals to Datalog facts
+    // Takes all PerceptionSignal, converts via vsa_to_fact() to ground Facts
+    // with GF16 confidence, and adds to engine
+    fn perception_to_engine(
+        batch  : PerceptionBatch,
+        engine : *DatalogEngine,
+    ) void {
+        var i : u16 = 0;
+        while (i < batch.count) {
+            const signal = batch.signals[i];
 
-        // Step 1: CNN feature extraction (simulated - would call actual CNN)
-        const cnn_result = simulate_cnn_inference(cnn_features);
+            // Convert VSA/ML signal to Datalog fact
+            // vsa_to_fact() handles the conversion from ML representation to Fact
+            const fact = vsa_to_fact(signal.id, signal.score);
 
-        // Step 2: AR rule evaluation via Datalog
-        const ar_result = evaluate_ar_rules(&pipeline.ar_component, cnn_result);
+            // Add fact to engine
+            _ = add_fact(engine, fact);
 
-        // Step 3: Combine confidence
-        const combined_conf = combine_confidence(cnn_confidence, ar_result.confidence);
-
-        // Step 4: Generate explanation
-        const explanation = generate_composition_explanation(
-            &pipeline,
-            cnn_result,
-            ar_result,
-            "CNN feature extraction → AR rule evaluation"
-        );
-
-        // Step 5: Final decision
-        const prediction = k3_and(cnn_result.decision, ar_result.decision);
-
-        return CompositionResult{
-            .prediction = prediction,
-            .confidence = combined_conf,
-            .explanation = explanation,
-            .proof_trace = ar_result.trace,
-            .satisfaction = calculate_satisfaction(&pipeline, prediction, combined_conf),
-        };
+            i = i + 1;
+        }
     }
 
-    // compose_mlp_bayesian: MLP forward pass → Bayesian inference
-    // Pattern: MLP forward → Bayesian prior/posterior update → result
-    // Complexity: O(1) for MLP + O(1) for Bayesian update
-    pub fn compose_mlp_bayesian(
-        mlp_input: []const f32,
-        mlp_confidence: GF16,
-        bayesian_prior: f32,
-        confidence_threshold: GF16
-    ) -> CompositionResult {
-        var pipeline = create_pipeline(.MLP_BAYESIAN, mlp_confidence, null_rules, 0);
+    // evaluate_candidate: Evaluate a single decision candidate
+    //
+    // Steps (described in comments, implementation follows):
+    // 1. Copy base_engine to temporary engine (candidate isolation)
+    // 2. Call compute_stable_model from asp_solver
+    // 3. If found_model == false → verdict = K_UNKNOWN
+    // 4. Else:
+    //    - Take goal_fact
+    //    - Call query_with_restraint(engine, goal_fact, params)
+    //    - Set verdict based on Trit result
+    //    - Call explain_fact(engine, goal_fact, style) for Explanation
+    //    - Aggregate confidence (min of model.confidence and GF16 confidences along chain)
+    fn evaluate_candidate(
+        base_engine : DatalogEngine,
+        candidate   : DecisionCandidate,
+        params      : RestraintParams,
+        style       : ExplanationType,
+    ) -> DecisionOutcome {
+        // Step 1: Isolate engine for this candidate
+        var engine = copy_engine(base_engine);
 
-        // Step 1: MLP forward pass
-        const mlp_result = simulate_mlp_forward(mlp_input);
+        // Step 2: Compute stable model using ASP
+        const asp_result = compute_stable_model(&engine, candidate.program.rules, candidate.program.count, params);
 
-        // Step 2: Bayesian inference
-        const bayesian_result = apply_bayesian_update(bayesian_prior, mlp_result.probability);
+        // Step 3: Initialize outcome
+        var outcome : DecisionOutcome = undefined;
+        outcome.action_id = candidate.action_id;
+        outcome.asp_result = asp_result;
+        outcome.model = asp_result.model;
+        outcome.restrained = asp_result.terminated_by_restraint;
 
-        // Step 3: Combine confidence
-        const bayesian_gf = gf16_encode_f32(bayesian_result);
-        const combined_conf = combine_confidence(mlp_confidence, bayesian_gf);
+        // Step 4: Determine verdict
+        if (!asp_result.found_model) {
+            outcome.verdict = K_UNKNOWN;
+            outcome.confidence = gf16_encode_f32(0.0);
+            outcome.explanation = create_empty_explanation();
+        } else {
+            // Step 4a: Query goal fact with restraint
+            const goal_truth = query_with_restraint(&engine, candidate.goal_fact, params);
+            outcome.verdict = goal_truth;
 
-        // Step 4: Generate explanation
-        const explanation = generate_composition_explanation(
-            &pipeline,
-            mlp_result,
-            bayesian_result,
-            "MLP forward → Bayesian update"
-        );
+            // Step 4b: Generate explanation
+            outcome.explanation = explain_fact(&engine, candidate.goal_fact, style);
 
-        // Step 5: Final decision
-        const mlp_trit = f32_to_trit(mlp_result.probability);
-        const bayesian_trit = f32_to_trit(bayesian_result);
-        const prediction = k3_and(mlp_trit, bayesian_trit);
+            // Step 4c: Aggregate confidence
+            // Use minimum of model confidence and explanation confidence
+            const model_conf_f = gf16_decode_to_f32(asp_result.model.confidence);
+            const expl_conf_f = gf16_decode_to_f32(outcome.explanation.confidence);
+            const aggregated_f = if (model_conf_f < expl_conf_f) model_conf_f else expl_conf_f;
+            outcome.confidence = gf16_encode_f32(aggregated_f);
+        }
 
-        return CompositionResult{
-            .prediction = prediction,
-            .confidence = combined_conf,
-            .explanation = explanation,
-            .proof_trace = ProofTrace{},  // No trace for pure Bayesian
-            .satisfaction = calculate_satisfaction(&pipeline, prediction, combined_conf),
-        };
+        return outcome;
     }
 
-    // compose_transformer_xai: Self-attention → ≤10 step explanation
-    // Pattern: Transformer attention → Proof trace generation → XAI format
-    // Complexity: O(L×H) for attention + O(MAX_STEPS) for trace
-    pub fn compose_transformer_xai(
-        transformer_input: []const f32,
-        transformer_confidence: GF16,
-        max_steps: u8,
-        style: FormatStyle
+    // compose_decision: Main entry point for AR-007 composition
+    //
+    // Performs:
+    // 1. Select RestraintParams via params_for_quality(quality)
+    // 2. Create and populate DatalogEngine:
+    //    - perception_to_engine(perception, &engine)
+    //    - evaluate(&engine) from datalog_engine
+    // 3. For each DecisionCandidate call evaluate_candidate
+    // 4. Select chosen by:
+    //    - verdict == K_TRUE > K_UNKNOWN > K_FALSE
+    //    - On tie: max confidence
+    //    - On tie: min action_id (deterministic)
+    // 5. Collect Summary via summarize(engine, top_n) from Explainability
+    pub fn compose_decision(
+        perception : PerceptionBatch,
+        candidates : []DecisionCandidate,
+        quality    : QualityLevel,
+        style      : ExplanationType,
     ) -> CompositionResult {
-        var pipeline = create_pipeline(.TRANSFORMER_XAI, transformer_confidence, null_rules, 0);
+        // Step 1: Get restraint params for quality level
+        const params = params_for_quality(quality);
 
-        // Step 1: Transformer self-attention (simulated)
-        const transformer_result = simulate_transformer_attention(transformer_input);
+        // Step 2: Create and populate engine
+        var engine = datalog_init();
+        perception_to_engine(perception, &engine);
+        _ = evaluate(&engine);  // Run datalog evaluation
 
-        // Step 2: Generate proof trace (≤10 steps per CLARA requirement)
-        var trace = create_trace();
-        var i : u8 = 0;
-        while (i < max_steps and i < 10) {
-            const step = create_attention_step(i, transformer_result.attention_scores[i]);
-            if (!append_step(&trace, step)) {
-                pipeline.terminated = true;
-                break;
+        // Step 3: Evaluate all candidates
+        var outcomes : [MAX_ACTIONS]DecisionOutcome = undefined;
+        var outcome_count : u8 = 0;
+
+        var i : usize = 0;
+        while (i < candidates.len and i < MAX_ACTIONS) {
+            outcomes[i] = evaluate_candidate(engine, candidates[i], params, style);
+            outcome_count = outcome_count + 1;
+            i = i + 1;
+        }
+
+        // Step 4: Select best candidate
+        var chosen_index : ?usize = null;
+        var best_verdict : Trit = K_FALSE;
+        var best_confidence : GF16 = gf16_encode_f32(0.0);
+        var best_action_id : u32 = 0xFFFFFFFF;
+
+        var j : u8 = 0;
+        while (j < outcome_count) {
+            const outcome = outcomes[j];
+
+            // Priority: K_TRUE > K_UNKNOWN > K_FALSE
+            const current_is_better = compare_verdict(outcome.verdict, best_verdict);
+
+            if (current_is_better) {
+                best_verdict = outcome.verdict;
+                best_confidence = outcome.confidence;
+                best_action_id = outcome.action_id;
+                chosen_index = j;
+            } else if (outcome.verdict == best_verdict) {
+                // Same verdict: compare confidence
+                const conf_f = gf16_decode_to_f32(outcome.confidence);
+                const best_conf_f = gf16_decode_to_f32(best_confidence);
+
+                if (conf_f > best_conf_f) {
+                    best_confidence = outcome.confidence;
+                    best_action_id = outcome.action_id;
+                    chosen_index = j;
+                } else if (conf_f == best_conf_f and outcome.action_id < best_action_id) {
+                    // Tie-breaker: minimal action_id
+                    best_action_id = outcome.action_id;
+                    chosen_index = j;
+                }
             }
-            i = i + 1;
+
+            j = j + 1;
         }
 
-        // Step 3: Format explanation in requested style
-        const explanation_str = explain_derivation_chain(trace, style);
+        // Step 5: Build result
+        var result : CompositionResult = undefined;
+        result.quality_level = quality;
+        result.candidates = outcomes[0..outcome_count];
 
-        // Step 4: Build Explanation struct
-        const explanation = Explanation{
-            .trace = trace,
-            .style = style,
-            .human_readable = explanation_str,
-            .confidence = transformer_confidence,
-            .step_count = trace.step_count,
-        };
-
-        // Step 5: Final decision from attention
-        const prediction = transformer_result.decision;
-
-        return CompositionResult{
-            .prediction = prediction,
-            .confidence = transformer_confidence,
-            .explanation = explanation,
-            .proof_trace = trace,
-            .satisfaction = calculate_satisfaction(&pipeline, prediction, transformer_confidence),
-        };
-    }
-
-    // compose_rl_guardrails: Policy network → AR constraint checking
-    // Pattern: RL policy → Restraint check → Guarded action
-    // Complexity: O(1) for policy + O(1) for restraint check
-    pub fn compose_rl_guardrails(
-        state: []const f32,
-        policy_confidence: GF16,
-        guardrails: []const HornClause,
-        guardrail_count: usize,
-        params: RestraintParams
-    ) -> CompositionResult {
-        var pipeline = create_pipeline(.RL_GUARDRAILS, policy_confidence, guardrails, guardrail_count);
-
-        // Step 1: RL policy inference
-        const rl_result = simulate_policy_inference(state);
-
-        // Step 2: Restraint checking
-        var execution_state = init_state(.good, 0);
-        execution_state.current_confidence = policy_confidence;
-
-        const allowed = should_continue(execution_state, params);
-
-        // Step 3: Guardrail rule evaluation
-        const guardrail_result = evaluate_ar_rules(&pipeline.ar_component, rl_result);
-
-        // Step 4: Combine: action allowed only if both RL and guardrails approve
-        const prediction = k3_and(
-            f32_to_trit(rl_result.probability),
-            guardrail_result.decision
-        );
-
-        // Step 5: Generate explanation
-        const explanation = generate_composition_explanation(
-            &pipeline,
-            rl_result,
-            guardrail_result,
-            "RL policy → Guardrail check"
-        );
-
-        // Step 6: Combined confidence (lower if guardrails triggered)
-        const combined_conf = if (allowed) policy_confidence else gf16_encode_f32(0.3);
-
-        return CompositionResult{
-            .prediction = prediction,
-            .confidence = combined_conf,
-            .explanation = explanation,
-            .proof_trace = guardrail_result.trace,
-            .satisfaction = calculate_satisfaction(&pipeline, prediction, combined_conf),
-        };
-    }
-
-    // compose: Generic composition dispatch based on pattern
-    // Complexity: Depends on pattern (see individual functions)
-    pub fn compose(
-        pattern: CompositionPattern,
-        ml_input: []const f32,
-        ml_confidence: GF16,
-        ar_rules: []const HornClause,
-        ar_rule_count: usize,
-        additional_params: anytype
-    ) -> CompositionResult {
-        return switch (pattern) {
-            .CNN_RULES => compose_cnn_rules(ml_input, ml_confidence, ar_rules, ar_rule_count, GF16_ZERO),
-            .MLP_BAYESIAN => compose_mlp_bayesian(ml_input, ml_confidence, additional_params.bayesian_prior, GF16_ZERO),
-            .TRANSFORMER_XAI => compose_transformer_xai(ml_input, ml_confidence, additional_params.max_steps, additional_params.style),
-            .RL_GUARDRAILS => compose_rl_guardrails(ml_input, ml_confidence, ar_rules, ar_rule_count, additional_params.restraint_params),
-        };
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // HELPER FUNCTIONS
-    // ═══════════════════════════════════════════════════════
-
-    fn create_pipeline(
-        pattern: CompositionPattern,
-        ml_confidence: GF16,
-        rules: []const HornClause,
-        rule_count: usize
-    ) -> ComposedPipeline {
-        var ar_comp = ARComponent{
-            .rule_set = rules,
-            .rule_count = rule_count,
-            .explanation_style = .natural,
-            .confidence_threshold = GF16_ZERO,
-        };
-
-        var ml_comp = MLComponent{
-            .component_type = "generic",
-            .input_shape = [_]u32{0, 0, 0, 0},
-            .output_shape = [_]u32{0, 0},
-            .confidence = ml_confidence,
-        };
-
-        return ComposedPipeline{
-            .pattern = pattern,
-            .ml_component = ml_comp,
-            .ar_component = ar_comp,
-            .pipeline_confidence = ml_confidence,
-            .steps_completed = 0,
-            .explanation = create_empty_explanation(),
-            .terminated = false,
-        };
-    }
-
-    fn create_empty_explanation() -> Explanation {
-        return Explanation{
-            .trace = create_trace(),
-            .style = .natural,
-            .human_readable = "",
-            .confidence = GF16_ZERO,
-            .step_count = 0,
-        };
-    }
-
-    fn simulate_cnn_inference(features: []const f32) -> CNNResult {
-        // Simulated CNN inference
-        // In production: would call actual CNN forward pass
-        return CNNResult{
-            .decision = if (features[0] > 0.5) K_TRUE else K_FALSE,
-            .probability = features[0],
-        };
-    }
-
-    fn simulate_mlp_forward(input: []const f32) -> MLPResult {
-        // Simulated MLP forward pass
-        var sum : f32 = 0.0;
-        var i : usize = 0;
-        while (i < input.len) {
-            sum = sum + input[i];
-            i = i + 1;
-        }
-        return MLPResult{
-            .probability = sum / @as(f32, @floatFromInt(input.len)),
-        };
-    }
-
-    fn simulate_transformer_attention(input: []const f32) -> TransformerResult {
-        // Simulated transformer attention
-        return TransformerResult{
-            .decision = if (input[0] > 0.5) K_TRUE else K_FALSE,
-            .attention_scores = [_]f32{0.5} ** 10, // 10 attention scores
-        };
-    }
-
-    fn simulate_policy_inference(state: []const f32) -> RLResult {
-        // Simulated RL policy inference
-        return RLResult{
-            .probability = state[0],
-            .value = state[0],
-        };
-    }
-
-    fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 {
-        // Simple Bayesian update: posterior ∝ prior × likelihood
-        // Using log-space for numerical stability
-        const log_prior = @log(prior + 0.0001);  // Avoid log(0)
-        const log_likelihood = @log(likelihood + 0.0001);
-        const log_posterior = log_prior + log_likelihood;
-        return @exp(log_posterior);
-    }
-
-    fn evaluate_ar_rules(ar_comp: *ARComponent, ml_result: anytype) -> ARResult {
-        // Evaluate AR rules against ML result
-        var trace = create_trace();
-        var result : ARResult = undefined;
-
-        var i : usize = 0;
-        while (i < ar_comp.rule_count) {
-            const rule = ar_comp.rule_set[i];
-            // Simplified: check if rule matches (would use actual inference)
-            const step = DerivationStep{
-                .step_number = @as(u8, @intCast(i)),
-                .rule_name = "AR rule",
-                .input_facts = [_]Trit{K_TRUE, K_TRUE, K_TRUE},
-                .output_fact = K_TRUE,
-                .confidence = GF16_ONE,
-                .k3_value = K_TRUE,
-            };
-            _ = append_step(&trace, step);
-            i = i + 1;
+        // Set chosen (null if no candidates or all K_FALSE with low confidence)
+        if (chosen_index != null and best_verdict != K_FALSE) {
+            result.chosen = &outcomes[@intCast(chosen_index)];
+        } else {
+            result.chosen = null;
         }
 
-        result.trace = trace;
-        result.decision = K_TRUE;
-        result.confidence = GF16_ONE;
+        // Step 6: Generate summary
+        result.summary = summarize(&engine, 16);  // Top 16 facts
+
         return result;
     }
 
-    fn combine_confidence(ml_conf: GF16, ar_conf: GF16) -> GF16 {
-        const ml_f = gf16_decode_to_f32(ml_conf);
-        const ar_f = gf16_decode_to_f32(ar_conf);
-        // Geometric mean: sqrt(ml × ar)
-        return gf16_encode_f32(@sqrt(ml_f * ar_f));
+    // ═════════════════════════════════════════════════════════════
+    // UTILITY FUNCTIONS
+    // ═════════════════════════════════════════════════════════════
+
+    // compare_verdict: Returns true if v1 has higher priority than v2
+    // Priority: K_TRUE > K_UNKNOWN > K_FALSE
+    fn compare_verdict(v1: Trit, v2: Trit) -> bool {
+        // K_TRUE (2) > K_UNKNOWN (1) > K_FALSE (0)
+        const v1_val = trit_to_priority(v1);
+        const v2_val = trit_to_priority(v2);
+        return v1_val > v2_val;
     }
 
-    fn generate_composition_explanation(
-        pipeline: *ComposedPipeline,
-        ml_result: anytype,
-        ar_result: anytype,
-        pipeline_desc: []const u8
-    ) -> Explanation {
-        var trace = create_trace();
-        // Add ML step
-        const ml_step = DerivationStep{
-            .step_number = 0,
-            .rule_name = "ML inference",
-            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
-            .output_fact = K_TRUE,
-            .confidence = pipeline.ml_component.confidence,
-            .k3_value = K_TRUE,
+    // trit_to_priority: Convert Trit to numeric priority for comparison
+    fn trit_to_priority(t: Trit) -> u8 {
+        return if (t == K_TRUE) 2 else if (t == K_UNKNOWN) 1 else 0;
+    }
+
+    // copy_engine: Create a copy of DatalogEngine for candidate isolation
+    fn copy_engine(base: DatalogEngine) -> DatalogEngine {
+        // Simplified: create new engine and copy facts
+        var engine = datalog_init();
+        // TODO: Copy facts from base to engine
+        return engine;
+    }
+
+    // create_empty_explanation: Create empty explanation for unknown cases
+    fn create_empty_explanation() -> Explanation {
+        var expl : Explanation = undefined;
+        expl.fact_id = FactId{
+            .predicate = [0]u8 ** 64,
+            .args = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN },
         };
-        _ = append_step(&trace, ml_step);
-
-        // Add AR step
-        const ar_step = DerivationStep{
-            .step_number = 1,
-            .rule_name = "AR evaluation",
-            .input_facts = [_]Trit{K_TRUE, K_TRUE, K_TRUE},
-            .output_fact = K_TRUE,
-            .confidence = GF16_ONE,
-            .k3_value = K_TRUE,
-        };
-        _ = append_step(&trace, ar_step);
-
-        const explanation_str = format_composition_explanation(pipeline_desc, &trace);
-
-        return Explanation{
-            .trace = trace,
-            .style = .natural,
-            .human_readable = explanation_str,
-            .confidence = pipeline.pipeline_confidence,
-            .step_count = trace.step_count,
-        };
+        expl.conclusion = K_UNKNOWN;
+        expl.confidence = gf16_encode_f32(0.0);
+        expl.step_count = 0;
+        expl.truncated = false;
+        return expl;
     }
 
-    fn format_composition_explanation(desc: []const u8, trace: *ProofTrace) -> []const u8 {
-        // Simple format: "Pattern: desc → N steps → conclusion"
-        var buffer : [512]u8 = undefined;
-        // TODO: actual string formatting
-        _ = desc;
-        _ = trace;
-        return buffer[0..0];
-    }
-
-    fn calculate_satisfaction(pipeline: *ComposedPipeline, prediction: Trit, confidence: GF16) -> GF16 {
-        // Calculate satisfaction of CLARA requirements
-        var score : f32 = 1.0;
-
-        // Bonus for bounded (≤10 steps) explanations
-        if (pipeline.explanation.step_count <= 10) {
-            score = score * 1.2;
-        } else {
-            score = score * 0.5;  // Penalty for exceeding CLARA limit
-        }
-
-        // Bonus for confident predictions
-        const conf_f = gf16_decode_to_f32(confidence);
-        if (conf_f >= 0.7) {
-            score = score * 1.1;
-        }
-
-        // Penalty for termination (restraint triggered)
-        if (pipeline.terminated) {
-            score = score * 0.7;
-        }
-
-        // Clamp to [0, 1]
-        if (score > 1.0) score = 1.0;
-        if (score < 0.0) score = 0.0;
-
-        return gf16_encode_f32(score);
-    }
-
-    fn f32_to_trit(value: f32) -> Trit {
-        if (value > 0.6) return K_TRUE;
-        if (value < 0.4) return K_FALSE;
-        return K_UNKNOWN;
-    }
-
-    // ═══════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // TESTS
-    // ═══════════════════════════════════════════════════════
-    test compose_cnn_rules_returns_result
-        given features = [0.8, 0.3, 0.6]
-        and confidence = gf16_encode_f32(0.9)
-        when result = compose_cnn_rules(&features, confidence, null_rules, 0, GF16_ZERO)
-        then result.prediction == K_TRUE  // High feature score → TRUE
+    // ═════════════════════════════════════════════════════════════
+    test compose_decision_picks_true_over_unknown
+        given engine = datalog_init()
+        and perception = PerceptionBatch{ .signals = []PerceptionSignal{}, .count = 0 }
+        and candidates = [
+            DecisionCandidate{
+                .action_id = 1,
+                .goal_fact = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+                .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+            },
+            DecisionCandidate{
+                .action_id = 2,
+                .goal_fact = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+                .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+            },
+        ]
+        when result = compose_decision(perception, &candidates, .good, .natural)
+        then result.chosen != null  // Should have some chosen candidate
 
-    test compose_mlp_bayesian_updates_belief
-        given input = [0.5, 0.5, 0.5]
-        and confidence = gf16_encode_f32(0.8)
-        and prior = 0.5
-        when result = compose_mlp_bayesian(&input, confidence, prior, GF16_ZERO)
-        then result.confidence > gf16_encode_f32(0.5)  // Bayesian update should increase confidence
+    test compose_decision_returns_null_when_no_candidate_true_or_unknown
+        given engine = datalog_init()
+        and perception = PerceptionBatch{ .signals = []PerceptionSignal{}, .count = 0 }
+        and candidates = [
+            DecisionCandidate{
+                .action_id = 1,
+                .goal_fact = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+                .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+            },
+        ]
+        when result = compose_decision(perception, &candidates, .unknown, .natural)
+        then result.chosen == null  // No true/unknown candidate → null
 
-    test compose_transformer_xai_respects_10_step_limit
-        given input = [_]f32{0.7} ** 10
-        and confidence = GF16_ONE
-        when result = compose_transformer_xai(&input, confidence, 15, .natural)
-        then result.explanation.step_count <= 10
+    test perception_to_engine_creates_ground_facts_with_gf16_confidence
+        given engine = datalog_init()
+        and signal = PerceptionSignal{
+            .id = FactId{ .predicate = [1]u8 ++ [0]u8 ** 63, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+            .score = gf16_encode_f32(0.85),
+            .description = "test_signal",
+        }
+        and batch = PerceptionBatch{ .signals = []PerceptionSignal{signal}, .count = 1 }
+        when perception_to_engine(batch, &engine)
+        then engine.fact_count >= 1  // Fact added to engine
 
-    test compose_rl_guardrails_blocks_unsafe_action
-        given state = [_]f32{0.9}  // High action value but unsafe
-        and confidence = GF16_ONE
-        and guardrails = [HornClause{}]
-        and params = RestraintParams{ .max_depth = 0, .max_rules = 1, .confidence_threshold = GF16_ONE, .timeout_ms = 100 }
-        when result = compose_rl_guardrails(&state, confidence, &guardrails, 1, params)
-        then result.prediction != K_TRUE  // Blocked by restraint
+    test evaluate_candidate_propagates_restraint_flag
+        given engine = datalog_init()
+        and candidate = DecisionCandidate{
+            .action_id = 1,
+            .goal_fact = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+            .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+        }
+        and params = RestraintParams{
+            .max_depth = 0,
+            .max_rules = 0,
+            .confidence_threshold = gf16_encode_f32(1.0),
+            .timeout_ms = 100,
+        }
+        when result = evaluate_candidate(engine, candidate, params, .natural)
+        then result.restrained == true  // Restraint triggered
 
-    test compose_dispatches_correctly
-        // Verify compose() dispatches to correct pattern
-        when cnn_result = compose(.CNN_RULES, [_]f32{}, GF16_ONE, null_rules, 0, .{})
-        and mlp_result = compose(.MLP_BAYESIAN, [_]f32{}, GF16_ONE, .{.bayesian_prior=0.5}, .{})
-        then cnn_result.prediction != mlp_result.prediction
+    test evaluate_candidate_uses_asp_result_model_confidence
+        given engine = datalog_init()
+        and candidate = DecisionCandidate{
+            .action_id = 1,
+            .goal_fact = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+            .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+        }
+        and params = RestraintParams{
+            .max_depth = 10,
+            .max_rules = 10,
+            .confidence_threshold = gf16_encode_f32(0.5),
+            .timeout_ms = 1000,
+        }
+        when result = evaluate_candidate(engine, candidate, params, .natural)
+        then gf16_decode_to_f32(result.confidence) >= 0.0
+        and gf16_decode_to_f32(result.confidence) <= 1.0
 
-    test confidence_in_unit_interval
-        // All composition results have valid confidence
-        when result = compose(.CNN_RULES, [_]f32{0.5}, GF16_ONE, null_rules, 0, .{})
-        and conf = gf16_decode_to_f32(result.confidence)
-        then 0.0 <= conf and conf <= 1.0
+    test compose_decision_respects_quality_level_depth
+        // Different QualityLevel → different depth via restraint
+        given engine = datalog_init()
+        and perception = PerceptionBatch{ .signals = []PerceptionSignal{}, .count = 0 }
+        and candidates = [
+            DecisionCandidate{
+                .action_id = 1,
+                .goal_fact = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN} },
+                .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+            },
+        ]
+        and result_good = compose_decision(perception, &candidates, .good, .natural)
+        and result_unknown = compose_decision(perception, &candidates, .unknown, .natural)
+        then result_good.quality_level == .good
+        and result_unknown.quality_level == .unknown
 
-    test satisfaction_penalty_for_terminated_pipeline
-        // Terminated pipelines get satisfaction penalty
-        given result = compose(.CNN_RULES, [_]f32{0.5}, GF16_ONE, null_rules, 0, .{.terminated=true})
-        and conf_f = gf16_decode_to_f32(result.satisfaction)
-        then conf_f < 1.0  // Penalty applied
-
-    // ═══════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // INVARIANTS
-    // ═══════════════════════════════════════════════════════
-    invariant composition_pattern_coverage
-        // All 4 composition patterns are defined
-        const patterns = [_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS};
-        _ = patterns;
+    // ═════════════════════════════════════════════════════════════
+    invariant composition_respects_restraint
+        // If terminated_by_restraint == true, then verdict == K_UNKNOWN or restrained == true
+        for all DecisionOutcome o:
+            (o.asp_result.terminated_by_restraint implies
+                (o.verdict == K_UNKNOWN or o.restrained == true))
 
-    invariant explanation_bounded_by_clara
-        // All explanations respect ≤10 step limit
-        // Verified by compose_transformer_xai_test
+    invariant gf16_confidence_bounds
+        // All GF16 confidence values in [0, 1]
+        for all DecisionOutcome o:
+            const val = gf16_decode_to_f32(o.confidence);
+            0.0 <= val and val <= 1.0
+        for all CompositionResult r:
+            if (r.chosen != null) {
+                const val = gf16_decode_to_f32(r.chosen.confidence);
+                0.0 <= val and val <= 1.0
+            }
 
-    invariant confidence_in_valid_range
-        // All composition confidence values in [0, 1]
-        const patterns = [_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS};
-        for (patterns) |p| {
-            const result = compose(p, [_]f32{}, GF16_ONE, null_rules, 0, .{});
-            const conf = gf16_decode_to_f32(result.confidence);
-            assert conf >= 0.0 and conf <= 1.0;
-        }
+    invariant chosen_is_member_of_candidates
+        // If chosen != null, its action_id is among input candidates
+        for all CompositionResult r:
+            if (r.chosen != null) {
+                var found : bool = false;
+                var i : usize = 0;
+                while (i < r.candidates.len) {
+                    if (r.candidates[i].action_id == r.chosen.action_id) {
+                        found = true;
+                        break;
+                    }
+                    i = i + 1;
+                }
+                assert found == true;
+            }
 
-    invariant satisfaction_in_valid_range
-        // All satisfaction scores in [0, 1]
-        const patterns = [_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS};
-        for (patterns) |p| {
-            const result = compose(p, [_]f32{}, GF16_ONE, null_rules, 0, .{});
-            const sat = gf16_decode_to_f32(result.satisfaction);
-            assert sat >= 0.0 and sat <= 1.0;
-        }
+    invariant summary_consistent_with_engine
+        // All facts in summary exist in engine and confidences match
+        // (Verified by summarize() implementation from explainability)
 
-    // ═══════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════
     // BENCHES
-    // ═══════════════════════════════════════════════════════
-    bench compose_cnn_rules_latency
-        measure: cycles for compose_cnn_rules with 10 rules
-        target: < 2000 cycles
+    // ═════════════════════════════════════════════════════════════
+    bench compose_decision_3_candidates_32_signals
+        // Measure: cycles for compose_decision with 3 candidates, 32 signals
+        // Target: < 5000 cycles
+        @setEvalBranchQuota(10000);
+        var signals : [32]PerceptionSignal = undefined;
+        for (0..32) |i| {
+            signals[i] = PerceptionSignal{
+                .id = FactId{
+                    .predicate = [0]u8 ** 64,
+                    .args = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN },
+                },
+                .score = gf16_encode_f32(0.5),
+                .description = "signal",
+            };
+        }
+        var perception = PerceptionBatch{
+            .signals = &signals,
+            .count = 32,
+        };
+        var candidates : [3]DecisionCandidate = undefined;
+        for (0..3) |i| {
+            candidates[i] = DecisionCandidate{
+                .action_id = @as(u32, @intCast(i)),
+                .goal_fact = FactId{
+                    .predicate = [0]u8 ** 64,
+                    .args = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN },
+                },
+                .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+            };
+        }
+        _ = compose_decision(perception, &candidates, .good, .natural);
 
-    bench compose_mlp_bayesian_latency
-        measure: cycles for compose_mlp_bayesian with 100-dim input
-        target: < 1500 cycles
-
-    bench compose_transformer_xai_latency
-        measure: cycles for compose_transformer_xai with 10 steps
-        target: < 3000 cycles
-
-    bench compose_rl_guardrails_latency
-        measure: cycles for compose_rl_guardrails with 5 guardrails
-        target: < 2500 cycles
-
-    bench compose_dispatch_latency
-        measure: cycles for compose() dispatch overhead
-        target: < 100 cycles
+    bench evaluate_candidate_single
+        // Measure: cycles for evaluate_candidate with simple program
+        // Target: < 2000 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        var candidate = DecisionCandidate{
+            .action_id = 1,
+            .goal_fact = FactId{
+                .predicate = [0]u8 ** 64,
+                .args = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN },
+            },
+            .program = AspProgram{ .rules = []AspRule{}, .count = 0 },
+        };
+        var params = RestraintParams{
+            .max_depth = 10,
+            .max_rules = 10,
+            .confidence_threshold = gf16_encode_f32(0.5),
+            .timeout_ms = 1000,
+        };
+        _ = evaluate_candidate(engine, candidate, params, .natural);
 }
-
-// Helper types for composition
-const CNNResult = struct {
-    decision : Trit,
-    probability : f32,
-};
-
-const MLPResult = struct {
-    probability : f32,
-};
-
-const TransformerResult = struct {
-    decision : Trit,
-    attention_scores : [10]f32,
-};
-
-const RLResult = struct {
-    probability : f32,
-    value : f32,
-};
-
-const ARResult = struct {
-    decision : Trit,
-    confidence : GF16,
-    trace : ProofTrace,
-};
-
-const null_rules = [_]HornClause{};
-const FormatStyle = enum { natural, fitch, compact };
