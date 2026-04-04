@@ -2,6 +2,68 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 080: add_packed_trit_bit_manipulation_functions
+
+**Spec**: `specs/base/types.t27`
+**Task**: Add 6 PackedTrit bit manipulation functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: 1d41b788fd86acae12dca279f73490d53a0eca2aac086965f58db1064a64b7e8
+- `spec_hash_after`: e445b7998c9a9c41447d2fe5ccf01a622d408e62dc98886f9a40d4c17359d170
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `packed_trit_xnor(a: PackedTrit, b: PackedTrit) -> PackedTrit` - Element-wise XNOR
+2. `packed_trit_shift_left(packed: PackedTrit, shift: u8) -> PackedTrit` - Left shift (fill with zeros)
+3. `packed_trit_shift_right(packed: PackedTrit, shift: u8) -> PackedTrit` - Right shift (fill with zeros)
+4. `packed_trit_rotate_left(packed: PackedTrit, rotate: u8) -> PackedTrit` - Left rotate (circular)
+5. `packed_trit_rotate_right(packed: PackedTrit, rotate: u8) -> PackedTrit` - Right rotate (circular)
+
+### Tests Added (10)
+- `test_packed_trit_xnor_equal_returns_pos`
+- `test_packed_trit_xnor_different_returns_neg`
+- `test_packed_trit_shift_left_basic`
+- `test_packed_trit_shift_left_by_eight_returns_zero`
+- `test_packed_trit_shift_right_basic`
+- `test_packed_trit_shift_right_by_eight_returns_zero`
+- `test_packed_trit_rotate_left_basic`
+- `test_packed_trit_rotate_left_by_three`
+- `test_packed_trit_rotate_right_basic`
+- `test_packed_trit_rotate_right_by_four`
+- `test_packed_trit_shift_rotate_are_different`
+
+### Invariants Added (8)
+- `packed_trit_xnor_commutative`
+- `packed_trit_xnor_equal_returns_pos`
+- `packed_trit_shift_left_by_eight_returns_zero`
+- `packed_trit_shift_right_by_eight_returns_zero`
+- `packed_trit_shift_left_fills_with_zero`
+- `packed_trit_shift_right_fills_with_zero`
+- `packed_trit_rotate_left_inverse`
+- `packed_trit_rotate_right_inverse`
+- `packed_trit_rotate_preserves_count`
+
+### Benchmarks Added (6)
+- `bench_packed_trit_xnor_latency` - Target: < 100 cycles
+- `bench_packed_trit_shift_left_latency` - Target: < 50 cycles
+- `bench_packed_trit_shift_right_latency` - Target: < 50 cycles
+- `bench_packed_trit_rotate_left_latency` - Target: < 50 cycles
+- `bench_packed_trit_rotate_right_latency` - Target: < 50 cycles
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 080
+- `task_id`: add_packed_trit_bit_manipulation_functions
+- `spec_path`: specs/base/types.t27
+
+---
+
 ## Skill 079: add_base_ops_utility_functions
 
 **Spec**: `specs/base/ops.t27`

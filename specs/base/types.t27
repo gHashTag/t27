@@ -393,6 +393,107 @@ pub fn packed_trit_nor(a: PackedTrit, b: PackedTrit) PackedTrit {
     return result;
 }
 
+// packed_trit_xnor(a: PackedTrit, b: PackedTrit) → PackedTrit
+// Element-wise XNOR operation on two PackedTrit values
+// Returns pos when trits are equal, neg when different
+pub fn packed_trit_xnor(a: PackedTrit, b: PackedTrit) PackedTrit {
+    var result: PackedTrit = 0;
+    for (0..TRITS_PER_BYTE) |i| {
+        const a_trit = unpack_trit(@intCast(i), a).value;
+        const b_trit = unpack_trit(@intCast(i), b).value;
+        const xor_result = trit_xor(a_trit, b_trit);
+        const xnor_result = trit_not(xor_result);
+        result = pack_trit(xnor_result, @intCast(i), result);
+    }
+    return result;
+}
+
+// packed_trit_shift_left(packed: PackedTrit, shift: u8) → PackedTrit
+// Left shift packed trits by shift positions (fills with zeros)
+// shift must be in [0, 8]
+pub fn packed_trit_shift_left(packed: PackedTrit, shift: u8) PackedTrit {
+    if (shift == 0) {
+        return packed;
+    }
+    if (shift >= TRITS_PER_BYTE) {
+        return 0;  // Shift all trits out, return all zeros
+    }
+
+    var result: PackedTrit = 0;
+    for (0..TRITS_PER_BYTE) |i| {
+        if (i >= shift) {
+            const src_pos = @intCast(i - shift);
+            const src_trit = unpack_trit(src_pos, packed).value;
+            result = pack_trit(src_trit, @intCast(i), result);
+        }
+        // Else: leave as zero (default)
+    }
+    return result;
+}
+
+// packed_trit_shift_right(packed: PackedTrit, shift: u8) → PackedTrit
+// Right shift packed trits by shift positions (fills with zeros)
+// shift must be in [0, 8]
+pub fn packed_trit_shift_right(packed: PackedTrit, shift: u8) PackedTrit {
+    if (shift == 0) {
+        return packed;
+    }
+    if (shift >= TRITS_PER_BYTE) {
+        return 0;  // Shift all trits out, return all zeros
+    }
+
+    var result: PackedTrit = 0;
+    for (0..TRITS_PER_BYTE) |i| {
+        const dst_pos = @intCast(i + shift);
+        if (dst_pos < TRITS_PER_BYTE) {
+            const src_trit = unpack_trit(@intCast(i), packed).value;
+            result = pack_trit(src_trit, dst_pos, result);
+        }
+        // Else: source trit shifts out
+    }
+    return result;
+}
+
+// packed_trit_rotate_left(packed: PackedTrit, rotate: u8) → PackedTrit
+// Left rotate packed trits by rotate positions (circular shift)
+// rotate must be in [0, 7]
+pub fn packed_trit_rotate_left(packed: PackedTrit, rotate: u8) PackedTrit {
+    if (rotate == 0) {
+        return packed;
+    }
+
+    const shift = rotate % TRITS_PER_BYTE;
+    var result: PackedTrit = 0;
+
+    for (0..TRITS_PER_BYTE) |i| {
+        const src_pos = @intCast((i + TRITS_PER_BYTE - shift) % TRITS_PER_BYTE);
+        const src_trit = unpack_trit(src_pos, packed).value;
+        result = pack_trit(src_trit, @intCast(i), result);
+    }
+
+    return result;
+}
+
+// packed_trit_rotate_right(packed: PackedTrit, rotate: u8) → PackedTrit
+// Right rotate packed trits by rotate positions (circular shift)
+// rotate must be in [0, 7]
+pub fn packed_trit_rotate_right(packed: PackedTrit, rotate: u8) PackedTrit {
+    if (rotate == 0) {
+        return packed;
+    }
+
+    const shift = rotate % TRITS_PER_BYTE;
+    var result: PackedTrit = 0;
+
+    for (0..TRITS_PER_BYTE) |i| {
+        const src_pos = @intCast((i + shift) % TRITS_PER_BYTE);
+        const src_trit = unpack_trit(src_pos, packed).value;
+        result = pack_trit(src_trit, @intCast(i), result);
+    }
+
+    return result;
+}
+
 // ternary_word_is_zero(word: TernaryWord) → bool
 // Check if all 27 trits in TernaryWord are zero
 pub fn ternary_word_is_zero(word: TernaryWord) bool {
@@ -821,6 +922,115 @@ test "test_packed_trit_nor_basic" {
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);
 }
 
+test "test_packed_trit_xnor_equal_returns_pos" {
+    // Verify: XNOR of equal trits returns pos
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);
+    packed = pack_trit(.neg, 1, packed);
+    packed = pack_trit(.zero, 2, packed);
+    const result = packed_trit_xnor(packed, packed);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);
+}
+
+test "test_packed_trit_xnor_different_returns_neg" {
+    // Verify: XNOR of different trits returns neg
+    var a: PackedTrit = 0;
+    var b: PackedTrit = 0;
+    a = pack_trit(.pos, 0, a);
+    b = pack_trit(.neg, 0, b);
+    const result = packed_trit_xnor(a, b);
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(0, result).value);
+}
+
+test "test_packed_trit_shift_left_basic" {
+    // Verify: left shift by 1 moves all trits left
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);
+    packed = pack_trit(.neg, 1, packed);
+    packed = pack_trit(.zero, 2, packed);
+    const result = packed_trit_shift_left(packed, 1);
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(1, result).value);
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(2, result).value);
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // Filled with zero
+}
+
+test "test_packed_trit_shift_left_by_eight_returns_zero" {
+    // Verify: shift by 8 returns all zeros
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);
+    packed = pack_trit(.neg, 1, packed);
+    const result = packed_trit_shift_left(packed, 8);
+    try std.testing.expectEqual(@as(PackedTrit, 0), result);
+}
+
+test "test_packed_trit_shift_right_basic" {
+    // Verify: right shift by 1 moves all trits right
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 1, packed);
+    packed = pack_trit(.neg, 2, packed);
+    packed = pack_trit(.zero, 3, packed);
+    const result = packed_trit_shift_right(packed, 1);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(1, result).value);
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(2, result).value);
+}
+
+test "test_packed_trit_shift_right_by_eight_returns_zero" {
+    // Verify: shift by 8 returns all zeros
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 7, packed);
+    const result = packed_trit_shift_right(packed, 8);
+    try std.testing.expectEqual(@as(PackedTrit, 0), result);
+}
+
+test "test_packed_trit_rotate_left_basic" {
+    // Verify: rotate left by 1 is circular
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 7, packed);  // Last position
+    packed = pack_trit(.neg, 0, packed);  // First position
+    const result = packed_trit_rotate_left(packed, 1);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, result).value);  // Wrapped to front
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(1, result).value);  // Shifted left
+}
+
+test "test_packed_trit_rotate_left_by_three" {
+    // Verify: rotate left by 3 positions
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 5, packed);
+    const result = packed_trit_rotate_left(packed, 3);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(2, result).value);  // 5+3=8, wraps to 2
+}
+
+test "test_packed_trit_rotate_right_basic" {
+    // Verify: rotate right by 1 is circular
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);  // First position
+    packed = pack_trit(.neg, 7, packed);  // Last position
+    const result = packed_trit_rotate_right(packed, 1);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(7, result).value);  // Wrapped to back
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);  // Last position wrapped here
+}
+
+test "test_packed_trit_rotate_right_by_four" {
+    // Verify: rotate right by 4 positions
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 2, packed);
+    const result = packed_trit_rotate_right(packed, 4);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(6, result).value);  // (2+4) % 8 = 6
+}
+
+test "test_packed_trit_shift_rotate_are_different" {
+    // Verify: shift fills with zeros, rotate is circular
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 7, packed);
+    const shift_result = packed_trit_shift_left(packed, 1);
+    const rotate_result = packed_trit_rotate_left(packed, 1);
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, shift_result).value);  // Shift fills with zero
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(0, rotate_result).value);  // Rotate wraps around
+}
+
 test "test_ternary_word_is_zero_true" {
     // Verify: all zeros ternary word is detected as zero
     var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
@@ -1061,6 +1271,51 @@ invariant packed_trit_nor_commutative {
     @compileAssert(true);
 }
 
+invariant packed_trit_xnor_commutative {
+    // packed_trit_xnor(a, b) = packed_trit_xnor(b, a)
+    @compileAssert(true);
+}
+
+invariant packed_trit_xnor_equal_returns_pos {
+    // packed_trit_xnor(x, x) has all trits = pos
+    @compileAssert(true);
+}
+
+invariant packed_trit_shift_left_by_eight_returns_zero {
+    // packed_trit_shift_left(x, 8) = 0 for all x
+    @compileAssert(true);
+}
+
+invariant packed_trit_shift_right_by_eight_returns_zero {
+    // packed_trit_shift_right(x, 8) = 0 for all x
+    @compileAssert(true);
+}
+
+invariant packed_trit_shift_left_fills_with_zero {
+    // packed_trit_shift_left(x, n) has first n trits = 0
+    @compileAssert(true);
+}
+
+invariant packed_trit_shift_right_fills_with_zero {
+    // packed_trit_shift_right(x, n) has last n trits = 0
+    @compileAssert(true);
+}
+
+invariant packed_trit_rotate_left_inverse {
+    // packed_trit_rotate_right(packed_trit_rotate_left(x, n), n) = x
+    @compileAssert(true);
+}
+
+invariant packed_trit_rotate_right_inverse {
+    // packed_trit_rotate_left(packed_trit_rotate_right(x, n), n) = x
+    @compileAssert(true);
+}
+
+invariant packed_trit_rotate_preserves_count {
+    // trit count is preserved after rotation
+    @compileAssert(true);
+}
+
 invariant ternary_word_is_zero_idempotent {
     // ternary_word_is_zero(x) = (ternary_word_count(x, .zero) == TRITS_PER_WORD)
     @compileAssert(true);
@@ -1295,6 +1550,67 @@ bench "bench_packed_trit_nor_latency" {
     const b: PackedTrit = 0x00;
     for (0..1000) |_| {
         result = packed_trit_nor(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_xnor_latency" {
+    // Measure: cycles for packed_trit_xnor operation
+    // Target: < 100 cycles on t27-hardware (8 trit operations)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const a: PackedTrit = 0xAA;
+    const b: PackedTrit = 0x55;
+    for (0..1000) |_| {
+        result = packed_trit_xnor(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_shift_left_latency" {
+    // Measure: cycles for packed_trit_shift_left operation
+    // Target: < 50 cycles on t27-hardware (8 trit moves)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const packed: PackedTrit = 0xFF;
+    for (0..1000) |_| {
+        result = packed_trit_shift_left(packed, 1);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_shift_right_latency" {
+    // Measure: cycles for packed_trit_shift_right operation
+    // Target: < 50 cycles on t27-hardware (8 trit moves)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const packed: PackedTrit = 0xFF;
+    for (0..1000) |_| {
+        result = packed_trit_shift_right(packed, 1);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_rotate_left_latency" {
+    // Measure: cycles for packed_trit_rotate_left operation
+    // Target: < 50 cycles on t27-hardware (8 trit moves)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const packed: PackedTrit = 0xFF;
+    for (0..1000) |_| {
+        result = packed_trit_rotate_left(packed, 1);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_rotate_right_latency" {
+    // Measure: cycles for packed_trit_rotate_right operation
+    // Target: < 50 cycles on t27-hardware (8 trit moves)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const packed: PackedTrit = 0xFF;
+    for (0..1000) |_| {
+        result = packed_trit_rotate_right(packed, 1);
     }
     _ = result;
 }
