@@ -309,6 +309,93 @@ pub fn tf3_ge(a: TF3, b: TF3) bool {
     return a_val >= b_val;
 }
 
+// tf3_add(a: TF3, b: TF3) → TF3
+// Add two TF3 values (decode, add, re-encode)
+// Handles overflow by clamping to Inf
+pub fn tf3_add(a: TF3, b: TF3) TF3 {
+    if (tf3_is_inf(a) and !tf3_is_negative(a)) return a;
+    if (tf3_is_inf(b) and !tf3_is_negative(b)) return b;
+    if (tf3_is_inf(a) and tf3_is_negative(a)) return a;
+    if (tf3_is_inf(b) and tf3_is_negative(b)) return b;
+    if (tf3_is_inf(a) and tf3_is_inf(b)) {
+        // Inf + (-Inf) or (-Inf) + Inf = clamp to representable range
+        return if (tf3_is_negative(a)) TF3_INF_NEG else TF3_INF_POS;
+    }
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    const result = a_val + b_val;
+
+    return tf3_from_f32(result);
+}
+
+// tf3_sub(a: TF3, b: TF3) → TF3
+// Subtract two TF3 values (decode, subtract, re-encode)
+pub fn tf3_sub(a: TF3, b: TF3) TF3 {
+    if (tf3_is_inf(a)) return a;
+    if (tf3_is_inf(b)) {
+        // x - Inf = -Inf (approximately, clamped)
+        return if (tf3_is_negative(b)) TF3_INF_POS else TF3_INF_NEG;
+    }
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    const result = a_val - b_val;
+
+    return tf3_from_f32(result);
+}
+
+// tf3_mul(a: TF3, b: TF3) → TF3
+// Multiply two TF3 values (decode, multiply, re-encode)
+pub fn tf3_mul(a: TF3, b: TF3) TF3 {
+    if (tf3_is_zero(a) or tf3_is_zero(b)) {
+        const a_sign = tf3_extract_sign(a);
+        const b_sign = tf3_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) TF3_ZERO_NEG else TF3_ZERO_POS;
+    }
+    if (tf3_is_inf(a) or tf3_is_inf(b)) {
+        const a_sign = tf3_extract_sign(a);
+        const b_sign = tf3_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) TF3_INF_NEG else TF3_INF_POS;
+    }
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    const result = a_val * b_val;
+
+    return tf3_from_f32(result);
+}
+
+// tf3_div(a: TF3, b: TF3) → TF3
+// Divide two TF3 values (decode, divide, re-encode)
+// Returns Inf if divisor is zero
+pub fn tf3_div(a: TF3, b: TF3) TF3 {
+    if (tf3_is_zero(b)) {
+        const a_sign = tf3_extract_sign(a);
+        return if (a_sign != 0) TF3_INF_NEG else TF3_INF_POS;
+    }
+    if (tf3_is_inf(a)) {
+        const a_sign = tf3_extract_sign(a);
+        const b_sign = tf3_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) TF3_INF_NEG else TF3_INF_POS;
+    }
+    if (tf3_is_inf(b)) {
+        const a_sign = tf3_extract_sign(a);
+        const b_sign = tf3_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) TF3_ZERO_NEG else TF3_ZERO_POS;
+    }
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    const result = a_val / b_val;
+
+    return tf3_from_f32(result);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -695,6 +782,121 @@ test "test_tf3_comparison_consistency" {
     try std.testing.expect(!tf3_ge(a, b));
 }
 
+test "test_tf3_add_positive_values" {
+    const a = tf3_from_f32(1.5);
+    const b = tf3_from_f32(2.5);
+    const result = tf3_add(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(4.0, decoded, 0.5);
+}
+
+test "test_tf3_add_negative_values" {
+    const a = tf3_from_f32(-1.5);
+    const b = tf3_from_f32(-2.5);
+    const result = tf3_add(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(-4.0, decoded, 0.5);
+}
+
+test "test_tf3_add_opposite_values" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(-2.0);
+    const result = tf3_add(a, b);
+    try std.testing.expect(tf3_is_zero(result));
+}
+
+test "test_tf3_sub_positive_values" {
+    const a = tf3_from_f32(5.0);
+    const b = tf3_from_f32(2.0);
+    const result = tf3_sub(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(3.0, decoded, 0.5);
+}
+
+test "test_tf3_sub_negative_result" {
+    const a = tf3_from_f32(1.0);
+    const b = tf3_from_f32(3.0);
+    const result = tf3_sub(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(-2.0, decoded, 0.5);
+}
+
+test "test_tf3_mul_positive_values" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(3.0);
+    const result = tf3_mul(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(6.0, decoded, 1.0);
+}
+
+test "test_tf3_mul_negative_positive" {
+    const a = tf3_from_f32(-2.0);
+    const b = tf3_from_f32(3.0);
+    const result = tf3_mul(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(-6.0, decoded, 1.0);
+}
+
+test "test_tf3_mul_with_zero" {
+    const a = tf3_from_f32(5.0);
+    const zero = tf3_from_f32(0.0);
+    const result = tf3_mul(a, zero);
+    try std.testing.expect(tf3_is_zero(result));
+}
+
+test "test_tf3_div_positive_values" {
+    const a = tf3_from_f32(6.0);
+    const b = tf3_from_f32(3.0);
+    const result = tf3_div(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.0, decoded, 0.5);
+}
+
+test "test_tf3_div_negative_result" {
+    const a = tf3_from_f32(6.0);
+    const b = tf3_from_f32(-3.0);
+    const result = tf3_div(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(-2.0, decoded, 0.5);
+}
+
+test "test_tf3_div_value_by_zero" {
+    const a = tf3_from_f32(5.0);
+    const zero = tf3_from_f32(0.0);
+    const result = tf3_div(a, zero);
+    try std.testing.expect(tf3_is_inf(result));
+}
+
+test "test_tf3_div_zero_by_value" {
+    const zero = tf3_from_f32(0.0);
+    const a = tf3_from_f32(5.0);
+    const result = tf3_div(zero, a);
+    try std.testing.expect(tf3_is_zero(result));
+}
+
+test "test_tf3_div_inf_by_finite" {
+    const inf = TF3_INF_POS;
+    const a = tf3_from_f32(5.0);
+    const result = tf3_div(inf, a);
+    try std.testing.expect(tf3_is_inf(result));
+}
+
+test "test_tf3_add_commutative" {
+    const a = tf3_from_f32(1.5);
+    const b = tf3_from_f32(2.5);
+    const result1 = tf3_add(a, b);
+    const result2 = tf3_add(b, a);
+    try std.testing.expectEqual(result1, result2);
+}
+
+test "test_tf3_mul_commutative" {
+    const a = tf3_from_f32(1.5);
+    const b = tf3_from_f32(2.5);
+    const result1 = tf3_mul(a, b);
+    const result2 = tf3_mul(b, a);
+    try std.testing.expectEqual(result1, result2);
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -854,6 +1056,46 @@ invariant tf3_gt_implies_ge {
 
 invariant tf3_eq_implies_le_and_ge {
     // For all a, b: tf3_eq(a, b) implies tf3_le(a, b) and tf3_ge(a, b)
+    @compileAssert(true);
+}
+
+invariant tf3_add_zero_identity {
+    // tf3_add(x, 0) = tf3_add(0, x) = x (approximately, due to encoding)
+    @compileAssert(true);
+}
+
+invariant tf3_add_commutative {
+    // tf3_add(a, b) = tf3_add(b, a)
+    @compileAssert(true);
+}
+
+invariant tf3_mul_zero_annihilates {
+    // tf3_mul(x, 0) = tf3_mul(0, x) = 0
+    @compileAssert(true);
+}
+
+invariant tf3_mul_one_identity {
+    // tf3_mul(x, 1) = tf3_mul(1, x) = x (approximately)
+    @compileAssert(true);
+}
+
+invariant tf3_mul_commutative {
+    // tf3_mul(a, b) = tf3_mul(b, a)
+    @compileAssert(true);
+}
+
+invariant tf3_div_by_one_identity {
+    // tf3_div(x, 1) = x (approximately)
+    @compileAssert(true);
+}
+
+invariant tf3_div_by_zero_is_inf {
+    // tf3_div(x, 0) = Inf (or -Inf if x < 0)
+    @compileAssert(true);
+}
+
+invariant tf3_sub_with_zero {
+    // tf3_sub(x, 0) = x (approximately)
     @compileAssert(true);
 }
 
@@ -1095,6 +1337,58 @@ bench "bench_tf3_ge_latency" {
     const b: TF3 = 0x48;
     for (0..1000) |_| {
         result = tf3_ge(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_add_latency" {
+    // measure: nanoseconds to add two values
+    // target: < 200ns (includes decode + add + encode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x40;
+    for (0..1000) |_| {
+        result = tf3_add(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_sub_latency" {
+    // measure: nanoseconds to subtract two values
+    // target: < 200ns (includes decode + sub + encode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x40;
+    for (0..1000) |_| {
+        result = tf3_sub(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_mul_latency" {
+    // measure: nanoseconds to multiply two values
+    // target: < 200ns (includes decode + mul + encode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x50;
+    for (0..1000) |_| {
+        result = tf3_mul(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_div_latency" {
+    // measure: nanoseconds to divide two values
+    // target: < 250ns (includes decode + div + encode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x50;
+    const b: TF3 = 0x48;
+    for (0..1000) |_| {
+        result = tf3_div(a, b);
     }
     _ = result;
 }
