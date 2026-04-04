@@ -1,0 +1,46 @@
+{
+  "module": "SkillRegistry",
+  "spec_path": "compiler/skill/registry.t27",
+  "ring": 38,
+  "generated_at": "2026-04-04T21:20:00Z",
+  "vectors": [
+    {
+      "function": "SkillStatus",
+      "cases": [
+        { "inputs": { "variant": "Active" }, "expected": 0 },
+        { "inputs": { "variant": "Sealed" }, "expected": 1 },
+        { "inputs": { "variant": "Paused" }, "expected": 2 },
+        { "inputs": { "variant": "Blocked" }, "expected": 3 },
+        { "inputs": { "variant": "Completed" }, "expected": 4 }
+      ]
+    },
+    {
+      "function": "SkillKind",
+      "cases": [
+        { "inputs": { "variant": "Feature" }, "expected": 0 },
+        { "inputs": { "variant": "Bugfix" }, "expected": 1 },
+        { "inputs": { "variant": "Hotfix" }, "expected": 2 },
+        { "inputs": { "variant": "Recovery" }, "expected": 3 },
+        { "inputs": { "variant": "Refactor" }, "expected": 4 }
+      ]
+    },
+    {
+      "function": "SkillVerdict",
+      "cases": [
+        { "inputs": { "variant": "NotToxic" }, "expected": 0 },
+        { "inputs": { "variant": "Toxic" }, "expected": 1 }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "registry_path_is_fixed", "assert": "REGISTRY_PATH == .trinity/skills/registry.json" },
+    { "name": "skill_status_sequential", "assert": "Active < Sealed < Paused < Blocked < Completed" },
+    { "name": "skill_verdict_binary", "assert": "NotToxic or Toxic only" },
+    { "name": "recovery_requires_3_checkpoints", "assert": "Recovery kind needs min 3 checkpoints" },
+    { "name": "hotfix_requires_1_checkpoint", "assert": "Hotfix kind needs min 1 checkpoint" }
+  ],
+  "benchmarks": [
+    { "name": "registry_parse_latency", "target": "< 5ms" },
+    { "name": "skill_lookup_latency", "target": "< 1ms" }
+  ]
+}

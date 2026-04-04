@@ -1,0 +1,67 @@
+{
+  "module": "RuntimeCommands",
+  "spec_path": "compiler/runtime/commands.t27",
+  "ring": 37,
+  "generated_at": "2026-04-04T21:10:00Z",
+  "vectors": [
+    {
+      "function": "Command",
+      "cases": [
+        { "inputs": { "variant": "SpecCreate" }, "expected": 0 },
+        { "inputs": { "variant": "SpecValidate" }, "expected": 1 },
+        { "inputs": { "variant": "Lint" }, "expected": 2 },
+        { "inputs": { "variant": "Help" }, "expected": 3 },
+        { "inputs": { "variant": "Run" }, "expected": 4 },
+        { "inputs": { "variant": "Test" }, "expected": 5 }
+      ]
+    },
+    {
+      "function": "spec_create",
+      "cases": [
+        { "inputs": { "name": "my_spec", "path": "specs/" }, "expected": 0 },
+        { "inputs": { "name": "", "path": "specs/" }, "expected": 1 },
+        { "inputs": { "name": "Invalid", "path": "specs/" }, "expected": 1 },
+        { "inputs": { "name": "valid_name", "path": "" }, "expected": 0 }
+      ]
+    },
+    {
+      "function": "spec_validate",
+      "cases": [
+        { "inputs": { "spec_path": "specs/valid.t27" }, "expected": 0 },
+        { "inputs": { "spec_path": "nonexistent.t27" }, "expected": 1 },
+        { "inputs": { "spec_path": "" }, "expected": 1 }
+      ]
+    },
+    {
+      "function": "lint",
+      "cases": [
+        { "inputs": { "spec_path": "specs/clean.t27" }, "expected": 0 },
+        { "inputs": { "spec_path": "specs/warnings.t27" }, "expected_warnings": true },
+        { "inputs": { "spec_path": "" }, "expected": 1 }
+      ]
+    },
+    {
+      "function": "help",
+      "cases": [
+        { "inputs": { "command": null }, "expected_contains": "Usage:" },
+        { "inputs": { "command": "spec-create" }, "expected_contains": "spec-create" },
+        { "inputs": { "command": "unknown" }, "expected_contains": "Unknown command" }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "command_enum_unique", "assert": "All Command variants have unique ordinal values" },
+    { "name": "spec_create_validates_name", "assert": "spec_create rejects empty or invalid names" },
+    { "name": "spec_validate_checks_file_exists", "assert": "spec_validate returns 1 for nonexistent files" },
+    { "name": "lint_returns_zero_on_clean", "assert": "lint returns 0 when no errors found" },
+    { "name": "help_always_succeeds", "assert": "help never returns an error code" },
+    { "name": "all_commands_return_int", "assert": "All command functions return integer exit codes" },
+    { "name": "spec_create_writes_template", "assert": "spec_create generates valid .t27 template file" }
+  ],
+  "benchmarks": [
+    { "name": "spec_create_latency", "target": "< 10ms" },
+    { "name": "spec_validate_latency", "target": "< 20ms" },
+    { "name": "lint_latency", "target": "< 50ms" },
+    { "name": "help_latency", "target": "< 1ms" }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "module": "AST",
+  "spec_path": "compiler/ast.t27",
+  "ring": 36,
+  "generated_at": "2026-04-04T21:00:00Z",
+  "vectors": [
+    {
+      "function": "TokenType",
+      "cases": [
+        { "inputs": { "variant": "EOF" }, "expected": 0 },
+        { "inputs": { "variant": "Newline" }, "expected": 1 },
+        { "inputs": { "variant": "Integer" }, "expected": 40 },
+        { "inputs": { "variant": "Identifier" }, "expected": 43 },
+        { "inputs": { "variant": "MOV" }, "expected": 60 },
+        { "inputs": { "variant": "HALT" }, "expected": 78 }
+      ]
+    },
+    {
+      "function": "NodeType",
+      "cases": [
+        { "inputs": { "variant": "Program" }, "expected": 0 },
+        { "inputs": { "variant": "DataSection" }, "expected": 1 },
+        { "inputs": { "variant": "ConstDef" }, "expected": 10 },
+        { "inputs": { "variant": "Mov" }, "expected": 30 },
+        { "inputs": { "variant": "TestCase" }, "expected": 53 },
+        { "inputs": { "variant": "SpecDecl" }, "expected": 60 }
+      ]
+    },
+    {
+      "function": "Opcode",
+      "cases": [
+        { "inputs": { "variant": "MOV" }, "expected": 0 },
+        { "inputs": { "variant": "ADD" }, "expected": 5 },
+        { "inputs": { "variant": "HALT" }, "expected": 9 }
+      ]
+    },
+    {
+      "function": "CompilationPhase",
+      "cases": [
+        { "inputs": { "variant": "Parsing" }, "expected": 0 },
+        { "inputs": { "variant": "SemanticAnalysis" }, "expected": 1 },
+        { "inputs": { "variant": "CodeGeneration" }, "expected": 2 },
+        { "inputs": { "variant": "Optimization" }, "expected": 3 }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "token_type_enum_has_values", "assert": "TokenType enum fields > 50" },
+    { "name": "node_type_enum_has_values", "assert": "NodeType enum fields > 20" },
+    { "name": "opcode_enum_has_values", "assert": "Opcode enum fields > 0" },
+    { "name": "compilation_phase_sequential", "assert": "Parsing < SemanticAnalysis < CodeGeneration < Optimization" },
+    { "name": "ast_node_has_location_info", "assert": "ASTNode contains line, column, source_file" },
+    { "name": "symbol_table_lookup_fallback", "assert": "SymbolTable.lookup searches parent if not found" }
+  ],
+  "benchmarks": [
+    { "name": "ast_node_creation_latency", "target": "< 100ns" },
+    { "name": "symbol_table_lookup_latency", "target": "< 500ns" }
+  ]
+}

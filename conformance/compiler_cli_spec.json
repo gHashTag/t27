@@ -1,0 +1,46 @@
+{
+  "module": "SpecCommands",
+  "spec_path": "compiler/cli/spec.t27",
+  "ring": 36,
+  "generated_at": "2026-04-04T21:00:00Z",
+  "vectors": [
+    {
+      "function": "is_valid_spec_name",
+      "cases": [
+        { "inputs": { "name": "valid_name" }, "expected": true },
+        { "inputs": { "name": "another123" }, "expected": true },
+        { "inputs": { "name": "a" }, "expected": true },
+        { "inputs": { "name": "" }, "expected": false },
+        { "inputs": { "name": "Invalid-Name" }, "expected": false },
+        { "inputs": { "name": "123start" }, "expected": false },
+        { "inputs": { "name": "has.dots" }, "expected": false }
+      ]
+    },
+    {
+      "function": "spec_create",
+      "cases": [
+        { "inputs": { "name": "test_spec", "path": "" }, "expected": 0 },
+        { "inputs": { "name": "", "path": "" }, "expected": 1 }
+      ]
+    },
+    {
+      "function": "generate_spec_template",
+      "cases": [
+        { "inputs": { "name": "test" }, "expected_contains": [".test", ".invariant", ".bench"] }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "spec_create_returns_zero_or_one", "assert": "Returns 0 on success, 1 on failure" },
+    { "name": "is_valid_spec_name_rejects_empty", "assert": "Empty name is never valid" },
+    { "name": "is_valid_spec_name_requires_lowercase_start", "assert": "First char must be a-z" },
+    { "name": "generate_spec_template_includes_tdd", "assert": "Template includes TDD contract" },
+    { "name": "validate_tdd_compliance_checks_all", "assert": "Checks test, invariant, spec_decl" },
+    { "name": "parse_context_has_errors_returns_bool", "assert": "has_errors() returns bool" }
+  ],
+  "benchmarks": [
+    { "name": "spec_create_latency", "target": "< 10ms" },
+    { "name": "spec_validate_latency", "target": "< 5ms" },
+    { "name": "spec_list_latency", "target": "< 10ms" }
+  ]
+}

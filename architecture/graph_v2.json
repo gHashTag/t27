@@ -618,6 +618,362 @@
       "last_bench": null,
       "failure_count": 0,
       "agent": "C"
+    },
+    {
+      "id": 27,
+      "name": "numeric/gf4",
+      "path": "t27/specs/numeric/gf4.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloat4",
+        "gf4_encode",
+        "gf4_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 28,
+      "name": "numeric/gf8",
+      "path": "t27/specs/numeric/gf8.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloat8",
+        "gf8_encode",
+        "gf8_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 29,
+      "name": "numeric/gf12",
+      "path": "t27/specs/numeric/gf12.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloat12",
+        "gf12_encode",
+        "gf12_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 30,
+      "name": "numeric/gf20",
+      "path": "t27/specs/numeric/gf20.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloat20",
+        "gf20_encode",
+        "gf20_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 31,
+      "name": "numeric/gf24",
+      "path": "t27/specs/numeric/gf24.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloat24",
+        "gf24_encode",
+        "gf24_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 32,
+      "name": "numeric/gf32",
+      "path": "t27/specs/numeric/gf32.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloat32",
+        "gf32_encode",
+        "gf32_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 33,
+      "name": "numeric/goldenfloat_family",
+      "path": "t27/specs/numeric/goldenfloat_family.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "GoldenFloatFamily",
+        "gf_encode",
+        "gf_decode",
+        "gf_convert"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 34,
+      "name": "numeric/phi_ratio",
+      "path": "t27/specs/numeric/phi_ratio.t27",
+      "strand": "II",
+      "tier": 1,
+      "kind": "spec",
+      "exports": [
+        "PhiRatio",
+        "phi_ratio_encode",
+        "phi_ratio_decode"
+      ],
+      "bench_suite": [
+        "gf_family"
+      ],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 35,
+      "name": "compiler/ast",
+      "path": "t27/compiler/ast.t27",
+      "strand": "III",
+      "tier": 5,
+      "kind": "compiler",
+      "exports": [
+        "TokenType",
+        "NodeType",
+        "Opcode",
+        "OperandType",
+        "CompilationPhase",
+        "ASTNode",
+        "Program"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 36,
+      "name": "compiler/cli/gen",
+      "path": "t27/compiler/cli/gen.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "compiler",
+      "exports": [
+        "GenOptions",
+        "CodegenOptions",
+        "TestGenOptions",
+        "gen",
+        "gen_all"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 37,
+      "name": "compiler/cli/git",
+      "path": "t27/compiler/cli/git.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "compiler",
+      "exports": [
+        "git_commit",
+        "git_push",
+        "git_status_with_skill",
+        "Skill"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 38,
+      "name": "compiler/cli/spec",
+      "path": "t27/compiler/cli/spec.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "compiler",
+      "exports": [
+        "spec_create",
+        "spec_validate",
+        "spec_list",
+        "is_valid_spec_name"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 39,
+      "name": "compiler/codegen/testgen",
+      "path": "t27/compiler/codegen/testgen.t27",
+      "strand": "III",
+      "tier": 6,
+      "kind": "codegen",
+      "exports": [
+        "TestGen",
+        "StringBuilder",
+        "gen_test_zig",
+        "gen_test_c",
+        "gen_test_verilog"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 40,
+      "name": "compiler/codegen/zig/runtime",
+      "path": "t27/compiler/codegen/zig/runtime.t27",
+      "strand": "III",
+      "tier": 6,
+      "kind": "codegen",
+      "exports": [
+        "generate_main",
+        "generate_commands_module",
+        "generate_validation_module"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 41,
+      "name": "compiler/runtime/commands",
+      "path": "t27/compiler/runtime/commands.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "runtime",
+      "exports": [
+        "Command",
+        "spec_create",
+        "spec_validate",
+        "lint"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 42,
+      "name": "compiler/runtime/validation",
+      "path": "t27/compiler/runtime/validation.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "runtime",
+      "exports": [
+        "ValidationResult",
+        "validate_tdd_contract",
+        "validate_language_policy"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 43,
+      "name": "compiler/skill/registry",
+      "path": "t27/compiler/skill/registry.t27",
+      "strand": "III",
+      "tier": 7,
+      "kind": "compiler",
+      "exports": [
+        "SkillStatus",
+        "SkillKind",
+        "SkillVerdict",
+        "Skill",
+        "SkillRegistry"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 44,
+      "name": "specs/compiler/parser",
+      "path": "t27/specs/compiler/parser.t27",
+      "strand": "III",
+      "tier": 5,
+      "kind": "compiler",
+      "exports": [
+        "Parser",
+        "parse_t27",
+        "AST",
+        "parse_program",
+        "parse_instruction"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
     }
   ],
   "edges": [
@@ -902,6 +1258,162 @@
       "to": 26,
       "kind": "import",
       "invariant": "asp-solver-for-composition-inference"
+    },
+    {
+      "from": 0,
+      "to": 27,
+      "kind": "import",
+      "invariant": "types-for-gf4"
+    },
+    {
+      "from": 1,
+      "to": 27,
+      "kind": "import",
+      "invariant": "ops-for-gf4-encoding"
+    },
+    {
+      "from": 0,
+      "to": 28,
+      "kind": "import",
+      "invariant": "types-for-gf8"
+    },
+    {
+      "from": 1,
+      "to": 28,
+      "kind": "import",
+      "invariant": "ops-for-gf8-encoding"
+    },
+    {
+      "from": 0,
+      "to": 29,
+      "kind": "import",
+      "invariant": "types-for-gf12"
+    },
+    {
+      "from": 1,
+      "to": 29,
+      "kind": "import",
+      "invariant": "ops-for-gf12-encoding"
+    },
+    {
+      "from": 0,
+      "to": 30,
+      "kind": "import",
+      "invariant": "types-for-gf20"
+    },
+    {
+      "from": 1,
+      "to": 30,
+      "kind": "import",
+      "invariant": "ops-for-gf20-encoding"
+    },
+    {
+      "from": 0,
+      "to": 31,
+      "kind": "import",
+      "invariant": "types-for-gf24"
+    },
+    {
+      "from": 1,
+      "to": 31,
+      "kind": "import",
+      "invariant": "ops-for-gf24-encoding"
+    },
+    {
+      "from": 0,
+      "to": 32,
+      "kind": "import",
+      "invariant": "types-for-gf32"
+    },
+    {
+      "from": 1,
+      "to": 32,
+      "kind": "import",
+      "invariant": "ops-for-gf32-encoding"
+    },
+    {
+      "from": 0,
+      "to": 33,
+      "kind": "import",
+      "invariant": "types-for-gf-family"
+    },
+    {
+      "from": 1,
+      "to": 33,
+      "kind": "import",
+      "invariant": "ops-for-gf-family"
+    },
+    {
+      "from": 0,
+      "to": 34,
+      "kind": "import",
+      "invariant": "types-for-phi-ratio"
+    },
+    {
+      "from": 4,
+      "to": 34,
+      "kind": "phi-critical",
+      "invariant": "constants-for-phi-ratio"
+    },
+    {
+      "from": 18,
+      "to": 33,
+      "kind": "standardizes",
+      "invariant": "numeric-standard-defines-gf-family"
+    },
+    {
+      "from": 0,
+      "to": 35,
+      "kind": "import",
+      "invariant": "types-for-ast"
+    },
+    {
+      "from": 35,
+      "to": 12,
+      "kind": "import",
+      "invariant": "ast-types-for-parser"
+    },
+    {
+      "from": 12,
+      "to": 36,
+      "kind": "import",
+      "invariant": "parser-for-gen-cli"
+    },
+    {
+      "from": 12,
+      "to": 38,
+      "kind": "import",
+      "invariant": "parser-for-spec-cli"
+    },
+    {
+      "from": 12,
+      "to": 39,
+      "kind": "import",
+      "invariant": "parser-for-testgen"
+    },
+    {
+      "from": 13,
+      "to": 40,
+      "kind": "import",
+      "invariant": "zig-codegen-for-runtime-gen"
+    },
+    {
+      "from": 16,
+      "to": 41,
+      "kind": "import",
+      "invariant": "runtime-for-commands"
+    },
+    {
+      "from": 16,
+      "to": 42,
+      "kind": "import",
+      "invariant": "runtime-for-validation"
+    },
+    {
+      "from": 11,
+      "to": 44,
+      "kind": "lexer-to-parser",
+      "invariant": "tokens-then-spec-parse"
     }
   ],
   "actions": [
@@ -1028,6 +1540,43 @@
         "tri test"
       ],
       "priority": "high"
+    },
+    {
+      "trigger": "change:compiler/ast",
+      "downstream": [
+        "compiler/parser",
+        "compiler/parser/lexer"
+      ],
+      "commands": [
+        "tri gen",
+        "tri test"
+      ],
+      "priority": "high"
+    },
+    {
+      "trigger": "change:compiler/codegen/testgen",
+      "downstream": [
+        "compiler/codegen/zig",
+        "compiler/codegen/c",
+        "compiler/codegen/verilog"
+      ],
+      "commands": [
+        "tri gen",
+        "tri test"
+      ],
+      "priority": "normal"
+    },
+    {
+      "trigger": "change:compiler/runtime",
+      "downstream": [
+        "compiler/runtime/commands",
+        "compiler/runtime/validation"
+      ],
+      "commands": [
+        "tri gen",
+        "tri test"
+      ],
+      "priority": "high"
     }
   ],
   "bench_links": [
@@ -1070,6 +1619,46 @@
       "from": 25,
       "to": "conformance/ar_asp_solver.json",
       "metric": "asp_conformance"
+    },
+    {
+      "from": 27,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf4_mse"
+    },
+    {
+      "from": 28,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf8_mse"
+    },
+    {
+      "from": 29,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf12_mse"
+    },
+    {
+      "from": 30,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf20_mse"
+    },
+    {
+      "from": 31,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf24_mse"
+    },
+    {
+      "from": 32,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf32_mse"
+    },
+    {
+      "from": 33,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "gf_family_mse"
+    },
+    {
+      "from": 34,
+      "to": "conformance/gf_family_bench.json",
+      "metric": "phi_ratio_mse"
     }
   ],
   "topological_order": [
@@ -1077,7 +1666,15 @@
     "docs/SACRED-PHYSICS-001",
     "base/types",
     "base/ops",
+    "numeric/gf4",
+    "numeric/gf8",
+    "numeric/gf12",
     "numeric/gf16",
+    "numeric/gf20",
+    "numeric/gf24",
+    "numeric/gf32",
+    "numeric/goldenfloat_family",
+    "numeric/phi_ratio",
     "numeric/tf3",
     "math/constants",
     "math/sacred_physics",
@@ -1087,12 +1684,22 @@
     "nn/hslm",
     "fpga/mac",
     "queen/lotus",
+    "compiler/ast",
     "compiler/parser/lexer",
     "compiler/parser",
+    "specs/compiler/parser",
     "compiler/codegen/zig",
     "compiler/codegen/verilog",
     "compiler/codegen/c",
+    "compiler/codegen/testgen",
+    "compiler/codegen/zig/runtime",
     "compiler/runtime",
+    "compiler/runtime/commands",
+    "compiler/runtime/validation",
+    "compiler/cli/gen",
+    "compiler/cli/git",
+    "compiler/cli/spec",
+    "compiler/skill/registry",
     "ar/ternary_logic",
     "ar/proof_trace",
     "ar/datalog_engine",
@@ -1107,7 +1714,15 @@
       "docs/SACRED-PHYSICS-001",
       "base/types",
       "base/ops",
+      "numeric/gf4",
+      "numeric/gf8",
+      "numeric/gf12",
       "numeric/gf16",
+      "numeric/gf20",
+      "numeric/gf24",
+      "numeric/gf32",
+      "numeric/goldenfloat_family",
+      "numeric/phi_ratio",
       "numeric/tf3",
       "math/constants",
       "math/sacred_physics",
@@ -1117,12 +1732,22 @@
       "nn/hslm",
       "fpga/mac",
       "queen/lotus",
+      "compiler/ast",
       "compiler/parser/lexer",
       "compiler/parser",
+      "specs/compiler/parser",
       "compiler/codegen/zig",
       "compiler/codegen/verilog",
       "compiler/codegen/c",
+      "compiler/codegen/testgen",
+      "compiler/codegen/zig/runtime",
       "compiler/runtime",
+      "compiler/runtime/commands",
+      "compiler/runtime/validation",
+      "compiler/cli/gen",
+      "compiler/cli/git",
+      "compiler/cli/spec",
+      "compiler/skill/registry",
       "ar/ternary_logic",
       "ar/proof_trace",
       "ar/datalog_engine",
@@ -1136,7 +1761,7 @@
   },
   "metadata": {
     "created": "2026-04-04",
-    "schema_version": "2.2",
+    "schema_version": "2.3",
     "phi_critical_nodes": [
       4,
       7,
@@ -1164,6 +1789,35 @@
     ],
     "ar_root": 20,
     "ar_composition_root": 26,
-    "clara_domain": true
+    "clara_domain": true,
+    "compiler_nodes": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43
+    ],
+    "numeric_nodes": [
+      2,
+      3,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34
+    ]
   }
 }

@@ -1,0 +1,81 @@
+{
+  "module": "CCodeGen",
+  "spec_path": "compiler/codegen/c/codegen.t27",
+  "ring": 37,
+  "generated_at": "2026-04-04T21:10:00Z",
+  "vectors": [
+    {
+      "function": "NodeType",
+      "cases": [
+        { "inputs": { "variant": "Literal" }, "expected": 0 },
+        { "inputs": { "variant": "Identifier" }, "expected": 1 },
+        { "inputs": { "variant": "BinaryExpr" }, "expected": 2 },
+        { "inputs": { "variant": "UnaryExpr" }, "expected": 3 },
+        { "inputs": { "variant": "FunctionCall" }, "expected": 4 },
+        { "inputs": { "variant": "Assignment" }, "expected": 5 }
+      ]
+    },
+    {
+      "function": "BinOp",
+      "cases": [
+        { "inputs": { "variant": "Add" }, "expected": "+" },
+        { "inputs": { "variant": "Sub" }, "expected": "-" },
+        { "inputs": { "variant": "Mul" }, "expected": "*" },
+        { "inputs": { "variant": "Div" }, "expected": "/" },
+        { "inputs": { "variant": "Mod" }, "expected": "%" },
+        { "inputs": { "variant": "BitAnd" }, "expected": "&" },
+        { "inputs": { "variant": "BitOr" }, "expected": "|" },
+        { "inputs": { "variant": "BitXor" }, "expected": "^" }
+      ]
+    },
+    {
+      "function": "UnOp",
+      "cases": [
+        { "inputs": { "variant": "Negate" }, "expected": "-" },
+        { "inputs": { "variant": "BitNot" }, "expected": "~" },
+        { "inputs": { "variant": "LogicalNot" }, "expected": "!" }
+      ]
+    },
+    {
+      "function": "CMapping",
+      "cases": [
+        { "inputs": { "t27_type": "i8" }, "expected": "int8_t" },
+        { "inputs": { "t27_type": "u8" }, "expected": "uint8_t" },
+        { "inputs": { "t27_type": "i16" }, "expected": "int16_t" },
+        { "inputs": { "t27_type": "u16" }, "expected": "uint16_t" },
+        { "inputs": { "t27_type": "i32" }, "expected": "int32_t" },
+        { "inputs": { "t27_type": "bool" }, "expected": "bool" },
+        { "inputs": { "t27_type": "void" }, "expected": "void" }
+      ]
+    },
+    {
+      "function": "CCodeGen.indent",
+      "cases": [
+        { "inputs": { "initial_depth": 0 }, "expected_depth": 1 },
+        { "inputs": { "initial_depth": 2 }, "expected_depth": 3 }
+      ]
+    },
+    {
+      "function": "CCodeGen.dedent",
+      "cases": [
+        { "inputs": { "initial_depth": 1 }, "expected_depth": 0 },
+        { "inputs": { "initial_depth": 3 }, "expected_depth": 2 },
+        { "inputs": { "initial_depth": 0 }, "expected_depth": 0 }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "node_type_enum_unique", "assert": "All NodeType variants have unique ordinal values" },
+    { "name": "binop_maps_to_c_operator", "assert": "Every BinOp variant maps to a valid C operator string" },
+    { "name": "unop_maps_to_c_operator", "assert": "Every UnOp variant maps to a valid C unary operator string" },
+    { "name": "cmapping_covers_all_base_types", "assert": "CMapping has entries for all t27 base types" },
+    { "name": "indent_increments_depth", "assert": "indent() increases depth by exactly 1" },
+    { "name": "dedent_floors_at_zero", "assert": "dedent() never decreases depth below 0" },
+    { "name": "ccodegen_output_valid_c", "assert": "Generated output is syntactically valid C code" }
+  ],
+  "benchmarks": [
+    { "name": "ccodegen_simple_fn_latency", "target": "< 5ms" },
+    { "name": "ccodegen_enum_generation_latency", "target": "< 2ms" },
+    { "name": "cmapping_lookup_latency", "target": "< 1us" }
+  ]
+}
