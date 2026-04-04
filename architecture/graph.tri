@@ -1,146 +1,342 @@
 // T27 Canonical Architecture Graph
-// Defines all 4 tiers, 8 libraries, and dependency relationships
-// This graph is the single source of truth for T27
+// Defines all tiers, specs, and dependency relationships
+// This graph is the single source of truth for T27 architecture
+// φ² + 1/φ² = 3 | TRINITY
 
+// ============================================================================
 // Tier 0: Base Types (no dependencies)
+// ============================================================================
+
 spec "tritype-base" {
     tier = 0;
     description = "Fundamental types: Trit, PackedTrit, TernaryWord";
-    exports = ["Trit", "PackedTrit", "TernaryWord"];
-    exports_zig = ["enum u2", "u8", "u32"];
+    path = "specs/base/types.t27";
+    exports = ["Trit", "PackedTrit", "TernaryWord", "trit_add", "trit_multiply", "trit_negate"];
     deps = [];
     competency = "BaseTypes";
+    status = "done";
 }
 
-// Tier 1: Core Arithmetic (depends on tritype-base)
+// Documentation Standards (Tier 0)
+spec "doc-numeric-standard" {
+    tier = 0;
+    description = "NUMERIC-STANDARD-001: GoldenFloat family specification";
+    path = "docs/NUMERIC-STANDARD-001.md";
+    exports = ["GoldenFloatFamily", "GF4", "GF8", "GF12", "GF16", "GF20", "GF24", "GF32", "PHI_RATION"];
+    deps = [];
+    competency = "NumericStandard";
+    status = "done";
+    agent = "S";
+}
+
+spec "doc-sacred-physics" {
+    tier = 0;
+    description = "SACRED-PHYSICS-001: Sacred physics constants";
+    path = "docs/SACRED-PHYSICS-001.md";
+    exports = ["PHI", "PHI_INV", "TRINITY", "GAMMA_LQG", "G_SACRED", "OMEGA_LAMBDA", "C_THRESHOLD"];
+    deps = [];
+    competency = "SacredPhysicsStandard";
+    status = "done";
+    agent = "P";
+}
+
+// ============================================================================
+// Tier 1: Core Arithmetic & Numeric Formats
+// ============================================================================
+
 spec "tritype-numeric" {
     tier = 1;
-    description = "Core arithmetic operations: add, subtract, multiply, compare";
-    exports = ["tritAdd", "tritSubtract", "tritMultiply", "tritNegate",
-                        "tritAnd", "tritOr", "tritXor", "tritCompare"];
+    description = "Core arithmetic operations: multiply, add, carry, compare";
+    path = "specs/base/ops.t27";
+    exports = ["trit_multiply", "trit_add", "trit_carry", "trit_compare", "trit_negate", "trit_abs", "trit_min", "trit_max"];
     deps = ["tritype-base"];
     competency = "TernaryArithmetic";
+    status = "done";
 }
 
-// Tier 1: Numeric Formats (depends on tritype-base)
 spec "triformat-gf16" {
     tier = 1;
-    description = "GoldenFloat16 encoding/decode: [S:1][E:6][M:9]";
-    exports = ["encodeGF16", "decodeGF16", "verifyGF16Chain"];
-    deps = ["tritype-base"];
+    description = "GoldenFloat16 encoding/decode: [S:1][E:6][M:9] with phi-optimized rounding";
+    path = "specs/numeric/gf16.t27";
+    exports = ["GoldenFloat16", "gf16_encode", "gf16_decode", "gf16_round_phi", "pow2_table"];
+    deps = ["tritype-base", "tritype-numeric"];
     competency = "FloatEncoding";
+    status = "done";
+    bench_suite = ["gf_family"];
 }
 
 spec "triformat-tf3" {
     tier = 1;
-    description = "TF3 ternary format: 8 weights in 16 bits";
-    exports = ["encodeTF3", "decodeTF3", "tf3ToGF16"];
-    deps = ["tritype-base"];
+    description = "TF3 ternary format: 8-bit format for neural network weights";
+    path = "specs/numeric/tf3.t27";
+    exports = ["TernaryFormat3", "tf3_encode", "tf3_decode", "mantissa_table"];
+    deps = ["tritype-base", "tritype-numeric"];
     competency = "TernaryFormat";
+    status = "done";
+    bench_suite = ["tf_family"];
 }
 
-// Tier 1: Sacred Mathematics (depends on tritype-base, tritype-numeric)
 spec "trisacred-constants" {
     tier = 1;
-    description = "Sacred constants: PHI, PI, E, TRINITY_SUM, sacred chains";
-    exports = ["PHI", "PI", "E", "TRINITY_SUM", "verifySacredChain"];
-    deps = ["tritype-base", "tritype-numeric"];
+    description = "Sacred constants: PHI, PI, E, TRINITY, sacred chains";
+    path = "specs/math/constants.t27";
+    exports = ["PHI", "PHI_INV", "TRINITY", "GAMMA_LQG", "PI", "E", "G_MEASURED", "OMEGA_LAMBDA_MEASURED", "LAMBDA_COSMO", "pow"];
+    deps = ["tritype-base"];
     competency = "SacredConstants";
+    status = "done";
+    bench_suite = ["sacred_constants"];
 }
 
-spec "trisacred-gamma" {
-    tier = 1;
-    description = "Riemann zeta function for complex number theory";
-    exports = ["riemannZeta", "riemannGamma"];
-    deps = ["tritype-base", "tritype-numeric"];
-    competency = "ComplexAnalysis";
-}
+// ============================================================================
+// Tier 2: VSA, ISA, FPGA, Sacred Physics
+// ============================================================================
 
-// Tier 2: VSA Primitives (depends on tritype-base, tritype-numeric)
 spec "trivsa-ops" {
     tier = 2;
-    description = "VSA operations: bind/unbind, bundle, similarity";
-    exports = ["bindTritVector", "unbindTritVector", "bundleTritVectors",
-                        "tritVectorSimilarity", "tritVectorCosine"];
+    description = "VSA operations: bind/unbind, bundle, similarity, dot_product";
+    path = "specs/vsa/ops.t27";
+    exports = ["bind", "unbind", "bundle2", "bundle3", "similarity", "dot_product", "vector_norm", "hamming_distance", "trit_cosine"];
     deps = ["tritype-base", "tritype-numeric"];
     competency = "VectorOperations";
+    status = "done";
 }
 
-// Tier 2: ISA (depends on tritype-base)
 spec "triisa-registers" {
     tier = 2;
-    description = "27 registers with Coptic encoding";
-    exports = ["getRegister", "setRegister", "decodeCoptic"];
+    description = "27 registers with Coptic encoding: R0-R26, status flags";
+    path = "specs/isa/registers.t27";
+    exports = ["Register", "RegisterFile", "COPIC_ALPHABET", "reg_read", "reg_write", "status_read", "stack_push", "stack_pop"];
     deps = ["tritype-base"];
     competency = "RegisterFile";
+    status = "done";
 }
 
-// Tier 2: Attention (depends on tritype-base, tritype-numeric)
-spec "triatt-sacred" {
-    tier = 2;
-    description = "Sacred Attention: d_k^(-φ³) kernel";
-    exports = ["sacredAttention", "queryAttention"];
-    deps = ["tritype-base", "tritype-numeric"];
-    competency = "AttentionKernel";
-}
-
-// Tier 2: HSLM (depends on tritype-base, trisacred-constants)
-spec "trinhslm" {
-    tier = 2;
-    description = "HSLM 1.95M architecture: d_k^(-φ³), self-attention";
-    exports = ["hslmForward", "hslmGenerate", "sacredAttention"];
-    deps = ["tritype-base", "trisacred-constants", "triatt-sacred"];
-    competency = "NeuralArchitecture";
-}
-
-// Tier 2: FPGA MAC (depends on tritype-base, triisa-registers)
 spec "trifpga-mac" {
     tier = 2;
-    description = "Zero-DSP LUT-based multiplication";
-    exports = ["zeroDSPMultiply", "lutConfigure", "macExecute"];
-    deps = ["tritype-base", "triisa-registers"];
-    competency = "HardwareMultiply";
-}
-
-// Tier 3: Orchestrator (depends on all tier 2)
-spec "triquenn" {
-    tier = 3;
-    description = "6-phase orchestration cycle: Spec → Gen → Verify → Deploy → Monitor";
-    exports = ["orchestratePhase", "verifyQualityGate", "monitorDeployment"];
-    deps = ["trivinhslm", "trihslm", "trifpga-mac"];
-    competency = "Orchestration";
-}
-
-// Tier 4: Language Tooling (depends on tritype-base)
-spec "trilang-cli" {
-    tier = 4;
-    description = "T27 CLI tools: parse, compile, verify, doc";
-    exports = ["parseT27", "compileT27", "verifySpec", "generateDocs"];
-    deps = ["tritype-base"];
-    competency = "LanguageTools";
-}
-
-// Backends
-spec "backend-zig" {
-    tier = 99;
-    description = "Generated Zig backend from .tri specs";
-    exports = ["generateZigCode", "triCompile"];
-    deps = ["tritype-base", "tritype-numeric", "triformat-gf16", "triformat-tf3"];
-    competency = "ZigBackend";
-}
-
-spec "backend-verilog" {
-    tier = 99;
-    description = "Verilog synthesis from .tri specs";
-    exports = ["generateVerilog", "synthesizeFPGA"];
+    description = "Zero-DSP LUT-based multiplication for FPGA";
+    path = "specs/fpga/mac.t27";
+    exports = ["ZeroDSP_MAC", "mac_cycle", "lut_multiply", "mac_dot_product", "mac_matrix_vector", "TernaryLUT", "MACUnitState"];
     deps = ["tritype-base", "tritype-numeric", "triisa-registers"];
-    competency = "VerilogBackend";
+    competency = "HardwareMultiply";
+    status = "done";
 }
 
-spec "backend-c" {
-    tier = 99;
-    description = "C ABI from .tri specs";
-    exports = ["generateCHeaders", "triCompile"];
-    deps = ["tritype-base", "tritype-numeric"];
-    competency = "CBackend";
+spec "trisacred-physics" {
+    tier = 2;
+    description = "Sacred physics verification: TRINITY, G, ΩΛ, tpresent, γ";
+    path = "specs/math/sacred_physics.t27";
+    exports = ["SacredPhysics", "verify_sacred_physics", "verify_trinity", "sacred_gravity", "sacred_dark_energy", "phi_pow", "GAMMA_LQG", "C_THRESHOLD"];
+    deps = ["trisacred-constants"];
+    competency = "SacredPhysics";
+    status = "done";
+    bench_suite = ["sacred_physics"];
+}
+
+// ============================================================================
+// Tier 3: Neural Networks (Attention, HSLM)
+// ============================================================================
+
+spec "triatt-sacred" {
+    tier = 3;
+    description = "Sacred Attention: d_k^(-φ³) kernel, φ-RoPE, caching";
+    path = "specs/nn/attention.t27";
+    exports = ["SacredAttention", "sacred_attention_kernel", "apply_rope_qk", "compute_scores", "apply_softmax", "weighted_values", "cache_attention"];
+    deps = ["tritype-base", "triformat-gf16", "trisacred-constants", "trisacred-physics", "trivsa-ops"];
+    competency = "AttentionKernel";
+    status = "done";
+}
+
+spec "trinhslm" {
+    tier = 3;
+    description = "HSLM architecture: forward/backward, RMSNorm, FFN, GELU, phase";
+    path = "specs/nn/hslm.t27";
+    exports = ["HSLM", "hslm_forward", "hslm_backward", "rms_norm_forward", "ffn_forward", "gelu_activation", "hslm_phase"];
+    deps = ["triatt-sacred", "trisacred-physics", "triformat-gf16"];
+    competency = "NeuralArchitecture";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 4: Queen Orchestrator
+// ============================================================================
+
+spec "triquenn-lotus" {
+    tier = 4;
+    description = "6-phase Lotus orchestration: Observe, Recall, Evaluate, Plan, Act, Record";
+    path = "specs/queen/lotus.t27";
+    exports = ["LotusOrchestrator", "lotus_phase", "lotus_spawn", "observe_state", "recall_episodes", "evaluate_quality", "plan_actions", "act_execute", "record_episode"];
+    deps = ["trinhslm", "triruntime"];
+    competency = "Orchestration";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 5: Compiler - Parser
+// ============================================================================
+
+spec "trilang-lexer" {
+    tier = 5;
+    description = "Lexer for T27 assembly: tokenize, Token, TokenType";
+    path = "compiler/parser/lexer.t27";
+    exports = ["Lexer", "tokenize", "Token", "TokenType", "advance_char", "read_identifier", "read_number", "is_register", "lookup_keyword"];
+    deps = ["tritype-base"];
+    competency = "LexicalAnalysis";
+    status = "done";
+    kind = "compiler";
+}
+
+spec "trilang-parser" {
+    tier = 5;
+    description = "Parser for T27: parse tokens into AST";
+    path = "compiler/parser/parser.t27";
+    exports = ["Parser", "parse_t27", "AST", "parse_program", "parse_instruction", "parse_expression"];
+    deps = ["trilang-lexer"];
+    competency = "Parsing";
+    status = "done";
+    kind = "compiler";
+}
+
+// ============================================================================
+// Tier 6: Compiler - Code Generation
+// ============================================================================
+
+spec "trilang-codegen-zig" {
+    tier = 6;
+    description = "Zig code generator: emit Zig 0.15 from AST";
+    path = "compiler/codegen/zig/codegen.t27";
+    exports = ["ZigCodeGen", "emit_zig", "zig_ast", "CodegenOptions", "StringBuilder"];
+    deps = ["trilang-parser"];
+    competency = "ZigCodegen";
+    status = "done";
+    kind = "codegen";
+}
+
+spec "trilang-codegen-verilog" {
+    tier = 6;
+    description = "Verilog code generator: synthesizable Verilog from AST";
+    path = "compiler/codegen/verilog/codegen.t27";
+    exports = ["VerilogCodeGen", "emit_verilog", "verilog_ast", "VerilogCodegenOptions", "calculate_width"];
+    deps = ["trilang-parser", "trifpga-mac"];
+    competency = "VerilogCodegen";
+    status = "done";
+    kind = "codegen";
+}
+
+spec "trilang-codegen-c" {
+    tier = 6;
+    description = "C code generator: emit C code from AST";
+    path = "compiler/codegen/c/codegen.t27";
+    exports = ["CCodeGen", "emit_c", "c_ast", "emit_c_header", "emit_c_includes", "emit_c_types", "NodeType", "BinOp", "UnOp", "CMapping"];
+    deps = ["trilang-parser"];
+    competency = "CCodegen";
+    status = "done";
+    kind = "codegen";
+}
+
+// ============================================================================
+// Tier 7: Compiler - Runtime
+// ============================================================================
+
+spec "triruntime" {
+    tier = 7;
+    description = "T27 Runtime: init, execute, shutdown, memory, threads, channels";
+    path = "compiler/runtime/runtime.t27";
+    exports = ["T27Runtime", "Runtime", "ThreadState", "runtime_init", "runtime_execute", "runtime_shutdown", "runtime_alloc", "runtime_free", "channel_create", "channel_send", "channel_recv", "thread_spawn", "thread_yield"];
+    deps = ["tritype-base", "triisa-registers"];
+    competency = "Runtime";
+    status = "done";
+    kind = "runtime";
+}
+
+// ============================================================================
+// Metadata and Invariants
+// ============================================================================
+
+metadata {
+    version = "2.2";
+    created = "2026-04-04";
+    last_updated = "2026-04-04";
+    phi_invariant = "phi^2 + phi^-2 = 3";
+}
+
+edges {
+    // Base types → ops
+    tritype-base -> tritype-numeric;
+
+    // Base + ops → formats
+    tritype-base -> triformat-gf16;
+    tritype-numeric -> triformat-gf16;
+    tritype-base -> triformat-tf3;
+    tritype-numeric -> triformat-tf3;
+
+    // Base → constants
+    tritype-base -> trisacred-constants;
+
+    // Base + numeric → VSA
+    tritype-base -> trivsa-ops;
+    tritype-numeric -> trivsa-ops;
+
+    // Base → ISA
+    tritype-base -> triisa-registers;
+
+    // Base + numeric → FPGA MAC
+    tritype-base -> trifpga-mac;
+    tritype-numeric -> trifpga-mac;
+    triisa-registers -> trifpga-mac;
+
+    // Constants → Sacred Physics
+    trisacred-constants -> trisacred-physics;
+
+    // Base + numeric + constants + VSA → Attention
+    tritype-base -> triatt-sacred;
+    triformat-gf16 -> triatt-sacred;
+    trisacred-constants -> triatt-sacred;
+    trisacred-physics -> triatt-sacred;
+    trivsa-ops -> triatt-sacred;
+
+    // Attention + sacred physics → HSLM
+    triatt-sacred -> trinhslm;
+    trisacred-physics -> trinhslm;
+    triformat-gf16 -> trinhslm;
+
+    // HSLM + runtime → Queen Lotus
+    trinhslm -> triquenn-lotus;
+    triruntime -> triquenn-lotus;
+
+    // Base → Lexer
+    tritype-base -> trilang-lexer;
+
+    // Lexer → Parser
+    trilang-lexer -> trilang-parser;
+
+    // Parser → Codegen
+    trilang-parser -> trilang-codegen-zig;
+    trilang-parser -> trilang-codegen-verilog;
+    trilang-parser -> trilang-codegen-c;
+
+    // FPGA MAC → Verilog codegen
+    trifpga-mac -> trilang-codegen-verilog;
+
+    // Base + ISA → Runtime
+    tritype-base -> triruntime;
+    triisa-registers -> triruntime;
+
+    // Documentation edges
+    doc-numeric-standard -> triformat-gf16;
+    doc-numeric-standard -> triformat-tf3;
+    doc-sacred-physics -> trisacred-constants;
+    doc-sacred-physics -> trisacred-physics;
+}
+
+phi_critical_edges {
+    trisacred-constants -> triatt-sacred;
+    trisacred-constants -> trinhslm;
+    trisacred-physics -> triatt-sacredred;
+    trisacred-physics -> trinhslm;
+}
+
+sacred_core_edges {
+    trisacred-constants -> trisacred-physics;
+    trisacred-physics -> triatt-sacred;
+    trisacred-physics -> trinhslm;
 }
