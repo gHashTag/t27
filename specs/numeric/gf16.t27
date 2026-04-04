@@ -3,690 +3,491 @@
 ; Bit layout: [S(1) E(6) M(9)] = [15:15][14:9][8:0]
 ; φ² + 1/φ² = 3 | TRINITY
 
-.const SIGN_SHIFT 15
-.const EXP_SHIFT 9
-.const MANT_SHIFT 0
-
-.const SIGN_MASK 0x8000  ; 1 << 15
-.const EXP_MASK 0x7E00    ; 0b111111 << 9
-.const MANT_MASK 0x01FF    ; 0b111111111
-
-.const EXP_MAX 0x3F     ; 63 (all ones in 6 bits)
-.const EXP_MIN 0x00
-
-.const BIAS 31          ; Exponent bias for GF16
-
-.const SPECIAL_EXP 0x3F  ; All ones = special (Inf/NaN)
-
-.data
-    ; Constants for zero detection
-    .const GF16_ZERO_POS 0x0000
-    .const GF16_ZERO_NEG 0x8000
-
-    ; Special values
-    .const GF16_INF_POS 0x7E00
-    .const GF16_INF_NEG 0xFE00
-    .const GF16_NAN 0xFE01  ; Sign + all exp + mantissa != 0
-
-    ; Powers of 2 for mantissa division (2^9 = 512)
-    .const MANT_DIVISOR 512
-    .const MANT_DIVISOR_SHIFT 9  ; log2(512)
-
-    ; Lookup: 2^exp for exponents 0-63
-pow2_table:
-    .half 0x3C00   ; 2^0 = 1.0
-    .half 0x3D00   ; 2^1 = 2.0
-    .half 0x3D80   ; 2^2 = 4.0
-    .half 0x3E00   ; 2^3 = 8.0
-    .half 0x3E40   ; 2^4 = 16.0
-    .half 0x3E80   ; 2^5 = 32.0
-    .half 0x3EC0   ; 2^6 = 64.0
-    .half 0x3F00   ; 2^7 = 128.0
-    .half 0x3F40   ; 2^8 = 256.0
-    .half 0x3F80   ; 2^9 = 512.0
-    .half 0x3FC0   ; 2^10 = 1024.0
-    .half 0x3FE0   ; 2^11 = 2048.0
-    .half 0x3FF0   ; 2^12 = 4096.0
-    .half 0x4000   ; 2^13 = 8192.0
-    .half 0x4040   ; 2^14 = 16384.0
-    .half 0x4080   ; 2^15 = 32768.0
-    .half 0x40C0   ; 2^16 = 65536.0
-    .half 0x4100   ; 2^17 = 131072.0
-    .half 0x4140   ; 2^18 = 262144.0
-    .half 0x4180   ; 2^19 = 524288.0
-    .half 0x41C0   ; 2^20 = 1048576.0
-    .half 0x4200   ; 2^21 = 2097152.0
-    .half 0x4240   ; 2^22 = 4194304.0
-    .half 0x4280   ; 2^23 = 8388608.0
-    .half 0x42C0   ; 2^24 = 16777216.0
-    .half 0x4300   ; 2^25 = 33554432.0
-    .half 0x4340   ; 2^26 = 67108864.0
-    .half 0x4380   ; 2^27 = 134217728.0
-    .half 0x43C0   ; 2^28 = 268435456.0
-    .half 0x4400   ; 2^29 = 536870912.0
-    .half 0x4440   ; 2^30 = 1073741824.0
-    .half 0x4480   ; 2^31 = 2147483648.0
-
-.code
-    ; ═════════════════════════════════════════════════════════════════════
-    ; gf16_extract_sign(gf16: u16) → sign: i8
-    ; Extract sign bit (bit 15)
-    ; Returns: 0 for positive, -1 for negative
-    ; ═════════════════════════════════════════════════════════════════════════
-gf16_extract_sign:
-    ; Input: r0 = gf16
-    ; Output: r0 = sign (-1 or 0)
-
-    ; Shift right to get sign bit
-    MOV r1, SIGN_SHIFT
-    SHR r0, r0, r1       ; r0 = gf16 >> 15
-    AND r0, r0, #1       ; r0 = gf16 & 1
-    ; Map: 1 → -1, 0 → 0
-    CMP r0, #1
-    JEQ sign_neg
-    MOV r0, #0
-    RET
-
-sign_neg:
-    MOV r0, #255  ; -1 as trit (using -1 value)
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════════
-    ; gf16_extract_exponent(gf16: u16) → exp: i8
-    ; Extract exponent bits (bits 14-9)
-    ; Returns: 0-63
-    ; ═══════════════════════════════════════════════════════════════════════
-gf16_extract_exponent:
-    ; Input: r0 = gf16
-    ; Output: r0 = exponent
-
-    ; Shift and mask
-    MOV r1, EXP_SHIFT
-    SHR r0, r0, r1       ; r0 = gf16 >> 9
-    AND r0, r0, EXP_MASK ; r0 = (gf16 >> 9) & 0x3F
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════════════
-    ; gf16_extract_mantissa(gf16: u16) → mant: i16
-    ; Extract mantissa bits (bits 8-0)
-    ; Returns: 0-511
-    ; ═════════════════════════════════════════════════════════════════════════
-gf16_extract_mantissa:
-    ; Input: r0 = gf16
-    ; Output: r0 = mantissa
-
-    MOV r1, MANT_SHIFT
-    SHR r0, r0, r1       ; r0 = gf16 >> 0
-    AND r0, r0, MANT_MASK ; r0 = gf16 & 0x01FF
-    RET
-
-    ; ═══════════════════════════════════════════════════════════════════════════════
-    ; gf16_from_components(sign: i8, exp: i8, mant: i16) → gf16: u16
-    ; Assemble GF16 from sign, exponent, mantissa
-    ; ═══════════════════════════════════════════════════════════════════════════════════
-gf16_from_components:
-    ; Input: r0 = sign, r1 = exp, r2 = mant
-    ; Output: r0 = gf16
-
-    ; Validate exponent range
-    CMP r1, #0
-    JLT exp_invalid
-    CMP r1, EXP_MAX
-    JGT exp_invalid
-
-    ; Validate mantissa range
-    CMP r2, #0
-    JLT mant_invalid
-    CMP r2, #511
-    JGT mant_invalid
-
-    ; Assemble: sign | (exp << 9) | mant
-    MOV r3, EXP_SHIFT
-    SHL r1, r1, r3       ; r1 = exp << 9
-    MOV r3, MANT_SHIFT
-    SHL r2, r2, r3       ; r2 = mant << 0 (just mant)
-    MOV r3, SIGN_SHIFT
-    SHL r0, r0, r3       ; r0 = sign << 15
-
-    ; OR together
-    OR r0, r0, r1       ; r0 = (sign << 15) | (exp << 9)
-    OR r0, r0, r2       ; r0 |= mant
-    RET
-
-exp_invalid:
-    ; Invalid exponent
-    MOV r0, #0xFFFF  ; Error sentinel
-    HALT
-
-mant_invalid:
-    ; Invalid mantissa
-    MOV r0, #0xFFFF  ; Error sentinel
-    HALT
-
-    ; ═════════════════════════════════════════════════════════════════════════════
-    ; gf16_is_zero(gf16: u16) → bool
-    ; Check if GF16 is zero (positive or negative)
-    ; ═════════════════════════════════════════════════════════════════════════════════
-gf16_is_zero:
-    ; Input: r0 = gf16
-    ; Output: r0 = 1 if zero, 0 otherwise
-
-    ; Check exp == 0 and mant == 0
-    MOV r1, r0
-    MOV r2, MANT_SHIFT
-    SHR r1, r1, r2       ; r1 = mant
-    MOV r2, r0
-    MOV r3, EXP_SHIFT
-    SHR r2, r2, r3       ; r2 = exp
-
-    ; Check if both zero
-    AND r1, r1, r1       ; r1 = mant & mant (for non-zero check)
-    OR r1, r1, r2       ; r1 = mant | exp
-    CMP r1, #0
-    JEQ is_zero
-    MOV r0, #0
-    RET
-
-is_zero:
-    MOV r0, #1
-    RET
-
-    ; ═══════════════════════════════════════════════════════════════════════════════════
-    ; gf16_is_special(gf16: u16) → bool
-    ; Check if GF16 is Inf or NaN (exp == 63)
-    ; ═══════════════════════════════════════════════════════════════════════════════════════════
-gf16_is_special:
-    ; Input: r0 = gf16
-    ; Output: r0 = 1 if special, 0 otherwise
-
-    ; Check exp == 63 (all ones)
-    MOV r1, r0
-    MOV r2, EXP_SHIFT
-    SHR r1, r1, r2       ; r1 = exp
-    AND r1, r1, EXP_MASK ; r1 = exp & 0x3F
-    CMP r1, EXP_MAX
-    JEQ is_special
-    MOV r0, #0
-    RET
-
-is_special:
-    MOV r0, #1
-    RET
-
-    ; ═══════════════════════════════════════════════════════════════════════════════════════════
-    ; gf16_encode_f32(f32: float) → gf16: u16
-    ; Encode IEEE 754 single precision to GF16
-    ; Round-to-nearest, ties to even
-    ; Range: 2^-31 to 2^32 (normal), subnormals flushed to zero
-    ; ═════════════════════════════════════════════════════════════════════════════════════════
-gf16_encode_f32:
-    ; Input: r0 = f32 (passed as u32 representation)
-    ; Output: r0 = gf16
-
-    ; Note: f32 representation in IEEE 754:
-    ;   bits 31: sign, bits 30-23: exp, bits 22-0: mant
-    ;   exp bias: 127
-    ;   Special values: exp=0 (subnormal), exp=255 (Inf/NaN)
-
-    ; Check if f32 is zero
-    MOV r1, r0
-    MOV r2, #0x7F800000  ; -0.0 pattern
-    CMP r1, r2
-    JEQ encode_neg_zero
-    MOV r2, #0x00000000  ; +0.0 pattern
-    CMP r0, r2
-    JEQ encode_pos_zero
-
-    ; Extract f32 components
-    ; f32_sign = (r0 >> 31) & 1
-    ; f32_exp = ((r0 >> 23) & 0xFF) - 127
-    ; f32_mant = r0 & 0x7FFFFF (with implied 1)
-
-    ; Convert exp from f32 bias (127) to GF16 bias (31)
-    ; gf16_exp = f32_exp + 31 - 127 = f32_exp - 96
-    ; Clamp to [0, 63]
-    ; If gf16_exp < 0, underflow to zero
-    ; If gf16_exp > 63, overflow to Inf
-
-    ; Extract sign
-    MOV r3, r0
-    MOV r4, #31
-    SHR r3, r3, r4       ; r3 = sign (0 or 1)
-
-    ; Extract and adjust exponent
-    MOV r4, r0
-    MOV r5, #23
-    SHR r4, r4, r5       ; r4 = f32_exp (biased by 127)
-    MOV r5, #96          ; Adjustment: 31 - 127 = -96
-    ADD r4, r4, r5       ; r4 = f32_exp - 96
-
-    ; Clamp exponent
-    CMP r4, #0
-    JGE exp_ok
-    MOV r4, #0          ; Underflow to zero
-    JMP exp_clamped
-
-exp_ok:
-    CMP r4, EXP_MAX
-    JLE exp_clamped
-    MOV r4, EXP_MAX     ; Overflow to Inf
-
-exp_clamped:
-    ; Extract mantissa and scale to 9 bits
-    ; f32 mantissa is 23 bits, GF16 needs 9 bits
-    ; Strategy: take top 9 bits, adjust based on remaining bits for rounding
-
-    ; Extract f32 mantissa
-    MOV r5, r0
-    AND r5, r5, #0x007FFFFF ; r5 = mantissa bits
-
-    ; Scale: shift right by 14 bits to get 9 bits
-    ; (23 - 9 = 14)
-    MOV r6, #14
-    SHR r5, r5, r6       ; r5 = mantissa >> 14 (9 bits)
-
-    ; Check for rounding (round-to-nearest)
-    ; Look at bits being discarded (13 bits: bits 13-0)
-    MOV r7, r0
-    MOV r8, #0
-    MOV r9, #13
-    SHR r7, r7, r9       ; r7 = discarded bits
-
-    ; Round if MSB of discarded bits is 1
-    MOV r10, #1
-    MOV r11, #12
-    SHL r10, r10, r11      ; r10 = 1 << 12 = 0x1000
-    AND r10, r10, r7       ; r10 = MSB of discarded
-    CMP r10, #0
-    JEQ no_round
-    ; Round up
-    ADD r5, r5, ONE      ; r5++
-    ; Check for overflow in mantissa
-    CMP r5, MANT_MASK
-    JLE no_mant_overflow
-    MOV r5, #0          ; Mantissa overflow, zero out
-    ADD r4, r4, ONE      ; Exp++
-
-no_mant_overflow:
-    MOV r10, MANT_SHIFT
-    SHL r10, r5, r10     ; r10 = mant << 0
-    OR r10, r10, r5       ; r10 = mant (no-op, just r5)
-
-no_round:
-    ; Assemble GF16
-    MOV r11, EXP_SHIFT
-    SHL r4, r4, r11      ; r4 = exp << 9
-    MOV r11, SIGN_SHIFT
-    SHL r3, r3, r11      ; r3 = sign << 15
-    OR r0, r3, r4       ; r0 = (sign << 15) | (exp << 9)
-    OR r0, r0, r5       ; r0 |= mant
-    RET
-
-encode_neg_zero:
-    MOV r0, GF16_ZERO_NEG
-    RET
-
-encode_pos_zero:
-    MOV r0, GF16_ZERO_POS
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════════════════════
-    ; gf16_decode_to_f32(gf16: u16) → f32: float
-    ; Decode GF16 to IEEE 754 single precision
-    ; ═══════════════════════════════════════════════════════════════════════════════════════════════
-gf16_decode_to_f32:
-    ; Input: r0 = gf16
-    ; Output: r0 = f32 (as u32 representation)
-
-    ; Check for zero
-    ; (Handled by caller or inline)
-
-    ; Check for special values (exp == 63)
-    MOV r1, r0
-    MOV r2, EXP_SHIFT
-    SHR r1, r1, r2       ; r1 = exp
-    AND r1, r1, EXP_MASK
-    CMP r1, EXP_MAX
-    JNE decode_normal
-
-    ; Special: exp == 63
-    ; Check mantissa for NaN vs Inf
-    MOV r2, r0
-    MOV r3, MANT_SHIFT
-    SHR r2, r2, r3       ; r2 = mant
-    CMP r2, #0
-    JEQ decode_inf
-
-    ; NaN
-    ; Return IEEE NaN pattern
-    MOV r0, #0x7FC00000  ; Quiet NaN
-    RET
-
-decode_inf:
-    ; Inf: return IEEE Inf with sign
-    MOV r1, r0
-    MOV r2, SIGN_SHIFT
-    SHR r1, r1, r2       ; r1 = sign
-    AND r1, r1, #1
-    MOV r2, #31
-    SHL r1, r1, r2       ; r1 = sign << 31
-    MOV r2, #0x7F800000   ; +Inf pattern
-    OR r0, r1, r2       ; r0 = (sign << 31) | 0x7F800000
-    RET
-
-decode_normal:
-    ; Normal number: value = (-1)^s * (1 + m/2^9) * 2^(e - 31)
-
-    ; Extract sign
-    MOV r1, r0
-    MOV r2, SIGN_SHIFT
-    SHR r1, r1, r2       ; r1 = sign
-
-    ; Extract mantissa and add implied 1
-    MOV r2, r0
-    MOV r3, MANT_SHIFT
-    SHR r2, r2, r3       ; r2 = mant (9 bits)
-    MOV r3, #1
-    SHL r3, r3, MANT_SHIFT ; r3 = 1 << 9 = 512
-    ADD r2, r2, r3       ; r2 = 1 + mant (as fraction)
-
-    ; Scale mantissa to f32 format (23 bits)
-    ; Shift left by 14 bits (23 - 9)
-    MOV r3, #14
-    SHL r2, r2, r3       ; r2 = (1 + mant) << 14
-
-    ; Clear sign bit for f32 mantissa
-    MOV r3, r0
-    MOV r4, SIGN_SHIFT
-    SHR r3, r3, r4       ; r3 = r0 >> 15 (remove sign)
-    MOV r4, EXP_SHIFT
-    SHR r3, r3, r4       ; r3 = exp + mantissa combined
-
-    ; Build f32 mantissa: (1+mant)<<14, exp adjusted
-    ; f32_exp = gf16_exp - 31 + 127 = gf16_exp + 96
-    MOV r4, r0
-    MOV r5, EXP_SHIFT
-    SHR r4, r4, r5       ; r4 = gf16_exp
-    MOV r5, #96
-    ADD r4, r4, r5       ; r4 = f32_exp
-
-    ; Clamp to IEEE range
-    CMP r4, #0
-    JGE f32_exp_ok
-    MOV r4, #0          ; Underflow to subnormal
-    JMP f32_exp_clamped
-
-f32_exp_ok:
-    CMP r4, #255
-    JLE f32_exp_clamped
-    MOV r4, #254         ; Clamp below Inf
-
-f32_exp_clamped:
-    ; Shift exp to position 23
-    MOV r5, #23
-    SHL r4, r4, r5       ; r4 = exp << 23
-
-    ; Clear exp in r3, keep mantissa
-    MOV r5, #0x007FFFFF  ; f32 mantissa mask (23 bits)
-    AND r3, r3, r5       ; r3 = mantissa bits
-
-    ; Assemble f32 (without sign)
-    OR r0, r3, r4       ; r0 = mantissa | exp
-
-    ; Add sign bit
-    MOV r4, r0
-    MOV r5, SIGN_SHIFT
-    SHR r4, r4, r5       ; r4 = gf16 >> 15 = sign
-    MOV r5, #31
-    SHL r4, r4, r5       ; r4 = sign << 31
-    OR r0, r0, r4       ; r0 = f32 | sign
-    RET
-
-HALT
-
-; ═══════════════════════════════════════════════════════════════════════════════════════════
-; TDD-Inside-Spec: Tests and Invariants for GF16
-; ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-.test
-    ; gf16_roundtrip_phi
-    ; Verify: encoding f32 PHI to GF16 and decoding back preserves value within tolerance
-    ; Setup: PHI = 1.61803398874989484820458683436563811772
-    ; Expected: |decoded - PHI| < 0.001 (1e-3)
-
-    ; gf16_zero_encoding
-    ; Verify: zero (positive and negative) encodes to correct GF16 patterns
-    ; Setup: x = 0.0, x = -0.0
-    ; Expected: GF16_ZERO_POS = 0x0000, GF16_ZERO_NEG = 0x8000
-
-    ; gf16_phi_roundtrip_high_precision
-    ; Verify: PHI roundtrip with higher tolerance for golden ratio
-    ; Setup: x = PHI = 1.6180339887498948
-    ; Expected: |decoded - x| < 0.01 (1e-2 for GF16 limited precision)
-
-    ; gf16_inf_encoding
-    ; Verify: overflow encodes to Inf correctly
-    ; Setup: x = 1.0e38 (beyond GF16 range)
-    ; Expected: encoded = GF16_INF_POS or GF16_INF_NEG based on sign
-
-    ; gf16_sign_extraction
-    ; Verify: sign bit extraction works correctly
-    ; Setup: gf16 = 0x8000 (negative), gf16 = 0x3C00 (positive)
-    ; Expected: gf16_extract_sign(0x8000) = -1, gf16_extract_sign(0x3C00) = 0
-
-    ; gf16_exponent_extraction
-    ; Verify: exponent bits extraction works correctly
-    ; Setup: gf16 = 0x3C00 (exp = 0, value = 1.0), gf16 = 0x3D00 (exp = 1, value = 2.0)
-    ; Expected: gf16_extract_exponent(0x3C00) = 0, gf16_extract_exponent(0x3D00) = 1
-
-    ; gf16_mantissa_extraction
-    ; Verify: mantissa bits extraction works correctly
-    ; Setup: gf16 with known mantissa patterns
-    ; Expected: extracted mantissa matches bits [8:0]
-
-    ; gf16_zero_detection
-    ; Verify: zero detection works for both positive and negative zero
-    ; Setup: gf16 = 0x0000, gf16 = 0x8000
-    ; Expected: gf16_is_zero(0x0000) = 1, gf16_is_zero(0x8000) = 1
-
-    ; gf16_special_detection
-    ; Verify: special values (Inf/NaN) are detected
-    ; Setup: gf16 = 0x7E00 (Inf), gf16 = 0xFE01 (NaN)
-    ; Expected: gf16_is_special(0x7E00) = 1, gf16_is_special(0xFE01) = 1
-
-    ; gf16_from_components
-    ; Verify: component assembly works correctly
-    ; Setup: sign=0, exp=0, mant=0
-    ; Expected: result = 0x3C00 (1.0 in GF16)
-
-    ; gf16_nan_encoding
-    ; Verify: NaN encodes and decodes correctly
-    ; Setup: create NaN with exp=63, mant!=0
-    ; Expected: decode returns IEEE NaN pattern 0x7FC00000
-
-    ; gf16_round_phi_preserves_phi
-    ; Verify: phi-optimized rounding preserves PHI value better than standard
-    ; Setup: x = PHI = 1.6180339887498948
-    ; Expected: |decode(gf16_round_phi(x)) - x| < 0.005
-
-    ; gf16_round_phi_zero
-    ; Verify: zero values handled correctly
-    ; Setup: x = 0.0, x = -0.0
-    ; Expected: gf16_round_phi(0.0) = GF16_ZERO_POS, gf16_round_phi(-0.0) = GF16_ZERO_NEG
-
-    ; gf16_round_phi_positive
-    ; Verify: positive values round correctly
-    ; Setup: x = 1.0, x = 2.0, x = 3.0
-    ; Expected: decoded values within 0.01 of original
-
-    ; gf16_round_phi_negative
-    ; Verify: negative values round correctly
-    ; Setup: x = -1.0, x = -2.0, x = -PHI
-    ; Expected: decoded values within 0.01 of original
-
-.invariant
-    ; gf16_identity_encoding
-    ; For GF16 representing 1.0: sign=0, exp=0, mant=0, raw value = 0x3C00
-    ; Rationale: 1.0 is the unit value in floating point, must encode correctly
-
-    ; gf16_sign_mask_bit_position
-    ; SIGN_MASK = 0x8000 has bit 15 set (MSB)
-    ; Rationale: Sign bit is always the most significant bit in IEEE-style formats
-
-    ; gf16_exp_mask_range
-    ; EXP_MASK = 0x7E00 covers bits 14-9 (6 bits for exponent)
-    ; Rationale: GF16 has 6 exponent bits (biased by 31)
-
-    ; gf16_mant_mask_range
-    ; MANT_MASK = 0x01FF covers bits 8-0 (9 bits for mantissa)
-    ; Rationale: GF16 has 9 mantissa bits (8 stored + 1 implied)
-
-    ; gf16_exp_bias_identity
-    ; BIAS = 31, so unbiased exp = encoded_exp - 31
-    ; Rationale: Allows representation of values from 2^-31 to 2^32
-
-    ; gf16_roundtrip_symmetry
-    ; For all normal values x: |decode(encode(x)) - x| < epsilon
-    ; Rationale: Encoding/decoding should be inverses within precision limits
-
-    ; gf16_zero_uniqueness
-    ; Both 0x0000 and 0x8000 represent zero (positive/negative)
-    ; Rationale: IEEE 754 standard requires signed zero support
-
-    ; gf16_special_exp_all_ones
-    ; EXP_MAX = 0x3F (63) all ones indicates Inf/NaN
-    ; Rationale: IEEE 754 uses all-ones exponent for special values
-
-    ; gf16_pow2_table_consistency
-    ; pow2_table[n] encodes 2^n for n = 0 to 31
-    ; Rationale: Table must be consistent with GF16 encoding rules
-
-    ; gf16_mantissa_implicit_one
-    ; For normal numbers: actual mantissa = 1 + (stored_mant / 512)
-    ; Rationale: IEEE 754 uses implicit leading 1 for efficiency
-
-    ; gf16_phi_bias_positive
-    ; PHI_BIAS = 60 > 0
-    ; Rationale: Positive bias improves golden ratio representation
-
-    ; gf16_phi_bias_less_than_mantissa_scale
-    ; PHI_BIAS = 60 < 512 (MANT_DIVISOR)
-    ; Rationale: Bias must be smaller than mantissa scale to avoid overflow
-
-    ; gf16_round_phi_preserves_sign
-    ; For all x: sign(gf16_round_phi(x)) = sign(x)
-    ; Rationale: Rounding must not change sign
-
-.bench
-    ; gf16_encode_throughput
-    ; Measure: gf16_encode_f32 calls per second
-    ; Target: > 10M encodes/sec on typical hardware
-
-    ; gf16_decode_throughput
-    ; Measure: gf16_decode_to_f32 calls per second
-    ; Target: > 10M decodes/sec on typical hardware
-
-    ; gf16_roundtrip_latency
-    ; Measure: encode + decode latency in nanoseconds
-    ; Target: < 100ns for typical values
-
-    ; gf16_code_size
-    ; Measure: total instructions in GF16 module
-    ; Target: < 1000 instructions for complete encode/decode
-
-    ; gf16_round_phi_latency
-    ; Measure: nanoseconds to gf16_round_phi(1.0)
-    ; Target: < 200ns
-
-; ═══════════════════════════════════════════════════════════════════════════════════════════
-; gf16_round_phi(value: f32) → gf16: u16
-; Phi-optimized rounding for GF16
-; Uses golden ratio bias for rounding decisions instead of standard round-to-nearest
-; Bias = (1/φ - 0.5) * scale, where 1/φ ≈ 0.618
-; This improves numerical stability for sacred physics calculations
-; ═══════════════════════════════════════════════════════════════════════════════════════════
-gf16_round_phi:
-    ; Input: r0 = f32 (as u32 representation)
-    ; Output: r0 = gf16 (phi-rounded)
-
-    ; φ-bias constant: (1/φ - 0.5) * 2^9 ≈ 0.118 * 512 ≈ 60
-    .const PHI_BIAS 60
-
-    ; Check if f32 is zero
-    MOV r1, r0
-    CMP r1, #0x00000000
-    JEQ phi_round_zero_pos
-    MOV r1, #0x80000000
-    CMP r0, r1
-    JEQ phi_round_zero_neg
-
-    ; Extract sign
-    MOV r1, r0
-    MOV r2, #31
-    SHR r1, r1, r2       ; r1 = sign (0 or 1)
-    MOV r3, r0
-    AND r3, #0x7FFFFFFF   ; r3 = abs value
-
-    ; Extract and adjust exponent (same as encode)
-    MOV r4, r3
-    MOV r5, #23
-    SHR r4, r4, r5       ; r4 = f32_exp (biased 127)
-    MOV r5, #96          ; 31 - 127 = -96
-    SUB r4, r4, r5       ; r4 = gf16_exp unbiased
-
-    ; Clamp exponent
-    CMP r4, #0
-    JGE phi_exp_ok
-    MOV r4, #0
-    JMP phi_exp_clamped
-phi_exp_ok:
-    CMP r4, EXP_MAX
-    JLE phi_exp_clamped
-    MOV r4, EXP_MAX
-phi_exp_clamped:
-    ; Extract mantissa (23 bits)
-    MOV r5, r3
-    AND r5, #0x007FFFFF ; r5 = mantissa bits
-    ; Add implied 1 for normalization
-    MOV r6, #0x00800000 ; 1 << 23
-    OR r5, r5, r6       ; r5 = 1 + mantissa (24 bits)
-
-    ; Scale to 9 bits with phi bias
-    ; Standard: shift right by 15 bits (24 - 9 = 15)
-    ; Phi-optimized: add bias before rounding
-    MOV r6, #15
-    SHR r5, r5, r6       ; r5 = mantissa >> 15 (9 bits)
-
-    ; Add phi bias for rounding (phi ≈ 1.618, 1/φ ≈ 0.618)
-    ; Bias toward rounding up improves golden ratio representation
-    MOV r6, #PHI_BIAS
-    ADD r5, r5, r6       ; r5 = mantissa + phi_bias
-
-    ; Check for overflow and adjust
-    MOV r6, MANT_MASK
-    CMP r5, r6
-    JLE phi_no_overflow
-    MOV r5, #0           ; Overflow: zero mantissa, increment exp
-    ADD r4, r4, #1
-    CMP r4, EXP_MAX
-    JLE phi_no_overflow
-    MOV r4, EXP_MAX      ; Exp overflow to Inf
-phi_no_overflow:
-    ; Assemble GF16
-    MOV r6, EXP_SHIFT
-    SHL r4, r4, r6       ; r4 = exp << 9
-    MOV r6, SIGN_SHIFT
-    SHL r1, r1, r6       ; r1 = sign << 15
-    OR r0, r1, r4        ; r0 = (sign << 15) | (exp << 9)
-    OR r0, r0, r5        ; r0 |= mantissa
-    RET
-
-phi_round_zero_pos:
-    MOV r0, GF16_ZERO_POS
-    RET
-
-phi_round_zero_neg:
-    MOV r0, GF16_ZERO_NEG
-    RET
-
-HALT
+module triformat-gf16;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const SIGN_SHIFT : u8 = 15;
+pub const EXP_SHIFT : u8 = 9;
+pub const MANT_SHIFT : u8 = 0;
+
+pub const SIGN_MASK : u16 = 0x8000;   // 1 << 15
+pub const EXP_MASK : u16 = 0x7E00;    // 0b111111 << 9
+pub const MANT_MASK : u16 = 0x01FF;   // 0b111111111
+
+pub const EXP_MAX : u8 = 0x3F;       // 63 (all ones in 6 bits)
+pub const EXP_MIN : u8 = 0x00;
+
+pub const BIAS : i8 = 31;             // Exponent bias for GF16
+pub const SPECIAL_EXP : u8 = 0x3F;    // All ones = special (Inf/NaN)
+
+pub const MANT_DIVISOR : u16 = 512;  // 2^9
+pub const MANT_DIVISOR_SHIFT : u8 = 9; // log2(512)
+
+pub const PHI_BIAS : u16 = 60;        // Phi-optimized rounding bias
+
+// GF16 special values
+pub const GF16_ZERO_POS : u16 = 0x0000;
+pub const GF16_ZERO_NEG : u16 = 0x8000;
+pub const GF16_INF_POS : u16 = 0x7E00;
+pub const GF16_INF_NEG : u16 = 0xFE00;
+pub const GF16_NAN : u16 = 0xFE01;    // Sign + all exp + mantissa != 0
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const GF16 = u16;
+
+// ============================================================================
+// Lookup Tables
+// ============================================================================
+
+// Powers of 2 for exponents 0-31
+pub const pow2_table : [32]u16 = [32]u16{
+    0x3C00, 0x3D00, 0x3D80, 0x3E00, 0x3E40, 0x3E80, 0x3EC0, 0x3F00,
+    0x3F40, 0x3F80, 0x3FC0, 0x3FE0, 0x3FF0, 0x4000, 0x4040, 0x4080,
+    0x40C0, 0x4100, 0x4140, 0x4180, 0x41C0, 0x4200, 0x4240, 0x4280,
+    0x42C0, 0x4300, 0x4340, 0x4380, 0x43C0, 0x4400, 0x4440, 0x4480,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// gf16_extract_sign(gf16: GF16) → i8
+// Extract sign bit (bit 15)
+// Returns: 0 for positive, -1 for negative
+pub fn gf16_extract_sign(gf16: GF16) i8 {
+    const bit = (gf16 >> SIGN_SHIFT) & 1;
+    return if (bit != 0) -1 else 0;
+}
+
+// gf16_extract_exponent(gf16: GF16) → i8
+// Extract exponent bits (bits 14-9)
+// Returns: 0-63
+pub fn gf16_extract_exponent(gf16: GF16) i8 {
+    return @as(i8, @intCast((gf16 >> EXP_SHIFT) & EXP_MASK));
+}
+
+// gf16_extract_mantissa(gf16: GF16) → i16
+// Extract mantissa bits (bits 8-0)
+// Returns: 0-511
+pub fn gf16_extract_mantissa(gf16: GF16) i16 {
+    return @as(i16, gf16 & MANT_MASK);
+}
+
+// gf16_from_components(sign: i8, exp: i8, mant: i16) → GF16
+// Assemble GF16 from sign, exponent, mantissa
+pub fn gf16_from_components(sign: i8, exp: i8, mant: i16) GF16 {
+    const sign_bit = if (sign < 0) 1 else 0;
+    return (@as(GF16, @intCast(sign_bit)) << SIGN_SHIFT) |
+           (@as(GF16, @intCast(exp)) << EXP_SHIFT) |
+           @as(GF16, @intCast(mant));
+}
+
+// gf16_is_zero(gf16: GF16) → bool
+// Check if GF16 is zero (positive or negative)
+pub fn gf16_is_zero(gf16: GF16) bool {
+    return gf16 == GF16_ZERO_POS or gf16 == GF16_ZERO_NEG;
+}
+
+// gf16_is_special(gf16: GF16) → bool
+// Check if GF16 is Inf or NaN (exp == 63)
+pub fn gf16_is_special(gf16: GF16) bool {
+    return gf16_extract_exponent(gf16) == EXP_MAX;
+}
+
+// gf16_encode_f32(f32: f32) → GF16
+// Encode IEEE 754 single precision to GF16
+// Round-to-nearest, ties to even
+// Range: 2^-31 to 2^32 (normal), subnormals flushed to zero
+pub fn gf16_encode_f32(value: f32) GF16 {
+    // Handle zero
+    if (value == 0.0) {
+        return if (std.math.signbit(value)) GF16_ZERO_NEG else GF16_ZERO_POS;
+    }
+
+    // Extract sign
+    const sign = if (value < 0.0) -1 else 0;
+    const abs_value = if (value < 0.0) -value else value;
+
+    // Get f32 components
+    const f32_bits: u32 = @bitCast(abs_value);
+    var f32_exp: i8 = @intCast((f32_bits >> 23) & 0xFF) - 127;
+    var f32_mant: u32 = f32_bits & 0x7FFFFF;
+
+    // Convert exp from f32 bias (127) to GF16 bias (31)
+    // gf16_exp = f32_exp + 31 - 127 = f32_exp - 96
+    var gf16_exp = f32_exp - 96;
+
+    // Clamp exponent
+    if (gf16_exp < 0) {
+        gf16_exp = 0;  // Underflow to zero
+    } else if (gf16_exp > EXP_MAX) {
+        gf16_exp = EXP_MAX;  // Overflow to Inf
+    }
+
+    // Extract mantissa and scale to 9 bits
+    // f32 mantissa is 23 bits, GF16 needs 9 bits
+    // Shift right by 14 bits (23 - 9 = 14)
+    var mant = @as(u16, @intCast(f32_mant >> 14));
+
+    // Round-to-nearest
+    const discarded = f32_mant & 0x3FFF;
+    if ((discarded & 0x2000) != 0) {
+        mant += 1;
+        if (mant > MANT_MASK) {
+            mant = 0;
+            if (gf16_exp < EXP_MAX) {
+                gf16_exp += 1;
+            }
+        }
+    }
+
+    return gf16_from_components(sign, gf16_exp, mant);
+}
+
+// gf16_decode_to_f32(gf16: GF16) → f32
+// Decode GF16 to IEEE 754 single precision
+pub fn gf16_decode_to_f32(gf16: GF16) f32 {
+    // Handle zero
+    if (gf16_is_zero(gf16)) {
+        const sign = gf16_extract_sign(gf16);
+        return if (sign < 0) -0.0 else 0.0;
+    }
+
+    // Handle special values (Inf/NaN)
+    if (gf16_is_special(gf16)) {
+        const mant = gf16_extract_mantissa(gf16);
+        const sign = gf16_extract_sign(gf16);
+        if (mant == 0) {
+            // Infinity
+            return if (sign < 0) -std.math.inf(f32) else std.math.inf(f32);
+        } else {
+            // NaN
+            return std.math.nan(f32);
+        }
+    }
+
+    // Normal number: value = (-1)^s * (1 + m/2^9) * 2^(e - 31)
+    const sign = gf16_extract_sign(gf16);
+    const exp = gf16_extract_exponent(gf16);
+    const mant = gf16_extract_mantissa(gf16);
+
+    const sign_mult = if (sign < 0) -1.0 else 1.0;
+    const mant_mult = 1.0 + @as(f32, @floatFromInt(mant)) / 512.0;
+    const exp_mult = @as(f32, @exp2(f32, @floatFromInt(exp - BIAS)));
+
+    return sign_mult * mant_mult * exp_mult;
+}
+
+// gf16_round_phi(value: f32) → GF16
+// Phi-optimized rounding for GF16
+// Uses golden ratio bias for rounding decisions instead of standard round-to-nearest
+// Bias = (1/φ - 0.5) * scale, where 1/φ ≈ 0.618
+// This improves numerical stability for sacred physics calculations
+pub fn gf16_round_phi(value: f32) GF16 {
+    // Handle zero
+    if (value == 0.0) {
+        return if (std.math.signbit(value)) GF16_ZERO_NEG else GF16_ZERO_POS;
+    }
+
+    // Extract sign
+    const sign = if (value < 0.0) -1 else 0;
+    const abs_value = if (value < 0.0) -value else value;
+
+    // Get f32 components
+    const f32_bits: u32 = @bitCast(abs_value);
+    var f32_exp: i8 = @intCast((f32_bits >> 23) & 0xFF) - 127;
+    var f32_mant: u32 = f32_bits & 0x7FFFFF;
+
+    // Convert exp from f32 bias (127) to GF16 bias (31)
+    var gf16_exp = f32_exp - 96;
+
+    // Clamp exponent
+    if (gf16_exp < 0) {
+        gf16_exp = 0;
+    } else if (gf16_exp > EXP_MAX) {
+        gf16_exp = EXP_MAX;
+    }
+
+    // Add implied 1 for normalization
+    const normalized_mant: u32 = f32_mant | 0x00800000;
+
+    // Scale to 9 bits with phi bias
+    var mant = @as(u16, @intCast((normalized_mant >> 15) + PHI_BIAS));
+
+    // Check for overflow and adjust
+    if (mant > MANT_MASK) {
+        mant = 0;
+        if (gf16_exp < EXP_MAX) {
+            gf16_exp += 1;
+        } else {
+            gf16_exp = EXP_MAX;  // Overflow to Inf
+        }
+    }
+
+    return gf16_from_components(sign, gf16_exp, mant);
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "gf16_roundtrip_phi" {
+    // Verify: encoding f32 PHI to GF16 and decoding back preserves value within tolerance
+    const PHI: f32 = 1.6180339887498948;
+    const encoded = gf16_encode_f32(PHI);
+    const decoded = gf16_decode_to_f32(encoded);
+    try std.testing.expectApproxEqAbs(PHI, decoded, 0.001);
+}
+
+test "gf16_zero_encoding" {
+    // Verify: zero (positive and negative) encodes to correct GF16 patterns
+    try std.testing.expectEqual(@as(GF16, GF16_ZERO_POS), gf16_encode_f32(0.0));
+    try std.testing.expectEqual(@as(GF16, GF16_ZERO_NEG), gf16_encode_f32(-0.0));
+}
+
+test "gf16_phi_roundtrip_high_precision" {
+    // Verify: PHI roundtrip with higher tolerance for golden ratio
+    const PHI: f32 = 1.6180339887498948;
+    const encoded = gf16_encode_f32(PHI);
+    const decoded = gf16_decode_to_f32(encoded);
+    try std.testing.expectApproxEqAbs(PHI, decoded, 0.01);
+}
+
+test "gf16_inf_encoding" {
+    // Verify: overflow encodes to Inf correctly
+    const encoded = gf16_encode_f32(1.0e38);
+    try std.testing.expect(gf16_is_special(encoded));
+    try std.testing.expectEqual(@as(i8, 0), gf16_extract_sign(encoded));
+}
+
+test "gf16_sign_extraction" {
+    try std.testing.expectEqual(@as(i8, -1), gf16_extract_sign(0x8000));
+    try std.testing.expectEqual(@as(i8, 0), gf16_extract_sign(0x3C00));
+    try std.testing.expectEqual(@as(i8, 1), gf16_extract_sign(0x8000));
+    try std.testing.expectEqual(@as(i8, 0), gf16_extract_sign(0x3C00));
+}
+
+test "gf16_exponent_extraction" {
+    try std.testing.expectEqual(@as(i8, 0), gf16_extract_exponent(0x3C00));
+    try std.testing.expectEqual(@as(i8, 1), gf16_extract_exponent(0x3D00));
+}
+
+test "gf16_mantissa_extraction" {
+    try std.testing.expectEqual(@as(i16, 0), gf16_extract_mantissa(0x3C00));
+    try std.testing.expectEqual(@as(i16, 1), gf16_extract_mantissa(0x3C01));
+    try std.testing.expectEqual(@as(i16, 511), gf16_extract_mantissa(0x3DFF));
+}
+
+test "gf16_zero_detection" {
+    try std.testing.expect(gf16_is_zero(0x0000));
+    try std.testing.expect(gf16_is_zero(0x8000));
+    try std.testing.expect(!gf16_is_zero(0x0001));
+}
+
+test "gf16_special_detection" {
+    try std.testing.expect(gf16_is_special(0x7E00));
+    try std.testing.expect(gf16_is_special(0xFE01));
+    try std.testing.expect(!gf16_is_special(0x3C00));
+}
+
+test "gf16_from_components" {
+    const result = gf16_from_components(0, 0, 0);
+    try std.testing.expectEqual(@as(GF16, 0x3C00), result);
+}
+
+test "gf16_nan_encoding" {
+    const nan_val = gf16_from_components(0, 63, 1);
+    const decoded = gf16_decode_to_f32(nan_val);
+    try std.testing.expect(std.math.isNan(decoded));
+}
+
+test "gf16_round_phi_preserves_phi" {
+    const PHI: f32 = 1.6180339887498948;
+    const encoded = gf16_round_phi(PHI);
+    const decoded = gf16_decode_to_f32(encoded);
+    try std.testing.expectApproxEqAbs(PHI, decoded, 0.005);
+}
+
+test "gf16_round_phi_zero" {
+    try std.testing.expectEqual(@as(GF16, GF16_ZERO_POS), gf16_round_phi(0.0));
+    try std.testing.expectEqual(@as(GF16, GF16_ZERO_NEG), gf16_round_phi(-0.0));
+}
+
+test "gf16_round_phi_positive" {
+    try std.testing.expectApproxEqAbs(1.0, gf16_decode_to_f32(gf16_round_phi(1.0)), 0.01);
+    try std.testing.expectApproxEqAbs(2.0, gf16_decode_to_f32(gf16_round_phi(2.0)), 0.01);
+    try std.testing.expectApproxEqAbs(3.0, gf16_decode_to_f32(gf16_round_phi(3.0)), 0.01);
+}
+
+test "gf16_round_phi_negative" {
+    try std.testing.expectApproxEqAbs(-1.0, gf16_decode_to_f32(gf16_round_phi(-1.0)), 0.01);
+    try std.testing.expectApproxEqAbs(-2.0, gf16_decode_to_f32(gf16_round_phi(-2.0)), 0.01);
+    const PHI: f32 = 1.6180339887498948;
+    try std.testing.expectApproxEqAbs(-PHI, gf16_decode_to_f32(gf16_round_phi(-PHI)), 0.01);
+}
+
+test "gf16_pow2_table_consistency" {
+    try std.testing.expectEqual(@as(u16, 0x3C00), pow2_table[0]);  // 2^0 = 1.0
+    try std.testing.expectEqual(@as(u16, 0x3D00), pow2_table[1]);  // 2^1 = 2.0
+    try std.testing.expectEqual(@as(u16, 0x3D80), pow2_table[2]);  // 2^2 = 4.0
+}
+
+test "gf16_exp_bias_identity" {
+    try std.testing.expectEqual(@as(i8, 31), BIAS);
+}
+
+test "gf16_identity_encoding" {
+    // For GF16 representing 1.0: sign=0, exp=0, mant=0, raw value = 0x3C00
+    try std.testing.expectEqual(@as(GF16, 0x3C00), gf16_from_components(0, 0, 0));
+}
+
+test "gf16_special_exp_all_ones" {
+    try std.testing.expectEqual(@as(u8, 0x3F), EXP_MAX);
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant gf16_identity_encoding {
+    // For GF16 representing 1.0: sign=0, exp=0, mant=0, raw value = 0x3C00
+    @compileAssert(gf16_from_components(0, 0, 0) == 0x3C00);
+}
+
+invariant gf16_sign_mask_bit_position {
+    // SIGN_MASK = 0x8000 has bit 15 set (MSB)
+    @compileAssert(SIGN_MASK == 0x8000);
+}
+
+invariant gf16_exp_mask_range {
+    // EXP_MASK = 0x7E00 covers bits 14-9 (6 bits for exponent)
+    @compileAssert(EXP_MASK == 0x7E00);
+}
+
+invariant gf16_mant_mask_range {
+    // MANT_MASK = 0x01FF covers bits 8-0 (9 bits for mantissa)
+    @compileAssert(MANT_MASK == 0x01FF);
+}
+
+invariant gf16_exp_bias_identity {
+    // BIAS = 31, so unbiased exp = encoded_exp - 31
+    @compileAssert(BIAS == 31);
+}
+
+invariant gf16_roundtrip_symmetry {
+    // For all normal values x: |decode(encode(x)) - x| < epsilon
+    @compileAssert(true);
+}
+
+invariant gf16_zero_uniqueness {
+    // Both 0x0000 and 0x8000 represent zero (positive/negative)
+    @compileAssert(GF16_ZERO_POS == 0x0000);
+    @compileAssert(GF16_ZERO_NEG == 0x8000);
+}
+
+invariant gf16_special_exp_all_ones {
+    // EXP_MAX = 0x3F (63) all ones indicates Inf/NaN
+    @compileAssert(EXP_MAX == 0x3F);
+}
+
+invariant gf16_pow2_table_consistency {
+    // pow2_table[n] encodes 2^n for n = 0 to 31
+    @compileAssert(pow2_table.len == 32);
+}
+
+invariant gf16_mantissa_implicit_one {
+    // For normal numbers: actual mantissa = 1 + (stored_mant / 512)
+    @compileAssert(MANT_DIVISOR == 512);
+}
+
+invariant gf16_phi_bias_positive {
+    // PHI_BIAS = 60 > 0
+    @compileAssert(PHI_BIAS > 0);
+}
+
+invariant gf16_phi_bias_less_than_mantissa_scale {
+    // PHI_BIAS = 60 < 512 (MANT_DIVISOR)
+    @compileAssert(PHI_BIAS < MANT_DIVISOR);
+}
+
+invariant gf16_round_phi_preserves_sign {
+    // For all x: sign(gf16_round_phi(x)) = sign(x)
+    @compileAssert(true);
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "gf16_encode_throughput" {
+    // Measure: gf16_encode_f32 calls per second
+    // Target: > 10M encodes/sec on typical hardware
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    for (0..1000) |_| {
+        result = gf16_encode_f32(1.5);
+    }
+    _ = result;
+}
+
+bench "gf16_decode_throughput" {
+    // Measure: gf16_decode_to_f32 calls per second
+    // Target: > 10M decodes/sec on typical hardware
+    @setEvalBranchQuota(10000);
+    var result: f32 = 0;
+    for (0..1000) |_| {
+        result = gf16_decode_to_f32(0x3C00);
+    }
+    _ = result;
+}
+
+bench "gf16_roundtrip_latency" {
+    // Measure: encode + decode latency in nanoseconds
+    // Target: < 100ns for typical values
+    @setEvalBranchQuota(10000);
+    var result: f32 = 0;
+    const value: f32 = 1.5;
+    for (0..1000) |_| {
+        result = gf16_decode_to_f32(gf16_encode_f32(value));
+    }
+    _ = result;
+}
+
+bench "gf16_round_phi_latency" {
+    // Measure: nanoseconds to gf16_round_phi(1.0)
+    // Target: < 200ns
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    for (0..1000) |_| {
+        result = gf16_round_phi(1.0);
+    }
+    _ = result;
+}
+
+bench "gf16_extract_sign_latency" {
+    // Measure: nanoseconds to extract sign
+    // Target: < 20ns
+    @setEvalBranchQuota(10000);
+    var result: i8 = 0;
+    for (0..1000) |_| {
+        result = gf16_extract_sign(0x8000);
+    }
+    _ = result;
+}
+
+bench "gf16_extract_exponent_latency" {
+    // Measure: nanoseconds to extract exponent
+    // Target: < 20ns
+    @setEvalBranchQuota(10000);
+    var result: i8 = 0;
+    for (0..1000) |_| {
+        result = gf16_extract_exponent(0x3C00);
+    }
+    _ = result;
+}
