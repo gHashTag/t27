@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:7b3d09fb1e9e46805edd70ca1e55103efc453c3e60518c70d8b2f9ab7626441e",
   "module": "QueenLotus",
   "ring": 12,
-  "sealed_at": "2026-04-04T12:26:33Z",
+  "sealed_at": "2026-04-04T13:02:54Z",
   "spec_hash": "sha256:aba0e5052c50fecef28f0a08d3d9f10a5269a0c51e77461ff6e1a2330ff2eab9",
   "spec_path": "specs/queen/lotus.t27"
 }

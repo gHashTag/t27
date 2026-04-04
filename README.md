@@ -63,6 +63,7 @@ cd ..
 
 ```
 t27/
+
 ├── specs/                  # .t27 SPECIFICATIONS — source of truth
 │   ├── base/               #   types, ops (2 specs)
 │   ├── numeric/            #   GoldenFloat GF4-GF32, TF3, phi_ratio (10 specs)
@@ -109,6 +110,34 @@ t27/
 │   └── AGENTS_ALPHABET.md  #   27-agent system spec
 │
 └── tests/                  # Ring verification scripts
+=======
+├── specs/              # 28 .t27 specifications (SOURCE OF TRUTH)
+│   ├── base/           # Base types and operations
+│   ├── numeric/        # GoldenFloat GF4-GF32, TF3, phi_ratio
+│   ├── math/           # Sacred constants and physics
+│   ├── ar/             # CLARA AR module (7 specs)
+│   ├── nn/             # Neural networks (attention, HSLM)
+│   ├── vsa/            # Vector Symbolic Architecture
+│   ├── isa/            # 27 Coptic registers
+│   ├── fpga/           # Zero-DSP MAC unit
+│   ├── queen/          # Lotus orchestrator
+│   └── compiler/       # Spec-level parser
+│
+├── compiler/           # 15 .t27 compiler stack
+│   ├── parser/         # .t27 → AST (lexer, parser)
+│   ├── codegen/        # AST → Target code
+│   │   ├── zig/       # .t27 → Zig 0.15
+│   │   ├── verilog/   # .t27 → Verilog (XC7A100T)
+│   │   └── c/         # .t27 → C (clang/gcc)
+│   ├── runtime/        # Runtime (exec, commands, validation)
+│   ├── cli/            # CLI commands (gen, git, spec)
+│   └── skill/          # Skill registry
+│
+├── conformance/        # Language-agnostic test vectors (12 JSON)
+│
+├── bootstrap/          # Bootstrap compiler (Rust + Python)
+│
+└── .github/            # CI workflows + issue templates
 ```
 
 ## SEED-RINGS Progress
@@ -226,7 +255,27 @@ tri git commit                        ← push with "Closes #N"
 5. Commit message: `feat(ring-N): description [SEED-N]` with `Closes #N`
 6. Open a PR targeting `master`
 
+## PHI LOOP Status
+
+- **18 seed rings** sealed (SEED-0 through SEED-17)
+- **43 .t27 spec files** (28 specs/ + 15 compiler/)
+- **6 CLI commands**: parse, gen, gen-zig, gen-verilog, gen-c, seal
+- **5 layers complete**: Base → Numeric → Physics/AR → NN → Compiler
+- **Deterministic fixed point** reached at Ring 17 (CANOPY)
+- Complete compiler stack (parser, 3 codegens, testgen, runtime, CLI)
+- CLARA AR module: 7 specs (ternary logic → composition)
+- CI enforced: Issue Gate + PHI Loop CI on all PRs
+
+## CI Enforcement
+
+All PRs to `master` must:
+1. Link to an issue via `Closes #N`
+2. Pass PHI Loop CI (build, parse, gen, seal verify)
+
+See [ISSUE-GATE-001](docs/ISSUE-GATE-001.md) for details.
+
 ## Documentation
+
 
 ### Governance
 - [SOUL.md](SOUL.md) — Constitutional law
@@ -248,6 +297,15 @@ tri git commit                        ← push with "Closes #N"
 - [CLARA Preparation Plan](docs/CLARA-PREPARATION-PLAN.md) — DARPA compliance
 - [Kleene Trit Isomorphism](docs/KLEENE-TRIT-ISOMORPHISM.md)
 - [TRI Syntax vNext](docs/TRI_SYNTAX_VNEXT.md)
+=======
+- [SOUL.md](docs/SOUL.md) — Trinity constitutional laws
+- [ISSUE-GATE-001.md](docs/ISSUE-GATE-001.md) — Issue gate enforcement law
+- [NUMERIC-STANDARD-001.md](docs/NUMERIC-STANDARD-001.md) — GoldenFloat family specification
+- [SACRED-PHYSICS-001.md](docs/SACRED-PHYSICS-001.md) — Sacred physics constants
+- [CANON_DE_ZIGFICATION.md](architecture/CANON_DE_ZIGFICATION.md) — De-Zig canonical law
+- [SEED-RINGS.md](docs/SEED-RINGS.md) — Seed ring configuration
+- [PHI_LOOP_CONTRACT.md](docs/PHI_LOOP_CONTRACT.md) — PHI LOOP contracts
+
 
 ## License
 
@@ -255,7 +313,12 @@ MIT
 
 ---
 
+
 <p align="center">
   <strong>φ² + 1/φ² = 3 | TRINITY</strong><br>
-  <sub>Maintained by <a href="https://github.com/gHashTag">Dmitrii [NeuroCoder]</a> · 27 agents, 45 specs, 15 sealed rings</sub>
+  <sub>Maintained by <a href="https://github.com/gHashTag">Dmitrii [Vasilev]</a> · 27 agents, 45 specs, 15 sealed rings</sub>
 </p>
+
+**Maintained by**: Trinity Project
+**Status:** Fixed Point Reached (2026-04-04) — 18 rings sealed, 43 specs, CI enforced
+

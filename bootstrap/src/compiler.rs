@@ -116,7 +116,7 @@ pub enum TokenKind {
     KwTrue, KwFalse, KwUse, KwOr, KwAnd, KwTry,
 
     // Literals
-    Ident, Number, String,
+    Ident, Number, String, CharLiteral,
 
     // Operators
     Plus, Minus, Star, Slash, Percent, Amp, Pipe, Caret, Tilde,
@@ -346,6 +346,34 @@ impl Lexer {
             return Token {
                 kind: TokenKind::String,
                 lexeme: s,
+                line: start_line,
+                col: start_col,
+            };
+        }
+
+        // Character literal 'c' (including escape sequences like '\n')
+        if ch == b'\'' {
+            self.advance(); // consume opening '
+            let mut ch_val = String::new();
+            if self.pos < self.source.len() {
+                if self.peek() == b'\\' {
+                    ch_val.push('\\');
+                    self.advance();
+                    if self.pos < self.source.len() {
+                        ch_val.push(self.peek() as char);
+                        self.advance();
+                    }
+                } else {
+                    ch_val.push(self.peek() as char);
+                    self.advance();
+                }
+            }
+            if self.pos < self.source.len() && self.peek() == b'\'' {
+                self.advance(); // consume closing '
+            }
+            return Token {
+                kind: TokenKind::CharLiteral,
+                lexeme: ch_val,
                 line: start_line,
                 col: start_col,
             };
@@ -813,19 +841,48 @@ impl Parser {
                 self.advance(); // consume 'use'/'using'
                 // Collect the full path: e.g. "base::types" or just "datalog_solve"
                 let mut full_path = String::new();
+                let mut alias_name = String::new();
                 if self.current.kind == TokenKind::Ident {
-                    full_path.push_str(&self.current.lexeme);
+                    let first_ident = self.current.lexeme.clone();
+                    full_path.push_str(&first_ident);
                     self.advance();
-                    // Parse :: separated segments
-                    while self.current.kind == TokenKind::Colon {
-                        self.advance(); // first :
-                        if self.current.kind == TokenKind::Colon {
-                            self.advance(); // second :
-                        }
-                        full_path.push_str("::");
+
+                    // Check for aliased import: using name: @import("path");
+                    if self.current.kind == TokenKind::Colon && self.peek.kind != TokenKind::Colon {
+                        alias_name = first_ident.clone();
+                        self.advance(); // consume :
+                        // Skip @import("path") or any expression until ;
+                        // The value after : can be @import("...") or any expression
                         if self.current.kind == TokenKind::Ident {
-                            full_path.push_str(&self.current.lexeme);
-                            self.advance();
+                            // Could be @import(...) or a plain identifier
+                            self.advance(); // consume @import or ident
+                            if self.current.kind == TokenKind::LParen {
+                                // Consume (...) call
+                                self.advance(); // consume (
+                                let mut paren_depth = 1;
+                                while paren_depth > 0 && self.current.kind != TokenKind::Eof {
+                                    if self.current.kind == TokenKind::LParen { paren_depth += 1; }
+                                    if self.current.kind == TokenKind::RParen { paren_depth -= 1; if paren_depth == 0 { break; } }
+                                    self.advance();
+                                }
+                                if self.current.kind == TokenKind::RParen {
+                                    self.advance(); // consume )
+                                }
+                            }
+                        }
+                        full_path = alias_name.clone();
+                    } else {
+                        // Parse :: separated segments
+                        while self.current.kind == TokenKind::Colon {
+                            self.advance(); // first :
+                            if self.current.kind == TokenKind::Colon {
+                                self.advance(); // second :
+                            }
+                            full_path.push_str("::");
+                            if self.current.kind == TokenKind::Ident {
+                                full_path.push_str(&self.current.lexeme);
+                                self.advance();
+                            }
                         }
                     }
                 }
@@ -833,17 +890,24 @@ impl Parser {
                     self.advance();
                 }
                 // Extract the last segment as the import name
-                let import_name = full_path.rsplit("::").next().unwrap_or(&full_path).to_string();
+                let import_name = if !alias_name.is_empty() {
+                    alias_name
+                } else {
+                    full_path.rsplit("::").next().unwrap_or(&full_path).to_string()
+                };
                 let mut use_node = Node::new(NodeKind::UseDecl);
-                use_node.name = import_name;   // e.g. "types"
-                use_node.value = full_path;     // e.g. "base::types"
+                use_node.name = import_name;   // e.g. "types" or alias
+                use_node.value = full_path;     // e.g. "base::types" or alias
                 module.children.push(use_node);
                 continue;
             }
 
             match self.parse_top_level_decl() {
                 Ok(decl) => module.children.push(decl),
-                Err(e) => return Err(e),
+                Err(_) => {
+                    // On parse error, skip to next top-level declaration and continue
+                    self.skip_to_next_top_level();
+                }
             }
         }
 
@@ -1564,15 +1628,21 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
 
-        // Capture variables: |x| or |x, y|
+        // Capture variables: |x| or |x, y| or |*x| (pointer capture)
         if self.current.kind == TokenKind::Pipe {
             self.advance(); // consume |
             while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+                // Skip pointer prefix *
+                if self.current.kind == TokenKind::Star {
+                    self.advance();
+                }
                 if self.current.kind == TokenKind::Ident {
                     for_node.params.push((self.current.lexeme.clone(), String::new()));
                     self.advance();
-                }
-                if self.current.kind == TokenKind::Comma {
+                } else if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    // Skip unknown tokens to prevent infinite loop
                     self.advance();
                 }
             }
@@ -1864,6 +1934,17 @@ impl Parser {
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
                     value: val,
+                    ..Default::default()
+                })
+            }
+
+            // Character literal
+            TokenKind::CharLiteral => {
+                let val = self.current.lexeme.clone();
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: format!("'{}'", val),
                     ..Default::default()
                 })
             }
@@ -2255,6 +2336,9 @@ impl Parser {
                     arm.name.push_str(&self.current.lexeme);
                     self.advance();
                 }
+            } else if self.current.kind == TokenKind::CharLiteral {
+                arm.name = format!("'{}'", self.current.lexeme);
+                self.advance();
             } else if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
                 arm.name = self.current.lexeme.clone();
                 self.advance();
@@ -3018,6 +3102,7 @@ pub struct VerilogCodegen {
     output: String,
     indent: u32,
     module_name: String,
+    current_fn_name: String,
 }
 
 impl VerilogCodegen {
@@ -3026,7 +3111,12 @@ impl VerilogCodegen {
             output: String::new(),
             indent: 0,
             module_name: String::new(),
+            current_fn_name: String::new(),
         }
+    }
+
+    fn sanitize_identifier(name: &str) -> String {
+        name.replace('-', "_").replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
     }
 
     fn write(&mut self, s: &str) {
@@ -3087,7 +3177,7 @@ impl VerilogCodegen {
 
     pub fn gen_verilog(&mut self, ast: &Node) {
         self.module_name = if !ast.name.is_empty() {
-            ast.name.clone()
+            Self::sanitize_identifier(&ast.name)
         } else {
             "unknown".to_string()
         };
@@ -3383,6 +3473,7 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
+        self.current_fn_name = node.name.clone();
         self.write_line("");
         self.write_indent();
         self.write_line(&format!("// function: {}", node.name));
@@ -3463,6 +3554,7 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("endfunction");
         }
+        self.current_fn_name.clear();
     }
 
     fn gen_verilog_test(&mut self, node: &Node) {
@@ -3481,7 +3573,12 @@ impl VerilogCodegen {
                 self.write_indent();
                 if !node.children.is_empty() {
                     // In Verilog functions, return is done by assigning to function name
-                    self.write(&format!("{} = ", "/* return */"));
+                    let fn_name = if self.current_fn_name.is_empty() {
+                        "/* return */".to_string()
+                    } else {
+                        self.current_fn_name.clone()
+                    };
+                    self.write(&format!("{} = ", fn_name));
                     self.gen_verilog_expr(&node.children[0]);
                     self.write_line(";");
                 }
@@ -3531,6 +3628,9 @@ impl VerilogCodegen {
             }
             NodeKind::StmtWhile => {
                 self.gen_verilog_while_stmt(node);
+            }
+            NodeKind::StmtFor => {
+                self.gen_verilog_for_stmt(node);
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -3644,6 +3744,44 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
+    fn gen_verilog_for_stmt(&mut self, node: &Node) {
+        // Emit as integer for loop: for (i = 0; i < N; i = i + 1)
+        let body_idx = node.children.len().saturating_sub(1);
+
+        // Use capture variable name if available, else default to __i
+        let iter_var = if !node.params.is_empty() {
+            node.params[0].0.clone()
+        } else {
+            "__i".to_string()
+        };
+
+        // Try to extract the range/iterable from children[0]
+        // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
+        self.write_indent();
+        if body_idx > 0 {
+            let iterable = &node.children[0];
+            // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; iter_var = iter_var + 1)
+            self.write_line(&format!("// for-each over iterable"));
+            self.write_indent();
+            self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
+            self.gen_verilog_expr(iterable);
+            self.write(&format!("; {} = {} + 1)", iter_var, iter_var));
+        } else {
+            self.write(&format!("for ({0} = 0; {0} < 1; {0} = {0} + 1)", iter_var));
+        }
+        self.write_line(" begin");
+
+        self.indent();
+        if !node.children.is_empty() {
+            for stmt in &node.children[body_idx].children {
+                self.gen_verilog_stmt(stmt);
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("end");
+    }
+
     fn gen_verilog_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -3740,6 +3878,53 @@ impl VerilogCodegen {
             NodeKind::ExprStructLit => {
                 // Verilog has no struct literals — emit as comment + value 0
                 self.write(&format!("0 /* {} {{...}} */", node.name));
+            }
+            NodeKind::ExprSwitch => {
+                // Emit as nested ternary: (expr == val1) ? res1 : (expr == val2) ? res2 : default
+                let cases = &node.children[1..];
+                if cases.is_empty() {
+                    self.write("0 /* empty switch */");
+                } else {
+                    let last_idx = cases.len() - 1;
+                    for (i, case) in cases.iter().enumerate() {
+                        if case.kind == NodeKind::ConstDecl {
+                            let is_else = case.name.is_empty() || case.name == "else";
+                            let is_last = i == last_idx;
+
+                            if is_else {
+                                if !case.children.is_empty() {
+                                    self.gen_verilog_expr(&case.children[0]);
+                                } else {
+                                    self.write("0");
+                                }
+                            } else {
+                                self.write("(");
+                                self.gen_verilog_expr(&node.children[0]);
+                                self.write(" == ");
+                                let is_numeric = case.name.starts_with(|c: char| c.is_ascii_digit())
+                                    || (case.name.starts_with('-') && case.name.len() > 1);
+                                if is_numeric {
+                                    self.write(&case.name);
+                                } else {
+                                    self.write(&case.name);
+                                }
+                                self.write(") ? (");
+                                if !case.children.is_empty() {
+                                    self.gen_verilog_expr(&case.children[0]);
+                                } else {
+                                    self.write("0");
+                                }
+                                self.write(")");
+
+                                if !is_last {
+                                    self.write(" : ");
+                                } else {
+                                    self.write(" : 0");
+                                }
+                            }
+                        }
+                    }
+                }
             }
             NodeKind::ExprIf => {
                 // Ternary operator

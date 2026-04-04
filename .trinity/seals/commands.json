@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:0fa6010b61d3a2ed8a5d78989368fbfc6ad479d7d5e7bc65d138763cbf8e0895",
+  "gen_hash_verilog": "sha256:7baae4ce1742dde9111878ba4f1c5a291facb8dc0931502c99ad68bfd9717f01",
+  "gen_hash_zig": "sha256:6eb3ea9d422dea6693f889ab8dddfa8457b86139c448f8839f683b6d57f7b6b5",
+  "module": "commands",
+  "ring": 12,
+  "sealed_at": "2026-04-04T13:02:54Z",
+  "spec_hash": "sha256:e3db9746da96ce709e8b815560b9cf11a854325f95a55f77b5fd5db6b3475885",
+  "spec_path": "compiler/runtime/commands.t27"
+}

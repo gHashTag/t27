@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:0c8aa454f0b1901b875cd54e72341dd62112970b24517b876f05b8984c086121",
+  "gen_hash_verilog": "sha256:3a983788318509eefe8cbbfdc02f79f284e10c7b20d7ffb852f5da7cfe02cd8b",
+  "gen_hash_zig": "sha256:2299b3511b7f82c457a1cab8184b0dd9c781fbe567f91b6556c6e7843431ad28",
+  "module": "tricgen-c",
+  "ring": 12,
+  "sealed_at": "2026-04-04T12:59:11Z",
+  "spec_hash": "sha256:405fdea7d1fb2b058f76601757ce3b28a5c6667fdb68203b311c80d7f4db7407",
+  "spec_path": "compiler/codegen/c/codegen.t27"
+}
