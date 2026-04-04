@@ -1,0 +1,75 @@
+# Akashic Chronicle Schema
+# Append-only JSONL (Newline-Delimited JSON) for immutable event logging
+# Each line is a complete JSON object for one coordination event
+
+[
+  {
+    "ts": "2026-04-04T06:05:00Z",         # ISO-8601 timestamp (UTC)
+    "event": "task.intent|claim.acquire|claim.heartbeat|claim.release|task.blocked|task.started|task.completed|task.failed|handoff.request|handoff.accept|handoff.reject|recovery.started|recovery.completed",
+    "agent_id": "agent-spec-1|agent-runtime-1|agent-compiler-1",
+    "trace_id": "uuid-v4",                       # Correlation trace ID
+    "task_id": "NUMERIC-001|RUNTIME-004",  # Task identifier
+    "spec_path": "specs/numeric/gf16.t27",  # Target spec file
+    "graph_node": "numericgf16|baseops",       # Target graph node
+    "priority": "P0|P1|P2|P3",                # Priority level
+    "claim_id": "claim-001|claim-002",            # Claim identifier (for claim events)
+    "resource": "specs/numeric/gf16.t27",     # Resource being claimed/released
+    "ttl_sec": 1800,                            # Claim TTL in seconds
+    "blocked_by": "claim-001",                   # Which claim blocked this task
+    "handoff_from": "agent-spec-1",              # Handoff source agent
+    "handoff_to": "agent-spec-2",                # Handoff target agent
+    "handoff_reason": "overloaded|blocked|timeout|voluntary",
+    "result": "clean|toxic|cancelled|accepted|rejected|success|failure",
+    "error": "timeout|conflict|invalid|permission_denied",
+    "metadata": {                               # Optional additional context
+      "domain": "numeric",
+      "phi_critical": false,
+      "sacred_core": false,
+      "reason": "Adding GF16 format to numeric domain"
+    }
+  }
+]
+
+# Example Events
+
+# 1. Task Intent
+{"ts":"2026-04-04T06:05:00Z","event":"task.intent","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","task_id":"NUMERIC-001","spec_path":"specs/numeric/gf16.t27","graph_node":"numericgf16","priority":"P0","metadata":{"domain":"numeric","phi_critical":false,"sacred_core":false,"reason":"Adding GF16 format to numeric domain"}}
+
+# 2. Claim Acquire
+{"ts":"2026-04-04T06:05:01Z","event":"claim.acquire","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","task_id":"NUMERIC-001","spec_path":"specs/numeric/gf16.t27","claim_id":"claim-001","resource":"specs/numeric/gf16.t27","ttl_sec":1800}
+
+# 3. Task Blocked (Conflict)
+{"ts":"2026-04-04T06:05:03Z","event":"task.blocked","agent_id":"agent-runtime-1","trace_id":"550e8401-2345-5c6b-0d7e-8f9a0b1c2d3","task_id":"RUNTIME-004","spec_path":"specs/numeric/gf16.t27","blocked_by":"claim-001"}
+
+# 4. Claim Heartbeat
+{"ts":"2026-04-04T06:15:00Z","event":"claim.heartbeat","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","claim_id":"claim-001","resource":"specs/numeric/gf16.t27"}
+
+# 5. Task Started
+{"ts":"2026-04-04T06:10:00Z","event":"task.started","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","task_id":"NUMERIC-001","spec_path":"specs/numeric/gf16.t27"}
+
+# 6. Claim Release (Clean)
+{"ts":"2026-04-04T06:12:44Z","event":"claim.release","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","claim_id":"claim-001","resource":"specs/numeric/gf16.t27","result":"clean"}
+
+# 7. Task Completed
+{"ts":"2026-04-04T06:13:00Z","event":"task.completed","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","task_id":"NUMERIC-001","result":"clean"}
+
+# 8. Handoff Request
+{"ts":"2026-04-04T07:00:00Z","event":"handoff.request","agent_id":"agent-spec-1","trace_id":"550e8402-3456-6d7c-1e8f-9a0b1c2d3e4","task_id":"NUMERIC-002","handoff_to":"agent-spec-2","handoff_reason":"overloaded","metadata":{"reason":"Agent at capacity, requesting handoff"}}
+
+# 9. Handoff Accept
+{"ts":"2026-04-04T07:00:05Z","event":"handoff.accept","agent_id":"agent-spec-2","trace_id":"550e8402-3456-6d7c-1e8f-9a0b1c2d3e4","task_id":"NUMERIC-002","handoff_from":"agent-spec-1","result":"accepted"}
+
+# 10. Recovery Started
+{"ts":"2026-04-04T12:00:00Z","event":"recovery.started","agent_id":"queen-lotus","trace_id":"550e8403-4567-7e8d-2f9a-0b1c2d3e4f5","task_id":"queen-recovery","priority":"P0","metadata":{"queen_health_before":0.42,"queen_health_after":0.98}}
+
+# 11. Recovery Completed
+{"ts":"2026-04-04T12:15:00Z","event":"recovery.completed","agent_id":"queen-lotus","trace_id":"550e8403-4567-7e8d-2f9a-0b1c2d3e4f5","task_id":"queen-recovery","result":"success"}
+
+# Query Examples (jq)
+
+# Find all claims by agent:     jq 'select(.event == "claim.acquire") | select(.agent_id == "agent-spec-1")' akashic-log.jsonl
+# Find all blocked tasks:       jq 'select(.event == "task.blocked")' akashic-log.jsonl
+# Find handoffs:               jq 'select(.event | startswith("handoff"))' akashic-log.jsonl
+# Trace by trace_id:          jq 'select(.trace_id == "550e8400-1234-4b5a-9c6d-7e8f9a0b1c2")' akashic-log.jsonl
+# Find expired claims (no release): jq '[select(.event == "claim.acquire")] - [select(.event == "claim.release") | .[]' akashic-log.jsonl | group_by(.claim_id) | select(length < 2)
+# Get resource timeline:       jq 'select(.resource == "specs/numeric/gf16.t27") | sort_by(.ts)' akashic-log.jsonl

@@ -1,0 +1,141 @@
+# Tri Doctor Agent Schema
+# Append-only JSONL for tri-doctor agent (watchdog/monitoring/safety)
+
+[
+  {
+    "ts": "2026-04-04T12:00:00Z",
+    "event": "agent.register",
+    "agent_id": "tri-doctor",
+    "trace_id": "550e8405-6789-a0b1-1c2d3e4f5",
+    "scope": "SacredPhysics, Numeric, Graph, Compiler, Runtime, QueenLotus"
+    "perissions": ["read.trinity", "write.state", "write.events", "write.claims", "reclaim", "schedule", "emit.health"]
+  }
+]
+
+# Event Types
+
+## agent.register
+
+Recorded when agent is initialized into the system.
+
+```json
+{
+  "ts": "2026-04-04T12:00:00Z",
+  "event": "agent.register",
+  "agent_id": "tri-doctor",
+  "trace_id": "uuid-v4",
+  "scope": "SacredPhysics, Numeric, Graph, Compiler, Runtime, QueenLotus",
+  "perissions": ["read.trinity", "write.state", "write.events", "write.claims", "reclaim", "schedule", "emit.health"]
+}
+```
+
+## health.anomaly
+
+Emitted when Doctor detects a health anomaly requiring intervention.
+
+```json
+{
+  "ts": "2026-04-04T13:00:00Z",
+  "event": "health.anomaly",
+  "agent_id": "tri-doctor",
+  "trace_id": "550e8406-7890-a1b2-1c2d3e4f5a6",
+  "domain": "Numeric|Graph|Compiler|Runtime|QueenLotus|Swarm",
+  "anomaly_type": "toxic_rate|stale_claims|missing_future|queen_below_threshold|domain_below_threshold|state_divergence",
+  "severity": "warning|critical|error",
+  "metric": {
+    "current_value": 0.25,
+    "threshold": 0.05,
+    "delta": "+0.15"
+  },
+  "description": "Toxic verdict rate increased by 15% in last hour",
+  "actions": ["emit_health_event", "check_stale_claims", "schedule_recovery"]
+}
+```
+
+## recovery.start
+
+Emitted when Doctor initiates a recovery procedure.
+
+```json
+{
+  "ts": "2026-04-04T13:05:00Z",
+  "event": "recovery.start",
+  "agent_id": "tri-doctor",
+  "trace_id": "550e8406-7890-a1b2-1c2d3e4f5a7",
+  "recovery_id": "recovery-001",
+  "type": "replay|claim_release|reclaim_stale|unblock",
+  "domain": "all|Numeric|Graph|Compiler|Runtime|QueenLotus",
+  "scope": {
+    "affected_spec_paths": ["specs/numeric/gf8.t27"],
+    "affected_graph_nodes": ["numericgf8"]
+  },
+  "description": "Replaying from last clean seal for GF8 toxic mutation",
+  "actions": ["replay_step.sh", "write_claim_release"]
+}
+```
+
+## recovery.finish
+
+Emitted when Doctor completes a recovery procedure.
+
+```json
+{
+  "ts": "2026-04-04T13:15:00Z",
+  "event": "recovery.finish",
+  "agent_id": "tri-doctor",
+  "trace_id": "550e8406-7890-a1b2-1c2d3e4f5a8",
+  "recovery_id": "recovery-001",
+  "type": "replay|claim_release|reclaim_stale|unblock",
+  "result": "success|failed|partial",
+  "domain": "all|Numeric|Graph|Compiler|Runtime|QueenLotus",
+  "description": "GF8 replay completed successfully, queen_health restored to 0.95",
+  "actions": ["emit_health_event", "write_to_queue"]
+}
+```
+
+## claim.reclaim
+
+Emitted when Doctor reclaims a stale claim.
+
+```json
+{
+  "ts": "2026-04-04T14:00:00Z",
+  "event": "claim.reclaim",
+  "agent_id": "tri-doctor",
+  "trace_id": "550e8407-a0b1-1c2d3e4f5a9",
+  "claim_id": "claim-abc123",
+  "spec_path": "specs/numeric/gf8.t27",
+  "reason": "heartbeat_expired",
+  "original_owner": "agent-spec-1",
+  "new_owner": "tri-doctor",
+  "description": "Reclaiming claim from agent-spec-1 due to expired heartbeat (TTL: 1800s)"
+}
+```
+
+## claim.unblock
+
+Emitted when Doctor unblocks a task that was previously blocked.
+
+```json
+{
+  "ts": "2026-04-04T14:05:00Z",
+  "event": "claim.unblock",
+  "agent_id": "tri-doctor",
+  "trace_id": "550e8407-a0b1-1c2d3e4f5a10",
+  "task_id": "NUMERIC-003",
+  "blocked_by": "claim-001",
+  "unblocked_reason": "previous claim released",
+  "description": "Unblocking NUMERIC-003 after claim-001 was released"
+}
+```
+
+# Query Examples (jq)
+
+# Get all health.anomaly events:
+jq 'select(.event == "health.anomaly")' .trinity/events/akashic-log.jsonl
+
+# Get active recoveries:
+jq 'select(.event == "recovery.start") | select(.result != "success")' .trinity/events/akashic-log.jsonl
+
+# Get reclaim statistics:
+jq 'select(.event == "claim.reclaim") | length' .trinity/events/akashic-log.jsonl

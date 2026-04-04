@@ -1,21 +1,71 @@
 {
-  "version": "1.0",
+  "version": "2.0",
+  "active_cell": null,
   "cells": [
     {
       "id": "bootstrap-agents",
-      "timestamp": "2026-04-04T03:10:00Z",
-      "agent": "T",
+      "skill": "tri-bootstrap",
+      "standard": null,
+      "issue": null,
+      "issue_title": "Bootstrap Trinity agents",
       "episode": "bootstrap-agents",
-      "commit": "aae1f34",
-      "seal": "sha256:7a3b2c1d4e5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1"
+      "agent": "T",
+      "spec_path": null,
+      "started_at": "2026-04-04T03:10:00Z",
+      "checkpoints": [
+        {"step": 1, "name": "Agents initialized", "hash": "sha256:7a3b2c1d4e5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1", "at": "2026-04-04T03:10:00Z"}
+      ],
+      "state": "sealed",
+      "verdict": "clean",
+      "commit": "aae1f34"
     },
     {
       "id": "standards-campaign",
-      "timestamp": "2026-04-04T03:15:00Z",
-      "agent": "S",
+      "skill": "tri-standards",
+      "standard": null,
+      "issue": null,
+      "issue_title": "Standards campaign initialization",
       "episode": "standards-campaign",
-      "commit": "b6f6684",
-      "seal": "sha256:a1b2c3d4e5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1"
+      "agent": "S",
+      "spec_path": null,
+      "started_at": "2026-04-04T03:15:00Z",
+      "checkpoints": [
+        {"step": 1, "name": "Standards created", "hash": "sha256:a1b2c3d4e5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1", "at": "2026-04-04T03:15:00Z"}
+      ],
+      "state": "sealed",
+      "verdict": "clean",
+      "commit": "b6f6684"
     }
-  ]
+  ],
+  "skill_map": {
+    "tri-pipeline": {
+      "standard": "NUMERIC-STANDARD-001",
+      "description": "NUMERIC-STANDARD-001 Recovery: GoldenFloat Family",
+      "agent": "N"
+    },
+    "tri-sacred": {
+      "standard": "SACRED-PHYSICS-001",
+      "description": "SACRED-PHYSICS-001: Sacred Physics Constants",
+      "agent": "P"
+    },
+    "tri-base": {
+      "standard": "BASE-TYPES-001",
+      "description": "Base Types: Trit, PackedTrit, TernaryWord",
+      "agent": "B"
+    },
+    "tri-constitution": {
+      "standard": "CONSTITUTION",
+      "description": "Constitution: SOUL.md, ADRs",
+      "agent": "T"
+    }
+  },
+  "spec_mapping": {
+    "specs/numeric/gf4.t27": {"standard": "NUMERIC-STANDARD-001", "skill": "tri-pipeline"},
+    "specs/numeric/gf8.t27": {"standard": "NUMERIC-STANDARD-001", "skill": "tri-pipeline"},
+    "specs/numeric/gf16.t27": {"standard": "NUMERIC-STANDARD-001", "skill": "tri-pipeline"},
+    "specs/numeric/tf3.t27": {"standard": "NUMERIC-STANDARD-002", "skill": "tri-pipeline"},
+    "specs/math/sacred_physics.t27": {"standard": "SACRED-PHYSICS-001", "skill": "tri-sacred"},
+    "specs/base/trit.t27": {"standard": "BASE-TYPES-001", "skill": "tri-base"},
+    "docs/SOUL.md": {"standard": "CONSTITUTION", "skill": "tri-constitution"}
+  }
 }

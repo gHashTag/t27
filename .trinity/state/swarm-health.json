@@ -1,0 +1,13 @@
+{
+  "swarm_health": 1.0,
+  "status": "GREEN",
+  "metrics": {
+    "toxic_rate": 0.0,
+    "total_steps": 0,
+    "toxic_steps": 0,
+    "repeat_failures": 0,
+    "stuck_tasks": 0,
+    "replay_count": 0
+  },
+  "last_updated": "2026-04-04T00:00:00Z"
+}

@@ -21,9 +21,7 @@ Documentation files (`docs/*.md`, `AGENTS.md`, `README.md`, `*.md`) MAY contain 
 ### Rationale
 
 1. **Code Consistency**: Source code must be universally readable without encoding issues.
-
 2. **Tool Compatibility**: Many tools have issues with non-ASCII in source files.
-
 3. **Clear Separation**: Code = ASCII-only, Docs = any language (including Cyrillic).
 
 ### Allowed Characters in Source Files
@@ -63,13 +61,10 @@ Documentation files (`docs/*.md`, `AGENTS.md`, `README.md`, `*.md`) MAY contain 
 ```t27
 ; ❌ VIOLATION: Cyrillic in comment
 ; Это комментарий на русском
-
 ; ✅ CORRECT: ASCII-only comment
 ; This is a comment in English
-
 ; ❌ VIOLATION: Cyrillic in identifier
 const КОЭФФИЦИЕНТ = 1.0
-
 ; ✅ CORRECT: ASCII identifier
 const COEFFICIENT = 1.0
 ```
@@ -87,9 +82,7 @@ Every specification in Trinity **MUST** include at least one `test` or `invarian
 ### Rationale
 
 1. **Single Source of Truth**: The `.t27` spec file is the only source of truth. Conformance JSON vectors are **generated artifacts**, not hand-written.
-
 2. **Test-First Development**: Tests define the contract. Implementation follows tests. Without tests, there is no contract.
-
 3. **Architecture Bottleneck**: The #1 bottleneck in Trinity was the separation of specs and conformance vectors. This law eliminates that bottleneck.
 
 ### Enforcement
@@ -106,13 +99,13 @@ Every specification in Trinity **MUST** include at least one `test` or `invarian
 ### Syntax
 
 **Assembly-style TDD** (for `.t27` assembly specs):
+
 ```t27
 .test
     ; my_test
     ; Verify: functionality works correctly
     ; Setup: initialize with given values
     ; Expected: returns correct result
-
 .invariant
     ; my_invariant
     ; For all valid inputs: output is in valid range
@@ -120,6 +113,7 @@ Every specification in Trinity **MUST** include at least one `test` or `invarian
 ```
 
 **Spec-style TDD** (for high-level specs):
+
 ```t27
 spec my_spec
     test my_test
@@ -136,17 +130,13 @@ spec my_spec
 The following are **VIOLATIONS** of TDD-Inside-Spec Law:
 
 1. **Spec without tests**: A `.t27` file with only `.const`/`.data`/`.code` sections and NO `.test`/`.invariant` blocks.
-
 2. **Empty test sections**: A `.test` section with no test cases.
-
 3. **Conformance JSON as source**: Hand-editing `conformance/*.json` files. These MUST be generated via `tri gen --emit-conformance`.
 
 ### Penalties
 
 1. **Compiler Error**: Specs without tests fail to compile.
-
 2. **Git Block**: `tri git commit` and `tri git push` block if TDD contract is violated.
-
 3. **CI Failure**: Any CI pipeline must reject specs without tests.
 
 ### Exceptions
@@ -155,7 +145,7 @@ The following are **VIOLATIONS** of TDD-Inside-Spec Law:
 
 ---
 
-## Constitutional Law #2: Git Integration with Tri Skill
+## Constitutional Law #3: Git Integration with Tri Skill
 
 **Status**: MANDATORY for P0/P1 episodes
 
@@ -169,9 +159,7 @@ Any P0/P1 episode in `--strict` mode is considered complete **ONLY** after succe
 ### Rationale
 
 1. **Traceability**: Every change must be traceable to an issue (GitHub issue ID).
-
 2. **Quality Gate**: The sealed skill and verdict mechanism prevents toxic changes from entering the codebase.
-
 3. **Policy Enforcement**: Different skill types (recovery, hotfix) have different artifact requirements.
 
 ### Enforcement
@@ -209,16 +197,13 @@ tri git push origin HEAD
 ### Violations
 
 1. **Commit without skill**: `NO-COMMIT-WITHOUT-ISSUE violated` — run `tri skill begin --issue N` first.
-
 2. **Commit without issue binding**: Skill must have `issue` field in registry.
-
 3. **Push toxic skill**: Cannot push skills with `verdict = "TOXIC"` — fix or supersede.
-
 4. **Push to wrong remote**: In strict mode, only `github.com/gHashTag/t27` allowed.
 
 ---
 
-## Constitutional Law #3: De-Zigfication
+## Constitutional Law #4: De-Zig-fication
 
 **Status**: MANDATORY
 
@@ -229,39 +214,31 @@ AI agents MUST see `.tri` context and write `.tri`/`.t27` files, never Zig direc
 ### Rationale
 
 1. **Spec-First Philosophy**: `.tri` and `.t27` files are the single source of truth for mathematical, numerical, and formal logic.
-
 2. **Zig as Backend**: Zig code is a generated backend, not a language to author in.
-
 3. **Migration Path**: Legacy Zig code is migrated to `.t27` specs, not the reverse.
 
 ### Enforcement
 
 1. **Agent Training**: All agents are trained to check `.tri` context before writing code.
-
-2. **Documentation**: `CANON_DE_ZIGFICATION.md` and `ADR-001-de-zigfication.md` define the migration path.
-
+2. **Documentation**: `CANON_DE_ZIGFICATION.md` and `ADR-001-de-zigfication.md` define migration path.
 3. **Codegen**: Zig is only generated via `compiler/codegen/zig/codegen.t27`.
 
 ### Violations
 
 1. **Writing Zig directly**: AI agents writing Zig without `.tri` spec source.
-
 2. **Modifying Generated Zig**: Hand-editing generated Zig files (marked `DO NOT EDIT`).
-
 3. **Skipping Spec**: Implementing features without corresponding `.t27` spec.
 
 ---
 
----
-
-## Constitutional Law #4: De-Zig Strict
+## Constitutional Law #5: De-Zig Strict
 
 **Status**: MANDATORY (no exceptions)
 
 ### Statement
 
 > **No new Trinity business logic in Zig by hand.**
->
+
 > 1. **Source of Truth**: All new Trinity logic (CLI, runtime, numeric, physics, graph, agents) MUST be written only in `.t27/.tri` specifications.
 > 2. **Backends Only**: Zig, C, Verilog, Rust may exist ONLY as **generated backends** from `.t27/.tri` via `tri gen`.
 > 3. **Temporary Bootstrap**: Any new `.zig` file is permitted ONLY as temporary bootstrap layer (I/O, process startup). Domain logic in Zig is forbidden.
@@ -269,13 +246,10 @@ AI agents MUST see `.tri` context and write `.tri`/`.t27` files, never Zig direc
 > 5. **Enforcement**:
 >    - `tri lint` fails if it detects new `.zig` files without `generated` marker
 >    - `tri git push --strict` blocks push if there is diff in `src/` Zig files that did not pass validation
-
 ### Rationale
 
 1. **Spec-First Philosophy**: `.tri` and `.t27` files are the single source of truth. Zig is a generated backend, not an authoring language.
-
 2. **Multi-Target Code Generation**: Same spec generates Zig, C, Verilog, Rust. Writing Zig directly breaks this capability.
-
 3. **AI Agent Alignment**: Agents must see `.tri` context and write `.tri` files, never Zig directly.
 
 ### Allowed Zig Files
@@ -288,7 +262,7 @@ Zig is ONLY permitted for:
 
 ### Forbidden Zig Files
 
-Writing Zig directly is FORBIDDEN for:
+Writing Zig directly is **FORBIDDEN** for:
 - CLI commands and routing
 - Runtime domain logic
 - Numeric/mathematical operations
@@ -343,6 +317,234 @@ Files without this header are considered handwritten and will be blocked.
 
 ---
 
+## Constitutional Law #6: Akashic Coordination First
+
+**Status**: MANDATORY (no exceptions)
+
+### Statement
+
+Before any task, every agent must read `.trinity` as canonical coordination memory.
+
+`.trinity` is the source of truth for:
+- Active tasks
+- Agent claims
+- Swarm state
+- Queen health
+- Immutable event history
+- Recoverable experience
+
+No agent may mutate any spec, graph node, runtime module, or generated target before:
+
+1. Reading current `.trinity` coordination state
+2. Checking whether another agent already owns the target resource
+3. Acquiring an active claim or lease for the intended mutation scope
+4. Recording intent in Akashic event log
+
+If a claim already exists for the same `spec_path`, `graph_node`, or task resource, the agent must **NOT** proceed with mutation.
+It must either:
+- Wait
+- Choose a non-conflicting task
+- Request handoff
+- Or enter blocked state
+
+**No mutation without prior read + claim.**
+
+### Rationale
+
+1. **Deterministic Allocation**: Clear task assignment prevents duplicate work and race conditions.
+2. **Shared Memory with Access Control**: `.trinity` provides canonical state with ownership boundaries.
+3. **Structured Event Logs**: Immutable event log enables traceability, replay, and forensic analysis.
+4. **Leases with Heartbeats**: TTL and heartbeat prevent zombie claims and allow automatic recovery.
+5. **Conflict Prevention**: One writable owner per resource eliminates simultaneous edits.
+
+### Enforcement
+
+1. **Agent Protocol**: Every agent startup reads `.trinity` before accepting tasks.
+2. **Claim Check**: Before any mutation, agent checks `.trinity/claims/active/` for the target.
+3. **Event Log**: All intent events are appended to `.trinity/events/akashic-log.jsonl`.
+4. **Blocking**: Mutation proceeds only after successful claim acquisition.
+5. **TTL Reclaim**: Expired claims are automatically reclaimed after timeout.
+
+### Syntax
+
+**Pre-task protocol:**
+
+```t27
+// 1. Read .trinity state
+read .trinity/events/akashic-log.jsonl;
+read .trinity/claims/active/<spec_path>.json;
+
+// 2. Check ownership
+if claim_exists AND claim.agent_id != my_agent_id:
+    error "Resource claimed by another agent";
+
+// 3. Acquire claim with TTL
+create_claim(spec_path, agent_id, ttl_sec: 1800);
+
+// 4. Record intent
+append_event("task.intent", task_id, spec_path);
+
+// 5. Proceed with mutation
+```
+
+### Violations
+
+The following are **VIOLATIONS** of Akashic Coordination First Law:
+
+1. **Mutation without claim**: Editing a spec or graph node without reading `.trinity` first.
+2. **Skipping claim check**: Not verifying if another agent owns the resource.
+3. **Writing to claimed resource**: Modifying a resource owned by another agent.
+4. **Not logging intent**: Starting mutation without recording task.intent event.
+5. **Ignoring conflicts**: Proceeding with work on a blocked resource.
+
+### Penalties
+
+1. **Claim Conflict Error**: Agent attempting mutation on claimed resource.
+2. **Missing Intent Log**: Mutation started without task.intent event.
+3. **Zombie Claim**: Claim expired but owner still using resource.
+
+### Exceptions
+
+**NONE**. Coordination-first is mandatory for all agents in swarm mode.
+
+---
+
+## Constitutional Law #7: Exclusive Mutation Lease
+
+**Status**: MANDATORY (no exceptions)
+
+### Statement
+
+A writable resource may have only one active mutation owner at a time.
+
+Writable resources include:
+- `.t27` / `.tri` spec files
+- Graph nodes
+- Runtime spec modules
+- Constitutional docs
+- Generated target scopes
+
+Every active claim must include:
+- `agent_id`
+- `task_id`
+- `resource` (spec_path or graph_node)
+- `started_at`
+- `ttl_sec` (time to live)
+- `heartbeat_at`
+
+Claims expire unless renewed by heartbeat.
+Expired claims may be reclaimed.
+
+For phi-critical or sacred-core resources, mutation requires a stricter claim and explicit downstream awareness.
+
+### Rationale
+
+1. **Prevent Data Loss**: One writer prevents race conditions and corruption.
+2. **Deterministic Progress**: Clear ownership enables predictable task sequencing.
+3. **Recovery from Failure**: TTL allows automatic claim recovery if agent dies.
+4. **Stricter Sacred Locks**: Critical resources need extra protection.
+
+### Enforcement
+
+1. **Active Claims File**: `.trinity/claims/active/<resource>.json` must exist for mutation.
+2. **TTL Enforcement**: Claims expire after `ttl_sec` without heartbeat.
+3. **Heartbeat Required**: Claims must be renewed every 60 seconds.
+4. **Ownership Index**: `.trinity/state/ownership-index.json` tracks all active claims.
+
+### Syntax
+
+**Claim acquisition:**
+
+```t27
+// Create claim with TTL
+create_claim(spec_path, agent_id, task_id, ttl_sec: 1800);
+
+// Heartbeat (every 60s)
+renew_claim(spec_path, agent_id);
+
+// Release on completion
+release_claim(spec_path, agent_id, result: clean|toxic);
+```
+
+### Violations
+
+The following are **VIOLATIONS** of Exclusive Mutation Lease Law:
+
+1. **Writing without claim**: Modifying resource without active claim.
+2. **Parallel mutations**: Multiple agents mutating same resource.
+3. **Ignoring claim conflict**: Proceeding despite resource being claimed.
+4. **Missing heartbeat**: Claim expires but agent continues using resource.
+
+### Penalties
+
+1. **Write Block**: Mutation blocked if resource is claimed by another agent.
+2. **Claim Revocation**: Agent's claim revoked if violation detected.
+3. **State Invalidation**: `.trinity/state/ownership-index.json` marked corrupted.
+
+### Exceptions
+
+**For emergency hotfixes** with Queen approval, agents may bypass claim with `--emergency` flag.
+This requires documented reason and is logged in event log for audit.
+
+---
+
+## Constitutional Law #6–#7: .trinity — Akashic Source of Truth
+
+`.trinity` is the canonical distributed memory of Trinity swarm coordination.
+
+### Layers
+
+```
+.trinity/
+├── events/              # Immutable append-only Akashic event log
+│   └── akashic-log.jsonl
+├── claims/              # Temporary ownership and leases
+│   ├── active/         # Current exclusive claims
+│   └── released/       # Historical claims
+├── queue/               # Task management
+│   ├── pending.json
+│   ├── active.json
+│   ├── blocked.json
+│   └── done.json
+├── experience/           # Learned outcomes and recovery memory
+│   └── episodes.jsonl
+├── state/               # Derived current reality
+│   ├── queen-health.json
+│   ├── swarm-health.json
+│   └── ownership-index.json
+└── policy/              # Coordination rules
+    └── coordination-law.md
+```
+
+### Rules
+
+- **Events** are immutable history (append-only)
+- **Claims** are temporary ownership (TTL + heartbeat)
+- **Experience** is interpreted memory (learned from events)
+- **State** is derived, never primary
+- If state and events disagree, events win
+
+### Pre-Task Protocol
+
+Before starting any task, an agent must:
+
+1. Read `.trinity/events`, `.trinity/claims`, `.trinity/queue`, and `.trinity/state`.
+2. Inspect active ownership for the intended resource.
+3. Check queen health and swarm health.
+4. Acquire claim/lease for the target scope.
+5. Append `task.intent` event to Akashic log.
+6. Only then begin PHI LOOP mutation.
+
+### Coordination Law
+
+See `.trinity/policy/coordination-law.md` for full protocol including:
+- Claim acquisition and heartbeat
+- Conflict resolution
+- Handoff procedures
+- Event logging formats
+
+---
+
 ## Amendment Process
 
 To amend SOUL.md:
@@ -357,14 +559,11 @@ To amend SOUL.md:
 
 These are the immutable truths of Trinity:
 
-1. **φ² + 1/φ² = 3** — The golden ratio identity is the foundation of sacred physics.
-
+1. **φ² + 1/φ² = 3** — The golden ratio identity is foundation of sacred physics.
 2. **27 = 3³** — The trinity manifests as cube of trinity (27 agents, 27 registers, 27 letters).
-
 3. **TDD Inside Spec** — Tests live inside specs, not as separate artifacts.
-
-4. **No Spec Without Tests** — This is the law, not a guideline.
+4. **No Spec Without Tests** — This is a law, not a guideline.
 
 ---
 
-*"The law of Trinity is the law of φ: what is whole is found in the parts, and what is in the parts makes the whole."* — SOUL Law #0
+*"The law of Trinity is the law of φ: what is whole is found in parts, and what is in parts makes whole."* — SOUL Law #0

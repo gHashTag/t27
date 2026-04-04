@@ -1,0 +1,78 @@
+# Loop Handoff Event Schema
+# Append-only JSONL for tri loop daemon to track what was done/present/future
+
+[
+  {
+    "ts": "2026-04-04T12:30:00Z",
+    "event": "loop.handoff",
+    "loop_id": "loop-session-550e8400-1234-4b5a-9c6d-7e8f9a0b1c2",
+    "agent_id": "agent-spec-1",
+    "trace_id": "550e8400-1234-4b5a-9c6d-7e8f9a0b1c2",
+    "past": {
+      "task_ids": ["NUMERIC-001", "RUNTIME-004"],
+      "skills": ["gf8_fix_v1", "cli_route_v2"],
+      "summary": "Fixed GF8 exponent bias and updated CLI routing"
+    },
+    "present": {
+      "task_ids": ["NUMERIC-002"],
+      "skills": ["gf16_spec_v1"],
+      "summary": "Created GF16 format specification"
+    },
+    "future": {
+      "task_ids": ["NUMERIC-003", "SACRED-005"],
+      "skills": ["gamma_tolerance_fix_v1", "trinity_constant_v2"],
+      "summary": "Fix gamma relative tolerance and update TRINITY constant"
+    },
+    "status": "active|paused|completed|drifted|interrupted",
+    "drift_reason": null,
+    "interrupt_reason": null
+  }
+]
+
+# Fields
+
+- `ts` — ISO-8601 timestamp (UTC) when this handoff was recorded
+- `event` — Always "loop.handoff"
+- `loop_id` — Unique identifier for the tri loop session (uuid-v4)
+- `agent_id` — Which agent recorded this handoff (may be system for loop daemon)
+- `trace_id` — Correlation trace ID for linking to other events
+- `past` — What was done in the previous loop (completed skills/tasks)
+- `present` — What was done in the current loop
+- `future` — What was planned for the next loop
+- `status` — "active" (loop running), "paused" (waiting for handoff), "completed" (loop finished), "drifted" (plan changed), "interrupted" (unexpected stop)
+- `drift_reason` — Why the future plan differs from originally recorded future (if status = "drifted")
+- `interrupt_reason` — Why the loop was interrupted (if status = "interrupted")
+
+# Example Events
+
+# 1. Active loop recording handoff
+{"ts":"2026-04-04T12:30:00Z","event":"loop.handoff","loop_id":"loop-session-550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","agent_id":"system","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","past":{"task_ids":["NUMERIC-001","RUNTIME-004"],"skills":["gf8_fix_v1","cli_route_v2"],"summary":"Fixed GF8 exponent bias and updated CLI routing"},"present":{"task_ids":["NUMERIC-002"],"skills":["gf16_spec_v1"],"summary":"Created GF16 format specification"},"future":{"task_ids":["NUMERIC-003","SACRED-005"],"skills":["gamma_tolerance_fix_v1","trinity_constant_v2"],"summary":"Fix gamma relative tolerance and update TRINITY constant"},"status":"active"}
+
+# 2. Loop paused waiting for handoff (e.g., agent transitioned to research)
+{"ts":"2026-04-04T12:35:00Z","event":"loop.handoff","loop_id":"loop-session-550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","agent_id":"system","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","past":{"task_ids":["NUMERIC-001","RUNTIME-004","NUMERIC-002"],"skills":["gf8_fix_v1","cli_route_v2","gf16_spec_v1"],"summary":"Fixed GF8, added CLI routing, created GF16"},"present":{"task_ids":["SACRED-005"],"skills":["gamma_tolerance_fix_v1"],"summary":"Fixed gamma relative tolerance"},"future":{"task_ids":["NUMERIC-003"],"skills":["trinity_constant_v2"],"summary":"Update TRINITY constant"},"status":"paused","drift_reason":"Agent transitioned to research mode"}
+
+# 3. Loop resumed with corrected future (agent returned)
+{"ts":"2026-04-04T12:40:00Z","event":"loop.handoff","loop_id":"loop-session-550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","agent_id":"agent-spec-1","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","past":{"task_ids":["NUMERIC-001","RUNTIME-004","NUMERIC-002","SACRED-005"],"skills":["gf8_fix_v1","cli_route_v2","gf16_spec_v1","gamma_tolerance_fix_v1"],"summary":"Fixed GF8, added CLI routing, created GF16, fixed gamma"},"present":{"task_ids":["NUMERIC-003"],"skills":["trinity_constant_v2"],"summary":"Update TRINITY constant"},"future":{"task_ids":["BASE-001","BASE-002"],"skills":["base_types_v1","base_ops_v1"],"summary":"Add Trit types and operations"},"status":"active","drift_reason":null}
+
+# 4. Loop completed successfully
+{"ts":"2026-04-04T13:15:00Z","event":"loop.handoff","loop_id":"loop-session-550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","agent_id":"system","trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","past":{"task_ids":["NUMERIC-001","RUNTIME-004","NUMERIC-002","SACRED-005","NUMERIC-003","BASE-001","BASE-002"],"skills":["gf8_fix_v1","cli_route_v2","gf16_spec_v1","gamma_tolerance_fix_v1","trinity_constant_v2","base_types_v1","base_ops_v1"],"summary":"Fixed GF8, added CLI routing, created GF16, fixed gamma, updated TRINITY, added base types and operations"},"present":{"task_ids":["NUMERIC-004"],"skills":["base_arithmetic_v1"],"summary":"Add base arithmetic operations"},"future":{},"status":"completed"}
+
+# 5. Drifted loop (plan changed due to external factors)
+{"ts":"2026-04-04T14:00:00Z","event":"loop.handoff","loop_id":"loop-session-550e8400-5678-9f0e-4a0b-1c2d3e4","agent_id":"system","trace_id":"550e8401-2345-5c6b-0d7e-8f9a0b1c2d3e4","past":{"task_ids":["BASE-001","BASE-002","BASE-003"],"skills":["base_types_v1","base_ops_v1","base_arithmetic_v1"],"summary":"Added base types, operations, arithmetic"},"present":{"task_ids":["BASE-004"],"skills":["base_vector_v1"],"summary":"Add vector operations"},"future":{"task_ids":["BASE-005","BASE-006"],"skills":["base_comparison_v1","base_comparison_v2"],"summary":"Add comparison operations"},"status":"drifted","drift_reason":"User requested prioritization shift to numeric domain"}
+
+# 6. Interrupted loop (crash or signal)
+{"ts":"2026-04-04T14:30:00Z","event":"loop.handoff","loop_id":"loop-session-550e8400-5678-9f0e-4a0b-1c2d3e4","agent_id":"system","trace_id":"550e8401-2345-5c6b-0d7e-8f9a0b1c2d3e4","past":{"task_ids":["BASE-001","BASE-002","BASE-003","BASE-004"],"skills":["base_types_v1","base_ops_v1","base_arithmetic_v1","base_vector_v1"],"summary":"Added base types, operations, arithmetic, vectors"},"present":{"task_ids":["BASE-005"],"skills":["base_comparison_v1"],"summary":"Add comparison operations"},"future":{"task_ids":["BASE-006","BASE-007"],"skills":["base_comparison_v2","base_conversion_v1"],"summary":"Add comparison v2 and conversion operations"},"status":"interrupted","interrupt_reason":"SIGTERM received"}
+
+# Query Examples (jq)
+
+# Get handoff history for a loop:
+jq 'select(.loop_id == "loop-session-550e8400-1234-4b5a-9c6d-7e8f9a0b1c2")' .trinity/events/akashic-log.jsonl
+
+# Find all drifted loops:
+jq 'select(.status == "drifted")' .trinity/events/akashic-log.jsonl
+
+# Get last handoff for all loops:
+jq 'select(.event == "loop.handoff") | sort_by(.ts) | reverse | .[0:3]' .trinity/events/akashic-log.jsonl
+
+# Trace what changed in future:
+jq 'select(.event == "loop.handoff") | select(.drift_reason != null) | {ts, loop_id, drift_reason}' .trinity/events/akashic-log.jsonl

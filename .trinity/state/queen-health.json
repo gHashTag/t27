@@ -1,0 +1,17 @@
+{
+  "queen_health": 1.0,
+  "status": "GREEN",
+  "domains": {
+    "sacredphysics": 1.0,
+    "numeric": 1.0,
+    "graph": 1.0,
+    "compiler": 1.0,
+    "runtime": 1.0,
+    "queenlotus": 1.0
+  },
+  "last_updated": "2026-04-04T00:00:00Z",
+  "thresholds": {
+    "critical": 0.5,
+    "warning": 0.7
+  }
+}

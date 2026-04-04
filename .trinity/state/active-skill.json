@@ -1,0 +1,11 @@
+{
+  "skill_id": null,
+  "session_id": null,
+  "issue_id": null,
+  "description": null,
+  "started_at": null,
+  "started_by": null,
+  "status": "closed",
+  "allowed_paths": [],
+  "metadata": {}
+}
