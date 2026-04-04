@@ -396,6 +396,81 @@ pub fn tf3_div(a: TF3, b: TF3) TF3 {
     return tf3_from_f32(result);
 }
 
+// tf3_is_nan(tf3: TF3) → bool
+// Check if TF3 value is NaN
+// TF3 uses 0b111 (all ones) for NaN in the 3 exponent bits
+pub fn tf3_is_nan(tf3: TF3) bool {
+    // Extract exponent bits (bits 4-6)
+    const exp = (tf3 >> 4) & 0x07;
+    return exp == 0x07;  // All exponent bits set = NaN or Inf
+}
+
+// tf3_is_finite(tf3: TF3) → bool
+// Check if TF3 value is finite (not NaN, not infinity)
+pub fn tf3_is_finite(tf3: TF3) bool {
+    return !tf3_is_nan(tf3) and !tf3_is_inf(tf3);
+}
+
+// tf3_signbit(tf3: TF3) → bool
+// Check if the sign bit is set (value is negative or negative zero)
+pub fn tf3_signbit(tf3: TF3) bool {
+    return (tf3 & TF3_SIGN_MASK) != 0;
+}
+
+// tf3_sign(tf3: TF3) → i8
+// Return the sign of the TF3 value: -1 for negative, 0 for zero, +1 for positive
+pub fn tf3_sign(tf3: TF3) i8 {
+    if (tf3_is_nan(tf3)) {
+        return 0;
+    }
+
+    if (tf3_is_zero(tf3)) {
+        return 0;
+    }
+
+    if (tf3_signbit(tf3)) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
+// tf3_clamp(x: TF3, min_val: TF3, max_val: TF3) → TF3
+// Clamp x to the range [min_val, max_val]
+pub fn tf3_clamp(x: TF3, min_val: TF3, max_val: TF3) TF3 {
+    if (tf3_is_nan(x) or tf3_is_nan(min_val) or tf3_is_nan(max_val)) {
+        return TF3_NAN;
+    }
+
+    const x_decoded = tf3_to_f32(x);
+    const min_decoded = tf3_to_f32(min_val);
+    const max_decoded = tf3_to_f32(max_val);
+
+    if (x_decoded < min_decoded) {
+        return min_val;
+    } else if (x_decoded > max_decoded) {
+        return max_val;
+    } else {
+        return x;
+    }
+}
+
+// tf3_lerp(a: TF3, b: TF3, t: TF3) → TF3
+// Linear interpolation: a + t * (b - a)
+pub fn tf3_lerp(a: TF3, b: TF3, t: TF3) TF3 {
+    if (tf3_is_nan(a) or tf3_is_nan(b) or tf3_is_nan(t)) {
+        return TF3_NAN;
+    }
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    const t_val = tf3_to_f32(t);
+
+    const result = a_val + t_val * (b_val - a_val);
+
+    return tf3_from_f32(result);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -1099,6 +1174,150 @@ invariant tf3_sub_with_zero {
     @compileAssert(true);
 }
 
+invariant tf3_is_finite_excludes_inf_nan {
+    // tf3_is_finite(x) = true implies !tf3_is_inf(x) and !tf3_is_nan(x)
+    @compileAssert(true);
+}
+
+invariant tf3_sign_positive_returns_one {
+    // For x > 0 and x is not NaN: tf3_sign(x) = 1
+    @compileAssert(true);
+}
+
+invariant tf3_sign_negative_returns_minus_one {
+    // For x < 0 and x is not NaN: tf3_sign(x) = -1
+    @compileAssert(true);
+}
+
+invariant tf3_sign_zero_returns_zero {
+    // For x = 0: tf3_sign(x) = 0
+    @compileAssert(true);
+}
+
+invariant tf3_clamp_in_range_returns_value {
+    // For x in [min, max]: tf3_clamp(x, min, max) = x
+    @compileAssert(true);
+}
+
+invariant tf3_lerp_t_zero_returns_a {
+    // tf3_lerp(a, b, 0) = a
+    @compileAssert(true);
+}
+
+invariant tf3_lerp_t_one_returns_b {
+    // tf3_lerp(a, b, 1) = b
+    @compileAssert(true);
+}
+
+test "test_tf3_is_nan_true" {
+    // given tf3 = TF3_NAN
+    // when result = tf3_is_nan(tf3)
+    // then result == true
+    try std.testing.expect(tf3_is_nan(TF3_NAN));
+}
+
+test "test_tf3_is_nan_false_for_normal" {
+    const val = tf3_from_f32(1.5);
+    try std.testing.expect(!tf3_is_nan(val));
+}
+
+test "test_tf3_is_finite_normal" {
+    const val = tf3_from_f32(1.5);
+    try std.testing.expect(tf3_is_finite(val));
+}
+
+test "test_tf3_is_finite_false_for_inf" {
+    try std.testing.expect(!tf3_is_finite(TF3_INF_POS));
+    try std.testing.expect(!tf3_is_finite(TF3_INF_NEG));
+}
+
+test "test_tf3_is_finite_false_for_nan" {
+    try std.testing.expect(!tf3_is_finite(TF3_NAN));
+}
+
+test "test_tf3_signbit_positive" {
+    const val = tf3_from_f32(1.5);
+    try std.testing.expect(!tf3_signbit(val));
+}
+
+test "test_tf3_signbit_negative" {
+    const val = tf3_from_f32(-1.5);
+    try std.testing.expect(tf3_signbit(val));
+}
+
+test "test_tf3_sign_positive" {
+    const val = tf3_from_f32(1.5);
+    try std.testing.expectEqual(@as(i8, 1), tf3_sign(val));
+}
+
+test "test_tf3_sign_negative" {
+    const val = tf3_from_f32(-1.5);
+    try std.testing.expectEqual(@as(i8, -1), tf3_sign(val));
+}
+
+test "test_tf3_sign_zero" {
+    try std.testing.expectEqual(@as(i8, 0), tf3_sign(TF3_ZERO_POS));
+    try std.testing.expectEqual(@as(i8, 0), tf3_sign(TF3_ZERO_NEG));
+}
+
+test "test_tf3_sign_nan" {
+    try std.testing.expectEqual(@as(i8, 0), tf3_sign(TF3_NAN));
+}
+
+test "test_tf3_clamp_in_range" {
+    const x = tf3_from_f32(5.0);
+    const min_val = tf3_from_f32(0.0);
+    const max_val = tf3_from_f32(10.0);
+    const result = tf3_clamp(x, min_val, max_val);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.5);
+}
+
+test "test_tf3_clamp_below_min" {
+    const x = tf3_from_f32(-5.0);
+    const min_val = tf3_from_f32(0.0);
+    const max_val = tf3_from_f32(10.0);
+    const result = tf3_clamp(x, min_val, max_val);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.0, decoded, 0.5);
+}
+
+test "test_tf3_clamp_above_max" {
+    const x = tf3_from_f32(15.0);
+    const min_val = tf3_from_f32(0.0);
+    const max_val = tf3_from_f32(10.0);
+    const result = tf3_clamp(x, min_val, max_val);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(10.0, decoded, 1.0);
+}
+
+test "test_tf3_lerp_t_zero" {
+    const a = tf3_from_f32(10.0);
+    const b = tf3_from_f32(20.0);
+    const t = tf3_from_f32(0.0);
+    const result = tf3_lerp(a, b, t);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(10.0, decoded, 0.5);
+}
+
+test "test_tf3_lerp_t_one" {
+    const a = tf3_from_f32(10.0);
+    const b = tf3_from_f32(20.0);
+    const t = tf3_from_f32(1.0);
+    const result = tf3_lerp(a, b, t);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(20.0, decoded, 1.0);
+}
+
+test "test_tf3_lerp_t_half" {
+    const a = tf3_from_f32(0.0);
+    const b = tf3_from_f32(10.0);
+    const t = tf3_from_f32(0.5);
+    const result = tf3_lerp(a, b, t);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.5);
+}
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -1392,3 +1611,80 @@ bench "bench_tf3_div_latency" {
     }
     _ = result;
 }
+
+bench "bench_tf3_is_nan_latency" {
+    // measure: nanoseconds to check if NaN
+    // target: < 20ns (single bit check)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const val: TF3 = 0xE0;
+    for (0..1000) |_| {
+        result = tf3_is_nan(val);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_is_finite_latency" {
+    // measure: nanoseconds to check if finite
+    // target: < 30ns (bit checks)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const val: TF3 = 0x48;
+    for (0..1000) |_| {
+        result = tf3_is_finite(val);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_signbit_latency" {
+    // measure: nanoseconds to check sign bit
+    // target: < 10ns (single bit test)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const val: TF3 = 0x80;
+    for (0..1000) |_| {
+        result = tf3_signbit(val);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_sign_latency" {
+    // measure: nanoseconds to get sign value
+    // target: < 30ns (includes zero/nan checks)
+    @setEvalBranchQuota(10000);
+    var result: i8 = 0;
+    const val: TF3 = 0x88;
+    for (0..1000) |_| {
+        result = tf3_sign(val);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_clamp_latency" {
+    // measure: nanoseconds to clamp to range
+    // target: < 200ns (includes decode + compare + encode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const x: TF3 = 0x50;
+    const min_val: TF3 = 0x48;
+    const max_val: TF3 = 0x60;
+    for (0..1000) |_| {
+        result = tf3_clamp(x, min_val, max_val);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_lerp_latency" {
+    // measure: nanoseconds to compute lerp
+    // target: < 300ns (includes decode + computation + encode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x60;
+    const t: TF3 = 0x48;
+    for (0..1000) |_| {
+        result = tf3_lerp(a, b, t);
+    }
+    _ = result;
+}
+

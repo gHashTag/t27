@@ -2,6 +2,74 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 078: add_tf3_utility_functions
+
+**Spec**: `specs/numeric/tf3.t27`
+**Task**: Add 6 TF3 utility functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: d52f9c968fc89f27c4cc419c56f673aa33af2e5342e10d1a0ad00fe4613d5c50
+- `spec_hash_after`: 597dfa362c83d1afb9759269f8b533f7e476e63ecab4a451466a942197c8f64e
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `tf3_is_nan(tf3: TF3) -> bool` - Check if value is NaN
+2. `tf3_is_finite(tf3: TF3) -> bool` - Check if value is finite (not NaN, not infinity)
+3. `tf3_signbit(tf3: TF3) -> bool` - Check if sign bit is set
+4. `tf3_sign(tf3: TF3) -> i8` - Return sign: -1, 0, or 1
+5. `tf3_clamp(x: TF3, min_val: TF3, max_val: TF3) -> TF3` - Clamp to range
+6. `tf3_lerp(a: TF3, b: TF3, t: TF3) -> TF3` - Linear interpolation
+
+### Tests Added (16)
+- `test_tf3_is_nan_true`
+- `test_tf3_is_nan_false_for_normal`
+- `test_tf3_is_finite_normal`
+- `test_tf3_is_finite_false_for_inf`
+- `test_tf3_is_finite_false_for_nan`
+- `test_tf3_signbit_positive`
+- `test_tf3_signbit_negative`
+- `test_tf3_sign_positive`
+- `test_tf3_sign_negative`
+- `test_tf3_sign_zero`
+- `test_tf3_sign_nan`
+- `test_tf3_clamp_in_range`
+- `test_tf3_clamp_below_min`
+- `test_tf3_clamp_above_max`
+- `test_tf3_lerp_t_zero`
+- `test_tf3_lerp_t_one`
+- `test_tf3_lerp_t_half`
+
+### Invariants Added (7)
+- `tf3_is_finite_excludes_inf_nan`
+- `tf3_sign_positive_returns_one`
+- `tf3_sign_negative_returns_minus_one`
+- `tf3_sign_zero_returns_zero`
+- `tf3_clamp_in_range_returns_value`
+- `tf3_lerp_t_zero_returns_a`
+- `tf3_lerp_t_one_returns_b`
+
+### Benchmarks Added (7)
+- `bench_tf3_is_nan_latency` - Target: < 20ns
+- `bench_tf3_is_finite_latency` - Target: < 30ns
+- `bench_tf3_signbit_latency` - Target: < 10ns
+- `bench_tf3_sign_latency` - Target: < 30ns
+- `bench_tf3_clamp_latency` - Target: < 200ns
+- `bench_tf3_lerp_latency` - Target: < 300ns
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 078
+- `task_id`: add_tf3_utility_functions
+- `spec_path`: specs/numeric/tf3.t27
+
+---
+
 ## Skill 077: add_gf16_utility_functions
 
 **Spec**: `specs/numeric/gf16.t27`
