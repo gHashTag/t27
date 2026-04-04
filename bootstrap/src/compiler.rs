@@ -3102,6 +3102,7 @@ pub struct VerilogCodegen {
     output: String,
     indent: u32,
     module_name: String,
+    current_fn_name: String,
 }
 
 impl VerilogCodegen {
@@ -3110,7 +3111,12 @@ impl VerilogCodegen {
             output: String::new(),
             indent: 0,
             module_name: String::new(),
+            current_fn_name: String::new(),
         }
+    }
+
+    fn sanitize_identifier(name: &str) -> String {
+        name.replace('-', "_").replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
     }
 
     fn write(&mut self, s: &str) {
@@ -3171,7 +3177,7 @@ impl VerilogCodegen {
 
     pub fn gen_verilog(&mut self, ast: &Node) {
         self.module_name = if !ast.name.is_empty() {
-            ast.name.clone()
+            Self::sanitize_identifier(&ast.name)
         } else {
             "unknown".to_string()
         };
@@ -3467,6 +3473,7 @@ impl VerilogCodegen {
     }
 
     fn gen_verilog_fn(&mut self, node: &Node) {
+        self.current_fn_name = node.name.clone();
         self.write_line("");
         self.write_indent();
         self.write_line(&format!("// function: {}", node.name));
@@ -3547,6 +3554,7 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("endfunction");
         }
+        self.current_fn_name.clear();
     }
 
     fn gen_verilog_test(&mut self, node: &Node) {
@@ -3565,7 +3573,12 @@ impl VerilogCodegen {
                 self.write_indent();
                 if !node.children.is_empty() {
                     // In Verilog functions, return is done by assigning to function name
-                    self.write(&format!("{} = ", "/* return */"));
+                    let fn_name = if self.current_fn_name.is_empty() {
+                        "/* return */".to_string()
+                    } else {
+                        self.current_fn_name.clone()
+                    };
+                    self.write(&format!("{} = ", fn_name));
                     self.gen_verilog_expr(&node.children[0]);
                     self.write_line(";");
                 }
@@ -3615,6 +3628,9 @@ impl VerilogCodegen {
             }
             NodeKind::StmtWhile => {
                 self.gen_verilog_while_stmt(node);
+            }
+            NodeKind::StmtFor => {
+                self.gen_verilog_for_stmt(node);
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -3728,6 +3744,44 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
+    fn gen_verilog_for_stmt(&mut self, node: &Node) {
+        // Emit as integer for loop: for (i = 0; i < N; i = i + 1)
+        let body_idx = node.children.len().saturating_sub(1);
+
+        // Use capture variable name if available, else default to __i
+        let iter_var = if !node.params.is_empty() {
+            node.params[0].0.clone()
+        } else {
+            "__i".to_string()
+        };
+
+        // Try to extract the range/iterable from children[0]
+        // For range-based: for (iter_var = 0; iter_var < upper; iter_var = iter_var + 1)
+        self.write_indent();
+        if body_idx > 0 {
+            let iterable = &node.children[0];
+            // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; iter_var = iter_var + 1)
+            self.write_line(&format!("// for-each over iterable"));
+            self.write_indent();
+            self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
+            self.gen_verilog_expr(iterable);
+            self.write(&format!("; {} = {} + 1)", iter_var, iter_var));
+        } else {
+            self.write(&format!("for ({0} = 0; {0} < 1; {0} = {0} + 1)", iter_var));
+        }
+        self.write_line(" begin");
+
+        self.indent();
+        if !node.children.is_empty() {
+            for stmt in &node.children[body_idx].children {
+                self.gen_verilog_stmt(stmt);
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("end");
+    }
+
     fn gen_verilog_expr(&mut self, node: &Node) {
         match node.kind {
             NodeKind::ExprLiteral => {
@@ -3824,6 +3878,53 @@ impl VerilogCodegen {
             NodeKind::ExprStructLit => {
                 // Verilog has no struct literals — emit as comment + value 0
                 self.write(&format!("0 /* {} {{...}} */", node.name));
+            }
+            NodeKind::ExprSwitch => {
+                // Emit as nested ternary: (expr == val1) ? res1 : (expr == val2) ? res2 : default
+                let cases = &node.children[1..];
+                if cases.is_empty() {
+                    self.write("0 /* empty switch */");
+                } else {
+                    let last_idx = cases.len() - 1;
+                    for (i, case) in cases.iter().enumerate() {
+                        if case.kind == NodeKind::ConstDecl {
+                            let is_else = case.name.is_empty() || case.name == "else";
+                            let is_last = i == last_idx;
+
+                            if is_else {
+                                if !case.children.is_empty() {
+                                    self.gen_verilog_expr(&case.children[0]);
+                                } else {
+                                    self.write("0");
+                                }
+                            } else {
+                                self.write("(");
+                                self.gen_verilog_expr(&node.children[0]);
+                                self.write(" == ");
+                                let is_numeric = case.name.starts_with(|c: char| c.is_ascii_digit())
+                                    || (case.name.starts_with('-') && case.name.len() > 1);
+                                if is_numeric {
+                                    self.write(&case.name);
+                                } else {
+                                    self.write(&case.name);
+                                }
+                                self.write(") ? (");
+                                if !case.children.is_empty() {
+                                    self.gen_verilog_expr(&case.children[0]);
+                                } else {
+                                    self.write("0");
+                                }
+                                self.write(")");
+
+                                if !is_last {
+                                    self.write(" : ");
+                                } else {
+                                    self.write(" : 0");
+                                }
+                            }
+                        }
+                    }
+                }
             }
             NodeKind::ExprIf => {
                 // Ternary operator
