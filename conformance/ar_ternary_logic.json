@@ -1,0 +1,111 @@
+{
+  "module": "TernaryLogic",
+  "spec_path": "specs/ar/ternary_logic.t27",
+  "ring": 18,
+  "generated_at": "2026-04-04T18:00:00Z",
+  "description": "Kleene K3 ternary logic conformance vectors — Trit ≅ K3 isomorphism",
+  "encoding": {
+    "K_FALSE": -1,
+    "K_UNKNOWN": 0,
+    "K_TRUE": 1
+  },
+  "vectors": {
+    "k3_and": {
+      "description": "Kleene AND = trit_min (3x3 truth table)",
+      "cases": [
+        {"a": -1, "b": -1, "expected": -1},
+        {"a": -1, "b":  0, "expected": -1},
+        {"a": -1, "b":  1, "expected": -1},
+        {"a":  0, "b": -1, "expected": -1},
+        {"a":  0, "b":  0, "expected":  0},
+        {"a":  0, "b":  1, "expected":  0},
+        {"a":  1, "b": -1, "expected": -1},
+        {"a":  1, "b":  0, "expected":  0},
+        {"a":  1, "b":  1, "expected":  1}
+      ]
+    },
+    "k3_or": {
+      "description": "Kleene OR = trit_max (3x3 truth table)",
+      "cases": [
+        {"a": -1, "b": -1, "expected": -1},
+        {"a": -1, "b":  0, "expected":  0},
+        {"a": -1, "b":  1, "expected":  1},
+        {"a":  0, "b": -1, "expected":  0},
+        {"a":  0, "b":  0, "expected":  0},
+        {"a":  0, "b":  1, "expected":  1},
+        {"a":  1, "b": -1, "expected":  1},
+        {"a":  1, "b":  0, "expected":  1},
+        {"a":  1, "b":  1, "expected":  1}
+      ]
+    },
+    "k3_not": {
+      "description": "Kleene NOT = trit_not",
+      "cases": [
+        {"a": -1, "expected":  1},
+        {"a":  0, "expected":  0},
+        {"a":  1, "expected": -1}
+      ]
+    },
+    "k3_implies": {
+      "description": "Kleene implication: ¬a ∨ b (3x3 truth table)",
+      "cases": [
+        {"a": -1, "b": -1, "expected":  1},
+        {"a": -1, "b":  0, "expected":  1},
+        {"a": -1, "b":  1, "expected":  1},
+        {"a":  0, "b": -1, "expected":  0},
+        {"a":  0, "b":  0, "expected":  0},
+        {"a":  0, "b":  1, "expected":  1},
+        {"a":  1, "b": -1, "expected": -1},
+        {"a":  1, "b":  0, "expected":  0},
+        {"a":  1, "b":  1, "expected":  1}
+      ]
+    },
+    "k3_equiv": {
+      "description": "Kleene equivalence: (a→b) ∧ (b→a) (3x3 truth table)",
+      "cases": [
+        {"a": -1, "b": -1, "expected":  1},
+        {"a": -1, "b":  0, "expected":  0},
+        {"a": -1, "b":  1, "expected": -1},
+        {"a":  0, "b": -1, "expected":  0},
+        {"a":  0, "b":  0, "expected":  0},
+        {"a":  0, "b":  1, "expected":  0},
+        {"a":  1, "b": -1, "expected": -1},
+        {"a":  1, "b":  0, "expected":  0},
+        {"a":  1, "b":  1, "expected":  1}
+      ]
+    },
+    "forward_chain": {
+      "description": "Modus ponens for K3 logic",
+      "cases": [
+        {"antecedent": 1, "consequent": 1, "fact": 1, "expected": 1},
+        {"antecedent": 1, "consequent": -1, "fact": 1, "expected": -1},
+        {"antecedent": 1, "consequent": 1, "fact": 0, "expected": 0},
+        {"antecedent": 1, "consequent": 1, "fact": -1, "expected": -1}
+      ]
+    },
+    "is_restraint": {
+      "description": "Restraint detection (bounded rationality)",
+      "cases": [
+        {"value": -1, "expected": false},
+        {"value":  0, "expected": true},
+        {"value":  1, "expected": false}
+      ]
+    },
+    "apply_restraint": {
+      "description": "Replace K_UNKNOWN with K_FALSE (safe defaults)",
+      "cases": [
+        {"input": [1, 0, -1, 0, 1], "expected": [1, -1, -1, -1, 1]}
+      ]
+    }
+  },
+  "invariants": {
+    "k3_and_commutative": "∀a,b: k3_and(a,b) = k3_and(b,a)",
+    "k3_or_commutative": "∀a,b: k3_or(a,b) = k3_or(b,a)",
+    "k3_and_associative": "∀a,b,c: k3_and(k3_and(a,b),c) = k3_and(a,k3_and(b,c))",
+    "k3_or_associative": "∀a,b,c: k3_or(k3_or(a,b),c) = k3_or(a,k3_or(b,c))",
+    "k3_double_negation": "∀x: k3_not(k3_not(x)) = x",
+    "k3_equiv_reflexive": "∀x: k3_equiv(x,x) = K_TRUE",
+    "trit_k3_isomorphism_ordering": "K_FALSE < K_UNKNOWN < K_TRUE",
+    "trit_k3_isomorphism_bijection": "neg↔FALSE, zero↔UNKNOWN, pos↔TRUE"
+  }
+}
