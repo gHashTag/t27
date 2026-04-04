@@ -96,7 +96,7 @@ pub enum TokenKind {
     // Keywords
     KwPub, KwConst, KwFn, KwEnum, KwStruct, KwTest, KwInvariant, KwBench,
     KwModule, KwIf, KwElse, KwFor, KwSwitch, KwReturn, KwVar, KwUsing, KwVoid,
-    KwTrue, KwFalse,
+    KwTrue, KwFalse, KwUse,
 
     // Literals
     Ident, Number, String,
@@ -171,13 +171,40 @@ impl Lexer {
         self.pos += 1;
     }
 
-    fn skip_whitespace(&mut self) {
-        while self.pos < self.source.len() {
-            let ch = self.peek();
-            if ch != b' ' && ch != b'\t' && ch != b'\n' && ch != b'\r' {
-                break;
+    fn skip_whitespace_and_comments(&mut self) {
+        loop {
+            // Skip whitespace
+            while self.pos < self.source.len() {
+                let ch = self.peek();
+                if ch != b' ' && ch != b'\t' && ch != b'\n' && ch != b'\r' {
+                    break;
+                }
+                self.advance();
             }
-            self.advance();
+
+            // [BUG 2 FIX] Skip // line comments
+            if self.pos + 1 < self.source.len()
+                && self.source[self.pos] == b'/'
+                && self.source[self.pos + 1] == b'/'
+            {
+                while self.pos < self.source.len() && self.peek() != b'\n' {
+                    self.advance();
+                }
+                continue; // loop back to skip more whitespace/comments
+            }
+
+            // Skip ; line comments (old t27 comment style: ; at column 1 followed by space)
+            if self.pos < self.source.len() && self.peek() == b';' && self.col == 1 {
+                let next = self.peek_offset(1);
+                if next == b' ' || next == b'\t' {
+                    while self.pos < self.source.len() && self.peek() != b'\n' {
+                        self.advance();
+                    }
+                    continue;
+                }
+            }
+
+            break;
         }
     }
 
@@ -199,6 +226,7 @@ impl Lexer {
             "return" => TokenKind::KwReturn,
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
+            "use" => TokenKind::KwUse,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -207,7 +235,8 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Token {
-        self.skip_whitespace();
+        // [BUG 2 + BUG 9 FIX] Combined whitespace and comment skipping
+        self.skip_whitespace_and_comments();
 
         if self.pos >= self.source.len() {
             return Token {
@@ -219,34 +248,54 @@ impl Lexer {
         }
 
         let ch = self.peek();
+        let start_line = self.line;
+        let start_col = self.col;
 
-        // Semicolon dual-use: comment or statement terminator
+        // [BUG 9 FIX] Semicolons are ALWAYS statement terminators — no comment logic
         if ch == b';' {
-            // Check if at line start
-            if self.col == 1 {
-                let next_ch = self.peek_offset(1);
-                if next_ch == b' ' && self.pos + 1 < self.source.len() {
-                    // Comment prefix - skip to end of line
-                    while self.pos < self.source.len() {
-                        let c = self.peek();
-                        if c == b'\n' {
-                            self.line += 1;
-                            self.col = 1;
-                        } else {
-                            self.col += 1;
-                        }
-                        self.pos += 1;
-                    }
-                    return self.next_token();
-                }
-            }
-            // Statement terminator
             self.advance();
             return Token {
                 kind: TokenKind::Semicolon,
                 lexeme: String::from(";"),
-                line: self.line - 1,
-                col: self.col - 1,
+                line: start_line,
+                col: start_col,
+            };
+        }
+
+        // [BUG 3 FIX] String literal "..."
+        if ch == b'"' {
+            self.advance(); // consume opening "
+            let mut s = String::new();
+            while self.pos < self.source.len() && self.peek() != b'"' {
+                if self.peek() == b'\\' {
+                    self.advance(); // skip backslash
+                    if self.pos < self.source.len() {
+                        let escaped = self.peek();
+                        match escaped {
+                            b'n' => s.push('\n'),
+                            b't' => s.push('\t'),
+                            b'\\' => s.push('\\'),
+                            b'"' => s.push('"'),
+                            _ => {
+                                s.push('\\');
+                                s.push(escaped as char);
+                            }
+                        }
+                        self.advance();
+                    }
+                } else {
+                    s.push(self.peek() as char);
+                    self.advance();
+                }
+            }
+            if self.pos < self.source.len() {
+                self.advance(); // consume closing "
+            }
+            return Token {
+                kind: TokenKind::String,
+                lexeme: s,
+                line: start_line,
+                col: start_col,
             };
         }
 
@@ -260,8 +309,8 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Arrow,
                     lexeme: String::from("->"),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
 
@@ -271,8 +320,8 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::FatArrow,
                     lexeme: String::from("=>"),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
 
@@ -282,8 +331,8 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Power,
                     lexeme: String::from("**"),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
 
@@ -293,8 +342,8 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Lte,
                     lexeme: String::from("<="),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
 
@@ -304,8 +353,8 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Gte,
                     lexeme: String::from(">="),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
 
@@ -315,8 +364,8 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Eq,
                     lexeme: String::from("=="),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
 
@@ -326,21 +375,19 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Neq,
                     lexeme: String::from("!="),
-                    line: self.line,
-                    col: self.col - 2,
+                    line: start_line,
+                    col: start_col,
                 };
             }
         }
 
-        // Identifier or keyword
-        if ch.is_ascii_alphabetic() || ch == b'_' {
-            let start_col = self.col;
-            let start_line = self.line;
+        // Identifier or keyword (including @builtins)
+        if ch.is_ascii_alphabetic() || ch == b'_' || ch == b'@' {
             let mut ident = String::new();
 
             while self.pos < self.source.len() {
                 let c = self.peek();
-                if c.is_ascii_alphanumeric() || c == b'_' {
+                if c.is_ascii_alphanumeric() || c == b'_' || c == b'@' {
                     ident.push(c as char);
                     self.advance();
                 } else {
@@ -357,15 +404,20 @@ impl Lexer {
             };
         }
 
-        // Number literal
+        // [BUG 6 FIX] Number literal with full hex digit support (a-f, A-F)
         if ch.is_ascii_digit() {
-            let start_col = self.col;
-            let start_line = self.line;
             let mut number = String::new();
+            let mut is_hex = false;
 
             while self.pos < self.source.len() {
                 let c = self.peek();
-                if c.is_ascii_digit() || c == b'.' || c == b'x' || c == b'b' {
+                if c.is_ascii_digit() || c == b'.' || c == b'x' || c == b'X' || c == b'b' || c == b'B' || c == b'_' {
+                    if c == b'x' || c == b'X' {
+                        is_hex = true;
+                    }
+                    number.push(c as char);
+                    self.advance();
+                } else if is_hex && ((c >= b'a' && c <= b'f') || (c >= b'A' && c <= b'F')) {
                     number.push(c as char);
                     self.advance();
                 } else {
@@ -405,7 +457,11 @@ impl Lexer {
             b'~' => TokenKind::Tilde,
             b'<' => TokenKind::Lt,
             b'>' => TokenKind::Gt,
-            _ => TokenKind::Ident,
+            _ => {
+                // Unknown character — skip and recurse
+                self.advance();
+                return self.next_token();
+            }
         };
 
         self.advance();
@@ -413,8 +469,8 @@ impl Lexer {
         Token {
             kind,
             lexeme: String::from_utf8_lossy(&[ch]).to_string(),
-            line: self.line - 1,
-            col: self.col - 1,
+            line: start_line,
+            col: start_col,
         }
     }
 
@@ -442,25 +498,14 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(lexer: Lexer) -> Self {
-        let mut p = Self {
+    pub fn new(mut lexer: Lexer) -> Self {
+        let first = lexer.next_token();
+        let second = lexer.next_token();
+        Self {
             lexer,
-            current: Token {
-                kind: TokenKind::Eof,
-                lexeme: String::new(),
-                line: 0,
-                col: 0,
-            },
-            peek: Token {
-                kind: TokenKind::Eof,
-                lexeme: String::new(),
-                line: 0,
-                col: 0,
-            },
-        };
-        p.advance(); // Initialize: current = first token, peek = second token
-        p.advance(); // Advance once more: current = second token, peek = third token
-        p
+            current: first,
+            peek: second,
+        }
     }
 
     fn advance(&mut self) {
@@ -479,22 +524,78 @@ impl Parser {
     fn expect(&mut self, kind: TokenKind) -> Result<(), String> {
         if !self.check(kind) {
             return Err(format!(
-                "Expected {:?}, got {:?} at line {}",
-                kind, self.current.kind, self.current.line
+                "Expected {:?}, got {:?} ('{}') at line {}:{}",
+                kind, self.current.kind, self.current.lexeme, self.current.line, self.current.col
             ));
         }
         self.advance();
         Ok(())
     }
 
+    // [BUG 7 FIX] Brace-skip: count { } nesting to skip over body contents
+    fn skip_brace_body(&mut self) -> Result<(), String> {
+        // current token should be AFTER the opening LBrace was consumed
+        let mut depth: i32 = 1;
+        while depth > 0 {
+            if self.current.kind == TokenKind::Eof {
+                return Err("Unexpected EOF inside brace body".to_string());
+            }
+            if self.current.kind == TokenKind::LBrace {
+                depth += 1;
+            } else if self.current.kind == TokenKind::RBrace {
+                depth -= 1;
+                if depth == 0 {
+                    // Don't advance past the closing brace — caller expects current == RBrace
+                    return Ok(());
+                }
+            }
+            self.advance();
+        }
+        Ok(())
+    }
+
     pub fn parse(&mut self) -> Result<Node, String> {
         let mut module = Node::new(NodeKind::Module);
 
-        while self.peek.kind != TokenKind::Eof {
-            if let Ok(decl) = self.parse_top_level_decl() {
-                module.children.push(decl);
-            } else {
-                return Err(format!("Unexpected token: {:?}", self.peek.kind));
+        // [BUG 4 FIX] Parse optional module declaration
+        if self.current.kind == TokenKind::KwModule {
+            self.advance(); // consume 'module'
+            // Module name can contain hyphens: e.g. "tritype-base"
+            let mut mod_name = String::new();
+            if self.current.kind == TokenKind::Ident {
+                mod_name.push_str(&self.current.lexeme);
+                self.advance();
+                // Consume hyphenated parts: - ident - ident ...
+                while self.current.kind == TokenKind::Minus {
+                    mod_name.push('-');
+                    self.advance(); // consume -
+                    if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
+                        mod_name.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+            }
+            module.name = mod_name;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance(); // consume ;
+            }
+        }
+
+        while self.current.kind != TokenKind::Eof {
+            // [BUG 5 FIX] Skip use/using statements
+            if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
+                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                continue;
+            }
+
+            match self.parse_top_level_decl() {
+                Ok(decl) => module.children.push(decl),
+                Err(e) => return Err(e),
             }
         }
 
@@ -502,217 +603,347 @@ impl Parser {
     }
 
     fn parse_top_level_decl(&mut self) -> Result<Node, String> {
-        let is_pub = self.check_peek(TokenKind::KwPub);
+        let is_pub = self.current.kind == TokenKind::KwPub;
 
         if is_pub {
-            self.advance();
+            self.advance(); // consume pub
         }
 
-        if self.check_peek(TokenKind::KwConst) {
-            self.parse_const_decl()
-        } else if self.check_peek(TokenKind::KwFn) {
-            self.parse_fn_decl()
-        } else if self.check_peek(TokenKind::KwEnum) {
-            self.parse_enum_decl()
-        } else if self.check_peek(TokenKind::KwStruct) {
-            self.parse_struct_decl()
-        } else if self.check_peek(TokenKind::KwTest) {
-            self.parse_test_block()
-        } else if self.check_peek(TokenKind::KwInvariant) {
-            self.parse_invariant_block()
-        } else if self.check_peek(TokenKind::KwBench) {
-            self.parse_bench_block()
-        } else {
-            Err(format!("Unexpected token: {:?}", self.peek.kind))
+        match self.current.kind {
+            TokenKind::KwConst => self.parse_const_decl(is_pub),
+            TokenKind::KwFn => self.parse_fn_decl(is_pub),
+            TokenKind::KwEnum => self.parse_enum_decl(is_pub),
+            TokenKind::KwStruct => self.parse_struct_decl(is_pub),
+            TokenKind::KwTest => self.parse_test_block(),
+            TokenKind::KwInvariant => self.parse_invariant_block(),
+            TokenKind::KwBench => self.parse_bench_block(),
+            _ => {
+                // Skip unknown tokens to be resilient
+                let tok = format!("{:?}", self.current.kind);
+                self.advance();
+                Err(format!("Unexpected top-level token: {}", tok))
+            }
         }
     }
 
-    fn parse_const_decl(&mut self) -> Result<Node, String> {
+    fn parse_const_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::ConstDecl);
-        decl.extra_pub = self.check_peek(TokenKind::KwPub);
+        decl.extra_pub = is_pub;
 
-        if decl.extra_pub {
-            self.advance(); // consume pub
-        }
+        self.advance(); // consume 'const'
 
-        self.advance(); // consume const
-
-        if self.check(TokenKind::Ident) {
-            self.advance();
+        // Name
+        if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
-
-            if self.check_peek(TokenKind::Colon) {
-                self.advance();
-                if self.check_peek(TokenKind::Ident) {
-                    self.advance();
-                    decl.extra_type = self.current.lexeme.clone();
-                }
-            }
-
-            if self.check_peek(TokenKind::Equals) {
-                self.advance();
-                if let Ok(expr) = self.parse_expression() {
-                    decl.children.push(expr);
-                }
-            }
-
-            self.expect(TokenKind::Semicolon)?;
-            Ok(decl)
+            self.advance();
         } else {
-            Err(format!("Expected identifier after 'const'"))
+            return Err(format!("Expected identifier after 'const', got {:?}", self.current.kind));
         }
+
+        // Optional type annotation `: Type`
+        if self.current.kind == TokenKind::Colon {
+            self.advance(); // consume :
+            // Type can be complex: u8, i8, []Trit, [N]T, etc.
+            let mut type_str = String::new();
+            // Handle [] prefix for slice types
+            if self.current.kind == TokenKind::LBracket {
+                type_str.push('[');
+                self.advance();
+                // Might have a size expression
+                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                    type_str.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+                type_str.push(']');
+                if self.current.kind == TokenKind::RBracket {
+                    self.advance();
+                }
+            }
+            if self.current.kind == TokenKind::Ident {
+                type_str.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            decl.extra_type = type_str;
+        }
+
+        // = value
+        if self.current.kind == TokenKind::Equals {
+            self.advance(); // consume =
+
+            // [BUG 8 FIX] Check what follows: enum(...), struct { }, [N]T{ }, identifier, number, etc.
+            if self.current.kind == TokenKind::KwEnum {
+                // pub const Trit = enum(i8) { ... };
+                decl.kind = NodeKind::EnumDecl;
+                self.advance(); // consume 'enum'
+                // Optional backing type: (i8)
+                if self.current.kind == TokenKind::LParen {
+                    self.advance(); // consume (
+                    if self.current.kind == TokenKind::Ident {
+                        decl.extra_type = self.current.lexeme.clone();
+                        self.advance();
+                    }
+                    self.expect(TokenKind::RParen)?; // consume )
+                }
+                // { ... }
+                self.expect(TokenKind::LBrace)?;
+                // Parse enum body with brace-skip for safety
+                self.parse_enum_body(&mut decl)?;
+                self.expect(TokenKind::RBrace)?;
+            } else if self.current.kind == TokenKind::KwStruct {
+                // pub const Foo = struct { ... };
+                decl.kind = NodeKind::StructDecl;
+                self.advance(); // consume 'struct'
+                self.expect(TokenKind::LBrace)?;
+                self.skip_brace_body()?;
+                self.expect(TokenKind::RBrace)?;
+            } else if self.current.kind == TokenKind::LBracket {
+                // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
+                // Skip everything to semicolon
+                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
+            } else if self.current.kind == TokenKind::Minus {
+                // [BUG 10 FIX] Negative number: -1
+                self.advance(); // consume -
+                if self.current.kind == TokenKind::Number {
+                    let mut val_node = Node::new(NodeKind::ExprLiteral);
+                    val_node.value = format!("-{}", self.current.lexeme);
+                    decl.children.push(val_node);
+                    self.advance();
+                }
+            } else if self.current.kind == TokenKind::Number {
+                let mut val_node = Node::new(NodeKind::ExprLiteral);
+                val_node.value = self.current.lexeme.clone();
+                decl.children.push(val_node);
+                self.advance();
+            } else if self.current.kind == TokenKind::Ident {
+                // Type alias: pub const PackedTrit = u8;
+                let mut val_node = Node::new(NodeKind::ExprIdentifier);
+                val_node.name = self.current.lexeme.clone();
+                decl.children.push(val_node);
+                self.advance();
+            } else if self.current.kind == TokenKind::KwTrue || self.current.kind == TokenKind::KwFalse {
+                let mut val_node = Node::new(NodeKind::ExprLiteral);
+                val_node.value = self.current.lexeme.clone();
+                decl.children.push(val_node);
+                self.advance();
+            } else if self.current.kind == TokenKind::String {
+                let mut val_node = Node::new(NodeKind::ExprLiteral);
+                val_node.value = self.current.lexeme.clone();
+                decl.children.push(val_node);
+                self.advance();
+            } else if self.current.kind == TokenKind::Tilde {
+                // Bitwise NOT expression like ~(TRIT_MASK << bit_pos)
+                // Skip to semicolon
+                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
+            } else {
+                // Unknown RHS — skip to semicolon
+                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
+                    // If we hit a brace, skip its contents
+                    if self.current.kind == TokenKind::LBrace {
+                        self.advance();
+                        self.skip_brace_body()?;
+                        if self.current.kind == TokenKind::RBrace {
+                            self.advance();
+                        }
+                    } else {
+                        self.advance();
+                    }
+                }
+                if self.current.kind == TokenKind::Semicolon {
+                    self.advance();
+                }
+                return Ok(decl);
+            }
+        }
+
+        // Consume trailing semicolon
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+        Ok(decl)
     }
 
-    fn parse_fn_decl(&mut self) -> Result<Node, String> {
+    fn parse_enum_body(&mut self, decl: &mut Node) -> Result<(), String> {
+        // We are inside { ... } of an enum. Parse variant = value pairs.
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            if self.current.kind == TokenKind::Ident {
+                let name = self.current.lexeme.clone();
+                self.advance();
+
+                let mut value_str = String::new();
+                if self.current.kind == TokenKind::Equals {
+                    self.advance(); // consume =
+                    // [BUG 10] Handle negative enum values
+                    if self.current.kind == TokenKind::Minus {
+                        value_str.push('-');
+                        self.advance();
+                    }
+                    if self.current.kind == TokenKind::Number {
+                        value_str.push_str(&self.current.lexeme);
+                        self.advance();
+                    } else if self.current.kind == TokenKind::Ident {
+                        value_str.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
+
+                let mut variant = Node::new(NodeKind::ExprLiteral);
+                variant.name = name;
+                variant.value = value_str;
+                decl.children.push(variant);
+
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                }
+            } else {
+                // Skip unexpected tokens inside enum
+                self.advance();
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_fn_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::FnDecl);
-        decl.extra_pub = self.check_peek(TokenKind::KwPub);
+        decl.extra_pub = is_pub;
 
-        if decl.extra_pub {
-            self.advance(); // consume pub
-        }
+        self.advance(); // consume 'fn'
 
-        self.advance(); // consume fn
-
-        if self.check_peek(TokenKind::Ident) {
-            self.advance();
+        if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
-        }
-
-        self.expect(TokenKind::LParen)?;
-
-        while !self.check(TokenKind::RParen) && self.peek.kind != TokenKind::Eof {
             self.advance();
         }
 
+        // Skip parameter list with parens
+        self.expect(TokenKind::LParen)?;
+        // Skip params — just balance parens
+        let mut paren_depth = 1;
+        while paren_depth > 0 && self.current.kind != TokenKind::Eof {
+            if self.current.kind == TokenKind::LParen {
+                paren_depth += 1;
+            } else if self.current.kind == TokenKind::RParen {
+                paren_depth -= 1;
+                if paren_depth == 0 {
+                    break;
+                }
+            }
+            self.advance();
+        }
         self.expect(TokenKind::RParen)?;
 
-        if self.check_peek(TokenKind::Ident) {
-            self.advance();
+        // Return type (identifier, or []T / [N]T slice/array types before {)
+        if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
-        }
-
-        self.expect(TokenKind::LBrace)?;
-
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            if let Ok(stmt) = self.parse_statement() {
-                decl.children.push(stmt);
+            self.advance();
+        } else if self.current.kind == TokenKind::LBracket {
+            // []Trit or [N]Type return type
+            let mut rt = String::from("[");
+            self.advance(); // consume [
+            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                rt.push_str(&self.current.lexeme);
+                self.advance();
             }
+            rt.push(']');
+            if self.current.kind == TokenKind::RBracket {
+                self.advance();
+            }
+            if self.current.kind == TokenKind::Ident {
+                rt.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            decl.extra_return_type = rt;
         }
 
+        // [BUG 7 FIX] Body: brace-skip
+        self.expect(TokenKind::LBrace)?;
+        self.skip_brace_body()?;
         self.expect(TokenKind::RBrace)?;
         Ok(decl)
     }
 
-    fn parse_enum_decl(&mut self) -> Result<Node, String> {
+    fn parse_enum_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::EnumDecl);
-        decl.extra_pub = self.check_peek(TokenKind::KwPub);
+        decl.extra_pub = is_pub;
 
-        if decl.extra_pub {
-            self.advance(); // consume pub
-        }
+        self.advance(); // consume 'enum'
 
-        if self.check(TokenKind::Ident) {
-            self.advance();
+        if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
+            self.advance();
         }
 
-        self.expect(TokenKind::KwEnum)?;
-
-        if self.check(TokenKind::LParen) {
-            self.advance();
-            while !self.check(TokenKind::RParen) && self.peek.kind != TokenKind::Eof {
+        if self.current.kind == TokenKind::LParen {
+            self.advance(); // consume (
+            while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
                 self.advance();
             }
             self.expect(TokenKind::RParen)?;
         }
 
         self.expect(TokenKind::LBrace)?;
-
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            if self.check_peek(TokenKind::Ident) {
-                self.advance();
-                let name = self.current.lexeme.clone();
-
-                if self.check_peek(TokenKind::Equals) {
-                    self.advance();
-                    let value = self.parse_literal()?;
-                    let mut value_node = Node::new(NodeKind::ExprLiteral);
-                    value_node.name = name;
-                    value_node.value = value;
-                    decl.children.push(value_node);
-                }
-
-                if self.check_peek(TokenKind::Comma) {
-                    self.advance();
-                }
-            }
-        }
-
+        self.skip_brace_body()?;
         self.expect(TokenKind::RBrace)?;
         Ok(decl)
     }
 
-    fn parse_struct_decl(&mut self) -> Result<Node, String> {
+    fn parse_struct_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::StructDecl);
-        decl.extra_pub = self.check_peek(TokenKind::KwPub);
+        decl.extra_pub = is_pub;
 
-        if decl.extra_pub {
-            self.advance(); // consume pub
-        }
+        self.advance(); // consume 'struct'
 
-        self.advance(); // consume struct
-
-        if self.check_peek(TokenKind::Ident) {
-            self.advance();
+        if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
+            self.advance();
         }
 
         self.expect(TokenKind::LBrace)?;
+        self.skip_brace_body()?;
+        self.expect(TokenKind::RBrace)?;
+        Ok(decl)
+    }
 
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            if self.check_peek(TokenKind::Ident) {
+    fn parse_block_name(&mut self) -> String {
+        // Block names can be string literals ("name") or bare identifiers (name_with_underscores)
+        if self.current.kind == TokenKind::String || self.current.kind == TokenKind::Ident {
+            let name = self.current.lexeme.clone();
+            self.advance();
+            // Handle hyphenated names like "some-name"
+            let mut full_name = name;
+            while self.current.kind == TokenKind::Minus {
+                full_name.push('-');
                 self.advance();
-                let field_name = self.current.lexeme.clone();
-
-                if self.check_peek(TokenKind::Colon) {
-                    self.advance();
-                    if self.check_peek(TokenKind::Ident) {
-                        self.advance();
-                        let mut field = Node::new(NodeKind::ConstDecl);
-                        field.name = field_name;
-                        field.extra_type = self.current.lexeme.clone();
-                        decl.children.push(field);
-                    }
-                }
-
-                if self.check_peek(TokenKind::Comma) {
+                if self.current.kind == TokenKind::Ident {
+                    full_name.push_str(&self.current.lexeme);
                     self.advance();
                 }
             }
+            full_name
+        } else {
+            String::new()
         }
-
-        self.expect(TokenKind::RBrace)?;
-        Ok(decl)
     }
 
     fn parse_test_block(&mut self) -> Result<Node, String> {
         let mut block = Node::new(NodeKind::TestBlock);
 
-        self.expect(TokenKind::KwTest)?;
+        self.advance(); // consume 'test'
+        block.name = self.parse_block_name();
 
-        if self.check_peek(TokenKind::String) {
-            self.advance();
-            block.name = self.current.lexeme.clone();
-        }
-
+        // [BUG 7 FIX] Brace-skip body
         self.expect(TokenKind::LBrace)?;
-
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            if let Ok(stmt) = self.parse_statement() {
-                block.children.push(stmt);
-            }
-        }
-
+        self.skip_brace_body()?;
         self.expect(TokenKind::RBrace)?;
         Ok(block)
     }
@@ -720,21 +951,12 @@ impl Parser {
     fn parse_invariant_block(&mut self) -> Result<Node, String> {
         let mut block = Node::new(NodeKind::InvariantBlock);
 
-        self.expect(TokenKind::KwInvariant)?;
+        self.advance(); // consume 'invariant'
+        block.name = self.parse_block_name();
 
-        if self.check_peek(TokenKind::String) {
-            self.advance();
-            block.name = self.current.lexeme.clone();
-        }
-
+        // [BUG 7 FIX] Brace-skip body
         self.expect(TokenKind::LBrace)?;
-
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            if let Ok(stmt) = self.parse_statement() {
-                block.children.push(stmt);
-            }
-        }
-
+        self.skip_brace_body()?;
         self.expect(TokenKind::RBrace)?;
         Ok(block)
     }
@@ -742,25 +964,17 @@ impl Parser {
     fn parse_bench_block(&mut self) -> Result<Node, String> {
         let mut block = Node::new(NodeKind::BenchBlock);
 
-        self.expect(TokenKind::KwBench)?;
+        self.advance(); // consume 'bench'
+        block.name = self.parse_block_name();
 
-        if self.check_peek(TokenKind::String) {
-            self.advance();
-            block.name = self.current.lexeme.clone();
-        }
-
+        // [BUG 7 FIX] Brace-skip body
         self.expect(TokenKind::LBrace)?;
-
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            if let Ok(stmt) = self.parse_statement() {
-                block.children.push(stmt);
-            }
-        }
-
+        self.skip_brace_body()?;
         self.expect(TokenKind::RBrace)?;
         Ok(block)
     }
 
+    #[allow(dead_code)]
     fn parse_statement(&mut self) -> Result<Node, String> {
         if self.check_peek(TokenKind::KwReturn) {
             self.parse_return_stmt()
@@ -773,6 +987,7 @@ impl Parser {
         }
     }
 
+    #[allow(dead_code)]
     fn parse_return_stmt(&mut self) -> Result<Node, String> {
         let mut stmt = Node::new(NodeKind::ExprReturn);
         self.expect(TokenKind::KwReturn)?;
@@ -782,10 +997,12 @@ impl Parser {
         Ok(stmt)
     }
 
+    #[allow(dead_code)]
     fn parse_expression(&mut self) -> Result<Node, String> {
         self.parse_or()
     }
 
+    #[allow(dead_code)]
     fn parse_or(&mut self) -> Result<Node, String> {
         let mut left = self.parse_and()?;
 
@@ -804,6 +1021,7 @@ impl Parser {
         Ok(left)
     }
 
+    #[allow(dead_code)]
     fn parse_and(&mut self) -> Result<Node, String> {
         let mut left = self.parse_comparison()?;
 
@@ -822,6 +1040,7 @@ impl Parser {
         Ok(left)
     }
 
+    #[allow(dead_code)]
     fn parse_comparison(&mut self) -> Result<Node, String> {
         let mut left = self.parse_switch()?;
 
@@ -843,6 +1062,7 @@ impl Parser {
         Ok(left)
     }
 
+    #[allow(dead_code)]
     fn parse_switch(&mut self) -> Result<Node, String> {
         if !self.check_peek(TokenKind::KwSwitch) && !self.check_peek(TokenKind::KwIf) {
             return self.parse_term();
@@ -896,6 +1116,7 @@ impl Parser {
         Ok(switch_node)
     }
 
+    #[allow(dead_code)]
     fn parse_term(&mut self) -> Result<Node, String> {
         let mut left = self.parse_factor()?;
 
@@ -914,6 +1135,7 @@ impl Parser {
         Ok(left)
     }
 
+    #[allow(dead_code)]
     fn parse_factor(&mut self) -> Result<Node, String> {
         let mut left = self.parse_unary()?;
 
@@ -932,10 +1154,12 @@ impl Parser {
         Ok(left)
     }
 
+    #[allow(dead_code)]
     fn parse_unary(&mut self) -> Result<Node, String> {
         self.parse_primary()
     }
 
+    #[allow(dead_code)]
     fn parse_primary(&mut self) -> Result<Node, String> {
         if self.check_peek(TokenKind::Number) {
             self.advance();
@@ -1002,6 +1226,7 @@ impl Parser {
         Err(format!("Unexpected token: {:?}", self.peek.kind))
     }
 
+    #[allow(dead_code)]
     fn parse_literal(&mut self) -> Result<String, String> {
         let value = self.current.lexeme.clone();
         self.advance();
@@ -1312,8 +1537,8 @@ pub struct Compiler;
 
 impl Compiler {
     pub fn compile(source: &str) -> Result<String, String> {
-        let mut lexer = Lexer::new(source);
-        lexer.tokenize();
+        // [BUG 1 FIX] Do NOT call lexer.tokenize() — let Parser use next_token() directly
+        let lexer = Lexer::new(source);
 
         let mut parser = Parser::new(lexer);
         let ast = parser.parse()?;
@@ -1324,8 +1549,8 @@ impl Compiler {
     }
 
     pub fn parse_ast(source: &str) -> Result<Node, String> {
-        let mut lexer = Lexer::new(source);
-        lexer.tokenize();
+        // [BUG 1 FIX] Do NOT call lexer.tokenize() — let Parser use next_token() directly
+        let lexer = Lexer::new(source);
 
         let mut parser = Parser::new(lexer);
         parser.parse()
