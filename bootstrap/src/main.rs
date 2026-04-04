@@ -139,6 +139,14 @@ struct CompileResponse {
 
 #[cfg(feature = "server")]
 #[derive(Debug, Serialize)]
+struct ApiResponse {
+    success: bool,
+    output: Option<String>,
+    error: Option<String>,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Serialize)]
 struct HealthResponse {
     status: String,
     version: &'static str,
@@ -177,6 +185,153 @@ async fn compile_handler(
 }
 
 #[cfg(feature = "server")]
+async fn parse_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(format!("{:#?}", ast)),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_verilog_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_verilog(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_c_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_c(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn seal_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
+
+    let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let output = serde_json::json!({
+        "spec_hash": spec_hash,
+        "gen_hash_zig": gen_hash_zig,
+        "gen_hash_verilog": gen_hash_verilog,
+        "gen_hash_c": gen_hash_c,
+    });
+
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            success: true,
+            output: Some(output.to_string()),
+            error: None,
+        }),
+    )
+}
+
+#[cfg(feature = "server")]
+async fn stats_handler() -> impl IntoResponse {
+    let stats = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "backends": ["zig", "verilog", "c"],
+        "endpoints": ["/health", "/compile", "/parse", "/gen", "/gen-verilog", "/gen-c", "/seal", "/stats"],
+    });
+
+    Json(ApiResponse {
+        success: true,
+        output: Some(stats.to_string()),
+        error: None,
+    })
+}
+
+#[cfg(feature = "server")]
 async fn run_server(port_arg: &str) -> anyhow::Result<()> {
     // Support Railway's $PORT environment variable
     let port = env::var("PORT")
@@ -185,7 +340,13 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/compile", post(compile_handler));
+        .route("/compile", post(compile_handler))
+        .route("/parse", post(parse_handler))
+        .route("/gen", post(gen_handler))
+        .route("/gen-verilog", post(gen_verilog_handler))
+        .route("/gen-c", post(gen_c_handler))
+        .route("/seal", post(seal_handler))
+        .route("/stats", get(stats_handler));
 
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).await?;
