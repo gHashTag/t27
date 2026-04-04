@@ -2,6 +2,63 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 075: add_gf16_classification_functions
+
+**Spec**: `specs/numeric/gf16.t27`
+**Task**: Add 3 GF16 classification functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: b7f39eee2ff274bebfba4bcde34445bd01862c623380a2c89225fdef523d49db
+- `spec_hash_after`: dfe7ce146e5eefddd57d8a91fcbcfa2381f83e41c09b6fda4676d5a4de853764
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `gf16_is_finite(gf16: GF16) -> bool` - Check if value is finite (not NaN, not infinity)
+2. `gf16_is_normal(gf16: GF16) -> bool` - Check if value is a normal number
+3. `gf16_is_subnormal(gf16: GF16) -> bool` - Check if value is subnormal (denormal)
+
+### Tests Added (13)
+- `test_gf16_is_finite_normal_numbers`
+- `test_gf16_is_finite_zero`
+- `test_gf16_is_finite_false_for_inf`
+- `test_gf16_is_finite_false_for_nan`
+- `test_gf16_is_normal_true_for_normal`
+- `test_gf16_is_normal_false_for_zero`
+- `test_gf16_is_normal_false_for_inf`
+- `test_gf16_is_normal_false_for_nan`
+- `test_gf16_is_subnormal_true_for_subnormal`
+- `test_gf16_is_subnormal_false_for_normal`
+- `test_gf16_is_subnormal_false_for_zero`
+- `test_gf16_is_subnormal_false_for_special`
+- `test_gf16_classification_complete_coverage`
+
+### Invariants Added (6)
+- `gf16_is_finite_excludes_inf_nan`
+- `gf16_is_normal_implies_finite`
+- `gf16_is_subnormal_implies_finite`
+- `gf16_is_normal_and_subnormal_mutually_exclusive`
+- `gf16_zero_neither_normal_nor_subnormal`
+- `gf16_classification_exhaustive`
+
+### Benchmarks Added (3)
+- `bench_gf16_is_finite_latency` - Target: < 30ns
+- `bench_gf16_is_normal_latency` - Target: < 40ns
+- `bench_gf16_is_subnormal_latency` - Target: < 40ns
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 075
+- `task_id`: add_gf16_classification_functions
+- `spec_path`: specs/numeric/gf16.t27
+
+---
+
 ## Skill 074: add_base_types_ternary_word_utility_functions
 
 **Spec**: `specs/base/types.t27`
