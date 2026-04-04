@@ -6,6 +6,7 @@
 // - gen: Generate Zig code from .t27
 // - gen-verilog: Generate synthesizable Verilog from .t27
 // - gen-c: Generate C code from .t27
+// - seal: Compute seal hashes (with --save / --verify)
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod compiler;
@@ -65,6 +66,14 @@ enum Commands {
     Seal {
         /// Input .t27 spec file path
         input: String,
+
+        /// Save computed hashes to .trinity/seals/<module>.json
+        #[arg(long)]
+        save: bool,
+
+        /// Verify current hashes match previously saved seals
+        #[arg(long)]
+        verify: bool,
     },
 
     /// Start HTTP server on Railway
@@ -256,64 +265,152 @@ fn run_conformance(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_seal(input_path: &str) -> anyhow::Result<()> {
+/// Extract module name from .t27 source (first `module <name>;` declaration)
+fn extract_module_name(source: &str) -> Option<String> {
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("module ") {
+            let rest = trimmed.strip_prefix("module ").unwrap().trim();
+            let name = rest.trim_end_matches(';').trim();
+            if !name.is_empty() {
+                return Some(name.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Collected seal hashes for a spec file
+struct SealHashes {
+    module: String,
+    spec_path: String,
+    spec_hash: String,
+    gen_hash_zig: String,
+    gen_hash_verilog: String,
+    gen_hash_c: String,
+}
+
+/// Compute all seal hashes for a .t27 spec file
+fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
-    // spec_hash: SHA256 of the .t27 input file
-    let spec_hash = sha256_hex(source.as_bytes());
-    println!("spec_hash=sha256:{}", spec_hash);
+    let module = extract_module_name(&source)
+        .unwrap_or_else(|| {
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+                .to_string()
+        });
 
-    // gen_hash: SHA256 of the generated Zig output
-    match compiler::Compiler::compile(&source) {
-        Ok(zig_code) => {
-            let gen_hash = sha256_hex(zig_code.as_bytes());
-            println!("gen_hash=sha256:{}", gen_hash);
-        }
-        Err(e) => {
-            eprintln!("gen_hash=error: {}", e);
-        }
-    }
+    let spec_hash = format!("sha256:{}", sha256_hex(source.as_bytes()));
 
-    // test_vector_hash: look for matching conformance JSON
-    let spec_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-    let conformance_dir = path.parent().unwrap_or(Path::new(".")).join("../conformance");
-    if conformance_dir.is_dir() {
-        let mut found = false;
-        if let Ok(dir_entries) = fs::read_dir(&conformance_dir) {
-            for entry in dir_entries.flatten() {
-                let entry_path = entry.path();
-                if entry_path.extension().and_then(|e| e.to_str()) == Some("json") {
-                    let fname = entry_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-                    if fname.contains(spec_stem) {
-                        // Found a matching conformance file — compute its hash
-                        let json_source = fs::read_to_string(&entry_path)?;
-                        let json: serde_json::Value = serde_json::from_str(&json_source)?;
-                        if let Some(vectors) = json.get("test_vectors").and_then(|v| v.as_array()) {
-                            let mut sorted: Vec<&serde_json::Value> = vectors.iter().collect();
-                            sorted.sort_by(|a, b| {
-                                let na = a.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                                let nb = b.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                                na.cmp(nb)
-                            });
-                            let entries: Vec<String> = sorted
-                                .iter()
-                                .map(|v| serde_json::to_string(v).unwrap_or_default())
-                                .collect();
-                            let canonical = entries.join("\n");
-                            let hash = sha256_hex(canonical.as_bytes());
-                            println!("test_vector_hash=sha256:{}", hash);
-                            found = true;
-                        }
-                    }
-                }
+    let gen_hash_zig = match compiler::Compiler::compile(&source) {
+        Ok(zig_code) => format!("sha256:{}", sha256_hex(zig_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&source) {
+        Ok(verilog_code) => format!("sha256:{}", sha256_hex(verilog_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let gen_hash_c = match compiler::Compiler::compile_c(&source) {
+        Ok(c_code) => format!("sha256:{}", sha256_hex(c_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    Ok(SealHashes {
+        module,
+        spec_path: input_path.to_string(),
+        spec_hash,
+        gen_hash_zig,
+        gen_hash_verilog,
+        gen_hash_c,
+    })
+}
+
+/// Path to the seal JSON file for a given module
+fn seal_file_path(module: &str) -> std::path::PathBuf {
+    Path::new(".trinity").join("seals").join(format!("{}.json", module))
+}
+
+fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
+    let hashes = compute_seal_hashes(input_path)?;
+
+    if verify {
+        // --verify: load saved seal and compare
+        let seal_path = seal_file_path(&hashes.module);
+        if !seal_path.exists() {
+            anyhow::bail!(
+                "No saved seal found at {}. Run with --save first.",
+                seal_path.display()
+            );
+        }
+        let saved_json: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&seal_path)?)?;
+
+        let mut all_match = true;
+        let checks = [
+            ("spec_hash", &hashes.spec_hash),
+            ("gen_hash_zig", &hashes.gen_hash_zig),
+            ("gen_hash_verilog", &hashes.gen_hash_verilog),
+            ("gen_hash_c", &hashes.gen_hash_c),
+        ];
+
+        for (field, current) in &checks {
+            let saved = saved_json
+                .get(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or("missing");
+            if *current == saved {
+                println!("{}: MATCH", field);
+            } else {
+                println!("{}: MISMATCH (saved={}, current={})", field, saved, current);
+                all_match = false;
             }
         }
-        if !found {
-            println!("test_vector_hash=none");
+
+        if all_match {
+            println!("\nall hashes MATCH");
+        } else {
+            println!("\nVERIFICATION FAILED — hashes differ from saved seal");
+            std::process::exit(1);
         }
+    } else if save {
+        // --save: compute hashes and write to .trinity/seals/<module>.json
+        let seals_dir = Path::new(".trinity").join("seals");
+        fs::create_dir_all(&seals_dir)?;
+
+        let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        let seal_obj = serde_json::json!({
+            "module": hashes.module,
+            "spec_path": hashes.spec_path,
+            "spec_hash": hashes.spec_hash,
+            "gen_hash_zig": hashes.gen_hash_zig,
+            "gen_hash_verilog": hashes.gen_hash_verilog,
+            "gen_hash_c": hashes.gen_hash_c,
+            "sealed_at": now,
+            "ring": 12
+        });
+
+        let seal_path = seal_file_path(&hashes.module);
+        let pretty = serde_json::to_string_pretty(&seal_obj)?;
+        fs::write(&seal_path, &pretty)?;
+
+        // Also print hashes to stdout
+        println!("spec_hash={}", hashes.spec_hash);
+        println!("gen_hash_zig={}", hashes.gen_hash_zig);
+        println!("gen_hash_verilog={}", hashes.gen_hash_verilog);
+        println!("gen_hash_c={}", hashes.gen_hash_c);
+        println!("\nSeal saved to {}", seal_path.display());
     } else {
-        println!("test_vector_hash=none");
+        // Default: just print hashes (existing behavior, enhanced with all backends)
+        println!("spec_hash={}", hashes.spec_hash);
+        println!("gen_hash_zig={}", hashes.gen_hash_zig);
+        println!("gen_hash_verilog={}", hashes.gen_hash_verilog);
+        println!("gen_hash_c={}", hashes.gen_hash_c);
     }
 
     Ok(())
@@ -334,7 +431,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
-        Commands::Seal { input } => run_seal(&input)?,
+        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Serve { port } => run_server(&port).await?,
     }
 
@@ -351,7 +448,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
-        Commands::Seal { input } => run_seal(&input)?,
+        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
