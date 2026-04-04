@@ -1,0 +1,26 @@
+name: "Seed Ring"
+description: "New seed ring for language growth"
+title: "[SEED-N]: "
+labels: ["seed-ring", "phi-loop"]
+body:
+  - type: input
+    id: ring-number
+    attributes:
+      label: Ring Number
+      description: "Which ring? (0, 1, 2, ...)"
+    validations:
+      required: true
+  - type: textarea
+    id: capability
+    attributes:
+      label: New Capability
+      description: "What ONE capability does this ring add?"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-test
+    attributes:
+      label: Acceptance Test
+      description: "Exact command + expected output"
+    validations:
+      required: true
