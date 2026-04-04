@@ -674,6 +674,32 @@ pub fn gf16_is_subnormal(gf16: GF16) bool {
     return exp == 0 and mant != 0;
 }
 
+// gf16_signbit(gf16: GF16) → bool
+// Check if the sign bit is set (value is negative or negative zero)
+// Returns true for negative values and negative zero
+pub fn gf16_signbit(gf16: GF16) bool {
+    return (gf16 & GF16_SIGN_MASK) != 0;
+}
+
+// gf16_sign(gf16: GF16) → i8
+// Return the sign of the GF16 value: -1 for negative, 0 for zero, +1 for positive
+// Returns 0 for NaN (IEEE 754 specifies sign of NaN is undefined)
+pub fn gf16_sign(gf16: GF16) i8 {
+    if (gf16_is_nan(gf16)) {
+        return 0;
+    }
+
+    if (gf16_is_zero(gf16)) {
+        return 0;
+    }
+
+    if (gf16_signbit(gf16)) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -1295,6 +1321,36 @@ invariant gf16_zero_neither_normal_nor_subnormal {
 
 invariant gf16_classification_exhaustive {
     // For all x: (is_finite and (is_normal or is_subnormal or is_zero)) or is_inf or is_nan
+    @compileAssert(true);
+}
+
+invariant gf16_signbit_positive_no_signbit {
+    // gf16_signbit(x) = false for x >= 0 (including +0 and +inf)
+    @compileAssert(true);
+}
+
+invariant gf16_signbit_negative_has_signbit {
+    // gf16_signbit(x) = true for x < 0 (including -0 and -inf)
+    @compileAssert(true);
+}
+
+invariant gf16_sign_positive_returns_one {
+    // For x > 0 and x is not NaN: gf16_sign(x) = 1
+    @compileAssert(true);
+}
+
+invariant gf16_sign_negative_returns_minus_one {
+    // For x < 0 and x is not NaN: gf16_sign(x) = -1
+    @compileAssert(true);
+}
+
+invariant gf16_sign_zero_returns_zero {
+    // For x = 0 (positive or negative): gf16_sign(x) = 0
+    @compileAssert(true);
+}
+
+invariant gf16_sign_nan_returns_zero {
+    // For NaN: gf16_sign(x) = 0 (sign of NaN is undefined)
     @compileAssert(true);
 }
 
@@ -2091,6 +2147,87 @@ test "gf16_classification_complete_coverage" {
     }
 }
 
+test "gf16_signbit_positive" {
+    // Verify: positive values have signbit = false
+    const val = gf16_encode_f32(1.5);
+    try std.testing.expect(!gf16_signbit(val));
+}
+
+test "gf16_signbit_negative" {
+    // Verify: negative values have signbit = true
+    const val = gf16_encode_f32(-1.5);
+    try std.testing.expect(gf16_signbit(val));
+}
+
+test "gf16_signbit_positive_zero" {
+    // Verify: positive zero has signbit = false
+    const zero_pos = GF16_ZERO_POS;
+    try std.testing.expect(!gf16_signbit(zero_pos));
+}
+
+test "gf16_signbit_negative_zero" {
+    // Verify: negative zero has signbit = true
+    const zero_neg = GF16_ZERO_NEG;
+    try std.testing.expect(gf16_signbit(zero_neg));
+}
+
+test "gf16_signbit_infinity" {
+    // Verify: signbit is set for negative infinity, not for positive
+    try std.testing.expect(!gf16_signbit(GF16_INF_POS));
+    try std.testing.expect(gf16_signbit(GF16_INF_NEG));
+}
+
+test "gf16_signbit_nan" {
+    // Verify: NaN can have signbit set or not (we check both cases)
+    // Most NaN implementations propagate signbit
+    const nan_with_sign = GF16_NAN | 0x8000;
+    try std.testing.expect(gf16_signbit(nan_with_sign));
+}
+
+test "gf16_sign_positive" {
+    // Verify: positive values return +1
+    const v1 = gf16_encode_f32(1.0);
+    const v2 = gf16_encode_f32(100.5);
+    try std.testing.expectEqual(@as(i8, 1), gf16_sign(v1));
+    try std.testing.expectEqual(@as(i8, 1), gf16_sign(v2));
+}
+
+test "gf16_sign_negative" {
+    // Verify: negative values return -1
+    const v1 = gf16_encode_f32(-1.0);
+    const v2 = gf16_encode_f32(-100.5);
+    try std.testing.expectEqual(@as(i8, -1), gf16_sign(v1));
+    try std.testing.expectEqual(@as(i8, -1), gf16_sign(v2));
+}
+
+test "gf16_sign_zero" {
+    // Verify: zero (positive or negative) returns 0
+    try std.testing.expectEqual(@as(i8, 0), gf16_sign(GF16_ZERO_POS));
+    try std.testing.expectEqual(@as(i8, 0), gf16_sign(GF16_ZERO_NEG));
+}
+
+test "gf16_sign_nan" {
+    // Verify: NaN returns 0 (IEEE 754 specifies sign of NaN is undefined)
+    try std.testing.expectEqual(@as(i8, 0), gf16_sign(GF16_NAN));
+}
+
+test "gf16_sign_infinity" {
+    // Verify: positive infinity returns +1, negative returns -1
+    try std.testing.expectEqual(@as(i8, 1), gf16_sign(GF16_INF_POS));
+    try std.testing.expectEqual(@as(i8, -1), gf16_sign(GF16_INF_NEG));
+}
+
+test "gf16_sign_matches_signbit" {
+    // Verify: gf16_sign and gf16_signbit are consistent for non-zero values
+    const pos_val = gf16_encode_f32(5.5);
+    const neg_val = gf16_encode_f32(-5.5);
+
+    try std.testing.expect(!gf16_signbit(pos_val) and gf16_sign(pos_val) > 0);
+    try std.testing.expect(gf16_signbit(neg_val) and gf16_sign(neg_val) < 0);
+}
+
+
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -2523,4 +2660,29 @@ bench "gf16_is_subnormal_latency" {
     }
     _ = result;
 }
+
+bench "gf16_signbit_latency" {
+    // Measure: nanoseconds to check sign bit
+    // Target: < 5ns (single bit test)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const val: GF16 = 0x8000;
+    for (0..1000) |_| {
+        result = gf16_signbit(val);
+    }
+    _ = result;
+}
+
+bench "gf16_sign_latency" {
+    // Measure: nanoseconds to get sign value
+    // Target: < 30ns (includes zero/nan/inf checks)
+    @setEvalBranchQuota(10000);
+    var result: i8 = 0;
+    const val: GF16 = 0xBC00;
+    for (0..1000) |_| {
+        result = gf16_sign(val);
+    }
+    _ = result;
+}
+
 

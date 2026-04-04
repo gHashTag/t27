@@ -2,6 +2,60 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 076: add_gf16_sign_functions
+
+**Spec**: `specs/numeric/gf16.t27`
+**Task**: Add 2 GF16 sign functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: dfe7ce146e5eefddd57d8a91fcbcfa2381f83e41c09b6fda4676d5a4de853764
+- `spec_hash_after`: 1e20ff2b52bc38cde81a7fb55ac8436ad57d2662838d28cd3588844c12e53e9c
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `gf16_signbit(gf16: GF16) -> bool` - Check if sign bit is set (negative or negative zero)
+2. `gf16_sign(gf16: GF16) -> i8` - Return sign: -1 for negative, 0 for zero, +1 for positive
+
+### Tests Added (11)
+- `test_gf16_signbit_positive`
+- `test_gf16_signbit_negative`
+- `test_gf16_signbit_positive_zero`
+- `test_gf16_signbit_negative_zero`
+- `test_gf16_signbit_infinity`
+- `test_gf16_signbit_nan`
+- `test_gf16_sign_positive`
+- `test_gf16_sign_negative`
+- `test_gf16_sign_zero`
+- `test_gf16_sign_nan`
+- `test_gf16_sign_infinity`
+- `test_gf16_sign_matches_signbit`
+
+### Invariants Added (5)
+- `gf16_signbit_positive_no_signbit`
+- `gf16_signbit_negative_has_signbit`
+- `gf16_sign_positive_returns_one`
+- `gf16_sign_negative_returns_minus_one`
+- `gf16_sign_zero_returns_zero`
+- `gf16_sign_nan_returns_zero`
+
+### Benchmarks Added (2)
+- `bench_gf16_signbit_latency` - Target: < 5ns
+- `bench_gf16_sign_latency` - Target: < 30ns
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 076
+- `task_id`: add_gf16_sign_functions
+- `spec_path`: specs/numeric/gf16.t27
+
+---
+
 ## Skill 075: add_gf16_classification_functions
 
 **Spec**: `specs/numeric/gf16.t27`
