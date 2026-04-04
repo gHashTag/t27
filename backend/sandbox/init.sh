@@ -2,7 +2,6 @@
 set -euo pipefail
 
 WORKSPACE_DIR="/home/sandbox/workspace"
-OPENCODE_CONFIG_DIR="${WORKSPACE_DIR}/.opencode"
 
 log() {
   echo "[sandbox-init] $*"
@@ -26,7 +25,6 @@ fi
 if [[ -n "${SANDBOX_REPO_URL:-}" ]] && [[ -n "${GH_TOKEN:-}" ]]; then
   log "Cloning repository: ${SANDBOX_REPO_URL}"
 
-  # Derive a clean directory name from the repo URL
   REPO_NAME="$(basename "${SANDBOX_REPO_URL}" .git)"
   TARGET_DIR="${WORKSPACE_DIR}/${REPO_NAME}"
 
@@ -38,7 +36,6 @@ if [[ -n "${SANDBOX_REPO_URL:-}" ]] && [[ -n "${GH_TOKEN:-}" ]]; then
     log "Repository cloned to ${TARGET_DIR}."
   fi
 
-  # Switch to the cloned repo as working directory for opencode
   cd "${TARGET_DIR}"
 else
   log "SANDBOX_REPO_URL or GH_TOKEN not set — starting opencode in empty workspace."
@@ -46,105 +43,70 @@ else
 fi
 
 # ──────────────────────────────────────────────
-# 3. Write opencode.json with provider settings
+# 3. Write opencode.json (correct schema)
 # ──────────────────────────────────────────────
 log "Writing opencode configuration..."
-mkdir -p "${OPENCODE_CONFIG_DIR}"
 
-# Build the providers block dynamically based on available API keys
-PROVIDERS_JSON=""
-
-if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-  PROVIDERS_JSON="${PROVIDERS_JSON}
-    \"anthropic\": {
-      \"apiKey\": \"${ANTHROPIC_API_KEY}\"
-    },"
-fi
-
-if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-  PROVIDERS_JSON="${PROVIDERS_JSON}
-    \"openai\": {
-      \"apiKey\": \"${OPENAI_API_KEY}\"
-    },"
-fi
-
-if [[ -n "${GEMINI_API_KEY:-}" ]]; then
-  PROVIDERS_JSON="${PROVIDERS_JSON}
-    \"google\": {
-      \"apiKey\": \"${GEMINI_API_KEY}\"
-    },"
-fi
-
-if [[ -n "${GROQ_API_KEY:-}" ]]; then
-  PROVIDERS_JSON="${PROVIDERS_JSON}
-    \"groq\": {
-      \"apiKey\": \"${GROQ_API_KEY}\"
-    },"
-fi
-
-# Trim trailing comma from last provider entry
-PROVIDERS_JSON="${PROVIDERS_JSON%,}"
-
-# Determine default model based on available keys (prefer Anthropic → OpenAI → Google)
+# Determine default model based on available keys
 DEFAULT_MODEL="anthropic/claude-sonnet-4-5"
+SMALL_MODEL="anthropic/claude-haiku-3-5"
 if [[ -z "${ANTHROPIC_API_KEY:-}" ]] && [[ -n "${OPENAI_API_KEY:-}" ]]; then
   DEFAULT_MODEL="openai/gpt-4o"
+  SMALL_MODEL="openai/gpt-4o-mini"
 elif [[ -z "${ANTHROPIC_API_KEY:-}" ]] && [[ -z "${OPENAI_API_KEY:-}" ]] && [[ -n "${GEMINI_API_KEY:-}" ]]; then
-  DEFAULT_MODEL="google/gemini-2.0-flash"
+  DEFAULT_MODEL="google/gemini-2.5-flash"
+  SMALL_MODEL="google/gemini-2.5-flash"
 fi
 
-# Write the config file. The copy in the repo root takes precedence at runtime;
-# we also write to the default XDG config location as a fallback.
-cat > opencode.json <<EOF
+# Build providers JSON
+PROVIDERS_JSON=""
+if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+  PROVIDERS_JSON="${PROVIDERS_JSON}\"anthropic\":{\"apiKey\":\"${ANTHROPIC_API_KEY}\"},"
+fi
+if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  PROVIDERS_JSON="${PROVIDERS_JSON}\"openai\":{\"apiKey\":\"${OPENAI_API_KEY}\"},"
+fi
+if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+  PROVIDERS_JSON="${PROVIDERS_JSON}\"gemini\":{\"apiKey\":\"${GEMINI_API_KEY}\"},"
+fi
+if [[ -n "${GROQ_API_KEY:-}" ]]; then
+  PROVIDERS_JSON="${PROVIDERS_JSON}\"groq\":{\"apiKey\":\"${GROQ_API_KEY}\"},"
+fi
+PROVIDERS_JSON="${PROVIDERS_JSON%,}"
+
+# Build mcpServers JSON (only if RAILWAY_API_TOKEN is set)
+MCP_JSON=""
+if [[ -n "${RAILWAY_API_TOKEN:-}" ]]; then
+  MCP_JSON="\"mcpServers\":{\"railway\":{\"type\":\"local\",\"command\":[\"npx\",\"-y\",\"@railway/mcp-server\"],\"environment\":{\"RAILWAY_API_TOKEN\":\"${RAILWAY_API_TOKEN}\"}}},"
+fi
+
+# Write config following the official schema:
+# https://opencode.ai/docs/config/
+# https://mintlify.com/opencode-ai/opencode/reference/config-schema
+cat > opencode.json <<ENDJSON
 {
   "\$schema": "https://opencode.ai/config.json",
   "model": "${DEFAULT_MODEL}",
-  "providers": {${PROVIDERS_JSON}
-  },
-  "keybindings": {
-    "leader": "ctrl+k"
-  },
-  "mcp": {
-    "railway": {
-      "type": "local",
-      "command": "npx",
-      "args": ["-y", "@railway/mcp-server"],
-      "env": {
-        "RAILWAY_API_TOKEN": "${RAILWAY_API_TOKEN:-}"
-      }
-    }
-  },
+  "small_model": "${SMALL_MODEL}",
+  "providers": {${PROVIDERS_JSON}},
+  ${MCP_JSON}
   "agents": {
-    "t27-swe": {
-      "name": "T27 SWE Agent",
-      "description": "Software engineering agent for T27 Railway-based sandbox.",
+    "coder": {
       "model": "${DEFAULT_MODEL}",
-      "tools": [
-        "bash",
-        "read",
-        "write",
-        "edit",
-        "glob",
-        "grep",
-        "fetch",
-        "mcp:railway"
-      ],
-      "system": "You are an expert software engineer operating inside a Railway sandbox. You have full access to the cloned repository. You can run arbitrary shell commands, read and write files, and interact with the Railway platform via MCP. Be concise and precise. Prefer small, targeted edits over large rewrites. Always verify your changes compile or pass lint before finishing."
+      "maxTokens": 8000
+    },
+    "task": {
+      "model": "${SMALL_MODEL}",
+      "maxTokens": 4000
+    },
+    "title": {
+      "model": "${SMALL_MODEL}"
     }
-  },
-  "tools": {
-    "bash": { "enabled": true },
-    "read": { "enabled": true },
-    "write": { "enabled": true },
-    "edit": { "enabled": true },
-    "glob": { "enabled": true },
-    "grep": { "enabled": true },
-    "fetch": { "enabled": true }
   }
 }
-EOF
+ENDJSON
 
-# Also copy to a global config location so opencode can find it regardless of CWD
+# Copy to global config location
 mkdir -p "${HOME}/.config/opencode"
 cp opencode.json "${HOME}/.config/opencode/opencode.json"
 
@@ -153,15 +115,14 @@ log "opencode.json written."
 # ──────────────────────────────────────────────
 # 4. Start OpenCode web server
 # ──────────────────────────────────────────────
-log "Starting OpenCode web server on 0.0.0.0:8080..."
+log "Starting OpenCode web server on 0.0.0.0:${PORT:-8080}..."
 
-# Give opencode a chance to start; if it exits immediately fall back to code-server
 if command -v opencode &>/dev/null; then
-  exec opencode web --hostname 0.0.0.0 --port 8080
+  exec opencode web --hostname 0.0.0.0 --port "${PORT:-8080}"
 else
-  log "ERROR: opencode binary not found on PATH (${PATH}). Falling back to code-server..."
+  log "ERROR: opencode binary not found. Falling back to code-server..."
   exec code-server \
-    --bind-addr 0.0.0.0:8080 \
+    --bind-addr "0.0.0.0:${PORT:-8080}" \
     --auth none \
     --disable-telemetry \
     .
