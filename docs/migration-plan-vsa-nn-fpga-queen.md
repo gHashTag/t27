@@ -147,10 +147,36 @@ git push
 | 027 | compiler/codegen/c/codegen.t27 | de6c5db | ✅ COMPLETE |
 | 028 | compiler/runtime/runtime.t27 | d8d298d | ✅ COMPLETE |
 | 029 | compiler/parser/lexer.t27 | 010a598 | ✅ COMPLETE |
+| 030 | architecture/graph_v2.json | 3ddcffd | ✅ COMPLETE |
+| 031 | architecture/graph.tri | 823a1e9 | ✅ COMPLETE |
+| 032 | CANON_DE_ZIGFICATION.md + ADR-001 | ade5ada | ✅ COMPLETE |
 | 033 | compiler/codegen/zig/runtime.t27 | 0e989f9 | ✅ COMPLETE |
+| 034 | compiler/skill/registry.t27 | f7bf85e | ✅ COMPLETE |
+| 035 | compiler/runtime/validation.t27 | 373261d | ✅ COMPLETE |
+| 036 | compiler/runtime/commands.t27 | 746e9c3 | ✅ COMPLETE |
+| 037 | compiler/cli/spec.t27 | ff0af85 | ✅ COMPLETE |
+| 038 | compiler/cli/gen.t27 | b04bb6e | ✅ COMPLETE |
+| 039 | compiler/runtime/runtime.t27 | 2fd620a | ✅ COMPLETE |
+| 040 | compiler/ast.t27 | d448bc8 | ✅ COMPLETE |
+| 041 | compiler/cli/git.t27 | 8018be7 | ✅ COMPLETE |
+| 042 | compiler/codegen/testgen.t27 | eccc93e | ✅ COMPLETE |
+| 043 | compiler/codegen/verilog/codegen.t27 | 730eaf1 | ✅ COMPLETE |
+| 044 | compiler/codegen/zig/codegen.t27 | 7435e2b | ✅ COMPLETE |
+| 045 | compiler/parser/parser.t27 | e972f1d | ✅ COMPLETE |
+| 046 | parser MemOperand tracking | aa10f07 | ✅ COMPLETE |
+| 047 | codegen VSA BIND/BUNDLE | 6aff4a0 | ✅ COMPLETE |
+| 048 | testgen verilog TODO | 31f0bc4 | ✅ COMPLETE |
+| 049 | verilog codegen TODOs | a3caf16 | ✅ COMPLETE |
+| 050 | zig codegen TODOs | da8642f | ✅ COMPLETE |
+| 051 | testgen TODOs expansion | a2ddcb0 | ✅ COMPLETE |
+| 052 | CANON_DE_ZIGFICATION update | c2ea417 | ✅ COMPLETE |
+| 053 | ADR-001 update | cde33b9 | ✅ COMPLETE |
 
 ## Следующие шаги
 
-1. **Обновить graph_v2.json**: Добавить новые узлы для compiler/* модулей
-2. **Верификация**: Запустить `tri gen`, `tri test`, `tri verdict --toxic`
-3. **Оптимизация**: Генерация Zig/C/Verilog из канонических .t27 спецификаций
+1. ✅ **Обновить graph_v2.json**: Все узлы обновлены, статус "done"
+2. ✅ **Архитектурные файлы**: CANON_DE_ZIGFICATION.md и ADR-001 обновлены
+3. ⏳ **Верификация**: Ожидает bootstrap - `tri gen`, `tri test`, `tri verdict --toxic`
+4. ⏳ **Оптимизация**: Генерация Zig/C/Verilog из канонических .t27 спецификаций
+
+**Блокер Bootstrap**: tri CLI требует генерации, но для генерации нужен tri CLI. Необходим bootstrap эпизод.
