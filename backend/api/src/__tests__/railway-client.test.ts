@@ -20,7 +20,7 @@ const { TOKEN_POOL } = vi.hoisted(() => ({
 
 vi.mock("../config.js", () => ({
   config: {
-    railwayGraphqlUrl: "https://backboard.railway.app/graphql/v2",
+    railwayGraphqlUrl: "https://backboard.railway.com/graphql/v2",
     railwayApiTokenPool: TOKEN_POOL,
   },
   getRailwayToken: (idx?: number) => TOKEN_POOL[(idx ?? 0) % TOKEN_POOL.length],
@@ -148,7 +148,7 @@ describe("railwayRequest", () => {
     await railwayRequest("query { ... }", { foo: "bar" }, 0);
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://backboard.railway.app/graphql/v2");
+    expect(url).toBe("https://backboard.railway.com/graphql/v2");
   });
 
   it("includes query and variables in the request body", async () => {
