@@ -456,6 +456,63 @@ pub fn gf16_square(a: GF16) GF16 {
     return gf16_mul(a, a);
 }
 
+// gf16_eq(a: GF16, b: GF16) → bool
+// Equality comparison for GF16
+// NaN values are never equal to anything (including themselves)
+pub fn gf16_eq(a: GF16, b: GF16) bool {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return false;
+    // For zero values, treat +0 and -0 as equal
+    if (gf16_is_zero(a) and gf16_is_zero(b)) return true;
+    return a == b;
+}
+
+// gf16_ne(a: GF16, b: GF16) → bool
+// Not-equal comparison for GF16
+// NaN values are not equal to anything (including themselves)
+pub fn gf16_ne(a: GF16, b: GF16) bool {
+    return !gf16_eq(a, b);
+}
+
+// gf16_lt(a: GF16, b: GF16) → bool
+// Less-than comparison for GF16
+// Returns false if either operand is NaN
+pub fn gf16_lt(a: GF16, b: GF16) bool {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return false;
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    return a_val < b_val;
+}
+
+// gf16_le(a: GF16, b: GF16) → bool
+// Less-than-or-equal comparison for GF16
+// Returns false if either operand is NaN
+pub fn gf16_le(a: GF16, b: GF16) bool {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return false;
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    return a_val <= b_val;
+}
+
+// gf16_gt(a: GF16, b: GF16) → bool
+// Greater-than comparison for GF16
+// Returns false if either operand is NaN
+pub fn gf16_gt(a: GF16, b: GF16) bool {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return false;
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    return a_val > b_val;
+}
+
+// gf16_ge(a: GF16, b: GF16) → bool
+// Greater-than-or-equal comparison for GF16
+// Returns false if either operand is NaN
+pub fn gf16_ge(a: GF16, b: GF16) bool {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return false;
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    return a_val >= b_val;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -900,6 +957,56 @@ invariant gf16_square_positive {
     @compileAssert(true);
 }
 
+invariant gf16_eq_reflexive_for_non_nan {
+    // For all x != NaN: gf16_eq(x, x) = true
+    @compileAssert(true);
+}
+
+invariant gf16_ne_irreflexive_for_non_nan {
+    // For all x != NaN: gf16_ne(x, x) = false
+    @compileAssert(true);
+}
+
+invariant gf16_lt_and_gt_mutually_exclusive {
+    // For all a, b: not (gf16_lt(a, b) and gf16_gt(a, b))
+    @compileAssert(true);
+}
+
+invariant gf16_le_and_ge_mutually_inclusive {
+    // For all a, b: gf16_le(a, b) or gf16_ge(a, b) (for non-NaN)
+    @compileAssert(true);
+}
+
+invariant gf16_lt_implies_le {
+    // For all a, b: gf16_lt(a, b) implies gf16_le(a, b)
+    @compileAssert(true);
+}
+
+invariant gf16_gt_implies_ge {
+    // For all a, b: gf16_gt(a, b) implies gf16_ge(a, b)
+    @compileAssert(true);
+}
+
+invariant gf16_eq_implies_le_and_ge {
+    // For all a, b: gf16_eq(a, b) implies gf16_le(a, b) and gf16_ge(a, b)
+    @compileAssert(true);
+}
+
+invariant gf16_ne_nan_is_true {
+    // gf16_ne(NaN, NaN) = true per IEEE 754
+    @compileAssert(true);
+}
+
+invariant gf16_lt_nan_is_false {
+    // gf16_lt(NaN, x) = false for all x
+    @compileAssert(true);
+}
+
+invariant gf16_gt_nan_is_false {
+    // gf16_gt(NaN, x) = false for all x
+    @compileAssert(true);
+}
+
 test "gf16_add_positive_values" {
     const a = gf16_encode_f32(1.5);
     const b = gf16_encode_f32(2.5);
@@ -1125,6 +1232,171 @@ test "gf16_sqrt_square_roundtrip" {
     const rooted = gf16_sqrt(squared);
     const decoded = gf16_decode_to_f32(rooted);
     try std.testing.expectApproxEqAbs(4.0, decoded, 0.2);
+}
+
+test "gf16_eq_equal_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(2.5);
+    try std.testing.expect(gf16_eq(a, b));
+}
+
+test "gf16_eq_different_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(3.5);
+    try std.testing.expect(!gf16_eq(a, b));
+}
+
+test "gf16_eq_pos_zero_eq_neg_zero" {
+    // IEEE 754: +0.0 == -0.0 is true
+    try std.testing.expect(gf16_eq(GF16_ZERO_POS, GF16_ZERO_NEG));
+}
+
+test "gf16_eq_nan_not_equal_nan" {
+    // NaN != NaN per IEEE 754
+    try std.testing.expect(!gf16_eq(GF16_NAN, GF16_NAN));
+}
+
+test "gf16_eq_nan_not_equal_value" {
+    const value = gf16_encode_f32(1.5);
+    try std.testing.expect(!gf16_eq(GF16_NAN, value));
+    try std.testing.expect(!gf16_eq(value, GF16_NAN));
+}
+
+test "gf16_ne_different_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(3.5);
+    try std.testing.expect(gf16_ne(a, b));
+}
+
+test "gf16_ne_equal_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(2.5);
+    try std.testing.expect(!gf16_ne(a, b));
+}
+
+test "gf16_ne_nan_not_equal_nan" {
+    // NaN != NaN per IEEE 754
+    try std.testing.expect(gf16_ne(GF16_NAN, GF16_NAN));
+}
+
+test "gf16_ne_nan_not_equal_value" {
+    const value = gf16_encode_f32(1.5);
+    try std.testing.expect(gf16_ne(GF16_NAN, value));
+    try std.testing.expect(gf16_ne(value, GF16_NAN));
+}
+
+test "gf16_lt_less_than" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    try std.testing.expect(gf16_lt(a, b));
+}
+
+test "gf16_lt_equal_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(2.5);
+    try std.testing.expect(!gf16_lt(a, b));
+}
+
+test "gf16_lt_greater_than" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(2.0);
+    try std.testing.expect(!gf16_lt(a, b));
+}
+
+test "gf16_lt_negative_positive" {
+    const neg = gf16_encode_f32(-2.0);
+    const pos = gf16_encode_f32(1.0);
+    try std.testing.expect(gf16_lt(neg, pos));
+}
+
+test "gf16_lt_with_nan" {
+    const value = gf16_encode_f32(1.5);
+    try std.testing.expect(!gf16_lt(GF16_NAN, value));
+    try std.testing.expect(!gf16_lt(value, GF16_NAN));
+}
+
+test "gf16_le_less_than_or_equal" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    try std.testing.expect(gf16_le(a, b));
+}
+
+test "gf16_le_equal_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(2.5);
+    try std.testing.expect(gf16_le(a, b));
+}
+
+test "gf16_le_greater_than" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(2.0);
+    try std.testing.expect(!gf16_le(a, b));
+}
+
+test "gf16_le_with_nan" {
+    const value = gf16_encode_f32(1.5);
+    try std.testing.expect(!gf16_le(GF16_NAN, value));
+    try std.testing.expect(!gf16_le(value, GF16_NAN));
+}
+
+test "gf16_gt_greater_than" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(2.0);
+    try std.testing.expect(gf16_gt(a, b));
+}
+
+test "gf16_gt_equal_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(2.5);
+    try std.testing.expect(!gf16_gt(a, b));
+}
+
+test "gf16_gt_less_than" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    try std.testing.expect(!gf16_gt(a, b));
+}
+
+test "gf16_gt_with_nan" {
+    const value = gf16_encode_f32(1.5);
+    try std.testing.expect(!gf16_gt(GF16_NAN, value));
+    try std.testing.expect(!gf16_gt(value, GF16_NAN));
+}
+
+test "gf16_ge_greater_than_or_equal" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(2.0);
+    try std.testing.expect(gf16_ge(a, b));
+}
+
+test "gf16_ge_equal_values" {
+    const a = gf16_encode_f32(2.5);
+    const b = gf16_encode_f32(2.5);
+    try std.testing.expect(gf16_ge(a, b));
+}
+
+test "gf16_ge_less_than" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    try std.testing.expect(!gf16_ge(a, b));
+}
+
+test "gf16_ge_with_nan" {
+    const value = gf16_encode_f32(1.5);
+    try std.testing.expect(!gf16_ge(GF16_NAN, value));
+    try std.testing.expect(!gf16_ge(value, GF16_NAN));
+}
+
+test "gf16_comparison_consistency" {
+    // Verify: lt, le, gt, ge, eq, ne are mutually consistent
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+
+    // a < b implies a <= b and !a > b and !a >= b
+    try std.testing.expect(gf16_lt(a, b));
+    try std.testing.expect(gf16_le(a, b));
+    try std.testing.expect(!gf16_gt(a, b));
+    try std.testing.expect(!gf16_ge(a, b));
 }
 
 // ============================================================================
@@ -1354,6 +1626,84 @@ bench "gf16_square_latency" {
     const a: GF16 = 0x3D00;
     for (0..1000) |_| {
         result = gf16_square(a);
+    }
+    _ = result;
+}
+
+bench "gf16_eq_latency" {
+    // Measure: nanoseconds to compare equality
+    // Target: < 30ns (simple comparison with NaN check)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_eq(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_ne_latency" {
+    // Measure: nanoseconds to compare not-equal
+    // Target: < 30ns (negation of eq)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_ne(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_lt_latency" {
+    // Measure: nanoseconds to compare less-than
+    // Target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_lt(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_le_latency" {
+    // Measure: nanoseconds to compare less-than-or-equal
+    // Target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_le(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_gt_latency" {
+    // Measure: nanoseconds to compare greater-than
+    // Target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_gt(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_ge_latency" {
+    // Measure: nanoseconds to compare greater-than-or-equal
+    // Target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_ge(a, b);
     }
     _ = result;
 }
