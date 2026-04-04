@@ -11,3 +11,4 @@ zig-out/
 # Temporary files
 *.tmp
 *.bak
+backend/api/node_modules/

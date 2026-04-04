@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, not, inArray, count as dbCount } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 import { config, railwayAccountCount } from "../config.js";
@@ -70,6 +70,19 @@ export const createSession = async ({
 }: CreateSessionInput) => {
   if (config.localMode) {
     throw new HttpError(403, "Session creation disabled in local mode");
+  }
+
+  // ── Enforce MAX_SESSIONS (spec invariant: session_count_bounded) ────
+  const [{ value: activeCount }] = await db
+    .select({ value: dbCount() })
+    .from(sessions)
+    .where(not(inArray(sessions.status, ["deleted", "failed"])));
+
+  if (activeCount >= config.maxSessions) {
+    throw new HttpError(
+      429,
+      `Session limit reached (${config.maxSessions}). Delete unused sessions first.`,
+    );
   }
 
   const resolvedName = name?.trim() ? name.trim() : generateSessionName();
