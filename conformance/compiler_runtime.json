@@ -1,0 +1,69 @@
+{
+  "module": "Runtime",
+  "spec_path": "compiler/runtime/runtime.t27",
+  "ring": 37,
+  "generated_at": "2026-04-04T21:10:00Z",
+  "vectors": [
+    {
+      "function": "STACK_SIZE",
+      "cases": [
+        { "inputs": { "constant": "STACK_SIZE" }, "expected": 1024 }
+      ]
+    },
+    {
+      "function": "HEAP_SIZE",
+      "cases": [
+        { "inputs": { "constant": "HEAP_SIZE" }, "expected": 4096 }
+      ]
+    },
+    {
+      "function": "ThreadState",
+      "cases": [
+        { "inputs": { "variant": "Ready" }, "expected": 0 },
+        { "inputs": { "variant": "Running" }, "expected": 1 },
+        { "inputs": { "variant": "Blocked" }, "expected": 2 },
+        { "inputs": { "variant": "Terminated" }, "expected": 3 }
+      ]
+    },
+    {
+      "function": "Runtime.init",
+      "cases": [
+        { "inputs": { "stack_size": 1024, "heap_size": 4096 }, "expected_state": "Ready" },
+        { "inputs": { "stack_size": 512, "heap_size": 2048 }, "expected_state": "Ready" },
+        { "inputs": { "stack_size": 0, "heap_size": 4096 }, "expected": 1 }
+      ]
+    },
+    {
+      "function": "Runtime.execute",
+      "cases": [
+        { "inputs": { "opcode": "HALT" }, "expected_state": "Terminated" },
+        { "inputs": { "opcode": "MOV", "args": ["r0", "42"] }, "expected_state": "Running" },
+        { "inputs": { "opcode": "ADD", "args": ["r0", "r1", "r2"] }, "expected_state": "Running" },
+        { "inputs": { "opcode": "INVALID" }, "expected": 1 }
+      ]
+    },
+    {
+      "function": "Runtime.reset",
+      "cases": [
+        { "inputs": { "current_state": "Terminated" }, "expected_state": "Ready" },
+        { "inputs": { "current_state": "Running" }, "expected_state": "Ready" }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "stack_size_positive", "assert": "STACK_SIZE > 0" },
+    { "name": "heap_size_positive", "assert": "HEAP_SIZE > 0" },
+    { "name": "thread_state_enum_sequential", "assert": "Ready < Running < Blocked < Terminated" },
+    { "name": "init_requires_nonzero_stack", "assert": "Runtime.init fails if stack_size is 0" },
+    { "name": "init_sets_state_ready", "assert": "Runtime.init always sets state to Ready on success" },
+    { "name": "execute_halt_terminates", "assert": "Executing HALT opcode sets state to Terminated" },
+    { "name": "execute_invalid_returns_error", "assert": "Executing invalid opcode returns error code 1" },
+    { "name": "reset_returns_to_ready", "assert": "Runtime.reset always sets state to Ready" }
+  ],
+  "benchmarks": [
+    { "name": "runtime_init_latency", "target": "< 1ms" },
+    { "name": "runtime_execute_single_op_latency", "target": "< 100ns" },
+    { "name": "runtime_execute_1k_ops_latency", "target": "< 1ms" },
+    { "name": "runtime_reset_latency", "target": "< 100ns" }
+  ]
+}
