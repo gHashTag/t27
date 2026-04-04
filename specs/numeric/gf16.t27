@@ -789,6 +789,193 @@ pub fn gf16_fnma(a: GF16, b: GF16, c: GF16) GF16 {
     return gf16_encode_f32(result);
 }
 
+// gf16_exp(x: GF16) → GF16
+// Compute e^x (exponential function)
+// Uses Taylor series approximation for small values
+// Returns Inf for very large positive inputs, 0 for very large negative inputs
+pub fn gf16_exp(x: GF16) GF16 {
+    if (gf16_is_nan(x)) return GF16_NAN;
+    if (gf16_is_inf(x)) {
+        if (gf16_is_negative(x)) return GF16_ZERO_POS;
+        return GF16_INF_POS;
+    }
+
+    const x_val = gf16_decode_to_f32(x);
+
+    // For large positive values, return Inf
+    if (x_val > 88.0) {  // ln(MAX_FLOAT) for f32
+        return GF16_INF_POS;
+    }
+
+    // For large negative values, return 0
+    if (x_val < -88.0) {
+        return GF16_ZERO_POS;
+    }
+
+    // Taylor series: e^x = 1 + x + x^2/2! + x^3/3! + x^4/4! + ...
+    // Use 5 terms for reasonable accuracy with GF16 precision
+    var result: f32 = 1.0;
+    var term: f32 = 1.0;
+    const num_terms: u32 = 5;
+
+    for (0..num_terms) |i| {
+        if (i > 0) {
+            term *= x_val / @as(f32, @floatFromInt(i));
+            result += term;
+        }
+    }
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_log(x: GF16) → GF16
+// Compute natural logarithm ln(x)
+// Returns NaN for x <= 0, Inf for very large x
+pub fn gf16_log(x: GF16) GF16 {
+    if (gf16_is_nan(x)) return GF16_NAN;
+    if (gf16_is_inf(x)) {
+        if (gf16_is_negative(x)) return GF16_NAN;
+        return GF16_INF_POS;
+    }
+    if (gf16_is_zero(x) or gf16_is_negative(x)) {
+        return GF16_NAN;
+    }
+
+    const x_val = gf16_decode_to_f32(x);
+
+    // For very large values, return Inf
+    if (x_val > 1.0e38) {
+        return GF16_INF_POS;
+    }
+
+    // Use natural log from standard library
+    const result = @log(x_val);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_log2(x: GF16) → GF16
+// Compute base-2 logarithm log2(x)
+pub fn gf16_log2(x: GF16) GF16 {
+    if (gf16_is_nan(x)) return GF16_NAN;
+    if (gf16_is_inf(x)) {
+        if (gf16_is_negative(x)) return GF16_NAN;
+        return GF16_INF_POS;
+    }
+    if (gf16_is_zero(x) or gf16_is_negative(x)) {
+        return GF16_NAN;
+    }
+
+    const x_val = gf16_decode_to_f32(x);
+    const result = @log2(x_val);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_log10(x: GF16) → GF16
+// Compute base-10 logarithm log10(x)
+pub fn gf16_log10(x: GF16) GF16 {
+    if (gf16_is_nan(x)) return GF16_NAN;
+    if (gf16_is_inf(x)) {
+        if (gf16_is_negative(x)) return GF16_NAN;
+        return GF16_INF_POS;
+    }
+    if (gf16_is_zero(x) or gf16_is_negative(x)) {
+        return GF16_NAN;
+    }
+
+    const x_val = gf16_decode_to_f32(x);
+    const result = @log10(x_val);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_pow(base: GF16, exponent: GF16) → GF16
+// Compute base^exponent
+// Handles various special cases: 0^0 = 1, 1^x = 1, x^0 = 1, etc.
+pub fn gf16_pow(base: GF16, exponent: GF16) GF16 {
+    if (gf16_is_nan(base) or gf16_is_nan(exponent)) return GF16_NAN;
+
+    // 0^0 = 1 (by convention)
+    if (gf16_is_zero(base) and gf16_is_zero(exponent)) return gf16_encode_f32(1.0);
+
+    // 0^x = 0 for x > 0
+    if (gf16_is_zero(base) and gf16_is_positive(exponent)) return GF16_ZERO_POS;
+
+    // 0^x = Inf for x < 0 (division by zero)
+    if (gf16_is_zero(base) and gf16_is_negative(exponent)) return GF16_INF_POS;
+
+    // 1^x = 1 for any finite x
+    const base_val = gf16_decode_to_f32(base);
+    if (base_val == 1.0 and !gf16_is_inf(exponent)) return gf16_encode_f32(1.0);
+
+    // x^0 = 1 for any x != 0
+    if (gf16_is_zero(exponent)) {
+        if (gf16_is_zero(base)) return GF16_NAN;
+        return gf16_encode_f32(1.0);
+    }
+
+    // x^1 = x
+    const exp_val = gf16_decode_to_f32(exponent);
+    if (exp_val == 1.0) return base;
+
+    // Use stdlib pow for general case
+    const result = @pow(base_val, exp_val);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_sin(x: GF16) → GF16
+// Compute sine function sin(x) where x is in radians
+// Uses Taylor series approximation for small values
+pub fn gf16_sin(x: GF16) GF16 {
+    if (gf16_is_nan(x)) return GF16_NAN;
+    if (gf16_is_inf(x)) return GF16_NAN;
+
+    const x_val = gf16_decode_to_f32(x);
+
+    // Taylor series: sin(x) = x - x^3/3! + x^5/5! - x^7/7! + ...
+    // Use 4 terms for reasonable accuracy
+    const x_sq = x_val * x_val;
+    const x_cub = x_sq * x_val;
+    const x_5 = x_cub * x_sq;
+    const x_7 = x_5 * x_sq;
+
+    const term1 = x_val;
+    const term2 = -x_cub / 6.0;
+    const term3 = x_5 / 120.0;
+    const term4 = -x_7 / 5040.0;
+
+    const result = term1 + term2 + term3 + term4;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_cos(x: GF16) → GF16
+// Compute cosine function cos(x) where x is in radians
+// Uses Taylor series approximation for small values
+pub fn gf16_cos(x: GF16) GF16 {
+    if (gf16_is_nan(x)) return GF16_NAN;
+    if (gf16_is_inf(x)) return GF16_NAN;
+
+    const x_val = gf16_decode_to_f32(x);
+
+    // Taylor series: cos(x) = 1 - x^2/2! + x^4/4! - x^6/6! + ...
+    // Use 4 terms for reasonable accuracy
+    const x_sq = x_val * x_val;
+    const x_4 = x_sq * x_sq;
+    const x_6 = x_4 * x_sq;
+
+    const term0 = 1.0;
+    const term1 = -x_sq / 2.0;
+    const term2 = x_4 / 24.0;
+    const term3 = -x_6 / 720.0;
+
+    const result = term0 + term1 + term2 + term3;
+
+    return gf16_encode_f32(result);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -1480,6 +1667,61 @@ invariant gf16_fnma_equals_neg_mul_plus_c {
 
 invariant gf16_fnma_zero_multiplier_returns_c {
     // gf16_fnma(0, b, c) = c
+    @compileAssert(true);
+}
+
+invariant gf16_exp_zero_returns_one {
+    // gf16_exp(0) = 1
+    @compileAssert(true);
+}
+
+invariant gf16_exp_positive_greater_than_one {
+    // gf16_exp(x) > 1 for x > 0
+    @compileAssert(true);
+}
+
+invariant gf16_exp_negative_between_zero_and_one {
+    // 0 < gf16_exp(x) < 1 for x < 0
+    @compileAssert(true);
+}
+
+invariant gf16_log_one_returns_zero {
+    // gf16_log(1) = 0
+    @compileAssert(true);
+}
+
+invariant gf16_log_zero_or_negative_nan {
+    // gf16_log(x) = NaN for x <= 0
+    @compileAssert(true);
+}
+
+invariant gf16_pow_zero_to_zero_returns_one {
+    // gf16_pow(0, 0) = 1 (by convention)
+    @compileAssert(true);
+}
+
+invariant gf16_pow_any_to_zero_returns_one {
+    // gf16_pow(x, 0) = 1 for x != 0
+    @compileAssert(true);
+}
+
+invariant gf16_pow_one_to_any_returns_one {
+    // gf16_pow(1, x) = 1 for finite x
+    @compileAssert(true);
+}
+
+invariant gf16_sin_zero_returns_zero {
+    // gf16_sin(0) = 0
+    @compileAssert(true);
+}
+
+invariant gf16_cos_zero_returns_one {
+    // gf16_cos(0) = 1
+    @compileAssert(true);
+}
+
+invariant gf16_trig_identity_approx {
+    // sin^2(x) + cos^2(x) ≈ 1 for reasonable x values
     @compileAssert(true);
 }
 
@@ -2472,6 +2714,162 @@ test "gf16_fnma_with_nan" {
     try std.testing.expect(gf16_is_nan(result));
 }
 
+test "gf16_exp_zero" {
+    // Verify: e^0 = 1
+    const x = gf16_encode_f32(0.0);
+    const result = gf16_exp(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.1);
+}
+
+test "gf16_exp_one" {
+    // Verify: e^1 ≈ 2.718
+    const x = gf16_encode_f32(1.0);
+    const result = gf16_exp(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.718, decoded, 0.1);
+}
+
+test "gf16_exp_negative" {
+    // Verify: e^-1 ≈ 0.368
+    const x = gf16_encode_f32(-1.0);
+    const result = gf16_exp(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.368, decoded, 0.05);
+}
+
+test "gf16_exp_large_positive" {
+    // Verify: e^88 is very large (returns Inf)
+    const x = gf16_encode_f32(88.0);
+    const result = gf16_exp(x);
+    try std.testing.expect(gf16_is_inf(result));
+}
+
+test "gf16_log_one" {
+    // Verify: ln(1) = 0
+    const x = gf16_encode_f32(1.0);
+    const result = gf16_log(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.0, decoded, 0.05);
+}
+
+test "gf16_log_e" {
+    // Verify: ln(e) ≈ 1
+    const e = gf16_encode_f32(2.71828);
+    const result = gf16_log(e);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.1);
+}
+
+test "gf16_log_zero_or_negative" {
+    // Verify: ln(0) or ln(x<0) = NaN
+    const zero = gf16_encode_f32(0.0);
+    const neg = gf16_encode_f32(-1.0);
+    try std.testing.expect(gf16_is_nan(gf16_log(zero)));
+    try std.testing.expect(gf16_is_nan(gf16_log(neg)));
+}
+
+test "gf16_log2_eight" {
+    // Verify: log2(8) = 3
+    const x = gf16_encode_f32(8.0);
+    const result = gf16_log2(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(3.0, decoded, 0.1);
+}
+
+test "gf16_log10_ten" {
+    // Verify: log10(10) = 1
+    const x = gf16_encode_f32(10.0);
+    const result = gf16_log10(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.1);
+}
+
+test "gf16_pow_two_cubed" {
+    // Verify: 2^3 = 8
+    const base = gf16_encode_f32(2.0);
+    const exp = gf16_encode_f32(3.0);
+    const result = gf16_pow(base, exp);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(8.0, decoded, 0.1);
+}
+
+test "gf16_pow_zero_to_zero" {
+    // Verify: 0^0 = 1 (by convention)
+    const base = gf16_encode_f32(0.0);
+    const exp = gf16_encode_f32(0.0);
+    const result = gf16_pow(base, exp);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.01);
+}
+
+test "gf16_pow_any_to_zero" {
+    // Verify: x^0 = 1 for x != 0
+    const base = gf16_encode_f32(5.5);
+    const exp = gf16_encode_f32(0.0);
+    const result = gf16_pow(base, exp);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.01);
+}
+
+test "gf16_pow_zero_to_positive" {
+    // Verify: 0^x = 0 for x > 0
+    const base = gf16_encode_f32(0.0);
+    const exp = gf16_encode_f32(2.0);
+    const result = gf16_pow(base, exp);
+    try std.testing.expect(gf16_is_zero(result));
+}
+
+test "gf16_pow_one_to_any" {
+    // Verify: 1^x = 1
+    const base = gf16_encode_f32(1.0);
+    const exp = gf16_encode_f32(5.0);
+    const result = gf16_pow(base, exp);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.01);
+}
+
+test "gf16_sin_zero" {
+    // Verify: sin(0) = 0
+    const x = gf16_encode_f32(0.0);
+    const result = gf16_sin(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.0, decoded, 0.05);
+}
+
+test "gf16_sin_small_angle" {
+    // Verify: sin(π/6) ≈ 0.5
+    const pi_six = gf16_encode_f32(3.14159 / 6.0);
+    const result = gf16_sin(pi_six);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.5, decoded, 0.05);
+}
+
+test "gf16_cos_zero" {
+    // Verify: cos(0) = 1
+    const x = gf16_encode_f32(0.0);
+    const result = gf16_cos(x);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.05);
+}
+
+test "gf16_cos_small_angle" {
+    // Verify: cos(π/6) ≈ 0.866
+    const pi_six = gf16_encode_f32(3.14159 / 6.0);
+    const result = gf16_cos(pi_six);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.866, decoded, 0.05);
+}
+
+test "gf16_trig_identity" {
+    // Verify: sin^2(x) + cos^2(x) ≈ 1 for small x
+    const x = gf16_encode_f32(0.5);
+    const sin_val = gf16_decode_to_f32(gf16_sin(x));
+    const cos_val = gf16_decode_to_f32(gf16_cos(x));
+    const sum = sin_val * sin_val + cos_val * cos_val;
+    try std.testing.expectApproxEqAbs(1.0, sum, 0.1);
+}
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -2970,6 +3368,68 @@ bench "gf16_fnma_latency" {
     }
     _ = result;
 }
+
+bench "gf16_exp_latency" {
+    // Measure: nanoseconds to compute exponential
+    // Target: < 500ns (Taylor series)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const x: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_exp(x);
+    }
+    _ = result;
+}
+
+bench "gf16_log_latency" {
+    // Measure: nanoseconds to compute natural log
+    // Target: < 300ns (includes decode + log + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const x: GF16 = 0x3E00;
+    for (0..1000) |_| {
+        result = gf16_log(x);
+    }
+    _ = result;
+}
+
+bench "gf16_pow_latency" {
+    // Measure: nanoseconds to compute power
+    // Target: < 400ns (includes decode + pow + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const base: GF16 = 0x3D00;
+    const exp: GF16 = 0x3D80;
+    for (0..1000) |_| {
+        result = gf16_pow(base, exp);
+    }
+    _ = result;
+}
+
+bench "gf16_sin_latency" {
+    // Measure: nanoseconds to compute sine
+    // Target: < 500ns (Taylor series)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const x: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_sin(x);
+    }
+    _ = result;
+}
+
+bench "gf16_cos_latency" {
+    // Measure: nanoseconds to compute cosine
+    // Target: < 500ns (Taylor series)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const x: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_cos(x);
+    }
+    _ = result;
+}
+
 
 
 

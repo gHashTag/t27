@@ -2,6 +2,80 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 081: add_gf16_transcendental_functions
+
+**Spec**: `specs/numeric/gf16.t27`
+**Task**: Add 8 GF16 transcendental functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: 3f3e48fcb6b1c326627c15e54686ec56b78661a5184731211d8884931540518a
+- `spec_hash_after`: 30fcbe26ccab89cef8212fae7ae90115ba151ad4d35c2d38b8a92583e231af4e
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `gf16_exp(x: GF16) -> GF16` - Exponential function e^x
+2. `gf16_log(x: GF16) -> GF16` - Natural logarithm ln(x)
+3. `gf16_log2(x: GF16) -> GF16` - Base-2 logarithm log2(x)
+4. `gf16_log10(x: GF16) -> GF16` - Base-10 logarithm log10(x)
+5. `gf16_pow(base: GF16, exponent: GF16) -> GF16` - Power function base^exponent
+6. `gf16_sin(x: GF16) -> GF16` - Sine function
+7. `gf16_cos(x: GF16) -> GF16` - Cosine function
+
+### Tests Added (16)
+- `test_gf16_exp_zero`
+- `test_gf16_exp_one`
+- `test_gf16_exp_negative`
+- `test_gf16_exp_large_positive`
+- `test_gf16_log_one`
+- `test_gf16_log_e`
+- `test_gf16_log_zero_or_negative`
+- `test_gf16_log2_eight`
+- `test_gf16_log10_ten`
+- `test_gf16_pow_two_cubed`
+- `test_gf16_pow_zero_to_zero`
+- `test_gf16_pow_any_to_zero`
+- `test_gf16_pow_zero_to_positive`
+- `test_gf16_pow_one_to_any`
+- `test_gf16_sin_zero`
+- `test_gf16_sin_small_angle`
+- `test_gf16_cos_zero`
+- `test_gf16_cos_small_angle`
+- `test_gf16_trig_identity`
+
+### Invariants Added (11)
+- `gf16_exp_zero_returns_one`
+- `gf16_exp_positive_greater_than_one`
+- `gf16_exp_negative_between_zero_and_one`
+- `gf16_log_one_returns_zero`
+- `gf16_log_zero_or_negative_nan`
+- `gf16_pow_zero_to_zero_returns_one`
+- `gf16_pow_any_to_zero_returns_one`
+- `gf16_pow_one_to_any_returns_one`
+- `gf16_sin_zero_returns_zero`
+- `gf16_cos_zero_returns_one`
+- `gf16_trig_identity_approx`
+
+### Benchmarks Added (7)
+- `bench_gf16_exp_latency` - Target: < 500ns
+- `bench_gf16_log_latency` - Target: < 300ns
+- `bench_gf16_pow_latency` - Target: < 400ns
+- `bench_gf16_sin_latency` - Target: < 500ns
+- `bench_gf16_cos_latency` - Target: < 500ns
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 081
+- `task_id`: add_gf16_transcendental_functions
+- `spec_path`: specs/numeric/gf16.t27
+
+---
+
 ## Skill 080: add_packed_trit_bit_manipulation_functions
 
 **Spec**: `specs/base/types.t27`

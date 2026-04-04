@@ -1,7 +1,7 @@
 ---
 name: tri
 description: This skill should be used when user asks to "tri skill begin", "PHI LOOP", "edit .t27 spec", "seal hash", "tri gen", "tri test", "tri verdict", "tri experience save", or any task requiring spec-first development in the t27 Trinity S³AI project. Implements the canonical PHI LOOP workflow following constitutional laws.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # TRI Skill: PHI LOOP for t27 Spec-First Development
@@ -13,8 +13,8 @@ Execute the PHI LOOP workflow for Trinity S³AI Framework development. This skil
 **MANDATORY GUARDRAILS:**
 
 1. **NO-COMMIT-WITHOUT-ISSUE**: Every mutation MUST be bound to a GitHub issue via `tri skill begin --issue N`
-2. **NO-MUTATION-WITHOUT-CELL**: Every mutation requires an active cell from `.trinity/cells/registry.json`
-3. **READ-TRINITY-FIRST**: Before any action, read `.trinity/events/`, `.trinity/cells/`, `.trinity/state/`
+2. **NO-MUTATION-WITHOUT-SKILL**: Every mutation requires an active skill in `.trinity/state/active-skill.json`
+3. **READ-TRINITY-FIRST**: Before any action, read `.trinity/state/`, `.trinity/experience/`
 4. **CLAIM-BEFORE-MUTATE**: Acquire exclusive claim on target spec_path before editing
 
 **If NO active cell exists:**
@@ -48,8 +48,9 @@ When starting any task, check these files first before touching backend code:
 - `architecture/graphv2.json` — Typed graph definition
 
 **ALSO READ:**
-- `.trinity/cells/registry.json` — Active cells, skills, issue bindings
-- `.trinity/events/akashic-log.jsonl` — Immutable event history
+- `.trinity/state/active-skill.json` — Current active skill session
+- `.trinity/state/issue-binding.json` — Issue binding for active skill
+- `.trinity/experience/episodes.jsonl` — Completed PHI LOOP episodes
 - `.trinity/state/queen-health.json` — Current swarm health
 
 Never start from `src/*.zig` or runtime code. Always begin in specs/architecture/docs layers.
@@ -116,25 +117,23 @@ Required Actions:
 `.trinity/cells/registry.json` MUST follow:
 
 ```json
+# .trinity/state/active-skill.json — Active skill session
 {
-  "version": "2.0",
-  "active_cell": {
-    "id": "cell-20260404-0632-gf4-spec",
-    "skill": "tri-pipeline",
-    "standard": "NUMERIC-STANDARD-001",
-    "issue": "NN",
-    "issue_title": "NUMERIC-STANDARD-001 Recovery: GF4 spec",
-    "episode": "numeric-standard-001-gf4",
-    "agent": "N",
-    "spec_path": "specs/numeric/gf4.t27",
-    "started_at": "2026-04-04T06:32:00Z",
-    "checkpoints": [
-      {"step": 1, "name": "SPEC created", "hash": "sha256:...", "at": "..."}
-    ],
-    "state": "unsealed",
-    "verdict": null
-  },
-  "cells": [...]
+  "skill_id": null,
+  "session_id": null,
+  "issue_id": null,
+  "description": null,
+  "started_at": null,
+  "started_by": null,
+  "status": "closed"
+}
+
+# .trinity/state/issue-binding.json — Issue binding
+{
+  "issue_id": null,
+  "state": null,
+  "linked_skill_id": null,
+  "required_commit_message_pattern": "\\[ref: ISSUE_ID\\]"
 }
 ```
 
