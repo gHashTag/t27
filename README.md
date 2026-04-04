@@ -20,20 +20,33 @@ t27 is TRI-27 Assembly — a minimal assembly language for ternary computing wit
 
 ```
 t27/
-├── specs/              # .t27 specifications (SOURCE OF TRUTH)
+├── specs/              # 28 .t27 specifications (SOURCE OF TRUTH)
 │   ├── base/           # Base types and operations
-│   ├── numeric/        # Number formats (GoldenFloat, TF3)
-│   └── math/           # Sacred constants and physics
+│   ├── numeric/        # GoldenFloat GF4-GF32, TF3, phi_ratio
+│   ├── math/           # Sacred constants and physics
+│   ├── ar/             # CLARA AR module (7 specs)
+│   ├── nn/             # Neural networks (attention, HSLM)
+│   ├── vsa/            # Vector Symbolic Architecture
+│   ├── isa/            # 27 Coptic registers
+│   ├── fpga/           # Zero-DSP MAC unit
+│   ├── queen/          # Lotus orchestrator
+│   └── compiler/       # Spec-level parser
 │
-├── compiler/           # T27 Compiler
+├── compiler/           # 15 .t27 compiler stack
 │   ├── parser/         # .t27 → AST (lexer, parser)
 │   ├── codegen/        # AST → Target code
 │   │   ├── zig/       # .t27 → Zig 0.15
 │   │   ├── verilog/   # .t27 → Verilog (XC7A100T)
 │   │   └── c/         # .t27 → C (clang/gcc)
-│   └── runtime/        # Bootstrap runtime
+│   ├── runtime/        # Runtime (exec, commands, validation)
+│   ├── cli/            # CLI commands (gen, git, spec)
+│   └── skill/          # Skill registry
 │
-└── conformance/        # Language-agnostic test vectors
+├── conformance/        # Language-agnostic test vectors (12 JSON)
+│
+├── bootstrap/          # Bootstrap compiler (Rust + Python)
+│
+└── .github/            # CI workflows + issue templates
 ```
 
 ## Sacred Constants
@@ -93,23 +106,34 @@ const OMEGA_LAMBDA_MEASURED = 0.685     ; Dark energy (Planck)
 | BUNDLE | VSA bundle operation |
 | HALT   | Halt execution |
 
-## Documentation
-
-- [CANON_DE_ZIGFICATION.md](architecture/CANON_DE_ZIGFICATION.md) — De-Zig canonical law
-- [ADR-001: De-Zigфикация](architecture/ADR-001-de-zigfication.md) — Architecture decision record
-- [SOUL.md](docs/SOUL.md) — Trinity constitutional laws
-- [NUMERIC-STANDARD-001.md](docs/NUMERIC-STANDARD-001.md) — GoldenFloat family specification
-- [SACRED-PHYSICS-001.md](docs/SACRED-PHYSICS-001.md) — Sacred physics constants
-- [Migration Plan](docs/migration-plan-vsa-nn-fpga-queen.md) — Migration status and PHI LOOP skills
-
 ## PHI LOOP Status
 
-**Total Skills:** 55
-- 20+ .t27 specs standardized to canonical format
-- Complete compiler stack (parser, codegen zig/verilog/c, testgen, runtime, CLI)
-- All TODOs expanded with implementation guidance
-- Architecture files synchronized (graph.tri, graph_v2.json)
-- **Bootstrap Blocker:** tri CLI not yet built — gen/test/verdict steps pending
+- **18 seed rings** sealed (SEED-0 through SEED-17)
+- **43 .t27 spec files** (28 specs/ + 15 compiler/)
+- **6 CLI commands**: parse, gen, gen-zig, gen-verilog, gen-c, seal
+- **5 layers complete**: Base → Numeric → Physics/AR → NN → Compiler
+- **Deterministic fixed point** reached at Ring 17 (CANOPY)
+- Complete compiler stack (parser, 3 codegens, testgen, runtime, CLI)
+- CLARA AR module: 7 specs (ternary logic → composition)
+- CI enforced: Issue Gate + PHI Loop CI on all PRs
+
+## CI Enforcement
+
+All PRs to `master` must:
+1. Link to an issue via `Closes #N`
+2. Pass PHI Loop CI (build, parse, gen, seal verify)
+
+See [ISSUE-GATE-001](docs/ISSUE-GATE-001.md) for details.
+
+## Documentation
+
+- [SOUL.md](docs/SOUL.md) — Trinity constitutional laws
+- [ISSUE-GATE-001.md](docs/ISSUE-GATE-001.md) — Issue gate enforcement law
+- [NUMERIC-STANDARD-001.md](docs/NUMERIC-STANDARD-001.md) — GoldenFloat family specification
+- [SACRED-PHYSICS-001.md](docs/SACRED-PHYSICS-001.md) — Sacred physics constants
+- [CANON_DE_ZIGFICATION.md](architecture/CANON_DE_ZIGFICATION.md) — De-Zig canonical law
+- [SEED-RINGS.md](docs/SEED-RINGS.md) — Seed ring configuration
+- [PHI_LOOP_CONTRACT.md](docs/PHI_LOOP_CONTRACT.md) — PHI LOOP contracts
 
 ## License
 
@@ -118,4 +142,4 @@ MIT
 ---
 
 **Maintained by**: Trinity Project
-**Status:** Migration Complete (2026-04-04) — 55 PHI LOOP skills committed
+**Status:** Fixed Point Reached (2026-04-04) — 18 rings sealed, 43 specs, CI enforced
