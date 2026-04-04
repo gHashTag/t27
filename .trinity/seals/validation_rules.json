@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:59cc5dd62af47938e33e5bf369ba84e2cc576b7271c00020508df0f5f2b70a7b",
+  "gen_hash_verilog": "sha256:3f0c1844deb36207e8994f6c8235fa48527d57c81f8c792b6926069c4e95bf86",
+  "gen_hash_zig": "sha256:34f0206db4cee459ef78153e9258447f87f251141eea7ee0d831cc6e1404b534",
+  "module": "validation_rules",
+  "ring": 12,
+  "sealed_at": "2026-04-04T13:02:54Z",
+  "spec_hash": "sha256:33678b37e2c94763d2da70fee97c6a0070cb6fac64b6d2dfa12619af3b164e7c",
+  "spec_path": "compiler/runtime/validation.t27"
+}

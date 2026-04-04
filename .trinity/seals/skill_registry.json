@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:1cb5900c44714e4676e37504784709c0b27b0c9ff918049a0baf501229d29ae4",
+  "gen_hash_verilog": "sha256:6c72de37be0c8778b69ca5ce2f2755caec8128839945ed5744cf9379276fabc7",
+  "gen_hash_zig": "sha256:086aa439505c9ef0371372065268414a21606af509100fa538a76465dccee334",
+  "module": "skill_registry",
+  "ring": 12,
+  "sealed_at": "2026-04-04T13:02:54Z",
+  "spec_hash": "sha256:d492aa25a1e06b4ced6c44067db4ae48e4cfa14f2939dea8c45cfc838f38c6b6",
+  "spec_path": "compiler/skill/registry.t27"
+}

@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:829dbfec64111c3808e9413b9e9e46e0ae2b0f17a9c66e72036df197010e989b",
+  "gen_hash_verilog": "sha256:d4e06eca4cd67a455fa159f27cbe97bb8e82073a87f6ff4e399a56abf948afaf",
+  "gen_hash_zig": "sha256:635242d54fed1957fd4577fb54d7046d7ab78e2975ae80b022186b4606637fe1",
+  "module": "Explainability",
+  "ring": 12,
+  "sealed_at": "2026-04-04T13:02:54Z",
+  "spec_hash": "sha256:db364b8cbad87d73e5b3146e841c7e8d1ee15e385f8d9a2a95e78b33f4b25c90",
+  "spec_path": "specs/ar/explainability.t27"
+}

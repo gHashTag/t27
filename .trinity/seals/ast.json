@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:eaf75db19e8953470a773b81d54f8569c9a8cb7e8a4d2322f27e82b93f0863eb",
+  "gen_hash_verilog": "sha256:a742cf87624f180da1042feea2cddc33b0d331dc38da556f0120c020f1417db9",
+  "gen_hash_zig": "sha256:78cebab6e362112e89341a00f993b7702816f8ccd819455ad83d3798d696b244",
+  "module": "ast",
+  "ring": 12,
+  "sealed_at": "2026-04-04T12:59:11Z",
+  "spec_hash": "sha256:28bfcdf211a0360991fe8d89dc376440d2144b936e030f81e0b5794a1c0eeb00",
+  "spec_path": "compiler/ast.t27"
+}
