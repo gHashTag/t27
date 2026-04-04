@@ -116,10 +116,18 @@ export const createSession = async ({
   const effectiveRepoUrl = repoUrl ?? config.sandboxRepoUrl;
   if (effectiveRepoUrl) sandboxVars["SANDBOX_REPO_URL"] = effectiveRepoUrl;
   if (branch) sandboxVars["SANDBOX_BRANCH"] = branch;
-  if (taskDescription) sandboxVars["TASK_DESCRIPTION"] = taskDescription;
+  if (taskDescription) {
+    sandboxVars["TASK_DESCRIPTION"] = taskDescription;
+    sandboxVars["TASK_PROMPT"] = taskDescription;
+    sandboxVars["TASK_TITLE"] = resolvedName;
+  }
   if (config.githubToken) sandboxVars["GH_TOKEN"] = config.githubToken;
   if (config.anthropicApiKey)
     sandboxVars["ANTHROPIC_API_KEY"] = config.anthropicApiKey;
+  if (config.anthropicBaseUrl)
+    sandboxVars["ANTHROPIC_BASE_URL"] = config.anthropicBaseUrl;
+  if (config.anthropicAuthToken)
+    sandboxVars["ANTHROPIC_AUTH_TOKEN"] = config.anthropicAuthToken;
   if (config.openaiApiKey) sandboxVars["OPENAI_API_KEY"] = config.openaiApiKey;
 
   if (Object.keys(sandboxVars).length > 0) {
