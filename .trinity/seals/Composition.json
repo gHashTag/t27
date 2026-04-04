@@ -16,5 +16,6 @@
     "toxicity": "clean",
     "score": 0.0
   },
-  "sealed_at": "2026-04-04T18:00:00Z"
+  "sealed_at": "2026-04-04T19:00:00Z",
+  "conformance_hash": "sha256:74767cf2ccf9bf651b95db9973784c8c0c5aac93d51235cfd22930233b78f091"
 }

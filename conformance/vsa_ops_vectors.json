@@ -1,0 +1,259 @@
+{
+  "module": "VSAOps",
+  "spec_path": "specs/vsa/ops.t27",
+  "ring": 28,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "description": "Vector Symbolic Architecture conformance vectors -- bind/unbind/bundle/similarity/permute",
+  "encoding": {
+    "neg": -1,
+    "zero": 0,
+    "pos": 1
+  },
+  "vectors": {
+    "bind": {
+      "description": "XOR-like ternary bind: if a==0 return b; if b==0 return a; else a*b",
+      "cases": [
+        {
+          "id": "vsa_bind_with_zeros",
+          "a": [0, 1, -1],
+          "b": [1, 0, -1],
+          "expected": [1, 1, 1]
+        },
+        {
+          "id": "vsa_bind_nonzero_multiply",
+          "a": [1, 1, -1, -1],
+          "b": [1, -1, 1, -1],
+          "expected": [1, -1, -1, 1]
+        }
+      ]
+    },
+    "unbind": {
+      "description": "Inverse of bind; for XOR-like bind, unbind == bind",
+      "cases": [
+        {
+          "id": "vsa_unbind_is_bind",
+          "bound": [1, -1, -1, 1],
+          "key": [1, -1, 1, -1],
+          "expected": [1, 1, -1, -1],
+          "note": "unbind(bind(a,b), b) recovers a"
+        }
+      ]
+    },
+    "bundle2": {
+      "description": "Majority vote of 2 ternary vectors",
+      "cases": [
+        {
+          "id": "vsa_bundle2_with_zero",
+          "a": [0, 1, -1],
+          "b": [1, 0, -1],
+          "expected": [1, 1, -1]
+        },
+        {
+          "id": "vsa_bundle2_majority_vote",
+          "a": [1, -1, 1],
+          "b": [-1, -1, -1],
+          "expected": [0, -1, 0]
+        }
+      ]
+    },
+    "bundle3": {
+      "description": "Majority vote of 3 ternary vectors",
+      "cases": [
+        {
+          "id": "vsa_bundle3_consensus",
+          "a": [1, 1, -1],
+          "b": [1, -1, 1],
+          "c": [1, 1, 1],
+          "expected": [1, 1, 1]
+        }
+      ]
+    },
+    "dot_product": {
+      "description": "Dot product: sum(a[i]*b[i])",
+      "cases": [
+        {
+          "id": "vsa_dot_product_identical",
+          "a": [1, -1, 1, 0],
+          "b": [1, -1, 1, 0],
+          "expected": 3.0
+        },
+        {
+          "id": "vsa_dot_product_orthogonal",
+          "a": [1, -1, 0],
+          "b": [-1, 1, 0],
+          "expected": -2.0
+        }
+      ]
+    },
+    "hamming_distance": {
+      "description": "Count of positions where a[i] != b[i]",
+      "cases": [
+        {
+          "id": "vsa_hamming_distance_identical",
+          "a": [1, -1, 0],
+          "b": [1, -1, 0],
+          "expected": 0
+        },
+        {
+          "id": "vsa_hamming_distance_different",
+          "a": [1, 1, 1],
+          "b": [-1, -1, -1],
+          "expected": 3
+        }
+      ]
+    },
+    "vector_norm": {
+      "description": "L2 norm: sqrt(count of non-zero trits)",
+      "cases": [
+        {
+          "id": "vsa_vector_norm_zero_vector",
+          "v": [0, 0, 0],
+          "expected": 0.0
+        },
+        {
+          "id": "vsa_vector_norm_all_nonzero",
+          "v": [1, -1, 1],
+          "expected": 1.7320508,
+          "tolerance": 0.01
+        }
+      ]
+    },
+    "cosine_similarity": {
+      "description": "Cosine similarity: (a.b)/(||a||*||b||)",
+      "cases": [
+        {
+          "id": "vsa_cosine_similarity_identical",
+          "a": [1, -1, 1],
+          "b": [1, -1, 1],
+          "expected": 1.0,
+          "tolerance": 0.01
+        },
+        {
+          "id": "vsa_cosine_similarity_orthogonal",
+          "a": [1, -1, 0],
+          "b": [-1, 1, 0],
+          "expected": -1.0,
+          "tolerance": 0.01
+        }
+      ]
+    },
+    "permute": {
+      "description": "Circular shift of hypervector by shift positions",
+      "cases": [
+        {
+          "id": "vsa_permute_shift_by_one",
+          "v": [1, -1, 0, 1],
+          "shift": 1,
+          "expected": [-1, 0, 1, 1]
+        },
+        {
+          "id": "vsa_permute_shift_by_len_returns_original",
+          "v": [1, -1, 0],
+          "shift": 3,
+          "expected": [1, -1, 0]
+        },
+        {
+          "id": "vsa_permute_shift_zero_unchanged",
+          "v": [1, -1, 0],
+          "shift": 0,
+          "expected": [1, -1, 0]
+        }
+      ]
+    },
+    "bind_unbind_identity": {
+      "description": "Bind then unbind recovers original with high similarity",
+      "cases": [
+        {
+          "id": "vsa_bind_unbind_identity",
+          "x": [1, -1, 0, 1],
+          "key": [-1, 1, 1, -1],
+          "metric": "cosine",
+          "min_similarity": 0.95
+        }
+      ]
+    },
+    "similarity_symmetry": {
+      "description": "similarity(a,b) == similarity(b,a)",
+      "cases": [
+        {
+          "id": "vsa_similarity_symmetry",
+          "a": [1, -1, 1, 0],
+          "b": [-1, 1, -1, 1],
+          "metric": "cosine",
+          "max_diff": 0.0001
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "vsa_bind_commutative",
+      "description": "bind(a,b) == bind(b,a)",
+      "a": [1, -1, 0],
+      "b": [-1, 1, 1]
+    },
+    {
+      "id": "vsa_bind_associative",
+      "description": "bind(a, bind(b,c)) == bind(bind(a,b), c)",
+      "a": [1, -1],
+      "b": [-1, 1],
+      "c": [1, 1]
+    },
+    {
+      "id": "vsa_bundle2_commutative",
+      "description": "bundle2(a,b) == bundle2(b,a)",
+      "a": [1, -1, 0],
+      "b": [-1, 1, 1]
+    },
+    {
+      "id": "vsa_bundle3_commutative",
+      "description": "bundle3(a,b,c) == bundle3(b,a,c)",
+      "a": [1, -1],
+      "b": [-1, 1],
+      "c": [1, 1]
+    },
+    {
+      "id": "vsa_unbind_reverses_bind",
+      "description": "similarity(x, unbind(bind(x,key), key)) >= 0.95",
+      "x": [1, -1, 0, 1],
+      "key": [-1, 1, 1, -1]
+    },
+    {
+      "id": "vsa_permute_involutivity",
+      "description": "permute(permute(v, n), len-n) == v",
+      "v": [1, -1, 0, 1, -1],
+      "n": 2
+    },
+    {
+      "id": "vsa_similarity_non_negativity_hamming",
+      "description": "hamming_similarity(a,b) >= 0.0"
+    },
+    {
+      "id": "vsa_vector_norm_non_negative",
+      "description": "vector_norm(v) >= 0.0 for all v"
+    },
+    {
+      "id": "vsa_hamming_distance_symmetric",
+      "description": "hamming_distance(a,b) == hamming_distance(b,a)"
+    },
+    {
+      "id": "vsa_dot_product_symmetric",
+      "description": "dot_product(a,b) == dot_product(b,a)"
+    },
+    {
+      "id": "vsa_vsa_dim_positive",
+      "description": "VSA_DIM > 0",
+      "value": 1024
+    },
+    {
+      "id": "vsa_simd_width_positive",
+      "description": "SIMD_WIDTH > 0",
+      "value": 32
+    },
+    {
+      "id": "vsa_max_vectors_positive",
+      "description": "MAX_VECTORS > 0",
+      "value": 32
+    }
+  ]
+}
