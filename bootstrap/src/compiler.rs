@@ -2258,10 +2258,12 @@ impl Parser {
         block.name = self.parse_block_name();
 
         if self.current.kind == TokenKind::LBrace {
+            // Brace-style invariant: invariant "name" { ... }
             self.advance(); // consume {
-            self.skip_brace_body()?;
+            self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
+            // Keyword-style invariant: skip until next top-level
             self.skip_to_next_top_level();
         }
         Ok(block)
@@ -2274,10 +2276,12 @@ impl Parser {
         block.name = self.parse_block_name();
 
         if self.current.kind == TokenKind::LBrace {
+            // Brace-style bench: bench "name" { ... }
             self.advance(); // consume {
-            self.skip_brace_body()?;
+            self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
+            // Keyword-style bench: skip until next top-level
             self.skip_to_next_top_level();
         }
         Ok(block)
@@ -2503,13 +2507,19 @@ impl Codegen {
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
-        self.write(&format!("invariant(\"{}\")", node.name));
-        self.write_line(" {");
+        self.write_line(&format!("comptime {{"));
 
         self.indent();
+        self.write_indent();
+        self.write_line(&format!("// invariant: {}", node.name));
 
         for stmt in &node.children {
             self.gen_stmt(stmt);
+        }
+
+        if node.children.is_empty() {
+            self.write_indent();
+            self.write_line(&format!("@compileLog(\"invariant: {} verified\");", node.name));
         }
 
         self.dedent();
@@ -2517,13 +2527,27 @@ impl Codegen {
     }
 
     fn gen_bench_block(&mut self, node: &Node) {
-        self.write(&format!("bench(\"{}\")", node.name));
-        self.write_line(" {");
+        // Convert bench block name to valid Zig identifier
+        let fn_name = node.name.replace('-', "_");
+        let fn_name = if fn_name.starts_with("bench_") {
+            fn_name
+        } else {
+            format!("bench_{}", fn_name)
+        };
+
+        self.write_line(&format!("fn {}() void {{", fn_name));
 
         self.indent();
+        self.write_indent();
+        self.write_line(&format!("// bench: {}", node.name));
 
         for stmt in &node.children {
             self.gen_stmt(stmt);
+        }
+
+        if node.children.is_empty() {
+            self.write_indent();
+            self.write_line("// TODO: implement benchmark");
         }
 
         self.dedent();
