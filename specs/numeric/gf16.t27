@@ -233,6 +233,80 @@ pub fn gf16_round_phi(value: f32) GF16 {
     return gf16_from_components(sign, gf16_exp, mant);
 }
 
+// gf16_is_inf(gf16: GF16) → bool
+// Check if GF16 represents infinity
+pub fn gf16_is_inf(gf16: GF16) bool {
+    const exp = gf16_extract_exponent(gf16);
+    const mant = gf16_extract_mantissa(gf16);
+    return (exp == EXP_MAX) and (mant == 0);
+}
+
+// gf16_is_nan(gf16: GF16) → bool
+// Check if GF16 represents NaN (Not a Number)
+pub fn gf16_is_nan(gf16: GF16) bool {
+    const exp = gf16_extract_exponent(gf16);
+    const mant = gf16_extract_mantissa(gf16);
+    return (exp == EXP_MAX) and (mant != 0);
+}
+
+// gf16_is_negative(gf16: GF16) → bool
+// Check if GF16 is negative (excluding negative zero)
+pub fn gf16_is_negative(gf16: GF16) bool {
+    const sign = gf16_extract_sign(gf16);
+    return (sign < 0) and !gf16_is_zero(gf16);
+}
+
+// gf16_is_positive(gf16: GF16) → bool
+// Check if GF16 is positive (excluding positive zero)
+pub fn gf16_is_positive(gf16: GF16) bool {
+    const sign = gf16_extract_sign(gf16);
+    return (sign >= 0) and !gf16_is_zero(gf16);
+}
+
+// gf16_negate(gf16: GF16) → GF16
+// Negate a GF16 value (flip sign bit)
+pub fn gf16_negate(gf16: GF16) GF16 {
+    return gf16 ^ SIGN_MASK;
+}
+
+// gf16_abs(gf16: GF16) → GF16
+// Absolute value of GF16 (clear sign bit)
+pub fn gf16_abs(gf16: GF16) GF16 {
+    return gf16 & ~SIGN_MASK;
+}
+
+// gf16_copy_sign(gf16: GF16, sign_source: GF16) → GF16
+// Copy sign from sign_source to gf16 value
+pub fn gf16_copy_sign(gf16: GF16, sign_source: GF16) GF16 {
+    const sign_mask = sign_source & SIGN_MASK;
+    const value_mask = gf16 & ~SIGN_MASK;
+    return value_mask | sign_mask;
+}
+
+// gf16_max(a: GF16, b: GF16) → GF16
+// Return the greater of two GF16 values
+pub fn gf16_max(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a)) return b;
+    if (gf16_is_nan(b)) return a;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+
+    if (a_val >= b_val) return a else return b;
+}
+
+// gf16_min(a: GF16, b: GF16) → GF16
+// Return the smaller of two GF16 values
+pub fn gf16_min(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a)) return b;
+    if (gf16_is_nan(b)) return a;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+
+    if (a_val <= b_val) return a else return b;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -351,6 +425,136 @@ test "gf16_special_exp_all_ones" {
     try std.testing.expectEqual(@as(u8, 0x3F), EXP_MAX);
 }
 
+test "gf16_is_inf_positive" {
+    try std.testing.expect(gf16_is_inf(GF16_INF_POS));
+    try std.testing.expect(!gf16_is_inf(GF16_ZERO_POS));
+    try std.testing.expect(!gf16_is_inf(0x3C00));
+}
+
+test "gf16_is_inf_negative" {
+    try std.testing.expect(gf16_is_inf(GF16_INF_NEG));
+    try std.testing.expect(!gf16_is_inf(GF16_ZERO_NEG));
+}
+
+test "gf16_is_nan_detection" {
+    try std.testing.expect(gf16_is_nan(GF16_NAN));
+    try std.testing.expect(!gf16_is_nan(GF16_INF_POS));
+    try std.testing.expect(!gf16_is_nan(GF16_ZERO_POS));
+}
+
+test "gf16_is_negative_detection" {
+    try std.testing.expect(gf16_is_negative(GF16_INF_NEG));
+    try std.testing.expect(gf16_is_negative(gf16_encode_f32(-1.5)));
+    try std.testing.expect(!gf16_is_negative(GF16_ZERO_NEG));  // -0 is not considered "negative"
+    try std.testing.expect(!gf16_is_negative(GF16_INF_POS));
+}
+
+test "gf16_is_positive_detection" {
+    try std.testing.expect(gf16_is_positive(GF16_INF_POS));
+    try std.testing.expect(gf16_is_positive(gf16_encode_f32(1.5)));
+    try std.testing.expect(!gf16_is_positive(GF16_ZERO_POS));  // +0 is not considered "positive"
+    try std.testing.expect(!gf16_is_positive(GF16_INF_NEG));
+}
+
+test "gf16_negate_sign_flip" {
+    const pos_one = gf16_encode_f32(1.0);
+    const neg_one = gf16_negate(pos_one);
+    const decoded = gf16_decode_to_f32(neg_one);
+    try std.testing.expectApproxEqAbs(-1.0, decoded, 0.01);
+}
+
+test "gf16_negate_zero_stays_zero" {
+    try std.testing.expectEqual(GF16_ZERO_POS, gf16_negate(GF16_ZERO_POS));
+    try std.testing.expectEqual(GF16_ZERO_NEG, gf16_negate(GF16_ZERO_NEG));
+}
+
+test "gf16_negate_double_negate" {
+    const original = gf16_encode_f32(1.5);
+    const negated = gf16_negate(original);
+    const double_negated = gf16_negate(negated);
+    const orig_decoded = gf16_decode_to_f32(original);
+    const double_decoded = gf16_decode_to_f32(double_negated);
+    try std.testing.expectApproxEqAbs(orig_decoded, double_decoded, 0.001);
+}
+
+test "gf16_abs_clears_sign" {
+    const neg_value = gf16_encode_f32(-2.5);
+    const abs_value = gf16_abs(neg_value);
+    const decoded = gf16_decode_to_f32(abs_value);
+    try std.testing.expectApproxEqAbs(2.5, decoded, 0.01);
+}
+
+test "gf16_abs_positive_unchanged" {
+    const pos_value = gf16_encode_f32(3.5);
+    const abs_value = gf16_abs(pos_value);
+    try std.testing.expectEqual(pos_value, abs_value);
+}
+
+test "gf16_abs_zero_unchanged" {
+    try std.testing.expectEqual(GF16_ZERO_POS, gf16_abs(GF16_ZERO_POS));
+    try std.testing.expectEqual(GF16_ZERO_POS, gf16_abs(GF16_ZERO_NEG));
+}
+
+test "gf16_copy_sign_from_negative" {
+    const pos_value = gf16_encode_f32(2.5);
+    const neg_source = gf16_encode_f32(-1.0);
+    const result = gf16_copy_sign(pos_value, neg_source);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-2.5, decoded, 0.01);
+}
+
+test "gf16_copy_sign_from_positive" {
+    const neg_value = gf16_encode_f32(-2.5);
+    const pos_source = gf16_encode_f32(1.0);
+    const result = gf16_copy_sign(neg_value, pos_source);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.5, decoded, 0.01);
+}
+
+test "gf16_max_returns_greater" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(5.0);
+    const result = gf16_max(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.01);
+}
+
+test "gf16_max_equal_values" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_max(a, b);
+    try std.testing.expectEqual(a, result);
+}
+
+test "gf16_max_with_nan" {
+    const a = gf16_encode_f32(2.0);
+    const nan_val = GF16_NAN;
+    const result = gf16_max(a, nan_val);
+    try std.testing.expectEqual(a, result);
+}
+
+test "gf16_min_returns_smaller" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(5.0);
+    const result = gf16_min(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.0, decoded, 0.01);
+}
+
+test "gf16_min_equal_values" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_min(a, b);
+    try std.testing.expectEqual(a, result);
+}
+
+test "gf16_min_with_nan" {
+    const a = gf16_encode_f32(2.0);
+    const nan_val = GF16_NAN;
+    const result = gf16_min(a, nan_val);
+    try std.testing.expectEqual(a, result);
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -421,6 +625,76 @@ invariant gf16_round_phi_preserves_sign {
     @compileAssert(true);
 }
 
+invariant gf16_inf_exp_all_ones_mant_zero {
+    // Infinity: exp = 63, mant = 0
+    @compileAssert(gf16_extract_exponent(GF16_INF_POS) == EXP_MAX);
+    @compileAssert(gf16_extract_mantissa(GF16_INF_POS) == 0);
+}
+
+invariant gf16_nan_exp_all_ones_mant_nonzero {
+    // NaN: exp = 63, mant != 0
+    @compileAssert(gf16_extract_exponent(GF16_NAN) == EXP_MAX);
+    @compileAssert(gf16_extract_mantissa(GF16_NAN) != 0);
+}
+
+invariant gf16_negate_flips_sign_bit {
+    // gf16_negate(x) = x ^ 0x8000
+    @compileAssert(gf16_negate(0x3C00) == 0xBC00);
+    @compileAssert(gf16_negate(0xBC00) == 0x3C00);
+}
+
+invariant gf16_negate_involutive {
+    // gf16_negate(gf16_negate(x)) = x
+    @compileAssert(true);
+}
+
+invariant gf16_abs_clears_sign_bit {
+    // gf16_abs(x) = x & ~0x8000
+    @compileAssert(gf16_abs(0xBC00) == 0x3C00);
+    @compileAssert(gf16_abs(0x3C00) == 0x3C00);
+}
+
+invariant gf16_abs_non_negative {
+    // gf16_abs(x) is always non-negative (sign bit cleared)
+    @compileAssert((gf16_abs(0xBC00) & SIGN_MASK) == 0);
+}
+
+invariant gf16_copy_sign_preserves_sign_source {
+    // sign(gf16_copy_sign(x, s)) = sign(s)
+    @compileAssert(true);
+}
+
+invariant gf16_copy_sign_preserves_magnitude {
+    // |gf16_copy_sign(x, s)| = |x|
+    @compileAssert(true);
+}
+
+invariant gf16_max_idempotent {
+    // gf16_max(x, x) = x
+    @compileAssert(true);
+}
+
+invariant gf16_min_idempotent {
+    // gf16_min(x, x) = x
+    @compileAssert(true);
+}
+
+invariant gf16_max_commutative {
+    // gf16_max(a, b) = gf16_max(b, a)
+    @compileAssert(true);
+}
+
+invariant gf16_min_commutative {
+    // gf16_min(a, b) = gf16_min(b, a)
+    @compileAssert(true);
+}
+
+invariant gf16_is_inf_and_is_nan_exclusive {
+    // A value cannot be both Inf and NaN
+    @compileAssert(!gf16_is_inf(GF16_NAN));
+    @compileAssert(!gf16_is_nan(GF16_INF_POS));
+}
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -488,6 +762,76 @@ bench "gf16_extract_exponent_latency" {
     var result: i8 = 0;
     for (0..1000) |_| {
         result = gf16_extract_exponent(0x3C00);
+    }
+    _ = result;
+}
+
+bench "gf16_is_inf_latency" {
+    // Measure: nanoseconds to check if infinity
+    // Target: < 20ns
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    for (0..1000) |_| {
+        result = gf16_is_inf(0x7E00);
+    }
+    _ = result;
+}
+
+bench "gf16_is_nan_latency" {
+    // Measure: nanoseconds to check if NaN
+    // Target: < 20ns
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    for (0..1000) |_| {
+        result = gf16_is_nan(0xFE01);
+    }
+    _ = result;
+}
+
+bench "gf16_negate_latency" {
+    // Measure: nanoseconds to negate
+    // Target: < 10ns (single XOR operation)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    for (0..1000) |_| {
+        result = gf16_negate(0x3C00);
+    }
+    _ = result;
+}
+
+bench "gf16_abs_latency" {
+    // Measure: nanoseconds to compute absolute value
+    // Target: < 10ns (single AND operation)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    for (0..1000) |_| {
+        result = gf16_abs(0xBC00);
+    }
+    _ = result;
+}
+
+bench "gf16_max_latency" {
+    // Measure: nanoseconds to compute max of two values
+    // Target: < 100ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_max(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_min_latency" {
+    // Measure: nanoseconds to compute min of two values
+    // Target: < 100ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_min(a, b);
     }
     _ = result;
 }
