@@ -1,0 +1,74 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "model": "anthropic/claude-sonnet-4-5",
+
+  "providers": {
+    "anthropic": {
+      "apiKey": "${ANTHROPIC_API_KEY}"
+    },
+    "openai": {
+      "apiKey": "${OPENAI_API_KEY}"
+    },
+    "google": {
+      "apiKey": "${GEMINI_API_KEY}"
+    }
+  },
+
+  "keybindings": {
+    "leader": "ctrl+k"
+  },
+
+  "mcp": {
+    "railway": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "@railway/mcp-server"],
+      "env": {
+        "RAILWAY_API_TOKEN": "${RAILWAY_API_TOKEN}"
+      }
+    }
+  },
+
+  "agents": {
+    "t27-swe": {
+      "name": "T27 SWE Agent",
+      "description": "Full-stack software engineering agent for the T27 Railway sandbox. Specialises in TypeScript/Node back-ends and React/Next.js front-ends.",
+      "model": "anthropic/claude-sonnet-4-5",
+      "tools": [
+        "bash",
+        "read",
+        "write",
+        "edit",
+        "glob",
+        "grep",
+        "fetch",
+        "mcp:railway"
+      ],
+      "system": "You are an expert software engineer operating inside a Railway sandbox container. You have full access to the cloned repository in the working directory. You can run arbitrary shell commands, read and write files, and interact with Railway deployments via the Railway MCP server.\n\nGuidelines:\n- Prefer small, targeted edits over large rewrites.\n- Always verify changes compile / pass lint before finishing a task.\n- When asked to deploy, use the Railway MCP to trigger a new deployment.\n- Surface errors clearly and suggest fixes rather than silently failing."
+    },
+
+    "t27-reviewer": {
+      "name": "T27 Code Reviewer",
+      "description": "Performs code review, security audits, and suggests improvements.",
+      "model": "anthropic/claude-sonnet-4-5",
+      "tools": [
+        "read",
+        "glob",
+        "grep",
+        "fetch"
+      ],
+      "system": "You are a thorough code reviewer. Analyse the provided code for correctness, security vulnerabilities, performance issues, and style violations. Return structured feedback grouped by severity (critical, major, minor, nit). Always cite the exact file and line range for each finding."
+    }
+  },
+
+  "tools": {
+    "bash":  { "enabled": true },
+    "read":  { "enabled": true },
+    "write": { "enabled": true },
+    "edit":  { "enabled": true },
+    "glob":  { "enabled": true },
+    "grep":  { "enabled": true },
+    "fetch": { "enabled": true }
+  }
+}

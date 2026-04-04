@@ -1,0 +1,123 @@
+{
+  "episode_id": "phi-2026-04-04T22:30:00Z#sandbox-init",
+  "skill_id": "sandbox-infrastructure",
+  "session_id": "2026-04-04T22:30:00Z#sandbox-init",
+  "issue_id": "SANDBOX-001",
+  "spec_paths": [
+    "specs/sandbox/sandbox.tri",
+    "backend/api/",
+    "backend/sandbox/"
+  ],
+  "spec_hash_before": null,
+  "spec_hash_after": "pending",
+  "gen_hash_after": null,
+  "tests": {
+    "status": "pending",
+    "failed_tests": [],
+    "duration_ms": 0,
+    "test_names": [
+      "create_session_returns_starting_status",
+      "delete_session_transitions_to_deleted",
+      "delete_nonexistent_session_returns_error",
+      "health_check_updates_status_to_active",
+      "health_check_timeout_marks_failed",
+      "health_check_within_timeout_stays_starting",
+      "round_robin_distributes_load",
+      "round_robin_tie_broken_by_index",
+      "round_robin_single_account",
+      "proxy_resolves_to_internal_network",
+      "proxy_preserves_path_and_query",
+      "proxy_unknown_session_returns_error",
+      "list_sessions_returns_all_statuses",
+      "create_session_respects_max_sessions",
+      "config_validation_rejects_empty_image",
+      "config_validation_rejects_invalid_repo_url"
+    ],
+    "total_tests": 16,
+    "pass_count": 0,
+    "fail_count": 0
+  },
+  "verdict": {
+    "toxicity": "pending",
+    "score": 0.0,
+    "notes": "Initial sandbox infrastructure setup — PHI LOOP cycle 1",
+    "rubric": {
+      "spec_complete": true,
+      "tests_defined": true,
+      "invariants_defined": true,
+      "benchmarks_defined": true,
+      "code_generated": false,
+      "tests_passing": false
+    }
+  },
+  "bench_delta": {
+    "metric": "none",
+    "value": 0.0,
+    "unit": "N/A",
+    "benchmarks_defined": [
+      {
+        "name": "create_session_latency",
+        "target_ms": 5000,
+        "report": ["p50", "p95", "p99"]
+      },
+      {
+        "name": "health_check_latency",
+        "target_ms": 3000,
+        "report": ["p50", "p95", "p99"]
+      },
+      {
+        "name": "proxy_request_overhead",
+        "target_ms": 10,
+        "report": ["p50", "p95", "p99"]
+      },
+      {
+        "name": "list_sessions_at_scale",
+        "target_ms": 50,
+        "report": ["p50", "p95"]
+      }
+    ]
+  },
+  "commit": null,
+  "actor": "agent:perplexity-computer",
+  "sealed_at": "2026-04-04T22:30:00Z",
+  "phi_loop_phase": "spec",
+  "next_phase": "gen",
+  "invariants": [
+    "session_count_bounded",
+    "status_transitions_valid",
+    "railway_service_id_unique",
+    "session_name_unique",
+    "account_load_consistent"
+  ],
+  "metadata": {
+    "environment": "railway",
+    "tri_version": "0.1.0",
+    "ring": "ring-17-canopy",
+    "phase": 1,
+    "phase_name": "Sandbox Infrastructure",
+    "notes": [
+      "Sandbox infrastructure for Railway-based SWE agent",
+      "OpenCode web UI integration",
+      "Multi-account load balancing (round-robin + least-connections)",
+      "Bearer token authentication",
+      "PostgreSQL session store",
+      "Health polling with 90s startup window",
+      "HTTP proxy to railway.internal DNS"
+    ],
+    "origin": "autonomous",
+    "constitution_compliance": {
+      "soul_md_article_ii": true,
+      "spec_has_tests": true,
+      "test_count": 16,
+      "invariant_count": 5,
+      "benchmark_count": 4
+    },
+    "files_created": [
+      "specs/sandbox/sandbox.tri",
+      "docs/SANDBOX-ARCHITECTURE.md",
+      "docs/TECHNOLOGY-TREE.md",
+      "backend/docker-compose.yml",
+      ".trinity/experience/episodes/sandbox-init.json"
+    ]
+  }
+}
