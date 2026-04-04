@@ -67,7 +67,7 @@ export const config = {
   railwayEnvironmentId: requiredEnv("RAILWAY_ENVIRONMENT_ID"),
   railwayServiceImage:
     process.env.RAILWAY_SERVICE_IMAGE ??
-    "ghcr.io/ghashtagg/t27-sandbox:latest",
+    "ghcr.io/ghashtag/t27-sandbox:latest",
   railwayGraphqlUrl:
     process.env.RAILWAY_GRAPHQL_URL ??
     "https://backboard.railway.com/graphql/v2",
