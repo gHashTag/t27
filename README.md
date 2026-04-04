@@ -95,8 +95,21 @@ const OMEGA_LAMBDA_MEASURED = 0.685     ; Dark energy (Planck)
 
 ## Documentation
 
-- [ADR-001: De-Zigфикация](https://github.com/gHashTag/trinity/blob/main/architecture/ADR-001-de-zigfication.md)
-- [GoldenFloat Family Benchmark](https://github.com/gHashTag/trinity/blob/main/docs/GF_FAMILY_BENCH.md)
+- [CANON_DE_ZIGFICATION.md](architecture/CANON_DE_ZIGFICATION.md) — De-Zig canonical law
+- [ADR-001: De-Zigфикация](architecture/ADR-001-de-zigfication.md) — Architecture decision record
+- [SOUL.md](docs/SOUL.md) — Trinity constitutional laws
+- [NUMERIC-STANDARD-001.md](docs/NUMERIC-STANDARD-001.md) — GoldenFloat family specification
+- [SACRED-PHYSICS-001.md](docs/SACRED-PHYSICS-001.md) — Sacred physics constants
+- [Migration Plan](docs/migration-plan-vsa-nn-fpga-queen.md) — Migration status and PHI LOOP skills
+
+## PHI LOOP Status
+
+**Total Skills:** 55
+- 20+ .t27 specs standardized to canonical format
+- Complete compiler stack (parser, codegen zig/verilog/c, testgen, runtime, CLI)
+- All TODOs expanded with implementation guidance
+- Architecture files synchronized (graph.tri, graph_v2.json)
+- **Bootstrap Blocker:** tri CLI not yet built — gen/test/verdict steps pending
 
 ## License
 
@@ -105,4 +118,4 @@ MIT
 ---
 
 **Maintained by**: Trinity Project
-**Status**: Phase 2 Complete (2026-04-04)
+**Status:** Migration Complete (2026-04-04) — 55 PHI LOOP skills committed
