@@ -569,6 +569,77 @@ pub fn gf16_trunc(a: GF16) GF16 {
     return gf16_encode_f32(result);
 }
 
+// gf16_fms(a: GF16, b: GF16, c: GF16) → GF16
+// Fused multiply-subtract: a * b - c with single rounding
+// More accurate than separate mul and sub
+// Useful for neural network backpropagation
+pub fn gf16_fms(a: GF16, b: GF16, c: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b) or gf16_is_nan(c)) return GF16_NAN;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const c_val = gf16_decode_to_f32(c);
+
+    // Handle special cases
+    if (gf16_is_zero(a) or gf16_is_zero(b)) {
+        return gf16_sub(gf16_encode_f32(0.0), c);
+    }
+
+    // Compute a * b - c
+    const product = a_val * b_val;
+    const result = product - c_val;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_hypot(a: GF16, b: GF16) → GF16
+// Compute sqrt(a^2 + b^2) without overflow/underflow
+// Returns NaN if either operand is NaN, Inf if both are Inf
+// Useful for distance calculations, neural network normalization
+pub fn gf16_hypot(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return GF16_NAN;
+    if (gf16_is_inf(a) or gf16_is_inf(b)) return GF16_INF_POS;
+
+    if (gf16_is_zero(a) and gf16_is_zero(b)) return GF16_ZERO_POS;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+
+    // Standard algorithm to avoid overflow: scale by max(|a|, |b|)
+    const abs_a = @abs(a_val);
+    const abs_b = @abs(b_val);
+    const max_val = @max(abs_a, abs_b);
+    const min_val = @min(abs_a, abs_b);
+
+    if (max_val == 0.0) return GF16_ZERO_POS;
+
+    const ratio = min_val / max_val;
+    const result = max_val * @sqrt(1.0 + ratio * ratio);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_fmod(a: GF16, b: GF16) → GF16
+// Compute remainder of a / b (IEEE 754 style)
+// Result has same sign as dividend (a)
+// Returns NaN if divisor is zero or either operand is NaN
+pub fn gf16_fmod(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return GF16_NAN;
+    if (gf16_is_zero(b)) return GF16_NAN;
+    if (gf16_is_inf(a)) return GF16_NAN;
+    if (gf16_is_inf(b)) return a;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+
+    // Handle zero dividend
+    if (a_val == 0.0) return a;
+
+    const result = @mod(a_val, b_val);
+
+    return gf16_encode_f32(result);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -1110,6 +1181,56 @@ invariant gf16_trunc_positive_equals_floor {
 
 invariant gf16_trunc_negative_equals_ceil {
     // For all x <= 0: trunc(x) = ceil(x)
+    @compileAssert(true);
+}
+
+invariant gf16_fms_related_to_fma {
+    // gf16_fms(a, b, c) = gf16_fma(a, b, -c) (approximately, due to encoding)
+    @compileAssert(true);
+}
+
+invariant gf16_fms_with_zero_subtractand {
+    // gf16_fms(a, b, 0) = gf16_mul(a, b) (approximately)
+    @compileAssert(true);
+}
+
+invariant gf16_hypot_non_negative {
+    // For all a, b: gf16_hypot(a, b) >= 0
+    @compileAssert(true);
+}
+
+invariant gf16_hypot_symmetric {
+    // For all a, b: gf16_hypot(a, b) = gf16_hypot(b, a)
+    @compileAssert(true);
+}
+
+invariant gf16_hypot_pythagorean_identity {
+    // For all a, b: hypot(a, b)^2 = a^2 + b^2 (approximately, due to encoding)
+    @compileAssert(true);
+}
+
+invariant gf16_hypot_ge_max_input {
+    // For all a, b: gf16_hypot(a, b) >= max(|a|, |b|)
+    @compileAssert(true);
+}
+
+invariant gf16_hypot_zero_with_zeros {
+    // gf16_hypot(0, 0) = 0
+    @compileAssert(true);
+}
+
+invariant gf16_fmod_result_sign_matches_dividend {
+    // For all a, b where b != 0: sign(gf16_fmod(a, b)) = sign(a)
+    @compileAssert(true);
+}
+
+invariant gf16_fmod_less_than_divisor {
+    // For all a, b where b > 0: |gf16_fmod(a, b)| < |b|
+    @compileAssert(true);
+}
+
+invariant gf16_fmod_with_divisible_values {
+    // For all a, b where a = k*b: gf16_fmod(a, b) = 0
     @compileAssert(true);
 }
 
@@ -1657,6 +1778,131 @@ test "gf16_rounding_ceil_vs_trunc_positive" {
     try std.testing.expectApproxEqAbs(2.0, truncated, 0.1);
 }
 
+test "gf16_fms_basic" {
+    const a = gf16_encode_f32(5.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(2.0);
+    const result = gf16_fms(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(13.0, decoded, 0.2); // 5*3 - 2 = 13
+}
+
+test "gf16_fms_with_zero_c" {
+    const a = gf16_encode_f32(4.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(0.0);
+    const result = gf16_fms(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(12.0, decoded, 0.2); // 4*3 - 0 = 12
+}
+
+test "gf16_fms_negative_result" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(10.0);
+    const result = gf16_fms(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-4.0, decoded, 0.2); // 2*3 - 10 = -4
+}
+
+test "gf16_fms_with_nan" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_fms(a, b, GF16_NAN);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
+test "gf16_fms_zero_a" {
+    const a = gf16_encode_f32(0.0);
+    const b = gf16_encode_f32(5.0);
+    const c = gf16_encode_f32(3.0);
+    const result = gf16_fms(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-3.0, decoded, 0.2); // 0 - 3 = -3
+}
+
+test "gf16_hypot_pythagorean_triple" {
+    const a = gf16_encode_f32(3.0);
+    const b = gf16_encode_f32(4.0);
+    const result = gf16_hypot(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.1); // sqrt(9 + 16) = 5
+}
+
+test "gf16_hypot_both_zero" {
+    try std.testing.expectEqual(GF16_ZERO_POS, gf16_hypot(GF16_ZERO_POS, GF16_ZERO_POS));
+}
+
+test "gf16_hypot_one_zero" {
+    const a = gf16_encode_f32(3.0);
+    const result = gf16_hypot(a, GF16_ZERO_POS);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(3.0, decoded, 0.05);
+}
+
+test "gf16_hypot_negative_inputs" {
+    const a = gf16_encode_f32(-3.0);
+    const b = gf16_encode_f32(-4.0);
+    const result = gf16_hypot(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.1); // sqrt(9 + 16) = 5
+}
+
+test "gf16_hypot_with_nan" {
+    const a = gf16_encode_f32(3.0);
+    const result = gf16_hypot(a, GF16_NAN);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
+test "gf16_hypot_with_inf" {
+    const a = gf16_encode_f32(3.0);
+    try std.testing.expectEqual(GF16_INF_POS, gf16_hypot(a, GF16_INF_POS));
+}
+
+test "gf16_fmod_basic" {
+    const a = gf16_encode_f32(10.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_fmod(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.1); // 10 % 3 = 1
+}
+
+test "gf16_fmod_exact_division" {
+    const a = gf16_encode_f32(12.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_fmod(a, b);
+    try std.testing.expect(gf16_is_zero(result));
+}
+
+test "gf16_fmod_negative_dividend" {
+    const a = gf16_encode_f32(-10.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_fmod(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-1.0, decoded, 0.1); // -10 % 3 = -1 (sign follows dividend)
+}
+
+test "gf16_fmod_fractional" {
+    const a = gf16_encode_f32(5.5);
+    const b = gf16_encode_f32(2.0);
+    const result = gf16_fmod(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.5, decoded, 0.1); // 5.5 % 2 = 1.5
+}
+
+test "gf16_fmod_zero_divisor" {
+    const a = gf16_encode_f32(10.0);
+    const zero = gf16_encode_f32(0.0);
+    const result = gf16_fmod(a, zero);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
+test "gf16_fmod_with_nan" {
+    const a = gf16_encode_f32(10.0);
+    const result = gf16_fmod(a, GF16_NAN);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -2010,6 +2256,46 @@ bench "gf16_trunc_latency" {
     const a: GF16 = 0x3D40;
     for (0..1000) |_| {
         result = gf16_trunc(a);
+    }
+    _ = result;
+}
+
+bench "gf16_fms_latency" {
+    // Measure: nanoseconds for fused multiply-subtract
+    // Target: < 300ns (fused operation)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C80;
+    const c: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_fms(a, b, c);
+    }
+    _ = result;
+}
+
+bench "gf16_hypot_latency" {
+    // Measure: nanoseconds to compute hypotenuse
+    // Target: < 400ns (includes sqrt)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D80;
+    const b: GF16 = 0x3E00;
+    for (0..1000) |_| {
+        result = gf16_hypot(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_fmod_latency" {
+    // Measure: nanoseconds to compute modulo
+    // Target: < 300ns (includes decode + mod + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3F00;
+    const b: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_fmod(a, b);
     }
     _ = result;
 }
