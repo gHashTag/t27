@@ -110,34 +110,6 @@ t27/
 │   └── AGENTS_ALPHABET.md  #   27-agent system spec
 │
 └── tests/                  # Ring verification scripts
-=======
-├── specs/              # 28 .t27 specifications (SOURCE OF TRUTH)
-│   ├── base/           # Base types and operations
-│   ├── numeric/        # GoldenFloat GF4-GF32, TF3, phi_ratio
-│   ├── math/           # Sacred constants and physics
-│   ├── ar/             # CLARA AR module (7 specs)
-│   ├── nn/             # Neural networks (attention, HSLM)
-│   ├── vsa/            # Vector Symbolic Architecture
-│   ├── isa/            # 27 Coptic registers
-│   ├── fpga/           # Zero-DSP MAC unit
-│   ├── queen/          # Lotus orchestrator
-│   └── compiler/       # Spec-level parser
-│
-├── compiler/           # 15 .t27 compiler stack
-│   ├── parser/         # .t27 → AST (lexer, parser)
-│   ├── codegen/        # AST → Target code
-│   │   ├── zig/       # .t27 → Zig 0.15
-│   │   ├── verilog/   # .t27 → Verilog (XC7A100T)
-│   │   └── c/         # .t27 → C (clang/gcc)
-│   ├── runtime/        # Runtime (exec, commands, validation)
-│   ├── cli/            # CLI commands (gen, git, spec)
-│   └── skill/          # Skill registry
-│
-├── conformance/        # Language-agnostic test vectors (12 JSON)
-│
-├── bootstrap/          # Bootstrap compiler (Rust + Python)
-│
-└── .github/            # CI workflows + issue templates
 ```
 
 ## SEED-RINGS Progress
