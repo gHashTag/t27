@@ -9,7 +9,6 @@ module DatalogEngine {
     // ═════════════════════════════════════════════════════════════════════════
     use base::types;   // Trit enum: .neg, .zero, .pos
     use ar::ternary_logic;  // Rule, forward_chain, k3_and, k3_or, K_*
-    use numeric::gf16;      // GF16 for confidence (NUMERIC-STANDARD-001)
 
     // ═════════════════════════════════════════════════════════════════
     // 1. Datalog Core Types
