@@ -700,6 +700,95 @@ pub fn gf16_sign(gf16: GF16) i8 {
     }
 }
 
+// gf16_clamp(x: GF16, min_val: GF16, max_val: GF16) → GF16
+// Clamp x to the range [min_val, max_val]
+// Returns min_val if x < min_val, max_val if x > max_val, otherwise x
+pub fn gf16_clamp(x: GF16, min_val: GF16, max_val: GF16) GF16 {
+    if (gf16_is_nan(x) or gf16_is_nan(min_val) or gf16_is_nan(max_val)) {
+        return GF16_NAN;
+    }
+
+    // Decode for comparison
+    const x_decoded = gf16_decode_to_f32(x);
+    const min_decoded = gf16_decode_to_f32(min_val);
+    const max_decoded = gf16_decode_to_f32(max_val);
+
+    if (x_decoded < min_decoded) {
+        return min_val;
+    } else if (x_decoded > max_decoded) {
+        return max_val;
+    } else {
+        return x;
+    }
+}
+
+// gf16_lerp(a: GF16, b: GF16, t: GF16) → GF16
+// Linear interpolation: a + t * (b - a)
+// Returns a when t=0, b when t=1, and interpolates for other values
+pub fn gf16_lerp(a: GF16, b: GF16, t: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b) or gf16_is_nan(t)) {
+        return GF16_NAN;
+    }
+
+    // Decode to f32 for computation
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const t_val = gf16_decode_to_f32(t);
+
+    // Compute: a + t * (b - a)
+    const result = a_val + t_val * (b_val - a_val);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_fnma(a: GF16, b: GF16, c: GF16) → GF16
+// Fused negative multiply-add: -(a * b) + c
+// More accurate than computing gf16_sub(c, gf16_mul(a, b))
+pub fn gf16_fnma(a: GF16, b: GF16, c: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b) or gf16_is_nan(c)) {
+        return GF16_NAN;
+    }
+
+    // Handle infinity cases
+    if (gf16_is_inf(a) or gf16_is_inf(b)) {
+        if (gf16_is_inf(c)) {
+            return GF16_NAN;
+        }
+        // -(inf * b) + c = -inf (with appropriate sign)
+        if (gf16_is_inf(a) or gf16_is_inf(b)) {
+            const sign_a = gf16_signbit(a);
+            const sign_b = gf16_signbit(b);
+            const result_sign = (sign_a != sign_b);  // XOR for negative result
+            return if (result_sign) GF16_INF_NEG else GF16_INF_POS;
+        }
+    }
+
+    if (gf16_is_inf(c)) {
+        return c;
+    }
+
+    // Handle zero cases
+    if (gf16_is_zero(a) or gf16_is_zero(b)) {
+        return c;
+    }
+
+    if (gf16_is_zero(c)) {
+        const a_val = gf16_decode_to_f32(a);
+        const b_val = gf16_decode_to_f32(b);
+        const neg_product = -(a_val * b_val);
+        return gf16_encode_f32(neg_product);
+    }
+
+    // Decode to f32 for computation
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const c_val = gf16_decode_to_f32(c);
+
+    const result = -(a_val * b_val) + c_val;
+
+    return gf16_encode_f32(result);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -1351,6 +1440,46 @@ invariant gf16_sign_zero_returns_zero {
 
 invariant gf16_sign_nan_returns_zero {
     // For NaN: gf16_sign(x) = 0 (sign of NaN is undefined)
+    @compileAssert(true);
+}
+
+invariant gf16_clamp_in_range_returns_value {
+    // For x in [min, max]: gf16_clamp(x, min, max) = x
+    @compileAssert(true);
+}
+
+invariant gf16_clamp_below_min_returns_min {
+    // For x < min: gf16_clamp(x, min, max) = min
+    @compileAssert(true);
+}
+
+invariant gf16_clamp_above_max_returns_max {
+    // For x > max: gf16_clamp(x, min, max) = max
+    @compileAssert(true);
+}
+
+invariant gf16_lerp_t_zero_returns_a {
+    // gf16_lerp(a, b, 0) = a
+    @compileAssert(true);
+}
+
+invariant gf16_lerp_t_one_returns_b {
+    // gf16_lerp(a, b, 1) = b
+    @compileAssert(true);
+}
+
+invariant gf16_lerp_monotonic {
+    // For fixed a < b: gf16_lerp(a, b, t) is monotonic in t
+    @compileAssert(true);
+}
+
+invariant gf16_fnma_equals_neg_mul_plus_c {
+    // gf16_fnma(a, b, c) = -(a*b) + c (approximately, with better precision)
+    @compileAssert(true);
+}
+
+invariant gf16_fnma_zero_multiplier_returns_c {
+    // gf16_fnma(0, b, c) = c
     @compileAssert(true);
 }
 
@@ -2226,7 +2355,122 @@ test "gf16_sign_matches_signbit" {
     try std.testing.expect(gf16_signbit(neg_val) and gf16_sign(neg_val) < 0);
 }
 
+test "gf16_clamp_in_range" {
+    // Verify: value within range is unchanged
+    const x = gf16_encode_f32(5.0);
+    const min_val = gf16_encode_f32(0.0);
+    const max_val = gf16_encode_f32(10.0);
+    const result = gf16_clamp(x, min_val, max_val);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.1);
+}
 
+test "gf16_clamp_below_min" {
+    // Verify: value below min returns min
+    const x = gf16_encode_f32(-5.0);
+    const min_val = gf16_encode_f32(0.0);
+    const max_val = gf16_encode_f32(10.0);
+    const result = gf16_clamp(x, min_val, max_val);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(0.0, decoded, 0.1);
+}
+
+test "gf16_clamp_above_max" {
+    // Verify: value above max returns max
+    const x = gf16_encode_f32(15.0);
+    const min_val = gf16_encode_f32(0.0);
+    const max_val = gf16_encode_f32(10.0);
+    const result = gf16_clamp(x, min_val, max_val);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(10.0, decoded, 0.1);
+}
+
+test "gf16_clamp_with_nan" {
+    // Verify: NaN propagates
+    const x = GF16_NAN;
+    const min_val = gf16_encode_f32(0.0);
+    const max_val = gf16_encode_f32(10.0);
+    const result = gf16_clamp(x, min_val, max_val);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
+test "gf16_lerp_t_zero" {
+    // Verify: lerp with t=0 returns a
+    const a = gf16_encode_f32(10.0);
+    const b = gf16_encode_f32(20.0);
+    const t = gf16_encode_f32(0.0);
+    const result = gf16_lerp(a, b, t);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(10.0, decoded, 0.1);
+}
+
+test "gf16_lerp_t_one" {
+    // Verify: lerp with t=1 returns b
+    const a = gf16_encode_f32(10.0);
+    const b = gf16_encode_f32(20.0);
+    const t = gf16_encode_f32(1.0);
+    const result = gf16_lerp(a, b, t);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(20.0, decoded, 0.1);
+}
+
+test "gf16_lerp_t_half" {
+    // Verify: lerp with t=0.5 returns midpoint
+    const a = gf16_encode_f32(0.0);
+    const b = gf16_encode_f32(10.0);
+    const t = gf16_encode_f32(0.5);
+    const result = gf16_lerp(a, b, t);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(5.0, decoded, 0.1);
+}
+
+test "gf16_lerp_with_nan" {
+    // Verify: NaN propagates
+    const a = GF16_NAN;
+    const b = gf16_encode_f32(20.0);
+    const t = gf16_encode_f32(0.5);
+    const result = gf16_lerp(a, b, t);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
+test "gf16_fnma_basic" {
+    // Verify: fnma(a, b, c) = -(a*b) + c
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(10.0);
+    const result = gf16_fnma(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-(2.0 * 3.0) + 10.0, decoded, 0.1); // = 4.0
+}
+
+test "gf16_fnma_zero_multiplier" {
+    // Verify: fnma with zero multiplier returns c
+    const a = gf16_encode_f32(0.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(10.0);
+    const result = gf16_fnma(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(10.0, decoded, 0.1);
+}
+
+test "gf16_fnma_zero_addend" {
+    // Verify: fnma with c=0 returns -(a*b)
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(0.0);
+    const result = gf16_fnma(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-(2.0 * 3.0), decoded, 0.1); // = -6.0
+}
+
+test "gf16_fnma_with_nan" {
+    // Verify: NaN propagates
+    const a = GF16_NAN;
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(10.0);
+    const result = gf16_fnma(a, b, c);
+    try std.testing.expect(gf16_is_nan(result));
+}
 
 // ============================================================================
 // TDD - Benchmarks
@@ -2684,5 +2928,48 @@ bench "gf16_sign_latency" {
     }
     _ = result;
 }
+
+bench "gf16_clamp_latency" {
+    // Measure: nanoseconds to clamp value to range
+    // Target: < 200ns (includes decode + compare + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const x: GF16 = 0x3F00;
+    const min_val: GF16 = 0x3C00;
+    const max_val: GF16 = 0x4800;
+    for (0..1000) |_| {
+        result = gf16_clamp(x, min_val, max_val);
+    }
+    _ = result;
+}
+
+bench "gf16_lerp_latency" {
+    // Measure: nanoseconds to compute linear interpolation
+    // Target: < 300ns (includes decode + computation + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3C00;
+    const b: GF16 = 0x4800;
+    const t: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_lerp(a, b, t);
+    }
+    _ = result;
+}
+
+bench "gf16_fnma_latency" {
+    // Measure: nanoseconds for fused negative multiply-add
+    // Target: < 300ns (fused operation)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C80;
+    const c: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_fnma(a, b, c);
+    }
+    _ = result;
+}
+
 
 

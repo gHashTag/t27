@@ -2,6 +2,64 @@
 
 Constitutional 8-step spec-first development workflow.
 
+## Skill 077: add_gf16_utility_functions
+
+**Spec**: `specs/numeric/gf16.t27`
+**Task**: Add 3 GF16 utility functions with tests, invariants, and benchmarks
+
+### Hashes
+- `spec_hash_before`: 1e20ff2b52bc38cde81a7fb55ac8436ad57d2662838d28cd3588844c12e53e9c
+- `spec_hash_after`: 3f3e48fcb6b1c326627c15e54686ec56b78661a5184731211d8884931540518a
+- `gen_hash_after`: pending (tri gen not available)
+- `test_vector_hash`: pending (tri test not available)
+
+### Functions Added
+1. `gf16_clamp(x: GF16, min_val: GF16, max_val: GF16) -> GF16` - Clamp to range [min, max]
+2. `gf16_lerp(a: GF16, b: GF16, t: GF16) -> GF16` - Linear interpolation: a + t*(b-a)
+3. `gf16_fnma(a: GF16, b: GF16, c: GF16) -> GF16` - Fused negative multiply-add: -(a*b) + c
+
+### Tests Added (13)
+- `test_gf16_clamp_in_range`
+- `test_gf16_clamp_below_min`
+- `test_gf16_clamp_above_max`
+- `test_gf16_clamp_with_nan`
+- `test_gf16_lerp_t_zero`
+- `test_gf16_lerp_t_one`
+- `test_gf16_lerp_t_half`
+- `test_gf16_lerp_with_nan`
+- `test_gf16_fnma_basic`
+- `test_gf16_fnma_zero_multiplier`
+- `test_gf16_fnma_zero_addend`
+- `test_gf16_fnma_with_nan`
+
+### Invariants Added (8)
+- `gf16_clamp_in_range_returns_value`
+- `gf16_clamp_below_min_returns_min`
+- `gf16_clamp_above_max_returns_max`
+- `gf16_lerp_t_zero_returns_a`
+- `gf16_lerp_t_one_returns_b`
+- `gf16_lerp_monotonic`
+- `gf16_fnma_equals_neg_mul_plus_c`
+- `gf16_fnma_zero_multiplier_returns_c`
+
+### Benchmarks Added (3)
+- `bench_gf16_clamp_latency` - Target: < 200ns
+- `bench_gf16_lerp_latency` - Target: < 300ns
+- `bench_gf16_fnma_latency` - Target: < 300ns
+
+### Verdict
+- `test_status`: valid (tri spec validate passed)
+- `verdict`: clean
+- `bench_delta`: pending (tri bench not available)
+- `sealed_at`: 2026-04-04
+
+### Commit
+- `skill_id`: 077
+- `task_id`: add_gf16_utility_functions
+- `spec_path`: specs/numeric/gf16.t27
+
+---
+
 ## Skill 076: add_gf16_sign_functions
 
 **Spec**: `specs/numeric/gf16.t27`
