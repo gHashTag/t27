@@ -118,7 +118,25 @@ module testgen {
             self.emit(self.mangle_filename(self.ast.source_file));
             self.emit("();");
             self.emit_line("");
-            self.emit_line("  // TODO: Implement testbench");
+            self.emit_line("  // Testbench: clock, reset, stimulus generation, response checking");
+            self.emit_line("  // Clock: 100MHz (10ns period)");
+            self.emit_line("  // Reset: active-low, 100ns duration");
+            self.emit_line("  // Stimulus: based on test_cases in test_section");
+            self.emit_line("  // Response: verify against expected_outcome");
+            self.emit_line("");
+            self.emit_line("  // TODO: Parse test_section.test_cases and generate:");
+            self.emit_line("  //   - Clock generator with 50% duty cycle");
+            self.emit_line("  //   - Reset sequence (async reset, release after 10 cycles)");
+            self.emit_line("  //   - Apply test input vectors");
+            self.emit_line("  //   - Monitor output and assert expected values");
+            self.emit_line("  //   - Report pass/fail status");
+            self.emit_line("");
+            self.emit_line("  // Signal declarations:");
+            self.emit_line("  //   reg clk, rst_n;");
+            self.emit_line("  //   wire [DATA_WIDTH-1:0] data_out;");
+            self.emit_line("");
+            self.emit_line("  // DUT instantiation:");
+            self.emit_line("  //   module_name dut (.clk(clk), .rst_n(rst_n), ...);");
             self.emit_line("");
             self.emit("endmodule");
 
