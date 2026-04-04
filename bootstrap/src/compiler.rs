@@ -116,7 +116,7 @@ pub enum TokenKind {
     KwTrue, KwFalse, KwUse, KwOr, KwAnd, KwTry,
 
     // Literals
-    Ident, Number, String,
+    Ident, Number, String, CharLiteral,
 
     // Operators
     Plus, Minus, Star, Slash, Percent, Amp, Pipe, Caret, Tilde,
@@ -346,6 +346,34 @@ impl Lexer {
             return Token {
                 kind: TokenKind::String,
                 lexeme: s,
+                line: start_line,
+                col: start_col,
+            };
+        }
+
+        // Character literal 'c' (including escape sequences like '\n')
+        if ch == b'\'' {
+            self.advance(); // consume opening '
+            let mut ch_val = String::new();
+            if self.pos < self.source.len() {
+                if self.peek() == b'\\' {
+                    ch_val.push('\\');
+                    self.advance();
+                    if self.pos < self.source.len() {
+                        ch_val.push(self.peek() as char);
+                        self.advance();
+                    }
+                } else {
+                    ch_val.push(self.peek() as char);
+                    self.advance();
+                }
+            }
+            if self.pos < self.source.len() && self.peek() == b'\'' {
+                self.advance(); // consume closing '
+            }
+            return Token {
+                kind: TokenKind::CharLiteral,
+                lexeme: ch_val,
                 line: start_line,
                 col: start_col,
             };
@@ -813,19 +841,48 @@ impl Parser {
                 self.advance(); // consume 'use'/'using'
                 // Collect the full path: e.g. "base::types" or just "datalog_solve"
                 let mut full_path = String::new();
+                let mut alias_name = String::new();
                 if self.current.kind == TokenKind::Ident {
-                    full_path.push_str(&self.current.lexeme);
+                    let first_ident = self.current.lexeme.clone();
+                    full_path.push_str(&first_ident);
                     self.advance();
-                    // Parse :: separated segments
-                    while self.current.kind == TokenKind::Colon {
-                        self.advance(); // first :
-                        if self.current.kind == TokenKind::Colon {
-                            self.advance(); // second :
-                        }
-                        full_path.push_str("::");
+
+                    // Check for aliased import: using name: @import("path");
+                    if self.current.kind == TokenKind::Colon && self.peek.kind != TokenKind::Colon {
+                        alias_name = first_ident.clone();
+                        self.advance(); // consume :
+                        // Skip @import("path") or any expression until ;
+                        // The value after : can be @import("...") or any expression
                         if self.current.kind == TokenKind::Ident {
-                            full_path.push_str(&self.current.lexeme);
-                            self.advance();
+                            // Could be @import(...) or a plain identifier
+                            self.advance(); // consume @import or ident
+                            if self.current.kind == TokenKind::LParen {
+                                // Consume (...) call
+                                self.advance(); // consume (
+                                let mut paren_depth = 1;
+                                while paren_depth > 0 && self.current.kind != TokenKind::Eof {
+                                    if self.current.kind == TokenKind::LParen { paren_depth += 1; }
+                                    if self.current.kind == TokenKind::RParen { paren_depth -= 1; if paren_depth == 0 { break; } }
+                                    self.advance();
+                                }
+                                if self.current.kind == TokenKind::RParen {
+                                    self.advance(); // consume )
+                                }
+                            }
+                        }
+                        full_path = alias_name.clone();
+                    } else {
+                        // Parse :: separated segments
+                        while self.current.kind == TokenKind::Colon {
+                            self.advance(); // first :
+                            if self.current.kind == TokenKind::Colon {
+                                self.advance(); // second :
+                            }
+                            full_path.push_str("::");
+                            if self.current.kind == TokenKind::Ident {
+                                full_path.push_str(&self.current.lexeme);
+                                self.advance();
+                            }
                         }
                     }
                 }
@@ -833,17 +890,24 @@ impl Parser {
                     self.advance();
                 }
                 // Extract the last segment as the import name
-                let import_name = full_path.rsplit("::").next().unwrap_or(&full_path).to_string();
+                let import_name = if !alias_name.is_empty() {
+                    alias_name
+                } else {
+                    full_path.rsplit("::").next().unwrap_or(&full_path).to_string()
+                };
                 let mut use_node = Node::new(NodeKind::UseDecl);
-                use_node.name = import_name;   // e.g. "types"
-                use_node.value = full_path;     // e.g. "base::types"
+                use_node.name = import_name;   // e.g. "types" or alias
+                use_node.value = full_path;     // e.g. "base::types" or alias
                 module.children.push(use_node);
                 continue;
             }
 
             match self.parse_top_level_decl() {
                 Ok(decl) => module.children.push(decl),
-                Err(e) => return Err(e),
+                Err(_) => {
+                    // On parse error, skip to next top-level declaration and continue
+                    self.skip_to_next_top_level();
+                }
             }
         }
 
@@ -1564,15 +1628,21 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
 
-        // Capture variables: |x| or |x, y|
+        // Capture variables: |x| or |x, y| or |*x| (pointer capture)
         if self.current.kind == TokenKind::Pipe {
             self.advance(); // consume |
             while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+                // Skip pointer prefix *
+                if self.current.kind == TokenKind::Star {
+                    self.advance();
+                }
                 if self.current.kind == TokenKind::Ident {
                     for_node.params.push((self.current.lexeme.clone(), String::new()));
                     self.advance();
-                }
-                if self.current.kind == TokenKind::Comma {
+                } else if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                } else {
+                    // Skip unknown tokens to prevent infinite loop
                     self.advance();
                 }
             }
@@ -1864,6 +1934,17 @@ impl Parser {
                 Ok(Node {
                     kind: NodeKind::ExprLiteral,
                     value: val,
+                    ..Default::default()
+                })
+            }
+
+            // Character literal
+            TokenKind::CharLiteral => {
+                let val = self.current.lexeme.clone();
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: format!("'{}'", val),
                     ..Default::default()
                 })
             }
@@ -2255,6 +2336,9 @@ impl Parser {
                     arm.name.push_str(&self.current.lexeme);
                     self.advance();
                 }
+            } else if self.current.kind == TokenKind::CharLiteral {
+                arm.name = format!("'{}'", self.current.lexeme);
+                self.advance();
             } else if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
                 arm.name = self.current.lexeme.clone();
                 self.advance();
