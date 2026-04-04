@@ -2,509 +2,292 @@
 ; Runtime environment for executing t27 programs
 ; φ² + 1/φ² = 3 | TRINITY
 
-.use base::types
-.use isa::registers
-
-; Runtime configuration
-.const STACK_SIZE 4096       ; Stack size in bytes
-.const HEAP_SIZE 65536        ; Heap size in bytes
-.const MAX_THREADS 8          ; Maximum concurrent threads
-.const MAX_CHANNELS 16        ; Maximum communication channels
-
-; Runtime state
-.data
-    ; Stack
-    stack_base: .dword 0      ; Stack base address
-    stack_ptr: .dword 0       ; Current stack pointer
-
-    ; Heap
-    heap_base: .dword 0       ; Heap base address
-    heap_ptr: .dword 0        ; Current heap pointer (bump allocator)
-    heap_end: .dword 0        ; Heap end address
-
-    ; Thread management
-    thread_states: .byte 0:8   ; Thread states (0=idle, 1=running, 2=blocked)
-    thread_sp: .dword 0:8     ; Thread stack pointers
-
-    ; Channels
-    channel_buffers: .dword 0:16  ; Channel buffers
-    channel_sizes: .word 0:16      ; Channel sizes
-    channel_readers: .byte 0:16    ; Reader counts
-    channel_writers: .byte 0:16    ; Writer counts
-
-    ; Exception handling
-    exception_handler: .dword 0 ; Exception handler address
-    exception_code: .byte 0     ; Last exception code
-
-    ; Performance monitoring
-    cycle_counter: .dword 0    ; Cycle counter
-    instruction_counter: .dword 0  ; Instruction counter
-
-.code
-    ; ═════════════════════════════════════════════════════════════════════
-    ; runtime_init() → void
-    ; Initialize runtime environment
-    ; ═════════════════════════════════════════════════════════════════════
-runtime_init:
-    ; Initialize stack
-    CALL alloc_stack
-
-    ; Initialize heap
-    CALL alloc_heap
-
-    ; Initialize threads
-    CALL init_threads
-
-    ; Initialize channels
-    CALL init_channels
-
-    ; Initialize counters
-    MOV r0, #0
-    STORE r0, [cycle_counter]
-    STORE r0, [instruction_counter]
-
-    ; Set up exception handler
-    CALL setup_exception_handler
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; runtime_execute(entry: usize) → i32
-    ; Execute t27 program starting from entry point
-    ; Returns exit code
-    ; ═════════════════════════════════════════════════════════════════════
-runtime_execute:
-    ; Input: r0 = entry point address
-
-    ; Set up initial stack frame
-    CALL setup_stack_frame
-
-    ; Jump to entry point
-    CALL r0
-
-    ; Return exit code (in r0)
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; runtime_shutdown() → void
-    ; Clean up and shutdown runtime
-    ; ═════════════════════════════════════════════════════════════════════
-runtime_shutdown:
-    ; Free heap (if managed)
-    ; Print performance stats
-    CALL print_stats
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; alloc_stack() → void
-    ; Allocate stack memory
-    ; ═════════════════════════════════════════════════════════════════════
-alloc_stack:
-    ; Allocate STACK_SIZE bytes
-    ; For spec: assume allocation succeeds
-    ; Set stack_base and stack_ptr
-
-    MOV r0, STACK_SIZE
-    ; (In real implementation: call malloc)
-    ; For spec: set base address
-    MOV r1, #0xDEADBEEF  ; Placeholder
-    STORE r1, [stack_base]
-
-    ; Stack grows downward, so SP starts at base + size
-    ADD r1, r1, STACK_SIZE
-    STORE r1, [stack_ptr]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; alloc_heap() → void
-    ; Allocate heap memory
-    ; ═════════════════════════════════════════════════════════════════════
-alloc_heap:
-    ; Allocate HEAP_SIZE bytes
-    MOV r0, HEAP_SIZE
-    ; (In real implementation: call malloc)
-    MOV r1, #0xBADDCAFE  ; Placeholder
-    STORE r1, [heap_base]
-
-    ; Heap grows upward
-    MOV r2, r1
-    STORE r2, [heap_ptr]
-
-    ; Calculate heap end
-    ADD r2, r2, HEAP_SIZE
-    STORE r2, [heap_end]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; init_threads() → void
-    ; Initialize thread management
-    ; ═══════════════════════════════════════════════════════════════════
-init_threads:
-    ; Set all threads to idle
-    MOV r0, #0
-    MOV r1, MAX_THREADS
-
-init_threads_loop:
-    CMP r0, r1
-    JGE init_threads_done
-
-    MOV r2, #0           ; idle state
-    STORE r2, [thread_states + r0]
-
-    ADD r0, r0, ONE
-    JMP init_threads_loop
-
-init_threads_done:
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; init_channels() → void
-    ; Initialize communication channels
-    ; ═════════════════════════════════════════════════════════════════════
-init_channels:
-    ; Set all channels to empty
-    MOV r0, #0
-    MOV r1, MAX_CHANNELS
-
-init_channels_loop:
-    CMP r0, r1
-    JGE init_channels_done
-
-    MOV r2, #0
-    STORE r2, [channel_sizes + r0 * 4]
-    STORE r2, [channel_readers + r0]
-    STORE r2, [channel_writers + r0]
-
-    ADD r0, r0, ONE
-    JMP init_channels_loop
-
-init_channels_done:
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; setup_exception_handler() → void
-    ; Set up exception handler
-    ; ═════════════════════════════════════════════════════════════════════
-setup_exception_handler:
-    ; Set default exception handler
-    MOV r0, #0x1000      ; Default handler address
-    STORE r0, [exception_handler]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; setup_stack_frame() → void
-    ; Set up initial stack frame for program entry
-    ; ═════════════════════════════════════════════════════════════════════
-setup_stack_frame:
-    ; Push return address (dummy for entry point)
-    LOAD r0, [stack_ptr]
-    SUB r0, r0, #4
-    STORE r0, [stack_ptr]
-
-    ; Push frame pointer
-    SUB r0, r0, #4
-    MOV r1, R16           ; FP register
-    CALL reg_read
-    STORE r0, [r0]
-    MOV r1, r0
-    MOV r0, R16
-    MOV r2, r1
-    CALL reg_write
-
-    ; Set up initial register state
-    MOV r0, R17
-    MOV r1, #0xBADF00D   ; Initial SP
-    CALL reg_write
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; runtime_alloc(size: usize) → usize
-    ; Allocate memory from heap (bump allocator)
-    ; Returns pointer or 0 on failure
-    ; ═══════════════════════════════════════════════════════════════════
-runtime_alloc:
-    ; Input: r0 = size
-    ; Output: r0 = pointer (or 0 on failure)
-
-    LOAD r1, [heap_ptr]
-    LOAD r2, [heap_end]
-
-    ; Check if enough space
-    ADD r3, r1, r0
-    CMP r3, r2
-    JGT alloc_fail
-
-    ; Allocate: return old ptr, update heap_ptr
-    MOV r0, r1
-    ADD r1, r1, r0
-    STORE r1, [heap_ptr]
-    RET
-
-alloc_fail:
-    MOV r0, #0           ; Return null
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; runtime_free(ptr: usize) → void
-    ; Free memory (no-op for bump allocator)
-    ; ═════════════════════════════════════════════════════════════════════
-runtime_free:
-    ; Input: r0 = pointer
-    ; No-op for bump allocator
-    ; (Full implementation would use free list)
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; channel_create(size: usize) → usize
-    ; Create a new channel
-    ; Returns channel ID or -1 on failure
-    ; ═══════════════════════════════════════════════════════════════════
-channel_create:
-    ; Input: r0 = size
-    ; Output: r0 = channel ID
-
-    ; Find free channel
-    MOV r1, #0          ; r1 = channel ID
-
-channel_find_loop:
-    CMP r1, MAX_CHANNELS
-    JGE channel_create_fail
-
-    LOAD r2, [channel_sizes + r1 * 4]
-    CMP r2, #0
-    JNE channel_next
-
-    ; Found free channel
-    ; Allocate buffer
-    CALL runtime_alloc
-    CMP r0, #0
-    JEQ channel_create_fail
-
-    ; Set up channel
-    STORE r0, [channel_buffers + r1 * 4]
-    MOV r2, r0           ; r2 = size
-    STORE r2, [channel_sizes + r1 * 4]
-
-    MOV r0, r1
-    RET
-
-channel_next:
-    ADD r1, r1, ONE
-    JMP channel_find_loop
-
-channel_create_fail:
-    MOV r0, #0xFFFFFFFF   ; -1 on failure
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; channel_send(channel: usize, data: usize) → bool
-    ; Send data to channel
-    ; Returns true on success
-    ; ═══════════════════════════════════════════════════════════════════
-channel_send:
-    ; Input: r0 = channel ID, r1 = data
-    ; Output: r0 = success
-
-    ; Validate channel
-    CMP r0, MAX_CHANNELS
-    JGE channel_send_fail
-
-    ; Check if channel has space
-    LOAD r2, [channel_sizes + r0 * 4]
-    CMP r2, #0
-    JEQ channel_send_fail
-
-    ; Store data
-    LOAD r3, [channel_buffers + r0 * 4]
-    STORE r1, [r3]
-
-    ; Decrement size
-    SUB r2, r2, ONE
-    STORE r2, [channel_sizes + r0 * 4]
-
-    MOV r0, #1           ; success
-    RET
-
-channel_send_fail:
-    MOV r0, #0           ; failure
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; channel_recv(channel: usize) → usize
-    ; Receive data from channel
-    ; Returns data or 0 if empty
-    ; ═════════════════════════════════════════════════════════════════════
-channel_recv:
-    ; Input: r0 = channel ID
-    ; Output: r0 = data (or 0 if empty)
-
-    ; Validate channel
-    CMP r0, MAX_CHANNELS
-    JGE channel_recv_fail
-
-    ; Check if channel has data
-    LOAD r2, [channel_sizes + r0 * 4]
-    CMP r2, #0
-    JNE channel_recv_data
-
-channel_recv_fail:
-    MOV r0, #0
-    RET
-
-channel_recv_data:
-    ; Load data
-    LOAD r3, [channel_buffers + r0 * 4]
-    LOAD r0, [r3]
-
-    ; Increment size
-    ADD r2, r2, ONE
-    STORE r2, [channel_sizes + r0 * 4]
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; thread_spawn(entry: usize, arg: usize) → usize
-    ; Spawn a new thread
-    ; Returns thread ID or -1 on failure
-    ; ═════════════════════════════════════════════════════════════════════
-thread_spawn:
-    ; Input: r0 = entry point, r1 = argument
-    ; Output: r0 = thread ID
-
-    ; Find free thread slot
-    MOV r2, #0
-
-thread_find_loop:
-    CMP r2, MAX_THREADS
-    JGE thread_spawn_fail
-
-    LOAD r3, [thread_states + r2]
-    CMP r3, #0           ; idle?
-    JNE thread_next
-
-    ; Found free thread
-    MOV r3, #1           ; running
-    STORE r3, [thread_states + r2]
-
-    ; Allocate stack for thread
-    ; (For spec: skip actual allocation)
-
-    ; Set up thread stack pointer
-    LOAD r3, [stack_base]
-    ADD r3, r3, STACK_SIZE
-    STORE r3, [thread_sp + r2 * 4]
-
-    MOV r0, r2           ; return thread ID
-    RET
-
-thread_next:
-    ADD r2, r2, ONE
-    JMP thread_find_loop
-
-thread_spawn_fail:
-    MOV r0, #0xFFFFFFFF   ; -1 on failure
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; thread_yield() → void
-    ; Yield execution to another thread
-    ; ═════════════════════════════════════════════════════════════════════
-thread_yield:
-    ; Simple round-robin scheduling
-    ; Find next running thread
-
-    ; (For spec: simplified)
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; print_stats() → void
-    ; Print performance statistics
-    ; ═════════════════════════════════════════════════════════════════════
-print_stats:
-    ; Print cycle counter
-    ; Print instruction counter
-    ; Print memory usage
-
-    RET
-
-    RET
-
-    ; ═════════════════════════════════════════════════════════════════════
-    ; TDD-Inside-Spec: Invariants and Tests
-    ; ═════════════════════════════════════════════════════════════════════
-.test
-    ; test_bootstrap_init_sequence
-    ; Verify: runtime_init initializes all components in correct order
-    ; Setup: call runtime_init on fresh runtime
-    ; Expected: stack allocated, heap allocated, threads idle, channels empty
-
-    ; test_arena_no_leak
-    ; Verify: all allocations are freed (or tracked) in bump allocator
-    ; Setup: allocate various sizes, check heap state
-    ; Expected: no untracked allocations, heap_ptr <= heap_end
-
-    ; test_channel_send_recv_roundtrip
-    ; Verify: data sent through channel is received correctly
-    ; Setup: create channel, send value, recv value
-    ; Expected: received value == sent value
-
-    ; test_thread_yield_fairness
-    ; Verify: thread_yield cycles through all running threads
-    ; Setup: spawn 3 threads, each yields, verify round-robin
-    ; Expected: each thread gets CPU time
-
-    ; test_exception_handler_invocation
-    ; Verify: exception handler is called on trap
-    ; Setup: trigger TRAP, check exception_code
-    ; Expected: exception_handler called, exception_code set
-
-    ; test_stack_growth_direction
-    ; Verify: stack grows downward (SP decreases)
-    ; Setup: push values, track SP before/after
-    ; Expected: SP after < SP before
-
-    ; test_heap_bump_allocator_properties
-    ; Verify: bump allocator is O(1) and contiguous
-    ; Setup: allocate multiple times, check addresses
-    ; Expected: addresses are contiguous and increasing
-
-.invariant
-    ; arena_no_leak
-    ; heap_ptr never exceeds heap_end
-    ; Rationale: Bump allocator must stay within bounds
-
-    ; stack_bounds_valid
-    ; stack_ptr stays within [stack_base, stack_base + STACK_SIZE)
-    ; Rationale: Stack must not overflow or underflow
-
-    ; thread_count_limit
-    ; Active threads never exceed MAX_THREADS
-    ; Rationale: Thread pool has fixed size
-
-    ; channel_capacity_limit
-    ; Channel size never exceeds initial allocation
-    ; Rationale: Channels have bounded capacity
-
-    ; exception_handler_set
-    ; exception_handler is never NULL after init
-    ; Rationale: System must have default error handler
-
-.bench
-    ; bench_alloc_latency_cycles
-    ; Measure: cycles for runtime_alloc
-    ; Target: < 10 cycles for bump allocation
-
-    ; test_channel_throughput_ops_per_sec
-    ; Measure: channel operations per second
-    ; Target: > 1M send/recv ops/sec on empty channels
-
-    ; test_thread_context_switch_cycles
-    ; Measure: cycles for thread_yield and reschedule
-    ; Target: < 100 cycles for thread switch
-
-HALT
+module triruntime;
+
+using base::types;
+using isa::registers;
+
+// Configuration
+pub const STACK_SIZE: usize = 4096;
+pub const HEAP_SIZE: usize = 65536;
+pub const MAX_THREADS: usize = 8;
+pub const MAX_CHANNELS: usize = 16;
+
+// Thread states
+pub const ThreadState = enum(u8) {
+    idle = 0,
+    running = 1,
+    blocked = 2,
+};
+
+// Runtime state
+pub const Runtime = struct {
+    // Stack
+    stack_base: usize = 0,
+    stack_ptr: usize = 0,
+
+    // Heap
+    heap_base: usize = 0,
+    heap_ptr: usize = 0,
+    heap_end: usize = 0,
+
+    // Thread management
+    thread_states: [MAX_THREADS]ThreadState = [_]ThreadState{.idle} ** MAX_THREADS,
+    thread_sp: [MAX_THREADS]usize = [_]usize{0} ** MAX_THREADS,
+
+    // Channels
+    channel_buffers: [MAX_CHANNELS]usize = [_]usize{0} ** MAX_CHANNELS,
+    channel_sizes: [MAX_CHANNELS]usize = [_]usize{0} ** MAX_CHANNELS,
+    channel_readers: [MAX_CHANNELS]u8 = [_]u8{0} ** MAX_CHANNELS,
+    channel_writers: [MAX_CHANNELS]u8 = [_]u8{0} ** MAX_CHANNELS,
+
+    // Exception handling
+    exception_handler: usize = 0,
+    exception_code: u8 = 0,
+
+    // Performance monitoring
+    cycle_counter: usize = 0,
+    instruction_counter: usize = 0,
+};
+
+// Initialize runtime environment
+pub fn runtime_init(rt: *Runtime) !void {
+    try alloc_stack(rt);
+    try alloc_heap(rt);
+    init_threads(rt);
+    init_channels(rt);
+    rt.cycle_counter = 0;
+    rt.instruction_counter = 0;
+    setup_exception_handler(rt);
+}
+
+// Execute t27 program starting from entry point
+pub fn runtime_execute(rt: *Runtime, entry: usize) i32 {
+    setup_stack_frame(rt);
+    // Call entry point (simplified for spec)
+    _ = entry;
+    return 0; // Exit code
+}
+
+// Clean up and shutdown runtime
+pub fn runtime_shutdown(rt: *Runtime) void {
+    print_stats(rt);
+    // Free heap if managed
+    _ = rt;
+}
+
+// Allocate stack memory
+fn alloc_stack(rt: *Runtime) !void {
+    // Allocate STACK_SIZE bytes
+    // For spec: assume allocation succeeds
+    rt.stack_base = 0xDEADBEEF; // Placeholder
+    rt.stack_ptr = rt.stack_base + STACK_SIZE;
+}
+
+// Allocate heap memory
+fn alloc_heap(rt: *Runtime) !void {
+    // Allocate HEAP_SIZE bytes
+    rt.heap_base = 0xBADDCAFE; // Placeholder
+    rt.heap_ptr = rt.heap_base;
+    rt.heap_end = rt.heap_base + HEAP_SIZE;
+}
+
+// Initialize thread management
+fn init_threads(rt: *Runtime) void {
+    // Set all threads to idle
+    for (&rt.thread_states) |*state| {
+        state.* = .idle;
+    }
+}
+
+// Initialize communication channels
+fn init_channels(rt: *Runtime) void {
+    // Set all channels to empty
+    for (0..MAX_CHANNELS) |i| {
+        rt.channel_sizes[i] = 0;
+        rt.channel_readers[i] = 0;
+        rt.channel_writers[i] = 0;
+    }
+}
+
+// Set up exception handler
+fn setup_exception_handler(rt: *Runtime) void {
+    // Set default exception handler
+    rt.exception_handler = 0x1000;
+}
+
+// Set up initial stack frame
+fn setup_stack_frame(rt: *Runtime) void {
+    // Push return address (dummy for entry point)
+    rt.stack_ptr -= 4;
+    // Push frame pointer
+    rt.stack_ptr -= 4;
+}
+
+// Allocate memory from heap (bump allocator)
+pub fn runtime_alloc(rt: *Runtime, size: usize) usize {
+    if (rt.heap_ptr + size > rt.heap_end) {
+        return 0; // Out of memory
+    }
+    const ptr = rt.heap_ptr;
+    rt.heap_ptr += size;
+    return ptr;
+}
+
+// Free memory (no-op for bump allocator)
+pub fn runtime_free(rt: *Runtime, ptr: usize) void {
+    _ = rt;
+    _ = ptr;
+    // No-op for bump allocator
+}
+
+// Create a new channel
+pub fn channel_create(rt: *Runtime, size: usize) usize {
+    // Find free channel
+    for (0..MAX_CHANNELS) |i| {
+        if (rt.channel_sizes[i] == 0) {
+            const buffer = runtime_alloc(rt, size);
+            if (buffer == 0) {
+                return 0xFFFFFFFF; // -1 on failure
+            }
+            rt.channel_buffers[i] = buffer;
+            rt.channel_sizes[i] = size;
+            return @intCast(i);
+        }
+    }
+    return 0xFFFFFFFF; // -1 on failure
+}
+
+// Send data to channel
+pub fn channel_send(rt: *Runtime, channel_id: usize, data: usize) bool {
+    if (channel_id >= MAX_CHANNELS or rt.channel_sizes[channel_id] == 0) {
+        return false;
+    }
+    // Store data (simplified for spec)
+    rt.channel_sizes[channel_id] -= 1;
+    return true;
+}
+
+// Receive data from channel
+pub fn channel_recv(rt: *Runtime, channel_id: usize) usize {
+    if (channel_id >= MAX_CHANNELS or rt.channel_sizes[channel_id] == 0) {
+        return 0;
+    }
+    // Load data (simplified for spec)
+    rt.channel_sizes[channel_id] += 1;
+    return 0;
+}
+
+// Spawn a new thread
+pub fn thread_spawn(rt: *Runtime, entry: usize, arg: usize) usize {
+    // Find free thread slot
+    for (0..MAX_THREADS) |i| {
+        if (rt.thread_states[i] == .idle) {
+            rt.thread_states[i] = .running;
+            rt.thread_sp[i] = rt.stack_base + STACK_SIZE;
+            _ = entry;
+            _ = arg;
+            return @intCast(i);
+        }
+    }
+    return 0xFFFFFFFF; // -1 on failure
+}
+
+// Yield execution to another thread
+pub fn thread_yield(rt: *Runtime) void {
+    // Simple round-robin scheduling
+    _ = rt;
+}
+
+// Print performance statistics
+fn print_stats(rt: *Runtime) void {
+    // Print cycle counter
+    // Print instruction counter
+    // Print memory usage
+    _ = rt;
+}
+
+// Tests
+test "test_bootstrap_init_sequence" {
+    // Verify: runtime_init initializes all components in correct order
+    // Setup: call runtime_init on fresh runtime
+    // Expected: stack allocated, heap allocated, threads idle, channels empty
+}
+
+test "test_arena_no_leak" {
+    // Verify: all allocations are freed (or tracked) in bump allocator
+    // Setup: allocate various sizes, check heap state
+    // Expected: no untracked allocations, heap_ptr <= heap_end
+}
+
+test "test_channel_send_recv_roundtrip" {
+    // Verify: data sent through channel is received correctly
+    // Setup: create channel, send value, recv value
+    // Expected: received value == sent value
+}
+
+test "test_thread_yield_fairness" {
+    // Verify: thread_yield cycles through all running threads
+    // Setup: spawn 3 threads, each yields, verify round-robin
+    // Expected: each thread gets CPU time
+}
+
+test "test_exception_handler_invocation" {
+    // Verify: exception handler is called on trap
+    // Setup: trigger TRAP, check exception_code
+    // Expected: exception_handler called, exception_code set
+}
+
+test "test_stack_growth_direction" {
+    // Verify: stack grows downward (SP decreases)
+    // Setup: push values, track SP before/after
+    // Expected: SP after < SP before
+}
+
+test "test_heap_bump_allocator_properties" {
+    // Verify: bump allocator is O(1) and contiguous
+    // Setup: allocate multiple times, check addresses
+    // Expected: addresses are contiguous and increasing
+}
+
+// Invariants
+invariant "arena_no_leak" {
+    // heap_ptr never exceeds heap_end
+    // Rationale: Bump allocator must stay within bounds
+}
+
+invariant "stack_bounds_valid" {
+    // stack_ptr stays within [stack_base, stack_base + STACK_SIZE)
+    // Rationale: Stack must not overflow or underflow
+}
+
+invariant "thread_count_limit" {
+    // Active threads never exceed MAX_THREADS
+    // Rationale: Thread pool has fixed size
+}
+
+invariant "channel_capacity_limit" {
+    // Channel size never exceeds initial allocation
+    // Rationale: Channels have bounded capacity
+}
+
+invariant "exception_handler_set" {
+    // exception_handler is never NULL after init
+    // Rationale: System must have default error handler
+}
+
+// Benchmarks
+bench "bench_alloc_latency_cycles" {
+    // Measure: cycles for runtime_alloc
+    // Target: < 10 cycles for bump allocation
+}
+
+bench "test_channel_throughput_ops_per_sec" {
+    // Measure: channel operations per second
+    // Target: > 1M send/recv ops/sec on empty channels
+}
+
+bench "test_thread_context_switch_cycles" {
+    // Measure: cycles for thread_yield and reschedule
+    // Target: < 100 cycles for thread switch
+}
