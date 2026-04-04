@@ -7,8 +7,12 @@ import {
   createAdminToken,
 } from "../utils/auth.js";
 import { HttpError } from "../utils/errors.js";
+import { createRateLimiter } from "../middleware/rateLimit.js";
 
 const router = Router();
+
+// 10 attempts per 15-minute window per IP — protects against brute-force.
+const loginLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, maxAttempts: 10 });
 
 /**
  * POST /auth/login
@@ -18,6 +22,7 @@ const router = Router();
  */
 router.post(
   "/login",
+  loginLimiter,
   asyncHandler(async (req, res) => {
     const { password } = req.body ?? {};
 

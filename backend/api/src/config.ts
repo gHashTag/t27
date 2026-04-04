@@ -86,13 +86,15 @@ export const config = {
     process.env.SANDBOX_INTERNAL_DOMAIN ?? "railway.internal",
   sandboxPort: Number(process.env.SANDBOX_PORT ?? 8080),
 
-  // Local development overrides
+  // Local development overrides — localMode MUST be explicitly enabled.
+  // Setting SANDBOX_LOCAL_BASE_URL alone is NOT enough; this prevents
+  // accidental activation in staging environments.
   sandboxLocalBaseUrl: process.env.SANDBOX_LOCAL_BASE_URL,
   sandboxLocalMap: parseSandboxLocalMap(process.env.SANDBOX_LOCAL_MAP),
-  localMode:
-    process.env.LOCAL_MODE === "true" ||
-    (!!( process.env.SANDBOX_LOCAL_BASE_URL || process.env.SANDBOX_LOCAL_MAP) &&
-      (process.env.NODE_ENV ?? "development") !== "production"),
+  localMode: process.env.LOCAL_MODE === "true",
+
+  // Session limits
+  maxSessions: Number(process.env.MAX_SESSIONS ?? 100),
 
   // Sandbox pass-through env vars
   githubToken: process.env.GH_TOKEN,
