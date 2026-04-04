@@ -193,6 +193,36 @@ impl Lexer {
                 continue; // loop back to skip more whitespace/comments
             }
 
+            // Skip /* ... */ block comments
+            if self.pos + 1 < self.source.len()
+                && self.source[self.pos] == b'/'
+                && self.source[self.pos + 1] == b'*'
+            {
+                self.advance(); // consume /
+                self.advance(); // consume *
+                let mut depth = 1;
+                while depth > 0 && self.pos < self.source.len() {
+                    if self.pos + 1 < self.source.len()
+                        && self.source[self.pos] == b'*'
+                        && self.source[self.pos + 1] == b'/'
+                    {
+                        self.advance();
+                        self.advance();
+                        depth -= 1;
+                    } else if self.pos + 1 < self.source.len()
+                        && self.source[self.pos] == b'/'
+                        && self.source[self.pos + 1] == b'*'
+                    {
+                        self.advance();
+                        self.advance();
+                        depth += 1;
+                    } else {
+                        self.advance();
+                    }
+                }
+                continue;
+            }
+
             // Skip ; line comments (old t27 comment style: ; at column 1 followed by space)
             if self.pos < self.source.len() && self.peek() == b';' && self.col == 1 {
                 let next = self.peek_offset(1);
@@ -554,6 +584,100 @@ impl Parser {
         Ok(())
     }
 
+    // Skip everything to the next semicolon, handling nested braces, brackets, and parens
+    fn skip_to_semicolon(&mut self) -> Result<(), String> {
+        let mut bracket_depth: i32 = 0;
+        let mut paren_depth: i32 = 0;
+        while self.current.kind != TokenKind::Eof {
+            // Only treat ; as terminator when not inside brackets or parens
+            if self.current.kind == TokenKind::Semicolon && bracket_depth == 0 && paren_depth == 0 {
+                self.advance();
+                return Ok(());
+            }
+            if self.current.kind == TokenKind::LBrace {
+                self.advance();
+                self.skip_brace_body()?;
+                if self.current.kind == TokenKind::RBrace {
+                    self.advance();
+                }
+            } else if self.current.kind == TokenKind::LBracket {
+                bracket_depth += 1;
+                self.advance();
+            } else if self.current.kind == TokenKind::RBracket {
+                bracket_depth -= 1;
+                self.advance();
+            } else if self.current.kind == TokenKind::LParen {
+                paren_depth += 1;
+                self.advance();
+            } else if self.current.kind == TokenKind::RParen {
+                paren_depth -= 1;
+                self.advance();
+            } else {
+                self.advance();
+            }
+        }
+        Ok(())
+    }
+
+    // Check if the current token starts a new top-level declaration.
+    // This is conservative: we only include keywords that unambiguously start
+    // a new top-level form, excluding const/var which can appear inside
+    // keyword-style test/invariant/bench blocks.
+    fn is_top_level_start(&self) -> bool {
+        matches!(self.current.kind,
+            TokenKind::KwPub | TokenKind::KwFn | TokenKind::KwEnum | TokenKind::KwStruct |
+            TokenKind::KwTest | TokenKind::KwInvariant | TokenKind::KwBench |
+            TokenKind::KwUse | TokenKind::KwUsing | TokenKind::KwModule |
+            TokenKind::RBrace | TokenKind::Eof
+        )
+    }
+
+    // Skip tokens until we reach a top-level keyword (for keyword-style test/invariant/bench)
+    // Handles nested braces, brackets, and parens so we don't stop inside nested groups
+    fn skip_to_next_top_level(&mut self) {
+        let mut paren_depth: i32 = 0;
+        let mut bracket_depth: i32 = 0;
+        loop {
+            if self.current.kind == TokenKind::Eof {
+                break;
+            }
+            // Handle brace groups by using skip_brace_body
+            if self.current.kind == TokenKind::LBrace {
+                self.advance();
+                let _ = self.skip_brace_body();
+                if self.current.kind == TokenKind::RBrace {
+                    self.advance();
+                }
+                continue;
+            }
+            if self.current.kind == TokenKind::LParen {
+                paren_depth += 1;
+                self.advance();
+                continue;
+            }
+            if self.current.kind == TokenKind::RParen {
+                paren_depth -= 1;
+                self.advance();
+                continue;
+            }
+            if self.current.kind == TokenKind::LBracket {
+                bracket_depth += 1;
+                self.advance();
+                continue;
+            }
+            if self.current.kind == TokenKind::RBracket {
+                bracket_depth -= 1;
+                self.advance();
+                continue;
+            }
+            // Only check for top-level start when not inside nested groups
+            if paren_depth == 0 && bracket_depth == 0 && self.is_top_level_start() {
+                break;
+            }
+            self.advance();
+        }
+    }
+
     pub fn parse(&mut self) -> Result<Node, String> {
         let mut module = Node::new(NodeKind::Module);
 
@@ -578,10 +702,22 @@ impl Parser {
             module.name = mod_name;
             if self.current.kind == TokenKind::Semicolon {
                 self.advance(); // consume ;
+            } else if self.current.kind == TokenKind::LBrace {
+                // Brace-style module: module Name { ... }
+                self.advance(); // consume {
+                self.parse_module_body(&mut module)?;
+                self.expect(TokenKind::RBrace)?;
+                return Ok(module);
             }
         }
 
-        while self.current.kind != TokenKind::Eof {
+        self.parse_module_body(&mut module)?;
+
+        Ok(module)
+    }
+
+    fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
+        while self.current.kind != TokenKind::Eof && self.current.kind != TokenKind::RBrace {
             // [BUG 5 FIX] Skip use/using statements
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
@@ -599,7 +735,7 @@ impl Parser {
             }
         }
 
-        Ok(module)
+        Ok(())
     }
 
     fn parse_top_level_decl(&mut self) -> Result<Node, String> {
@@ -611,6 +747,7 @@ impl Parser {
 
         match self.current.kind {
             TokenKind::KwConst => self.parse_const_decl(is_pub),
+            TokenKind::KwVar => self.parse_var_decl(is_pub),
             TokenKind::KwFn => self.parse_fn_decl(is_pub),
             TokenKind::KwEnum => self.parse_enum_decl(is_pub),
             TokenKind::KwStruct => self.parse_struct_decl(is_pub),
@@ -620,8 +757,11 @@ impl Parser {
             _ => {
                 // Skip unknown tokens to be resilient
                 let tok = format!("{:?}", self.current.kind);
+                let line = self.current.line;
+                let col = self.current.col;
+                let lexeme = self.current.lexeme.clone();
                 self.advance();
-                Err(format!("Unexpected top-level token: {}", tok))
+                Err(format!("Unexpected top-level token: {} ('{}') at line {}:{}", tok, lexeme, line, col))
             }
         }
     }
@@ -707,7 +847,7 @@ impl Parser {
                 }
                 return Ok(decl);
             } else if self.current.kind == TokenKind::Minus {
-                // [BUG 10 FIX] Negative number: -1
+                // [BUG 10 FIX] Negative number: -1 or expression
                 self.advance(); // consume -
                 if self.current.kind == TokenKind::Number {
                     let mut val_node = Node::new(NodeKind::ExprLiteral);
@@ -721,7 +861,7 @@ impl Parser {
                 decl.children.push(val_node);
                 self.advance();
             } else if self.current.kind == TokenKind::Ident {
-                // Type alias: pub const PackedTrit = u8;
+                // Type alias or expression start: pub const PackedTrit = u8;
                 let mut val_node = Node::new(NodeKind::ExprIdentifier);
                 val_node.name = self.current.lexeme.clone();
                 decl.children.push(val_node);
@@ -736,33 +876,16 @@ impl Parser {
                 val_node.value = self.current.lexeme.clone();
                 decl.children.push(val_node);
                 self.advance();
-            } else if self.current.kind == TokenKind::Tilde {
-                // Bitwise NOT expression like ~(TRIT_MASK << bit_pos)
-                // Skip to semicolon
-                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
-                    self.advance();
-                }
-                if self.current.kind == TokenKind::Semicolon {
-                    self.advance();
-                }
-                return Ok(decl);
             } else {
-                // Unknown RHS — skip to semicolon
-                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
-                    // If we hit a brace, skip its contents
-                    if self.current.kind == TokenKind::LBrace {
-                        self.advance();
-                        self.skip_brace_body()?;
-                        if self.current.kind == TokenKind::RBrace {
-                            self.advance();
-                        }
-                    } else {
-                        self.advance();
-                    }
-                }
-                if self.current.kind == TokenKind::Semicolon {
-                    self.advance();
-                }
+                // Other RHS (tilde, parens, etc.) — skip to semicolon
+                self.skip_to_semicolon()?;
+                return Ok(decl);
+            }
+
+            // After reading the first value token, skip any remaining expression
+            // tokens (operators, more operands) until semicolon
+            if self.current.kind != TokenKind::Semicolon {
+                self.skip_to_semicolon()?;
                 return Ok(decl);
             }
         }
@@ -771,6 +894,23 @@ impl Parser {
         if self.current.kind == TokenKind::Semicolon {
             self.advance();
         }
+        Ok(decl)
+    }
+
+    fn parse_var_decl(&mut self, is_pub: bool) -> Result<Node, String> {
+        let mut decl = Node::new(NodeKind::ConstDecl);
+        decl.extra_pub = is_pub;
+
+        self.advance(); // consume 'var'
+
+        // Name
+        if self.current.kind == TokenKind::Ident {
+            decl.name = self.current.lexeme.clone();
+            self.advance();
+        }
+
+        // Skip everything to semicolon (type annotation, = value, etc.)
+        self.skip_to_semicolon()?;
         Ok(decl)
     }
 
@@ -823,6 +963,15 @@ impl Parser {
         if self.current.kind == TokenKind::Ident {
             decl.name = self.current.lexeme.clone();
             self.advance();
+            // Handle dotted names like Parser.new
+            while self.current.kind == TokenKind::Dot {
+                decl.name.push('.');
+                self.advance(); // consume .
+                if self.current.kind == TokenKind::Ident {
+                    decl.name.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+            }
         }
 
         // Skip parameter list with parens
@@ -842,20 +991,63 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
 
-        // Return type (identifier, or []T / [N]T slice/array types before {)
+        // Optional arrow for return type: -> Type
+        if self.current.kind == TokenKind::Arrow {
+            self.advance(); // consume ->
+        }
+
+        // Handle error union prefix: !Type or !void
+        let has_error_union = self.current.kind == TokenKind::Bang;
+        if has_error_union {
+            self.advance(); // consume !
+        }
+
+        // Return type (identifier, or []T / [N]T / [][]const u8 slice/array types, or void)
         if self.current.kind == TokenKind::Ident {
             decl.extra_return_type = self.current.lexeme.clone();
             self.advance();
+            // Handle generic return types like Option<Foo>
+            if self.current.kind == TokenKind::Lt {
+                let mut gt_depth = 1;
+                self.advance(); // consume <
+                while gt_depth > 0 && self.current.kind != TokenKind::Eof {
+                    if self.current.kind == TokenKind::Lt {
+                        gt_depth += 1;
+                    } else if self.current.kind == TokenKind::Gt {
+                        gt_depth -= 1;
+                        if gt_depth == 0 {
+                            break;
+                        }
+                    }
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::Gt {
+                    self.advance(); // consume >
+                }
+            }
         } else if self.current.kind == TokenKind::LBracket {
-            // []Trit or [N]Type return type
-            let mut rt = String::from("[");
-            self.advance(); // consume [
-            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                rt.push_str(&self.current.lexeme);
+            // Handle one or more bracket levels: []Type, [][]const u8, [N]Type
+            let mut rt = String::new();
+            while self.current.kind == TokenKind::LBracket {
+                rt.push('[');
+                self.advance(); // consume [
+                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                    rt.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+                rt.push(']');
+                if self.current.kind == TokenKind::RBracket {
+                    self.advance();
+                }
+            }
+            // Handle 'const' qualifier in return type: []const u8
+            if self.current.kind == TokenKind::KwConst {
+                rt.push_str("const ");
                 self.advance();
             }
-            rt.push(']');
-            if self.current.kind == TokenKind::RBracket {
+            // Handle pointer prefix: *Type
+            if self.current.kind == TokenKind::Star {
+                rt.push('*');
                 self.advance();
             }
             if self.current.kind == TokenKind::Ident {
@@ -863,6 +1055,24 @@ impl Parser {
                 self.advance();
             }
             decl.extra_return_type = rt;
+        } else if self.current.kind == TokenKind::KwVoid {
+            decl.extra_return_type = "void".to_string();
+            self.advance();
+        } else if self.current.kind == TokenKind::Star {
+            // Pointer return type: *Type
+            self.advance(); // consume *
+            if self.current.kind == TokenKind::KwConst {
+                self.advance(); // consume const
+            }
+            if self.current.kind == TokenKind::Ident {
+                decl.extra_return_type = format!("*{}", self.current.lexeme);
+                self.advance();
+            }
+        }
+
+        // Skip optional 'const' qualifier before the body
+        if self.current.kind == TokenKind::KwConst {
+            self.advance();
         }
 
         // [BUG 7 FIX] Body: brace-skip
@@ -941,10 +1151,16 @@ impl Parser {
         self.advance(); // consume 'test'
         block.name = self.parse_block_name();
 
-        // [BUG 7 FIX] Brace-skip body
-        self.expect(TokenKind::LBrace)?;
-        self.skip_brace_body()?;
-        self.expect(TokenKind::RBrace)?;
+        if self.current.kind == TokenKind::LBrace {
+            // Brace-style test: test "name" { ... }
+            self.advance(); // consume {
+            self.skip_brace_body()?;
+            self.expect(TokenKind::RBrace)?;
+        } else {
+            // Keyword-style test: test name given ... when ... then ...
+            // Skip until we hit a top-level keyword or EOF or RBrace (end of module)
+            self.skip_to_next_top_level();
+        }
         Ok(block)
     }
 
@@ -954,10 +1170,13 @@ impl Parser {
         self.advance(); // consume 'invariant'
         block.name = self.parse_block_name();
 
-        // [BUG 7 FIX] Brace-skip body
-        self.expect(TokenKind::LBrace)?;
-        self.skip_brace_body()?;
-        self.expect(TokenKind::RBrace)?;
+        if self.current.kind == TokenKind::LBrace {
+            self.advance(); // consume {
+            self.skip_brace_body()?;
+            self.expect(TokenKind::RBrace)?;
+        } else {
+            self.skip_to_next_top_level();
+        }
         Ok(block)
     }
 
@@ -967,10 +1186,13 @@ impl Parser {
         self.advance(); // consume 'bench'
         block.name = self.parse_block_name();
 
-        // [BUG 7 FIX] Brace-skip body
-        self.expect(TokenKind::LBrace)?;
-        self.skip_brace_body()?;
-        self.expect(TokenKind::RBrace)?;
+        if self.current.kind == TokenKind::LBrace {
+            self.advance(); // consume {
+            self.skip_brace_body()?;
+            self.expect(TokenKind::RBrace)?;
+        } else {
+            self.skip_to_next_top_level();
+        }
         Ok(block)
     }
 
