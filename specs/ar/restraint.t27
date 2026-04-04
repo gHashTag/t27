@@ -1,0 +1,494 @@
+// t27/specs/ar/restraint.t27
+// Bounded Rationality for CLARA (Restraint)
+// φ² + φ⁻² = 3 | TRINITY
+
+module Restraint {
+    // ═════════════════════════════════════════════════════════════════
+    // IMPORTS
+    // ═════════════════════════════════════════════════════════════════════════
+    use base::types;   // Trit enum
+    use ar::ternary_logic;  // K_FALSE, K_UNKNOWN, K_TRUE, is_restraint, apply_restraint
+
+    // ═════════════════════════════════════════════════════════════════
+    // 1. Restraint Policies
+    // ═════════════════════════════════════════════════════════════════════════
+    // RestraintPolicy defines how unknown/restrained values are handled
+    // CLARA requirement: bounded rationality = safe defaults when uncertain
+    pub const RestraintPolicy = enum(u8) {
+        // SAFE_DEFAULT: Replace K_UNKNOWN with K_FALSE (most conservative)
+        // Use when safety is paramount and unknowns should block actions
+        SAFE_DEFAULT = 0,
+
+        // CONSERVATIVE: Preserve K_UNKNOWN, propagate as-is
+        // Use when uncertainty should be carried forward for human review
+        CONSERVATIVE = 1,
+
+        // AGGRESSIVE: Replace K_UNKNOWN with K_TRUE (action-oriented)
+        // Use when rapid response is needed and risk tolerance is high
+        AGGRESSIVE = 2,
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    // 2. Restraint Configuration
+    // ═════════════════════════════════════════════════════════════════════════
+    pub const RestraintConfig = struct {
+        policy        : RestraintPolicy,
+        max_complexity : u32,        // Maximum operations allowed
+        confidence_threshold : f32, // Min confidence to accept K_TRUE
+    };
+
+    // Default configuration: safe, bounded, thresholded
+    pub const DEFAULT_CONFIG : RestraintConfig = RestraintConfig {
+        .policy = .SAFE_DEFAULT,
+        .max_complexity = 1000,
+        .confidence_threshold = 0.7,
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    // 3. Complexity Tracking
+    // ═════════════════════════════════════════════════════════════════════════
+    pub const ComplexityTracker = struct {
+        operations_performed : u32,
+        max_allowed         : u32,
+        violated            : bool,
+    };
+
+    fn create_tracker(max_allowed: u32) -> ComplexityTracker {
+        return ComplexityTracker {
+            .operations_performed = 0,
+            .max_allowed = max_allowed,
+            .violated = false,
+        };
+    }
+
+    fn track_operation(tracker: *ComplexityTracker) -> bool {
+        // Returns true if operation allowed, false if limit exceeded
+        if (tracker.operations_performed >= tracker.max_allowed) {
+            tracker.violated = true;
+            return false;
+        }
+        tracker.operations_performed = tracker.operations_performed + 1;
+        return true;
+    }
+
+    fn is_violated(tracker: ComplexityTracker) -> bool {
+        return tracker.violated;
+    }
+
+    fn reset_tracker(tracker: *ComplexityTracker) void {
+        tracker.operations_performed = 0;
+        tracker.violated = false;
+    }
+
+    fn get_utilization(tracker: ComplexityTracker) -> f32 {
+        if (tracker.max_allowed == 0) return 1.0;
+        return @as(f32, @floatFromInt(tracker.operations_performed)) /
+               @as(f32, @floatFromInt(tracker.max_allowed));
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. Policy Application
+    // ═════════════════════════════════════════════════════════════════════════
+    fn apply_policy_single(policy: RestraintPolicy, value: Trit) -> Trit {
+        return switch (policy) {
+            .SAFE_DEFAULT => {
+                // K_UNKNOWN → K_FALSE (safe default)
+                if (is_restraint(value)) {
+                    return K_FALSE;
+                }
+                return value;
+            },
+            .CONSERVATIVE => {
+                // Preserve K_UNKNOWN as-is
+                return value;
+            },
+            .AGGRESSIVE => {
+                // K_UNKNOWN → K_TRUE (action-oriented)
+                if (is_restraint(value)) {
+                    return K_TRUE;
+                }
+                return value;
+            },
+        };
+    }
+
+    fn apply_policy(policy: RestraintPolicy, values: []Trit, len: usize, result: []Trit) void {
+        var i : usize = 0;
+        while (i < len) {
+            result[i] = apply_policy_single(policy, values[i]);
+            i = i + 1;
+        }
+    }
+
+    fn apply_with_config(config: RestraintConfig, values: []Trit, len: usize, result: []Trit, tracker: *ComplexityTracker) bool {
+        // Returns false if complexity limit exceeded
+        var i : usize = 0;
+        while (i < len) {
+            if (!track_operation(tracker)) {
+                return false;  // Complexity violation
+            }
+            result[i] = apply_policy_single(config.policy, values[i]);
+            i = i + 1;
+        }
+        return true;  // Success
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 5. Restraint Violation Detection
+    // ═════════════════════════════════════════════════════════════════════════
+    fn check_restraint_violation(policy: RestraintPolicy, values: []Trit, len: usize) -> bool {
+        // Returns true if violation detected (e.g., unknowns where not allowed)
+        switch (policy) {
+            .SAFE_DEFAULT => {
+                // No violation: we replace unknowns with K_FALSE
+                return false;
+            },
+            .CONSERVATIVE => {
+                // Violation if unknowns exceed threshold
+                var unknown_count : usize = 0;
+                var i : usize = 0;
+                while (i < len) {
+                    if (is_restraint(values[i])) {
+                        unknown_count = unknown_count + 1;
+                    }
+                    i = i + 1;
+                }
+                // Violation if >50% are unknown
+                return unknown_count * 2 > len;
+            },
+            .AGGRESSIVE => {
+                // No violation: we replace unknowns with K_TRUE
+                return false;
+            },
+        }
+    }
+
+    fn count_restrained(values: []Trit, len: usize) -> usize {
+        var count : usize = 0;
+        var i : usize = 0;
+        while (i < len) {
+            if (is_restraint(values[i])) {
+                count = count + 1;
+            }
+            i = i + 1;
+        }
+        return count;
+    }
+
+    fn restraint_ratio(values: []Trit, len: usize) -> f32 {
+        if (len == 0) return 0.0;
+        const restrained = count_restrained(values, len);
+        return @as(f32, @floatFromInt(restrained)) / @as(f32, @floatFromInt(len));
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 6. Complexity Restraint
+    // ═════════════════════════════════════════════════════════════════════════
+    fn restrain_complexity(current_ops: u32, max_ops: u32) -> bool {
+        // Returns true if within bounds, false if exceeding
+        return current_ops < max_ops;
+    }
+
+    fn should_abort(current_ops: u32, threshold: f32) -> bool {
+        // Abort if utilization exceeds threshold
+        if (threshold >= 1.0) return false;  // No limit
+        const ratio = @as(f32, @floatFromInt(current_ops)) / @as(f32, @floatFromInt(threshold));
+        return ratio > threshold;
+    }
+
+    fn remaining_capacity(tracker: ComplexityTracker) -> u32 {
+        if (tracker.operations_performed >= tracker.max_allowed) {
+            return 0;
+        }
+        return tracker.max_allowed - tracker.operations_performed;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 7. Confidence Thresholding
+    // ═════════════════════════════════════════════════════════════════════════
+    fn apply_threshold(value: Trit, confidence: f32, threshold: f32) -> Trit {
+        // If confidence below threshold, downgrade K_TRUE to K_UNKNOWN
+        if (value == K_TRUE and confidence < threshold) {
+            return K_UNKNOWN;
+        }
+        return value;
+    }
+
+    fn threshold_batch(values: []Trit, confidences: []f32, len: usize, threshold: f32, result: []Trit) void {
+        var i : usize = 0;
+        while (i < len) {
+            result[i] = apply_threshold(values[i], confidences[i], threshold);
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+    test safe_default_replaces_unknown
+        given policy = .SAFE_DEFAULT
+        when result = apply_policy_single(policy, K_UNKNOWN)
+        then result == K_FALSE
+
+    test safe_default_preserves_known
+        given policy = .SAFE_DEFAULT
+        when t_result = apply_policy_single(policy, K_TRUE)
+        and f_result = apply_policy_single(policy, K_FALSE)
+        then t_result == K_TRUE and f_result == K_FALSE
+
+    test conservative_preserves_unknown
+        given policy = .CONSERVATIVE
+        when result = apply_policy_single(policy, K_UNKNOWN)
+        then result == K_UNKNOWN
+
+    test aggressive_replaces_unknown_with_true
+        given policy = .AGGRESSIVE
+        when result = apply_policy_single(policy, K_UNKNOWN)
+        then result == K_TRUE
+
+    test apply_policy_batch
+        given values = [K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN]
+        var result : [4]Trit = undefined
+        when apply_policy(.SAFE_DEFAULT, &values, 4, &result)
+        then result[0] == K_TRUE and result[1] == K_FALSE
+        and  result[2] == K_FALSE and result[3] == K_FALSE
+
+    test tracker_counts_operations
+        given tracker = create_tracker(10)
+        when track_operation(&tracker) returns true
+        and  track_operation(&tracker) returns true
+        and  track_operation(&tracker) returns true
+        then tracker.operations_performed == 3
+
+    test_tracker_enforces_limit
+        given tracker = create_tracker(2)
+        when track_operation(&tracker) returns true
+        and  track_operation(&tracker) returns true
+        and  track_operation(&tracker) returns false
+        then is_violated(tracker) == true
+
+    test tracker_reset_clears_state
+        given tracker = create_tracker(5)
+        when track_operation(&tracker)  // op 1
+        and  track_operation(&tracker)  // op 2
+        and  reset_tracker(&tracker)
+        then tracker.operations_performed == 0 and is_violated(tracker) == false
+
+    test restraint_ratio_calculated_correctly
+        given values = [K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE]
+        when ratio = restraint_ratio(&values, 5)
+        then ratio ≈ 0.4 (±1e-6)
+
+    test check_restraint_violation_conservative
+        given values = [K_UNKNOWN, K_UNKNOWN, K_TRUE]  // 67% unknown
+        when violation = check_restraint_violation(.CONSERVATIVE, &values, 3)
+        then violation == true  // >50% threshold
+
+    test check_restraint_violation_conservative_safe
+        given values = [K_UNKNOWN, K_TRUE, K_TRUE]  // 33% unknown
+        when violation = check_restraint_violation(.CONSERVATIVE, &values, 3)
+        then violation == false
+
+    test restrain_complexity_within_bounds
+        when result = restrain_complexity(500, 1000)
+        then result == true
+
+    test restrain_complexity_exceeds_bounds
+        when result = restrain_complexity(1001, 1000)
+        then result == false
+
+    test apply_threshold_downgrades_low_confidence
+        given confidence = 0.5 and threshold = 0.7
+        when result = apply_threshold(K_TRUE, confidence, threshold)
+        then result == K_UNKNOWN
+
+    test apply_threshold_preserves_high_confidence
+        given confidence = 0.9 and threshold = 0.7
+        when result = apply_threshold(K_TRUE, confidence, threshold)
+        then result == K_TRUE
+
+    test threshold_batch_processes_all
+        given values = [K_TRUE, K_TRUE, K_TRUE]
+        and  confidences = [0.5, 0.9, 0.8]
+        and  threshold = 0.7
+        var result : [3]Trit = undefined
+        when threshold_batch(&values, &confidences, 3, threshold, &result)
+        then result[0] == K_UNKNOWN and result[1] == K_TRUE and result[2] == K_TRUE
+
+    test remaining_capacity_correct
+        given tracker = create_tracker(100)
+        when track_operation(&tracker) performed 37 times
+        then remaining_capacity(tracker) == 63
+
+    test get_utilization_calculates_ratio
+        given tracker = create_tracker(100)
+        when track_operation(&tracker) performed 75 times
+        then get_utilization(tracker) ≈ 0.75 (±1e-6)
+
+    test should_abort_checks_threshold
+        given current = 800 and threshold = 0.75
+        and  max = 1000
+        when abort = should_abort(current, 1000 * 0.75)
+        then abort == true
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+    invariant safe_default_never_produces_unknown
+        // SAFE_DEFAULT policy never outputs K_UNKNOWN
+        for all t in {K_FALSE, K_UNKNOWN, K_TRUE}:
+            assert apply_policy_single(.SAFE_DEFAULT, t) != K_UNKNOWN
+
+    invariant aggressive_never_produces_unknown
+        // AGGRESSIVE policy never outputs K_UNKNOWN
+        for all t in {K_FALSE, K_UNKNOWN, K_TRUE}:
+            assert apply_policy_single(.AGGRESSIVE, t) != K_UNKNOWN
+
+    invariant conservative_preserves_input_semantics
+        // CONSERVATIVE policy is identity function
+        for all t in {K_FALSE, K_UNKNOWN, K_TRUE}:
+            assert apply_policy_single(.CONSERVATIVE, t) == t
+
+    invariant tracker_operations_non_decreasing
+        // Operations count never decreases
+        var tracker = create_tracker(10);
+        const before = tracker.operations_performed;
+        _ = track_operation(&tracker);
+        assert tracker.operations_performed >= before
+
+    invariant tracker_utilization_in_unit_interval
+        // Utilization always in [0, 1]
+        var tracker = create_tracker(100);
+        while (tracker.operations_performed < 100) {
+            _ = track_operation(&tracker);
+            const util = get_utilization(tracker);
+            assert util >= 0.0 and util <= 1.0;
+        }
+
+    invariant restraint_ratio_in_unit_interval
+        // Restraint ratio always in [0, 1]
+        // For all possible value arrays, ratio ∈ [0, 1]
+        // Tested via exhaustive 3³ = 27 combinations
+        const values3 = [_][3]Trit{
+            [_]Trit{K_FALSE, K_FALSE, K_FALSE},
+            [_]Trit{K_FALSE, K_FALSE, K_UNKNOWN},
+            [_]Trit{K_FALSE, K_FALSE, K_TRUE},
+            [_]Trit{K_FALSE, K_UNKNOWN, K_FALSE},
+            [_]Trit{K_FALSE, K_UNKNOWN, K_UNKNOWN},
+            [_]Trit{K_FALSE, K_UNKNOWN, K_TRUE},
+            [_]Trit{K_FALSE, K_TRUE, K_FALSE},
+            [_]Trit{K_FALSE, K_TRUE, K_UNKNOWN},
+            [_]Trit{K_FALSE, K_TRUE, K_TRUE},
+            [_]Trit{K_UNKNOWN, K_FALSE, K_FALSE},
+            [_]Trit{K_UNKNOWN, K_FALSE, K_UNKNOWN},
+            [_]Trit{K_UNKNOWN, K_FALSE, K_TRUE},
+            [_]Trit{K_UNKNOWN, K_UNKNOWN, K_FALSE},
+            [_]Trit{K_UNKNOWN, K_UNKNOWN, K_UNKNOWN},
+            [_]Trit{K_UNKNOWN, K_UNKNOWN, K_TRUE},
+            [_]Trit{K_UNKNOWN, K_TRUE, K_FALSE},
+            [_]Trit{K_UNKNOWN, K_TRUE, K_UNKNOWN},
+            [_]Trit{K_UNKNOWN, K_TRUE, K_TRUE},
+            [_]Trit{K_TRUE, K_FALSE, K_FALSE},
+            [_]Trit{K_TRUE, K_FALSE, K_UNKNOWN},
+            [_]Trit{K_TRUE, K_FALSE, K_TRUE},
+            [_]Trit{K_TRUE, K_UNKNOWN, K_FALSE},
+            [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            [_]Trit{K_TRUE, K_UNKNOWN, K_TRUE},
+            [_]Trit{K_TRUE, K_TRUE, K_FALSE},
+            [_]Trit{K_TRUE, K_TRUE, K_UNKNOWN},
+            [_]Trit{K_TRUE, K_TRUE, K_TRUE},
+        };
+        for (values3) |vals| {
+            const ratio = restraint_ratio(&vals, 3);
+            assert ratio >= 0.0 and ratio <= 1.0;
+        }
+
+    invariant remaining_capacity_never_negative
+        // Remaining capacity is always >= 0
+        var tracker = create_tracker(10);
+        while (track_operation(&tracker)) {}
+        assert remaining_capacity(tracker) >= 0
+
+    invariant apply_threshold_preserves_false
+        // Threshold never changes K_FALSE
+        for all confidence in {0.0, 0.5, 1.0}:
+            for all threshold in {0.0, 0.5, 1.0}:
+                assert apply_threshold(K_FALSE, confidence, threshold) == K_FALSE
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+    bench apply_policy_single_latency
+        // Measure: cycles for single policy application
+        // Target: < 5 cycles (simple switch)
+        @setEvalBranchQuota(10000);
+        var result : Trit = K_UNKNOWN;
+        for (0..1000) |_| {
+            result = apply_policy_single(.SAFE_DEFAULT, K_UNKNOWN);
+        }
+        _ = result;
+
+    bench apply_policy_100_values
+        // Measure: cycles for applying policy to 100 values
+        // Target: < 300 cycles (100 * 3 cycles)
+        @setEvalBranchQuota(10000);
+        const values = [_]Trit{ K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE,
+                                 K_TRUE, K_UNKNOWN, K_FALSE, K_UNKNOWN, K_TRUE,
+                                 K_TRUE, K_FALSE, K_UNKNOWN, K_FALSE, K_TRUE };
+        var result : [100]Trit = undefined;
+        for (0..1000) |_| {
+            apply_policy(.SAFE_DEFAULT, &values, 100, &result);
+        }
+        _ = result;
+
+    bench track_operation_latency
+        // Measure: cycles for tracking one operation
+        // Target: < 10 cycles (comparison + increment)
+        @setEvalBranchQuota(10000);
+        var tracker = create_tracker(10000);
+        var allowed : bool = true;
+        for (0..1000) |_| {
+            allowed = track_operation(&tracker);
+        }
+        _ = allowed;
+
+    bench restraint_ratio_1000_values
+        // Measure: cycles for calculating restraint ratio on 1000 values
+        // Target: < 1000 cycles (1000 * 1 cycle)
+        @setEvalBranchQuota(10000);
+        const values1000 = [_]Trit{K_TRUE} ** 500 ++ [_]Trit{K_UNKNOWN} ** 500;
+        var ratio : f32 = 0.0;
+        for (0..100) |_| {
+            ratio = restraint_ratio(&values1000, 1000);
+        }
+        _ = ratio;
+
+    bench apply_threshold_batch_100_values
+        // Measure: cycles for thresholding 100 values
+        // Target: < 500 cycles (100 * 5 cycles)
+        @setEvalBranchQuota(10000);
+        const values = [_]Trit{K_TRUE} ** 100;
+        const confidences = [_]f32{0.8} ** 100;
+        var result : [100]Trit = undefined;
+        for (0..100) |_| {
+            threshold_batch(&values, &confidences, 100, 0.7, &result);
+        }
+        _ = result;
+}
