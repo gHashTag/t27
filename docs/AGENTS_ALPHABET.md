@@ -1,8 +1,8 @@
 # AGENTS.md — Trinity 27-Agent Alphabet
 
-**Version**: 2.0
+**Version**: 2.1
 **Date**: 2026-04-04
-**Status**: Active
+**Status**: Active — Canon-verified (Issue #50)
 
 > *27 agents = 27 registers = 27 letters = TRINITY³*
 

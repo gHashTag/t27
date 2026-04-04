@@ -1,6 +1,6 @@
 # SOUL.md — Trinity Constitutional Laws
 
-**Version**: 1.0
+**Version**: 1.1
 **Date**: 2026-04-04
 **Status**: Sacred — Changes require consensus
 
@@ -542,6 +542,40 @@ See `.trinity/policy/coordination-law.md` for full protocol including:
 - Conflict resolution
 - Handoff procedures
 - Event logging formats
+
+---
+
+## Constitutional Law #8: ISSUE-GATE
+
+**Status**: MANDATORY (no exceptions)
+
+### Statement
+
+No byte enters master without:
+
+1. **GitHub Issue** (from template, with number)
+2. **Pull Request** (with "Closes #N" in description)
+3. **CI green** (issue-gate + phi-loop-ci)
+
+### Rationale
+
+1. **Traceability**: Every change must be traceable to a numbered issue.
+2. **Review Gate**: Pull requests ensure code review before merge.
+3. **CI Enforcement**: Automated checks prevent broken code from entering master.
+
+### Enforcement
+
+`.github/workflows/issue-gate.yml`
+
+### Violations
+
+1. **Direct push to master**: Pushing without a PR is forbidden.
+2. **PR without issue**: Every PR must reference a GitHub issue with "Closes #N".
+3. **Merging with failing CI**: CI must be green before merge.
+
+### Exceptions
+
+**NONE**. All changes go through the issue-gate process.
 
 ---
 
