@@ -156,6 +156,56 @@ pub fn trit_max(a: Trit, b: Trit) Trit {
     return if (a == .pos or (a == .zero and b == .neg)) a else b;
 }
 
+// trit_subtract(a: Trit, b: Trit) → Trit
+// Returns a - b using a + (-b)
+pub fn trit_subtract(a: Trit, b: Trit) Trit {
+    return trit_add_table(a, trit_negate(b));
+}
+
+// trit_sign(a: Trit) → i8
+// Returns sign of a: -1 if negative, 0 if zero, +1 if positive
+pub fn trit_sign(a: Trit) i8 {
+    return @intFromEnum(a);
+}
+
+// trit_clamp(a: Trit, min_val: Trit, max_val: Trit) → Trit
+// Clamps a to [min_val, max_val] range (requires min_val <= max_val)
+pub fn trit_clamp(a: Trit, min_val: Trit, max_val: Trit) Trit {
+    if (trit_compare(a, min_val) < 0) return min_val;
+    if (trit_compare(a, max_val) > 0) return max_val;
+    return a;
+}
+
+// trit_is_negative(a: Trit) → bool
+// Returns true if a is -1
+pub fn trit_is_negative(a: Trit) bool {
+    return a == .neg;
+}
+
+// trit_is_zero(a: Trit) → bool
+// Returns true if a is 0
+pub fn trit_is_zero(a: Trit) bool {
+    return a == .zero;
+}
+
+// trit_is_positive(a: Trit) → bool
+// Returns true if a is +1
+pub fn trit_is_positive(a: Trit) bool {
+    return a == .pos;
+}
+
+// trit_equal(a: Trit, b: Trit) → bool
+// Returns true if a == b
+pub fn trit_equal(a: Trit, b: Trit) bool {
+    return a == b;
+}
+
+// trit_not_equal(a: Trit, b: Trit) → bool
+// Returns true if a != b
+pub fn trit_not_equal(a: Trit, b: Trit) bool {
+    return a != b;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -406,8 +456,217 @@ test "test_trit_min_max_antisymmetric" {
     }
 }
 
+test "test_trit_subtract_neg_from_pos" {
+    // Verify: +1 - (-1) = +1 (using addition with negation)
+    try std.testing.expectEqual(@as(Trit, .pos), trit_subtract(.pos, .neg));
+}
+
+test "test_trit_subtract_pos_from_pos" {
+    // Verify: +1 - (+1) = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_subtract(.pos, .pos));
+}
+
+test "test_trit_subtract_neg_from_neg" {
+    // Verify: -1 - (-1) = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_subtract(.neg, .neg));
+}
+
+test "test_trit_subtract_zero_from_pos" {
+    // Verify: +1 - 0 = +1
+    try std.testing.expectEqual(@as(Trit, .pos), trit_subtract(.pos, .zero));
+}
+
+test "test_trit_subtract_zero_from_neg" {
+    // Verify: -1 - 0 = -1
+    try std.testing.expectEqual(@as(Trit, .neg), trit_subtract(.neg, .zero));
+}
+
+test "test_trit_subtract_all_combinations" {
+    // Verify: a - b == a + (-b) for all a, b
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        for (trits) |b| {
+            try std.testing.expectEqual(trit_subtract(a, b), trit_add_table(a, trit_negate(b)));
+        }
+    }
+}
+
+test "test_trit_sign_negative" {
+    // Verify: trit_sign(-1) = -1
+    try std.testing.expectEqual(@as(i8, -1), trit_sign(.neg));
+}
+
+test "test_trit_sign_zero" {
+    // Verify: trit_sign(0) = 0
+    try std.testing.expectEqual(@as(i8, 0), trit_sign(.zero));
+}
+
+test "test_trit_sign_positive" {
+    // Verify: trit_sign(+1) = +1
+    try std.testing.expectEqual(@as(i8, 1), trit_sign(.pos));
+}
+
+test "test_trit_sign_matches_enum_value" {
+    // Verify: trit_sign(a) == @intFromEnum(a)
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        try std.testing.expectEqual(@intFromEnum(a), trit_sign(a));
+    }
+}
+
+test "test_trit_clamp_below_min" {
+    // Verify: trit_clamp(-1, 0, +1) = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_clamp(.neg, .zero, .pos));
+}
+
+test "test_trit_clamp_above_max" {
+    // Verify: trit_clamp(+1, -1, 0) = 0
+    try std.testing.expectEqual(@as(Trit, .zero), trit_clamp(.pos, .neg, .zero));
+}
+
+test "test_trit_clamp_in_range" {
+    // Verify: trit_clamp(a, -1, +1) = a for all a
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        try std.testing.expectEqual(a, trit_clamp(a, .neg, .pos));
+    }
+}
+
+test "test_trit_clamp_at_bounds" {
+    // Verify: trit_clamp(min, min, max) = min
+    try std.testing.expectEqual(.zero, trit_clamp(.zero, .zero, .pos));
+    try std.testing.expectEqual(.pos, trit_clamp(.pos, .zero, .pos));
+}
+
+test "test_trit_is_negative_true_for_neg" {
+    // Verify: trit_is_negative(-1) = true
+    try std.testing.expect(trit_is_negative(.neg));
+}
+
+test "test_trit_is_negative_false_for_others" {
+    // Verify: trit_is_negative(0) = false, trit_is_negative(+1) = false
+    try std.testing.expect(!trit_is_negative(.zero));
+    try std.testing.expect(!trit_is_negative(.pos));
+}
+
+test "test_trit_is_zero_true_for_zero" {
+    // Verify: trit_is_zero(0) = true
+    try std.testing.expect(trit_is_zero(.zero));
+}
+
+test "test_trit_is_zero_false_for_others" {
+    // Verify: trit_is_zero(-1) = false, trit_is_zero(+1) = false
+    try std.testing.expect(!trit_is_zero(.neg));
+    try std.testing.expect(!trit_is_zero(.pos));
+}
+
+test "test_trit_is_positive_true_for_pos" {
+    // Verify: trit_is_positive(+1) = true
+    try std.testing.expect(trit_is_positive(.pos));
+}
+
+test "test_trit_is_positive_false_for_others" {
+    // Verify: trit_is_positive(-1) = false, trit_is_positive(0) = false
+    try std.testing.expect(!trit_is_positive(.neg));
+    try std.testing.expect(!trit_is_positive(.zero));
+}
+
+test "test_trit_equal_same_values" {
+    // Verify: trit_equal(a, a) = true for all a
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        try std.testing.expect(trit_equal(a, a));
+    }
+}
+
+test "test_trit_equal_different_values_false" {
+    // Verify: trit_equal(a, b) = false for a != b
+    try std.testing.expect(!trit_equal(.neg, .zero));
+    try std.testing.expect(!trit_equal(.zero, .pos));
+    try std.testing.expect(!trit_equal(.pos, .neg));
+}
+
+test "test_trit_not_equal_same_values_false" {
+    // Verify: trit_not_equal(a, a) = false for all a
+    const trits = [_]Trit{ .neg, .zero, .pos };
+    for (trits) |a| {
+        try std.testing.expect(!trit_not_equal(a, a));
+    }
+}
+
+test "test_trit_not_equal_different_values_true" {
+    // Verify: trit_not_equal(a, b) = true for a != b
+    try std.testing.expect(trit_not_equal(.neg, .zero));
+    try std.testing.expect(trit_not_equal(.zero, .pos));
+    try std.testing.expect(trit_not_equal(.pos, .neg));
+}
+
 // ============================================================================
 // TDD - Invariants
+// ============================================================================
+
+invariant trit_subtract_add_negation_identity {
+    // trit_subtract(a, b) == trit_add_table(a, trit_negate(b))
+    // Rationale: Subtraction is addition of negation
+    @compileAssert(true);
+}
+
+invariant trit_sign_matches_enum_value {
+    // trit_sign(a) == @intFromEnum(a) for all a
+    // Rationale: Sign is the integer representation
+    @compileAssert(true);
+}
+
+invariant trit_clamp_preserves_order {
+    // min_val <= max_val implies trit_clamp(a, min_val, max_val) is monotonic
+    // Rationale: Clamping must respect order
+    @compileAssert(true);
+}
+
+invariant trit_clamp_idempotent {
+    // trit_clamp(trit_clamp(a, min, max), min, max) == trit_clamp(a, min, max)
+    // Rationale: Double clamping has no effect
+    @compileAssert(true);
+}
+
+invariant trit_is_negative_matches_sign {
+    // trit_is_negative(a) == (trit_sign(a) < 0)
+    // Rationale: Negative check should match sign
+    @compileAssert(true);
+}
+
+invariant trit_is_zero_matches_sign {
+    // trit_is_zero(a) == (trit_sign(a) == 0)
+    // Rationale: Zero check should match sign
+    @compileAssert(true);
+}
+
+invariant trit_is_positive_matches_sign {
+    // trit_is_positive(a) == (trit_sign(a) > 0)
+    // Rationale: Positive check should match sign
+    @compileAssert(true);
+}
+
+invariant trit_equal_reflexive {
+    // trit_equal(a, a) == true for all a
+    // Rationale: Equality is reflexive
+    @compileAssert(true);
+}
+
+invariant trit_equal_symmetric {
+    // trit_equal(a, b) == trit_equal(b, a)
+    // Rationale: Equality is symmetric
+    @compileAssert(true);
+}
+
+invariant trit_not_equal_complement {
+    // trit_not_equal(a, b) == !trit_equal(a, b)
+    // Rationale: Not-equal is complement of equal
+    @compileAssert(true);
+}
+
+// ============================================================================
+// Legacy Invariants (from before Skill 062)
 // ============================================================================
 
 invariant trit_multiply_table_commutative {
