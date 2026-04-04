@@ -1,10 +1,20 @@
 {
-  "gen_hash_c": "sha256:48dcbb44e52c5107ea022e434b91abb85a6849a25dec3f9d5db62f9bb41666a0",
-  "gen_hash_verilog": "sha256:ad69faccd8304027cbfd53000ebed5a162a297bb61a9890912a213d438191d31",
-  "gen_hash_zig": "sha256:34e81acb69af131876779c1225b3b72c057af9623eb9f830d1e4a9d4538aa7ad",
   "module": "DatalogEngine",
-  "ring": 12,
-  "sealed_at": "2026-04-04T13:02:54Z",
+  "ring": 20,
+  "spec_path": "specs/ar/datalog_engine.t27",
   "spec_hash": "sha256:30f9ede1d2afebc229f303f07941c3154e1dc3342f5a58e7cbd0cc57a000d5d6",
-  "spec_path": "specs/ar/datalog_engine.t27"
+  "gen_hash_zig": "sha256:faf0943d2b84f3b251e857e8bf1ccd7089fe59b15ba50f98c39a99dfe7d9fb27",
+  "gen_hash_c": "sha256:e52217b45d285533d723f8b97f05658cb9a1bef01ae086e9cbab86b7cb3c8c29",
+  "gen_hash_verilog": "sha256:2bc47fcc5d34eb022a8fd4f75a72f88f411168dbdee0bc1ece5c98a4fcb96274",
+  "tests": {
+    "status": "passed",
+    "count": 13,
+    "invariants": 6,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T18:00:00Z"
 }

@@ -1,0 +1,42 @@
+{
+  "module": "AspSolver",
+  "spec_path": "specs/ar/asp_solver.t27",
+  "ring": 23,
+  "generated_at": "2026-04-04T18:00:00Z",
+  "description": "ASP solver conformance vectors — NAF with K3 semantics",
+  "constants": {
+    "MAX_NAF": 3,
+    "MAX_FACTS": 32,
+    "MAX_ITERATIONS": 1000
+  },
+  "vectors": {
+    "evaluate_naf": {
+      "description": "Negation as Failure evaluation",
+      "cases": [
+        {"naf_facts_truth": [0, 0, 0], "expected": true, "note": "all unknown → NAF succeeds"},
+        {"naf_facts_truth": [-1, 0, -1], "expected": true, "note": "none true → NAF succeeds"},
+        {"naf_facts_truth": [1, 0, 0], "expected": false, "note": "one true → NAF fails"},
+        {"naf_facts_truth": [1, 1, 1], "expected": false, "note": "all true → NAF fails"}
+      ]
+    },
+    "fixed_point_iteration": {
+      "description": "Forward chaining to fixed point",
+      "cases": [
+        {"initial_facts": 0, "rules": 0, "expected_iterations": 0},
+        {"initial_facts": 1, "rules": 1, "expected_converges": true}
+      ]
+    },
+    "is_consistent": {
+      "description": "Model consistency checking",
+      "cases": [
+        {"facts": [{"id": 1, "truth": 1}, {"id": 2, "truth": -1}], "expected": true},
+        {"facts": [{"id": 1, "truth": 1}, {"id": 1, "truth": -1}], "expected": false}
+      ]
+    }
+  },
+  "invariants": {
+    "model_fact_count_bounded": "fact_count <= MAX_FACTS (32)",
+    "iterations_bounded": "iterations <= MAX_ITERATIONS (1000)",
+    "naf_count_bounded": "naf_count <= MAX_NAF (3)"
+  }
+}
