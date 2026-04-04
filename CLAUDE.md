@@ -87,10 +87,19 @@ When creating or modifying specs, check `architecture/graph.tri` for the `deps` 
 
 - [x] `t27` canonical structure defined
 - [x] `trinity/trinity-libs/tri-core` is source of truth
-- [ ] Migration of `trinity/trinity-libs/tri-math` to `.tri` specs
-- [ ] Migration of `trinity/trinity-libs/tri-formats` to `.tri` specs
-- [ ] `tri dev scan` enforces `.tri` context
+- [x] Migration of `trinity/trinity-libs/tri-math` to `.tri` specs (specs/math/*)
+- [x] Migration of `trinity/trinity-libs/tri-formats` to `.tri` specs (specs/numeric/*)
+- [x] All 20+ .t27 specs in canonical format (module/fn/test/invariant/bench)
+- [x] Compiler stack standardized (parser, codegen zig/verilog/c, testgen, runtime, CLI)
+- [x] Architecture files synchronized (graph.tri, graph_v2.json, ADR-001, CANON_DE_ZIGFICATION)
+- [x] All TODOs expanded with implementation guidance
+- [ ] `tri dev scan` enforces `.tri` context (pending bootstrap)
 - [ ] All agents trained to check `.tri` context before writing code
+
+**PHI LOOP Skills 001-054 Completed:**
+- 54 skills registered with hash seals, committed and pushed
+- All spec files standardized to canonical .t27 format
+- Bootstrap blocker: tri CLI not yet built (gen/test/verdict pending)
 
 ## References
 
