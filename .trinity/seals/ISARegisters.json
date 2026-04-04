@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:c9ea8b0fe5cdf75106a619c0a5e5a03c16168825ba1f5bf9f2d5d5277644b309",
   "module": "ISARegisters",
   "ring": 12,
-  "sealed_at": "2026-04-04T12:46:48Z",
+  "sealed_at": "2026-04-04T13:02:54Z",
   "spec_hash": "sha256:7bb12b72319d35b5c28a8dc9f44542e681418b372f6edb2d0a54b31ed336cb64",
   "spec_path": "specs/isa/registers.t27"
 }
