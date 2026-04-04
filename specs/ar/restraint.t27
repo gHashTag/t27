@@ -117,7 +117,7 @@ module Restraint {
                 return RestraintParams{
                     .max_depth = 3,
                     .max_rules = 10,
-                    .confidence_threshold = GF16.fromF32(0.85), // High threshold for unknown
+                    .confidence_threshold = gf16_encode_f32(0.85), // High threshold for unknown
                     .timeout_ms = 100,
                 };
             },
@@ -126,7 +126,7 @@ module Restraint {
                 return RestraintParams{
                     .max_depth = 7,
                     .max_rules = 50,
-                    .confidence_threshold = GF16.fromF32(0.75),  // Medium threshold
+                    .confidence_threshold = gf16_encode_f32(0.75),  // Medium threshold
                     .timeout_ms = 1000,
                 };
             },
@@ -135,7 +135,7 @@ module Restraint {
                 return RestraintParams{
                     .max_depth = 15,
                     .max_rules = 500,
-                    .confidence_threshold = GF16.fromF32(0.70),  // Lower threshold for good quality
+                    .confidence_threshold = gf16_encode_f32(0.70),  // Lower threshold for good quality
                     .timeout_ms = 10000,
                 };
             },
@@ -168,8 +168,8 @@ module Restraint {
 
         // Check confidence threshold using GF16 comparison
         // Convert to f32 for comparison (one cycle each)
-        const conf_value = state.current_confidence.toF32();
-        const threshold_value = params.confidence_threshold.toF32();
+        const conf_value = gf16_decode_to_f32(state.current_confidence);
+        const threshold_value = gf16_decode_to_f32(params.confidence_threshold);
         
         // If confidence below threshold, return restraint
         // K_UNKNOWN (confidence ~0) should trigger restraint when threshold > 0
@@ -267,7 +267,7 @@ module Restraint {
         return ExecutionState{
             .current_depth = 0,
             .rules_fired = 0,
-            .current_confidence = GF16.fromF32(0.0),  // Start with zero confidence
+            .current_confidence = gf16_encode_f32(0.0),  // Start with zero confidence
             .start_time_ms = start_time,
             .quality = quality,
         };
@@ -303,43 +303,43 @@ module Restraint {
         when p_unknown = params_for_quality(.unknown)
         and p_unstable = params_for_quality(.unstable)
         and p_good = params_for_quality(.good)
-        then p_unknown.confidence_threshold.toF32() == 0.85
-        and p_unstable.confidence_threshold.toF32() == 0.75
-        and p_good.confidence_threshold.toF32() == 0.70
+        then gf16_decode_to_f32(p_unknown.confidence_threshold) == 0.85
+        and gf16_decode_to_f32(p_unstable.confidence_threshold) == 0.75
+        and gf16_decode_to_f32(p_good.confidence_threshold) == 0.70
 
     test should_continue_allows_initial_state
         // Initial state should pass with sufficient confidence
         given params = params_for_quality(.good)
         and state = init_state(.good, 0)
-        state.current_confidence = GF16.fromF32(0.8)
+        state.current_confidence = gf16_encode_f32(0.8)
         when result = should_continue(state, params)
         then result == K_TRUE
 
     test should_continue_blocks_on_depth_limit
         // Depth limit triggers restraint
-        given params = RestraintParams{ .max_depth = 2, .max_rules = 100, .confidence_threshold = GF16.fromF32(0.5), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 3, .rules_fired = 0, .current_confidence = GF16.fromF32(0.9), .start_time_ms = 0, .quality = .good }
+        given params = RestraintParams{ .max_depth = 2, .max_rules = 100, .confidence_threshold = gf16_encode_f32(0.5), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 3, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.9), .start_time_ms = 0, .quality = .good }
         when result = should_continue(state, params)
         then result == K_FALSE
 
     test should_continue_blocks_on_rule_limit
         // Rule limit triggers restraint
-        given params = RestraintParams{ .max_depth = 100, .max_rules = 5, .confidence_threshold = GF16.fromF32(0.5), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 0, .rules_fired = 10, .current_confidence = GF16.fromF32(0.9), .start_time_ms = 0, .quality = .good }
+        given params = RestraintParams{ .max_depth = 100, .max_rules = 5, .confidence_threshold = gf16_encode_f32(0.5), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 0, .rules_fired = 10, .current_confidence = gf16_encode_f32(0.9), .start_time_ms = 0, .quality = .good }
         when result = should_continue(state, params)
         then result == K_FALSE
 
     test should_continue_blocks_on_low_confidence
         // Low confidence triggers restraint
-        given params = RestraintParams{ .max_depth = 100, .max_rules = 100, .confidence_threshold = GF16.fromF32(0.7), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = GF16.fromF32(0.5), .start_time_ms = 0, .quality = .good }
+        given params = RestraintParams{ .max_depth = 100, .max_rules = 100, .confidence_threshold = gf16_encode_f32(0.7), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.5), .start_time_ms = 0, .quality = .good }
         when result = should_continue(state, params)
         then result == K_FALSE
 
     test should_continue_allows_sufficient_confidence
         // Sufficient confidence allows continuation
-        given params = RestraintParams{ .max_depth = 100, .max_rules = 100, .confidence_threshold = GF16.fromF32(0.7), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = GF16.fromF32(0.8), .start_time_ms = 0, .quality = .good }
+        given params = RestraintParams{ .max_depth = 100, .max_rules = 100, .confidence_threshold = gf16_encode_f32(0.7), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.8), .start_time_ms = 0, .quality = .good }
         when result = should_continue(state, params)
         then result == K_TRUE
 
@@ -421,7 +421,7 @@ module Restraint {
         when state = init_state(.unstable, 12345)
         then state.current_depth == 0
         and state.rules_fired == 0
-        and state.current_confidence.toF32() == 0.0
+        and gf16_decode_to_f32(state.current_confidence) == 0.0
         and state.start_time_ms == 12345
         and state.quality == .unstable
 
@@ -444,9 +444,9 @@ module Restraint {
         const q_unknown = params_for_quality(.unknown);
         const q_unstable = params_for_quality(.unstable);
         const q_good = params_for_quality(.good);
-        const t_unknown = q_unknown.confidence_threshold.toF32();
-        const t_unstable = q_unstable.confidence_threshold.toF32();
-        const t_good = q_good.confidence_threshold.toF32();
+        const t_unknown = gf16_decode_to_f32(q_unknown.confidence_threshold);
+        const t_unstable = gf16_decode_to_f32(q_unstable.confidence_threshold);
+        const t_good = gf16_decode_to_f32(q_good.confidence_threshold);
         assert t_unknown > t_unstable;  // Unknown needs highest confidence
         assert t_unstable > t_good;     // Good needs lowest threshold
 
@@ -460,7 +460,7 @@ module Restraint {
     invariant should_continue_monotonic_depth
         // Deeper state is more likely to be restrained
         var state = init_state(.good, 0);
-        state.current_confidence = GF16.fromF32(0.9);  // High confidence
+        state.current_confidence = gf16_encode_f32(0.9);  // High confidence
         const params = params_for_quality(.good);
         var i : u32 = 0;
         while (i < params.max_depth) {
@@ -497,8 +497,8 @@ module Restraint {
 
     invariant gf16_confidence_in_valid_range
         // GF16 confidence values are in [0, 1]
-        const conf = GF16.fromF32(0.5);
-        const value = conf.toF32();
+        const conf = gf16_encode_f32(0.5);
+        const value = gf16_decode_to_f32(conf);
         assert value >= 0.0 and value <= 1.0;
 
     // ========================================================================
