@@ -297,7 +297,6 @@ See [ISSUE-GATE-001](docs/ISSUE-GATE-001.md) for details.
 - [CLARA Preparation Plan](docs/CLARA-PREPARATION-PLAN.md) — DARPA compliance
 - [Kleene Trit Isomorphism](docs/KLEENE-TRIT-ISOMORPHISM.md)
 - [TRI Syntax vNext](docs/TRI_SYNTAX_VNEXT.md)
-=======
 - [SOUL.md](docs/SOUL.md) — Trinity constitutional laws
 - [ISSUE-GATE-001.md](docs/ISSUE-GATE-001.md) — Issue gate enforcement law
 - [NUMERIC-STANDARD-001.md](docs/NUMERIC-STANDARD-001.md) — GoldenFloat family specification
