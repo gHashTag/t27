@@ -195,7 +195,7 @@
       "kind": "codegen",
       "exports": ["ZigCodeGen", "emit_zig", "zig_ast"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
@@ -209,7 +209,7 @@
       "kind": "codegen",
       "exports": ["VerilogCodeGen", "emit_verilog", "verilog_ast"],
       "bench_suite": [],
-      "status": "pending",
+      "status": "done",
       "last_verdict": null,
       "last_bench": null,
       "failure_count": 0
