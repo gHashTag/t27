@@ -30,6 +30,15 @@ pub enum NodeKind {
     ExprBinary,
     ExprUnary,
     ExprReturn,
+    ExprIndex,
+    ExprIf,
+    ExprStructLit,
+    // Statement nodes for fn bodies
+    StmtLocal,    // const x = expr; or var x: T = expr;
+    StmtAssign,   // x = expr; or x.field = expr;
+    StmtIf,       // if (...) { ... } else if (...) { ... } else { ... }
+    StmtWhile,    // while (cond) { ... }
+    StmtExpr,     // bare expression statement: func(a, b);
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +52,7 @@ pub struct Node {
     pub extra_kind: String,
     pub extra_op: String,
     pub extra_pub: bool,
+    pub extra_mutable: bool,
     pub extra_return_type: String,
     pub params: Vec<(String, String)>, // (name, type) pairs for FnDecl
     pub children: Vec<Node>,
@@ -60,6 +70,7 @@ impl Default for Node {
             extra_kind: String::new(),
             extra_op: String::new(),
             extra_pub: false,
+            extra_mutable: false,
             extra_return_type: String::new(),
             params: Vec::new(),
             children: Vec::new(),
@@ -79,6 +90,7 @@ impl Node {
             extra_kind: String::new(),
             extra_op: String::new(),
             extra_pub: false,
+            extra_mutable: false,
             extra_return_type: String::new(),
             params: Vec::new(),
             children: Vec::new(),
@@ -99,8 +111,8 @@ impl Node {
 pub enum TokenKind {
     // Keywords
     KwPub, KwConst, KwFn, KwEnum, KwStruct, KwTest, KwInvariant, KwBench,
-    KwModule, KwIf, KwElse, KwFor, KwSwitch, KwReturn, KwVar, KwUsing, KwVoid,
-    KwTrue, KwFalse, KwUse,
+    KwModule, KwIf, KwElse, KwFor, KwWhile, KwSwitch, KwReturn, KwVar, KwUsing, KwVoid,
+    KwTrue, KwFalse, KwUse, KwOr, KwAnd, KwTry,
 
     // Literals
     Ident, Number, String,
@@ -115,6 +127,7 @@ pub enum TokenKind {
 
     // Multi-char
     Arrow, FatArrow, Power,
+    ShiftLeft, ShiftRight, PlusEquals, PlusPercent,
 
     // Special
     Semicolon, Eof,
@@ -256,6 +269,10 @@ impl Lexer {
             "if" => TokenKind::KwIf,
             "else" => TokenKind::KwElse,
             "for" => TokenKind::KwFor,
+            "while" => TokenKind::KwWhile,
+            "or" => TokenKind::KwOr,
+            "and" => TokenKind::KwAnd,
+            "try" => TokenKind::KwTry,
             "switch" => TokenKind::KwSwitch,
             "return" => TokenKind::KwReturn,
             "var" => TokenKind::KwVar,
@@ -409,6 +426,50 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::Neq,
                     lexeme: String::from("!="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'<', b'<'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::ShiftLeft,
+                    lexeme: String::from("<<"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'>', b'>'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::ShiftRight,
+                    lexeme: String::from(">>"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'+', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PlusEquals,
+                    lexeme: String::from("+="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'+', b'%'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PlusPercent,
+                    lexeme: String::from("+%"),
                     line: start_line,
                     col: start_col,
                 };
@@ -1219,11 +1280,715 @@ impl Parser {
             self.advance();
         }
 
-        // [BUG 7 FIX] Body: brace-skip
+        // Parse body: real expressions
         self.expect(TokenKind::LBrace)?;
-        self.skip_brace_body()?;
+        self.parse_fn_body(&mut decl)?;
         self.expect(TokenKind::RBrace)?;
         Ok(decl)
+    }
+
+    /// Parse function body statements until closing brace
+    fn parse_fn_body(&mut self, decl: &mut Node) -> Result<(), String> {
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            match self.parse_body_stmt() {
+                Ok(stmt) => decl.children.push(stmt),
+                Err(_) => {
+                    // On parse error, skip to next statement boundary and continue
+                    self.recover_to_stmt_boundary();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Skip tokens to recover to next statement boundary (semicolon or closing brace)
+    fn recover_to_stmt_boundary(&mut self) {
+        let mut brace_depth: i32 = 0;
+        loop {
+            match self.current.kind {
+                TokenKind::Eof => break,
+                TokenKind::Semicolon if brace_depth == 0 => {
+                    self.advance();
+                    break;
+                }
+                TokenKind::RBrace if brace_depth == 0 => break,
+                TokenKind::LBrace => { brace_depth += 1; self.advance(); }
+                TokenKind::RBrace => { brace_depth -= 1; self.advance(); }
+                _ => { self.advance(); }
+            }
+        }
+    }
+
+    /// Parse a single statement inside a function body
+    fn parse_body_stmt(&mut self) -> Result<Node, String> {
+        // const / var declaration
+        if self.current.kind == TokenKind::KwConst || self.current.kind == TokenKind::KwVar {
+            return self.parse_local_decl();
+        }
+
+        // return statement
+        if self.current.kind == TokenKind::KwReturn {
+            return self.parse_return_statement();
+        }
+
+        // if statement
+        if self.current.kind == TokenKind::KwIf {
+            return self.parse_if_stmt();
+        }
+
+        // while statement
+        if self.current.kind == TokenKind::KwWhile {
+            return self.parse_while_stmt();
+        }
+
+        // Expression or assignment
+        let expr = self.parse_expr()?;
+
+        // Check for assignment: expr = rhs;
+        if self.current.kind == TokenKind::Equals {
+            self.advance(); // consume =
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        // Check for += assignment
+        if self.current.kind == TokenKind::PlusEquals {
+            self.advance(); // consume +=
+            let rhs = self.parse_expr()?;
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.extra_op = "+=".to_string();
+            assign.children.push(expr);
+            assign.children.push(rhs);
+            return Ok(assign);
+        }
+
+        // Bare expression statement
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+        let mut stmt = Node::new(NodeKind::StmtExpr);
+        stmt.children.push(expr);
+        Ok(stmt)
+    }
+
+    /// Parse local const/var declaration
+    fn parse_local_decl(&mut self) -> Result<Node, String> {
+        let mut decl = Node::new(NodeKind::StmtLocal);
+        decl.extra_mutable = self.current.kind == TokenKind::KwVar;
+        self.advance(); // consume const/var
+
+        // Name
+        if self.current.kind == TokenKind::Ident {
+            decl.name = self.current.lexeme.clone();
+            self.advance();
+        }
+
+        // Optional type annotation: : Type
+        if self.current.kind == TokenKind::Colon {
+            self.advance(); // consume :
+            decl.extra_type = self.parse_type_annotation();
+        }
+
+        // = initializer
+        if self.current.kind == TokenKind::Equals {
+            self.advance(); // consume =
+            let init = self.parse_expr()?;
+            decl.children.push(init);
+        }
+
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+        Ok(decl)
+    }
+
+    /// Parse return statement
+    fn parse_return_statement(&mut self) -> Result<Node, String> {
+        let mut stmt = Node::new(NodeKind::ExprReturn);
+        self.advance(); // consume 'return'
+
+        // Optional return value
+        if self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::RBrace {
+            let expr = self.parse_expr()?;
+            stmt.children.push(expr);
+        }
+
+        if self.current.kind == TokenKind::Semicolon {
+            self.advance();
+        }
+        Ok(stmt)
+    }
+
+    /// Parse if / else if / else statement
+    fn parse_if_stmt(&mut self) -> Result<Node, String> {
+        let mut if_node = Node::new(NodeKind::StmtIf);
+        self.advance(); // consume 'if'
+
+        // Condition in parentheses
+        self.expect(TokenKind::LParen)?;
+        let cond = self.parse_expr()?;
+        self.expect(TokenKind::RParen)?;
+        if_node.children.push(cond);
+
+        // Then branch: { ... }
+        if self.current.kind == TokenKind::LBrace {
+            self.advance(); // consume {
+            let mut then_block = Node::new(NodeKind::Module); // reuse Module as block container
+            then_block.name = "then".to_string();
+            while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                match self.parse_body_stmt() {
+                    Ok(s) => then_block.children.push(s),
+                    Err(_) => self.recover_to_stmt_boundary(),
+                }
+            }
+            self.expect(TokenKind::RBrace)?;
+            if_node.children.push(then_block);
+        } else {
+            // single statement: if (cond) return expr;
+            let stmt = self.parse_body_stmt()?;
+            let mut then_block = Node::new(NodeKind::Module);
+            then_block.name = "then".to_string();
+            then_block.children.push(stmt);
+            if_node.children.push(then_block);
+        }
+
+        // else / else if
+        if self.current.kind == TokenKind::KwElse {
+            self.advance(); // consume 'else'
+            if self.current.kind == TokenKind::KwIf {
+                // else if -> recurse
+                let else_if = self.parse_if_stmt()?;
+                let mut else_block = Node::new(NodeKind::Module);
+                else_block.name = "else".to_string();
+                else_block.children.push(else_if);
+                if_node.children.push(else_block);
+            } else if self.current.kind == TokenKind::LBrace {
+                self.advance(); // consume {
+                let mut else_block = Node::new(NodeKind::Module);
+                else_block.name = "else".to_string();
+                while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                    match self.parse_body_stmt() {
+                        Ok(s) => else_block.children.push(s),
+                        Err(_) => self.recover_to_stmt_boundary(),
+                    }
+                }
+                self.expect(TokenKind::RBrace)?;
+                if_node.children.push(else_block);
+            }
+        }
+
+        Ok(if_node)
+    }
+
+    /// Parse while statement
+    fn parse_while_stmt(&mut self) -> Result<Node, String> {
+        let mut while_node = Node::new(NodeKind::StmtWhile);
+        self.advance(); // consume 'while'
+
+        // Condition in parentheses
+        self.expect(TokenKind::LParen)?;
+        let cond = self.parse_expr()?;
+        self.expect(TokenKind::RParen)?;
+        while_node.children.push(cond);
+
+        // Body: { ... }
+        self.expect(TokenKind::LBrace)?;
+        let mut body_block = Node::new(NodeKind::Module);
+        body_block.name = "body".to_string();
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            match self.parse_body_stmt() {
+                Ok(s) => body_block.children.push(s),
+                Err(_) => self.recover_to_stmt_boundary(),
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        while_node.children.push(body_block);
+
+        Ok(while_node)
+    }
+
+    // ========================================================================
+    // Expression parser (Pratt-style, operates on current token)
+    // ========================================================================
+
+    /// Parse a full expression
+    fn parse_expr(&mut self) -> Result<Node, String> {
+        self.parse_expr_or()
+    }
+
+    /// Parse `or` expressions
+    fn parse_expr_or(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_and()?;
+        while self.current.kind == TokenKind::KwOr {
+            self.advance(); // consume 'or'
+            let right = self.parse_expr_and()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: "or".to_string(),
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse `and` expressions
+    fn parse_expr_and(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_comparison()?;
+        while self.current.kind == TokenKind::KwAnd {
+            self.advance(); // consume 'and'
+            let right = self.parse_expr_comparison()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: "and".to_string(),
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse comparison expressions (==, !=, <, >, <=, >=)
+    fn parse_expr_comparison(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_bitor()?;
+        while matches!(self.current.kind,
+            TokenKind::Eq | TokenKind::Neq | TokenKind::Lt | TokenKind::Gt |
+            TokenKind::Lte | TokenKind::Gte
+        ) {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_bitor()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse bitwise or (|)
+    fn parse_expr_bitor(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_bitxor()?;
+        while self.current.kind == TokenKind::Pipe {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_bitxor()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse bitwise xor (^)
+    fn parse_expr_bitxor(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_bitand()?;
+        while self.current.kind == TokenKind::Caret {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_bitand()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse bitwise and (&)
+    fn parse_expr_bitand(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_shift()?;
+        while self.current.kind == TokenKind::Amp {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_shift()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse shift expressions (<<, >>)
+    fn parse_expr_shift(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_additive()?;
+        while matches!(self.current.kind, TokenKind::ShiftLeft | TokenKind::ShiftRight) {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_additive()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse additive expressions (+, -, +%)
+    fn parse_expr_additive(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_multiplicative()?;
+        while matches!(self.current.kind, TokenKind::Plus | TokenKind::Minus | TokenKind::PlusPercent) {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_multiplicative()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse multiplicative expressions (*, /, %)
+    fn parse_expr_multiplicative(&mut self) -> Result<Node, String> {
+        let mut left = self.parse_expr_unary()?;
+        while matches!(self.current.kind, TokenKind::Star | TokenKind::Slash | TokenKind::Percent) {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let right = self.parse_expr_unary()?;
+            left = Node {
+                kind: NodeKind::ExprBinary,
+                extra_op: op,
+                children: vec![left, right],
+                ..Default::default()
+            };
+        }
+        Ok(left)
+    }
+
+    /// Parse unary expressions (-x, !x, ~x)
+    fn parse_expr_unary(&mut self) -> Result<Node, String> {
+        if matches!(self.current.kind, TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde) {
+            let op = self.current.lexeme.clone();
+            self.advance();
+            let operand = self.parse_expr_unary()?;
+            return Ok(Node {
+                kind: NodeKind::ExprUnary,
+                extra_op: op,
+                children: vec![operand],
+                ..Default::default()
+            });
+        }
+        self.parse_expr_postfix()
+    }
+
+    /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), call (f(args))
+    fn parse_expr_postfix(&mut self) -> Result<Node, String> {
+        let mut expr = self.parse_expr_primary()?;
+
+        loop {
+            if self.current.kind == TokenKind::Dot {
+                self.advance(); // consume .
+                if self.current.kind == TokenKind::Star {
+                    // Dereference: expr.*
+                    self.advance(); // consume *
+                    let mut deref = Node::new(NodeKind::ExprFieldAccess);
+                    deref.name = "*".to_string();
+                    deref.children.push(expr);
+                    expr = deref;
+                } else if self.current.kind == TokenKind::Ident {
+                    let field = self.current.lexeme.clone();
+                    self.advance();
+                    // Check if this is a method/field call: expr.field(args)
+                    if self.current.kind == TokenKind::LParen {
+                        // Not typical in this language; just treat as field access for now
+                    }
+                    let mut fa = Node::new(NodeKind::ExprFieldAccess);
+                    fa.name = field;
+                    fa.children.push(expr);
+                    expr = fa;
+                } else {
+                    break;
+                }
+            } else if self.current.kind == TokenKind::LBracket {
+                self.advance(); // consume [
+                let index = self.parse_expr()?;
+                self.expect(TokenKind::RBracket)?;
+                let mut idx_node = Node::new(NodeKind::ExprIndex);
+                idx_node.children.push(expr);
+                idx_node.children.push(index);
+                expr = idx_node;
+            } else if self.current.kind == TokenKind::LParen {
+                // Function call on an expression: shouldn't normally happen here
+                // since calls are handled in primary for ident(...) and @builtin(...)
+                break;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    /// Parse primary expressions
+    fn parse_expr_primary(&mut self) -> Result<Node, String> {
+        match self.current.kind {
+            // Number literal
+            TokenKind::Number => {
+                let val = self.current.lexeme.clone();
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: val,
+                    ..Default::default()
+                })
+            }
+
+            // String literal
+            TokenKind::String => {
+                let val = self.current.lexeme.clone();
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: format!("\"{}\"", val),
+                    ..Default::default()
+                })
+            }
+
+            // Boolean literals
+            TokenKind::KwTrue => {
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: "true".to_string(),
+                    ..Default::default()
+                })
+            }
+            TokenKind::KwFalse => {
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: "false".to_string(),
+                    ..Default::default()
+                })
+            }
+
+            // Enum value: .variant
+            TokenKind::Dot => {
+                self.advance(); // consume .
+                if self.current.kind == TokenKind::Ident {
+                    let name = self.current.lexeme.clone();
+                    self.advance();
+                    Ok(Node {
+                        kind: NodeKind::ExprEnumValue,
+                        name,
+                        ..Default::default()
+                    })
+                } else {
+                    Err(format!("Expected identifier after '.', got {:?}", self.current.kind))
+                }
+            }
+
+            // Identifier, function call, @builtin call, or struct literal
+            TokenKind::Ident => {
+                let name = self.current.lexeme.clone();
+                self.advance();
+
+                // Check for struct literal: Name{ .field = expr, ... }
+                if self.current.kind == TokenKind::LBrace {
+                    return self.parse_struct_literal(name);
+                }
+
+                // Check for function call: name(args)
+                if self.current.kind == TokenKind::LParen {
+                    return self.parse_call_args(name);
+                }
+
+                Ok(Node {
+                    kind: NodeKind::ExprIdentifier,
+                    name,
+                    ..Default::default()
+                })
+            }
+
+            // Parenthesized expression
+            TokenKind::LParen => {
+                self.advance(); // consume (
+                let inner = self.parse_expr()?;
+                self.expect(TokenKind::RParen)?;
+                Ok(inner)
+            }
+
+            // if expression: if (cond) expr else expr
+            TokenKind::KwIf => {
+                self.parse_if_expr()
+            }
+
+            // switch expression: switch (val) { ... }
+            TokenKind::KwSwitch => {
+                self.parse_switch_expr()
+            }
+
+            // try expression (skip 'try' and parse inner)
+            TokenKind::KwTry => {
+                self.advance(); // consume 'try'
+                self.parse_expr_postfix()
+            }
+
+            _ => {
+                Err(format!("Unexpected token in expression: {:?} ('{}') at line {}:{}",
+                    self.current.kind, self.current.lexeme, self.current.line, self.current.col))
+            }
+        }
+    }
+
+    /// Parse function/builtin call arguments: name(arg1, arg2, ...)
+    fn parse_call_args(&mut self, name: String) -> Result<Node, String> {
+        self.advance(); // consume (
+        let mut call = Node::new(NodeKind::ExprCall);
+        call.name = name;
+
+        while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+            let arg = self.parse_expr()?;
+            call.children.push(arg);
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(call)
+    }
+
+    /// Parse struct literal: Name{ .field = expr, ... }
+    fn parse_struct_literal(&mut self, name: String) -> Result<Node, String> {
+        self.advance(); // consume {
+        let mut lit = Node::new(NodeKind::ExprStructLit);
+        lit.name = name;
+
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            // Expect .field = expr
+            if self.current.kind == TokenKind::Dot {
+                self.advance(); // consume .
+                let field_name = if self.current.kind == TokenKind::Ident {
+                    let n = self.current.lexeme.clone();
+                    self.advance();
+                    n
+                } else {
+                    String::new()
+                };
+
+                if self.current.kind == TokenKind::Equals {
+                    self.advance(); // consume =
+                }
+
+                let val = self.parse_expr()?;
+                let mut field = Node::new(NodeKind::ExprFieldAccess);
+                field.name = field_name;
+                field.children.push(val);
+                lit.children.push(field);
+
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                }
+            } else {
+                break;
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(lit)
+    }
+
+    /// Parse if expression: if (cond) expr else expr
+    fn parse_if_expr(&mut self) -> Result<Node, String> {
+        self.advance(); // consume 'if'
+
+        // Condition in parentheses
+        self.expect(TokenKind::LParen)?;
+        let cond = self.parse_expr()?;
+        self.expect(TokenKind::RParen)?;
+
+        // Then expression
+        let then_expr = self.parse_expr()?;
+
+        // else expression
+        let mut if_node = Node::new(NodeKind::ExprIf);
+        if_node.children.push(cond);
+        if_node.children.push(then_expr);
+
+        if self.current.kind == TokenKind::KwElse {
+            self.advance(); // consume 'else'
+            let else_expr = self.parse_expr()?;
+            if_node.children.push(else_expr);
+        }
+
+        Ok(if_node)
+    }
+
+    /// Parse switch expression: switch (val) { .arm => expr, ... }
+    fn parse_switch_expr(&mut self) -> Result<Node, String> {
+        self.advance(); // consume 'switch'
+
+        // Value in parentheses
+        self.expect(TokenKind::LParen)?;
+        let val = self.parse_expr()?;
+        self.expect(TokenKind::RParen)?;
+
+        self.expect(TokenKind::LBrace)?;
+
+        let mut sw = Node::new(NodeKind::ExprSwitch);
+        sw.children.push(val);
+
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            let mut arm = Node::new(NodeKind::ConstDecl);
+
+            // Pattern
+            if self.current.kind == TokenKind::Dot {
+                self.advance(); // consume .
+                if self.current.kind == TokenKind::Ident {
+                    arm.name = self.current.lexeme.clone();
+                    self.advance();
+                }
+            } else if self.current.kind == TokenKind::KwElse {
+                arm.name = "else".to_string();
+                self.advance();
+            } else if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
+                arm.name = self.current.lexeme.clone();
+                self.advance();
+            } else {
+                break;
+            }
+
+            // =>
+            if self.current.kind == TokenKind::FatArrow {
+                self.advance();
+            }
+
+            // Arm expression
+            let arm_expr = self.parse_expr()?;
+            arm.children.push(arm_expr);
+
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+
+            sw.children.push(arm);
+        }
+
+        self.expect(TokenKind::RBrace)?;
+        Ok(sw)
     }
 
     fn parse_enum_decl(&mut self, is_pub: bool) -> Result<Node, String> {
@@ -1340,264 +2105,6 @@ impl Parser {
         Ok(block)
     }
 
-    #[allow(dead_code)]
-    fn parse_statement(&mut self) -> Result<Node, String> {
-        if self.check_peek(TokenKind::KwReturn) {
-            self.parse_return_stmt()
-        } else {
-            let expr = self.parse_expression()?;
-            if self.check_peek(TokenKind::Semicolon) {
-                self.advance();
-            }
-            Ok(expr)
-        }
-    }
-
-    #[allow(dead_code)]
-    fn parse_return_stmt(&mut self) -> Result<Node, String> {
-        let mut stmt = Node::new(NodeKind::ExprReturn);
-        self.expect(TokenKind::KwReturn)?;
-
-        let expr = self.parse_expression()?;
-        stmt.children.push(expr);
-        Ok(stmt)
-    }
-
-    #[allow(dead_code)]
-    fn parse_expression(&mut self) -> Result<Node, String> {
-        self.parse_or()
-    }
-
-    #[allow(dead_code)]
-    fn parse_or(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_and()?;
-
-        while self.check_peek(TokenKind::Pipe) {
-            self.advance();
-            let op = self.current.lexeme.clone();
-            let right = self.parse_and()?;
-            left = Node {
-                kind: NodeKind::ExprBinary,
-                extra_op: op,
-                children: vec![left, right],
-                ..Default::default()
-            };
-        }
-
-        Ok(left)
-    }
-
-    #[allow(dead_code)]
-    fn parse_and(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_comparison()?;
-
-        while self.check_peek(TokenKind::Amp) {
-            self.advance();
-            let op = self.current.lexeme.clone();
-            let right = self.parse_comparison()?;
-            left = Node {
-                kind: NodeKind::ExprBinary,
-                extra_op: op,
-                children: vec![left, right],
-                ..Default::default()
-            };
-        }
-
-        Ok(left)
-    }
-
-    #[allow(dead_code)]
-    fn parse_comparison(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_switch()?;
-
-        let ops = [TokenKind::Lt, TokenKind::Gt, TokenKind::Lte, TokenKind::Gte,
-                     TokenKind::Eq, TokenKind::Neq];
-
-        while ops.contains(&self.peek.kind) {
-            self.advance();
-            let op = self.current.lexeme.clone();
-            let right = self.parse_switch()?;
-            left = Node {
-                kind: NodeKind::ExprBinary,
-                extra_op: op,
-                children: vec![left, right],
-                ..Default::default()
-            };
-        }
-
-        Ok(left)
-    }
-
-    #[allow(dead_code)]
-    fn parse_switch(&mut self) -> Result<Node, String> {
-        if !self.check_peek(TokenKind::KwSwitch) && !self.check_peek(TokenKind::KwIf) {
-            return self.parse_term();
-        }
-
-        let mut switch_node = Node::new(NodeKind::ExprSwitch);
-
-        if self.check_peek(TokenKind::KwSwitch) {
-            self.advance();
-        }
-
-        let value = self.parse_term()?;
-        switch_node.children.push(value);
-
-        self.expect(TokenKind::LBrace)?;
-
-        while !self.check(TokenKind::RBrace) && self.peek.kind != TokenKind::Eof {
-            let mut case_node = Node::new(NodeKind::ConstDecl);
-
-            if self.check_peek(TokenKind::Dot) {
-                self.advance();
-                if self.check_peek(TokenKind::Ident) {
-                    self.advance();
-                    case_node.name = self.current.lexeme.clone();
-                }
-            } else if self.check_peek(TokenKind::KwElse) {
-                self.advance();
-                case_node.name = "else".to_string();
-            } else if self.check_peek(TokenKind::Ident) || self.check_peek(TokenKind::Number) {
-                self.advance();
-                case_node.name = self.current.lexeme.clone();
-            } else {
-                break;
-            }
-
-            if self.check_peek(TokenKind::FatArrow) {
-                self.advance();
-                if let Ok(expr) = self.parse_expression() {
-                    case_node.children.push(expr);
-                }
-            }
-
-            if self.check_peek(TokenKind::Comma) {
-                self.advance();
-            }
-
-            switch_node.children.push(case_node);
-        }
-
-        self.expect(TokenKind::RBrace)?;
-        Ok(switch_node)
-    }
-
-    #[allow(dead_code)]
-    fn parse_term(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_factor()?;
-
-        while self.check_peek(TokenKind::Star) || self.check_peek(TokenKind::Slash) || self.check_peek(TokenKind::Percent) {
-            self.advance();
-            let op = self.current.lexeme.clone();
-            let right = self.parse_factor()?;
-            left = Node {
-                kind: NodeKind::ExprBinary,
-                extra_op: op,
-                children: vec![left, right],
-                ..Default::default()
-            };
-        }
-
-        Ok(left)
-    }
-
-    #[allow(dead_code)]
-    fn parse_factor(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_unary()?;
-
-        while self.check_peek(TokenKind::Plus) || self.check_peek(TokenKind::Minus) {
-            self.advance();
-            let op = self.current.lexeme.clone();
-            let right = self.parse_unary()?;
-            left = Node {
-                kind: NodeKind::ExprBinary,
-                extra_op: op,
-                children: vec![left, right],
-                ..Default::default()
-            };
-        }
-
-        Ok(left)
-    }
-
-    #[allow(dead_code)]
-    fn parse_unary(&mut self) -> Result<Node, String> {
-        self.parse_primary()
-    }
-
-    #[allow(dead_code)]
-    fn parse_primary(&mut self) -> Result<Node, String> {
-        if self.check_peek(TokenKind::Number) {
-            self.advance();
-            return Ok(Node {
-                kind: NodeKind::ExprLiteral,
-                value: self.current.lexeme.clone(),
-                ..Default::default()
-            });
-        }
-
-        if self.check_peek(TokenKind::KwTrue) || self.check_peek(TokenKind::KwFalse) {
-            self.advance();
-            return Ok(Node {
-                kind: NodeKind::ExprLiteral,
-                value: self.current.lexeme.clone(),
-                ..Default::default()
-            });
-        }
-
-        if self.check(TokenKind::Dot) {
-            self.advance();
-            if self.check_peek(TokenKind::Ident) {
-                self.advance();
-                return Ok(Node {
-                    kind: NodeKind::ExprEnumValue,
-                    name: self.current.lexeme.clone(),
-                    ..Default::default()
-                });
-            }
-        }
-
-        if self.check_peek(TokenKind::Ident) {
-            self.advance();
-            let name = self.current.lexeme.clone();
-
-            if self.check_peek(TokenKind::LParen) {
-                self.advance();
-                while !self.check(TokenKind::RParen) && self.peek.kind != TokenKind::Eof {
-                    self.advance();
-                }
-                self.expect(TokenKind::RParen)?;
-
-                return Ok(Node {
-                    kind: NodeKind::ExprCall,
-                    name,
-                    ..Default::default()
-                });
-            }
-
-            return Ok(Node {
-                kind: NodeKind::ExprIdentifier,
-                name,
-                ..Default::default()
-            });
-        }
-
-        if self.check_peek(TokenKind::LParen) {
-            self.advance();
-            let expr = self.parse_expression()?;
-            self.expect(TokenKind::RParen)?;
-            return Ok(expr);
-        }
-
-        Err(format!("Unexpected token: {:?}", self.peek.kind))
-    }
-
-    #[allow(dead_code)]
-    fn parse_literal(&mut self) -> Result<String, String> {
-        let value = self.current.lexeme.clone();
-        self.advance();
-        Ok(value)
-    }
 }
 
 // ============================================================================
@@ -1840,88 +2347,283 @@ impl Codegen {
 
     fn gen_stmt(&mut self, node: &Node) {
         match node.kind {
-            NodeKind::ExprReturn => self.gen_return_stmt(node),
-            _ => { self.gen_expr(node); self.write_line(";"); }
+            NodeKind::ExprReturn => {
+                self.write_indent();
+                self.write("return ");
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write_line(";");
+            }
+            NodeKind::StmtLocal => {
+                self.write_indent();
+                if node.extra_mutable {
+                    self.write("var ");
+                } else {
+                    self.write("const ");
+                }
+                self.write(&node.name);
+                if !node.extra_type.is_empty() {
+                    self.write(&format!(": {}", node.extra_type));
+                }
+                if !node.children.is_empty() {
+                    self.write(" = ");
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write_line(";");
+            }
+            NodeKind::StmtAssign => {
+                self.write_indent();
+                if node.children.len() >= 2 {
+                    self.gen_expr(&node.children[0]);
+                    if node.extra_op == "+=" {
+                        self.write(" += ");
+                    } else {
+                        self.write(" = ");
+                    }
+                    self.gen_expr(&node.children[1]);
+                }
+                self.write_line(";");
+            }
+            NodeKind::StmtIf => {
+                self.gen_if_stmt(node);
+            }
+            NodeKind::StmtWhile => {
+                self.gen_while_stmt(node);
+            }
+            NodeKind::StmtExpr => {
+                self.write_indent();
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write_line(";");
+            }
+            _ => {
+                // Fallback: treat as expression
+                self.write_indent();
+                self.gen_expr(node);
+                self.write_line(";");
+            }
         }
     }
 
-    fn gen_return_stmt(&mut self, node: &Node) {
-        self.write("return ");
+    fn gen_if_stmt(&mut self, node: &Node) {
+        // children[0] = condition, children[1] = then block, children[2] = optional else block
+        self.write_indent();
+        self.write("if (");
         if !node.children.is_empty() {
             self.gen_expr(&node.children[0]);
         }
-        self.write_line(";");
+        self.write_line(") {");
+
+        self.indent();
+        if node.children.len() > 1 {
+            for stmt in &node.children[1].children {
+                self.gen_stmt(stmt);
+            }
+        }
+        self.dedent();
+
+        if node.children.len() > 2 {
+            let else_block = &node.children[2];
+            // Check if this is an else-if chain
+            if else_block.children.len() == 1 && else_block.children[0].kind == NodeKind::StmtIf {
+                self.write_indent();
+                self.write("} else ");
+                // Generate inline (no indent prefix for the nested if)
+                self.gen_if_stmt_inline(&else_block.children[0]);
+            } else {
+                self.write_indent();
+                self.write_line("} else {");
+                self.indent();
+                for stmt in &else_block.children {
+                    self.gen_stmt(stmt);
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("}");
+            }
+        } else {
+            self.write_indent();
+            self.write_line("}");
+        }
+    }
+
+    fn gen_if_stmt_inline(&mut self, node: &Node) {
+        // Same as gen_if_stmt but without leading indent (for else if)
+        self.write("if (");
+        if !node.children.is_empty() {
+            self.gen_expr(&node.children[0]);
+        }
+        self.write_line(") {");
+
+        self.indent();
+        if node.children.len() > 1 {
+            for stmt in &node.children[1].children {
+                self.gen_stmt(stmt);
+            }
+        }
+        self.dedent();
+
+        if node.children.len() > 2 {
+            let else_block = &node.children[2];
+            if else_block.children.len() == 1 && else_block.children[0].kind == NodeKind::StmtIf {
+                self.write_indent();
+                self.write("} else ");
+                self.gen_if_stmt_inline(&else_block.children[0]);
+            } else {
+                self.write_indent();
+                self.write_line("} else {");
+                self.indent();
+                for stmt in &else_block.children {
+                    self.gen_stmt(stmt);
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("}");
+            }
+        } else {
+            self.write_indent();
+            self.write_line("}");
+        }
+    }
+
+    fn gen_while_stmt(&mut self, node: &Node) {
+        self.write_indent();
+        self.write("while (");
+        if !node.children.is_empty() {
+            self.gen_expr(&node.children[0]);
+        }
+        self.write_line(") {");
+
+        self.indent();
+        if node.children.len() > 1 {
+            for stmt in &node.children[1].children {
+                self.gen_stmt(stmt);
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("}");
+    }
+
+    fn gen_expr_maybe_paren(&mut self, node: &Node) {
+        if node.kind == NodeKind::ExprBinary {
+            self.write("(");
+            self.gen_expr(node);
+            self.write(")");
+        } else {
+            self.gen_expr(node);
+        }
     }
 
     fn gen_expr(&mut self, node: &Node) {
         match node.kind {
-            NodeKind::ExprLiteral => self.gen_literal(node),
-            NodeKind::ExprIdentifier => self.gen_identifier(node),
-            NodeKind::ExprEnumValue => self.gen_enum_value(node),
-            NodeKind::ExprCall => self.gen_call(node),
-            NodeKind::ExprSwitch => self.gen_switch(node),
-            NodeKind::ExprBinary => self.gen_binary(node),
+            NodeKind::ExprLiteral => self.write(&node.value),
+            NodeKind::ExprIdentifier => self.write(&node.name),
+            NodeKind::ExprEnumValue => {
+                self.write(".");
+                self.write(&node.name);
+            }
+            NodeKind::ExprCall => {
+                self.write(&node.name);
+                self.write("(");
+                for (i, arg) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_expr(arg);
+                }
+                self.write(")");
+            }
+            NodeKind::ExprBinary => {
+                if node.children.len() >= 2 {
+                    self.gen_expr_maybe_paren(&node.children[0]);
+                    self.write(&format!(" {} ", node.extra_op));
+                    self.gen_expr_maybe_paren(&node.children[1]);
+                }
+            }
+            NodeKind::ExprUnary => {
+                self.write(&node.extra_op);
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+            }
+            NodeKind::ExprFieldAccess => {
+                // children[0] is the base expression
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write(".");
+                self.write(&node.name);
+            }
+            NodeKind::ExprIndex => {
+                // children[0] = base, children[1] = index
+                if node.children.len() >= 2 {
+                    self.gen_expr(&node.children[0]);
+                    self.write("[");
+                    self.gen_expr(&node.children[1]);
+                    self.write("]");
+                }
+            }
+            NodeKind::ExprSwitch => {
+                self.write("switch (");
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write_line(") {");
+
+                self.indent();
+                for case_node in &node.children[1..] {
+                    if case_node.kind == NodeKind::ConstDecl {
+                        self.write_indent();
+                        if !case_node.name.is_empty() && case_node.name != "else" {
+                            self.write(&format!(".{}", case_node.name));
+                        } else {
+                            self.write("else");
+                        }
+                        self.write(" => ");
+                        if !case_node.children.is_empty() {
+                            self.gen_expr(&case_node.children[0]);
+                        }
+                        self.write_line(",");
+                    }
+                }
+                self.dedent();
+                self.write_indent();
+                self.write("}");
+            }
+            NodeKind::ExprIf => {
+                // children[0] = cond, children[1] = then, children[2] = else (optional)
+                self.write("if (");
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write(") ");
+                if node.children.len() > 1 {
+                    self.gen_expr(&node.children[1]);
+                }
+                if node.children.len() > 2 {
+                    self.write(" else ");
+                    self.gen_expr(&node.children[2]);
+                }
+            }
+            NodeKind::ExprStructLit => {
+                self.write(&node.name);
+                self.write("{ ");
+                for (i, field) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&format!(".{} = ", field.name));
+                    if !field.children.is_empty() {
+                        self.gen_expr(&field.children[0]);
+                    }
+                }
+                self.write(" }");
+            }
             _ => {}
         }
-    }
-
-    fn gen_literal(&mut self, node: &Node) {
-        self.write(&node.value);
-    }
-
-    fn gen_identifier(&mut self, node: &Node) {
-        self.write(&node.name);
-    }
-
-    fn gen_enum_value(&mut self, node: &Node) {
-        self.write(".");
-        self.write(&node.name);
-    }
-
-    fn gen_call(&mut self, node: &Node) {
-        self.write(&node.name);
-        self.write("(");
-        self.write(")");
-    }
-
-    fn gen_switch(&mut self, node: &Node) {
-        self.write("switch (");
-
-        if !node.children.is_empty() {
-            self.gen_expr(&node.children[0]);
-        }
-
-        self.write(") {");
-        self.write_line("");
-
-        self.indent();
-
-        for case_node in &node.children[1..] {
-            if case_node.kind == NodeKind::ConstDecl {
-                if !case_node.name.is_empty() && case_node.name != "else" {
-                    self.write(&case_node.name);
-                } else {
-                    self.write("else");
-                }
-
-                self.write(" => ");
-
-                if !case_node.children.is_empty() {
-                    self.gen_expr(&case_node.children[0]);
-                }
-
-                self.write_line(",");
-            }
-        }
-
-        self.dedent();
-        self.write_line("}");
-    }
-
-    fn gen_binary(&mut self, node: &Node) {
-        self.gen_expr(&node.children[0]);
-        self.write(&format!(" {} ", node.extra_op));
-        self.gen_expr(&node.children[1]);
     }
 }
 
