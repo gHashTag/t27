@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:cd20454158fc96e745f5c988666691746469c0ccea42929ee3aa6cf11bec28d4",
+  "gen_hash_verilog": "sha256:ccea3eb59f6bb373367707757ea0833f9d727468d555bee1ef0e68c2a4559df1",
+  "gen_hash_zig": "sha256:d3800cc5ed250afd87ea18aa11776ba1d147f9d89207ee2ecaa172b57c39b182",
+  "module": "trilexer",
+  "ring": 12,
+  "sealed_at": "2026-04-04T12:46:48Z",
+  "spec_hash": "sha256:cf665b400e73091057d195296506e68e8c16acff3adc70a1756b58cd88e30afc",
+  "spec_path": "compiler/parser/lexer.t27"
+}
