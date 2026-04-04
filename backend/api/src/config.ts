@@ -70,7 +70,7 @@ export const config = {
     "ghcr.io/ghashtagg/t27-sandbox:latest",
   railwayGraphqlUrl:
     process.env.RAILWAY_GRAPHQL_URL ??
-    "https://backboard.railway.app/graphql/v2",
+    "https://backboard.railway.com/graphql/v2",
 
   // Auth
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
