@@ -5,11 +5,16 @@
 module ProofTrace {
     use base::types;
     use ar::ternary_logic;  // K_TRUE, K_FALSE, K_UNKNOWN
+    use numeric::gf16;      // GF16 for confidence (NUMERIC-STANDARD-001)
 
     // ═══════════════════════════════════════════════════════
     // CONSTANTS
     // ═══════════════════════════════════════════════════════
     const MAX_STEPS : u8 = 10;   // CLARA hard limit
+
+    // GF16 special values for confidence
+    const GF16_ONE : GF16 = 0x3C00;   // 1.0 in GF16
+    const GF16_ZERO : GF16 = 0x0000; // 0.0 in GF16
 
     // ═══════════════════════════════════════════════════════
     // TYPES
@@ -19,7 +24,7 @@ module ProofTrace {
         rule_name    : []const u8,    // max 64 bytes
         input_facts  : [3]Trit,       // up to 3 antecedents
         output_fact  : Trit,
-        confidence   : f32,            // [0.0, 1.0]
+        confidence   : GF16,           // [0.0, 1.0] as GF16 (NUMERIC-STANDARD-001)
         k3_value     : Trit,           // Kleene truth value of this step
     }
 
@@ -27,8 +32,8 @@ module ProofTrace {
         steps            : [MAX_STEPS]DerivationStep,
         step_count       : u8,
         conclusion       : Trit,
-        total_confidence : f32,
-        terminated       : bool,   // true = Restraint cut (MAX_STEPS hit)
+        total_confidence : GF16,        // GF16 (NUMERIC-STANDARD-001)
+        terminated       : bool,        // true = Restraint cut (MAX_STEPS hit)
     }
 
     enum FormatStyle {
@@ -44,7 +49,7 @@ module ProofTrace {
         return ProofTrace {
             step_count       = 0,
             conclusion       = K_UNKNOWN,
-            total_confidence = 1.0,
+            total_confidence = GF16_ONE,   // 1.0 as GF16
             terminated       = false,
         };
     }
@@ -58,7 +63,10 @@ module ProofTrace {
         trace.steps[trace.step_count] = step;
         trace.step_count += 1;
         trace.conclusion = step.output_fact;
-        trace.total_confidence *= step.confidence;
+        // GF16 multiplication via f32 intermediate (one cycle)
+        const current_f = gf16_decode_to_f32(trace.total_confidence);
+        const step_f = gf16_decode_to_f32(step.confidence);
+        trace.total_confidence = gf16_encode_f32(current_f * step_f);
         return true;
     }
 
@@ -66,7 +74,7 @@ module ProofTrace {
         return trace.conclusion;
     }
 
-    fn get_confidence(trace: ProofTrace) -> f32 {
+    fn get_confidence(trace: ProofTrace) -> GF16 {
         return trace.total_confidence;
     }
 
@@ -134,9 +142,9 @@ module ProofTrace {
 
     test trace_confidence_is_product
         given trace = create_trace()
-        when append step with confidence=0.9
-        and  append step with confidence=0.8
-        then get_confidence(trace) ≈ 0.72 (±1e-6)
+        when append step with confidence=gf16_encode_f32(0.9)
+        and  append step with confidence=gf16_encode_f32(0.8)
+        then get_confidence(trace) ≈ gf16_encode_f32(0.72) (±1e-6)
 
     test trace_unknown_initial_conclusion
         given fresh trace = create_trace()
