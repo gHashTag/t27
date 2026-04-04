@@ -518,7 +518,9 @@ impl Lexer {
 
             while self.pos < self.source.len() {
                 let c = self.peek();
-                if c.is_ascii_digit() || c == b'.' || c == b'x' || c == b'X' || c == b'b' || c == b'B' || c == b'_' {
+                // Don't consume '.' if it's part of a '..' range operator
+                let is_dot_not_range = c == b'.' && (self.pos + 1 >= self.source.len() || self.source[self.pos + 1] != b'.');
+                if c.is_ascii_digit() || is_dot_not_range || c == b'x' || c == b'X' || c == b'b' || c == b'B' || c == b'_' {
                     if c == b'x' || c == b'X' {
                         is_hex = true;
                     }
@@ -2780,15 +2782,24 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
-                self.write(&node.name);
-                self.write("(");
-                for (i, arg) in node.children.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
+                if node.name == "@compileAssert" {
+                    // @compileAssert is not valid Zig — emit as comptime assert pattern
+                    if !node.children.is_empty() {
+                        self.write("if (!(");
+                        self.gen_expr(&node.children[0]);
+                        self.write(")) @compileError(\"assertion failed\")");
                     }
-                    self.gen_expr(arg);
+                } else {
+                    self.write(&node.name);
+                    self.write("(");
+                    for (i, arg) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(arg);
+                    }
+                    self.write(")");
                 }
-                self.write(")");
             }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
@@ -2832,7 +2843,14 @@ impl Codegen {
                     if case_node.kind == NodeKind::ConstDecl {
                         self.write_indent();
                         if !case_node.name.is_empty() && case_node.name != "else" {
-                            self.write(&format!(".{}", case_node.name));
+                            // Don't prefix with '.' if the arm is a numeric literal or negative number
+                            let is_numeric = case_node.name.starts_with(|c: char| c.is_ascii_digit())
+                                || (case_node.name.starts_with('-') && case_node.name.len() > 1);
+                            if is_numeric {
+                                self.write(&case_node.name);
+                            } else {
+                                self.write(&format!(".{}", case_node.name));
+                            }
                         } else {
                             self.write("else");
                         }
