@@ -96,6 +96,9 @@ enum Commands {
         /// Output directory
         #[arg(short, long, default_value = "build")]
         output: String,
+        /// Path to directory containing specs/ and compiler/ (auto-detected if omitted)
+        #[arg(long)]
+        specs_dir: Option<String>,
     },
 
     /// Compile all .t27 files into a coherent project with resolved inter-file imports
@@ -107,6 +110,9 @@ enum Commands {
         #[arg(short, long, default_value = "build")]
         output: String,
     },
+
+    /// Show repository statistics
+    Stats,
 
     /// Start HTTP server on Railway
     Serve {
@@ -144,6 +150,14 @@ struct CompileRequest {
 struct CompileResponse {
     success: bool,
     zig_code: Option<String>,
+    error: Option<String>,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Serialize)]
+struct ApiResponse {
+    success: bool,
+    output: Option<String>,
     error: Option<String>,
 }
 
@@ -187,6 +201,153 @@ async fn compile_handler(
 }
 
 #[cfg(feature = "server")]
+async fn parse_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(format!("{:#?}", ast)),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_verilog_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_verilog(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_c_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_c(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn seal_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
+
+    let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let output = serde_json::json!({
+        "spec_hash": spec_hash,
+        "gen_hash_zig": gen_hash_zig,
+        "gen_hash_verilog": gen_hash_verilog,
+        "gen_hash_c": gen_hash_c,
+    });
+
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            success: true,
+            output: Some(output.to_string()),
+            error: None,
+        }),
+    )
+}
+
+#[cfg(feature = "server")]
+async fn stats_handler() -> impl IntoResponse {
+    let stats = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "backends": ["zig", "verilog", "c"],
+        "endpoints": ["/health", "/compile", "/parse", "/gen", "/gen-verilog", "/gen-c", "/seal", "/stats"],
+    });
+
+    Json(ApiResponse {
+        success: true,
+        output: Some(stats.to_string()),
+        error: None,
+    })
+}
+
+#[cfg(feature = "server")]
 async fn run_server(port_arg: &str) -> anyhow::Result<()> {
     // Support Railway's $PORT environment variable
     let port = env::var("PORT")
@@ -195,7 +356,13 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(health_handler))
-        .route("/compile", post(compile_handler));
+        .route("/compile", post(compile_handler))
+        .route("/parse", post(parse_handler))
+        .route("/gen", post(gen_handler))
+        .route("/gen-verilog", post(gen_verilog_handler))
+        .route("/gen-c", post(gen_c_handler))
+        .route("/seal", post(seal_handler))
+        .route("/stats", get(stats_handler));
 
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).await?;
@@ -492,18 +659,59 @@ fn run_compile(input_path: &str, backend: &str, output: Option<&str>) -> anyhow:
     Ok(())
 }
 
-fn run_compile_all(backend: &str, output_dir: &str) -> anyhow::Result<()> {
+/// Auto-detect the repository root by looking for a directory containing specs/.
+/// Searches CWD first, then up to 3 parent directories.
+fn find_repo_root() -> Option<std::path::PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    let mut dir = cwd.as_path();
+    for _ in 0..4 {
+        if dir.join("specs").is_dir() {
+            return Some(dir.to_path_buf());
+        }
+        dir = dir.parent()?;
+    }
+    None
+}
+
+fn run_compile_all(backend: &str, output_dir: &str, specs_dir: Option<&str>) -> anyhow::Result<()> {
+    let root = match specs_dir {
+        Some(d) => std::path::PathBuf::from(d),
+        None => find_repo_root()
+            .ok_or_else(|| anyhow::anyhow!(
+                "Could not find specs/ directory. Run from the repo root or use --specs-dir"
+            ))?,
+    };
+
     let ext = backend_extension(backend);
     let out_base = Path::new(output_dir);
     let mut count = 0u32;
 
+    // Count total .t27 files first for the progress message
     let dirs = ["specs", "compiler"];
+    let mut total = 0u32;
     for dir in &dirs {
-        let base = Path::new(dir);
+        let base = root.join(dir);
         if !base.exists() {
             continue;
         }
-        for entry in walkdir::WalkDir::new(base)
+        for entry in walkdir::WalkDir::new(&base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.path().extension().and_then(|e| e.to_str()) == Some("t27") {
+                total += 1;
+            }
+        }
+    }
+
+    println!("Compiling {} files from {} to {}/", total, root.display(), output_dir);
+
+    for dir in &dirs {
+        let base = root.join(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&base)
             .into_iter()
             .filter_map(|e| e.ok())
         {
@@ -520,7 +728,7 @@ fn run_compile_all(backend: &str, output_dir: &str) -> anyhow::Result<()> {
                 }
             };
             // Preserve directory structure: specs/base/types.t27 -> build/specs/base/types.zig
-            let rel = p.strip_prefix(".").unwrap_or(p);
+            let rel = p.strip_prefix(&root).unwrap_or(p);
             let dest = out_base.join(rel).with_extension(&ext[1..]);
             if let Some(parent) = dest.parent() {
                 fs::create_dir_all(parent)?;
@@ -717,6 +925,205 @@ fn generate_build_zig(source_files: &[(std::path::PathBuf, String)], ext: &str) 
 }
 
 // ============================================================================
+// Stats Command
+// ============================================================================
+
+fn count_pattern_in_dir(root: &Path, dirs: &[&str], pattern: &str) -> u32 {
+    let mut count = 0u32;
+    for dir in dirs {
+        let base = root.join(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("t27") {
+                continue;
+            }
+            if let Ok(contents) = fs::read_to_string(p) {
+                for line in contents.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with(pattern) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+fn count_t27_files(root: &Path, dir: &str) -> u32 {
+    let base = root.join(dir);
+    if !base.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    for entry in walkdir::WalkDir::new(&base)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.path().extension().and_then(|e| e.to_str()) == Some("t27") {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn count_lines(path: &Path) -> u32 {
+    if let Ok(contents) = fs::read_to_string(path) {
+        contents.lines().count() as u32
+    } else {
+        0
+    }
+}
+
+fn count_files_in_dir(dir: &Path, ext: &str) -> u32 {
+    if !dir.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    for entry in walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.path().extension().and_then(|e| e.to_str()) == Some(ext) {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn run_stats() -> anyhow::Result<()> {
+    let root = find_repo_root()
+        .ok_or_else(|| anyhow::anyhow!(
+            "Could not find specs/ directory. Run from the repo root or use --specs-dir with compile-all"
+        ))?;
+
+    let dirs = &["specs", "compiler"];
+
+    let specs_count = count_t27_files(&root, "specs");
+    let compiler_count = count_t27_files(&root, "compiler");
+    let total_specs = specs_count + compiler_count;
+
+    let functions = count_pattern_in_dir(&root, dirs, "fn ");
+    let tests = count_pattern_in_dir(&root, dirs, "test ");
+    let invariants = count_pattern_in_dir(&root, dirs, "invariant ");
+    let benchmarks = count_pattern_in_dir(&root, dirs, "bench ");
+
+    let conformance_count = count_files_in_dir(&root.join("conformance"), "json");
+
+    let seals_dir = root.join(".trinity").join("seals");
+    let seals_count = count_files_in_dir(&seals_dir, "json");
+
+    let compiler_loc = count_lines(&root.join("bootstrap").join("src").join("compiler.rs"));
+
+    // Count CLI commands by reading the Commands enum variants
+    // Variants are lines like "    Parse {" or "    Stats," at exactly 4-space indent
+    let cli_commands = {
+        let main_rs = root.join("bootstrap").join("src").join("main.rs");
+        if let Ok(contents) = fs::read_to_string(&main_rs) {
+            let mut in_enum = false;
+            let mut count = 0u32;
+            for line in contents.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("enum Commands") {
+                    in_enum = true;
+                    continue;
+                }
+                if in_enum {
+                    if trimmed == "}" {
+                        break;
+                    }
+                    // Variant lines start with an uppercase letter
+                    if let Some(first) = trimmed.chars().next() {
+                        if first.is_uppercase() && (trimmed.contains('{') || trimmed.contains(',') || trimmed.ends_with('{')) {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+            count
+        } else {
+            0
+        }
+    };
+
+    // Detect latest ring from experience episodes.jsonl and seal files
+    let fixed_point_ring = {
+        let mut max_ring = 0u32;
+
+        // Check .trinity/experience/episodes.jsonl (each line is a JSON object with "metadata.ring" or top-level "ring")
+        let episodes_jsonl = root.join(".trinity").join("experience").join("episodes.jsonl");
+        if episodes_jsonl.exists() {
+            if let Ok(contents) = fs::read_to_string(&episodes_jsonl) {
+                for line in contents.lines() {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                        // Check metadata.ring first, then top-level ring
+                        let ring = json.get("metadata")
+                            .and_then(|m| m.get("ring"))
+                            .and_then(|r| r.as_u64())
+                            .or_else(|| json.get("ring").and_then(|r| r.as_u64()));
+                        if let Some(r) = ring {
+                            if r as u32 > max_ring {
+                                max_ring = r as u32;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also check seal files for ring values
+        let seals_dir = root.join(".trinity").join("seals");
+        if seals_dir.exists() {
+            for entry in walkdir::WalkDir::new(&seals_dir)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.path().extension().and_then(|e| e.to_str()) == Some("json") {
+                    if let Ok(contents) = fs::read_to_string(entry.path()) {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+                            if let Some(ring) = json.get("ring").and_then(|r| r.as_u64()) {
+                                if ring as u32 > max_ring {
+                                    max_ring = ring as u32;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        max_ring
+    };
+
+    println!("T27 Repository Statistics");
+    println!("========================");
+    println!("Spec files:     {} ({} in specs/, {} in compiler/)", total_specs, specs_count, compiler_count);
+    println!("Functions:      {}", functions);
+    println!("Tests:          {}", tests);
+    println!("Invariants:     {}", invariants);
+    println!("Benchmarks:     {}", benchmarks);
+    println!("Conformance:    {} JSON files", conformance_count);
+    println!("Seals:          {} saved", seals_count);
+    println!("Backends:       3 (Zig, Verilog, C)");
+    println!("CLI commands:   {}", cli_commands);
+    println!("Compiler LOC:   {}", compiler_loc);
+    if fixed_point_ring > 0 {
+        println!("Fixed point:    REACHED (ring-{})", fixed_point_ring);
+    } else {
+        println!("Fixed point:    NOT REACHED");
+    }
+    println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+
+    Ok(())
+}
+
+// ============================================================================
 // Main Entry Point
 // ============================================================================
 
@@ -735,8 +1142,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
-        Commands::CompileAll { backend, output } => run_compile_all(&backend, &output)?,
+        Commands::CompileAll { backend, output, specs_dir } => {
+            run_compile_all(&backend, &output, specs_dir.as_deref())?
+        }
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
     }
 
@@ -757,8 +1167,11 @@ fn main() -> anyhow::Result<()> {
         Commands::Compile { input, backend, output } => {
             run_compile(&input, &backend, output.as_deref())?
         }
-        Commands::CompileAll { backend, output } => run_compile_all(&backend, &output)?,
+        Commands::CompileAll { backend, output, specs_dir } => {
+            run_compile_all(&backend, &output, specs_dir.as_deref())?
+        }
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::Stats => run_stats()?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
