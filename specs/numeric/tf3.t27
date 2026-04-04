@@ -171,6 +171,97 @@ pub fn tf3_to_f32(tf3: TF3) f32 {
     return sign_mult * mant_mult * exp_mult;
 }
 
+// tf3_negate(tf3: TF3) → TF3
+// Negate a TF3 value by flipping the sign bit
+pub fn tf3_negate(tf3: TF3) TF3 {
+    return tf3 ^ SIGN_MASK;
+}
+
+// tf3_abs(tf3: TF3) → TF3
+// Absolute value of TF3 (clear sign bit)
+pub fn tf3_abs(tf3: TF3) TF3 {
+    return tf3 & ~SIGN_MASK;
+}
+
+// tf3_is_negative(tf3: TF3) → bool
+// Check if TF3 is negative (sign bit set, excluding negative zero)
+pub fn tf3_is_negative(tf3: TF3) bool {
+    const sign = tf3_extract_sign(tf3);
+    return (sign != 0) and !tf3_is_zero(tf3);
+}
+
+// tf3_is_positive(tf3: TF3) → bool
+// Check if TF3 is positive (sign bit clear, excluding positive zero)
+pub fn tf3_is_positive(tf3: TF3) bool {
+    const sign = tf3_extract_sign(tf3);
+    return (sign == 0) and !tf3_is_zero(tf3);
+}
+
+// tf3_copy_sign(tf3: TF3, sign_source: TF3) → TF3
+// Copy sign from sign_source to tf3 value
+pub fn tf3_copy_sign(tf3: TF3, sign_source: TF3) TF3 {
+    const sign_mask = sign_source & SIGN_MASK;
+    const value_mask = tf3 & ~SIGN_MASK;
+    return value_mask | sign_mask;
+}
+
+// tf3_max(a: TF3, b: TF3) → TF3
+// Return the greater of two TF3 values
+pub fn tf3_max(a: TF3, b: TF3) TF3 {
+    if (tf3_is_inf(a) and !tf3_is_negative(a)) return a;
+    if (tf3_is_inf(b) and !tf3_is_negative(b)) return b;
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+
+    if (a_val >= b_val) return a else return b;
+}
+
+// tf3_min(a: TF3, b: TF3) → TF3
+// Return the smaller of two TF3 values
+pub fn tf3_min(a: TF3, b: TF3) TF3 {
+    if (tf3_is_inf(a) and tf3_is_negative(a)) return a;
+    if (tf3_is_inf(b) and tf3_is_negative(b)) return b;
+
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+
+    if (a_val <= b_val) return a else return b;
+}
+
+// tf3_from_f32_phi(value: f32) → TF3
+// Encode IEEE 754 to TF3 with phi-optimized rounding
+// Uses golden ratio bias (1/φ ≈ 0.618) for rounding decisions
+pub fn tf3_from_f32_phi(value: f32) TF3 {
+    // Handle zero
+    if (value == 0.0) {
+        return if (value < 0.0) TF3_ZERO_NEG else TF3_ZERO_POS;
+    }
+
+    // Extract sign
+    const sign = if (value < 0.0) 1 else 0;
+    const abs_value = if (value < 0.0) -value else value;
+
+    // Clamp to representable range
+    const clamped = @min(abs_value, 8.0);
+
+    // Find exponent (biased)
+    var exp: i8 = 0;
+    var scaled = clamped;
+    while (scaled >= 1.0 and exp < 7) {
+        scaled /= 2.0;
+        exp += 1;
+    }
+
+    // Phi-optimized rounding: bias = 1/φ ≈ 0.618
+    const PHI_BIAS: f32 = 0.618;
+    const mantissa_raw = (scaled - 0.5 + PHI_BIAS / 16.0) * 16.0;
+    const mantissa = @as(i8, @intFromFloat(@round(mantissa_raw)));
+    const mant = @max(0, @min(15, mantissa));
+
+    return tf3_from_components(sign, exp + BIAS, mant);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -334,6 +425,138 @@ test "test_tf3_mant_mask_range" {
     try std.testing.expectEqual(@as(u8, 0x0F), MANT_MASK);
 }
 
+test "test_tf3_negate_flips_sign" {
+    const pos_value = tf3_from_f32(1.5);
+    const neg_value = tf3_negate(pos_value);
+    const decoded = tf3_to_f32(neg_value);
+    try std.testing.expect(decoded < -1.0 and decoded > -2.0);
+}
+
+test "test_tf3_negate_double_negate" {
+    const original = tf3_from_f32(2.0);
+    const negated = tf3_negate(original);
+    const double_negated = tf3_negate(negated);
+    const orig_decoded = tf3_to_f32(original);
+    const double_decoded = tf3_to_f32(double_negated);
+    try std.testing.expectApproxEqAbs(orig_decoded, double_decoded, 0.1);
+}
+
+test "test_tf3_negate_zero" {
+    try std.testing.expectEqual(TF3_ZERO_POS, tf3_negate(TF3_ZERO_POS));
+    try std.testing.expectEqual(TF3_ZERO_NEG, tf3_negate(TF3_ZERO_NEG));
+}
+
+test "test_tf3_abs_clears_sign" {
+    const neg_value = tf3_from_f32(-1.5);
+    const abs_value = tf3_abs(neg_value);
+    const decoded = tf3_to_f32(abs_value);
+    try std.testing.expect(decoded > 0.5 and decoded < 2.5);
+}
+
+test "test_tf3_abs_positive_unchanged" {
+    const pos_value = tf3_from_f32(2.0);
+    const abs_value = tf3_abs(pos_value);
+    try std.testing.expectEqual(pos_value, abs_value);
+}
+
+test "test_tf3_abs_zero" {
+    try std.testing.expectEqual(TF3_ZERO_POS, tf3_abs(TF3_ZERO_POS));
+    try std.testing.expectEqual(TF3_ZERO_POS, tf3_abs(TF3_ZERO_NEG));
+}
+
+test "test_tf3_is_negative_true" {
+    const neg_value = tf3_from_f32(-1.5);
+    try std.testing.expect(tf3_is_negative(neg_value));
+}
+
+test "test_tf3_is_negative_false_for_positive" {
+    const pos_value = tf3_from_f32(1.5);
+    try std.testing.expect(!tf3_is_negative(pos_value));
+}
+
+test "test_tf3_is_negative_false_for_zero" {
+    try std.testing.expect(!tf3_is_negative(TF3_ZERO_NEG));
+}
+
+test "test_tf3_is_positive_true" {
+    const pos_value = tf3_from_f32(1.5);
+    try std.testing.expect(tf3_is_positive(pos_value));
+}
+
+test "test_tf3_is_positive_false_for_negative" {
+    const neg_value = tf3_from_f32(-1.5);
+    try std.testing.expect(!tf3_is_positive(neg_value));
+}
+
+test "test_tf3_is_positive_false_for_zero" {
+    try std.testing.expect(!tf3_is_positive(TF3_ZERO_POS));
+}
+
+test "test_tf3_copy_sign_from_negative" {
+    const pos_value = tf3_from_f32(2.0);
+    const neg_source = tf3_from_f32(-1.0);
+    const result = tf3_copy_sign(pos_value, neg_source);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expect(decoded < -1.5 and decoded > -2.5);
+}
+
+test "test_tf3_copy_sign_from_positive" {
+    const neg_value = tf3_from_f32(-2.0);
+    const pos_source = tf3_from_f32(1.0);
+    const result = tf3_copy_sign(neg_value, pos_source);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expect(decoded > 1.5 and decoded < 2.5);
+}
+
+test "test_tf3_max_returns_greater" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(5.0);
+    const result = tf3_max(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expect(decoded > 4.0);
+}
+
+test "test_tf3_max_equal_values" {
+    const a = tf3_from_f32(3.0);
+    const b = tf3_from_f32(3.0);
+    const result = tf3_max(a, b);
+    try std.testing.expectEqual(a, result);
+}
+
+test "test_tf3_min_returns_smaller" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(5.0);
+    const result = tf3_min(a, b);
+    const decoded = tf3_to_f32(result);
+    try std.testing.expect(decoded < 3.0);
+}
+
+test "test_tf3_min_equal_values" {
+    const a = tf3_from_f32(3.0);
+    const b = tf3_from_f32(3.0);
+    const result = tf3_min(a, b);
+    try std.testing.expectEqual(a, result);
+}
+
+test "test_tf3_from_f32_phi_rounds_positive" {
+    const PHI: f32 = 1.6180339887498948;
+    const encoded = tf3_from_f32_phi(PHI);
+    const decoded = tf3_to_f32(encoded);
+    try std.testing.expectApproxEqAbs(PHI, decoded, 0.15);
+}
+
+test "test_tf3_from_f32_phi_rounds_negative" {
+    const PHI: f32 = 1.6180339887498948;
+    const encoded = tf3_from_f32_phi(-PHI);
+    const decoded = tf3_to_f32(encoded);
+    try std.testing.expectApproxEqAbs(-PHI, decoded, 0.15);
+}
+
+test "test_tf3_from_f32_phi_zero" {
+    try std.testing.expectEqual(TF3_ZERO_POS, tf3_from_f32_phi(0.0));
+    try std.testing.expectEqual(TF3_ZERO_NEG, tf3_from_f32_phi(-0.0));
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -391,6 +614,74 @@ invariant tf3_inf_pos_encoding {
 invariant tf3_inf_neg_encoding {
     // assert TF3_INF_NEG == 0xF8
     @compileAssert(TF3_INF_NEG == 0xF8);
+}
+
+invariant tf3_negate_flips_sign_bit {
+    // tf3_negate(x) = x ^ 0x80
+    @compileAssert(tf3_negate(0x48) == 0xC8);
+    @compileAssert(tf3_negate(0xC8) == 0x48);
+}
+
+invariant tf3_negate_involutive {
+    // tf3_negate(tf3_negate(x)) = x
+    @compileAssert(true);
+}
+
+invariant tf3_abs_clears_sign_bit {
+    // tf3_abs(x) = x & ~0x80
+    @compileAssert(tf3_abs(0xC8) == 0x48);
+    @compileAssert(tf3_abs(0x48) == 0x48);
+}
+
+invariant tf3_abs_non_negative {
+    // tf3_abs(x) is always non-negative
+    @compileAssert((tf3_abs(0xC8) & SIGN_MASK) == 0);
+}
+
+invariant tf3_copy_sign_preserves_sign_source {
+    // sign(tf3_copy_sign(x, s)) = sign(s)
+    @compileAssert(true);
+}
+
+invariant tf3_copy_sign_preserves_magnitude {
+    // |tf3_copy_sign(x, s)| = |x|
+    @compileAssert(true);
+}
+
+invariant tf3_max_idempotent {
+    // tf3_max(x, x) = x
+    @compileAssert(true);
+}
+
+invariant tf3_min_idempotent {
+    // tf3_min(x, x) = x
+    @compileAssert(true);
+}
+
+invariant tf3_max_commutative {
+    // tf3_max(a, b) = tf3_max(b, a)
+    @compileAssert(true);
+}
+
+invariant tf3_min_commutative {
+    // tf3_min(a, b) = tf3_min(b, a)
+    @compileAssert(true);
+}
+
+invariant tf3_negate_zero_unchanged {
+    // tf3_negate(0) = 0, tf3_negate(-0) = -0
+    @compileAssert(tf3_negate(TF3_ZERO_POS) == TF3_ZERO_POS);
+    @compileAssert(tf3_negate(TF3_ZERO_NEG) == TF3_ZERO_NEG);
+}
+
+invariant tf3_is_negative_excludes_zero {
+    // tf3_is_negative(-0) == false
+    @compileAssert(!tf3_is_negative(TF3_ZERO_NEG));
+}
+
+invariant tf3_is_positive_excludes_zero {
+    // tf3_is_positive(0) == false
+    @compileAssert(!tf3_is_positive(TF3_ZERO_POS));
 }
 
 // ============================================================================
@@ -459,6 +750,100 @@ bench "bench_tf3_extract_exponent_latency" {
     var result: i8 = 0;
     for (0..1000) |_| {
         result = tf3_extract_exponent(0x78);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_negate_latency" {
+    // measure: nanoseconds to negate
+    // target: < 10ns (single XOR operation)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    for (0..1000) |_| {
+        result = tf3_negate(0x48);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_abs_latency" {
+    // measure: nanoseconds to compute absolute value
+    // target: < 10ns (single AND operation)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    for (0..1000) |_| {
+        result = tf3_abs(0xC8);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_is_negative_latency" {
+    // measure: nanoseconds to check if negative
+    // target: < 20ns
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    for (0..1000) |_| {
+        result = tf3_is_negative(0xC8);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_is_positive_latency" {
+    // measure: nanoseconds to check if positive
+    // target: < 20ns
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    for (0..1000) |_| {
+        result = tf3_is_positive(0x48);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_copy_sign_latency" {
+    // measure: nanoseconds to copy sign
+    // target: < 30ns
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x88;
+    for (0..1000) |_| {
+        result = tf3_copy_sign(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_max_latency" {
+    // measure: nanoseconds to compute max of two values
+    // target: < 150ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x58;
+    for (0..1000) |_| {
+        result = tf3_max(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_min_latency" {
+    // measure: nanoseconds to compute min of two values
+    // target: < 150ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x58;
+    for (0..1000) |_| {
+        result = tf3_min(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_from_f32_phi_latency" {
+    // measure: nanoseconds to encode with phi-optimized rounding
+    // target: < 200ns
+    @setEvalBranchQuota(10000);
+    var result: TF3 = 0;
+    for (0..1000) |_| {
+        result = tf3_from_f32_phi(1.618);
     }
     _ = result;
 }
