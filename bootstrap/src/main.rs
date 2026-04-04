@@ -5,6 +5,7 @@
 // - parse: Parse .t27 and output JSON AST
 // - gen: Generate Zig code from .t27
 // - gen-verilog: Generate synthesizable Verilog from .t27
+// - gen-c: Generate C code from .t27
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod compiler;
@@ -44,6 +45,12 @@ enum Commands {
 
     /// Generate synthesizable Verilog from .t27 file
     GenVerilog {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate C code (.c/.h style) from .t27 file
+    GenC {
         /// Input file path
         input: String,
     },
@@ -194,6 +201,17 @@ fn run_gen_verilog(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile_c(&source) {
+        Ok(c_code) => print!("{}", c_code),
+        Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -314,6 +332,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenC { input } => run_gen_c(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input } => run_seal(&input)?,
         Commands::Serve { port } => run_server(&port).await?,
@@ -330,6 +349,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenC { input } => run_gen_c(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input } => run_seal(&input)?,
         Commands::Serve { .. } => {
