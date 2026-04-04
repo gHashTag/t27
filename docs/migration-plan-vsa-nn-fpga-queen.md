@@ -171,12 +171,18 @@ git push
 | 051 | testgen TODOs expansion | a2ddcb0 | ✅ COMPLETE |
 | 052 | CANON_DE_ZIGFICATION update | c2ea417 | ✅ COMPLETE |
 | 053 | ADR-001 update | cde33b9 | ✅ COMPLETE |
+| 054 | migration plan update | 6b67422 | ✅ COMPLETE |
+| 055 | CLAUDE.md update | b94ee6d | ✅ COMPLETE |
+| 056 | README.md update | 25e040d | ✅ COMPLETE |
+| 057 | verilog SVA patterns | e7a8925 | ✅ COMPLETE |
 
 ## Следующие шаги
 
 1. ✅ **Обновить graph_v2.json**: Все узлы обновлены, статус "done"
 2. ✅ **Архитектурные файлы**: CANON_DE_ZIGFICATION.md и ADR-001 обновлены
-3. ⏳ **Верификация**: Ожидает bootstrap - `tri gen`, `tri test`, `tri verdict --toxic`
+3. ✅ **Документация**: migration-plan, CLAUDE.md, README.md обновлены
+4. ✅ **Verilog SVA patterns**: SystemVerilog assertion patterns documented
+5. ⏳ **Верификация**: Ожидает bootstrap - `tri gen`, `tri test`, `tri verdict --toxic`
 4. ⏳ **Оптимизация**: Генерация Zig/C/Verilog из канонических .t27 спецификаций
 
 **Блокер Bootstrap**: tri CLI требует генерации, но для генерации нужен tri CLI. Необходим bootstrap эпизод.
