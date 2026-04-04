@@ -495,7 +495,7 @@ module parser {
 
         // Memory reference [reg] or [reg + offset]
         if (self.check(TokenType.LBracket)) {
-            _ = self.advance(); // Consume '['
+            const lbracket_token = self.advance(); // Consume '[' and capture position
             self.skip_newlines();
 
             var base_reg: u8 = 0;
@@ -523,8 +523,8 @@ module parser {
 
             return MemOperand{
                 .node_type = NodeType.Mem,
-                .line = 0, // TODO: track properly
-                .column = 0,
+                .line = lbracket_token.line,
+                .column = lbracket_token.column,
                 .source_file = self.context.ast_root.source_file,
                 .operand_type = OperandType.Memory,
                 .base_reg = base_reg,
