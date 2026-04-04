@@ -99,7 +99,7 @@ impl AnthropicClient {
 
         Ok(AnthropicClient {
             client,
-            api_key: config.anthropic_api_key.clone(),
+            api_key: config.effective_api_key().to_string(),
             base_url: config.anthropic_base_url.trim_end_matches('/').to_string(),
         })
     }

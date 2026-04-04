@@ -2,6 +2,7 @@ mod agent;
 mod api;
 mod config;
 mod logger;
+mod steps;
 mod tools;
 
 use anyhow::{Context, Result};
@@ -10,8 +11,8 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // ── Init structured logging ────────────────────────────────────────────────
-    // JSON format for Railway log aggregation; human-readable goes to stdout
+    // ── Step 0: Init structured logging ───────────────────────────────────────
+    // JSON format for Railway log aggregation; pretty for local dev
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
@@ -21,120 +22,126 @@ async fn main() -> Result<()> {
         .with_ansi(false)
         .init();
 
-    // ── Parse config ──────────────────────────────────────────────────────────
+    // ── Load config from env vars ─────────────────────────────────────────────
     let config = config::Config::from_env().context("Failed to load configuration")?;
 
     // Init JSONL log file
     logger::init_log_file(&config.log_file);
 
-    // Print startup config (masks secrets)
+    // Print startup banner
+    logger::log_banner("T27 AGENT RUNNER STARTING");
     config.log_startup();
 
-    // ── Clone repo if requested ────────────────────────────────────────────────
-    if let Some(ref repo_url) = config.sandbox_repo_url {
-        clone_repo(repo_url, config.gh_token.as_deref()).await?;
-    }
-
-    // ── Start OpenCode web server (optional, best-effort) ─────────────────────
-    let _opencode_handle = start_opencode(config.port).await;
-
-    // ── Run agent loop ─────────────────────────────────────────────────────────
-    let report = agent::run_agent(&config).await?;
-
-    // ── Exit with appropriate status ──────────────────────────────────────────
-    if report.task_completed {
-        logger::log_info("Agent runner exiting successfully (task completed)");
-        process::exit(0);
-    } else {
-        logger::log_info(&format!(
-            "Agent runner exiting (max turns {} reached without task_complete)",
-            config.max_turns
-        ));
-        // Exit 0 even if max turns — the logs tell the real story
-        process::exit(0);
-    }
+    run(config).await
 }
 
-// ─── Repo Cloning ─────────────────────────────────────────────────────────────
-
-async fn clone_repo(repo_url: &str, gh_token: Option<&str>) -> Result<()> {
-    logger::log_banner("CLONING REPOSITORY");
-    logger::log_info(&format!("Repo URL: {}", repo_url));
-
-    // Build authenticated URL if token provided
-    let clone_url = if let Some(token) = gh_token {
-        // Insert token into https URL: https://TOKEN@github.com/...
-        if repo_url.starts_with("https://") {
-            let without_scheme = &repo_url["https://".len()..];
-            format!("https://{}@{}", token, without_scheme)
-        } else {
-            repo_url.to_string()
-        }
-    } else {
-        repo_url.to_string()
-    };
-
-    // Clone to /workspace
-    let output = tokio::process::Command::new("git")
-        .args(["clone", "--depth=1", &clone_url, "/workspace"])
-        .output()
+async fn run(config: config::Config) -> Result<()> {
+    // ── Step 1: GitHub auth ────────────────────────────────────────────────────
+    steps::github_auth::setup(&config)
         .await
-        .context("Failed to spawn git clone")?;
+        .context("GitHub auth step failed")?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let exit_code = output.status.code().unwrap_or(-1);
+    // ── Step 2: Clone / pull repo ──────────────────────────────────────────────
+    let work_dir = steps::git_clone::clone_or_pull(&config)
+        .await
+        .context("Git clone/pull step failed")?;
 
-    logger::log_tool_section("git clone", repo_url, Some(exit_code), &stdout, &stderr, 0);
+    // ── Step 3: Write opencode.json ────────────────────────────────────────────
+    steps::opencode_config::write_config(&config, &work_dir)
+        .context("opencode config write failed")?;
 
-    if !output.status.success() {
-        return Err(anyhow::anyhow!(
-            "git clone failed with exit code {}: {}",
-            exit_code,
-            stderr
-        ));
-    }
-
-    // Change working directory to /workspace
-    std::env::set_current_dir("/workspace")
-        .context("Failed to change to /workspace after clone")?;
-
-    logger::log_info("Repository cloned successfully, working directory: /workspace");
-    Ok(())
-}
-
-// ─── OpenCode Web Server ──────────────────────────────────────────────────────
-
-async fn start_opencode(port: u16) -> Option<tokio::process::Child> {
-    // Check if opencode binary exists
-    let which = tokio::process::Command::new("which")
-        .arg("opencode")
-        .output()
-        .await;
-
-    let opencode_available = match which {
-        Ok(out) => out.status.success(),
-        Err(_) => false,
-    };
-
-    if !opencode_available {
-        logger::log_info("opencode binary not found — skipping web UI server");
-        return None;
-    }
-
-    logger::log_info(&format!("Starting opencode web server on port {}", port));
-
-    match tokio::process::Command::new("opencode")
-        .args(["serve", "--port", &port.to_string()])
-        .spawn()
-    {
+    // ── Step 4: Spawn web UI ───────────────────────────────────────────────────
+    logger::log_info(&format!("Spawning web UI in {:?}", work_dir));
+    let web_child = match steps::web_server::spawn(&config, &work_dir).await {
         Ok(child) => {
-            logger::log_info(&format!("OpenCode web server started (PID {})", child.id().unwrap_or(0)));
+            logger::log_info(&format!("Web UI process started (PID {:?})", child.id()));
             Some(child)
         }
         Err(e) => {
-            logger::log_info(&format!("Failed to start opencode: {} — continuing without web UI", e));
+            logger::log_error("spawn web UI", &e.to_string());
+            logger::log_info("Continuing without web UI");
             None
         }
+    };
+
+    // ── Step 5: Poll health ────────────────────────────────────────────────────
+    steps::web_server::wait_for_ready(&config, 60).await;
+
+    // ── Step 6-9: Agent loop (only if TASK_PROMPT is set) ────────────────────
+    if let Some(ref _prompt) = config.task_prompt {
+        logger::log_step(
+            6, 10, "AUTONOMOUS AGENT MODE",
+            &[
+                ("TASK_PROMPT", "set"),
+                ("MODEL", &config.model),
+                ("MAX_TURNS", &config.max_turns.to_string()),
+                ("MAX_TOKENS", &config.max_tokens.to_string()),
+            ],
+        );
+
+        let report = agent::run_agent(&config)
+            .await
+            .context("Agent loop failed")?;
+
+        logger::log_step_result(
+            6, report.task_completed,
+            (report.duration_seconds * 1000.0) as u64,
+            if report.task_completed { "task completed" } else { "max turns reached" },
+        );
+
+        if report.task_completed {
+            logger::log_info("Agent runner exiting successfully (task completed)");
+        } else {
+            logger::log_info(&format!(
+                "Agent runner exiting (max turns {} reached without task_complete)",
+                config.max_turns
+            ));
+        }
+
+        // If we had a web process, let it die naturally or kill it
+        if let Some(mut child) = web_child {
+            logger::log_info("Agent done — keeping web UI alive until process exits");
+            // Wait on the web server process (keeps container running)
+            match child.wait().await {
+                Ok(status) => logger::log_info(&format!("Web UI exited: {}", status)),
+                Err(e) => logger::log_error("web UI wait", &e.to_string()),
+            }
+        }
+
+        process::exit(0);
+    } else {
+        // No TASK_PROMPT — web-UI only mode, keep alive forever
+        logger::log_step(
+            6, 10, "WEB UI ONLY MODE",
+            &[
+                ("TASK_PROMPT", "not set"),
+                ("Mode", "web UI observation only"),
+                ("URL", &format!("http://0.0.0.0:{}", config.port)),
+            ],
+        );
+
+        match web_child {
+            Some(mut child) => {
+                logger::log_info("Waiting on web UI process (keep-alive)...");
+                match child.wait().await {
+                    Ok(status) => {
+                        logger::log_info(&format!("Web UI exited: {}", status));
+                    }
+                    Err(e) => {
+                        logger::log_error("web UI wait", &e.to_string());
+                    }
+                }
+            }
+            None => {
+                // No web process — sleep forever so the container stays up
+                logger::log_info("No web UI process — entering keep-alive sleep loop");
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    logger::log_info("keep-alive ping");
+                }
+            }
+        }
+
+        process::exit(0);
     }
 }

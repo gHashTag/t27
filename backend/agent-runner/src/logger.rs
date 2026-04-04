@@ -27,6 +27,63 @@ fn jsonl_event(event_type: &str, data: Value) -> Value {
     })
 }
 
+// ─── Step Logging (new) ───────────────────────────────────────────────────────
+
+/// Print a full step banner with key-value detail rows.
+///
+/// ```
+/// ╔══════════════════════════════════════════════════════╗
+/// ║  STEP 1/10: GITHUB AUTHENTICATION                    ║
+/// ╠══════════════════════════════════════════════════════╣
+/// ║  GH_TOKEN: set (32 chars)                            ║
+/// ╚══════════════════════════════════════════════════════╝
+/// ```
+pub fn log_step(step: u32, total: u32, name: &str, details: &[(&str, &str)]) {
+    let width = 54usize;
+    let line = "═".repeat(width);
+    let header = format!("  STEP {}/{}: {}  ", step, total, name);
+    let header_pad = if width + 2 > header.len() { width + 2 - header.len() } else { 0 };
+
+    println!();
+    println!("╔{}╗", line);
+    println!("║{}{}║", header, " ".repeat(header_pad));
+    println!("╠{}╣", line);
+    for (key, val) in details {
+        let row = format!("  {}: {}", key, val);
+        let pad = if width + 2 > row.len() { width + 2 - row.len() } else { 0 };
+        println!("║{}{}║", row, " ".repeat(pad));
+    }
+    println!("╚{}╝", line);
+
+    write_jsonl(&jsonl_event("step_start", json!({
+        "step": step,
+        "total": total,
+        "name": name,
+        "details": details.iter().map(|(k,v)| json!({"key": k, "value": v})).collect::<Vec<_>>(),
+    })));
+}
+
+/// Print the result line for a step.
+pub fn log_step_result(step: u32, success: bool, duration_ms: u64, message: &str) {
+    let icon = if success { "✓" } else { "✗" };
+    let width = 54usize;
+    let row = format!("  STEP {} {} — {} ({}ms)", step, icon, message, duration_ms);
+    let pad = if width + 2 > row.len() { width + 2 - row.len() } else { 0 };
+    println!("╔{}╗", "═".repeat(width));
+    println!("║{}{}║", row, " ".repeat(pad));
+    println!("╚{}╝", "═".repeat(width));
+    println!();
+
+    write_jsonl(&jsonl_event("step_result", json!({
+        "step": step,
+        "success": success,
+        "duration_ms": duration_ms,
+        "message": message,
+    })));
+}
+
+// ─── Banner / Turn / API ──────────────────────────────────────────────────────
+
 pub fn log_banner(text: &str) {
     let width = 62;
     let inner = format!("  {}  ", text);
@@ -145,22 +202,29 @@ pub fn log_thinking_block(text: &str) {
     write_jsonl(&jsonl_event("thinking_block", json!({ "text_preview": &text[..text.len().min(500)] })));
 }
 
-pub fn log_tool_call(name: &str, input_summary: &str) {
-    println!("║  TOOL CALL: {:<49} ║", name);
+pub fn log_tool_call(step: u32, name: &str, input_summary: &str) {
+    println!("║  TOOL CALL #{}: {:<46} ║", step, name);
     for line in input_summary.lines().take(10) {
         println!("║    {:<58} ║", truncate(line, 58));
     }
 
     write_jsonl(&jsonl_event("tool_call", json!({
+        "step": step,
         "tool": name,
         "input_summary": input_summary,
     })));
 }
 
 pub fn log_tool_result(name: &str, output_summary: &str, duration_ms: u64, success: bool) {
-    println!("║  TOOL RESULT: {} ({}ms){:<35} ║",
+    let size_info = if output_summary.len() > 1024 {
+        format!(" [{} bytes]", output_summary.len())
+    } else {
+        String::new()
+    };
+    println!("║  TOOL RESULT: {} ({}ms){}{:<25} ║",
         name,
         duration_ms,
+        size_info,
         ""
     );
     for line in output_summary.lines().take(15) {
@@ -235,12 +299,13 @@ pub fn log_agent_complete(report: &AgentReport) {
     println!("║  Duration:      {:<44} ║", format!("{:.1}s", report.duration_seconds));
     println!("║  Input tokens:  {:<44} ║", format_number(report.total_input_tokens));
     println!("║  Output tokens: {:<44} ║", format_number(report.total_output_tokens));
+    println!("║  Total tokens:  {:<44} ║", format_number(report.total_input_tokens + report.total_output_tokens));
     println!("║  Tools called:  {:<44} ║", report.tools_called.len());
     println!("║  Files modified:{:<44} ║", report.files_modified.len());
     println!("╠══════════════════════════════════════════════════════════════╣");
     if !report.summary.is_empty() {
         println!("║  Summary:                                                    ║");
-        for line in wrap_text(&report.summary, 58).iter().take(10) {
+        for line in crate::config::wrap_text(&report.summary, 58).iter().take(10) {
             println!("║    {:<58} ║", line);
         }
         println!("╠══════════════════════════════════════════════════════════════╣");
@@ -290,7 +355,6 @@ pub fn log_info(msg: &str) {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 fn truncate(s: &str, max_len: usize) -> String {
-    // Work on char boundaries
     let char_count = s.chars().count();
     if char_count <= max_len {
         s.to_string()
@@ -323,27 +387,7 @@ fn chunk_text(s: &str, width: usize) -> Vec<String> {
     chunks
 }
 
-fn wrap_text(text: &str, width: usize) -> Vec<String> {
-    let mut lines = Vec::new();
-    let mut current = String::new();
-    for word in text.split_whitespace() {
-        if current.is_empty() {
-            current = word.to_string();
-        } else if current.len() + 1 + word.len() <= width {
-            current.push(' ');
-            current.push_str(word);
-        } else {
-            lines.push(current.clone());
-            current = word.to_string();
-        }
-    }
-    if !current.is_empty() {
-        lines.push(current);
-    }
-    lines
-}
-
-fn format_number(n: u64) -> String {
+pub fn format_number(n: u64) -> String {
     let s = n.to_string();
     let mut result = String::new();
     for (i, ch) in s.chars().rev().enumerate() {
