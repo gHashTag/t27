@@ -1,11 +1,20 @@
 {
-  "skill_id": null,
-  "session_id": null,
-  "issue_id": null,
-  "description": null,
-  "started_at": null,
-  "started_by": null,
-  "status": "closed",
-  "allowed_paths": [],
-  "metadata": {}
+  "skill_id": "tri-base",
+  "session_id": "2026-04-04T08:00:00Z#fix1",
+  "issue_id": "LOCAL-002",
+  "description": "Fix tri skill registration and clean artifacts",
+  "started_at": "2026-04-04T08:00:00Z",
+  "started_by": "agent:claude-code",
+  "status": "active",
+  "allowed_paths": [
+    ".claude/skills/",
+    ".gitignore",
+    "specs/numeric/gf16.t27",
+    "tri"
+  ],
+  "metadata": {
+    "priority": "normal",
+    "tags": ["fix", "skill", "cleanup"],
+    "origin": "cli"
+  }
 }

@@ -1,12 +1,16 @@
 {
-  "issue_id": null,
-  "source": null,
+  "issue_id": "LOCAL-002",
+  "source": "local",
   "url": null,
-  "title": null,
-  "state": null,
-  "linked_skill_id": null,
-  "linked_session_id": null,
-  "last_synced_at": null,
-  "required_commit_message_pattern": "\\[ref: ISSUE_ID\\]",
-  "metadata": {}
+  "title": "Fix tri skill registration and clean artifacts",
+  "state": "in_progress",
+  "linked_skill_id": "tri-base",
+  "linked_session_id": "2026-04-04T08:00:00Z#fix1",
+  "last_synced_at": "2026-04-04T08:00:00Z",
+  "required_commit_message_pattern": "\\[ref: LOCAL-002\\]",
+  "metadata": {
+    "assignee": "agent:claude-code",
+    "labels": ["fix", "skill", "cleanup"],
+    "repository": "t27"
+  }
 }

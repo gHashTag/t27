@@ -1,0 +1,13 @@
+# Build artifacts
+tri
+zig-cache/
+zig-out/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
