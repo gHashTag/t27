@@ -1,0 +1,17 @@
+[package]
+name = "t27c"
+version = "0.1.0"
+edition = "2021"
+description = "T27 Bootstrap Compiler for Trinity S³AI Framework"
+license = "MIT"
+
+[features]
+server = ["axum", "tokio", "serde", "serde_json"]
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.7", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+clap = { version = "4", features = ["derive"] }
