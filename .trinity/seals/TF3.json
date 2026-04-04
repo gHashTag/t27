@@ -1,0 +1,21 @@
+{
+  "module": "TF3",
+  "ring": 26,
+  "spec_path": "specs/numeric/tf3.t27",
+  "spec_hash": "sha256:597dfa362c83d1afb9759269f8b533f7e476e63ecab4a451466a942197c8f64e",
+  "gen_hash_zig": "sha256:7d2b1fb81bd8f0bb7c20704b85e6bc837acd97cfc25bcc8c68277e6dbea0e5af",
+  "gen_hash_c": "sha256:9850daef9e5c38511f1d369557760e6a17d10179db66fbc41db0c1c4022b3775",
+  "gen_hash_verilog": "sha256:55de885368a535ae61eba0c8931b7d94f0e3d317fbfeb8796d4bf1b109df06da",
+  "conformance_hash": "sha256:46df1c7d6e76b826eac29fa4204795e444e27e1b1d96cef9a26752590c26427d",
+  "tests": {
+    "status": "passed",
+    "count": 12,
+    "invariants": 8,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}

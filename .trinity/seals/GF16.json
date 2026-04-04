@@ -1,0 +1,21 @@
+{
+  "module": "GF16",
+  "ring": 26,
+  "spec_path": "specs/numeric/gf16.t27",
+  "spec_hash": "sha256:30fcbe26ccab89cef8212fae7ae90115ba151ad4d35c2d38b8a92583e231af4e",
+  "gen_hash_zig": "sha256:9f49ef22e3a48c6fe8b18810c3e4f89e485b92fe539a65acc5cf00b06ef8b305",
+  "gen_hash_c": "sha256:4f15469c2d0e3dbde2a00ce34d310f1accb9214cf515d816c996418287a4a2b5",
+  "gen_hash_verilog": "sha256:2ebb99b10b91606e00baa298441168bf5d3c1d5396a12d87c8167942cc9bc714",
+  "conformance_hash": null,
+  "tests": {
+    "status": "passed",
+    "count": 35,
+    "invariants": 15,
+    "benchmarks": 8
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}

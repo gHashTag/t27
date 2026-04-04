@@ -1,10 +1,21 @@
 {
-  "gen_hash_c": "sha256:529ee1f1bacfbcd59da054b1924dcc9783fb456d51b97daa336cb2a0f23b373c",
-  "gen_hash_verilog": "sha256:85db6bb3f3ce1f44d132c0e8aed044bcd8d4f4423ff3c8a815a73f833e447bfb",
-  "gen_hash_zig": "sha256:614ec182947dee3c9629643d21685898f7a9cad2e7338abec5a304c15e1bd0f7",
   "module": "PhiRatio",
-  "ring": 12,
-  "sealed_at": "2026-04-04T13:02:54Z",
+  "ring": 26,
+  "spec_path": "specs/numeric/phi_ratio.t27",
   "spec_hash": "sha256:c9446edec8d2a50aee43922023fc3d34bec36ff05b671678d687939e89e7c5c5",
-  "spec_path": "specs/numeric/phi_ratio.t27"
+  "gen_hash_zig": "sha256:6e541d32118268119fdf92dce4f34ab9aeab05cb307d9c6b705caf1e7b7561b3",
+  "gen_hash_c": "sha256:2ff0a7b4336964a286dd908a3b4555a0f1904006e68fc0bf2143d499a6be4e1a",
+  "gen_hash_verilog": "sha256:8bb7274211da935f6077d11f14d9517b389b52ec56be97e12ce4d8cf97c4c9e4",
+  "conformance_hash": "sha256:fb17acd2c0965ffe28e98f25a708b8b900bc0723dd56f68ce2b14c76a04c7cc3",
+  "tests": {
+    "status": "passed",
+    "count": 10,
+    "invariants": 9,
+    "benchmarks": 2
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
 }
