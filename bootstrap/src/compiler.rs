@@ -43,6 +43,7 @@ pub struct Node {
     pub extra_op: String,
     pub extra_pub: bool,
     pub extra_return_type: String,
+    pub params: Vec<(String, String)>, // (name, type) pairs for FnDecl
     pub children: Vec<Node>,
 }
 
@@ -59,6 +60,7 @@ impl Default for Node {
             extra_op: String::new(),
             extra_pub: false,
             extra_return_type: String::new(),
+            params: Vec::new(),
             children: Vec::new(),
         }
     }
@@ -77,6 +79,7 @@ impl Node {
             extra_op: String::new(),
             extra_pub: false,
             extra_return_type: String::new(),
+            params: Vec::new(),
             children: Vec::new(),
         }
     }
@@ -995,6 +998,71 @@ impl Parser {
         Ok(())
     }
 
+    /// Parse a type annotation like `Trit`, `*Trit`, `[]u8`, `[N]u8`, `[]const u8`, `anytype`
+    fn parse_type_annotation(&mut self) -> String {
+        let mut ty = String::new();
+
+        // Handle pointer prefix: *Type or *const Type
+        if self.current.kind == TokenKind::Star {
+            ty.push('*');
+            self.advance();
+            if self.current.kind == TokenKind::KwConst {
+                ty.push_str("const ");
+                self.advance();
+            }
+            if self.current.kind == TokenKind::Ident {
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            return ty;
+        }
+
+        // Handle slice/array prefix: []Type, [N]Type, []const Type
+        while self.current.kind == TokenKind::LBracket {
+            ty.push('[');
+            self.advance(); // consume [
+            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            ty.push(']');
+            if self.current.kind == TokenKind::RBracket {
+                self.advance();
+            }
+        }
+
+        // Handle 'const' qualifier: []const u8
+        if self.current.kind == TokenKind::KwConst {
+            if !ty.is_empty() {
+                ty.push_str("const ");
+            } else {
+                ty.push_str("const ");
+            }
+            self.advance();
+        }
+
+        // Handle pointer after brackets
+        if self.current.kind == TokenKind::Star {
+            ty.push('*');
+            self.advance();
+            if self.current.kind == TokenKind::KwConst {
+                ty.push_str("const ");
+                self.advance();
+            }
+        }
+
+        // Main type identifier
+        if self.current.kind == TokenKind::Ident {
+            ty.push_str(&self.current.lexeme);
+            self.advance();
+        } else if self.current.kind == TokenKind::KwVoid {
+            ty.push_str("void");
+            self.advance();
+        }
+
+        ty
+    }
+
     fn parse_fn_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::FnDecl);
         decl.extra_pub = is_pub;
@@ -1015,20 +1083,32 @@ impl Parser {
             }
         }
 
-        // Skip parameter list with parens
+        // Parse parameter list
         self.expect(TokenKind::LParen)?;
-        // Skip params — just balance parens
-        let mut paren_depth = 1;
-        while paren_depth > 0 && self.current.kind != TokenKind::Eof {
-            if self.current.kind == TokenKind::LParen {
-                paren_depth += 1;
-            } else if self.current.kind == TokenKind::RParen {
-                paren_depth -= 1;
-                if paren_depth == 0 {
-                    break;
-                }
+        while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+            // Parse param name
+            if self.current.kind != TokenKind::Ident {
+                // Skip unexpected token
+                self.advance();
+                continue;
             }
+            let param_name = self.current.lexeme.clone();
             self.advance();
+
+            // Expect colon
+            if self.current.kind == TokenKind::Colon {
+                self.advance(); // consume :
+            }
+
+            // Parse param type
+            let param_type = self.parse_type_annotation();
+
+            decl.params.push((param_name, param_type));
+
+            // Consume comma between params
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
         }
         self.expect(TokenKind::RParen)?;
 
@@ -1648,7 +1728,14 @@ impl Codegen {
             self.write("pub ");
         }
 
-        self.write(&format!("fn {}()", node.name));
+        self.write(&format!("fn {}(", node.name));
+        for (i, (pname, ptype)) in node.params.iter().enumerate() {
+            if i > 0 {
+                self.write(", ");
+            }
+            self.write(&format!("{}: {}", pname, ptype));
+        }
+        self.write(")");
 
         if !node.extra_return_type.is_empty() {
             self.write(&format!(" {}", node.extra_return_type));
