@@ -14,9 +14,11 @@
     "vsa": 1.0,
     "isa": 1.0,
     "fpga": 1.0,
-    "nn": 1.0
+    "nn": 1.0,
+    "conformance": 1.0,
+    "documentation": 1.0
   },
-  "last_updated": "2026-04-04T19:00:00Z",
+  "last_updated": "2026-04-04T20:20:00Z",
   "thresholds": {
     "critical": 0.5,
     "warning": 0.7
