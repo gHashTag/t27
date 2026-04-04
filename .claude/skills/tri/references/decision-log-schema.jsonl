@@ -1,0 +1,65 @@
+# Decision Log Schema
+# Newline-delimited JSON (JSONL) for structured decision logging
+# Each line is a complete JSON object for one decision/event
+
+[
+  {
+    "trace_id": "uuid-v4",                    # Unique trace identifier for correlation
+    "timestamp": "2026-04-04T12:34:56Z",   # ISO-8601 timestamp
+    "task_id": "base-ops-extension",           # Current task context
+    "skill_id": "ops_tritRotate_v1",          # Skill being executed
+    "event_type": "mutation|recovery|replay|health_check|guardrail",
+    "spec_path": "specs/base/ops.t27",        # Modified spec file
+    "spec_hash_before": "a7f3c9d5e...",      # Spec hash before change
+    "spec_hash_after": "b2e8a1f3c...",       # Spec hash after change
+    "gen_hash_after": "c3d9b2e1a...",        # Generated backend hash
+    "test_vector_hash": "d4e0c9b2a...",      # Test vectors hash
+    "tool": "Edit|Read|Bash|tri_gen|tri_test|tri_verdict|tri_experience",
+    "decision_summary": "Added tritRotate operation following PHI LOOP",
+    "guardrail_hit": false,                   # Whether guardrail was triggered
+    "policy_version": "1.0.0",              # Constitutional policy version
+    "queen_health_before": {                     # Health snapshot before
+      "spec": 1.0,
+      "graph": 1.0,
+      "bench": 1.0,
+      "swarm": 0.95,
+      "queen": 0.97
+    },
+    "queen_health_after": {                      # Health snapshot after
+      "spec": 1.0,
+      "graph": 1.0,
+      "bench": 1.0,
+      "swarm": 0.97,
+      "queen": 0.99
+    },
+    "verdict": "clean|toxic",                # Verification verdict
+    "bench_delta": "+0.2ns|+5%|null",  # Performance change
+    "recovery_action": null,                     # Recovery action if any
+    "sealed_at": "2026-04-04T12:34:56Z",    # When seal was created
+    "duration_ms": 1234                       # Operation duration
+  }
+]
+
+# Example events
+
+# 1. Normal mutation (clean verdict)
+{"trace_id":"550e8400-1234-4b5a-9c6d-7e8f9a0b1c2","timestamp":"2026-04-04T12:30:00Z","task_id":"base-ops-extension","skill_id":"ops_tritRotate_v1","event_type":"mutation","spec_path":"specs/base/ops.t27","spec_hash_before":"a7f3c9d5e2f1b8a4c6d7e9f0a1b2c3d4e5f6a7b8c9d0e1f2","spec_hash_after":"b2e8a1f3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5","gen_hash_after":"c3d9b2e1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0","test_vector_hash":"d4e0c9b2a1f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e","tool":"Edit","decision_summary":"Added tritRotate operation","guardrail_hit":false,"policy_version":"1.0.0","queen_health_before":{"spec":1.0,"graph":1.0,"bench":1.0,"swarm":0.95,"queen":0.97},"queen_health_after":{"spec":1.0,"graph":1.0,"bench":1.0,"swarm":0.97,"queen":0.99},"verdict":"clean","bench_delta":"+0.2ns","recovery_action":null,"sealed_at":"2026-04-04T12:34:56Z","duration_ms":1234}
+
+# 2. Toxic verdict with recovery
+{"trace_id":"550e8401-2345-5c6b-0d7e-8f9a0b1c2d3","timestamp":"2026-04-04T12:45:00Z","task_id":"sacred-physics-fix","skill_id":"sacred_trinity_fix_v1","event_type":"recovery","spec_path":"specs/math/sacred_physics.t27","spec_hash_before":"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3","spec_hash_after":"e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0","gen_hash_after":"b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0a1b2","test_vector_hash":"a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5","tool":"tri_verdict","decision_summary":"Toxic verdict: TRINITY exact tolerance violation","guardrail_hit":true,"policy_version":"1.0.0","queen_health_before":{"spec":0.0,"graph":1.0,"bench":1.0,"swarm":0.90,"queen":0.78},"queen_health_after":{"spec":1.0,"graph":1.0,"bench":1.0,"swarm":0.92,"queen":0.98},"verdict":"toxic","bench_delta":null,"recovery_action":"spec_rollback","sealed_at":null,"duration_ms":456}
+
+# 3. Replay event
+{"trace_id":"550e8402-3456-6d7c-1e8f-9a0b1c2d3e4","timestamp":"2026-04-04T13:00:00Z","task_id":"sacred-physics-fix","skill_id":"sacred_trinity_fix_v1","event_type":"replay","spec_path":"specs/math/sacred_physics.t27","spec_hash_before":"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3","spec_hash_after":"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3","gen_hash_after":null,"test_vector_hash":null,"tool":"replay-step","decision_summary":"Replayed from last clean seal","guardrail_hit":false,"policy_version":"1.0.0","queen_health_before":{"spec":0.0,"graph":1.0,"bench":1.0,"swarm":0.90,"queen":0.78},"queen_health_after":{"spec":1.0,"graph":1.0,"bench":1.0,"swarm":0.95,"queen":0.98},"verdict":"clean","bench_delta":null,"recovery_action":"replay_from_last_clean","sealed_at":"2026-04-04T12:30:00Z","duration_ms":234}
+
+# 4. Guardrail hit
+{"trace_id":"550e8403-4567-7e8d-2f9a-0b1c2d3e4f5","timestamp":"2026-04-04T13:15:00Z","task_id":"feature-xyz","skill_id":"new_feature_v1","event_type":"mutation","spec_path":null,"spec_hash_before":null,"spec_hash_after":null,"gen_hash_after":null,"test_vector_hash":null,"tool":"tri_skill_begin","decision_summary":"Guardrail: queen_health < 0.5, mutations blocked","guardrail_hit":true,"policy_version":"1.0.0","queen_health_before":{"spec":0.3,"graph":0.2,"bench":1.0,"swarm":0.4,"queen":0.38},"queen_health_after":{"spec":0.3,"graph":0.2,"bench":1.0,"swarm":0.4,"queen":0.38},"verdict":"blocked","bench_delta":null,"recovery_action":"recovery_only","sealed_at":null,"duration_ms":12}
+
+# 5. Health check
+{"trace_id":"550e8404-5678-8f9e-3a0b-1c2d3e4f5a6","timestamp":"2026-04-04T13:30:00Z","task_id":null,"skill_id":null,"event_type":"health_check","spec_path":null,"spec_hash_before":null,"spec_hash_after":null,"gen_hash_after":null,"test_vector_hash":null,"tool":"swarm-health","decision_summary":"Queen health check: GREEN (0.98)","guardrail_hit":false,"policy_version":"1.0.0","queen_health_before":{"spec":1.0,"graph":1.0,"bench":1.0,"swarm":0.95,"queen":0.98},"queen_health_after":{"spec":1.0,"graph":1.0,"bench":1.0,"swarm":0.95,"queen":0.98},"verdict":"clean","bench_delta":null,"recovery_action":null,"sealed_at":null,"duration_ms":156}
+
+# Query examples (jq):
+# Find all toxic verdicts:      jq 'select(.verdict == "toxic")' decision-log.jsonl
+# Find guardrail hits:          jq 'select(.guardrail_hit == true)' decision-log.jsonl
+# Find replay events:           jq 'select(.event_type == "replay")' decision-log.jsonl
+# Trace a specific task:          jq 'select(.task_id == "base-ops-extension")' decision-log.jsonl
+# Get queen health trend:        jq '[.queen_health_after.queen]' decision-log.jsonl
