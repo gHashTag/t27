@@ -333,6 +333,66 @@ pub fn trit_select(condition: Trit, a: Trit, b: Trit) Trit {
     return if (condition == .pos) a else b;
 }
 
+// packed_trit_count(packed: PackedTrit, value: Trit) → u8
+// Count occurrences of a specific trit value in PackedTrit
+pub fn packed_trit_count(packed: PackedTrit, value: Trit) u8 {
+    var count: u8 = 0;
+    for (0..TRITS_PER_BYTE) |i| {
+        const unpacked = unpack_trit(@intCast(i), packed);
+        if (unpacked.valid and unpacked.value == value) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+// packed_trit_all_equal(packed: PackedTrit, value: Trit) → bool
+// Check if all trits in PackedTrit equal a specific value
+pub fn packed_trit_all_equal(packed: PackedTrit, value: Trit) bool {
+    return packed_trit_count(packed, value) == TRITS_PER_BYTE;
+}
+
+// packed_trit_is_zero(packed: PackedTrit) → bool
+// Check if all trits in PackedTrit are zero
+pub fn packed_trit_is_zero(packed: PackedTrit) bool {
+    return packed_trit_all_equal(packed, .zero);
+}
+
+// packed_trit_is_all_same(packed: PackedTrit) → bool
+// Check if all trits in PackedTrit are the same (any value)
+pub fn packed_trit_is_all_same(packed: PackedTrit) bool {
+    const first = unpack_trit(0, packed).value;
+    return packed_trit_all_equal(packed, first);
+}
+
+// packed_trit_nand(a: PackedTrit, b: PackedTrit) → PackedTrit
+// Element-wise NAND operation on two PackedTrit values
+pub fn packed_trit_nand(a: PackedTrit, b: PackedTrit) PackedTrit {
+    var result: PackedTrit = 0;
+    for (0..TRITS_PER_BYTE) |i| {
+        const a_trit = unpack_trit(@intCast(i), a).value;
+        const b_trit = unpack_trit(@intCast(i), b).value;
+        const and_result = trit_and(a_trit, b_trit);
+        const nand_result = trit_not(and_result);
+        result = pack_trit(nand_result, @intCast(i), result);
+    }
+    return result;
+}
+
+// packed_trit_nor(a: PackedTrit, b: PackedTrit) → PackedTrit
+// Element-wise NOR operation on two PackedTrit values
+pub fn packed_trit_nor(a: PackedTrit, b: PackedTrit) PackedTrit {
+    var result: PackedTrit = 0;
+    for (0..TRITS_PER_BYTE) |i| {
+        const a_trit = unpack_trit(@intCast(i), a).value;
+        const b_trit = unpack_trit(@intCast(i), b).value;
+        const or_result = trit_or(a_trit, b_trit);
+        const nor_result = trit_not(or_result);
+        result = pack_trit(nor_result, @intCast(i), result);
+    }
+    return result;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -601,6 +661,105 @@ test "test_trit_xor_commutative" {
     }
 }
 
+test "test_packed_trit_count_zeros" {
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.zero, 0, packed);
+    packed = pack_trit(.zero, 1, packed);
+    packed = pack_trit(.zero, 2, packed);
+    packed = pack_trit(.pos, 3, packed);
+    try std.testing.expectEqual(@as(u8, 3), packed_trit_count(packed, .zero));
+}
+
+test "test_packed_trit_count_pos" {
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);
+    packed = pack_trit(.pos, 1, packed);
+    packed = pack_trit(.zero, 2, packed);
+    packed = pack_trit(.neg, 3, packed);
+    try std.testing.expectEqual(@as(u8, 2), packed_trit_count(packed, .pos));
+}
+
+test "test_packed_trit_count_neg" {
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.neg, 0, packed);
+    packed = pack_trit(.neg, 1, packed);
+    packed = pack_trit(.zero, 2, packed);
+    packed = pack_trit(.pos, 3, packed);
+    try std.testing.expectEqual(@as(u8, 2), packed_trit_count(packed, .neg));
+}
+
+test "test_packed_trit_all_equal_true" {
+    var packed: PackedTrit = 0;
+    for (0..8) |i| {
+        packed = pack_trit(.pos, @intCast(i), packed);
+    }
+    try std.testing.expect(packed_trit_all_equal(packed, .pos));
+}
+
+test "test_packed_trit_all_equal_false" {
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);
+    packed = pack_trit(.pos, 1, packed);
+    packed = pack_trit(.zero, 2, packed);
+    try std.testing.expect(!packed_trit_all_equal(packed, .pos));
+}
+
+test "test_packed_trit_is_zero_true" {
+    var packed: PackedTrit = 0;
+    for (0..8) |i| {
+        packed = pack_trit(.zero, @intCast(i), packed);
+    }
+    try std.testing.expect(packed_trit_is_zero(packed));
+}
+
+test "test_packed_trit_is_zero_false" {
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.zero, 0, packed);
+    packed = pack_trit(.pos, 1, packed);
+    try std.testing.expect(!packed_trit_is_zero(packed));
+}
+
+test "test_packed_trit_is_all_same_true" {
+    var packed: PackedTrit = 0;
+    for (0..8) |i| {
+        packed = pack_trit(.neg, @intCast(i), packed);
+    }
+    try std.testing.expect(packed_trit_is_all_same(packed));
+}
+
+test "test_packed_trit_is_all_same_false" {
+    var packed: PackedTrit = 0;
+    packed = pack_trit(.pos, 0, packed);
+    packed = pack_trit(.zero, 1, packed);
+    try std.testing.expect(!packed_trit_is_all_same(packed));
+}
+
+test "test_packed_trit_nand_basic" {
+    var a: PackedTrit = 0;
+    var b: PackedTrit = 0;
+    a = pack_trit(.pos, 0, a);
+    a = pack_trit(.pos, 1, a);
+    b = pack_trit(.pos, 0, b);
+    b = pack_trit(.zero, 1, b);
+    const result = packed_trit_nand(a, b);
+    // pos NAND pos = zero, pos NAND zero = pos
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);
+}
+
+test "test_packed_trit_nor_basic" {
+    var a: PackedTrit = 0;
+    var b: PackedTrit = 0;
+    a = pack_trit(.pos, 0, a);
+    a = pack_trit(.zero, 1, a);
+    b = pack_trit(.zero, 0, b);
+    b = pack_trit(.zero, 1, b);
+    const result = packed_trit_nor(a, b);
+    // pos NOR zero = zero, zero NOR zero = pos
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(0, result).value);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -722,6 +881,31 @@ invariant trit_select_condition_true {
 invariant trit_select_condition_false {
     // trit_select(.neg, a, b) == b
     // trit_select(.zero, a, b) == b
+    @compileAssert(true);
+}
+
+invariant packed_trit_count_range {
+    // packed_trit_count result is in [0, 8]
+    @compileAssert(true);
+}
+
+invariant packed_trit_count_sum_equals_trits_per_byte {
+    // For all packed: count(neg) + count(zero) + count(pos) = 8
+    @compileAssert(true);
+}
+
+invariant packed_trit_all_zero_implies_is_zero {
+    // packed_trit_is_zero(x) = packed_trit_all_equal(x, .zero)
+    @compileAssert(true);
+}
+
+invariant packed_trit_nand_commutative {
+    // packed_trit_nand(a, b) = packed_trit_nand(b, a)
+    @compileAssert(true);
+}
+
+invariant packed_trit_nor_commutative {
+    // packed_trit_nor(a, b) = packed_trit_nor(b, a)
     @compileAssert(true);
 }
 
@@ -847,6 +1031,68 @@ bench "bench_trit_from_i8_latency" {
     var result: Trit = .zero;
     for (0..1000) |_| {
         result = trit_from_i8(1);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_count_latency" {
+    // Measure: cycles for packed_trit_count operation
+    // Target: < 50 cycles on t27-hardware (unpacks 8 trits)
+    @setEvalBranchQuota(10000);
+    var result: u8 = 0;
+    const packed: PackedTrit = 0xAA;
+    for (0..1000) |_| {
+        result = packed_trit_count(packed, .pos);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_all_equal_latency" {
+    // Measure: cycles for packed_trit_all_equal operation
+    // Target: < 50 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const packed: PackedTrit = 0x55;
+    for (0..1000) |_| {
+        result = packed_trit_all_equal(packed, .zero);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_is_zero_latency" {
+    // Measure: cycles for packed_trit_is_zero operation
+    // Target: < 50 cycles on t27-hardware
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const packed: PackedTrit = 0x00;
+    for (0..1000) |_| {
+        result = packed_trit_is_zero(packed);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_nand_latency" {
+    // Measure: cycles for packed_trit_nand operation
+    // Target: < 100 cycles on t27-hardware (8 trit operations)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const a: PackedTrit = 0xFF;
+    const b: PackedTrit = 0xFF;
+    for (0..1000) |_| {
+        result = packed_trit_nand(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_packed_trit_nor_latency" {
+    // Measure: cycles for packed_trit_nor operation
+    // Target: < 100 cycles on t27-hardware (8 trit operations)
+    @setEvalBranchQuota(10000);
+    var result: PackedTrit = 0;
+    const a: PackedTrit = 0x00;
+    const b: PackedTrit = 0x00;
+    for (0..1000) |_| {
+        result = packed_trit_nor(a, b);
     }
     _ = result;
 }
