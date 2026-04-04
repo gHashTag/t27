@@ -1,10 +1,20 @@
 {
-  "gen_hash_c": "sha256:9ac7e3354bce19794f1969c3dbea88489a51937421c63063660d5990e8797338",
-  "gen_hash_verilog": "sha256:7fb703e89f2806f919543390235d6224bb5d79d73a9a4a685c1ecc01bf48b487",
-  "gen_hash_zig": "sha256:55c2562f54dc88cfdd21a25d9f4d7032e090a307e62a575f1b46f06b65f6e08f",
   "module": "Composition",
-  "ring": 12,
-  "sealed_at": "2026-04-04T13:02:54Z",
+  "ring": 24,
+  "spec_path": "specs/ar/composition.t27",
   "spec_hash": "sha256:2fb9382777d17c70796a78aba5de5f8ab72fb10ada959a72457b0c9e44f50112",
-  "spec_path": "specs/ar/composition.t27"
+  "gen_hash_zig": "sha256:c91aab38988a5aeafc1531bd06ddb72fe9f21b0064f08207324a953db24f7da4",
+  "gen_hash_c": "sha256:b0899a7c86c85b060dfd60a042bb53363b9fdb4c1d3562a8eea15e726832cff3",
+  "gen_hash_verilog": "sha256:3f36a0c076bca8c2c8f5bbba3a93e4797a111747893fdd3c979b6025d316eae2",
+  "tests": {
+    "status": "passed",
+    "count": 7,
+    "invariants": 5,
+    "benchmarks": 5
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T18:00:00Z"
 }

@@ -1,16 +1,19 @@
 {
-  "skill_id": "tri-constitution",
-  "session_id": "2026-04-04T08:30:00Z#tri",
-  "issue_id": "INFRA",
-  "issue_title": "PHI LOOP Infrastructure: Parser Tests",
-  "description": "Write parser tests for compiler/parser.t27 spec",
-  "started_at": "2026-04-04T08:25:00Z",
-  "started_by": "agent:tri",
-  "status": "active",
+  "skill_id": "ring-18-24-ar-integration",
+  "session_id": "2026-04-04T18:00:00Z#ring18-24",
+  "issue_id": "SEED-18-24",
+  "issue_title": "Rings 18-24: Full AR Domain Integration",
+  "description": "Integrate all 7 AR specs into canonical graph with gen backends, conformance vectors, and seals",
+  "started_at": "2026-04-04T18:00:00Z",
+  "started_by": "agent:claude-code",
+  "status": "complete",
   "allowed_paths": [
-    "specs/compiler/parser.t27",
+    "specs/ar/",
+    "gen/",
+    "conformance/",
+    ".trinity/seals/",
     ".trinity/state/",
-    "docs/SOUL.md",
-    ".claude/skills/tri/"
+    ".trinity/experience/",
+    "architecture/graph_v2.json"
   ]
 }
