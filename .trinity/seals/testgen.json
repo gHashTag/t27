@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:f72edfadaae7b439a4f8b8fbe97fdc97971149635e2b82afd4c6b3a48aba6d14",
   "module": "testgen",
   "ring": 12,
-  "sealed_at": "2026-04-04T12:46:48Z",
+  "sealed_at": "2026-04-04T12:59:11Z",
   "spec_hash": "sha256:f132d76e373fa4780e558e3265e743d5b5847cd92f2f90735cde6c648a7af1fe",
   "spec_path": "compiler/codegen/testgen.t27"
 }
