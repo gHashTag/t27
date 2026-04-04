@@ -545,8 +545,18 @@ module zig_codegen {
             }
 
             // TODO: Generate actual test implementation based on test type
-            self.emit_line("// TODO: Implement test");
-            self.emit_line("try std.testing.expect(true);");
+            self.emit_line("// TODO: Parse test description and generate implementation:");
+            self.emit_line("//   1. Parse verify_description for action to perform");
+            self.emit_line("//   2. Parse setup_description for initialization");
+            self.emit_line("//   3. Parse expected_outcome for assertion");
+            self.emit_line("//   4. Generate appropriate Zig test code");
+            self.emit_line("//");
+            self.emit_line("// Example patterns:");
+            self.emit_line("//   - Function call: try testing.expect(my_func(42) == expected);");
+            self.emit_line("//   - Property check: try testing.expect(value > 0);");
+            self.emit_line("//   - Error check: try testing.expectError(error.MyError, action());");
+            self.emit_line("try std.testing.expect(true);  // placeholder");
+
 
             self.dedent();
             self.emit("}");
@@ -592,9 +602,16 @@ module zig_codegen {
                 self.emit_line("");
             }
 
-            // TODO: Generate actual invariant check
-            self.emit_line("// TODO: Implement invariant check");
-            self.emit_line("try std.testing.expect(true);");
+            // TODO: Generate actual invariant check from formal_statement
+            self.emit_line("// TODO: Parse formal_statement and generate assertion:");
+            self.emit_line("//   - For bounds: try testing.expect(value >= min and value <= max);");
+            self.emit_line("//   - For equality: try testing.expect(actual == expected);");
+            self.emit_line("//   - For emptiness: try testing.expect(count == 0);");
+            self.emit_line("//   - For non-null: try testing.expect(ptr != null);");
+            self.emit_line("//");
+            self.emit_line("// Example: try testing.expect(regs[26] == 0); // Zero register invariant");
+            self.emit_line("try std.testing.expect(true);  // placeholder");
+
 
             self.dedent();
             self.emit("}");
@@ -645,8 +662,22 @@ module zig_codegen {
             self.emit(benchmark.units);
             self.emit_line("");
 
-            // TODO: Generate actual benchmark using std.testing.benchmark
-            self.emit_line("// TODO: Implement benchmark");
+            // Benchmark implementation using std.testing.benchmark
+            self.emit_line("// TODO: Parse benchmark spec and generate implementation:");
+            self.emit_line("//   1. Parse measure_description for what to measure");
+            self.emit_line("//   2. Parse target for function/call to benchmark");
+            self.emit_line("//   3. Determine iterations (default: 1000 or adaptive)");
+            self.emit_line("//   4. Generate Zig benchmark code using std.testing.benchmark");
+            self.emit_line("");
+            self.emit_line("// Example patterns:");
+            self.emit_line("//   - Simple timing: const timer = try std.time.Timer.start();");
+            self.emit_line("//     const start = timer.read();");
+            self.emit_line("//     _ = my_function_under_test(input);");
+            self.emit_line("//     const elapsed_ns = timer.read() - start;");
+            self.emit_line("//   - Throughput: const ops_per_sec = @as(f64, @floatFromInt(iterations)) /");
+            self.emit_line("//     @as(f64, @floatFromInt(elapsed_ns)) * 1e9;");
+            self.emit_line("//   - Memory: const mem_before = std.heap.page_allocator.query();");
+            self.emit_line("");
             self.emit_line("const timer = try std.time.Timer.start();");
             self.emit_line("_ = timer;");
             self.emit_line("try std.testing.expect(true);");
