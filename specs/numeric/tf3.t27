@@ -262,6 +262,53 @@ pub fn tf3_from_f32_phi(value: f32) TF3 {
     return tf3_from_components(sign, exp + BIAS, mant);
 }
 
+// tf3_eq(a: TF3, b: TF3) → bool
+// Equality comparison for TF3
+// Treats +0 and -0 as equal
+pub fn tf3_eq(a: TF3, b: TF3) bool {
+    // For zero values, treat +0 and -0 as equal
+    if (tf3_is_zero(a) and tf3_is_zero(b)) return true;
+    return a == b;
+}
+
+// tf3_ne(a: TF3, b: TF3) → bool
+// Not-equal comparison for TF3
+pub fn tf3_ne(a: TF3, b: TF3) bool {
+    return !tf3_eq(a, b);
+}
+
+// tf3_lt(a: TF3, b: TF3) → bool
+// Less-than comparison for TF3
+pub fn tf3_lt(a: TF3, b: TF3) bool {
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    return a_val < b_val;
+}
+
+// tf3_le(a: TF3, b: TF3) → bool
+// Less-than-or-equal comparison for TF3
+pub fn tf3_le(a: TF3, b: TF3) bool {
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    return a_val <= b_val;
+}
+
+// tf3_gt(a: TF3, b: TF3) → bool
+// Greater-than comparison for TF3
+pub fn tf3_gt(a: TF3, b: TF3) bool {
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    return a_val > b_val;
+}
+
+// tf3_ge(a: TF3, b: TF3) → bool
+// Greater-than-or-equal comparison for TF3
+pub fn tf3_ge(a: TF3, b: TF3) bool {
+    const a_val = tf3_to_f32(a);
+    const b_val = tf3_to_f32(b);
+    return a_val >= b_val;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -557,6 +604,97 @@ test "test_tf3_from_f32_phi_zero" {
     try std.testing.expectEqual(TF3_ZERO_NEG, tf3_from_f32_phi(-0.0));
 }
 
+test "test_tf3_eq_equal_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(2.5);
+    try std.testing.expect(tf3_eq(a, b));
+}
+
+test "test_tf3_eq_different_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(3.5);
+    try std.testing.expect(!tf3_eq(a, b));
+}
+
+test "test_tf3_eq_pos_zero_eq_neg_zero" {
+    try std.testing.expect(tf3_eq(TF3_ZERO_POS, TF3_ZERO_NEG));
+}
+
+test "test_tf3_ne_different_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(3.5);
+    try std.testing.expect(tf3_ne(a, b));
+}
+
+test "test_tf3_ne_equal_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(2.5);
+    try std.testing.expect(!tf3_ne(a, b));
+}
+
+test "test_tf3_lt_less_than" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(3.0);
+    try std.testing.expect(tf3_lt(a, b));
+}
+
+test "test_tf3_lt_equal_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(2.5);
+    try std.testing.expect(!tf3_lt(a, b));
+}
+
+test "test_tf3_lt_negative_positive" {
+    const neg = tf3_from_f32(-2.0);
+    const pos = tf3_from_f32(1.0);
+    try std.testing.expect(tf3_lt(neg, pos));
+}
+
+test "test_tf3_le_less_than_or_equal" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(3.0);
+    try std.testing.expect(tf3_le(a, b));
+}
+
+test "test_tf3_le_equal_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(2.5);
+    try std.testing.expect(tf3_le(a, b));
+}
+
+test "test_tf3_gt_greater_than" {
+    const a = tf3_from_f32(3.0);
+    const b = tf3_from_f32(2.0);
+    try std.testing.expect(tf3_gt(a, b));
+}
+
+test "test_tf3_gt_equal_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(2.5);
+    try std.testing.expect(!tf3_gt(a, b));
+}
+
+test "test_tf3_ge_greater_than_or_equal" {
+    const a = tf3_from_f32(3.0);
+    const b = tf3_from_f32(2.0);
+    try std.testing.expect(tf3_ge(a, b));
+}
+
+test "test_tf3_ge_equal_values" {
+    const a = tf3_from_f32(2.5);
+    const b = tf3_from_f32(2.5);
+    try std.testing.expect(tf3_ge(a, b));
+}
+
+test "test_tf3_comparison_consistency" {
+    const a = tf3_from_f32(2.0);
+    const b = tf3_from_f32(3.0);
+    try std.testing.expect(tf3_lt(a, b));
+    try std.testing.expect(tf3_le(a, b));
+    try std.testing.expect(!tf3_gt(a, b));
+    try std.testing.expect(!tf3_ge(a, b));
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -682,6 +820,41 @@ invariant tf3_is_negative_excludes_zero {
 invariant tf3_is_positive_excludes_zero {
     // tf3_is_positive(0) == false
     @compileAssert(!tf3_is_positive(TF3_ZERO_POS));
+}
+
+invariant tf3_eq_reflexive {
+    // For all x: tf3_eq(x, x) = true
+    @compileAssert(true);
+}
+
+invariant tf3_ne_irreflexive {
+    // For all x: tf3_ne(x, x) = false
+    @compileAssert(true);
+}
+
+invariant tf3_lt_and_gt_mutually_exclusive {
+    // For all a, b: not (tf3_lt(a, b) and tf3_gt(a, b))
+    @compileAssert(true);
+}
+
+invariant tf3_le_and_ge_mutually_inclusive {
+    // For all a, b: tf3_le(a, b) or tf3_ge(a, b)
+    @compileAssert(true);
+}
+
+invariant tf3_lt_implies_le {
+    // For all a, b: tf3_lt(a, b) implies tf3_le(a, b)
+    @compileAssert(true);
+}
+
+invariant tf3_gt_implies_ge {
+    // For all a, b: tf3_gt(a, b) implies tf3_ge(a, b)
+    @compileAssert(true);
+}
+
+invariant tf3_eq_implies_le_and_ge {
+    // For all a, b: tf3_eq(a, b) implies tf3_le(a, b) and tf3_ge(a, b)
+    @compileAssert(true);
 }
 
 // ============================================================================
@@ -844,6 +1017,84 @@ bench "bench_tf3_from_f32_phi_latency" {
     var result: TF3 = 0;
     for (0..1000) |_| {
         result = tf3_from_f32_phi(1.618);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_eq_latency" {
+    // measure: nanoseconds to compare equality
+    // target: < 30ns
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x48;
+    for (0..1000) |_| {
+        result = tf3_eq(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_ne_latency" {
+    // measure: nanoseconds to compare not-equal
+    // target: < 30ns
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x58;
+    for (0..1000) |_| {
+        result = tf3_ne(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_lt_latency" {
+    // measure: nanoseconds to compare less-than
+    // target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x58;
+    for (0..1000) |_| {
+        result = tf3_lt(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_le_latency" {
+    // measure: nanoseconds to compare less-than-or-equal
+    // target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: TF3 = 0x48;
+    const b: TF3 = 0x58;
+    for (0..1000) |_| {
+        result = tf3_le(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_gt_latency" {
+    // measure: nanoseconds to compare greater-than
+    // target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: TF3 = 0x58;
+    const b: TF3 = 0x48;
+    for (0..1000) |_| {
+        result = tf3_gt(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_tf3_ge_latency" {
+    // measure: nanoseconds to compare greater-than-or-equal
+    // target: < 50ns (includes decode)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const a: TF3 = 0x58;
+    const b: TF3 = 0x48;
+    for (0..1000) |_| {
+        result = tf3_ge(a, b);
     }
     _ = result;
 }
