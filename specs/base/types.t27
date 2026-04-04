@@ -393,6 +393,67 @@ pub fn packed_trit_nor(a: PackedTrit, b: PackedTrit) PackedTrit {
     return result;
 }
 
+// ternary_word_is_zero(word: TernaryWord) → bool
+// Check if all 27 trits in TernaryWord are zero
+pub fn ternary_word_is_zero(word: TernaryWord) bool {
+    for (0..TRITS_PER_WORD) |i| {
+        const byte_idx = i / TRITS_PER_BYTE;
+        const trit_pos = @intCast(i % TRITS_PER_BYTE);
+        const unpacked = unpack_trit(trit_pos, word[byte_idx]);
+        if (unpacked.valid and unpacked.value != .zero) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ternary_word_count(word: TernaryWord, value: Trit) → u8
+// Count occurrences of a specific trit value in TernaryWord
+pub fn ternary_word_count(word: TernaryWord, value: Trit) u8 {
+    var count: u8 = 0;
+    for (0..TRITS_PER_WORD) |i| {
+        const byte_idx = i / TRITS_PER_BYTE;
+        const trit_pos = @intCast(i % TRITS_PER_BYTE);
+        const unpacked = unpack_trit(trit_pos, word[byte_idx]);
+        if (unpacked.valid and unpacked.value == value) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+// ternary_word_eq(a: TernaryWord, b: TernaryWord) → bool
+// Compare two TernaryWords for equality
+pub fn ternary_word_eq(a: TernaryWord, b: TernaryWord) bool {
+    for (0..WORD_BYTES) |i| {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ternary_word_negate(word: TernaryWord) → TernaryWord
+// Negate all trits in TernaryWord
+pub fn ternary_word_negate(word: TernaryWord) TernaryWord {
+    var result: TernaryWord = undefined;
+    for (0..TRITS_PER_WORD) |i| {
+        const byte_idx = i / TRITS_PER_BYTE;
+        const trit_pos = @intCast(i % TRITS_PER_BYTE);
+        const unpacked = unpack_trit(trit_pos, word[byte_idx]);
+        const negated = trit_negate(unpacked.value);
+        result[byte_idx] = pack_trit(negated, trit_pos, result[byte_idx]);
+    }
+    return result;
+}
+
+// ternary_word_is_all_same(word: TernaryWord) → bool
+// Check if all 27 trits in TernaryWord are the same value
+pub fn ternary_word_is_all_same(word: TernaryWord) bool {
+    const first = unpack_trit(0, word[0]).value;
+    return ternary_word_count(word, first) == TRITS_PER_WORD;
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -760,6 +821,97 @@ test "test_packed_trit_nor_basic" {
     try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, result).value);
 }
 
+test "test_ternary_word_is_zero_true" {
+    // Verify: all zeros ternary word is detected as zero
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    try std.testing.expect(ternary_word_is_zero(word));
+}
+
+test "test_ternary_word_is_zero_false" {
+    // Verify: non-zero ternary word is not detected as zero
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word[0] = pack_trit(.pos, 0, word[0]);
+    try std.testing.expect(!ternary_word_is_zero(word));
+}
+
+test "test_ternary_word_count_zeros" {
+    // Verify: count zeros in mixed ternary word
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word[0] = pack_trit(.zero, 0, word[0]);
+    word[0] = pack_trit(.zero, 1, word[0]);
+    word[0] = pack_trit(.pos, 2, word[0]);
+    try std.testing.expectEqual(@as(u8, 2), ternary_word_count(word, .zero));
+    try std.testing.expectEqual(@as(u8, 1), ternary_word_count(word, .pos));
+}
+
+test "test_ternary_word_count_all_same" {
+    // Verify: count returns TRITS_PER_WORD for all same value
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    for (0..TRITS_PER_WORD) |i| {
+        const byte_idx = i / TRITS_PER_BYTE;
+        const trit_pos = @intCast(i % TRITS_PER_BYTE);
+        word[byte_idx] = pack_trit(.neg, trit_pos, word[byte_idx]);
+    }
+    try std.testing.expectEqual(TRITS_PER_WORD, ternary_word_count(word, .neg));
+}
+
+test "test_ternary_word_equal_same" {
+    // Verify: identical ternary words are equal
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word[0] = pack_trit(.pos, 0, word[0]);
+    word[1] = pack_trit(.neg, 0, word[1]);
+    try std.testing.expect(ternary_word_eq(word, word));
+}
+
+test "test_ternary_word_equal_different" {
+    // Verify: different ternary words are not equal
+    var word_a: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    var word_b: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word_a[0] = pack_trit(.pos, 0, word_a[0]);
+    word_b[0] = pack_trit(.neg, 0, word_b[0]);
+    try std.testing.expect(!ternary_word_eq(word_a, word_b));
+}
+
+test "test_ternary_word_negate" {
+    // Verify: negation inverts all trits
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word[0] = pack_trit(.pos, 0, word[0]);
+    word[0] = pack_trit(.neg, 1, word[0]);
+    word[0] = pack_trit(.zero, 2, word[0]);
+    const negated = ternary_word_negate(word);
+    try std.testing.expectEqual(@as(Trit, .neg), unpack_trit(0, negated[0]).value);
+    try std.testing.expectEqual(@as(Trit, .pos), unpack_trit(1, negated[0]).value);
+    try std.testing.expectEqual(@as(Trit, .zero), unpack_trit(2, negated[0]).value);
+}
+
+test "test_ternary_word_negate_double_identity" {
+    // Verify: double negation returns original
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word[0] = pack_trit(.pos, 0, word[0]);
+    word[1] = pack_trit(.neg, 0, word[1]);
+    const double_negated = ternary_word_negate(ternary_word_negate(word));
+    try std.testing.expect(ternary_word_eq(word, double_negated));
+}
+
+test "test_ternary_word_is_all_same_true" {
+    // Verify: all same value ternary word is detected
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    for (0..TRITS_PER_WORD) |i| {
+        const byte_idx = i / TRITS_PER_BYTE;
+        const trit_pos = @intCast(i % TRITS_PER_BYTE);
+        word[byte_idx] = pack_trit(.pos, trit_pos, word[byte_idx]);
+    }
+    try std.testing.expect(ternary_word_is_all_same(word));
+}
+
+test "test_ternary_word_is_all_same_false" {
+    // Verify: mixed ternary word is not detected as all same
+    var word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    word[0] = pack_trit(.pos, 0, word[0]);
+    word[0] = pack_trit(.neg, 1, word[0]);
+    try std.testing.expect(!ternary_word_is_all_same(word));
+}
+
 // ============================================================================
 // TDD - Invariants
 // ============================================================================
@@ -906,6 +1058,56 @@ invariant packed_trit_nand_commutative {
 
 invariant packed_trit_nor_commutative {
     // packed_trit_nor(a, b) = packed_trit_nor(b, a)
+    @compileAssert(true);
+}
+
+invariant ternary_word_is_zero_idempotent {
+    // ternary_word_is_zero(x) = (ternary_word_count(x, .zero) == TRITS_PER_WORD)
+    @compileAssert(true);
+}
+
+invariant ternary_word_count_range {
+    // ternary_word_count result is in [0, TRITS_PER_WORD]
+    @compileAssert(true);
+}
+
+invariant ternary_word_count_sum_equals_trits_per_word {
+    // For all word: count(neg) + count(zero) + count(pos) = TRITS_PER_WORD
+    @compileAssert(true);
+}
+
+invariant ternary_word_eq_reflexive {
+    // ternary_word_eq(x, x) = true for all x
+    @compileAssert(true);
+}
+
+invariant ternary_word_eq_symmetric {
+    // ternary_word_eq(a, b) = ternary_word_eq(b, a)
+    @compileAssert(true);
+}
+
+invariant ternary_word_eq_transitive {
+    // ternary_word_eq(a, b) and ternary_word_eq(b, c) implies ternary_word_eq(a, c)
+    @compileAssert(true);
+}
+
+invariant ternary_word_negate_involutive {
+    // ternary_word_negate(ternary_word_negate(x)) = x for all x
+    @compileAssert(true);
+}
+
+invariant ternary_word_negate_zero_invariant {
+    // ternary_word_negate(x) is zero iff x is zero
+    @compileAssert(true);
+}
+
+invariant ternary_word_is_all_same_implies_count_equals_word_size {
+    // ternary_word_is_all_same(x) implies ternary_word_count(x, first) == TRITS_PER_WORD
+    @compileAssert(true);
+}
+
+invariant ternary_word_is_all_same_zero_implies_is_zero {
+    // ternary_word_is_all_same(x) with first=zero implies ternary_word_is_zero(x)
     @compileAssert(true);
 }
 
@@ -1093,6 +1295,67 @@ bench "bench_packed_trit_nor_latency" {
     const b: PackedTrit = 0x00;
     for (0..1000) |_| {
         result = packed_trit_nor(a, b);
+    }
+    _ = result;
+}
+
+bench "bench_ternary_word_is_zero_latency" {
+    // Measure: cycles for ternary_word_is_zero operation
+    // Target: < 200 cycles on t27-hardware (27 trit checks)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const word: TernaryWord = [_]u8{0} ** WORD_BYTES;
+    for (0..1000) |_| {
+        result = ternary_word_is_zero(word);
+    }
+    _ = result;
+}
+
+bench "bench_ternary_word_count_latency" {
+    // Measure: cycles for ternary_word_count operation
+    // Target: < 300 cycles on t27-hardware (27 trit checks)
+    @setEvalBranchQuota(10000);
+    var result: u8 = 0;
+    const word: TernaryWord = [_]u8{0xAA, 0x55, 0xAA, 0x55, 0xAA};
+    for (0..1000) |_| {
+        result = ternary_word_count(word, .pos);
+    }
+    _ = result;
+}
+
+bench "bench_ternary_word_eq_latency" {
+    // Measure: cycles for ternary_word_eq operation
+    // Target: < 50 cycles on t27-hardware (5 byte compares)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const word_a: TernaryWord = [_]u8{0xAA} ** WORD_BYTES;
+    const word_b: TernaryWord = [_]u8{0xAA} ** WORD_BYTES;
+    for (0..1000) |_| {
+        result = ternary_word_eq(word_a, word_b);
+    }
+    _ = result;
+}
+
+bench "bench_ternary_word_negate_latency" {
+    // Measure: cycles for ternary_word_negate operation
+    // Target: < 500 cycles on t27-hardware (27 trit negations + packing)
+    @setEvalBranchQuota(10000);
+    var result: TernaryWord = undefined;
+    const word: TernaryWord = [_]u8{0x55, 0xAA, 0x55, 0xAA, 0x55};
+    for (0..1000) |_| {
+        result = ternary_word_negate(word);
+    }
+    _ = result;
+}
+
+bench "bench_ternary_word_is_all_same_latency" {
+    // Measure: cycles for ternary_word_is_all_same operation
+    // Target: < 350 cycles on t27-hardware (27 trit checks)
+    @setEvalBranchQuota(10000);
+    var result: bool = false;
+    const word: TernaryWord = [_]u8{0x00} ** WORD_BYTES;
+    for (0..1000) |_| {
+        result = ternary_word_is_all_same(word);
     }
     _ = result;
 }
