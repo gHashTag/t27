@@ -1,0 +1,15 @@
+{
+  "id": "playra/trinity-tefb-executive-function-mc-benchmark",
+  "title": "Trinity TEFB Executive Function MC Benchmark",
+  "code_file": "tefb_mc_benchmark.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": ["playra/trinity-cognitive-probes-tefb-mc"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
