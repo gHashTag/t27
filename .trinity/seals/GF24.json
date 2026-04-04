@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:e8ac6dcf9299067caed5d13f763c5ddfb1f6e5ffd0e0c5058c3b650f8c3b3fac",
+  "gen_hash_verilog": "sha256:92f97137c623dd79497553b5697fe8664cb029f10ab760a1437e5a8bfcd76724",
+  "gen_hash_zig": "sha256:fc4fd6a29fb7ada47fa073ca8e5b0c85fb1de7e82feec7cb1a8eab88fe7047ee",
+  "module": "GF24",
+  "ring": 12,
+  "sealed_at": "2026-04-04T12:46:48Z",
+  "spec_hash": "sha256:90c26b6e25af5216e9c6f952f94e52bf19c821eb37a690688b0b623e7a7f0d0d",
+  "spec_path": "specs/numeric/gf24.t27"
+}

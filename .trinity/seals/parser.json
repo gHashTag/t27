@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:e7a3185ee2392399f75e912f1c91cd8dd7ebe631ac076d4774e8aba0daf38433",
+  "gen_hash_verilog": "sha256:0bfe34b3a9837a5b2113994ffbf6da3f6ad271124f58c6892f6ce1d760592c12",
+  "gen_hash_zig": "sha256:e75a7674fa82c47a570a523fbd517569dd0eaf198131af6e8f482edd10c979c2",
+  "module": "parser",
+  "ring": 12,
+  "sealed_at": "2026-04-04T12:46:48Z",
+  "spec_hash": "sha256:1598012842f8d2c195ecd1f706fcc5ac0a7b521db35282ecbee4bce748b725ee",
+  "spec_path": "compiler/parser/parser.t27"
+}
