@@ -157,6 +157,47 @@ module zig_codegen {
         // Emit code section
         fn emit_code_section(self: *ZigCodegen) void {
             self.emit_line("// Code section");
+            self.emit_line("");
+
+            // VSA helper functions
+            self.emit_line("// VSA helper functions (ternary hypervector operations)");
+            self.emit_line("fn vsa_bind(a: i64, b: i64) i64 {");
+            self.indent();
+            self.emit_line("// XOR-like bind for balanced ternary");
+            self.emit_line("// if a_trit == 0: b_trit; else if b_trit == 0: a_trit; else: a_trit * b_trit");
+            self.emit_line("var result: i64 = 0;");
+            self.emit_line("var i: u32 = 0;");
+            self.emit_line("while (i < 21) : (i += 3) {  // 7 trits (21 bits) per register");
+            self.emit_line("    const mask_a: i64 = @as(i64, 0x3) << @intCast(i);");
+            self.emit_line("    const mask_b: i64 = @as(i64, 0x3) << @intCast(i);");
+            self.emit_line("    const a_trit = (a & mask_a) >> @intCast(i);");
+            self.emit_line("    const b_trit = (b & mask_b) >> @intCast(i);");
+            self.emit_line("    const bound = if (a_trit == 0) b_trit else if (b_trit == 0) a_trit else if (a_trit == b_trit) 1 else 2;");
+            self.emit_line("    result |= (bound & 0x3) << @intCast(i);");
+            self.emit_line("}");
+            self.emit_line("return result;");
+            self.dedent();
+            self.emit_line("}");
+            self.emit_line("");
+
+            self.emit_line("fn vsa_bundle2(a: i64, b: i64) i64 {");
+            self.indent();
+            self.emit_line("// Bundle2: majority vote of 2 ternary vectors");
+            self.emit_line("var result: i64 = 0;");
+            self.emit_line("var i: u32 = 0;");
+            self.emit_line("while (i < 21) : (i += 3) {  // 7 trits per register");
+            self.emit_line("    const mask: i64 = @as(i64, 0x3) << @intCast(i);");
+            self.emit_line("    const a_trit = (a & mask) >> @intCast(i);");
+            self.emit_line("    const b_trit = (b & mask) >> @intCast(i);");
+            self.emit_line("    // Majority: if same, use value; if different, use 0");
+            self.emit_line("    const bundled = if (a_trit == b_trit) a_trit else 0;");
+            self.emit_line("    result |= (bundled & 0x3) << @intCast(i);");
+            self.emit_line("}");
+            self.emit_line("return result;");
+            self.dedent();
+            self.emit_line("}");
+            self.emit_line("");
+
             self.emit_line("pub fn execute() !void {");
             self.indent();
 
@@ -397,17 +438,58 @@ module zig_codegen {
         }
 
         // Emit BIND instruction (VSA bind)
+        // BIND rd, rs1, rs2: rd = bind(rs1, rs2)
+        // Algorithm: if a == 0: b; else if b == 0: a; else: a*b (pos if equal, neg if different)
         fn emit_bind(self: *ZigCodegen, inst: Instruction) void {
-            _ = inst;
-            self.emit_line("// BIND: VSA bind operation");
-            self.emit_line("// TODO: Implement VSA bind");
+            if (inst.operands.len < 3) {
+                self.add_error("BIND requires 3 operands", inst.line, inst.column);
+                return;
+            }
+
+            const dst = inst.operands[0];
+            const src1 = inst.operands[1];
+            const src2 = inst.operands[2];
+
+            const dst_reg = self.get_reg_number(dst);
+            const src1_reg = self.get_reg_number(src1);
+            const src2_reg = self.get_reg_number(src2);
+
+            // Generate bind operation with inline ternary logic
+            self.emit("// BIND: VSA bind operation (XOR-like for balanced ternary)");
+            self.emit("regs[");
+            self.emit_int_value(@intCast(dst_reg));
+            self.emit("] = vsa_bind(regs[");
+            self.emit_int_value(@intCast(src1_reg));
+            self.emit("], regs[");
+            self.emit_int_value(@intCast(src2_reg));
+            self.emit_line("]);");
         }
 
         // Emit BUNDLE instruction (VSA bundle)
+        // BUNDLE rd, rs1, rs2: rd = bundle2(rs1, rs2) (majority vote)
         fn emit_bundle(self: *ZigCodegen, inst: Instruction) void {
-            _ = inst;
-            self.emit_line("// BUNDLE: VSA bundle operation");
-            self.emit_line("// TODO: Implement VSA bundle");
+            if (inst.operands.len < 3) {
+                self.add_error("BUNDLE requires 3 operands", inst.line, inst.column);
+                return;
+            }
+
+            const dst = inst.operands[0];
+            const src1 = inst.operands[1];
+            const src2 = inst.operands[2];
+
+            const dst_reg = self.get_reg_number(dst);
+            const src1_reg = self.get_reg_number(src1);
+            const src2_reg = self.get_reg_number(src2);
+
+            // Generate bundle operation (majority vote of 2 vectors)
+            self.emit("// BUNDLE: VSA bundle2 (majority vote)");
+            self.emit("regs[");
+            self.emit_int_value(@intCast(dst_reg));
+            self.emit("] = vsa_bundle2(regs[");
+            self.emit_int_value(@intCast(src1_reg));
+            self.emit("], regs[");
+            self.emit_int_value(@intCast(src2_reg));
+            self.emit_line("]);");
         }
 
         // Emit HALT instruction
