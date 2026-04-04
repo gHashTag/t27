@@ -1,16 +1,12 @@
 {
-  "issue_id": "LOCAL-002",
-  "source": "local",
-  "url": null,
-  "title": "Fix tri skill registration and clean artifacts",
+  "issue_id": "INFRA",
+  "source": "github",
+  "url": "https://github.com/gHashTag/trinity/issues/INFRA",
+  "title": "PHI LOOP Infrastructure: Parser Tests",
   "state": "in_progress",
-  "linked_skill_id": "tri-base",
-  "linked_session_id": "2026-04-04T08:00:00Z#fix1",
-  "last_synced_at": "2026-04-04T08:00:00Z",
-  "required_commit_message_pattern": "\\[ref: LOCAL-002\\]",
-  "metadata": {
-    "assignee": "agent:claude-code",
-    "labels": ["fix", "skill", "cleanup"],
-    "repository": "t27"
-  }
+  "linked_skill_id": "tri-constitution",
+  "linked_session_id": "2026-04-04T08:30:00Z#tri",
+  "last_synced_at": "2026-04-04T08:25:00Z",
+  "required_commit_message_pattern": "\\[ref: INFRA\\]",
+  "metadata": {}
 }

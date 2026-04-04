@@ -1,0 +1,876 @@
+; parser.t27 — T27 Language Parser Specification
+; Reads .t27 source and produces JSON Abstract Syntax Tree (AST)
+; φ² + 1/φ² = 3 | TRINITY
+
+module tricompiler-parser;
+
+; Grammar:
+;   module    = ['module' IDENT ';'] decl*
+;   decl      = ['pub'] (const | enum | struct | fn | invariant | test | bench)
+;   const     = 'const' IDENT ':' TYPE '=' EXPR ';'
+;   enum      = 'enum' '(' IDENT ')' '{' (IDENT '=' EXPR ',')* '}'
+;   struct    = 'struct' IDENT '{' (IDENT ':' TYPE ',')* '}'
+;   fn        = 'fn' IDENT '(' (IDENT ':' TYPE ',')* ')' [-> TYPE] '{' STMT* '}'
+;   invariant = 'invariant' IDENT '{' STMT* '}'
+;   test      = 'test' STRING '{' STMT* '}'
+;   bench     = 'bench' STRING '{' STMT* '}'
+
+// Imports from base types (if needed for codegen)
+// using base: @import("specs/base/types.t27");
+// Note: module imports are T27 language feature, not Zig
+
+// ============================================================================
+// AST Node Types (for JSON output schema)
+// ============================================================================
+
+pub const AstNodeKind = enum {
+    module,
+    const_decl,
+    enum_decl,
+    struct_decl,
+    fn_decl,
+    invariant_decl,
+    test_decl,
+    bench_decl,
+};
+
+pub const BinaryOp = enum {
+    add, sub, mul, div, mod,
+    eq, ne, lt, le, gt, ge,
+    and_, or_, xor,
+    assign, arrow,
+};
+
+// Module node: {"module": "name", "decls": [...]}
+pub const ModuleNode = struct {
+    name: []const u8,
+    decls: []const AstNode,
+};
+
+// Const declaration: {"kind": "const", "pub": bool, "name": "...", "type": "...", "value": "..."}
+pub const ConstDeclNode = struct {
+    pub_: bool,
+    name: []const u8,
+    type_ref: []const u8,
+    value: []const u8,  // Simplified: value as string for JSON
+};
+
+// Enum declaration: {"kind": "enum", "name": "...", "backing": "...", "values": [...]}
+pub const EnumDeclNode = struct {
+    name: []const u8,
+    backing: []const u8,
+    values: []const EnumValueNode,
+};
+
+pub const EnumValueNode = struct {
+    name: []const u8,
+    value: []const u8,
+};
+
+// Struct declaration: {"kind": "struct", "name": "...", "fields": [...]}
+pub const StructDeclNode = struct {
+    name: []const u8,
+    fields: []const FieldNode,
+};
+
+pub const FieldNode = struct {
+    name: []const u8,
+    type_ref: []const u8,
+};
+
+// Function declaration: {"kind": "fn", "name": "...", "params": [...], "return": "..."}
+pub const FnDeclNode = struct {
+    name: []const u8,
+    params: []const ParamNode,
+    return_type: []const u8,
+};
+
+pub const ParamNode = struct {
+    name: []const u8,
+    type_ref: []const u8,
+};
+
+// Invariant declaration: {"kind": "invariant", "name": "..."}
+pub const InvariantDeclNode = struct {
+    name: []const u8,
+};
+
+// Test declaration: {"kind": "test", "name": "..."}
+pub const TestDeclNode = struct {
+    name: []const u8,
+};
+
+// Bench declaration: {"kind": "bench", "name": "..."}
+pub const BenchDeclNode = struct {
+    name: []const u8,
+};
+
+// Union of all AST node types
+pub const AstNode = union(AstNodeKind) {
+    module: ModuleNode,
+    const_decl: ConstDeclNode,
+    enum_decl: EnumDeclNode,
+    struct_decl: StructDeclNode,
+    fn_decl: FnDeclNode,
+    invariant_decl: InvariantDeclNode,
+    test_decl: TestDeclNode,
+    bench_decl: BenchDeclNode,
+};
+
+// ============================================================================
+// Token Types
+// ============================================================================
+
+pub const TokenKind = enum {
+    eof,
+    ident,
+    literal,
+    // Keywords
+    pub_,
+    const_,
+    extern_,
+    struct_,
+    enum_,
+    fn_,
+    return_,
+    if_,
+    else_,
+    using,
+    test,
+    bench,
+    invariant,
+    module_,
+    type_,
+    // Operators
+    plus,
+    minus,
+    star,
+    slash,
+    percent,
+    eq,
+    ne,
+    lt,
+    le,
+    gt,
+    ge,
+    and_,
+    or_,
+    xor,
+    not_,
+    assign,
+    arrow,
+    // Delimiters
+    l_paren,
+    r_paren,
+    l_brace,
+    r_brace,
+    l_bracket,
+    r_bracket,
+    comma,
+    colon,
+    dot,
+    semicolon,
+    question,
+};
+
+pub const Token = struct {
+    kind: TokenKind,
+    text: []const u8,
+    line: u32,
+    col: u32,
+};
+
+// ============================================================================
+// Tokenizer Specification
+// ============================================================================
+
+// isIdentStart(c: u8) → bool
+// Returns true if c can start an identifier
+pub fn isIdentStart(c: u8) bool {
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '_';
+}
+
+// isIdentContinue(c: u8) → bool
+// Returns true if c can continue an identifier
+pub fn isIdentContinue(c: u8) bool {
+    return isIdentStart(c) or (c >= '0' and c <= '9');
+}
+
+// isDigit(c: u8) → bool
+// Returns true if c is a decimal digit
+pub fn isDigit(c: u8) bool {
+    return c >= '0' and c <= '9';
+}
+
+// keywordKind(text: []const u8) → TokenKind
+// Maps identifier text to keyword token kind
+pub fn keywordKind(text: []const u8) TokenKind {
+    if (text == "pub") return .pub_;
+    if (text == "const") return .const_;
+    if (text == "extern") return .extern_;
+    if (text == "struct") return .struct_;
+    if (text == "enum") return .enum_;
+    if (text == "fn") return .fn_;
+    if (text == "return") return .return_;
+    if (text == "if") return .if_;
+    if (text == "else") return .else_;
+    if (text == "using") return .using;
+    if (text == "test") return .test;
+    if (text == "bench") return .bench;
+    if (text == "invariant") return .invariant;
+    if (text == "module") return .module_;
+    if (text == "type") return .type_;
+    return .ident;
+}
+
+// singleCharTokenKind(c: u8) → TokenKind
+// Maps single character to token kind
+pub fn singleCharTokenKind(c: u8) TokenKind {
+    return switch (c) {
+        '+' => .plus,
+        '*' => .star,
+        '/' => .slash,
+        '%' => .percent,
+        '=' => .assign,
+        '<' => .lt,
+        '>' => .gt,
+        '!' => .not_,
+        '&' => .and_,
+        '|' => .or_,
+        '^' => .xor,
+        '(' => .l_paren,
+        ')' => .r_paren,
+        '{' => .l_brace,
+        '}' => .r_brace,
+        '[' => .l_bracket,
+        ']' => .r_bracket,
+        ',' => .comma,
+        ':' => .colon,
+        '.' => .dot,
+        ';' => .semicolon,
+        '?' => .question,
+        else => .eof,
+    };
+}
+
+// tokenize(source: []const u8) → []Token
+// Scans source text and returns list of tokens
+// Handles:
+//   - Whitespace (space, tab, newline)
+//   - // comments (to end of line)
+//   - ; comments (to end of line)
+//   - Identifiers and keywords
+//   - Numbers (including negative)
+//   - String literals ("...")
+//   - Multi-char operators (->, ==, !=, <=, >=)
+pub fn tokenize(source: []const u8) []Token {
+    // Implementation spec:
+    // 1. Iterate through source with position tracking
+    // 2. Skip whitespace
+    // 3. Handle // and ; comments
+    // 4. Recognize identifiers/keywords
+    // 5. Recognize numbers (including -digit)
+    // 6. Recognize string literals
+    // 7. Handle multi-char operators
+    // 8. Handle single-char tokens
+    // 9. Append EOF token at end
+    return undefined;
+}
+
+// ============================================================================
+// Parser Specification
+// ============================================================================
+
+// ParseState holds parser state during parsing
+pub const ParseState = struct {
+    tokens: []const Token,
+    pos: usize,
+};
+
+// parse(source: []const u8) → ModuleNode
+// Main entry point: parses .t27 source and returns AST module node
+pub fn parse(source: []const u8) ModuleNode {
+    const tokens = tokenize(source);
+    var state = ParseState{ .tokens = tokens, .pos = 0 };
+    return parseModule(&state);
+}
+
+// peek(state: *ParseState) → Token
+// Returns current token without consuming
+pub fn peek(state: *ParseState) Token {
+    if (state.pos < state.tokens.len) {
+        return state.tokens[state.pos];
+    }
+    return Token{ .kind = .eof, .text = "", .line = 0, .col = 0 };
+}
+
+// next(state: *ParseState) → Token
+// Consumes and returns current token
+pub fn next(state: *ParseState) Token {
+    const tok = peek(state);
+    if (state.pos < state.tokens.len) {
+        state.pos += 1;
+    }
+    return tok;
+}
+
+// eat(state: *ParseState, kind: TokenKind) → bool
+// Consumes token if it matches kind
+pub fn eat(state: *ParseState, kind: TokenKind) bool {
+    if (peek(state).kind == kind) {
+        _ = next(state);
+        return true;
+    }
+    return false;
+}
+
+// parseModule(state: *ParseState) → ModuleNode
+// Parses module declaration and all top-level declarations
+pub fn parseModule(state: *ParseState) ModuleNode {
+    var name = "";
+
+    // Optional: module NAME;
+    if (eat(state, .module_)) {
+        const nameTok = next(state);
+        name = nameTok.text;
+        _ = eat(state, .semicolon);
+    }
+
+    var decls = []const AstNode{};
+    while (peek(state).kind != .eof) {
+        const decl = parseDecl(state);
+        decls = append(decls, decl);
+    }
+
+    return ModuleNode{ .name = name, .decls = decls };
+}
+
+// parseDecl(state: *ParseState) → AstNode
+// Parses a single top-level declaration
+pub fn parseDecl(state: *ParseState) AstNode {
+    const is_pub = eat(state, .pub_);
+
+    if (eat(state, .const_)) {
+        return parseConstDecl(state, is_pub);
+    } else if (eat(state, .enum_)) {
+        return parseEnumDecl(state, is_pub);
+    } else if (eat(state, .struct_)) {
+        return parseStructDecl(state, is_pub);
+    } else if (eat(state, .fn_)) {
+        return parseFnDecl(state, is_pub);
+    } else if (eat(state, .invariant)) {
+        return parseInvariantDecl(state);
+    } else if (eat(state, .test)) {
+        return parseTestDecl(state);
+    } else if (eat(state, .bench)) {
+        return parseBenchDecl(state);
+    }
+
+    // Skip unknown
+    _ = next(state);
+    return undefined;
+}
+
+// parseConstDecl(state: *ParseState, is_pub: bool) → AstNode
+// Parses: const NAME : TYPE = VALUE;
+pub fn parseConstDecl(state: *ParseState, is_pub: bool) AstNode {
+    const nameTok = next(state);
+    _ = eat(state, .colon);
+
+    // Parse type reference
+    var typeRef = []const u8{};
+    while (peek(state).kind == .ident or peek(state).kind == .l_bracket or
+           peek(state).kind == .r_bracket or peek(state).kind == .star or
+           peek(state).kind == .question) {
+        const tok = next(state);
+        typeRef = appendStr(typeRef, tok.text);
+    }
+
+    _ = eat(state, .assign);
+
+    // Parse value (simplified: capture until semicolon)
+    var value = []const u8{};
+    while (peek(state).kind != .semicolon and peek(state).kind != .eof) {
+        const tok = next(state);
+        value = appendStr(value, tok.text);
+    }
+    _ = eat(state, .semicolon);
+
+    return AstNode{
+        .const_decl = ConstDeclNode{
+            .pub_ = is_pub,
+            .name = nameTok.text,
+            .type_ref = typeRef,
+            .value = value,
+        },
+    };
+}
+
+// parseEnumDecl(state: *ParseState, is_pub: bool) → AstNode
+// Parses: enum NAME (BACKING) { VALUES }
+pub fn parseEnumDecl(state: *ParseState, is_pub: bool) AstNode {
+    const nameTok = next(state);
+    _ = eat(state, .l_paren);
+    const backingTok = next(state);
+    _ = eat(state, .r_paren);
+    _ = eat(state, .l_brace);
+
+    var values = []const EnumValueNode{};
+    while (peek(state).kind != .r_brace) {
+        const valueNameTok = next(state);
+        _ = eat(state, .eq);
+
+        // Parse value
+        var value = []const u8{};
+        while (peek(state).kind != .comma and peek(state).kind != .r_brace) {
+            const tok = next(state);
+            value = appendStr(value, tok.text);
+        }
+
+        values = append(values, EnumValueNode{
+            .name = valueNameTok.text,
+            .value = value,
+        });
+        _ = eat(state, .comma);
+    }
+    _ = eat(state, .r_brace);
+
+    return AstNode{
+        .enum_decl = EnumDeclNode{
+            .name = nameTok.text,
+            .backing = backingTok.text,
+            .values = values,
+        },
+    };
+}
+
+// parseStructDecl(state: *ParseState, is_pub: bool) → AstNode
+// Parses: struct NAME { FIELDS }
+pub fn parseStructDecl(state: *ParseState, is_pub: bool) AstNode {
+    const nameTok = next(state);
+    _ = eat(state, .l_brace);
+
+    var fields = []const FieldNode{};
+    while (peek(state).kind != .r_brace) {
+        const fieldNameTok = next(state);
+        _ = eat(state, .colon);
+
+        // Parse type reference
+        var typeRef = []const u8{};
+        while (peek(state).kind == .ident or peek(state).kind == .l_bracket or
+               peek(state).kind == .r_bracket or peek(state).kind == .star or
+               peek(state).kind == .question) {
+            const tok = next(state);
+            typeRef = appendStr(typeRef, tok.text);
+        }
+
+        fields = append(fields, FieldNode{
+            .name = fieldNameTok.text,
+            .type_ref = typeRef,
+        });
+        _ = eat(state, .comma);
+    }
+    _ = eat(state, .r_brace);
+
+    return AstNode{
+        .struct_decl = StructDeclNode{
+            .name = nameTok.text,
+            .fields = fields,
+        },
+    };
+}
+
+// parseFnDecl(state: *ParseState, is_pub: bool) → AstNode
+// Parses: fn NAME (PARAMS) -> RETURN { BODY }
+pub fn parseFnDecl(state: *ParseState, is_pub: bool) AstNode {
+    const nameTok = next(state);
+    _ = eat(state, .l_paren);
+
+    var params = []const ParamNode{};
+    while (peek(state).kind != .r_paren) {
+        const paramNameTok = next(state);
+        _ = eat(state, .colon);
+
+        // Parse type reference
+        var typeRef = []const u8{};
+        while (peek(state).kind == .ident or peek(state).kind == .l_bracket or
+               peek(state).kind == .r_bracket or peek(state).kind == .star or
+               peek(state).kind == .question) {
+            const tok = next(state);
+            typeRef = appendStr(typeRef, tok.text);
+        }
+
+        params = append(params, ParamNode{
+            .name = paramNameTok.text,
+            .type_ref = typeRef,
+        });
+        _ = eat(state, .comma);
+    }
+    _ = eat(state, .r_paren);
+
+    // Return type
+    var returnType = "void";
+    if (eat(state, .arrow)) {
+        const returnTok = next(state);
+        returnType = returnTok.text;
+    }
+
+    // Skip body for JSON output (simplified)
+    _ = eat(state, .l_brace);
+    var braceCount = 1;
+    while (braceCount > 0) {
+        const tok = next(state);
+        if (tok.kind == .l_brace) braceCount += 1;
+        if (tok.kind == .r_brace) braceCount -= 1;
+    }
+
+    return AstNode{
+        .fn_decl = FnDeclNode{
+            .name = nameTok.text,
+            .params = params,
+            .return_type = returnType,
+        },
+    };
+}
+
+// parseInvariantDecl(state: *ParseState) → AstNode
+// Parses: invariant NAME { BODY }
+pub fn parseInvariantDecl(state: *ParseState) AstNode {
+    const nameTok = next(state);
+
+    // Skip body
+    _ = eat(state, .l_brace);
+    var braceCount = 1;
+    while (braceCount > 0) {
+        const tok = next(state);
+        if (tok.kind == .l_brace) braceCount += 1;
+        if (tok.kind == .r_brace) braceCount -= 1;
+    }
+
+    return AstNode{
+        .invariant_decl = InvariantDeclNode{ .name = nameTok.text },
+    };
+}
+
+// parseTestDecl(state: *ParseState) → AstNode
+// Parses: test "NAME" { BODY }
+pub fn parseTestDecl(state: *ParseState) AstNode {
+    const nameTok = next(state);
+
+    // Skip body
+    _ = eat(state, .l_brace);
+    var braceCount = 1;
+    while (braceCount > 0) {
+        const tok = next(state);
+        if (tok.kind == .l_brace) braceCount += 1;
+        if (tok.kind == .r_brace) braceCount -= 1;
+    }
+
+    return AstNode{
+        .test_decl = TestDeclNode{ .name = nameTok.text },
+    };
+}
+
+// parseBenchDecl(state: *ParseState) → AstNode
+// Parses: bench "NAME" { BODY }
+pub fn parseBenchDecl(state: *ParseState) AstNode {
+    const nameTok = next(state);
+
+    // Skip body
+    _ = eat(state, .l_brace);
+    var braceCount = 1;
+    while (braceCount > 0) {
+        const tok = next(state);
+        if (tok.kind == .l_brace) braceCount += 1;
+        if (tok.kind == .r_brace) braceCount -= 1;
+    }
+
+    return AstNode{
+        .bench_decl = BenchDeclNode{ .name = nameTok.text },
+    };
+}
+
+// ============================================================================
+// JSON Output
+// ============================================================================
+
+// toJson(node: AstNode) → []const u8
+// Convert AST node to JSON string
+pub fn toJson(node: AstNode) []const u8 {
+    // Implementation spec:
+    // 1. Match on node.kind
+    // 2. Build JSON string with proper escaping
+    // 3. Return formatted JSON
+    return undefined;
+}
+
+// Helper: append to slice (placeholder for codegen)
+fn append(comptime T: type, slice: []const T, elem: T) []const T {
+    // Codegen should implement proper slice append
+    _ = slice;
+    _ = elem;
+    return undefined;
+}
+
+fn appendStr(slice: []const u8, text: []const u8) []const u8 {
+    // Codegen should implement proper string append
+    _ = slice;
+    _ = text;
+    return undefined;
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "test_tokenize_identifiers" {
+    const source = "module test; const x : i8 = 0;";
+    const tokens = tokenize(source);
+
+    expect(tokens[0].kind == .module_);
+    expect(tokens[1].kind == .ident);
+    expect(tokens[1].text == "test");
+    expect(tokens[2].kind == .semicolon);
+    expect(tokens[3].kind == .const_);
+    expect(tokens[4].kind == .ident);
+    expect(tokens[4].text == "x");
+}
+
+test "test_tokenize_keywords" {
+    const source = "pub const extern struct enum fn return if else using test bench invariant module type";
+    const tokens = tokenize(source);
+
+    expect(tokens[0].kind == .pub_);
+    expect(tokens[1].kind == .const_);
+    expect(tokens[2].kind == .extern_);
+    expect(tokens[3].kind == .struct_);
+    expect(tokens[4].kind == .enum_);
+    expect(tokens[5].kind == .fn_);
+}
+
+test "test_tokenize_numbers" {
+    const source = "0 1 -1 42 -99";
+    const tokens = tokenize(source);
+
+    expect(tokens[0].kind == .literal);
+    expect(tokens[0].text == "0");
+    expect(tokens[1].kind == .literal);
+    expect(tokens[1].text == "1");
+    expect(tokens[2].kind == .literal);
+    expect(tokens[2].text == "-1");
+}
+
+test "test_tokenize_string_literals" {
+    const source = "\"hello\" \"world\"";
+    const tokens = tokenize(source);
+
+    expect(tokens[0].kind == .literal);
+    expect(tokens[0].text == "hello");
+    expect(tokens[1].kind == .literal);
+    expect(tokens[1].text == "world");
+}
+
+test "test_tokenize_comments_semicolon" {
+    const source = "; this is a comment\nx = 1";
+    const tokens = tokenize(source);
+
+    // Comment should be skipped
+    expect(tokens[0].kind == .ident);
+    expect(tokens[0].text == "x");
+}
+
+test "test_tokenize_comments_double_slash" {
+    const source = "// this is a comment\nx = 1";
+    const tokens = tokenize(source);
+
+    // Comment should be skipped
+    expect(tokens[0].kind == .ident);
+    expect(tokens[0].text == "x");
+}
+
+test "test_tokenize_operators_arrow" {
+    const source = "->";
+    const tokens = tokenize(source);
+
+    expect(tokens[0].kind == .arrow);
+    expect(tokens[0].text == "->");
+}
+
+test "test_tokenize_operators_multi_char" {
+    const source = "== != <= >=";
+    const tokens = tokenize(source);
+
+    expect(tokens[0].kind == .eq);
+    expect(tokens[0].text == "==");
+    expect(tokens[1].kind == .ne);
+    expect(tokens[1].text == "!=");
+    expect(tokens[2].kind == .le);
+    expect(tokens[2].text == "<=");
+    expect(tokens[3].kind == .ge);
+    expect(tokens[3].text == ">=");
+}
+
+test "test_parse_module_with_name" {
+    const source = "module test;\nconst x : i8 = 0;";
+    const ast = parse(source);
+
+    expect(ast.name == "test");
+    expect(ast.decls.len == 1);
+    expect(ast.decls[0].const_decl.name == "x");
+}
+
+test "test_parse_const_decl" {
+    const source = "const x : i8 = 42;";
+    const ast = parse(source);
+
+    expect(ast.decls[0].const_decl.name == "x");
+    expect(ast.decls[0].const_decl.type_ref == "i8");
+}
+
+test "test_parse_pub_const_decl" {
+    const source = "pub const X : u8 = 1;";
+    const ast = parse(source);
+
+    expect(ast.decls[0].const_decl.pub_ == true);
+    expect(ast.decls[0].const_decl.name == "X");
+}
+
+test "test_parse_enum_decl" {
+    const source = "enum(i8) { neg = -1, zero = 0, pos = 1 }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].enum_decl.backing == "i8");
+    expect(ast.decls[0].enum_decl.values.len == 3);
+}
+
+test "test_parse_struct_decl" {
+    const source = "struct Point { x : i8, y : i8 }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].struct_decl.name == "Point");
+    expect(ast.decls[0].struct_decl.fields.len == 2);
+}
+
+test "test_parse_fn_decl_simple" {
+    const source = "fn add(a : i8, b : i8) i8 { a + b }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].fn_decl.name == "add");
+    expect(ast.decls[0].fn_decl.params.len == 2);
+    expect(ast.decls[0].fn_decl.return_type == "i8");
+}
+
+test "test_parse_fn_decl_void_return" {
+    const source = "fn foo() { }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].fn_decl.name == "foo");
+    expect(ast.decls[0].fn_decl.return_type == "void");
+}
+
+test "test_parse_test_decl" {
+    const source = "test \"simple test\" { const x = 1; }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].test_decl.name == "simple test");
+}
+
+test "test_parse_bench_decl" {
+    const source = "bench \"measure\" { var x = 0; }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].bench_decl.name == "measure");
+}
+
+test "test_parse_invariant_decl" {
+    const source = "invariant trit_value_range { @compileAssert(true); }";
+    const ast = parse(source);
+
+    expect(ast.decls[0].invariant_decl.name == "trit_value_range");
+}
+
+test "test_parse_types_file" {
+    const source = loadFile("specs/base/types.t27");
+    const ast = parse(source);
+
+    // Should parse entire types.t27 without error
+    expect(ast.decls.len > 0);
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant token_kinds_unique {
+    // All TokenKind enum values must be unique
+    // Enforced by compiler
+}
+
+invariant ast_node_kinds_unique {
+    // All AstNodeKind enum values must be unique
+    // Enforced by compiler
+}
+
+invariant parser_position_bounds {
+    // Parser position must stay within token list bounds
+    // Enforced by parser implementation
+}
+
+invariant tokenizer_position_bounds {
+    // Tokenizer position must stay within source bounds
+    // Enforced by tokenizer implementation
+}
+
+invariant module_has_valid_name {
+    // Module name must be valid identifier or empty
+}
+
+invariant const_decl_has_name_and_type {
+    // Const declarations must have non-empty name and type
+}
+
+invariant enum_decl_has_backing {
+    // Enum declarations must specify backing type
+}
+
+invariant struct_decl_has_name {
+    // Struct declarations must have non-empty name
+}
+
+invariant fn_decl_has_name {
+    // Function declarations must have non-empty name
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "bench_tokenize_simple_file" {
+    // Measure: tokenization speed for simple .t27 file
+    const source = "module test; const x : i8 = 0;";
+    const tokens = tokenize(source);
+    _ = tokens;
+}
+
+bench "bench_parse_simple_module" {
+    // Measure: parsing speed for simple module
+    const source = "module test; const x : i8 = 0; const y : i8 = 1;";
+    const ast = parse(source);
+    _ = ast;
+}
+
+bench "bench_parse_types_file" {
+    // Measure: parsing speed for types.t27 (realistic test)
+    const source = loadFile("specs/base/types.t27");
+    const ast = parse(source);
+    _ = ast;
+}
+
+bench "bench_to_json" {
+    // Measure: JSON serialization speed
+    const source = "module test; const x : i8 = 0;";
+    const ast = parse(source);
+    const json = toJson(ast);
+    _ = json;
+}
+

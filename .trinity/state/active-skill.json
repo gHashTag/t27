@@ -1,20 +1,16 @@
 {
-  "skill_id": "tri-base",
-  "session_id": "2026-04-04T08:00:00Z#fix1",
-  "issue_id": "LOCAL-002",
-  "description": "Fix tri skill registration and clean artifacts",
-  "started_at": "2026-04-04T08:00:00Z",
-  "started_by": "agent:claude-code",
+  "skill_id": "tri-constitution",
+  "session_id": "2026-04-04T08:30:00Z#tri",
+  "issue_id": "INFRA",
+  "issue_title": "PHI LOOP Infrastructure: Parser Tests",
+  "description": "Write parser tests for compiler/parser.t27 spec",
+  "started_at": "2026-04-04T08:25:00Z",
+  "started_by": "agent:tri",
   "status": "active",
   "allowed_paths": [
-    ".claude/skills/",
-    ".gitignore",
-    "specs/numeric/gf16.t27",
-    "tri"
-  ],
-  "metadata": {
-    "priority": "normal",
-    "tags": ["fix", "skill", "cleanup"],
-    "origin": "cli"
-  }
+    "specs/compiler/parser.t27",
+    ".trinity/state/",
+    "docs/SOUL.md",
+    ".claude/skills/tri/"
+  ]
 }
