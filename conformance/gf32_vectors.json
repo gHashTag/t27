@@ -1,0 +1,194 @@
+{
+  "module": "GF32",
+  "spec_path": "specs/numeric/gf32.t27",
+  "ring": 27,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "description": "GoldenFloat32 Conformance Vectors -- NUMERIC-STANDARD-001",
+  "version": "1.0",
+  "format_name": "GF32",
+  "format_bits": 32,
+  "phi_distance": 0.01354495894042812,
+  "sacred_ok": true,
+  "is_primary": false,
+
+  "format_spec": {
+    "bits": 32,
+    "sign_bits": 1,
+    "exp_bits": 12,
+    "mant_bits": 19,
+    "exp_mant_ratio": 0.6315789473684211,
+    "exp_bias": 2047,
+    "memory_ratio_vs_fp32": 1.0
+  },
+
+  "vectors": [
+    {
+      "test_name": "gf32_decode_zero",
+      "inputs": { "raw": 0 },
+      "expected": { "decoded": 0.0, "tolerance_abs": 0.0 }
+    },
+    {
+      "test_name": "gf32_encode_zero_roundtrip",
+      "inputs": { "value": 0.0 },
+      "expected": { "raw": 0, "decoded": 0.0, "tolerance_abs": 0.0 }
+    },
+    {
+      "test_name": "gf32_bits_sum_correct",
+      "inputs": { "sign_bits": 1, "exp_bits": 12, "mant_bits": 19 },
+      "expected": { "total": 32 }
+    },
+    {
+      "test_name": "gf32_max_value_positive",
+      "inputs": {},
+      "expected": { "max_value_positive": true }
+    },
+    {
+      "test_name": "gf32_min_positive_greater_than_zero",
+      "inputs": {},
+      "expected": { "min_positive_gt_zero": true }
+    },
+    {
+      "test_name": "gf32_epsilon_positive",
+      "inputs": {},
+      "expected": { "epsilon": 1.9073486328125e-06, "positive": true }
+    },
+    {
+      "test_name": "gf32_phi_distance_near_optimal",
+      "inputs": { "phi_distance": 0.01354495894042812 },
+      "expected": { "less_than": 0.015 }
+    },
+    {
+      "test_name": "gf32_memory_ratio_equals_one",
+      "inputs": { "ratio": 1.0 },
+      "expected": { "target": 1.0, "tolerance_abs": 0.0 }
+    },
+    {
+      "test_name": "gf32_validate_format_success",
+      "inputs": {},
+      "expected": { "valid": true }
+    },
+    {
+      "test_name": "gf32_one_point_zero",
+      "inputs": { "value": 1.0 },
+      "expected": {
+        "exp_biased": 2047,
+        "mant": 0,
+        "decoded": 1.0,
+        "tolerance_abs": 1.9073486328125e-06
+      }
+    },
+    {
+      "test_name": "gf32_phi_golden_ratio",
+      "inputs": { "value": 1.61803398875 },
+      "expected": {
+        "decoded": 1.618034,
+        "tolerance_abs": 0.00001,
+        "sacred_ok": true
+      }
+    },
+    {
+      "test_name": "gf32_ieee_comparison",
+      "inputs": {
+        "ieee_exp_bits": 8,
+        "ieee_mant_bits": 23,
+        "ieee_phi_distance": 0.270
+      },
+      "expected": {
+        "gf32_exp_wider": true,
+        "gf32_phi_closer": true,
+        "advantage_factor": 19.9
+      }
+    },
+    {
+      "test_name": "gf32_pow_zero_exponent_returns_one",
+      "inputs": { "base": 2.0, "exponent": 0.0 },
+      "expected": { "result": 1.0, "tolerance_abs": 1e-6 }
+    },
+    {
+      "test_name": "gf32_pow_positive_integer_exponent",
+      "inputs": { "base": 2.0, "exponent": 5.0 },
+      "expected": { "result": 32.0, "tolerance_abs": 1e-5 }
+    },
+    {
+      "test_name": "gf32_pow_negative_integer_exponent",
+      "inputs": { "base": 2.0, "exponent": -3.0 },
+      "expected": { "result": 0.125, "tolerance_abs": 1e-5 }
+    },
+    {
+      "test_name": "gf32_pow_fractional_exponent",
+      "inputs": { "base": 4.0, "exponent": 0.5 },
+      "expected": { "result": 2.0, "tolerance_abs": 1e-4 }
+    },
+    {
+      "test_name": "gf32_ln_approx_of_one",
+      "inputs": { "x": 1.0 },
+      "expected": { "result": 0.0, "tolerance_abs": 1e-6 }
+    },
+    {
+      "test_name": "gf32_ln_approx_of_e",
+      "inputs": { "x": 2.718281828459045 },
+      "expected": { "result": 1.0, "tolerance_abs": 0.01 }
+    },
+    {
+      "test_name": "gf32_exp_approx_zero",
+      "inputs": { "x": 0.0 },
+      "expected": { "result": 1.0, "tolerance_abs": 1e-6 }
+    },
+    {
+      "test_name": "gf32_exp_approx_one",
+      "inputs": { "x": 1.0 },
+      "expected": { "result": 2.718281828459045, "tolerance_abs": 0.01 }
+    },
+    {
+      "test_name": "gf32_floor_positive",
+      "inputs": { "x": 3.7 },
+      "expected": { "result": 3.0, "tolerance_abs": 1e-6 }
+    },
+    {
+      "test_name": "gf32_floor_negative",
+      "inputs": { "x": -3.2 },
+      "expected": { "result": -4.0, "tolerance_abs": 1e-6 }
+    }
+  ],
+
+  "invariants": [
+    { "name": "gf32_bits_constant", "assertion": "BITS == 32" },
+    { "name": "gf32_sign_bits_is_one", "assertion": "SIGN_BITS == 1" },
+    { "name": "gf32_exp_bits_is_twelve", "assertion": "EXP_BITS == 12" },
+    { "name": "gf32_mant_bits_is_nineteen", "assertion": "MANT_BITS == 19" },
+    { "name": "gf32_max_ge_min_positive", "assertion": "max_value() >= min_positive()" },
+    { "name": "gf32_phi_distance_near_optimal", "assertion": "PHI_DISTANCE < 0.015" },
+    { "name": "gf32_exp_bias_positive", "assertion": "EXP_BIAS > 0" },
+    { "name": "gf32_exp_wider_than_ieee", "assertion": "EXP_BITS > 8" },
+    { "name": "gf32_mant_narrower_than_ieee", "assertion": "MANT_BITS < 23" },
+    { "name": "gf32_pow_zero_exponent_identity", "assertion": "pow(x, 0.0) == 1.0 for all positive x" },
+    { "name": "gf32_pow_one_exponent_identity", "assertion": "pow(x, 1.0) == x for all valid x" },
+    { "name": "gf32_ln_exp_inversion", "assertion": "abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0" },
+    { "name": "gf32_floor_returns_integer", "assertion": "floor(x) is integer for all f32 x" },
+    { "name": "gf32_floor_monotonic", "assertion": "floor(2.5) <= floor(3.5)" }
+  ],
+
+  "benchmark_metrics": {
+    "encode_latency_target_ns": 300,
+    "decode_latency_target_ns": 250,
+    "pow_integer_latency_target_ns": 500,
+    "ln_latency_target_ns": 300,
+    "exp_latency_target_ns": 500,
+    "floor_latency_target_ns": 50,
+    "memory_savings_vs_fp32": 0.0,
+    "use_cases": [
+      "near_ieee754_precision",
+      "wider_dynamic_range",
+      "phi_optimized_layout",
+      "scientific_computing",
+      "financial_calculations"
+    ],
+    "comparison_vs_ieee_fp32": {
+      "ieee_exp_bits": 8,
+      "ieee_mant_bits": 23,
+      "ieee_phi_distance": 0.270,
+      "gf32_phi_distance": 0.01354,
+      "phi_advantage": "19.9x closer to sacred ratio"
+    }
+  }
+}
