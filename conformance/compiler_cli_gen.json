@@ -1,0 +1,35 @@
+{
+  "module": "GenCommands",
+  "spec_path": "compiler/cli/gen.t27",
+  "ring": 36,
+  "generated_at": "2026-04-04T21:00:00Z",
+  "vectors": [
+    {
+      "function": "gen",
+      "cases": [
+        { "inputs": { "spec_path": "specs/valid.t27", "backend": "zig" }, "expected": 0 },
+        { "inputs": { "spec_path": "nonexistent.t27", "backend": "zig" }, "expected": 1 }
+      ]
+    },
+    {
+      "function": "basename_without_ext",
+      "cases": [
+        { "inputs": { "path": "specs/test.t27" }, "expected": "test" },
+        { "inputs": { "path": "specs/nested/test.t27" }, "expected": "test" },
+        { "inputs": { "path": "specs\\nested\\test.t27" }, "expected": "test" }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "gen_enforces_tdd_contract", "assert": "gen() returns 1 if spec has no tests" },
+    { "name": "gen_counts_tests_and_invariants", "assert": "Both test_section and spec_decl counted" },
+    { "name": "gen_all_counts_success_and_failure", "assert": "gen_all tracks counts" },
+    { "name": "basename_returns_filename_only", "assert": "Returns filename without extension or path" },
+    { "name": "testgen_generates_based_on_backend", "assert": "Different output for json vs code" }
+  ],
+  "benchmarks": [
+    { "name": "gen_latency", "target": "< 100ms" },
+    { "name": "gen_all_latency", "target": "< 1s" },
+    { "name": "basename_without_ext_latency", "target": "< 1us" }
+  ]
+}
