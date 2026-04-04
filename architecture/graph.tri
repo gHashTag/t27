@@ -287,6 +287,44 @@ edges {
     // Constants → Sacred Physics
     trisacred-constants -> trisacred-physics;
 
+    // ═══════════════════════════════════════════════════════
+    // AR Module Edges (CLARA TA1 Deliverable)
+    // ═══════════════════════════════════════════════════════
+    // Base + numeric → Ternary Logic (AR-001)
+    tritype-base -> triar-logic;
+    tritype-numeric -> triar-logic;
+
+    // Ternary Logic + GF16 → Proof Trace (AR-002)
+    triar-logic -> triar-proof-trace;
+    triformat-gf16 -> triar-proof-trace;
+
+    // Ternary Logic + Proof Trace → Datalog (AR-003)
+    triar-logic -> triar-datalog;
+    triar-proof-trace -> triar-datalog;
+    triformat-gf16 -> triar-datalog;
+
+    // Proof Trace + GF16 → Restraint (AR-004)
+    triar-proof-trace -> triar-restraint;
+    triformat-gf16 -> triar-restraint;
+
+    // Proof Trace + Datalog → Explainability (AR-005)
+    triar-proof-trace -> triar-explainability;
+    triar-datalog -> triar-explainability;
+    triformat-gf16 -> triar-explainability;
+
+    // Datalog + Restraint → ASP Solver (AR-006)
+    triar-datalog -> triar-asp;
+    triar-restraint -> triar-asp;
+    triformat-gf16 -> triar-asp;
+
+    // Explainability + ASP → Composition (AR-007)
+    triar-explainability -> triar-composition;
+    triar-asp -> triar-composition;
+    triformat-gf16 -> triar-composition;
+
+    // ═══════════════════════════════════════════════════════
+    // Neural Network Edges
+    // ═══════════════════════════════════════════════════════
     // Base + numeric + constants + VSA → Attention
     tritype-base -> triatt-sacred;
     triformat-gf16 -> triatt-sacred;
@@ -333,6 +371,19 @@ phi_critical_edges {
     trisacred-constants -> trinhslm;
     trisacred-physics -> triatt-sacredred;
     trisacred-physics -> trinhslm;
+    triar-logic -> triar-proof-trace;
+    triar-logic -> triar-datalog;
+    triar-proof-trace -> triar-explainability;
+    triar-proof-trace -> triar-restraint;
+    triar-datalog -> triar-asp;
+    triar-explainability -> triar-composition;
+    triar-asp -> triar-composition;
+    triformat-gf16 -> triar-proof-trace;
+    triformat-gf16 -> triar-datalog;
+    triformat-gf16 -> triar-restraint;
+    triformat-gf16 -> triar-explainability;
+    triformat-gf16 -> triar-asp;
+    triformat-gf16 -> triar-composition;
 }
 
 sacred_core_edges {
