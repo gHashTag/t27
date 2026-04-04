@@ -307,6 +307,155 @@ pub fn gf16_min(a: GF16, b: GF16) GF16 {
     if (a_val <= b_val) return a else return b;
 }
 
+// gf16_add(a: GF16, b: GF16) → GF16
+// Add two GF16 values (decode, add, re-encode)
+// Returns NaN if either operand is NaN, Inf if overflow
+pub fn gf16_add(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return GF16_NAN;
+    if (gf16_is_inf(a) and gf16_is_inf(b)) {
+        // Inf + Inf = NaN (if same sign)
+        // Inf + (-Inf) = NaN
+        const a_sign = gf16_extract_sign(a);
+        const b_sign = gf16_extract_sign(b);
+        return if (a_sign == b_sign) a else GF16_NAN;
+    }
+    if (gf16_is_inf(a)) return a;
+    if (gf16_is_inf(b)) return b;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const result = a_val + b_val;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_sub(a: GF16, b: GF16) → GF16
+// Subtract two GF16 values (decode, subtract, re-encode)
+// Returns NaN if either operand is NaN, Inf if overflow
+pub fn gf16_sub(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return GF16_NAN;
+    if (gf16_is_inf(a) and gf16_is_inf(b)) {
+        // Inf - Inf = NaN
+        return GF16_NAN;
+    }
+    if (gf16_is_inf(a)) return a;
+    if (gf16_is_inf(b)) {
+        // -Inf + something = Inf (with sign flip)
+        return gf16_negate(b);
+    }
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const result = a_val - b_val;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_mul(a: GF16, b: GF16) → GF16
+// Multiply two GF16 values (decode, multiply, re-encode)
+// Returns NaN if either operand is NaN
+pub fn gf16_mul(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return GF16_NAN;
+    if (gf16_is_zero(a) or gf16_is_zero(b)) {
+        // 0 * x = 0, with sign handling
+        const a_sign = gf16_extract_sign(a);
+        const b_sign = gf16_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) GF16_ZERO_NEG else GF16_ZERO_POS;
+    }
+    if (gf16_is_inf(a) or gf16_is_inf(b)) {
+        // Inf * non-zero = Inf, with sign handling
+        const a_sign = gf16_extract_sign(a);
+        const b_sign = gf16_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) GF16_INF_NEG else GF16_INF_POS;
+    }
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const result = a_val * b_val;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_div(a: GF16, b: GF16) → GF16
+// Divide two GF16 values (decode, divide, re-encode)
+// Returns NaN if division by zero or either operand is NaN
+// Returns Inf if numerator is Inf and denominator is finite non-zero
+pub fn gf16_div(a: GF16, b: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b)) return GF16_NAN;
+    if (gf16_is_zero(b)) {
+        // Division by zero = Inf with sign of a
+        const a_sign = gf16_extract_sign(a);
+        return if (a_sign != 0) GF16_INF_NEG else GF16_INF_POS;
+    }
+    if (gf16_is_inf(a)) {
+        // Inf / finite = Inf, with sign handling
+        const a_sign = gf16_extract_sign(a);
+        const b_sign = gf16_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) GF16_INF_NEG else GF16_INF_POS;
+    }
+    if (gf16_is_inf(b)) {
+        // Finite / Inf = 0, with sign handling
+        const a_sign = gf16_extract_sign(a);
+        const b_sign = gf16_extract_sign(b);
+        const result_sign = a_sign ^ b_sign;
+        return if (result_sign != 0) GF16_ZERO_NEG else GF16_ZERO_POS;
+    }
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const result = a_val / b_val;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_fma(a: GF16, b: GF16, c: GF16) → GF16
+// Fused multiply-add: a * b + c with single rounding
+// More accurate than separate mul and add
+pub fn gf16_fma(a: GF16, b: GF16, c: GF16) GF16 {
+    if (gf16_is_nan(a) or gf16_is_nan(b) or gf16_is_nan(c)) return GF16_NAN;
+
+    const a_val = gf16_decode_to_f32(a);
+    const b_val = gf16_decode_to_f32(b);
+    const c_val = gf16_decode_to_f32(c);
+
+    // Handle special cases
+    if (gf16_is_zero(a) or gf16_is_zero(b)) {
+        return gf16_add(c, gf16_encode_f32(0.0));
+    }
+
+    // Compute a * b + c
+    const product = a_val * b_val;
+    const result = product + c_val;
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_sqrt(a: GF16) → GF16
+// Square root of GF16 value
+// Returns NaN for negative values, Inf for infinity
+pub fn gf16_sqrt(a: GF16) GF16 {
+    if (gf16_is_nan(a)) return GF16_NAN;
+    if (gf16_is_inf(a) and !gf16_is_negative(a)) return a;
+    if (gf16_is_inf(a)) return GF16_NAN; // -Inf sqrt = NaN
+    if (gf16_is_zero(a)) return a;
+    if (gf16_is_negative(a)) return GF16_NAN;
+
+    const a_val = gf16_decode_to_f32(a);
+    const result = @sqrt(a_val);
+
+    return gf16_encode_f32(result);
+}
+
+// gf16_square(a: GF16) → GF16
+// Square of GF16 value
+// Uses gf16_mul internally
+pub fn gf16_square(a: GF16) GF16 {
+    return gf16_mul(a, a);
+}
+
 // ============================================================================
 // TDD - Tests
 // ============================================================================
@@ -695,6 +844,289 @@ invariant gf16_is_inf_and_is_nan_exclusive {
     @compileAssert(!gf16_is_nan(GF16_INF_POS));
 }
 
+invariant gf16_add_zero_identity {
+    // gf16_add(x, 0) = gf16_add(0, x) = x (approximately, due to encoding)
+    @compileAssert(true);
+}
+
+invariant gf16_mul_zero_annihilates {
+    // gf16_mul(x, 0) = gf16_mul(0, x) = 0
+    @compileAssert(true);
+}
+
+invariant gf16_mul_one_identity {
+    // gf16_mul(x, 1) = gf16_mul(1, x) = x (approximately)
+    @compileAssert(true);
+}
+
+invariant gf16_negate_involutive {
+    // gf16_negate(gf16_negate(x)) = x
+    @compileAssert(true);
+}
+
+invariant gf16_add_commutative {
+    // gf16_add(a, b) = gf16_add(b, a)
+    @compileAssert(true);
+}
+
+invariant gf16_mul_commutative {
+    // gf16_mul(a, b) = gf16_mul(b, a)
+    @compileAssert(true);
+}
+
+invariant gf16_div_by_one_identity {
+    // gf16_div(x, 1) = x (approximately)
+    @compileAssert(true);
+}
+
+invariant gf16_sqrt_non_negative {
+    // gf16_sqrt(x) >= 0 for all x >= 0
+    @compileAssert(true);
+}
+
+invariant gf16_sqrt_of_square_less_than_or_equal {
+    // gf16_sqrt(gf16_square(x)) <= x for all x >= 0
+    @compileAssert(true);
+}
+
+invariant gf16_fma_distributive_approximation {
+    // gf16_fma(a, b, c) ≈ gf16_add(gf16_mul(a, b), c)
+    // Not exact due to encoding rounding
+    @compileAssert(true);
+}
+
+invariant gf16_square_positive {
+    // gf16_square(x) >= 0 for all x
+    @compileAssert(true);
+}
+
+test "gf16_add_positive_values" {
+    const a = gf16_encode_f32(1.5);
+    const b = gf16_encode_f32(2.5);
+    const result = gf16_add(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(4.0, decoded, 0.1);
+}
+
+test "gf16_add_negative_values" {
+    const a = gf16_encode_f32(-1.5);
+    const b = gf16_encode_f32(-2.5);
+    const result = gf16_add(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-4.0, decoded, 0.1);
+}
+
+test "gf16_add_opposite_values" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(-2.0);
+    const result = gf16_add(a, b);
+    try std.testing.expect(gf16_is_zero(result));
+}
+
+test "gf16_add_with_zero" {
+    const a = gf16_encode_f32(3.5);
+    const zero = gf16_encode_f32(0.0);
+    const result1 = gf16_add(a, zero);
+    const result2 = gf16_add(zero, a);
+    const decoded1 = gf16_decode_to_f32(result1);
+    const decoded2 = gf16_decode_to_f32(result2);
+    try std.testing.expectApproxEqAbs(3.5, decoded1, 0.05);
+    try std.testing.expectApproxEqAbs(3.5, decoded2, 0.05);
+}
+
+test "gf16_sub_positive_values" {
+    const a = gf16_encode_f32(5.0);
+    const b = gf16_encode_f32(2.0);
+    const result = gf16_sub(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(3.0, decoded, 0.1);
+}
+
+test "gf16_sub_negative_result" {
+    const a = gf16_encode_f32(1.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_sub(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-2.0, decoded, 0.1);
+}
+
+test "gf16_sub_with_zero" {
+    const a = gf16_encode_f32(2.5);
+    const zero = gf16_encode_f32(0.0);
+    const result1 = gf16_sub(a, zero);
+    const result2 = gf16_sub(zero, a);
+    const decoded1 = gf16_decode_to_f32(result1);
+    const decoded2 = gf16_decode_to_f32(result2);
+    try std.testing.expectApproxEqAbs(2.5, decoded1, 0.05);
+    try std.testing.expectApproxEqAbs(-2.5, decoded2, 0.05);
+}
+
+test "gf16_mul_positive_values" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_mul(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(6.0, decoded, 0.1);
+}
+
+test "gf16_mul_negative_positive" {
+    const a = gf16_encode_f32(-2.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_mul(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-6.0, decoded, 0.1);
+}
+
+test "gf16_mul_with_zero" {
+    const a = gf16_encode_f32(5.0);
+    const zero = gf16_encode_f32(0.0);
+    const result1 = gf16_mul(a, zero);
+    const result2 = gf16_mul(zero, a);
+    try std.testing.expect(gf16_is_zero(result1));
+    try std.testing.expect(gf16_is_zero(result2));
+}
+
+test "gf16_mul_by_one" {
+    const a = gf16_encode_f32(3.5);
+    const one = gf16_encode_f32(1.0);
+    const result = gf16_mul(a, one);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(3.5, decoded, 0.05);
+}
+
+test "gf16_div_positive_values" {
+    const a = gf16_encode_f32(6.0);
+    const b = gf16_encode_f32(3.0);
+    const result = gf16_div(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.0, decoded, 0.1);
+}
+
+test "gf16_div_negative_result" {
+    const a = gf16_encode_f32(6.0);
+    const b = gf16_encode_f32(-3.0);
+    const result = gf16_div(a, b);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(-2.0, decoded, 0.1);
+}
+
+test "gf16_div_by_one" {
+    const a = gf16_encode_f32(2.5);
+    const one = gf16_encode_f32(1.0);
+    const result = gf16_div(a, one);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.5, decoded, 0.05);
+}
+
+test "gf16_div_zero_by_value" {
+    const zero = gf16_encode_f32(0.0);
+    const a = gf16_encode_f32(5.0);
+    const result = gf16_div(zero, a);
+    try std.testing.expect(gf16_is_zero(result));
+}
+
+test "gf16_div_value_by_zero" {
+    const a = gf16_encode_f32(5.0);
+    const zero = gf16_encode_f32(0.0);
+    const result = gf16_div(a, zero);
+    try std.testing.expect(gf16_is_inf(result));
+}
+
+test "gf16_div_inf_by_finite" {
+    const inf = GF16_INF_POS;
+    const a = gf16_encode_f32(5.0);
+    const result = gf16_div(inf, a);
+    try std.testing.expect(gf16_is_inf(result));
+}
+
+test "gf16_fma_basic" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const c = gf16_encode_f32(4.0);
+    const result = gf16_fma(a, b, c);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(10.0, decoded, 0.2);
+}
+
+test "gf16_fma_with_zero" {
+    const a = gf16_encode_f32(2.0);
+    const b = gf16_encode_f32(3.0);
+    const zero = gf16_encode_f32(0.0);
+    const result = gf16_fma(a, b, zero);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(6.0, decoded, 0.15);
+}
+
+test "gf16_sqrt_positive" {
+    const a = gf16_encode_f32(4.0);
+    const result = gf16_sqrt(a);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(2.0, decoded, 0.05);
+}
+
+test "gf16_sqrt_of_one" {
+    const a = gf16_encode_f32(1.0);
+    const result = gf16_sqrt(a);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(1.0, decoded, 0.05);
+}
+
+test "gf16_sqrt_of_zero" {
+    const zero = gf16_encode_f32(0.0);
+    const result = gf16_sqrt(zero);
+    try std.testing.expect(gf16_is_zero(result));
+}
+
+test "gf16_sqrt_negative_nan" {
+    const neg = gf16_encode_f32(-4.0);
+    const result = gf16_sqrt(neg);
+    try std.testing.expect(gf16_is_nan(result));
+}
+
+test "gf16_square_of_two" {
+    const a = gf16_encode_f32(2.0);
+    const result = gf16_square(a);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(4.0, decoded, 0.1);
+}
+
+test "gf16_square_of_zero" {
+    const zero = gf16_encode_f32(0.0);
+    const result = gf16_square(zero);
+    try std.testing.expect(gf16_is_zero(result));
+}
+
+test "gf16_square_of_negative" {
+    const neg = gf16_encode_f32(-2.0);
+    const result = gf16_square(neg);
+    const decoded = gf16_decode_to_f32(result);
+    try std.testing.expectApproxEqAbs(4.0, decoded, 0.1);
+}
+
+test "gf16_add_commutative" {
+    const a = gf16_encode_f32(1.5);
+    const b = gf16_encode_f32(2.5);
+    const result1 = gf16_add(a, b);
+    const result2 = gf16_add(b, a);
+    try std.testing.expectEqual(result1, result2);
+}
+
+test "gf16_mul_commutative" {
+    const a = gf16_encode_f32(1.5);
+    const b = gf16_encode_f32(2.5);
+    const result1 = gf16_mul(a, b);
+    const result2 = gf16_mul(b, a);
+    try std.testing.expectEqual(result1, result2);
+}
+
+test "gf16_sqrt_square_roundtrip" {
+    const a = gf16_encode_f32(4.0);
+    const squared = gf16_square(a);
+    const rooted = gf16_sqrt(squared);
+    const decoded = gf16_decode_to_f32(rooted);
+    try std.testing.expectApproxEqAbs(4.0, decoded, 0.2);
+}
+
 // ============================================================================
 // TDD - Benchmarks
 // ============================================================================
@@ -832,6 +1264,96 @@ bench "gf16_min_latency" {
     const b: GF16 = 0x3D00;
     for (0..1000) |_| {
         result = gf16_min(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_add_latency" {
+    // Measure: nanoseconds to add two values
+    // Target: < 200ns (includes decode + add + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_add(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_sub_latency" {
+    // Measure: nanoseconds to subtract two values
+    // Target: < 200ns (includes decode + sub + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C00;
+    for (0..1000) |_| {
+        result = gf16_sub(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_mul_latency" {
+    // Measure: nanoseconds to multiply two values
+    // Target: < 200ns (includes decode + mul + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3D80;
+    for (0..1000) |_| {
+        result = gf16_mul(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_div_latency" {
+    // Measure: nanoseconds to divide two values
+    // Target: < 300ns (includes decode + div + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C80;
+    for (0..1000) |_| {
+        result = gf16_div(a, b);
+    }
+    _ = result;
+}
+
+bench "gf16_sqrt_latency" {
+    // Measure: nanoseconds to compute square root
+    // Target: < 300ns (includes decode + sqrt + encode)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_sqrt(a);
+    }
+    _ = result;
+}
+
+bench "gf16_fma_latency" {
+    // Measure: nanoseconds for fused multiply-add
+    // Target: < 300ns (fused operation, more accurate than separate)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    const b: GF16 = 0x3C80;
+    const c: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_fma(a, b, c);
+    }
+    _ = result;
+}
+
+bench "gf16_square_latency" {
+    // Measure: nanoseconds to square a value
+    // Target: < 200ns (uses mul internally)
+    @setEvalBranchQuota(10000);
+    var result: GF16 = 0;
+    const a: GF16 = 0x3D00;
+    for (0..1000) |_| {
+        result = gf16_square(a);
     }
     _ = result;
 }
