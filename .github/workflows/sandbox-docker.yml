@@ -6,11 +6,10 @@ on:
     paths:
       - 'backend/sandbox/**'
       - '.github/workflows/sandbox-docker.yml'
-  workflow_dispatch:  # allow manual trigger
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/ghashtagg/t27-sandbox
 
 permissions:
   contents: read
@@ -28,6 +27,9 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image name (lowercase owner)
+        run: echo "IMAGE_NAME=${{ env.REGISTRY }}/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/t27-sandbox" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
