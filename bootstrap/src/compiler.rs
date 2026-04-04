@@ -127,7 +127,7 @@ pub enum TokenKind {
     LBracket, RBracket, Dot, Bang,
 
     // Multi-char
-    Arrow, FatArrow, Power, DotDot,
+    Arrow, FatArrow, Power, DotDot, PlusPlus,
     ShiftLeft, ShiftRight, PlusEquals, PlusPercent,
 
     // Special
@@ -449,6 +449,17 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::ShiftRight,
                     lexeme: String::from(">>"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'+', b'+'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PlusPlus,
+                    lexeme: String::from("++"),
                     line: start_line,
                     col: start_col,
                 };
@@ -1990,32 +2001,43 @@ impl Parser {
         lit.name = name;
 
         while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
-            // Expect .field = expr
+            // Expect .field = expr  OR  field = expr (dot-prefix optional)
+            let field_name;
             if self.current.kind == TokenKind::Dot {
                 self.advance(); // consume .
-                let field_name = if self.current.kind == TokenKind::Ident {
+                field_name = if self.current.kind == TokenKind::Ident {
                     let n = self.current.lexeme.clone();
                     self.advance();
                     n
                 } else {
                     String::new()
                 };
-
-                if self.current.kind == TokenKind::Equals {
-                    self.advance(); // consume =
-                }
-
-                let val = self.parse_expr()?;
-                let mut field = Node::new(NodeKind::ExprFieldAccess);
-                field.name = field_name;
-                field.children.push(val);
-                lit.children.push(field);
-
-                if self.current.kind == TokenKind::Comma {
-                    self.advance();
+            } else if self.current.kind == TokenKind::Ident {
+                // Allow field = expr without dot prefix
+                let n = self.current.lexeme.clone();
+                // Peek: only treat as field init if followed by '='
+                if self.peek.kind == TokenKind::Equals {
+                    field_name = n;
+                    self.advance(); // consume field name
+                } else {
+                    break;
                 }
             } else {
                 break;
+            }
+
+            if self.current.kind == TokenKind::Equals {
+                self.advance(); // consume =
+            }
+
+            let val = self.parse_expr()?;
+            let mut field = Node::new(NodeKind::ExprFieldAccess);
+            field.name = field_name;
+            field.children.push(val);
+            lit.children.push(field);
+
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
             }
         }
         self.expect(TokenKind::RBrace)?;
@@ -2044,36 +2066,93 @@ impl Parser {
 
         // Check for { ... } initializer — collect verbatim with proper spacing
         if self.current.kind == TokenKind::LBrace {
-            text.push_str("{ ");
-            self.advance(); // consume {
-            let mut depth = 1;
-            while depth > 0 && self.current.kind != TokenKind::Eof {
+            self.collect_array_brace_init(&mut text)?;
+        }
+
+        // Handle ++ array concatenation: [_]T{a} ++ [_]T{b} ** N
+        // Collect the entire expression verbatim for Zig pass-through
+        while self.current.kind == TokenKind::PlusPlus {
+            text.push_str(" ++ ");
+            self.advance(); // consume ++
+
+            // Expect another array literal: [_]Type{ ... }
+            if self.current.kind == TokenKind::LBracket {
+                text.push('[');
+                self.advance(); // consume [
+                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                    text.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+                text.push(']');
+                self.expect(TokenKind::RBracket)?;
+
+                if self.current.kind == TokenKind::Ident {
+                    text.push_str(&self.current.lexeme);
+                    self.advance();
+                }
+
                 if self.current.kind == TokenKind::LBrace {
-                    depth += 1;
-                } else if self.current.kind == TokenKind::RBrace {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
+                    self.collect_array_brace_init(&mut text)?;
+                }
+            }
+
+            // Handle ** repeat operator after concatenation: ++ [_]T{v} ** (N)
+            if self.current.kind == TokenKind::Power {
+                text.push_str(" ** ");
+                self.advance(); // consume **
+                // Collect the repeat count (could be a parenthesized expression)
+                if self.current.kind == TokenKind::LParen {
+                    text.push('(');
+                    self.advance();
+                    let mut paren_depth = 1;
+                    while paren_depth > 0 && self.current.kind != TokenKind::Eof {
+                        if self.current.kind == TokenKind::LParen { paren_depth += 1; }
+                        if self.current.kind == TokenKind::RParen {
+                            paren_depth -= 1;
+                            if paren_depth == 0 { break; }
+                        }
+                        text.push_str(&self.current.lexeme);
+                        if self.current.kind == TokenKind::Minus || self.current.kind == TokenKind::Plus {
+                            text.push(' ');
+                        }
+                        self.advance();
                     }
-                }
-                // Dot immediately before an identifier (enum value like .neg)
-                // should not have a space between them
-                if self.current.kind == TokenKind::Dot {
-                    text.push('.');
+                    text.push(')');
+                    self.expect(TokenKind::RParen)?;
+                } else {
+                    // Simple number or identifier
+                    text.push_str(&self.current.lexeme);
                     self.advance();
-                    continue;
                 }
-                // After comma, add space
-                if self.current.kind == TokenKind::Comma {
-                    text.push_str(", ");
+            }
+        }
+
+        // Handle ** repeat operator on standalone array literal: [_]T{v} ** N
+        if self.current.kind == TokenKind::Power {
+            text.push_str(" ** ");
+            self.advance(); // consume **
+            if self.current.kind == TokenKind::LParen {
+                text.push('(');
+                self.advance();
+                let mut paren_depth = 1;
+                while paren_depth > 0 && self.current.kind != TokenKind::Eof {
+                    if self.current.kind == TokenKind::LParen { paren_depth += 1; }
+                    if self.current.kind == TokenKind::RParen {
+                        paren_depth -= 1;
+                        if paren_depth == 0 { break; }
+                    }
+                    text.push_str(&self.current.lexeme);
+                    if self.current.kind == TokenKind::Minus || self.current.kind == TokenKind::Plus {
+                        text.push(' ');
+                    }
                     self.advance();
-                    continue;
                 }
+                text.push(')');
+                self.expect(TokenKind::RParen)?;
+            } else {
                 text.push_str(&self.current.lexeme);
                 self.advance();
             }
-            text.push_str(" }");
-            self.expect(TokenKind::RBrace)?;
         }
 
         Ok(Node {
@@ -2081,6 +2160,38 @@ impl Parser {
             value: text,
             ..Default::default()
         })
+    }
+
+    /// Collect { ... } brace-delimited array initializer content verbatim
+    fn collect_array_brace_init(&mut self, text: &mut String) -> Result<(), String> {
+        text.push_str("{ ");
+        self.advance(); // consume {
+        let mut depth = 1;
+        while depth > 0 && self.current.kind != TokenKind::Eof {
+            if self.current.kind == TokenKind::LBrace {
+                depth += 1;
+            } else if self.current.kind == TokenKind::RBrace {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            if self.current.kind == TokenKind::Dot {
+                text.push('.');
+                self.advance();
+                continue;
+            }
+            if self.current.kind == TokenKind::Comma {
+                text.push_str(", ");
+                self.advance();
+                continue;
+            }
+            text.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        text.push_str(" }");
+        self.expect(TokenKind::RBrace)?;
+        Ok(())
     }
 
     /// Parse if expression: if (cond) expr else expr
