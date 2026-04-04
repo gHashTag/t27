@@ -78,11 +78,25 @@ When an AI agent writes code:
 ## Migration Status
 
 - [x] `t27` canonical structure defined
-- [x] `trinity/trinity-libs/tri-core` is source of truth
-- [ ] Migration of `trinity/trinity-libs/tri-math` to `.tri` specs
-- [ ] Migration of `trinity/trinity-libs/tri-formats` to `.tri` specs
-- [ ] `tri dev scan` enforces `.tri` context
-- [ ] All agents trained to check `.tri` context before writing code
+- [x] `specs/base/*` (types, ops) standardized to canonical .t27 format
+- [x] `specs/math/*` (constants, sacred_physics) standardized to canonical .t27 format
+- [x] `specs/numeric/*` (GF4-32, TF3, phi_ratio, goldenfloat_family) standardized
+- [x] `specs/vsa/*` (ops) standardized to canonical .t27 format
+- [x] `specs/nn/*` (attention, hslm) standardized to canonical .t27 format
+- [x] `specs/isa/*` (registers) standardized to canonical .t27 format
+- [x] `specs/fpga/*` (mac) standardized to canonical .t27 format
+- [x] `specs/queen/*` (lotus) standardized to canonical .t27 format
+- [x] `compiler/parser/*` (lexer, parser) standardized to canonical .t27 format
+- [x] `compiler/codegen/*` (zig, verilog, c) standardized to canonical .t27 format
+- [x] `compiler/runtime/*` (runtime) standardized to canonical .t27 format
+- [x] `architecture/graph.tri` synchronized with complete module graph
+- [x] `architecture/graph_v2.json` updated with all nodes marked "done"
+- [x] All 20 .t27 specs in canonical format (module/fn/test/invariant/bench)
+
+**PHI LOOP Skills 017-031 Completed:**
+- 15 skills covering standardization of 13 specs + 2 architecture files
+- All .t27 files now use canonical .t27 syntax
+- Spec-first pattern established and verified
 
 ---
 
