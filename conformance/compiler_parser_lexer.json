@@ -1,0 +1,59 @@
+{
+  "module": "Lexer",
+  "spec_path": "compiler/parser/lexer.t27",
+  "ring": 38,
+  "generated_at": "2026-04-04T21:20:00Z",
+  "vectors": [
+    {
+      "function": "is_ident_start",
+      "cases": [
+        { "inputs": { "c": "a" }, "expected": true },
+        { "inputs": { "c": "Z" }, "expected": true },
+        { "inputs": { "c": "_" }, "expected": true },
+        { "inputs": { "c": "0" }, "expected": false },
+        { "inputs": { "c": "+" }, "expected": false },
+        { "inputs": { "c": " " }, "expected": false }
+      ]
+    },
+    {
+      "function": "is_ident_continue",
+      "cases": [
+        { "inputs": { "c": "a" }, "expected": true },
+        { "inputs": { "c": "0" }, "expected": true },
+        { "inputs": { "c": "-" }, "expected": true },
+        { "inputs": { "c": "_" }, "expected": true },
+        { "inputs": { "c": "+" }, "expected": false },
+        { "inputs": { "c": " " }, "expected": false }
+      ]
+    },
+    {
+      "function": "is_digit",
+      "cases": [
+        { "inputs": { "c": "0" }, "expected": true },
+        { "inputs": { "c": "9" }, "expected": true },
+        { "inputs": { "c": "a" }, "expected": false },
+        { "inputs": { "c": " " }, "expected": false }
+      ]
+    },
+    {
+      "function": "tokenize",
+      "cases": [
+        { "inputs": { "source": "hello" }, "expected_first_kind": "identifier" },
+        { "inputs": { "source": "42" }, "expected_first_kind": "integer" },
+        { "inputs": { "source": "+" }, "expected_first_kind": "plus" },
+        { "inputs": { "source": "" }, "expected_first_kind": "eof" }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "token_type_eof_is_zero", "assert": "EOF == 0" },
+    { "name": "max_identifier_len_64", "assert": "MAX_IDENTIFIER_LEN == 64" },
+    { "name": "max_tokens_10000", "assert": "MAX_TOKENS == 10000" },
+    { "name": "lexer_tracks_line_column", "assert": "Line/column updated on advance" },
+    { "name": "lexer_handles_empty_input", "assert": "Empty source returns EOF" }
+  ],
+  "benchmarks": [
+    { "name": "tokenize_latency", "target": "< 10us per 1KB" },
+    { "name": "is_ident_start_latency", "target": "< 1ns" }
+  ]
+}
