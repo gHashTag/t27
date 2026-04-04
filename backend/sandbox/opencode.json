@@ -1,19 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  "model": "anthropic/claude-sonnet-4-5",
+  "_comment": "TEMPLATE ONLY — init.sh generates the real config at runtime from environment variables. Do NOT put API keys here; they are injected by the control plane.",
 
-  "providers": {
-    "anthropic": {
-      "apiKey": "${ANTHROPIC_API_KEY}"
-    },
-    "openai": {
-      "apiKey": "${OPENAI_API_KEY}"
-    },
-    "google": {
-      "apiKey": "${GEMINI_API_KEY}"
-    }
-  },
+  "model": "anthropic/claude-sonnet-4-5",
 
   "keybindings": {
     "leader": "ctrl+k"
@@ -24,16 +14,14 @@
       "type": "local",
       "command": "npx",
       "args": ["-y", "@railway/mcp-server"],
-      "env": {
-        "RAILWAY_API_TOKEN": "${RAILWAY_API_TOKEN}"
-      }
+      "enabled": true
     }
   },
 
   "agents": {
     "t27-swe": {
       "name": "T27 SWE Agent",
-      "description": "Full-stack software engineering agent for the T27 Railway sandbox. Specialises in TypeScript/Node back-ends and React/Next.js front-ends.",
+      "description": "Full-stack software engineering agent for the T27 Railway sandbox.",
       "model": "anthropic/claude-sonnet-4-5",
       "tools": [
         "bash",
@@ -45,7 +33,7 @@
         "fetch",
         "mcp:railway"
       ],
-      "system": "You are an expert software engineer operating inside a Railway sandbox container. You have full access to the cloned repository in the working directory. You can run arbitrary shell commands, read and write files, and interact with Railway deployments via the Railway MCP server.\n\nGuidelines:\n- Prefer small, targeted edits over large rewrites.\n- Always verify changes compile / pass lint before finishing a task.\n- When asked to deploy, use the Railway MCP to trigger a new deployment.\n- Surface errors clearly and suggest fixes rather than silently failing."
+      "system": "You are an expert software engineer operating inside a Railway sandbox container. You have full access to the cloned repository in the working directory. Prefer small, targeted edits over large rewrites. Always verify changes compile / pass lint before finishing a task."
     },
 
     "t27-reviewer": {
