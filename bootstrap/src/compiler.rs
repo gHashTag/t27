@@ -38,6 +38,7 @@ pub enum NodeKind {
     StmtAssign,   // x = expr; or x.field = expr;
     StmtIf,       // if (...) { ... } else if (...) { ... } else { ... }
     StmtWhile,    // while (cond) { ... }
+    StmtFor,      // for (iter) |capture| { ... }
     StmtExpr,     // bare expression statement: func(a, b);
 }
 
@@ -126,7 +127,7 @@ pub enum TokenKind {
     LBracket, RBracket, Dot, Bang,
 
     // Multi-char
-    Arrow, FatArrow, Power,
+    Arrow, FatArrow, Power, DotDot,
     ShiftLeft, ShiftRight, PlusEquals, PlusPercent,
 
     // Special
@@ -470,6 +471,17 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::PlusPercent,
                     lexeme: String::from("+%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'.', b'.'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::DotDot,
+                    lexeme: String::from(".."),
                     line: start_line,
                     col: start_col,
                 };
@@ -1341,6 +1353,11 @@ impl Parser {
             return self.parse_while_stmt();
         }
 
+        // for statement
+        if self.current.kind == TokenKind::KwFor {
+            return self.parse_for_stmt();
+        }
+
         // Expression or assignment
         let expr = self.parse_expr()?;
 
@@ -1516,6 +1533,55 @@ impl Parser {
         Ok(while_node)
     }
 
+    /// Parse for statement: for (iterable) |capture| { body }
+    /// Also: for (a, b) |x, y| { body }
+    fn parse_for_stmt(&mut self) -> Result<Node, String> {
+        let mut for_node = Node::new(NodeKind::StmtFor);
+        self.advance(); // consume 'for'
+
+        // Iterable(s) in parentheses
+        self.expect(TokenKind::LParen)?;
+        // Parse comma-separated iterables
+        while self.current.kind != TokenKind::RParen && self.current.kind != TokenKind::Eof {
+            let iter_expr = self.parse_expr()?;
+            for_node.children.push(iter_expr);
+            if self.current.kind == TokenKind::Comma {
+                self.advance();
+            }
+        }
+        self.expect(TokenKind::RParen)?;
+
+        // Capture variables: |x| or |x, y|
+        if self.current.kind == TokenKind::Pipe {
+            self.advance(); // consume |
+            while self.current.kind != TokenKind::Pipe && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::Ident {
+                    for_node.params.push((self.current.lexeme.clone(), String::new()));
+                    self.advance();
+                }
+                if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                }
+            }
+            self.expect(TokenKind::Pipe)?;
+        }
+
+        // Body: { ... }
+        self.expect(TokenKind::LBrace)?;
+        let mut body_block = Node::new(NodeKind::Module);
+        body_block.name = "body".to_string();
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            match self.parse_body_stmt() {
+                Ok(s) => body_block.children.push(s),
+                Err(_) => self.recover_to_stmt_boundary(),
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        for_node.children.push(body_block);
+
+        Ok(for_node)
+    }
+
     // ========================================================================
     // Expression parser (Pratt-style, operates on current token)
     // ========================================================================
@@ -1562,7 +1628,7 @@ impl Parser {
         let mut left = self.parse_expr_bitor()?;
         while matches!(self.current.kind,
             TokenKind::Eq | TokenKind::Neq | TokenKind::Lt | TokenKind::Gt |
-            TokenKind::Lte | TokenKind::Gte
+            TokenKind::Lte | TokenKind::Gte | TokenKind::DotDot
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -1662,10 +1728,10 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse multiplicative expressions (*, /, %)
+    /// Parse multiplicative expressions (*, /, %, **)
     fn parse_expr_multiplicative(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_unary()?;
-        while matches!(self.current.kind, TokenKind::Star | TokenKind::Slash | TokenKind::Percent) {
+        while matches!(self.current.kind, TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power) {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_unary()?;
@@ -1679,9 +1745,9 @@ impl Parser {
         Ok(left)
     }
 
-    /// Parse unary expressions (-x, !x, ~x)
+    /// Parse unary expressions (-x, !x, ~x, &x)
     fn parse_expr_unary(&mut self) -> Result<Node, String> {
-        if matches!(self.current.kind, TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde) {
+        if matches!(self.current.kind, TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde | TokenKind::Amp) {
             let op = self.current.lexeme.clone();
             self.advance();
             let operand = self.parse_expr_unary()?;
@@ -1714,12 +1780,17 @@ impl Parser {
                     self.advance();
                     // Check if this is a method/field call: expr.field(args)
                     if self.current.kind == TokenKind::LParen {
-                        // Not typical in this language; just treat as field access for now
+                        // Method-style call: expr.field(args)
+                        // Build fully-qualified name from field access chain
+                        let full_name = Self::flatten_field_access_name(&expr, &field);
+                        let call = self.parse_call_args(full_name)?;
+                        expr = call;
+                    } else {
+                        let mut fa = Node::new(NodeKind::ExprFieldAccess);
+                        fa.name = field;
+                        fa.children.push(expr);
+                        expr = fa;
                     }
-                    let mut fa = Node::new(NodeKind::ExprFieldAccess);
-                    fa.name = field;
-                    fa.children.push(expr);
-                    expr = fa;
                 } else {
                     break;
                 }
@@ -1741,6 +1812,33 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    /// Flatten a chain of ExprFieldAccess nodes into a dotted name
+    /// e.g. ExprFieldAccess("expectEqual", ExprFieldAccess("testing", ExprIdentifier("std")))
+    /// becomes "std.testing.expectEqual"
+    fn flatten_field_access_name(expr: &Node, trailing_field: &str) -> String {
+        let mut parts = vec![trailing_field.to_string()];
+        let mut current = expr;
+        loop {
+            match current.kind {
+                NodeKind::ExprFieldAccess => {
+                    parts.push(current.name.clone());
+                    if !current.children.is_empty() {
+                        current = &current.children[0];
+                    } else {
+                        break;
+                    }
+                }
+                NodeKind::ExprIdentifier => {
+                    parts.push(current.name.clone());
+                    break;
+                }
+                _ => break,
+            }
+        }
+        parts.reverse();
+        parts.join(".")
     }
 
     /// Parse primary expressions
@@ -1845,7 +1943,18 @@ impl Parser {
             // try expression (skip 'try' and parse inner)
             TokenKind::KwTry => {
                 self.advance(); // consume 'try'
-                self.parse_expr_postfix()
+                let inner = self.parse_expr_postfix()?;
+                Ok(Node {
+                    kind: NodeKind::ExprUnary,
+                    extra_op: "try ".to_string(),
+                    children: vec![inner],
+                    ..Default::default()
+                })
+            }
+
+            // Array literal: [_]Type{ values } or [N]Type{ values }
+            TokenKind::LBracket => {
+                self.parse_array_literal()
             }
 
             _ => {
@@ -1911,6 +2020,67 @@ impl Parser {
         Ok(lit)
     }
 
+    /// Parse array literal: [_]Type{ values } or [N]Type{ values }
+    /// Collected verbatim as a literal string since Zig passes through
+    fn parse_array_literal(&mut self) -> Result<Node, String> {
+        let mut text = String::from("[");
+        self.advance(); // consume [
+
+        // Collect everything up to ]
+        while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+            text.push_str(&self.current.lexeme);
+            self.advance();
+        }
+        text.push(']');
+        self.expect(TokenKind::RBracket)?;
+
+        // Collect the type name (e.g. Trit, u8)
+        if self.current.kind == TokenKind::Ident {
+            text.push_str(&self.current.lexeme);
+            self.advance();
+        }
+
+        // Check for { ... } initializer — collect verbatim with proper spacing
+        if self.current.kind == TokenKind::LBrace {
+            text.push_str("{ ");
+            self.advance(); // consume {
+            let mut depth = 1;
+            while depth > 0 && self.current.kind != TokenKind::Eof {
+                if self.current.kind == TokenKind::LBrace {
+                    depth += 1;
+                } else if self.current.kind == TokenKind::RBrace {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                // Dot immediately before an identifier (enum value like .neg)
+                // should not have a space between them
+                if self.current.kind == TokenKind::Dot {
+                    text.push('.');
+                    self.advance();
+                    continue;
+                }
+                // After comma, add space
+                if self.current.kind == TokenKind::Comma {
+                    text.push_str(", ");
+                    self.advance();
+                    continue;
+                }
+                text.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            text.push_str(" }");
+            self.expect(TokenKind::RBrace)?;
+        }
+
+        Ok(Node {
+            kind: NodeKind::ExprLiteral,
+            value: text,
+            ..Default::default()
+        })
+    }
+
     /// Parse if expression: if (cond) expr else expr
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
@@ -1964,6 +2134,14 @@ impl Parser {
             } else if self.current.kind == TokenKind::KwElse {
                 arm.name = "else".to_string();
                 self.advance();
+            } else if self.current.kind == TokenKind::Minus {
+                // Negative number pattern: -1, -2, etc.
+                arm.name = "-".to_string();
+                self.advance(); // consume -
+                if self.current.kind == TokenKind::Number {
+                    arm.name.push_str(&self.current.lexeme);
+                    self.advance();
+                }
             } else if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
                 arm.name = self.current.lexeme.clone();
                 self.advance();
@@ -2063,7 +2241,7 @@ impl Parser {
         if self.current.kind == TokenKind::LBrace {
             // Brace-style test: test "name" { ... }
             self.advance(); // consume {
-            self.skip_brace_body()?;
+            self.parse_fn_body(&mut block)?;
             self.expect(TokenKind::RBrace)?;
         } else {
             // Keyword-style test: test name given ... when ... then ...
@@ -2160,6 +2338,13 @@ impl Codegen {
         self.write_line("// DO NOT EDIT — generated by t27c");
         self.write_line("// phi^2 + 1/phi^2 = 3 | TRINITY");
         self.write_line("");
+
+        // Check if file has test blocks — emit std import if so
+        let has_tests = ast.children.iter().any(|d| d.kind == NodeKind::TestBlock);
+        if has_tests {
+            self.write_line("const std = @import(\"std\");");
+            self.write_line("");
+        }
 
         // Emit @import for UseDecl nodes first
         let mut has_imports = false;
@@ -2391,6 +2576,9 @@ impl Codegen {
             NodeKind::StmtWhile => {
                 self.gen_while_stmt(node);
             }
+            NodeKind::StmtFor => {
+                self.gen_for_stmt(node);
+            }
             NodeKind::StmtExpr => {
                 self.write_indent();
                 if !node.children.is_empty() {
@@ -2499,6 +2687,48 @@ impl Codegen {
         self.indent();
         if node.children.len() > 1 {
             for stmt in &node.children[1].children {
+                self.gen_stmt(stmt);
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("}");
+    }
+
+    fn gen_for_stmt(&mut self, node: &Node) {
+        self.write_indent();
+        self.write("for (");
+
+        // Iterables are children[0..n-1], last child is the body block
+        let body_idx = node.children.len().saturating_sub(1);
+        for (i, child) in node.children.iter().enumerate() {
+            if i == body_idx {
+                break; // body block
+            }
+            if i > 0 {
+                self.write(", ");
+            }
+            self.gen_expr(child);
+        }
+        self.write(")");
+
+        // Capture variables from params
+        if !node.params.is_empty() {
+            self.write(" |");
+            for (i, (name, _)) in node.params.iter().enumerate() {
+                if i > 0 {
+                    self.write(", ");
+                }
+                self.write(name);
+            }
+            self.write("|");
+        }
+
+        self.write_line(" {");
+
+        self.indent();
+        if !node.children.is_empty() {
+            for stmt in &node.children[body_idx].children {
                 self.gen_stmt(stmt);
             }
         }
