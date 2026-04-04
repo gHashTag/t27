@@ -1,0 +1,66 @@
+{
+  "module": "ZigCodeGen",
+  "spec_path": "compiler/codegen/zig/codegen.t27",
+  "ring": 37,
+  "generated_at": "2026-04-04T21:10:00Z",
+  "vectors": [
+    {
+      "function": "CodegenOptions",
+      "cases": [
+        { "inputs": { "field": "output_dir" }, "expected_type": "string" },
+        { "inputs": { "field": "emit_debug" }, "expected_type": "bool" },
+        { "inputs": { "field": "optimize" }, "expected_type": "bool" },
+        { "inputs": { "field": "strip" }, "expected_type": "bool" }
+      ]
+    },
+    {
+      "function": "ZigCodegen.indent",
+      "cases": [
+        { "inputs": { "initial_depth": 0 }, "expected_depth": 1 },
+        { "inputs": { "initial_depth": 1 }, "expected_depth": 2 },
+        { "inputs": { "initial_depth": 4 }, "expected_depth": 5 }
+      ]
+    },
+    {
+      "function": "ZigCodegen.dedent",
+      "cases": [
+        { "inputs": { "initial_depth": 1 }, "expected_depth": 0 },
+        { "inputs": { "initial_depth": 3 }, "expected_depth": 2 },
+        { "inputs": { "initial_depth": 0 }, "expected_depth": 0 }
+      ]
+    },
+    {
+      "function": "type_mapping",
+      "cases": [
+        { "inputs": { "t27_type": "i8" }, "expected": "i8" },
+        { "inputs": { "t27_type": "u8" }, "expected": "u8" },
+        { "inputs": { "t27_type": "i16" }, "expected": "i16" },
+        { "inputs": { "t27_type": "u16" }, "expected": "u16" },
+        { "inputs": { "t27_type": "i32" }, "expected": "i32" },
+        { "inputs": { "t27_type": "bool" }, "expected": "bool" },
+        { "inputs": { "t27_type": "void" }, "expected": "void" }
+      ]
+    },
+    {
+      "function": "generate_fn",
+      "cases": [
+        { "inputs": { "name": "add", "params": ["a: i8", "b: i8"], "return_type": "i8" }, "expected_contains": "fn add" },
+        { "inputs": { "name": "noop", "params": [], "return_type": "void" }, "expected_contains": "fn noop" }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "codegen_options_has_defaults", "assert": "CodegenOptions provides sensible defaults for all fields" },
+    { "name": "indent_increments_by_one", "assert": "indent() increases depth by exactly 1" },
+    { "name": "dedent_floors_at_zero", "assert": "dedent() never decreases depth below 0" },
+    { "name": "type_mapping_covers_base_types", "assert": "All t27 base types have Zig equivalents" },
+    { "name": "generate_fn_valid_zig", "assert": "Generated function is syntactically valid Zig" },
+    { "name": "indentation_uses_four_spaces", "assert": "Each indent level produces 4 spaces" },
+    { "name": "output_contains_no_trailing_whitespace", "assert": "Generated lines have no trailing whitespace" }
+  ],
+  "benchmarks": [
+    { "name": "zigcodegen_simple_fn_latency", "target": "< 5ms" },
+    { "name": "zigcodegen_struct_generation_latency", "target": "< 3ms" },
+    { "name": "zigcodegen_full_module_latency", "target": "< 50ms" }
+  ]
+}
