@@ -1,0 +1,189 @@
+{
+  "module": "GoldenFloatFamily",
+  "spec_path": "specs/numeric/goldenfloat_family.t27",
+  "ring": 26,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "vectors": [
+    {
+      "name": "get_format_by_name_gf16",
+      "description": "Query GF16 by name returns correct format",
+      "input": { "name": "GF16" },
+      "expected": {
+        "bits": 16,
+        "sign_bits": 1,
+        "exp_bits": 6,
+        "mant_bits": 9,
+        "is_primary": true
+      }
+    },
+    {
+      "name": "get_format_by_bits_8",
+      "description": "Query by bits=8 returns GF8",
+      "input": { "bits": 8 },
+      "expected": {
+        "name": "GF8",
+        "bits": 8,
+        "exp_bits": 3,
+        "mant_bits": 4
+      }
+    },
+    {
+      "name": "get_primary_format",
+      "description": "Primary format is GF16 at index 3",
+      "input": {},
+      "expected": {
+        "name": "GF16",
+        "index": 3,
+        "is_primary": true
+      }
+    },
+    {
+      "name": "family_size_is_7",
+      "description": "Family contains exactly 7 formats",
+      "input": {},
+      "expected": {
+        "size": 7
+      }
+    },
+    {
+      "name": "gf4_bit_counts",
+      "description": "GF4 has S:1 E:1 M:2 = 4 bits",
+      "input": { "name": "GF4" },
+      "expected": {
+        "sign_bits": 1,
+        "exp_bits": 1,
+        "mant_bits": 2,
+        "bits": 4
+      }
+    },
+    {
+      "name": "gf32_bit_counts",
+      "description": "GF32 has S:1 E:12 M:19 = 32 bits",
+      "input": { "name": "GF32" },
+      "expected": {
+        "sign_bits": 1,
+        "exp_bits": 12,
+        "mant_bits": 19,
+        "bits": 32
+      }
+    },
+    {
+      "name": "only_gf16_is_primary",
+      "description": "Exactly one format is marked primary",
+      "input": {},
+      "expected": {
+        "primary_count": 1,
+        "primary_name": "GF16"
+      }
+    },
+    {
+      "name": "verify_all_valid",
+      "description": "Full verification passes",
+      "input": {},
+      "expected": {
+        "all_valid": true,
+        "primary_is_gf16": true,
+        "phi_distances_ok": true
+      }
+    },
+    {
+      "name": "best_phi_distance_small",
+      "description": "Best phi distance is below 0.05",
+      "input": {},
+      "expected": {
+        "best_phi_distance_less_than": 0.05
+      }
+    },
+    {
+      "name": "memory_efficiency_gf8",
+      "description": "GF8 memory efficiency = 8/32 = 0.25",
+      "input": { "name": "GF8" },
+      "expected": {
+        "memory_efficiency": 0.25,
+        "tolerance": 0.01
+      }
+    },
+    {
+      "name": "memory_efficiency_gf16",
+      "description": "GF16 memory efficiency = 16/32 = 0.5",
+      "input": { "name": "GF16" },
+      "expected": {
+        "memory_efficiency": 0.5,
+        "tolerance": 0.01
+      }
+    },
+    {
+      "name": "unknown_name_returns_null",
+      "description": "Querying unknown format name returns null",
+      "input": { "name": "GF999" },
+      "expected": {
+        "result": null
+      }
+    },
+    {
+      "name": "unknown_bits_returns_null",
+      "description": "Querying unknown bit width returns null",
+      "input": { "bits": 100 },
+      "expected": {
+        "result": null
+      }
+    }
+  ],
+  "invariants": [
+    {
+      "name": "phi_ratio_target_positive",
+      "assertion": "PHI_RATIO_TARGET > 0.0",
+      "value": true
+    },
+    {
+      "name": "phi_ratio_target_less_than_one",
+      "assertion": "PHI_RATIO_TARGET < 1.0",
+      "value": true
+    },
+    {
+      "name": "family_size_constant",
+      "assertion": "GOLDEN_FLOAT_FAMILY.len == 7",
+      "value": true
+    },
+    {
+      "name": "gf4_at_index_0",
+      "assertion": "GOLDEN_FLOAT_FAMILY[0].name == 'GF4'",
+      "value": true
+    },
+    {
+      "name": "gf32_at_index_6",
+      "assertion": "GOLDEN_FLOAT_FAMILY[6].name == 'GF32'",
+      "value": true
+    },
+    {
+      "name": "all_formats_sign_bits_1",
+      "assertion": "All formats have sign_bits == 1",
+      "value": true
+    },
+    {
+      "name": "all_formats_bits_sum_correct",
+      "assertion": "sign_bits + exp_bits + mant_bits == bits for all formats",
+      "value": true
+    },
+    {
+      "name": "primary_is_gf16",
+      "assertion": "GOLDEN_FLOAT_FAMILY[3].is_primary == true",
+      "value": true
+    },
+    {
+      "name": "phi_distances_non_negative",
+      "assertion": "phi_distance >= 0 for all formats",
+      "value": true
+    },
+    {
+      "name": "memory_efficiency_gf4_is_0_125",
+      "assertion": "memory_efficiency(GF4) == 0.125",
+      "value": true
+    },
+    {
+      "name": "memory_efficiency_gf32_is_1_0",
+      "assertion": "memory_efficiency(GF32) == 1.0",
+      "value": true
+    }
+  ]
+}

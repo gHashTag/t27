@@ -1,0 +1,146 @@
+{
+  "module": "PhiRatio",
+  "spec_path": "specs/numeric/phi_ratio.t27",
+  "ring": 26,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "vectors": [
+    {
+      "name": "phi_split_gf4",
+      "description": "GF4 phi-split: 3 available bits -> exp=1, mant=2",
+      "input": { "bits": 4 },
+      "expected": {
+        "exp_bits": 1,
+        "mant_bits": 2,
+        "phi_dist_less_than": 0.01
+      }
+    },
+    {
+      "name": "phi_split_gf8",
+      "description": "GF8 phi-split: 7 available bits -> exp=2, mant=5",
+      "input": { "bits": 8 },
+      "expected": {
+        "exp_bits": 2,
+        "mant_bits": 5,
+        "phi_dist_less_than": 0.25
+      }
+    },
+    {
+      "name": "phi_split_gf12",
+      "description": "GF12 phi-split: 11 available bits -> exp=3, mant=8",
+      "input": { "bits": 12 },
+      "expected": {
+        "exp_bits": 3,
+        "mant_bits": 8,
+        "phi_dist_less_than": 0.25
+      }
+    },
+    {
+      "name": "phi_split_gf16",
+      "description": "GF16 phi-split: 15 available bits -> exp=4, mant=11",
+      "input": { "bits": 16 },
+      "expected": {
+        "exp_bits": 4,
+        "mant_bits": 11,
+        "phi_dist_less_than": 0.05
+      }
+    },
+    {
+      "name": "phi_split_gf32",
+      "description": "GF32 phi-split: 31 available bits -> exp=8, mant=23",
+      "input": { "bits": 32 },
+      "expected": {
+        "exp_bits": 8,
+        "mant_bits": 23,
+        "phi_dist_less_than": 0.02
+      }
+    },
+    {
+      "name": "phi_split_sum_constraint",
+      "description": "exp_bits + mant_bits must equal bits - 1",
+      "input": { "bits": 16 },
+      "expected": {
+        "sum_equals": 15
+      }
+    },
+    {
+      "name": "phi_distance_gf16_actual",
+      "description": "GF16 actual format (6/9) has phi distance > 0.04",
+      "input": { "exp": 6, "mant": 9 },
+      "expected": {
+        "phi_dist_greater_than": 0.04
+      }
+    },
+    {
+      "name": "is_phi_optimal_gf16_split",
+      "description": "GF16 phi-split (4/11) is phi-optimal within 0.05",
+      "input": { "exp": 4, "mant": 11, "tolerance": 0.05 },
+      "expected": {
+        "is_optimal": true
+      }
+    },
+    {
+      "name": "phi_ratio_target",
+      "description": "PHI_RATIO_TARGET equals 1/phi",
+      "input": {},
+      "expected": {
+        "value": 0.6180339887498949,
+        "tolerance": 1e-15
+      }
+    },
+    {
+      "name": "phi_optimality_proof_content",
+      "description": "Proof string contains '1/phi'",
+      "input": {},
+      "expected": {
+        "contains": "1/phi"
+      }
+    }
+  ],
+  "invariants": [
+    {
+      "name": "phi_ratio_target_positive",
+      "assertion": "PHI_RATIO_TARGET > 0.0",
+      "value": true
+    },
+    {
+      "name": "phi_ratio_target_less_than_one",
+      "assertion": "PHI_RATIO_TARGET < 1.0",
+      "value": true
+    },
+    {
+      "name": "phi_split_sum_equals_available",
+      "assertion": "phi_split(bits).exp_bits + phi_split(bits).mant_bits == bits - 1",
+      "value": true
+    },
+    {
+      "name": "phi_distance_non_negative",
+      "assertion": "compute_phi_distance(exp, mant) >= 0.0 for all valid exp, mant",
+      "value": true
+    },
+    {
+      "name": "gf4_format_is_phi_optimal",
+      "assertion": "phi_split(4).phi_dist < 0.01",
+      "value": true
+    },
+    {
+      "name": "exp_bits_less_than_total",
+      "assertion": "phi_split(bits).exp_bits < bits for all valid bits",
+      "value": true
+    },
+    {
+      "name": "mant_bits_less_than_total",
+      "assertion": "phi_split(bits).mant_bits < bits for all valid bits",
+      "value": true
+    },
+    {
+      "name": "phi_round_symmetric",
+      "assertion": "round(-x) == -round(x) for all x >= 0",
+      "value": true
+    },
+    {
+      "name": "phi_floor_monotonic",
+      "assertion": "floor(x1) <= floor(x2) when x1 <= x2",
+      "value": true
+    }
+  ]
+}
