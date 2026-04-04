@@ -76,6 +76,28 @@ enum Commands {
         verify: bool,
     },
 
+    /// Compile a .t27 file and write generated code to a file
+    Compile {
+        /// Input file path
+        input: String,
+        /// Backend: zig, verilog, or c
+        #[arg(long, default_value = "zig")]
+        backend: String,
+        /// Output file path (default: input with backend extension)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Compile all .t27 files from specs/ and compiler/ into an output directory
+    CompileAll {
+        /// Backend: zig, verilog, or c
+        #[arg(long, default_value = "zig")]
+        backend: String,
+        /// Output directory
+        #[arg(short, long, default_value = "build")]
+        output: String,
+    },
+
     /// Start HTTP server on Railway
     Serve {
         /// Port to listen on (default: uses Railway PORT env var)
@@ -417,6 +439,93 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
 }
 
 // ============================================================================
+// Compile Commands
+// ============================================================================
+
+fn backend_extension(backend: &str) -> &str {
+    match backend {
+        "verilog" => ".v",
+        "c" => ".c",
+        _ => ".zig",
+    }
+}
+
+fn compile_source(source: &str, backend: &str) -> Result<String, String> {
+    match backend {
+        "verilog" => compiler::Compiler::compile_verilog(source),
+        "c" => compiler::Compiler::compile_c(source),
+        _ => compiler::Compiler::compile(source),
+    }
+}
+
+fn run_compile(input_path: &str, backend: &str, output: Option<&str>) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let code = compile_source(&source, backend)
+        .map_err(|e| anyhow::anyhow!("Compile error: {}", e))?;
+
+    let out_path = match output {
+        Some(p) => std::path::PathBuf::from(p),
+        None => {
+            let stem = path.file_stem().unwrap_or_default();
+            let ext = backend_extension(backend);
+            path.with_file_name(format!("{}{}", stem.to_string_lossy(), ext))
+        }
+    };
+
+    if let Some(parent) = out_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&out_path, &code)?;
+    println!("wrote {}", out_path.display());
+    Ok(())
+}
+
+fn run_compile_all(backend: &str, output_dir: &str) -> anyhow::Result<()> {
+    let ext = backend_extension(backend);
+    let out_base = Path::new(output_dir);
+    let mut count = 0u32;
+
+    let dirs = ["specs", "compiler"];
+    for dir in &dirs {
+        let base = Path::new(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("t27") {
+                continue;
+            }
+            let source = fs::read_to_string(p)?;
+            let code = match compile_source(&source, backend) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("skip {}: {}", p.display(), e);
+                    continue;
+                }
+            };
+            // Preserve directory structure: specs/base/types.t27 -> build/specs/base/types.zig
+            let rel = p.strip_prefix(".").unwrap_or(p);
+            let dest = out_base.join(rel).with_extension(&ext[1..]);
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&dest, &code)?;
+            println!("wrote {}", dest.display());
+            count += 1;
+        }
+    }
+
+    println!("\ncompiled {} files to {}/", count, output_dir);
+    Ok(())
+}
+
+// ============================================================================
 // Main Entry Point
 // ============================================================================
 
@@ -432,6 +541,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Compile { input, backend, output } => {
+            run_compile(&input, &backend, output.as_deref())?
+        }
+        Commands::CompileAll { backend, output } => run_compile_all(&backend, &output)?,
         Commands::Serve { port } => run_server(&port).await?,
     }
 
@@ -449,6 +562,10 @@ fn main() -> anyhow::Result<()> {
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Compile { input, backend, output } => {
+            run_compile(&input, &backend, output.as_deref())?
+        }
+        Commands::CompileAll { backend, output } => run_compile_all(&backend, &output)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
