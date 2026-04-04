@@ -271,7 +271,7 @@ fn extract_module_name(source: &str) -> Option<String> {
         let trimmed = line.trim();
         if trimmed.starts_with("module ") {
             let rest = trimmed.strip_prefix("module ").unwrap().trim();
-            let name = rest.trim_end_matches(';').trim();
+            let name = rest.trim_end_matches(';').trim_end_matches('{').trim();
             if !name.is_empty() {
                 return Some(name.to_string());
             }
