@@ -102,7 +102,8 @@ git push
 | t27/compiler/codegen/c/codegen.t27 | ✅ COMPLETE | CCodeGen, emit_c, c_ast | Skill 027 (de6c5db) |
 | t27/compiler/runtime/runtime.t27 | ✅ COMPLETE | T27Runtime, init, execute | Skill 028 (d8d298d) |
 | t27/compiler/parser/lexer.t27 | ✅ COMPLETE | Lexer, tokenize, TokenType | Skill 029 (010a598) |
-| t27/architecture/graph_v2.json | ❌ PENDING | new nodes, edges, topological_order | TODO |
+| t27/compiler/codegen/zig/runtime.t27 | ✅ COMPLETE | Zig runtime generation | Skill 033 (0e989f9) |
+| t27/architecture/graph_v2.json | ✅ COMPLETE | new nodes, edges, topological_order | Skill 030 (3ddcffd) |
 
 ## Дополнительные стандартизированные файлы (кроме миграции)
 
@@ -122,7 +123,12 @@ git push
 
 ## ✅ МИГРАЦИЯ ЗАВЕРШЕНА
 
-Все задачи из плана миграции выполнены. PHI LOOP сессия завершена с 14 навыками (Skills 017-030).
+Все задачи из плана миграции выполнены. PHI LOOP сессия завершена с 17 навыками (Skills 017-033).
+
+**Стандартизация завершена:**
+- Все 14 .t27 спецификаций в каноническом формате (module/fn/test/invariant/bench)
+- Все архитектурные файлы синхронизированы
+- Assembly-like (.use/.data/.code) синтаксис полностью заменён
 
 ## PHI LOOP Skills Summary
 
@@ -141,6 +147,7 @@ git push
 | 027 | compiler/codegen/c/codegen.t27 | de6c5db | ✅ COMPLETE |
 | 028 | compiler/runtime/runtime.t27 | d8d298d | ✅ COMPLETE |
 | 029 | compiler/parser/lexer.t27 | 010a598 | ✅ COMPLETE |
+| 033 | compiler/codegen/zig/runtime.t27 | 0e989f9 | ✅ COMPLETE |
 
 ## Следующие шаги
 
