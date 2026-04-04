@@ -101,6 +101,16 @@ enum Commands {
         specs_dir: Option<String>,
     },
 
+    /// Compile all .t27 files into a coherent project with resolved inter-file imports
+    CompileProject {
+        /// Backend: zig, verilog, or c
+        #[arg(long, default_value = "zig")]
+        backend: String,
+        /// Output directory
+        #[arg(short, long, default_value = "build")]
+        output: String,
+    },
+
     /// Show repository statistics
     Stats,
 
@@ -733,6 +743,187 @@ fn run_compile_all(backend: &str, output_dir: &str, specs_dir: Option<&str>) -> 
     Ok(())
 }
 
+fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    let ext = backend_extension(backend);
+    let out_base = Path::new(output_dir);
+
+    // ── Pass 1: scan all .t27 files and build module→path map ──────────
+    // Maps "base::types" → "base/types" (relative path without extension)
+    let mut module_map: HashMap<String, String> = HashMap::new();
+    // Also collect all source file entries: (source_path, rel_output_path_no_ext)
+    let mut source_files: Vec<(std::path::PathBuf, String)> = Vec::new();
+
+    let dirs = ["specs", "compiler"];
+    for dir in &dirs {
+        let base = Path::new(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("t27") {
+                continue;
+            }
+
+            // Compute relative path: specs/base/types.t27 → base/types
+            let rel = p.strip_prefix(dir).unwrap_or(p);
+            let rel_no_ext = rel.with_extension("");
+            let rel_str = rel_no_ext.to_string_lossy().replace('\\', "/");
+
+            // Parse the file to extract the module name declared inside
+            if let Ok(source) = fs::read_to_string(p) {
+                let lexer = compiler::Lexer::new(&source);
+                let mut parser = compiler::Parser::new(lexer);
+                if let Ok(ast) = parser.parse() {
+                    // Build module key from directory structure
+                    // e.g. specs/base/types.t27 → "base::types"
+                    let module_key = rel_str.replace('/', "::");
+                    module_map.insert(module_key.clone(), rel_str.clone());
+
+                    // Also map by the module name declared in the file
+                    // to handle modules with different names than their file
+                    if !ast.name.is_empty() {
+                        // Check UseDecl nodes in the file to extract the full use path patterns
+                        // that other files use to reference this module
+                        let module_name_lower = ast.name.to_lowercase().replace('-', "_");
+                        // Map the last segment too for fallback
+                        let last_segment = rel_str.rsplit('/').next().unwrap_or(&rel_str);
+                        if !module_map.contains_key(last_segment) {
+                            module_map.insert(last_segment.to_string(), rel_str.clone());
+                        }
+                        if !module_map.contains_key(&module_name_lower) {
+                            module_map.insert(module_name_lower, rel_str.clone());
+                        }
+                    }
+                }
+            }
+
+            source_files.push((p.to_path_buf(), rel_str));
+        }
+    }
+
+    println!("Module map ({} entries):", module_map.len());
+    let mut sorted_keys: Vec<&String> = module_map.keys().collect();
+    sorted_keys.sort();
+    for key in &sorted_keys {
+        println!("  {} → {}", key, module_map[*key]);
+    }
+    println!();
+
+    // ── Pass 2: compile each file with resolved imports ────────────────
+    let mut count = 0u32;
+    let mut errors = 0u32;
+
+    for (source_path, rel_path) in &source_files {
+        let source = match fs::read_to_string(source_path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("skip {}: {}", source_path.display(), e);
+                errors += 1;
+                continue;
+            }
+        };
+
+        let code = match backend {
+            "verilog" => compiler::Compiler::compile_verilog(&source),
+            "c" => compiler::Compiler::compile_c(&source),
+            _ => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
+        };
+
+        let code = match code {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("skip {}: {}", source_path.display(), e);
+                errors += 1;
+                continue;
+            }
+        };
+
+        let dest = out_base.join(format!("{}{}", rel_path, &ext[..]));
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&dest, &code)?;
+        println!("wrote {}", dest.display());
+        count += 1;
+    }
+
+    // ── Pass 3: generate build.zig (Zig backend only) ──────────────────
+    if backend == "zig" {
+        let build_zig = generate_build_zig(&source_files, &ext[1..]);
+        let build_path = out_base.join("build.zig");
+        fs::write(&build_path, &build_zig)?;
+        println!("wrote {}", build_path.display());
+    }
+
+    println!("\ncompile-project: {} files to {}/ ({} errors)", count, output_dir, errors);
+    Ok(())
+}
+
+/// Generate a build.zig that declares all modules as a static library
+fn generate_build_zig(source_files: &[(std::path::PathBuf, String)], ext: &str) -> String {
+    let mut out = String::new();
+    out.push_str("// Generated by t27c compile-project\n");
+    out.push_str("// DO NOT EDIT — regenerate with: t27c compile-project\n");
+    out.push_str("// phi^2 + 1/phi^2 = 3 | TRINITY\n\n");
+    out.push_str("const std = @import(\"std\");\n\n");
+    out.push_str("pub fn build(b: *std.Build) void {\n");
+    out.push_str("    const target = b.standardTargetOptions(.{});\n");
+    out.push_str("    const optimize = b.standardOptimizeOption(.{});\n\n");
+
+    // Find a root source file — prefer base/types as the library root
+    let root_source = source_files
+        .iter()
+        .find(|(_, rel)| rel == "base/types")
+        .or_else(|| source_files.first())
+        .map(|(_, rel)| format!("{}.{}", rel, ext))
+        .unwrap_or_else(|| format!("base/types.{}", ext));
+
+    out.push_str(&format!(
+        "    const lib = b.addStaticLibrary(.{{\n\
+         \x20       .name = \"t27\",\n\
+         \x20       .root_source_file = b.path(\"{}\"),\n\
+         \x20       .target = target,\n\
+         \x20       .optimize = optimize,\n\
+         \x20   }});\n",
+        root_source
+    ));
+    out.push_str("    b.installArtifact(lib);\n\n");
+
+    // Add modules for each source file
+    out.push_str("    // Declare modules for cross-file imports\n");
+    for (_, rel) in source_files {
+        let module_name = rel.replace('/', ".");
+        out.push_str(&format!(
+            "    lib.root_module.addAnonymousImport(\"{}\", .{{ .root_source_file = b.path(\"{}.{}\") }});\n",
+            module_name,
+            rel,
+            ext,
+        ));
+    }
+
+    out.push_str("\n    // Tests\n");
+    out.push_str(&format!(
+        "    const tests = b.addTest(.{{\n\
+         \x20       .root_source_file = b.path(\"{}\"),\n\
+         \x20       .target = target,\n\
+         \x20       .optimize = optimize,\n\
+         \x20   }});\n",
+        root_source
+    ));
+    out.push_str("    const run_tests = b.addRunArtifact(tests);\n");
+    out.push_str("    const test_step = b.step(\"test\", \"Run unit tests\");\n");
+    out.push_str("    test_step.dependOn(&run_tests.step);\n");
+    out.push_str("}\n");
+
+    out
+}
+
 // ============================================================================
 // Stats Command
 // ============================================================================
@@ -954,6 +1145,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CompileAll { backend, output, specs_dir } => {
             run_compile_all(&backend, &output, specs_dir.as_deref())?
         }
+        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
     }
@@ -978,6 +1170,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileAll { backend, output, specs_dir } => {
             run_compile_all(&backend, &output, specs_dir.as_deref())?
         }
+        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
