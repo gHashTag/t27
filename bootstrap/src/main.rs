@@ -9,6 +9,8 @@
 mod compiler;
 
 use clap::{Parser, Subcommand};
+use sha2::{Sha256, Digest};
+#[cfg(feature = "server")]
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -36,6 +38,18 @@ enum Commands {
     /// Generate Zig code from .t27 file
     Gen {
         /// Input file path
+        input: String,
+    },
+
+    /// Compute deterministic test_vector_hash from conformance JSON
+    Conformance {
+        /// Input conformance JSON file path
+        input: String,
+    },
+
+    /// Compute seal hashes for a .t27 spec file
+    Seal {
+        /// Input .t27 spec file path
         input: String,
     },
 
@@ -162,6 +176,113 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn sha256_hex(data: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    format!("{:x}", hasher.finalize())
+}
+
+fn run_conformance(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let json: serde_json::Value = serde_json::from_str(&source)?;
+
+    // Extract test_vectors array and sort entries by name for determinism
+    let mut entries: Vec<String> = Vec::new();
+
+    if let Some(vectors) = json.get("test_vectors").and_then(|v| v.as_array()) {
+        let mut sorted_vectors: Vec<&serde_json::Value> = vectors.iter().collect();
+        sorted_vectors.sort_by(|a, b| {
+            let name_a = a.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name_b = b.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            name_a.cmp(name_b)
+        });
+        for v in sorted_vectors {
+            entries.push(serde_json::to_string(v)?);
+        }
+    } else {
+        // Fallback: sort top-level keys for non-vector JSON files
+        if let Some(obj) = json.as_object() {
+            let mut keys: Vec<&String> = obj.keys().collect();
+            keys.sort();
+            for k in keys {
+                entries.push(format!("{}:{}", k, serde_json::to_string(&obj[k])?));
+            }
+        } else {
+            entries.push(serde_json::to_string(&json)?);
+        }
+    }
+
+    let canonical = entries.join("\n");
+    let hash = sha256_hex(canonical.as_bytes());
+    println!("test_vector_hash=sha256:{}", hash);
+    Ok(())
+}
+
+fn run_seal(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    // spec_hash: SHA256 of the .t27 input file
+    let spec_hash = sha256_hex(source.as_bytes());
+    println!("spec_hash=sha256:{}", spec_hash);
+
+    // gen_hash: SHA256 of the generated Zig output
+    match compiler::Compiler::compile(&source) {
+        Ok(zig_code) => {
+            let gen_hash = sha256_hex(zig_code.as_bytes());
+            println!("gen_hash=sha256:{}", gen_hash);
+        }
+        Err(e) => {
+            eprintln!("gen_hash=error: {}", e);
+        }
+    }
+
+    // test_vector_hash: look for matching conformance JSON
+    let spec_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let conformance_dir = path.parent().unwrap_or(Path::new(".")).join("../conformance");
+    if conformance_dir.is_dir() {
+        let mut found = false;
+        if let Ok(dir_entries) = fs::read_dir(&conformance_dir) {
+            for entry in dir_entries.flatten() {
+                let entry_path = entry.path();
+                if entry_path.extension().and_then(|e| e.to_str()) == Some("json") {
+                    let fname = entry_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                    if fname.contains(spec_stem) {
+                        // Found a matching conformance file — compute its hash
+                        let json_source = fs::read_to_string(&entry_path)?;
+                        let json: serde_json::Value = serde_json::from_str(&json_source)?;
+                        if let Some(vectors) = json.get("test_vectors").and_then(|v| v.as_array()) {
+                            let mut sorted: Vec<&serde_json::Value> = vectors.iter().collect();
+                            sorted.sort_by(|a, b| {
+                                let na = a.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                                let nb = b.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                                na.cmp(nb)
+                            });
+                            let entries: Vec<String> = sorted
+                                .iter()
+                                .map(|v| serde_json::to_string(v).unwrap_or_default())
+                                .collect();
+                            let canonical = entries.join("\n");
+                            let hash = sha256_hex(canonical.as_bytes());
+                            println!("test_vector_hash=sha256:{}", hash);
+                            found = true;
+                        }
+                    }
+                }
+            }
+        }
+        if !found {
+            println!("test_vector_hash=none");
+        }
+    } else {
+        println!("test_vector_hash=none");
+    }
+
+    Ok(())
+}
+
 // ============================================================================
 // Main Entry Point
 // ============================================================================
@@ -174,6 +295,8 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
+        Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Seal { input } => run_seal(&input)?,
         Commands::Serve { port } => run_server(&port).await?,
     }
 
@@ -187,6 +310,8 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
+        Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Seal { input } => run_seal(&input)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
