@@ -1,0 +1,47 @@
+{
+  "module": "ProofTrace",
+  "spec_path": "specs/ar/proof_trace.t27",
+  "ring": 19,
+  "generated_at": "2026-04-04T18:00:00Z",
+  "description": "Bounded proof trace conformance vectors — CLARA ≤10 step limit",
+  "constants": {
+    "MAX_STEPS": 10
+  },
+  "vectors": {
+    "create_trace": {
+      "description": "Fresh trace has zero steps and K_UNKNOWN conclusion",
+      "cases": [
+        {"expected_step_count": 0, "expected_conclusion": 0, "expected_terminated": false}
+      ]
+    },
+    "append_step_bounded": {
+      "description": "Trace respects MAX_STEPS=10 bound",
+      "cases": [
+        {"append_count": 10, "expected_success_on_10th": true, "expected_step_count": 10},
+        {"append_count": 11, "expected_success_on_11th": false, "expected_terminated": true}
+      ]
+    },
+    "conclusion_tracking": {
+      "description": "Conclusion tracks last appended step output_fact",
+      "cases": [
+        {"steps": [{"output_fact": 1}], "expected_conclusion": 1},
+        {"steps": [{"output_fact": 1}, {"output_fact": -1}], "expected_conclusion": -1},
+        {"steps": [{"output_fact": 0}], "expected_conclusion": 0}
+      ]
+    },
+    "confidence_product": {
+      "description": "Total confidence is product of step confidences",
+      "cases": [
+        {"step_confidences": [0.9, 0.8], "expected_total": 0.72, "tolerance": 1e-3},
+        {"step_confidences": [1.0], "expected_total": 1.0, "tolerance": 1e-6},
+        {"step_confidences": [0.5, 0.5], "expected_total": 0.25, "tolerance": 1e-3}
+      ]
+    }
+  },
+  "invariants": {
+    "trace_bounded_by_clara": "step_count <= MAX_STEPS (10)",
+    "step_numbers_monotonic": "steps[i].step_number < steps[i+1].step_number",
+    "confidence_in_unit_interval": "0.0 <= total_confidence <= 1.0",
+    "terminated_iff_max_steps": "terminated == (step_count == MAX_STEPS)"
+  }
+}

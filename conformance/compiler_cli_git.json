@@ -1,0 +1,56 @@
+{
+  "module": "GitCommands",
+  "spec_path": "compiler/cli/git.t27",
+  "ring": 36,
+  "generated_at": "2026-04-04T21:00:00Z",
+  "vectors": [
+    {
+      "function": "git_commit",
+      "cases": [
+        { "inputs": { "registry_exists": false }, "expected": 1 },
+        { "inputs": { "skill_has_issue": false }, "expected": 1 },
+        { "inputs": { "verdict": "TOXIC" }, "expected": 1 },
+        { "inputs": { "verdict": "NOT_TOXIC", "issue": "123" }, "expected": 0 }
+      ]
+    },
+    {
+      "function": "git_push",
+      "cases": [
+        { "inputs": { "skill_sealed": false }, "expected": 1 },
+        { "inputs": { "verdict": "TOXIC" }, "expected": 1 },
+        { "inputs": { "kind": "recovery", "checkpoints": 2 }, "expected": 1 },
+        { "inputs": { "kind": "recovery", "checkpoints": 3 }, "expected": 0 }
+      ]
+    },
+    {
+      "function": "summarize_status",
+      "cases": [
+        { "inputs": { "status": "nothing to commit" }, "expected": "no changes" },
+        { "inputs": { "status": "modified: file.t27" }, "expected": "modified: file.t27" }
+      ]
+    },
+    {
+      "function": "count_checkpoints",
+      "cases": [
+        { "inputs": { "artifacts": "checkpoint1, checkpoint2" }, "expected": 2 },
+        { "inputs": { "artifacts": "spec, docs" }, "expected": 0 }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "git_commit_returns_zero_on_success", "assert": "Successful commit returns 0" },
+    { "name": "git_commit_returns_nonzero_on_failure", "assert": "Failed commit returns non-zero" },
+    { "name": "git_push_returns_zero_on_success", "assert": "Successful push returns 0" },
+    { "name": "git_push_returns_nonzero_on_failure", "assert": "Failed push returns non-zero" },
+    { "name": "recovery_requires_3_checkpoints", "assert": "Recovery skill min 3 checkpoints" },
+    { "name": "hotfix_requires_1_checkpoint", "assert": "Hotfix skill min 1 checkpoint" },
+    { "name": "strict_mode_validates_remote", "assert": "Strict mode checks remote URL" },
+    { "name": "summarize_status_never_null", "assert": "Summary always returns a string" },
+    { "name": "count_checkpoints_never_negative", "assert": "Checkpoint count >= 0" }
+  ],
+  "benchmarks": [
+    { "name": "git_commit_latency", "target": "< 500ms" },
+    { "name": "git_push_latency", "target": "< 1000ms" },
+    { "name": "git_status_latency", "target": "< 100ms" }
+  ]
+}

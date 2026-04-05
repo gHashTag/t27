@@ -1,0 +1,410 @@
+{
+  "module": "Parser",
+  "spec_path": "specs/compiler/parser.t27",
+  "ring": 31,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "vectors": [
+    {
+      "function": "isIdentStart",
+      "cases": [
+        { "inputs": { "c": "a" }, "expected": true },
+        { "inputs": { "c": "Z" }, "expected": true },
+        { "inputs": { "c": "_" }, "expected": true },
+        { "inputs": { "c": "0" }, "expected": false },
+        { "inputs": { "c": "+" }, "expected": false },
+        { "inputs": { "c": " " }, "expected": false }
+      ]
+    },
+    {
+      "function": "isIdentContinue",
+      "cases": [
+        { "inputs": { "c": "a" }, "expected": true },
+        { "inputs": { "c": "Z" }, "expected": true },
+        { "inputs": { "c": "_" }, "expected": true },
+        { "inputs": { "c": "0" }, "expected": true },
+        { "inputs": { "c": "9" }, "expected": true },
+        { "inputs": { "c": "+" }, "expected": false },
+        { "inputs": { "c": " " }, "expected": false }
+      ]
+    },
+    {
+      "function": "isDigit",
+      "cases": [
+        { "inputs": { "c": "0" }, "expected": true },
+        { "inputs": { "c": "9" }, "expected": true },
+        { "inputs": { "c": "a" }, "expected": false },
+        { "inputs": { "c": " " }, "expected": false }
+      ]
+    },
+    {
+      "function": "keywordKind",
+      "cases": [
+        { "inputs": { "text": "pub" },       "expected": "pub_" },
+        { "inputs": { "text": "const" },     "expected": "const_" },
+        { "inputs": { "text": "extern" },    "expected": "extern_" },
+        { "inputs": { "text": "struct" },    "expected": "struct_" },
+        { "inputs": { "text": "enum" },      "expected": "enum_" },
+        { "inputs": { "text": "fn" },        "expected": "fn_" },
+        { "inputs": { "text": "return" },    "expected": "return_" },
+        { "inputs": { "text": "if" },        "expected": "if_" },
+        { "inputs": { "text": "else" },      "expected": "else_" },
+        { "inputs": { "text": "using" },     "expected": "using" },
+        { "inputs": { "text": "test" },      "expected": "test" },
+        { "inputs": { "text": "bench" },     "expected": "bench" },
+        { "inputs": { "text": "invariant" }, "expected": "invariant" },
+        { "inputs": { "text": "module" },    "expected": "module_" },
+        { "inputs": { "text": "type" },      "expected": "type_" },
+        { "inputs": { "text": "foo" },       "expected": "ident" },
+        { "inputs": { "text": "x" },         "expected": "ident" },
+        { "inputs": { "text": "myVar" },     "expected": "ident" }
+      ]
+    },
+    {
+      "function": "singleCharTokenKind",
+      "cases": [
+        { "inputs": { "c": "+" }, "expected": "plus" },
+        { "inputs": { "c": "*" }, "expected": "star" },
+        { "inputs": { "c": "/" }, "expected": "slash" },
+        { "inputs": { "c": "%" }, "expected": "percent" },
+        { "inputs": { "c": "=" }, "expected": "assign" },
+        { "inputs": { "c": "<" }, "expected": "lt" },
+        { "inputs": { "c": ">" }, "expected": "gt" },
+        { "inputs": { "c": "!" }, "expected": "not_" },
+        { "inputs": { "c": "&" }, "expected": "and_" },
+        { "inputs": { "c": "|" }, "expected": "or_" },
+        { "inputs": { "c": "^" }, "expected": "xor" },
+        { "inputs": { "c": "(" }, "expected": "l_paren" },
+        { "inputs": { "c": ")" }, "expected": "r_paren" },
+        { "inputs": { "c": "{" }, "expected": "l_brace" },
+        { "inputs": { "c": "}" }, "expected": "r_brace" },
+        { "inputs": { "c": "[" }, "expected": "l_bracket" },
+        { "inputs": { "c": "]" }, "expected": "r_bracket" },
+        { "inputs": { "c": "," }, "expected": "comma" },
+        { "inputs": { "c": ":" }, "expected": "colon" },
+        { "inputs": { "c": "." }, "expected": "dot" },
+        { "inputs": { "c": ";" }, "expected": "semicolon" },
+        { "inputs": { "c": "?" }, "expected": "question" },
+        { "inputs": { "c": "~" }, "expected": "eof" }
+      ]
+    },
+    {
+      "function": "tokenize",
+      "cases": [
+        {
+          "id": "tokenize_identifiers",
+          "inputs": { "source": "module test; const x : i8 = 0;" },
+          "expected": [
+            { "kind": "module_", "text": "module" },
+            { "kind": "ident",   "text": "test" },
+            { "kind": "semicolon", "text": ";" },
+            { "kind": "const_",  "text": "const" },
+            { "kind": "ident",   "text": "x" },
+            { "kind": "colon",   "text": ":" },
+            { "kind": "ident",   "text": "i8" },
+            { "kind": "assign",  "text": "=" },
+            { "kind": "literal", "text": "0" },
+            { "kind": "semicolon", "text": ";" },
+            { "kind": "eof",    "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_keywords",
+          "inputs": { "source": "pub const extern struct enum fn return if else using test bench invariant module type" },
+          "expected": [
+            { "kind": "pub_",      "text": "pub" },
+            { "kind": "const_",    "text": "const" },
+            { "kind": "extern_",   "text": "extern" },
+            { "kind": "struct_",   "text": "struct" },
+            { "kind": "enum_",     "text": "enum" },
+            { "kind": "fn_",       "text": "fn" },
+            { "kind": "return_",   "text": "return" },
+            { "kind": "if_",       "text": "if" },
+            { "kind": "else_",     "text": "else" },
+            { "kind": "using",     "text": "using" },
+            { "kind": "test",      "text": "test" },
+            { "kind": "bench",     "text": "bench" },
+            { "kind": "invariant", "text": "invariant" },
+            { "kind": "module_",   "text": "module" },
+            { "kind": "type_",     "text": "type" },
+            { "kind": "eof",       "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_numbers",
+          "inputs": { "source": "0 1 -1 42 -99" },
+          "expected": [
+            { "kind": "literal", "text": "0" },
+            { "kind": "literal", "text": "1" },
+            { "kind": "literal", "text": "-1" },
+            { "kind": "literal", "text": "42" },
+            { "kind": "literal", "text": "-99" },
+            { "kind": "eof",    "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_string_literals",
+          "inputs": { "source": "\"hello\" \"world\"" },
+          "expected": [
+            { "kind": "literal", "text": "hello" },
+            { "kind": "literal", "text": "world" },
+            { "kind": "eof",    "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_comments_semicolon",
+          "inputs": { "source": "; this is a comment\nx = 1" },
+          "expected": [
+            { "kind": "ident",  "text": "x" },
+            { "kind": "assign", "text": "=" },
+            { "kind": "literal", "text": "1" },
+            { "kind": "eof",    "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_comments_double_slash",
+          "inputs": { "source": "// this is a comment\nx = 1" },
+          "expected": [
+            { "kind": "ident",  "text": "x" },
+            { "kind": "assign", "text": "=" },
+            { "kind": "literal", "text": "1" },
+            { "kind": "eof",    "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_arrow",
+          "inputs": { "source": "->" },
+          "expected": [
+            { "kind": "arrow", "text": "->" },
+            { "kind": "eof",  "text": "" }
+          ]
+        },
+        {
+          "id": "tokenize_multi_char_operators",
+          "inputs": { "source": "== != <= >=" },
+          "expected": [
+            { "kind": "eq",  "text": "==" },
+            { "kind": "ne",  "text": "!=" },
+            { "kind": "le",  "text": "<=" },
+            { "kind": "ge",  "text": ">=" },
+            { "kind": "eof", "text": "" }
+          ]
+        }
+      ]
+    },
+    {
+      "function": "parse",
+      "cases": [
+        {
+          "id": "parse_module_with_name",
+          "inputs": { "source": "module test;\nconst x : i8 = 0;" },
+          "expected": {
+            "module": "test",
+            "decls": [
+              { "kind": "const", "pub": false, "name": "x", "type": "i8", "value": "0" }
+            ]
+          }
+        },
+        {
+          "id": "parse_const_decl",
+          "inputs": { "source": "const x : i8 = 42;" },
+          "expected": {
+            "module": "",
+            "decls": [
+              { "kind": "const", "pub": false, "name": "x", "type": "i8", "value": "42" }
+            ]
+          }
+        },
+        {
+          "id": "parse_pub_const_decl",
+          "inputs": { "source": "pub const X : u8 = 1;" },
+          "expected": {
+            "module": "",
+            "decls": [
+              { "kind": "const", "pub": true, "name": "X", "type": "u8", "value": "1" }
+            ]
+          }
+        },
+        {
+          "id": "parse_enum_decl",
+          "inputs": { "source": "enum(i8) { neg = -1, zero = 0, pos = 1 }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              {
+                "kind": "enum",
+                "name": "",
+                "backing": "i8",
+                "values": [
+                  { "name": "neg",  "value": "-1" },
+                  { "name": "zero", "value": "0" },
+                  { "name": "pos",  "value": "1" }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "parse_struct_decl",
+          "inputs": { "source": "struct Point { x : i8, y : i8 }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              {
+                "kind": "struct",
+                "name": "Point",
+                "fields": [
+                  { "name": "x", "type": "i8" },
+                  { "name": "y", "type": "i8" }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "parse_fn_decl_with_params",
+          "inputs": { "source": "fn add(a : i8, b : i8) -> i8 { }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              {
+                "kind": "fn",
+                "name": "add",
+                "params": [
+                  { "name": "a", "type": "i8" },
+                  { "name": "b", "type": "i8" }
+                ],
+                "return": "i8"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parse_fn_decl_void_return",
+          "inputs": { "source": "fn foo() { }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              {
+                "kind": "fn",
+                "name": "foo",
+                "params": [],
+                "return": "void"
+              }
+            ]
+          }
+        },
+        {
+          "id": "parse_test_decl",
+          "inputs": { "source": "test \"simple test\" { const x = 1; }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              { "kind": "test", "name": "simple test" }
+            ]
+          }
+        },
+        {
+          "id": "parse_bench_decl",
+          "inputs": { "source": "bench \"measure\" { var x = 0; }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              { "kind": "bench", "name": "measure" }
+            ]
+          }
+        },
+        {
+          "id": "parse_invariant_decl",
+          "inputs": { "source": "invariant trit_value_range { }" },
+          "expected": {
+            "module": "",
+            "decls": [
+              { "kind": "invariant", "name": "trit_value_range" }
+            ]
+          }
+        },
+        {
+          "id": "parse_multiple_decls",
+          "inputs": { "source": "module mymod;\npub const A : i8 = 1;\nstruct S { f : u8 }\nfn g() { }" },
+          "expected": {
+            "module": "mymod",
+            "decls": [
+              { "kind": "const", "pub": true, "name": "A", "type": "i8", "value": "1" },
+              { "kind": "struct", "name": "S", "fields": [{ "name": "f", "type": "u8" }] },
+              { "kind": "fn", "name": "g", "params": [], "return": "void" }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    {
+      "id": "token_kinds_unique",
+      "description": "All TokenKind enum values must be unique",
+      "enforced_by": "compiler"
+    },
+    {
+      "id": "ast_node_kinds_unique",
+      "description": "All AstNodeKind enum values must be unique",
+      "enforced_by": "compiler"
+    },
+    {
+      "id": "parser_position_bounds",
+      "description": "Parser position must stay within token list bounds",
+      "enforced_by": "parser_implementation"
+    },
+    {
+      "id": "tokenizer_position_bounds",
+      "description": "Tokenizer position must stay within source bounds",
+      "enforced_by": "tokenizer_implementation"
+    },
+    {
+      "id": "module_has_valid_name",
+      "description": "Module name must be valid identifier or empty",
+      "enforced_by": "parser_implementation"
+    },
+    {
+      "id": "const_decl_has_name_and_type",
+      "description": "Const declarations must have non-empty name and type",
+      "enforced_by": "parser_implementation"
+    },
+    {
+      "id": "enum_decl_has_backing",
+      "description": "Enum declarations must specify backing type",
+      "enforced_by": "parser_implementation"
+    },
+    {
+      "id": "struct_decl_has_name",
+      "description": "Struct declarations must have non-empty name",
+      "enforced_by": "parser_implementation"
+    },
+    {
+      "id": "fn_decl_has_name",
+      "description": "Function declarations must have non-empty name",
+      "enforced_by": "parser_implementation"
+    }
+  ],
+  "benchmarks": [
+    {
+      "id": "bench_tokenize_simple_file",
+      "description": "Measure tokenization speed for simple .t27 file",
+      "input": "module test; const x : i8 = 0;"
+    },
+    {
+      "id": "bench_parse_simple_module",
+      "description": "Measure parsing speed for simple module",
+      "input": "module test; const x : i8 = 0; const y : i8 = 1;"
+    },
+    {
+      "id": "bench_parse_types_file",
+      "description": "Measure parsing speed for types.t27 (realistic test)",
+      "input_file": "specs/base/types.t27"
+    },
+    {
+      "id": "bench_to_json",
+      "description": "Measure JSON serialization speed",
+      "input": "module test; const x : i8 = 0;"
+    }
+  ]
+}

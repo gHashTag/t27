@@ -1,0 +1,57 @@
+{
+  "module": "VerilogCodeGen",
+  "spec_path": "compiler/codegen/verilog/codegen.t27",
+  "ring": 37,
+  "generated_at": "2026-04-04T21:10:00Z",
+  "vectors": [
+    {
+      "function": "VerilogCodegenOptions",
+      "cases": [
+        { "inputs": { "field": "module_prefix" }, "expected_type": "string" },
+        { "inputs": { "field": "default_width" }, "expected_type": "u8" },
+        { "inputs": { "field": "use_system_verilog" }, "expected_type": "bool" }
+      ]
+    },
+    {
+      "function": "width_calculation",
+      "cases": [
+        { "inputs": { "t27_type": "i8" }, "expected_width": 8 },
+        { "inputs": { "t27_type": "u8" }, "expected_width": 8 },
+        { "inputs": { "t27_type": "i16" }, "expected_width": 16 },
+        { "inputs": { "t27_type": "u16" }, "expected_width": 16 },
+        { "inputs": { "t27_type": "i32" }, "expected_width": 32 },
+        { "inputs": { "t27_type": "bool" }, "expected_width": 1 },
+        { "inputs": { "t27_type": "trit" }, "expected_width": 2 }
+      ]
+    },
+    {
+      "function": "default_widths",
+      "cases": [
+        { "inputs": { "signal": "data_bus" }, "expected_default": 8 },
+        { "inputs": { "signal": "address_bus" }, "expected_default": 16 },
+        { "inputs": { "signal": "control" }, "expected_default": 1 },
+        { "inputs": { "signal": "register" }, "expected_default": 8 }
+      ]
+    },
+    {
+      "function": "generate_module_header",
+      "cases": [
+        { "inputs": { "name": "alu", "ports": ["a", "b", "out"] }, "expected_contains": "module alu" },
+        { "inputs": { "name": "reg_file", "ports": [] }, "expected_contains": "module reg_file" }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "width_calculation_positive", "assert": "All width calculations return values > 0" },
+    { "name": "default_widths_power_of_two_or_one", "assert": "Default widths are 1, 2, 4, 8, 16, or 32" },
+    { "name": "verilog_options_has_defaults", "assert": "VerilogCodegenOptions provides sensible defaults" },
+    { "name": "module_header_ends_with_semicolon", "assert": "Generated module header ends with semicolon" },
+    { "name": "trit_width_is_two_bits", "assert": "Trit type maps to 2-bit wire width" },
+    { "name": "bool_width_is_one_bit", "assert": "Bool type maps to 1-bit wire width" }
+  ],
+  "benchmarks": [
+    { "name": "verilog_module_generation_latency", "target": "< 10ms" },
+    { "name": "width_calculation_latency", "target": "< 1us" },
+    { "name": "verilog_testbench_generation_latency", "target": "< 15ms" }
+  ]
+}

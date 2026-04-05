@@ -1,0 +1,20 @@
+{
+  "module": "zig_runtime",
+  "ring": 38,
+  "spec_path": "compiler/codegen/zig/runtime.t27",
+  "spec_hash": "sha256:295218999824f8be1facebfa4cdf9e7dbe55c31f692d1b025a668bd974569a6d",
+  "gen_hash_zig": "sha256:493585b34f311b72e3b5394a8a49e5e3410406708bf205c119f956a41ee4c786",
+  "gen_hash_c": "sha256:2cf3bac6b085c60038a109bbb96b085e994798fe12ce45e1accc836941580cc6",
+  "conformance_hash": "sha256:a3720ac5c937efb0d9964b29f3e923b39f760279c477d5850130f39cc058ee9e",
+  "tests": {
+    "status": "passed",
+    "count": 11,
+    "invariants": 6,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

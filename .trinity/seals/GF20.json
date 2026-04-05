@@ -1,0 +1,21 @@
+{
+  "module": "GF20",
+  "ring": 27,
+  "spec_path": "specs/numeric/gf20.t27",
+  "spec_hash": "sha256:5e595b03714e279746f53610a9a94af1980fa86086a727839afb59bd0672d031",
+  "gen_hash_zig": "sha256:a4b9c571bf1609cbab5206e8575701516c379d2d18d7eaab93ddff5e1c341cf9",
+  "gen_hash_c": "sha256:743cb95cfeda5f64f48dbc03a5f7825e9d7b47745e9287ce9a2250f756046d8a",
+  "gen_hash_verilog": "sha256:640778fbe17eb1c5271870937e57854fb2f20d283e82698b510390fd8de98066",
+  "conformance_hash": "sha256:ebfb260eb3f3ae2526a84ad15c1f0356adba5410e259509ae3d627e9abed11f0",
+  "tests": {
+    "status": "passed",
+    "count": 12,
+    "invariants": 8,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}

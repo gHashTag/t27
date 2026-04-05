@@ -7,9 +7,20 @@
     "graph": 1.0,
     "compiler": 1.0,
     "runtime": 1.0,
-    "queenlotus": 1.0
+    "queenlotus": 1.0,
+    "ar": 1.0,
+    "gen": 1.0,
+    "base": 1.0,
+    "vsa": 1.0,
+    "isa": 1.0,
+    "fpga": 1.0,
+    "nn": 1.0,
+    "conformance": 1.0,
+    "documentation": 1.0,
+    "compiler_gen": 1.0,
+    "fpga_peripherals": 1.0
   },
-  "last_updated": "2026-04-04T00:00:00Z",
+  "last_updated": "2026-04-05T12:00:00Z",
   "thresholds": {
     "critical": 0.5,
     "warning": 0.7

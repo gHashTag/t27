@@ -1,0 +1,21 @@
+{
+  "module": "trilexer",
+  "ring": 38,
+  "spec_path": "compiler/parser/lexer.t27",
+  "spec_hash": "sha256:cf665b400e73091057d195296506e68e8c16acff3adc70a1756b58cd88e30afc",
+  "gen_hash_zig": "sha256:01f50885d5058a87a8f07400e7a50c037c4df0f5606810f7ac932b3c6d43b571",
+  "gen_hash_c": "sha256:1013e49fe2f59a139a72fc7d283a588970184cd9683d116486863dc8df5a701a",
+  "gen_hash_verilog": "sha256:52c832a5f1ffc5eed1fbc2c0cc34268e64b0b6018675f75eb08300b9097925b3",
+  "conformance_hash": "sha256:0c31216ff02959455194fe4acaa0cb7ac2b279e476b560b624839ed6f93aecc4",
+  "tests": {
+    "status": "passed",
+    "count": 20,
+    "invariants": 5,
+    "benchmarks": 2
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

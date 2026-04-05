@@ -1,0 +1,21 @@
+{
+  "module": "Restraint",
+  "ring": 21,
+  "spec_path": "specs/ar/restraint.t27",
+  "spec_hash": "sha256:d41ded923996c3bc938a7e6710ffab9b3f1d2b6b4498396fbcb9ea55e8eabf83",
+  "gen_hash_zig": "sha256:d916185566d1008088d719b7d1ee2686f3df4d18fd668b940ba8107a4671feb4",
+  "gen_hash_c": "sha256:0f20ae3ae5d02085cbced305fecb6d36fe3588c47e66b5ee7a38eb535d5d92f5",
+  "gen_hash_verilog": "sha256:1756a98dc79afa9812ce6b94c7cafe27e98a26943896f544d50b6fab14883a1d",
+  "tests": {
+    "status": "passed",
+    "count": 20,
+    "invariants": 8,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z",
+  "conformance_hash": "sha256:e504c6173822db9b0a3bec7da35d820d3d6ed0c81e25acc087489bc23f73aaa2"
+}

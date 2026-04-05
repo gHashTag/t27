@@ -1,0 +1,5 @@
+{"ring": 46, "task": "experience-system-setup", "status": "in_progress", "description": "Record all CLARA experience in .trinity/experience/"}
+{"ring": 47, "task": "final-page-count-verification", "status": "pending", "description": "Verify CLARA-PROPOSAL-TECHNICAL.md is ≤10 pages when rendered"}
+{"ring": 48, "task": "tri-cli-clara-demo-command", "status": "pending", "description": "Add 'tri clara demo' command to CLI that runs scripts/clara/demo.sh"}
+{"ring": 49, "task": "benchmarking-comparison", "status": "pending", "description": "Run GF16 vs fp16 vs bfloat16 performance benchmark, save to conformance/"}
+{"ring": 50, "task": "final-submission-package", "status": "pending", "description": "Final review, formatting, all headers, git tag v0.40-clara"}

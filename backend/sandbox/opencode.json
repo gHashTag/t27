@@ -1,0 +1,4 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "_comment": "TEMPLATE — init.sh generates the real config at runtime from env vars."
+}

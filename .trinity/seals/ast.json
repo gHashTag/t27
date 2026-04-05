@@ -1,0 +1,21 @@
+{
+  "module": "ast",
+  "ring": 38,
+  "spec_path": "compiler/ast.t27",
+  "spec_hash": "sha256:28bfcdf211a0360991fe8d89dc376440d2144b936e030f81e0b5794a1c0eeb00",
+  "gen_hash_zig": "sha256:01ccfd45ad567594ce637442eaabd92db5418f1705d7178dabe0a982174fee7d",
+  "gen_hash_c": "sha256:43f89c619c2163916d03b5d1994a7eae08bb988fd817daf14514f7d7843d00c6",
+  "gen_hash_verilog": "sha256:340ac945112cdc6358131ce54cb055f64108fa951a950b69434798a65b4d0764",
+  "conformance_hash": "sha256:c7c50aafa02abe31840ee06aa8a1af761c922eecd7aaa1a32854bec04c875af8",
+  "tests": {
+    "status": "passed",
+    "count": 19,
+    "invariants": 6,
+    "benchmarks": 2
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

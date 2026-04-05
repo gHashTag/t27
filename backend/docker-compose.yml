@@ -1,0 +1,163 @@
+version: "3.9"
+
+# T27 SWE Agent Sandbox — Local Development Stack
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f api
+#   docker compose down -v  (remove volumes too)
+#
+# Requires: backend/api/Dockerfile, backend/sandbox/Dockerfile
+# Env overrides: create a .env file alongside this file and fill in secrets.
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PostgreSQL — Session store
+  # ─────────────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: t27-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: t27
+      POSTGRES_USER: t27
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-t27dev}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U t27 -d t27"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - t27-internal
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Control Plane API — Node.js / Express / TypeScript
+  # ─────────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: t27-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # ── Node / Express ──
+      NODE_ENV: development
+      PORT: "3000"
+
+      # ── Database (Drizzle ORM) ──
+      DATABASE_URL: postgres://t27:${POSTGRES_PASSWORD:-t27dev}@db:5432/t27
+
+      # ── Admin auth ──
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-dev-secret-change-in-prod}
+
+      # ── Railway (not used in local mode) ──
+      RAILWAY_API_TOKEN: ${RAILWAY_API_TOKEN:-placeholder}
+      RAILWAY_PROJECT_ID: ${RAILWAY_PROJECT_ID:-placeholder}
+      RAILWAY_ENVIRONMENT_ID: ${RAILWAY_ENVIRONMENT_ID:-placeholder}
+      RAILWAY_SERVICE_IMAGE: ${RAILWAY_SERVICE_IMAGE:-ghcr.io/ghashtag/t27-sandbox:latest}
+
+      # ── Local mode: proxy to local sandbox containers ──
+      LOCAL_MODE: "true"
+      SANDBOX_LOCAL_MAP: "sandbox-a=http://sandbox-a:8080,sandbox-b=http://sandbox-b:8080"
+
+      # ── Host routing (local dev) ──
+      API_DIRECT_HOST: localhost
+      API_PROXY_HOST: proxy.localhost
+
+      # ── Session limits ──
+      MAX_SESSIONS: "100"
+
+      # ── Pass-through to sandboxes ──
+      GH_TOKEN: ${GH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "3000:3000"
+    networks:
+      - t27-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Sandbox A — Test sandbox instance (mirrors Railway container locally)
+  # ─────────────────────────────────────────────────────────────────────────
+  sandbox-a:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: t27-sandbox-a
+    restart: unless-stopped
+    environment:
+      SANDBOX_REPO_URL: ${SANDBOX_REPO_URL:-}
+      GH_TOKEN: ${GH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8081:8080"
+    volumes:
+      - sandbox-a-workspace:/home/sandbox/workspace
+    networks:
+      - t27-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/global/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18    # 90s startup window (18 × 5s)
+      start_period: 30s
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Sandbox B — Second test sandbox instance
+  # ─────────────────────────────────────────────────────────────────────────
+  sandbox-b:
+    build:
+      context: ./sandbox
+      dockerfile: Dockerfile
+    container_name: t27-sandbox-b
+    restart: unless-stopped
+    environment:
+      SANDBOX_REPO_URL: ${SANDBOX_REPO_URL:-}
+      GH_TOKEN: ${GH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8082:8080"
+    volumes:
+      - sandbox-b-workspace:/home/sandbox/workspace
+    networks:
+      - t27-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/global/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Networks
+# ─────────────────────────────────────────────────────────────────────────────
+networks:
+  t27-internal:
+    driver: bridge
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Volumes
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  db-data:
+    driver: local
+  sandbox-a-workspace:
+    driver: local
+  sandbox-b-workspace:
+    driver: local

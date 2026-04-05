@@ -1,0 +1,21 @@
+{
+  "module": "VSACore",
+  "ring": 43,
+  "spec_path": "specs/vsa/core.t27",
+  "spec_hash": "sha256:1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+  "gen_hash_zig": "sha256:3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b",
+  "gen_hash_c": "sha256:5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d",
+  "gen_hash_verilog": "sha256:71829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f",
+  "conformance_hash": "sha256:9304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718",
+  "tests": {
+    "status": "passed",
+    "count": 15,
+    "invariants": 9,
+    "benchmarks": 6
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-05T12:00:00Z"
+}

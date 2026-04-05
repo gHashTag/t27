@@ -1,0 +1,106 @@
+{
+  "module": "SPI_Master",
+  "spec_path": "specs/fpga/spi.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "SPI Master conformance vectors -- prescaler, transfer, mode validation",
+  "constants": {
+    "CLK_FREQ": 50000000,
+    "SPI_CPOL": 0,
+    "SPI_CPHA": 0,
+    "MAX_DATA_WIDTH": 32
+  },
+  "vectors": {
+    "spi_prescaler": {
+      "description": "Prescaler division calculation",
+      "cases": [
+        {
+          "id": "spi_prescaler_div2",
+          "clk_freq": 50000000,
+          "target_freq": 25000000,
+          "expected_divisor": 2,
+          "note": "50MHz / 25MHz = divide by 2"
+        },
+        {
+          "id": "spi_prescaler_div8",
+          "clk_freq": 50000000,
+          "target_freq": 6250000,
+          "expected_divisor": 8,
+          "note": "50MHz / 6.25MHz = divide by 8"
+        },
+        {
+          "id": "spi_prescaler_div128",
+          "clk_freq": 50000000,
+          "target_freq": 390625,
+          "expected_divisor": 128,
+          "note": "50MHz / 390.625kHz = divide by 128"
+        }
+      ]
+    },
+    "spi_transfer": {
+      "description": "Data transfer validation",
+      "cases": [
+        {
+          "id": "spi_transfer_8bit",
+          "tx_data": 170,
+          "data_width": 8,
+          "expected_mosi_bits": [1, 0, 1, 0, 1, 0, 1, 0],
+          "note": "0xAA = 10101010 MSB first"
+        },
+        {
+          "id": "spi_transfer_16bit",
+          "tx_data": 43690,
+          "data_width": 16,
+          "expected_mosi_first_bit": 1,
+          "expected_mosi_last_bit": 0,
+          "note": "0xAAAA MSB first"
+        },
+        {
+          "id": "spi_transfer_loopback",
+          "tx_data": 85,
+          "data_width": 8,
+          "miso_data": 85,
+          "expected_rx_data": 85,
+          "note": "Loopback: TX == RX when MISO mirrors MOSI"
+        }
+      ]
+    },
+    "spi_mode_0": {
+      "description": "Mode 0 (CPOL=0, CPHA=0) validation",
+      "cases": [
+        {
+          "id": "spi_mode_0_idle_low",
+          "cpol": 0,
+          "cpha": 0,
+          "expected_idle_clk": 0,
+          "expected_sample_edge": "rising",
+          "note": "Mode 0: clock idle low, sample on rising edge"
+        },
+        {
+          "id": "spi_mode_0_cs_active_low",
+          "cs_idle": 1,
+          "cs_active": 0,
+          "expected_cs_polarity": "active_low",
+          "note": "Chip select is active low"
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "spi_mode_0_constant",
+      "description": "SPI_CPOL == 0 and SPI_CPHA == 0 (Mode 0)",
+      "cpol": 0,
+      "cpha": 0
+    },
+    {
+      "id": "spi_states_valid",
+      "description": "SPI FSM states are in {IDLE, TRANSFER, CS_HOLD, DONE}"
+    },
+    {
+      "id": "spi_data_width_bounds",
+      "description": "Data width in [1, MAX_DATA_WIDTH] where MAX_DATA_WIDTH == 32",
+      "value": 32
+    }
+  ]
+}

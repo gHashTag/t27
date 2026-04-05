@@ -1,0 +1,66 @@
+{
+  "module": "Validation",
+  "spec_path": "compiler/runtime/validation.t27",
+  "ring": 37,
+  "generated_at": "2026-04-04T21:10:00Z",
+  "vectors": [
+    {
+      "function": "tdd_contract",
+      "cases": [
+        { "inputs": { "spec_path": "specs/with_tests.t27", "has_test": true, "has_invariant": true }, "expected": true },
+        { "inputs": { "spec_path": "specs/no_tests.t27", "has_test": false, "has_invariant": true }, "expected": false },
+        { "inputs": { "spec_path": "specs/no_invariants.t27", "has_test": true, "has_invariant": false }, "expected": false },
+        { "inputs": { "spec_path": "specs/empty.t27", "has_test": false, "has_invariant": false }, "expected": false }
+      ]
+    },
+    {
+      "function": "language_policy",
+      "cases": [
+        { "inputs": { "feature": "goto" }, "expected_allowed": false },
+        { "inputs": { "feature": "global_mutable" }, "expected_allowed": false },
+        { "inputs": { "feature": "const_decl" }, "expected_allowed": true },
+        { "inputs": { "feature": "fn_decl" }, "expected_allowed": true },
+        { "inputs": { "feature": "unsafe_cast" }, "expected_allowed": false },
+        { "inputs": { "feature": "enum_decl" }, "expected_allowed": true }
+      ]
+    },
+    {
+      "function": "naming_convention",
+      "cases": [
+        { "inputs": { "kind": "const", "name": "MAX_SIZE" }, "expected": true },
+        { "inputs": { "kind": "const", "name": "maxSize" }, "expected": false },
+        { "inputs": { "kind": "fn", "name": "get_value" }, "expected": true },
+        { "inputs": { "kind": "fn", "name": "getValue" }, "expected": false },
+        { "inputs": { "kind": "fn", "name": "GetValue" }, "expected": false },
+        { "inputs": { "kind": "struct", "name": "MyStruct" }, "expected": true },
+        { "inputs": { "kind": "struct", "name": "my_struct" }, "expected": false },
+        { "inputs": { "kind": "enum", "name": "Color" }, "expected": true },
+        { "inputs": { "kind": "enum", "name": "color" }, "expected": false }
+      ]
+    },
+    {
+      "function": "validate_spec",
+      "cases": [
+        { "inputs": { "spec_path": "specs/valid_full.t27" }, "expected": { "tdd": true, "policy": true, "naming": true } },
+        { "inputs": { "spec_path": "specs/missing_tests.t27" }, "expected": { "tdd": false, "policy": true, "naming": true } },
+        { "inputs": { "spec_path": "" }, "expected": 1 }
+      ]
+    }
+  ],
+  "invariants": [
+    { "name": "tdd_contract_requires_tests", "assert": "TDD contract fails if spec has no test sections" },
+    { "name": "tdd_contract_requires_invariants", "assert": "TDD contract fails if spec has no invariant sections" },
+    { "name": "language_policy_rejects_goto", "assert": "goto is never allowed by language policy" },
+    { "name": "language_policy_rejects_global_mutable", "assert": "Global mutable state is never allowed" },
+    { "name": "naming_convention_consts_upper_snake", "assert": "Constants must use UPPER_SNAKE_CASE" },
+    { "name": "naming_convention_fns_lower_snake", "assert": "Functions must use lower_snake_case" },
+    { "name": "naming_convention_types_pascal", "assert": "Structs and enums must use PascalCase" },
+    { "name": "validate_spec_checks_all_rules", "assert": "validate_spec runs TDD, policy, and naming checks" }
+  ],
+  "benchmarks": [
+    { "name": "tdd_contract_check_latency", "target": "< 5ms" },
+    { "name": "language_policy_check_latency", "target": "< 1ms" },
+    { "name": "naming_convention_check_latency", "target": "< 2ms" },
+    { "name": "validate_spec_full_latency", "target": "< 20ms" }
+  ]
+}

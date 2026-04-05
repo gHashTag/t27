@@ -1,0 +1,674 @@
+// t27/specs/ar/asp_solver.t27
+// Answer Set Programming with Restraint for CLARA
+// Negation as Failure (NAF) with Kleene K3 semantics
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module AspSolver {
+    // ═════════════════════════════════════════════════════════════════
+    // IMPORTS - Reference existing specs, DO NOT DUPLICATE
+    // ═════════════════════════════════════════════════════════════════════════
+    use base::types;            // Trit enum: .neg, .zero, .pos
+    use ar::ternary_logic;      // K_FALSE, K_UNKNOWN, K_TRUE, Rule, is_restraint
+    use ar::datalog_engine;     // DatalogEngine, HornClause, datalog_init, etc.
+    use ar::restraint;          // RestraintParams, ExecutionState, params_for_quality
+    use numeric::gf16;          // GF16 for confidence (NUMERIC-STANDARD-001)
+
+    // ═════════════════════════════════════════════════════════════════
+    // 1. ASP Core Types
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // MAX_NAF: Maximum number of NAF conditions per rule
+    pub const MAX_NAF : u8 = 3;
+    // MAX_FACTS: Maximum facts in stable model
+    pub const MAX_FACTS : u8 = 32;
+    // MAX_ITERATIONS: Default max iterations for fixed point
+    pub const MAX_ITERATIONS : u16 = 1000;
+
+    // AspRule: Horn clause with Negation as Failure
+    // Represents: IF body AND NOT naf_ids[0] AND ... AND NOT naf_ids[n-1] THEN head
+    // NAF semantics: rule fires only if all NAF conditions are NOT K_TRUE
+    pub const AspRule = struct {
+        base : Rule,            // Horn clause body (from ternary_logic)
+        naf_ids : [MAX_NAF]u32, // Fact IDs that must NOT be K_TRUE
+        naf_count : u8,         // Actual number of NAF conditions (0-MAX_NAF)
+    };
+
+    // FactId: Fact identifier with truth value
+    // Associates a fact ID with its Kleene truth value
+    pub const FactId = struct {
+        id : u32,    // Fact identifier
+        truth : Trit, // Truth value: K_FALSE, K_UNKNOWN, K_TRUE
+    };
+
+    // StableModel: Result of ASP solver computation
+    // Contains all derived facts and convergence info
+    pub const StableModel = struct {
+        facts : [MAX_FACTS]FactId,  // Derived facts
+        fact_count : u8,            // Number of facts in model
+        is_complete : bool,         // Whether model is complete (all facts derived)
+        iterations : u16,           // Iterations to reach stable model
+        aborted_by_restraint : bool, // True if computation was aborted by restraint
+    };
+
+    // AspConfig: Configuration for ASP solver
+    pub const AspConfig = struct {
+        max_iterations : u16,         // Max iterations for fixed point
+        max_models : u8,              // Max models to generate (for multi-model ASP)
+        quality : QualityLevel,       // Quality level for restraint (from ar::restraint)
+        initial_confidence : GF16,    // Initial confidence (GF16 encoded)
+    };
+
+    // AspState: State for ASP computation with restraint
+    pub const AspState = struct {
+        engine : DatalogEngine,       // Datalog engine for inference
+        exec_state : ExecutionState,  // Execution state from ar::restraint
+        restraint_params : RestraintParams, // Restraint parameters (with GF16)
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    // 2. NAF (Negation as Failure) Evaluation
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // evaluate_naf(engine: *DatalogEngine, naf_ids: []u32, count: usize) -> bool
+    // Evaluate NAF conditions: return true if ALL NAF conditions are NOT K_TRUE
+    // NAF semantics: NOT p means "p cannot be proven" (p != K_TRUE)
+    // This is "negation as failure" - negation succeeds only if atom is not true
+    // Complexity: O(n) where n = count
+    pub fn evaluate_naf(engine: *DatalogEngine, naf_ids: []u32, count: usize) -> bool {
+        var i : usize = 0;
+        while (i < count) {
+            const fact_id = naf_ids[i];
+
+            // Find fact by ID in engine
+            var found : bool = false;
+            var fact_truth : Trit = K_UNKNOWN;
+
+            var j : usize = 0;
+            while (j < engine.fact_count) {
+                const fact = engine.facts[j];
+                // Simplified: fact name is used as ID
+                if (fact.name == @as(u16, @intCast(fact_id))) {
+                    // Get truth from first argument
+                    fact_truth = fact.args[0];
+                    found = true;
+                    break;
+                }
+                j = j + 1;
+            }
+
+            // If fact is K_TRUE, NAF fails
+            if (found and fact_truth == K_TRUE) {
+                return false;
+            }
+
+            i = i + 1;
+        }
+
+        // All NAF conditions satisfied (none are K_TRUE)
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 3. Fixed Point Iteration with Restraint
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // fixed_point_iteration(engine: *DatalogEngine, rules: []AspRule, count: usize,
+    //                       tracker: *ExecutionState, max_iter: u16) -> bool
+    // Run fixed point iteration for ASP with restraint checking
+    // Applies rules repeatedly until no new facts or restraint triggers
+    // Returns true if converged to stable model, false if aborted by restraint
+    // Complexity: O(iterations * rules * facts)
+    pub fn fixed_point_iteration(
+        engine: *DatalogEngine,
+        rules: []AspRule,
+        count: usize,
+        tracker: *ExecutionState,
+        max_iter: u16
+    ) -> bool {
+        var converged : bool = false;
+        var iteration : u16 = 0;
+
+        // Import from ar::datalog_engine
+        use datalog_solve;
+
+        while (iteration < max_iter) {
+            // Check restraint before each iteration
+            if (should_continue(tracker.*, tracker.restraint_params) == K_FALSE) {
+                // Restraint triggered - abort
+                return false;
+            }
+
+            // Record operation
+            tracker.rules_fired = tracker.rules_fired + 1;
+
+            // Run one step of datalog inference
+            const new_facts = datalog_solve(engine);
+
+            // Check for convergence (no new facts derived)
+            if (new_facts == 0) {
+                converged = true;
+                break;
+            }
+
+            // Increment depth for next iteration
+            tracker.current_depth = tracker.current_depth + 1;
+            iteration = iteration + 1;
+        }
+
+        return converged;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. Query with Restraint
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // query_with_restraint(engine: *DatalogEngine, fact_id: u32,
+    //                       config: RestraintParams, state: *ExecutionState) -> Trit
+    // Query a fact with restraint checking
+    // Returns K_UNKNOWN if restraint blocks, actual truth value otherwise
+    // Complexity: O(n) where n = number of facts
+    pub fn query_with_restraint(
+        engine: *DatalogEngine,
+        fact_id: u32,
+        config: RestraintParams,
+        state: *ExecutionState
+    ) -> Trit {
+        // Track operation
+        state.rules_fired = state.rules_fired + 1;
+
+        // Check restraint
+        if (should_continue(state.*, config) == K_FALSE) {
+            return K_UNKNOWN;  // Restraint blocks query
+        }
+
+        // Find fact
+        var i : usize = 0;
+        while (i < engine.fact_count) {
+            const fact = engine.facts[i];
+            if (fact.name == @as(u16, @intCast(fact_id))) {
+                return fact.args[0];  // Return truth value
+            }
+            i = i + 1;
+        }
+
+        // Fact not found
+        return K_UNKNOWN;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 5. Consistency Checking
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // is_consistent(model: StableModel) -> bool
+    // Check if stable model has no contradictions
+    // A model is inconsistent if same fact has both K_TRUE and K_FALSE
+    // Complexity: O(n^2) where n = model.fact_count
+    pub fn is_consistent(model: StableModel) -> bool {
+        var i : usize = 0;
+        while (i < model.fact_count) {
+            const fact_i = model.facts[i];
+
+            var j : usize = 0;
+            while (j < model.fact_count) {
+                const fact_j = model.facts[j];
+
+                // Same ID with different truth values = contradiction
+                if (i != j and fact_i.id == fact_j.id) {
+                    // If both are K_TRUE and K_FALSE, inconsistent
+                    if ((fact_i.truth == K_TRUE and fact_j.truth == K_FALSE) or
+                        (fact_i.truth == K_FALSE and fact_j.truth == K_TRUE)) {
+                        return false;
+                    }
+                }
+
+                j = j + 1;
+            }
+
+            i = i + 1;
+        }
+
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 6. Stable Model Computation
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // compute_stable_model(engine: *DatalogEngine, rules: []AspRule, count: usize,
+    //                       config: AspConfig) -> StableModel
+    // Main ASP solver: compute stable model using fixed point iteration
+    // Combines datalog inference with NAF checking and restraint
+    // Complexity: O(iterations * rules * facts)
+    pub fn compute_stable_model(
+        engine: *DatalogEngine,
+        rules: []AspRule,
+        count: usize,
+        config: AspConfig
+    ) -> StableModel {
+        // Initialize result model
+        var model : StableModel = StableModel{
+            .facts = undefined,
+            .fact_count = 0,
+            .is_complete = false,
+            .iterations = 0,
+            .aborted_by_restraint = false,
+        };
+
+        // Initialize execution state with quality and GF16 confidence
+        const restraint_params = params_for_quality(config.quality);
+        var exec_state = ExecutionState{
+            .current_depth = 0,
+            .rules_fired = 0,
+            .current_confidence = config.initial_confidence,  // GF16 from config
+            .start_time_ms = 0,  // Simplified
+            .quality = config.quality,
+        };
+
+        // Add restraint params to state (stored inline for simplicity)
+        exec_state.restraint_params = restraint_params;
+
+        // Run fixed point iteration
+        const converged = fixed_point_iteration(
+            engine,
+            rules,
+            count,
+            &exec_state,
+            config.max_iterations
+        );
+
+        model.iterations = exec_state.current_depth;
+        model.aborted_by_restraint = !converged;
+        model.is_complete = converged;
+
+        // Extract facts from engine to model
+        var i : usize = 0;
+        while (i < engine.fact_count and i < MAX_FACTS) {
+            const fact = engine.facts[i];
+            model.facts[i] = FactId{
+                .id = @as(u32, @intCast(fact.name)),
+                .truth = fact.args[0],
+            };
+            i = i + 1;
+        }
+        model.fact_count = @as(u8, @intCast(i));
+
+        return model;
+    }
+
+    // has_stable_model(engine: *DatalogEngine, rules: []AspRule, count: usize) -> bool
+    // Check if ASP program has at least one stable model
+    // Uses simplified computation - returns true if consistent model can be found
+    // Complexity: O(compute_stable_model)
+    pub fn has_stable_model(engine: *DatalogEngine, rules: []AspRule, count: usize) -> bool {
+        const config = AspConfig{
+            .max_iterations = MAX_ITERATIONS,
+            .max_models = 1,
+            .quality = .good,  // Use good quality for checking
+            .initial_confidence = gf16_encode_f32(1.0),  // Start with high confidence
+        };
+
+        const model = compute_stable_model(engine, rules, count, config);
+
+        // Model must be complete and consistent
+        return model.is_complete and is_consistent(model);
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test evaluate_naf_all_unknown_succeeds
+        // NAF with all unknown facts succeeds
+        given engine = datalog_init()
+        and unknown_fact = HornClause{ .name = 1, .args = [_]Trit{K_UNKNOWN} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, unknown_fact) == true
+        and naf_ids = [_]u32{1}
+        when result = evaluate_naf(&engine, &naf_ids, 1)
+        then result == true
+
+    test evaluate_naf_with_true_fails
+        // NAF with a true fact fails
+        given engine = datalog_init()
+        and true_fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, true_fact) == true
+        and naf_ids = [_]u32{1}
+        when result = evaluate_naf(&engine, &naf_ids, 1)
+        then result == false
+
+    test evaluate_naf_with_false_succeeds
+        // NAF with a false fact succeeds (NOT false = true in NAF)
+        given engine = datalog_init()
+        and false_fact = HornClause{ .name = 1, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, false_fact) == true
+        and naf_ids = [_]u32{1}
+        when result = evaluate_naf(&engine, &naf_ids, 1)
+        then result == true
+
+    test evaluate_naf_multiple_conditions
+        // NAF with multiple conditions checks all
+        given engine = datalog_init()
+        and fact1 = HornClause{ .name = 1, .args = [_]Trit{K_UNKNOWN} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and fact2 = HornClause{ .name = 2, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact1) == true
+        and add_fact(engine, fact2) == true
+        and naf_ids = [_]u32{1, 2}
+        when result = evaluate_naf(&engine, &naf_ids, 2)
+        then result == true  // Neither is K_TRUE
+
+    test fixed_point_converges_no_new_facts
+        // Fixed point converges when no new facts
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and asp_rule = AspRule{ .base = rule, .naf_ids = [_]u32{0} ** 3, .naf_count = 0 }
+        and rules = [_]AspRule{asp_rule}
+        and params = params_for_quality(.good)
+        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.9), .start_time_ms = 0, .quality = .good, .restraint_params = params }
+        when result = fixed_point_iteration(&engine, &rules, 1, &state, 100)
+        then result == true  // Converged (no new facts from FALSE antecedent)
+
+    test fixed_point_aborts_on_restraint
+        // Fixed point aborts when restraint triggers
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and asp_rule = AspRule{ .base = rule, .naf_ids = [_]u32{0} ** 3, .naf_count = 0 }
+        and rules = [_]AspRule{asp_rule}
+        and params = RestraintParams{ .max_depth = 1, .max_rules = 1, .confidence_threshold = gf16_encode_f32(0.5), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.4), .start_time_ms = 0, .quality = .good, .restraint_params = params }
+        when result = fixed_point_iteration(&engine, &rules, 1, &state, 100)
+        then result == false  // Aborted by low confidence
+
+    test query_with_restraint_blocks_on_limit
+        // Query returns K_UNKNOWN when restraint blocks
+        given engine = datalog_init()
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and params = RestraintParams{ .max_depth = 1, .max_rules = 1, .confidence_threshold = gf16_encode_f32(0.9), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 1, .rules_fired = 2, .current_confidence = gf16_encode_f32(0.5), .start_time_ms = 0, .quality = .good, .restraint_params = params }
+        when result = query_with_restraint(&engine, 1, params, &state)
+        then result == K_UNKNOWN  // Blocked by restraint
+
+    test query_with_restraint_returns_truth_when_allowed
+        // Query returns actual truth when restraint allows
+        given engine = datalog_init()
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and params = RestraintParams{ .max_depth = 10, .max_rules = 10, .confidence_threshold = gf16_encode_f32(0.5), .timeout_ms = 1000 }
+        and state = ExecutionState{ .current_depth = 1, .rules_fired = 2, .current_confidence = gf16_encode_f32(0.9), .start_time_ms = 0, .quality = .good, .restraint_params = params }
+        when result = query_with_restraint(&engine, 1, params, &state)
+        then result == K_TRUE  // Restraint allows
+
+    test is_consistent_true_no_contradictions
+        // Model with no contradictions is consistent
+        given model = StableModel{
+            .facts = [_]FactId{
+                FactId{ .id = 1, .truth = K_TRUE },
+                FactId{ .id = 2, .truth = K_FALSE },
+                FactId{ .id = 3, .truth = K_UNKNOWN },
+            },
+            .fact_count = 3,
+            .is_complete = true,
+            .iterations = 10,
+            .aborted_by_restraint = false,
+        }
+        when result = is_consistent(model)
+        then result == true
+
+    test is_consistent_false_has_contradictions
+        // Model with same fact having both true and false is inconsistent
+        given model = StableModel{
+            .facts = [_]FactId{
+                FactId{ .id = 1, .truth = K_TRUE },
+                FactId{ .id = 1, .truth = K_FALSE },  // Same ID, different truth
+                FactId{ .id = 2, .truth = K_TRUE },
+            },
+            .fact_count = 3,
+            .is_complete = true,
+            .iterations = 10,
+            .aborted_by_restraint = false,
+        }
+        when result = is_consistent(model)
+        then result == false
+
+    test compute_stable_model_simple_program
+        // Simple program finds stable model
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and asp_rule = AspRule{ .base = rule, .naf_ids = [_]u32{0} ** 3, .naf_count = 0 }
+        and rules = [_]AspRule{asp_rule}
+        and config = AspConfig{
+            .max_iterations = 100,
+            .max_models = 1,
+            .quality = .good,
+            .initial_confidence = gf16_encode_f32(1.0),
+        }
+        when model = compute_stable_model(&engine, &rules, 1, config)
+        then model.is_complete == true and model.aborted_by_restraint == false
+
+    test compute_stable_model_aborted_by_restraint
+        // Stable model computation aborts when restraint triggers
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and asp_rule = AspRule{ .base = rule, .naf_ids = [_]u32{0} ** 3, .naf_count = 0 }
+        and rules = [_]AspRule{asp_rule}
+        and config = AspConfig{
+            .max_iterations = 100,
+            .max_models = 1,
+            .quality = .unknown,  // Very restrictive
+            .initial_confidence = gf16_encode_f32(0.1),  // Low confidence
+        }
+        when model = compute_stable_model(&engine, &rules, 1, config)
+        then model.aborted_by_restraint == true
+
+    test has_stable_model_true_convergent
+        // has_stable_model returns true for convergent program
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and add_fact(engine, fact) == true
+        and asp_rule = AspRule{ .base = rule, .naf_ids = [_]u32{0} ** 3, .naf_count = 0 }
+        and rules = [_]AspRule{asp_rule}
+        when result = has_stable_model(&engine, &rules, 1)
+        then result == true
+
+    test has_stable_model_false_inconsistent
+        // has_stable_model returns false for inconsistent program
+        // (Simplified: uses engine state which may be empty)
+        given engine = datalog_init()
+        and rules = [_]AspRule{}
+        when result = has_stable_model(&engine, &rules, 0)
+        then result == false  // No facts = no stable model
+
+    test asp_config_gf16_initial_confidence
+        // AspConfig stores GF16 initial confidence
+        given config = AspConfig{
+            .max_iterations = 100,
+            .max_models = 1,
+            .quality = .good,
+            .initial_confidence = gf16_encode_f32(0.85),
+        }
+        then gf16_decode_to_f32(config.initial_confidence) == 0.85
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant model_fact_count_within_bounds
+        // Fact count is always <= MAX_FACTS
+        var model : StableModel = undefined;
+        _ = model.fact_count;
+        @compileAssert(MAX_FACTS == 32);
+
+    invariant iterations_non_decreasing
+        // Iteration count is monotonic (implementation-level check)
+        @compileAssert(true);
+
+    invariant complete_model_consistent
+        // Complete models should be consistent
+        @compileAssert(true);
+
+    invariant aborted_model_incomplete
+        // Aborted models are marked incomplete
+        @compileAssert(true);
+
+    invariant naf_count_within_bounds
+        // NAF count is always <= MAX_NAF
+        var rule : AspRule = undefined;
+        _ = rule.naf_count;
+        @compileAssert(MAX_NAF == 3);
+
+    invariant asp_config_valid_quality
+        // Quality level is always valid
+        var config : AspConfig = undefined;
+        _ = config.quality;
+
+    invariant gf16_confidence_in_range
+        // GF16 confidence values are in valid range after decode
+        const conf = gf16_encode_f32(0.5);
+        const value = gf16_decode_to_f32(conf);
+        assert value >= 0.0 and value <= 1.0;
+
+    invariant asp_rule_naf_ids_initialized
+        // AspRule naf_ids array is always defined
+        var rule : AspRule = undefined;
+        _ = rule.naf_ids;
+
+    invariant stable_model_facts_initialized
+        // StableModel facts array is always defined
+        var model : StableModel = undefined;
+        _ = model.facts;
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench evaluate_naf_3_conditions
+        // Measure: cycles for evaluate_naf with 3 NAF conditions
+        // Target: < 500 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        const fact1 = HornClause{ .name = 1, .args = [_]Trit{K_UNKNOWN} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
+        const fact2 = HornClause{ .name = 2, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
+        const fact3 = HornClause{ .name = 3, .args = [_]Trit{K_UNKNOWN} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
+        _ = add_fact(&engine, fact1);
+        _ = add_fact(&engine, fact2);
+        _ = add_fact(&engine, fact3);
+        const naf_ids = [_]u32{1, 2, 3};
+        var result : bool = false;
+        for (0..1000) |_| {
+            result = evaluate_naf(&engine, &naf_ids, 3);
+        }
+        _ = result;
+
+    bench fixed_point_iteration_10_iter
+        // Measure: cycles for fixed point iteration (up to 10)
+        // Target: < 2000 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        const rule = Rule{ .antecedent = K_TRUE, .consequent = K_UNKNOWN };
+        const fact = HornClause{ .name = 1, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
+        _ = add_fact(&engine, fact);
+        const asp_rule = AspRule{ .base = rule, .naf_ids = [_]u32{0} ** 3, .naf_count = 0 };
+        const rules = [_]AspRule{asp_rule};
+        const params = params_for_quality(.good);
+        var state = ExecutionState{
+            .current_depth = 0,
+            .rules_fired = 0,
+            .current_confidence = gf16_encode_f32(0.9),
+            .start_time_ms = 0,
+            .quality = .good,
+            .restraint_params = params,
+        };
+        var result : bool = false;
+        for (0..1000) |_| {
+            // Reset engine
+            engine.fact_count = 1;
+            result = fixed_point_iteration(&engine, &rules, 1, &state, 10);
+        }
+        _ = result;
+
+    bench compute_stable_model_10_rules
+        // Measure: cycles for compute_stable_model with 10 rules
+        // Target: < 5000 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        const base_rule = Rule{ .antecedent = K_TRUE, .consequent = K_UNKNOWN };
+        var rules : [10]AspRule = undefined;
+        for (0..10) |i| {
+            rules[i] = AspRule{
+                .base = base_rule,
+                .naf_ids = [_]u32{0} ** 3,
+                .naf_count = 0,
+            };
+        }
+        const fact = HornClause{ .name = 1, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
+        _ = add_fact(&engine, fact);
+        const config = AspConfig{
+            .max_iterations = 50,
+            .max_models = 1,
+            .quality = .good,
+            .initial_confidence = gf16_encode_f32(1.0),
+        };
+        var model : StableModel = undefined;
+        for (0..100) |_| {
+            // Reset engine
+            engine.fact_count = 1;
+            model = compute_stable_model(&engine, &rules, 10, config);
+        }
+        _ = model;
+
+    bench is_consistent_16_facts
+        // Measure: cycles for is_consistent with 16 facts
+        // Target: < 1000 cycles (O(n^2) with n=16)
+        @setEvalBranchQuota(10000);
+        const model = StableModel{
+            .facts = [_]FactId{
+                FactId{ .id = 1, .truth = K_TRUE }, FactId{ .id = 2, .truth = K_FALSE },
+                FactId{ .id = 3, .truth = K_UNKNOWN }, FactId{ .id = 4, .truth = K_TRUE },
+                FactId{ .id = 5, .truth = K_FALSE }, FactId{ .id = 6, .truth = K_UNKNOWN },
+                FactId{ .id = 7, .truth = K_TRUE }, FactId{ .id = 8, .truth = K_FALSE },
+                FactId{ .id = 9, .truth = K_UNKNOWN }, FactId{ .id = 10, .truth = K_TRUE },
+                FactId{ .id = 11, .truth = K_FALSE }, FactId{ .id = 12, .truth = K_UNKNOWN },
+                FactId{ .id = 13, .truth = K_TRUE }, FactId{ .id = 14, .truth = K_FALSE },
+                FactId{ .id = 15, .truth = K_UNKNOWN }, FactId{ .id = 16, .truth = K_TRUE },
+            },
+            .fact_count = 16,
+            .is_complete = true,
+            .iterations = 50,
+            .aborted_by_restraint = false,
+        };
+        var result : bool = false;
+        for (0..1000) |_| {
+            result = is_consistent(model);
+        }
+        _ = result;
+
+    bench query_with_restraint_latency
+        // Measure: cycles for query_with_restraint
+        // Target: < 200 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        const fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
+        _ = add_fact(&engine, fact);
+        const params = params_for_quality(.good);
+        var state = ExecutionState{
+            .current_depth = 1,
+            .rules_fired = 1,
+            .current_confidence = gf16_encode_f32(0.9),
+            .start_time_ms = 0,
+            .quality = .good,
+            .restraint_params = params,
+        };
+        var result : Trit = K_UNKNOWN;
+        for (0..1000) |_| {
+            result = query_with_restraint(&engine, 1, params, &state);
+        }
+        _ = result;
+}

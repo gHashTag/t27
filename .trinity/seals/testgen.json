@@ -1,0 +1,21 @@
+{
+  "module": "testgen",
+  "ring": 38,
+  "spec_path": "compiler/codegen/testgen.t27",
+  "spec_hash": "sha256:f132d76e373fa4780e558e3265e743d5b5847cd92f2f90735cde6c648a7af1fe",
+  "gen_hash_zig": "sha256:8f02d0d79097c5edcb1a2976914acf2b86f9fce6dc4e1113f069e7c1553f8f49",
+  "gen_hash_c": "sha256:e8dc673ebb44bd02e3aa253517756bdceaeff5db134ff63bcb6237cec3b606be",
+  "gen_hash_verilog": "sha256:ec779198edcc0d1129436ef76c88508df0f62e38f4c1a1760de820545c58241c",
+  "conformance_hash": "sha256:466a39a6443a366ce3facb83acef0acd4f0e93e5470589a50d9c3d108a36b5d7",
+  "tests": {
+    "status": "passed",
+    "count": 8,
+    "invariants": 5,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

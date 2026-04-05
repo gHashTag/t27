@@ -9,6 +9,8 @@ module DatalogEngine {
     // ═════════════════════════════════════════════════════════════════════════
     use base::types;   // Trit enum: .neg, .zero, .pos
     use ar::ternary_logic;  // Rule, forward_chain, k3_and, k3_or, K_*
+    use ar::proof_trace;  // DerivationStep, ProofTrace for explainability [AR-003-WIRE]
+    use numeric::gf16;      // GF16 for confidence (NUMERIC-STANDARD-001)
 
     // ═════════════════════════════════════════════════════════════════
     // 1. Datalog Core Types
@@ -135,17 +137,19 @@ module DatalogEngine {
     // 5. Inference: Forward Chaining
     // ═════════════════════════════════════════════════════════════════════════
 
-    // datalog_solve(engine: *DatalogEngine) -> usize
+    // datalog_solve(engine: *DatalogEngine) -> ProofTrace
     // Forward chaining inference with O(n) complexity where n = number of rules
-    // Returns the number of new facts derived
+    // Returns a ProofTrace tracking all derivation steps for explainability
     // Algorithm: repeatedly apply rules to facts until fixpoint
     // Complexity: O(n * m) where n = rules, m = facts (bounded by MAX_CLAUSES)
     // In practice, achieves O(n) for typical Datalog programs
-    pub fn datalog_solve(engine: *DatalogEngine) -> usize {
+    pub fn datalog_solve(engine: *DatalogEngine) -> ProofTrace {
+        var trace = proof_trace::create_trace();
         var new_facts : usize = 0;
         var changed : bool = true;
         var iterations : usize = 0;
         const MAX_ITERATIONS : usize = MAX_CLAUSES;  // Prevent infinite loops
+        var step_num : u8 = 1;
 
         while (changed and iterations < MAX_ITERATIONS) {
             changed = false;
@@ -178,6 +182,18 @@ module DatalogEngine {
                             new_facts = new_facts + 1;
                             changed = true;
                             engine.derived_facts[engine.fact_count - 1] = true;
+
+                            // Record derivation step in proof trace
+                            const step = proof_trace::DerivationStep{
+                                .step_number = step_num,
+                                .rule_name = "forward_chain",
+                                .input_facts = [_]Trit{fact_trit, K_UNKNOWN, K_UNKNOWN},
+                                .output_fact = derived,
+                                .confidence = gf16_encode_f32(1.0),
+                                .k3_value = derived,
+                            };
+                            _ = proof_trace::append_step(&trace, step);
+                            step_num += 1;
                         }
                     }
 
@@ -189,7 +205,7 @@ module DatalogEngine {
         }
 
         engine.solved = true;
-        return new_facts;
+        return trace;
     }
 
     // ═════════════════════════════════════════════════════════════════
