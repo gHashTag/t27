@@ -1,0 +1,61 @@
+{
+  "module": "Top_Level_Testbench",
+  "spec_path": "specs/fpga/testbench/top_tb.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "Top Level Testbench conformance vectors -- ping/pong command, LED heartbeat verification",
+  "constants": {
+    "CLK_PERIOD": 20,
+    "SIM_TIMEOUT": 50000000,
+    "PING_CMD": 1,
+    "PONG_RESP": 2
+  },
+  "vectors": {
+    "ping_pong": {
+      "description": "Ping/pong command-response test",
+      "cases": [
+        {
+          "id": "tb_top_ping_pong_basic",
+          "send_cmd": 1,
+          "expected_resp": 2,
+          "note": "Send PING_CMD, expect PONG_RESP"
+        },
+        {
+          "id": "tb_top_ping_pong_repeated",
+          "send_cmds": [1, 1, 1],
+          "expected_resps": [2, 2, 2],
+          "note": "Multiple pings all return pongs"
+        }
+      ]
+    },
+    "led_heartbeat": {
+      "description": "LED heartbeat verification",
+      "cases": [
+        {
+          "id": "tb_top_led_heartbeat_toggle",
+          "wait_cycles": 25000000,
+          "expected_led_change": true,
+          "note": "After half-period, heartbeat LED toggles"
+        },
+        {
+          "id": "tb_top_led_heartbeat_initial",
+          "cycle": 0,
+          "expected_led": 0,
+          "note": "Heartbeat LED starts off after reset"
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "tb_clk_period_correct",
+      "description": "CLK_PERIOD == 20 ns (50 MHz)",
+      "value": 20
+    },
+    {
+      "id": "tb_sim_timeout_defined",
+      "description": "SIM_TIMEOUT == 50000000 ns (50 ms)",
+      "value": 50000000
+    }
+  ]
+}

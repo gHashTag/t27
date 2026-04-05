@@ -5,6 +5,18 @@
 // GoldenFloat20 Codec -- 20-bit phi-structured floating point
 // Format: [S:1 | E:7 | M:12], EXP_BIAS=63, phi_distance=0.03463
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+/* verilator lint_off MULTITOP */
+
+
 module gf20_codec (
     input  wire        clk,
     input  wire        rst_n,

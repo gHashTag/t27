@@ -5,8 +5,10 @@ set -e
 # Demonstrates: ML + AR composition with proof traces
 # Licensed under Apache 2.0
 
-T27C="/Users/playra/t27/bootstrap/target/release/t27c"
-SPECS="/Users/playra/t27/specs"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+T27C="$REPO_ROOT/bootstrap/target/release/t27c"
+SPECS="$REPO_ROOT/specs"
 
 PASS=0
 FAIL=0

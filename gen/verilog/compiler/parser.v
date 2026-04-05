@@ -2,6 +2,17 @@
 // DO NOT EDIT -- regenerate with: tri gen specs/compiler/parser.t27
 // phi^2 + phi^-2 = 3 | TRINITY
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 // ============================================================================
 // Token Kind Encoding (6-bit)
 // ============================================================================

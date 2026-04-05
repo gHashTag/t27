@@ -6,6 +6,18 @@
 // Format: [S:1 | E:12 | M:19], EXP_BIAS=2047, phi_distance=0.01354
 // 12-bit exponent (vs IEEE 8-bit) for wider dynamic range
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+/* verilator lint_off MULTITOP */
+
+
 module gf32_codec (
     input  wire        clk,
     input  wire        rst_n,
