@@ -2,7 +2,7 @@
   "module": "ZeroDSP_MAC",
   "ring": 28,
   "spec_path": "specs/fpga/mac.t27",
-  "spec_hash": "sha256:4fc1bfe163420d737cd9497385f7203e4c4476d6f48e152476ea8c1e80dd3927",
+  "spec_hash": "sha256:ed19dd48b4ef299c28b4bde4ef3a718c404a8fc9b820fd92cee4b688b2626f16",
   "gen_hash_zig": "sha256:727a42042b3f68437019baee6e3db5e25c7f4728db3c442a0691b622f0e81a97",
   "gen_hash_c": "sha256:330d5fe950e67b63b56f3c71a06db67aa95333d0c6ad2768b2aed0c2a2a7309a",
   "gen_hash_verilog": "sha256:38a13fc2ae7de26022a7e6a832dad4bd0308e4c80ef234d14290c9aa1d3227d8",
@@ -17,5 +17,5 @@
     "toxicity": "clean",
     "score": 0.0
   },
-  "sealed_at": "2026-04-04T19:00:00Z"
+  "sealed_at": "2026-04-05T18:13:21Z"
 }

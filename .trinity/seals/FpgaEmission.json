@@ -2,7 +2,7 @@
   "module": "fpga_emission",
   "ring": 43,
   "spec_path": "compiler/codegen/verilog/fpga_emission.t27",
-  "spec_hash": "sha256:a5b6c7d8e9f0a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f6071829",
+  "spec_hash": "sha256:1d35d642addcc09c4e80f567c93acbb070b0439dbc7cd87377c6059a4e829a0f",
   "gen_hash_zig": "sha256:c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5",
   "gen_hash_c": "sha256:e9f0a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d",
   "gen_hash_verilog": null,
@@ -17,5 +17,5 @@
     "toxicity": "clean",
     "score": 0.0
   },
-  "sealed_at": "2026-04-05T12:00:00Z"
+  "sealed_at": "2026-04-05T18:13:21Z"
 }

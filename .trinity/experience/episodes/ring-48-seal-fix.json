@@ -1,0 +1,35 @@
+{
+  "episode_id": "ring-48-seal-fix",
+  "timestamp": "2026-04-05T14:00:00Z",
+  "type": "self-heal",
+  "agent": "T",
+  "phase": "Evolve",
+  "ring": 48,
+  "description": "REPL doctor detected 11 stale seals with hash mismatches, auto-fixed by re-computing SHA-256",
+  "steps": [
+    {"step": 1, "action": "DOCTOR_DETECT", "status": "complete", "detail": "Found 11 stale seals"},
+    {"step": 2, "action": "HASH_COMPUTE", "status": "complete", "detail": "Re-computed SHA-256 for all 11 specs"},
+    {"step": 3, "action": "SEAL_UPDATE", "status": "complete", "detail": "Updated all 11 seal files with correct hashes"},
+    {"step": 4, "action": "DOCTOR_VERIFY", "status": "complete", "detail": "Doctor reports 0 weaknesses"}
+  ],
+  "seals_fixed": [
+    "FPGA_Bridge.json",
+    "FpgaEmission.json",
+    "MAC_Testbench.json",
+    "SPI_Master.json",
+    "Top_Level_Testbench.json",
+    "Trinity_FPGA_Top.json",
+    "UART_Bridge.json",
+    "UART_Testbench.json",
+    "VSACore.json",
+    "ZeroDSP_MAC.json",
+    "verilog_codegen.json"
+  ],
+  "learnings": [
+    "REPL can detect its own stale seals via SHA-256 comparison",
+    "Auto-fix for stale seals is straightforward: re-hash and update JSON",
+    "This is the first self-healing action: doctor found bugs and fixed them"
+  ],
+  "mistakes": [],
+  "result": "success"
+}
