@@ -1,4 +1,5 @@
 #!/bin/bash
+shopt -s globstar
 set -e
 echo "=== T27 Comprehensive Test Suite ==="
 echo "phi^2 + 1/phi^2 = 3 | TRINITY"
