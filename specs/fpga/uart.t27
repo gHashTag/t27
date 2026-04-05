@@ -1,351 +1,163 @@
 // t27/specs/fpga/uart.t27
-// UART Bridge Specification for FPGA
-// 8-N-1 protocol: 8 data bits, no parity, 1 stop bit
+// ZeroDSP FPGA UART Specification
+// UART for debugging and communication
 // φ² + 1/φ² = 3 | TRINITY
 
-module UART_Bridge;
-    // Import base types
+module ZeroDSP_UART {
     use base::types;
+    use base::ops;
+    use isa::registers;
 
-    // ═══════════════════════════════════════════════════════════════
-    // 1. UART Configuration
-    // ═════════════════════════════════════════════════════════════════════════
+    const UART_CLOCK_HZ : u32 = 100_000_000;
+    const UART_BAUD_RATE : u32 = 115200;
+    const UART_BIT_PERIOD : u32 = UART_CLOCK_HZ / UART_BAUD_RATE;
 
-    // Clock and baud rate
-    const CLK_FREQ : u32 = 50_000_000;    // 50 MHz system clock
-    const BAUD_RATE : u32 = 115200;       // 115200 baud
-    const BAUD_DIVISOR : u32 = CLK_FREQ / BAUD_RATE;  // ~434
+    const UART_WIDTH : usize = 8;
+    const UART_FIFO_DEPTH : usize = 16;
 
-    // UART protocol: 8-N-1
-    const DATA_BITS : u8 = 8;              // 8 data bits
-    const STOP_BITS : u8 = 1;              // 1 stop bit
-    const PARITY_BITS : u8 = 0;            // No parity
+    const STATUS_IDLE : u8 = 0;
+    const STATUS_TX_BUSY : u8 = 1;
+    const STATUS_RX_BUSY : u8 = 2;
+    const STATUS_ERROR : u8 = 3;
 
-    // ═══════════════════════════════════════════════════════════════
-    // 2. UART State Machine States
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // TX States
-    const TX_IDLE : u8 = 0;
-    const TX_START : u8 = 1;
-    const TX_DATA : u8 = 2;
-    const TX_STOP : u8 = 3;
-
-    // RX States
-    const RX_IDLE : u8 = 0;
-    const RX_START : u8 = 1;
-    const RX_DATA : u8 = 2;
-    const RX_STOP : u8 = 3;
-
-    // ═══════════════════════════════════════════════════════════════
-    // 3. UART TX Unit
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // UART TX unit state
-    struct UART_TX_Unit {
-        tx_busy : bool,           // Transmitting flag
-        tx_state : u8,            // Current TX state
-        bit_index : u8,            // Current bit index (0-7)
-        shift_reg : u8,            // Data shift register
-        baud_counter : u32,        // Baud rate counter
+    struct UARTState {
+        tx_data : u8,
+        tx_valid : bool,
+        tx_ready : bool,
+        rx_data : u8,
+        rx_valid : bool,
+        rx_error : bool,
+        bit_counter : u8,
+        status : u8,
     }
 
-    // Initialize TX unit
-    var uart_tx : UART_TX_Unit = UART_TX_Unit{
-        .tx_busy = false,
-        .tx_state = TX_IDLE,
-        .bit_index = 0,
-        .shift_reg = 0,
-        .baud_counter = 0,
+    var uart_state : UARTState = UARTState{
+        .tx_data = 0,
+        .tx_valid = false,
+        .tx_ready = true,
+        .rx_data = 0,
+        .rx_valid = false,
+        .rx_error = false,
+        .bit_counter = 0,
+        .status = STATUS_IDLE,
     };
 
-    // uart_tx_write(data: u8) → bool
-    // Queue a byte for transmission
-    fn uart_tx_write(data: u8) -> bool {
-        if (uart_tx.tx_busy) {
-            return false;  // Busy, cannot accept new data
+    struct UARTConfig {
+        baud_divisor : u32,
+        parity_enable : bool,
+        stop_bits : u8,
+        fifo_enable : bool,
+    }
+
+    var uart_config : UARTConfig = UARTConfig{
+        .baud_divisor = UART_CLOCK_HZ / (UART_BAUD_RATE * 16),
+        .parity_enable = false,
+        .stop_bits = 1,
+        .fifo_enable = true,
+    };
+
+    fn uart_tx_ready() -> bool {
+        return uart_state.tx_ready;
+    }
+
+    fn uart_tx_send(data: u8) -> bool {
+        if (!uart_state.tx_ready) {
+            return false;
         }
-        uart_tx.shift_reg = data;
-        uart_tx.bit_index = 0;
-        uart_tx.tx_state = TX_START;
-        uart_tx.tx_busy = true;
-        uart_tx.baud_counter = 0;
+        uart_state.tx_data = data;
+        uart_state.tx_valid = true;
+        uart_state.tx_ready = false;
+        uart_state.status = STATUS_TX_BUSY;
         return true;
     }
 
-    // uart_tx_ready() → bool
-    // Check if TX unit is ready for new data
-    fn uart_tx_ready() -> bool {
-        return !uart_tx.tx_busy;
+    fn uart_rx_ready() -> bool {
+        return uart_state.rx_valid;
     }
 
-    // uart_tx_get_line() → bool
-    // Get current TX line state (for physical output)
-    fn uart_tx_get_line() -> bool {
-        match uart_tx.tx_state {
-            TX_IDLE => true,          // Idle high
-            TX_START => false,         // Start bit low
-            TX_DATA => (uart_tx.shift_reg >> uart_tx.bit_index) & 1 == 1,
-            TX_STOP => true,          // Stop bit high
-            _ => true,
-        }
+    fn uart_rx_read() -> u8 {
+        uart_state.rx_valid = false;
+        return uart_state.rx_data;
     }
 
-    // uart_tx_tick() → void
-    // Process one clock cycle of TX state machine
-    fn uart_tx_tick() -> void {
-        uart_tx.baud_counter = uart_tx.baud_counter + 1;
-
-        match uart_tx.tx_state {
-            TX_IDLE => {
-                // Do nothing, waiting for write
-            }
-            TX_START => {
-                if (uart_tx.baud_counter >= BAUD_DIVISOR) {
-                    uart_tx.baud_counter = 0;
-                    uart_tx.tx_state = TX_DATA;
-                }
-            }
-            TX_DATA => {
-                if (uart_tx.baud_counter >= BAUD_DIVISOR) {
-                    uart_tx.baud_counter = 0;
-                    uart_tx.bit_index = uart_tx.bit_index + 1;
-                    if (uart_tx.bit_index >= DATA_BITS - 1) {
-                        uart_tx.tx_state = TX_STOP;
-                    }
-                }
-            }
-            TX_STOP => {
-                if (uart_tx.baud_counter >= BAUD_DIVISOR) {
-                    uart_tx.tx_state = TX_IDLE;
-                    uart_tx.tx_busy = false;
-                }
-            }
-        }
+    fn uart_status() -> u8 {
+        return uart_state.status;
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // 4. UART RX Unit
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // UART RX unit state
-    struct UART_RX_Unit {
-        rx_state : u8,            // Current RX state
-        bit_index : u8,            // Current bit index (0-7)
-        shift_reg : u8,            // Data shift register
-        baud_counter : u32,        // Baud rate counter
-        rx_sync : [3]bool,         // Input synchronizer
-        framing_error : bool,      // Framing error flag
+    fn uart_reset() -> void {
+        uart_state.tx_data = 0;
+        uart_state.tx_valid = false;
+        uart_state.tx_ready = true;
+        uart_state.rx_data = 0;
+        uart_state.rx_valid = false;
+        uart_state.rx_error = false;
+        uart_state.bit_counter = 0;
+        uart_state.status = STATUS_IDLE;
     }
 
-    // Initialize RX unit
-    var uart_rx : UART_RX_Unit = UART_RX_Unit{
-        .rx_state = RX_IDLE,
-        .bit_index = 0,
-        .shift_reg = 0,
-        .baud_counter = 0,
-        .rx_sync = [true, true, true],
-        .framing_error = false,
-    };
-
-    // uart_rx_sync(rx_input: bool) → void
-    // Synchronize async UART input
-    fn uart_rx_sync(rx_input: bool) -> void {
-        uart_rx.rx_sync[2] = uart_rx.rx_sync[1];
-        uart_rx.rx_sync[1] = uart_rx.rx_sync[0];
-        uart_rx.rx_sync[0] = rx_input;
+    fn uart_configure(
+        baud_divisor: u32,
+        parity_enable: bool,
+        stop_bits: u8,
+        fifo_enable: bool,
+    ) -> void {
+        uart_config.baud_divisor = baud_divisor;
+        uart_config.parity_enable = parity_enable;
+        uart_config.stop_bits = stop_bits;
+        uart_config.fifo_enable = fifo_enable;
     }
 
-    // uart_rx_has_data() → bool
-    // Check if data is ready to read
-    fn uart_rx_has_data() -> bool {
-        return uart_rx.rx_state == RX_IDLE && uart_rx.framing_error;
-    }
+    test uart_initially_idle
+        given status = uart_status()
+        then status == STATUS_IDLE
 
-    // uart_rx_read_data() → u8
-    // Read received data byte
-    fn uart_rx_read_data() -> u8 {
-        uart_rx.framing_error = false;
-        return uart_rx.shift_reg;
-    }
+    test uart_tx_ready_initially
+        given ready = uart_tx_ready()
+        then ready == true
 
-    // uart_rx_has_framing_error() → bool
-    // Check if framing error occurred
-    fn uart_rx_has_framing_error() -> bool {
-        return uart_rx.framing_error;
-    }
+    test uart_rx_not_valid_initially
+        given valid = uart_rx_ready()
+        then valid == false
 
-    // uart_rx_get_line(rx_input: bool) → bool
-    // Get synchronized RX input
-    fn uart_rx_get_line(rx_input: bool) -> bool {
-        return uart_rx.rx_sync[1];
-    }
-
-    // uart_rx_tick() → void
-    // Process one clock cycle of RX state machine
-    fn uart_rx_tick() -> void {
-        uart_rx.baud_counter = uart_rx.baud_counter + 1;
-
-        match uart_rx.rx_state {
-            RX_IDLE => {
-                if (!uart_rx.rx_sync[1]) {  // Start bit (falling edge)
-                    uart_rx.baud_counter = BAUD_DIVISOR / 2;  // Sample at middle
-                    uart_rx.rx_state = RX_START;
-                }
-            }
-            RX_START => {
-                if (uart_rx.baud_counter >= BAUD_DIVISOR) {
-                    uart_rx.baud_counter = 0;
-                    if (!uart_rx.rx_sync[1]) {  // Verify start bit
-                        uart_rx.rx_state = RX_DATA;
-                        uart_rx.bit_index = 0;
-                    } else {
-                        uart_rx.rx_state = RX_IDLE;  // False start
-                    }
-                }
-            }
-            RX_DATA => {
-                if (uart_rx.baud_counter >= BAUD_DIVISOR) {
-                    uart_rx.baud_counter = 0;
-                    uart_rx.shift_reg = (uart_rx.shift_reg & ~(1u8 << uart_rx.bit_index))
-                                       | ((if uart_rx.rx_sync[1] { 1u8 } else { 0u8 }) << uart_rx.bit_index;
-                    uart_rx.bit_index = uart_rx.bit_index + 1;
-                    if (uart_rx.bit_index >= DATA_BITS - 1) {
-                        uart_rx.rx_state = RX_STOP;
-                    }
-                }
-            }
-            RX_STOP => {
-                if (uart_rx.baud_counter >= BAUD_DIVISOR) {
-                    // Stop bit should be high
-                    if (!uart_rx.rx_sync[1]) {
-                        uart_rx.framing_error = true;
-                    } else {
-                        uart_rx.framing_error = false;  // Valid frame
-                    }
-                    uart_rx.rx_state = RX_IDLE;
-                }
-            }
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // 5. Bridge Protocol
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // Protocol commands
-    const CMD_PING : u8 = 0x01;
-    const CMD_PONG : u8 = 0x02;
-    const CMD_WRITE_REG : u8 = 0x10;
-    const CMD_READ_REG : u8 = 0x11;
-    const CMD_MAC_OP : u8 = 0x20;
-    const CMD_STATUS : u8 = 0x30;
-
-    // Response codes
-    const RESP_OK : u8 = 0x00;
-    const RESP_ERROR : u8 = 0xFF;
-
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-    // TDD-Inside-Spec: Tests and Invariants for UART_Bridge
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-    test uart_baud_divisor_calculation
-        given divisor = BAUD_DIVISOR
-        then divisor == 434  // 50MHz / 115200
-
-    test uart_tx_initially_not_busy
-        given busy = uart_tx.tx_busy
-        then busy == false
-
-    test uart_tx_write_when_ready
-        given result = uart_tx_write(0xAA)
+    test uart_tx_send_returns_true_when_ready
+        given result = uart_tx_send(0x55)
         then result == true
 
-    test uart_tx_write_when_busy
-        given uart_tx_write(0x55)
-        and   busy_before = uart_tx_ready()
-        then busy_before == false  // First write succeeds
+    test uart_tx_send_returns_false_when_busy
+        given uart_tx_send(0x55)
+        and   result = uart_tx_send(0xAA)
+        then result == false
 
-    test uart_tx_idle_line_high
-        given line = uart_tx_get_line()
-        then line == true
+    test uart_reset_clears_status
+        given uart_tx_send(0x55)
+        and   uart_reset()
+        and   status = uart_status()
+        then status == STATUS_IDLE
 
-    test uart_tx_start_bit_low
-        given uart_tx_write(0xAA)
-        and   line_after_start = uart_tx_get_line()
-        then line_after_start == false
+    test uart_reset_restores_tx_ready
+        given uart_tx_send(0x55)
+        and   uart_reset()
+        and   ready = uart_tx_ready()
+        then ready == true
 
-    test uart_rx_initially_idle
-        given state = uart_rx.rx_state
-        then state == RX_IDLE
+    invariant uart_status_valid
+        given status = uart_status()
+        assert status == STATUS_IDLE or status == STATUS_TX_BUSY or 
+               status == STATUS_RX_BUSY or status == STATUS_ERROR
 
-    test uart_rx_detects_start_bit
-        given uart_rx_sync(false)
-        and   uart_rx_tick()
-        and   state = uart_rx.rx_state
-        then state == RX_START
+    invariant uart_tx_ready_inverse_tx_busy
+        given status = uart_status()
+        assert (uart_state.tx_ready) == (status == STATUS_IDLE)
 
-    test uart_rx_sync_chain
-        given uart_rx_sync(false)
-        and   sync_0 = uart_rx.rx_sync[0]
-        and   sync_1 = uart_rx.rx_sync[1]
-        and   sync_2 = uart_rx.rx_sync[2]
-        then sync_0 == false and sync_1 == true and sync_2 == true
-
-    test uart_framing_error_detection
-        given uart_rx.sync[2] = false  // Simulate low stop bit
-        when uart_rx.rx_state = RX_STOP
-        and   uart_rx.baud_counter = BAUD_DIVISOR
-        and   uart_rx_tick()
-        and   error = uart_rx_has_framing_error()
-        then error == true
-
-    test uart_protocol_ping_defined
-        given ping = CMD_PING
-        then ping == 0x01
-
-    test uart_protocol_pong_defined
-        given pong = CMD_PONG
-        then pong == 0x02
-
-    invariant uart_clk_freq_constant
-        assert CLK_FREQ == 50_000_000
-
-    invariant uart_baud_rate_constant
-        assert BAUD_RATE == 115200
-
-    invariant uart_8n1_protocol
-        assert DATA_BITS == 8 and PARITY_BITS == 0 and STOP_BITS == 1
-
-    invariant uart_tx_states_valid
-        given state = uart_tx.tx_state
-        assert state == TX_IDLE or state == TX_START or state == TX_DATA or state == TX_STOP
-
-    invariant uart_rx_states_valid
-        given state = uart_rx.rx_state
-        assert state == RX_IDLE or state == RX_START or state == RX_DATA or state == RX_STOP
-
-    invariant uart_baud_counter_bounds
-        assert uart_tx.baud_counter < BAUD_DIVISOR + 1
-        assert uart_rx.baud_counter < BAUD_DIVISOR + 1
-
-    invariant uart_tx_idle_when_not_busy
-        assert uart_tx.tx_state == TX_IDLE implies !uart_tx.tx_busy
-
-    invariant uart_rx_stop_bit_high
-        given valid_stop_bit = uart_rx.rx_sync[1]
-        when uart_rx.rx_state == RX_STOP and uart_rx.framing_error == false
-        then valid_stop_bit == true
-
-    bench uart_tx_write_latency
-        measure: nanoseconds to uart_tx_write(0xAA)
-        target: < 50ns
-
-    bench uart_rx_sync_latency
-        measure: nanoseconds to uart_rx_sync(false)
+    bench uart_tx_ready_latency
+        measure: nanoseconds to uart_tx_ready()
         target: < 10ns
 
-    bench uart_tx_cycle_latency
-        measure: nanoseconds to transmit full byte
-        target: < 87us  // 10 bits @ 115200 baud
+    bench uart_rx_ready_latency
+        measure: nanoseconds to uart_rx_ready()
+        target: < 10ns
 
+    bench uart_reset_latency
+        measure: nanoseconds to uart_reset()
+        target: < 50ns
+}
