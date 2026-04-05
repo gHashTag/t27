@@ -1,16 +1,39 @@
 [package]
 name = "t27-agent-runner"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "T27 sandbox container entrypoint: GitHub auth, git clone, opencode config, web UI spawn, autonomous agent loop"
+
+# Cargo.lock is committed for reproducible builds.
+# Run `cargo build` to generate/update it.
 
 [dependencies]
+# Async runtime
 tokio = { version = "1", features = ["full"] }
+
+# HTTP client — used by agent (API calls) and healthcheck (polling /global/health)
 reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Timestamps in JSONL logs
 chrono = { version = "0.4", features = ["serde"] }
+
+# Structured logging facade + subscriber
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
-uuid = { version = "1", features = ["v4"] }
+
+# Error handling
 anyhow = "1"
+
+# CLI arg parsing (kept for future use / --help support)
 clap = { version = "4", features = ["derive"] }
+
+# UUID for idempotency / correlation IDs
+uuid = { version = "1", features = ["v4"] }
+
+[[bin]]
+name = "t27-agent-runner"
+path = "src/main.rs"
