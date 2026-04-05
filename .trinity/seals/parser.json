@@ -1,0 +1,21 @@
+{
+  "module": "Parser",
+  "ring": 31,
+  "spec_path": "specs/compiler/parser.t27",
+  "spec_hash": "sha256:3089a7771880208f9b04b78bb43115e691e6e4f1736371025ba187753a761be4",
+  "gen_hash_zig": "sha256:7ba96e0eea0644e9f70bcd0f347536855b9aa04f7b46a01ae10db46230d187f9",
+  "gen_hash_c": "sha256:8d524a804eb1a7ed086ac055298351888e886fc9a52926cb27379bdd8d43a6e7",
+  "gen_hash_verilog": "sha256:aaa6fd243b2d3dc6745652581d9caafca6954c77740149b828baa562152c469d",
+  "conformance_hash": "sha256:aeb4f77948880243391fb84606b7196afce3181cfbb8c3a90cca18cf628a4b15",
+  "tests": {
+    "status": "passed",
+    "count": 17,
+    "invariants": 9,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}
