@@ -12,18 +12,18 @@
 </p>
 
 
-<p align="center">
-  <strong>phi^2 + 1/phi^2 = 3 | TRINITY</strong>
-</p>
 
-<h1 align="center">t27 -- TRI-27 Spec-First Language</h1>
+
+<h1 align="center">Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language</h1>
 
 <p align="center">
   The canonical source of truth for Trinity S3AI.<br>
   <code>.t27</code> specs in -> Zig, Verilog, C out.
 </p>
 
-
+<p align="center">
+  <strong>phi^2 + 1/phi^2 = 3 | TRINITY</strong>
+</p>
 ---
 
 ## What is t27?
