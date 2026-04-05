@@ -233,23 +233,86 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 - **M19-21:** Defense domain adaptation (planning task)
 - **M22-24:** Final validation, documentation
 
-**Total Budget:** $2M (Phase 1 + Phase 2) over 24 months
+### Concrete Deliverables
+
+| Month | Deliverable | Verification Method |
+|-------|------------|---------------------|
+| M1-M3 | K3 composition engine + 4 ML+AR patterns | `t27c parse` + `t27c gen` all 10 specs pass; `tests/run_all.sh` 100% |
+| M4-M6 | Proof trace pipeline (≤10 steps per inference) | Demo: classify input + explain via 3 XAI formats |
+| M7-M9 | VSA integration + scalability benchmarks | Benchmark: >1M K3 ops/sec on commodity hardware |
+| M10-M12 | FPGA verification backend (Verilog from .t27) | Bitstream synthesis on QMTech XC7A100T, 63 tok/s @ 92 MHz |
+| M13-M15 | K3-guided backpropagation + RL guardrails | SOA comparison: TRINITY vs DeepProbLog vs REASON |
+| M16-M18 | Full system integration + defense domain demo | End-to-end: state → policy → rules → bounded decision |
+| M19-M21 | Course-of-action planning evaluation | Red team evaluation on adversarial inputs |
+| M22-M24 | Open-source release + final documentation | GitHub public repo, Apache 2.0, reproducibility kit |
+
+### Go/No-Go Criteria
+
+| Checkpoint | Month | Criterion | Metric |
+|-----------|-------|-----------|--------|
+| Phase 1 Gate | M6 | All specs parse + gen | 10/10 specs, 0 failures |
+| Phase 2 Gate | M12 | ML+AR composition demo | 4 patterns functional, ≤10 step traces |
+| Phase 3 Gate | M18 | SOA benchmark parity | ≥ DeepProbLog accuracy with polynomial bounds |
+| Final | M24 | Full system evaluation | All CLARA metrics met (see Evidence Package) |
 
 ---
 
 ## Section 7: Budget Summary
 
-| Category | Allocation | Justification |
-|----------|-----------|---------------|
-| Personnel | $1.2M (60%) | 3 senior researchers + 2 engineers |
-| FPGA Verification Backend | $0.4M (20%) | QMTech XC7A100T formal verification evidence |
-| Compute/Cloud | $0.2M (10%) | Training ML components |
-| Travel/Materials | $0.2M (10%) | DARPA workshops, publications |
+**Total:** $2.0M over 24 months (consistent with DARPA CLARA TA1/TA2 range)
 
-**Risk Mitigation:**
+### Personnel — $1.2M (60%)
+
+| Role | FTE | Annual Cost | Duration | Total |
+|------|-----|-------------|----------|-------|
+| PI / Lead Researcher | 1.0 | $180K | 24 mo | $360K |
+| AR/Logic Researcher | 1.0 | $150K | 24 mo | $300K |
+| ML/Neural Researcher | 1.0 | $150K | 24 mo | $300K |
+| Systems Engineer (compiler + FPGA) | 1.0 | $120K | 24 mo | $240K |
+| **Subtotal** | | | | **$1,200K** |
+
+### Equipment — $200K (10%)
+
+| Item | Cost | Purpose |
+|------|------|---------|
+| QMTech XC7A100T FPGA dev boards (×4) | $40K | Formal verification backend, Verilog synthesis |
+| GPU compute (A100 cluster access) | $80K | ML training, benchmark evaluation |
+| Development workstations | $40K | Team equipment |
+| Software licenses + cloud | $40K | CI/CD, test infrastructure |
+| **Subtotal** | **$200K** | |
+
+### Travel — $100K (5%)
+
+| Purpose | Cost |
+|---------|------|
+| DARPA PI meetings (4 per year × 2 years) | $40K |
+| Conference presentations (NeurIPS, AAAI, FPGA) | $40K |
+| Collaboration visits | $20K |
+| **Subtotal** | **$100K** |
+
+### Indirect Costs — $500K (25%)
+
+| Category | Rate | Base | Total |
+|----------|------|------|-------|
+| F&A (Facilities & Administration) | 33% of direct | $1,500K | $500K |
+
+### Budget Summary Table
+
+| Category | Amount | Percentage |
+|----------|--------|------------|
+| Personnel | $1,200K | 60% |
+| Equipment | $200K | 10% |
+| Travel | $100K | 5% |
+| Indirect (F&A) | $500K | 25% |
+| **Total** | **$2,000K** | **100%** |
+
+### Risk Mitigation
+
 - **Eligibility:** Per updated DARPA CLARA FAQ 53, non-US entities may participate directly. No US entity partnership required.
 - **Scope Control:** 4 composition patterns fixed, no expansion beyond defined scope
 - **Verification Path:** .t27 → Verilog formal verification ensures no semantics loss
+- **Personnel:** Core team already has working prototype (10 specs, compiler, test suite)
+- **Technical:** Incremental delivery model — each phase gate validates before proceeding
 
 ---
 
