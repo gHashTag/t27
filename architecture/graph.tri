@@ -259,6 +259,63 @@ spec "trivsa-core" {
 }
 
 // ============================================================================
+// Tier 3: Benchmarks (Ring 54)
+// ============================================================================
+
+spec "tribench-accuracy" {
+    tier = 3;
+    description = "ML accuracy benchmark suite: MNIST, CIFAR-10";
+    path = "specs/benchmarks/accuracy.t27";
+    deps = ["trinhslm", "triar-composition"];
+    competency = "Benchmarking";
+    status = "done";
+}
+
+spec "tribench-comparison" {
+    tier = 3;
+    description = "Competitor comparison: Trinity vs DeepProbLog vs TensorLogic";
+    path = "specs/benchmarks/comparison.t27";
+    deps = ["tribench-accuracy"];
+    competency = "Benchmarking";
+    status = "done";
+}
+
+spec "tribench-performance" {
+    tier = 3;
+    description = "Performance benchmark: K3 ops, forward chain, composition";
+    path = "specs/benchmarks/performance.t27";
+    deps = ["triar-logic", "triar-composition"];
+    competency = "Benchmarking";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 3: K3 Backpropagation (Ring 55)
+// ============================================================================
+
+spec "trinn-backprop-k3" {
+    tier = 3;
+    description = "K3-guided backpropagation: ternary gradient semantics";
+    path = "specs/nn/backprop_k3.t27";
+    deps = ["trinhslm", "triar-logic", "triar-restraint"];
+    competency = "K3Training";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 4: Composition Runtime (Ring 58)
+// ============================================================================
+
+spec "tricomp-engine" {
+    tier = 4;
+    description = "Composition pattern runtime engine";
+    path = "runtime/composition/composition_engine.t27";
+    deps = ["triar-composition", "trinhslm"];
+    competency = "CompositionRuntime";
+    status = "planned";
+}
+
+// ============================================================================
 // Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
 // ============================================================================
 
@@ -560,7 +617,7 @@ spec "trilang-spec-parser" {
 // ============================================================================
 
 metadata {
-    version = "2.4";
+    version = "2.5";
     created = "2026-04-04";
     last_updated = "2026-04-05";
     phi_invariant = "phi^2 + phi^-2 = 3";
@@ -687,6 +744,8 @@ phi_critical_edges {
     trisacred-constants -> triatt-sacred;
     trisacred-constants -> trinhslm;
     trisacred-physics -> triatt-sacred;
+    trisacred-physics -> triinn-backprop-k3;
+    triinn-backprop-k3 -> triinn-backprop-k3;  // K3 self-reference
     trisacred-physics -> trinhslm;
     triar-logic -> triar-proof-trace;
     triar-logic -> triar-datalog;
