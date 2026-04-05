@@ -3,7 +3,7 @@
 // Tests ternary LUT multiplication, MAC operations, and accumulator
 // φ² + 1/φ² = 3 | TRINITY
 
-testbench MAC_Testbench {
+module MAC_Testbench {
     // Import base types and MAC module
     use base::types;
     use fpga::mac::ZeroDSP_MAC;
