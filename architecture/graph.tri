@@ -670,3 +670,50 @@ sacred_core_edges {
     trisacred-physics -> triatt-sacred;
     trisacred-physics -> trinhslm;
 }
+
+// ============================================================================
+// PROJECT KEPLER->NEWTON: Physics Foundation Specs
+// Added: 2026-04-05 by Dmitrii Vasilev
+// ============================================================================
+
+spec "physics-su2-chern-simons" {
+    tier = 2;
+    description = "SU(2)_3 Chern-Simons TQFT: Fibonacci anyons, d_tau = phi";
+    path = "specs/physics/su2_chern_simons.t27";
+    exports = ["CS_LEVEL", "quantum_dimension_tau", "fibonacci_fusion_matrix", "modular_s_matrix", "jones_quantum_integer", "trinity_equals_cs_level"];
+    deps = ["trisacred-constants"];
+    competency = "ChernSimonsTQFT";
+    status = "done";
+    agent = "P";
+}
+
+spec "math-e8-lie-algebra" {
+    tier = 2;
+    description = "E8 Lie algebra: 240 roots, Cartan matrix, E9 eigenvalues with phi^2";
+    path = "specs/math/e8_lie_algebra.t27";
+    exports = ["E8_RANK", "E8_DIM", "E8_MARKS", "E8_EXPONENTS", "e8_cartan_matrix", "e9_eigenvalues", "trinity_from_e9_spectrum", "pf_eigenvector_normalized"];
+    deps = ["trisacred-constants"];
+    competency = "E8LieAlgebra";
+    status = "done";
+    agent = "P";
+}
+
+spec "math-zamolodchikov-e8" {
+    tier = 2;
+    description = "Zamolodchikov E8 mass spectrum: m2/m1 = phi from Lagrangian";
+    path = "specs/math/zamolodchikov_e8.t27";
+    exports = ["mass_ratio", "mass_spectrum", "golden_ratio_m2_m1", "decompose_n_as_mark"];
+    deps = ["trisacred-constants", "math-e8-lie-algebra"];
+    competency = "ZamolodchikovSpectrum";
+    status = "done";
+    agent = "P";
+}
+
+kepler_newton_edges {
+    trisacred-constants -> physics-su2-chern-simons;
+    trisacred-constants -> math-e8-lie-algebra;
+    math-e8-lie-algebra -> math-zamolodchikov-e8;
+    trisacred-constants -> math-zamolodchikov-e8;
+    // Cross-connection: CS and E8 share phi through cyclotomic Q(sqrt(5))
+    physics-su2-chern-simons -> math-zamolodchikov-e8;
+}
