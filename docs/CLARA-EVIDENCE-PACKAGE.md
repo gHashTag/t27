@@ -113,7 +113,7 @@ GF16 achieves competitive accuracy with **65,000× wider dynamic range** than fp
 | Spec | File | Parse | Content |
 |------|------|-------|---------|
 | VSA Ops | `specs/vsa/ops.t27` | PASS | bind/bundle/similarity |
-| VSA Core | `specs/vsa/core.t27` | TBD | Core algorithms (not yet created) |
+| VSA Core | `specs/vsa/core.t27` | PASS | Core algorithms (506 lines) |
 
 ### 3.4 Total Spec Coverage
 

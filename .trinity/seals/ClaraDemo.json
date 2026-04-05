@@ -5,8 +5,8 @@
     "gen_hash_zig": "sha256:3c0ced87c363a4a97de8731277d07f8fb858f45802cde840b70c24af3b419df3",
     "gen_hash_verilog": "sha256:3c0ced87c363a4a97de8731277d07f8fb858f45802cde840b70c24af3b419df3",
     "gen_hash_c": "sha256:3c0ced87c363a4a97de8731277d07f8fb858f45802cde840b70c24af3b419df3",
-    "sealed_at": "2026-04-05T05:46:23Z",
+    "sealed_at": "2026-04-05T07:05:54Z",
     "ring": 42,
-    "pattern": "mlp-bayesian",
-    "style": "fitch"
+    "pattern": "cnn-rules",
+    "style": "natural"
 }
