@@ -3,7 +3,7 @@
 // Tests complete FPGA system with UART, SPI, MAC, and bridge
 // φ² + 1/φ² = 3 | TRINITY
 
-testbench Top_Level_Testbench {
+module Top_Level_Testbench {
     // Import base types and submodules
     use base::types;
     use fpga::uart::UART_Bridge;
@@ -47,8 +47,8 @@ testbench Top_Level_Testbench {
     var led : [4]bool = [true, true, true, true];
 
     // MAC interface
-    var mac_a : [26]bool = [false; 27];
-    var mac_b : [26]bool = [false; 27];
+    var mac_a : [27]bool = [false; 27];
+    var mac_b : [27]bool = [false; 27];
     var mac_acc : i32 = 0;
     var mac_acc_out : i32 = 0;
     var mac_valid : bool = false;

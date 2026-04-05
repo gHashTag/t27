@@ -69,11 +69,11 @@ module Trinity_FPGA_Top {
     var spi_mosi_out : bool = true;       // SPI MOSI output
 
     // Status LEDs
-    var led_out : [4]bool = [true, true, true, true, true;  // 4 LED outputs
+    var led_out : [4]bool = [true, true, true, true];  // 4 LED outputs
 
     // MAC interface (for testing)
-    var mac_a_in : [26]bool = [false; 27];     // MAC operand A (27 trits)
-    var mac_b_in : [26]bool = [false; 27];     // MAC operand B (27 trits)
+    var mac_a_in : [27]bool = [false; 27];     // MAC operand A (27 trits)
+    var mac_b_in : [27]bool = [false; 27];     // MAC operand B (27 trits)
     var mac_acc_in : i32 = 0;                  // MAC accumulator input
     var mac_acc_out : i32 = 0;                 // MAC accumulator output
     var mac_valid_out : bool = false;             // MAC valid output
