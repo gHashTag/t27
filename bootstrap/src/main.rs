@@ -597,32 +597,30 @@ async fn prompt_async_handler(State(state): State<AppState>, Json(payload): Json
     // Send mock response in background
     tokio::spawn(async move {
         // Shared boilerplate for the AssistantMessage mock
-        let mut info_base = serde_json::json!({
+        let info_base = serde_json::json!({
             "id": "msg_reply",
             "sessionID": "ses_default",
             "role": "assistant",
             "parentID": parent_id,
             "modelID": "gpt-4o",
-            "providerID": "openai",
+            "providerID": "zai",
             "mode": "chat",
-            "agent": "zai",
-            "path": "/app",
+            "path": {
+                "cwd": "/app",
+                "root": "/app"
+            },
             "cost": 0.0,
             "tokens": {
-                "total": 0,
                 "input": 0,
                 "output": 0,
                 "reasoning": 0,
                 "cache": { "read": 0, "write": 0 }
-            },
-            "parts": []
+            }
         });
 
-        // 1. Send "thinking" status
+        // 1. Send "thinking" status (no completed = thinking)
         let mut thinking_info = info_base.clone();
-        // Frontend infers "thinking" if completed is missing
         thinking_info["time"] = serde_json::json!({ "created": current_time });
-        thinking_info["content"] = serde_json::json!({ "type": "text", "text": "" });
 
         let thinking_event = serde_json::json!({
             "directory": "/app",
@@ -639,16 +637,30 @@ async fn prompt_async_handler(State(state): State<AppState>, Json(payload): Json
         // Simulate some processing delay
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-        // 2. Send "complete" status with text
+        // 2. Send the message text using `message.part.updated`
+        let part_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "message.part.updated",
+                "properties": {
+                    "part": {
+                        "id": "part_reply",
+                        "sessionID": "ses_default",
+                        "messageID": "msg_reply",
+                        "type": "text",
+                        "text": "Hello! I am the Trinity Orchestrator. The SSE format is now perfectly aligned with the generated SDK, and I can respond correctly. How can I assist you with your project today?",
+                        "time": { "created": current_time }
+                    }
+                }
+            }
+        });
+        let _ = state.tx.send(part_event);
+
+        // 3. Send "complete" status with text (has completed = done)
         let mut complete_info = info_base;
         complete_info["time"] = serde_json::json!({ 
             "created": current_time, 
-            "completed": current_time + 2.0,
-            "updated": current_time + 2.0 
-        });
-        complete_info["content"] = serde_json::json!({ 
-            "type": "text", 
-            "text": "Hello! I am the Trinity Orchestrator. I have fixed the data format, and you can now see me responding correctly. How can I assist you with your project today?" 
+            "completed": current_time + 2.0
         });
 
         let complete_event = serde_json::json!({
@@ -662,6 +674,21 @@ async fn prompt_async_handler(State(state): State<AppState>, Json(payload): Json
             }
         });
         let _ = state.tx.send(complete_event);
+
+        // 4. Send "idle" session status to clear the UI busy state
+        let idle_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "session.status",
+                "properties": {
+                    "sessionID": "ses_default",
+                    "status": {
+                        "type": "idle"
+                    }
+                }
+            }
+        });
+        let _ = state.tx.send(idle_event);
     });
 
     axum::http::StatusCode::NO_CONTENT
@@ -727,6 +754,14 @@ async fn global_event_handler(State(state): State<AppState>) -> impl IntoRespons
     use axum::response::sse::{Event, KeepAlive, Sse};
     use std::time::Duration;
     use tokio_stream::StreamExt;
+    use futures_util::stream;
+
+    // 0. Initial "server.connected" event - SDK expects this first
+    let connected_stream = stream::once(async move {
+        Ok::<Event, axum::Error>(Event::default()
+            .event("server.connected")
+            .data(r#"{"directory":"global","payload":{"type":"server.connected","properties":{}}}"#))
+    });
 
     // 1. Broadcast stream for real events
     let broadcast_stream = BroadcastStream::new(state.tx.subscribe())
@@ -747,8 +782,10 @@ async fn global_event_handler(State(state): State<AppState>) -> impl IntoRespons
             Ok::<Event, axum::Error>(Event::default().comment("keepalive"))
         });
 
-    // 3. Merge them
-    let stream = broadcast_stream.merge(keep_alive_stream);
+    // 3. Merge: connected -> broadcast -> keep_alive
+    let stream = connected_stream
+        .chain(broadcast_stream)
+        .chain(keep_alive_stream);
 
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
