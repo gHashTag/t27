@@ -3,7 +3,7 @@
 // Combines MAC, UART, SPI, and bridge into synthesizable module
 // φ² + 1/φ² = 3 | TRINITY
 
-module Trinity_FPGA_Top {
+module Trinity_FPGA_Top;
     // Import base types and submodules
     use base::types;
     use fpga::mac::ZeroDSP_MAC;
@@ -368,4 +368,4 @@ module Trinity_FPGA_Top {
     bench top_led_update_latency
         measure: nanoseconds to led_update_outputs()
         target: < 50ns
-}
+

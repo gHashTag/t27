@@ -37,6 +37,7 @@ class TokenType(Enum):
     KW_SWITCH = "kw_switch"
     KW_RETURN = "kw_return"
     KW_VAR = "kw_var"
+    KW_USE = "kw_use"
     KW_USING = "kw_using"
     KW_VOID = "kw_void"
     KW_TRUE = "kw_true"
@@ -62,6 +63,7 @@ class TokenType(Enum):
     ARROW = "arrow"
     FAT_ARROW = "fat_arrow"
     DOT = "dot"
+    DCOLON = "dcolon"
     BANG = "bang"
 
     # Special
@@ -101,6 +103,7 @@ KEYWORDS = {
     "switch": TokenType.KW_SWITCH,
     "return": TokenType.KW_RETURN,
     "var": TokenType.KW_VAR,
+    "use": TokenType.KW_USE,
     "using": TokenType.KW_USING,
     "void": TokenType.KW_VOID,
     "true": TokenType.KW_TRUE,
@@ -233,7 +236,7 @@ class Lexer:
             self.advance()
             return Token(single_char_tokens[ch], ch, self.line, self.column - 1)
 
-        # Multi-char operators
+        # Multi-char operators (must check before single-char tokens)
         if self.pos + 1 < len(self.source):
             two_chars = self.source[self.pos:self.pos+2]
             if two_chars == "->":
@@ -248,12 +251,37 @@ class Lexer:
                 self.advance()
                 self.advance()
                 return Token(TokenType.NUMBER, two_chars, self.line, self.column - 2)
+            if two_chars == "::":
+                self.advance()
+                self.advance()
+                return Token(TokenType.DCOLON, two_chars, self.line, self.column - 2)
+
+        # Single char tokens
+        single_char_tokens = {
+            ":": TokenType.COLON,
+            ",": TokenType.COMMA,
+            "=": TokenType.EQUALS,
+            "(": TokenType.LPAREN,
+            ")": TokenType.RPAREN,
+            "{": TokenType.LBRACE,
+            "}": TokenType.RBRACE,
+            "[": TokenType.LBRACKET,
+            "]": TokenType.RBRACKET,
+            ".": TokenType.DOT,
+            "!": TokenType.BANG,
+        }
+        if ch in single_char_tokens:
+            self.advance()
+            return Token(single_char_tokens[ch], ch, self.line, self.column - 1)
 
         # Identifiers and keywords
         if ch.isalpha() or ch == "_":
             start = self.pos
             while self.pos < len(self.source):
                 ch_next = self.peek()
+                # Check for :: path separator (continue identifier)
+                if self.pos + 1 < len(self.source) and ch_next == ":" and self.source[self.pos+1] == ":":
+                    break
                 if ch_next.isalnum() or ch_next in "_-":
                     self.advance()
                 else:
@@ -351,6 +379,24 @@ class Parser:
             elif self.current.type == TokenType.KW_ENUM:
                 return self.parse_enum_decl(is_pub=True)
             raise SyntaxError(f"Unexpected token after pub: {self.current.type}")
+
+        # use PATH::NAME;
+        if self.current.type == TokenType.KW_USE:
+            node = Node("use_decl")
+            self.expect(TokenType.KW_USE)
+            # Build path: identifier (:: identifier)*
+            path_parts = []
+            if self.current.type == TokenType.IDENTIFIER:
+                path_parts.append(self.current.lexeme)
+                self.next()
+            while self.current.type == TokenType.DCOLON:
+                self.next()  # consume ::
+                if self.current.type == TokenType.IDENTIFIER:
+                    path_parts.append(self.current.lexeme)
+                    self.next()
+            node.name = "::".join(path_parts)
+            self.expect(TokenType.SEMICOLON)
+            return node
 
         # module NAME;
         if self.current.type == TokenType.KW_MODULE:

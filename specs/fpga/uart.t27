@@ -3,7 +3,7 @@
 // 8-N-1 protocol: 8 data bits, no parity, 1 stop bit
 // φ² + 1/φ² = 3 | TRINITY
 
-module UART_Bridge {
+module UART_Bridge;
     // Import base types
     use base::types;
 
@@ -348,4 +348,4 @@ module UART_Bridge {
     bench uart_tx_cycle_latency
         measure: nanoseconds to transmit full byte
         target: < 87us  // 10 bits @ 115200 baud
-}
+
