@@ -25,6 +25,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release --features server
 # Now copy real source
 COPY bootstrap/src ./src
+# Force cargo to rebuild by updating the mtime of main.rs
+RUN touch src/main.rs
 RUN cargo build --release --features server
 
 # --- Final Runtime Stage ---
