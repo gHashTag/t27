@@ -1,0 +1,93 @@
+{
+  "module": "Trinity_FPGA_Top",
+  "spec_path": "specs/fpga/top_level.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "Trinity FPGA Top Level conformance vectors -- LED control, reset, heartbeat",
+  "constants": {
+    "CLK_FREQ": 50000000,
+    "TARGET_DEVICE": "xc7a100t",
+    "MAC_DATA_WIDTH": 27
+  },
+  "vectors": {
+    "led_set": {
+      "description": "LED control output",
+      "cases": [
+        {
+          "id": "top_led_set_all_on",
+          "led_mask": 255,
+          "expected_output": 255,
+          "note": "All 8 LEDs on"
+        },
+        {
+          "id": "top_led_set_all_off",
+          "led_mask": 0,
+          "expected_output": 0,
+          "note": "All LEDs off"
+        },
+        {
+          "id": "top_led_set_pattern",
+          "led_mask": 170,
+          "expected_output": 170,
+          "note": "Alternating LED pattern 0xAA"
+        }
+      ]
+    },
+    "top_reset": {
+      "description": "Reset subsystems",
+      "cases": [
+        {
+          "id": "top_reset_assert",
+          "reset_n": 0,
+          "expected_mac_reset": true,
+          "expected_uart_reset": true,
+          "expected_spi_reset": true,
+          "note": "Active-low reset asserts all subsystem resets"
+        },
+        {
+          "id": "top_reset_deassert",
+          "reset_n": 1,
+          "expected_mac_reset": false,
+          "expected_uart_reset": false,
+          "expected_spi_reset": false,
+          "note": "Reset deasserted releases all subsystems"
+        }
+      ]
+    },
+    "top_heartbeat": {
+      "description": "Heartbeat LED toggle",
+      "cases": [
+        {
+          "id": "top_heartbeat_period",
+          "clk_freq": 50000000,
+          "expected_toggle_cycles": 25000000,
+          "expected_period_ms": 1000,
+          "note": "Heartbeat toggles every 0.5s for 1Hz blink"
+        },
+        {
+          "id": "top_heartbeat_initial_state",
+          "initial_led": 0,
+          "after_toggle": 1,
+          "note": "Heartbeat LED starts off, toggles to on"
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "top_clk_frequency_constant",
+      "description": "CLK_FREQ == 50000000 (50 MHz)",
+      "value": 50000000
+    },
+    {
+      "id": "top_device_target_constant",
+      "description": "TARGET_DEVICE == xc7a100t (Artix-7)",
+      "value": "xc7a100t"
+    },
+    {
+      "id": "top_led_count_constant",
+      "description": "LED output width == 8 bits",
+      "value": 8
+    }
+  ]
+}
