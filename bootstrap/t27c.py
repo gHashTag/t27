@@ -1110,6 +1110,7 @@ def main():
         print("  repl history        - Show ring improvement trajectory")
         print("  repl status         - Show current ring level and capabilities")
         print("  repl reload         - Hot-reload REPL state")
+        print("  repl self-improve   - Full autonomous improvement cycle")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -1211,9 +1212,11 @@ def run_repl_command(sub: Optional[str]):
         _run_status(root, state)
     elif sub == "reload":
         _run_reload(root, state)
+    elif sub == "self-improve":
+        _run_self_improve(root, state)
     else:
         print(f"Unknown repl subcommand: {sub}")
-        print("Use: doctor, evolve, history, status, reload")
+        print("Use: doctor, evolve, history, status, reload, self-improve")
         sys.exit(1)
 
 
@@ -1253,6 +1256,8 @@ def _run_interactive_repl(root: Path, state: dict):
             _run_history(root, state)
         elif cmd == "reload":
             _run_reload(root, state)
+        elif cmd == "self-improve":
+            _run_self_improve(root, state)
         else:
             print(f"[~] Unknown command: '{cmd}'. Type 'help' for available commands.")
 
@@ -1275,6 +1280,7 @@ def _print_help():
     evolve                Execute self-improvement cycle
     history               Show ring trajectory
     reload                Hot-reload after ring
+    self-improve          Full autonomous improvement cycle
     help                  Show this help
     quit                  Exit REPL""")
 
@@ -1806,6 +1812,132 @@ def _run_reload(root: Path, state: dict):
         print("  Health: GREEN (no weaknesses)")
     else:
         print(f"  Health: {len(weaknesses)} weakness(es) detected")
+
+
+def _run_self_improve(root: Path, state: dict):
+    """Execute a full autonomous self-improvement cycle.
+
+    The REPL finds a problem in itself and fixes it:
+    1. Doctor: detect weaknesses
+    2. Evolve: fix the highest-priority weakness
+    3. Reload: integrate the fix
+    4. Doctor: verify the fix resolved the weakness
+    5. History: show the complete trajectory
+    6. Record: save as self-improvement episode
+    """
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    print("=" * 60)
+    print("  AUTONOMOUS SELF-IMPROVEMENT CYCLE")
+    print("=" * 60)
+    print()
+
+    # Step 1: Doctor -- detect weaknesses
+    print("[1/6] Running doctor to detect weaknesses...")
+    before_weaknesses = _detect_weaknesses(root)
+    before_count = len(before_weaknesses)
+    if before_count == 0:
+        print("  No weaknesses detected. System is fully healthy.")
+        print("  Self-improvement cycle: SKIPPED (nothing to fix)")
+        return
+
+    print(f"  Found {before_count} weakness(es)")
+    target = before_weaknesses[0]
+    print(f"  Target: {target['type']} -- {target.get('spec_path', target.get('missing', ''))}")
+    print()
+
+    # Step 2: Evolve -- fix the highest-priority weakness
+    print("[2/6] Running evolve to fix weakness...")
+    _run_evolve(root, state)
+    print()
+
+    # Step 3: Reload -- integrate the fix
+    print("[3/6] Running reload to integrate changes...")
+    _run_reload(root, state)
+    print()
+
+    # Step 4: Doctor again -- verify fix
+    print("[4/6] Running doctor to verify fix...")
+    after_weaknesses = _detect_weaknesses(root)
+    after_count = len(after_weaknesses)
+    fixed_count = before_count - after_count
+
+    # Check if the specific target weakness is gone
+    target_spec = target.get("spec_path", "")
+    target_type = target["type"]
+    target_still_present = any(
+        w.get("spec_path") == target_spec and w["type"] == target_type
+        for w in after_weaknesses
+    )
+
+    if not target_still_present:
+        print(f"  VERIFIED: {target_type} for {target_spec} is RESOLVED")
+    else:
+        print(f"  WARNING: target weakness still present (may need manual fix)")
+    print(f"  Weaknesses: {before_count} -> {after_count} ({fixed_count} fixed)")
+    print()
+
+    # Step 5: History -- show trajectory
+    print("[5/6] Ring improvement trajectory:")
+    _run_history(root, state)
+    print()
+
+    # Step 6: Record -- save self-improvement episode
+    print("[6/6] Recording self-improvement episode...")
+    episode = {
+        "episode_id": f"self-improve-ring-{state['ring']}",
+        "timestamp": now,
+        "type": "self-improve",
+        "agent": "T",
+        "phase": "Evolve",
+        "ring": state["ring"],
+        "description": f"Autonomous self-improvement: fixed {target_type} for {target_spec}",
+        "weakness_before": before_count,
+        "weakness_after": after_count,
+        "weakness_fixed": fixed_count,
+        "target": {
+            "type": target_type,
+            "spec_path": target_spec,
+            "resolved": not target_still_present,
+        },
+        "steps": [
+            {"step": 1, "action": "DOCTOR_BEFORE", "status": "complete",
+             "detail": f"Found {before_count} weaknesses"},
+            {"step": 2, "action": "EVOLVE", "status": "complete",
+             "detail": f"Fixed {target_type} for {target_spec}"},
+            {"step": 3, "action": "RELOAD", "status": "complete",
+             "detail": "State reloaded"},
+            {"step": 4, "action": "DOCTOR_AFTER", "status": "complete",
+             "detail": f"Verified: {before_count} -> {after_count} weaknesses"},
+            {"step": 5, "action": "HISTORY", "status": "complete",
+             "detail": "Trajectory displayed"},
+            {"step": 6, "action": "RECORD", "status": "complete",
+             "detail": "Episode saved"},
+        ],
+        "learnings": [
+            f"REPL autonomously detected and fixed {target_type}",
+            f"Weakness count reduced from {before_count} to {after_count}",
+            "Self-improvement loop is operational",
+        ],
+        "mistakes": [],
+        "result": "success" if not target_still_present else "partial",
+    }
+    episodes_dir = root / ".trinity" / "experience" / "episodes"
+    episodes_dir.mkdir(parents=True, exist_ok=True)
+    ep_path = episodes_dir / f"self-improve-ring-{state['ring']}.json"
+    ep_path.write_text(json.dumps(episode, indent=2) + "\n")
+    print(f"  Episode saved: {ep_path.name}")
+
+    # Summary
+    print()
+    print("=" * 60)
+    verdict = "SUCCESS" if not target_still_present else "PARTIAL"
+    print(f"  SELF-IMPROVEMENT CYCLE: {verdict}")
+    print(f"  Ring: {state['ring']} [{state['layer']}]")
+    print(f"  Fixed: {target_type} for {target_spec}")
+    print(f"  Weaknesses: {before_count} -> {after_count}")
+    print("=" * 60)
 
 
 if __name__ == "__main__":

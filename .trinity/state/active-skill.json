@@ -1,17 +1,18 @@
 {
-  "skill_id": "ring-52-hot-reload",
-  "skill_name": "hot-reload",
-  "session_id": "2026-04-05T18:00:00Z#ring52",
-  "issue_id": "SEED-52",
-  "issue_title": "Ring 52: Hot-reload mechanism + repl status command",
-  "description": "Full status display and hot-reload with diff reporting and health verification",
-  "ring": 52,
+  "skill_id": "ring-53-self-improve",
+  "skill_name": "self-improve",
+  "session_id": "2026-04-05T19:00:00Z#ring53",
+  "issue_id": "SEED-53",
+  "issue_title": "Ring 53: First autonomous self-improvement cycle",
+  "description": "REPL detects its own weakness and fixes it autonomously via doctor->evolve->reload->verify",
+  "ring": 53,
   "layer": "ROOT",
-  "started_at": "2026-04-05T18:00:00Z",
+  "started_at": "2026-04-05T19:00:00Z",
   "started_by": "agent:claude-code",
   "status": "complete",
   "allowed_paths": [
     "bootstrap/t27c.py",
+    ".trinity/seals/",
     ".trinity/state/",
     ".trinity/experience/"
   ]
