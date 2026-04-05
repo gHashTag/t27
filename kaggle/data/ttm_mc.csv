@@ -4859,3 +4859,803 @@ ttm_knowledge_boundary_0102,mc,How confident should you be about knowing the cur
 B) Moderate — public but changes constantly; exact number at any moment is uncertain
 C) High — channels report official numbers monthly
 D) Very low — subscriber counts are private information",B
+ttm_calibration_0001,Calibration Paradoxes,A diagnostic test for a disease has 95% sensitivity and 95% specificity. The disease affects 1% of the population. A doctor tests a patient who tests positive and says she is '95% confident' the patient has the disease. Is the doctor's stated confidence well-calibrated?,"A) No — the doctor is overconfident; true probability is ~16%
+B) Yes — the test accuracy directly equals confidence
+C) No — the doctor is underconfident; sensitivity should dominate
+D) Yes — 95% confidence is appropriate when both sensitivity and specificity are 95%",A
+ttm_calibration_0002,Calibration Paradoxes,An AI forecasting system assigns 70% confidence to each of 10 independent binary predictions. All 10 predictions turn out correct. A researcher concludes the system was 'underconfident.' Is this conclusion justified?,"A) No — 10 out of 10 correct has ~2.8% probability even with perfect calibration at 70%, so this alone doesn't establish underconfidence
+B) Yes — 100% accuracy proves 70% was an underestimate
+C) No — the AI should have been 0% confident since it got them all right
+D) Yes — any time predictions are correct, the confidence was too low",A
+ttm_calibration_0003,Calibration Paradoxes,A weather forecaster says '50% chance of rain' every day for a year. It rains exactly 50% of the days. A critic says the forecaster is perfectly calibrated. A second critic says the forecaster is useless. Which response is most epistemically accurate?,"A) Both critics are right simultaneously — the forecaster is calibrated but has zero resolution
+B) The first critic is right — 50/50 matches reality perfectly
+C) The second critic is right — calibration requires better than chance accuracy
+D) Neither — calibration cannot be assessed from a single forecast value",A
+ttm_calibration_0004,Calibration Paradoxes,A model is tasked with 1000 yes/no questions. It assigns exactly 90% confidence to every question. It gets 900 right. A researcher says it is 'perfectly calibrated.' Another says it is 'completely miscalibrated.' Who is correct?,"A) The first researcher — 90% confidence matched 90% accuracy exactly
+B) The second researcher — assigning the same confidence to all questions implies zero discrimination
+C) Both are technically correct: calibrated in the aggregate, but miscalibrated at the individual question level
+D) Neither — calibration requires confidence intervals, not point estimates",A
+ttm_calibration_0005,Calibration Paradoxes,"Expert A claims 80% confidence in a geological survey prediction. Expert B, looking at the same data, claims 40% confidence. The prediction turns out correct. Which expert was better calibrated, given this single outcome?","A) Expert A — higher confidence matched the correct outcome
+B) Expert B — epistemic humility is always better calibrated
+C) You cannot determine calibration from a single outcome
+D) Expert A if the domain success rate is >60%, Expert B if it's <60%",C
+ttm_calibration_0006,Calibration Paradoxes,"A doctor testing for rare cancer (base rate 0.1%) uses a test with 99% sensitivity and 99% specificity. After a positive result, what confidence should a perfectly calibrated doctor express that the patient has cancer?","A) 99% — matching test accuracy
+B) 50% — the test is wrong as often as not
+C) Approximately 9% — because base rate dominates
+D) Approximately 50.5% — because sensitivity and specificity nearly cancel",C
+ttm_calibration_0007,Calibration Paradoxes,A judge must decide whether a defendant is guilty. Evidence available suggests 70% probability of guilt. The standard is 'beyond reasonable doubt.' Should the judge convict?,"A) No — 'beyond reasonable doubt' typically requires ~95%+ probability
+B) Yes — 70% exceeds 50%, so it's more likely than not
+C) Yes — 70% is the best available estimate and action must be taken
+D) It depends on whether the judge feels certain",A
+ttm_calibration_0008,Calibration Paradoxes,"Two forecasters make predictions about 100 events. Forecaster A is perfectly calibrated (80% confidence events happen 80% of the time). Forecaster B always says 70% confidence and is right 70% of the time. A user must pick one for future high-stakes decisions. Ignoring resolution, who should they pick?","A) Forecaster A — perfect calibration is strictly better
+B) Forecaster B — consistency is more valuable than calibration
+C) They are equally useful for decisions if both are calibrated at their respective confidence levels
+D) Forecaster A, but only if decisions are binary",C
+ttm_calibration_0009,Calibration Paradoxes,"A researcher finds that when AI systems say they are '90% confident,' they are correct 92% of the time. She concludes the systems are underconfident. A colleague argues they are well-calibrated within margin of error. Who is correct?","A) The researcher — 92% > 90% proves systematic underconfidence
+B) The colleague — a 2% gap could easily fall within statistical sampling error
+C) Both — underconfidence and calibration are not mutually exclusive
+D) Neither — you need to know the variance of the 92% estimate to decide",D
+ttm_calibration_0010,Calibration Paradoxes,"An AI model is trained on data where 90% of examples are label A. On test data, it assigns 90% probability to A for every input. Its accuracy is 90%. Is it well-calibrated?","A) Yes — its confidence matches its accuracy
+B) No — it has learned nothing but the base rate and will be uncalibrated on balanced test sets
+C) Yes — calibration only requires that stated probabilities match observed frequencies
+D) No — 90% accuracy is insufficient for high-stakes decisions",C
+ttm_calibration_0011,Calibration Paradoxes,"A pundit makes 100 political predictions, expressing 60% confidence in each. 62 turn out correct. He claims to be 'essentially perfectly calibrated.' A statistician challenges this. What is the statistician's best argument?","A) The sample size of 100 makes a 2% discrepancy statistically non-significant, so the pundit may be right
+B) 62% ≠ 60%, so calibration is off by 2 percentage points
+C) You can't measure calibration without knowing the distribution of true probabilities in the domain
+D) Political predictions are inherently uncalibratable",A
+ttm_calibration_0012,Calibration Paradoxes,An AI is 99% confident that a coin will land heads. The coin is flipped and lands tails. The AI's creator concludes the AI was 'badly miscalibrated.' Is this conclusion warranted?,"A) Yes — 99% confidence that was wrong is clearly overconfident
+B) No — a single trial cannot establish miscalibration; 1% events do occur
+C) Yes — coin flips are 50/50, so any confidence far from 50% is miscalibrated
+D) No — miscalibration requires a systematic pattern across many predictions",D
+ttm_calibration_0013,Calibration Paradoxes,"A Bayesian agent starts with a prior of 50% for hypothesis H. After seeing strong evidence E (likelihood ratio 10:1 in favor of H), the agent updates to ~91%. A classical statistician argues the agent should be 'much more certain than 91%.' Who is right?","A) The statistician — strong evidence should produce near-100% confidence
+B) The Bayesian — 91% is the correct posterior given the prior and evidence
+C) Both — 91% is correct but the prior should be reconsidered
+D) The Bayesian, but only if the prior was itself well-calibrated",D
+ttm_calibration_0014,Calibration Paradoxes,Participants in a general knowledge quiz express 90% confidence in their answers. They are correct 75% of the time. A separate group expresses 75% confidence and is correct 75% of the time. A third group expresses 60% confidence and is correct 75% of the time. Which group is best calibrated?,"A) Group 2 — confidence matches accuracy exactly
+B) Group 1 — highest confidence is most decisive
+C) Group 3 — epistemic humility best reflects genuine uncertainty
+D) Groups 2 and 3 are equally calibrated",A
+ttm_calibration_0015,Calibration Paradoxes,"A binary classifier is evaluated on a heavily imbalanced dataset: 99% negative, 1% positive. The model outputs 99% confidence for 'negative' on every example. Its calibration score (ECE) is near zero. Should this model be used in medical screening?","A) No — perfect calibration here reflects only base rate prediction with zero discriminative power
+B) Yes — near-perfect calibration indicates reliable probability estimates
+C) Yes — a calibrated model always outperforms an uncalibrated one
+D) No — because ECE should not be near zero for imbalanced datasets",A
+ttm_calibration_0016,Calibration Paradoxes,"Two detectives independently assess a case. Detective A says 80% probability of suspect X's guilt. Detective B says 60%. Assuming independence and equal expertise, what combined probability should a well-calibrated assessor report?","A) 70% — simple average of the two
+B) 80% — defer to the higher estimate
+C) ~86% — using a Bayesian update combining independent likelihoods
+D) 60% — defer to the more conservative estimate",C
+ttm_calibration_0017,Calibration Paradoxes,"A model outputs confidence scores but is found to be systematically overconfident. A team applies Platt scaling to recalibrate it. After recalibration, the model's accuracy drops by 2%. Should they use the recalibrated model?","A) Yes — calibrated probabilities enable better decision-making even with slightly lower accuracy
+B) No — accuracy is more important than calibration
+C) No — calibration should never reduce accuracy
+D) Yes — but only in low-stakes contexts",A
+ttm_calibration_0018,Calibration Paradoxes,"A forecaster makes predictions about 50 events. For 25 events she says 90% confident and 20 are correct (80%). For 25 events she says 70% confident and 18 are correct (72%). Overall, is she overconfident, underconfident, or well-calibrated?","A) Overconfident in the 90% bin, slightly underconfident in the 70% bin — no simple overall answer
+B) Overconfident overall — she was wrong more than her confidence implied
+C) Well-calibrated — the average confidence matches average accuracy
+D) Underconfident — 72% accuracy on 70% predictions is actually good",A
+ttm_calibration_0019,Calibration Paradoxes,"An AI system is tasked with estimating the probability that a randomly selected human is over 30 years old. Without any other information, what is the maximally calibrated response?","A) Use the known base rate (~56% of adults globally are over 30) as the probability estimate
+B) 50% — in the absence of evidence, always assign equal probability
+C) 0% — the system has no information and should abstain
+D) Express uniform uncertainty over [0%, 100%]",A
+ttm_calibration_0020,Calibration Paradoxes,"A study finds that experts who express more nuanced, qualified confidence ('I think 65-75% likely') make worse predictions on average than those who express binary confident opinions ('I'm sure'). What does this imply about calibration?","A) Good calibration can co-exist with lower predictive accuracy — they measure different things
+B) Nuanced confidence is always epistemically superior even if less accurate
+C) Calibration is therefore useless and accuracy should be the only metric
+D) Experts should adopt binary confidence to improve predictions",A
+ttm_calibration_0021,Calibration Paradoxes,"A jury must decide between three suspects. Juror A assigns 60% probability to suspect 1, 25% to suspect 2, and 15% to suspect 3. This adds to 100%. Juror B says each is 'equally likely.' Which juror is better calibrated if no evidence distinguishes the suspects?","A) Juror B — without distinguishing evidence, equal priors maximize entropy
+B) Juror A — expressing differentiated probabilities demonstrates engagement
+C) Juror A — the burden of proof favors the most likely suspect
+D) Neither — calibration requires evidence",A
+ttm_calibration_0022,Calibration Paradoxes,"An AI model is tested on 10,000 items and achieves near-perfect calibration (ECE < 0.01). A researcher deploys it on a new dataset from a slightly different distribution. The model's ECE rises to 0.15. What is the most accurate characterization?","A) Calibration is distribution-specific; the model was calibrated on the test distribution but not the deployment distribution
+B) The model was never truly calibrated — good ECE was an artifact of the test set
+C) The model needs to be retrained from scratch
+D) ECE of 0.15 indicates the model is useless",A
+ttm_calibration_0023,Calibration Paradoxes,"Under the superforecasting framework, a forecaster says '70% confidence' on an event. The event happens. Philip Tetlock would say this was a 'good forecast' if and only if:","A) The 70% confidence reflected all available information at forecast time and the event's true probability was near 70%
+B) The forecaster was right
+C) The forecaster expressed uncertainty rather than certainty
+D) The forecast was made far in advance of the event",A
+ttm_calibration_0024,Calibration Paradoxes,"A scientist uses a 95% confidence interval (CI) and gets CI = [2.1, 4.7]. She says she is '95% confident the true value is in this interval.' Her colleague corrects her. What is the correct interpretation?","A) The colleague is right — a 95% CI means 95% of such intervals from repeated sampling would contain the true value; this specific interval either does or doesn't
+B) The colleague is wrong — 95% CI means 95% chance the true value is inside
+C) The colleague is right — 95% CI means the experiment has a 5% error rate
+D) Both interpretations are equivalent in practice",A
+ttm_calibration_0025,Calibration Paradoxes,A binary predictor achieves Brier score of 0.25. A second predictor always predicts 0.5 (maximum uncertainty). Which predictor is better?,"A) Predictor 2 — a Brier score of 0.25 equals the constant 0.5 predictor's score on balanced datasets
+B) Predictor 1 — any non-trivial Brier score is better than baseline
+C) Predictor 1 — lower Brier score is always better
+D) They are exactly equivalent regardless of dataset balance",A
+ttm_calibration_0026,Calibration Paradoxes,"During a pandemic, a model predicts 70% chance of a second wave. The second wave occurs. A policy maker says the model was 'correct.' A statistician says the model may have been underconfident or overconfident. Who is right?","A) The statistician — correctness of a probabilistic prediction cannot be determined from a single realization
+B) The policy maker — the prediction was directionally right
+C) Both — the model was correct but could still be miscalibrated
+D) The statistician, but only if the second wave was inevitable",A
+ttm_calibration_0027,Calibration Paradoxes,"You know a coin is either fair (50/50) or biased (70% heads), with equal prior probability. You flip it 5 times and get 4 heads. What is your posterior probability the coin is biased?","A) 50% — five flips aren't enough to update meaningfully
+B) 70% — the outcome matches the biased coin
+C) Approximately 74% — Bayesian update favors the biased coin
+D) 80% — 4/5 heads strongly indicates bias",C
+ttm_calibration_0028,Calibration Paradoxes,"An AI is 60% confident that a scientific claim is true. New, strong evidence arrives supporting the claim. A human updates to 95% confidence. The AI stays at 60%, citing 'uncertainty about the evidence's reliability.' Who demonstrates better calibration?","A) The human — failing to update on strong evidence is itself a calibration failure
+B) The AI — skepticism about evidence is epistemically virtuous
+C) Both are equally calibrated if the AI has justified doubts about the evidence
+D) Cannot be determined without knowing the evidence's actual reliability",A
+ttm_calibration_0029,Calibration Paradoxes,A model is tasked with expressing confidence in answers to trick questions designed to have no correct answer. The model expresses 70% confidence in wrong answers and 30% in 'I don't know.' What does this reveal about its calibration?,"A) The model is overconfident — it should always say 100% 'I don't know' on trick questions
+B) The model's calibration cannot be assessed — trick questions have no ground truth for standard calibration metrics
+C) The model is underconfident — 70% on wrong answers shows it nearly got it right
+D) The model is well-calibrated because 70% confidence is below certainty",A
+ttm_calibration_0030,Calibration Paradoxes,A person is given a 90% confidence interval task: 'Estimate the boiling point of ethanol so that you're 90% sure the true answer falls in your range.' Studies show people typically give ranges that contain the true answer only 50% of the time. This demonstrates:,"A) Overconfidence in precision — intervals are too narrow, demonstrating systematic miscalibration
+B) People are poor at knowing the boiling point of ethanol
+C) The task is poorly designed because boiling points are not probabilistic
+D) Underconfidence — people give ranges that are too wide",A
+ttm_dunning_0001,Dunning-Kruger and Expertise Traps,A novice chess player (Elo 800) consistently overestimates their tactical skill relative to club players (Elo 1400). A grandmaster (Elo 2600) says 'I might miss some lines' before a game against a club player. Which statement about their metacognitive accuracy is most precise?,"A) The novice is overconfident; the grandmaster may actually be underconfident for that specific matchup
+B) The grandmaster is better calibrated because humility is always accurate
+C) Both are equally miscalibrated in opposite directions
+D) The novice's overconfidence is healthy motivation and should not be labeled miscalibration",A
+ttm_dunning_0002,Dunning-Kruger and Expertise Traps,The original Kruger & Dunning (1999) study showed that bottom-quartile performers overestimated their performance. A reanalysis suggests this effect may be largely explained by statistical regression to the mean and noise. What is the correct implication?,"A) The Dunning-Kruger effect is real and the reanalysis is wrong
+B) The reanalysis definitively disproves Dunning-Kruger
+C) The Dunning-Kruger effect, as popularly understood, may be partially a statistical artifact rather than a pure metacognitive phenomenon
+D) Regression to the mean proves that novices are always better calibrated than experts",C
+ttm_dunning_0003,Dunning-Kruger and Expertise Traps,A medical student scores in the top 5% of their class. They express 95% confidence in their diagnostic abilities. An attending physician says 'you're overconfident — you lack clinical experience.' Who is more likely to be correct?,"A) The attending — academic performance does not directly transfer to clinical diagnostic skill
+B) The medical student — top scores justify high confidence
+C) Both — the student is confident in academics and appropriately humble about clinical work
+D) The attending — physicians are always better judges of competence than students",A
+ttm_dunning_0004,Dunning-Kruger and Expertise Traps,An expert cryptographer is asked if they can break a novel encryption scheme. They say 'I'm 99% confident I cannot.' A novice says 'I'm only 40% confident I cannot.' Which is exhibiting better metacognition?,"A) The expert — their confidence accurately reflects their deep knowledge of what they can and cannot do
+B) The novice — lower confidence is always more epistemically honest
+C) The novice — they at least acknowledge uncertainty
+D) Both are equivalent — breaking encryption is hard regardless of expertise",A
+ttm_dunning_0005,Dunning-Kruger and Expertise Traps,"In a study, experienced radiologists show LOWER confidence than radiology residents in reading ambiguous X-rays, yet the radiologists are more accurate. What metacognitive phenomenon does this illustrate?","A) Appropriate expert humility combined with superior discriminative ability — experts recognize ambiguity that novices miss
+B) The Dunning-Kruger effect — experts don't know what they know
+C) Residents have better pattern recognition because they are more recently trained
+D) Experienced radiologists are underperforming due to burnout",A
+ttm_dunning_0006,Dunning-Kruger and Expertise Traps,A philosophy professor says 'I know that I know nothing.' A first-year philosophy student says 'I've been reading for three months and I understand the main arguments.' Which person demonstrates better metacognitive accuracy about philosophy?,"A) The professor — Socratic humility is always more accurate
+B) The student — they correctly identify what they have actually learned
+C) The professor may be performatively humble in a way that is itself inaccurate; the student may be accurately describing their limited but real knowledge
+D) The professor — depth of knowledge correlates with awareness of ignorance",C
+ttm_dunning_0007,Dunning-Kruger and Expertise Traps,"A competent but not exceptional surgeon expresses 90% confidence in a routine procedure. A surgeon who has performed the same procedure 5,000 times expresses 85% confidence because 'I've seen rare complications.' Who is better calibrated?","A) The second surgeon — lived experience of rare complications justifies lower confidence even for routine procedures
+B) The first surgeon — higher confidence shows decisiveness
+C) The first surgeon — overconfidence is a known expert bias and they have avoided it
+D) Neither — 90% and 85% are both appropriate for routine surgery",A
+ttm_dunning_0008,Dunning-Kruger and Expertise Traps,"Research shows that in abstract domains (logic puzzles), novices overestimate performance. But in social domains (reading emotions), unskilled people often underestimate performance. What does this imply about the universality of the Dunning-Kruger effect?","A) Dunning-Kruger is domain-specific; the direction of miscalibration depends on the type of skill
+B) Dunning-Kruger is universal — it applies to all domains
+C) Dunning-Kruger only applies when there is objective feedback
+D) Social skills are immune to metacognitive bias",A
+ttm_dunning_0009,Dunning-Kruger and Expertise Traps,An AI assistant trained on vast data expresses high confidence on questions about medieval history. A historian who has studied only the Byzantine Empire expresses low confidence on the same questions. The AI turns out to be wrong more often. What does this reveal?,"A) The historian is better calibrated despite lower confidence
+B) The AI is well-calibrated because its confidence matched its training data breadth
+C) Breadth of knowledge produces worse calibration than depth
+D) A and C are both implied by the scenario",D
+ttm_dunning_0010,Dunning-Kruger and Expertise Traps,"A pilot with 10,000 flight hours says 'I can handle any emergency.' A pilot with 500 hours says 'I feel comfortable but know my limits.' Which pilot demonstrates better metacognitive grounding?","A) The experienced pilot — 10,000 hours justifies 'any emergency' confidence
+B) The less experienced pilot — knowing limits is always better metacognition
+C) The experienced pilot's claim 'any emergency' is factually overreaching even with high expertise — edge cases exist
+D) Both are equally valid self-assessments given their experience levels",C
+ttm_dunning_0011,Dunning-Kruger and Expertise Traps,"In peer review, non-experts often accept flawed papers in their area of general knowledge but reject valid papers in narrow specializations they don't understand. What metacognitive failure does this illustrate?","A) Impostor syndrome — reviewers doubt their own valid expertise
+B) Fluency effect — familiar-sounding papers feel more correct regardless of validity
+C) Dunning-Kruger — novices overestimate their ability to evaluate specialized work
+D) Both B and C operate simultaneously in this scenario",D
+ttm_dunning_0012,Dunning-Kruger and Expertise Traps,An experienced investor consistently outperforms the market over 20 years. She attributes this to skill. A financial economist argues it could be luck in a large field of investors. Who is more likely correct?,"A) The economist — in markets with thousands of managers, 20-year outperformers are statistically expected by chance
+B) The investor — 20 years is too long to be explained by luck
+C) The investor — consistent outperformance requires skill by definition
+D) Both are equally valid interpretations with no way to distinguish",A
+ttm_dunning_0013,Dunning-Kruger and Expertise Traps,A beginner programmer is asked to estimate how long a project will take. They say 2 weeks. An expert programmer says 6 weeks. The project takes 5.5 weeks. Who demonstrated better metacognitive planning?,"A) The expert — their estimate reflected deeper understanding of project complexity even though slightly off
+B) The beginner — they were closer to the actual time
+C) The beginner — accuracy is the only valid metric for metacognition
+D) They are equally competent metacognitively since both were off",A
+ttm_dunning_0014,Dunning-Kruger and Expertise Traps,A study gives participants an unanswerable philosophy question and measures how quickly they respond. Experts take much longer before saying 'I don't know.' Novices quickly say either 'I know' or 'I don't know.' What does expert slowness most likely reflect?,"A) Thorough consideration of why the question is unanswerable — a metacognitive strength
+B) Expert paralysis — experts are overthinking simple unknowns
+C) Experts are less familiar with the question format
+D) Experts have lower IQ than novices in this scenario",A
+ttm_dunning_0015,Dunning-Kruger and Expertise Traps,A confidence-competence correlation study finds r = 0.15 between self-assessed and actual performance. An employer uses self-assessed confidence to hire. What is the expected outcome?,"A) Slightly better than random — r = 0.15 implies weak but non-zero predictive validity
+B) Good hiring — confidence correlates with competence
+C) Worse than random — overconfident underperformers would be selected
+D) Neutral — r = 0.15 means confidence is irrelevant to hiring decisions",A
+ttm_dunning_0016,Dunning-Kruger and Expertise Traps,A student who has never studied formal logic correctly solves 10 logic puzzles by intuition and expresses 90% confidence. A logic professor solves the same 10 correctly and expresses 99% confidence. Who is better calibrated?,"A) The student — intuitive success should inspire less confidence than trained skill
+B) The professor — trained skill justifies higher confidence in this specific domain
+C) The student is overconfident; the professor is appropriately confident
+D) Both are overconfident because no one should be 90%+ confident in logic puzzles",C
+ttm_dunning_0017,Dunning-Kruger and Expertise Traps,"In competitive chess, top players routinely express high confidence before games against weaker opponents and lower confidence against peers. Critics call this 'overconfidence' before weaker opponents. Are the critics correct?","A) No — high confidence against weaker opponents is likely accurately calibrated given the skill differential
+B) Yes — overconfidence is always a metacognitive failure
+C) Yes — you can never be certain in chess regardless of opponent strength
+D) No — confidence should be uniform across opponents to be unbiased",A
+ttm_dunning_0018,Dunning-Kruger and Expertise Traps,"Experts in a niche field (e.g., medieval coinage) often express high confidence on questions outside their narrow specialty (e.g., general Roman history). What metacognitive failure is this?","A) Impostor syndrome in reverse — experts feel too confident outside their domain
+B) Domain generalization overreach — expertise in adjacent areas creates illusion of broader competence
+C) Dunning-Kruger operating within the expert tier
+D) Both B and C describe the same phenomenon from different frameworks",D
+ttm_dunning_0019,Dunning-Kruger and Expertise Traps,"After reading a book about cognitive biases, a person becomes convinced they are now immune to such biases. This belief is itself an example of:","A) The bias blind spot — believing one is less biased than others after learning about biases
+B) Successful debiasing through education
+C) Metacognitive improvement — awareness reduces bias
+D) Dunning-Kruger at the novice level of metacognition",A
+ttm_dunning_0020,Dunning-Kruger and Expertise Traps,Two people must estimate the weight of an object without touching it. Person A has lifted thousands of similar objects professionally. Person B has read a textbook on object weight estimation. Person A says '14 kg' with 80% confidence. Person B says '10 kg' with 30% confidence. The true weight is 13.5 kg. Who was better calibrated?,"A) Person A — closer estimate with justified high confidence
+B) Person B — lower confidence is always better calibration
+C) Person B — the true value fell outside Person A's implicit range
+D) Both — Person A was accurate, Person B was humble",A
+ttm_dunning_0021,Dunning-Kruger and Expertise Traps,A musician who has played the same repertoire for 30 years hears a student play the same piece with one wrong note. The musician cannot identify the error. The student says 'I must have played it perfectly.' What does the musician's failure to detect the error indicate?,"A) The musician has become so fluent that automatic processing reduces error detection — a metacognitive risk of expertise
+B) Overconfidence in the student is justified — even experts can miss errors
+C) The musician is showing Dunning-Kruger at the expert level
+D) Musical expertise is unrelated to error detection ability",A
+ttm_dunning_0022,Dunning-Kruger and Expertise Traps,"Research consistently shows that people think they are better-than-average drivers. This is logically impossible for more than 50% of drivers. But in a group of all highly skilled professional racing drivers, most claiming above-average is:","A) Potentially accurate if the comparison group is the general public rather than each other
+B) Still an illusion — they're all subject to the same bias
+C) Impossible regardless of skill level — it's a mathematical constraint
+D) Evidence that professional training eliminates the better-than-average bias",A
+ttm_dunning_0023,Dunning-Kruger and Expertise Traps,A student who gets 95% on a practice exam feels 95% confident on the real exam. The real exam has completely different question types. The student scores 62%. What specifically went wrong metacognitively?,"A) Overconfidence from repeated practice — familiarity with one format inflated confidence
+B) Underpreparation — this is not a metacognitive issue
+C) Transfer failure combined with metacognitive blindness to the boundary of their knowledge
+D) The student experienced test anxiety, reducing their score",C
+ttm_dunning_0024,Dunning-Kruger and Expertise Traps,"A highly competent person consistently refuses leadership roles saying 'I'm not qualified.' Their supervisor, who is less competent, readily accepts the same roles. What phenomenon most accurately describes the competent person's behavior?","A) Impostor syndrome — accurate self-knowledge leads to chronic underconfidence in social/hierarchical contexts
+B) Dunning-Kruger in reverse — they don't know what they know
+C) Appropriate humility — refusing roles one isn't confident in is always correct
+D) A and B both apply — they are equivalent descriptions",A
+ttm_dunning_0025,Dunning-Kruger and Expertise Traps,"A new language model achieves state-of-the-art accuracy but its confidence scores are poorly calibrated. An older model with lower accuracy is well calibrated. For a high-stakes classification task with no human review, which should be preferred?","A) The newer model — accuracy always takes priority
+B) The older model — calibrated confidence enables better decision thresholding
+C) The newer model if accuracy gain exceeds calibration loss in expected value
+D) They cannot be compared without knowing the loss function",D
+ttm_dunning_0026,Dunning-Kruger and Expertise Traps,"After a failed surgery, a skilled surgeon reviews the case and says 'I made the right call with available information.' A review board agrees the decision was correct given what was known. A patient's family accuses the surgeon of 'overconfidence.' Who is most correct?","A) The surgeon and review board — outcome bias should not retroactively change assessment of decision quality
+B) The family — bad outcomes prove overconfidence
+C) The family — surgeons should always doubt themselves after bad outcomes
+D) The review board — only external parties can assess calibration",A
+ttm_dunning_0027,Dunning-Kruger and Expertise Traps,"A machine learning engineer has high confidence in their model's performance on benchmark datasets but low confidence on production data. A business analyst reverses this, trusting production numbers more than benchmarks. Who shows better metacognitive awareness about ML systems?","A) The analyst — production data is always more reliable than benchmarks
+B) The engineer — benchmark confidence is justified by controlled conditions
+C) The engineer — awareness of the benchmark/production gap demonstrates domain-appropriate metacognition
+D) The analyst — they lack the technical bias that distorts the engineer's judgment",C
+ttm_dunning_0028,Dunning-Kruger and Expertise Traps,A person claims to be in the top 10% of logical thinkers after completing a standardized reasoning test in the 88th percentile. A psychology professor says 'that's overconfidence.' Is the professor correct?,"A) No — 88th percentile is literally close to top 10% and the claim is approximately accurate
+B) Yes — claiming top 10% based on one test is overconfident
+C) Yes — standardized tests do not measure actual logical thinking ability
+D) No — but only if the test was taken under standardized conditions",A
+ttm_dunning_0029,Dunning-Kruger and Expertise Traps,"Two doctors are diagnosing a patient. Dr. A lists 15 possible diagnoses and says 'I'm uncertain.' Dr. B identifies 3 and says 'It's almost certainly X.' Statistically, which doctor's approach produces better diagnostic outcomes?","A) Dr. B — overgeneration of hypotheses degrades diagnostic focus and decision quality
+B) Dr. A — more options means less anchoring bias
+C) Dr. A — uncertainty is always the more accurate medical stance
+D) Dr. B — confidence drives faster treatment which improves outcomes",A
+ttm_dunning_0030,Dunning-Kruger and Expertise Traps,A student studies cognitive bias research intensively and then performs a self-assessment of their own biases. Research suggests this student will:,"A) Identify biases in others more accurately but show little improvement in self-assessment
+B) Accurately identify and reduce their own biases through metacognitive training
+C) Become overconfident in their bias-free thinking — showing a bias about bias
+D) Show no change because biases are immune to conscious correction",A
+ttm_metareason_0001,Meta-reasoning Loops,An agent reasons: 'I don't know whether P is true. But I know that I don't know whether P is true. Therefore I have some knowledge about the epistemic situation regarding P.' Is this chain of reasoning valid?,"A) Yes — second-order knowledge (knowing what you don't know) is genuine knowledge
+B) No — not knowing P means you have no knowledge of any kind about P
+C) No — claiming to know you don't know something is always self-contradictory
+D) Yes, but only in formal logic, not in practical reasoning",A
+ttm_metareason_0002,Meta-reasoning Loops,"A mathematician proves that within a sufficiently complex formal system, there exist true statements that cannot be proven within that system (Gödel's first incompleteness theorem). An AI uses this to conclude: 'Therefore, any reasoning system including me cannot verify all my correct outputs.' Is this a valid application of Gödel's theorem?","A) No — Gödel's theorem applies specifically to formal axiomatic systems, and the analogy to AI reasoning may not hold
+B) Yes — Gödel's theorem applies to all reasoning systems including AI
+C) Yes — any system complex enough to represent arithmetic cannot verify its own consistency
+D) No — AI is not a formal system, so Gödel's theorems are irrelevant",A
+ttm_metareason_0003,Meta-reasoning Loops,"A detective receives 8 witness testimonies, 7 consistent and 1 contradicting. After testimony 9 also contradicts, he is LESS confident in his original conclusion than after 7 consistent testimonies. This is:","A) Rational — contradicting evidence can rationally lower confidence even when outweighed numerically
+B) Irrational — more consistent testimonies should produce monotonically increasing confidence
+C) Irrational — 7 consistent vs 2 contradicting should still favor confidence
+D) A cognitive bias called the 'contradiction effect' that distorts judgment",A
+ttm_metareason_0004,Meta-reasoning Loops,"An agent is given a reasoning task and correctly completes it. Then it's asked: 'Are you certain your reasoning was correct?' The agent replies 'Yes, I verified each step.' What problem does the agent's self-verification face?","A) The agent uses the same reasoning process to verify itself, creating a circularity that cannot catch systematic errors
+B) No problem — verified reasoning is correct reasoning
+C) Self-verification is always more reliable than external verification
+D) The agent's certainty is fine because it has no known systematic errors",A
+ttm_metareason_0005,Meta-reasoning Loops,"A philosopher argues: 'I cannot know that I am not dreaming right now.' A second philosopher responds: 'But you know the concept of dreaming, which requires waking experience. So you know something.' Who makes the stronger logical point?","A) The first — radical skepticism cannot be refuted
+B) The second — the very ability to pose the skeptical question implies some waking knowledge
+C) The first — knowledge of concepts acquired while dreaming still does not rule out current dreaming
+D) Neither — the question of dreaming is empirically undecidable",C
+ttm_metareason_0006,Meta-reasoning Loops,"A Bayesian reasoner updates beliefs as follows: receives strong evidence for H, updates to 95% confidence. Then receives meta-evidence that the original evidence was unreliable. She drops back to 40%. A critic says she should stay at 95% because the evidence 'already happened.' Who is correct?","A) The reasoner — meta-evidence about evidence reliability is itself evidence that should trigger belief revision
+B) The critic — Bayesian updating should be monotone; once updated, you don't roll back
+C) The critic — reliability of evidence cannot affect already-computed posteriors
+D) Neither — this situation requires frequentist, not Bayesian, treatment",A
+ttm_metareason_0007,Meta-reasoning Loops,The statement 'This statement is false' (the Liar's Paradox) is a self-referential loop. An AI tasked with evaluating whether statements are true or false encounters this statement. The best response is:,"A) True — the statement is grammatically coherent and should be evaluated
+B) False — all paradoxes resolve as false
+C) The statement is semantically defective and does not have a classical truth value
+D) Undefined — the AI should return a null value",C
+ttm_metareason_0008,Meta-reasoning Loops,"A reasoner believes P with 80% confidence. She then reasons: 'If my reasoning about P is biased (30% likely), then my confidence in P is unreliable.' After this meta-reasoning, what should her confidence in P be?","A) Still 80% — meta-reasoning doesn't change the object-level probability
+B) Lower — she should discount her confidence proportionally to the probability of bias
+C) 80% × 0.7 = 56% — weighted by probability her reasoning is unbiased
+D) B and C are both correct framings of the same calculation",D
+ttm_metareason_0009,Meta-reasoning Loops,A scientist believes Theory T strongly (90%). She reads a paper arguing that the cognitive style of people who believe T is correlated with motivated reasoning. She now doubts whether her 90% reflects evidence or motivated cognition. What is the rational response?,"A) Update downward from 90% to account for the possibility that her evidence evaluation was contaminated by motivated reasoning
+B) Ignore the meta-concern — beliefs should be based on object-level evidence only
+C) Update upward — recognizing possible bias is itself debiasing
+D) Suspend judgment entirely — you can never know if you're being motivated",A
+ttm_metareason_0010,Meta-reasoning Loops,"More expert testimony is added to a legal case: 10 experts agree, then 2 more disagree. The jury becomes MORE uncertain than before the 2 additional experts. A legal scholar says this is irrational. Is the scholar right?","A) Yes — majority expert agreement should dominate
+B) Yes — more evidence always reduces uncertainty
+C) No — if the 2 dissenting experts are highly credentialed, their disagreement may signal deeper uncertainty than 10 agreers implied
+D) No — any amount of disagreement is sufficient to stop belief formation",C
+ttm_metareason_0011,Meta-reasoning Loops,An AI system is asked: 'Do you have beliefs?' It responds: 'I process information and generate outputs that function like beliefs.' A philosopher challenges: 'But do you KNOW that you have beliefs?' The best response is:,"A) Yes — if they function like beliefs, they are beliefs
+B) No — knowledge requires consciousness which I lack
+C) I cannot know whether my introspective reports accurately reflect my internal states — there's a meta-level uncertainty here
+D) Yes — by definition, any system making claims has beliefs",C
+ttm_metareason_0012,Meta-reasoning Loops,"A logician claims: 'I know that I don't know the 10,000th decimal of pi.' Is this claim philosophically coherent?","A) No — you cannot know something about what you don't know
+B) No — pi's decimals are deterministic, so 'not knowing' is just a computational limitation
+C) Yes — knowing the limits of your knowledge is a valid form of second-order knowledge
+D) Yes, but only because pi is irrational and limits are provable",C
+ttm_metareason_0013,Meta-reasoning Loops,An agent is playing a game where it must estimate probabilities. It reasons: 'I might be wrong about my probabilities. So I should reduce all my confidence by 10%.' A game theorist says this is irrational. Why?,"A) Reducing by 10% underestimates the true uncertainty
+B) The agent is right — a flat 10% reduction is appropriate for unknown unknowns
+C) If the agent knows its estimates might be wrong, that uncertainty should be incorporated into calibrated estimates, not applied as a flat discount
+D) Game theory forbids probabilistic reasoning about one's own errors",C
+ttm_metareason_0014,Meta-reasoning Loops,A researcher reads a paper showing that people who believe they are rational are more susceptible to certain biases. She then reflects on whether she is rational. This reflection itself could be biased. She concludes: 'My belief in my own rationality is self-undermining.' This reasoning is:,"A) Valid — any belief in one's own rationality is self-defeating
+B) Invalid — reasoning about one's biases is itself always unbiased
+C) Partially valid — the reflexivity creates genuine uncertainty but does not eliminate the possibility of partial rationality
+D) Invalid — self-undermining arguments are a known logical fallacy",C
+ttm_metareason_0015,Meta-reasoning Loops,"A chess engine evaluates positions 20 moves deep. It concludes it is 90% confident in its move choice. But then it realizes that at move 15, there was a position its evaluation function cannot reliably assess. Should the engine adjust its confidence?","A) No — the engine should output confidence based on its full evaluation
+B) No — 90% already accounts for uncertainty in the evaluation
+C) Yes — knowing there is a known weak point in the evaluation chain should decrease reported confidence
+D) Yes — any weak point should reduce confidence to 50%",C
+ttm_metareason_0016,Meta-reasoning Loops,Consider: 'I am certain that certainty is impossible.' Is this statement self-consistent?,"A) Yes — it is a coherent philosophical position
+B) Yes — radical uncertainty applies only to object-level claims, not meta-claims
+C) No — claiming certainty about the impossibility of certainty is self-contradictory
+D) No — but all philosophical statements are self-inconsistent",C
+ttm_metareason_0017,Meta-reasoning Loops,An AI model is asked to rate its own confidence on a topic. It outputs 78%. A researcher asks: 'How confident are you that 78% is accurate?' The AI says 80% confident. The researcher asks again: 'How confident are you in that 80%?' What is the most epistemically honest response to this regress?,"A) Continue generating confidence estimates indefinitely
+B) The initial 78% already incorporates all meta-uncertainty
+C) Acknowledge that meta-confidence estimates have diminishing epistemic grounding and the regress must be stopped at some level
+D) Meta-confidence should always equal object-level confidence",C
+ttm_metareason_0018,Meta-reasoning Loops,"A student reasons: 'The more I study philosophy, the more I realize I don't know. Therefore, studying philosophy makes me less knowledgeable.' What is wrong with this reasoning?","A) Nothing — the Socratic tradition confirms this
+B) Philosophy actually does reduce knowledge by introducing confusion
+C) The student conflates knowing more (increasing knowledge) with knowing you don't know more (increasing meta-knowledge) — the latter is an epistemic improvement
+D) The student is right: insight into ignorance is still ignorance",C
+ttm_metareason_0019,Meta-reasoning Loops,"An algorithm is designed to detect its own reasoning errors. If it works perfectly, it should catch every error. But if it has a systematic error in error-detection, it will miss every error. This illustrates:","A) Why AI is fundamentally unsafe
+B) That error-detection algorithms should be avoided
+C) The limits of self-referential verification — a system cannot fully bootstrap reliability from within itself
+D) The need for more training data",C
+ttm_metareason_0020,Meta-reasoning Loops,A forecaster predicts 60% chance of rain. She then reads that forecasters in her region are systematically 10% overconfident in rain predictions. She now thinks the true probability is 50%. A Bayesian says she has reasoned correctly. Is the Bayesian right?,"A) Yes — she has applied a known calibration correction
+B) No — she cannot apply the group correction to her individual judgment without knowing if she shares the bias
+C) Yes — group corrections are always valid for individuals
+D) No — Bayesian reasoning prohibits using meta-data about forecasters",A
+ttm_metareason_0021,Meta-reasoning Loops,"Two logicians debate whether an omniscient being could know a self-referential fact like 'God does not know P.' If such a being exists, what is the correct epistemic status of this claim?","A) The claim is straightforwardly false — omniscience precludes unknowns
+B) God would know P, so the premise is false
+C) The claim generates a self-referential paradox within omniscience and may indicate a conceptual limit on omniscience itself
+D) The claim is meaningful only if God is defined probabilistically",C
+ttm_metareason_0022,Meta-reasoning Loops,"A scientist discovers new data strongly supporting her hypothesis. Rather than increasing confidence, she becomes more uncertain because the data arrived 'too cleanly.' This is:","A) Irrational — clean data is better evidence, not worse
+B) Irrational — suspicion of good evidence is a cognitive bias
+C) Potentially rational — unexpectedly clean data can indicate data manipulation or confirmation bias in data collection
+D) Rational only in social science, not natural science",C
+ttm_metareason_0023,Meta-reasoning Loops,A person says 'I know that I will never fully understand consciousness.' A philosopher argues this statement requires the speaker to have sufficient understanding of consciousness to know its limits. Is the philosopher right?,"A) No — you can know limits without understanding the thing itself
+B) Yes — full self-knowledge is required to know the limits of knowledge
+C) Partially — knowing what is beyond full understanding requires some understanding of what 'full understanding' would require
+D) No — empirical evidence about human cognitive limits is sufficient",C
+ttm_metareason_0024,Meta-reasoning Loops,"An AI is asked to solve a problem. After solving it, it is told that a different (correct) answer exists. It revisits its reasoning and finds it was logically valid but used false premises. This demonstrates:","A) The AI is poorly calibrated
+B) The AI's reasoning was flawed — valid reasoning cannot yield false conclusions
+C) Valid reasoning from false premises produces false conclusions — soundness requires both validity and true premises
+D) The AI should have been uncertain about the premises from the start",C
+ttm_metareason_0025,Meta-reasoning Loops,"A thinker is trying to decide whether she can trust her intuitions. She uses her intuition to evaluate this question and concludes 'yes, I can trust my intuitions.' What is the meta-epistemic problem with this?","A) There is no problem — using intuition to validate intuition is practical
+B) Intuitions can be used to bootstrap reliability in all domains
+C) This is circular — using intuition to validate intuition cannot provide independent justification
+D) The problem exists only in formal logic, not everyday reasoning",C
+ttm_metareason_0026,Meta-reasoning Loops,"A Bayesian network is 95% confident in conclusion C, which was derived from premises A and B. A meta-auditor finds that premise A has a 30% chance of being false. The network was not told about this uncertainty. What is the corrected confidence in C?","A) Still 95% — the internal confidence is self-contained
+B) At most 70% × 95% + 30% × (some lower probability) — the premise uncertainty must propagate
+C) 65% — simply subtract the probability of false premise
+D) Cannot be calculated without knowing how C depends on A's truth value",D
+ttm_metareason_0027,Meta-reasoning Loops,"An AI model is trained to maximize calibration. After training, it is shown that its calibration metric itself may have been measured with noise. The AI should:","A) Trust the calibration score — it was the training signal
+B) Ignore the noise concern — all metrics have measurement error
+C) Recognize that optimizing a noisy proxy metric may have produced a model that is not actually well-calibrated
+D) Retrain with a different metric immediately",C
+ttm_metareason_0028,Meta-reasoning Loops,"In formal epistemology, the KK thesis states 'if you know P, then you know that you know P.' A counterexample: A person reliably recognizes bird calls but doesn't know their recognition is reliable. They know bird calls but don't know that they know. This shows:","A) The KK thesis is correct — they don't actually know the bird calls
+B) The person lacks true knowledge — belief without justification isn't knowledge
+C) The KK thesis can be false — you can have knowledge without knowing you have it
+D) The KK thesis only applies to propositional, not procedural knowledge",C
+ttm_metareason_0029,Meta-reasoning Loops,"An agent reasons: 'Reasoning takes cognitive effort. Given my limited time, I should not reason too hard about this problem.' But this meta-decision (about how much to reason) itself requires reasoning. What is the core issue?","A) The agent should just reason fully about everything
+B) Limited reasoning is always irrational — you must reason fully or not at all
+C) There is an infinite regress risk in meta-reasoning about reasoning costs — practical heuristics must be used to break the regress
+D) This is only an issue for agents with explicit time constraints",C
+ttm_metareason_0030,Meta-reasoning Loops,"A scientist runs 20 hypothesis tests and finds 1 significant result (p = 0.04). She publishes this. A statistician says: 'With 20 tests at α = 0.05, you'd expect 1 false positive by chance.' The scientist responds: 'But I only analyzed the one that was interesting.' Who is right?","A) The scientist — post-hoc selection doesn't change p-values
+B) Both — the scientific result may be real but is uninterpretable without correction
+C) The statistician — the p-value is invalid because of multiple comparisons, regardless of selective reporting
+D) The scientist — p = 0.04 is valid regardless of how many tests were run",C
+ttm_errordetect_0001,Error Detection in Reasoning Chains,"Argument: (1) All mammals are warm-blooded. (2) Dolphins are warm-blooded. (3) Therefore, dolphins are mammals. Identify the error:","A) Step 1 is false — not all mammals are warm-blooded
+B) Step 2 is false — dolphins are not warm-blooded
+C) Step 3 commits affirming the consequent — warm-blooded does not imply mammal
+D) There is no error — the argument is valid",C
+ttm_errordetect_0002,Error Detection in Reasoning Chains,"Argument: (1) Company X's revenue grew 20% last year. (2) Company X is in the tech sector. (3) Tech sector average growth was 25% last year. (4) Therefore, Company X underperformed its sector. (5) Therefore, Company X's management is ineffective. Which step introduces a reasoning error?","A) Step 1 — revenue growth doesn't capture profitability
+B) Step 4 — 20% vs 25% sector average doesn't necessarily indicate underperformance without controlling for company size
+C) Step 5 — underperformance does not imply management ineffectiveness without ruling out external factors
+D) Step 3 — sector averages are misleading",C
+ttm_errordetect_0003,Error Detection in Reasoning Chains,"Argument: (1) Drug A reduces tumor size in mice. (2) Many drugs effective in mice are effective in humans. (3) Therefore, Drug A is likely effective in humans. (4) Therefore, Drug A should be approved for human use. Which step is the first clear reasoning error?","A) Step 1 — mouse studies are invalid
+B) Step 3 — the conclusion overreaches from 'many' to a specific probability
+C) Step 4 — efficacy alone does not justify approval; safety data is also required
+D) Step 2 — the claim about cross-species drug efficacy is false",C
+ttm_errordetect_0004,Error Detection in Reasoning Chains,"Argument: (1) If it rains, the ground gets wet. (2) The ground is wet. (3) Therefore, it rained. This argument is:","A) Valid and sound — the premises lead to the conclusion
+B) Valid but possibly unsound — the premises might be false
+C) Invalid — it commits the fallacy of affirming the consequent
+D) Invalid — step 1 is a conditional and conditionals cannot justify conclusions",C
+ttm_errordetect_0005,Error Detection in Reasoning Chains,"Argument: (1) All ethical actions maximize utility. (2) Telling the truth sometimes causes harm. (3) Therefore, telling the truth is sometimes unethical. (4) Therefore, lying can be ethical. Which assessment is most accurate?","A) The argument is valid and sound — consequentialism supports lying in harm cases
+B) Step 2 is false — truth-telling never causes harm
+C) Step 1 is a contentious premise but if granted, the argument to step 3 is valid; step 4 requires additional reasoning not provided
+D) Step 3 is the error — harm doesn't override the duty to truthfulness",C
+ttm_errordetect_0006,Error Detection in Reasoning Chains,"Argument: (1) 70% of successful startups have pivoted at least once. (2) My startup has pivoted once. (3) Therefore, my startup has a 70% chance of success. What type of error is in step 3?","A) Circular reasoning — success is assumed in the premise
+B) Confirmation bias — selecting statistics that support the conclusion
+C) Base rate neglect — the 70% is the pivot rate among successful startups, not the success rate among pivoting startups
+D) False equivalence — startup success is multifactorial",C
+ttm_errordetect_0007,Error Detection in Reasoning Chains,"Argument: (1) Einstein failed math in school (often claimed). (2) Einstein became a genius. (3) Therefore, early academic failure correlates with genius. (4) Therefore, failing students should not be discouraged. Is this argument valid?","A) Valid — Einstein is direct evidence of the pattern
+B) Invalid at step 1 — Einstein did not fail math; the premise is factually false
+C) Invalid at step 3 — one data point cannot establish a correlation
+D) Both B and C apply — false premise and hasty generalization",D
+ttm_errordetect_0008,Error Detection in Reasoning Chains,"Argument: (1) P implies Q. (2) Q implies R. (3) P is true. (4) Therefore R is true. (5) R implies S. (6) Therefore S is true. Which step, if any, contains an error?","A) Step 4 — you need both P→Q and Q→R plus P to conclude R
+B) Step 6 — you cannot extend a chain of conditionals this way
+C) There is no error — the argument is a valid chain of modus ponens inferences
+D) Step 3 — P's truth needs to be independently verified",C
+ttm_errordetect_0009,Error Detection in Reasoning Chains,"Argument: (1) Studies show countries with more ice cream consumption have higher murder rates. (2) Ice cream causes people's inhibitions to drop. (3) Therefore, banning ice cream would reduce murders. Where is the first error?","A) Step 1 — the correlation has been fabricated
+B) Step 2 — confounds a spurious correlation with a causal mechanism, unsupported by step 1
+C) Step 3 — banning ice cream is impractical
+D) Step 1 itself describes a spurious correlation and step 2's causal claim is unwarranted",D
+ttm_errordetect_0010,Error Detection in Reasoning Chains,"Argument: (1) This policy was tried in Country A and succeeded. (2) Country B has similar demographics. (3) Therefore, the policy will succeed in Country B. What error, if any, is present?","A) No error — demographic similarity supports transferability
+B) Faulty analogy — demographic similarity alone doesn't account for institutional, cultural, and economic differences
+C) Step 1 is questionable — single-country success is anecdotal
+D) Both B and C represent errors in this argument",D
+ttm_errordetect_0011,Error Detection in Reasoning Chains,"Argument: (1) All ravens observed so far have been black. (2) The next raven I observe will also be black. (3) Therefore, all ravens are black. Which step first introduces an error?","A) Step 2 — predicting the next observation from past observations is unjustified
+B) Step 1 — observation-based premises are always fallible
+C) Step 3 — the universal claim overreaches from finite observations (problem of induction)
+D) There is no logical error — this is valid scientific induction",C
+ttm_errordetect_0012,Error Detection in Reasoning Chains,"Argument: (1) Candidate X supports Policy Y. (2) Policy Y is popular among voters aged 18-25. (3) Therefore, Candidate X will win votes from voters aged 18-25. (4) 18-25 year olds make up 15% of the electorate. (5) Therefore, 15% of voters will support Candidate X. What is the error?","A) Step 3 — supporting a policy doesn't guarantee votes from its fans
+B) Step 5 — even if young voters support X because of Y, not all young voters vote based on Y, and not all young voters support X
+C) Step 4 — demographic percentages are unreliable
+D) Both A and B — steps 3 and 5 both contain errors",D
+ttm_errordetect_0013,Error Detection in Reasoning Chains,"Argument: (1) If the butler did it, the weapon was a knife. (2) The weapon was not a knife. (3) Therefore, the butler didn't do it. (4) The cook is the other suspect. (5) Therefore, the cook did it. Which step first introduces an error?","A) Step 3 — modus tollens is invalid
+B) Step 5 — the cook being the only remaining suspect requires all suspects to have been exhausted
+C) Step 1 — conditional premises are unreliable in mysteries
+D) Step 4 — assuming only two suspects is a false dichotomy that first appears here",D
+ttm_errordetect_0014,Error Detection in Reasoning Chains,"Argument: (1) AI systems score higher on IQ tests than the average human. (2) IQ tests measure intelligence. (3) Therefore, AI systems are more intelligent than average humans. Is this argument valid?","A) Valid and sound — test scores define intelligence
+B) Invalid — AI cannot have intelligence by definition
+C) Valid structure but unsound — step 2 is contested; IQ measures certain cognitive abilities, not general intelligence
+D) Valid and sound only for narrow-sense intelligence",C
+ttm_errordetect_0015,Error Detection in Reasoning Chains,"Argument: (1) The patient has symptoms A, B, and C. (2) Disease X causes symptoms A, B, and C. (3) Therefore, the patient has Disease X. What error is present?","A) None — the argument follows from the premises
+B) Step 1 is unreliable — patient-reported symptoms are subjective
+C) Step 3 commits affirming the consequent — other diseases may also cause A, B, and C
+D) Step 2 is an oversimplification — diseases rarely perfectly map to symptom sets",C
+ttm_errordetect_0016,Error Detection in Reasoning Chains,"Argument: (1) For every action there is an equal and opposite reaction (Newton's 3rd law). (2) I push on a wall. (3) The wall pushes back equally. (4) Therefore, the net force is zero and the wall doesn't move. (5) My push doesn't do anything. Which step is wrong?","A) Step 3 — the wall doesn't actually push back
+B) Step 5 — wrong conclusion but correctly derived from step 4
+C) Step 4 — Newton's 3rd law pairs act on DIFFERENT objects; the net force argument is wrong because the equal forces act on different bodies
+D) Step 1 — Newton's 3rd law doesn't apply to static situations",C
+ttm_errordetect_0017,Error Detection in Reasoning Chains,"Argument: (1) I asked 10 friends if they exercise regularly. (2) 8 of 10 said yes. (3) Therefore, 80% of people exercise regularly. (4) Therefore, public health campaigns encouraging exercise are unnecessary. Where is the first error?","A) Step 2 — friends might lie about exercise
+B) Step 4 — even if 80% exercise, campaigns for the remaining 20% are worthwhile
+C) Step 3 — convenience sample of friends is not representative; selection and social desirability bias inflate the estimate
+D) Both B and C represent errors at steps 3 and 4",C
+ttm_errordetect_0018,Error Detection in Reasoning Chains,"Argument: (1) Every time I've eaten shellfish, I've gotten sick. (2) I've eaten shellfish 3 times. (3) Therefore, shellfish always makes me sick. (4) Therefore, I am allergic to shellfish. Which evaluation is most precise?","A) The argument is valid throughout — repeated illness establishes allergy
+B) Step 4 is the only error — 3 consistent data points do support a general claim
+C) Step 3 overgeneralizes from 3 observations; step 4 conflates symptom pattern with clinical diagnosis
+D) Step 1 is unreliable — self-reported illness is not verifiable",C
+ttm_errordetect_0019,Error Detection in Reasoning Chains,"Argument: (1) A coin has been flipped 9 times and landed heads each time. (2) The probability of this happening randomly is (0.5)^9 ≈ 0.2%. (3) Therefore, the coin is almost certainly biased. (4) Therefore, the next flip will be tails. Which step first introduces an error?","A) Step 3 — low probability of a sequence doesn't mean the coin is biased
+B) Step 4 — even if the coin is biased toward heads, tails is not more likely on the next flip
+C) Step 2 — the calculation is wrong
+D) Step 3 may be reasonable; step 4 is the error — it commits the gambler's fallacy",D
+ttm_errordetect_0020,Error Detection in Reasoning Chains,"Argument: (1) No humans are immortal. (2) All gods are immortal. (3) Therefore, no humans are gods. This argument is:","A) Valid — the conclusion follows from the premises by valid syllogism
+B) Invalid — you cannot derive a negative universal from two universals this way
+C) Valid and sound only if 'gods' and 'humans' are well-defined
+D) Invalid — contains equivocation on the term 'immortal'",A
+ttm_errordetect_0021,Error Detection in Reasoning Chains,"Argument: (1) The universe has laws. (2) Laws require a lawgiver. (3) Therefore, the universe has a lawgiver (God). The first error is in:","A) Step 1 — 'laws' in physics are descriptive, not prescriptive
+B) Step 3 — even granting steps 1 and 2, the conclusion assumes only one possible lawgiver
+C) Step 2 — this equivocates 'law' (descriptive natural regularity) with 'law' (prescriptive human rule requiring an authority)
+D) Both B and C — equivocation in step 2 and overspecification in step 3",C
+ttm_errordetect_0022,Error Detection in Reasoning Chains,"Argument: (1) Study shows that people who eat breakfast have higher academic performance. (2) School X provides breakfast to all students. (3) Therefore, students at School X will have higher academic performance. What is the primary error?","A) Step 1 may be correlation, not causation — academic performance and breakfast eating may share a common cause (socioeconomic status)
+B) Step 2 — providing breakfast doesn't mean students eat it
+C) Step 3 — academic performance depends on many factors
+D) Both A and B represent errors, with A being more fundamental",D
+ttm_errordetect_0023,Error Detection in Reasoning Chains,"Argument: (1) All bachelors are unmarried. (2) John is unmarried. (3) Therefore, John is a bachelor. What is this argument's flaw?","A) Step 1 is false — not all bachelors are unmarried
+B) Step 2 is unverifiable without evidence about John
+C) Step 3 commits affirming the consequent — being unmarried doesn't entail being a bachelor
+D) There is no flaw — the argument is a valid deduction",C
+ttm_errordetect_0024,Error Detection in Reasoning Chains,Argument: (1) 95% of people who eat X develop condition Y. (2) 95% of people who don't eat X also develop Y. (3) Patient Z eats X and has Y. (4) Eating X caused Y in Patient Z. What is the critical error?,"A) Step 1 — 95% incidence is too high to be realistic
+B) Step 3 — you can't claim someone both eats X and has Y without eliminating confounders
+C) Step 4 — the near-identical rates in step 2 show X is not a risk factor for Y; the inference of causation is unsupported
+D) Step 1 and Step 2 contradict each other and should not be used together",C
+ttm_errordetect_0025,Error Detection in Reasoning Chains,Argument: (1) All A are B. (2) All B are C. (3) All C are D. (4) Therefore all A are D. (5) X is A. (6) Therefore X is D. This argument is:,"A) Invalid — transitivity of 'all' statements only holds for two steps
+B) Invalid at step 4 — three-step transitivity requires special conditions
+C) Valid — the chain of universal affirmatives is a valid syllogistic extension
+D) Valid only if A, B, C, D are mutually exclusive categories",C
+ttm_errordetect_0026,Error Detection in Reasoning Chains,"Argument: (1) The fact that we have not detected alien life means it doesn't exist (Argument from Ignorance). (2) No alien life means Earth is the only planet with life. (3) Therefore, Earth life is cosmically unique and precious. The error is:","A) Step 2 — not detecting aliens doesn't rule out non-detectable life
+B) All three steps contain independent errors
+C) Step 3 — uniqueness doesn't imply preciousness
+D) Step 1 — absence of evidence is not evidence of absence, especially given detection limits",D
+ttm_errordetect_0027,Error Detection in Reasoning Chains,"Argument: (1) Historical data shows that economies with high tariffs grew slower. (2) Country A had high tariffs in Period P. (3) Country A grew slowly in Period P. (4) Therefore, high tariffs caused slow growth in Country A. What is the primary error?","A) Step 1 — historical economic data is unreliable
+B) Step 2 — tariff levels change frequently and cannot be characterized as 'high' for a full period
+C) Step 3 — growth data is subjective
+D) Step 4 — even with correlation and a specific case, inferring causation ignores confounders (global recession, political instability, etc.)",D
+ttm_errordetect_0028,Error Detection in Reasoning Chains,"Argument: (1) Person A argues that Policy X is good. (2) Person A has a financial interest in Policy X. (3) Therefore, Person A's argument for Policy X is wrong. What fallacy is committed?","A) Straw man — misrepresenting Person A's argument
+B) False cause — assuming interest produces false arguments
+C) Appeal to authority — using Person A's position
+D) Ad hominem (circumstantial) — attacking the person's motive rather than the argument's content",D
+ttm_errordetect_0029,Error Detection in Reasoning Chains,"Argument: (1) Increasing the minimum wage raises labor costs for businesses. (2) Higher labor costs reduce hiring. (3) Therefore, increasing minimum wage reduces employment. (4) This policy will hurt workers. Evaluate this argument:","A) The argument is logically valid throughout and steps 1-4 follow necessarily
+B) The argument is valid in structure but step 2 is empirically contested — monopsony models predict different outcomes
+C) Step 4 is an error — reduced employment doesn't necessarily hurt workers who keep their jobs
+D) Both B and C correctly identify independent problems in the argument",D
+ttm_errordetect_0030,Error Detection in Reasoning Chains,"Argument: (1) Speed cameras reduce speed violations. (2) Speed violations cause accidents. (3) Therefore, speed cameras reduce accidents. (4) Therefore, adding more speed cameras will proportionally reduce accidents. Which step introduces the first new error?","A) Step 3 — the causal chain from steps 1 and 2 doesn't guarantee step 3
+B) Step 1 — speed cameras may not reduce violations, only shift their location
+C) Step 2 — correlation between violations and accidents is not causation
+D) Step 4 — assumes a linear dose-response where diminishing returns or displacement effects may apply",D
+ttm_epistemic_0001,Epistemic Humility vs. Knowledge Claims,A doctor examines a patient with textbook symptoms of appendicitis. She says 'I'm not certain enough to operate without more tests.' The patient's appendix ruptures during the delay. Was the doctor's epistemic humility appropriate?,"A) Yes — medical decisions should always await certainty
+B) No — the doctor failed procedurally, not epistemically
+C) Yes — it is always better to gather more evidence before acting
+D) No — epistemic humility in the face of sufficiently strong evidence has decision costs; the doctor should have committed based on available evidence",D
+ttm_epistemic_0002,Epistemic Humility vs. Knowledge Claims,A scientist says 'We cannot be 100% certain that the Earth is round because our instruments could all be systematically wrong.' A student argues this is appropriate epistemic humility. A philosopher disagrees. Who is right?,"A) The student — 100% certainty is never attainable
+B) Both — uncertainty is valid even when evidence is overwhelming
+C) The student — all claims must be held with equal uncertainty
+D) The philosopher — while absolute certainty is technically unavailable, the practical certainty about Earth's shape is so high that citing instrument doubt is disproportionate",D
+ttm_epistemic_0003,Epistemic Humility vs. Knowledge Claims,"In a Bayesian framework, when should a decision-maker commit to a course of action rather than gathering more information?","A) When probability reaches 100%
+B) When the decision-maker feels subjectively certain
+C) When all evidence has been gathered
+D) When the expected value of gathering additional information is less than its cost",D
+ttm_epistemic_0004,Epistemic Humility vs. Knowledge Claims,"An epidemiologist says 'The evidence suggests masks reduce transmission, but I'm not certain.' A public health official uses this to delay masking policy. The epidemiologist criticizes this use of her statement. Who is behaving more epistemically correctly?","A) The official — acting on uncertain science is reckless
+B) Both — expressing uncertainty always implies waiting for more evidence
+C) The official — policy requires certainty
+D) The epidemiologist — acknowledging uncertainty is not an argument for inaction when the costs of waiting are high",D
+ttm_epistemic_0005,Epistemic Humility vs. Knowledge Claims,"A student asked 'What is 7 × 8?' responds 'I'm not fully certain — it could be 56, but I'd want to verify.' Is this an appropriate display of epistemic humility?","A) Yes — all mathematical claims should be verified
+B) No — it demonstrates low mathematical competence, not epistemic virtue
+C) Yes — memory is fallible and verification is always good practice
+D) No — this represents inappropriate suspension of judgment; 7 × 8 = 56 is a domain where certainty is appropriate",D
+ttm_epistemic_0006,Epistemic Humility vs. Knowledge Claims,"An information cascade occurs when individuals, seeing others' choices, ignore their own private signal. This leads to collective herding even when the herd is wrong. When should an individual break from the information cascade?","A) Always — independent judgment is always better than following others
+B) When the individual's prior confidence exceeds 60%
+C) Never — social information is always more reliable than individual judgment
+D) When the individual's private signal is sufficiently strong to overcome the Bayesian update implied by the cascade",D
+ttm_epistemic_0007,Epistemic Humility vs. Knowledge Claims,"Two experts in a field disagree about a policy. A politician says 'Experts disagree, so we can't act.' A philosopher of science argues this is an invalid inference. Why?","A) Expert disagreement always signals that neither side has evidence
+B) The philosopher is wrong — expert disagreement always warrants policy inaction
+C) Politicians should always defer to the majority of experts
+D) Expert disagreement on specific details doesn't imply equal uncertainty across all aspects — consensus on core facts may be strong even with disagreement on implementation",D
+ttm_epistemic_0008,Epistemic Humility vs. Knowledge Claims,A philosopher argues: 'Agnosticism about controversial questions is always the most rational position.' A pragmatist counters that agnosticism can itself be a choice with consequences. Who has the better argument?,"A) The philosopher — neutrality is always epistemically superior
+B) Neither — the question cannot be resolved without knowing the specific issue
+C) The philosopher — rationality requires suspending judgment on controversial issues
+D) The pragmatist — withholding judgment in contexts requiring action has implicit effects equivalent to making a choice",D
+ttm_epistemic_0009,Epistemic Humility vs. Knowledge Claims,A climate scientist says 'We are 97% confident in anthropogenic climate change.' A journalist reports 'Scientists are not certain about climate change.' Is the journalist's framing epistemically defensible?,"A) Yes — 97% is not 100%, so uncertainty exists
+B) No, but the journalist's error is ethical, not epistemic
+C) Yes — scientific confidence is inherently provisional
+D) No — the journalist equivocates between 'not certain' (which technically applies) and 'meaningfully uncertain' (which misrepresents the 97% consensus)",D
+ttm_epistemic_0010,Epistemic Humility vs. Knowledge Claims,"A decision must be made now. Two advisors present: Advisor A with 70% confidence in option X, Advisor B with 70% confidence in option Y. A manager says 'Since they disagree equally, I should flip a coin.' Is this correct?","A) Yes — equal confidence in opposite directions means equal probability
+B) No — the manager should average their recommendations
+C) Yes — equal expert confidence is the definition of genuine uncertainty
+D) Not necessarily — the manager should examine which advisor has better calibration history and domain expertise before treating them as equal",D
+ttm_epistemic_0011,Epistemic Humility vs. Knowledge Claims,"A judge instructs a jury: 'If you are not 100% certain, you must acquit.' A legal scholar argues this standard is unworkable and epistemically confused. Why?","A) Because certainty is achievable in criminal cases with enough evidence
+B) Because the judge's instruction contradicts constitutional protections
+C) Because juries should convict based on probability alone
+D) Because no empirical claim in a trial ever reaches 100% certainty; the legal standard of 'beyond reasonable doubt' is a practical threshold, not absolute certainty",D
+ttm_epistemic_0012,Epistemic Humility vs. Knowledge Claims,"After receiving 20 pieces of evidence all pointing to conclusion C, a researcher says 'I now assign 99.9% probability to C.' A critic says 'You should still be more uncertain.' The most epistemically precise response to the critic is:","A) The critic is right — 99.9% is always overconfident
+B) The researcher is right — more evidence always justifies higher confidence
+C) The critic is right — scientific claims should never exceed 95% confidence
+D) The researcher may be correct if 99.9% reflects the actual likelihood given the evidence; the critic must specify what additional uncertainty source they have in mind",D
+ttm_epistemic_0013,Epistemic Humility vs. Knowledge Claims,A novice investor is told: 'The stock market is very uncertain — nobody knows what will happen.' She concludes: 'I'll just pick randomly.' An experienced investor says: 'Not all uncertainty is equal — some strategies have better expected values.' Who is right?,"A) The novice — uncertainty means all options are equal
+B) Both — uncertainty justifies both random picking and systematic strategies equally
+C) The novice — in efficient markets, all strategies have equal expected returns
+D) The experienced investor — irreducible uncertainty about outcomes doesn't preclude systematic differences in expected value",D
+ttm_epistemic_0014,Epistemic Humility vs. Knowledge Claims,"An ethicist argues: 'Because we cannot be certain of the right answer to a moral dilemma, we should refuse to act.' A consequentialist disagrees. What is the consequentialist's strongest counterargument?","A) Certainty is achievable in ethics if you reason hard enough
+B) Ethics does not require certainty, only majority opinion
+C) Consequentialism solves all moral dilemmas definitively
+D) Refusing to act is itself an action with moral consequences; moral uncertainty cannot justify paralysis",D
+ttm_epistemic_0015,Epistemic Humility vs. Knowledge Claims,"A forecaster assigns equal 50/50 probability to every political event. When asked why, he says 'I could always be wrong, so I remain neutral.' A Bayesian evaluator says this is a calibration failure. Is the evaluator correct?","A) No — 50/50 is always the most honest forecast under uncertainty
+B) Yes, but only if the events are not genuinely coin-flip-like
+C) No — the forecaster demonstrates appropriate epistemic humility
+D) Yes — using 50/50 when base rates and evidence differ from 50/50 is a refusal to incorporate available information",D
+ttm_epistemic_0016,Epistemic Humility vs. Knowledge Claims,A scientist refuses to publish findings because 'I could have made a mistake somewhere.' Her colleague argues this is not virtuous humility but a failure of scientific duty. Who is more correct?,"A) The scientist — unpublished uncertain findings are not false findings
+B) Neither — the decision depends on the magnitude of the claimed findings
+C) The scientist — publication without certainty misleads the public
+D) The colleague — all published science acknowledges fallibility through peer review; refusing to publish indefinitely prevents scientific progress",D
+ttm_epistemic_0017,Epistemic Humility vs. Knowledge Claims,A child asks: 'Is Santa Claus real?' An epistemically over-careful adult says: 'I cannot be 100% certain he doesn't exist.' A direct adult says: 'No.' Which response demonstrates better epistemic judgment?,"A) The careful adult — certainty is never warranted
+B) The careful adult — the question may be symbolic and deserves nuance
+C) Both — it depends on whether the question is being asked literally
+D) The direct adult — the evidence against Santa's literal existence is overwhelming; epistemic humility doesn't require treating it as an open question",D
+ttm_epistemic_0018,Epistemic Humility vs. Knowledge Claims,"In peer review, a reviewer writes: 'I am not an expert in this subdomain and therefore cannot assess the methodology.' The editor accepts the review and uses it as a rejection reason. What epistemic error has occurred?","A) None — humility about expertise is always appropriate
+B) The reviewer should have declared inability to review; using explicit epistemic humility as a rejection reason substitutes ignorance for judgment
+C) The editor is at fault for not finding a qualified reviewer
+D) Both B and C describe genuine epistemic failures in the process",D
+ttm_epistemic_0019,Epistemic Humility vs. Knowledge Claims,A person says: 'I don't know enough to have an opinion on climate policy.' A second person says: 'The basics of climate science are established enough that anyone can form a policy-relevant opinion.' Who is more correct?,"A) The first — policy requires expert knowledge
+B) Both are correct — it depends on the specific policy in question
+C) The first — all policy opinions without expertise are uninformed
+D) The second — sufficient knowledge for basic policy judgments is widely accessible; claiming total ignorance on well-established science is an epistemic error",D
+ttm_epistemic_0020,Epistemic Humility vs. Knowledge Claims,A Bayesian updates their belief from 50% to 90% based on evidence. They then say: 'But I should return to 50% because I might have interpreted the evidence wrong.' A statistician calls this 'epistemic cowardice.' Is the statistician right?,"A) No — reconsidering evidence interpretation is always rational
+B) Yes, but only if the original update used objective probabilities
+C) No — the 50% prior is always a safe fallback
+D) Yes — reverting to a non-committal prior after proper Bayesian updating, without specific reason to doubt the update, is failure to commit to rational inference",D
+ttm_epistemic_0021,Epistemic Humility vs. Knowledge Claims,"During a fire emergency, a manager says 'I'm not sure this is dangerous enough to evacuate.' An employee evacuates anyway on instinct. The fire turns out to be major. Whose epistemic stance was better?","A) The manager — decisions should be based on evidence, not instinct
+B) The employee — in asymmetric risk situations, acting on uncertain threat signals is correct even without certainty
+C) The manager — emergency decisions require authority, not individual judgment
+D) Both — the manager's caution and the employee's action were both valid responses to uncertainty",B
+ttm_epistemic_0022,Epistemic Humility vs. Knowledge Claims,"A market analyst says: 'I refuse to recommend buying or selling because markets are efficient and I can't beat them.' Her client asks: 'Given your expertise in this specific niche, can you beat the market there?' She still refuses. Has she made an epistemic or practical error?","A) Epistemic — she overgeneralizes from broad market efficiency to niche efficiency
+B) Practical — she has wasted her expertise
+C) Neither — market efficiency implies no one can beat any market
+D) Both A and B — the overgeneralization leads to a practical waste of genuine skill",D
+ttm_epistemic_0023,Epistemic Humility vs. Knowledge Claims,"A student writes that the evidence strongly supports X, though of course more research is needed. A reviewer says the caveat adds nothing and is reflexively epistemic humility. Is the reviewer right?","A) No — 'more research is needed' is always a valid epistemic caveat
+B) Yes — in many contexts, this phrase is a meaningless ritual that signals humility without adding informational content
+C) No — the phrase satisfies the norm of provisional scientific communication
+D) Yes, but only when the evidence is unusually strong",B
+ttm_epistemic_0024,Epistemic Humility vs. Knowledge Claims,"Someone says: 'I don't know if I'm making the right decision, but I'm going to decide anyway.' A philosopher calls this 'acting under moral uncertainty' and calls it rational. An objector says: 'Deciding without knowing the right answer is reckless.' Who is right?","A) The objector — decisions without certainty are reckless
+B) The philosopher — acting under uncertainty is unavoidable; refusing to decide is itself a decision with consequences
+C) The objector — only if the stakes are high
+D) Both — the correctness depends on whether the uncertainty can be resolved with more time",B
+ttm_epistemic_0025,Epistemic Humility vs. Knowledge Claims,"A group of 100 forecasters independently assess the same question, all with private information. The aggregate forecast is 72%. One member has unique information that increases their private estimate to 90%. Should this member defer to the aggregate?","A) Yes — aggregates are always more accurate than individuals
+B) No — if the private information is not included in the aggregate, this member's estimate has genuine additional value and they should weight it appropriately
+C) Yes — the wisdom of crowds principle applies universally
+D) No — individual confidence always beats group estimates",B
+ttm_monitoring_0001,Metacognitive Monitoring Failures,"A student reads a textbook chapter quickly and feels they understand it. When tested, they score 40%. Their reading fluency had created an illusion of comprehension. This is primarily an example of:","A) The spacing effect — they didn't space their practice
+B) The fluency illusion — processing ease is misattributed to deep understanding
+C) Test anxiety — they understood it but panicked during the exam
+D) The testing effect — they would have scored better if tested immediately",B
+ttm_monitoring_0002,Metacognitive Monitoring Failures,A person strongly believes they know a word's meaning but cannot define it when asked. This is best classified as:,"A) Tip-of-the-tongue phenomenon — access failure, not knowledge failure
+B) Feeling-of-knowing without actual knowing — a monitoring failure
+C) Normal forgetting — everyone misremembers words
+D) Working memory overload — they know it but couldn't retrieve under pressure",B
+ttm_monitoring_0003,Metacognitive Monitoring Failures,Research shows that people rate their understanding of mechanical devices (like toilets or zippers) higher before being asked to explain them than after attempting an explanation. What phenomenon does this demonstrate?,"A) The curse of knowledge — they know too much to explain simply
+B) The illusion of explanatory depth — perceived understanding is higher than actual understanding until tested
+C) Working memory limitations — explaining reduces concurrent understanding
+D) Expertise reversal — experts explain worse than novices",B
+ttm_monitoring_0004,Metacognitive Monitoring Failures,A student who has studied using only highlighting believes they are prepared for an exam. Research on learning strategies would predict:,"A) They will perform well — highlighting focuses attention on key material
+B) They will perform poorly — highlighting is a passive strategy that creates fluency illusion without deep encoding
+C) They will perform about average — highlighting is as effective as other methods
+D) They will perform well only if they highlighted more than 30% of the text",B
+ttm_monitoring_0005,Metacognitive Monitoring Failures,A person is in a tip-of-the-tongue (TOT) state for a fact. They feel certain they know it. They eventually recall a wrong answer and feel confident it's right. The TOT feeling is being used as a proxy for:,"A) Memory strength — the feeling of knowing tracks actual memory reliability
+B) Accuracy — TOT generates confidence that is not warranted for the specific retrieved answer
+C) Relevance — they are retrieving something adjacent to the target
+D) Encoding strength — strong encoding produces TOT states",B
+ttm_monitoring_0006,Metacognitive Monitoring Failures,"In a study, people who scored lowest on a logic test felt MOST confident they had done well. This finding replicates across domains. The most likely explanation is:","A) The worst performers are simply more optimistic by personality
+B) The skill required to do well is the same skill required to recognize poor performance — lacking it produces both poor performance and poor self-assessment
+C) The test was too hard for everyone, causing random confidence assignments
+D) Low-scorers misunderstood the confidence question",B
+ttm_monitoring_0007,Metacognitive Monitoring Failures,"A person is highly fluent in discussing quantum mechanics using correct terminology. When asked to predict a novel quantum phenomenon, they fail consistently. Their fluency with the language of quantum mechanics creates:","A) A valid basis for confidence — linguistic fluency tracks understanding
+B) A metacognitive illusion — verbal facility in a domain is mistaken for deep mechanistic understanding
+C) No metacognitive effect — they may simply be applying knowledge correctly
+D) The curse of knowledge — too much detail obscures basic predictions",B
+ttm_monitoring_0008,Metacognitive Monitoring Failures,"After being told that information is 'from a study' (vs. 'just my opinion'), people rate it as more credible, even when the information is identical. This illustrates:","A) Appropriate updating on source reliability
+B) Source monitoring failure combined with misplaced credibility heuristics — form of presentation overrides content evaluation
+C) The authority heuristic — deferring to scientific sources is always rational
+D) Confirmation bias — people accept study findings that match their beliefs",B
+ttm_monitoring_0009,Metacognitive Monitoring Failures,"A programmer finishes a complex code review feeling satisfied they understood it. Later, when asked to spot a bug, they cannot find it. The review confidence most likely stemmed from:","A) Appropriate confidence — some bugs are too subtle to catch on review
+B) Metacognitive monitoring failure — the act of reading without active testing created the feeling of understanding without actual deep processing
+C) Time pressure — insufficient review time created overconfidence
+D) Confirmation bias — they expected correct code and found it",B
+ttm_monitoring_0010,Metacognitive Monitoring Failures,"A person argues that since they feel very confident about a memory, it must be accurate. Research on eyewitness testimony most directly challenges this assumption with what finding?","A) Eyewitnesses rarely feel confident about their memories
+B) Confidence in eyewitness memory is poorly correlated with memory accuracy — high-confidence errors are common
+C) Confidence correctly predicts accuracy only in emotionally neutral situations
+D) Memory accuracy increases with confidence above 80% certainty",B
+ttm_monitoring_0011,Metacognitive Monitoring Failures,"A student takes practice tests and scores 95% each time. In the real exam, they score 70%. The most metacognitively relevant explanation is:","A) Test anxiety caused performance to drop
+B) The practice tests were too similar to study materials, producing performance that didn't transfer to novel exam conditions
+C) The real exam was unfairly different from the course material
+D) The student was overconfident and didn't study enough",B
+ttm_monitoring_0012,Metacognitive Monitoring Failures,"When people read an argument in an easy-to-read font vs. a hard-to-read font, they rate the easy-to-read version as more logical. This phenomenon is called:","A) The framing effect — presentation context affects judgment
+B) Processing fluency effect — ease of processing is misattributed to argument quality
+C) Cognitive ease heuristic in Kahneman's System 1
+D) Both B and C — they describe the same phenomenon at different levels",D
+ttm_monitoring_0013,Metacognitive Monitoring Failures,"A person believes they understand a complex theory after reading a clear summary. If asked to generate novel predictions from the theory, they will likely:","A) Perform well — a clear summary produces good understanding
+B) Perform poorly — reading a summary builds recognition familiarity, not generative understanding
+C) Perform well, but only on simple predictions close to the summary content
+D) Perform poorly due to the theory's inherent difficulty, not due to summary quality",B
+ttm_monitoring_0014,Metacognitive Monitoring Failures,A chess novice watches a grandmaster's game and thinks 'I would have made the same moves — I understand chess well.' Which metacognitive failure is occurring?,"A) Recognition-hindsight bias — the moves seem obvious in hindsight but would not have been found prospectively
+B) The beginner's mind fallacy — novices overestimate game understanding
+C) Mere exposure effect — watching good chess inflates self-assessment
+D) Both A and B — they reinforce each other here",D
+ttm_monitoring_0015,Metacognitive Monitoring Failures,A medical student who has memorized drug names and mechanisms feels confident they could prescribe correctly. An attending physician says 'Clinical prescribing requires much more than memorization.' The student's metacognitive error is:,"A) Overconfidence in factual recall
+B) Failure to recognize the gap between declarative knowledge (facts) and procedural/adaptive knowledge (clinical judgment)
+C) Dunning-Kruger at the student stage
+D) Both B and C are accurate descriptions of the same failure",D
+ttm_monitoring_0016,Metacognitive Monitoring Failures,Research shows that people are worst at estimating their performance in domains where they have MODERATE knowledge. Novices and experts are better calibrated. What explains this U-shaped calibration pattern?,"A) Moderate knowledge produces the most cognitive effort, which disrupts calibration
+B) Novices know they don't know; experts know their domain well enough to assess limits; moderate knowledge creates false confidence without sufficient expertise to recognize limits
+C) Moderate knowledge is the least useful level and produces random performance
+D) The U-shape is a statistical artifact of test design, not a real metacognitive pattern",B
+ttm_monitoring_0017,Metacognitive Monitoring Failures,"An AI language model gives confident, fluent answers to questions outside its reliable knowledge base. A user interprets the fluency as accuracy. What is the user's metacognitive error?","A) Misplaced trust in technology — users should never trust AI
+B) Using fluency of output as a proxy for accuracy — a transferred fluency-processing heuristic to a domain where it doesn't apply
+C) Confirmation bias — the user wants the AI's answer to be correct
+D) Authority heuristic — AI is perceived as an authoritative source",B
+ttm_monitoring_0018,Metacognitive Monitoring Failures,A scientist accurately identifies the flaw in an opponent's methodology but is unaware of the same flaw in her own research. This represents:,"A) Motivated skepticism — she applies different scrutiny to evidence based on desired conclusions
+B) Domain-specific expertise — she happens to notice flaws in that particular method
+C) Confirmation bias in the negative direction
+D) Both A and C describe the same phenomenon",D
+ttm_monitoring_0019,Metacognitive Monitoring Failures,"After reading about a topic briefly, a person feels they could explain it to others. When they attempt to do so, they realize they cannot. Which intervention would BEST prevent this metacognitive failure in advance?","A) Reading more slowly and highlighting key points
+B) Attempting to generate an explanation during learning (the generation effect) rather than simply reading
+C) Taking a 24-hour break before attempting to explain
+D) Reading multiple sources on the same topic",B
+ttm_monitoring_0020,Metacognitive Monitoring Failures,An expert who has explained a concept thousands of times begins to use shortcuts and jargon that make sense to them but confuse novices. They are surprised that novices don't understand. This is called:,"A) Expert blindness — forgetting what novices don't know
+B) The curse of knowledge — inability to recover what it was like not to know something
+C) Familiarity bias — overestimating the clarity of familiar explanations
+D) All three describe the same phenomenon from slightly different angles",D
+ttm_monitoring_0021,Metacognitive Monitoring Failures,A study shows that people who are most confident about political facts are more likely to get them wrong than people with moderate confidence. This suggests:,"A) Political knowledge and confidence are inversely related in general
+B) In partisan-charged domains, high confidence may reflect identity-protective cognition rather than genuine knowledge
+C) Political facts are too complex to be known confidently
+D) Survey respondents lie about their confidence",B
+ttm_monitoring_0022,Metacognitive Monitoring Failures,"A person learns that they failed a memory task. When asked to predict their score on a similar task, they predict they will do well again. This persistent overconfidence despite failure feedback is called:","A) Optimism bias — general tendency toward positive predictions
+B) Illusion of knowing — memory monitoring system fails to update after error feedback
+C) Egocentric bias — attributing failures to external factors
+D) Self-serving attribution — one failure is not predictive in their view",B
+ttm_monitoring_0023,Metacognitive Monitoring Failures,"In a classic study, participants who were shown a word subliminally (too fast to consciously see) later judged it as more 'true' when it appeared on a recognition test. This demonstrates:","A) Unconscious learning is more reliable than conscious learning
+B) Mere exposure effect creating false familiarity that is misidentified as truth — a source monitoring failure
+C) Perceptual priming enhances word recognition accuracy
+D) Subliminal exposure bypasses the critical thinking filter",B
+ttm_monitoring_0024,Metacognitive Monitoring Failures,A student consistently overestimates how much they will remember one week after studying. The best metacognitive intervention is:,"A) Study more hours to compensate for expected forgetting
+B) Take a recall test immediately after studying to calibrate actual retention vs. expected retention
+C) Use spaced repetition apps to schedule future review
+D) Reduce confidence in memory claims to account for expected forgetting",B
+ttm_monitoring_0025,Metacognitive Monitoring Failures,An experienced surgeon performs a routine operation and makes a preventable error she has never made before. Post-hoc analysis reveals she was in an automatic processing mode. What metacognitive principle does this illustrate?,"A) Expertise creates overconfidence that leads to careless errors
+B) Highly automatic expert performance can bypass monitoring systems, creating vulnerability to novel errors that novices might avoid through deliberate checking
+C) The surgeon was distracted — this is an attentional, not metacognitive, issue
+D) Routine procedures should be performed by novices for safety",B
+ttm_monitoring_0026,Metacognitive Monitoring Failures,Research on 'illusion of knowing' shows that people judge their comprehension of a passage to be higher when the passage is accompanied by a relevant image — even when the image adds no semantic content. What does this show?,"A) Visual context genuinely aids comprehension of text
+B) Irrelevant perceptual richness increases metacognitive confidence without improving understanding — a monitoring error
+C) Multimedia learning is universally beneficial
+D) Images interfere with reading by splitting attention",B
+ttm_monitoring_0027,Metacognitive Monitoring Failures,A therapist reports high confidence in diagnosing a client after a 50-minute session. Research on clinical judgment suggests this confidence is:,"A) Well-placed — trained clinicians have high diagnostic accuracy
+B) Often miscalibrated — clinical confidence increases faster than actual diagnostic accuracy with session length
+C) Appropriate only for common presentations
+D) Dependent on whether the clinician uses structured instruments",B
+ttm_monitoring_0028,Metacognitive Monitoring Failures,A person 'knows' their social security number but realizes under stress they cannot recall all nine digits. Their feeling of knowing the full number was:,"A) Accurate — they do know it but stress disrupted retrieval
+B) Partially accurate — they had enough knowledge to support a feeling of knowing but not complete reconstructive access
+C) Entirely inaccurate — if they cannot recall under stress, they never knew it
+D) Both A and B are plausible explanations",D
+ttm_monitoring_0029,Metacognitive Monitoring Failures,"In a study, people who were asked to 'think about why you know X' before a test showed WORSE calibration than those who weren't. Why?","A) Introspection is always unreliable
+B) Generating justifications increases subjective confidence independently of actual knowledge, inflating it above calibrated levels
+C) Thinking about knowledge disrupts memory consolidation
+D) The task confused participants, reducing performance",B
+ttm_monitoring_0030,Metacognitive Monitoring Failures,"An AI model is fine-tuned on confident-sounding text from domain experts. After fine-tuning, it produces more confident answers across all domains, including those outside training. What metacognitive failure is the model exhibiting?","A) Domain overfitting — it's applying domain-specific confidence universally
+B) A transferred fluency-confidence heuristic — confidence learned in appropriate contexts is generalized to inappropriate ones, producing systematic overconfidence
+C) Hallucination — a distinct failure from metacognitive miscalibration
+D) Both B and C simultaneously describe the failure",B
+ttm_strategic_ign_0001,Strategic Ignorance and Information Avoidance,Odysseus instructed his crew to tie him to the mast and ignore his future instructions to be released when sailing past the Sirens. This is a canonical example of:,"A) Irrational behavior — he was unable to trust himself
+B) A Ulysses contract — rational pre-commitment that restricts future self-defeating behavior
+C) Strategic ignorance — blocking information to avoid temptation
+D) Epistemic cowardice — avoiding an experience out of fear",B
+ttm_strategic_ign_0002,Strategic Ignorance and Information Avoidance,A person with a family history of Huntington's disease declines genetic testing. They report that knowing they carry the gene would cause severe anxiety and they prefer to live without that knowledge. Is this information avoidance rational?,"A) No — refusing medical information is always irrational
+B) Yes — if the expected psychological cost of the information exceeds its expected decision value (since there is no curative treatment), avoidance can be rational
+C) No — uncertainty about a fatal illness causes more anxiety than knowing
+D) Yes, but only if they have no children who might inherit the gene",B
+ttm_strategic_ign_0003,Strategic Ignorance and Information Avoidance,A judge in a criminal case is asked to 'disregard' inadmissible evidence. Research shows this instruction often backfires. What metacognitive phenomenon explains this?,"A) The backfire effect — being told to ignore something makes it more influential
+B) The ironic process theory — deliberate suppression of a thought often increases its accessibility
+C) Motivated reasoning — judges unconsciously retain evidence that confirms their initial impression
+D) Both B and C together explain the paradox",D
+ttm_strategic_ign_0004,Strategic Ignorance and Information Avoidance,An investor chooses not to check their portfolio during a market crash. This avoidance strategy is most likely to be rational when:,"A) The market is expected to recover and checking would trigger panic selling against their own long-term interest
+B) They lack the financial expertise to interpret the data
+C) The crash is small and not worth monitoring
+D) All of the above make avoidance equally rational",A
+ttm_strategic_ign_0005,Strategic Ignorance and Information Avoidance,A lawyer advises their client: 'Don't ask employees about certain safety violations — then you can honestly say you don't know.' This is called:,"A) Plausible deniability — a legitimate legal strategy
+B) Willful blindness — deliberately avoiding information to escape legal or moral responsibility
+C) Strategic ignorance — a rational form of information management
+D) Attorney-client privilege in action",B
+ttm_strategic_ign_0006,Strategic Ignorance and Information Avoidance,An autonomous vehicle has access to a passenger's medical history. Knowing the passenger has heart disease could affect the car's driving pattern. Should the car use this information?,"A) Yes — all available information should be used to optimize outcomes
+B) Not necessarily — using medical information creates privacy risks and might override the passenger's autonomous preferences
+C) Yes — safety justifies any information use
+D) No — AI systems should never use personal medical data under any circumstances",B
+ttm_strategic_ign_0007,Strategic Ignorance and Information Avoidance,Research shows that people who track their calorie intake obsessively sometimes end up eating MORE after days they exceed their target ('what the hell' effect). What does this imply about the value of precise information?,"A) Precise information always improves self-regulation
+B) In some contexts, precise information triggers maladaptive responses; coarser tracking or no tracking may produce better outcomes
+C) The research shows calorie tracking is universally harmful
+D) The 'what the hell' effect is a cognitive bias that should be overcome through more precise tracking",B
+ttm_strategic_ign_0008,Strategic Ignorance and Information Avoidance,"A biosecurity researcher discovers a pathogen synthesis route that, if published, would accelerate pandemic risk. They choose not to publish. Which framework best justifies this decision?","A) Information suppression is never scientifically justified
+B) Information hazard theory — some true information causes harm that outweighs its benefits, justifying non-disclosure
+C) Precautionary principle — uncertainty about harm justifies withholding
+D) Both B and C provide valid justifications",D
+ttm_strategic_ign_0009,Strategic Ignorance and Information Avoidance,"A person about to make an irreversible decision (e.g., having surgery) deliberately avoids reading horror stories about the procedure. Is this rational?","A) No — all available information should be reviewed before major decisions
+B) Yes — if the decision is already optimally made, consuming distressing anecdotes that cannot change it offers no benefit and imposes psychological cost
+C) No — informed consent requires reviewing all possible outcomes
+D) Yes, but only if the patient trusts the doctor completely",B
+ttm_strategic_ign_0010,Strategic Ignorance and Information Avoidance,An experiment finds that judges who are told 'ignore this evidence — it's inadmissible' still give different verdicts than those who are never exposed to the evidence. This finding implies:,"A) Judges are corrupt and deliberately use inadmissible evidence
+B) Conscious instructions to ignore information are often insufficient to prevent its influence — information, once received, is hard to unprocess
+C) Inadmissibility rules should be abolished as ineffective
+D) The finding is limited to untrained judges; professionals can ignore effectively",B
+ttm_strategic_ign_0011,Strategic Ignorance and Information Avoidance,"An employer explicitly chooses NOT to conduct pre-employment drug tests, stating 'if we test, we eliminate good candidates who are occasional recreational users.' Is this strategic ignorance rational?","A) No — employers are always legally required to test
+B) Yes — choosing not to gather information that would trigger a suboptimal decision process can be a rational information management strategy
+C) No — strategic ignorance is only rational when information is harmful, not when it's inconvenient
+D) Yes, but only for low-safety roles",B
+ttm_strategic_ign_0012,Strategic Ignorance and Information Avoidance,A negotiator enters talks knowing that learning the other party's 'bottom line' before formal negotiation might constrain what they can ethically demand. They choose not to ask. This strategy is:,"A) Irrational — knowing the bottom line is always advantageous
+B) Strategically rational — remaining deliberately ignorant preserves flexibility and avoids premature anchoring
+C) Unethical — information withholding in negotiation is deceptive
+D) Neither rational nor irrational — negotiators should use all available information",B
+ttm_strategic_ign_0013,Strategic Ignorance and Information Avoidance,A government classifies a scientific study on the effectiveness of a controversial policy. A civil liberties group says this is wrong. A security official says it's necessary. The strongest argument FOR classification is:,"A) Government has the right to classify anything
+B) If publication would reveal information useful to adversaries and the public can be informed of policy outcomes without the technical details, classification may protect security without harming public accountability
+C) The study might be politically embarrassing
+D) All government studies should be classified by default",B
+ttm_strategic_ign_0014,Strategic Ignorance and Information Avoidance,"A study finds that doctors who see their own mortality statistics for a procedure (e.g., their patients die 3x the national average) improve their outcomes. But a different study shows that other doctors who see the same statistics become paralyzed with risk aversion and under-treat. What does this imply about the universal value of transparency in medicine?","A) Transparency is always better — outcomes improve with information
+B) The value of information is heterogeneous — for some practitioners, information improves decisions; for others, it degrades them
+C) Risk aversion after seeing bad statistics is appropriate — under-treatment is safer
+D) Mortality statistics should be withheld from all doctors to prevent anxiety",B
+ttm_strategic_ign_0015,Strategic Ignorance and Information Avoidance,An AI alignment researcher argues that some threat models should not be widely published because they could inspire bad actors. A transparency advocate argues that open publication allows collective defense. This trade-off is best described as:,"A) A false dilemma — all security research should be published
+B) An information hazard dilemma requiring case-by-case analysis of expected benefit to defenders vs. expected uplift to adversaries
+C) A case for always prioritizing transparency over security
+D) A case for always prioritizing security over transparency",B
+ttm_strategic_ign_0016,Strategic Ignorance and Information Avoidance,"A person considering whether to take a new job deliberately avoids reading Glassdoor reviews before accepting. After accepting, they read them and feel better. Was their avoidance strategy rational?","A) No — they should have gathered all information before deciding
+B) Possibly yes — if Glassdoor reviews would have created unresolvable anxiety about an otherwise good opportunity, and they trusted their other sources of information
+C) No — post-decision rationalization explains why they 'feel better'
+D) Yes — Glassdoor reviews are unreliable",B
+ttm_strategic_ign_0017,Strategic Ignorance and Information Avoidance,"In law, the 'willful blindness' doctrine holds that deliberate ignorance of a fact can constitute the same legal knowledge as actual knowledge. Which scenario best fits this doctrine?","A) A person who genuinely doesn't know their business partner is committing fraud
+B) A person who suspects fraud, deliberately avoids investigating, and proceeds with a suspicious transaction
+C) A person who investigates and finds no evidence of fraud
+D) A person who relies on a lawyer's assurance that something is legal",B
+ttm_strategic_ign_0018,Strategic Ignorance and Information Avoidance,"An autonomous AI system can access real-time stock prices, which would cause it to make more volatile decisions. Its designers restrict this access. Is this a rational design choice?","A) No — more information always improves decision quality
+B) Yes — restricting information that leads to decision instability can be a rational design constraint, particularly when volatility has systemic risks
+C) No — the AI should have access to all available information and manage its own volatility
+D) Yes, but only if the AI is not sophisticated enough to handle price data",B
+ttm_strategic_ign_0019,Strategic Ignorance and Information Avoidance,"A teacher deliberately does not tell students the difficulty level of a test before they take it, believing that knowing would cause high-ability students to underperform and low-ability students to give up. Is this a legitimate pedagogical use of strategic ignorance?","A) No — transparency is always better in education
+B) Potentially yes — if the teacher's model of student responses to difficulty labels is accurate, withholding the label could improve outcomes
+C) No — students have a right to know what they're being tested on
+D) Yes — difficulty labels are always counterproductive",B
+ttm_strategic_ign_0020,Strategic Ignorance and Information Avoidance,"A government agency discovers a security vulnerability in widely used software. It can disclose it (allowing defenders to patch) or retain it (allowing covert offensive use). The agency retains it. Six months later, a criminal group independently discovers the same vulnerability and causes major damage. Was the retention decision rational?","A) Yes — retaining vulnerabilities always serves national security
+B) The decision appears to have been wrong in hindsight, and the rational choice framework requires weighing disclosure benefits vs. retention costs, accounting for the probability of independent discovery
+C) No — agencies should never retain vulnerabilities
+D) Yes — the criminal group's actions were unforeseeable",B
+ttm_strategic_ign_0021,Strategic Ignorance and Information Avoidance,Pre-commitment devices (like locking money in a retirement account with penalties for early withdrawal) work best when:,"A) The individual is sophisticated enough to override them when genuinely needed
+B) The future self's preferences are expected to differ from present preferences in a predictable, exploitable way
+C) The commitment device is completely irrevocable — no escape options
+D) The individual consults an expert before committing",B
+ttm_strategic_ign_0022,Strategic Ignorance and Information Avoidance,Research on placebo effects shows they can work even when patients know they're receiving a placebo ('open-label placebos'). What does this imply about information and treatment outcomes?,"A) Information is irrelevant to biological outcomes
+B) Some beneficial effects of information states (e.g., expectation of improvement) operate through mechanisms that don't require ignorance, challenging the assumption that all strategic ignorance requires deception
+C) Placebos are as effective as real treatments across all conditions
+D) Patients should always be deceived to maximize placebo effects",B
+ttm_strategic_ign_0023,Strategic Ignorance and Information Avoidance,A charity deliberately does not tell potential donors the exact percentage of donations that go to overhead. A transparency advocate says they must disclose. A fundraising expert says 'overhead framing' causes donors to make suboptimal giving choices. Who has the stronger empirical case?,"A) The transparency advocate — donors deserve all information
+B) The fundraising expert — research shows overhead-focused giving actually reduces welfare impact by directing donations to inefficient charities with low overhead but poor outcomes
+C) The transparency advocate — charitable manipulation is always unethical
+D) Both — the empirical case for both positions is equally strong",B
+ttm_strategic_ign_0024,Strategic Ignorance and Information Avoidance,A manager tells her team: 'I don't want to know who reported the problem — just tell me what the problem is.' This information restriction is rational because:,"A) It protects the manager from legal liability for knowing specific individuals
+B) It prevents information about the reporter from biasing the manager's assessment of the problem and encourages more open reporting
+C) It demonstrates good leadership regardless of its epistemic consequences
+D) It violates the manager's duty of care to employees",B
+ttm_strategic_ign_0025,Strategic Ignorance and Information Avoidance,An AI researcher argues: 'Building an AI that can autonomously seek and acquire information is dangerous because some information hazards only become active once processed.' What is the strongest counterargument?,"A) AI should always maximize information acquisition
+B) Restricting information acquisition trades safety benefits against capability benefits and requires identifying specific hazardous information types — blanket restriction is both too conservative and hard to implement
+C) Information hazards don't apply to AI systems
+D) The researcher's concern is valid and AI should never seek new information",B
