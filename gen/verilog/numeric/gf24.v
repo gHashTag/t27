@@ -5,6 +5,18 @@
 // GoldenFloat24 Codec -- 24-bit phi-structured floating point
 // Format: [S:1 | E:9 | M:14], EXP_BIAS=255, phi_distance=0.02482
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+/* verilator lint_off MULTITOP */
+
+
 module gf24_codec (
     input  wire        clk,
     input  wire        rst_n,

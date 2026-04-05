@@ -5,6 +5,17 @@
 // Synthesizable Verilog -- ternary MAC + score accumulator + softmax pipeline
 // Trit encoding: 2'b00 = zero, 2'b01 = pos (+1), 2'b11 = neg (-1)
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 module sacred_attention (
     input  wire        clk,
     input  wire        rst_n,

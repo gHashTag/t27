@@ -1,0 +1,145 @@
+{
+  "module": "VSACore",
+  "spec_path": "specs/vsa/core.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "VSA Core conformance vectors -- bind/unbind roundtrip, bundle, predicate encoding, codebook lookup",
+  "constants": {
+    "DIMENSION": 1024,
+    "SIMILARITY_THRESHOLD": 0.15,
+    "CODEBOOK_CAPACITY": 256,
+    "MAX_PREDICATE_ARGS": 8
+  },
+  "vectors": {
+    "bind_self_inverse": {
+      "description": "Bind/unbind roundtrip recovers original vector",
+      "cases": [
+        {
+          "id": "vsa_core_bind_self_inverse_basic",
+          "x": [1, -1, 0, 1, -1, 1, 0, -1],
+          "key": [-1, 1, 1, -1, 0, 1, -1, 0],
+          "operation": "unbind(bind(x, key), key)",
+          "expected_similarity": 1.0,
+          "tolerance": 0.01,
+          "note": "Bind then unbind with same key recovers original"
+        },
+        {
+          "id": "vsa_core_bind_self_inverse_all_pos",
+          "x": [1, 1, 1, 1],
+          "key": [1, 1, 1, 1],
+          "expected_bind": [1, 1, 1, 1],
+          "expected_unbind": [1, 1, 1, 1],
+          "note": "All-positive identity case"
+        },
+        {
+          "id": "vsa_core_bind_self_inverse_mixed",
+          "x": [1, -1, 1, -1, 0, 0],
+          "key": [0, 1, -1, 0, 1, -1],
+          "metric": "cosine",
+          "min_recovery_similarity": 0.95,
+          "note": "Mixed vector with zeros"
+        }
+      ]
+    },
+    "bundle_preserves": {
+      "description": "Bundle preserves similarity to all components",
+      "cases": [
+        {
+          "id": "vsa_core_bundle_preserves_2vec",
+          "a": [1, -1, 1, 0, -1, 1],
+          "b": [-1, 1, 1, 1, 0, -1],
+          "expected_sim_a": 0.15,
+          "expected_sim_b": 0.15,
+          "comparison": ">=",
+          "note": "Bundle of 2 vectors is similar to both components"
+        },
+        {
+          "id": "vsa_core_bundle_preserves_3vec",
+          "a": [1, 1, -1],
+          "b": [-1, 1, 1],
+          "c": [1, -1, 1],
+          "expected_bundle": [1, 1, 1],
+          "note": "Majority vote of 3 vectors"
+        }
+      ]
+    },
+    "predicate_encoding": {
+      "description": "Encode and decode predicate structures",
+      "cases": [
+        {
+          "id": "vsa_core_predicate_encode_unary",
+          "predicate": "color",
+          "args": ["red"],
+          "expected_recoverable": true,
+          "note": "Unary predicate color(red) encoded and decoded"
+        },
+        {
+          "id": "vsa_core_predicate_encode_binary",
+          "predicate": "likes",
+          "args": ["alice", "bob"],
+          "expected_recoverable": true,
+          "note": "Binary predicate likes(alice, bob) encoded and decoded"
+        },
+        {
+          "id": "vsa_core_predicate_max_args",
+          "predicate": "relation",
+          "num_args": 8,
+          "expected_valid": true,
+          "note": "MAX_PREDICATE_ARGS == 8 is supported"
+        },
+        {
+          "id": "vsa_core_predicate_exceeds_max",
+          "predicate": "relation",
+          "num_args": 9,
+          "expected_valid": false,
+          "note": "Exceeding MAX_PREDICATE_ARGS returns error"
+        }
+      ]
+    },
+    "codebook_lookup": {
+      "description": "Nearest neighbor lookup in codebook",
+      "cases": [
+        {
+          "id": "vsa_core_codebook_exact_match",
+          "query": [1, -1, 1, -1],
+          "codebook_entry": [1, -1, 1, -1],
+          "expected_similarity": 1.0,
+          "expected_match": true,
+          "note": "Exact match returns similarity 1.0"
+        },
+        {
+          "id": "vsa_core_codebook_no_match",
+          "query": [1, 1, 1, 1],
+          "codebook_entries": [[-1, -1, -1, -1]],
+          "expected_best_similarity": -1.0,
+          "expected_above_threshold": false,
+          "note": "Anti-correlated vector below threshold"
+        },
+        {
+          "id": "vsa_core_codebook_capacity",
+          "max_entries": 256,
+          "expected_capacity": 256,
+          "note": "Codebook supports up to CODEBOOK_CAPACITY entries"
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "vsa_core_bind_dimensionality",
+      "description": "bind(a,b) has same dimension as a and b",
+      "value": 1024
+    },
+    {
+      "id": "vsa_core_similarity_bounds",
+      "description": "cosine_similarity(a,b) in [-1.0, 1.0]",
+      "min": -1.0,
+      "max": 1.0
+    },
+    {
+      "id": "vsa_core_self_similarity",
+      "description": "cosine_similarity(a,a) == 1.0 for any non-zero vector",
+      "value": 1.0
+    }
+  ]
+}

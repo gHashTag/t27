@@ -1,0 +1,89 @@
+{
+  "module": "UART_Bridge",
+  "spec_path": "specs/fpga/uart.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "UART Bridge conformance vectors -- 8N1 protocol, TX/RX, framing error detection",
+  "constants": {
+    "CLK_FREQ": 50000000,
+    "BAUD_RATE": 115200,
+    "BAUD_DIVISOR": 434,
+    "DATA_BITS": 8
+  },
+  "vectors": {
+    "uart_tx_write": {
+      "description": "Byte transmission on TX line",
+      "cases": [
+        {
+          "id": "uart_tx_write_0x55",
+          "data": 85,
+          "expected_bits": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+          "note": "Start(0) + 0x55(01010101 LSB first) + Stop(1)"
+        },
+        {
+          "id": "uart_tx_write_0xAA",
+          "data": 170,
+          "expected_bits": [0, 0, 1, 0, 1, 0, 1, 0, 1, 1],
+          "note": "Start(0) + 0xAA(01010101 LSB first) + Stop(1)"
+        },
+        {
+          "id": "uart_tx_write_0x00",
+          "data": 0,
+          "expected_bits": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          "note": "Start(0) + 0x00(all zeros) + Stop(1)"
+        }
+      ]
+    },
+    "uart_rx_sync": {
+      "description": "Input synchronization chain for RX",
+      "cases": [
+        {
+          "id": "uart_rx_sync_metastability",
+          "input_sequence": [1, 0, 0, 0],
+          "expected_synced": [1, 1, 0, 0],
+          "note": "2-stage sync delays input by 2 clock cycles"
+        },
+        {
+          "id": "uart_rx_sync_start_detect",
+          "synced_input": [1, 0],
+          "expected_start_detected": true,
+          "note": "Falling edge on synced input detects start bit"
+        }
+      ]
+    },
+    "uart_framing_error": {
+      "description": "Framing error detection",
+      "cases": [
+        {
+          "id": "uart_framing_error_no_stop",
+          "received_bits": [0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
+          "expected_error": true,
+          "note": "Stop bit is 0 instead of 1 -- framing error"
+        },
+        {
+          "id": "uart_framing_error_valid_frame",
+          "received_bits": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+          "expected_error": false,
+          "note": "Valid 8N1 frame with correct stop bit"
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "uart_8n1_protocol",
+      "description": "Protocol is 8 data bits, no parity, 1 stop bit",
+      "data_bits": 8,
+      "parity": "none",
+      "stop_bits": 1
+    },
+    {
+      "id": "uart_tx_states_valid",
+      "description": "TX FSM states are in {IDLE, START, DATA, STOP}"
+    },
+    {
+      "id": "uart_rx_states_valid",
+      "description": "RX FSM states are in {IDLE, START, DATA, STOP, ERROR}"
+    }
+  ]
+}
