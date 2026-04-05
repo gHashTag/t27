@@ -36,3 +36,4 @@ tmp/
 opencode/dist/
 opencode/node_modules/
 bootstrap/target/
+.trinity/experience/
