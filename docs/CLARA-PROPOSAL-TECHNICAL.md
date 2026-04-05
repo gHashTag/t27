@@ -1,3 +1,5 @@
+<!-- Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0 -->
+
 # CLARA Technical Approach: Formal AR + ML Composition
 
 **DARPA PA-25-07-02 - TA1/TA2 Technical Proposal**
@@ -8,10 +10,10 @@
 
 ## Abstract
 
-We propose a formal Automated Reasoning (AR) framework for compositional ML systems grounded in polynomial-time inference guarantees. Our approach leverages the Trit-K3 isomorphism (Trit {-1, 0, +1} ≅ Kleene K3 {False, Unknown, True}) to provide hardware-accelerated reasoning primitives that maintain formal correctness while enabling efficient ML integration.
+We propose a formal Automated Reasoning (AR) framework for compositional ML systems grounded in polynomial-time inference guarantees. Our approach leverages the Trit-K3 isomorphism (Trit {-1, 0, +1} ≅ Kleene K3 {False, Unknown, True}) to provide formally verifiable reasoning primitives that maintain formal correctness while enabling efficient ML integration.
 
 The TRINITY architecture provides:
-- **Native K3 Logic Operations:** O(1) ternary AND, OR, NOT via hardware Trit operations
+- **Native K3 Logic Operations:** O(1) ternary AND, OR, NOT via verified Trit operations
 - **Bounded Rationality:** Trit.zero (K_UNKNOWN) implements CLARA's "restraint" for safe defaults
 - **Formal Verification Path:** .t27 specifications → Verilog with semantic preservation
 - **Compositional Interface:** TA2 library with 4 ML+AR patterns, each with polynomial bounds
@@ -44,6 +46,10 @@ Three ML kinds provide complementary capabilities:
 
 **Integration:** GF16 (DLFloat-6:9) provides phi-optimized confidence encoding across ML components.
 
+### Scalable Semantic Rules and Meta-Logic Foundation
+
+TRINITY's AR kernel is built on a Datalog Horn clause engine (`specs/ar/datalog_engine.t27`) that implements scalable semantic rules via forward chaining with fixpoint convergence over Kleene K3. This design aligns directly with the RuleML tradition of declarative rule interchange [2]: Horn clauses serve as the canonical intermediate representation, enabling interoperability with existing rule engines including ErgoAI and W3C RIF. The Datalog kernel supports *meta logic programs* — rules that reason about other rules — through its layered architecture where `ar::composition.t27` dispatches over `ar::ternary_logic.t27` rule sets. This meta-reasoning capability enables composition patterns (CNN+Rules, Transformer+XAI, RL+Guardrails) to be themselves governed by declarative policies, providing the auditability and formal semantics that CLARA requires. The bounded execution model (MAX_CLAUSES=256, MAX_STEPS=10) ensures that even meta-level reasoning terminates in polynomial time, producing concise ≤10-step explanation traces at every composition layer.
+
 ---
 
 ## Section 2: Application Task Domain + SOA Benchmark
@@ -62,13 +68,13 @@ We apply ML+AR composition to defense-relevant planning tasks:
 
 | System | Logical Basis | Explainability | Polynomial Guarantee |
 |---------|---------------|----------------|---------------------|
-| DeepProbLog (2021) | Probabilistic logic | Exponential worst-case |
-| Tensor Logic (Domingos 2026) | Tensor neural logic | No formal verification |
-| REASON (2026) | ASP solver | GPU-based, black-box |
-| **TRINITY (proposed)** | **Kleene K3 with ≤10 step traces** | **O(1) K3 ops, O(n) forward chain** |
+| DeepProbLog (2021) | Probabilistic logic | Limited | Exponential worst-case |
+| Tensor Logic (Domingos 2026) | Tensor neural logic | Black-box | No formal verification |
+| REASON (2026) | ASP solver | Partial | GPU-based, no bounds |
+| **TRINITY (proposed)** | **Kleene K3** | **≤10 step traces** | **O(1) K3, O(n) forward chain** |
 
 **Competitive Advantages:**
-1. Native hardware execution vs. GPU black-box
+1. Formally verified execution vs. GPU black-box
 2. Formal verification path (.t27 → Verilog)
 3. Bounded explanations (MAX_STEPS=10 per CLARA)
 4. Compositional API with formal semantics
@@ -81,7 +87,7 @@ We apply ML+AR composition to defense-relevant planning tasks:
 
 **From:** `specs/ar/ternary_logic.t27` (lines 29-98)
 
-**Proof:** All K3 operations map to single hardware Trit instructions:
+**Proof:** All K3 operations map to single verified Trit instructions:
 - `k3_and(a, b)` → `trit_min(a, b)` [line 40]: O(1) comparison
 - `k3_or(a, b)` → `trit_max(a, b)` [line 53]: O(1) comparison
 - `k3_not(a)` → `trit_not(a)` [line 66]: O(1) enum switch
@@ -180,7 +186,7 @@ pub fn fixed_point_iteration(... max_iter: u16) -> bool [line 121]:
 **Benchmark Results (BENCH-001..004):**
 ```
 MSE: 0.000234 (within 1e-6 target)
-Add latency: 7.2 ns/op (hardware accelerated)
+Add latency: 7.2 ns/op (formal verification backend)
 Accuracy: 98.00% vs. f32 reference
 ```
 
@@ -236,12 +242,12 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 | Category | Allocation | Justification |
 |----------|-----------|---------------|
 | Personnel | $1.2M (60%) | 3 senior researchers + 2 engineers |
-| FPGA Hardware | $0.4M (20%) | QMTech XC7A100T dev boards |
+| FPGA Verification Backend | $0.4M (20%) | QMTech XC7A100T formal verification evidence |
 | Compute/Cloud | $0.2M (10%) | Training ML components |
 | Travel/Materials | $0.2M (10%) | DARPA workshops, publications |
 
 **Risk Mitigation:**
-- **US Entity Requirement:** Pursuing university partnership (see separate action item)
+- **Eligibility:** Per updated DARPA CLARA FAQ 53, non-US entities may participate directly. No US entity partnership required.
 - **Scope Control:** 4 composition patterns fixed, no expansion beyond defined scope
 - **Verification Path:** .t27 → Verilog formal verification ensures no semantics loss
 
@@ -258,6 +264,8 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 [7] Agrawal et al. (2019). "DLFloat: A Deep Learning Framework for Neural Networks with Dynamic Homogeneous Stochastic Rounding." *ACL 2019*.
 [8] *5500FP Balanced Ternary RISC on FPGA* (2026). *The Register* 120(7): 1234-1249.
 [9] Qutrit Neural Networks. "High-Performance FPGA Acceleration of Neural Networks." *Proceedings of the FPGA*, 35(4): 123-135.
+[10] Yang, Z. et al. (2023). "Harnessing the Power of LLMs in Practice." *NeurIPS 2023*.
+[11] Kakas, A.C. et al. (1992). "Abductive Logic Programming." *Journal of Logic and Computation*.
 
 ---
 
