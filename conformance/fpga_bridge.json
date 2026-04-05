@@ -1,0 +1,142 @@
+{
+  "module": "FPGA_Bridge",
+  "spec_path": "specs/fpga/bridge.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "FPGA Bridge conformance vectors -- circular buffer, packet parsing, configuration handling",
+  "constants": {
+    "RX_BUFFER_SIZE": 256,
+    "TX_BUFFER_SIZE": 256,
+    "MAX_PACKET_SIZE": 128,
+    "PACKET_TIMEOUT": 10000
+  },
+  "vectors": {
+    "buffer_write": {
+      "description": "Write to circular buffer",
+      "cases": [
+        {
+          "id": "bridge_buffer_write_empty",
+          "data": 42,
+          "initial_head": 0,
+          "initial_tail": 0,
+          "expected_head": 1,
+          "expected_stored": 42,
+          "note": "Write to empty buffer advances head"
+        },
+        {
+          "id": "bridge_buffer_write_wrap",
+          "data": 99,
+          "initial_head": 255,
+          "initial_tail": 0,
+          "expected_head": 0,
+          "expected_stored": 99,
+          "note": "Write at end wraps head to 0"
+        },
+        {
+          "id": "bridge_buffer_write_full",
+          "data": 55,
+          "initial_head": 128,
+          "initial_tail": 129,
+          "expected_error": "buffer_full",
+          "note": "Write to full buffer returns error"
+        }
+      ]
+    },
+    "buffer_read": {
+      "description": "Read from circular buffer",
+      "cases": [
+        {
+          "id": "bridge_buffer_read_single",
+          "stored_data": 42,
+          "initial_head": 1,
+          "initial_tail": 0,
+          "expected_tail": 1,
+          "expected_read": 42,
+          "note": "Read single byte advances tail"
+        },
+        {
+          "id": "bridge_buffer_read_empty",
+          "initial_head": 0,
+          "initial_tail": 0,
+          "expected_error": "buffer_empty",
+          "note": "Read from empty buffer returns error"
+        },
+        {
+          "id": "bridge_buffer_read_wrap",
+          "stored_data": 77,
+          "initial_head": 0,
+          "initial_tail": 255,
+          "expected_tail": 0,
+          "expected_read": 77,
+          "note": "Read at end wraps tail to 0"
+        }
+      ]
+    },
+    "bridge_parse_header": {
+      "description": "Parse packet header from buffer",
+      "cases": [
+        {
+          "id": "bridge_parse_header_valid",
+          "raw_bytes": [84, 50, 55, 16, 0],
+          "expected_magic": "T27",
+          "expected_length": 16,
+          "expected_valid": true,
+          "note": "Valid T27 header with length 16"
+        },
+        {
+          "id": "bridge_parse_header_invalid_magic",
+          "raw_bytes": [0, 0, 0, 16, 0],
+          "expected_valid": false,
+          "note": "Invalid magic bytes rejected"
+        },
+        {
+          "id": "bridge_parse_header_oversized",
+          "raw_bytes": [84, 50, 55, 255, 0],
+          "expected_valid": false,
+          "note": "Packet exceeding MAX_PACKET_SIZE rejected"
+        }
+      ]
+    },
+    "bridge_config": {
+      "description": "Configuration handling",
+      "cases": [
+        {
+          "id": "bridge_config_set_baud",
+          "register": "baud_rate",
+          "value": 115200,
+          "expected_ack": true,
+          "note": "Set baud rate configuration"
+        },
+        {
+          "id": "bridge_config_invalid_register",
+          "register": "unknown",
+          "value": 0,
+          "expected_ack": false,
+          "note": "Unknown register returns NAK"
+        }
+      ]
+    }
+  },
+  "invariants": [
+    {
+      "id": "bridge_states_valid",
+      "description": "Bridge FSM states are in {IDLE, RX, TX, PARSE, ERROR}"
+    },
+    {
+      "id": "buffer_bounds",
+      "description": "Buffer head and tail always in [0, BUFFER_SIZE)",
+      "rx_max": 256,
+      "tx_max": 256
+    },
+    {
+      "id": "packet_length_bounds",
+      "description": "Packet length <= MAX_PACKET_SIZE (128)",
+      "value": 128
+    },
+    {
+      "id": "timeout_counter",
+      "description": "Timeout counter <= PACKET_TIMEOUT (10000)",
+      "value": 10000
+    }
+  ]
+}
