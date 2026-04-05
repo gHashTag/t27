@@ -61,6 +61,13 @@ pub struct UnpackResult {
     valid : bool,
 }
 
+// PinRef: Reference to a physical FPGA pin
+pub struct PinRef {
+    port : []const u8,  // Port identifier (e.g., "J13", "A12")
+    pin : u8,            // Pin number within port
+    direction : u8,      // 0=input, 1=output, 2=bidirectional
+}
+
 // ============================================================================
 // Functions
 // ============================================================================

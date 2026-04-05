@@ -313,7 +313,26 @@ module FPGA_Bridge;
                 // Multiply only - use mac_multiply
                 const result_word = mac_multiply(a_word, b_word, unit);
                 // Convert result word to signed sum of trits for output
-                result_i32 = 0;  // TODO: convert TernaryWord to i32
+                // Ternary encoding: -1 => -1, 0 => 0, +1 => +1
+                // Sum all 27 trits as signed i32
+                var sum : i32 = 0;
+                var i : usize = 0;
+                while (i < 5 and i * 6 < 27) {
+                    var trit_block : i32 = 0;
+                    var j : usize = 0;
+                    while (j < 6 and i * 6 + j < 27) {
+                        const trit : i32 = match (result_word[i * 6 + j]) {
+                            .neg => -1,
+                            .zero => 0,
+                            .pos => 1,
+                        };
+                        trit_block = trit_block + trit;
+                        j = j + 1;
+                    }
+                    sum = sum + trit_block;
+                    i = i + 1;
+                }
+                result_i32 = sum;
             }
             0x01 => {
                 // Multiply-accumulate
@@ -322,7 +341,11 @@ module FPGA_Bridge;
             0x02 => {
                 // Multiply-accumulate with carry (MACC)
                 result_i32 = mac_cycle(a_word, b_word, unit, accumulator);
-                // TODO: handle carry flag
+                // Extract carry bit from bit 26 of accumulator
+                const carry = (accumulator >> 26) & 1;
+                // Sign-extend carry bit to full i32
+                const carry_i32 = carry * 0xFFFFFFFF;
+                result_i32 = result_i32 | carry_i32;
             }
             0x03 => {
                 // Dot product (single step)

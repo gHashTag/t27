@@ -76,8 +76,9 @@ module SPI_Master;
         cs_assert_cnt : u32,        // CS assert delay
         cs_deassert_cnt : u32,      // CS deassert delay
 
-        // MISO pin state (full-duplex SPI)
-        miso_pin : bool,            // MISO (Master In Slave Out) pin state
+        // MISO pin (full-duplex SPI)
+        miso_pin : PinRef,          // MISO pin reference (J13 on XC7A100T)
+        miso_bit : bool,            // Cached MISO bit value
     }
 
     // Default SPI unit
@@ -98,7 +99,8 @@ module SPI_Master;
 
         .cs_assert_cnt = 0,
         .cs_deassert_cnt = 0,
-        .miso_pin = false,         // MISO pin initially low
+        .miso_pin = PinRef{ .port = "J13", .pin = 2, .direction = 0 },  // XC7A100T MISO pin
+        .miso_bit = false,         // MISO bit initially low
     };
 
     // spi_set_prescaler(psc: u8) → bool
@@ -188,16 +190,16 @@ module SPI_Master;
         }
     }
 
-    // spi_set_miso(value: bool) → void
-    // Set MISO pin state (for testing or external driving)
+    // spi_set_miso(ref: PinRef) → void
+    // Set MISO pin reference (for testing or external driving)
     // In real FPGA, this pin is driven by the external slave device
-    fn spi_set_miso(value: bool) -> void {
-        spi.miso_pin = value;
+    fn spi_set_miso(ref: PinRef) -> void {
+        spi.miso_pin = ref;
     }
 
-    // spi_get_miso() → bool
-    // Get MISO pin state
-    fn spi_get_miso() -> bool {
+    // spi_get_miso() → PinRef
+    // Get MISO pin reference
+    fn spi_get_miso() -> PinRef {
         return spi.miso_pin;
     }
 
@@ -257,7 +259,7 @@ module SPI_Master;
             RX_BIT => {
                 if (spi.bit_counter >= prescaler_div / 2) {
                     // Sample MISO from pin (full-duplex SPI)
-                    const miso_bit = spi.miso_pin;
+                    const miso_bit = @pin_read(spi.miso_pin);
                     spi.rx_data = (spi.rx_data << 1) | (if miso_bit { 1u32 } else { 0u32 });
                     spi.bit_count = spi.bit_count + 1;
                     spi.bit_counter = 0;
