@@ -3,7 +3,7 @@
 // Combines UART and SPI for host and peripheral communication
 // φ² + 1/φ² = 3 | TRINITY
 
-module FPGA_Bridge {
+module FPGA_Bridge;
     // Import base types and submodules
     use base::types;
     use fpga::uart::UART_Bridge;
@@ -409,4 +409,4 @@ module FPGA_Bridge {
     bench bridge_packet_processing_latency
         measure: nanoseconds to process PKT_STATUS packet
         target: < 500ns
-}
+

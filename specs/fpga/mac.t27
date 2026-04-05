@@ -3,7 +3,7 @@
 // Ternary MAC operations for FPGA implementation
 // φ² + 1/φ² = 3 | TRINITY
 
-module ZeroDSP_MAC {
+module ZeroDSP_MAC;
     // Import base types, operations, and ISA registers
     use base::types;
     use base::ops;
@@ -618,4 +618,4 @@ module ZeroDSP_MAC {
     bench mac_matrix_vector_latency
         measure: nanoseconds for 4x4 matrix-vector multiply
         target: < 5000ns
-}
+

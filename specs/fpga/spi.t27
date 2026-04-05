@@ -3,7 +3,7 @@
 // Mode 0: CPOL=0, CPHA=0 (SCK idle low, sample on rising edge)
 // φ² + 1/φ² = 3 | TRINITY
 
-module SPI_Master {
+module SPI_Master;
     // Import base types
     use base::types;
 
@@ -409,4 +409,4 @@ module SPI_Master {
     bench spi_prescaler_change_latency
         measure: nanoseconds to spi_set_prescaler(PRESCALER_32)
         target: < 100ns
-}
+
