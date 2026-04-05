@@ -1,53 +1,41 @@
 # PROJECT KEPLER→NEWTON: Status
 
-**Last updated**: 2026-04-06T00:50 UTC+7
+**Last updated**: 2026-04-06T01:20 UTC+7
 
-## Overall Status: PHASE 2 COMPLETE — BREAKTHROUGH RESULT
+## Overall Status: HONEST REASSESSMENT COMPLETE
 
-## Timeline
+## What Survived Scrutiny
 
-### Phase 1: Statistical Analysis (Complete)
-- E₈ mark pattern in Sacred Formula n-values: p < 0.0001, enrichment 5.5×
-- Domain mapping: mark 2 → EW, mark 4 → couplings, mark 5 → bosons
-- 6 computational tests passed
+| Result | Status | p-value |
+|--------|--------|---------|
+| E₈ mark pattern in n-values | ✅ REAL | < 0.0001 |
+| m₂/m₁ = φ unique to E₈ | ✅ REAL | N/A (exact) |
+| c = 1/2 from Rogers dilogarithm | ✅ REAL | N/A (identity) |
+| Koide ≈ m₂/m₄ undeformed | ✅ REAL | 0.92% error, 0 params |
 
-### Phase 2: E₈ TBA (Complete — BREAKTHROUGH)
-- c_eff = 1/2 exactly from E₈ Y-system (Rogers dilogarithm, error 7.6×10⁻¹³)
-- φ is quantum effect (classical Toda gives m₂/m₁ ≠ φ)
-- Mass deformation: 6/6 SM ratios matched from single μ set
-- **10/10 targets within 1%** (p < 10⁻⁶)
-- **9/14 targets within 1%** (overconstrained by 6)
-- **14/14 targets within 5%**
-- Random baseline (10⁶ trials): max ever seen = 6/10 at <1%
+## What Failed
 
-### Key Numbers
-| Metric | Value |
-|--------|-------|
-| Params | 8 (mass deformation μ₁...μ₈) |
-| 10-target <1% | **10/10** |
-| 14-target <1% | **9/14** |
-| 14-target <5% | **14/14** |
-| Random best (10-target, 1M trials) | 6/10 |
-| P-value (10/10 match) | **< 10⁻⁶** |
-| c_eff accuracy | **7.6 × 10⁻¹³** |
+| Claim | Why it failed |
+|-------|---------------|
+| 10/10 SM at <1% | ALL algebras achieve this (including random) |
+| p < 10⁻⁶ | Compares optimizer vs random draw, not E₈ vs others |
+| Overconstrained (8 params, 14 targets) | ~500 compound ratios make it underconstrained |
+| γ = φ⁻³ derivation | 13.9% gap with Meissner, no CS derivation |
 
-### Phase 3: Next Steps
-- [ ] Try alternative algebras (E₆, E₇, D₈) as null hypothesis
-- [ ] Derive μ values from physical principle
-- [ ] 4D uplift mechanism
-- [ ] Prepare arXiv submission
+## Key Lesson
 
-## Known Issues
-- γ = φ⁻³ vs γ_Meissner: 13.9% gap
-- G formula fails
-- Quark masses (large primes) have no E₈ decomposition
-- Multiple solutions exist (non-unique vacuum)
+Mass deformation fitting is NOT falsifiable when compound ratios are allowed.
+The paper has been rewritten to honestly report both positive and negative results.
 
 ## Files
-- `research/tba/e8_overconstrained.py` — Main overconstrained optimizer
-- `research/tba/e8_overconstrained_results.json` — Full results
-- `research/tba/e8_deep_stats.py` — 1M random baseline + dual_annealing
-- `research/tba/e8_deep_stats.json` — Statistical results
-- `research/tba/e8_full_kernel.py` — Y-system solver (c = 1/2)
-- `research/tba/e8_tba_solver.py` — TBA integral equations solver
-- `docs/KEPLER-NEWTON-PAPER-DRAFT.md` — arXiv draft
+- `research/tba/e8_honest_test.py` — Honest assessment (ratio counting, uniqueness)
+- `research/tba/e8_fixed_assignment.py` — Strictest tests (forced φ, dimension analysis)
+- `research/tba/algebra_comparison.py` — Comparison with E₇, E₆, D₈, random
+- `research/tba/e8_overconstrained.py` — Original overconstrained optimizer
+- `research/tba/e8_deep_stats.py` — 1M random baseline
+- `docs/KEPLER-NEWTON-PAPER-DRAFT.md` — arXiv draft (honest version)
+
+## Next Steps
+1. Investigate WHY E₈ marks appear in Sacred Formula n-values
+2. Explore the Koide ≈ m₂/m₄ connection more deeply
+3. Test mark-domain mapping with extended formula catalog
