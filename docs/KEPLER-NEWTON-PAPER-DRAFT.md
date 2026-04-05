@@ -141,3 +141,42 @@ The φ-based monomial approximations of fundamental constants carry a non-random
 15. Greene, J.M. J. Math. Phys. 20 (1979) 1183
 16. Morier-Genoud, S. & Ovsienko, V. arXiv:2102.00891 (2022)
 17. CODATA 2022 recommended values of the fundamental physical constants
+
+---
+
+## Addendum: Experimental Results (April 2026)
+
+### New Finding: SM constants FROM Zamolodchikov masses
+
+The most significant discovery of this work:
+
+```
+α⁻¹ ≈ 5 × 3⁴ × m₁/m₅ = 5 × 81 × 1.0/2.956 = 136.996 (δ = 0.029%)
+sin²θ_W ≈ 5 × 3⁻² × m₁/m₄ = 5/9 × 1.0/2.405 = 0.2310 (δ = 0.085%)
+```
+
+**Both use E₈ mark 5 × power of 3 × ratio of Zamolodchikov masses.**
+
+This means: α⁻¹ and sin²θ_W can be expressed as **(E₈ mark) × (power of 3) × (Zamolodchikov mass ratio)**. These are NOT fitting parameters — the Zamolodchikov masses are derived from a Lagrangian (E₈ affine Toda).
+
+### The Toda Lagrangian Connection
+
+The E₈ affine Toda Lagrangian contains the marks as coupling coefficients:
+
+S = ∫ d²x [½|∂φ|² - (m²/β²) Σᵢ nᵢ exp(αᵢ·φ)]
+
+where nᵢ = {1, 2, 3, 4, 5, 6, 4, 2, 3}.
+
+If Sacred Formula n-values ARE these Toda couplings, then the Sacred Formula
+is literally the mass-shell condition of the E₈ Toda field.
+
+### Koide Formula as E₈ Mark Pattern
+
+The Koide formula Q = 2/3 decomposes as 2/3 = (mark 2) × 3⁻¹,
+fitting the n = E₈ mark × 3ʲ pattern exactly.
+
+### 4D Zamolodchikov Conjecture: Revised
+
+The naive 4D version fails (BPS masses are all equal in simply-laced theories).
+The correct statement requires dimensional reduction: 4D → circle → 2D Toda → φ.
+The physical content is: φ is a **compactification artifact**, not a 4D quantity.

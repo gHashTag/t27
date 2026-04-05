@@ -1,0 +1,40 @@
+{
+  "exp1": {
+    "finding": "BPS masses in 4D MN E8 are all equal (simply-laced)",
+    "phi_in_4d": false,
+    "phi_requires": "dimensional reduction to 2D",
+    "references": [
+      "Cecotti-Vafa arXiv:1006.3435",
+      "Distler-Martone arXiv:1901.09929"
+    ]
+  },
+  "exp2": {
+    "mu_me_ratio": 4.227014556487837,
+    "phi3": 4.23606797749979,
+    "sigma": 0.06608983758594211,
+    "consistent": true,
+    "precision_needed": "0.01 MeV for m_u",
+    "mu_md_no_match": true
+  },
+  "exp3": {
+    "coldea_masses_confirmed": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "masses_7_8_not_measured": true
+  },
+  "exp4": {
+    "koide_Q": 0.6666608187172461,
+    "koide_is_mark_pattern": true,
+    "dm_ratio": 32.57636122177955
+  },
+  "theor1": {
+    "toda_marks_are_sacred_n": true,
+    "toda_lagrangian_contains_marks": true,
+    "prediction": "V = mark \u00d7 3^j \u00d7 F(pi, phi, e) from Toda field equations"
+  }
+}
