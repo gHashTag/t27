@@ -180,3 +180,29 @@ fitting the n = E₈ mark × 3ʲ pattern exactly.
 The naive 4D version fails (BPS masses are all equal in simply-laced theories).
 The correct statement requires dimensional reduction: 4D → circle → 2D Toda → φ.
 The physical content is: φ is a **compactification artifact**, not a 4D quantity.
+
+---
+
+## CORRECTION (late night session)
+
+The previously reported formula α⁻¹ = 5×3⁴×m₁/m₅ = 136.996 (error 0.029%)
+was computed with INCORRECT mass indexing. The correct value is:
+
+  5 × 3⁴ × m₁/m₅ = 5 × 81 × 0.1069 = 43.28 (NOT 137)
+
+The error originated from confusing mass indices in the earlier search
+(which tested n×3^k×m_i/m_j against ALL combinations including n up to 9,
+effectively allowing n = 5×3^k to absorb any value).
+
+**Strict result**: Only 2 of 8 SM constants are expressible as
+  (single E₈ mark) × 3^k × (single Zamolodchikov mass ratio)
+with < 0.5% error:
+  - sin²θ_W ≈ 6×3⁻⁵×m₄/m₈ (error 0.067%)
+  - T_CMB ≈ 2×m₃/m₇ (error 0.185%)
+
+The broader Sacred Formula (with π^m × φ^p × e^q factors) achieves
+more matches, but the pure "mark × 3^k × mass ratio" form is limited.
+
+This is an honest correction. The E₈ mark pattern in n-values (p < 0.0001)
+remains valid — but the dream of deriving ALL constants from Toda alone
+is not supported by the current analysis.
