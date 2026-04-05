@@ -974,6 +974,132 @@
       "last_verdict": "clean",
       "last_bench": null,
       "failure_count": 0
+    },
+    {
+      "id": 45,
+      "name": "fpga/bridge",
+      "path": "t27/specs/fpga/bridge.t27",
+      "strand": "III",
+      "tier": 2,
+      "kind": "spec",
+      "exports": ["FPGA_Bridge", "Bridge_Unit", "buffer_write", "buffer_read", "bridge_parse_header"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 46,
+      "name": "fpga/spi",
+      "path": "t27/specs/fpga/spi.t27",
+      "strand": "III",
+      "tier": 2,
+      "kind": "spec",
+      "exports": ["SPI_Master", "SPI_Master_Unit", "spi_transfer", "spi_tick"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 47,
+      "name": "fpga/uart",
+      "path": "t27/specs/fpga/uart.t27",
+      "strand": "III",
+      "tier": 2,
+      "kind": "spec",
+      "exports": ["UART_Bridge", "UART_TX_Unit", "UART_RX_Unit", "uart_tx_write", "uart_rx_tick"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 48,
+      "name": "fpga/top_level",
+      "path": "t27/specs/fpga/top_level.t27",
+      "strand": "III",
+      "tier": 3,
+      "kind": "spec",
+      "exports": ["Trinity_FPGA_Top", "Top_State", "top_tick", "top_reset", "led_set"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 49,
+      "name": "fpga/testbench/mac_tb",
+      "path": "t27/specs/fpga/testbench/mac_tb.t27",
+      "strand": "III",
+      "tier": 3,
+      "kind": "testbench",
+      "exports": ["MAC_Testbench", "run_tests"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 50,
+      "name": "fpga/testbench/top_tb",
+      "path": "t27/specs/fpga/testbench/top_tb.t27",
+      "strand": "III",
+      "tier": 4,
+      "kind": "testbench",
+      "exports": ["Top_Level_Testbench", "run_tests"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 51,
+      "name": "fpga/testbench/uart_tb",
+      "path": "t27/specs/fpga/testbench/uart_tb.t27",
+      "strand": "III",
+      "tier": 3,
+      "kind": "testbench",
+      "exports": ["UART_Testbench", "run_tests"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 52,
+      "name": "vsa/core",
+      "path": "t27/specs/vsa/core.t27",
+      "strand": "II",
+      "tier": 2,
+      "kind": "spec",
+      "exports": ["VSACore", "HyperVector", "Codebook", "encode_predicate", "decode_argument", "codebook_lookup", "analogy", "resonator_solve"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
+    },
+    {
+      "id": 53,
+      "name": "compiler/codegen/verilog/fpga_emission",
+      "path": "t27/compiler/codegen/verilog/fpga_emission.t27",
+      "strand": "III",
+      "tier": 6,
+      "kind": "codegen",
+      "exports": ["FpgaCodegen", "emit_fpga_top", "emit_uart_module", "emit_spi_module", "emit_mac_module"],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0
     }
   ],
   "edges": [
@@ -1414,6 +1540,90 @@
       "to": 44,
       "kind": "lexer-to-parser",
       "invariant": "tokens-then-spec-parse"
+    },
+    {
+      "from": 0,
+      "to": 45,
+      "kind": "import",
+      "invariant": "types-for-fpga-bridge"
+    },
+    {
+      "from": 0,
+      "to": 46,
+      "kind": "import",
+      "invariant": "types-for-fpga-spi"
+    },
+    {
+      "from": 0,
+      "to": 47,
+      "kind": "import",
+      "invariant": "types-for-fpga-uart"
+    },
+    {
+      "from": 9,
+      "to": 48,
+      "kind": "import",
+      "invariant": "mac-for-fpga-top"
+    },
+    {
+      "from": 45,
+      "to": 48,
+      "kind": "import",
+      "invariant": "bridge-for-fpga-top"
+    },
+    {
+      "from": 46,
+      "to": 48,
+      "kind": "import",
+      "invariant": "spi-for-fpga-top"
+    },
+    {
+      "from": 47,
+      "to": 48,
+      "kind": "import",
+      "invariant": "uart-for-fpga-top"
+    },
+    {
+      "from": 9,
+      "to": 49,
+      "kind": "test-dep",
+      "invariant": "mac-for-mac-testbench"
+    },
+    {
+      "from": 48,
+      "to": 50,
+      "kind": "test-dep",
+      "invariant": "top-for-top-testbench"
+    },
+    {
+      "from": 47,
+      "to": 51,
+      "kind": "test-dep",
+      "invariant": "uart-for-uart-testbench"
+    },
+    {
+      "from": 0,
+      "to": 52,
+      "kind": "import",
+      "invariant": "types-for-vsa-core"
+    },
+    {
+      "from": 1,
+      "to": 52,
+      "kind": "import",
+      "invariant": "ops-for-vsa-core"
+    },
+    {
+      "from": 5,
+      "to": 52,
+      "kind": "import",
+      "invariant": "vsa-ops-for-vsa-core"
+    },
+    {
+      "from": 14,
+      "to": 53,
+      "kind": "import",
+      "invariant": "verilog-codegen-for-fpga-emission"
     }
   ],
   "actions": [
@@ -1706,7 +1916,16 @@
     "ar/restraint",
     "ar/explainability",
     "ar/asp_solver",
-    "ar/composition"
+    "ar/composition",
+    "fpga/bridge",
+    "fpga/spi",
+    "fpga/uart",
+    "fpga/top_level",
+    "fpga/testbench/mac_tb",
+    "fpga/testbench/top_tb",
+    "fpga/testbench/uart_tb",
+    "vsa/core",
+    "compiler/codegen/verilog/fpga_emission"
   ],
   "contracts": {
     "topological_order": [
@@ -1754,7 +1973,16 @@
       "ar/restraint",
       "ar/explainability",
       "ar/asp_solver",
-      "ar/composition"
+      "ar/composition",
+      "fpga/bridge",
+      "fpga/spi",
+      "fpga/uart",
+      "fpga/top_level",
+      "fpga/testbench/mac_tb",
+      "fpga/testbench/top_tb",
+      "fpga/testbench/uart_tb",
+      "vsa/core",
+      "compiler/codegen/verilog/fpga_emission"
     ],
     "no_cycles": true,
     "all_edges_satisfied": true
@@ -1818,6 +2046,22 @@
       32,
       33,
       34
+    ],
+    "fpga_nodes": [
+      9,
+      45,
+      46,
+      47,
+      48
+    ],
+    "testbench_nodes": [
+      49,
+      50,
+      51
+    ],
+    "vsa_nodes": [
+      5,
+      52
     ]
   }
 }
