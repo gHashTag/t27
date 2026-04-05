@@ -1,0 +1,164 @@
+{
+  "description": "SU(2)_3 Chern-Simons Conformance Vectors — KEPLER-NEWTON Direction F",
+  "version": "1.0",
+  "source_module": "physics::su2_chern_simons",
+  "references": [
+    "Kitaev, Annals of Physics 321 (2006) 2-111",
+    "Nayak et al., Rev. Mod. Phys. 80 (2008) 1083",
+    "Witten, Commun. Math. Phys. 121 (1989) 351"
+  ],
+
+  "constants": {
+    "CS_LEVEL": {
+      "value": 3,
+      "description": "SU(2) Chern-Simons level k",
+      "critical": true
+    },
+    "CYCLOTOMIC_INDEX": {
+      "value": 5,
+      "description": "k+2 = 5, source of Q(sqrt(5)) and phi",
+      "critical": true
+    }
+  },
+
+  "vectors": [
+    {
+      "name": "Fibonacci Fusion Rule: d_tau = phi",
+      "description": "Quantum dimension from tau x tau = 1 + tau. Perron-Frobenius eigenvalue of [[0,1],[1,1]]",
+      "test_cases": [
+        {
+          "input": {},
+          "expected": {
+            "d_tau": 1.6180339887498948482,
+            "characteristic_residual": 0.0
+          },
+          "tolerance": {
+            "max_abs_error": 1.0e-15
+          },
+          "theorem": "lambda^2 - lambda - 1 = 0, positive root = phi"
+        }
+      ]
+    },
+    {
+      "name": "S-Matrix Quantum Dimensions at k=3",
+      "description": "d_j = sin((2j+1)*pi/5) / sin(pi/5) for j = 0, 1/2, 1, 3/2",
+      "test_cases": [
+        {
+          "input": {"j": 0.0, "k": 3},
+          "expected": {"d_j": 1.0},
+          "tolerance": {"max_abs_error": 1.0e-12}
+        },
+        {
+          "input": {"j": 0.5, "k": 3},
+          "expected": {"d_j": 1.6180339887498948482},
+          "tolerance": {"max_abs_error": 1.0e-12},
+          "note": "d_{1/2} = phi"
+        },
+        {
+          "input": {"j": 1.0, "k": 3},
+          "expected": {"d_j": 1.6180339887498948482},
+          "tolerance": {"max_abs_error": 1.0e-12},
+          "note": "d_1 = phi (same as d_{1/2} at k=3)"
+        },
+        {
+          "input": {"j": 1.5, "k": 3},
+          "expected": {"d_j": 1.0},
+          "tolerance": {"max_abs_error": 1.0e-12}
+        }
+      ]
+    },
+    {
+      "name": "Jones Quantum Integer [2]_5 = phi",
+      "description": "[2]_5 = sin(2*pi/5) / sin(pi/5) = 2*cos(pi/5) = phi",
+      "test_cases": [
+        {
+          "input": {"n": 2, "k": 3},
+          "expected": {"value": 1.6180339887498948482},
+          "tolerance": {"max_abs_error": 1.0e-12}
+        }
+      ]
+    },
+    {
+      "name": "TRINITY = CS Level",
+      "description": "phi^2 + phi^{-2} = 3 = k. The algebraic identity equals the CS level.",
+      "test_cases": [
+        {
+          "input": {},
+          "expected": {
+            "trinity_value": 3.0,
+            "cs_level": 3,
+            "match": true
+          },
+          "tolerance": {
+            "max_abs_error": 1.0e-15
+          },
+          "critical": true
+        }
+      ]
+    },
+    {
+      "name": "Total Quantum Dimension",
+      "description": "D^2 = 1 + phi^2 = 2 + phi",
+      "test_cases": [
+        {
+          "input": {},
+          "expected": {
+            "D_squared": 3.6180339887498948482
+          },
+          "tolerance": {"max_abs_error": 1.0e-14}
+        }
+      ]
+    },
+    {
+      "name": "Fibonacci Hilbert Space Dimensions",
+      "description": "Hilbert space of n Fibonacci anyons has dimension F_n",
+      "test_cases": [
+        {"input": {"n": 2}, "expected": {"dim": 2}},
+        {"input": {"n": 3}, "expected": {"dim": 3}},
+        {"input": {"n": 4}, "expected": {"dim": 5}},
+        {"input": {"n": 5}, "expected": {"dim": 8}},
+        {"input": {"n": 6}, "expected": {"dim": 13}},
+        {"input": {"n": 7}, "expected": {"dim": 21}},
+        {"input": {"n": 10}, "expected": {"dim": 89}},
+        {"input": {"n": 12}, "expected": {"dim": 233}}
+      ]
+    },
+    {
+      "name": "Modular S-Matrix at k=3",
+      "description": "Full 4x4 S-matrix computed from Kac-Peterson formula",
+      "test_cases": [
+        {
+          "input": {"k": 3},
+          "expected": {
+            "S_matrix": [
+              [0.3717480345, 0.6015009550, 0.6015009550, 0.3717480345],
+              [0.6015009550, 0.3717480345, -0.3717480345, -0.6015009550],
+              [0.6015009550, -0.3717480345, -0.3717480345, 0.6015009550],
+              [0.3717480345, -0.6015009550, 0.6015009550, -0.3717480345]
+            ]
+          },
+          "tolerance": {"max_abs_error": 1.0e-8}
+        }
+      ]
+    }
+  ],
+
+  "identities": [
+    {
+      "name": "TRINITY = CS Level",
+      "formula": "phi^2 + phi^{-2} = k = 3",
+      "critical": true,
+      "tolerance_abs": 1.0e-15
+    },
+    {
+      "name": "phi = 2*cos(pi/5)",
+      "formula": "phi = 2*cos(pi/5) = 2*cos(36 degrees)",
+      "critical": true
+    },
+    {
+      "name": "d_tau = phi",
+      "formula": "Perron-Frobenius eigenvalue of [[0,1],[1,1]] = phi",
+      "critical": true
+    }
+  ]
+}
