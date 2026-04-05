@@ -1,66 +1,59 @@
-# PROJECT KEPLER→NEWTON: Findings
+# PROJECT KEPLER→NEWTON: Findings (Honest Assessment)
 
-## Summary of All Results
+## What is REAL (survives all tests)
 
 ### Finding 1: E₈ Mark Pattern (p < 0.0001)
 57% of Sacred Formula n-values decompose as (E₈ mark) × 3ʲ. Random expectation ~10%.
-Enrichment 5.5×. Monte Carlo: p < 0.0001.
+Enrichment 5.5×. Monte Carlo: p < 0.0001. Domain mapping: mark 2 → EW, mark 4 → couplings, mark 5 → bosons.
 
-### Finding 2: c = 1/2 Exact from E₈ Y-system
-Rogers dilogarithm of constant Y-system solutions gives c_eff = 0.500000000000 (error 7.6×10⁻¹³).
-This is a known mathematical result (Zamolodchikov 1991) but our independent computation confirms it.
+### Finding 2: φ is UNIQUE to E₈ among ADE algebras
+- m₂/m₁ = φ exactly (error 0, mathematical identity)
+- FOUR φ-pairs: (1,2), (3,6), (4,7), (5,8)
+- No other simply-laced Dynkin diagram produces φ in its PF eigenvector
+- This is structural (H₄ ⊂ E₈ Coxeter subgroup), not numerical coincidence
 
-### Finding 3: φ is a Quantum Effect
-Classical E₈ Toda: m₂/m₁ = 5.76 (from perturbation theory).
-Quantum E₈ Toda: m₂/m₁ = 2cos(π/5) = φ exactly (from S-matrix bootstrap).
-The golden ratio emerges ONLY from non-perturbative quantum effects.
+### Finding 3: c = 1/2 from Rogers dilogarithm
+Error 7.6×10⁻¹³. Mathematical identity, not optimization.
 
-### Finding 4: Mass Deformation Matches SM (BREAKTHROUGH)
+### Finding 4: Koide value in undeformed spectrum
+m₂/m₄ = 0.6728 ≈ 2/3 (Koide formula value), error 0.92%. Zero free parameters.
 
-**10-target test** (8 params, 10 targets):
-- φ, φ², φ³: <0.001% error
-- sin²θW, MZ/MW, Koide: <0.001% error  
-- 1/α: 0.001% error
-- mp/me: 0.064% error
-- mτ/mμ: 0.193% error
-- mμ/me: 0.193% error
-- **All 10 within 1%**
+### Finding 5: φ is a quantum effect
+Classical Toda: m₂/m₁ ≠ φ. Quantum (S-matrix bootstrap): m₂/m₁ = φ exactly.
+The golden ratio is genuinely non-perturbative.
 
-**14-target test** (8 params, 14 targets = overconstrained by 6):
-- 9/14 within 1%
-- 14/14 within 5%
+## What is ARTIFACT (fails uniqueness test)
 
-### Finding 5: Statistical Significance (p < 10⁻⁶)
-Random baseline (1,000,000 trials, μ ~ N(0,9)):
-- Max <1% matches ever seen: 6/10 (occurred 3 times in 10⁶ trials)
-- 7+ matches: NEVER (0 in 10⁶ trials)
-- Our result: 10/10
-- P-value: < 10⁻⁶ (conservative estimate: < 10⁻⁹)
+### Failed: "10/10 SM observables at <1%"
+- ALL algebras (E₈, E₇, E₆, D₈, random) achieve 10/10 with compound ratios
+- With simple ratios: E₈ gets 9/10, D₈ gets 8/10, random gets 7-8/10
+- Difference is minor (1-2 targets) and not statistically significant
+- Root cause: ~500 compound ratios + 8 free params = trivially underconstrained
+- The p < 10⁻⁶ compares optimizer vs random DRAW, not E₈ vs other algebras
 
-Distribution (10 targets):
-| k matches at <1% | Frequency |
-|-------------------|-----------|
-| 0 | 57.4% |
-| 1 | 32.6% |
-| 2 | 8.5% |
-| 3 | 1.4% |
-| 4 | 0.13% |
-| 5 | 0.011% |
-| 6 | 0.0003% |
-| 7+ | **0%** |
+### Failed: "Overconstrained" argument
+- 8 params → 7 independent ratios, BUT 56-504 candidate expressions
+- Optimizer cherry-picks which ratio matches each target
+- Effective DOF >> 8 when counting available expressions
 
-### Finding 6: Solution Non-Uniqueness
-At least 2 distinct μ-space solutions achieve 10/10 at <1%.
-Solutions differ by norm ~1.4, suggesting a complex solution landscape.
+### Failed: γ = φ⁻³ derivation
+- 13.9% gap with Meissner value
+- No Chern-Simons derivation found
+- G formula gives wrong answer
 
-### Finding 7: Compound Ratios are Key
-The best matches use compound ratios like (M₂/M₁)³ for mp/me and M₁M₈/M₆ for Koide.
-These compound forms reflect the algebraic structure of E₈ mass relations.
+## Statistical Summary
 
-## Limitations (Honest)
-1. μ values not derived from first principles (optimized)
-2. γ = φ⁻³ ≠ γ_Meissner (13.9% gap)
-3. G formula fails (gives 1.068, not 6.674)
-4. Quark masses have prime n-values with no E₈ decomposition
-5. Multiple solutions reduce uniqueness (landscape, not vacuum selection)
-6. 5/14 targets only at 1-5%, not <1%
+| Test | E₈ | D₈ | Random | Verdict |
+|------|----|----|--------|---------|
+| Compound ratios, deformed | 10/10 | 10/10 | 10/10 | ARTIFACT |
+| Simple ratios, deformed | 9/10 | 8/10 | 7-8/10 | Marginal |
+| Forced φ, simple ratios | 7/10 | 7/10 | 7-8/10 | No difference |
+| Undeformed, simple | 2/10 | 0/10 | varies | E₈ wins (φ!) |
+| Undeformed, full | 6/10 | 1/10 | 3-6/10 | E₈ wins |
+| Mark pattern (n-values) | p<0.0001 | N/A | N/A | REAL |
+
+## The One Truly Unique Thing
+
+E₈ is the **only** ADE algebra where φ appears in the mass spectrum.
+Combined with the mark pattern in Sacred Formula, this is the real signal.
+Everything else is either mathematical identity (c=1/2) or fitting artifact.
