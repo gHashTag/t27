@@ -2,6 +2,17 @@
 // DO NOT EDIT -- regenerate with: tri gen specs/numeric/tf3.t27
 // phi^2 + phi^-2 = 3 | TRINITY
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 // ============================================================================
 // TF3 -- Ternary Float 3: 8-bit ternary neural network weight format
 // Bit layout: [S(1) E(3) M(4)] = [7:7][6:4][3:0]

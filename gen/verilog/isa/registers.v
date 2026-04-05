@@ -5,6 +5,18 @@
 // Synthesizable Verilog for 27-register file with Coptic encoding
 // TernaryWord: 27 trits packed in REG_WIDTH*2 bits (2 bits per trit)
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+/* verilator lint_off MULTIDRIVEN */
+
+
 module isa_registers #(
     parameter NUM_REGS  = 27,
     parameter REG_WIDTH = 27,

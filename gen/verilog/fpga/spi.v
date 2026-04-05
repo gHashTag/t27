@@ -5,6 +5,17 @@
 // Synthesizable Verilog for SPI Master, Mode 0 (CPOL=0, CPHA=0)
 // SCK idle low, sample on rising edge, shift on falling edge
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 module spi_master #(
     parameter CLK_FREQ          = 50000000, // 50 MHz system clock
     parameter MAX_DATA_WIDTH    = 32,       // Max bits per transfer

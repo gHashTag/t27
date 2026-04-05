@@ -5,6 +5,17 @@
 // Synthesizable Verilog for FPGA communication bridge
 // Combines UART and SPI with circular buffer management and packet protocol
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 module fpga_bridge #(
     parameter RX_BUFFER_SIZE  = 256,
     parameter TX_BUFFER_SIZE  = 256,

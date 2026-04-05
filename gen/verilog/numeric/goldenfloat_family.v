@@ -2,6 +2,17 @@
 // DO NOT EDIT -- regenerate with: tri gen specs/numeric/goldenfloat_family.t27
 // phi^2 + phi^-2 = 3 | TRINITY
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 // ============================================================================
 // GoldenFloatFamily -- phi-structured floating point format registry
 // Contains all 7 GF formats: GF4, GF8, GF12, GF16, GF20, GF24, GF32

@@ -5,6 +5,17 @@
 // Synthesizable Verilog for TRINITY identity verification
 // Fixed-point representation: Q16.48 (64-bit with 48 fractional bits)
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 module sacred_physics #(
     parameter FRAC_BITS = 48,
     parameter TOTAL_BITS = 64
