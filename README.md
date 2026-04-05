@@ -1,15 +1,4 @@
 <p align="center">
-  <strong>phi^2 + 1/phi^2 = 3 | TRINITY</strong>
-</p>
-
-<h1 align="center">t27 -- TRI-27 Spec-First Language</h1>
-
-<p align="center">
-  The canonical source of truth for Trinity S3AI.<br>
-  <code>.t27</code> specs in -> Zig, Verilog, C out.
-</p>
-
-<p align="center">
   <a href="https://github.com/gHashTag/t27/actions"><img src="https://img.shields.io/github/actions/workflow/status/gHashTag/t27/ci.yml?branch=master&label=CI&style=flat-square" alt="CI"></a>
   <a href="https://github.com/gHashTag/t27/issues"><img src="https://img.shields.io/github/issues-raw/gHashTag/t27?style=flat-square&color=D93F0B&label=open%20issues" alt="Issues"></a>
   <a href="https://github.com/gHashTag/t27/pulls"><img src="https://img.shields.io/github/issues-pr-raw/gHashTag/t27?style=flat-square&label=open%20PRs" alt="PRs"></a>
@@ -21,6 +10,19 @@
   <img src="https://img.shields.io/badge/agents-27-gold?style=flat-square" alt="Agents">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
 </p>
+
+
+<p align="center">
+  <strong>phi^2 + 1/phi^2 = 3 | TRINITY</strong>
+</p>
+
+<h1 align="center">t27 -- TRI-27 Spec-First Language</h1>
+
+<p align="center">
+  The canonical source of truth for Trinity S3AI.<br>
+  <code>.t27</code> specs in -> Zig, Verilog, C out.
+</p>
+
 
 ---
 
