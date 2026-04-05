@@ -1,0 +1,22 @@
+{
+  "episode_id": "ring-51-history",
+  "timestamp": "2026-04-05T17:00:00Z",
+  "type": "feature",
+  "agent": "T",
+  "phase": "Evolve",
+  "ring": 51,
+  "description": "Implemented full history command with timeline and statistics",
+  "steps": [
+    {"step": 1, "action": "IMPLEMENT_HISTORY", "status": "complete", "detail": "Read episodes from JSON + JSONL"},
+    {"step": 2, "action": "DEDUP_SORT", "status": "complete", "detail": "Deduplicate by episode_id, sort by ring"},
+    {"step": 3, "action": "FORMAT_TIMELINE", "status": "complete", "detail": "Formatted table output"},
+    {"step": 4, "action": "COMPUTE_STATS", "status": "complete", "detail": "Velocity, health streak, coverage"}
+  ],
+  "learnings": [
+    "History provides trajectory visualization for self-improvement",
+    "Velocity metric tracks rings/day improvement rate",
+    "Health streak counts consecutive green verdicts"
+  ],
+  "mistakes": [],
+  "result": "success"
+}

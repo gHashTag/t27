@@ -1,17 +1,16 @@
 {
-  "issue_id": "SEED-50",
-  "issue_number": 50,
+  "issue_id": "SEED-51",
+  "issue_number": 51,
   "source": "github",
-  "url": "https://github.com/gHashTag/t27/issues/SEED-50",
-  "title": "feat(ring-50): add CLI REPL nodes to canonical dependency graph",
+  "url": "https://github.com/gHashTag/t27/issues/SEED-51",
+  "title": "feat(ring-51): tri repl history with episode analysis",
   "state": "closed",
-  "linked_skill_id": "ring-50-graph-update",
-  "linked_session_id": "2026-04-05T16:00:00Z#ring50",
-  "last_synced_at": "2026-04-05T16:00:00Z",
-  "required_commit_message_pattern": "\\[SEED-50\\]",
+  "linked_skill_id": "ring-51-history",
+  "linked_session_id": "2026-04-05T17:00:00Z#ring51",
+  "last_synced_at": "2026-04-05T17:00:00Z",
+  "required_commit_message_pattern": "\\[SEED-51\\]",
   "metadata": {
-    "ring": 50,
-    "layer": "ROOT",
-    "nodes_added": ["cli/repl", "cli/ring_executor", "cli/self_improve"]
+    "ring": 51,
+    "layer": "ROOT"
   }
 }

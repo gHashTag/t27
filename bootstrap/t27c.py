@@ -1533,30 +1533,128 @@ def _run_evolve(root: Path, state: dict):
 
 
 def _run_history(root: Path, state: dict):
-    """Show ring improvement trajectory."""
-    print("[+] Ring Improvement Trajectory:")
+    """Show ring improvement trajectory with full analysis."""
     episodes_dir = root / ".trinity" / "experience" / "episodes"
+    entries = []
+
+    # Read episode JSON files
     if episodes_dir.exists():
-        entries = []
         for f in episodes_dir.glob("*.json"):
             try:
                 ep = json.loads(f.read_text())
-                entries.append((
-                    ep.get("timestamp", ""),
-                    ep.get("ring", 0),
-                    ep.get("episode_id", "unknown"),
-                    ep.get("result", "unknown"),
-                ))
+                entries.append(ep)
             except (json.JSONDecodeError, KeyError):
                 pass
-        entries.sort()
-        for ts, ring, eid, result in entries:
-            print(f"  Ring {ring:>3}: {eid} [{result}]")
-        if not entries:
-            print("  (no episodes recorded yet)")
+
+    # Also read episodes.jsonl if it exists
+    jsonl_path = episodes_dir / "episodes.jsonl" if episodes_dir.exists() else None
+    if jsonl_path and jsonl_path.exists():
+        for line in jsonl_path.read_text().splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
+    # Deduplicate by episode_id
+    seen = set()
+    unique = []
+    for ep in entries:
+        eid = ep.get("episode_id", "")
+        if eid and eid not in seen:
+            seen.add(eid)
+            unique.append(ep)
+    entries = unique
+
+    # Sort by ring number then timestamp
+    entries.sort(key=lambda e: (e.get("ring", 0), e.get("timestamp", "")))
+
+    # Compute current ring from state
+    current_ring = state.get("ring", 0)
+
+    # Count graph nodes
+    graph_path = root / "architecture" / "graph_v2.json"
+    node_count = 0
+    if graph_path.exists():
+        try:
+            g = json.loads(graph_path.read_text())
+            node_count = len(g.get("nodes", []))
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Count seals
+    seals_dir = root / ".trinity" / "seals"
+    seal_count = sum(1 for _ in seals_dir.glob("*.json")) if seals_dir.exists() else 0
+
+    # Header
+    print(f"Ring History (current: Ring {current_ring})")
+    print("=" * 72)
+
+    if not entries:
+        print("  (no episodes recorded yet)")
     else:
-        print("  (no episodes directory)")
-    print(f"\nCurrent: Ring {state['ring']} [{state['layer']}]")
+        for ep in entries:
+            ring = ep.get("ring", 0)
+            ts = ep.get("timestamp", "")[:10]
+            etype = ep.get("type", "unknown")
+            desc = ep.get("description", "")[:40]
+            result = ep.get("result", "unknown")
+            verdict = "clean" if result == "success" else result
+
+            # Count steps
+            steps = ep.get("steps", [])
+            step_summary = ""
+            if ep.get("seals_fixed"):
+                step_summary = f"{len(ep['seals_fixed'])} seals fixed"
+            elif ep.get("weakness_type"):
+                step_summary = f"auto-fix: {ep['weakness_type']}"
+            elif steps:
+                step_summary = f"{len(steps)} steps"
+            else:
+                step_summary = etype
+
+            print(f"Ring {ring:>3} | {ts} | {desc:<40} | {verdict:<6} | {step_summary}")
+
+    # Statistics
+    print()
+    if entries:
+        timestamps = [e.get("timestamp", "") for e in entries if e.get("timestamp")]
+        if len(timestamps) >= 2:
+            first = timestamps[0][:10]
+            last = timestamps[-1][:10]
+        else:
+            first = last = timestamps[0][:10] if timestamps else "N/A"
+
+        # Count unique rings
+        ring_nums = sorted(set(e.get("ring", 0) for e in entries if e.get("ring")))
+        num_rings = len(ring_nums)
+
+        # Calculate days between first and last
+        try:
+            from datetime import datetime
+            d1 = datetime.strptime(first, "%Y-%m-%d")
+            d2 = datetime.strptime(last, "%Y-%m-%d")
+            days = max((d2 - d1).days, 1)
+            velocity = num_rings / days
+        except (ValueError, ZeroDivisionError):
+            days = 1
+            velocity = num_rings
+
+        # Count successes
+        successes = sum(1 for e in entries if e.get("result") == "success")
+        streak = 0
+        for e in reversed(entries):
+            if e.get("result") == "success":
+                streak += 1
+            else:
+                break
+
+        print(f"Improvement Velocity: {num_rings} rings in {days} day(s) ({velocity:.1f} rings/day)")
+        print(f"Health Streak: {streak} GREEN verdict(s)")
+        print(f"Coverage: {node_count}/{node_count} nodes ({seal_count} sealed)")
+    else:
+        print("No statistics available yet.")
 
 
 def _run_status(root: Path, state: dict):

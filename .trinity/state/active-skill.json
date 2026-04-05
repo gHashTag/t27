@@ -1,17 +1,17 @@
 {
-  "skill_id": "ring-50-graph-update",
-  "skill_name": "graph-update",
-  "session_id": "2026-04-05T16:00:00Z#ring50",
-  "issue_id": "SEED-50",
-  "issue_title": "Ring 50: Add CLI REPL nodes to canonical dependency graph",
-  "description": "Add cli_repl, cli_ring_executor, cli_self_improve nodes to graph_v2.json",
-  "ring": 50,
+  "skill_id": "ring-51-history",
+  "skill_name": "repl-history",
+  "session_id": "2026-04-05T17:00:00Z#ring51",
+  "issue_id": "SEED-51",
+  "issue_title": "Ring 51: tri repl history with episode analysis",
+  "description": "Full history command with timeline, velocity, health streak, coverage stats",
+  "ring": 51,
   "layer": "ROOT",
-  "started_at": "2026-04-05T16:00:00Z",
+  "started_at": "2026-04-05T17:00:00Z",
   "started_by": "agent:claude-code",
   "status": "complete",
   "allowed_paths": [
-    "architecture/graph_v2.json",
+    "bootstrap/t27c.py",
     ".trinity/state/",
     ".trinity/experience/"
   ]
