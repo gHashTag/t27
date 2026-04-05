@@ -1659,24 +1659,153 @@ def _run_history(root: Path, state: dict):
 
 def _run_status(root: Path, state: dict):
     """Show current ring level and capabilities."""
-    print(f"[+] TRI REPL Status")
-    print(f"  Ring: {state['ring']} [{state['layer']}]")
-    print(f"  Active Skill: {state['skill'] or '(none)'}")
-    print(f"  Issue Binding: #{state['issue']}")
+    from datetime import datetime, timezone
+
+    ring = state.get("ring", 0)
+    layer = state.get("layer", _get_ring_layer(ring))
+    skill = state.get("skill", "")
+    issue = state.get("issue", 0)
 
     # Count specs and seals
     specs_dir = root / "specs"
+    compiler_dir = root / "compiler"
     seals_dir = root / ".trinity" / "seals"
     spec_count = sum(1 for _ in specs_dir.rglob("*.t27")) if specs_dir.exists() else 0
+    compiler_spec_count = sum(1 for _ in compiler_dir.rglob("*.t27")) if compiler_dir.exists() else 0
+    total_specs = spec_count + compiler_spec_count
     seal_count = sum(1 for _ in seals_dir.glob("*.json")) if seals_dir.exists() else 0
-    print(f"  Specs: {spec_count} | Seals: {seal_count}")
+    pending_count = max(total_specs - seal_count, 0)
+
+    # Load health
+    health_path = root / ".trinity" / "state" / "queen-health.json"
+    health = 1.0
+    health_status = "GREEN"
+    if health_path.exists():
+        try:
+            hdata = json.loads(health_path.read_text())
+            health = hdata.get("queen_health", 1.0)
+            health_status = hdata.get("status", "GREEN")
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Count commands (built-in REPL commands)
+    builtin_cmds = ["status", "doctor", "evolve", "history", "reload",
+                    "help", "quit", "skill begin", "spec edit", "seal",
+                    "gen", "test", "verdict", "experience save", "skill commit",
+                    "parse", "gen-zig"]
+    cmd_count = len(builtin_cmds)
+
+    # Count graph nodes
+    graph_path = root / "architecture" / "graph_v2.json"
+    node_count = 0
+    if graph_path.exists():
+        try:
+            g = json.loads(graph_path.read_text())
+            node_count = len(g.get("nodes", []))
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Last evolve info
+    episodes_dir = root / ".trinity" / "experience" / "episodes"
+    last_evolve = "(never)"
+    if episodes_dir.exists():
+        evolve_eps = []
+        for f in episodes_dir.glob("*.json"):
+            try:
+                ep = json.loads(f.read_text())
+                if ep.get("type") in ("auto-evolve", "self-heal", "self-improve"):
+                    evolve_eps.append(ep)
+            except (json.JSONDecodeError, KeyError):
+                pass
+        if evolve_eps:
+            evolve_eps.sort(key=lambda e: e.get("timestamp", ""))
+            last_ep = evolve_eps[-1]
+            last_evolve = f"Ring {last_ep.get('ring', '?')} ({last_ep.get('timestamp', '')[:10]})"
+
+    # Convergence estimate
+    weaknesses = _detect_weaknesses(root)
+    weakness_count = len(weaknesses)
+    if weakness_count == 0:
+        convergence = "100%"
+        cycles_est = "converged"
+    else:
+        # Rough convergence: ratio of sealed to total
+        conv_pct = seal_count / max(total_specs, 1) * 100
+        cycles_est = f"{weakness_count} more cycle(s) estimated"
+        convergence = f"{conv_pct:.0f}%"
+
+    print("TRI REPL Status")
+    print("=" * 40)
+    print(f"Ring Level: {ring} ({layer})")
+    print(f"Active Skill: {skill or '(none)'}")
+    print(f"Issue: SEED-{issue}")
+    print(f"Health: {health_status} ({health})")
+    print(f"Commands: {cmd_count} built-in + 0 plugins")
+    print(f"Specs: {total_specs} total ({seal_count} sealed, {pending_count} pending)")
+    print(f"Graph: {node_count} nodes")
+    print(f"Last Evolve: {last_evolve}")
+    print(f"Convergence: {convergence} ({cycles_est})")
+    print(f"Weaknesses: {weakness_count}")
 
 
 def _run_reload(root: Path, state: dict):
-    """Hot-reload REPL state from .trinity/ files."""
+    """Hot-reload REPL state from .trinity/ files with diff reporting."""
+    old_ring = state.get("ring", 0)
+    old_skill = state.get("skill", "")
+    old_layer = state.get("layer", "")
+
+    # Count specs and seals before
+    specs_dir = root / "specs"
+    compiler_dir = root / "compiler"
+    seals_dir = root / ".trinity" / "seals"
+    old_spec_count = sum(1 for _ in specs_dir.rglob("*.t27")) if specs_dir.exists() else 0
+    old_compiler_count = sum(1 for _ in compiler_dir.rglob("*.t27")) if compiler_dir.exists() else 0
+    old_total = old_spec_count + old_compiler_count
+    old_seal_count = sum(1 for _ in seals_dir.glob("*.json")) if seals_dir.exists() else 0
+
+    # Re-read all .trinity/ state files
     new_state = _load_state(root)
     state.update(new_state)
-    print(f"[+] REPL reloaded. Ring {state['ring']} [{state['layer']}]")
+
+    # Re-scan specs
+    new_spec_count = sum(1 for _ in specs_dir.rglob("*.t27")) if specs_dir.exists() else 0
+    new_compiler_count = sum(1 for _ in compiler_dir.rglob("*.t27")) if compiler_dir.exists() else 0
+    new_total = new_spec_count + new_compiler_count
+    new_seal_count = sum(1 for _ in seals_dir.glob("*.json")) if seals_dir.exists() else 0
+
+    # Verify health post-reload
+    weaknesses = _detect_weaknesses(root)
+    health_ok = len(weaknesses) == 0
+
+    # Compute diff
+    new_specs = new_total - old_total
+    new_seals = new_seal_count - old_seal_count
+    ring_changed = state["ring"] != old_ring
+
+    print("[+] REPL reloaded successfully")
+    print(f"  Ring: {state['ring']} [{state['layer']}]")
+
+    # Show diff
+    changes = []
+    if new_specs > 0:
+        changes.append(f"{new_specs} new spec(s)")
+    if new_seals > 0:
+        changes.append(f"{new_seals} new seal(s)")
+    if ring_changed:
+        changes.append(f"ring {old_ring} -> {state['ring']}")
+    if state.get("skill") != old_skill:
+        changes.append(f"skill: {state.get('skill', '(none)')}")
+
+    if changes:
+        print(f"  Loaded: {', '.join(changes)}")
+    else:
+        print("  No changes detected")
+
+    # Health check
+    if health_ok:
+        print("  Health: GREEN (no weaknesses)")
+    else:
+        print(f"  Health: {len(weaknesses)} weakness(es) detected")
 
 
 if __name__ == "__main__":

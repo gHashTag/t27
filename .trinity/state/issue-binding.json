@@ -1,16 +1,16 @@
 {
-  "issue_id": "SEED-51",
-  "issue_number": 51,
+  "issue_id": "SEED-52",
+  "issue_number": 52,
   "source": "github",
-  "url": "https://github.com/gHashTag/t27/issues/SEED-51",
-  "title": "feat(ring-51): tri repl history with episode analysis",
+  "url": "https://github.com/gHashTag/t27/issues/SEED-52",
+  "title": "feat(ring-52): hot-reload mechanism + repl status command",
   "state": "closed",
-  "linked_skill_id": "ring-51-history",
-  "linked_session_id": "2026-04-05T17:00:00Z#ring51",
-  "last_synced_at": "2026-04-05T17:00:00Z",
-  "required_commit_message_pattern": "\\[SEED-51\\]",
+  "linked_skill_id": "ring-52-hot-reload",
+  "linked_session_id": "2026-04-05T18:00:00Z#ring52",
+  "last_synced_at": "2026-04-05T18:00:00Z",
+  "required_commit_message_pattern": "\\[SEED-52\\]",
   "metadata": {
-    "ring": 51,
+    "ring": 52,
     "layer": "ROOT"
   }
 }
