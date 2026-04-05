@@ -1,0 +1,23 @@
+{
+  "episode_id": "ring-50-graph-update",
+  "timestamp": "2026-04-05T16:00:00Z",
+  "type": "graph-update",
+  "agent": "T",
+  "phase": "Evolve",
+  "ring": 50,
+  "description": "Added 3 CLI REPL nodes and 6 dependency edges to graph_v2.json",
+  "steps": [
+    {"step": 1, "action": "ADD_NODES", "status": "complete", "detail": "3 nodes: cli/repl, cli/ring_executor, cli/self_improve"},
+    {"step": 2, "action": "ADD_EDGES", "status": "complete", "detail": "6 dependency edges"},
+    {"step": 3, "action": "UPDATE_TOPO_ORDER", "status": "complete", "detail": "Added to topological order"},
+    {"step": 4, "action": "UPDATE_METADATA", "status": "complete", "detail": "Added cli_nodes to metadata"},
+    {"step": 5, "action": "UPDATE_HEALTH", "status": "complete", "detail": "Added cli domain to queen-health"}
+  ],
+  "learnings": [
+    "Graph grew from 54 to 57 nodes",
+    "CLI REPL is at tier 5 (same as compiler CLI tools)",
+    "Self-improve depends on both repl and ring_executor"
+  ],
+  "mistakes": [],
+  "result": "success"
+}

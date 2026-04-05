@@ -1,17 +1,17 @@
 {
-  "issue_id": "SEED-49",
-  "issue_number": 49,
+  "issue_id": "SEED-50",
+  "issue_number": 50,
   "source": "github",
-  "url": "https://github.com/gHashTag/t27/issues/SEED-49",
-  "title": "feat(ring-49): working tri repl evolve with auto-fix capabilities",
+  "url": "https://github.com/gHashTag/t27/issues/SEED-50",
+  "title": "feat(ring-50): add CLI REPL nodes to canonical dependency graph",
   "state": "closed",
-  "linked_skill_id": "ring-49-auto-evolve",
-  "linked_session_id": "2026-04-05T15:00:00Z#ring49",
-  "last_synced_at": "2026-04-05T15:00:00Z",
-  "required_commit_message_pattern": "\\[SEED-49\\]",
+  "linked_skill_id": "ring-50-graph-update",
+  "linked_session_id": "2026-04-05T16:00:00Z#ring50",
+  "last_synced_at": "2026-04-05T16:00:00Z",
+  "required_commit_message_pattern": "\\[SEED-50\\]",
   "metadata": {
-    "ring": 49,
-    "layer": "SEED",
-    "weakness_types_handled": ["STALE_SEAL", "COVERAGE_GAP", "MISSING_CAPABILITY"]
+    "ring": 50,
+    "layer": "ROOT",
+    "nodes_added": ["cli/repl", "cli/ring_executor", "cli/self_improve"]
   }
 }
