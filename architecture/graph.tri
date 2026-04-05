@@ -244,6 +244,17 @@ spec "trisacred-physics" {
     bench_suite = ["sacred_physics"];
 }
 
+spec "triphysics-chern-simons" {
+    tier = 2;
+    description = "SU(2)₃ Chern-Simons theory: d_τ = φ, k=3, TRINITY identity";
+    path = "specs/physics/su2_chern_simons.t27";
+    exports = ["ChernSimonsFormalism", "d_tau", "trinity_identity", "cs_level_theorem", "fibonacci_fusion", "modular_s_matrix", "jones_polynomial_connection"];
+    deps = ["trisacred-constants"];
+    competency = "ChernSimons";
+    status = "done";
+    bench_suite = ["chern_simons"];
+}
+
 // ============================================================================
 // Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
 // ============================================================================
@@ -650,6 +661,8 @@ phi_critical_edges {
     trisacred-constants -> trinhslm;
     trisacred-physics -> triatt-sacred;
     trisacred-physics -> trinhslm;
+    trisacred-constants -> triphysics-chern-simons;
+    triphysics-chern-simons -> trisacred-physics;
     triar-logic -> triar-proof-trace;
     triar-logic -> triar-datalog;
     triar-proof-trace -> triar-explainability;
