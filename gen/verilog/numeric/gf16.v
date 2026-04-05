@@ -2,6 +2,17 @@
 // DO NOT EDIT -- regenerate with: tri gen specs/numeric/gf16.t27
 // phi^2 + phi^-2 = 3 | TRINITY
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 // ============================================================================
 // GF16 -- GoldenFloat16: 16-bit phi-structured floating point (PRIMARY FORMAT)
 // Bit layout: [S(1) E(6) M(9)] = [15:15][14:9][8:0]

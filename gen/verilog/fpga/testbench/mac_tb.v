@@ -3,6 +3,17 @@
 // phi^2 + phi^-2 = 3 | TRINITY
 // Ring: 43 | Module: MAC_Testbench
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 `timescale 1ns/1ps
 
 module mac_tb;

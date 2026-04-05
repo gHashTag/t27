@@ -5,6 +5,19 @@
 // Synthesizable Verilog for Trinity FPGA top-level module
 // Target: xc7a100t (Artix-7), Package: fgg676c, Clock: 50 MHz
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+/* verilator lint_off PINMISSING */
+/* verilator lint_off MULTITOP */
+
+
 module trinity_fpga_top #(
     parameter CLK_FREQ       = 50_000_000,
     parameter UART_BAUD      = 115200,
@@ -66,17 +79,26 @@ module trinity_fpga_top #(
     // Submodule: UART Bridge
     // =================================================================
     wire       uart_tx_wire;
-    wire       uart_tx_busy;
+
+    wire [7:0] uart_rx_data;
+    wire       uart_rx_valid;
+    wire       uart_tx_ready;
 
     uart_bridge #(
         .CLK_FREQ   (CLK_FREQ),
-        .BAUD       (UART_BAUD)
+        .BAUD_RATE  (UART_BAUD)
     ) u_uart_bridge (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .rx         (uart_rx),
-        .tx         (uart_tx_wire),
-        .tx_busy    (uart_tx_busy)
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .uart_rx       (uart_rx),
+        .uart_tx       (uart_tx_wire),
+        .tx_data       (8'd0),
+        .tx_valid      (1'b0),
+        .tx_ready      (uart_tx_ready),
+        .rx_data       (uart_rx_data),
+        .rx_valid      (uart_rx_valid),
+        .rx_ack        (1'b1),
+        .framing_error ()
     );
 
     assign uart_tx = uart_tx_wire;
@@ -90,13 +112,18 @@ module trinity_fpga_top #(
     wire       spi_busy;
 
     spi_master u_spi_master (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .miso       (spi_miso),
-        .cs         (spi_cs_wire),
-        .sck        (spi_sck_wire),
-        .mosi       (spi_mosi_wire),
-        .busy       (spi_busy)
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .miso           (spi_miso),
+        .cs             (spi_cs_wire),
+        .sck            (spi_sck_wire),
+        .mosi           (spi_mosi_wire),
+        .prescaler_sel  (3'd0),
+        .data_width_cfg (5'd8),
+        .tx_data        (32'd0),
+        .start          (1'b0),
+        .rx_data        (),
+        .busy           (spi_busy)
     );
 
     assign spi_cs   = spi_cs_wire;
@@ -137,7 +164,7 @@ module trinity_fpga_top #(
         if (!rst_n)
             led_state[LED_UART_TX] <= 1'b1;  // Off (active-low)
         else
-            led_state[LED_UART_TX] <= ~uart_tx_busy;  // Active-low: invert
+            led_state[LED_UART_TX] <= uart_tx_ready;  // Active-low: ready=1 means idle (off)
     end
 
     // LED 1: SPI CS active

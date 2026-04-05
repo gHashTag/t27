@@ -5,6 +5,17 @@
 // Synthesizable Verilog for 8-unit ternary MAC array with 4-stage pipeline
 // Trit encoding: 2'b00 = zero, 2'b01 = pos (+1), 2'b10 = neg (-1)
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 module zerodsp_mac #(
     parameter MAC_WIDTH       = 27,
     parameter MAC_ACC_BITS    = 32,

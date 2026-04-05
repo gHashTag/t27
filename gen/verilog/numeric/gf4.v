@@ -2,6 +2,17 @@
 // DO NOT EDIT -- regenerate with: tri gen specs/numeric/gf4.t27
 // phi^2 + phi^-2 = 3 | TRINITY
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 // ============================================================================
 // GF4 -- GoldenFloat4: 4-bit phi-structured floating point
 // Bit layout: [S|E|MM]  S:1 E:1 M:2

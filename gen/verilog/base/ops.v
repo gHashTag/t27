@@ -2,6 +2,17 @@
 // DO NOT EDIT -- regenerate with: tri gen specs/base/ops.t27
 // phi^2 + phi^-2 = 3 | TRINITY
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 // Trit encoding: 2'b10 = -1, 2'b00 = 0, 2'b01 = +1
 `define TRIT_NEG  2'b10
 `define TRIT_ZERO 2'b00

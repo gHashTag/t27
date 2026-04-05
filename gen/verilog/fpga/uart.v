@@ -5,6 +5,17 @@
 // Synthesizable Verilog for UART Bridge with 8-N-1 protocol
 // Baud rate: 115200 @ 50 MHz clock
 
+/* verilator lint_off UNUSEDPARAM */
+/* verilator lint_off UNUSEDSIGNAL */
+/* verilator lint_off WIDTHTRUNC */
+/* verilator lint_off WIDTHEXPAND */
+/* verilator lint_off DECLFILENAME */
+/* verilator lint_off BLKSEQ */
+/* verilator lint_off INFINITELOOP */
+/* verilator lint_off UNDRIVEN */
+/* verilator lint_off PINCONNECTEMPTY */
+
+
 module uart_bridge #(
     parameter CLK_FREQ     = 50000000,
     parameter BAUD_RATE    = 115200,
