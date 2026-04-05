@@ -1,95 +1,159 @@
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# QMTech XC7A100T Constraints File
-# FPGA: Xilinx Artix-7 XC7A100T-1FGG676C
-# Board: QMTech XC7A100T FPGA Development Board
-# ═════════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# QMTECH XC7A100T (Wukong Board) XDC Constraints File
+# For ZeroDSP FPGA Implementation
+# φ² + 1/φ² = 3 | TRINITY
+################################################################################
+# Board: QMTECH XC7A100T-324 Core Board + Wukong Expansion
+# FPGA:  Xilinx Artix-7 XC7A100T-CSG324
+# Clock: 12 MHz input clock
+################################################################################
 
-# ═════════════════════════════════════════════════════════════════════════════════════════
-# CLOCK
-# ═════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# Clock Constraints
+################################################################################
 
-# 50 MHz system clock (E19 - standard for Artix-7)
-set_property -dict {PACKAGE_PIN E19 IOSTANDARD LVCMOS33} [get_ports clk]
-create_generated_clock -name clk_50MHz -source [get_ports clk] [get_pins */clk]
+# System clock - 12MHz input
+set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
+create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# RESET
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+# Reset button (active low)
+set_property -dict { PACKAGE_PIN C18   IOSTANDARD LVCMOS33 } [get_ports rst_n]
 
-# Reset button (C12 - active low)
-set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports rst_n]
+################################################################################
+# UART Signals (CP2102 USB-UART bridge)
+################################################################################
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# LEDS - Status Indicators
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+# UART RX (FPGA receives from USB-UART)
+set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports uart_rx[0]]
+set_property -dict { PACKAGE_PIN U14   IOSTANDARD LVCMOS33 } [get_ports uart_rx[1]]
+set_property -dict { PACKAGE_PIN V14   IOSTANDARD LVCMOS33 } [get_ports uart_rx[2]]
+set_property -dict { PACKAGE_PIN V13   IOSTANDARD LVCMOS33 } [get_ports uart_rx[3]]
+set_property -dict { PACKAGE_PIN W14   IOSTANDARD LVCMOS33 } [get_ports uart_rx[4]]
+set_property -dict { PACKAGE_PIN W13   IOSTANDARD LVCMOS33 } [get_ports uart_rx[5]]
+set_property -dict { PACKAGE_PIN V12   IOSTANDARD LVCMOS33 } [get_ports uart_rx[6]]
+set_property -dict { PACKAGE_PIN U12   IOSTANDARD LVCMOS33 } [get_ports uart_rx[7]]
 
-# 4 LEDs (R5, T5, T8, T9 - active low)
-set_property -dict {PACKAGE_PIN R5 IOSTANDARD LVCMOS33} [get_ports {led[0]}]
-set_property -dict {PACKAGE_PIN T5 IOSTANDARD LVCMOS33} [get_ports {led[1]}]
-set_property -dict {PACKAGE_PIN T8 IOSTANDARD LVCMOS33} [get_ports {led[2]}]
-set_property -dict {PACKAGE_PIN T9 IOSTANDARD LVCMOS33} [get_ports {led[3]}]
+# UART TX (FPGA transmits to USB-UART)
+set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx[0]]
+set_property -dict { PACKAGE_PIN U15   IOSTANDARD LVCMOS33 } [get_ports uart_tx[1]]
+set_property -dict { PACKAGE_PIN V15   IOSTANDARD LVCMOS33 } [get_ports uart_tx[2]]
+set_property -dict { PACKAGE_PIN W15   IOSTANDARD LVCMOS33 } [get_ports uart_tx[3]]
+set_property -dict { PACKAGE_PIN V16   IOSTANDARD LVCMOS33 } [get_ports uart_tx[4]]
+set_property -dict { PACKAGE_PIN U16   IOSTANDARD LVCMOS33 } [get_ports uart_tx[5]]
+set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports uart_tx[6]]
+set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports uart_tx[7]]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# SWITCHES - Input
-# ═════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# LED Outputs (8 LEDs on Wukong board)
+################################################################################
 
-# 4 switches (A15, C16, C15, P15)
-set_property -dict {PACKAGE_PIN A15 IOSTANDARD LVCMOS33} [get_ports {switch[0]}]
-set_property -dict {PACKAGE_PIN C16 IOSTANDARD LVCMOS33} [get_ports {switch[1]}]
-set_property -dict {PACKAGE_PIN C15 IOSTANDARD LVCMOS33} [get_ports {switch[2]}]
-set_property -dict {PACKAGE_PIN P15 IOSTANDARD LVCMOS33} [get_ports {switch[3]}]
+set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports { led[0] }]
+set_property -dict { PACKAGE_PIN K15   IOSTANDARD LVCMOS33 } [get_ports { led[1] }]
+set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports { led[2] }]
+set_property -dict { PACKAGE_PIN N14   IOSTANDARD LVCMOS33 } [get_ports { led[3] }]
+set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports { led[4] }]
+set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports { led[5] }]
+set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { led[6] }]
+set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports { led[7] }]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# BUTTONS
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# MAC Result Output (debug)
+################################################################################
 
-# 4 buttons (D9, C9, B9, B8 - active low)
-set_property -dict {PACKAGE_PIN D9 IOSTANDARD LVCMOS33} [get_ports {btn[0]}]
-set_property -dict {PACKAGE_PIN C9 IOSTANDARD LVCMOS33} [get_ports {btn[1]}]
-set_property -dict {PACKAGE_PIN B9 IOSTANDARD LVCMOS33} [get_ports {btn[2]}]
-set_property -dict {PACKAGE_PIN B8 IOSTANDARD LVCMOS33} [get_ports {btn[3]}]
+set_property -dict { PACKAGE_PIN T13   IOSTANDARD LVCMOS33 } [get_ports mac_done]
+set_property -dict { PACKAGE_PIN T10   IOSTANDARD LVCMOS33 } [get_ports { mac_result[0] }]
+set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[1] }]
+set_property -dict { PACKAGE_PIN U10   IOSTANDARD LVCMOS33 } [get_ports { mac_result[2] }]
+set_property -dict { PACKAGE_PIN U11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[3] }]
+set_property -dict { PACKAGE_PIN V11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[4] }]
+set_property -dict { PACKAGE_PIN W11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[5] }]
+set_property -dict { PACKAGE_PIN W12   IOSTANDARD LVCMOS33 } [get_ports { mac_result[6] }]
+set_property -dict { PACKAGE_PIN V12   IOSTANDARD LVCMOS33 } [get_ports { mac_result[7] }]
+set_property -dict { PACKAGE_PIN U12   IOSTANDARD LVCMOS33 } [get_ports { mac_result[8] }]
+set_property -dict { PACKAGE_PIN V13   IOSTANDARD LVCMOS33 } [get_ports { mac_result[9] }]
+set_property -dict { PACKAGE_PIN W13   IOSTANDARD LVCMOS33 } [get_ports { mac_result[10] }]
+set_property -dict { PACKAGE_PIN W14   IOSTANDARD LVCMOS33 } [get_ports { mac_result[11] }]
+set_property -dict { PACKAGE_PIN V14   IOSTANDARD LVCMOS33 } [get_ports { mac_result[12] }]
+set_property -dict { PACKAGE_PIN U14   IOSTANDARD LVCMOS33 } [get_ports { mac_result[13] }]
+set_property -dict { PACKAGE_PIN V15   IOSTANDARD LVCMOS33 } [get_ports { mac_result[14] }]
+set_property -dict { PACKAGE_PIN W15   IOSTANDARD LVCMOS33 } [get_ports { mac_result[15] }]
+set_property -dict { PACKAGE_PIN W16   IOSTANDARD LVCMOS33 } [get_ports { mac_result[16] }]
+set_property -dict { PACKAGE_PIN W17   IOSTANDARD LVCMOS33 } [get_ports { mac_result[17] }]
+set_property -dict { PACKAGE_PIN V16   IOSTANDARD LVCMOS33 } [get_ports { mac_result[18] }]
+set_property -dict { PACKAGE_PIN U16   IOSTANDARD LVCMOS33 } [get_ports { mac_result[19] }]
+set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports { mac_result[20] }]
+set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { mac_result[21] }]
+set_property -dict { PACKAGE_PIN V18   IOSTANDARD LVCMOS33 } [get_ports { mac_result[22] }]
+set_property -dict { PACKAGE_PIN W18   IOSTANDARD LVCMOS33 } [get_ports { mac_result[23] }]
+set_property -dict { PACKAGE_PIN W19   IOSTANDARD LVCMOS33 } [get_ports { mac_result[24] }]
+set_property -dict { PACKAGE_PIN W20   IOSTANDARD LVCMOS33 } [get_ports { mac_result[25] }]
+set_property -dict { PACKAGE_PIN W22   IOSTANDARD LVCMOS33 } [get_ports { mac_result[26] }]
+set_property -dict { PACKAGE_PIN U21   IOSTANDARD LVCMOS33 } [get_ports { mac_result[27] }]
+set_property -dict { PACKAGE_PIN U22   IOSTANDARD LVCMOS33 } [get_ports { mac_result[28] }]
+set_property -dict { PACKAGE_PIN V21   IOSTANDARD LVCMOS33 } [get_ports { mac_result[29] }]
+set_property -dict { PACKAGE_PIN V22   IOSTANDARD LVCMOS33 } [get_ports { mac_result[30] }]
+set_property -dict { PACKAGE_PIN W21   IOSTANDARD LVCMOS33 } [get_ports { mac_result[31] }]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# UART - Communication with Host
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# Pmod Header A (J10) - Available for expansion
+################################################################################
 
-# UART (TX=K20, RX=L20 - at 115200 baud)
-set_property -dict {PACKAGE_PIN K20 IOSTANDARD LVCMOS33} [get_ports uart_tx]
-set_property -dict {PACKAGE_PIN L20 IOSTANDARD LVCMOS33 PULLUP true} [get_ports uart_rx]
+set_property -dict { PACKAGE_PIN G8    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[0] }]
+set_property -dict { PACKAGE_PIN G7    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[1] }]
+set_property -dict { PACKAGE_PIN G5    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[2] }]
+set_property -dict { PACKAGE_PIN G6    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[3] }]
+set_property -dict { PACKAGE_PIN D5    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[4] }]
+set_property -dict { PACKAGE_PIN D6    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[5] }]
+set_property -dict { PACKAGE_PIN E6    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[6] }]
+set_property -dict { PACKAGE_PIN E5    IOSTANDARD LVCMOS33 } [get_ports { pmod_a[7] }]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# SPI - External Peripheral Communication
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# Pmod Header B (J11) - Available for expansion
+################################################################################
 
-# SPI (CS=G13, SCK=K13, MOSI=H13, MISO=J13)
-set_property -dict {PACKAGE_PIN G13 IOSTANDARD LVCMOS33} [get_ports spi_cs]
-set_property -dict {PACKAGE_PIN K13 IOSTANDARD LVCMOS33} [get_ports spi_sck]
-set_property -dict {PACKAGE_PIN H13 IOSTANDARD LVCMOS33} [get_ports spi_mosi]
-set_property -dict {PACKAGE_PIN J13 IOSTANDARD LVCMOS33 PULLUP true} [get_ports spi_miso]
+set_property -dict { PACKAGE_PIN A5    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[0] }]
+set_property -dict { PACKAGE_PIN A4    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[1] }]
+set_property -dict { PACKAGE_PIN F4    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[2] }]
+set_property -dict { PACKAGE_PIN H4    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[3] }]
+set_property -dict { PACKAGE_PIN B5    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[4] }]
+set_property -dict { PACKAGE_PIN B4    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[5] }]
+set_property -dict { PACKAGE_PIN G4    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[6] }]
+set_property -dict { PACKAGE_PIN J4    IOSTANDARD LVCMOS33 } [get_ports { pmod_b[7] }]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# GPIO - Pmod ports (optional expansion)
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+################################################################################
+# Configuration Options
+################################################################################
 
-# Pmod JA (J1, L1, M1, N1 - top row)
-# set_property -dict {PACKAGE_PIN J1 IOSTANDARD LVCMOS33} [get_ports {gpio[0]}]
-# set_property -dict {PACKAGE_PIN L1 IOSTANDARD LVCMOS33} [get_ports {gpio[1]}]
-# set_property -dict {PACKAGE_PIN M1 IOSTANDARD LVCMOS33} [get_ports {gpio[2]}]
-# set_property -dict {PACKAGE_PIN N1 IOSTANDARD LVCMOS33} [get_ports {gpio[3]}]
+# Configuration pins - don't touch
+set_property CONFIG_VOLTAGE 3.3 [current_design]
+set_property CFGBVS VCCO [current_design]
 
-# Pmod JB (A14, B14, C14, D14)
-# set_property -dict {PACKAGE_PIN A14 IOSTANDARD LVCMOS33} [get_ports {gpio[4]}]
-# set_property -dict {PACKAGE_PIN B14 IOSTANDARD LVCMOS33} [get_ports {gpio[5]}]
-# set_property -dict {PACKAGE_PIN C14 IOSTANDARD LVCMOS33} [get_ports {gpio[6]}]
-# set_property -dict {PACKAGE_PIN D14 IOSTANDARD LVCMOS33} [get_ports {gpio[7]}]
+################################################################################
+# Timing Constraints
+################################################################################
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# JTAG - Programming Interface (automatic)
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# JTAG pins are automatically configured for programming
+# Async input registers for metastability prevention
+set_false_path -from [get_ports rst_n] -to [all_registers]
 
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# DDR3 Memory (if available on QMTech board)
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# DDR3 pins - Uncomment if using external DDR3
-# Note: QMTech XC7A100T may have DDR3 depending on variant
+# UART baud rate constraint (115200 baud @ 12MHz = ~104 clocks per bit)
+create_clock -add -name uart_clk -period 9600 [get_ports uart_rx[*]]
+
+################################################################################
+# I/O Standards
+################################################################################
+
+# Default I/O standard for all ports
+set_property IOSTANDARD LVCMOS33 [current_design]
+
+################################################################################
+# DDR3 Memory Interface (optional - not used in basic design)
+################################################################################
+
+# DDR3 pins are pre-assigned on QMTECH board
+# These are typically on pins:
+# - DQS: T6, T8, R7, R9, W4, W8, U4, U8
+# - DQSn: U6, U7, T7, R8, Y4, Y8, V4, V8
+# - Address: M2, M1, M3, L4, L5, L6, K1, K2, J1, J2, H1, H2, F2
+# - Control: N4, N5, N6, P5, P6, M4, M5, M6
+# - Data: (see board schematic for full pinout)
+

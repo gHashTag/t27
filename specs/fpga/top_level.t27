@@ -1,371 +1,175 @@
 // t27/specs/fpga/top_level.t27
-// Top-Level FPGA Wrapper Specification
-// Combines MAC, UART, SPI, and bridge into synthesizable module
+// ZeroDSP FPGA Top Level Module
+// Integrates MAC and UART for FPGA deployment
 // φ² + 1/φ² = 3 | TRINITY
 
-module Trinity_FPGA_Top;
-    // Import base types and submodules
+module ZeroDSP_TopLevel {
     use base::types;
-    use fpga::mac::ZeroDSP_MAC;
-    use fpga::uart::UART_Bridge;
-    use fpga::spi::SPI_Master;
-    use fpga::bridge::FPGA_Bridge;
+    use base::ops;
+    use isa::registers;
 
-    // ═══════════════════════════════════════════════════════════════
-    // 1. Device Configuration
-    // ═════════════════════════════════════════════════════════════════════════
+    const CLK_FREQ_HZ : u32 = 100_000_000;
+    const SYSTICK_HZ : u32 = 1000;
 
-    // Target device
-    const TARGET_DEVICE : str = "xc7a100t";  // Xilinx Artix-7 XC7A100T
-    const TARGET_FAMILY : str = "artix7";
-    const PACKAGE : str = "fgg676c";
+    const NUM_MAC_UNITS : usize = 8;
+    const DATA_WIDTH : usize = 32;
 
-    // Clock configuration
-    const CLK_FREQ : u32 = 50_000_000;    // 50 MHz system clock
-    const CLK_PIN : str = "E19";           // Clock input pin
+    const CMD_NOP : u8 = 0;
+    const CMD_MAC_MULT : u8 = 1;
+    const CMD_MAC_DOT : u8 = 2;
+    const CMD_UART_SEND : u8 = 3;
+    const CMD_RESET : u8 = 0xFF;
 
-    // Reset configuration
-    const RESET_PIN : str = "C12";          // Reset button pin
-    const RESET_ACTIVE_LOW : bool = true;    // Active low
-
-    // ═══════════════════════════════════════════════════════════════
-    // 2. I/O Pin Configuration
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // UART pins
-    const UART_TX_PIN : str = "K20";         // UART TX output
-    const UART_RX_PIN : str = "L20";         // UART RX input
-    const UART_BAUD : u32 = 115200;          // UART baud rate
-
-    // SPI pins
-    const SPI_CS_PIN : str = "G13";          // SPI chip select
-    const SPI_SCK_PIN : str = "K13";         // SPI clock
-    const SPI_MOSI_PIN : str = "H13";        // SPI MOSI output
-    const SPI_MISO_PIN : str = "J13";        // SPI MISO input
-
-    // Status LEDs
-    const LED_PINS : [4]str = ["R5", "T5", "T8", "T9"];  // 4 status LEDs
-    const LED_ACTIVE_LOW : bool = true;          // LEDs active low
-
-    // MAC interface pins (expandable)
-    const MAC_DATA_WIDTH : u8 = 27;       // 27 trits per operand
-
-    // ═══════════════════════════════════════════════════════════════
-    // 3. Top-Level Ports
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // Clock and reset
-    var clk : bool = false;               // System clock input
-    var rst_n : bool = true;              // Reset (active low)
-
-    // UART
-    var uart_rx_in : bool = true;         // UART RX from host
-    var uart_tx_out : bool = true;        // UART TX to host
-
-    // SPI
-    var spi_miso_in : bool = true;        // SPI MISO from device
-    var spi_cs_out : bool = true;         // SPI CS output
-    var spi_sck_out : bool = true;        // SPI SCK output
-    var spi_mosi_out : bool = true;       // SPI MOSI output
-
-    // Status LEDs
-    var led_out : [4]bool = [true, true, true, true];  // 4 LED outputs
-
-    // MAC interface (for testing)
-    var mac_a_in : [27]bool = [false; 27];     // MAC operand A (27 trits)
-    var mac_b_in : [27]bool = [false; 27];     // MAC operand B (27 trits)
-    var mac_acc_in : i32 = 0;                  // MAC accumulator input
-    var mac_acc_out : i32 = 0;                 // MAC accumulator output
-    var mac_valid_out : bool = false;             // MAC valid output
-
-    // ═══════════════════════════════════════════════════════════════
-    // 4. Top-Level State
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // Top-level state
-    struct Top_State {
-        reset_pending : bool,          // Reset pending
-        led_state : [4]bool,          // Current LED states
-        heartbeat_cnt : u32,          // Heartbeat counter
+    struct SystemState {
+        mac_ready : bool,
+        uart_ready : bool,
+        processing : bool,
+        error : bool,
     }
 
-    var top_state : Top_State = Top_State{
-        .reset_pending = false,
-        .led_state = [true, true, true, true],  // All off (active low)
-        .heartbeat_cnt = 0,
+    var system_state : SystemState = SystemState{
+        .mac_ready = true,
+        .uart_ready = true,
+        .processing = false,
+        .error = false,
     };
 
-    // ═══════════════════════════════════════════════════════════════
-    // 5. LED Control
-    // ═════════════════════════════════════════════════════════════════════════
+    var mac_result : i32 = 0;
+    var uart_tx_data : u8 = 0;
 
-    // LED indicators
-    const LED_UART_TX : u8 = 0;    // UART TX activity
-    const LED_SPI_CS : u8 = 1;     // SPI CS active
-    const LED_MAC_BUSY : u8 = 2;   // MAC operation active
-    const LED_HEARTBEAT : u8 = 3;  // System heartbeat
-
-    // led_set(led: u8, state: bool) → void
-    // Set LED state (accounting for active-low)
-    fn led_set(led: u8, state: bool) -> void {
-        const active_state = if LED_ACTIVE_LOW { !state } else { state };
-        top_state.led_state[led] = active_state;
+    fn system_init() -> void {
+        system_state.mac_ready = true;
+        system_state.uart_ready = true;
+        system_state.processing = false;
+        system_state.error = false;
     }
 
-    // led_get(led: u8) → bool
-    // Get LED state (accounting for active-low)
-    fn led_get(led: u8) -> bool {
-        const active_state = top_state.led_state[led];
-        return if LED_ACTIVE_LOW { !active_state } else { active_state };
+    fn system_ready() -> bool {
+        return system_state.mac_ready and system_state.uart_ready;
     }
 
-    // led_update_outputs() → void
-    // Update LED output ports
-    fn led_update_outputs() -> void {
-        var i : u8 = 0;
-        while (i < 4) {
-            led_out[i] = top_state.led_state[i];
-            i = i + 1;
+    fn system_busy() -> bool {
+        return system_state.processing;
+    }
+
+    fn system_error() -> bool {
+        return system_state.error;
+    }
+
+    fn system_reset() -> void {
+        system_init();
+        mac_result = 0;
+        uart_tx_data = 0;
+    }
+
+    fn set_mac_result(value: i32) -> void {
+        mac_result = value;
+        system_state.processing = false;
+    }
+
+    fn get_mac_result() -> i32 {
+        return mac_result;
+    }
+
+    fn set_uart_data(data: u8) -> void {
+        uart_tx_data = data;
+    }
+
+    fn get_uart_data() -> u8 {
+        return uart_tx_data;
+    }
+
+    fn start_processing() -> void {
+        if (system_ready()) {
+            system_state.processing = true;
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // 6. Top-Level Control
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // top_reset() → void
-    // Reset all subsystems
-    fn top_reset() -> void {
-        // Reset UART
-        // uart_tx.tx_state = TX_IDLE;
-        // uart_rx.rx_state = RX_IDLE;
-
-        // Reset SPI
-        spi.state = SPI_IDLE;
-        spi.cs_asserted = false;
-        spi.busy = false;
-
-        // Reset MAC
-        mac_reset_all();
-
-        // Reset bridge
-        bridge.state = BRIDGE_IDLE;
-        bridge.rx_head = 0;
-        bridge.rx_tail = 0;
-        bridge.tx_head = 0;
-        bridge.tx_tail = 0;
-
-        // Reset LEDs
-        var i : u8 = 0;
-        while (i < 4) {
-            led_set(i, false);
-            i = i + 1;
-        }
-
-        // Reset heartbeat
-        top_state.heartbeat_cnt = 0;
+    fn stop_processing() -> void {
+        system_state.processing = false;
     }
 
-    // top_heartbeat() → void
-    // Update heartbeat LED (blinks at 1 Hz)
-    fn top_heartbeat() -> void {
-        top_state.heartbeat_cnt = top_state.heartbeat_cnt + 1;
-        const blink_threshold = CLK_FREQ / 2;  // 1 Hz blink @ 50MHz
-
-        if (top_state.heartbeat_cnt >= blink_threshold) {
-            top_state.heartbeat_cnt = 0;
-            const current = led_get(LED_HEARTBEAT);
-            led_set(LED_HEARTBEAT, !current);
-        }
+    fn set_error() -> void {
+        system_state.error = true;
+        system_state.processing = false;
     }
 
-    // top_tick() → void
-    // Process one clock cycle
-    fn top_tick() -> void {
-        // Handle reset
-        if (RESET_ACTIVE_LOW) {
-            if (!rst_n) {
-                if (!top_state.reset_pending) {
-                    top_reset();
-                    top_state.reset_pending = true;
-                }
-                return;
-            }
-        } else {
-            if (rst_n) {
-                if (!top_state.reset_pending) {
-                    top_reset();
-                    top_state.reset_pending = true;
-                }
-                return;
-            }
-        }
-        top_state.reset_pending = false;
-
-        // Tick subsystems
-        uart_tx_tick();
-        uart_rx_sync(uart_rx_in);
-        uart_rx_tick();
-        spi_tick();
-
-        // Tick bridge
-        // bridge_tick();
-
-        // Update LEDs
-        led_update_outputs();
-
-        // Heartbeat
-        top_heartbeat();
+    fn clear_error() -> void {
+        system_state.error = false;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // TDD-Inside-Spec: Tests and Invariants for Trinity_FPGA_Top
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    test system_initially_ready
+        given ready = system_ready()
+        then ready == true
 
-    test top_device_configured
-        given device = TARGET_DEVICE
-        and   family = TARGET_FAMILY
-        then device == "xc7a100t" and family == "artix7"
+    test system_initially_not_busy
+        given busy = system_busy()
+        then busy == false
 
-    test top_clk_frequency
-        given freq = CLK_FREQ
-        then freq == 50_000_000
+    test system_initially_no_error
+        given error = system_error()
+        then error == false
 
-    test top_clk_pin_defined
-        given pin = CLK_PIN
-        then pin == "E19"
+    test system_reset_clears_state
+        given set_error()
+        and   system_reset()
+        and   ready = system_ready()
+        and   error = system_error()
+        then ready == true and error == false
 
-    test top_reset_pin_defined
-        given pin = RESET_PIN
-        and   active_low = RESET_ACTIVE_LOW
-        then pin == "C12" and active_low == true
+    test start_processing_sets_busy
+        given start_processing()
+        and   busy = system_busy()
+        then busy == true
 
-    test top_uart_pins_defined
-        given tx = UART_TX_PIN
-        and   rx = UART_RX_PIN
-        and   baud = UART_BAUD
-        then tx == "K20" and rx == "L20" and baud == 115200
+    test stop_processing_clears_busy
+        given start_processing()
+        and   stop_processing()
+        and   busy = system_busy()
+        then busy == false
 
-    test top_spi_pins_defined
-        given cs = SPI_CS_PIN
-        and   sck = SPI_SCK_PIN
-        and   mosi = SPI_MOSI_PIN
-        and   miso = SPI_MISO_PIN
-        then cs == "G13" and sck == "K13" and mosi == "H13" and miso == "J13"
+    test set_error_clears_busy
+        given start_processing()
+        and   set_error()
+        and   busy = system_busy()
+        and   error = system_error()
+        then busy == false and error == true
 
-    test top_led_pins_defined
-        given count = LED_PINS.len()
-        and   led0 = LED_PINS[0]
-        then count == 4 and led0 == "R5"
+    test get_mac_result_after_set
+        given set_mac_result(42)
+        and   result = get_mac_result()
+        then result == 42
 
-    test top_leds_active_low
-        given active_low = LED_ACTIVE_LOW
-        then active_low == true
+    test get_uart_data_after_set
+        given set_uart_data(0xAA)
+        and   data = get_uart_data()
+        then data == 0xAA
 
-    test top_mac_data_width
-        given width = MAC_DATA_WIDTH
-        then width == 27
+    test mac_result_clears_processing
+        given start_processing()
+        and   set_mac_result(100)
+        and   busy = system_busy()
+        then busy == false
 
-    test top_initially_not_resetting
-        given pending = top_state.reset_pending
-        then pending == false
+    invariant system_ready_when_not_processing
+        given busy = system_busy()
+        and   ready = system_ready()
+        assert busy == false implies ready == true
 
-    test top_leds_initially_off
-        given led0 = led_get(LED_UART_TX)
-        and   led1 = led_get(LED_SPI_CS)
-        and   led2 = led_get(LED_MAC_BUSY)
-        and   led3 = led_get(LED_HEARTBEAT)
-        then led0 == false and led1 == false and led2 == false and led3 == false
+    invariant system_error_implies_not_busy
+        given error = system_error()
+        and   busy = system_busy()
+        assert error == true implies busy == false
 
-    test top_led_set_inverts_active_low
-        given led_set(LED_UART_TX, true)
-        and   state = top_state.led_state[LED_UART_TX]
-        then state == false  // Inverted due to active-low
+    invariant system_ready_implies_mac_uart_ready
+        given ready = system_ready()
+        assert ready == true implies system_state.mac_ready == true
 
-    test top_led_get_inverts_active_low
-        given top_state.led_state[LED_HEARTBEAT] = true
-        and   state = led_get(LED_HEARTBEAT)
-        then state == false  // Inverted due to active-low
+    bench system_ready_latency
+        measure: nanoseconds to system_ready()
+        target: < 20ns
 
-    test top_heartbeat_threshold
-        given threshold = CLK_FREQ / 2
-        then threshold == 25_000_000
-
-    test top_led_count_4
-        given count = LED_PINS.len()
-        then count == 4
-
-    test top_led_indices_valid
-        given idx_uart = LED_UART_TX
-        and   idx_spi = LED_SPI_CS
-        and   idx_mac = LED_MAC_BUSY
-        and   idx_hb = LED_HEARTBEAT
-        then idx_uart == 0 and idx_spi == 1 and idx_mac == 2 and idx_hb == 3
-
-    test top_mac_operands_27_trits
-        given count = mac_a_in.len()
-        then count == 27
-
-    invariant top_clk_frequency_constant
-        assert CLK_FREQ == 50_000_000
-
-    invariant top_device_target_constant
-        assert TARGET_DEVICE == "xc7a100t"
-
-    invariant top_uart_baud_constant
-        assert UART_BAUD == 115200
-
-    invariant top_led_count_constant
-        assert LED_PINS.len() == 4
-
-    invariant top_led_indices_unique
-        assert LED_UART_TX != LED_SPI_CS and LED_SPI_CS != LED_MAC_BUSY
-                and LED_MAC_BUSY != LED_HEARTBEAT
-
-    invariant top_mac_width_constant
-        assert MAC_DATA_WIDTH == 27
-
-    invariant top_led_states_in_range
-        given state = top_state.led_state[0]
-        assert state == true or state == false
-
-    invariant top_heartbeat_counter_increments
-        given old_cnt = top_state.heartbeat_cnt
-        when top_heartbeat()
-        then top_state.heartbeat_cnt == old_cnt + 1 or top_state.heartbeat_cnt == 0
-
-    invariant top_reset_when_asserted
-        given top_state.reset_pending == false
-        and   rst_n == false  // Active low reset
-        when top_tick()
-        then top_state.reset_pending == true
-
-    invariant top_led_states_synchronized
-        given led_set(LED_UART_TX, true)
-        and   led_update_outputs()
-        then led_out[LED_UART_TX] == top_state.led_state[LED_UART_TX]
-
-    invariant top_pins_unique
-        // Verify no duplicate pin assignments
-        assert CLK_PIN != RESET_PIN and UART_TX_PIN != UART_RX_PIN
-                and SPI_CS_PIN != SPI_SCK_PIN and SPI_SCK_PIN != SPI_MOSI_PIN
-
-    invariant top_ports_initialized
-        assert true  // All I/O ports initialized
-
-    bench top_reset_latency
-        measure: nanoseconds to top_reset()
-        target: < 1000ns
-
-    bench top_tick_latency
-        measure: nanoseconds to top_tick()
+    bench system_reset_latency
+        measure: nanoseconds to system_reset()
         target: < 100ns
-
-    bench top_heartbeat_frequency
-        measure: cycles for one full heartbeat cycle
-        target: == 50_000_000  // 1 Hz @ 50MHz
-
-    bench top_led_update_latency
-        measure: nanoseconds to led_update_outputs()
-        target: < 50ns
-
+}
