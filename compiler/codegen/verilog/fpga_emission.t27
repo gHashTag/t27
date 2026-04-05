@@ -1,0 +1,730 @@
+// fpga_emission.t27 — FPGA Module Verilog Emission
+// Generates FPGA-specific Verilog modules from .t27 specs
+
+module fpga_emission {
+    using ast: @import("../../../ast.t27");
+
+    // ═════════════════════════════════════════════════════════════════════
+    // FPGA Emission Context
+    // ═════════════════════════════════════════════════════════════════════
+
+    // FPGA module emission context
+    pub const FpgaCodegen = struct {
+        output: *StringBuilder,     // Output buffer (shared from VerilogCodegen)
+        indent_level: u32,          // Current indent level
+        target_device: []const u8,   // Target FPGA device
+        clock_freq: u32,            // System clock frequency (Hz)
+    };
+
+    // Create new FPGA emission context
+    pub fn new(output: *StringBuilder, target_device: []const u8, clock_freq: u32) FpgaCodegen {
+        return FpgaCodegen{
+            .output = output,
+            .indent_level = 0,
+            .target_device = target_device,
+            .clock_freq = clock_freq,
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════════
+    // 1. Top-Level FPGA Module Emission
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    // emit_fpga_top() → void
+    // Generate top-level FPGA module that combines MAC, UART, SPI
+    fn emit_fpga_top(self: *FpgaCodegen) void {
+        self.emit_line("// Trinity FPGA Top-Level Module");
+        self.emit_line("// Combines MAC, UART, SPI, and Bridge");
+        self.emit_line("// Target: ");
+        self.emit(self.target_device);
+        self.emit_line(" | Clock: ");
+        self.emit_int(self.clock_freq);
+        self.emit_line(" Hz");
+        self.emit_line("");
+        self.emit_line("`timescale 1ns / 1ps");
+        self.emit_line("");
+        self.emit_line("module Trinity_FPGA_Top (");
+        self.indent();
+        self.emit_line("// Clock and reset");
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("");
+        self.emit_line("// UART");
+        self.emit_line("input wire uart_rx_in,");
+        self.emit_line("output wire uart_tx_out,");
+        self.emit_line("");
+        self.emit_line("// SPI");
+        self.emit_line("input wire spi_miso_in,");
+        self.emit_line("output wire spi_cs_out,");
+        self.emit_line("output wire spi_sck_out,");
+        self.emit_line("output wire spi_mosi_out,");
+        self.emit_line("");
+        self.emit_line("// Status LEDs");
+        self.emit_line("output wire [3:0] led_out,");
+        self.emit_line("");
+        self.emit_line("// MAC interface");
+        self.emit_line("input wire [26:0] mac_a_in,");
+        self.emit_line("input wire [26:0] mac_b_in,");
+        self.emit_line("input wire [31:0] mac_acc_in,");
+        self.emit_line("output wire [31:0] mac_acc_out,");
+        self.emit_line("output wire mac_valid_out");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // Internal signals
+        self.emit_line("// Internal signals");
+        self.emit_line("wire [3:0] led_state;");
+        self.emit_line("");
+
+        // Instantiate UART Bridge
+        self.emit_line("// UART Bridge instantiation");
+        self.emit_line("UART_Bridge uart_bridge (");
+        self.indent();
+        self.emit_line(".clk(clk),");
+        self.emit_line(".rst_n(rst_n),");
+        self.emit_line(".uart_rx(uart_rx_in),");
+        self.emit_line(".uart_tx(uart_tx_out)");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // Instantiate SPI Master
+        self.emit_line("// SPI Master instantiation");
+        self.emit_line("SPI_Master spi_master (");
+        self.indent();
+        self.emit_line(".clk(clk),");
+        self.emit_line(".rst_n(rst_n),");
+        self.emit_line(".miso(spi_miso_in),");
+        self.emit_line(".cs(spi_cs_out),");
+        self.emit_line(".sck(spi_sck_out),");
+        self.emit_line(".mosi(spi_mosi_out)");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // Instantiate MAC units
+        self.emit_line("// ZeroDSP MAC units (8 parallel)");
+        self.emit_line("// TODO: Instantiate 8 parallel MAC units");
+        self.emit_line("");
+
+        // LED state mapping
+        self.emit_line("// LED output mapping");
+        self.emit_line("assign led_out = led_state;");
+        self.emit_line("");
+
+        // MAC output mapping
+        self.emit_line("// MAC output signals");
+        self.emit_line("assign mac_acc_out = 32'd0;");
+        self.emit_line("assign mac_valid_out = 1'b0;");
+        self.emit_line("");
+
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 2. UART Module Emission
+    // ═════════════════════════════════════════════════════════════════════════════════════
+
+    // emit_uart_module() → void
+    // Generate UART RX/TX module from spec
+    fn emit_uart_module(self: *FpgaCodegen) void {
+        self.emit_line("// UART Bridge Module");
+        self.emit_line("// 8-N-1 protocol, 115200 baud @ 50MHz");
+        self.emit_line("");
+        self.emit_line("module UART_Bridge (");
+        self.indent();
+        self.emit_line("// Clock and reset");
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("");
+        self.emit_line("// UART interface");
+        self.emit_line("input wire uart_rx,");
+        self.emit_line("output wire uart_tx");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // Baud rate divisor
+        const baud_divisor = self.clock_freq / 115200;
+        self.emit_line("// Baud rate divisor for 115200 baud @ ");
+        self.emit_int(self.clock_freq);
+        self.emit_line(" Hz");
+        self.emit_line("localparam BAUD_DIVISOR = ");
+        self.emit_int(baud_divisor);
+        self.emit_line(";");
+        self.emit_line("");
+
+        // State machine signals
+        self.emit_line("// TX state machine");
+        self.emit_line("reg tx_busy;");
+        self.emit_line("reg [2:0] tx_state;");
+        self.emit_line("reg [7:0] tx_shift_reg;");
+        self.emit_line("reg [2:0] tx_bit_index;");
+        self.emit_line("reg [31:0] tx_baud_counter;");
+        self.emit_line("");
+
+        self.emit_line("// RX state machine");
+        self.emit_line("reg [2:0] rx_state;");
+        self.emit_line("reg [7:0] rx_shift_reg;");
+        self.emit_line("reg [2:0] rx_bit_index;");
+        self.emit_line("reg [31:0] rx_baud_counter;");
+        self.emit_line("reg [2:0] rx_sync [2:0];");
+        self.emit_line("reg rx_framing_error;");
+        self.emit_line("");
+
+        // TX states
+        self.emit_line("localparam TX_IDLE  = 3'd0;");
+        self.emit_line("localparam TX_START = 3'd1;");
+        self.emit_line("localparam TX_DATA  = 3'd2;");
+        self.emit_line("localparam TX_STOP  = 3'd3;");
+        self.emit_line("");
+
+        // RX states
+        self.emit_line("localparam RX_IDLE  = 3'd0;");
+        self.emit_line("localparam RX_START = 3'd1;");
+        self.emit_line("localparam RX_DATA  = 3'd2;");
+        self.emit_line("localparam RX_STOP  = 3'd3;");
+        self.emit_line("");
+
+        // TX line output
+        self.emit_line("// TX line state");
+        self.emit_line("assign uart_tx = (");
+        self.indent();
+        self.emit_line("tx_state == TX_IDLE ? 1'b1 :");
+        self.emit_line("tx_state == TX_START ? 1'b0 :");
+        self.emit_line("tx_shift_reg[tx_bit_index]");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // RX input synchronization
+        self.emit_line("// RX input synchronizer");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("rx_sync <= {rx_sync[1], rx_sync[0], uart_rx};");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        // TX state machine
+        self.emit_line("// TX state machine");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("tx_state <= TX_IDLE;");
+        self.emit_line("tx_busy <= 1'b0;");
+        self.emit_line("tx_baud_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("tx_baud_counter <= tx_baud_counter + 1'b1;");
+        self.emit_line("");
+        self.emit_line("case (tx_state)");
+        self.indent();
+        self.emit_line("TX_IDLE: begin");
+        self.indent();
+        self.emit_line("// Idle state, wait for data");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("TX_START: begin");
+        self.indent();
+        self.emit_line("if (tx_baud_counter >= BAUD_DIVISOR) begin");
+        self.indent();
+        self.emit_line("tx_state <= TX_DATA;");
+        self.emit_line("tx_baud_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("TX_DATA: begin");
+        self.indent();
+        self.emit_line("if (tx_baud_counter >= BAUD_DIVISOR) begin");
+        self.indent();
+        self.emit_line("tx_baud_counter <= 32'd0;");
+        self.emit_line("tx_bit_index <= tx_bit_index + 1'b1;");
+        self.emit_line("if (tx_bit_index >= 3'd7) begin");
+        self.indent();
+        self.emit_line("tx_state <= TX_STOP;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("TX_STOP: begin");
+        self.indent();
+        self.emit_line("if (tx_baud_counter >= BAUD_DIVISOR) begin");
+        self.indent();
+        self.emit_line("tx_state <= TX_IDLE;");
+        self.emit_line("tx_busy <= 1'b0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("endcase");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        // RX state machine
+        self.emit_line("// RX state machine");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("rx_state <= RX_IDLE;");
+        self.emit_line("rx_baud_counter <= 32'd0;");
+        self.emit_line("rx_framing_error <= 1'b0;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("rx_baud_counter <= rx_baud_counter + 1'b1;");
+        self.emit_line("");
+        self.emit_line("case (rx_state)");
+        self.indent();
+        self.emit_line("RX_IDLE: begin");
+        self.indent();
+        self.emit_line("if (!rx_sync[1]) begin");
+        self.indent();
+        self.emit_line("// Start bit detected");
+        self.emit_line("rx_baud_counter <= 32'd0;");
+        self.emit_line("rx_state <= RX_START;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("RX_START: begin");
+        self.indent();
+        self.emit_line("if (rx_baud_counter >= BAUD_DIVISOR) begin");
+        self.indent();
+        self.emit_line("rx_baud_counter <= 32'd0;");
+        self.emit_line("if (!rx_sync[1]) begin");
+        self.indent();
+        self.emit_line("rx_state <= RX_DATA;");
+        self.emit_line("rx_bit_index <= 3'd0;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("rx_state <= RX_IDLE;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("RX_DATA: begin");
+        self.indent();
+        self.emit_line("if (rx_baud_counter >= BAUD_DIVISOR) begin");
+        self.indent();
+        self.emit_line("rx_baud_counter <= 32'd0;");
+        self.emit_line("rx_shift_reg <= {rx_shift_reg[6:0], rx_sync[1]};");
+        self.emit_line("rx_bit_index <= rx_bit_index + 1'b1;");
+        self.emit_line("if (rx_bit_index >= 3'd7) begin");
+        self.indent();
+        self.emit_line("rx_state <= RX_STOP;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("RX_STOP: begin");
+        self.indent();
+        self.emit_line("if (rx_baud_counter >= BAUD_DIVISOR) begin");
+        self.indent();
+        self.emit_line("rx_baud_counter <= 32'd0;");
+        self.emit_line("// Check stop bit (should be high)");
+        self.emit_line("rx_framing_error <= !rx_sync[1];");
+        self.emit_line("rx_state <= RX_IDLE;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("endcase");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════════
+    // 3. SPI Module Emission
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    // emit_spi_module() → void
+    // Generate SPI master module from spec (Mode 0)
+    fn emit_spi_module(self: *FpgaCodegen) void {
+        self.emit_line("// SPI Master Module");
+        self.emit_line("// Mode 0: CPOL=0, CPHA=0");
+        self.emit_line("");
+        self.emit_line("module SPI_Master (");
+        self.indent();
+        self.emit_line("// Clock and reset");
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("");
+        self.emit_line("// SPI interface");
+        self.emit_line("input wire miso,");
+        self.emit_line("output wire cs,");
+        self.emit_line("output wire sck,");
+        self.emit_line("output wire mosi");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // SPI prescaler values
+        self.emit_line("// Prescaler selection (divide system clock)");
+        self.emit_line("localparam PRESCALER_2  = 3'd0;");
+        self.emit_line("localparam PRESCALER_4  = 3'd1;");
+        self.emit_line("localparam PRESCALER_8  = 3'd2;");
+        self.emit_line("localparam PRESCALER_16 = 3'd3;");
+        self.emit_line("localparam PRESCALER_32 = 3'd4;");
+        self.emit_line("localparam PRESCALER_64 = 3'd5;");
+        self.emit_line("");
+
+        // SPI state machine
+        self.emit_line("// SPI state machine");
+        self.emit_line("reg [1:0] spi_state;");
+        self.emit_line("reg [2:0] tx_state;");
+        self.emit_line("reg cs_asserted;");
+        self.emit_line("reg busy;");
+        self.emit_line("");
+
+        // SPI configuration
+        self.emit_line("reg [2:0] prescaler;");
+        self.emit_line("reg [4:0] data_width;");
+        self.emit_line("reg [31:0] tx_data;");
+        self.emit_line("reg [31:0] rx_data;");
+        self.emit_line("reg [4:0] bit_count;");
+        self.emit_line("reg [31:0] bit_counter;");
+        self.emit_line("");
+
+        // States
+        self.emit_line("localparam SPI_IDLE       = 2'd0;");
+        self.emit_line("localparam SPI_CS_ASSERT  = 2'd1;");
+        self.emit_line("localparam SPI_TRANSFER   = 2'd2;");
+        self.emit_line("localparam SPI_CS_DEASSERT = 2'd3;");
+        self.emit_line("");
+
+        // TX states
+        self.emit_line("localparam TX_BIT  = 2'd0;");
+        self.emit_line("localparam RX_BIT  = 2'd1;");
+        self.emit_line("localparam WAIT_EDGE = 2'd2;");
+        self.emit_line("");
+
+        // Default values
+        self.emit_line("// Default configuration");
+        self.emit_line("initial begin");
+        self.indent();
+        self.emit_line("spi_state <= SPI_IDLE;");
+        self.emit_line("tx_state <= TX_BIT;");
+        self.emit_line("cs_asserted <= 1'b0;");
+        self.emit_line("busy <= 1'b0;");
+        self.emit_line("prescaler <= PRESCALER_16;");
+        self.emit_line("data_width <= 4'd8;");
+        self.emit_line("bit_count <= 4'd0;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        // Chip select output
+        self.emit_line("// Chip select output");
+        self.emit_line("assign cs = cs_asserted;");
+        self.emit_line("");
+
+        // Clock output (Mode 0: idle low)
+        self.emit_line("// SCK output (Mode 0: CPOL=0)");
+        self.emit_line("assign sck = (spi_state == SPI_IDLE) ? 1'b0 :");
+        self.indent();
+        self.emit_line("tx_state == TX_BIT ? 1'b0 : 1'b1;");
+        self.dedent();
+        self.emit_line("");
+
+        // MOSI output
+        self.emit_line("// MOSI output");
+        self.emit_line("assign mosi = busy && spi_state == SPI_TRANSFER ? tx_data[data_width - bit_count - 1] : 1'b0;");
+        self.emit_line("");
+
+        // SPI state machine
+        self.emit_line("// SPI state machine");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("spi_state <= SPI_IDLE;");
+        self.emit_line("cs_asserted <= 1'b0;");
+        self.emit_line("busy <= 1'b0;");
+        self.emit_line("bit_count <= 4'd0;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("case (spi_state)");
+        self.indent();
+        self.emit_line("SPI_IDLE: begin");
+        self.indent();
+        self.emit_line("// Idle state");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("SPI_CS_ASSERT: begin");
+        self.indent();
+        self.emit_line("// Assert chip select");
+        self.emit_line("cs_asserted <= 1'b1;");
+        self.emit_line("if (bit_counter >= 4'd5) begin");
+        self.indent();
+        self.emit_line("cs_asserted <= 1'b1;");
+        self.emit_line("spi_state <= SPI_TRANSFER;");
+        self.emit_line("tx_state <= TX_BIT;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("SPI_TRANSFER: begin");
+        self.indent();
+        self.emit_line("// Transfer bits");
+        self.emit_line("bit_counter <= bit_counter + 1'b1;");
+        self.emit_line("");
+        self.emit_line("case (tx_state)");
+        self.indent();
+        self.emit_line("TX_BIT: begin");
+        self.indent();
+        self.emit_line("if (bit_counter >= 4'd8) begin");
+        self.indent();
+        self.emit_line("tx_state <= RX_BIT;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("RX_BIT: begin");
+        self.indent();
+        self.emit_line("if (bit_counter >= 4'd8) begin");
+        self.indent();
+        self.emit_line("// Sample MISO");
+        self.emit_line("rx_data <= {rx_data[30:0], miso};");
+        self.emit_line("bit_count <= bit_count + 1'b1;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.emit_line("if (bit_count >= data_width) begin");
+        self.indent();
+        self.emit_line("tx_state <= WAIT_EDGE;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("tx_state <= TX_BIT;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("WAIT_EDGE: begin");
+        self.indent();
+        self.emit_line("if (bit_counter >= 4'd8) begin");
+        self.indent();
+        self.emit_line("spi_state <= SPI_CS_DEASSERT;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("endcase");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("SPI_CS_DEASSERT: begin");
+        self.indent();
+        self.emit_line("// Deassert chip select");
+        self.emit_line("cs_asserted <= 1'b0;");
+        self.emit_line("if (bit_counter >= 4'd5) begin");
+        self.indent();
+        self.emit_line("spi_state <= SPI_IDLE;");
+        self.emit_line("busy <= 1'b0;");
+        self.emit_line("bit_counter <= 32'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("endcase");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 4. MAC Module Emission
+    // ═════════════════════════════════════════════════════════════════════════════════════════
+
+    // emit_mac_module() → void
+    // Generate ZeroDSP MAC module from spec
+    fn emit_mac_module(self: *FpgaCodegen) void {
+        self.emit_line("// ZeroDSP MAC Module");
+        self.emit_line("// Ternary LUT multiplication with 8 parallel units");
+        self.emit_line("");
+        self.emit_line("module ZeroDSP_MAC (");
+        self.indent();
+        self.emit_line("// Clock and reset");
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("");
+        self.emit_line("// Operands (27 trits each)");
+        self.emit_line("input wire [26:0] a,");
+        self.emit_line("input wire [26:0] b,");
+        self.emit_line("");
+        self.emit_line("// Accumulator input/output");
+        self.emit_line("input wire [31:0] acc_in,");
+        self.emit_line("output wire [31:0] acc_out,");
+        self.emit_line("");
+        self.emit_line("// Control");
+        self.emit_line("input wire enable,");
+        self.emit_line("output wire valid");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // Ternary LUT entries (3x3 = 9 combinations)
+        self.emit_line("// Ternary LUT (3^3 entries)");
+        self.emit_line("// Values: 0, 1, -1 (trinary)");
+        self.emit_line("// Mapping: 0->00, 1->01, -1->10");
+        self.emit_line("localparam TRIT_NEG_2 = 2'b00;");
+        self.emit_line("localparam TRIT_NEG_1 = 2'b01;");
+        self.emit_line("localparam TRIT_ZERO = 2'b10;");
+        self.emit_line("localparam TRIT_POS_1 = 2'b11;");
+        self.emit_line("");
+
+        // LUT lookup (9 entries for 3x3 combinations)
+        self.emit_line("// Ternary multiplication LUT");
+        self.emit_line("function [1:0] ternary_mul_lut;");
+        self.indent();
+        self.emit_line("input [1:0] trit_a;");
+        self.emit_line("input [1:0] trit_b;");
+        self.emit_line("case ({trit_a, trit_b})");
+        self.indent();
+        self.emit_line("// -1 * -1 = 1");
+        self.emit_line("4'b0000: ternary_mul_lut = TRIT_POS_1;");
+        self.emit_line("// -1 * 0 = 0");
+        self.emit_line("4'b0010: ternary_mul_lut = TRIT_ZERO;");
+        self.emit_line("// -1 * 1 = -1");
+        self.emit_line("4'b0100: ternary_mul_lut = TRIT_NEG_1;");
+        self.emit_line("// 0 * -1 = 0");
+        self.emit_line("4'b0110: ternary_mul_lut = TRIT_ZERO;");
+        self.emit_line("// 0 * 0 = 0");
+        self.emit_line("4'b1000: ternary_mul_lut = TRIT_ZERO;");
+        self.emit_line("// 0 * 1 = 0");
+        self.emit_line("4'b1010: ternary_mul_lut = TRIT_ZERO;");
+        self.emit_line("// 1 * -1 = -1");
+        self.emit_line("4'b1100: ternary_mul_lut = TRIT_NEG_1;");
+        self.emit_line("// 1 * 0 = 0");
+        self.emit_line("4'b1110: ternary_mul_lut = TRIT_ZERO;");
+        self.emit_line("// 1 * 1 = 1");
+        self.emit_line("4'b0001: ternary_mul_lut = TRIT_POS_1;");
+        self.dedent();
+        self.emit_line("endcase");
+        self.emit_line("endfunction");
+        self.emit_line("");
+
+        // 8-bit accumulator for partial products
+        self.emit_line("// Accumulator for partial products");
+        self.emit_line("reg [31:0] accumulator;");
+        self.emit_line("reg [7:0] unit_idx;");
+        self.emit_line("");
+        self.emit_line("initial begin");
+        self.indent();
+        self.emit_line("accumulator <= 32'd0;");
+        self.emit_line("unit_idx <= 8'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        // MAC operation (pipelined over 8 cycles)
+        self.emit_line("// MAC operation");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("accumulator <= 32'd0;");
+        self.emit_line("unit_idx <= 8'd0;");
+        self.emit_line("valid <= 1'b0;");
+        self.dedent();
+        self.emit_line("end else if (enable) begin");
+        self.indent();
+        self.emit_line("// Process 8 parallel units over 8 cycles");
+        self.emit_line("case (unit_idx)");
+        self.indent();
+        self.emit_line("8'd0: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd1: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd2: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd3: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd4: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd5: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd6: unit_idx <= unit_idx + 1'b1;");
+        self.emit_line("8'd7: begin");
+        self.indent();
+        self.emit_line("valid <= 1'b1;");
+        self.emit_line("unit_idx <= 8'd0;");
+        self.dedent();
+        self.emit_line("endcase");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+
+        // Accumulator output
+        self.emit_line("// Accumulator output");
+        self.emit_line("assign acc_out = accumulator;");
+        self.emit_line("");
+
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // 5. Helper Functions
+    // ═════════════════════════════════════════════════════════════════════════════════════
+
+    // emit(s: []const u8) → void
+    // Append string to output
+    fn emit(self: *FpgaCodegen, s: []const u8) void {
+        self.output.append(s);
+    }
+
+    // emit_line(s: []const u8) → void
+    // Append string with newline
+    fn emit_line(self: *FpgaCodegen, s: []const u8) void {
+        self.output.append(s);
+        self.output.append("\n");
+
+        var i: u32 = 0;
+        while (i < self.indent_level) : (i += 1) {
+            self.output.append("    ");
+        }
+    }
+
+    // emit_int(n: anytype) → void
+    // Emit integer value
+    fn emit_int(self: *FpgaCodegen, n: anytype) void {
+        self.emit(int_to_str(n));
+    }
+
+    // indent() → void
+    // Increase indent level
+    fn indent(self: *FpgaCodegen) void {
+        self.indent_level += 1;
+    }
+
+    // dedent() → void
+    // Decrease indent level
+    fn dedent(self: *FpgaCodegen) void {
+        if (self.indent_level > 0) {
+            self.indent_level -= 1;
+        }
+    }
+
+    // int_to_str(n: anytype) → []const u8
+    // Convert integer to string (simple implementation)
+    fn int_to_str(n: anytype) []const u8 {
+        // Simplified conversion for small integers
+        // TODO: Use proper int to string conversion
+        return "0";  // Placeholder
+    }
+}

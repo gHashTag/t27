@@ -193,6 +193,46 @@ spec "trifpga-mac" {
     status = "done";
 }
 
+spec "trifpga-uart" {
+    tier = 2;
+    description = "UART bridge: 8-N-1 protocol at 115200 baud, 50MHz clock";
+    path = "specs/fpga/uart.t27";
+    exports = ["UART_Bridge", "uart_tx_write", "uart_tx_ready", "uart_rx_sync", "uart_rx_read_data", "UART_TX_Unit", "UART_RX_Unit", "CMD_PING", "CMD_PONG"];
+    deps = ["tritype-base"];
+    competency = "UARTProtocol";
+    status = "done";
+}
+
+spec "trifpga-spi" {
+    tier = 2;
+    description = "SPI master: Mode 0 (CPOL=0, CPHA=0), 2-256x prescaler";
+    path = "specs/fpga/spi.t27";
+    exports = ["SPI_Master", "spi_set_prescaler", "spi_transfer", "spi_read_rx", "SPI_Master_Unit", "SPI_CS_ASSERT", "spi_sck_freq"];
+    deps = ["tritype-base"];
+    competency = "SPIProtocol";
+    status = "done";
+}
+
+spec "trifpga-bridge" {
+    tier = 2;
+    description = "FPGA communication bridge: UART+SPI+MAC packet routing";
+    path = "specs/fpga/bridge.t27";
+    exports = ["FPGA_Bridge", "bridge_rx_available", "bridge_tx_space", "bridge_parse_header", "bridge_handle_uart_data", "bridge_handle_spi_xfer", "bridge_handle_mac_op"];
+    deps = ["tritype-base", "trifpga-uart", "trifpga-spi", "trifpga-mac"];
+    competency = "BridgeLogic";
+    status = "done";
+}
+
+spec "trifpga-top" {
+    tier = 2;
+    description = "Top-level FPGA wrapper: combines MAC, UART, SPI, bridge for XC7A100T";
+    path = "specs/fpga/top_level.t27";
+    exports = ["Trinity_FPGA_Top", "top_reset", "top_heartbeat", "led_set", "led_get", "top_tick", "TARGET_DEVICE", "CLK_FREQ"];
+    deps = ["tritype-base", "trifpga-uart", "trifpga-spi", "trifpga-mac", "trifpga-bridge"];
+    competency = "TopLevelDesign";
+    status = "done";
+}
+
 spec "trisacred-physics" {
     tier = 2;
     description = "Sacred physics verification: TRINITY, G, ΩΛ, tpresent, γ";
