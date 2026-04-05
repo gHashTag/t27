@@ -122,3 +122,63 @@ This suggests a refinement: n = 2^a × (E8 number) × 3^j.
 | 2 | G = pi^3*gamma^2/phi: dimensionless value wrong | HIGH | Open |
 | 3 | n = E8 × 3^k fails for quark masses | MEDIUM | Under investigation |
 | 4 | No prediction derived yet | HIGH | Phase 4 target |
+
+---
+
+## Phase 2-3 Finding: m_u/m_e = φ³ (NEW OBSERVATION)
+
+### Result
+
+The ratio of up quark mass to electron mass:
+
+```
+m_u / m_e = 2.16 MeV / 0.511 MeV = 4.227
+φ³ = 4.236
+Relative error: 0.21%
+```
+
+This was NOT part of the Sacred Formula fitting (Sacred Formula uses
+mp/me = 6π⁵, not mu/me). The up quark mass was fitted with a different
+formula: n=199, k=-2, m=-1, p=-1.
+
+**This is potentially a Level 1 prediction**: a mass ratio NOT used in
+the Sacred Formula catalog that matches an E₈-derived number (φ³ = m₂³
+in Zamolodchikov normalization, since m₂ = φ).
+
+### Additional Lepton Ratio
+
+```
+m_mu / m_e = 206.77
+φ⁻³ × π⁴ × 3² ≈ 206.96  (error: 0.09%)
+```
+
+This decomposes cleanly into Sacred Formula components with E₈ connection
+(φ⁻³ = γ = Barbero-Immirzi parameter).
+
+### What This Means
+
+1. φ³ appears as a natural mass ratio in the E₈ context because
+   φ = m₂/m₁ (Zamolodchikov), so φ³ = (m₂/m₁)³.
+
+2. The up quark is the lightest quark — its mass ratio to the electron
+   being φ³ suggests a direct E₈ mass hierarchy connection.
+
+3. This is FALSIFIABLE: if the up quark mass is measured more precisely
+   and the ratio deviates from φ³ by more than experimental uncertainty,
+   the prediction is refuted.
+
+### Caveats
+
+- The up quark mass has significant uncertainty (~20% at PDG 2022)
+- m_u/m_e = 4.227 ± ~0.8, while φ³ = 4.236
+- The 0.21% agreement may be coincidental given the large error bars
+- A proper test requires lattice QCD improvements to pin down m_u
+
+## Updated Theorem/Finding Table
+
+| # | Statement | Status | Source |
+|---|-----------|--------|--------|
+| 1-7 | (same as before) | ✅ | Phase 0-1 |
+| 8 | m_u/m_e ≈ φ³ (0.21%) | ⚠️ NEW | Phase 2-3, this work |
+| 9 | m_mu/m_e ≈ φ⁻³π⁴3² (0.09%) | ⚠️ NEW | Phase 2-3, this work |
+| 10 | No direct φ in MN E₈ BPS masses | ❌ | Literature review |
