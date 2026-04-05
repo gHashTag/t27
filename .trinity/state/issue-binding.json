@@ -1,17 +1,17 @@
 {
-  "issue_id": "SEED-48",
-  "issue_number": 48,
+  "issue_id": "SEED-49",
+  "issue_number": 49,
   "source": "github",
-  "url": "https://github.com/gHashTag/t27/issues/SEED-48",
-  "title": "feat(ring-48): fix 11 stale seals detected by tri repl doctor",
+  "url": "https://github.com/gHashTag/t27/issues/SEED-49",
+  "title": "feat(ring-49): working tri repl evolve with auto-fix capabilities",
   "state": "closed",
-  "linked_skill_id": "ring-48-stale-seal-fix",
-  "linked_session_id": "2026-04-05T14:00:00Z#ring48",
-  "last_synced_at": "2026-04-05T14:00:00Z",
-  "required_commit_message_pattern": "\\[SEED-48\\]",
+  "linked_skill_id": "ring-49-auto-evolve",
+  "linked_session_id": "2026-04-05T15:00:00Z#ring49",
+  "last_synced_at": "2026-04-05T15:00:00Z",
+  "required_commit_message_pattern": "\\[SEED-49\\]",
   "metadata": {
-    "ring": 48,
+    "ring": 49,
     "layer": "SEED",
-    "seals_fixed": 11
+    "weakness_types_handled": ["STALE_SEAL", "COVERAGE_GAP", "MISSING_CAPABILITY"]
   }
 }

@@ -1,18 +1,19 @@
 {
-  "skill_id": "ring-48-stale-seal-fix",
-  "skill_name": "stale-seal-fix",
-  "session_id": "2026-04-05T14:00:00Z#ring48",
-  "issue_id": "SEED-48",
-  "issue_title": "Ring 48: Fix 11 stale seals detected by tri repl doctor",
-  "description": "REPL doctor detected 11 stale seals with hash mismatches -- auto-fix via re-hashing",
-  "ring": 48,
+  "skill_id": "ring-49-auto-evolve",
+  "skill_name": "auto-evolve",
+  "session_id": "2026-04-05T15:00:00Z#ring49",
+  "issue_id": "SEED-49",
+  "issue_title": "Ring 49: Working tri repl evolve with auto-fix capabilities",
+  "description": "Implement functional evolve command that auto-fixes stale seals, coverage gaps, and missing capabilities",
+  "ring": 49,
   "layer": "SEED",
-  "started_at": "2026-04-05T14:00:00Z",
+  "started_at": "2026-04-05T15:00:00Z",
   "started_by": "agent:claude-code",
   "status": "complete",
   "allowed_paths": [
-    ".trinity/seals/",
+    "bootstrap/t27c.py",
     ".trinity/state/",
-    ".trinity/experience/"
+    ".trinity/experience/",
+    ".trinity/seals/"
   ]
 }

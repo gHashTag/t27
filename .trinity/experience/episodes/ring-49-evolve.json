@@ -1,0 +1,24 @@
+{
+  "episode_id": "ring-49-evolve",
+  "timestamp": "2026-04-05T15:00:00Z",
+  "type": "feature",
+  "agent": "T",
+  "phase": "Evolve",
+  "ring": 49,
+  "description": "Implemented functional evolve command with auto-fix for 3 weakness types",
+  "steps": [
+    {"step": 1, "action": "REFACTOR_DOCTOR", "status": "complete", "detail": "Extracted _detect_weaknesses() for reuse"},
+    {"step": 2, "action": "IMPLEMENT_EVOLVE", "status": "complete", "detail": "STALE_SEAL auto-fix via re-hashing"},
+    {"step": 3, "action": "IMPLEMENT_EVOLVE", "status": "complete", "detail": "COVERAGE_GAP auto-fix via skeleton conformance"},
+    {"step": 4, "action": "IMPLEMENT_EVOLVE", "status": "complete", "detail": "MISSING_CAPABILITY auto-fix via seal creation"},
+    {"step": 5, "action": "EPISODE_RECORDING", "status": "complete", "detail": "Evolve records episodes automatically"},
+    {"step": 6, "action": "TEST_VERIFY", "status": "complete", "detail": "Doctor finds 19 weaknesses, evolve fixes one"}
+  ],
+  "learnings": [
+    "Evolve command is the KEY feature for self-improvement",
+    "Doctor detects weaknesses, evolve picks highest priority and fixes it",
+    "Episode recording happens automatically within evolve"
+  ],
+  "mistakes": [],
+  "result": "success"
+}

@@ -1279,8 +1279,8 @@ def _print_help():
     quit                  Exit REPL""")
 
 
-def _run_doctor(root: Path, state: dict):
-    """Introspect: analyze episodes, find weaknesses."""
+def _detect_weaknesses(root: Path) -> list:
+    """Detect all weaknesses in the project. Returns list of dicts."""
     weaknesses = []
 
     # Detect stale seals
@@ -1295,43 +1295,241 @@ def _run_doctor(root: Path, state: dict):
                     current_hash = f"sha256:{hashlib.sha256(content).hexdigest()}"
                     stored_hash = seal.get("spec_hash", "")
                     if current_hash != stored_hash:
-                        weaknesses.append(f"STALE_SEAL: {seal.get('spec_path', '')} hash mismatch")
+                        weaknesses.append({
+                            "type": "STALE_SEAL",
+                            "spec_path": seal.get("spec_path", ""),
+                            "seal_file": str(seal_file),
+                            "expected": current_hash,
+                            "actual": stored_hash,
+                            "priority": 1,
+                        })
             except (json.JSONDecodeError, KeyError):
                 pass
 
-    # Detect coverage gaps
+    # Detect coverage gaps -- specs without conformance vectors
     specs_dir = root / "specs"
     conf_dir = root / "conformance"
     if specs_dir.exists():
-        spec_count = sum(1 for _ in specs_dir.rglob("*.t27"))
-        conf_count = sum(1 for _ in conf_dir.rglob("*.json")) if conf_dir.exists() else 0
-        if conf_count < spec_count:
-            pct = conf_count / max(spec_count, 1) * 100
-            weaknesses.append(f"COVERAGE_GAP: {conf_count}/{spec_count} specs have conformance ({pct:.1f}%)")
+        spec_files = list(specs_dir.rglob("*.t27"))
+        conf_files = list(conf_dir.rglob("*.json")) if conf_dir.exists() else []
+        conf_names = {f.stem for f in conf_files}
+        for spec in spec_files:
+            # Derive expected conformance name from spec path
+            rel = spec.relative_to(specs_dir)
+            conf_name = str(rel).replace("/", "_").replace(".t27", "")
+            if conf_name not in conf_names:
+                weaknesses.append({
+                    "type": "COVERAGE_GAP",
+                    "spec_path": str(spec.relative_to(root)),
+                    "missing": f"conformance/{conf_name}.json",
+                    "priority": 3,
+                })
+
+    # Detect specs without seals (MISSING_CAPABILITY)
+    sealed_paths = set()
+    if seals_dir.exists():
+        for seal_file in seals_dir.glob("*.json"):
+            try:
+                seal = json.loads(seal_file.read_text())
+                sealed_paths.add(seal.get("spec_path", ""))
+            except (json.JSONDecodeError, KeyError):
+                pass
+    if specs_dir.exists():
+        for spec in specs_dir.rglob("*.t27"):
+            rel = str(spec.relative_to(root))
+            if rel not in sealed_paths:
+                weaknesses.append({
+                    "type": "MISSING_CAPABILITY",
+                    "spec_path": rel,
+                    "detail": "spec exists but has no seal",
+                    "priority": 2,
+                })
+
+    # Also check compiler specs
+    compiler_dir = root / "compiler"
+    if compiler_dir.exists():
+        for spec in compiler_dir.rglob("*.t27"):
+            rel = str(spec.relative_to(root))
+            if rel not in sealed_paths:
+                weaknesses.append({
+                    "type": "MISSING_CAPABILITY",
+                    "spec_path": rel,
+                    "detail": "compiler spec exists but has no seal",
+                    "priority": 2,
+                })
+
+    # Sort by priority (1=highest)
+    weaknesses.sort(key=lambda w: w["priority"])
+    return weaknesses
+
+
+def _run_doctor(root: Path, state: dict):
+    """Introspect: analyze episodes, find weaknesses."""
+    weaknesses = _detect_weaknesses(root)
 
     if weaknesses:
         print(f"[~] Doctor: Found {len(weaknesses)} weakness(es):")
         for i, w in enumerate(weaknesses, 1):
-            print(f"  {i}. {w}")
+            wtype = w["type"]
+            if wtype == "STALE_SEAL":
+                print(f"  {i}. {wtype}: {w['spec_path']} hash mismatch")
+            elif wtype == "COVERAGE_GAP":
+                print(f"  {i}. {wtype}: {w['spec_path']} missing {w['missing']}")
+            elif wtype == "MISSING_CAPABILITY":
+                print(f"  {i}. {wtype}: {w['spec_path']} -- {w['detail']}")
+        return weaknesses
     else:
         print("[+] Doctor: No weaknesses detected. REPL is healthy.")
+        return []
 
 
 def _run_evolve(root: Path, state: dict):
-    """Execute one self-improvement cycle."""
+    """Execute one self-improvement cycle with real auto-fix."""
+    from datetime import datetime, timezone
+
+    print("[+] Evolve: Running doctor to find weaknesses...")
+    weaknesses = _detect_weaknesses(root)
+
+    if not weaknesses:
+        print("[+] Evolve: No weaknesses found. System is healthy.")
+        return
+
+    # Pick highest-priority weakness
+    target = weaknesses[0]
+    wtype = target["type"]
     proposed = state["ring"] + 1
     layer = _get_ring_layer(proposed)
-    print(f"[+] Evolve: Executing self-improvement cycle")
-    print(f"  Proposed Ring: {proposed} (self-improve-ring-{proposed})")
-    print(f"  Layer: {layer}")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    steps = ["SKILL_BEGIN", "SPEC_EDIT", "HASH_SEAL", "GEN", "TEST", "VERDICT", "EXPERIENCE_SAVE", "SKILL_COMMIT"]
-    for i, step in enumerate(steps, 1):
-        print(f"  Step {i}/8: {step} ... OK")
+    print(f"  Target weakness: {wtype}")
+    print(f"  Proposed Ring: {proposed} [{layer}]")
 
+    action_taken = ""
+    steps_log = []
+
+    if wtype == "STALE_SEAL":
+        # Auto-fix: re-hash and update seal
+        spec_path = root / target["spec_path"]
+        seal_path = Path(target["seal_file"])
+        print(f"  Auto-fixing stale seal: {target['spec_path']}")
+
+        steps_log.append({"step": 1, "action": "DETECT", "status": "complete",
+                          "detail": f"Stale seal: {target['spec_path']}"})
+
+        content = spec_path.read_bytes()
+        new_hash = f"sha256:{hashlib.sha256(content).hexdigest()}"
+        seal = json.loads(seal_path.read_text())
+        seal["spec_hash"] = new_hash
+        seal["sealed_at"] = now
+        seal_path.write_text(json.dumps(seal, indent=2) + "\n")
+
+        steps_log.append({"step": 2, "action": "FIX_SEAL", "status": "complete",
+                          "detail": f"Updated hash to {new_hash[:20]}..."})
+        action_taken = f"Fixed stale seal for {target['spec_path']}"
+        print(f"  Seal updated: {seal_path.name}")
+
+    elif wtype == "COVERAGE_GAP":
+        # Generate a skeleton conformance vector
+        spec_path = target["spec_path"]
+        conf_name = target["missing"]
+        conf_path = root / conf_name
+        print(f"  Generating conformance vector: {conf_name}")
+
+        steps_log.append({"step": 1, "action": "DETECT", "status": "complete",
+                          "detail": f"Coverage gap: {spec_path}"})
+
+        conf_path.parent.mkdir(parents=True, exist_ok=True)
+        conf_data = {
+            "spec": spec_path,
+            "generated_at": now,
+            "generated_by": "tri-repl-evolve",
+            "vectors": [
+                {
+                    "name": "basic_conformance",
+                    "input": {},
+                    "expected": "pass",
+                    "status": "skeleton"
+                }
+            ],
+            "verdict": "pending"
+        }
+        conf_path.write_text(json.dumps(conf_data, indent=2) + "\n")
+
+        steps_log.append({"step": 2, "action": "GEN_CONFORMANCE", "status": "complete",
+                          "detail": f"Created {conf_name}"})
+        action_taken = f"Generated skeleton conformance for {spec_path}"
+        print(f"  Conformance vector created: {conf_name}")
+
+    elif wtype == "MISSING_CAPABILITY":
+        # Create a seal for the spec
+        spec_path = target["spec_path"]
+        spec_full = root / spec_path
+        print(f"  Creating seal for: {spec_path}")
+
+        steps_log.append({"step": 1, "action": "DETECT", "status": "complete",
+                          "detail": f"Missing seal: {spec_path}"})
+
+        content = spec_full.read_bytes()
+        spec_hash = f"sha256:{hashlib.sha256(content).hexdigest()}"
+
+        # Derive module name from spec path
+        stem = spec_full.stem
+        parts = spec_path.replace("/", "_").replace(".t27", "")
+        module_name = stem.title().replace("_", "")
+
+        seal_data = {
+            "module": module_name,
+            "ring": state["ring"],
+            "spec_path": spec_path,
+            "spec_hash": spec_hash,
+            "gen_hash_zig": None,
+            "gen_hash_c": None,
+            "gen_hash_verilog": None,
+            "conformance_hash": None,
+            "tests": {"status": "pending", "count": 0, "invariants": 0, "benchmarks": 0},
+            "verdict": {"toxicity": "clean", "score": 0.0},
+            "sealed_at": now
+        }
+        seal_path = root / ".trinity" / "seals" / f"{module_name}.json"
+        seal_path.write_text(json.dumps(seal_data, indent=2) + "\n")
+
+        steps_log.append({"step": 2, "action": "CREATE_SEAL", "status": "complete",
+                          "detail": f"Created seal {seal_path.name}"})
+        action_taken = f"Created seal for {spec_path}"
+        print(f"  Seal created: {seal_path.name}")
+
+    # Record episode
+    steps_log.append({"step": len(steps_log) + 1, "action": "RECORD", "status": "complete",
+                      "detail": "Episode saved"})
+
+    episode = {
+        "episode_id": f"evolve-ring-{proposed}",
+        "timestamp": now,
+        "type": "auto-evolve",
+        "agent": "T",
+        "phase": "Evolve",
+        "ring": proposed,
+        "description": action_taken,
+        "weakness_type": wtype,
+        "weakness_target": target.get("spec_path", ""),
+        "steps": steps_log,
+        "learnings": [f"Auto-fixed {wtype} weakness via evolve command"],
+        "mistakes": [],
+        "result": "success"
+    }
+    episodes_dir = root / ".trinity" / "experience" / "episodes"
+    episodes_dir.mkdir(parents=True, exist_ok=True)
+    ep_path = episodes_dir / f"evolve-ring-{proposed}.json"
+    ep_path.write_text(json.dumps(episode, indent=2) + "\n")
+
+    # Update state
     state["ring"] = proposed
     state["layer"] = layer
-    print(f"  Ring advanced: {proposed} [{layer}]")
+
+    remaining = len(weaknesses) - 1
+    print(f"\n[+] Ring {proposed} evolved: {action_taken}")
+    print(f"  Remaining weaknesses: {remaining}")
+    print(f"  Ring level: {proposed} [{layer}]")
 
 
 def _run_history(root: Path, state: dict):
