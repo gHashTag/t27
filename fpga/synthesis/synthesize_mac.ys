@@ -1,0 +1,32 @@
+# Yosys synthesis script for MAC module
+# φ² + 1/φ² = 3 | TRINITY
+
+# Target device
+set DEVICE xc7a100tcsg324-1
+
+# Read Verilog files (generated from t27 specs)
+read_verilog gen/base/types.v
+read_verilog gen/fpga/mac.v
+
+# Synthesize for Xilinx 7-series
+synth_xilinx -top mac_ternary -device $DEVICE
+
+# Write output files
+write_json mac.json
+write_verilog mac_synth.v
+
+# Write statistics
+stat
+print "=== Synthesis Statistics ==="
+print "Device: $DEVICE"
+print "Top: mac_ternary"
+print ""
+
+# Extract key metrics
+# (Yosys will print these in the stat command output)
+
+# Write utilization summary
+set fp [open "reports/utilization_yosys.txt" w]
+puts $fp "# Utilization from Yosys synthesis"
+puts $fp "# Generated automatically"
+close $fp

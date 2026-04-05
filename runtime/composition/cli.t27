@@ -1,0 +1,503 @@
+// t27/runtime/composition/cli.t27
+// CLI Interface for Composition Runtime
+// φ² + 1/φ² = 3 | TRINITY
+//
+// Command-line interface for running ML+AR composition patterns
+
+module CompositionCLI {
+    use base::types;
+    use ar::ternary_logic;   // K_TRUE, K_FALSE, K_UNKNOWN
+    use ar::proof_trace;
+    use ar::composition;
+    use composition::composition_engine;
+
+    // ═══════════════════════════════════════════════════════
+    // TYPES
+    // ═══════════════════════════════════════════════════════
+
+    pub const CLICommand = enum(u8) {
+        RUN,        // Run a composition pattern
+        LIST,       // List available patterns
+        BENCHMARK,  // Benchmark pattern performance
+        TEST,       // Run all pattern tests
+        HELP,       // Show help
+    };
+
+    pub const CLIArgs = struct {
+        command : CLICommand,
+        pattern : CompositionPattern,
+        input_file : ?[]const u8,
+        output_file : ?[]const u8,
+        max_steps : u8,
+        style : FormatStyle,
+        verbose : bool,
+    };
+
+    pub const FormatStyle = enum(u8) {
+        NATURAL,
+        FITCH,
+        COMPACT,
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // CLI ENTRY POINT
+    // ═══════════════════════════════════════════════════════
+
+    // main: CLI entry point
+    pub fn main(argc: i32, argv: [][]const u8) -> i32 {
+        if (argc < 2) {
+            print_help();
+            return 0;
+        }
+
+        const args = parse_arguments(argc, argv);
+
+        return switch (args.command) {
+            .RUN => run_command(args),
+            .LIST => list_patterns(),
+            .BENCHMARK => benchmark_command(args),
+            .TEST => test_command(),
+            .HELP => { print_help(); 0; },
+        };
+    }
+
+    // parse_arguments: Parse command-line arguments
+    fn parse_arguments(argc: i32, argv: [][]const u8) -> CLIArgs {
+        var args = CLIArgs{
+            .command = .HELP,
+            .pattern = .CNN_RULES,
+            .input_file = null,
+            .output_file = null,
+            .max_steps = 10,
+            .style = .NATURAL,
+            .verbose = false,
+        };
+
+        var i : i32 = 1;
+        while (i < argc) : (i += 1) {
+            const arg = argv[@intCast(i)];
+
+            if (str_eq(arg, "run")) {
+                args.command = .RUN;
+            } else if (str_eq(arg, "list")) {
+                args.command = .LIST;
+            } else if (str_eq(arg, "benchmark")) {
+                args.command = .BENCHMARK;
+            } else if (str_eq(arg, "test")) {
+                args.command = .TEST;
+            } else if (str_eq(arg, "help") or str_eq(arg, "--help") or str_eq(arg, "-h")) {
+                args.command = .HELP;
+            } else if (str_eq(arg, "--pattern") or str_eq(arg, "-p")) {
+                i += 1;
+                if (i < argc) {
+                    args.pattern = parse_pattern(argv[@intCast(i)]);
+                }
+            } else if (str_eq(arg, "--input") or str_eq(arg, "-i")) {
+                i += 1;
+                if (i < argc) {
+                    args.input_file = argv[@intCast(i)];
+                }
+            } else if (str_eq(arg, "--output") or str_eq(arg, "-o")) {
+                i += 1;
+                if (i < argc) {
+                    args.output_file = argv[@intCast(i)];
+                }
+            } else if (str_eq(arg, "--steps") or str_eq(arg, "-s")) {
+                i += 1;
+                if (i < argc) {
+                    args.max_steps = parse_u8(argv[@intCast(i)]);
+                }
+            } else if (str_eq(arg, "--style")) {
+                i += 1;
+                if (i < argc) {
+                    args.style = parse_style(argv[@intCast(i)]);
+                }
+            } else if (str_eq(arg, "--verbose") or str_eq(arg, "-v")) {
+                args.verbose = true;
+            }
+        }
+
+        return args;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // COMMAND IMPLEMENTATIONS
+    // ═══════════════════════════════════════════════════════
+
+    // run_command: Execute a composition pattern
+    fn run_command(args: CLIArgs) -> i32 {
+        print_banner();
+
+        // Load or generate input data
+        const input_data = load_input_data(args.input_file);
+
+        // Initialize engine and dispatcher
+        var engine = init_engine();
+        const dispatcher = create_dispatcher();
+
+        // Create runtime config
+        var config = RuntimeConfig{
+            .max_steps = args.max_steps,
+            .enable_restraint = true,
+            .enable_trace_recording = true,
+            .confidence_threshold = GF16_HALF,
+            .timeout_ms = 5000,
+        };
+
+        if (args.verbose) {
+            print("Running pattern: ");
+            print_pattern_name(args.pattern);
+            print("\n");
+            print("Max steps: ");
+            print_u8(args.max_steps);
+            print("\n");
+            print("Input size: ");
+            print_uint(@as(u32, @intCast(input_data.len)));
+            print("\n\n");
+        }
+
+        // Execute composition
+        const result = dispatch(&dispatcher, &engine, args.pattern,
+                                 input_data, GF16_ONE, null_rules, config);
+
+        // Print results
+        print_result(&result, args.style, args.verbose);
+
+        // Write output if requested
+        if (args.output_file != null) {
+            write_output(args.output_file.?, &result);
+        }
+
+        return 0;
+    }
+
+    // list_patterns: List available composition patterns
+    fn list_patterns() -> i32 {
+        print_banner();
+        print("\nAvailable Composition Patterns:\n\n");
+
+        print("  1. CNN + Rules\n");
+        print("     Neural feature extraction → AR rule evaluation\n");
+        print("     Use: --pattern cnn_rules\n\n");
+
+        print("  2. MLP + Bayesian\n");
+        print("     Neural forward pass → Bayesian inference\n");
+        print("     Use: --pattern mlp_bayesian\n\n");
+
+        print("  3. Transformer + XAI\n");
+        print("     Self-attention → ≤10 step explanation\n");
+        print("     Use: --pattern transformer_xai\n\n");
+
+        print("  4. RL + Guardrails\n");
+        print("     Policy network → AR constraint checking\n");
+        print("     Use: --pattern rl_guardrails\n\n");
+
+        return 0;
+    }
+
+    // benchmark_command: Benchmark pattern performance
+    fn benchmark_command(args: CLIArgs) -> i32 {
+        print_banner();
+        print("\nRunning Composition Benchmark...\n\n");
+
+        var engine = init_engine();
+        const dispatcher = create_dispatcher();
+
+        // Benchmark each pattern
+        const patterns = [_]CompositionPattern{
+            .CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS
+        };
+
+        var total_iterations : u32 = 0;
+
+        for (patterns) |pattern| {
+            print("Benchmarking: ");
+            print_pattern_name(pattern);
+            print("\n");
+
+            const iterations = benchmark_pattern(&dispatcher, &engine, pattern, 100);
+            total_iterations += iterations;
+
+            print("  Iterations: ");
+            print_uint(iterations);
+            print("\n\n");
+        }
+
+        print("Total iterations across all patterns: ");
+        print_uint(total_iterations);
+        print("\n");
+
+        return 0;
+    }
+
+    // test_command: Run all pattern tests
+    fn test_command() -> i32 {
+        print_banner();
+        print("\nRunning Composition Pattern Tests...\n\n");
+
+        var passed : u32 = 0;
+        var failed : u32 = 0;
+
+        // Test each pattern
+        const patterns = [_]CompositionPattern{
+            .CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS
+        };
+
+        for (patterns) |pattern| {
+            print("Testing: ");
+            print_pattern_name(pattern);
+            print("... ");
+
+            if (test_pattern(pattern)) {
+                print("PASSED\n");
+                passed += 1;
+            } else {
+                print("FAILED\n");
+                failed += 1;
+            }
+        }
+
+        print("\n");
+        print("Test Results: ");
+        print_uint(passed);
+        print(" passed, ");
+        print_uint(failed);
+        print(" failed\n");
+
+        return if (failed == 0) 0 else 1;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // UTILITY FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    fn print_banner() -> void {
+        print("\n");
+        print("╔════════════════════════════════════════════════════╗\n");
+        print("║   TRINITY Composition Runtime - CLI               ║\n");
+        print("║   φ² + 1/φ² = 3 | TRINITY                         ║\n");
+        print("╚════════════════════════════════════════════════════╝\n");
+    }
+
+    fn print_help() -> void {
+        print_banner();
+        print("\n");
+        print("Usage: t27-composition <command> [options]\n\n");
+        print("Commands:\n");
+        print("  run        Run a composition pattern\n");
+        print("  list       List available patterns\n");
+        print("  benchmark  Benchmark pattern performance\n");
+        print("  test       Run all pattern tests\n");
+        print("  help       Show this help message\n\n");
+        print("Options:\n");
+        print("  -p, --pattern <name>   Composition pattern (default: cnn_rules)\n");
+        print("  -i, --input <file>     Input data file (default: generated)\n");
+        print("  -o, --output <file>    Output file for results\n");
+        print("  -s, --steps <n>        Maximum steps (default: 10)\n");
+        print("  --style <style>        Output style: natural, fitch, compact\n");
+        print("  -v, --verbose          Verbose output\n");
+        print("  -h, --help             Show help message\n\n");
+        print("Examples:\n");
+        print("  t27-composition run --pattern cnn_rules\n");
+        print("  t27-composition run -p transformer_xai -v\n");
+        print("  t27-composition benchmark\n");
+        print("  t27-composition test\n");
+    }
+
+    fn print_pattern_name(pattern: CompositionPattern) -> void {
+        switch (pattern) {
+            .CNN_RULES => print("CNN + Rules");
+            .MLP_BAYESIAN => print("MLP + Bayesian");
+            .TRANSFORMER_XAI => print("Transformer + XAI");
+            .RL_GUARDRAILS => print("RL + Guardrails");
+        }
+    }
+
+    fn print_result(result: *CompositionResult, style: FormatStyle, verbose: bool) -> void {
+        print("\n╔════════════════════════════════════════════════════╗\n");
+        print("║               COMPOSITION RESULT                  ║\n");
+        print("╚════════════════════════════════════════════════════╝\n\n");
+
+        // Prediction
+        print("Prediction: ");
+        switch (result.prediction) {
+            K_TRUE => print("TRUE (+1)\n"),
+            K_FALSE => print("FALSE (-1)\n"),
+            K_UNKNOWN => print("UNKNOWN (0)\n"),
+        }
+
+        // Confidence
+        const conf_f = gf16_decode_to_f32(result.confidence);
+        print("Confidence: ");
+        print_f32(conf_f * 100.0);
+        print("%\n");
+
+        // CLARA Satisfaction
+        const sat_f = gf16_decode_to_f32(result.satisfaction);
+        print("CLARA Satisfaction: ");
+        print_f32(sat_f * 100.0);
+        print("%\n");
+
+        // Step count
+        print("Steps: ");
+        print_uint(@as(u32, result.explanation.step_count));
+        print("/10\n");
+
+        // Explanation
+        if (verbose) {
+            print("\nExplanation:\n");
+            switch (style) {
+                .NATURAL => print_natural_explanation(result),
+                .FITCH => print_fitch_explanation(result),
+                .COMPACT => print_compact_explanation(result),
+            }
+        }
+    }
+
+    fn print_natural_explanation(result: *CompositionResult) -> void {
+        const trace = result.proof_trace;
+        var i : u8 = 0;
+        while (i < trace.step_count) {
+            print("  Step ");
+            print_u8(i + 1);
+            print(": ");
+            // Would print step details
+            print("\n");
+            i += 1;
+        }
+    }
+
+    fn print_fitch_explanation(result: *CompositionResult) -> void {
+        print("  │\n");
+        const trace = result.proof_trace;
+        var i : u8 = 0;
+        while (i < trace.step_count) {
+            print("  │ ");
+            print_u8(i + 1);
+            print(". ...\n");
+            i += 1;
+        }
+        print("  └─ Conclusion: ");
+        switch (result.prediction) {
+            K_TRUE => print("TRUE\n"),
+            K_FALSE => print("FALSE\n"),
+            K_UNKNOWN => print("UNKNOWN\n"),
+        }
+    }
+
+    fn print_compact_explanation(result: *CompositionResult) -> void {
+        print("  ");
+        print_uint(@as(u32, result.proof_trace.step_count));
+        print(" steps | ");
+        switch (result.prediction) {
+            K_TRUE => print("conclusion=TRUE"),
+            K_FALSE => print("conclusion=FALSE"),
+            K_UNKNOWN => print("conclusion=UNKNOWN"),
+        }
+        print(" | ");
+        const conf_f = gf16_decode_to_f32(result.confidence);
+        print_f32(conf_f);
+        print("\n");
+    }
+
+    fn parse_pattern(name: []const u8) -> CompositionPattern {
+        if (str_eq(name, "cnn_rules") or str_eq(name, "cnn")) return .CNN_RULES;
+        if (str_eq(name, "mlp_bayesian") or str_eq(name, "mlp")) return .MLP_BAYESIAN;
+        if (str_eq(name, "transformer_xai") or str_eq(name, "transformer") or str_eq(name, "xai")) return .TRANSFORMER_XAI;
+        if (str_eq(name, "rl_guardrails") or str_eq(name, "rl")) return .RL_GUARDRAILS;
+        return .CNN_RULES;  // Default
+    }
+
+    fn parse_style(name: []const u8) -> FormatStyle {
+        if (str_eq(name, "natural")) return .NATURAL;
+        if (str_eq(name, "fitch")) return .FITCH;
+        if (str_eq(name, "compact")) return .COMPACT;
+        return .NATURAL;
+    }
+
+    fn load_input_data(path: ?[]const u8) -> []const f32 {
+        // For now, return dummy data
+        _ = path;
+        const dummy = [_]f32{0.7, 0.5, 0.8, 0.6};
+        return dummy[0..];
+    }
+
+    fn write_output(path: []const u8, result: *CompositionResult) -> void {
+        // Would write result to file
+        _ = path;
+        _ = result;
+    }
+
+    fn benchmark_pattern(
+        dispatcher: *PatternDispatcher,
+        engine: *EngineState,
+        pattern: CompositionPattern,
+        iterations: u32
+    ) -> u32 {
+        const input = [_]f32{0.5};
+        const config = RuntimeConfig{};
+
+        var i : u32 = 0;
+        while (i < iterations) {
+            _ = dispatch(dispatcher, engine, pattern, input, GF16_ONE, null_rules, config);
+            i += 1;
+        }
+
+        return iterations;
+    }
+
+    fn test_pattern(pattern: CompositionPattern) -> bool {
+        var engine = init_engine();
+        const dispatcher = create_dispatcher();
+        const input = [_]f32{0.5};
+        const config = RuntimeConfig{};
+
+        const result = dispatch(&dispatcher, &engine, pattern, input, GF16_ONE, null_rules, config);
+
+        // Basic validation
+        const conf_f = gf16_decode_to_f32(result.confidence);
+        const sat_f = gf16_decode_to_f32(result.satisfaction);
+
+        return conf_f >= 0.0 and conf_f <= 1.0
+            and sat_f >= 0.0 and sat_f <= 1.0
+            and result.proof_trace.step_count <= 10;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // STRING UTILITIES
+    // ═══════════════════════════════════════════════════════
+
+    fn str_eq(a: []const u8, b: []const u8) -> bool {
+        if (a.len != b.len) return false;
+        var i : usize = 0;
+        while (i < a.len) : (i += 1) {
+            if (a[i] != b[i]) return false;
+        }
+        return true;
+    }
+
+    fn print(s: []const u8) -> void {
+        _ = s;  // Would call actual print
+    }
+
+    fn print_u8(v: u8) -> void {
+        _ = v;
+    }
+
+    fn print_uint(v: u32) -> void {
+        _ = v;
+    }
+
+    fn print_f32(v: f32) -> void {
+        _ = v;
+    }
+}
+
+// Re-exports from runtime
+const init_engine = composition_engine.init_engine;
+const create_dispatcher = composition_engine.create_dispatcher;
+const dispatch = composition_engine.dispatch;
+const EngineState = composition_engine.EngineState;
+const PatternDispatcher = composition_engine.PatternDispatcher;
+const RuntimeConfig = composition_engine.RuntimeConfig;
+const null_rules = [_]HornClause{};

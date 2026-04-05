@@ -1,0 +1,517 @@
+// t27/specs/nn/backprop_k3.t27
+// K3-Guided Backpropagation for Ternary Neural Networks
+// Novel research: Gradient descent with {-1, 0, +1} weight constraints
+// φ² + 1/φ² = 3 | TRINITY
+
+module K3Backprop {
+    // Import base types, operations, and ML modules
+    use base::types;
+    use base::ops;
+    use nn::hslm;
+    use numeric::gf16;
+
+    // ═════════════════════════════════════════════════════════════════
+    // 1. K3 Gradient Semantics
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Research Question: How does gradient w.r.t. {-1, 0, +1} weights differ from continuous?
+    //
+    // Approach: Subgradient method with ternary constraint projection
+    // - Compute standard continuous gradient
+    // - Project gradient onto ternary lattice {-1, 0, +1}
+    // - Use sign-based updates for ternary weights
+    //
+    // Key Insight: K3 "restraint" property means we prefer 0 (unknown) over small values
+    // This naturally implements L1 regularization (sparse gradients)
+
+    // Gradient projection modes
+    const GRAD_MODE_SUBGRADIENT : u8 = 0;    // Standard subgradient
+    const GRAD_MODE_STRAIGHT_THROUGH : u8 = 1; // Straight-through estimator
+    const GRAD_MODE_K3_SIGMOID : u8 = 2;       // K3-aware sigmoid derivative
+
+    // ═════════════════════════════════════════════════════════════════
+    // 2. K3 Activation Derivative
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // k3_relu_derivative(x: Trit) → f64
+    // Derivative of ternary ReLU activation
+    // For standard ReLU: d/dx max(0, x) = 1 if x > 0, 0 otherwise
+    // For ternary input {-1, 0, +1}:
+    //   - If x = +1: gradient = 1 (active)
+    //   - If x = 0: gradient = 0.5 (subgradient at discontinuity)
+    //   - If x = -1: gradient = 0 (inactive)
+    fn k3_relu_derivative(x: Trit) -> f64 {
+        match x {
+            .pos => 1.0,      // +1: active
+            .zero => 0.5,     // 0: subgradient (average of left/right derivatives)
+            .neg => 0.0,      // -1: inactive
+        }
+    }
+
+    // k3_sigmoid_derivative(x: Trit) → f64
+    // Derivative of sigmoid for ternary input
+    // σ(x) = 1 / (1 + e^(-x))
+    // σ'(x) = σ(x) * (1 - σ(x))
+    // For ternary input, we use the continuous approximation
+    fn k3_sigmoid_derivative(x: Trit) -> f64 {
+        // Convert trit to continuous value
+        const x_cont = trit_to_f64(x);
+
+        // Compute sigmoid
+        const sig = 1.0 / (1.0 + @exp(-x_cont));
+
+        // Derivative
+        return sig * (1.0 - sig);
+    }
+
+    // k3_tanh_derivative(x: Trit) → f64
+    // Derivative of tanh for ternary input
+    // tanh'(x) = 1 - tanh²(x)
+    fn k3_tanh_derivative(x: Trit) -> f64 {
+        const x_cont = trit_to_f64(x);
+        const tanh_val = @tanh(x_cont);
+        return 1.0 - tanh_val * tanh_val;
+    }
+
+    // trit_to_f64(t: Trit) → f64
+    // Convert trit to floating point for gradient computation
+    fn trit_to_f64(t: Trit) -> f64 {
+        match t {
+            .neg => -1.0,
+            .zero => 0.0,
+            .pos => 1.0,
+        }
+    }
+
+    // f64_to_trit(x: f64) → Trit
+    // Convert floating point to nearest trit (quantization)
+    fn f64_to_trit(x: f64) -> Trit {
+        if (x > 0.5) {
+            return .pos;
+        } else if (x < -0.5) {
+            return .neg;
+        } else {
+            return .zero;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 3. K3-Weighted Backpropagation
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Gradient with ternary constraint
+    struct K3Gradient {
+        raw_gradient : f64,        // Continuous gradient value
+        ternary_proj : Trit,       // Projected to {-1, 0, +1}
+        confidence : f64,          // Gradient confidence magnitude
+    }
+
+    // k3_project_gradient(grad: f64) → K3Gradient
+    // Project continuous gradient onto ternary lattice
+    fn k3_project_gradient(grad: f64) -> K3Gradient {
+        const confidence = @abs(grad);
+
+        // Projection with restraint (prefer 0 for small gradients)
+        const ternary_proj = if (grad > 0.33) {
+            .pos
+        } else if (grad < -0.33) {
+            .neg
+        } else {
+            .zero  // Restraint: small gradients map to unknown
+        };
+
+        return K3Gradient{
+            .raw_gradient = grad,
+            .ternary_proj = ternary_proj,
+            .confidence = confidence,
+        };
+    }
+
+    // k3_backprop_layer(
+    //     weights: []Trit,
+    //     input: []Trit,
+    //     output_grad: f64,
+    //     learning_rate: f64
+    // ) → []Trit
+    // Backpropagate through a layer with ternary weights
+    fn k3_backprop_layer(
+        weights: []Trit,
+        input: []Trit,
+        output_grad: f64,
+        learning_rate: f64,
+    ) -> []Trit {
+        const len = weights.len;
+        var weight_updates : []Trit = [];
+        weight_updates.reserve(len);
+
+        var i : usize = 0;
+        while (i < len) {
+            // Chain rule: dL/dw = dL/dy * dy/dw * dy/dx
+            // For ternary: dy/dw ≈ input (forward activation)
+            const input_val = trit_to_f64(input[i]);
+
+            // Local gradient
+            const local_grad = output_grad * input_val;
+
+            // Project to ternary and scale by learning rate
+            const k3_grad = k3_project_gradient(local_grad * learning_rate);
+
+            // Determine weight update
+            const new_weight = match k3_grad.ternary_proj {
+                .pos => .pos,   // Increase weight
+                .neg => .neg,   // Decrease weight
+                .zero => .zero, // No change (restraint)
+            };
+
+            weight_updates.append(new_weight);
+            i = i + 1;
+        }
+
+        return weight_updates;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. Training Loop with K3 Backprop
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Training state
+    struct K3TrainingState {
+        weights : []Trit,           // Current ternary weights
+        gradients : []K3Gradient,   // Accumulated gradients
+        epoch : u32,                // Current epoch
+        loss : f64,                 // Current loss
+        learning_rate : f64,        // Learning rate
+    }
+
+    // k3_training_step(
+    //     state: *K3TrainingState,
+    //     input: []Trit,
+    //     target: Trit,
+    //     mode: u8
+    // ) → f64
+    // Single training step with K3 backprop
+    fn k3_training_step(
+        state: *K3TrainingState,
+        input: []Trit,
+        target: Trit,
+        mode: u8,
+    ) -> f64 {
+        // Forward pass
+        const output = k3_forward(state.weights, input);
+        const target_val = trit_to_f64(target);
+        const output_val = trit_to_f64(output);
+
+        // Compute loss (MSE)
+        const error = output_val - target_val;
+        const loss = error * error;
+        state.loss = loss;
+
+        // Backward pass
+        const output_grad = 2.0 * error;  // d(MSE)/dy = 2(y - t)
+
+        // Compute gradient for each weight
+        var i : usize = 0;
+        while (i < state.weights.len) {
+            const input_val = trit_to_f64(input[i]);
+            var local_grad : f64 = undefined;
+
+            // Select gradient mode
+            match mode {
+                GRAD_MODE_SUBGRADIENT => {
+                    local_grad = output_grad * input_val;
+                }
+                GRAD_MODE_STRAIGHT_THROUGH => {
+                    // Straight-through: treat ternary as continuous
+                    const weight_val = trit_to_f64(state.weights[i]);
+                    local_grad = output_grad * weight_val * input_val;
+                }
+                GRAD_MODE_K3_SIGMOID => {
+                    // K3-aware sigmoid derivative
+                    const weight_deriv = k3_sigmoid_derivative(state.weights[i]);
+                    local_grad = output_grad * weight_deriv * input_val;
+                }
+                else => {
+                    local_grad = output_grad * input_val;
+                }
+            }
+
+            // Accumulate gradient
+            state.gradients[i] = k3_project_gradient(local_grad);
+
+            i = i + 1;
+        }
+
+        return loss;
+    }
+
+    // k3_update_weights(state: *K3TrainingState) → void
+    // Update weights based on accumulated gradients
+    fn k3_update_weights(state: *K3TrainingState) -> void {
+        var i : usize = 0;
+        while (i < state.weights.len) {
+            const grad = state.gradients[i];
+
+            // Apply ternary update
+            state.weights[i] = match grad.ternary_proj {
+                .pos => .pos,   // Move toward +1
+                .neg => .neg,   // Move toward -1
+                .zero => state.weights[i],  // Stay (restraint)
+            };
+
+            i = i + 1;
+        }
+
+        state.epoch = state.epoch + 1;
+    }
+
+    // k3_forward(weights: []Trit, input: []Trit) → Trit
+    // Simplified forward pass for single neuron
+    fn k3_forward(weights: []Trit, input: []Trit) -> Trit {
+        var acc : f64 = 0.0;
+        var i : usize = 0;
+
+        while (i < @min(weights.len, input.len)) {
+            const w_val = trit_to_f64(weights[i]);
+            const i_val = trit_to_f64(input[i]);
+            acc = acc + w_val * i_val;
+            i = i + 1;
+        }
+
+        // Activation (ternary threshold)
+        return f64_to_trit(acc);
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 5. Research: Does K3 Backprop Preserve Restraint?
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Hypothesis: K3 backprop naturally produces sparse weight updates
+    // - Small gradients map to 0 (restraint)
+    // - Only significant gradients cause weight changes
+    // - This implements automatic L1 regularization
+
+    // k3_count_sparse_updates(state: K3TrainingState) → f64
+    // Count percentage of zero updates (measure of sparsity)
+    fn k3_count_sparse_updates(state: K3TrainingState) -> f64 {
+        var zero_count : u32 = 0;
+        const total = state.gradients.len;
+
+        var i : usize = 0;
+        while (i < total) {
+            if (state.gradients[i].ternary_proj == .zero) {
+                zero_count = zero_count + 1;
+            }
+            i = i + 1;
+        }
+
+        return @as(f64, @floatCast(zero_count)) / @as(f64, @floatCast(total));
+    }
+
+    // k3_restraint_metric(state: K3TrainingState) → f64
+    // Measure how well K3 backprop preserves the restraint property
+    // Returns ratio of zero weights to total weights
+    fn k3_restraint_metric(state: K3TrainingState) -> f64 {
+        var zero_count : u32 = 0;
+        const total = state.weights.len;
+
+        var i : usize = 0;
+        while (i < total) {
+            if (state.weights[i] == .zero) {
+                zero_count = zero_count + 1;
+            }
+            i = i + 1;
+        }
+
+        return @as(f64, @floatCast(zero_count)) / @as(f64, @floatCast(total));
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 6. Integration with HSLM
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // k3_hslm_layer_backward(
+    //     layer_weights: *hslm::LayerWeights,
+    //     input_grad: [hslm::EMBED_DIM]f64,
+    //     output_grad: [hslm::EMBED_DIM]f64,
+    //     learning_rate: f64
+    // ) → void
+    // Backprop through a single HSLM layer with K3 constraints
+    fn k3_hslm_layer_backward(
+        layer_weights: *hslm::LayerWeights,
+        input_grad: [hslm::EMBED_DIM]f64,
+        output_grad: [hslm::EMBED_DIM]f64,
+        learning_rate: f64,
+    ) -> void {
+        // Process each weight matrix (q, k, v, o, w1, w2)
+        // For now, focus on w1 (FFN first projection)
+
+        const ff_dim = hslm::FF_DIM;
+        const embed_dim = hslm::EMBED_DIM;
+
+        var i : usize = 0;
+        while (i < ff_dim) {
+            var j : usize = 0;
+            while (j < embed_dim) {
+                const idx = i * embed_dim + j;
+
+                // Compute gradient for w1[i,j]
+                const local_grad = output_grad[i] * input_grad[j];
+
+                // Project to ternary
+                const k3_grad = k3_project_gradient(local_grad * learning_rate);
+
+                // Update ternary weight
+                match k3_grad.ternary_proj {
+                    .pos => { layer_weights.w1[idx] = .pos; }
+                    .neg => { layer_weights.w1[idx] = .neg; }
+                    .zero => { /* No change (restraint) */ }
+                }
+
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test k3_relu_derivative_positive
+        given deriv = k3_relu_derivative(.pos)
+        then deriv == 1.0
+
+    test k3_relu_derivative_zero_subgradient
+        given deriv = k3_relu_derivative(.zero)
+        then deriv == 0.5
+
+    test k3_relu_derivative_negative
+        given deriv = k3_relu_derivative(.neg)
+        then deriv == 0.0
+
+    test k3_project_gradient_positive
+        given grad = k3_project_gradient(0.8)
+        then grad.ternary_proj == .pos and grad.confidence == 0.8
+
+    test k3_project_gradient_negative
+        given grad = k3_project_gradient(-0.8)
+        then grad.ternary_proj == .neg and grad.confidence == 0.8
+
+    test k3_project_gradient_zero_restraint
+        given grad = k3_project_gradient(0.1)
+        then grad.ternary_proj == .zero  // Small gradient -> restraint
+
+    test k3_project_gradient_threshold
+        given grad_pos = k3_project_gradient(0.34)
+        and   grad_neg = k3_project_gradient(-0.34)
+        and   grad_zero = k3_project_gradient(0.32)
+        then grad_pos.ternary_proj == .pos
+        and   grad_neg.ternary_proj == .neg
+        and   grad_zero.ternary_proj == .zero
+
+    test trit_to_f64_conversion
+        given pos = trit_to_f64(.pos)
+        and   zero = trit_to_f64(.zero)
+        and   neg = trit_to_f64(.neg)
+        then pos == 1.0 and zero == 0.0 and neg == -1.0
+
+    test f64_to_trit_quantization
+        given pos = f64_to_trit(0.8)
+        and   zero = f64_to_trit(0.3)
+        and   neg = f64_to_trit(-0.8)
+        then pos == .pos and zero == .zero and neg == .neg
+
+    test k3_forward_simple
+        given weights = [_]Trit{.pos, .zero, .neg}
+        and   input = [_]Trit{.pos, .pos, .pos}
+        and   output = k3_forward(&weights, &input)
+        then output == .zero  // 1*1 + 0*1 + (-1)*1 = 0
+
+    test k3_training_step_updates_gradients
+        given state = K3TrainingState{
+            .weights = [_]Trit{.pos, .zero},
+            .gradients = undefined,
+            .epoch = 0,
+            .loss = 0.0,
+            .learning_rate = 0.1,
+        }
+        and   input = [_]Trit{.pos}
+        and   loss = k3_training_step(&state, &input, .neg, GRAD_MODE_SUBGRADIENT)
+        then state.gradients[0].confidence > 0.0
+
+    test k3_update_weights_applies_gradients
+        given state = K3TrainingState{
+            .weights = [_]Trit{.zero},
+            .gradients = [_]K3Gradient{k3_project_gradient(1.0)},
+            .epoch = 0,
+            .loss = 0.0,
+            .learning_rate = 0.1,
+        }
+        when k3_update_weights(&state)
+        then state.weights[0] == .pos
+
+    test k3_restraint_metric_measures_sparsity
+        given state = K3TrainingState{
+            .weights = [_]Trit{.pos, .zero, .neg, .zero, .zero},
+            .gradients = undefined,
+            .epoch = 0,
+            .loss = 0.0,
+            .learning_rate = 0.1,
+        }
+        and   metric = k3_restraint_metric(state)
+        then metric == 0.6  // 3/5 are zero
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant k3_relu_derivative_range
+        // Derivative should always be in [0, 1]
+        assert k3_relu_derivative(.pos) >= 0.0 and k3_relu_derivative(.pos) <= 1.0;
+        assert k3_relu_derivative(.zero) >= 0.0 and k3_relu_derivative(.zero) <= 1.0;
+        assert k3_relu_derivative(.neg) >= 0.0 and k3_relu_derivative(.neg) <= 1.0;
+
+    invariant k3_project_gradient_preserves_sign
+        // Positive gradients should map to .pos or .zero
+        // Negative gradients should map to .neg or .zero
+        const pos_grad = k3_project_gradient(0.5);
+        const neg_grad = k3_project_gradient(-0.5);
+        assert pos_grad.ternary_proj == .pos or pos_grad.ternary_proj == .zero;
+        assert neg_grad.ternary_proj == .neg or neg_grad.ternary_proj == .zero;
+
+    invariant k3_restraint_produces_sparsity
+        // Given random gradients, at least some should map to zero
+        // This ensures the restraint property works
+        const grad1 = k3_project_gradient(0.1);
+        const grad2 = k3_project_gradient(-0.1);
+        assert grad1.ternary_proj == .zero;
+        assert grad2.ternary_proj == .zero;
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench k3_relu_derivative_latency
+        measure: nanoseconds for k3_relu_derivative(.pos)
+        target: < 20
+
+    bench k3_project_gradient_latency
+        measure: nanoseconds for k3_project_gradient(0.5)
+        target: < 50
+
+    bench k3_backprop_layer_100_weights
+        measure: microseconds for k3_backprop_layer with 100 weights
+        target: < 100
+
+    bench k3_training_step_full
+        measure: microseconds for complete k3_training_step
+        target: < 200
+
+    bench k3_update_weights_1000
+        measure: microseconds to update 1000 weights
+        target: < 500
+
+    bench k3_restraint_metric_10000_weights
+        measure: microseconds for k3_restraint_metric with 10000 weights
+        target: < 1000
+}

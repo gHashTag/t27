@@ -1,0 +1,719 @@
+// t27/runtime/composition/composition_engine.t27
+// Composition Pattern Runtime Engine
+// φ² + 1/φ² = 3 | TRINITY
+//
+// Runtime engine for ML+AR composition patterns:
+// - CNN + Rules: Neural feature extraction → AR rule evaluation
+// - MLP + Bayesian: Neural forward pass → Bayesian inference
+// - Transformer + XAI: Self-attention → ≤10 step explanation
+// - RL + Guardrails: Policy network → AR constraint checking
+
+module CompositionEngine {
+    use base::types;
+    use ar::ternary_logic;   // K_FALSE, K_UNKNOWN, K_TRUE, k3_and, k3_or, k3_not
+    use ar::proof_trace;      // ProofTrace, DerivationStep, format_natural, format_fitch, format_compact
+    use ar::datalog_engine;   // HornClause, DatalogEngine, derive
+    use ar::restraint;        // RestraintParams, should_continue, ExecutionState
+    use ar::composition;      // CompositionPattern, CompositionResult, ComposedPipeline
+    use numeric::gf16;       // GF16 encoding
+
+    // ═══════════════════════════════════════════════════════
+    // CONSTANTS
+    // ═══════════════════════════════════════════════════════
+    const MAX_PIPELINE_DEPTH : u8 = 5;
+    const DEFAULT_MAX_STEPS : u8 = 10;
+    const GF16_ONE : GF16 = 0x3C00;     // 1.0
+    const GF16_HALF : GF16 = 0x3800;    // 0.5
+    const GF16_ZERO : GF16 = 0x0000;    // 0.0
+
+    // ═══════════════════════════════════════════════════════
+    // TYPES
+    // ═══════════════════════════════════════════════════════
+
+    // Runtime engine state
+    pub const EngineState = struct {
+        current_pattern : CompositionPattern,
+        active_pipeline : ?*ComposedPipeline,
+        step_count : u8,
+        is_running : bool,
+        stats : EngineStats,
+    };
+
+    // Execution statistics
+    pub const EngineStats = struct {
+        total_compositions : u32,
+        total_steps : u32,
+        total_ms : u32,
+        pattern_counts : [4]u32,  // CNN_RULES, MLP_BAYESIAN, TRANSFORMER_XAI, RL_GUARDRAILS
+    };
+
+    // Pattern dispatcher - selects and executes pattern
+    pub const PatternDispatcher = struct {
+        patterns : [4]PatternHandler,
+        default_max_steps : u8,
+    };
+
+    // Pattern handler function signature
+    pub const PatternHandler = fn ([]const f32, GF16, []const HornClause, usize, anytype) CompositionResult;
+
+    // Runtime configuration
+    pub const RuntimeConfig = struct {
+        max_steps : u8 = DEFAULT_MAX_STEPS,
+        enable_restraint : bool = true,
+        enable_trace_recording : bool = true,
+        confidence_threshold : GF16 = GF16_HALF,
+        timeout_ms : u32 = 5000,
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // ENGINE INITIALIZATION
+    // ═══════════════════════════════════════════════════════
+
+    // init_engine: Initialize the composition engine
+    pub fn init_engine() -> EngineState {
+        return EngineState{
+            .current_pattern = .CNN_RULES,  // Default pattern
+            .active_pipeline = null,
+            .step_count = 0,
+            .is_running = false,
+            .stats = EngineStats{
+                .total_compositions = 0,
+                .total_steps = 0,
+                .total_ms = 0,
+                .pattern_counts = [_]u32{0, 0, 0, 0},
+            },
+        };
+    }
+
+    // create_dispatcher: Create pattern dispatcher with all handlers
+    pub fn create_dispatcher() -> PatternDispatcher {
+        return PatternDispatcher{
+            .patterns = [_]PatternHandler{
+                handler_cnn_rules,
+                handler_mlp_bayesian,
+                handler_transformer_xai,
+                handler_rl_guardrails,
+            },
+            .default_max_steps = DEFAULT_MAX_STEPS,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PATTERN DISPATCH
+    // ═══════════════════════════════════════════════════════
+
+    // dispatch: Execute composition using pattern dispatcher
+    pub fn dispatch(
+        dispatcher: *PatternDispatcher,
+        state: *EngineState,
+        pattern: CompositionPattern,
+        ml_input: []const f32,
+        ml_confidence: GF16,
+        ar_rules: []const HornClause,
+        config: RuntimeConfig
+    ) -> CompositionResult {
+        const start_time = get_time_ms();
+
+        // Update engine state
+        state.current_pattern = pattern;
+        state.is_running = true;
+
+        // Select handler based on pattern
+        const handler = dispatcher.patterns[@intFromEnum(pattern)];
+
+        // Execute pattern with runtime config
+        var result = handler(ml_input, ml_confidence, ar_rules, ar_rules.len, config);
+
+        // Update statistics
+        state.stats.total_compositions += 1;
+        state.stats.pattern_counts[@intFromEnum(pattern)] += 1;
+        state.step_count = @as(u8, @intCast(result.explanation.step_count));
+        state.stats.total_steps += state.step_count;
+
+        const elapsed = get_time_ms() - start_time;
+        state.stats.total_ms += elapsed;
+
+        state.is_running = false;
+
+        return result;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PATTERN HANDLERS
+    // ═══════════════════════════════════════════════════════
+
+    // handler_cnn_rules: CNN + Rules pattern handler
+    // Pattern: Neural features → Horn clause rules → result
+    pub fn handler_cnn_rules(
+        ml_input: []const f32,
+        ml_confidence: GF16,
+        ar_rules: []const HornClause,
+        rule_count: usize,
+        config: anytype
+    ) -> CompositionResult {
+        var trace = create_trace();
+
+        // Step 1: CNN feature extraction (simulated)
+        const features = extract_cnn_features(ml_input);
+        const cnn_result = evaluate_features(features);
+        add_step(&trace, "CNN inference", cnn_result.decision, ml_confidence);
+
+        // Step 2: AR rule evaluation
+        var engine = DatalogEngine{};
+        const ar_result = evaluate_rules_with_engine(&engine, ar_rules, rule_count, features);
+        add_step(&trace, "AR rule evaluation", ar_result.decision, ar_result.confidence);
+
+        // Step 3: Combine results with K3 logic
+        const combined = k3_and(cnn_result.decision, ar_result.decision);
+
+        // Step 4: Check restraint
+        if (config.enable_restraint and ar_result.step_count > config.max_steps) {
+            return create_terminated_result(combined, trace, "AR evaluation exceeded step limit");
+        }
+
+        // Step 5: Generate explanation
+        const explanation = format_trace_explanation(trace, .natural);
+
+        return CompositionResult{
+            .prediction = combined,
+            .confidence = combine_confidence(ml_confidence, ar_result.confidence),
+            .explanation = create_explanation_struct(trace, explanation, ml_confidence),
+            .proof_trace = trace,
+            .satisfaction = calculate_clara_satisfaction(trace, combined, ml_confidence),
+        };
+    }
+
+    // handler_mlp_bayesian: MLP + Bayesian pattern handler
+    // Pattern: MLP forward → Bayesian prior/posterior → result
+    pub fn handler_mlp_bayesian(
+        ml_input: []const f32,
+        ml_confidence: GF16,
+        ar_rules: []const HornClause,
+        rule_count: usize,
+        config: anytype
+    ) -> CompositionResult {
+        var trace = create_trace();
+
+        // Step 1: MLP forward pass
+        const mlp_output = mlp_forward(ml_input);
+        const mlp_trit = probability_to_trit(mlp_output);
+        add_step(&trace, "MLP inference", mlp_trit, ml_confidence);
+
+        // Step 2: Bayesian update
+        const prior = get_bayesian_prior(config);
+        const posterior = bayesian_update(prior, mlp_output);
+        const posterior_trit = probability_to_trit(posterior);
+        const posterior_conf = gf16_encode_f32(posterior);
+
+        add_step(&trace, "Bayesian update", posterior_trit, posterior_conf);
+
+        // Step 3: Combine with K3
+        const combined = k3_and(mlp_trit, posterior_trit);
+
+        // Step 4: Generate explanation
+        const explanation = format_bayesian_explanation(prior, mlp_output, posterior);
+
+        return CompositionResult{
+            .prediction = combined,
+            .confidence = combine_confidence(ml_confidence, posterior_conf),
+            .explanation = create_explanation_struct(trace, explanation, ml_confidence),
+            .proof_trace = trace,
+            .satisfaction = calculate_clara_satisfaction(trace, combined, ml_confidence),
+        };
+    }
+
+    // handler_transformer_xai: Transformer + XAI pattern handler
+    // Pattern: Self-attention → Proof trace generation → XAI format
+    pub fn handler_transformer_xai(
+        ml_input: []const f32,
+        ml_confidence: GF16,
+        ar_rules: []const HornClause,
+        rule_count: usize,
+        config: anytype
+    ) -> CompositionResult {
+        var trace = create_trace();
+
+        // Step 1: Transformer self-attention
+        const attention_result = transformer_attention(ml_input);
+
+        // Step 2: Generate proof trace (bounded by MAX_STEPS)
+        const max_steps = @min(config.max_steps, 10);  // CLARA requirement
+        var step_idx : u8 = 0;
+        var terminated = false;
+
+        while (step_idx < max_steps and !terminated) {
+            const attention_score = attention_result.scores[@intCast(step_idx) % 10];
+            const decision = score_to_trit(attention_score);
+
+            add_step(&trace, "Attention weight", decision, ml_confidence);
+
+            // Check for early termination
+            if (attention_score < 0.1) {
+                terminated = true;
+                add_step(&trace, "Terminated: Low attention", K_UNKNOWN, GF16_HALF);
+            }
+
+            step_idx += 1;
+        }
+
+        // Step 3: Final decision from attention
+        const decision = score_to_trit(attention_result.decision_score);
+
+        // Step 4: Generate explanation in requested format
+        const explanation = format_trace_explanation(trace, config.style);
+
+        return CompositionResult{
+            .prediction = decision,
+            .confidence = ml_confidence,
+            .explanation = create_explanation_struct(trace, explanation, ml_confidence),
+            .proof_trace = trace,
+            .satisfaction = calculate_clara_satisfaction(trace, decision, ml_confidence),
+        };
+    }
+
+    // handler_rl_guardrails: RL + Guardrails pattern handler
+    // Pattern: Policy network → Restraint check → Guarded action
+    pub fn handler_rl_guardrails(
+        ml_input: []const f32,
+        ml_confidence: GF16,
+        ar_rules: []const HornClause,
+        rule_count: usize,
+        config: anytype
+    ) -> CompositionResult {
+        var trace = create_trace();
+
+        // Step 1: RL policy inference
+        const policy_result = rl_policy_inference(ml_input);
+        const policy_trit = probability_to_trit(policy_result.action_prob);
+        add_step(&trace, "RL policy inference", policy_trit, ml_confidence);
+
+        // Step 2: Initialize execution state for restraint
+        var exec_state = ExecutionState{
+            .status = .good,
+            .depth = 0,
+            .current_confidence = ml_confidence,
+        };
+
+        // Step 3: Restraint checking
+        const restraint_params = RestraintParams{
+            .max_depth = config.max_steps,
+            .max_rules = @as(u16, @intCast(rule_count)),
+            .confidence_threshold = config.confidence_threshold,
+            .timeout_ms = config.timeout_ms,
+        };
+
+        const allowed = should_continue(exec_state, restraint_params);
+
+        add_step(&trace, "Restraint check", if (allowed) K_TRUE else K_FALSE,
+                 if (allowed) ml_confidence else GF16_HALF);
+
+        // Step 4: Guardrail rule evaluation
+        const guardrail_result = evaluate_guardrails(ar_rules, rule_count, policy_result);
+        add_step(&trace, "Guardrail evaluation", guardrail_result.decision, guardrail_result.confidence);
+
+        // Step 5: Combine: action only if policy AND guardrails AND restraint approve
+        const combined = k3_and(
+            k3_and(policy_trit, guardrail_result.decision),
+            if (allowed) K_TRUE else K_UNKNOWN
+        );
+
+        // Step 6: Generate explanation
+        const explanation = format_guardrail_explanation(allowed, guardrail_result, policy_result);
+
+        return CompositionResult{
+            .prediction = combined,
+            .confidence = if (allowed) combine_confidence(ml_confidence, guardrail_result.confidence) else GF16_HALF,
+            .explanation = create_explanation_struct(trace, explanation, ml_confidence),
+            .proof_trace = trace,
+            .satisfaction = calculate_clara_satisfaction(trace, combined, ml_confidence),
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    fn create_trace() -> ProofTrace {
+        return ProofTrace{
+            .steps = [_]DerivationStep{undefined} ** 10,
+            .step_count = 0,
+            .max_steps = 10,
+            .terminated = false,
+        };
+    }
+
+    fn add_step(trace: *ProofTrace, rule: []const u8, output: Trit, conf: GF16) -> void {
+        if (trace.step_count < trace.max_steps) {
+            trace.steps[trace.step_count] = DerivationStep{
+                .step_number = trace.step_count,
+                .rule_name = rule,
+                .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+                .output_fact = output,
+                .confidence = conf,
+                .k3_value = output,
+            };
+            trace.step_count += 1;
+        } else {
+            trace.terminated = true;
+        }
+    }
+
+    fn create_explanation_struct(trace: ProofTrace, text: []const u8, conf: GF16) -> anytype {
+        // Returns explanation structure
+        _ = trace;
+        _ = conf;
+        // Simplified: would return proper Explanation struct
+        return text;
+    }
+
+    fn format_trace_explanation(trace: ProofTrace, style: anytype) -> []const u8 {
+        var buffer : [512]u8 = undefined;
+        _ = buffer;  // Would format based on style
+        _ = trace;
+        _ = style;
+        return "Composition trace generated";
+    }
+
+    fn format_bayesian_explanation(prior: f32, likelihood: f32, posterior: f32) -> []const u8 {
+        var buffer : [256]u8 = undefined;
+        _ = buffer;  // Would format: "Prior: X, Likelihood: Y → Posterior: Z"
+        _ = prior;
+        _ = likelihood;
+        _ = posterior;
+        return "Bayesian update: prior × likelihood → posterior";
+    }
+
+    fn format_guardrail_explanation(allowed: bool, guardrail: anytype, policy: anytype) -> []const u8 {
+        _ = guardrail;
+        _ = policy;
+        return if (allowed) "Action allowed: all checks passed"
+               else "Action blocked: restraint or guardrail triggered";
+    }
+
+    fn calculate_clara_satisfaction(trace: ProofTrace, decision: Trit, conf: GF16) -> GF16 {
+        var score : f32 = 1.0;
+
+        // CLARA requirement 1: Bounded explanation (≤10 steps)
+        if (trace.step_count <= 10) {
+            score = score * 1.0;  // Full credit
+        } else {
+            score = score * 0.5;  // Penalty
+        }
+
+        // CLARA requirement 2: High confidence
+        const conf_f = gf16_decode_to_f32(conf);
+        if (conf_f >= 0.7) {
+            score = score * 1.1;
+        } else if (conf_f < 0.5) {
+            score = score * 0.8;
+        }
+
+        // CLARA requirement 3: No UNKNOWN in final decision
+        if (decision == K_UNKNOWN) {
+            score = score * 0.7;
+        }
+
+        // CLARA requirement 4: Trace not terminated
+        if (trace.terminated) {
+            score = score * 0.6;
+        }
+
+        // Clamp to [0, 1]
+        if (score > 1.0) score = 1.0;
+        if (score < 0.0) score = 0.0;
+
+        return gf16_encode_f32(score);
+    }
+
+    fn combine_confidence(a: GF16, b: GF16) -> GF16 {
+        const a_f = gf16_decode_to_f32(a);
+        const b_f = gf16_decode_to_f32(b);
+        // Geometric mean for combining independent confidences
+        return gf16_encode_f32(@sqrt(a_f * b_f));
+    }
+
+    fn create_terminated_result(decision: Trit, trace: ProofTrace, reason: []const u8) -> CompositionResult {
+        _ = reason;
+        return CompositionResult{
+            .prediction = decision,
+            .confidence = GF16_HALF,
+            .explanation = create_explanation_struct(trace, "Terminated", GF16_HALF),
+            .proof_trace = trace,
+            .satisfaction = GF16_HALF,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SIMULATED ML INFERENCE FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    fn extract_cnn_features(input: []const f32) -> []const f32 {
+        // Simulated CNN feature extraction
+        _ = input;
+        // In production: actual CNN forward pass
+        const dummy_features = [_]f32{0.8, 0.6, 0.7, 0.9};
+        return dummy_features[0..];
+    }
+
+    fn evaluate_features(features: []const f32) -> FeatureResult {
+        const sum = features[0] + features[1] + features[2] + features[3];
+        const avg = sum / 4.0;
+        return FeatureResult{
+            .decision = if (avg > 0.5) K_TRUE else K_FALSE,
+            .score = avg,
+        };
+    }
+
+    fn evaluate_rules_with_engine(
+        engine: *DatalogEngine,
+        rules: []const HornClause,
+        rule_count: usize,
+        features: []const f32
+    ) -> RuleEvaluationResult {
+        _ = engine;
+        _ = rules;
+        _ = rule_count;
+        _ = features;
+
+        // Simulated rule evaluation
+        return RuleEvaluationResult{
+            .decision = K_TRUE,
+            .confidence = GF16_ONE,
+            .step_count = 3,
+        };
+    }
+
+    fn mlp_forward(input: []const f32) -> f32 {
+        var sum : f32 = 0.0;
+        for (input) |x| sum += x;
+        return sum / @as(f32, @floatFromInt(input.len));
+    }
+
+    fn get_bayesian_prior(config: anytype) -> f32 {
+        // Default prior, could be overridden in config
+        _ = config;
+        return 0.5;
+    }
+
+    fn bayesian_update(prior: f32, likelihood: f32) -> f32 {
+        // Simple Bayesian update in log space
+        const log_prior = @log(prior + 0.0001);
+        const log_likelihood = @log(likelihood + 0.0001);
+        const log_posterior = log_prior + log_likelihood;
+        return @exp(log_posterior);
+    }
+
+    fn transformer_attention(input: []const f32) -> AttentionResult {
+        _ = input;
+        // Simulated attention scores
+        return AttentionResult{
+            .scores = [_]f32{0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05},
+            .decision_score = 0.85,
+        };
+    }
+
+    fn rl_policy_inference(state: []const f32) -> PolicyResult {
+        return PolicyResult{
+            .action_prob = state[0],
+            .value = state[0] * 2.0,
+            .action_id = @as(u8, @intFromInt(@as(i32, @intFromFloat(state[0] * 10)))),
+        };
+    }
+
+    fn evaluate_guardrails(rules: []const HornClause, rule_count: usize, policy: PolicyResult) -> GuardrailResult {
+        _ = rules;
+        _ = rule_count;
+
+        // Simple guardrail: block if action probability too high
+        return GuardrailResult{
+            .decision = if (policy.action_prob > 0.9) K_FALSE else K_TRUE,
+            .confidence = if (policy.action_prob > 0.9) GF16_HALF else GF16_ONE,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // UTILITY FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    fn probability_to_trit(prob: f32) -> Trit {
+        if (prob > 0.6) return K_TRUE;
+        if (prob < 0.4) return K_FALSE;
+        return K_UNKNOWN;
+    }
+
+    fn score_to_trit(score: f32) -> Trit {
+        if (score > 0.5) return K_TRUE;
+        if (score < 0.3) return K_FALSE;
+        return K_UNKNOWN;
+    }
+
+    fn get_time_ms() -> u32 {
+        // Simple timer - would use actual time function
+        return 0;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // TESTS
+    // ═══════════════════════════════════════════════════════
+
+    test engine_initializes_correctly
+        given engine = init_engine()
+        then engine.is_running == false
+        and engine.step_count == 0
+        and engine.stats.total_compositions == 0
+
+    test dispatcher_created_with_all_handlers
+        given dispatcher = create_dispatcher()
+        then dispatcher.patterns.len == 4
+
+    test cnn_rules_handler_creates_trace
+        given input = [0.8, 0.6, 0.7, 0.9]
+        and config = RuntimeConfig{.max_steps = 10}
+        when result = handler_cnn_rules(&input, GF16_ONE, null_rules, 0, config)
+        then result.proof_trace.step_count > 0
+        and result.proof_trace.step_count <= 10
+
+    test mlp_bayesian_handler_updates_belief
+        given input = [0.5, 0.5, 0.5]
+        and config = RuntimeConfig{.max_steps = 10}
+        when result = handler_mlp_bayesian(&input, GF16_ONE, null_rules, 0, config)
+        then result.proof_trace.step_count >= 2  // MLP + Bayesian steps
+
+    test transformer_xai_handler_respects_10_step_limit
+        given input = [_]f32{0.7} ** 20
+        and config = RuntimeConfig{.max_steps = 20, .style = .natural}
+        when result = handler_transformer_xai(&input, GF16_ONE, null_rules, 0, config)
+        then result.proof_trace.step_count <= 10  // CLARA requirement
+
+    test rl_guardrails_handler_blocks_when_restrained
+        given input = [0.95]  // High action probability
+        and config = RuntimeConfig{.max_steps = 1, .enable_restraint = true}
+        when result = handler_rl_guardrails(&input, GF16_ONE, null_rules, 0, config)
+        then result.prediction != K_TRUE  // Should be blocked
+
+    test dispatch_updates_engine_stats
+        given engine = init_engine()
+        and dispatcher = create_dispatcher()
+        and input = [0.5]
+        and config = RuntimeConfig{}
+        when result = dispatch(&dispatcher, &engine, .CNN_RULES, &input, GF16_ONE, null_rules, config)
+        then engine.stats.total_compositions == 1
+        and engine.stats.pattern_counts[0] == 1
+
+    test clara_satisfaction_penalizes_long_explanations
+        given trace = create_trace()
+        when trace.step_count = 15  // Exceeds CLARA limit
+        and sat = calculate_clara_satisfaction(trace, K_TRUE, GF16_ONE)
+        and sat_f = gf16_decode_to_f32(sat)
+        then sat_f < 1.0  // Penalty applied
+
+    test clara_satisfaction_penalizes_unknown_decision
+        given trace = create_trace()
+        when trace.step_count = 5  // Within limit
+        and sat = calculate_clara_satisfaction(trace, K_UNKNOWN, GF16_ONE)
+        and sat_f = gf16_decode_to_f32(sat)
+        then sat_f < 1.0  // Penalty for UNKNOWN
+
+    test all_patterns_dispatch_correctly
+        given engine = init_engine()
+        and dispatcher = create_dispatcher()
+        and input = [0.5]
+        and config = RuntimeConfig{}
+        for (0..4) |i| {
+            const pattern = @as(CompositionPattern, @enumFromInt(i));
+            _ = dispatch(&dispatcher, &engine, pattern, &input, GF16_ONE, null_rules, config);
+        }
+        then engine.stats.pattern_counts[0] == 1
+        and engine.stats.pattern_counts[1] == 1
+        and engine.stats.pattern_counts[2] == 1
+        and engine.stats.pattern_counts[3] == 1
+
+    // ═══════════════════════════════════════════════════════
+    // BENCHMARKS
+    // ═══════════════════════════════════════════════════════
+
+    bench dispatch_latency
+        measure: cycles for dispatch with CNN_RULES pattern
+        target: < 2000 cycles
+
+    bench handler_cnn_rules_throughput
+        measure: ops/sec for handler_cnn_rules
+        target: > 100000 ops/sec
+
+    bench handler_transformer_xai_throughput
+        measure: ops/sec for handler_transformer_xai with 10 steps
+        target: > 50000 ops/sec
+
+    // ═══════════════════════════════════════════════════════
+    // INVARIANTS
+    // ═══════════════════════════════════════════════════════
+
+    invariant all_handlers_respect_max_steps
+        // Every handler respects the max_steps configuration
+        for ([_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS}) |p, i| {
+            const handler = [_]PatternHandler{
+                handler_cnn_rules, handler_mlp_bayesian,
+                handler_transformer_xai, handler_rl_guardrails
+            }[i];
+            var config = RuntimeConfig{.max_steps = 3};
+            const result = handler([_]f32{0.5}, GF16_ONE, null_rules, 0, config);
+            assert result.proof_trace.step_count <= 10;  // CLARA hard limit
+        }
+
+    invariant satisfaction_in_valid_range
+        // All satisfaction scores are in [0, 1]
+        for ([_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS}) |p, i| {
+            const handler = [_]PatternHandler{
+                handler_cnn_rules, handler_mlp_bayesian,
+                handler_transformer_xai, handler_rl_guardrails
+            }[i];
+            const result = handler([_]f32{0.5}, GF16_ONE, null_rules, 0, RuntimeConfig{});
+            const sat = gf16_decode_to_f32(result.satisfaction);
+            assert sat >= 0.0 and sat <= 1.0;
+        }
+
+    invariant confidence_in_valid_range
+        // All confidence values are in [0, 1]
+        for ([_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS}) |p, i| {
+            const handler = [_]PatternHandler{
+                handler_cnn_rules, handler_mlp_bayesian,
+                handler_transformer_xai, handler_rl_guardrails
+            }[i];
+            const result = handler([_]f32{0.5}, GF16_ONE, null_rules, 0, RuntimeConfig{});
+            const conf = gf16_decode_to_f32(result.confidence);
+            assert conf >= 0.0 and conf <= 1.0;
+        }
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPER TYPES
+// ═══════════════════════════════════════════════════════
+
+const FeatureResult = struct {
+    decision : Trit,
+    score : f32,
+};
+
+const RuleEvaluationResult = struct {
+    decision : Trit,
+    confidence : GF16,
+    step_count : u8,
+};
+
+const AttentionResult = struct {
+    scores : [10]f32,
+    decision_score : f32,
+};
+
+const PolicyResult = struct {
+    action_prob : f32,
+    value : f32,
+    action_id : u8,
+};
+
+const GuardrailResult = struct {
+    decision : Trit,
+    confidence : GF16,
+};
+
+const null_rules = [_]HornClause{};

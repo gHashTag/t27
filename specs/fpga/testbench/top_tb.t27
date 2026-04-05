@@ -61,3 +61,60 @@ module Top_Level_Testbench {
     // ═════════════════════════════════════════════════════════════════
     // 3. Test Helpers
     // ═════════════════════════════════════════════════════════════════
+
+    fn assert_eq(a: i32, b: i32, msg: str) {
+        if a == b {
+            test_passed = test_passed + 1;
+        } else {
+            test_failed = test_failed + 1;
+        }
+    }
+
+    fn tick() {
+        clk = !clk;
+        sim_cycle = sim_cycle + 1;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. Main Test Process
+    // ═════════════════════════════════════════════════════════════════
+
+    fn main() {
+        // Reset sequence
+        rst_n = false;
+        for i in 0..10 {
+            tick();
+        }
+        rst_n = true;
+
+        // Basic UART ping test
+        uart_tx = true;
+        for i in 0..100 {
+            tick();
+        }
+
+        // MAC zero-DSP verification
+        mac_a = [false; 27];
+        mac_b = [false; 27];
+        mac_valid = true;
+        assert_eq(mac_acc_out, 0, "MAC zero test");
+
+        // SPI loopback test
+        spi_cs = true;
+        spi_sck = false;
+        spi_mosi = true;
+        for i in 0..50 {
+            tick();
+        }
+
+        // Bridge status check
+        if uart_rx == true && spi_miso == true {
+            test_passed = test_passed + 1;
+        }
+
+        // Summary
+        for i in 0..10 {
+            tick();
+        }
+    }
+}

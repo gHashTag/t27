@@ -75,6 +75,9 @@ module SPI_Master;
         // CS delay counters
         cs_assert_cnt : u32,        // CS assert delay
         cs_deassert_cnt : u32,      // CS deassert delay
+
+        // MISO pin state (full-duplex SPI)
+        miso_pin : bool,            // MISO (Master In Slave Out) pin state
     }
 
     // Default SPI unit
@@ -95,6 +98,7 @@ module SPI_Master;
 
         .cs_assert_cnt = 0,
         .cs_deassert_cnt = 0,
+        .miso_pin = false,         // MISO pin initially low
     };
 
     // spi_set_prescaler(psc: u8) → bool
@@ -184,6 +188,19 @@ module SPI_Master;
         }
     }
 
+    // spi_set_miso(value: bool) → void
+    // Set MISO pin state (for testing or external driving)
+    // In real FPGA, this pin is driven by the external slave device
+    fn spi_set_miso(value: bool) -> void {
+        spi.miso_pin = value;
+    }
+
+    // spi_get_miso() → bool
+    // Get MISO pin state
+    fn spi_get_miso() -> bool {
+        return spi.miso_pin;
+    }
+
     // spi_get_mosi() → bool
     // Get MOSI line state
     fn spi_get_mosi() -> bool {
@@ -239,8 +256,8 @@ module SPI_Master;
             }
             RX_BIT => {
                 if (spi.bit_counter >= prescaler_div / 2) {
-                    // Sample MISO (mocked - in real FPGA, read pin)
-                    const miso_bit = false;  // TODO: read from MISO pin
+                    // Sample MISO from pin (full-duplex SPI)
+                    const miso_bit = spi.miso_pin;
                     spi.rx_data = (spi.rx_data << 1) | (if miso_bit { 1u32 } else { 0u32 });
                     spi.bit_count = spi.bit_count + 1;
                     spi.bit_counter = 0;
@@ -333,6 +350,24 @@ module SPI_Master;
         given min_psc = PRESCALER_2
         and   max_psc = PRESCALER_256
         then min_psc == 0 and max_psc == 7
+
+    test spi_reads_miso_correctly
+        given spi_set_miso(true)
+        and   spi_transfer(0x55)
+        // Simulate transfer completion by calling tick multiple times
+        and   spi_tick() // CS assert
+        and   spi.tick_count = SPI_CS_DELAY
+        and   spi.state = SPI_TRANSFER
+        and   // Simulate RX_BIT state where MISO is sampled
+        when spi.tx_state = RX_BIT
+        and   spi.bit_counter = prescaler_div / 2
+        and   spi_transfer_bit()
+        and   rx = spi_read_rx()
+        then rx != 0  // Should have bit set from MISO=1
+
+    test spi_miso_default_low
+        given miso = spi_get_miso()
+        then miso == false
 
     test spi_cs_delays_defined
         given assert_delay = CS_ASSERT_DELAY

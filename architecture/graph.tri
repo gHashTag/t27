@@ -245,6 +245,77 @@ spec "trisacred-physics" {
 }
 
 // ============================================================================
+// Tier 2: VSA Core (Ring 43)
+// ============================================================================
+
+spec "trivsa-core" {
+    tier = 2;
+    description = "VSA core algorithms: encode_predicate, codebook, analogy, resonator";
+    path = "specs/vsa/core.t27";
+    exports = ["encode_predicate", "decode_argument", "codebook_lookup", "codebook_add", "analogy", "resonator_solve"];
+    deps = ["trivsa-ops", "tritype-base"];
+    competency = "VectorAlgorithms";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 3: Benchmarks (Ring 54)
+// ============================================================================
+
+spec "tribench-accuracy" {
+    tier = 3;
+    description = "ML accuracy benchmark suite: MNIST, CIFAR-10";
+    path = "specs/benchmarks/accuracy.t27";
+    deps = ["trinhslm", "triar-composition"];
+    competency = "Benchmarking";
+    status = "done";
+}
+
+spec "tribench-comparison" {
+    tier = 3;
+    description = "Competitor comparison: Trinity vs DeepProbLog vs TensorLogic";
+    path = "specs/benchmarks/comparison.t27";
+    deps = ["tribench-accuracy"];
+    competency = "Benchmarking";
+    status = "done";
+}
+
+spec "tribench-performance" {
+    tier = 3;
+    description = "Performance benchmark: K3 ops, forward chain, composition";
+    path = "specs/benchmarks/performance.t27";
+    deps = ["triar-logic", "triar-composition"];
+    competency = "Benchmarking";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 3: K3 Backpropagation (Ring 55)
+// ============================================================================
+
+spec "trinn-backprop-k3" {
+    tier = 3;
+    description = "K3-guided backpropagation: ternary gradient semantics";
+    path = "specs/nn/backprop_k3.t27";
+    deps = ["trinhslm", "triar-logic", "triar-restraint"];
+    competency = "K3Training";
+    status = "done";
+}
+
+// ============================================================================
+// Tier 4: Composition Runtime (Ring 58)
+// ============================================================================
+
+spec "tricomp-engine" {
+    tier = 4;
+    description = "Composition pattern runtime engine";
+    path = "runtime/composition/composition_engine.t27";
+    deps = ["triar-composition", "trinhslm"];
+    competency = "CompositionRuntime";
+    status = "planned";
+}
+
+// ============================================================================
 // Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
 // ============================================================================
 
@@ -413,6 +484,20 @@ spec "trilang-codegen-c" {
 }
 
 // ============================================================================
+// Tier 6: FPGA Emission (Ring 50.5)
+// ============================================================================
+
+spec "trifpga-emission" {
+    tier = 6;
+    description = "FPGA Verilog emission: UART, SPI, MAC, Top-Level";
+    path = "compiler/codegen/verilog/fpga_emission.t27";
+    deps = ["trilang-codegen-verilog", "trifpga-mac", "trifpga-uart", "trifpga-spi"];
+    competency = "FPGACodegen";
+    status = "done";
+    kind = "codegen";
+}
+
+// ============================================================================
 // Tier 7: Compiler - Runtime
 // ============================================================================
 
@@ -532,9 +617,9 @@ spec "trilang-spec-parser" {
 // ============================================================================
 
 metadata {
-    version = "2.3";
+    version = "2.5";
     created = "2026-04-04";
-    last_updated = "2026-04-04";
+    last_updated = "2026-04-05";
     phi_invariant = "phi^2 + phi^-2 = 3";
 }
 
@@ -554,6 +639,10 @@ edges {
     // Base + numeric → VSA
     tritype-base -> trivsa-ops;
     tritype-numeric -> trivsa-ops;
+
+    // VSA ops + base → VSA Core (Ring 43)
+    trivsa-ops -> trivsa-core;
+    tritype-base -> trivsa-core;
 
     // Base → ISA
     tritype-base -> triisa-registers;
@@ -634,6 +723,12 @@ edges {
     // FPGA MAC → Verilog codegen
     trifpga-mac -> trilang-codegen-verilog;
 
+    // Verilog codegen + FPGA modules → FPGA emission (Ring 50.5)
+    trilang-codegen-verilog -> trifpga-emission;
+    trifpga-mac -> trifpga-emission;
+    trifpga-uart -> trifpga-emission;
+    trifpga-spi -> trifpga-emission;
+
     // Base + ISA → Runtime
     tritype-base -> triruntime;
     triisa-registers -> triruntime;
@@ -649,6 +744,8 @@ phi_critical_edges {
     trisacred-constants -> triatt-sacred;
     trisacred-constants -> trinhslm;
     trisacred-physics -> triatt-sacred;
+    trisacred-physics -> triinn-backprop-k3;
+    triinn-backprop-k3 -> triinn-backprop-k3;  // K3 self-reference
     trisacred-physics -> trinhslm;
     triar-logic -> triar-proof-trace;
     triar-logic -> triar-datalog;

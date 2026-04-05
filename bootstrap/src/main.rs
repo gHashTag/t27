@@ -10,6 +10,7 @@
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod compiler;
+mod clara_demo;
 
 use clap::{Parser, Subcommand};
 use sha2::{Sha256, Digest};
@@ -113,6 +114,25 @@ enum Commands {
 
     /// Show repository statistics
     Stats,
+
+    /// Run CLARA demo: ML+AR composition simulation
+    ClaraDemo {
+        /// Input file path (simulated image/data)
+        #[arg(short, long)]
+        input: Option<String>,
+
+        /// Composition pattern (cnn-rules, mlp-bayesian, transformer-xai, rl-guardrails)
+        #[arg(short, long, default_value = "cnn-rules")]
+        pattern: String,
+
+        /// Explanation style (natural, fitch, compact)
+        #[arg(short, long, default_value = "natural")]
+        style: String,
+
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
 
     /// Start HTTP server on Railway
     Serve {
@@ -1124,6 +1144,30 @@ fn run_stats() -> anyhow::Result<()> {
 }
 
 // ============================================================================
+// CLARA Demo Handler
+// ============================================================================
+
+fn run_clara_demo(input: &Option<String>, pattern: &str, style: &str, verbose: bool) {
+    // Build argument vector for clara_demo module (skip "clara-demo" prefix)
+    let mut args = Vec::new();
+    if let Some(ref file) = input {
+        args.push("-i".to_string());
+        args.push(file.clone());
+    }
+    args.push("-p".to_string());
+    args.push(pattern.to_string());
+    args.push("-s".to_string());
+    args.push(style.to_string());
+    if verbose {
+        args.push("-v".to_string());
+    }
+
+    // Call clara demo and return its exit code
+    let exit_code = clara_demo::run_demo(args);
+    std::process::exit(exit_code);
+}
+
+// ============================================================================
 // Main Entry Point
 // ============================================================================
 
@@ -1147,6 +1191,9 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
+        Commands::ClaraDemo { input, pattern, style, verbose } => {
+            run_clara_demo(&input, &pattern, &style, verbose)
+        }
         Commands::Serve { port } => run_server(&port).await?,
     }
 
@@ -1172,6 +1219,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
+        Commands::ClaraDemo { input, pattern, style, verbose } => {
+            run_clara_demo(&input, &pattern, &style, verbose)
+        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
