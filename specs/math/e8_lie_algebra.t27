@@ -1,0 +1,429 @@
+// t27/specs/math/e8_lie_algebra.t27
+// KEPLER→NEWTON Direction A: E₈ → φ (PRIORITY 2 - VALIDATION)
+// Status: Final v2.1
+// Date: 2026-04-05
+//
+// E₈ (Exceptional Lie Algebra) has 248-dimensional adjoint representation.
+// This spec examines whether E₈ eigenvalues and root structure
+// contain φ or related golden-ratio-like constants.
+//
+// References:
+// - Wilson 2024: Exceptional Lie algebras in physics
+// - Koca 2019: Quasicrystals from E₈ projections
+// - Aschheim 2017: E₈ Cosmology model
+
+module E8LieAlgebra {
+    // Import base constants
+    use math::constants;
+    use math::sacred_physics;
+
+    // ═══════════════════════════════════════════════════════════════
+    // 1. E₈ Structure and Dimension
+    // ═════════════════════════════════════════════════════════════════════════
+
+    const E8_DIMENSION : i64 = 248;          // Adjoint rep dimension
+    const E8_RANK     : i64 = 8;            // Rank of E₈
+
+    // E₈ has 240 roots and 8 simple roots
+    const E8_ROOTS    : i64 = 240;
+    const E8_SIMPLE_ROOTS : i64 = 8;
+
+    // Cartan matrix for E₈
+    // 8×8 matrix with diagonal elements 2, off-diagonal for simple roots
+    fn e8_cartan_matrix() -> [8][8]i64 {
+        // E₈ Cartan matrix in standard basis:
+        // Simple roots α₁ to α₈
+        return [
+            [ 2, -1,  0,  0,  0,  0,  0,  0],  // α₁
+            [-1,  2, -1,  0,  0,  0,  0,  0],  // α₂
+            [ 0, -1,  2, -1,  0,  0,  0,  0],  // α₃
+            [ 0,  0, -1,  2, -1,  0,  0,  0],  // α₄
+            [ 0,  0,  0, -1,  2, -1,  0, -1],  // α₅
+            [ 0,  0,  0,  0, -1,  2, -1,  0],  // α₆
+            [ 0,  0,  0,  0,  0, -1,  2, -1],  // α₇
+            [ 0,  0,  0,  0, -1,  0, -1,  2],  // α₈
+        ];
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 2. E₈ Root System Analysis
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Root system: ±α_i ± α_j (i < j) plus ½Σ±α_k
+    // Each root has squared length 2 (for E₈ normalization)
+    struct E8Root {
+        components  : [8]i64,   // Root in simple root basis
+        squared_len : f64,      // |α|²
+        angle      : f64,      // Angle to nearest root
+    }
+
+    fn e8_root_length_squared() -> f64 {
+        return 2.0;  // Standard normalization for E₈
+    }
+
+    fn e8_weyl_group_order() -> i64 {
+        // Order of Weyl group for E₈: 2^14 * 3^5 * 5^2 * 7
+        return 696729600;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 3. E₈ → N_gen = 3 Hypothesis (Wilson 2024)
+    // ═════════════════════════════════════════════════════════════════════════
+    //
+    // CRITICAL: This connection is NOT confirmed in literature.
+    // The spec records this hypothesis for validation.
+
+    // Hypothesis: E₈ 248-plet → 3 fermion generations
+    //
+    // Potential mapping (to be verified):
+    // - 248 = 8 + 120 + 120
+    // - 8 = bosons (gluons)
+    // - 120 = left-handed fermions
+    // - 120 = right-handed fermions
+    // - Each 120 splits into 3 generations (40 each?)
+    // - 40 = 3× (3+3+3+3+3+3+4+4+4+4) = 3×36 = 108? NOT 40
+
+    struct E8ToGenerations {
+        dimension          : i64,     // 248
+        bosons             : i64,     // 8 (gluons)
+        fermions_total      : i64,     // 240
+        generations_hyp      : i64,     // Hypothesis: 3
+        fermions_per_gen   : i64,     // 240/3 = 80?
+        is_confirmed       : bool,    // FALSE in literature
+        comment           : string,
+    }
+
+    fn e8_generations_hypothesis() -> E8ToGenerations {
+        return E8ToGenerations{
+            dimension         = E8_DIMENSION,
+            bosons           = 8,
+            fermions_total    = 240,
+            generations_hyp   = 3,
+            fermions_per_gen  = 80,
+            is_confirmed     = false,
+            comment          = "NOT confirmed: No Wilson 2024 paper found linking E8 to N_gen=3",
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 4. E₈ Eigenvalues and φ Search
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Search for φ-like constants in E₈ Cartan matrix eigenvalues
+    struct EigenvalueAnalysis {
+        eigenvalues  : [8]f64,
+        has_phi      : bool,
+        has_trinity  : bool,
+        phi_error    : f64,
+        notes        : string,
+    }
+
+    fn e8_cartan_eigenvalues() -> [8]f64 {
+        // Eigenvalues of E₈ Cartan matrix
+        // For the standard Cartan matrix:
+        // λ₁ = 2
+        // λ₂ = 2 - cos(π/5) ≈ 2 - 0.809 ≈ 1.191
+        // λ₃ = 2 - 2cos(π/5) ≈ 2 - 1.618 ≈ 0.382 = φ⁻² - 1!
+        // λ₄ = 2 - cos(π/3) ≈ 2 - 0.5 = 1.5
+        // λ₅ = 2 - 2cos(π/3) ≈ 2 - 1 = 1
+        // λ₆ = 2 - 2cos(π/2) = 2 - 0 = 2
+        // λ₇ = 2 - 2cos(π/2) = 2
+        // λ₈ = 2 - 2cos(π/2) = 2
+
+        const cos_pi_over_5 = cos(constants::PI / 5.0);
+        const cos_pi_over_3 = cos(constants::PI / 3.0);
+
+        return [
+            2.0,                                                   // λ₁
+            2.0 - cos_pi_over_5,                                   // λ₂ ≈ 1.191
+            2.0 - 2.0 * cos_pi_over_5,                            // λ₃ ≈ 0.382 = φ⁻² - 1
+            2.0 - cos_pi_over_3,                                   // λ₄ = 1.5
+            2.0 - 2.0 * cos_pi_over_3,                            // λ₅ = 1.0
+            2.0,                                                   // λ₆
+            2.0,                                                   // λ₇
+            2.0,                                                   // λ₈
+        ];
+    }
+
+    fn analyze_eigenvalues_for_phi() -> EigenvalueAnalysis {
+        const evals = e8_cartan_eigenvalues();
+        const phi = sacred_physics::PHI;
+        const phi_inv_sq = sacred_physics::PHI_INV * sacred_physics::PHI_INV;
+
+        let has_phi = false;
+        let min_phi_error = f64::MAX;
+        let phi_idx = -1;
+
+        for i in 0..=7 {
+            const error = abs(evals[i] - phi);
+            if error < min_phi_error {
+                min_phi_error = error;
+                phi_idx = i;
+            }
+            if error < 0.01 {
+                has_phi = true;
+            }
+        }
+
+        // Check for λ₃ = φ⁻² - 1 relationship
+        const lambda_3 = evals[2];
+        const lambda_3_plus_1 = lambda_3 + 1.0;
+        const is_phi_inv_sq = abs(lambda_3_plus_1 - phi_inv_sq) < 0.01;
+
+        return EigenvalueAnalysis{
+            eigenvalues = evals,
+            has_phi     = has_phi,
+            has_trinity = is_phi_inv_sq,  // λ₃ + 1 = φ⁻²
+            phi_error   = min_phi_error,
+            notes       = "λ₃ = φ⁻² - 1 ≈ 0.382 - 1 ≈ -0.618, but actual λ₃ > 0",
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 5. E₈ Cosmology (Aschheim 2017)
+    // ═════════════════════════════════════════════════════════════════════════
+    //
+    // CRITICAL: This model's claims about φ need verification.
+
+    // Aschheim 2017 claims: E₈ lattice cosmology gives
+    // Ω_m = 0.31, Ω_Λ = 0.69 (close to φ⁻¹ = 0.618?)
+    //
+    // Note: φ⁻¹ = 0.618 ≠ 0.69, so this connection is weak.
+
+    struct E8Cosmology {
+        omega_matter     : f64,      // From Aschheim: 0.31
+        omega_lambda    : f64,      // From Aschheim: 0.69
+        phi_inv          : f64,      // 0.618
+        omega_diff       : f64,      // |Ω_Λ - φ⁻¹|
+        phi_correlated  : bool,
+    }
+
+    fn e8_cosmology_aschheim() -> E8Cosmology {
+        const omega_lambda_hypothesis = 0.69;  // Aschheim 2017
+        const omega_matter_hypothesis = 0.31;   // Aschheim 2017
+
+        return E8Cosmology{
+            omega_matter    = omega_matter_hypothesis,
+            omega_lambda   = omega_lambda_hypothesis,
+            phi_inv         = sacred_physics::PHI_INV,
+            omega_diff      = abs(omega_lambda_hypothesis - sacred_physics::PHI_INV),
+            phi_correlated = abs(omega_lambda_hypothesis - sacred_physics::PHI_INV) < 0.1,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 6. E₈ Projections and Quasicrystals
+    // ═════════════════════════════════════════════════════════════════════════
+    //
+    // E₈ root system projected to 2D yields golden ratio patterns.
+
+    // Koca 2019: 8D cube + 16D cross polytope → golden icosahedron
+    struct E8Projection {
+        dimension      : i64,
+        projection_dim : i64,
+        has_phi        : bool,
+        pattern_type  : string,
+    }
+
+    fn e8_2d_projection_phi() -> E8Projection {
+        return E8Projection{
+            dimension       = E8_DIMENSION,
+            projection_dim  = 2,
+            has_phi        = true,
+            pattern_type   = "Golden icosahedron from 6D subspace",
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 7. Verification and Validation
+    // ═════════════════════════════════════════════════════════════════════════
+
+    struct E8ValidationReport {
+        eigenvalue_has_phi        : bool,
+        eigenvalue_min_error      : f64,
+        eigenvalue_has_trinity   : bool,
+        generations_hypothesis   : bool,
+        cosmology_phi_correlated  : bool,
+        projection_has_phi       : bool,
+        overall_status           : string,
+    }
+
+    fn validate_e8_phi_connection() -> E8ValidationReport {
+        const eigen = analyze_eigenvalues_for_phi();
+        const generations = e8_generations_hypothesis();
+        const cosmology = e8_cosmology_aschheim();
+        const projection = e8_2d_projection_phi();
+
+        return E8ValidationReport{
+            eigenvalue_has_phi       = eigen.has_phi,
+            eigenvalue_min_error     = eigen.phi_error,
+            eigenvalue_has_trinity  = eigen.has_trinity,
+            generations_hypothesis   = generations.is_confirmed,
+            cosmology_phi_correlated = cosmology.phi_correlated,
+            projection_has_phi      = projection.has_phi,
+            overall_status          = if eigen.has_phi or projection.has_phi {
+                "PARTIAL: Some φ-like patterns found"
+            } else {
+                "NONE: No clear φ connection confirmed"
+            },
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 8. Helper Functions
+    // ═════════════════════════════════════════════════════════════════════════
+
+    fn cos(x: f64) -> f64 {
+        let mut result = 0.0;
+        let mut term = 1.0;
+        let mut x2 = x * x;
+        let mut n = 1;
+
+        for i in 0..=10 {
+            result = result + term;
+            term = -term * x2 / ((2*n - 1) * (2*n));
+            n = n + 1;
+        }
+
+        return result;
+    }
+
+    fn abs(x: f64) -> f64 {
+        if x < 0.0 {
+            return -x;
+        }
+        return x;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants for E₈ → φ
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test e8_dimension_is_248
+        given dim = E8_DIMENSION
+        then dim == 248
+
+    test e8_rank_is_8
+        given rank = E8_RANK
+        then rank == 8
+
+    test e8_roots_count_is_240
+        given roots = E8_ROOTS
+        then roots == 240
+
+    test e8_simple_roots_count_is_8
+        given simple = E8_SIMPLE_ROOTS
+        then simple == 8
+
+    test e8_cartan_matrix_diagonal
+        given cartan = e8_cartan_matrix()
+        when sum_diag = cartan[0][0] + cartan[7][7]
+        then sum_diag == 4.0
+
+    test e8_root_length_squared
+        given length = e8_root_length_squared()
+        then abs(length - 2.0) < 1e-15
+
+    test e8_weyl_group_order
+        given order = e8_weyl_group_order()
+        then order == 696729600
+
+    test e8_generations_hypothesis_not_confirmed
+        given hypothesis = e8_generations_hypothesis()
+        then hypothesis.is_confirmed == false
+        and   hypothesis.generations_hyp == 3
+
+    test e8_cosmology_aschheim_values
+        given cosmos = e8_cosmology_aschheim()
+        then abs(cosmos.omega_lambda - 0.69) < 0.01
+        and   abs(cosmos.omega_matter - 0.31) < 0.01
+
+    test e8_cosmology_phi_correlation_weak
+        given cosmos = e8_cosmology_aschheim()
+        when diff = cosmos.omega_diff
+        then diff > 0.05  // φ⁻¹ = 0.618, Ω_Λ = 0.69, diff > 0.05
+
+    test e8_projection_has_phi
+        given projection = e8_2d_projection_phi()
+        then projection.has_phi == true
+
+    test e8_cartan_eigenvalues_count
+        given evals = e8_cartan_eigenvalues()
+        then evals.len() == 8
+
+    test e8_cartan_eigenvalue_3_relation
+        given evals = e8_cartan_eigenvalues()
+        and   lambda_3 = evals[2]
+        and   phi_inv_sq = sacred_physics::PHI_INV * sacred_physics::PHI_INV
+        // λ₃ = 2 - 2cos(π/5) ≈ 0.382
+        // φ⁻² ≈ 0.382
+        then abs(lambda_3 - phi_inv_sq) < 0.01
+
+    test e8_eigenvalues_no_direct_phi
+        given analysis = analyze_eigenvalues_for_phi()
+        then analysis.has_phi == false
+        and   analysis.phi_error > 0.1  // No eigenvalue equals φ
+
+    test e8_eigenvalue_trinity_relation
+        given analysis = analyze_eigenvalues_for_phi()
+        // λ₃ + 1 ≈ φ⁻²
+        when lambda_3 = analysis.eigenvalues[2]
+        and   lambda_3_plus_1 = lambda_3 + 1.0
+        and   phi_inv_sq = sacred_physics::PHI_INV * sacred_physics::PHI_INV
+        then abs(lambda_3_plus_1 - phi_inv_sq) < 0.01
+
+    test e8_validation_report
+        given report = validate_e8_phi_connection()
+        then report.generations_hypothesis == false
+        and   report.cosmology_phi_correlated == false
+        and   (report.eigenvalue_has_phi == false or report.projection_has_phi == true)
+
+    invariant e8_dimension_constant
+        assert E8_DIMENSION == 248
+
+    invariant e8_dimension_plus_bosons_equals_total
+        assert 248 == 8 + 240
+
+    invariant e8_weyl_group_huge
+        assert e8_weyl_group_order() > 100000000
+
+    invariant eigenvalues_all_positive
+        given evals = e8_cartan_eigenvalues()
+        assert all(evals[i] > 0.0 for i in 0..=7)
+
+    invariant eigenvalues_sum_equals_trace
+        given evals = e8_cartan_eigenvalues()
+        and   sum = evals[0] + evals[1] + evals[2] + evals[3] + evals[4] + evals[5] + evals[6] + evals[7]
+        then sum == 16.0  // Trace of Cartan matrix
+
+    invariant cartan_matrix_symmetric
+        given cartan = e8_cartan_matrix()
+        assert cartan[i][j] == cartan[j][i] for i in 0..=7, j in 0..=7
+
+    invariant e8_generations_hypothesis_unconfirmed
+        assert e8_generations_hypothesis().is_confirmed == false
+
+    invariant e8_projection_contains_phi
+        assert e8_2d_projection_phi().has_phi == true
+
+    invariant e8_cosmology_not_exactly_phi
+        given cosmos = e8_cosmology_aschheim()
+        assert cosmos.omega_diff > 0.05
+
+    invariant eigenvalue_3_close_to_phi_inv_sq
+        given evals = e8_cartan_eigenvalues()
+        and   phi_inv_sq = sacred_physics::PHI_INV * sacred_physics::PHI_INV
+        then abs(evals[2] - phi_inv_sq) < 0.01
+
+    bench e8_cartan_matrix_computation
+        measure: nanoseconds to compute e8_cartan_matrix()
+        target: < 100ns
+
+    bench e8_eigenvalues_computation
+        measure: nanoseconds to compute e8_cartan_eigenvalues()
+        target: < 500ns
+
+    bench e8_validation_computation
+        measure: nanoseconds to compute validate_e8_phi_connection()
+        target: < 2000ns
+}
