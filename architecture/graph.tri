@@ -245,6 +245,20 @@ spec "trisacred-physics" {
 }
 
 // ============================================================================
+// Tier 2: VSA Core (Ring 43)
+// ============================================================================
+
+spec "trivsa-core" {
+    tier = 2;
+    description = "VSA core algorithms: encode_predicate, codebook, analogy, resonator";
+    path = "specs/vsa/core.t27";
+    exports = ["encode_predicate", "decode_argument", "codebook_lookup", "codebook_add", "analogy", "resonator_solve"];
+    deps = ["trivsa-ops", "tritype-base"];
+    competency = "VectorAlgorithms";
+    status = "done";
+}
+
+// ============================================================================
 // Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
 // ============================================================================
 
@@ -413,6 +427,20 @@ spec "trilang-codegen-c" {
 }
 
 // ============================================================================
+// Tier 6: FPGA Emission (Ring 50.5)
+// ============================================================================
+
+spec "trifpga-emission" {
+    tier = 6;
+    description = "FPGA Verilog emission: UART, SPI, MAC, Top-Level";
+    path = "compiler/codegen/verilog/fpga_emission.t27";
+    deps = ["trilang-codegen-verilog", "trifpga-mac", "trifpga-uart", "trifpga-spi"];
+    competency = "FPGACodegen";
+    status = "done";
+    kind = "codegen";
+}
+
+// ============================================================================
 // Tier 7: Compiler - Runtime
 // ============================================================================
 
@@ -532,9 +560,9 @@ spec "trilang-spec-parser" {
 // ============================================================================
 
 metadata {
-    version = "2.3";
+    version = "2.4";
     created = "2026-04-04";
-    last_updated = "2026-04-04";
+    last_updated = "2026-04-05";
     phi_invariant = "phi^2 + phi^-2 = 3";
 }
 
@@ -554,6 +582,10 @@ edges {
     // Base + numeric → VSA
     tritype-base -> trivsa-ops;
     tritype-numeric -> trivsa-ops;
+
+    // VSA ops + base → VSA Core (Ring 43)
+    trivsa-ops -> trivsa-core;
+    tritype-base -> trivsa-core;
 
     // Base → ISA
     tritype-base -> triisa-registers;
@@ -633,6 +665,12 @@ edges {
 
     // FPGA MAC → Verilog codegen
     trifpga-mac -> trilang-codegen-verilog;
+
+    // Verilog codegen + FPGA modules → FPGA emission (Ring 50.5)
+    trilang-codegen-verilog -> trifpga-emission;
+    trifpga-mac -> trifpga-emission;
+    trifpga-uart -> trifpga-emission;
+    trifpga-spi -> trifpga-emission;
 
     // Base + ISA → Runtime
     tritype-base -> triruntime;

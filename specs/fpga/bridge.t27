@@ -231,18 +231,124 @@ module FPGA_Bridge;
 
     // bridge_handle_mac_op() → void
     // Handle MAC operation packet
+    // Packet format: [OP][UNIT][A_L0]...[A_L6][A_H0]...[A_H6][B_L0]...[B_L6][B_H0]...[B_H6][ACC_L]...[ACC_H]
+    // OP: 0x00=MUL, 0x01=MAC, 0x02=MACC, 0x03=DOT
+    // UNIT: MAC unit number (0-7)
+    // A: Operand A (27 trits = 7 bytes)
+    // B: Operand B (27 trits = 7 bytes)
+    // ACC: Accumulator (4 bytes, signed)
     fn bridge_handle_mac_op() -> void {
         if (!bridge.mac_enabled) {
             return;
         }
 
-        // Packet format: [OP][UNIT][A_L][A_H][B_L][B_H][ACC_L]...]
-        const (op, tail1) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-        const (unit, tail2) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail1);
-        bridge.rx_tail = tail2;
+        // Need at least: OP(1) + UNIT(1) + A(7) + B(7) + ACC(4) = 20 bytes
+        if (bridge.packet_len < 20) {
+            return;
+        }
 
-        // TODO: Parse operands and call MAC operation
-        // This is a placeholder for MAC command handling
+        // Read operation code
+        const (op, tail1) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+
+        // Read MAC unit
+        const (unit, tail2) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail1);
+
+        // Read operand A (27 trits = 7 bytes packed)
+        var a_bytes : [7]u8 = undefined;
+        var tail = tail2;
+        var i : usize = 0;
+        while (i < 7) {
+            const (b, t) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail);
+            a_bytes[i] = b;
+            tail = t;
+            i = i + 1;
+        }
+
+        // Read operand B (27 trits = 7 bytes packed)
+        var b_bytes : [7]u8 = undefined;
+        i = 0;
+        while (i < 7) {
+            const (b, t) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail);
+            b_bytes[i] = b;
+            tail = t;
+            i = i + 1;
+        }
+
+        // Read accumulator (4 bytes, little-endian signed)
+        var acc_bytes : [4]u8 = undefined;
+        i = 0;
+        while (i < 4) {
+            const (b, t) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail);
+            acc_bytes[i] = b;
+            tail = t;
+            i = i + 1;
+        }
+        const accumulator : i32 = @bitCast(@as(u32, acc_bytes[0]) |
+                                     (@as(u32, acc_bytes[1]) << 8) |
+                                     (@as(u32, acc_bytes[2]) << 16) |
+                                     (@as(u32, acc_bytes[3]) << 24));
+
+        // Update RX tail
+        bridge.rx_tail = tail;
+
+        // Convert byte arrays to TernaryWord (5 bytes, pad with zeros)
+        var a_word : TernaryWord = [0u8] ** 5;
+        i = 0;
+        while (i < 5 and i < 7) {
+            a_word[i] = a_bytes[i];
+            i = i + 1;
+        }
+
+        var b_word : TernaryWord = [0u8] ** 5;
+        i = 0;
+        while (i < 5 and i < 7) {
+            b_word[i] = b_bytes[i];
+            i = i + 1;
+        }
+
+        // Call appropriate MAC operation based on op code
+        var result_i32 : i32 = 0;
+        match op {
+            0x00 => {
+                // Multiply only - use mac_multiply
+                const result_word = mac_multiply(a_word, b_word, unit);
+                // Convert result word to signed sum of trits for output
+                result_i32 = 0;  // TODO: convert TernaryWord to i32
+            }
+            0x01 => {
+                // Multiply-accumulate
+                result_i32 = mac_cycle(a_word, b_word, unit, accumulator);
+            }
+            0x02 => {
+                // Multiply-accumulate with carry (MACC)
+                result_i32 = mac_cycle(a_word, b_word, unit, accumulator);
+                // TODO: handle carry flag
+            }
+            0x03 => {
+                // Dot product (single step)
+                result_i32 = mac_cycle(a_word, b_word, unit, accumulator);
+            }
+            else => {
+                // Unknown operation - do nothing
+                return;
+            }
+        }
+
+        // Write result to TX buffer (4 bytes, little-endian)
+        const result_u32 = @bitCast(result_i32);
+        if (bridge_tx_space() >= 4) {
+            tx_buffer[bridge.tx_head] = @truncate(result_u32 & 0xFF);
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+
+            tx_buffer[bridge.tx_head] = @truncate((result_u32 >> 8) & 0xFF);
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+
+            tx_buffer[bridge.tx_head] = @truncate((result_u32 >> 16) & 0xFF);
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+
+            tx_buffer[bridge.tx_head] = @truncate((result_u32 >> 24) & 0xFF);
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+        }
     }
 
     // bridge_handle_status() → void

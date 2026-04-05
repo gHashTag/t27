@@ -72,16 +72,38 @@ for f in /tmp/fp1/*.zig; do
   diff -q "$f" "/tmp/fp2/$N" > /dev/null 2>&1 || FP_DIFF=$((FP_DIFF+1))
 done
 echo "Fixed Point: $FP_DIFF divergences"
+P6_FAIL=$FP_DIFF
+
+echo "--- Phase 7: CLARA Demo ---"
+CLARA_PASS=0; CLARA_FAIL=0; CLARA_TOTAL=0
+
+# Run CLARA demo with different patterns and styles
+for pattern in cnn-rules mlp-bayesian transformer-xai rl-guardrails; do
+  for style in natural fitch compact; do
+    CLARA_TOTAL=$((CLARA_TOTAL+1))
+    echo "  Testing: $pattern + $style"
+    if bash scripts/clara_demo.sh --pattern "$pattern" --style "$style" > /dev/null 2>&1; then
+      CLARA_PASS=$((CLARA_PASS+1))
+      echo "    ✓ PASS"
+    else
+      CLARA_FAIL=$((CLARA_FAIL+1))
+      echo "    ✗ FAIL"
+    fi
+  done
+done
+echo "CLARA Demo: $CLARA_PASS passed, $CLARA_FAIL failed ($CLARA_TOTAL total)"
+P7_FAIL=$CLARA_FAIL
 
 echo ""
 echo "=== SUMMARY ==="
-TOTAL_FAIL=$((P1_FAIL + P2_FAIL + P3_FAIL + P4_FAIL + P5_FAIL + FP_DIFF))
+TOTAL_FAIL=$((P1_FAIL + P2_FAIL + P3_FAIL + P4_FAIL + P5_FAIL + P6_FAIL + P7_FAIL))
 echo "Parse failures:    $P1_FAIL"
 echo "Gen Zig failures:  $P2_FAIL"
 echo "Gen Verilog fails: $P3_FAIL"
 echo "Gen C failures:    $P4_FAIL"
 echo "Seal mismatches:   $P5_FAIL"
-echo "FP divergences:    $FP_DIFF"
+echo "FP divergences:    $P6_FAIL"
+echo "CLARA Demo fails:  $P7_FAIL"
 echo "TOTAL FAILURES:    $TOTAL_FAIL"
 echo ""
 if [ $TOTAL_FAIL -eq 0 ]; then

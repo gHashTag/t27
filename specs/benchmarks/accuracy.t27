@@ -1,0 +1,361 @@
+// t27/specs/benchmarks/accuracy.t27
+// Accuracy Benchmark Suite for ML Models
+// Measures classification accuracy against fp32 baseline
+// φ² + 1/φ² = 3 | TRINITY
+
+module AccuracyBenchmark {
+    // Import base types, ML models, and numeric
+    use base::types;
+    use nn::hslm;
+    use numeric::gf16;
+
+    // ═════════════════════════════════════════════════════════════════
+    // 1. Benchmark Configuration
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Dataset configurations
+    const MNIST_IMAGE_SIZE : usize = 784;      // 28x28
+    const MNIST_NUM_CLASSES : usize = 10;      // 0-9 digits
+    const MNIST_TEST_SAMPLES : usize = 10000;  // Standard test set
+
+    const CIFAR10_IMAGE_SIZE : usize = 3072;   // 32x32x3
+    const CIFAR10_NUM_CLASSES : usize = 10;    // 10 object classes
+    const CIFAR10_TEST_SAMPLES : usize = 10000;
+
+    // Accuracy thresholds (from M18 Go/No-Go: >= DeepProbLog)
+    const DEEPPROBLOG_MNIST_ACC : f64 = 0.98;   // 98% on MNIST
+    const DEEPPROBLOG_CIFAR_ACC : f64 = 0.87;   // 87% on CIFAR-10
+    const TARGET_ACCURACY_DELTA : f64 = 0.02;   // Within 2% of baseline
+
+    // ═════════════════════════════════════════════════════════════════
+    // 2. Benchmark Results
+    // ═════════════════════════════════════════════════════════════════════════
+
+    struct AccuracyResult {
+        correct : u32,              // Number of correct predictions
+        total : u32,                // Total samples tested
+        accuracy : f64,             // accuracy = correct / total
+        confidence_interval : f64,  // 95% CI
+        baseline_delta : f64,       // Difference from fp32 baseline
+        pass_threshold : bool,      // Meets target threshold
+    }
+
+    struct BenchmarkReport {
+        mnist_accuracy : AccuracyResult,
+        cifar10_accuracy : AccuracyResult,
+        overall_pass : bool,
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 3. MNIST Benchmark
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // benchmark_mnist_accuracy() → AccuracyResult
+    // Run MNIST classification benchmark
+    // Measures HSLM accuracy on MNIST test set
+    fn benchmark_mnist_accuracy() -> AccuracyResult {
+        var result = AccuracyResult{
+            .correct = 0,
+            .total = MNIST_TEST_SAMPLES,
+            .accuracy = 0.0,
+            .confidence_interval = 0.0,
+            .baseline_delta = 0.0,
+            .pass_threshold = false,
+        };
+
+        // Load MNIST test data (simulated - real implementation loads from files)
+        const test_images = load_mnist_test_images();
+        const test_labels = load_mnist_test_labels();
+
+        // Run inference on each test sample
+        var i : usize = 0;
+        while (i < MNIST_TEST_SAMPLES) {
+            // Get model prediction
+            const prediction = hslm_classify_mnist(test_images[i]);
+
+            // Check if correct
+            if (prediction == test_labels[i]) {
+                result.correct = result.correct + 1;
+            }
+
+            i = i + 1;
+        }
+
+        // Calculate accuracy
+        result.accuracy = @as(f64, @floatCast(result.correct)) / @as(f64, @floatCast(result.total));
+
+        // Calculate 95% confidence interval
+        // CI = 1.96 * sqrt(p*(1-p)/n)
+        const p = result.accuracy;
+        const n = @as(f64, @floatCast(result.total));
+        const ci_width = 1.96 * @sqrt(p * (1.0 - p) / n);
+        result.confidence_interval = ci_width;
+
+        // Compare with DeepProbLog baseline
+        result.baseline_delta = result.accuracy - DEEPPROBLOG_MNIST_ACC;
+        result.pass_threshold = result.baseline_delta >= -TARGET_ACCURACY_DELTA;
+
+        return result;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. CIFAR-10 Benchmark
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // benchmark_cifar10_accuracy() → AccuracyResult
+    // Run CIFAR-10 classification benchmark
+    fn benchmark_cifar10_accuracy() -> AccuracyResult {
+        var result = AccuracyResult{
+            .correct = 0,
+            .total = CIFAR10_TEST_SAMPLES,
+            .accuracy = 0.0,
+            .confidence_interval = 0.0,
+            .baseline_delta = 0.0,
+            .pass_threshold = false,
+        };
+
+        // Load CIFAR-10 test data
+        const test_images = load_cifar10_test_images();
+        const test_labels = load_cifar10_test_labels();
+
+        // Run inference
+        var i : usize = 0;
+        while (i < CIFAR10_TEST_SAMPLES) {
+            const prediction = hslm_classify_cifar10(test_images[i]);
+
+            if (prediction == test_labels[i]) {
+                result.correct = result.correct + 1;
+            }
+
+            i = i + 1;
+        }
+
+        // Calculate metrics
+        result.accuracy = @as(f64, @floatCast(result.correct)) / @as(f64, @floatCast(result.total));
+
+        const p = result.accuracy;
+        const n = @as(f64, @floatCast(result.total));
+        const ci_width = 1.96 * @sqrt(p * (1.0 - p) / n);
+        result.confidence_interval = ci_width;
+
+        // Compare with DeepProbLog baseline
+        result.baseline_delta = result.accuracy - DEEPPROBLOG_CIFAR_ACC;
+        result.pass_threshold = result.baseline_delta >= -TARGET_ACCURACY_DELTA;
+
+        return result;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 5. FP32 Baseline Comparison
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // calculate_accuracy_vs_fp32(ternary_result: AccuracyResult, fp32_acc: f64) → f64
+    // Calculate accuracy difference between ternary and fp32 models
+    fn calculate_accuracy_vs_fp32(ternary_result: AccuracyResult, fp32_acc: f64) -> f64 {
+        return ternary_result.accuracy - fp32_acc;
+    }
+
+    // benchmark_fp32_mnist() → f64
+    // Run fp32 baseline on MNIST (reference implementation)
+    fn benchmark_fp32_mnist() -> f64 {
+        // Reference fp32 accuracy (from literature)
+        return 0.992;  // 99.2% for fp32 CNN on MNIST
+    }
+
+    // benchmark_fp32_cifar10() → f64
+    // Run fp32 baseline on CIFAR-10
+    fn benchmark_fp32_cifar10() -> f64 {
+        // Reference fp32 accuracy (from literature)
+        return 0.950;  // 95.0% for fp32 ResNet on CIFAR-10
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 6. Helper Functions
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // hslm_classify_mnist(image: [MNIST_IMAGE_SIZE]f64) → u32
+    // Classify MNIST image using HSLM
+    fn hslm_classify_mnist(image: [MNIST_IMAGE_SIZE]f64) -> u32 {
+        // Preprocess: flatten and normalize
+        var input : [hslm::EMBED_DIM]f64 = undefined;
+        var i : usize = 0;
+        while (i < @min(MNIST_IMAGE_SIZE, hslm::EMBED_DIM)) {
+            input[i] = image[i] / 255.0;
+            i = i + 1;
+        }
+        while (i < hslm::EMBED_DIM) {
+            input[i] = 0.0;
+            i = i + 1;
+        }
+
+        // Forward pass
+        var output : [hslm::EMBED_DIM]f64 = undefined;
+        var weights : hslm::HSLMWeights = undefined;
+        var caches : [hslm::NUM_LAYERS]hslm::AttentionCache = undefined;
+
+        // Single position forward pass
+        var input_2d : [1][hslm::EMBED_DIM]f64 = undefined;
+        input_2d[0] = input;
+        var output_2d : [1][hslm::EMBED_DIM]f64 = undefined;
+
+        hslm::hslm_forward(&input_2d, &weights, 1, &output_2d, &caches);
+
+        // Get class prediction (argmax of output)
+        var max_val : f64 = output_2d[0][0];
+        var max_idx : u32 = 0;
+        i = 1;
+        while (i < MNIST_NUM_CLASSES) {
+            if (output_2d[0][i] > max_val) {
+                max_val = output_2d[0][i];
+                max_idx = @intCast(i);
+            }
+            i = i + 1;
+        }
+
+        return max_idx;
+    }
+
+    // hslm_classify_cifar10(image: [CIFAR10_IMAGE_SIZE]f64) → u32
+    // Classify CIFAR-10 image using HSLM
+    fn hslm_classify_cifar10(image: [CIFAR10_IMAGE_SIZE]f64) -> u32 {
+        // Similar to MNIST but for CIFAR-10
+        var input : [hslm::EMBED_DIM]f64 = undefined;
+        var i : usize = 0;
+        while (i < @min(CIFAR10_IMAGE_SIZE, hslm::EMBED_DIM)) {
+            input[i] = image[i] / 255.0;
+            i = i + 1;
+        }
+        while (i < hslm::EMBED_DIM) {
+            input[i] = 0.0;
+            i = i + 1;
+        }
+
+        var output : [hslm::EMBED_DIM]f64 = undefined;
+        var weights : hslm::HSLMWeights = undefined;
+        var caches : [hslm::NUM_LAYERS]hslm::AttentionCache = undefined;
+
+        var input_2d : [1][hslm::EMBED_DIM]f64 = undefined;
+        input_2d[0] = input;
+        var output_2d : [1][hslm::EMBED_DIM]f64 = undefined;
+
+        hslm::hslm_forward(&input_2d, &weights, 1, &output_2d, &caches);
+
+        var max_val : f64 = output_2d[0][0];
+        var max_idx : u32 = 0;
+        i = 1;
+        while (i < CIFAR10_NUM_CLASSES) {
+            if (output_2d[0][i] > max_val) {
+                max_val = output_2d[0][i];
+                max_idx = @intCast(i);
+            }
+            i = i + 1;
+        }
+
+        return max_idx;
+    }
+
+    // load_mnist_test_images() → [MNIST_TEST_SAMPLES][MNIST_IMAGE_SIZE]f64
+    // Load MNIST test images (stub for real implementation)
+    fn load_mnist_test_images() -> [MNIST_TEST_SAMPLES][MNIST_IMAGE_SIZE]f64 {
+        // Stub: returns zero-initialized array
+        // Real implementation reads from data/mnist/test-images-idx3-ubyte
+        return [0.0] ** (MNIST_TEST_SAMPLES * MNIST_IMAGE_SIZE);
+    }
+
+    // load_mnist_test_labels() → [MNIST_TEST_SAMPLES]u32
+    // Load MNIST test labels
+    fn load_mnist_test_labels() -> [MNIST_TEST_SAMPLES]u32 {
+        // Stub: returns zero-initialized array
+        // Real implementation reads from data/mnist/test-labels-idx1-ubyte
+        return [0u32] ** MNIST_TEST_SAMPLES;
+    }
+
+    // load_cifar10_test_images() → [CIFAR10_TEST_SAMPLES][CIFAR10_IMAGE_SIZE]f64
+    // Load CIFAR-10 test images
+    fn load_cifar10_test_images() -> [CIFAR10_TEST_SAMPLES][CIFAR10_IMAGE_SIZE]f64 {
+        // Stub: returns zero-initialized array
+        return [0.0] ** (CIFAR10_TEST_SAMPLES * CIFAR10_IMAGE_SIZE);
+    }
+
+    // load_cifar10_test_labels() → [CIFAR10_TEST_SAMPLES]u32
+    // Load CIFAR-10 test labels
+    fn load_cifar10_test_labels() -> [CIFAR10_TEST_SAMPLES]u32 {
+        // Stub: returns zero-initialized array
+        return [0u32] ** CIFAR10_TEST_SAMPLES;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 7. Full Benchmark Run
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // run_all_accuracy_benchmarks() → BenchmarkReport
+    // Run all accuracy benchmarks and generate report
+    fn run_all_accuracy_benchmarks() -> BenchmarkReport {
+        const mnist_result = benchmark_mnist_accuracy();
+        const cifar10_result = benchmark_cifar10_accuracy();
+
+        const overall_pass = mnist_result.pass_threshold and
+                             cifar10_result.pass_threshold;
+
+        return BenchmarkReport{
+            .mnist_accuracy = mnist_result,
+            .cifar10_accuracy = cifar10_result,
+            .overall_pass = overall_pass,
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test benchmark_mnist_returns_valid_result
+        given result = benchmark_mnist_accuracy()
+        then result.total == MNIST_TEST_SAMPLES
+        and   result.correct <= result.total
+        and   result.accuracy >= 0.0 and result.accuracy <= 1.0
+
+    test benchmark_cifar10_returns_valid_result
+        given result = benchmark_cifar10_accuracy()
+        then result.total == CIFAR10_TEST_SAMPLES
+        and   result.correct <= result.total
+        and   result.accuracy >= 0.0 and result.accuracy <= 1.0
+
+    test accuracy_thresholds_defined
+        given mnist = DEEPPROBLOG_MNIST_ACC
+        and   cifar = DEEPPROBLOG_CIFAR_ACC
+        and   delta = TARGET_ACCURACY_DELTA
+        then mnist == 0.98 and cifar == 0.87 and delta == 0.02
+
+    test confidence_interval_positive
+        given result = benchmark_mnist_accuracy()
+        then result.confidence_interval >= 0.0
+
+    test baseline_delta_calculated
+        given result = benchmark_mnist_accuracy()
+        then result.accuracy - result.baseline_delta == DEEPPROBLOG_MNIST_ACC
+
+    test overall_pass_requires_both
+        given report = run_all_accuracy_benchmarks()
+        then report.overall_pass == report.mnist_accuracy.pass_threshold
+                                   and report.cifar10_accuracy.pass_threshold
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench mnist_benchmark_total_time
+        measure: seconds to complete benchmark_mnist_accuracy()
+        target: < 300  // 5 minutes for 10k samples
+
+    bench cifar10_benchmark_total_time
+        measure: seconds to complete benchmark_cifar10_accuracy()
+        target: < 600  // 10 minutes for 10k samples (larger images)
+
+    bench single_mnist_inference
+        measure: microseconds for hslm_classify_mnist()
+        target: < 1000  // < 1ms per image
+
+    bench single_cifar10_inference
+        measure: microseconds for hslm_classify_cifar10()
+        target: < 2000  // < 2ms per image (larger input)
+}

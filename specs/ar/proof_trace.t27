@@ -83,16 +83,82 @@ module ProofTrace {
     }
 
     fn format_natural(trace: ProofTrace) -> []const u8 {
-        // "Step N: [rule_name] -> [output_fact] (conf=X)"
+        // "Step N: [rule_name] -> [output_fact] (conf=X.XX)"
         var buffer : [512]u8 = undefined;
         var offset : usize = 0;
 
         var i : usize = 0;
         while (i < trace.step_count) {
             const step = trace.steps[i];
-            const step_str = "Step {d}: {s} -> {?} (conf={d:.2})\n";
-            // TODO: actual formatting when std lib available
+
+            // Convert step number to string (max 2 digits for 10 steps)
+            const step_num = step.step_number;
+            if (step_num >= 10) {
+                buffer[offset] = '1';
+                offset = offset + 1;
+                buffer[offset] = '0' + (step_num - 10);
+                offset = offset + 1;
+            } else {
+                buffer[offset] = '0' + step_num;
+                offset = offset + 1;
+            }
+
+            // ": "
+            buffer[offset] = ':'; offset = offset + 1;
+            buffer[offset] = ' '; offset = offset + 1;
+
+            // Copy rule name (up to 64 bytes, truncate if needed)
+            var j : usize = 0;
+            while (j < step.rule_name.len and offset < 500) {
+                buffer[offset] = step.rule_name[j];
+                offset = offset + 1;
+                j = j + 1;
+            }
+
+            // " -> "
+            buffer[offset] = ' '; offset = offset + 1;
+            buffer[offset] = '-'; offset = offset + 1;
+            buffer[offset] = '>'; offset = offset + 1;
+            buffer[offset] = ' '; offset = offset + 1;
+
+            // Output fact representation (T/-1, 0/0, 1/+1)
+            match step.output_fact {
+                .neg => { buffer[offset] = '-'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+                .zero => { buffer[offset] = '0'; offset = offset + 1; }
+                .pos => { buffer[offset] = '+'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+            }
+
+            // " (conf="
+            buffer[offset] = ' '; offset = offset + 1;
+            buffer[offset] = '('; offset = offset + 1;
+            buffer[offset] = 'c'; offset = offset + 1;
+            buffer[offset] = 'o'; offset = offset + 1;
+            buffer[offset] = 'n'; offset = offset + 1;
+            buffer[offset] = 'f'; offset = offset + 1;
+            buffer[offset] = '='; offset = offset + 1;
+
+            // Confidence value (2 decimal places)
+            const conf_f = gf16_decode_to_f32(step.confidence);
+            const conf_int = @intFromFloat(conf_f * 100.0);
+            const conf_hundreds = (conf_int / 100) % 10;
+            const conf_tens = (conf_int / 10) % 10;
+            const conf_ones = conf_int % 10;
+
+            buffer[offset] = '0' + conf_hundreds; offset = offset + 1;
+            buffer[offset] = '.'; offset = offset + 1;
+            buffer[offset] = '0' + conf_tens; offset = offset + 1;
+            buffer[offset] = '0' + conf_ones; offset = offset + 1;
+
+            // ")\n"
+            buffer[offset] = ')'; offset = offset + 1;
+            buffer[offset] = '\n'; offset = offset + 1;
+
             i = i + 1;
+        }
+
+        // Null-terminate
+        if (offset < 512) {
+            buffer[offset] = 0;
         }
 
         return buffer[0..offset];
@@ -100,24 +166,169 @@ module ProofTrace {
 
     fn format_fitch(trace: ProofTrace) -> []const u8 {
         // Formal natural deduction columnar format
+        // "| 1. {fact}                {rule}"
         var buffer : [512]u8 = undefined;
         var offset : usize = 0;
 
         var i : usize = 0;
         while (i < trace.step_count) {
             const step = trace.steps[i];
-            // Fitch style: | 1. {fact}                {rule}
+
+            // Column 1: vertical bar
+            buffer[offset] = '|'; offset = offset + 1;
+            buffer[offset] = ' '; offset = offset + 1;
+
+            // Column 2: step number (max 2 digits)
+            const step_num = step.step_number;
+            if (step_num >= 10) {
+                buffer[offset] = '1'; offset = offset + 1;
+                buffer[offset] = '0' + (step_num - 10); offset = offset + 1;
+            } else {
+                buffer[offset] = '0' + step_num; offset = offset + 1;
+            }
+
+            buffer[offset] = '.'; offset = offset + 1;
+            buffer[offset] = ' '; offset = offset + 1;
+
+            // Column 3: fact (output fact + input facts)
+            // Write output fact first
+            match step.output_fact {
+                .neg => { buffer[offset] = '-'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+                .zero => { buffer[offset] = '0'; offset = offset + 1; }
+                .pos => { buffer[offset] = '+'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+            }
+
+            // Add input facts if present
+            if (step.input_facts[0] != .zero or step.input_facts[1] != .zero or step.input_facts[2] != .zero) {
+                buffer[offset] = ' '; offset = offset + 1;
+                buffer[offset] = '('; offset = offset + 1;
+                var fact_idx : usize = 0;
+                var need_comma = false;
+                while (fact_idx < 3) {
+                    if (step.input_facts[fact_idx] != .zero) {
+                        if (need_comma) {
+                            buffer[offset] = ','; offset = offset + 1;
+                        }
+                        match step.input_facts[fact_idx] {
+                            .neg => { buffer[offset] = '-'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+                            .zero => { buffer[offset] = '0'; offset = offset + 1; }
+                            .pos => { buffer[offset] = '+'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+                        }
+                        need_comma = true;
+                    }
+                    fact_idx = fact_idx + 1;
+                }
+                buffer[offset] = ')'; offset = offset + 1;
+            }
+
+            // Pad to column 20 (rule column)
+            while (offset < 20) {
+                buffer[offset] = ' ';
+                offset = offset + 1;
+            }
+
+            // Column 4: rule name (justification)
+            var j : usize = 0;
+            while (j < step.rule_name.len and offset < 500) {
+                buffer[offset] = step.rule_name[j];
+                offset = offset + 1;
+                j = j + 1;
+            }
+
+            // Newline
+            buffer[offset] = '\n'; offset = offset + 1;
+
             i = i + 1;
+        }
+
+        // Null-terminate
+        if (offset < 512) {
+            buffer[offset] = 0;
         }
 
         return buffer[0..offset];
     }
 
     fn format_compact(trace: ProofTrace) -> []const u8 {
-        // "N steps | conclusion=[K] | conf=X | terminated=[bool]"
+        // "N steps | conclusion=[K] | conf=X.XX | terminated=[bool]"
         var buffer : [128]u8 = undefined;
-        // TODO: compact format
-        return buffer[0..0];
+        var offset : usize = 0;
+
+        // Step count
+        const steps = trace.step_count;
+        if (steps >= 10) {
+            buffer[offset] = '1'; offset = offset + 1;
+            buffer[offset] = '0' + (steps - 10); offset = offset + 1;
+        } else {
+            buffer[offset] = '0' + steps; offset = offset + 1;
+        }
+
+        // " steps | conclusion="
+        const step_str = " steps | conclusion=";
+        var i : usize = 0;
+        while (i < step_str.len) {
+            buffer[offset] = step_str[i];
+            offset = offset + 1;
+            i = i + 1;
+        }
+
+        // Conclusion value
+        match trace.conclusion {
+            .neg => { buffer[offset] = '-'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+            .zero => { buffer[offset] = '0'; offset = offset + 1; }
+            .pos => { buffer[offset] = '+'; offset = offset + 1; buffer[offset] = '1'; offset = offset + 1; }
+        }
+
+        // " | conf="
+        const conf_header = " | conf=";
+        i = 0;
+        while (i < conf_header.len) {
+            buffer[offset] = conf_header[i];
+            offset = offset + 1;
+            i = i + 1;
+        }
+
+        // Confidence (2 decimal places)
+        const conf_f = gf16_decode_to_f32(trace.total_confidence);
+        const conf_int = @intFromFloat(conf_f * 100.0);
+        const conf_hundreds = (conf_int / 100) % 10;
+        const conf_tens = (conf_int / 10) % 10;
+        const conf_ones = conf_int % 10;
+
+        buffer[offset] = '0' + conf_hundreds; offset = offset + 1;
+        buffer[offset] = '.'; offset = offset + 1;
+        buffer[offset] = '0' + conf_tens; offset = offset + 1;
+        buffer[offset] = '0' + conf_ones; offset = offset + 1;
+
+        // " | terminated="
+        const term_header = " | terminated=";
+        i = 0;
+        while (i < term_header.len) {
+            buffer[offset] = term_header[i];
+            offset = offset + 1;
+            i = i + 1;
+        }
+
+        // Terminated boolean
+        if (trace.terminated) {
+            buffer[offset] = 't'; offset = offset + 1;
+            buffer[offset] = 'r'; offset = offset + 1;
+            buffer[offset] = 'u'; offset = offset + 1;
+            buffer[offset] = 'e'; offset = offset + 1;
+        } else {
+            buffer[offset] = 'f'; offset = offset + 1;
+            buffer[offset] = 'a'; offset = offset + 1;
+            buffer[offset] = 'l'; offset = offset + 1;
+            buffer[offset] = 's'; offset = offset + 1;
+            buffer[offset] = 'e'; offset = offset + 1;
+        }
+
+        // Null-terminate
+        if (offset < 128) {
+            buffer[offset] = 0;
+        }
+
+        return buffer[0..offset];
     }
 
     // ═══════════════════════════════════════════════════════

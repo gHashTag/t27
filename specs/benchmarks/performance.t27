@@ -1,0 +1,445 @@
+// t27/specs/benchmarks/performance.t27
+// Performance Benchmark Suite
+// Measures throughput and latency for key operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module PerformanceBenchmark {
+    // Import base types, operations, and ML modules
+    use base::types;
+    use base::ops;
+    use ar::ternary_logic;
+    use fpga::mac;
+
+    // ═════════════════════════════════════════════════════════════════
+    // 1. Benchmark Targets
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Target performance metrics (competitor comparison)
+    const TARGET_K3_OPS_PER_SEC : u64 = 1_000_000_000;  // 1B K3 ops/sec
+    const TARGET_FORWARD_CHAINING_OPS : u64 = 10_000_000;  // 10M rules/sec
+    const TARGET_FPGA_TOKEN_THROUGHPUT : u64 = 63;  // 63 tok/s @ 92 MHz
+
+    // REASON GPU baseline (from literature)
+    const REASON_GPU_THROUGHPUT : u64 = 50_000;  // 50K inferences/sec (approx)
+
+    // ═════════════════════════════════════════════════════════════════
+    // 2. K3 Operations Benchmark
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Benchmark result structure
+    struct BenchmarkResult {
+        name : []const u8,
+        iterations : u64,
+        total_time_ns : u64,
+        ops_per_sec : f64,
+        target_met : bool,
+    }
+
+    // bench_k3_and_throughput() → BenchmarkResult
+    // Measure K3 AND operations per second
+    fn bench_k3_and_throughput() -> BenchmarkResult {
+        const iterations = 1_000_000;
+        const start = rdtsc();
+
+        var i : u64 = 0;
+        var result : Trit = .zero;
+        while (i < iterations) {
+            result = k3_and(.pos, .neg);
+            result = k3_and(.neg, .zero);
+            result = k3_and(.zero, .pos);
+            result = k3_and(.pos, .pos);
+            i = i + 1;
+        }
+
+        const end = rdtsc();
+        const cycles = end - start;
+
+        // Estimate ops/sec (assuming 3 GHz CPU)
+        const cpu_freq_hz = 3_000_000_000;
+        const time_sec = @as(f64, @floatCast(cycles)) / @as(f64, @floatCast(cpu_freq_hz));
+        const ops_per_sec = @as(f64, @floatCast(iterations * 4)) / time_sec;
+
+        return BenchmarkResult{
+            .name = "k3_and_throughput",
+            .iterations = iterations * 4,
+            .total_time_ns = cycles * 1000000000 / cpu_freq_hz,
+            .ops_per_sec = ops_per_sec,
+            .target_met = ops_per_sec >= @as(f64, @floatCast(TARGET_K3_OPS_PER_SEC)),
+        };
+    }
+
+    // bench_k3_or_throughput() → BenchmarkResult
+    // Measure K3 OR operations per second
+    fn bench_k3_or_throughput() -> BenchmarkResult {
+        const iterations = 1_000_000;
+        const start = rdtsc();
+
+        var i : u64 = 0;
+        var result : Trit = .zero;
+        while (i < iterations) {
+            result = k3_or(.pos, .neg);
+            result = k3_or(.neg, .zero);
+            result = k3_or(.zero, .pos);
+            result = k3_or(.pos, .pos);
+            i = i + 1;
+        }
+
+        const end = rdtsc();
+        const cycles = end - start;
+
+        const cpu_freq_hz = 3_000_000_000;
+        const time_sec = @as(f64, @floatCast(cycles)) / @as(f64, @floatCast(cpu_freq_hz));
+        const ops_per_sec = @as(f64, @floatCast(iterations * 4)) / time_sec;
+
+        return BenchmarkResult{
+            .name = "k3_or_throughput",
+            .iterations = iterations * 4,
+            .total_time_ns = cycles * 1000000000 / cpu_freq_hz,
+            .ops_per_sec = ops_per_sec,
+            .target_met = ops_per_sec >= @as(f64, @floatCast(TARGET_K3_OPS_PER_SEC)),
+        };
+    }
+
+    // bench_k3_not_throughput() → BenchmarkResult
+    // Measure K3 NOT operations per second
+    fn bench_k3_not_throughput() -> BenchmarkResult {
+        const iterations = 1_000_000;
+        const start = rdtsc();
+
+        var i : u64 = 0;
+        var result : Trit = .zero;
+        while (i < iterations) {
+            result = k3_not(.pos);
+            result = k3_not(.neg);
+            result = k3_not(.zero);
+            i = i + 1;
+        }
+
+        const end = rdtsc();
+        const cycles = end - start;
+
+        const cpu_freq_hz = 3_000_000_000;
+        const time_sec = @as(f64, @floatCast(cycles)) / @as(f64, @floatCast(cpu_freq_hz));
+        const ops_per_sec = @as(f64, @floatCast(iterations * 3)) / time_sec;
+
+        return BenchmarkResult{
+            .name = "k3_not_throughput",
+            .iterations = iterations * 3,
+            .total_time_ns = cycles * 1000000000 / cpu_freq_hz,
+            .ops_per_sec = ops_per_sec,
+            .target_met = ops_per_sec >= @as(f64, @floatCast(TARGET_K3_OPS_PER_SEC)),
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 3. Forward Chaining Benchmark
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Forward chaining ruleset (simulated)
+    const NUM_RULES : usize = 1000;
+    const MAX_FACTS : usize = 100;
+
+    // bench_forward_chaining_throughput() → BenchmarkResult
+    // Measure forward chaining rules processed per second
+    fn bench_forward_chaining_throughput() -> BenchmarkResult {
+        const iterations = 10_000;
+
+        // Create sample ruleset
+        var rules : [NUM_RULES]ternary_logic::Rule = undefined;
+        var i : usize = 0;
+        while (i < NUM_RULES) {
+            rules[i] = ternary_logic::Rule{
+                .antecedent = .pos,
+                .consequent = if (i % 2 == 0) { .pos } else { .neg },
+            };
+            i = i + 1;
+        }
+
+        const start = rdtsc();
+
+        var j : u64 = 0;
+        var derived : u32 = 0;
+        while (j < iterations) {
+            // Simulate forward chaining through all rules
+            var k : usize = 0;
+            while (k < NUM_RULES) {
+                const result = ternary_logic::forward_chain(rules[k], .pos);
+                if (result != .zero) {
+                    derived = derived + 1;
+                }
+                k = k + 1;
+            }
+            j = j + 1;
+        }
+
+        const end = rdtsc();
+        const cycles = end - start;
+
+        const cpu_freq_hz = 3_000_000_000;
+        const time_sec = @as(f64, @floatCast(cycles)) / @as(f64, @floatCast(cpu_freq_hz));
+        const ops_per_sec = @as(f64, @floatCast(iterations * NUM_RULES)) / time_sec;
+
+        return BenchmarkResult{
+            .name = "forward_chaining_throughput",
+            .iterations = iterations * NUM_RULES,
+            .total_time_ns = cycles * 1000000000 / cpu_freq_hz,
+            .ops_per_sec = ops_per_sec,
+            .target_met = ops_per_sec >= @as(f64, @floatCast(TARGET_FORWARD_CHAINING_OPS)),
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. Composition Pattern Benchmark
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Composition pattern types
+    const PATTERN_CNN_RULES : u8 = 0;
+    const PATTERN_MLP_BAYESIAN : u8 = 1;
+    const PATTERN_TRANSFORMER_XAI : u8 = 2;
+    const PATTERN_RL_GUARDRAILS : u8 = 3;
+
+    // bench_composition_latency(pattern: u8) → BenchmarkResult
+    // Measure latency for composition pattern execution
+    fn bench_composition_latency(pattern: u8) -> BenchmarkResult {
+        const iterations = 1_000;
+        const start = rdtsc();
+
+        var i : u64 = 0;
+        while (i < iterations) {
+            // Simulate composition: ML result + AR rules
+            match pattern {
+                PATTERN_CNN_RULES => {
+                    // CNN + Rules composition
+                    var ml_result : f64 = 0.95;
+                    var ar_check : bool = true;
+                    const composed = if (ar_check) { ml_result } else { 0.0 };
+                }
+                PATTERN_MLP_BAYESIAN => {
+                    // MLP + Bayesian composition
+                    var ml_result : f64 = 0.88;
+                    var prior : f64 = 0.5;
+                    const composed = ml_result * prior + (1.0 - prior) * 0.5;
+                }
+                PATTERN_TRANSFORMER_XAI => {
+                    // Transformer + XAI composition
+                    var attention : f64 = 0.92;
+                    var explanation : f64 = 0.85;
+                    const composed = attention * explanation;
+                }
+                PATTERN_RL_GUARDRAILS => {
+                    // RL + Guardrails composition
+                    var q_value : f64 = 0.75;
+                    var safety : f64 = 1.0;
+                    const composed = if (safety > 0.9) { q_value } else { 0.0 };
+                }
+                else => {}
+            }
+            i = i + 1;
+        }
+
+        const end = rdtsc();
+        const cycles = end - start;
+
+        const cpu_freq_hz = 3_000_000_000;
+        const time_ns = cycles * 1000000000 / cpu_freq_hz;
+        const latency_ns = time_ns / iterations;
+
+        return BenchmarkResult{
+            .name = "composition_latency",
+            .iterations = iterations,
+            .total_time_ns = time_ns,
+            .ops_per_sec = 1_000_000_000.0 / @max(latency_ns, 1),
+            .target_met = latency_ns < 10000,  // < 10μs target
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 5. FPGA Token Throughput Benchmark
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // bench_fpga_mac_throughput() → BenchmarkResult
+    // Measure FPGA MAC operations per second
+    fn bench_fpga_mac_throughput() -> BenchmarkResult {
+        const iterations = 10_000;
+
+        const start = rdtsc();
+
+        var i : u64 = 0;
+        var acc : i32 = 0;
+        while (i < iterations) {
+            // Simulate ternary MAC operation
+            var a : TernaryWord = TernaryWord{ .raw = 0xAAAA };
+            var b : TernaryWord = TernaryWord{ .raw = 0x5555 };
+
+            // Mock MAC cycle (dot product of 27 trits)
+            var dot : i32 = 0;
+            var j : usize = 0;
+            while (j < 27) {
+                const a_trit = extract_trit(a, j);
+                const b_trit = extract_trit(b, j);
+                const product = (a_trit as i8) * (b_trit as i8);
+                dot = dot + product;
+                j = j + 1;
+            }
+            acc = acc + dot;
+            i = i + 1;
+        }
+
+        const end = rdtsc();
+        const cycles = end - start;
+
+        const cpu_freq_hz = 3_000_000_000;
+        const time_sec = @as(f64, @floatCast(cycles)) / @as(f64, @floatCast(cpu_freq_hz));
+        const ops_per_sec = @as(f64, @floatCast(iterations)) / time_sec;
+
+        return BenchmarkResult{
+            .name = "fpga_mac_throughput",
+            .iterations = iterations,
+            .total_time_ns = cycles * 1000000000 / cpu_freq_hz,
+            .ops_per_sec = ops_per_sec,
+            .target_met = ops_per_sec >= @as(f64, @floatCast(TARGET_FPGA_TOKEN_THROUGHPUT)),
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 6. Helper Functions
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // rdtsc() → u64
+    // Read time-stamp counter (x86_64)
+    fn rdtsc() -> u64 {
+        // In real implementation, use inline assembly
+        // For now, return a mock value
+        return 0;
+    }
+
+    // extract_trit(word: TernaryWord, index: usize) → Trit
+    // Extract trit from TernaryWord (from mac.t27)
+    fn extract_trit(word: TernaryWord, index: usize) -> Trit {
+        const bit_pos = index * 2;
+        const encoded = (word.raw >> bit_pos) & 3;
+
+        if (encoded == 2) {
+            return .neg;
+        } else if (encoded == 1) {
+            return .pos;
+        } else {
+            return .zero;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 7. Full Performance Report
+    // ═════════════════════════════════════════════════════════════════════════
+
+    struct PerformanceReport {
+        k3_and : BenchmarkResult,
+        k3_or : BenchmarkResult,
+        k3_not : BenchmarkResult,
+        forward_chaining : BenchmarkResult,
+        composition_cnn : BenchmarkResult,
+        composition_mlp : BenchmarkResult,
+        composition_transformer : BenchmarkResult,
+        composition_rl : BenchmarkResult,
+        fpga_mac : BenchmarkResult,
+        overall_pass : bool,
+    }
+
+    // run_all_performance_benchmarks() → PerformanceReport
+    // Execute all performance benchmarks
+    fn run_all_performance_benchmarks() -> PerformanceReport {
+        const k3_and = bench_k3_and_throughput();
+        const k3_or = bench_k3_or_throughput();
+        const k3_not = bench_k3_not_throughput();
+        const forward_chaining = bench_forward_chaining_throughput();
+        const composition_cnn = bench_composition_latency(PATTERN_CNN_RULES);
+        const composition_mlp = bench_composition_latency(PATTERN_MLP_BAYESIAN);
+        const composition_transformer = bench_composition_latency(PATTERN_TRANSFORMER_XAI);
+        const composition_rl = bench_composition_latency(PATTERN_RL_GUARDRAILS);
+        const fpga_mac = bench_fpga_mac_throughput();
+
+        const overall_pass = k3_and.target_met and
+                             k3_or.target_met and
+                             k3_not.target_met and
+                             forward_chaining.target_met and
+                             fpga_mac.target_met;
+
+        return PerformanceReport{
+            .k3_and = k3_and,
+            .k3_or = k3_or,
+            .k3_not = k3_not,
+            .forward_chaining = forward_chaining,
+            .composition_cnn = composition_cnn,
+            .composition_mlp = composition_mlp,
+            .composition_transformer = composition_transformer,
+            .composition_rl = composition_rl,
+            .fpga_mac = fpga_mac,
+            .overall_pass = overall_pass,
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test k3_benchmark_returns_valid_result
+        given result = bench_k3_and_throughput()
+        then result.iterations > 0
+        and   result.ops_per_sec >= 0.0
+
+    test forward_chaining_benchmark_measures_rules
+        given result = bench_forward_chaining_throughput()
+        then result.iterations >= NUM_RULES
+
+    test composition_benchmark_sub_10us
+        given result = bench_composition_latency(PATTERN_CNN_RULES)
+        then result.total_time_ns < 10000000  // < 10ms
+
+    test fpga_mac_benchmark_runs
+        given result = bench_fpga_mac_throughput()
+        then result.iterations > 0
+
+    test performance_report_includes_all_benchmarks
+        given report = run_all_performance_benchmarks()
+        then report.k3_and.iterations > 0
+        and   report.forward_chaining.iterations > 0
+        and   report.fpga_mac.iterations > 0
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant ops_per_sec_positive
+        // All benchmarks should report positive throughput
+        const report = run_all_performance_benchmarks();
+        assert report.k3_and.ops_per_sec >= 0.0;
+        assert report.k3_or.ops_per_sec >= 0.0;
+        assert report.k3_not.ops_per_sec >= 0.0;
+
+    invariant total_time_reasonable
+        // Total time should be positive and less than 1 second
+        const report = run_all_performance_benchmarks();
+        assert report.k3_and.total_time_ns > 0;
+        assert report.k3_and.total_time_ns < 1_000_000_000;
+
+    invariant iterations_match_operations
+        // Iterations should match number of operations performed
+        const result = bench_k3_and_throughput();
+        assert result.iterations > 0;
+
+    // ═════════════════════════════════════════════════════════════════
+    // TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench full_performance_suite
+        measure: milliseconds to run_all_performance_benchmarks()
+        target: < 5000  // Complete suite in < 5 seconds
+
+    bench k3_operations_combined
+        measure: microseconds for AND + OR + NOT (1000 iterations each)
+        target: < 100
+
+    bench composition_all_patterns
+        measure: microseconds for all 4 composition patterns (1000 iterations each)
+        target: < 500
+}

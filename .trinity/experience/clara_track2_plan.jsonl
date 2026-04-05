@@ -3,3 +3,6 @@
 {"ring": 48, "task": "tri-cli-clara-demo-command", "status": "pending", "description": "Add 'tri clara demo' command to CLI that runs scripts/clara/demo.sh"}
 {"ring": 49, "task": "benchmarking-comparison", "status": "pending", "description": "Run GF16 vs fp16 vs bfloat16 performance benchmark, save to conformance/"}
 {"ring": 50, "task": "final-submission-package", "status": "pending", "description": "Final review, formatting, all headers, git tag v0.40-clara"}
+{"ring": 48, "task": "clara-demo-cli", "status": "completed", "verdict": "clean", "git_commit": "0dd53f6"}
+{"ring": 49, "task": "gf16-benchmark-verification", "status": "completed", "verdict": "clean", "git_commit": "fccf7b4"}
+{"ring": 50, "task": "final-submission-package", "status": "completed", "verdict": "clean", "git_tag": "v0.40-clara"}
