@@ -1,19 +1,25 @@
 {
-  "skill_id": "ring-18-24-ar-integration",
-  "session_id": "2026-04-04T18:00:00Z#ring18-24",
-  "issue_id": "SEED-18-24",
-  "issue_title": "Rings 18-24: Full AR Domain Integration",
-  "description": "Integrate all 7 AR specs into canonical graph with gen backends, conformance vectors, and seals",
-  "started_at": "2026-04-04T18:00:00Z",
+  "skill_id": "ring-47-cli-repl",
+  "skill_name": "tri-cli-repl",
+  "session_id": "2026-04-05T12:00:00Z#ring47",
+  "issue_id": "SEED-47",
+  "issue_title": "Ring 47: TRI CLI REPL core with self-improving RINGS",
+  "description": "Self-improving CLI REPL that uses RINGS to iteratively improve itself",
+  "ring": 47,
+  "layer": "SEED",
+  "started_at": "2026-04-05T12:00:00Z",
   "started_by": "agent:claude-code",
-  "status": "complete",
+  "status": "active",
   "allowed_paths": [
-    "specs/ar/",
-    "gen/",
-    "conformance/",
-    ".trinity/seals/",
+    "specs/cli/",
+    "gen/zig/cli/",
+    "conformance/cli_*.json",
+    "bootstrap/src/cli/",
+    "bootstrap/t27c.py",
+    ".trinity/seals/TriCliRepl.json",
+    ".trinity/seals/TriRingExecutor.json",
+    ".trinity/seals/TriSelfImprove.json",
     ".trinity/state/",
-    ".trinity/experience/",
-    "architecture/graph_v2.json"
+    ".trinity/experience/"
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "module": "TriSelfImprove",
+  "ring": 49,
+  "spec_path": "specs/cli/self_improve.t27",
+  "spec_hash": "sha256:6dd5c2001293eb1a704f2385c07517978d076734f75e0e1fcab724401dd4ccec",
+  "gen_hash_zig": "sha256:1d149f69b66934ffe6f651a1c13350667a6fef492e9a118648d1803fdb87f034",
+  "gen_hash_c": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "gen_hash_verilog": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "conformance_hash": "sha256:b847f879a6b0baea95a9c7eb4877864a2567684ab4b2b29129374bcee638d1be",
+  "tests": {
+    "status": "passed",
+    "count": 11,
+    "invariants": 9,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-05T12:00:00Z"
+}

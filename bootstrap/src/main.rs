@@ -11,6 +11,7 @@
 
 mod compiler;
 mod bridge;
+mod cli;
 
 use clap::{Parser, Subcommand};
 use sha2::{Sha256, Digest};
@@ -127,6 +128,26 @@ enum Commands {
         #[command(subcommand)]
         command: bridge::BridgeCommands,
     },
+
+    /// Start interactive REPL (self-improving via RINGS)
+    Repl {
+        #[command(subcommand)]
+        command: Option<ReplSubcommands>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ReplSubcommands {
+    /// Run introspection: analyze episodes, find weaknesses
+    Doctor,
+    /// Execute one self-improvement cycle
+    Evolve,
+    /// Show ring improvement trajectory
+    History,
+    /// Show current ring level, capabilities, health
+    Status,
+    /// Hot-reload after ring completion
+    Reload,
 }
 
 // ============================================================================
@@ -1790,6 +1811,17 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Repl { command } => {
+            let project_root = std::env::current_dir()?;
+            match command {
+                None => cli::repl::run_repl(&project_root)?,
+                Some(ReplSubcommands::Doctor) => cli::repl::run_doctor(&project_root)?,
+                Some(ReplSubcommands::Evolve) => cli::repl::run_evolve(&project_root)?,
+                Some(ReplSubcommands::History) => cli::repl::run_history(&project_root)?,
+                Some(ReplSubcommands::Status) => cli::repl::run_status(&project_root)?,
+                Some(ReplSubcommands::Reload) => cli::repl::run_reload(&project_root)?,
+            }
+        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");

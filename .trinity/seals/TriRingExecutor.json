@@ -1,0 +1,21 @@
+{
+  "module": "TriRingExecutor",
+  "ring": 48,
+  "spec_path": "specs/cli/ring_executor.t27",
+  "spec_hash": "sha256:2e6181efabb676533226c716c8e96d3f9f58bf56e4f0cb1f857b2306787b9405",
+  "gen_hash_zig": "sha256:e25004517eb74e1f4cf62274d30ac72057d8b4321da7a8d6ac856b8fca89165c",
+  "gen_hash_c": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "gen_hash_verilog": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "conformance_hash": "sha256:e1aaff1c77d705405b979eb215a033d3efd77386a650a0a25a7e3ed1f7f5e1e1",
+  "tests": {
+    "status": "passed",
+    "count": 14,
+    "invariants": 10,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-05T12:00:00Z"
+}

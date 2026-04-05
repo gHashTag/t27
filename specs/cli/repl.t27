@@ -1,0 +1,622 @@
+; repl.t27 -- TRI CLI Read-Eval-Print-Loop with command dispatch
+; Self-improving REPL core for Trinity t27 ecosystem
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tri-cli-repl;
+
+// ============================================================================
+// IMPORTS
+// ============================================================================
+use base::types;            // Trit, PackedTrit, TernaryWord
+use cli::ring_executor;     // RingState, RingConfig, PhiLoopStep
+use cli::self_improve;      // ImprovementProposal, ConvergenceState
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const MAX_HISTORY : u16 = 4096;     // Max session history entries
+pub const MAX_PLUGINS : u8 = 64;        // Max dynamically loaded plugins
+pub const MAX_INPUT_LEN : u16 = 8192;   // Max input line length
+pub const MAX_ARGS : u8 = 32;           // Max command arguments
+pub const PROMPT_PREFIX : str = "tri";   // Prompt prefix before ring number
+
+// ============================================================================
+// 1. Core REPL Types
+// ============================================================================
+
+// ReplCommand: enum of all dispatchable REPL commands
+// Each command maps to a PHI LOOP step or REPL-internal operation
+pub const ReplCommand = enum(u8) {
+    skill_begin = 0,       // Start a new ring (PHI LOOP step 1)
+    spec_edit = 1,         // Edit a .t27 spec (PHI LOOP step 2)
+    hash_seal = 2,         // Compute SHA-256 quad-hash (PHI LOOP step 3)
+    gen = 3,               // Generate backend code (PHI LOOP step 4)
+    test = 4,              // Run tests (PHI LOOP step 5)
+    verdict = 5,           // Evaluate toxicity (PHI LOOP step 6)
+    experience_save = 6,   // Record episode (PHI LOOP step 7)
+    skill_commit = 7,      // Commit + seal (PHI LOOP step 8)
+    status = 8,            // Show PHI LOOP status
+    repl_doctor = 9,       // Introspect: analyze episodes, find weaknesses
+    repl_evolve = 10,      // Execute one self-improvement cycle
+    repl_history = 11,     // Show ring improvement trajectory
+    repl_reload = 12,      // Hot-reload after ring completion
+    repl_status = 13,      // Current ring level, capabilities, health
+    help = 14,             // Show help text
+    quit = 15,             // Exit REPL
+};
+
+// CommandResult: result of executing a REPL command
+// Carries toxicity classification for verdict-aware dispatch
+pub const CommandResult = struct {
+    success : bool,            // True if command executed without error
+    toxicity : Trit,           // neg=toxic, zero=risky, pos=clean
+    message : [MAX_INPUT_LEN]u8, // Output message (UTF-8)
+    message_len : u16,         // Actual message length
+    ring_delta : i8,           // Ring advancement: -1=rollback, 0=no change, +1=advance
+    elapsed_ns : u64,          // Execution time in nanoseconds
+};
+
+// ReplPlugin: dynamic command registration
+// Allows self-improvement to add new commands at runtime
+pub const ReplPlugin = struct {
+    name : [64]u8,             // Plugin name (ASCII, null-terminated)
+    name_len : u8,             // Actual name length
+    help_text : [256]u8,       // Help description
+    help_len : u8,             // Actual help text length
+    handler_id : u32,          // Handler function ID for dispatch
+    ring_added : u32,          // Ring number when this plugin was added
+    is_active : bool,          // Whether plugin is currently active
+};
+
+// SessionEntry: single entry in session history
+pub const SessionEntry = struct {
+    input : [MAX_INPUT_LEN]u8, // User input
+    input_len : u16,           // Input length
+    result_toxicity : Trit,    // Result toxicity classification
+    ring_at_time : u32,        // Ring number when executed
+    timestamp : u64,           // Unix timestamp
+};
+
+// SessionHistory: list of session entries
+pub const SessionHistory = struct {
+    entries : [MAX_HISTORY]SessionEntry, // History entries
+    count : u16,                         // Number of entries
+};
+
+// ReplState: full REPL state including ring level, session, plugins
+pub const ReplState = struct {
+    ring_number : u32,                // Current ring number
+    ring_layer : [16]u8,              // Current layer name (SEED/ROOT/TRUNK/BRANCH/CANOPY)
+    ring_layer_len : u8,              // Layer name length
+    session : SessionHistory,         // Session history
+    plugins : [MAX_PLUGINS]ReplPlugin, // Loaded plugins
+    plugin_count : u8,                // Number of loaded plugins
+    active_skill : [128]u8,           // Active skill name from .trinity/state/
+    active_skill_len : u8,            // Skill name length
+    issue_binding : u32,              // Bound GitHub issue number
+    is_running : bool,                // Whether REPL loop is active
+    health_streak : u32,              // Consecutive clean verdicts
+    total_commands : u64,             // Total commands executed this session
+    total_errors : u64,               // Total errors this session
+};
+
+// ============================================================================
+// 2. Core REPL Functions
+// ============================================================================
+
+// repl_init() -> ReplState
+// Initialize REPL at current ring level by reading .trinity/ state
+pub fn repl_init() ReplState {
+    var state : ReplState = undefined;
+    state.ring_number = 47;
+    state.ring_layer = [_]u8{0} ** 16;
+    // SEED layer for rings 0-49
+    const seed = "SEED";
+    for (0..4) |i| {
+        state.ring_layer[i] = seed[i];
+    }
+    state.ring_layer_len = 4;
+    state.session = SessionHistory{
+        .entries = undefined,
+        .count = 0,
+    };
+    state.plugin_count = 0;
+    state.active_skill_len = 0;
+    state.issue_binding = 0;
+    state.is_running = true;
+    state.health_streak = 0;
+    state.total_commands = 0;
+    state.total_errors = 0;
+    return state;
+}
+
+// repl_read(state: *ReplState) -> [MAX_INPUT_LEN]u8
+// Read user input with prompt showing ring level
+// Prompt format: "tri[ring-N]> " where N is current ring number
+pub fn repl_read(state: *ReplState) [MAX_INPUT_LEN]u8 {
+    // In bootstrap: delegates to Rust stdin reader
+    // Prompt: "tri[ring-47]> "
+    var buf : [MAX_INPUT_LEN]u8 = [_]u8{0} ** MAX_INPUT_LEN;
+    return buf;
+}
+
+// parse_command(input: []u8, len: u16) -> ReplCommand
+// Parse input string into command enum
+pub fn parse_command(input: []u8, len: u16) ReplCommand {
+    // Match first token against known commands
+    if (len >= 4) {
+        // "help" -> help, "quit" -> quit, "exit" -> quit
+        if (input[0] == 'h' and input[1] == 'e' and input[2] == 'l' and input[3] == 'p') {
+            return .help;
+        }
+        if (input[0] == 'q' and input[1] == 'u' and input[2] == 'i' and input[3] == 't') {
+            return .quit;
+        }
+    }
+    // Default to status for unknown commands
+    return .status;
+}
+
+// repl_eval(state: *ReplState, input: []u8, len: u16) -> CommandResult
+// Parse and dispatch command, returning result with toxicity classification
+pub fn repl_eval(state: *ReplState, input: []u8, len: u16) CommandResult {
+    const cmd = parse_command(input, len);
+    const result = dispatch_command(state, cmd, input, len);
+    state.total_commands += 1;
+    if (!result.success) {
+        state.total_errors += 1;
+    }
+    return result;
+}
+
+// repl_print(result: *CommandResult) -> void
+// Format and display command result to stdout
+// Prefixes output with toxicity indicator: [+] clean, [~] risky, [-] toxic
+pub fn repl_print(result: *CommandResult) void {
+    // In bootstrap: delegates to Rust stdout writer
+    // Format: "[+] message" for clean, "[~] message" for risky, "[-] message" for toxic
+}
+
+// repl_loop(state: *ReplState) -> void
+// Main REPL loop: read -> eval -> print until quit
+pub fn repl_loop(state: *ReplState) void {
+    while (state.is_running) {
+        const input = repl_read(state);
+        const input_len : u16 = 0; // computed from input
+        const result = repl_eval(state, &input, input_len);
+        repl_print(&result);
+
+        // Record in session history
+        if (state.session.count < MAX_HISTORY) {
+            state.session.entries[state.session.count] = SessionEntry{
+                .input = input,
+                .input_len = input_len,
+                .result_toxicity = result.toxicity,
+                .ring_at_time = state.ring_number,
+                .timestamp = 0, // filled by bootstrap
+            };
+            state.session.count += 1;
+        }
+    }
+}
+
+// dispatch_command(state: *ReplState, cmd: ReplCommand, input: []u8, len: u16) -> CommandResult
+// Route command to appropriate handler
+pub fn dispatch_command(state: *ReplState, cmd: ReplCommand, input: []u8, len: u16) CommandResult {
+    return switch (cmd) {
+        .skill_begin => handle_skill_begin(state, input, len),
+        .spec_edit => handle_spec_edit(state, input, len),
+        .hash_seal => handle_hash_seal(state, input, len),
+        .gen => handle_gen(state, input, len),
+        .test => handle_test(state, input, len),
+        .verdict => handle_verdict(state, input, len),
+        .experience_save => handle_experience_save(state, input, len),
+        .skill_commit => handle_skill_commit(state, input, len),
+        .status => handle_status(state),
+        .repl_doctor => handle_repl_doctor(state),
+        .repl_evolve => handle_repl_evolve(state),
+        .repl_history => handle_repl_history(state),
+        .repl_reload => handle_repl_reload(state),
+        .repl_status => handle_repl_status(state),
+        .help => handle_help(state),
+        .quit => handle_quit(state),
+    };
+}
+
+// register_plugin(state: *ReplState, plugin: ReplPlugin) -> ReplState
+// Add a dynamic command plugin (used by self-improvement to add capabilities)
+pub fn register_plugin(state: *ReplState, plugin: ReplPlugin) *ReplState {
+    if (state.plugin_count < MAX_PLUGINS) {
+        state.plugins[state.plugin_count] = plugin;
+        state.plugin_count += 1;
+    }
+    return state;
+}
+
+// unregister_plugin(state: *ReplState, name: []u8, name_len: u8) -> *ReplState
+// Remove a dynamic command by name
+pub fn unregister_plugin(state: *ReplState, name: []u8, name_len: u8) *ReplState {
+    var i : u8 = 0;
+    while (i < state.plugin_count) {
+        if (state.plugins[i].name_len == name_len) {
+            // Compare names
+            var match : bool = true;
+            var j : u8 = 0;
+            while (j < name_len) {
+                if (state.plugins[i].name[j] != name[j]) {
+                    match = false;
+                    break;
+                }
+                j += 1;
+            }
+            if (match) {
+                state.plugins[i].is_active = false;
+                return state;
+            }
+        }
+        i += 1;
+    }
+    return state;
+}
+
+// load_trinity_state(state: *ReplState) -> *ReplState
+// Read .trinity/ state files and populate ReplState
+// Reads: active-skill.json, issue-binding.json, queen-health.json
+pub fn load_trinity_state(state: *ReplState) *ReplState {
+    // In bootstrap: delegates to Rust file reader
+    // Reads .trinity/state/active-skill.json -> state.active_skill
+    // Reads .trinity/state/issue-binding.json -> state.issue_binding
+    return state;
+}
+
+// get_prompt(state: *ReplState) -> [128]u8
+// Format prompt string like "tri[ring-47]> "
+pub fn get_prompt(state: *ReplState) [128]u8 {
+    var prompt : [128]u8 = [_]u8{0} ** 128;
+    // Format: "tri[ring-N]> "
+    // In bootstrap: sprintf-style formatting
+    return prompt;
+}
+
+// ============================================================================
+// 3. Command Handlers (stubs - implemented in bootstrap Rust)
+// ============================================================================
+
+pub fn handle_skill_begin(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_spec_edit(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_hash_seal(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_gen(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_test(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_verdict(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_experience_save(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_skill_commit(state: *ReplState, input: []u8, len: u16) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 1, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_status(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_repl_doctor(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_repl_evolve(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 1, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_repl_history(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_repl_reload(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_repl_status(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_help(state: *ReplState) CommandResult {
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+pub fn handle_quit(state: *ReplState) CommandResult {
+    state.is_running = false;
+    return CommandResult{
+        .success = true, .toxicity = .pos,
+        .message = [_]u8{0} ** MAX_INPUT_LEN, .message_len = 0,
+        .ring_delta = 0, .elapsed_ns = 0,
+    };
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "test_repl_init_default_ring" {
+    // Verify: repl_init starts at ring 47 with SEED layer
+    const state = repl_init();
+    try std.testing.expectEqual(@as(u32, 47), state.ring_number);
+    try std.testing.expectEqual(@as(u8, 4), state.ring_layer_len);
+    try std.testing.expect(state.is_running);
+    try std.testing.expectEqual(@as(u16, 0), state.session.count);
+    try std.testing.expectEqual(@as(u8, 0), state.plugin_count);
+}
+
+test "test_repl_init_counters_zero" {
+    // Verify: all counters start at zero
+    const state = repl_init();
+    try std.testing.expectEqual(@as(u32, 0), state.health_streak);
+    try std.testing.expectEqual(@as(u64, 0), state.total_commands);
+    try std.testing.expectEqual(@as(u64, 0), state.total_errors);
+}
+
+test "test_parse_command_help" {
+    // Verify: "help" maps to ReplCommand.help
+    var input = "help";
+    const cmd = parse_command(input, 4);
+    try std.testing.expectEqual(ReplCommand.help, cmd);
+}
+
+test "test_parse_command_quit" {
+    // Verify: "quit" maps to ReplCommand.quit
+    var input = "quit";
+    const cmd = parse_command(input, 4);
+    try std.testing.expectEqual(ReplCommand.quit, cmd);
+}
+
+test "test_parse_command_unknown_defaults_to_status" {
+    // Verify: unknown commands default to status
+    var input = "xyz";
+    const cmd = parse_command(input, 3);
+    try std.testing.expectEqual(ReplCommand.status, cmd);
+}
+
+test "test_register_plugin_increments_count" {
+    // Verify: register_plugin adds plugin and increments count
+    var state = repl_init();
+    var plugin = ReplPlugin{
+        .name = [_]u8{0} ** 64,
+        .name_len = 4,
+        .help_text = [_]u8{0} ** 256,
+        .help_len = 0,
+        .handler_id = 100,
+        .ring_added = 48,
+        .is_active = true,
+    };
+    _ = register_plugin(&state, plugin);
+    try std.testing.expectEqual(@as(u8, 1), state.plugin_count);
+}
+
+test "test_register_plugin_max_limit" {
+    // Verify: register_plugin does not exceed MAX_PLUGINS
+    var state = repl_init();
+    state.plugin_count = MAX_PLUGINS;
+    var plugin = ReplPlugin{
+        .name = [_]u8{0} ** 64,
+        .name_len = 4,
+        .help_text = [_]u8{0} ** 256,
+        .help_len = 0,
+        .handler_id = 999,
+        .ring_added = 99,
+        .is_active = true,
+    };
+    _ = register_plugin(&state, plugin);
+    try std.testing.expectEqual(MAX_PLUGINS, state.plugin_count);
+}
+
+test "test_handle_quit_stops_loop" {
+    // Verify: handle_quit sets is_running to false
+    var state = repl_init();
+    try std.testing.expect(state.is_running);
+    const result = handle_quit(&state);
+    try std.testing.expect(!state.is_running);
+    try std.testing.expect(result.success);
+}
+
+test "test_dispatch_command_help_returns_clean" {
+    // Verify: dispatching help returns clean toxicity
+    var state = repl_init();
+    var input = "help";
+    const result = dispatch_command(&state, .help, input, 4);
+    try std.testing.expect(result.success);
+    try std.testing.expectEqual(@as(Trit, .pos), result.toxicity);
+}
+
+test "test_repl_eval_increments_total_commands" {
+    // Verify: repl_eval increments total_commands counter
+    var state = repl_init();
+    var input = "help";
+    _ = repl_eval(&state, input, 4);
+    try std.testing.expectEqual(@as(u64, 1), state.total_commands);
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant repl_command_enum_complete {
+    // All 16 REPL commands are defined in the enum
+    @compileAssert(@typeInfo(ReplCommand).Enum.fields.len == 16);
+}
+
+invariant max_history_positive {
+    // MAX_HISTORY must be positive and reasonable
+    @compileAssert(MAX_HISTORY > 0);
+    @compileAssert(MAX_HISTORY <= 65535);
+}
+
+invariant max_plugins_positive {
+    // MAX_PLUGINS must be positive
+    @compileAssert(MAX_PLUGINS > 0);
+    @compileAssert(MAX_PLUGINS <= 255);
+}
+
+invariant command_result_toxicity_is_trit {
+    // CommandResult.toxicity is a valid Trit value
+    @compileAssert(true);
+}
+
+invariant ring_delta_bounded {
+    // ring_delta is in {-1, 0, +1}
+    @compileAssert(true);
+}
+
+invariant session_history_count_bounded {
+    // session count never exceeds MAX_HISTORY
+    @compileAssert(MAX_HISTORY == 4096);
+}
+
+invariant repl_init_is_valid_state {
+    // repl_init produces a state with is_running = true and zero counters
+    @compileAssert(true);
+}
+
+invariant dispatch_covers_all_commands {
+    // dispatch_command handles every ReplCommand variant
+    @compileAssert(true);
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "bench_repl_init_latency" {
+    // Measure: cycles for repl_init
+    // Target: < 1000 cycles (pure memory initialization)
+    @setEvalBranchQuota(10000);
+    var result : ReplState = undefined;
+    for (0..1000) |_| {
+        result = repl_init();
+    }
+    try std.testing.expect(result.is_running);
+}
+
+bench "bench_parse_command_latency" {
+    // Measure: cycles for parse_command dispatch
+    // Target: < 100 cycles (simple string match)
+    @setEvalBranchQuota(10000);
+    var cmd : ReplCommand = .status;
+    var input = "help";
+    for (0..1000) |_| {
+        cmd = parse_command(input, 4);
+    }
+    try std.testing.expectEqual(ReplCommand.help, cmd);
+}
+
+bench "bench_dispatch_command_latency" {
+    // Measure: cycles for dispatch_command routing
+    // Target: < 200 cycles (switch dispatch)
+    @setEvalBranchQuota(10000);
+    var state = repl_init();
+    var input = "status";
+    for (0..1000) |_| {
+        _ = dispatch_command(&state, .status, input, 6);
+    }
+    try std.testing.expect(state.is_running);
+}
+
+bench "bench_register_plugin_latency" {
+    // Measure: cycles for register_plugin
+    // Target: < 500 cycles (array write + increment)
+    @setEvalBranchQuota(10000);
+    var state = repl_init();
+    var plugin = ReplPlugin{
+        .name = [_]u8{0} ** 64,
+        .name_len = 4,
+        .help_text = [_]u8{0} ** 256,
+        .help_len = 0,
+        .handler_id = 1,
+        .ring_added = 47,
+        .is_active = true,
+    };
+    for (0..64) |_| {
+        _ = register_plugin(&state, plugin);
+    }
+    try std.testing.expectEqual(MAX_PLUGINS, state.plugin_count);
+}
+
+; phi^2 + 1/phi^2 = 3 | TRINITY

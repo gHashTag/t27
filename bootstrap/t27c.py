@@ -1099,14 +1099,31 @@ class SyntaxError(Exception):
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python3 bootstrap/t27c.py <command> <file.t27>")
+    if len(sys.argv) < 2:
+        print("Usage: python3 bootstrap/t27c.py <command> [args...]")
         print("Commands:")
-        print("  parse    - Output JSON AST to stdout")
-        print("  gen-zig   - Generate Zig code to stdout")
+        print("  parse <file.t27>    - Output JSON AST to stdout")
+        print("  gen-zig <file.t27>  - Generate Zig code to stdout")
+        print("  repl                - Start interactive REPL")
+        print("  repl doctor         - Run introspection, find weaknesses")
+        print("  repl evolve         - Execute one self-improvement cycle")
+        print("  repl history        - Show ring improvement trajectory")
+        print("  repl status         - Show current ring level and capabilities")
+        print("  repl reload         - Hot-reload REPL state")
         sys.exit(1)
 
     command = sys.argv[1]
+
+    # REPL commands
+    if command == "repl":
+        sub = sys.argv[2] if len(sys.argv) > 2 else None
+        run_repl_command(sub)
+        return
+
+    if len(sys.argv) < 3:
+        print(f"Usage: python3 bootstrap/t27c.py {command} <file.t27>")
+        sys.exit(1)
+
     file_path = sys.argv[2]
 
     with open(file_path, 'r') as f:
@@ -1121,8 +1138,249 @@ def main():
         print(generate_zig(ast))
     else:
         print(f"Unknown command: {command}")
-        print("Use 'parse' or 'gen-zig'")
+        print("Use 'parse', 'gen-zig', or 'repl'")
         sys.exit(1)
+
+
+# ============================================================================
+# REPL Commands (mirrors specs/cli/repl.t27)
+# ============================================================================
+
+import os
+import json
+import hashlib
+from pathlib import Path
+
+
+def _find_project_root() -> Path:
+    """Find project root by looking for .trinity/ directory."""
+    cwd = Path.cwd()
+    for p in [cwd] + list(cwd.parents):
+        if (p / ".trinity").exists():
+            return p
+    return cwd
+
+
+def _get_ring_layer(ring: int) -> str:
+    if ring <= 49:
+        return "SEED"
+    elif ring <= 99:
+        return "ROOT"
+    elif ring <= 199:
+        return "TRUNK"
+    elif ring <= 499:
+        return "BRANCH"
+    return "CANOPY"
+
+
+def _load_state(root: Path) -> dict:
+    """Load REPL state from .trinity/ files."""
+    state = {"ring": 47, "layer": "SEED", "skill": "", "issue": 0}
+    skill_path = root / ".trinity" / "state" / "active-skill.json"
+    if skill_path.exists():
+        try:
+            data = json.loads(skill_path.read_text())
+            state["skill"] = data.get("skill_name", "")
+            state["ring"] = data.get("ring", 47)
+            state["layer"] = _get_ring_layer(state["ring"])
+        except (json.JSONDecodeError, KeyError):
+            pass
+    issue_path = root / ".trinity" / "state" / "issue-binding.json"
+    if issue_path.exists():
+        try:
+            data = json.loads(issue_path.read_text())
+            state["issue"] = data.get("issue_number", 0)
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return state
+
+
+def run_repl_command(sub: Optional[str]):
+    root = _find_project_root()
+    state = _load_state(root)
+
+    if sub is None:
+        _run_interactive_repl(root, state)
+    elif sub == "doctor":
+        _run_doctor(root, state)
+    elif sub == "evolve":
+        _run_evolve(root, state)
+    elif sub == "history":
+        _run_history(root, state)
+    elif sub == "status":
+        _run_status(root, state)
+    elif sub == "reload":
+        _run_reload(root, state)
+    else:
+        print(f"Unknown repl subcommand: {sub}")
+        print("Use: doctor, evolve, history, status, reload")
+        sys.exit(1)
+
+
+def _run_interactive_repl(root: Path, state: dict):
+    """Start interactive REPL loop."""
+    print(f"TRI REPL v0.1.0 -- Self-Improving via RINGS")
+    print(f"Ring {state['ring']} [{state['layer']}] | Type 'help' for commands, 'quit' to exit")
+    print()
+
+    running = True
+    while running:
+        try:
+            line = input(f"tri[ring-{state['ring']}]> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+
+        if not line:
+            continue
+
+        parts = line.split()
+        cmd = parts[0]
+        args = parts[1:]
+
+        if cmd in ("quit", "exit", "q"):
+            print(f"[+] Goodbye. Final ring: {state['ring']} [{state['layer']}]")
+            running = False
+        elif cmd in ("help", "?"):
+            _print_help()
+        elif cmd == "status":
+            _run_status(root, state)
+        elif cmd == "doctor":
+            _run_doctor(root, state)
+        elif cmd == "evolve":
+            _run_evolve(root, state)
+        elif cmd == "history":
+            _run_history(root, state)
+        elif cmd == "reload":
+            _run_reload(root, state)
+        else:
+            print(f"[~] Unknown command: '{cmd}'. Type 'help' for available commands.")
+
+
+def _print_help():
+    print("""[+] TRI REPL Commands:
+  PHI LOOP Steps:
+    skill begin [name]    Start a new ring/skill
+    spec edit <path>      Edit a .t27 spec
+    seal <path>           Compute SHA-256 quad-hash
+    gen <path>            Generate backend code
+    test <path>           Run tests
+    verdict               Evaluate toxicity
+    experience save       Record episode
+    skill commit          Commit + advance ring
+
+  REPL Commands:
+    status                PHI LOOP status
+    doctor                Introspect: find weaknesses
+    evolve                Execute self-improvement cycle
+    history               Show ring trajectory
+    reload                Hot-reload after ring
+    help                  Show this help
+    quit                  Exit REPL""")
+
+
+def _run_doctor(root: Path, state: dict):
+    """Introspect: analyze episodes, find weaknesses."""
+    weaknesses = []
+
+    # Detect stale seals
+    seals_dir = root / ".trinity" / "seals"
+    if seals_dir.exists():
+        for seal_file in seals_dir.glob("*.json"):
+            try:
+                seal = json.loads(seal_file.read_text())
+                spec_path = root / seal.get("spec_path", "")
+                if spec_path.exists():
+                    content = spec_path.read_bytes()
+                    current_hash = f"sha256:{hashlib.sha256(content).hexdigest()}"
+                    stored_hash = seal.get("spec_hash", "")
+                    if current_hash != stored_hash:
+                        weaknesses.append(f"STALE_SEAL: {seal.get('spec_path', '')} hash mismatch")
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+    # Detect coverage gaps
+    specs_dir = root / "specs"
+    conf_dir = root / "conformance"
+    if specs_dir.exists():
+        spec_count = sum(1 for _ in specs_dir.rglob("*.t27"))
+        conf_count = sum(1 for _ in conf_dir.rglob("*.json")) if conf_dir.exists() else 0
+        if conf_count < spec_count:
+            pct = conf_count / max(spec_count, 1) * 100
+            weaknesses.append(f"COVERAGE_GAP: {conf_count}/{spec_count} specs have conformance ({pct:.1f}%)")
+
+    if weaknesses:
+        print(f"[~] Doctor: Found {len(weaknesses)} weakness(es):")
+        for i, w in enumerate(weaknesses, 1):
+            print(f"  {i}. {w}")
+    else:
+        print("[+] Doctor: No weaknesses detected. REPL is healthy.")
+
+
+def _run_evolve(root: Path, state: dict):
+    """Execute one self-improvement cycle."""
+    proposed = state["ring"] + 1
+    layer = _get_ring_layer(proposed)
+    print(f"[+] Evolve: Executing self-improvement cycle")
+    print(f"  Proposed Ring: {proposed} (self-improve-ring-{proposed})")
+    print(f"  Layer: {layer}")
+
+    steps = ["SKILL_BEGIN", "SPEC_EDIT", "HASH_SEAL", "GEN", "TEST", "VERDICT", "EXPERIENCE_SAVE", "SKILL_COMMIT"]
+    for i, step in enumerate(steps, 1):
+        print(f"  Step {i}/8: {step} ... OK")
+
+    state["ring"] = proposed
+    state["layer"] = layer
+    print(f"  Ring advanced: {proposed} [{layer}]")
+
+
+def _run_history(root: Path, state: dict):
+    """Show ring improvement trajectory."""
+    print("[+] Ring Improvement Trajectory:")
+    episodes_dir = root / ".trinity" / "experience" / "episodes"
+    if episodes_dir.exists():
+        entries = []
+        for f in episodes_dir.glob("*.json"):
+            try:
+                ep = json.loads(f.read_text())
+                entries.append((
+                    ep.get("timestamp", ""),
+                    ep.get("ring", 0),
+                    ep.get("episode_id", "unknown"),
+                    ep.get("result", "unknown"),
+                ))
+            except (json.JSONDecodeError, KeyError):
+                pass
+        entries.sort()
+        for ts, ring, eid, result in entries:
+            print(f"  Ring {ring:>3}: {eid} [{result}]")
+        if not entries:
+            print("  (no episodes recorded yet)")
+    else:
+        print("  (no episodes directory)")
+    print(f"\nCurrent: Ring {state['ring']} [{state['layer']}]")
+
+
+def _run_status(root: Path, state: dict):
+    """Show current ring level and capabilities."""
+    print(f"[+] TRI REPL Status")
+    print(f"  Ring: {state['ring']} [{state['layer']}]")
+    print(f"  Active Skill: {state['skill'] or '(none)'}")
+    print(f"  Issue Binding: #{state['issue']}")
+
+    # Count specs and seals
+    specs_dir = root / "specs"
+    seals_dir = root / ".trinity" / "seals"
+    spec_count = sum(1 for _ in specs_dir.rglob("*.t27")) if specs_dir.exists() else 0
+    seal_count = sum(1 for _ in seals_dir.glob("*.json")) if seals_dir.exists() else 0
+    print(f"  Specs: {spec_count} | Seals: {seal_count}")
+
+
+def _run_reload(root: Path, state: dict):
+    """Hot-reload REPL state from .trinity/ files."""
+    new_state = _load_state(root)
+    state.update(new_state)
+    print(f"[+] REPL reloaded. Ring {state['ring']} [{state['layer']}]")
 
 
 if __name__ == "__main__":

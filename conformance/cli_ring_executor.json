@@ -1,0 +1,96 @@
+{
+  "module": "tri-ring-executor",
+  "spec_path": "specs/cli/ring_executor.t27",
+  "ring": 48,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "vectors": [
+    {
+      "function": "valid_transition",
+      "cases": [
+        { "inputs": { "from": "idle", "step": "skill_begin" }, "expected": true },
+        { "inputs": { "from": "idle", "step": "gen" }, "expected": false },
+        { "inputs": { "from": "idle", "step": "test" }, "expected": false },
+        { "inputs": { "from": "spec_editing", "step": "hash_seal" }, "expected": true },
+        { "inputs": { "from": "spec_editing", "step": "skill_begin" }, "expected": false },
+        { "inputs": { "from": "sealing", "step": "gen" }, "expected": true },
+        { "inputs": { "from": "generating", "step": "test" }, "expected": true },
+        { "inputs": { "from": "testing", "step": "verdict" }, "expected": true },
+        { "inputs": { "from": "verdicting", "step": "experience_save" }, "expected": true },
+        { "inputs": { "from": "saving", "step": "skill_commit" }, "expected": true },
+        { "inputs": { "from": "committing", "step": "skill_begin" }, "expected": false }
+      ]
+    },
+    {
+      "function": "next_state",
+      "cases": [
+        { "inputs": { "from": "idle", "step": "skill_begin" }, "expected": "spec_editing" },
+        { "inputs": { "from": "idle", "step": "gen" }, "expected": "idle" },
+        { "inputs": { "from": "spec_editing", "step": "hash_seal" }, "expected": "sealing" },
+        { "inputs": { "from": "sealing", "step": "gen" }, "expected": "generating" },
+        { "inputs": { "from": "generating", "step": "test" }, "expected": "testing" },
+        { "inputs": { "from": "testing", "step": "verdict" }, "expected": "verdicting" },
+        { "inputs": { "from": "verdicting", "step": "experience_save" }, "expected": "saving" },
+        { "inputs": { "from": "saving", "step": "skill_commit" }, "expected": "committing" }
+      ]
+    },
+    {
+      "function": "ring_begin",
+      "cases": [
+        {
+          "inputs": { "ring_number": 47, "issue_number": 1 },
+          "expected": { "current_state": "idle", "current_step": 0 }
+        }
+      ]
+    },
+    {
+      "function": "ring_step",
+      "cases": [
+        {
+          "inputs": { "current_state": "idle", "step": "skill_begin" },
+          "expected": { "success": true, "new_state": "spec_editing", "current_step": 1 }
+        },
+        {
+          "inputs": { "current_state": "idle", "step": "gen" },
+          "expected": { "success": false, "new_state": "idle" }
+        }
+      ]
+    },
+    {
+      "function": "get_ring_layer",
+      "cases": [
+        { "inputs": { "ring_number": 0 }, "expected": "SEED" },
+        { "inputs": { "ring_number": 47 }, "expected": "SEED" },
+        { "inputs": { "ring_number": 49 }, "expected": "SEED" },
+        { "inputs": { "ring_number": 50 }, "expected": "ROOT" },
+        { "inputs": { "ring_number": 99 }, "expected": "ROOT" },
+        { "inputs": { "ring_number": 100 }, "expected": "TRUNK" },
+        { "inputs": { "ring_number": 199 }, "expected": "TRUNK" },
+        { "inputs": { "ring_number": 200 }, "expected": "BRANCH" },
+        { "inputs": { "ring_number": 499 }, "expected": "BRANCH" },
+        { "inputs": { "ring_number": 500 }, "expected": "CANOPY" },
+        { "inputs": { "ring_number": 1000 }, "expected": "CANOPY" }
+      ]
+    },
+    {
+      "function": "validate_guard_conditions",
+      "cases": [
+        {
+          "inputs": { "issue_number": 0, "current_step": 8, "toxicity": "clean" },
+          "expected": false
+        },
+        {
+          "inputs": { "issue_number": 1, "current_step": 4, "toxicity": "clean" },
+          "expected": false
+        },
+        {
+          "inputs": { "issue_number": 1, "current_step": 8, "toxicity": "toxic" },
+          "expected": false
+        },
+        {
+          "inputs": { "issue_number": 1, "current_step": 8, "toxicity": "clean" },
+          "expected": true
+        }
+      ]
+    }
+  ]
+}

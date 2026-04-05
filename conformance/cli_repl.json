@@ -1,0 +1,75 @@
+{
+  "module": "tri-cli-repl",
+  "spec_path": "specs/cli/repl.t27",
+  "ring": 47,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "vectors": [
+    {
+      "function": "repl_init",
+      "cases": [
+        {
+          "inputs": {},
+          "expected": {
+            "ring_number": 47,
+            "ring_layer": "SEED",
+            "is_running": true,
+            "health_streak": 0,
+            "total_commands": 0,
+            "total_errors": 0,
+            "plugin_count": 0,
+            "session_count": 0
+          }
+        }
+      ]
+    },
+    {
+      "function": "parse_command",
+      "cases": [
+        { "inputs": { "input": "help", "len": 4 }, "expected": "help" },
+        { "inputs": { "input": "quit", "len": 4 }, "expected": "quit" },
+        { "inputs": { "input": "xyz", "len": 3 }, "expected": "status" },
+        { "inputs": { "input": "status", "len": 6 }, "expected": "status" },
+        { "inputs": { "input": "", "len": 0 }, "expected": "status" }
+      ]
+    },
+    {
+      "function": "register_plugin",
+      "cases": [
+        {
+          "inputs": { "plugin_name": "test-plugin", "handler_id": 100, "ring_added": 48 },
+          "expected": { "plugin_count_after": 1, "is_active": true }
+        },
+        {
+          "inputs": { "plugin_count_before": 64, "plugin_name": "overflow" },
+          "expected": { "plugin_count_after": 64 }
+        }
+      ]
+    },
+    {
+      "function": "handle_quit",
+      "cases": [
+        {
+          "inputs": { "is_running_before": true },
+          "expected": { "is_running_after": false, "success": true, "toxicity": 1 }
+        }
+      ]
+    },
+    {
+      "function": "dispatch_command",
+      "cases": [
+        {
+          "inputs": { "command": "help" },
+          "expected": { "success": true, "toxicity": 1 }
+        },
+        {
+          "inputs": { "command": "status" },
+          "expected": { "success": true, "toxicity": 1 }
+        },
+        {
+          "inputs": { "command": "quit" },
+          "expected": { "success": true, "toxicity": 1, "is_running_after": false }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "module": "tri-self-improve",
+  "spec_path": "specs/cli/self_improve.t27",
+  "ring": 49,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "vectors": [
+    {
+      "function": "rank_weaknesses",
+      "cases": [
+        {
+          "inputs": {
+            "weaknesses": [
+              { "kind": "test_failure", "severity": 500, "confidence": 800 },
+              { "kind": "stale_seal", "severity": 900, "confidence": 900 }
+            ],
+            "count": 2
+          },
+          "expected": {
+            "first_kind": "stale_seal",
+            "second_kind": "test_failure"
+          }
+        },
+        {
+          "inputs": { "weaknesses": [], "count": 0 },
+          "expected": { "no_crash": true }
+        }
+      ]
+    },
+    {
+      "function": "propose_improvement",
+      "cases": [
+        {
+          "inputs": { "weaknesses": [], "count": 0, "current_ring": 47 },
+          "expected": { "confidence": 0, "ring_number": 48 }
+        },
+        {
+          "inputs": {
+            "weaknesses": [{ "kind": "toxic_pattern", "severity": 900, "confidence": 850 }],
+            "count": 1,
+            "current_ring": 47
+          },
+          "expected": { "ring_number": 48, "weakness_kind": "toxic_pattern", "confidence": 850 }
+        }
+      ]
+    },
+    {
+      "function": "validate_proposal",
+      "cases": [
+        {
+          "inputs": { "confidence": 0 },
+          "expected": false
+        },
+        {
+          "inputs": { "confidence": 500 },
+          "expected": true
+        }
+      ]
+    },
+    {
+      "function": "diff_capabilities",
+      "cases": [
+        { "inputs": { "old_ring": 47, "new_ring": 50 }, "expected": 3 },
+        { "inputs": { "old_ring": 47, "new_ring": 47 }, "expected": 0 },
+        { "inputs": { "old_ring": 50, "new_ring": 47 }, "expected": 0 },
+        { "inputs": { "old_ring": 0, "new_ring": 100 }, "expected": 100 }
+      ]
+    },
+    {
+      "function": "estimate_confidence",
+      "cases": [
+        {
+          "inputs": { "weakness_kind": "toxic_pattern", "history_count": 0 },
+          "expected": 500
+        }
+      ]
+    },
+    {
+      "function": "improvement_velocity",
+      "cases": [
+        { "inputs": { "successful": 0, "total": 0 }, "expected": 0 },
+        { "inputs": { "successful": 10, "total": 10 }, "expected": 1000 },
+        { "inputs": { "successful": 5, "total": 10 }, "expected": 500 },
+        { "inputs": { "successful": 1, "total": 4 }, "expected": 250 }
+      ]
+    },
+    {
+      "function": "check_convergence",
+      "cases": [
+        {
+          "inputs": { "history_count": 0, "health_streak": 0, "coverage_pct": 0 },
+          "expected": { "is_converged": false, "cycles_without_improvement": 0 }
+        },
+        {
+          "inputs": { "cycles_without_improvement": 3, "health_streak": 10, "coverage_pct": 950 },
+          "expected": { "is_converged": true }
+        },
+        {
+          "inputs": { "cycles_without_improvement": 3, "health_streak": 5, "coverage_pct": 950 },
+          "expected": { "is_converged": false }
+        }
+      ]
+    }
+  ]
+}

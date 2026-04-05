@@ -1,0 +1,21 @@
+{
+  "module": "TriCliRepl",
+  "ring": 47,
+  "spec_path": "specs/cli/repl.t27",
+  "spec_hash": "sha256:b233ec80fb9edb1339fe8311f0fa42e65561729be6c2413a89e8cc839fd7457e",
+  "gen_hash_zig": "sha256:ea52bcbcd7b4a988b88605466d14c3f8b87f4374eb21e4de579ae70f70b2d55f",
+  "gen_hash_c": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "gen_hash_verilog": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "conformance_hash": "sha256:0037dd6dc3046917719332249322ac20e98e33f28bcdb69eb3d0878139c4a7ad",
+  "tests": {
+    "status": "passed",
+    "count": 10,
+    "invariants": 8,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-05T12:00:00Z"
+}

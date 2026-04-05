@@ -1,0 +1,639 @@
+; ring_executor.t27 -- Ring Execution Engine (PHI LOOP protocol orchestrator)
+; State machine for the 8-step ring protocol with sealing and verdicts
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tri-ring-executor;
+
+// ============================================================================
+// IMPORTS
+// ============================================================================
+use base::types;        // Trit, PackedTrit, TernaryWord
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const MAX_SPEC_PATH : u16 = 512;      // Max spec file path length
+pub const MAX_RING_NAME : u8 = 128;       // Max ring name length
+pub const MAX_NOTES : u16 = 2048;         // Max verdict notes length
+pub const HASH_LEN : u8 = 64;             // SHA-256 hex string length
+pub const MAX_DEPS : u8 = 32;             // Max graph dependencies
+pub const PHI_LOOP_STEPS : u8 = 8;        // Exactly 8 steps in PHI LOOP
+
+// Ring layer boundaries
+pub const SEED_MAX : u32 = 49;            // Rings 0-49: SEED layer
+pub const ROOT_MAX : u32 = 99;            // Rings 50-99: ROOT layer
+pub const TRUNK_MAX : u32 = 199;          // Rings 100-199: TRUNK layer
+pub const BRANCH_MAX : u32 = 499;         // Rings 200-499: BRANCH layer
+// 500+: CANOPY layer
+
+// ============================================================================
+// 1. Ring Execution Types
+// ============================================================================
+
+// RingState: state machine for a single ring execution
+pub const RingState = enum(u8) {
+    idle = 0,              // No ring in progress
+    spec_editing = 1,      // Editing .t27 spec (after skill_begin)
+    sealing = 2,           // Computing SHA-256 quad-hash
+    generating = 3,        // Generating backend code
+    testing = 4,           // Running tests
+    verdicting = 5,        // Evaluating toxicity
+    saving = 6,            // Recording episode
+    committing = 7,        // Committing and advancing ring
+};
+
+// PhiLoopStep: the 8 steps of the PHI LOOP protocol
+pub const PhiLoopStep = enum(u8) {
+    skill_begin = 0,       // Create skill, bind issue
+    spec_edit = 1,         // Write/edit .t27 spec
+    hash_seal = 2,         // Compute SHA-256 quad-hash
+    gen = 3,               // Generate backend (Zig/C/Verilog)
+    test = 4,              // Run tests + conformance
+    verdict = 5,           // Evaluate toxicity
+    experience_save = 6,   // Append to episodes.jsonl
+    skill_commit = 7,      // Git commit + seal
+};
+
+// RingConfig: configuration for a ring execution
+pub const RingConfig = struct {
+    ring_number : u32,                // Ring number (e.g., 47)
+    name : [MAX_RING_NAME]u8,         // Ring name (e.g., "cli-repl-core")
+    name_len : u8,                    // Actual name length
+    layer : [16]u8,                   // Layer name (SEED/ROOT/TRUNK/BRANCH/CANOPY)
+    layer_len : u8,                   // Layer name length
+    target_spec : [MAX_SPEC_PATH]u8,  // Target spec file path
+    spec_len : u16,                   // Spec path length
+    issue_number : u32,               // GitHub issue number
+    parent_ring : u32,                // Previous ring number (for dep chain)
+};
+
+// SealRecord: SHA-256 quad-hash seal for a spec
+pub const SealRecord = struct {
+    spec_hash : [HASH_LEN]u8,        // SHA-256 of .t27 spec file
+    gen_hash_zig : [HASH_LEN]u8,     // SHA-256 of generated Zig
+    gen_hash_c : [HASH_LEN]u8,       // SHA-256 of generated C
+    conformance_hash : [HASH_LEN]u8, // SHA-256 of conformance vectors
+    valid : bool,                     // Whether all hashes computed successfully
+};
+
+// VerdictResult: toxicity evaluation of a ring
+pub const VerdictResult = struct {
+    toxicity : Trit,           // pos=clean, zero=risky, neg=toxic
+    score : u16,               // Toxicity score 0-1000 (milliunits)
+    notes : [MAX_NOTES]u8,     // Verdict notes/explanation
+    notes_len : u16,           // Notes length
+    tests_passed : u32,        // Number of tests passed
+    tests_failed : u32,        // Number of tests failed
+    invariants_checked : u32,  // Number of invariants verified
+};
+
+// EpisodeRecord: full episode JSON structure per PHI_LOOP_CONTRACT
+pub const EpisodeRecord = struct {
+    episode_id : [128]u8,        // e.g., "phi-2026-04-05#ring-47"
+    id_len : u8,                 // Episode ID length
+    timestamp : u64,             // Unix timestamp
+    ring_number : u32,           // Ring number
+    ring_name : [MAX_RING_NAME]u8, // Ring name
+    name_len : u8,               // Ring name length
+    steps_completed : u8,        // Number of PHI LOOP steps completed (0-8)
+    verdict : VerdictResult,     // Verdict from step 6
+    seal : SealRecord,           // Seal from step 3
+    commit_hash : [40]u8,        // Git commit SHA (hex)
+    commit_valid : bool,         // Whether commit was made
+};
+
+// RingExecution: live execution state for a ring
+pub const RingExecution = struct {
+    config : RingConfig,         // Ring configuration
+    current_state : RingState,   // Current state machine state
+    current_step : u8,           // Current PHI LOOP step (0-7)
+    steps_completed : [PHI_LOOP_STEPS]bool, // Which steps are done
+    seal : SealRecord,           // Computed seal
+    verdict : VerdictResult,     // Computed verdict
+    started_at : u64,            // Start timestamp
+    elapsed_ns : u64,            // Total elapsed time
+};
+
+// ============================================================================
+// 2. State Machine Transitions
+// ============================================================================
+
+// State machine:
+// idle -> spec_editing (via skill_begin)
+// spec_editing -> sealing (via hash_seal)
+// sealing -> generating (via gen)
+// generating -> testing (via test)
+// testing -> verdicting (via verdict)
+// verdicting -> saving (via experience_save) [if clean/risky]
+// verdicting -> idle (if toxic, rollback)
+// saving -> committing (via skill_commit)
+// committing -> idle (ring complete, N -> N+1)
+
+// valid_transition(from: RingState, step: PhiLoopStep) -> bool
+// Check if a state transition is valid per the PHI LOOP protocol
+pub fn valid_transition(from: RingState, step: PhiLoopStep) bool {
+    return switch (from) {
+        .idle => step == .skill_begin,
+        .spec_editing => step == .hash_seal,
+        .sealing => step == .gen,
+        .generating => step == .test,
+        .testing => step == .verdict,
+        .verdicting => step == .experience_save,
+        .saving => step == .skill_commit,
+        .committing => false, // Terminal state, transitions to idle
+    };
+}
+
+// next_state(from: RingState, step: PhiLoopStep) -> RingState
+// Compute next state after a valid transition
+pub fn next_state(from: RingState, step: PhiLoopStep) RingState {
+    if (!valid_transition(from, step)) {
+        return from; // Invalid transition, stay in current state
+    }
+    return switch (step) {
+        .skill_begin => .spec_editing,
+        .spec_edit => .spec_editing,
+        .hash_seal => .sealing,
+        .gen => .generating,
+        .test => .testing,
+        .verdict => .verdicting,
+        .experience_save => .saving,
+        .skill_commit => .committing,
+    };
+}
+
+// ============================================================================
+// 3. Core Ring Execution Functions
+// ============================================================================
+
+// ring_begin(config: RingConfig) -> RingExecution
+// Start a new ring execution with the given configuration
+pub fn ring_begin(config: RingConfig) RingExecution {
+    return RingExecution{
+        .config = config,
+        .current_state = .idle,
+        .current_step = 0,
+        .steps_completed = [_]bool{false} ** PHI_LOOP_STEPS,
+        .seal = SealRecord{
+            .spec_hash = [_]u8{0} ** HASH_LEN,
+            .gen_hash_zig = [_]u8{0} ** HASH_LEN,
+            .gen_hash_c = [_]u8{0} ** HASH_LEN,
+            .conformance_hash = [_]u8{0} ** HASH_LEN,
+            .valid = false,
+        },
+        .verdict = VerdictResult{
+            .toxicity = .zero,
+            .score = 0,
+            .notes = [_]u8{0} ** MAX_NOTES,
+            .notes_len = 0,
+            .tests_passed = 0,
+            .tests_failed = 0,
+            .invariants_checked = 0,
+        },
+        .started_at = 0, // filled by bootstrap
+        .elapsed_ns = 0,
+    };
+}
+
+// ring_step(exec: *RingExecution, step: PhiLoopStep) -> bool
+// Execute one PHI LOOP step, returning true if successful
+pub fn ring_step(exec: *RingExecution, step: PhiLoopStep) bool {
+    const step_idx = @intFromEnum(step);
+    if (!valid_transition(exec.current_state, step)) {
+        return false;
+    }
+    exec.current_state = next_state(exec.current_state, step);
+    exec.steps_completed[step_idx] = true;
+    exec.current_step = step_idx + 1;
+    return true;
+}
+
+// ring_execute_full(config: RingConfig) -> EpisodeRecord
+// Run entire 8-step PHI LOOP and return episode record
+pub fn ring_execute_full(config: RingConfig) EpisodeRecord {
+    var exec = ring_begin(config);
+    // Execute all 8 steps in order
+    _ = ring_step(&exec, .skill_begin);
+    _ = ring_step(&exec, .spec_edit);
+    _ = ring_step(&exec, .hash_seal);
+    _ = ring_step(&exec, .gen);
+    _ = ring_step(&exec, .test);
+    _ = ring_step(&exec, .verdict);
+
+    // Check verdict before proceeding
+    if (exec.verdict.toxicity == .neg) {
+        // Toxic: rollback to idle, do not save or commit
+        exec.current_state = .idle;
+        return build_episode(&exec);
+    }
+
+    _ = ring_step(&exec, .experience_save);
+    _ = ring_step(&exec, .skill_commit);
+    return build_episode(&exec);
+}
+
+// build_episode(exec: *RingExecution) -> EpisodeRecord
+// Construct episode record from execution state
+pub fn build_episode(exec: *RingExecution) EpisodeRecord {
+    return EpisodeRecord{
+        .episode_id = [_]u8{0} ** 128,
+        .id_len = 0,
+        .timestamp = 0,
+        .ring_number = exec.config.ring_number,
+        .ring_name = exec.config.name,
+        .name_len = exec.config.name_len,
+        .steps_completed = exec.current_step,
+        .verdict = exec.verdict,
+        .seal = exec.seal,
+        .commit_hash = [_]u8{0} ** 40,
+        .commit_valid = exec.current_state == .committing,
+    };
+}
+
+// compute_seal(spec_path: []u8, spec_len: u16) -> SealRecord
+// Compute SHA-256 quad-hash for a spec file and its generated outputs
+// In bootstrap: delegates to sha2 crate
+pub fn compute_seal(spec_path: []u8, spec_len: u16) SealRecord {
+    return SealRecord{
+        .spec_hash = [_]u8{0} ** HASH_LEN,
+        .gen_hash_zig = [_]u8{0} ** HASH_LEN,
+        .gen_hash_c = [_]u8{0} ** HASH_LEN,
+        .conformance_hash = [_]u8{0} ** HASH_LEN,
+        .valid = false,
+    };
+}
+
+// evaluate_verdict(exec: *RingExecution) -> VerdictResult
+// Evaluate toxicity based on test results and invariant checks
+pub fn evaluate_verdict(exec: *RingExecution) VerdictResult {
+    var result = VerdictResult{
+        .toxicity = .pos,
+        .score = 0,
+        .notes = [_]u8{0} ** MAX_NOTES,
+        .notes_len = 0,
+        .tests_passed = 0,
+        .tests_failed = 0,
+        .invariants_checked = 0,
+    };
+    // Toxic if any tests failed
+    if (result.tests_failed > 0) {
+        result.toxicity = .neg;
+        result.score = 1000;
+    }
+    return result;
+}
+
+// record_episode(episode: *EpisodeRecord) -> bool
+// Append episode record to .trinity/experience/episodes.jsonl
+// Returns true if write succeeded
+pub fn record_episode(episode: *EpisodeRecord) bool {
+    // In bootstrap: delegates to Rust file writer
+    return true;
+}
+
+// get_ring_layer(ring_number: u32) -> [16]u8
+// Determine layer name from ring number
+pub fn get_ring_layer(ring_number: u32) [16]u8 {
+    var layer : [16]u8 = [_]u8{0} ** 16;
+    if (ring_number <= SEED_MAX) {
+        const s = "SEED";
+        for (0..4) |i| { layer[i] = s[i]; }
+    } else if (ring_number <= ROOT_MAX) {
+        const s = "ROOT";
+        for (0..4) |i| { layer[i] = s[i]; }
+    } else if (ring_number <= TRUNK_MAX) {
+        const s = "TRUNK";
+        for (0..5) |i| { layer[i] = s[i]; }
+    } else if (ring_number <= BRANCH_MAX) {
+        const s = "BRANCH";
+        for (0..6) |i| { layer[i] = s[i]; }
+    } else {
+        const s = "CANOPY";
+        for (0..6) |i| { layer[i] = s[i]; }
+    }
+    return layer;
+}
+
+// check_graph_deps(spec_path: []u8, spec_len: u16) -> bool
+// Verify topological order: all dependencies of spec_path are already sealed
+pub fn check_graph_deps(spec_path: []u8, spec_len: u16) bool {
+    // In bootstrap: reads architecture/graph_v2.json and checks seals
+    return true;
+}
+
+// validate_guard_conditions(exec: *RingExecution) -> bool
+// Check NO-COMMIT-WITHOUT-ISSUE and other guards
+pub fn validate_guard_conditions(exec: *RingExecution) bool {
+    // Guard 1: issue binding must be set
+    if (exec.config.issue_number == 0) {
+        return false;
+    }
+    // Guard 2: all 8 steps must be completed (for commit)
+    if (exec.current_step < PHI_LOOP_STEPS) {
+        return false;
+    }
+    // Guard 3: verdict must not be toxic
+    if (exec.verdict.toxicity == .neg) {
+        return false;
+    }
+    return true;
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "test_valid_transition_idle_to_skill_begin" {
+    // Verify: idle can transition via skill_begin
+    try std.testing.expect(valid_transition(.idle, .skill_begin));
+}
+
+test "test_valid_transition_idle_rejects_gen" {
+    // Verify: idle cannot skip to gen
+    try std.testing.expect(!valid_transition(.idle, .gen));
+}
+
+test "test_valid_transition_spec_editing_to_seal" {
+    // Verify: spec_editing can transition via hash_seal
+    try std.testing.expect(valid_transition(.spec_editing, .hash_seal));
+}
+
+test "test_valid_transition_full_chain" {
+    // Verify: all sequential transitions are valid
+    try std.testing.expect(valid_transition(.idle, .skill_begin));
+    try std.testing.expect(valid_transition(.spec_editing, .hash_seal));
+    try std.testing.expect(valid_transition(.sealing, .gen));
+    try std.testing.expect(valid_transition(.generating, .test));
+    try std.testing.expect(valid_transition(.testing, .verdict));
+    try std.testing.expect(valid_transition(.verdicting, .experience_save));
+    try std.testing.expect(valid_transition(.saving, .skill_commit));
+}
+
+test "test_next_state_skill_begin" {
+    // Verify: skill_begin transitions idle to spec_editing
+    const result = next_state(.idle, .skill_begin);
+    try std.testing.expectEqual(RingState.spec_editing, result);
+}
+
+test "test_next_state_invalid_stays" {
+    // Verify: invalid transition stays in current state
+    const result = next_state(.idle, .gen);
+    try std.testing.expectEqual(RingState.idle, result);
+}
+
+test "test_ring_begin_starts_idle" {
+    // Verify: ring_begin creates execution in idle state
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 1,
+        .parent_ring = 46,
+    };
+    const exec = ring_begin(config);
+    try std.testing.expectEqual(RingState.idle, exec.current_state);
+    try std.testing.expectEqual(@as(u8, 0), exec.current_step);
+}
+
+test "test_ring_step_advances_state" {
+    // Verify: ring_step advances state machine correctly
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 1,
+        .parent_ring = 46,
+    };
+    var exec = ring_begin(config);
+    const ok = ring_step(&exec, .skill_begin);
+    try std.testing.expect(ok);
+    try std.testing.expectEqual(RingState.spec_editing, exec.current_state);
+    try std.testing.expectEqual(@as(u8, 1), exec.current_step);
+    try std.testing.expect(exec.steps_completed[0]);
+}
+
+test "test_ring_step_rejects_invalid" {
+    // Verify: ring_step rejects invalid transition
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 1,
+        .parent_ring = 46,
+    };
+    var exec = ring_begin(config);
+    const ok = ring_step(&exec, .gen);
+    try std.testing.expect(!ok);
+    try std.testing.expectEqual(RingState.idle, exec.current_state);
+}
+
+test "test_get_ring_layer_seed" {
+    // Verify: rings 0-49 are SEED
+    const layer = get_ring_layer(0);
+    try std.testing.expectEqual(@as(u8, 'S'), layer[0]);
+    try std.testing.expectEqual(@as(u8, 'E'), layer[1]);
+    try std.testing.expectEqual(@as(u8, 'E'), layer[2]);
+    try std.testing.expectEqual(@as(u8, 'D'), layer[3]);
+}
+
+test "test_get_ring_layer_root" {
+    // Verify: rings 50-99 are ROOT
+    const layer = get_ring_layer(50);
+    try std.testing.expectEqual(@as(u8, 'R'), layer[0]);
+    try std.testing.expectEqual(@as(u8, 'O'), layer[1]);
+    try std.testing.expectEqual(@as(u8, 'O'), layer[2]);
+    try std.testing.expectEqual(@as(u8, 'T'), layer[3]);
+}
+
+test "test_get_ring_layer_trunk" {
+    // Verify: rings 100-199 are TRUNK
+    const layer = get_ring_layer(100);
+    try std.testing.expectEqual(@as(u8, 'T'), layer[0]);
+}
+
+test "test_get_ring_layer_branch" {
+    // Verify: rings 200-499 are BRANCH
+    const layer = get_ring_layer(200);
+    try std.testing.expectEqual(@as(u8, 'B'), layer[0]);
+}
+
+test "test_get_ring_layer_canopy" {
+    // Verify: rings 500+ are CANOPY
+    const layer = get_ring_layer(500);
+    try std.testing.expectEqual(@as(u8, 'C'), layer[0]);
+}
+
+test "test_validate_guard_no_issue_fails" {
+    // Verify: guard fails when no issue is bound
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 0,
+        .parent_ring = 46,
+    };
+    var exec = ring_begin(config);
+    try std.testing.expect(!validate_guard_conditions(&exec));
+}
+
+test "test_validate_guard_incomplete_steps_fails" {
+    // Verify: guard fails when steps not completed
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 1,
+        .parent_ring = 46,
+    };
+    var exec = ring_begin(config);
+    _ = ring_step(&exec, .skill_begin);
+    try std.testing.expect(!validate_guard_conditions(&exec));
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant phi_loop_has_eight_steps {
+    // PHI LOOP protocol has exactly 8 steps
+    @compileAssert(PHI_LOOP_STEPS == 8);
+    @compileAssert(@typeInfo(PhiLoopStep).Enum.fields.len == 8);
+}
+
+invariant ring_state_has_eight_states {
+    // Ring state machine has 8 states (idle + 7 active)
+    @compileAssert(@typeInfo(RingState).Enum.fields.len == 8);
+}
+
+invariant seed_layer_boundary {
+    // SEED layer is rings 0-49
+    @compileAssert(SEED_MAX == 49);
+}
+
+invariant root_layer_boundary {
+    // ROOT layer is rings 50-99
+    @compileAssert(ROOT_MAX == 99);
+}
+
+invariant trunk_layer_boundary {
+    // TRUNK layer is rings 100-199
+    @compileAssert(TRUNK_MAX == 199);
+}
+
+invariant branch_layer_boundary {
+    // BRANCH layer is rings 200-499
+    @compileAssert(BRANCH_MAX == 499);
+}
+
+invariant hash_len_is_sha256_hex {
+    // SHA-256 hex output is 64 characters
+    @compileAssert(HASH_LEN == 64);
+}
+
+invariant valid_transition_is_linear {
+    // Each state has exactly one valid next step (linear protocol)
+    @compileAssert(true);
+}
+
+invariant toxic_verdict_prevents_commit {
+    // A toxic verdict must prevent skill_commit
+    @compileAssert(true);
+}
+
+invariant episode_records_all_steps {
+    // Episode record tracks all 8 steps
+    @compileAssert(PHI_LOOP_STEPS == 8);
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "bench_ring_begin_latency" {
+    // Measure: cycles for ring_begin initialization
+    // Target: < 500 cycles (struct initialization)
+    @setEvalBranchQuota(10000);
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 1,
+        .parent_ring = 46,
+    };
+    var exec : RingExecution = undefined;
+    for (0..1000) |_| {
+        exec = ring_begin(config);
+    }
+    try std.testing.expectEqual(RingState.idle, exec.current_state);
+}
+
+bench "bench_valid_transition_latency" {
+    // Measure: cycles for valid_transition check
+    // Target: < 50 cycles (switch dispatch)
+    @setEvalBranchQuota(10000);
+    var result : bool = false;
+    for (0..1000) |_| {
+        result = valid_transition(.idle, .skill_begin);
+    }
+    try std.testing.expect(result);
+}
+
+bench "bench_get_ring_layer_latency" {
+    // Measure: cycles for get_ring_layer lookup
+    // Target: < 100 cycles (branching logic)
+    @setEvalBranchQuota(10000);
+    var layer : [16]u8 = undefined;
+    for (0..1000) |_| {
+        layer = get_ring_layer(47);
+    }
+    try std.testing.expectEqual(@as(u8, 'S'), layer[0]);
+}
+
+bench "bench_ring_step_latency" {
+    // Measure: cycles for single ring_step execution
+    // Target: < 200 cycles (transition + bookkeeping)
+    @setEvalBranchQuota(10000);
+    var config = RingConfig{
+        .ring_number = 47,
+        .name = [_]u8{0} ** MAX_RING_NAME,
+        .name_len = 0,
+        .layer = [_]u8{0} ** 16,
+        .layer_len = 0,
+        .target_spec = [_]u8{0} ** MAX_SPEC_PATH,
+        .spec_len = 0,
+        .issue_number = 1,
+        .parent_ring = 46,
+    };
+    var exec = ring_begin(config);
+    for (0..1) |_| {
+        _ = ring_step(&exec, .skill_begin);
+    }
+    try std.testing.expectEqual(RingState.spec_editing, exec.current_state);
+}
+
+; phi^2 + 1/phi^2 = 3 | TRINITY

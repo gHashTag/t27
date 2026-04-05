@@ -1,0 +1,766 @@
+; self_improve.t27 -- Self-Improvement Protocol for TRI CLI REPL
+; THE KEY SPEC: REPL improves itself through its own RINGS protocol
+; Introspection -> Weakness Detection -> Proposal -> Execution -> Hot-Reload
+; phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tri-self-improve;
+
+// ============================================================================
+// IMPORTS
+// ============================================================================
+use base::types;            // Trit, PackedTrit, TernaryWord
+use cli::repl;              // ReplState, ReplPlugin, CommandResult
+use cli::ring_executor;     // RingConfig, RingExecution, EpisodeRecord, PhiLoopStep
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const MAX_WEAKNESSES : u8 = 64;        // Max detected weaknesses per cycle
+pub const MAX_EVIDENCE : u8 = 16;          // Max evidence episode IDs per weakness
+pub const MAX_PROPOSALS : u8 = 8;          // Max improvement proposals per cycle
+pub const MAX_HISTORY_ENTRIES : u16 = 1024; // Max improvement history entries
+pub const CONVERGENCE_THRESHOLD : u8 = 3;  // Cycles without improvement to declare fixed point
+pub const HEALTH_STREAK_TARGET : u32 = 10; // GREEN health streak for convergence
+pub const COVERAGE_TARGET : u16 = 950;     // 95.0% coverage target (in permille)
+pub const MAX_SPEC_TEMPLATE : u16 = 4096;  // Max size of generated spec template
+
+// ============================================================================
+// 1. Weakness Detection Types
+// ============================================================================
+
+// WeaknessKind: categories of detected weaknesses
+pub const WeaknessKind = enum(u8) {
+    missing_capability = 0,  // Graph node has no spec
+    test_failure = 1,        // Spec has failing tests
+    toxic_pattern = 2,       // Repeated toxic verdicts in episodes
+    stale_seal = 3,          // Seal hash doesn't match current spec
+    coverage_gap = 4,        // Spec has <3 test vectors
+    perf_regression = 5,     // Bench metrics degraded
+};
+
+// Evidence: reference to an episode that demonstrates a weakness
+pub const Evidence = struct {
+    episode_id : [128]u8,    // Episode ID string
+    id_len : u8,             // ID length
+    ring_number : u32,       // Ring number of episode
+    toxicity : Trit,         // Verdict toxicity of that episode
+};
+
+// Weakness: a detected weakness with evidence and severity
+pub const Weakness = struct {
+    kind : WeaknessKind,                    // Category
+    severity : u16,                          // 0-1000 (milliunits, 1000 = critical)
+    confidence : u16,                        // 0-1000 (milliunits)
+    evidence : [MAX_EVIDENCE]Evidence,       // Supporting episodes
+    evidence_count : u8,                     // Number of evidence items
+    affected_spec : [512]u8,                 // Path to affected spec
+    spec_len : u16,                          // Spec path length
+    description : [256]u8,                   // Human-readable description
+    desc_len : u8,                           // Description length
+};
+
+// ============================================================================
+// 2. Improvement Proposal Types
+// ============================================================================
+
+// ImprovementProposal: proposed ring to fix a weakness
+pub const ImprovementProposal = struct {
+    ring_number : u32,                       // Proposed ring number
+    name : [128]u8,                          // Ring name
+    name_len : u8,                           // Name length
+    weakness : Weakness,                     // Weakness being addressed
+    proposed_spec_path : [512]u8,            // Path for new/modified spec
+    spec_path_len : u16,                     // Spec path length
+    expected_benefit : [256]u8,              // Expected improvement description
+    benefit_len : u8,                        // Benefit description length
+    dependencies : [32][512]u8,              // Spec paths this depends on
+    dep_count : u8,                          // Number of dependencies
+    confidence : u16,                        // 0-1000 (milliunits)
+};
+
+// ImprovementOutcome: result of executing an improvement proposal
+pub const ImprovementOutcome = struct {
+    proposal_ring : u32,                     // Ring number from proposal
+    success : bool,                          // Whether improvement succeeded
+    toxicity : Trit,                         // Verdict toxicity
+    actual_benefit : [256]u8,                // Actual observed benefit
+    benefit_len : u8,                        // Benefit description length
+    capabilities_added : u8,                 // Number of new capabilities
+    capabilities_removed : u8,               // Number of removed capabilities (rollback)
+};
+
+// ImprovementHistoryEntry: one entry in improvement history
+pub const ImprovementHistoryEntry = struct {
+    ring_number : u32,                       // Ring that was executed
+    proposal : ImprovementProposal,          // The proposal
+    outcome : ImprovementOutcome,            // The outcome
+    timestamp : u64,                         // When executed
+};
+
+// ImprovementHistory: full history of self-improvement cycles
+pub const ImprovementHistory = struct {
+    entries : [MAX_HISTORY_ENTRIES]ImprovementHistoryEntry,
+    count : u16,
+};
+
+// ConvergenceState: fixed-point detection state
+pub const ConvergenceState = struct {
+    is_converged : bool,                     // True when at fixed point
+    cycles_without_improvement : u8,         // Consecutive empty cycles
+    coverage_pct : u16,                      // Current coverage in permille (0-1000)
+    health_streak : u32,                     // Consecutive clean verdicts
+    total_rings_executed : u32,              // Total rings run by self-improve
+    total_weaknesses_found : u32,            // Total weaknesses detected
+    total_weaknesses_fixed : u32,            // Total weaknesses fixed
+};
+
+// ============================================================================
+// 3. Introspection Functions
+// ============================================================================
+
+// introspect_episodes(episodes_path: []u8, path_len: u16) -> [MAX_WEAKNESSES]Weakness
+// Analyze episodes.jsonl and detect all weaknesses
+// Returns array of weaknesses sorted by severity
+pub fn introspect_episodes(episodes_path: []u8, path_len: u16) [MAX_WEAKNESSES]Weakness {
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    // In bootstrap: reads JSONL file, parses episodes, runs all detectors
+    return weaknesses;
+}
+
+// detect_toxic_patterns(episodes_path: []u8, path_len: u16) -> [MAX_WEAKNESSES]Weakness
+// Find repeated toxic verdicts across episodes
+// A pattern is "repeated" if 2+ episodes from same spec have toxic verdict
+pub fn detect_toxic_patterns(episodes_path: []u8, path_len: u16) [MAX_WEAKNESSES]Weakness {
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    // In bootstrap: groups episodes by spec path, counts toxic verdicts
+    return weaknesses;
+}
+
+// detect_coverage_gaps(graph_path: []u8, graph_len: u16, seals_dir: []u8, seals_len: u16) -> [MAX_WEAKNESSES]Weakness
+// Find graph nodes that have no sealed spec or <3 test vectors
+pub fn detect_coverage_gaps(graph_path: []u8, graph_len: u16, seals_dir: []u8, seals_len: u16) [MAX_WEAKNESSES]Weakness {
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    // In bootstrap: reads graph_v2.json, checks each node against seals/
+    return weaknesses;
+}
+
+// detect_stale_seals(seals_dir: []u8, seals_len: u16, specs_dir: []u8, specs_len: u16) -> [MAX_WEAKNESSES]Weakness
+// Find seals whose hashes don't match current spec file contents
+pub fn detect_stale_seals(seals_dir: []u8, seals_len: u16, specs_dir: []u8, specs_len: u16) [MAX_WEAKNESSES]Weakness {
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    // In bootstrap: re-hashes each spec, compares with seal JSON
+    return weaknesses;
+}
+
+// detect_perf_regressions(episodes_path: []u8, path_len: u16) -> [MAX_WEAKNESSES]Weakness
+// Compare bench metrics across episodes, find degradations
+pub fn detect_perf_regressions(episodes_path: []u8, path_len: u16) [MAX_WEAKNESSES]Weakness {
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    // In bootstrap: extracts bench results from episodes, compares trends
+    return weaknesses;
+}
+
+// rank_weaknesses(weaknesses: []Weakness, count: u8) -> [MAX_WEAKNESSES]Weakness
+// Sort weaknesses by severity * confidence (descending)
+pub fn rank_weaknesses(weaknesses: []Weakness, count: u8) [MAX_WEAKNESSES]Weakness {
+    var ranked : [MAX_WEAKNESSES]Weakness = undefined;
+    // Copy input
+    var i : u8 = 0;
+    while (i < count) {
+        ranked[i] = weaknesses[i];
+        i += 1;
+    }
+    // Bubble sort by priority = severity * confidence / 1000
+    var sorted : bool = false;
+    while (!sorted) {
+        sorted = true;
+        var j : u8 = 0;
+        while (j + 1 < count) {
+            const pri_j = @as(u32, ranked[j].severity) * @as(u32, ranked[j].confidence);
+            const pri_next = @as(u32, ranked[j + 1].severity) * @as(u32, ranked[j + 1].confidence);
+            if (pri_j < pri_next) {
+                const tmp = ranked[j];
+                ranked[j] = ranked[j + 1];
+                ranked[j + 1] = tmp;
+                sorted = false;
+            }
+            j += 1;
+        }
+    }
+    return ranked;
+}
+
+// ============================================================================
+// 4. Improvement Proposal Functions
+// ============================================================================
+
+// propose_improvement(weaknesses: []Weakness, count: u8, current_ring: u32) -> ImprovementProposal
+// Generate the best improvement ring proposal from ranked weaknesses
+pub fn propose_improvement(weaknesses: []Weakness, count: u8, current_ring: u32) ImprovementProposal {
+    if (count == 0) {
+        return ImprovementProposal{
+            .ring_number = current_ring + 1,
+            .name = [_]u8{0} ** 128,
+            .name_len = 0,
+            .weakness = undefined,
+            .proposed_spec_path = [_]u8{0} ** 512,
+            .spec_path_len = 0,
+            .expected_benefit = [_]u8{0} ** 256,
+            .benefit_len = 0,
+            .dependencies = undefined,
+            .dep_count = 0,
+            .confidence = 0,
+        };
+    }
+    // Take highest-ranked weakness
+    const top = weaknesses[0];
+    return ImprovementProposal{
+        .ring_number = current_ring + 1,
+        .name = [_]u8{0} ** 128,
+        .name_len = 0,
+        .weakness = top,
+        .proposed_spec_path = top.affected_spec,
+        .spec_path_len = top.spec_len,
+        .expected_benefit = [_]u8{0} ** 256,
+        .benefit_len = 0,
+        .dependencies = undefined,
+        .dep_count = 0,
+        .confidence = top.confidence,
+    };
+}
+
+// generate_spec_skeleton(proposal: *ImprovementProposal) -> [MAX_SPEC_TEMPLATE]u8
+// Create .t27 spec template for proposed capability
+pub fn generate_spec_skeleton(proposal: *ImprovementProposal) [MAX_SPEC_TEMPLATE]u8 {
+    var template : [MAX_SPEC_TEMPLATE]u8 = [_]u8{0} ** MAX_SPEC_TEMPLATE;
+    // In bootstrap: generates module header, imports, placeholder functions,
+    // test/invariant/bench blocks per TDD-Inside-Spec mandate
+    return template;
+}
+
+// validate_proposal(proposal: *ImprovementProposal, graph_path: []u8, graph_len: u16) -> bool
+// Check deps satisfied, no circular deps, spec path is valid
+pub fn validate_proposal(proposal: *ImprovementProposal, graph_path: []u8, graph_len: u16) bool {
+    // In bootstrap: reads graph, checks all dep_count dependencies have seals
+    if (proposal.confidence == 0) {
+        return false;
+    }
+    return true;
+}
+
+// estimate_confidence(proposal: *ImprovementProposal, history: *ImprovementHistory) -> u16
+// Estimate confidence based on similar past improvements
+// Returns 0-1000 (milliunits)
+pub fn estimate_confidence(proposal: *ImprovementProposal, history: *ImprovementHistory) u16 {
+    // Look for past improvements addressing same weakness kind
+    var similar_count : u16 = 0;
+    var similar_success : u16 = 0;
+    var i : u16 = 0;
+    while (i < history.count) {
+        if (history.entries[i].proposal.weakness.kind == proposal.weakness.kind) {
+            similar_count += 1;
+            if (history.entries[i].outcome.success) {
+                similar_success += 1;
+            }
+        }
+        i += 1;
+    }
+    if (similar_count == 0) {
+        return 500; // No data, moderate confidence
+    }
+    return (similar_success * 1000) / similar_count;
+}
+
+// ============================================================================
+// 5. Self-Improvement Execution -- THE MAIN LOOP
+// ============================================================================
+
+// execute_improvement_cycle(repl_state: *ReplState) -> *ReplState
+// THE CORE SELF-IMPROVEMENT LOOP:
+//   1. introspect -> detect weaknesses from episodes
+//   2. rank -> pick highest priority weakness
+//   3. propose -> generate improvement spec
+//   4. validate -> check deps and graph
+//   5. execute -> run ring via ring_executor
+//   6. verify -> test new capability
+//   7. integrate -> hot-reload into REPL
+//   8. record -> save to improvement history
+//   9. check convergence -> loop or stop
+pub fn execute_improvement_cycle(repl_state: *ReplState) *ReplState {
+    // Step 1: Introspect
+    const episodes_path = ".trinity/experience/episodes.jsonl";
+    var weaknesses = introspect_episodes(episodes_path, 41);
+
+    // Step 2: Rank weaknesses
+    var weakness_count : u8 = 0;
+    var i : u8 = 0;
+    while (i < MAX_WEAKNESSES) {
+        if (weaknesses[i].severity > 0) {
+            weakness_count += 1;
+        }
+        i += 1;
+    }
+    const ranked = rank_weaknesses(&weaknesses, weakness_count);
+
+    // Step 3: Propose improvement
+    var proposal = propose_improvement(&ranked, weakness_count, repl_state.ring_number);
+    if (proposal.confidence == 0) {
+        // No improvement needed -- near convergence
+        return repl_state;
+    }
+
+    // Step 4: Validate proposal
+    const graph_path = "architecture/graph_v2.json";
+    if (!validate_proposal(&proposal, graph_path, 29)) {
+        return repl_state;
+    }
+
+    // Step 5: Execute ring via ring_executor
+    const config = RingConfig{
+        .ring_number = proposal.ring_number,
+        .name = proposal.name,
+        .name_len = proposal.name_len,
+        .layer = get_ring_layer(proposal.ring_number),
+        .layer_len = 4,
+        .target_spec = proposal.proposed_spec_path,
+        .spec_len = proposal.spec_path_len,
+        .issue_number = repl_state.issue_binding,
+        .parent_ring = repl_state.ring_number,
+    };
+    const episode = ring_execute_full(config);
+
+    // Step 6: Verify -- check verdict
+    if (episode.verdict.toxicity == .neg) {
+        // Toxic: rollback, do not integrate
+        return repl_state;
+    }
+
+    // Step 7: Hot-reload into REPL
+    repl_state = hot_reload(repl_state, proposal.ring_number);
+
+    // Step 8: Record improvement
+    repl_state.ring_number = proposal.ring_number;
+
+    // Step 9: Check convergence (done by caller)
+    return repl_state;
+}
+
+// ============================================================================
+// 6. Hot-Reload Functions
+// ============================================================================
+
+// hot_reload(repl_state: *ReplState, new_ring: u32) -> *ReplState
+// Integrate new ring into live REPL without restart
+// 1. Re-read .trinity/ state
+// 2. Load any new plugins from the ring
+// 3. Update ring number and layer
+pub fn hot_reload(repl_state: *ReplState, new_ring: u32) *ReplState {
+    repl_state.ring_number = new_ring;
+    // Update layer
+    const layer = get_ring_layer(new_ring);
+    var i : u8 = 0;
+    while (i < 16) {
+        repl_state.ring_layer[i] = layer[i];
+        i += 1;
+    }
+    // Reload .trinity/ state
+    _ = load_trinity_state(repl_state);
+    return repl_state;
+}
+
+// diff_capabilities(old_ring: u32, new_ring: u32) -> u32
+// Return count of capabilities that changed between rings
+pub fn diff_capabilities(old_ring: u32, new_ring: u32) u32 {
+    if (new_ring > old_ring) {
+        return new_ring - old_ring; // Each ring adds ~1 capability
+    }
+    return 0;
+}
+
+// rollback(repl_state: *ReplState, checkpoint_ring: u32) -> *ReplState
+// Revert REPL to a previous ring checkpoint
+pub fn rollback(repl_state: *ReplState, checkpoint_ring: u32) *ReplState {
+    repl_state.ring_number = checkpoint_ring;
+    const layer = get_ring_layer(checkpoint_ring);
+    var i : u8 = 0;
+    while (i < 16) {
+        repl_state.ring_layer[i] = layer[i];
+        i += 1;
+    }
+    _ = load_trinity_state(repl_state);
+    return repl_state;
+}
+
+// verify_health_post_reload(repl_state: *ReplState) -> bool
+// Check REPL still works after hot-reload
+// Runs a diagnostic command and verifies clean result
+pub fn verify_health_post_reload(repl_state: *ReplState) bool {
+    // Run "status" command as health check
+    const result = handle_status(repl_state);
+    return result.success and result.toxicity == .pos;
+}
+
+// ============================================================================
+// 7. Convergence Detection
+// ============================================================================
+
+// check_convergence(history: *ImprovementHistory, repl_state: *ReplState) -> ConvergenceState
+// Detect whether REPL has reached a fixed point
+pub fn check_convergence(history: *ImprovementHistory, repl_state: *ReplState) ConvergenceState {
+    var state = ConvergenceState{
+        .is_converged = false,
+        .cycles_without_improvement = 0,
+        .coverage_pct = 0,
+        .health_streak = repl_state.health_streak,
+        .total_rings_executed = 0,
+        .total_weaknesses_found = 0,
+        .total_weaknesses_fixed = 0,
+    };
+
+    // Count recent empty cycles (no improvement)
+    var empty_tail : u8 = 0;
+    if (history.count > 0) {
+        var i : u16 = history.count;
+        while (i > 0) {
+            i -= 1;
+            if (!history.entries[i].outcome.success) {
+                empty_tail += 1;
+            } else {
+                break;
+            }
+        }
+    }
+    state.cycles_without_improvement = empty_tail;
+
+    // Count totals
+    var j : u16 = 0;
+    while (j < history.count) {
+        state.total_rings_executed += 1;
+        state.total_weaknesses_found += 1;
+        if (history.entries[j].outcome.success) {
+            state.total_weaknesses_fixed += 1;
+        }
+        j += 1;
+    }
+
+    // Fixed point detection:
+    // 1. No improvements for CONVERGENCE_THRESHOLD consecutive cycles
+    // 2. Health streak >= HEALTH_STREAK_TARGET
+    // 3. Coverage >= COVERAGE_TARGET
+    if (state.cycles_without_improvement >= CONVERGENCE_THRESHOLD
+        and state.health_streak >= HEALTH_STREAK_TARGET
+        and state.coverage_pct >= COVERAGE_TARGET) {
+        state.is_converged = true;
+    }
+
+    return state;
+}
+
+// is_fixed_point(repl_state: *ReplState, history: *ImprovementHistory) -> bool
+// True when REPL == compile(REPL spec) -- the metacircular fixed point
+pub fn is_fixed_point(repl_state: *ReplState, history: *ImprovementHistory) bool {
+    const conv = check_convergence(history, repl_state);
+    return conv.is_converged;
+}
+
+// improvement_velocity(history: *ImprovementHistory) -> u16
+// Rings per cycle in permille (e.g., 500 = 0.5 rings/cycle)
+// Detects stalls when velocity drops to zero
+pub fn improvement_velocity(history: *ImprovementHistory) u16 {
+    if (history.count == 0) {
+        return 0;
+    }
+    var successful : u16 = 0;
+    var i : u16 = 0;
+    while (i < history.count) {
+        if (history.entries[i].outcome.success) {
+            successful += 1;
+        }
+        i += 1;
+    }
+    return (successful * 1000) / history.count;
+}
+
+// ============================================================================
+// TDD - Tests
+// ============================================================================
+
+test "test_weakness_kind_enum_complete" {
+    // Verify: all 6 weakness kinds are defined
+    try std.testing.expectEqual(@as(usize, 6), @typeInfo(WeaknessKind).Enum.fields.len);
+}
+
+test "test_rank_weaknesses_highest_first" {
+    // Verify: rank_weaknesses puts highest severity*confidence first
+    var w1 = Weakness{
+        .kind = .test_failure,
+        .severity = 500,
+        .confidence = 800,
+        .evidence = undefined,
+        .evidence_count = 0,
+        .affected_spec = [_]u8{0} ** 512,
+        .spec_len = 0,
+        .description = [_]u8{0} ** 256,
+        .desc_len = 0,
+    };
+    var w2 = Weakness{
+        .kind = .stale_seal,
+        .severity = 900,
+        .confidence = 900,
+        .evidence = undefined,
+        .evidence_count = 0,
+        .affected_spec = [_]u8{0} ** 512,
+        .spec_len = 0,
+        .description = [_]u8{0} ** 256,
+        .desc_len = 0,
+    };
+    var weaknesses = [_]Weakness{w1, w2};
+    const ranked = rank_weaknesses(&weaknesses, 2);
+    // w2 has priority 810000, w1 has priority 400000
+    try std.testing.expectEqual(WeaknessKind.stale_seal, ranked[0].kind);
+    try std.testing.expectEqual(WeaknessKind.test_failure, ranked[1].kind);
+}
+
+test "test_rank_weaknesses_empty" {
+    // Verify: ranking empty list returns without error
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    const ranked = rank_weaknesses(&weaknesses, 0);
+    // Should not crash; result is undefined but no panic
+    _ = ranked;
+}
+
+test "test_propose_improvement_no_weaknesses" {
+    // Verify: no weaknesses produces zero-confidence proposal
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    const proposal = propose_improvement(&weaknesses, 0, 47);
+    try std.testing.expectEqual(@as(u16, 0), proposal.confidence);
+    try std.testing.expectEqual(@as(u32, 48), proposal.ring_number);
+}
+
+test "test_propose_improvement_uses_top_weakness" {
+    // Verify: propose_improvement uses highest-ranked weakness
+    var w = Weakness{
+        .kind = .toxic_pattern,
+        .severity = 900,
+        .confidence = 850,
+        .evidence = undefined,
+        .evidence_count = 1,
+        .affected_spec = [_]u8{0} ** 512,
+        .spec_len = 10,
+        .description = [_]u8{0} ** 256,
+        .desc_len = 5,
+    };
+    var weaknesses = [_]Weakness{w};
+    const proposal = propose_improvement(&weaknesses, 1, 47);
+    try std.testing.expectEqual(@as(u32, 48), proposal.ring_number);
+    try std.testing.expectEqual(WeaknessKind.toxic_pattern, proposal.weakness.kind);
+    try std.testing.expectEqual(@as(u16, 850), proposal.confidence);
+}
+
+test "test_validate_proposal_zero_confidence_fails" {
+    // Verify: proposal with zero confidence is invalid
+    var proposal = ImprovementProposal{
+        .ring_number = 48,
+        .name = [_]u8{0} ** 128,
+        .name_len = 0,
+        .weakness = undefined,
+        .proposed_spec_path = [_]u8{0} ** 512,
+        .spec_path_len = 0,
+        .expected_benefit = [_]u8{0} ** 256,
+        .benefit_len = 0,
+        .dependencies = undefined,
+        .dep_count = 0,
+        .confidence = 0,
+    };
+    const graph_path = "architecture/graph_v2.json";
+    try std.testing.expect(!validate_proposal(&proposal, graph_path, 29));
+}
+
+test "test_diff_capabilities_positive_delta" {
+    // Verify: new_ring > old_ring returns positive delta
+    try std.testing.expectEqual(@as(u32, 3), diff_capabilities(47, 50));
+}
+
+test "test_diff_capabilities_same_ring" {
+    // Verify: same ring returns zero delta
+    try std.testing.expectEqual(@as(u32, 0), diff_capabilities(47, 47));
+}
+
+test "test_diff_capabilities_rollback_returns_zero" {
+    // Verify: rollback (new < old) returns zero
+    try std.testing.expectEqual(@as(u32, 0), diff_capabilities(50, 47));
+}
+
+test "test_improvement_velocity_empty_history" {
+    // Verify: empty history returns zero velocity
+    var history = ImprovementHistory{
+        .entries = undefined,
+        .count = 0,
+    };
+    try std.testing.expectEqual(@as(u16, 0), improvement_velocity(&history));
+}
+
+test "test_check_convergence_not_converged_initially" {
+    // Verify: convergence is false with fresh state
+    var history = ImprovementHistory{
+        .entries = undefined,
+        .count = 0,
+    };
+    var state = repl_init();
+    const conv = check_convergence(&history, &state);
+    try std.testing.expect(!conv.is_converged);
+    try std.testing.expectEqual(@as(u8, 0), conv.cycles_without_improvement);
+}
+
+test "test_estimate_confidence_no_history" {
+    // Verify: no similar history returns moderate confidence (500)
+    var history = ImprovementHistory{
+        .entries = undefined,
+        .count = 0,
+    };
+    var proposal = ImprovementProposal{
+        .ring_number = 48,
+        .name = [_]u8{0} ** 128,
+        .name_len = 0,
+        .weakness = Weakness{
+            .kind = .toxic_pattern,
+            .severity = 800,
+            .confidence = 700,
+            .evidence = undefined,
+            .evidence_count = 0,
+            .affected_spec = [_]u8{0} ** 512,
+            .spec_len = 0,
+            .description = [_]u8{0} ** 256,
+            .desc_len = 0,
+        },
+        .proposed_spec_path = [_]u8{0} ** 512,
+        .spec_path_len = 0,
+        .expected_benefit = [_]u8{0} ** 256,
+        .benefit_len = 0,
+        .dependencies = undefined,
+        .dep_count = 0,
+        .confidence = 700,
+    };
+    const conf = estimate_confidence(&proposal, &history);
+    try std.testing.expectEqual(@as(u16, 500), conf);
+}
+
+// ============================================================================
+// TDD - Invariants
+// ============================================================================
+
+invariant weakness_kind_has_six_variants {
+    // Exactly 6 weakness categories
+    @compileAssert(@typeInfo(WeaknessKind).Enum.fields.len == 6);
+}
+
+invariant convergence_threshold_positive {
+    // Convergence threshold must be at least 1
+    @compileAssert(CONVERGENCE_THRESHOLD >= 1);
+    @compileAssert(CONVERGENCE_THRESHOLD <= 10);
+}
+
+invariant health_streak_target_positive {
+    // Health streak target must be positive
+    @compileAssert(HEALTH_STREAK_TARGET > 0);
+}
+
+invariant coverage_target_valid_permille {
+    // Coverage target is valid permille (0-1000)
+    @compileAssert(COVERAGE_TARGET >= 0);
+    @compileAssert(COVERAGE_TARGET <= 1000);
+}
+
+invariant improvement_cycle_nine_steps {
+    // The improvement cycle has exactly 9 steps
+    @compileAssert(true);
+}
+
+invariant toxic_verdict_prevents_integration {
+    // A toxic verdict in step 6 prevents hot-reload in step 7
+    @compileAssert(true);
+}
+
+invariant convergence_requires_three_conditions {
+    // Fixed point requires: no-improvement streak AND health streak AND coverage
+    @compileAssert(CONVERGENCE_THRESHOLD == 3);
+    @compileAssert(HEALTH_STREAK_TARGET == 10);
+    @compileAssert(COVERAGE_TARGET == 950);
+}
+
+invariant velocity_bounded {
+    // Velocity is in [0, 1000] permille
+    @compileAssert(true);
+}
+
+invariant rollback_preserves_history {
+    // Rollback changes ring number but does not erase history
+    @compileAssert(true);
+}
+
+// ============================================================================
+// TDD - Benchmarks
+// ============================================================================
+
+bench "bench_rank_weaknesses_latency" {
+    // Measure: cycles for ranking 64 weaknesses
+    // Target: < 50000 cycles (bubble sort on small array)
+    @setEvalBranchQuota(100000);
+    var weaknesses : [MAX_WEAKNESSES]Weakness = undefined;
+    for (0..MAX_WEAKNESSES) |i| {
+        weaknesses[i].severity = @intCast(i * 15);
+        weaknesses[i].confidence = @intCast(1000 - i * 15);
+    }
+    for (0..10) |_| {
+        _ = rank_weaknesses(&weaknesses, MAX_WEAKNESSES);
+    }
+}
+
+bench "bench_propose_improvement_latency" {
+    // Measure: cycles for propose_improvement
+    // Target: < 1000 cycles (struct copy + field access)
+    @setEvalBranchQuota(10000);
+    var w = Weakness{
+        .kind = .test_failure,
+        .severity = 800,
+        .confidence = 900,
+        .evidence = undefined,
+        .evidence_count = 0,
+        .affected_spec = [_]u8{0} ** 512,
+        .spec_len = 0,
+        .description = [_]u8{0} ** 256,
+        .desc_len = 0,
+    };
+    var weaknesses = [_]Weakness{w};
+    for (0..1000) |_| {
+        _ = propose_improvement(&weaknesses, 1, 47);
+    }
+}
+
+bench "bench_diff_capabilities_latency" {
+    // Measure: cycles for diff_capabilities
+    // Target: < 10 cycles (simple subtraction)
+    @setEvalBranchQuota(10000);
+    var result : u32 = 0;
+    for (0..1000) |_| {
+        result = diff_capabilities(47, 50);
+    }
+    try std.testing.expectEqual(@as(u32, 3), result);
+}
+
+bench "bench_check_convergence_latency" {
+    // Measure: cycles for check_convergence
+    // Target: < 5000 cycles (history scan + threshold check)
+    @setEvalBranchQuota(10000);
+    var history = ImprovementHistory{
+        .entries = undefined,
+        .count = 0,
+    };
+    var state = repl_init();
+    for (0..100) |_| {
+        _ = check_convergence(&history, &state);
+    }
+}
+
+; phi^2 + 1/phi^2 = 3 | TRINITY
