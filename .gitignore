@@ -1,7 +1,20 @@
-# Build artifacts
+# Build artifacts (DNA)
 tri
 zig-cache/
 zig-out/
+gen/
+dist/
+build/
+target/
+
+# Tooling
+node_modules/
+.turbo/
+.npm/
+.yarn/
+bun.lockb
+*.log
+*.log.jsonl
 
 # OS
 .DS_Store
@@ -11,3 +24,15 @@ zig-out/
 # Temporary files
 *.tmp
 *.bak
+tmp/
+.artifacts/
+
+# Trinity State (should stay local/deterministic)
+.trinity/claims/
+.trinity/queues/
+#.trinity/events/ # Keeping events might be okay if they are small, but they grow.
+
+# Specific project paths
+opencode/dist/
+opencode/node_modules/
+bootstrap/target/

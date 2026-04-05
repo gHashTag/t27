@@ -1,0 +1,263 @@
+{
+  "module": "QueenLotus",
+  "spec_path": "specs/queen/lotus.t27",
+  "ring": 29,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "vectors": [
+    {
+      "name": "lotus_num_phases_is_six",
+      "description": "NUM_PHASES must equal 6",
+      "input": {},
+      "expected": { "NUM_PHASES": 6 }
+    },
+    {
+      "name": "lotus_phase_constants_unique",
+      "description": "All 6 phase constants are distinct",
+      "input": {},
+      "expected": {
+        "PHASE_OBSERVE": 0, "PHASE_RECALL": 1, "PHASE_EVALUATE": 2,
+        "PHASE_PLAN": 3, "PHASE_ACT": 4, "PHASE_RECORD": 5,
+        "all_unique": true
+      }
+    },
+    {
+      "name": "lotus_phase_constants_ordered",
+      "description": "Phases are sequentially ordered 0..5",
+      "input": {},
+      "expected": {
+        "PHASE_OBSERVE": 0, "PHASE_RECALL": 1, "PHASE_EVALUATE": 2,
+        "PHASE_PLAN": 3, "PHASE_ACT": 4, "PHASE_RECORD": 5
+      }
+    },
+    {
+      "name": "lotus_episode_buffer_size_100",
+      "description": "EPISODE_BUFFER_SIZE must equal 100",
+      "input": {},
+      "expected": { "EPISODE_BUFFER_SIZE": 100 }
+    },
+    {
+      "name": "lotus_policy_window_size_10",
+      "description": "POLICY_WINDOW_SIZE must equal 10",
+      "input": {},
+      "expected": { "POLICY_WINDOW_SIZE": 10 }
+    },
+    {
+      "name": "lotus_outcome_constants_unique",
+      "description": "Outcome constants are distinct: UNKNOWN=0, SUCCESS=1, PARTIAL=2, FAILURE=3, FATAL=4",
+      "input": {},
+      "expected": {
+        "OUTCOME_UNKNOWN": 0, "OUTCOME_SUCCESS": 1, "OUTCOME_PARTIAL": 2,
+        "OUTCOME_FAILURE": 3, "OUTCOME_FATAL": 4,
+        "all_unique": true
+      }
+    },
+    {
+      "name": "lotus_quality_constants_unique",
+      "description": "Quality constants are distinct: UNKNOWN=0, GOOD=1, UNSTABLE=2, BAD=3",
+      "input": {},
+      "expected": {
+        "QUALITY_UNKNOWN": 0, "QUALITY_GOOD": 1, "QUALITY_UNSTABLE": 2,
+        "QUALITY_BAD": 3,
+        "all_unique": true
+      }
+    },
+    {
+      "name": "lotus_delta_constants_unique",
+      "description": "Delta constants are distinct: SCALE_UP=0, SCALE_DOWN=1, SET=2, WAIT=3",
+      "input": {},
+      "expected": {
+        "DELTA_SCALE_UP": 0, "DELTA_SCALE_DOWN": 1,
+        "DELTA_SET": 2, "DELTA_WAIT": 3,
+        "all_unique": true
+      }
+    },
+    {
+      "name": "lotus_initial_phase_is_observe",
+      "description": "Initial phase must be PHASE_OBSERVE (0)",
+      "input": {},
+      "expected": { "current_phase": 0 }
+    },
+    {
+      "name": "lotus_phase_transitions_wrap_around",
+      "description": "Phase wraps from 5 back to 0",
+      "input": { "current_phase": 5 },
+      "expected": { "new_phase": 0 }
+    },
+    {
+      "name": "lotus_phase_transitions_increment",
+      "description": "Phase increments from 2 to 3",
+      "input": { "current_phase": 2 },
+      "expected": { "new_phase": 3 }
+    },
+    {
+      "name": "lotus_orchestrate_returns_valid_result",
+      "description": "lotus_orchestrate returns non-negative total_time_ms",
+      "input": {},
+      "expected": { "total_time_ms_gte": 0 }
+    },
+    {
+      "name": "lotus_observe_returns_context",
+      "description": "observe_state returns context with valid timestamp",
+      "input": {},
+      "expected": { "timestamp_gte": 0 }
+    },
+    {
+      "name": "lotus_system_health_in_valid_range",
+      "description": "System health is between 0.0 and 1.0",
+      "input": {},
+      "expected": { "min": 0.0, "max": 1.0 }
+    },
+    {
+      "name": "lotus_generate_plan_good_scales_up",
+      "description": "QUALITY_GOOD evaluation produces DELTA_SCALE_UP plan",
+      "input": {
+        "evaluation": { "quality": 1, "success_count": 0, "partial_count": 0, "failure_count": 0, "confidence": 1.0 }
+      },
+      "expected": { "delta_type": 0 }
+    },
+    {
+      "name": "lotus_generate_plan_bad_scales_down",
+      "description": "QUALITY_BAD evaluation produces DELTA_SCALE_DOWN plan",
+      "input": {
+        "evaluation": { "quality": 3, "success_count": 0, "partial_count": 0, "failure_count": 0, "confidence": 1.0 }
+      },
+      "expected": { "delta_type": 1 }
+    },
+    {
+      "name": "lotus_generate_plan_unknown_waits",
+      "description": "QUALITY_UNKNOWN evaluation produces DELTA_WAIT plan",
+      "input": {
+        "evaluation": { "quality": 0, "success_count": 0, "partial_count": 0, "failure_count": 0, "confidence": 0.0 }
+      },
+      "expected": { "delta_type": 3 }
+    },
+    {
+      "name": "lotus_execute_wait_succeeds",
+      "description": "Executing DELTA_WAIT always succeeds",
+      "input": { "plan": { "delta_type": 3, "target_resource": 0, "target_value": 0 } },
+      "expected": { "success": true }
+    },
+    {
+      "name": "lotus_scale_up_succeeds",
+      "description": "scale_up_resources returns true",
+      "input": {},
+      "expected": { "result": true }
+    },
+    {
+      "name": "lotus_scale_down_succeeds",
+      "description": "scale_down_resources returns true",
+      "input": {},
+      "expected": { "result": true }
+    },
+    {
+      "name": "lotus_set_parameter_updates_policy",
+      "description": "set_parameter writes to policy_state at target_resource",
+      "input": { "plan": { "delta_type": 2, "target_resource": 5, "target_value": 42 } },
+      "expected": { "policy_state_5": 42 }
+    },
+    {
+      "name": "lotus_spawn_zero_agents",
+      "description": "Spawning 0 agents returns true",
+      "input": { "agent_type": 0, "count": 0 },
+      "expected": { "result": true }
+    },
+    {
+      "name": "lotus_spawn_agents",
+      "description": "Spawning 3 agents of type 1 returns true",
+      "input": { "agent_type": 1, "count": 3 },
+      "expected": { "result": true }
+    },
+    {
+      "name": "lotus_episode_id_increments",
+      "description": "current_episode increments after record_episode",
+      "input": {},
+      "expected": { "id_after": "id_before + 1" }
+    },
+    {
+      "name": "lotus_recall_returns_window_size",
+      "description": "recall_episodes.count <= POLICY_WINDOW_SIZE",
+      "input": {},
+      "expected": { "max_count": 10 }
+    },
+    {
+      "name": "lotus_phase_timeout_false_initially",
+      "description": "check_phase_timeout is false right after phase start",
+      "input": {},
+      "expected": { "timeout": false }
+    }
+  ],
+  "invariants": [
+    {
+      "name": "lotus_num_phases_constant",
+      "condition": "NUM_PHASES == 6"
+    },
+    {
+      "name": "lotus_phase_constants_sequential",
+      "condition": "PHASE_OBSERVE == 0 && PHASE_RECALL == 1 && PHASE_EVALUATE == 2 && PHASE_PLAN == 3 && PHASE_ACT == 4 && PHASE_RECORD == 5"
+    },
+    {
+      "name": "lotus_episode_buffer_size_constant",
+      "condition": "EPISODE_BUFFER_SIZE == 100"
+    },
+    {
+      "name": "lotus_policy_window_size_constant",
+      "condition": "POLICY_WINDOW_SIZE == 10"
+    },
+    {
+      "name": "lotus_quality_level_in_range",
+      "condition": "quality >= 0 && quality <= 3"
+    },
+    {
+      "name": "lotus_outcome_type_in_range",
+      "condition": "outcome >= 0 && outcome <= 4"
+    },
+    {
+      "name": "lotus_delta_type_in_range",
+      "condition": "delta >= 0 && delta <= 3"
+    },
+    {
+      "name": "lotus_phase_current_is_valid",
+      "condition": "current_phase >= 0 && current_phase < NUM_PHASES"
+    },
+    {
+      "name": "lotus_phase_transition_increments",
+      "condition": "new_phase == (old_phase + 1) % NUM_PHASES"
+    },
+    {
+      "name": "lotus_system_health_in_bounds",
+      "condition": "get_system_health() >= 0.0 && get_system_health() <= 1.0"
+    },
+    {
+      "name": "lotus_timestamp_non_decreasing",
+      "condition": "get_timestamp() at t2 >= get_timestamp() at t1"
+    },
+    {
+      "name": "lotus_quality_good_when_high_success_rate",
+      "condition": "success_ratio >= 0.7 => quality == QUALITY_GOOD"
+    },
+    {
+      "name": "lotus_quality_bad_when_high_failure_rate",
+      "condition": "failure_ratio >= 0.5 => quality == QUALITY_BAD"
+    },
+    {
+      "name": "lotus_plan_consistency",
+      "condition": "quality == QUALITY_GOOD => plan.delta_type == DELTA_SCALE_UP"
+    },
+    {
+      "name": "lotus_episode_buffer_indices_valid",
+      "condition": "current_episode % EPISODE_BUFFER_SIZE < EPISODE_BUFFER_SIZE"
+    },
+    {
+      "name": "lotus_policy_state_size_256",
+      "condition": "policy_state.len == 256"
+    },
+    {
+      "name": "lotus_eval_window_size_matches_policy_window",
+      "condition": "eval_window.len == POLICY_WINDOW_SIZE"
+    },
+    {
+      "name": "lotus_recall_returns_valid_indices",
+      "condition": "all recalled indices < EPISODE_BUFFER_SIZE"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "module": "git_commands",
+  "ring": 38,
+  "spec_path": "compiler/cli/git.t27",
+  "spec_hash": "sha256:a2ed7ccff916e322f238d01ec8a8ba31e0c24cbcd2bcabf7c36c190f8ad74c2e",
+  "gen_hash_zig": "sha256:dc4b4f8c8e90bc4c9fc01a7df7b0b20626e91e70de3dbe9eb9fa6140b1120948",
+  "gen_hash_c": "sha256:a7d789156221f886a538016ec085ae6b1b5aaf15e6bd001eb57d215604809faf",
+  "conformance_hash": "sha256:60367bbe81ba914ea6d797e3e0273ee05253c533f8ef263852a6fb95bca6ecb1",
+  "tests": {
+    "status": "passed",
+    "count": 12,
+    "invariants": 9,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

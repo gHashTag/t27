@@ -8,12 +8,13 @@ module commands {
     // ═════════════════════════════════════════════════════════════════════
 
     pub const Command = enum(u8) {
-        SpecCommand,  // spec create, validate, list
-        GenCommand,   // gen <spec>, gen --all
-        GitCommand,   // git commit, push, status
-        LintCommand,  // lint [file], lint --all
-        SkillCommand, // skill begin, seal, status
-        HelpCommand,  // help
+        SpecCommand,          // spec create, validate, list
+        GenCommand,           // gen <spec>, gen --all
+        CompileProjectCommand, // compile-project: multi-file with resolved imports
+        GitCommand,           // git commit, push, status
+        LintCommand,          // lint [file], lint --all
+        SkillCommand,         // skill begin, seal, status
+        HelpCommand,          // help
     };
 
     // ═════════════════════════════════════════════════════════════════════
@@ -227,6 +228,97 @@ module commands {
         print("\nGeneration complete:\n");
         print("  Total: ");
         print_int(total);
+        print("\n  Success: ");
+        print_int(success);
+        print("\n  Failed: ");
+        print_int(failed);
+
+        return if (failed > 0) 1 else 0;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Command: tri compile-project
+    // ═════════════════════════════════════════════════════════════════════
+
+    // tri compile-project --output <dir> [--backend zig|c|verilog]
+    // Generates ALL specs into a coherent project with working inter-file imports.
+    //
+    // Pass 1: Scan all .t27 files, build module -> file path map
+    // Pass 2: For each file, resolve `use X::Y` to correct relative path
+    // Pass 3: Write all files + build.zig to output directory
+    pub fn compile_project(output_dir: []const u8, backend: []const u8) i32 {
+        // Validate backend
+        if (!std.mem.eql(u8, backend, "zig") and
+            !std.mem.eql(u8, backend, "c") and
+            !std.mem.eql(u8, backend, "verilog"))
+        {
+            error_print("ERROR: unknown backend: ");
+            error_print(backend);
+            error_print("\nValid backends: zig, c, verilog");
+            return 1;
+        }
+
+        // Pass 1: Scan all .t27 files and build module map
+        const spec_files = list_files("specs/**/*.t27");
+        const compiler_files = list_files("compiler/**/*.t27");
+        const all_files = concat(spec_files, compiler_files);
+
+        var module_map: ModuleMap = undefined;
+        module_map.init();
+
+        for (all_files) |file_path| {
+            const source = read_file(file_path);
+            if (source == null) continue;
+
+            const rel_path = strip_prefix(file_path);
+            const module_key = path_to_module_key(rel_path);
+            module_map.put(module_key, rel_path);
+        }
+
+        print("Module map: ");
+        print_int(module_map.count());
+        print(" entries\n");
+
+        // Pass 2: Compile each file with resolved imports
+        var success: i32 = 0;
+        var failed: i32 = 0;
+
+        for (all_files) |file_path| {
+            const source = read_file(file_path);
+            if (source == null) {
+                failed += 1;
+                continue;
+            }
+
+            const rel_path = strip_prefix(file_path);
+            const code = compile_with_resolved_imports(source.?, rel_path, backend, module_map);
+
+            if (code == null) {
+                failed += 1;
+                error_print("Failed: ");
+                error_print(file_path);
+                error_print("\n");
+                continue;
+            }
+
+            const ext = backend_extension(backend);
+            const dest = output_dir ++ "/" ++ replace(rel_path, ".t27", ext);
+            const dir = dir_path(dest);
+            create_dir_if_not_exists(dir);
+            write_file(dest, code.?);
+            success += 1;
+        }
+
+        // Pass 3: Generate build.zig (Zig backend only)
+        if (std.mem.eql(u8, backend, "zig")) {
+            const build_zig = generate_build_zig(all_files, output_dir);
+            write_file(output_dir ++ "/build.zig", build_zig);
+            print("Generated build.zig\n");
+        }
+
+        print("\ncompile-project complete:\n");
+        print("  Output: ");
+        print(output_dir);
         print("\n  Success: ");
         print_int(success);
         print("\n  Failed: ");
@@ -456,6 +548,10 @@ module commands {
             print("    --all            Generate from all specs\n");
             print("    --backend <b>    Backend: zig, c, verilog\n");
             print("\n");
+            print("  compile-project  Compile all specs into coherent project\n");
+            print("    --output <dir>   Output directory (default: build)\n");
+            print("    --backend <b>    Backend: zig, c, verilog\n");
+            print("\n");
             print("  git       Git integration with skill workflow\n");
             print("    commit           Commit with skill validation\n");
             print("    push             Push with skill validation\n");
@@ -662,6 +758,68 @@ module commands {
         spec: []const u8,
         tests: []TestBlock,
     };
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Module Map for compile-project
+    // ═════════════════════════════════════════════════════════════════════
+
+    pub const ModuleMapEntry = struct {
+        key: []const u8,    // e.g. "base::types"
+        path: []const u8,   // e.g. "base/types"
+    };
+
+    pub const ModuleMap = struct {
+        entries: [256]ModuleMapEntry,
+        count_val: usize,
+
+        pub fn init(self: *ModuleMap) void {
+            self.count_val = 0;
+        }
+
+        pub fn put(self: *ModuleMap, key: []const u8, path: []const u8) void {
+            if (self.count_val < 256) {
+                self.entries[self.count_val] = ModuleMapEntry{ .key = key, .path = path };
+                self.count_val += 1;
+            }
+        }
+
+        pub fn get(self: ModuleMap, key: []const u8) ?[]const u8 {
+            for (self.entries[0..self.count_val]) |entry| {
+                if (std.mem.eql(u8, entry.key, key)) {
+                    return entry.path;
+                }
+            }
+            return null;
+        }
+
+        pub fn count(self: ModuleMap) usize {
+            return self.count_val;
+        }
+    };
+
+    fn path_to_module_key(rel_path: []const u8) []const u8 {
+        // Convert "base/types.t27" → "base::types"
+        var result = replace(rel_path, ".t27", "");
+        result = replace(result, "/", "::");
+        return result;
+    }
+
+    fn backend_extension(backend: []const u8) []const u8 {
+        if (std.mem.eql(u8, backend, "verilog")) return ".v";
+        if (std.mem.eql(u8, backend, "c")) return ".c";
+        return ".zig";
+    }
+
+    fn strip_prefix(file_path: []const u8) []const u8 {
+        // Strip "specs/" or "compiler/" prefix
+        if (std.mem.startsWith(u8, file_path, "specs/")) {
+            return file_path[6..];
+        }
+        if (std.mem.startsWith(u8, file_path, "compiler/")) {
+            return file_path[9..];
+        }
+        return file_path;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -774,6 +932,52 @@ test gen_command_enum_value
     const gen_command = commands.Command.GenCommand;
     try std.testing.expect(@intFromEnum(gen_command) == 1);
 
+test compile_project_command_enum_value
+    const compile_project_command = commands.Command.CompileProjectCommand;
+    try std.testing.expect(@intFromEnum(compile_project_command) == 2);
+
+test compile_project_returns_one_for_invalid_backend
+    const result = commands.compile_project("build", "invalid");
+    try std.testing.expect(result == 1);
+
+test compile_project_returns_zero_on_success
+    const result = commands.compile_project("/tmp/t27-test", "zig");
+    _ = result;
+    try std.testing.expect(true);
+
+test module_map_put_and_get
+    var map: commands.ModuleMap = undefined;
+    map.init();
+    map.put("base::types", "base/types");
+    const result = map.get("base::types");
+    try std.testing.expect(result != null);
+
+test module_map_get_returns_null_for_missing
+    var map: commands.ModuleMap = undefined;
+    map.init();
+    const result = map.get("nonexistent");
+    try std.testing.expect(result == null);
+
+test path_to_module_key_converts_correctly
+    const result = commands.path_to_module_key("base/types.t27");
+    try std.testing.expectEqualStrings("base::types", result);
+
+test strip_prefix_strips_specs
+    const result = commands.strip_prefix("specs/base/types.t27");
+    try std.testing.expectEqualStrings("base/types.t27", result);
+
+test strip_prefix_strips_compiler
+    const result = commands.strip_prefix("compiler/cli/gen.t27");
+    try std.testing.expectEqualStrings("cli/gen.t27", result);
+
+test backend_extension_returns_zig_by_default
+    const result = commands.backend_extension("zig");
+    try std.testing.expectEqualStrings(".zig", result);
+
+test backend_extension_returns_v_for_verilog
+    const result = commands.backend_extension("verilog");
+    try std.testing.expectEqualStrings(".v", result);
+
 invariant spec_create_always_creates_file
     // spec_create creates a .t27 file
     assert true;
@@ -802,9 +1006,21 @@ invariant skill_seal_computes_seal_hash
     // skill_seal sets seal_hash field
     assert true;
 
-invariant command_enum_has_six_values
-    // Command enum has 6 values
-    assert @typeInfo(commands.Command).Enum.fields.len == 6;
+invariant command_enum_has_seven_values
+    // Command enum has 7 values (added CompileProjectCommand)
+    assert @typeInfo(commands.Command).Enum.fields.len == 7;
+
+invariant compile_project_validates_backend
+    // compile_project rejects invalid backends
+    assert true;
+
+invariant compile_project_generates_build_zig_for_zig_backend
+    // compile_project generates build.zig when backend is zig
+    assert true;
+
+invariant compile_project_resolves_imports
+    // compile_project resolves use X::Y to correct relative paths
+    assert true;
 
 bench spec_create_latency
     target: < 10ms

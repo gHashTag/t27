@@ -1,0 +1,21 @@
+{
+  "module": "GF32",
+  "ring": 27,
+  "spec_path": "specs/numeric/gf32.t27",
+  "spec_hash": "sha256:05d7ba7bf4f27fee619f68e3876fe0353d489cc7e80085c8278f91b6431a19b8",
+  "gen_hash_zig": "sha256:97c8054f72e0ce797c3ae26225eec1aa9b5eadabb20b16a0530feb47ee9f6819",
+  "gen_hash_c": "sha256:bf268fe2b9d0465c61841bbbb1a49247d31634e6384e74c435bed6bce5ac4204",
+  "gen_hash_verilog": "sha256:224b4a0258c81c6e2397d89b737187086ce9ea2fc4f4b7b40a1d5e2d4ecebf54",
+  "conformance_hash": "sha256:16d88fccc31aab27257a4e41f1eb91007a5e3ea192ac1791ba4f2cc443ba026b",
+  "tests": {
+    "status": "passed",
+    "count": 12,
+    "invariants": 8,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}

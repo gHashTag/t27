@@ -1,0 +1,20 @@
+{
+  "module": "gen_commands",
+  "ring": 38,
+  "spec_path": "compiler/cli/gen.t27",
+  "spec_hash": "sha256:f424b8fd08858a0bac83c2ba6a885446600819c0b79a838163c5b51b375413c3",
+  "gen_hash_zig": "sha256:936d991ee8490661802d84230d2d61a529dc50acc36b6cf6dd411e81770af12f",
+  "gen_hash_c": "sha256:33b2733074396a01fae2aba8780c3ad6322368b2dad9b7453499effffef16481",
+  "conformance_hash": "sha256:c363ee2a591a6533ac67153d9139a0382f5976aefd5959145ef655175f2c878e",
+  "tests": {
+    "status": "passed",
+    "count": 5,
+    "invariants": 5,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

@@ -1,0 +1,475 @@
+// t27/specs/ar/explainability.t27
+// XAI Interface for CLARA Explainability (≤10 step explanations)
+// φ² + φ⁻² = 3 | TRINITY
+
+module Explainability {
+    use base::types;
+    use ar::ternary_logic;   // K_FALSE, K_UNKNOWN, K_TRUE
+    use ar::proof_trace;      // ProofTrace, DerivationStep, MAX_STEPS=10
+    use ar::datalog_engine;   // HornClause, DatalogEngine
+    use numeric::gf16;       // GF16 for confidence
+
+    // ═══════════════════════════════════════════════════════
+    // CONSTANTS
+    // ═══════════════════════════════════════════════════════
+    const MAX_SUMMARY_SIZE : u8 = 5;  // Top N facts for summary
+    const MAX_PREDICATE_NAME : u8 = 64;  // Max bytes for predicate name
+
+    // ═══════════════════════════════════════════════════════
+    // TYPES
+    // ═══════════════════════════════════════════════════════
+    struct FactId {
+        predicate : [MAX_PREDICATE_NAME]u8,
+        args      : [3]Trit,
+    }
+
+    struct Explanation {
+        trace           : ProofTrace,
+        style           : FormatStyle,
+        human_readable  : [512]u8,        // Formatted explanation text
+        confidence      : GF16,           // GF16 encoded confidence (NUMERIC-STANDARD-001)
+        step_count      : u8,
+    }
+
+    struct Summary {
+        top_facts      : [MAX_SUMMARY_SIZE]FactId,
+        top_confidence : [MAX_SUMMARY_SIZE]GF16,  // GF16 encoded (NUMERIC-STANDARD-001)
+        fact_count     : u8,
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    // explain_fact(engine: *DatalogEngine, fact_id: FactId, style: FormatStyle) -> Explanation
+    // Generate an explanation for a single fact by querying the datalog engine
+    // and building a proof trace of its derivation
+    // Returns Explanation with trace, formatted text, and GF16 confidence
+    fn explain_fact(engine: *DatalogEngine, fact_id: FactId, style: FormatStyle) -> Explanation {
+        var trace = create_trace();
+        var total_confidence = gf16_encode_f32(1.0);
+
+        // Query engine for fact derivation
+        var found : bool = false;
+        var i : usize = 0;
+        while (i < engine.fact_count) {
+            const fact = engine.facts[i];
+            // Simple matching: compare predicate hash (name) and args
+            if (horn_clause_matches(fact_id, fact)) {
+                found = true;
+
+                // Build derivation steps from rules that led to this fact
+                var j : usize = 0;
+                while (j < engine.rule_count) {
+                    const rule = engine.rules[j];
+                    const step = DerivationStep{
+                        .step_number  = @intCast(trace.step_count),
+                        .rule_name    = "derived_rule",
+                        .input_facts  = [3]Trit{ rule.antecedent, K_UNKNOWN, K_UNKNOWN },
+                        .output_fact  = fact.args[0],
+                        .confidence   = gf16_encode_f32(0.95),  // Default confidence per rule
+                        .k3_value     = fact.args[0],
+                    };
+
+                    const added = append_step(&trace, step);
+                    if (!added) {
+                        break;  // MAX_STEPS reached
+                    }
+
+                    // Update total confidence via GF16 multiplication
+                    const current_f = gf16_decode_to_f32(total_confidence);
+                    const step_f = gf16_decode_to_f32(step.confidence);
+                    total_confidence = gf16_encode_f32(current_f * step_f);
+
+                    j = j + 1;
+                }
+                break;
+            }
+            i = i + 1;
+        }
+
+        // If fact not found, create minimal explanation
+        if (!found) {
+            const empty_step = DerivationStep{
+                .step_number  = 0,
+                .rule_name    = "unknown",
+                .input_facts  = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN },
+                .output_fact  = K_UNKNOWN,
+                .confidence   = gf16_encode_f32(0.0),
+                .k3_value     = K_UNKNOWN,
+            };
+            _ = append_step(&trace, empty_step);
+            total_confidence = gf16_encode_f32(0.0);
+        }
+
+        // Format the trace
+        const formatted = format(trace, style);
+
+        // Build explanation struct
+        var explanation : Explanation = undefined;
+        explanation.trace = trace;
+        explanation.style = style;
+        explanation.confidence = total_confidence;
+        explanation.step_count = trace.step_count;
+
+        // Copy formatted text to human_readable
+        var k : usize = 0;
+        while (k < formatted.len and k < 512) {
+            explanation.human_readable[k] = formatted[k];
+            k = k + 1;
+        }
+
+        return explanation;
+    }
+
+    // explain_derivation_chain(trace: ProofTrace, style: FormatStyle) -> []const u8
+    // Format a proof trace as a human-readable derivation chain
+    // Delegates to the format function from proof_trace module
+    fn explain_derivation_chain(trace: ProofTrace, style: FormatStyle) -> []const u8 {
+        return format(trace, style);
+    }
+
+    // summarize(engine: *DatalogEngine, top_n: u8) -> Summary
+    // Generate a summary of top N facts by confidence
+    // Scans engine facts, sorts by confidence, returns top results
+    fn summarize(engine: *DatalogEngine, top_n: u8) -> Summary {
+        var summary : Summary = undefined;
+        summary.fact_count = if (top_n > MAX_SUMMARY_SIZE) MAX_SUMMARY_SIZE else top_n;
+
+        // Initialize with default values
+        var i : u8 = 0;
+        while (i < MAX_SUMMARY_SIZE) {
+            summary.top_facts[i] = FactId{
+                .predicate = [0]u8 ** MAX_PREDICATE_NAME,
+                .args = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN },
+            };
+            summary.top_confidence[i] = gf16_encode_f32(0.0);
+            i = i + 1;
+        }
+
+        // Extract facts with computed confidence
+        // For each fact, compute confidence as product of applicable rules
+        var fact_indices : [MAX_SUMMARY_SIZE]usize = undefined;
+        var fact_confs : [MAX_SUMMARY_SIZE]f32 = undefined;
+
+        var j : usize = 0;
+        while (j < engine.fact_count and j < MAX_SUMMARY_SIZE) {
+            fact_indices[j] = j;
+            // Compute confidence for this fact
+            var conf_f : f32 = 1.0;
+            var k : usize = 0;
+            while (k < engine.rule_count and conf_f > 0.0) {
+                const rule = engine.rules[k];
+                const fact = engine.facts[j];
+                // Simple heuristic: if rule's consequent matches fact
+                if (rule.consequent == fact.args[0]) {
+                    conf_f = conf_f * 0.9;  // Each matching rule contributes
+                }
+                k = k + 1;
+            }
+            fact_confs[j] = conf_f;
+            j = j + 1;
+        }
+
+        // Sort by confidence (simple bubble sort for bounded size)
+        var m : u8 = 0;
+        while (m < summary.fact_count - 1) {
+            var n : u8 = 0;
+            while (n < summary.fact_count - m - 1) {
+                if (fact_confs[n] < fact_confs[n + 1]) {
+                    // Swap
+                    const temp_idx = fact_indices[n];
+                    fact_indices[n] = fact_indices[n + 1];
+                    fact_indices[n + 1] = temp_idx;
+
+                    const temp_conf = fact_confs[n];
+                    fact_confs[n] = fact_confs[n + 1];
+                    fact_confs[n + 1] = temp_conf;
+                }
+                n = n + 1;
+            }
+            m = m + 1;
+        }
+
+        // Populate summary
+        var p : u8 = 0;
+        while (p < summary.fact_count) {
+            const fact_idx = fact_indices[p];
+            summary.top_facts[p].args[0] = engine.facts[fact_idx].args[0];
+            summary.top_facts[p].args[1] = engine.facts[fact_idx].args[1];
+            summary.top_facts[p].args[2] = engine.facts[fact_idx].args[2];
+            // Copy predicate name (simplified)
+            summary.top_facts[p].predicate[0] = @intCast(engine.facts[fact_idx].name);
+            summary.top_confidence[p] = gf16_encode_f32(fact_confs[p]);
+            p = p + 1;
+        }
+
+        return summary;
+    }
+
+    // generate_explanation(engine: *DatalogEngine, query: HornClause, style: FormatStyle) -> Explanation
+    // Full pipeline: query engine → build trace → format → return explanation
+    // This is the main XAI entry point for CLARA explainability
+    fn generate_explanation(engine: *DatalogEngine, query: HornClause, style: FormatStyle) -> Explanation {
+        var fact_id : FactId = undefined;
+        fact_id.args[0] = query.args[0];
+        fact_id.args[1] = query.args[1];
+        fact_id.args[2] = query.args[2];
+        fact_id.predicate = [0]u8 ** MAX_PREDICATE_NAME;
+        fact_id.predicate[0] = @intCast(query.name);
+
+        return explain_fact(engine, fact_id, style);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // UTILITY FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    // horn_clause_matches(fact_id: FactId, clause: HornClause) -> bool
+    // Check if a FactId matches a HornClause
+    fn horn_clause_matches(fact_id: FactId, clause: HornClause) -> bool {
+        var i : u8 = 0;
+        while (i < 3) {
+            if (fact_id.args[i] != clause.args[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        // Match on first byte of predicate as name hash
+        return fact_id.predicate[0] == @intCast(clause.name);
+    }
+
+    // explanation_get_confidence_text(explanation: Explanation) -> []const u8
+    // Get human-readable confidence text from GF16 value
+    fn explanation_get_confidence_text(explanation: Explanation) -> []const u8 {
+        const conf_f = gf16_decode_to_f32(explanation.confidence);
+        var buffer : [32]u8 = undefined;
+
+        if (conf_f >= 0.9) {
+            return "high (>0.9)";
+        } else if (conf_f >= 0.7) {
+            return "medium-high (0.7-0.9)";
+        } else if (conf_f >= 0.5) {
+            return "medium (0.5-0.7)";
+        } else if (conf_f >= 0.3) {
+            return "low-medium (0.3-0.5)";
+        } else if (conf_f > 0.0) {
+            return "low (<0.3)";
+        } else {
+            return "unknown (0.0)";
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // TESTS
+    // ═══════════════════════════════════════════════════════
+    test explain_empty_fact_returns_unknown
+        given engine = datalog_init()
+        and fact_id = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{ K_UNKNOWN, K_UNKNOWN, K_UNKNOWN } }
+        when result = explain_fact(&engine, fact_id, .natural)
+        then result.step_count == 1
+        and gf16_decode_to_f32(result.confidence) ≈ 0.0 (±1e-6)
+
+    test natural_format_contains_rule_names
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        when add_rule(&engine, rule) == true
+        and add_fact(&engine, fact) == true
+        and result = explain_fact(&engine, FactId{ .predicate = [1]u8 ++ [0]u8 ** 63, .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN } }, .natural)
+        then result.style == .natural
+
+    test compact_format_single_line_no_newlines
+        given engine = datalog_init()
+        and fact_id = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN } }
+        and result = explain_fact(&engine, fact_id, .compact)
+        then result.style == .compact
+
+    test formal_format_fitch_style
+        given engine = datalog_init()
+        and fact_id = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN } }
+        and result = explain_fact(&engine, fact_id, .fitch)
+        then result.style == .fitch
+
+    test chain_10_steps_not_truncated
+        given engine = datalog_init()
+        and fact_id = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN } }
+        and result = explain_fact(&engine, fact_id, .natural)
+        then result.step_count <= MAX_STEPS
+        and result.trace.terminated == false
+
+    test chain_11_steps_terminated_true
+        given engine = datalog_init()
+        // Add 11 rules to trigger MAX_STEPS limit
+        var i : usize = 0;
+        while (i < 11) {
+            _ = add_rule(&engine, Rule{ .antecedent = K_TRUE, .consequent = K_TRUE });
+            i = i + 1;
+        }
+        when fact_id = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN } }
+        and result = explain_fact(&engine, fact_id, .natural)
+        then result.step_count == MAX_STEPS
+        and result.trace.terminated == true
+
+    test summarize_returns_top_n_facts
+        given engine = datalog_init()
+        and fact1 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and fact2 = HornClause{ .name = 2, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        when add_fact(&engine, fact1) == true
+        and add_fact(&engine, fact2) == true
+        and result = summarize(&engine, 2)
+        then result.fact_count == 2
+
+    test explain_derivation_chain_delegates_to_format
+        given trace = create_trace()
+        and style = .natural
+        when result = explain_derivation_chain(trace, style)
+        then result != undefined
+
+    test generate_explanation_full_pipeline
+        given engine = datalog_init()
+        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
+        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        when add_rule(&engine, rule) == true
+        and add_fact(&engine, fact) == true
+        and query = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
+        and result = generate_explanation(&engine, query, .natural)
+        then result.step_count >= 1
+        and gf16_decode_to_f32(result.confidence) >= 0.0
+
+    test confidence_gf16_encoding_roundtrip
+        given engine = datalog_init()
+        and fact_id = FactId{ .predicate = [0]u8 ** 64, .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN } }
+        when result = explain_fact(&engine, fact_id, .natural)
+        then conf_f = gf16_decode_to_f32(result.confidence)
+        and 0.0 <= conf_f and conf_f <= 1.0
+
+    test explanation_get_confidence_text_categories
+        given explanation = Explanation{
+            .trace = create_trace(),
+            .style = .natural,
+            .human_readable = [0]u8 ** 512,
+            .confidence = gf16_encode_f32(0.95),
+            .step_count = 1,
+        }
+        when text = explanation_get_confidence_text(explanation)
+        then text contains "high"
+
+    // ═══════════════════════════════════════════════════════
+    // INVARIANTS
+    // ═══════════════════════════════════════════════════════
+    invariant explanation_bounded_by_clara
+        for all Explanation e: e.step_count <= MAX_STEPS
+
+    invariant confidence_in_unit_interval
+        for all Explanation e:
+            const val = gf16_decode_to_f32(e.confidence);
+            0.0 <= val and val <= 1.0
+
+    invariant summary_size_respects_limit
+        for all Summary s: s.fact_count <= MAX_SUMMARY_SIZE
+
+    invariant terminated_iff_max_steps
+        for all Explanation e:
+            e.trace.terminated == (e.step_count == MAX_STEPS)
+
+    invariant summary_confidence_sorted
+        for all Summary s, indices i < s.fact_count - 1:
+            gf16_decode_to_f32(s.top_confidence[i]) >=
+            gf16_decode_to_f32(s.top_confidence[i + 1])
+
+    // ═══════════════════════════════════════════════════════
+    // BENCHES
+    // ═══════════════════════════════════════════════════════
+    bench explain_fact_latency
+        // Measure: cycles for explain_fact with 10 rules
+        // Target: < 1000 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        for (0..10) |i| {
+            _ = add_rule(&engine, Rule{
+                .antecedent = if (i % 2 == 0) K_TRUE else K_FALSE,
+                .consequent = K_TRUE,
+            });
+        }
+        const fact = HornClause{
+            .name = 1,
+            .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7,
+            .arg_count = 1,
+        };
+        _ = add_fact(&engine, fact);
+        const fact_id = FactId{
+            .predicate = [1]u8 ++ [0]u8 ** 63,
+            .args = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN },
+        };
+        _ = explain_fact(&engine, fact_id, .natural);
+
+    bench generate_explanation_full_trace
+        // Measure: cycles for generate_explanation with MAX_STEPS
+        // Target: < 2000 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        for (0..10) |_| {
+            _ = add_rule(&engine, Rule{ .antecedent = K_TRUE, .consequent = K_TRUE });
+        }
+        const fact = HornClause{
+            .name = 1,
+            .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7,
+            .arg_count = 1,
+        };
+        _ = add_fact(&engine, fact);
+        const query = HornClause{
+            .name = 1,
+            .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7,
+            .arg_count = 1,
+        };
+        _ = generate_explanation(&engine, query, .natural);
+
+    bench summarize_50_facts
+        // Measure: cycles for summarize with 50 facts
+        // Target: < 1500 cycles
+        @setEvalBranchQuota(10000);
+        var engine = datalog_init();
+        for (0..50) |i| {
+            const t = if (i % 2 == 0) K_TRUE else K_FALSE;
+            _ = add_fact(&engine, HornClause{
+                .name = @intCast(i),
+                .args = [_]Trit{t} ++ [_]Trit{K_UNKNOWN} ** 7,
+                .arg_count = 1,
+            });
+        }
+        _ = summarize(&engine, 5);
+
+    bench explain_derivation_chain_latency
+        // Measure: cycles for explain_derivation_chain
+        // Target: < 500 cycles
+        @setEvalBranchQuota(10000);
+        var trace = create_trace();
+        for (0..10) |i| {
+            const step = DerivationStep{
+                .step_number  = @intCast(i),
+                .rule_name    = "test_rule",
+                .input_facts  = [3]Trit{ K_TRUE, K_UNKNOWN, K_UNKNOWN },
+                .output_fact  = K_TRUE,
+                .confidence   = gf16_encode_f32(0.9),
+                .k3_value     = K_TRUE,
+            };
+            _ = append_step(&trace, step);
+        }
+        _ = explain_derivation_chain(trace, .natural);
+
+    bench explanation_get_confidence_text_latency
+        // Measure: cycles for confidence text extraction
+        // Target: < 100 cycles
+        @setEvalBranchQuota(10000);
+        var explanation = Explanation{
+            .trace = create_trace(),
+            .style = .natural,
+            .human_readable = [0]u8 ** 512,
+            .confidence = gf16_encode_f32(0.85),
+            .step_count = 1,
+        };
+        for (0..1000) |_| {
+            _ = explanation_get_confidence_text(explanation);
+        }
+}

@@ -1,0 +1,349 @@
+// Sandbox Module Specification
+// Source of truth for Railway sandbox lifecycle management
+// PHI LOOP: spec → gen → test → verdict
+//
+// T27 Constitutional Law (SOUL.md Article II): Every spec MUST have tests.
+// Sealed: 2026-04-04T22:30:00Z
+// Actor: agent:perplexity-computer
+// TRI Version: 0.1.0
+
+spec sandbox {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Constants
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const MAX_SESSIONS         = 100
+    const HEALTH_TIMEOUT_MS    = 3000
+    const STARTUP_TIMEOUT_MS   = 90000
+    const DEFAULT_PORT         = 8080
+    const HEALTH_POLL_INTERVAL = 5000   // ms between health check polls
+    const MAX_ACCOUNTS         = 10     // max Railway accounts in pool
+    const SESSION_NAME_PREFIX  = "sandbox-"
+    const INTERNAL_HOST_SUFFIX = ".railway.internal"
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Types
+    // ─────────────────────────────────────────────────────────────────────────
+
+    type SessionStatus = enum {
+        Starting,       // Service created in Railway, container spinning up
+        Active,         // Health check passed, ready to proxy traffic
+        Failed,         // Startup timed out or health check permanently failed
+        Terminating,    // Delete requested, Railway teardown in progress
+        Deleted         // Fully removed; record kept for audit log
+    }
+
+    type Session = struct {
+        id:                     string       // UUID v4, internal primary key
+        name:                   string       // "sandbox-<short_id>", used for DNS
+        status:                 SessionStatus
+        railway_service_id:     string       // Railway service UUID
+        railway_account_index:  u8           // Index into accounts pool (0-based)
+        task_description:       string       // Human-readable task summary
+        repo_url:               string       // Git repo cloned into container
+        branch:                 string       // Git branch checked out
+        created_at:             timestamp
+        updated_at:             timestamp
+    }
+
+    type SandboxConfig = struct {
+        image:             string   // Docker image, e.g. "ghcr.io/t27/sandbox:latest"
+        port:              u16      // Exposed container port (default DEFAULT_PORT)
+        repo_url:          string   // Git HTTPS URL
+        gh_token:          string   // GitHub token for private repos
+        anthropic_api_key: string   // Injected into container env
+        openai_api_key:    string   // Injected into container env
+    }
+
+    type RailwayAccount = struct {
+        token:           string  // Railway API token
+        project_id:      string  // Railway project UUID
+        environment_id:  string  // Railway environment UUID (e.g. "production")
+        active_sessions: u32     // Count of non-Deleted sessions on this account
+    }
+
+    type Response = struct {
+        status:  u16
+        headers: map<string, string>
+        body:    bytes
+        url:     string   // resolved upstream URL (for audit)
+    }
+
+    type Error = enum {
+        RailwayApiError(string),
+        SessionNotFound(string),
+        SessionLimitExceeded,
+        HealthCheckTimeout,
+        ProxyError(string),
+        DatabaseError(string),
+        ConfigValidationError(string)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Functions
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Create a new sandbox session on Railway.
+    // Selects least-loaded account via select_account(), creates Railway service,
+    // writes Session record with status=Starting, triggers async health polling.
+    fn create_session(config: SandboxConfig) -> Result<Session, Error>
+
+    // Gracefully delete a sandbox session.
+    // Sets status=Terminating, calls Railway delete API, then status=Deleted.
+    fn delete_session(id: string) -> Result<bool, Error>
+
+    // Retrieve a single session by internal UUID.
+    fn get_session(id: string) -> Result<Session, Error>
+
+    // List all sessions (all statuses). Ordered by created_at DESC.
+    fn list_sessions() -> Result<[]Session, Error>
+
+    // Perform a single HTTP health check against the session's internal endpoint.
+    // Returns true if HTTP 200 received within HEALTH_TIMEOUT_MS.
+    // Side effect: updates session.status to Active on first success.
+    fn check_health(session: Session) -> Result<bool, Error>
+
+    // Round-robin + least-connections hybrid: pick the account with the fewest
+    // active_sessions. Ties broken by account index (lowest index wins).
+    fn select_account(accounts: []RailwayAccount) -> RailwayAccount
+
+    // Proxy an HTTP request to the session identified by session_name.
+    // Resolves to http://<session_name>.railway.internal:<port><path>
+    fn proxy_request(session_name: string, path: string) -> Result<Response, Error>
+
+    // Internal: build the Railway internal DNS URL for a session.
+    fn internal_url(session: Session) -> string
+        = "http://" + session.name + INTERNAL_HOST_SUFFIX + ":" + session.port
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tests (REQUIRED by SOUL.md Article II — every spec must have tests)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    test create_session_returns_starting_status {
+        given config = SandboxConfig {
+            image:             "ghcr.io/t27/sandbox:latest",
+            port:              8080,
+            repo_url:          "https://github.com/test/repo.git",
+            gh_token:          "test-token",
+            anthropic_api_key: "",
+            openai_api_key:    ""
+        }
+        when session = create_session(config)
+        then session.status             == SessionStatus.Starting
+        then session.railway_service_id != ""
+        then session.name               != ""
+        then session.name               starts_with SESSION_NAME_PREFIX
+        then session.id                 matches /^[0-9a-f-]{36}$/  // UUID v4
+    }
+
+    test delete_session_transitions_to_deleted {
+        given session = create_session(default_config())
+        when result = delete_session(session.id)
+        then result == true
+        when deleted = get_session(session.id)
+        then deleted.status == SessionStatus.Deleted
+    }
+
+    test delete_nonexistent_session_returns_error {
+        given id = "00000000-0000-0000-0000-000000000000"
+        when result = delete_session(id)
+        then result == Err(SessionNotFound(id))
+    }
+
+    test health_check_updates_status_to_active {
+        given session = Session { status: SessionStatus.Starting, ... }
+        given mock_http_200_response_for(internal_url(session))
+        when healthy = check_health(session)
+        then healthy             == true
+        then session.status      == SessionStatus.Active
+        then session.updated_at  > session.created_at
+    }
+
+    test health_check_timeout_marks_failed {
+        given session = Session {
+            status:     SessionStatus.Starting,
+            created_at: now() - (STARTUP_TIMEOUT_MS + 1)  // past deadline
+        }
+        given mock_http_timeout_for(internal_url(session))
+        when healthy = check_health(session)
+        then healthy        == false
+        then session.status == SessionStatus.Failed
+    }
+
+    test health_check_within_timeout_stays_starting {
+        given session = Session {
+            status:     SessionStatus.Starting,
+            created_at: now() - 10000  // 10 s — within 90 s window
+        }
+        given mock_http_timeout_for(internal_url(session))
+        when healthy = check_health(session)
+        then healthy        == false
+        then session.status == SessionStatus.Starting  // still waiting
+    }
+
+    test round_robin_distributes_load {
+        given accounts = [
+            RailwayAccount { active_sessions: 2 },
+            RailwayAccount { active_sessions: 1 },
+            RailwayAccount { active_sessions: 3 }
+        ]
+        when selected = select_account(accounts)
+        then selected.active_sessions == 1  // picks least loaded
+    }
+
+    test round_robin_tie_broken_by_index {
+        given accounts = [
+            RailwayAccount { index: 0, active_sessions: 2 },
+            RailwayAccount { index: 1, active_sessions: 2 },
+            RailwayAccount { index: 2, active_sessions: 2 }
+        ]
+        when selected = select_account(accounts)
+        then selected.index == 0  // lowest index wins tie
+    }
+
+    test round_robin_single_account {
+        given accounts = [RailwayAccount { active_sessions: 0 }]
+        when selected = select_account(accounts)
+        then selected == accounts[0]
+    }
+
+    test proxy_resolves_to_internal_network {
+        given session_name = "sandbox-12345"
+        when target = proxy_request(session_name, "/")
+        then target.url == "http://sandbox-12345.railway.internal:8080/"
+    }
+
+    test proxy_preserves_path_and_query {
+        given session_name = "sandbox-abcde"
+        when target = proxy_request(session_name, "/api/v1/tasks?limit=10")
+        then target.url == "http://sandbox-abcde.railway.internal:8080/api/v1/tasks?limit=10"
+    }
+
+    test proxy_unknown_session_returns_error {
+        given session_name = "sandbox-nonexistent"
+        given no_session_with_name(session_name)
+        when result = proxy_request(session_name, "/")
+        then result == Err(SessionNotFound(session_name))
+    }
+
+    test list_sessions_returns_all_statuses {
+        given sessions_in_db = [
+            Session { status: Starting },
+            Session { status: Active },
+            Session { status: Deleted }
+        ]
+        when result = list_sessions()
+        then result.length == 3
+        then result contains_status Starting
+        then result contains_status Active
+        then result contains_status Deleted
+    }
+
+    test create_session_respects_max_sessions {
+        given active_count = MAX_SESSIONS
+        when result = create_session(default_config())
+        then result == Err(SessionLimitExceeded)
+    }
+
+    test config_validation_rejects_empty_image {
+        given config = SandboxConfig { image: "", ... }
+        when result = create_session(config)
+        then result == Err(ConfigValidationError("image must not be empty"))
+    }
+
+    test config_validation_rejects_invalid_repo_url {
+        given config = SandboxConfig { repo_url: "not-a-url", ... }
+        when result = create_session(config)
+        then result == Err(ConfigValidationError("repo_url must be a valid HTTPS URL"))
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Invariants
+    // ─────────────────────────────────────────────────────────────────────────
+
+    invariant session_count_bounded {
+        // Total non-Deleted sessions must never exceed MAX_SESSIONS
+        assert list_sessions()
+            .filter(s => s.status != SessionStatus.Deleted)
+            .length <= MAX_SESSIONS
+    }
+
+    invariant status_transitions_valid {
+        // Valid state machine transitions:
+        //   Starting   → Active | Failed
+        //   Active     → Terminating
+        //   Terminating→ Deleted
+        // Deleted is terminal (no further transitions allowed)
+        assert forall s: Session,
+            (s.status == Starting    => next(s.status) in [Active, Failed])     ||
+            (s.status == Active      => next(s.status) in [Terminating])         ||
+            (s.status == Terminating => next(s.status) in [Deleted])             ||
+            (s.status == Failed      => next(s.status) in [Deleted])             ||
+            (s.status == Deleted     => next(s.status) == Deleted)  // terminal
+    }
+
+    invariant railway_service_id_unique {
+        // Two non-Deleted sessions must not share the same railway_service_id
+        assert forall a: Session, b: Session,
+            a.id != b.id &&
+            a.status != Deleted &&
+            b.status != Deleted
+            => a.railway_service_id != b.railway_service_id
+    }
+
+    invariant session_name_unique {
+        // Session names used for DNS must be globally unique among live sessions
+        assert forall a: Session, b: Session,
+            a.id != b.id &&
+            a.status != Deleted &&
+            b.status != Deleted
+            => a.name != b.name
+    }
+
+    invariant account_load_consistent {
+        // active_sessions on RailwayAccount must equal actual count in DB
+        assert forall acc: RailwayAccount,
+            acc.active_sessions ==
+            list_sessions()
+                .filter(s => s.railway_account_index == acc.index && s.status != Deleted)
+                .length
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Benchmarks
+    // ─────────────────────────────────────────────────────────────────────────
+
+    bench create_session_latency {
+        measure: time for create_session(default_config())
+        target:  < 5000ms   // Railway API call (~3 s) + DB write (~50 ms)
+        warmup:  3
+        runs:    20
+        report:  p50, p95, p99
+    }
+
+    bench health_check_latency {
+        measure: time for check_health(active_session)
+        target:  < HEALTH_TIMEOUT_MS  // 3000 ms
+        warmup:  5
+        runs:    50
+        report:  p50, p95, p99
+    }
+
+    bench proxy_request_overhead {
+        measure: time for proxy_request("sandbox-bench", "/ping") excluding upstream_latency
+        target:  < 10ms     // proxy routing overhead only
+        warmup:  10
+        runs:    100
+        report:  p50, p95, p99
+    }
+
+    bench list_sessions_at_scale {
+        measure: time for list_sessions() with 100 sessions in DB
+        target:  < 50ms
+        warmup:  3
+        runs:    20
+        report:  p50, p95
+    }
+
+}

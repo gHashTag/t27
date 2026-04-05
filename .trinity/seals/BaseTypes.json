@@ -1,0 +1,21 @@
+{
+  "module": "BaseTypes",
+  "ring": 25,
+  "spec_path": "specs/base/types.t27",
+  "spec_hash": "sha256:e445b7998c9a9c41447d2fe5ccf01a622d408e62dc98886f9a40d4c17359d170",
+  "gen_hash_zig": "sha256:32e42e4b7dab6b8814daa2f3f5b134e7d8ede66d124f1f946bf3f2c1d8e75ca6",
+  "gen_hash_c": "sha256:108fdd37f9804beb5df827394484867498a263148fdef047d966e2fbb22f3835",
+  "gen_hash_verilog": "sha256:0e92cf5723270e2a5ff9faf7b35879e341dd166cd1f1828db89955839aab72af",
+  "conformance_hash": "sha256:3b60977a2e6ef7a89d9c0e7ae9c8a64cd928a2bdc65d0fd46b57baebd0e9ad39",
+  "tests": {
+    "status": "passed",
+    "count": 20,
+    "invariants": 14,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}

@@ -1,0 +1,274 @@
+{
+  "module": "DatalogEngine",
+  "spec_path": "specs/ar/datalog_engine.t27",
+  "ring": 30,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "description": "Datalog engine conformance vectors — forward chaining O(n), Horn clauses, proof traces, K3 semantics",
+  "constants": {
+    "MAX_CLAUSES": 256,
+    "MAX_ARGS": 8,
+    "MAX_ITERATIONS": 256
+  },
+  "encoding": {
+    "K_FALSE": -1,
+    "K_UNKNOWN": 0,
+    "K_TRUE": 1
+  },
+  "vectors": {
+    "modus_ponens": {
+      "description": "Modus ponens: (p->q) AND p -> q derives new fact",
+      "cases": [
+        {
+          "inputs": {
+            "rules": [{ "antecedent": 1, "consequent": 1 }],
+            "facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }]
+          },
+          "expected": {
+            "derived_count": 1,
+            "fact_count_after_solve": 2
+          }
+        }
+      ]
+    },
+    "transitivity": {
+      "description": "Transitivity: p->q, q->r, p derives r",
+      "cases": [
+        {
+          "inputs": {
+            "rules": [
+              { "antecedent": 1, "consequent": 0 },
+              { "antecedent": 0, "consequent": 1 }
+            ],
+            "facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }]
+          },
+          "expected": {
+            "derived_gte": 1,
+            "is_solved": true
+          }
+        }
+      ]
+    },
+    "chaining": {
+      "description": "Chain of rules with multiple derivations",
+      "cases": [
+        {
+          "inputs": {
+            "rules": [
+              { "antecedent": 1, "consequent": 0 },
+              { "antecedent": 0, "consequent": 1 },
+              { "antecedent": 1, "consequent": -1 }
+            ],
+            "facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }]
+          },
+          "expected": {
+            "derived_gte": 2
+          }
+        }
+      ]
+    },
+    "add_fact_duplicate_rejected": {
+      "description": "Duplicate facts are rejected, count stays at 1",
+      "cases": [
+        {
+          "inputs": {
+            "fact": { "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 },
+            "add_count": 3
+          },
+          "expected": {
+            "first_add": true,
+            "second_add": false,
+            "third_add": false,
+            "fact_count": 1
+          }
+        }
+      ]
+    },
+    "add_rule_duplicate_rejected": {
+      "description": "Duplicate rules are rejected, count stays at 1",
+      "cases": [
+        {
+          "inputs": {
+            "rule": { "antecedent": 1, "consequent": -1 },
+            "add_count": 3
+          },
+          "expected": {
+            "first_add": true,
+            "second_add": false,
+            "third_add": false,
+            "rule_count": 1
+          }
+        }
+      ]
+    },
+    "has_fact_existing": {
+      "description": "has_fact returns true for existing facts",
+      "cases": [
+        {
+          "inputs": {
+            "fact": { "name": 42, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }
+          },
+          "expected": {
+            "has_fact_after_add": true
+          }
+        }
+      ]
+    },
+    "has_fact_non_existing": {
+      "description": "has_fact returns false for non-existing facts",
+      "cases": [
+        {
+          "inputs": {
+            "fact": { "name": 99, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }
+          },
+          "expected": {
+            "has_fact_without_add": false
+          }
+        }
+      ]
+    },
+    "datalog_solve_empty_engine": {
+      "description": "Empty engine produces no new facts",
+      "cases": [
+        {
+          "inputs": { "facts": [], "rules": [] },
+          "expected": { "derived_count": 0, "fact_count": 0 }
+        }
+      ]
+    },
+    "datalog_solve_facts_only": {
+      "description": "Engine with only facts produces no derivations",
+      "cases": [
+        {
+          "inputs": {
+            "facts": [
+              { "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 },
+              { "name": 2, "args": [-1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }
+            ],
+            "rules": []
+          },
+          "expected": { "derived_count": 0, "fact_count": 2 }
+        }
+      ]
+    },
+    "horn_clause_eq_true": {
+      "description": "Identical Horn clauses are equal",
+      "cases": [
+        {
+          "inputs": {
+            "clause_a": { "name": 5, "args": [1, -1, 0, 0, 0, 0, 0, 0], "arg_count": 3 },
+            "clause_b": { "name": 5, "args": [1, -1, 0, 0, 0, 0, 0, 0], "arg_count": 3 }
+          },
+          "expected": true
+        }
+      ]
+    },
+    "horn_clause_eq_false_different_name": {
+      "description": "Horn clauses with different names are not equal",
+      "cases": [
+        {
+          "inputs": {
+            "clause_a": { "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 },
+            "clause_b": { "name": 2, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }
+          },
+          "expected": false
+        }
+      ]
+    },
+    "horn_clause_eq_false_different_args": {
+      "description": "Horn clauses with different arguments are not equal",
+      "cases": [
+        {
+          "inputs": {
+            "clause_a": { "name": 1, "args": [1, 1, 0, 0, 0, 0, 0, 0], "arg_count": 2 },
+            "clause_b": { "name": 1, "args": [1, -1, 0, 0, 0, 0, 0, 0], "arg_count": 2 }
+          },
+          "expected": false
+        }
+      ]
+    },
+    "rule_eq_true": {
+      "description": "Identical rules are equal",
+      "cases": [
+        {
+          "inputs": {
+            "rule_a": { "antecedent": 1, "consequent": -1 },
+            "rule_b": { "antecedent": 1, "consequent": -1 }
+          },
+          "expected": true
+        }
+      ]
+    },
+    "rule_eq_false": {
+      "description": "Different rules are not equal",
+      "cases": [
+        {
+          "inputs": {
+            "rule_a": { "antecedent": 1, "consequent": -1 },
+            "rule_b": { "antecedent": -1, "consequent": 1 }
+          },
+          "expected": false
+        }
+      ]
+    },
+    "reset_clears_engine": {
+      "description": "Reset clears all engine state",
+      "cases": [
+        {
+          "inputs": {
+            "pre_reset_facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }],
+            "pre_reset_rules": [{ "antecedent": 1, "consequent": -1 }],
+            "solve_before_reset": true
+          },
+          "expected": {
+            "fact_count_after_reset": 0,
+            "rule_count_after_reset": 0,
+            "is_solved_after_reset": false
+          }
+        }
+      ]
+    },
+    "is_solved_initially_false": {
+      "description": "Engine is not solved on initialization",
+      "cases": [
+        { "expected": { "is_solved": false } }
+      ]
+    },
+    "is_solved_after_solve_true": {
+      "description": "Engine is solved after datalog_solve()",
+      "cases": [
+        { "expected": { "is_solved_after_solve": true } }
+      ]
+    },
+    "forward_chain_integration": {
+      "description": "Integration with ternary_logic forward_chain derives consequent",
+      "cases": [
+        {
+          "inputs": {
+            "rules": [{ "antecedent": 1, "consequent": -1 }],
+            "facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }]
+          },
+          "expected": {
+            "derived_count": 1,
+            "note": "K_TRUE antecedent matched → derives K_FALSE consequent"
+          }
+        }
+      ]
+    }
+  },
+  "invariants": {
+    "closure": "After solve(), no new facts can be derived (fixpoint reached)",
+    "consistency": "All derived facts are logically valid given rules under K3 semantics",
+    "fact_count_non_negative": "fact_count >= 0 always",
+    "rule_count_non_negative": "rule_count >= 0 always",
+    "max_clauses_enforced": "fact_count <= MAX_CLAUSES (256) and rule_count <= MAX_CLAUSES (256)",
+    "horn_clause_eq_reflexive": "horn_clause_eq(a, a) == true for all a",
+    "horn_clause_eq_symmetric": "horn_clause_eq(a, b) == horn_clause_eq(b, a) for all a, b",
+    "horn_clause_eq_transitive": "horn_clause_eq(a, b) AND horn_clause_eq(b, c) → horn_clause_eq(a, c)",
+    "rule_eq_reflexive": "rule_eq(a, a) == true for all a",
+    "rule_eq_symmetric": "rule_eq(a, b) == rule_eq(b, a) for all a, b",
+    "rule_eq_transitive": "rule_eq(a, b) AND rule_eq(b, c) → rule_eq(a, c)",
+    "solve_idempotent": "Calling solve() multiple times has no additional effect after first",
+    "reset_cleans_state": "After reset: fact_count==0, rule_count==0, solved==false",
+    "arg_count_within_bounds": "arg_count <= MAX_ARGS (8) for all Horn clauses"
+  }
+}

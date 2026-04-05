@@ -1,0 +1,223 @@
+{
+  "module": "Explainability",
+  "spec_path": "specs/ar/explainability.t27",
+  "ring": 30,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "description": "XAI conformance vectors for CLARA — explain_fact, summarize, GF16 confidence, natural/compact/fitch formats",
+  "constants": {
+    "MAX_SUMMARY_SIZE": 5,
+    "MAX_PREDICATE_NAME": 64,
+    "MAX_STEPS": 10
+  },
+  "encoding": {
+    "K_FALSE": -1,
+    "K_UNKNOWN": 0,
+    "K_TRUE": 1,
+    "FormatStyle": {
+      "natural": 0,
+      "fitch": 1,
+      "compact": 2
+    }
+  },
+  "vectors": {
+    "explain_empty_fact_returns_unknown": {
+      "description": "Explaining a non-existent fact returns step_count=1 with zero confidence",
+      "cases": [
+        {
+          "inputs": {
+            "engine_facts": [],
+            "engine_rules": [],
+            "fact_id": {
+              "predicate": [0],
+              "args": [0, 0, 0]
+            },
+            "style": "natural"
+          },
+          "expected": {
+            "step_count": 1,
+            "confidence_f32": 0.0,
+            "tolerance": 1e-6
+          }
+        }
+      ]
+    },
+    "natural_format_contains_rule_names": {
+      "description": "Natural format explanation preserves style metadata",
+      "cases": [
+        {
+          "inputs": {
+            "engine_rules": [{ "antecedent": 1, "consequent": 1 }],
+            "engine_facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }],
+            "fact_id": {
+              "predicate": [1],
+              "args": [1, 0, 0]
+            },
+            "style": "natural"
+          },
+          "expected": {
+            "style": "natural"
+          }
+        }
+      ]
+    },
+    "compact_format_single_line_no_newlines": {
+      "description": "Compact format uses compact style",
+      "cases": [
+        {
+          "inputs": {
+            "engine_facts": [],
+            "fact_id": {
+              "predicate": [0],
+              "args": [1, 0, 0]
+            },
+            "style": "compact"
+          },
+          "expected": {
+            "style": "compact"
+          }
+        }
+      ]
+    },
+    "formal_format_fitch_style": {
+      "description": "Fitch format uses fitch style",
+      "cases": [
+        {
+          "inputs": {
+            "engine_facts": [],
+            "fact_id": {
+              "predicate": [0],
+              "args": [1, 0, 0]
+            },
+            "style": "fitch"
+          },
+          "expected": {
+            "style": "fitch"
+          }
+        }
+      ]
+    },
+    "chain_10_steps_not_truncated": {
+      "description": "Explanation with <=10 derivation steps is not truncated",
+      "cases": [
+        {
+          "inputs": {
+            "engine_rules_count": 10,
+            "engine_facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }],
+            "fact_id": {
+              "predicate": [0],
+              "args": [1, 0, 0]
+            },
+            "style": "natural"
+          },
+          "expected": {
+            "step_count_lte": 10,
+            "terminated": false
+          }
+        }
+      ]
+    },
+    "chain_11_steps_terminated_true": {
+      "description": "Explanation with >10 rules triggers MAX_STEPS termination",
+      "cases": [
+        {
+          "inputs": {
+            "engine_rules": 11,
+            "engine_facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }],
+            "fact_id": {
+              "predicate": [0],
+              "args": [1, 0, 0]
+            },
+            "style": "natural",
+            "note": "11 rules exceed MAX_STEPS=10"
+          },
+          "expected": {
+            "step_count": 10,
+            "terminated": true
+          }
+        }
+      ]
+    },
+    "summarize_returns_top_n_facts": {
+      "description": "summarize() returns exactly top_n facts sorted by confidence",
+      "cases": [
+        {
+          "inputs": {
+            "engine_facts": [
+              { "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 },
+              { "name": 2, "args": [-1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }
+            ],
+            "top_n": 2
+          },
+          "expected": {
+            "fact_count": 2
+          }
+        }
+      ]
+    },
+    "explain_derivation_chain_delegates_to_format": {
+      "description": "explain_derivation_chain delegates to format(trace, style)",
+      "cases": [
+        {
+          "inputs": {
+            "trace": { "step_count": 0 },
+            "style": "natural"
+          },
+          "expected": {
+            "returns_valid_string": true
+          }
+        }
+      ]
+    },
+    "generate_explanation_full_pipeline": {
+      "description": "Full pipeline: query engine -> build trace -> format -> return explanation",
+      "cases": [
+        {
+          "inputs": {
+            "engine_rules": [{ "antecedent": 1, "consequent": 1 }],
+            "engine_facts": [{ "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 }],
+            "query": { "name": 1, "args": [1, 0, 0, 0, 0, 0, 0, 0], "arg_count": 1 },
+            "style": "natural"
+          },
+          "expected": {
+            "step_count_gte": 1,
+            "confidence_gte_f32": 0.0
+          }
+        }
+      ]
+    },
+    "confidence_gf16_encoding_roundtrip": {
+      "description": "GF16 confidence roundtrip stays in [0, 1]",
+      "cases": [
+        {
+          "inputs": {
+            "engine_facts": [],
+            "fact_id": { "predicate": [0], "args": [1, 0, 0] },
+            "style": "natural"
+          },
+          "expected": {
+            "confidence_gte_f32": 0.0,
+            "confidence_lte_f32": 1.0
+          }
+        }
+      ]
+    },
+    "explanation_get_confidence_text_categories": {
+      "description": "Confidence text returns human-readable category strings",
+      "cases": [
+        { "confidence_f32": 0.95, "expected_contains": "high", "note": ">= 0.9" },
+        { "confidence_f32": 0.85, "expected_contains": "medium-high", "note": "0.7-0.9" },
+        { "confidence_f32": 0.60, "expected_contains": "medium", "note": "0.5-0.7" },
+        { "confidence_f32": 0.40, "expected_contains": "low-medium", "note": "0.3-0.5" },
+        { "confidence_f32": 0.10, "expected_contains": "low", "note": "< 0.3" },
+        { "confidence_f32": 0.00, "expected_contains": "unknown", "note": "== 0.0" }
+      ]
+    }
+  },
+  "invariants": {
+    "explanation_bounded_by_clara": "For all Explanation e: e.step_count <= MAX_STEPS (10)",
+    "confidence_in_unit_interval": "For all Explanation e: 0.0 <= gf16_decode_to_f32(e.confidence) <= 1.0",
+    "summary_size_respects_limit": "For all Summary s: s.fact_count <= MAX_SUMMARY_SIZE (5)",
+    "terminated_iff_max_steps": "For all Explanation e: e.trace.terminated == (e.step_count == MAX_STEPS)",
+    "summary_confidence_sorted": "For all Summary s, indices i < s.fact_count-1: top_confidence[i] >= top_confidence[i+1]"
+  }
+}

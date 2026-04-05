@@ -1,0 +1,159 @@
+{
+  "module": "TF3",
+  "spec_path": "specs/numeric/tf3.t27",
+  "ring": 26,
+  "generated_at": "2026-04-04T19:00:00Z",
+  "vectors": [
+    {
+      "name": "zero_positive",
+      "description": "Positive zero encodes to 0x00",
+      "input": { "value": 0.0 },
+      "expected": {
+        "raw": 0,
+        "decoded": 0.0,
+        "tolerance_abs": 0.0
+      }
+    },
+    {
+      "name": "zero_negative",
+      "description": "Negative zero encodes to 0x80",
+      "input": { "value": -0.0 },
+      "expected": {
+        "raw": 128,
+        "decoded": -0.0,
+        "tolerance_abs": 0.0
+      }
+    },
+    {
+      "name": "one_point_zero",
+      "description": "1.0 encodes with exp=bias, mant=0",
+      "input": { "value": 1.0 },
+      "expected": {
+        "decoded": 1.0,
+        "tolerance_abs": 0.2
+      }
+    },
+    {
+      "name": "positive_1_5",
+      "description": "1.5 roundtrip",
+      "input": { "value": 1.5 },
+      "expected": {
+        "decoded": 1.5,
+        "tolerance_abs": 0.3
+      }
+    },
+    {
+      "name": "negative_2_5",
+      "description": "-2.5 roundtrip (sign bit set)",
+      "input": { "value": -2.5 },
+      "expected": {
+        "sign": 1,
+        "decoded_negative": true,
+        "tolerance_abs": 0.5
+      }
+    },
+    {
+      "name": "clamp_to_max",
+      "description": "Values > 8 are clamped to max representable",
+      "input": { "value": 100.0 },
+      "expected": {
+        "decoded_less_than": 20.0
+      }
+    },
+    {
+      "name": "inf_positive",
+      "description": "Positive infinity encoding",
+      "input": { "raw": 112 },
+      "expected": {
+        "exp": 7,
+        "mant": 0,
+        "is_inf": true
+      }
+    },
+    {
+      "name": "inf_negative",
+      "description": "Negative infinity encoding",
+      "input": { "raw": 240 },
+      "expected": {
+        "sign": 1,
+        "exp": 7,
+        "mant": 0,
+        "is_inf": true
+      }
+    },
+    {
+      "name": "extract_sign_positive",
+      "description": "Sign extraction for positive value",
+      "input": { "raw": 0 },
+      "expected": {
+        "sign": 0
+      }
+    },
+    {
+      "name": "extract_sign_negative",
+      "description": "Sign extraction for negative value",
+      "input": { "raw": 128 },
+      "expected": {
+        "sign": 1
+      }
+    },
+    {
+      "name": "negate_flips_sign",
+      "description": "Negation flips sign bit via XOR 0x80",
+      "input": { "raw": 53 },
+      "expected": {
+        "negated_raw": 181
+      }
+    },
+    {
+      "name": "abs_clears_sign",
+      "description": "Absolute value clears sign bit via AND ~0x80",
+      "input": { "raw": 181 },
+      "expected": {
+        "abs_raw": 53
+      }
+    }
+  ],
+  "invariants": [
+    {
+      "name": "masks_cover_all_bits",
+      "assertion": "(SIGN_MASK | EXP_MASK | MANT_MASK) == 0xFF",
+      "value": true
+    },
+    {
+      "name": "exp_bias_is_3",
+      "assertion": "BIAS == 3",
+      "value": true
+    },
+    {
+      "name": "mant_bits_is_4",
+      "assertion": "MANT_BITS == 4",
+      "value": true
+    },
+    {
+      "name": "zero_pos_is_0x00",
+      "assertion": "TF3_ZERO_POS == 0x00",
+      "value": true
+    },
+    {
+      "name": "inf_pos_is_0x70",
+      "assertion": "TF3_INF_POS == 0x70",
+      "value": true
+    },
+    {
+      "name": "negate_double_negate_identity",
+      "assertion": "tf3_negate(tf3_negate(x)) == x for all x",
+      "value": true
+    },
+    {
+      "name": "abs_of_abs_identity",
+      "assertion": "tf3_abs(tf3_abs(x)) == tf3_abs(x) for all x",
+      "value": true
+    },
+    {
+      "name": "zero_is_zero",
+      "assertion": "tf3_is_zero(TF3_ZERO_POS) && tf3_is_zero(TF3_ZERO_NEG)",
+      "value": true
+    }
+  ]
+}

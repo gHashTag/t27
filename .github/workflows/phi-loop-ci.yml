@@ -1,0 +1,33 @@
+name: PHI Loop CI
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build t27c
+        working-directory: bootstrap
+        run: cargo build --release
+
+      - name: Run comprehensive test suite
+        run: bash tests/run_all.sh
+
+      - name: Validate conformance vectors
+        run: bash tests/validate_conformance.sh
+
+      - name: Validate gen headers
+        run: bash tests/validate_gen_headers.sh
+
+      - name: Verify seal coverage
+        run: |
+          SPECS=$(find specs -name '*.t27' | wc -l)
+          SEALS=$(find .trinity/seals -name '*.json' | wc -l)
+          echo "Specs: $SPECS, Seals: $SEALS"
+          echo "phi^2 + 1/phi^2 = 3 | TRINITY"

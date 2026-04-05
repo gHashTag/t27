@@ -1,0 +1,20 @@
+{
+  "module": "spec_commands",
+  "ring": 38,
+  "spec_path": "compiler/cli/spec.t27",
+  "spec_hash": "sha256:66f48663fb58c54066c3c13d0fa2afcfbfd38536ded273d84cd63bab51325b5a",
+  "gen_hash_zig": "sha256:d46c5aac04e836c25bf287d3149341312f67a047ef44438fee802f483d25b14e",
+  "gen_hash_c": "sha256:de1c83b84aec4a2abc20c1790f573eab7f541685abff9ba4389010ce66363617",
+  "conformance_hash": "sha256:d017d0b329d34f10d812bcce270f64a496a434793ae9537af793d2a799a952b0",
+  "tests": {
+    "status": "passed",
+    "count": 10,
+    "invariants": 6,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T21:30:00Z"
+}

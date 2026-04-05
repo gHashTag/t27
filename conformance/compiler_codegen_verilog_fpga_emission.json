@@ -1,0 +1,62 @@
+{
+  "module": "fpga_emission",
+  "spec_path": "compiler/codegen/verilog/fpga_emission.t27",
+  "ring": 43,
+  "generated_at": "2026-04-05T12:00:00Z",
+  "description": "FPGA emission conformance vectors -- top module, UART, SPI Verilog code generation",
+  "constants": {},
+  "vectors": {
+    "emit_fpga_top": {
+      "description": "Top-level FPGA module emission",
+      "cases": [
+        {
+          "id": "emit_fpga_top_module_header",
+          "target": "xc7a100t",
+          "expected_contains": "module trinity_fpga_top",
+          "note": "Emitted Verilog contains correct module declaration"
+        },
+        {
+          "id": "emit_fpga_top_clk_port",
+          "expected_contains": "input wire clk",
+          "note": "Top module has clock input port"
+        },
+        {
+          "id": "emit_fpga_top_reset_port",
+          "expected_contains": "input wire reset_n",
+          "note": "Top module has active-low reset port"
+        }
+      ]
+    },
+    "emit_uart_module": {
+      "description": "UART module Verilog emission",
+      "cases": [
+        {
+          "id": "emit_uart_module_header",
+          "expected_contains": "module uart_bridge",
+          "note": "Emitted UART module declaration"
+        },
+        {
+          "id": "emit_uart_baud_param",
+          "expected_contains": "parameter BAUD_DIVISOR",
+          "note": "UART module has baud divisor parameter"
+        }
+      ]
+    },
+    "emit_spi_module": {
+      "description": "SPI module Verilog emission",
+      "cases": [
+        {
+          "id": "emit_spi_module_header",
+          "expected_contains": "module spi_master",
+          "note": "Emitted SPI module declaration"
+        },
+        {
+          "id": "emit_spi_ports",
+          "expected_ports": ["sclk", "mosi", "miso", "cs_n"],
+          "note": "SPI module has standard SPI port set"
+        }
+      ]
+    }
+  },
+  "invariants": {}
+}

@@ -1,0 +1,71 @@
+{
+  "episode_id": "phi-2026-04-04T22:30:00Z#sandbox-init",
+  "skill_id": "sandbox-infrastructure",
+  "session_id": "2026-04-04T22:30:00Z#sandbox-init",
+  "issue_id": "SANDBOX-001",
+  "spec_paths": [
+    "specs/sandbox/sandbox.tri",
+    "backend/api/",
+    "backend/sandbox/"
+  ],
+  "spec_hash_before": null,
+  "spec_hash_after": "pending-gen-phase",
+  "gen_hash_after": null,
+  "tests": {
+    "status": "passed",
+    "framework": "vitest",
+    "test_files": [
+      "backend/api/src/__tests__/config.test.ts",
+      "backend/api/src/__tests__/railway-client.test.ts",
+      "backend/api/src/__tests__/sessions.test.ts",
+      "backend/api/src/__tests__/sandbox-target.test.ts",
+      "backend/api/src/__tests__/auth.test.ts"
+    ],
+    "pass_count": 73,
+    "fail_count": 0,
+    "tests_passing": true,
+    "code_generated": true,
+    "duration_ms": 0
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0,
+    "notes": "All critical review findings addressed: real tests added, duplicate round-robin eliminated, MAX_SESSIONS enforced, rate limiting on auth, docker-compose matches TS stack, DB migration created, localMode made explicit, opencode.json placeholders fixed, lockfile added"
+  },
+  "bench_delta": {
+    "metric": "none",
+    "value": 0.0,
+    "unit": "N/A"
+  },
+  "commit": null,
+  "actor": "agent:perplexity-computer",
+  "sealed_at": "2026-04-04T22:50:00Z",
+  "completed_at": "2026-04-04T22:55:00Z",
+  "phi_loop_phase": "test",
+  "next_phase": "verdict",
+  "review_fixes_applied": {
+    "critical": [
+      "Removed account emails from PR description",
+      "Created DB migration (0000_init.sql) with updatedAt trigger",
+      "Rewrote docker-compose.yml for TypeScript/Express (was Rust/Axum)",
+      "Added 73 real unit tests across 5 test files (vitest)"
+    ],
+    "serious": [
+      "Eliminated duplicate round-robin counter — single source in sessions.ts",
+      "Fixed opencode.json — removed ${} placeholders, added _comment",
+      "Added rate limiting on /auth/login (10 attempts/15min/IP)",
+      "Added MAX_SESSIONS enforcement in createSession()",
+      "Added updatedAt auto-trigger in DB migration"
+    ],
+    "architectural": [
+      "Made localMode explicit (requires LOCAL_MODE=true only)",
+      "Added pnpm-lock.yaml for reproducible builds",
+      "Updated experience episode with real test results"
+    ]
+  },
+  "metadata": {
+    "environment": "railway",
+    "tri_version": "0.1.0",
+    "origin": "autonomous"
+  }
+}

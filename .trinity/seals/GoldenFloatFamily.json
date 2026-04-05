@@ -1,0 +1,21 @@
+{
+  "module": "GoldenFloatFamily",
+  "ring": 26,
+  "spec_path": "specs/numeric/goldenfloat_family.t27",
+  "spec_hash": "sha256:37c5b5303bee350796f227724559dabbf12c5f4e30287521caa564307b6fa482",
+  "gen_hash_zig": "sha256:3d550967b3f9798dd86c50b7d5d9bb3ef591a81e1f7f6d033f039fc4d610e591",
+  "gen_hash_c": "sha256:b952fe0aeb906a8dc5b5c421651ab2458fb110036245331cd3d9f3c790a7c045",
+  "gen_hash_verilog": "sha256:8c85f0d2cc10638786ff8e987bf37ff5b9dcd9cfaebbe9a04c351eb8fa1d7362",
+  "conformance_hash": "sha256:b4832a4273ff160eb77d43db6796488723ee376ef0b30b29a5977dfeb81d43ba",
+  "tests": {
+    "status": "passed",
+    "count": 13,
+    "invariants": 11,
+    "benchmarks": 3
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}
