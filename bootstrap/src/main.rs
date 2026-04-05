@@ -10,6 +10,7 @@
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod compiler;
+mod bridge;
 
 use clap::{Parser, Subcommand};
 use sha2::{Sha256, Digest};
@@ -119,6 +120,12 @@ enum Commands {
         /// Port to listen on (default: uses Railway PORT env var)
         #[arg(short, long, default_value = "8080")]
         port: String,
+    },
+
+    /// Queen T A2A Bridge — Orchestrate sessions and tasks via OpenCode
+    Bridge {
+        #[command(subcommand)]
+        command: bridge::BridgeCommands,
     },
 }
 
@@ -1148,6 +1155,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
     }
 
     Ok(())
@@ -1172,6 +1180,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
