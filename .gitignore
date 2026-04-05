@@ -12,3 +12,4 @@ zig-out/
 *.tmp
 *.bak
 backend/api/node_modules/
+general/target/
