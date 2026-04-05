@@ -10,6 +10,7 @@
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod compiler;
+mod bridge;
 
 use clap::{Parser, Subcommand};
 use sha2::{Sha256, Digest};
@@ -120,6 +121,12 @@ enum Commands {
         #[arg(short, long, default_value = "8080")]
         port: String,
     },
+
+    /// Queen T A2A Bridge — Orchestrate sessions and tasks via OpenCode
+    Bridge {
+        #[command(subcommand)]
+        command: bridge::BridgeCommands,
+    },
 }
 
 // ============================================================================
@@ -135,9 +142,21 @@ use axum::{
     Router,
 };
 #[cfg(feature = "server")]
+use tower_http::services::{ServeDir, ServeFile};
+#[cfg(feature = "server")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
+use tokio::sync::broadcast;
+#[cfg(feature = "server")]
+use tokio_stream::wrappers::BroadcastStream;
+#[cfg(feature = "server")]
 use tokio::net::TcpListener;
+
+#[cfg(feature = "server")]
+#[derive(Clone)]
+struct AppState {
+    tx: broadcast::Sender<serde_json::Value>,
+}
 
 #[cfg(feature = "server")]
 #[derive(Debug, Deserialize)]
@@ -166,6 +185,7 @@ struct ApiResponse {
 struct HealthResponse {
     status: String,
     version: &'static str,
+    healthy: bool,
 }
 
 #[cfg(feature = "server")]
@@ -173,7 +193,564 @@ async fn health_handler() -> impl IntoResponse {
     Json(HealthResponse {
         status: "ok".to_string(),
         version: env!("CARGO_PKG_VERSION"),
+        healthy: true,
     })
+}
+
+#[cfg(feature = "server")]
+async fn global_config_handler() -> impl IntoResponse {
+    // Basic config required by OpenCode SDK to stop errors
+    Json(serde_json::json!({
+        "logLevel": "info",
+        "theme": "oc-2"
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn project_list_handler() -> impl IntoResponse {
+    let now = chrono::Utc::now().timestamp_millis() as f64;
+    // List one project (the current repo)
+    Json(vec![serde_json::json!({
+        "id": "t27",
+        "name": "Trinity T27",
+        "worktree": "/app",
+        "vcs": "git",
+        "time": {
+            "created": now,
+            "updated": now
+        },
+        "sandboxes": []
+    })])
+}
+
+#[cfg(feature = "server")]
+async fn project_current_handler() -> impl IntoResponse {
+    let now = chrono::Utc::now().timestamp_millis() as f64;
+    Json(serde_json::json!({
+        "id": "t27",
+        "name": "Trinity T27",
+        "worktree": "/app",
+        "vcs": "git",
+        "time": {
+            "created": now,
+            "updated": now
+        },
+        "sandboxes": []
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn project_patch_handler() -> impl IntoResponse {
+    StatusCode::OK
+}
+
+#[cfg(feature = "server")]
+async fn provider_list_handler() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "all": [
+            {
+                "id": "zai",
+                "name": "Z.AI (Integrated)",
+                "source": "api",
+                "env": [],
+                "options": {},
+                "models": {
+                    "gpt-4o": {
+                        "id": "gpt-4o",
+                        "name": "GPT-4o",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "openai",
+                            "url": "https://api.openai.com/v1",
+                            "npm": "openai"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": true,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 128000,
+                            "output": 4096
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-05-13"
+                    },
+                    "claude-3-5-sonnet": {
+                        "id": "claude-3-5-sonnet",
+                        "name": "Claude 3.5 Sonnet",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "anthropic",
+                            "url": "https://api.anthropic.com/v1",
+                            "npm": "@anthropic-ai/sdk"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": false,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 200000,
+                            "output": 8192
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-06-20"
+                    }
+                }
+            }
+        ],
+        "connected": ["zai"],
+        "default": {
+            "chat": "gpt-4o",
+            "code": "gpt-4o"
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn provider_auth_handler() -> impl IntoResponse {
+    Json(serde_json::json!({}))
+}
+
+#[cfg(feature = "server")]
+async fn auth_id_handler() -> impl IntoResponse {
+    Json(true)
+}
+
+#[cfg(feature = "server")]
+async fn config_providers_handler() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "providers": [
+            {
+                "id": "zai",
+                "name": "Z.AI (Integrated)",
+                "source": "api",
+                "env": [],
+                "options": {},
+                "models": {
+                    "gpt-4o": {
+                        "id": "gpt-4o",
+                        "name": "GPT-4o",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "openai",
+                            "url": "https://api.openai.com/v1",
+                            "npm": "openai"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": true,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 128000,
+                            "output": 4096
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-05-13"
+                    },
+                    "claude-3-5-sonnet": {
+                        "id": "claude-3-5-sonnet",
+                        "name": "Claude 3.5 Sonnet",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "anthropic",
+                            "url": "https://api.anthropic.com/v1",
+                            "npm": "@anthropic-ai/sdk"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": false,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 200000,
+                            "output": 8192
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-06-20"
+                    }
+                }
+            }
+        ],
+        "default_config": {
+            "model": "gpt-4o"
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn config_get_handler() -> impl IntoResponse {
+    Json(serde_json::json!({}))
+}
+
+#[cfg(feature = "server")]
+async fn session_list_handler() -> impl IntoResponse {
+    Json(Vec::<serde_json::Value>::new())
+}
+
+#[cfg(feature = "server")]
+async fn session_status_handler() -> impl IntoResponse {
+    Json(serde_json::json!({ "status": "idle" }))
+}
+
+#[cfg(feature = "server")]
+async fn session_id_handler(axum::extract::Path(id): axum::extract::Path<String>) -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "id": id,
+        "slug": "default-session",
+        "projectID": "t27",
+        "workspaceID": "wrk_default",
+        "directory": "/app",
+        "title": "Welcome to OpenCode",
+        "version": "1.0",
+        "time": {
+            "created": current_time,
+            "updated": current_time
+        },
+        "summary": {
+            "additions": 0,
+            "deletions": 0,
+            "files": 0
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn session_create_handler() -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "id": "ses_default",
+        "slug": "default-session",
+        "projectID": "t27",
+        "workspaceID": "wrk_default",
+        "directory": "/app",
+        "title": "Welcome to OpenCode",
+        "version": "1.0",
+        "time": {
+            "created": current_time,
+            "updated": current_time
+        },
+        "summary": {
+            "additions": 0,
+            "deletions": 0,
+            "files": 0
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn session_message_list_handler() -> impl IntoResponse {
+    Json(Vec::<serde_json::Value>::new())
+}
+
+#[cfg(feature = "server")]
+async fn session_message_post_handler() -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "info": {
+            "id": "msg_mock",
+            "sessionID": "ses_default",
+            "time": {
+                "created": current_time,
+                "updated": current_time
+            },
+            "role": "assistant"
+        },
+        "parts": [
+            {
+                "id": "prt_mock",
+                "messageID": "msg_mock",
+                "time": {
+                    "created": current_time,
+                    "updated": current_time
+                },
+                "status": "complete",
+                "content": {
+                    "type": "text",
+                    "text": "Trinity Backend is active. Ready to build."
+                }
+            }
+        ]
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn prompt_async_handler(State(state): State<AppState>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs() as f64;
+
+    // Extract the messageID from the prompt to use as parentID
+    let parent_id = payload.get("messageID")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "msg_user_id".to_string());
+
+    // Send mock response in background
+    tokio::spawn(async move {
+        // Shared boilerplate for the AssistantMessage mock
+        let mut info_base = serde_json::json!({
+            "id": "msg_reply",
+            "sessionID": "ses_default",
+            "role": "assistant",
+            "parentID": parent_id,
+            "modelID": "gpt-4o",
+            "providerID": "openai",
+            "mode": "chat",
+            "agent": "zai",
+            "path": "/app",
+            "cost": 0.0,
+            "tokens": {
+                "total": 0,
+                "input": 0,
+                "output": 0,
+                "reasoning": 0,
+                "cache": { "read": 0, "write": 0 }
+            },
+            "parts": []
+        });
+
+        // 1. Send "thinking" status
+        let mut thinking_info = info_base.clone();
+        // Frontend infers "thinking" if completed is missing
+        thinking_info["time"] = serde_json::json!({ "created": current_time });
+        thinking_info["content"] = serde_json::json!({ "type": "text", "text": "" });
+
+        let thinking_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "message.updated",
+                "properties": {
+                    "sessionID": "ses_default",
+                    "info": thinking_info
+                }
+            }
+        });
+        let _ = state.tx.send(thinking_event);
+
+        // Simulate some processing delay
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        // 2. Send "complete" status with text
+        let mut complete_info = info_base;
+        complete_info["time"] = serde_json::json!({ 
+            "created": current_time, 
+            "completed": current_time + 2.0,
+            "updated": current_time + 2.0 
+        });
+        complete_info["content"] = serde_json::json!({ 
+            "type": "text", 
+            "text": "Hello! I am the Trinity Orchestrator. I have fixed the data format, and you can now see me responding correctly. How can I assist you with your project today?" 
+        });
+
+        let complete_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "message.updated",
+                "properties": {
+                    "sessionID": "ses_default",
+                    "info": complete_info
+                }
+            }
+        });
+        let _ = state.tx.send(complete_event);
+    });
+
+    axum::http::StatusCode::NO_CONTENT
+}
+
+#[cfg(feature = "server")]
+async fn session_todo_handler() -> impl IntoResponse {
+    Json(serde_json::json!([]))
+}
+
+#[cfg(feature = "server")]
+async fn agent_list_handler() -> impl IntoResponse {
+    Json(serde_json::json!([{
+            "name": "zai",
+            "description": "Trinity AI Agent",
+            "mode": "all",
+            "native": true,
+            "hidden": false,
+            "topP": 1.0,
+            "temperature": 0.5,
+            "color": "#4a90e2",
+            "permission": [],
+            "model": {
+                "modelID": "gpt-4o",
+                "providerID": "openai"
+            },
+            "options": {}
+    }]))
+}
+
+#[cfg(feature = "server")]
+async fn vcs_handler() -> impl IntoResponse {
+    Json(serde_json::json!({ "status": "clean" }))
+}
+
+#[cfg(feature = "server")]
+async fn generic_list_handler() -> impl IntoResponse {
+    Json(Vec::<serde_json::Value>::new())
+}
+
+#[cfg(feature = "server")]
+async fn instance_handler() -> impl IntoResponse {
+    Json(serde_json::json!({ "healthy": true }))
+}
+
+#[cfg(feature = "server")]
+async fn path_handler() -> impl IntoResponse {
+    // SDK uses this to check path existence/stat
+    Json(serde_json::json!({
+        "exists": true,
+        "is_directory": true
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn root_handler() -> impl IntoResponse {
+    // Return the frontend or a simple health message
+    "t27c orchestrator live"
+}
+
+#[cfg(feature = "server")]
+async fn global_event_handler(State(state): State<AppState>) -> impl IntoResponse {
+    use axum::response::sse::{Event, KeepAlive, Sse};
+    use std::time::Duration;
+    use tokio_stream::StreamExt;
+
+    // 1. Broadcast stream for real events
+    let broadcast_stream = BroadcastStream::new(state.tx.subscribe())
+        .map(|res| {
+            match res {
+                Ok(json) => {
+                    Event::default().json_data(json).map_err(|e| {
+                        axum::Error::new(format!("JSON error: {}", e))
+                    })
+                },
+                Err(e) => Err(axum::Error::new(format!("Broadcast error: {}", e))),
+            }
+        });
+
+    // 2. Keep-alive stream (pings every 15s)
+    let keep_alive_stream = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(Duration::from_secs(15)))
+        .map(|_| {
+            Ok::<Event, axum::Error>(Event::default().comment("keepalive"))
+        });
+
+    // 3. Merge them
+    let stream = broadcast_stream.merge(keep_alive_stream);
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 #[cfg(feature = "server")]
@@ -350,23 +927,61 @@ async fn stats_handler() -> impl IntoResponse {
 #[cfg(feature = "server")]
 async fn run_server(port_arg: &str) -> anyhow::Result<()> {
     // Support Railway's $PORT environment variable
-    let port = env::var("PORT")
-        .unwrap_or_else(|_| port_arg.to_string())
+    let env_port = env::var("PORT").ok();
+    println!("t27c debug: PORT env var is {:?}", env_port);
+    
+    let port = env_port
+        .unwrap_or_else(|| port_arg.to_string())
         .parse::<u16>()?;
+
+    let (tx, _) = broadcast::channel(100);
+    let state = AppState { tx };
 
     let app = Router::new()
         .route("/health", get(health_handler))
+        .route("/global/health", get(health_handler))
+        .route("/global/config", get(global_config_handler))
+        .route("/global/event", get(global_event_handler))
+        .route("/global/sync-event", get(global_event_handler))
+        .route("/project", get(project_list_handler))
+        .route("/project/current", get(project_current_handler))
+        .route("/project/:id", axum::routing::patch(project_patch_handler))
+        .route("/provider", get(provider_list_handler))
+        .route("/provider/auth", get(provider_auth_handler).post(provider_auth_handler))
+        .route("/auth/:id", get(auth_id_handler).post(auth_id_handler).put(auth_id_handler))
+        .route("/config", get(config_get_handler))
+        .route("/config/providers", get(config_providers_handler))
+        .route("/path", get(path_handler))
+        .route("/session", get(session_list_handler).post(session_create_handler))
+        .route("/session/status", get(session_status_handler))
+        .route("/session/:id", get(session_id_handler))
+        .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
+        .route("/session/:id/prompt_async", post(prompt_async_handler))
+        .route("/session/:id/todo", get(session_todo_handler))
+        .route("/agent", get(agent_list_handler))
+        .route("/vcs", get(vcs_handler))
+        .route("/command", get(generic_list_handler))
+        .route("/permission", get(generic_list_handler))
+        .route("/question", get(generic_list_handler))
+        .route("/mcp", get(generic_list_handler))
+        .route("/instance", get(instance_handler))
         .route("/compile", post(compile_handler))
         .route("/parse", post(parse_handler))
         .route("/gen", post(gen_handler))
         .route("/gen-verilog", post(gen_verilog_handler))
         .route("/gen-c", post(gen_c_handler))
         .route("/seal", post(seal_handler))
-        .route("/stats", get(stats_handler));
+        .route("/stats", get(stats_handler))
+        .fallback_service(
+            ServeDir::new("public")
+                .not_found_service(ServeFile::new("public/index.html"))
+        )
+        .with_state(state);
 
     let addr = format!("0.0.0.0:{}", port);
+    println!("t27c server attempting to bind on {}", addr);
     let listener = TcpListener::bind(&addr).await?;
-    println!("t27c server listening on {}", addr);
+    println!("t27c server successfully listening on {}", addr);
 
     axum::serve(listener, app).await?;
     Ok(())
@@ -1130,6 +1745,7 @@ fn run_stats() -> anyhow::Result<()> {
 #[cfg(feature = "server")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    println!("t27c starting...");
     let cli = Cli::parse();
 
     match cli.command {
@@ -1148,6 +1764,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
     }
 
     Ok(())
@@ -1172,6 +1789,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
