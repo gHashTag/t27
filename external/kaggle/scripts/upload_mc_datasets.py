@@ -11,15 +11,17 @@ import json
 import subprocess
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+_KAGGLE_ROOT = Path(__file__).resolve().parent.parent
 
-# Configuration
+# Add kaggle package root for imports
+sys.path.insert(0, str(_KAGGLE_ROOT))
+
+# Configuration (paths relative to external/kaggle/)
 MC_DATASETS = {
     "tmp": {
         "title": "Trinity Metacognition Probe - MC Format",
         "slug": "trinity-cognitive-probes-tmp-mc",
-        "csv": "kaggle/data/ttm_mc.csv",
+        "csv": "data/ttm_mc.csv",
         "description": """# Trinity Metacognition Probe (TTM) - Multiple Choice Format
 
 **Track 2**: Tests confidence calibration, error detection, meta-learning.
@@ -44,7 +46,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "thlp": {
         "title": "Trinity Hippocampal Learning Probe - MC Format",
         "slug": "trinity-cognitive-probes-thlp-mc",
-        "csv": "kaggle/data/thlp_mc.csv",
+        "csv": "data/thlp_mc.csv",
         "description": """# Trinity Hippocampal Learning Probe (THLP) - Multiple Choice Format
 
 **Track 1**: Tests pattern learning, belief update, rule induction.
@@ -69,7 +71,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "tefb": {
         "title": "Trinity Executive Function Battery - MC Format",
         "slug": "trinity-cognitive-probes-tefb-mc",
-        "csv": "kaggle/data/tefb_mc.csv",
+        "csv": "data/tefb_mc.csv",
         "description": """# Trinity Executive Function Battery (TEFB) - Multiple Choice Format
 
 **Track 4**: Tests multi-step planning, working memory, cognitive flexibility.
@@ -95,7 +97,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "tscp": {
         "title": "Trinity Social Cognition Probe - MC Format",
         "slug": "trinity-cognitive-probes-tscp-mc",
-        "csv": "kaggle/data/tscp_mc.csv",
+        "csv": "data/tscp_mc.csv",
         "description": """# Trinity Social Cognition Probe (TSCP) - Multiple Choice Format
 
 **Track 5**: Tests Theory of Mind, pragmatic inference, social norms.
@@ -121,7 +123,7 @@ Trinity Cognitive Probes — Ternary Hyperdimensional Computing AGI Benchmark
     "tagp": {
         "title": "Trinity Attentional Gateway Probe - MC Format",
         "slug": "trinity-cognitive-probes-tagp-mc",
-        "csv": "kaggle/data/tagp_mc.csv",
+        "csv": "data/tagp_mc.csv",
         "description": """# Trinity Attentional Gateway Probe (TAGP) - Multiple Choice Format
 
 **Track 3**: Tests selective filtering, sustained attention, attention shifting.
@@ -169,7 +171,7 @@ def create_readme(track: str, info: dict, temp_dir: Path) -> None:
 
 def upload_dataset(track: str, info: dict, dry_run: bool = False) -> bool:
     """Upload a single dataset to Kaggle."""
-    csv_path = Path(info["csv"])
+    csv_path = _KAGGLE_ROOT / info["csv"]
     if not csv_path.exists():
         print(f"  ❌ CSV not found: {csv_path}")
         return False

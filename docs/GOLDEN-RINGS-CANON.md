@@ -49,7 +49,7 @@ Everything below is **acknowledged non-gold**. Agents **must not copy-paste** pa
 | **IEEE f32/f64 instead of GF16 primary** | `docs/NUMERIC-GF16-DEBT-INVENTORY.md` | nn/, vsa/, math/, physics/, AR composition `f32`, etc. |
 | **GF4–GF32 spec files** | Same inventory §1 | **`[REFERENCE]`** only — not an excuse to add `f64` in product paths. |
 | **Vendored forests** | `external/opencode/` | Not Trinity gold; submodule or delete policy. |
-| **Research sidecars** | `research/tba/*.py`, `kaggle/` | Quarantined from ring gates. |
+| **Research sidecars** | `research/tba/*.py`, `external/kaggle/` | Quarantined from ring gates. |
 
 Label in PRs: **`[REFACTOR-HEAP]`** when touching only debt; **`[GOLD-RING]`** when touching parser/specs/seals/hash.
 

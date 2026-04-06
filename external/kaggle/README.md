@@ -90,7 +90,10 @@ Our 5 tracks target the areas with the largest evaluation gaps:
 
 ## Local Development
 
+In this monorepo the tree is **`external/kaggle/`**. From that directory:
+
 ```bash
+cd external/kaggle
 # Install dependencies
 pip install kaggle-benchmarks kaggle pandas
 
