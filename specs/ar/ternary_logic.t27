@@ -281,6 +281,51 @@ module TernaryLogic {
         and not_true = k3_not(K_TRUE)
         then not_false == K_TRUE and not_unknown == K_UNKNOWN and not_true == K_FALSE
 
+    // ═════════════════════════════════════════════════════════════════
+    // No-Tautology Property — K3 vs Binary Logic
+    // In binary logic: v ∨ ¬v = TRUE is a tautology (excluded middle)
+    // In K3 logic: v ∨ ¬v = UNKNOWN when v = UNKNOWN (NOT a tautology)
+    // This is the key difference that enables bounded rationality/restraint
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test k3_no_tautology_or_not_false
+        // OR(F, NOT(F)) = OR(F, T) = T (binary-like case)
+        given result = k3_or(K_FALSE, k3_not(K_FALSE))
+        then result == K_TRUE
+
+    test k3_no_tautology_or_not_true
+        // OR(T, NOT(T)) = OR(T, F) = T (binary-like case)
+        given result = k3_or(K_TRUE, k3_not(K_TRUE))
+        then result == K_TRUE
+
+    test k3_no_tautology_or_not_unknown_violation
+        // OR(U, NOT(U)) = OR(U, U) = U != T (K3 violation of binary tautology)
+        // This is EXACTLY why K3 enables "restraint" (bounded rationality)
+        given result = k3_or(K_UNKNOWN, k3_not(K_UNKNOWN))
+        then result == K_UNKNOWN
+
+    test k3_no_tautology_exists_violating_value
+        // Demonstrates there exists v such that OR(v, NOT(v)) != TRUE
+        // This proves K3 does NOT satisfy the law of excluded middle
+        when v_unknown_or_not = k3_or(K_UNKNOWN, k3_not(K_UNKNOWN))
+        then v_unknown_or_not != K_TRUE
+
+    test k3_no_tautology_all_values_tested
+        // Explicitly verify OR(v, NOT(v)) for all v in K3
+        when v_false_result = k3_or(K_FALSE, k3_not(K_FALSE))
+        and v_unknown_result = k3_or(K_UNKNOWN, k3_not(K_UNKNOWN))
+        and v_true_result = k3_or(K_TRUE, k3_not(K_TRUE))
+        // Only v=UNKNOWN violates the binary tautology
+        then v_false_result == K_TRUE and v_unknown_result == K_UNKNOWN and v_true_result == K_TRUE
+
+    test k3_restraint_from_no_tautology
+        // The no-tautology property enables "restraint" in reasoning
+        // When a value is UNKNOWN, OR(v, NOT(v)) remains UNKNOWN
+        // This prevents forced commitment when evidence is insufficient
+        given unknown_and_its_negation = k3_or(K_UNKNOWN, k3_not(K_UNKNOWN))
+        and is_restraint = is_restraint(unknown_and_its_negation)
+        then is_restraint == true
+
     test k3_implication_ex_falso
         // Ex falso quodlibet: false → anything = true
         given result = k3_implies(K_FALSE, K_FALSE)
