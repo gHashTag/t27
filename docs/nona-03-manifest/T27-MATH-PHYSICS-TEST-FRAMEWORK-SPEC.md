@@ -8,7 +8,7 @@
 
 **Law:** Root **`SOUL.md`** (no Cyrillic in source), **`docs/nona-03-manifest/TDD-CONTRACT.md`** (each `.t27` spec must contain **`test`** or **`invariant`**), **`docs/nona-03-manifest/ISSUE-GATE-001.md`**.  
 
-**Companions:** **`docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md`** (oracles), **`docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md`** (rings / Rust vs `.t27` execution), **`docs/nona-03-manifest/RESEARCH_CLAIMS.md`** (claim tiers).
+**Companions:** **`docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md`** (oracles), **`docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md`** (rings / Rust vs `.t27` execution), **`docs/nona-03-manifest/RESEARCH_CLAIMS.md`** (claim tiers), **`docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`** + **`conformance/FORMAT-SPEC-001.json`** + **`conformance/axiom_system.json`** (axiom / format catalog).
 
 ---
 

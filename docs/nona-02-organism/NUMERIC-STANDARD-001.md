@@ -11,6 +11,8 @@
 
 NUMERIC-STANDARD-001 defines the **GoldenFloat Family** — φ-structured floating point formats for Trinity Project. All formats target the sacred ratio `exp/mant ≈ 1/φ ≈ 0.618` to optimize information density while maintaining numerical stability for sacred physics computations.
 
+**Machine-readable SSOT (must match this table):** **`conformance/FORMAT-SPEC-001.json`**, validated by **`schemas/numeric-format-v1.json`**. Charter: **`docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`**.
+
 ## Motivation
 
 IEEE 754 formats are optimized for general computing but lack alignment with φ-based physics models. GoldenFloat provides:
