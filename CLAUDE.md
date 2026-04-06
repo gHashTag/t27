@@ -19,7 +19,7 @@ Do **not** add parallel math/physics implementations in ad-hoc scripts when the 
 ## 2. Engineering workflow
 
 - **Bootstrap compiler:** `cd bootstrap && cargo build --release` (runs `build.rs` language checks).
-- **Local sweep (CI-like):** from repo root, `bash tests/run_all.sh` when you need full parse/gen/conformance phases (Ubuntu/bash 4+; macOS default bash may lack `globstar`).
+- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./bootstrap/target/release/t27c suite --repo-root .` (Rust runner; no shell test harness under `tests/`).
 - **Generated code:** under `gen/` — do not hand-edit for routine fixes; change specs and regenerate.
 - **Pull requests:** follow project Issue Gate and linking policy; **do not approve** PRs unless explicitly authorized.
 

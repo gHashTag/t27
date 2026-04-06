@@ -316,7 +316,7 @@ Exact ε and definitions of “coherence” and “connectivity statistic” are
 
 - Single **spec-defined** brain state and loop contracts in **`specs/brain/`**.
 - φ phase sum invariant **tested**.
-- `tri parse` / `tri gen-zig` / `tri gen-c` / `tri gen-verilog` / `tri seal` succeed for brain specs in CI (`tests/run_all.sh` uses `./scripts/tri`).
+- `tri parse` / `tri gen-zig` / `tri gen-c` / `tri gen-verilog` / `tri seal` succeed for brain specs in CI (`tri test` → `t27c suite`).
 - No new hand-written Zig SSOT for those semantics in **t27** (`gen/` only).
 
 **Should (P1)**

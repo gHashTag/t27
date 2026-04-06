@@ -170,10 +170,10 @@ Eto derevo tekhnologij pokazyvaet put' evolyucii T27 ot bazovoj infrastruktury d
 |       +-- CLARA AR section                                   |
 |       +-- Conformance testing section                        |
 |                                                               |
-|  [~] Ring 33: Validation Scripts                             |
-|       +-- tests/validate_conformance.sh                      |
-|       +-- tests/validate_gen_headers.sh                      |
-|       +-- Bash, executable, ASCII-only                       |
+|  [~] Ring 33: Validation (Rust suite)                        |
+|       +-- t27c validate-conformance                          |
+|       +-- t27c validate-gen-headers                          |
+|       +-- No shell harness under tests/                      |
 |                                                               |
 |  [~] Ring 34: Technology Tree Update                         |
 |       +-- Ring 17 -> Ring 31 state                           |

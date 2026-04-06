@@ -1,21 +1,10 @@
 {
+  "gen_hash_c": "sha256:343b9b2e694ad5fac56ffc8d238b576ae5efc0510dfa3781f8cae5f156d332e6",
+  "gen_hash_verilog": "sha256:701f4de2d663f881b27534473dafe1669addf6895a63957f3cd16472ecc2d857",
+  "gen_hash_zig": "sha256:c34d388b23f01746456ba355a1af92aa6e9b1a561e1155bd657868ba0b336454",
   "module": "TernaryLogic",
-  "ring": 18,
-  "spec_path": "specs/ar/ternary_logic.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-06T09:46:30Z",
   "spec_hash": "sha256:1c377cdb939f1b751bff2ac0acb5191cb74e9094f0e2efab27a84213e3540ef2",
-  "gen_hash_zig": "sha256:0d0ca74f34842b5e95ce132b863bfa787cc47cc15b3a02833682119593f9509b",
-  "gen_hash_c": "sha256:19be8bd95a1b647b47366afaf9eaa9e7cbd677aaded13f1e776965dd5ec9da4a",
-  "gen_hash_verilog": "sha256:42f2da716a78404bf1d109101b466287ec4257228c4700f07403e81912460df2",
-  "conformance_hash": "sha256:38efba8abe48e407cc555c91faeed9156dfe155aa9e77ffb0729fe4ed2d7ff0d",
-  "tests": {
-    "status": "passed",
-    "count": 27,
-    "invariants": 18,
-    "benchmarks": 9
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T18:00:00Z"
+  "spec_path": "specs/ar/ternary_logic.t27"
 }

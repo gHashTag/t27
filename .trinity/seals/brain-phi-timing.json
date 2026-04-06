@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:ffbcda0a779f3c7662a41b6445be36716c56c908aabcd5b34ebf766ec9e9680a",
   "module": "brain-phi-timing",
   "ring": 12,
-  "sealed_at": "2026-04-06T09:20:29Z",
+  "sealed_at": "2026-04-06T09:46:30Z",
   "spec_hash": "sha256:41db88b128ed46d1096ea0ea9f96f6a74c02fe5535c1e06d1e3743fc3ac9128c",
   "spec_path": "specs/brain/phi_timing.t27"
 }

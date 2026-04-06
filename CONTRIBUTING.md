@@ -13,7 +13,7 @@ Thank you for helping improve T27. This repository is **spec-first**: behavior l
 
 - New or changed `.t27` files should include **`test`**, **`invariant`**, and/or **`bench`** blocks as required by SOUL (TDD mandate).
 - Run **`cargo build --release`** in `bootstrap/` after compiler changes.
-- When present, run **`bash tests/run_all.sh`** before pushing (CI runs this on Ubuntu).
+- Before pushing, run **`./scripts/tri test`** (same as CI: `t27c suite`).
 
 ## Language
 

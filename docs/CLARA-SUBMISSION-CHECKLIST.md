@@ -47,6 +47,6 @@
 ## Repository
 
 - [x] All CLARA-relevant specs parse: t27c parse *.t27 (35/36 pass; 1 non-CLARA FPGA testbench)
-- [x] Full test suite: tests/run_all.sh — 0 failures
+- [x] Full test suite: `t27c suite` — 0 failures
 - [x] Demo pipeline: scripts/clara/demo.sh — 20/20 PASS
 - [ ] Git clean: no .bak files, no phantom changes
