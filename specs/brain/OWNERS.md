@@ -19,4 +19,4 @@
 
 ## Note
 
-Strand VI is **chartered** in `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md`; land specs in **ring-sized PRs** with tests/invariants per SOUL.
+Strand VI is **chartered** in `docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md`; land specs in **ring-sized PRs** with tests/invariants per SOUL.

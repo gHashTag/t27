@@ -1,12 +1,12 @@
 # specs/brain/ — Strand VI (neuroanatomical brain, spec-first)
 
-**Source of truth:** `.t27` specifications only. Zig, C, and Verilog are **generated** via **`tri`** — see `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md` §4.2.
+**Source of truth:** `.t27` specifications only. Zig, C, and Verilog are **generated** via **`tri`** — see `docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md` §4.2.
 
 **Do not add handwritten brain `*.zig` in the t27 repo** for semantics that belong here.
 
 ## Charter
 
-[`docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md`](../../docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md) — scope (t27 vs trinity), 27 regions, φ invariants, rings 33–39, `tri brain` roadmap.
+[`docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md`](../../docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md) — scope (t27 vs trinity), 27 regions, φ invariants, rings 33–39, `tri brain` roadmap.
 
 ## Target layout (EPIC-6)
 

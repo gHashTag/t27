@@ -10,4 +10,4 @@
 
 ## Outputs
 
-Notebooks, Python, and JSON that must not become critical-path without an ADR (see `docs/GOLDEN-RINGS-CANON.md`).
+Notebooks, Python, and JSON that must not become critical-path without an ADR (see `docs/nona-01-foundation/GOLDEN-RINGS-CANON.md`).

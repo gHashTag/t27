@@ -1,8 +1,8 @@
 # One path per line (relative to repo root). Grandfathered until translated.
-# Do not add entries without Architect approval (see docs/SOUL.md Law #1).
-docs/opencode_workflow.md
-docs/TRI_CORE_ISSUES.md
-docs/AGENTS_ALPHABET.md
-docs/SANDBOX-ARCHITECTURE.md
-docs/migration-plan-vsa-nn-fpga-queen.md
+# Do not add entries without Architect approval (see docs/nona-03-manifest/SOUL.md Law #1).
+docs/nona-02-organism/opencode_workflow.md
+docs/nona-03-manifest/TRI_CORE_ISSUES.md
+docs/agents/AGENTS_ALPHABET.md
+docs/nona-01-foundation/SANDBOX-ARCHITECTURE.md
+docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md
 task.md

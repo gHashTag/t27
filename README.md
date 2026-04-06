@@ -123,18 +123,18 @@ t27/
 ├── contrib/                # Non-core adjacency (API, runners, portable setup) — see OWNERS.md
 ├── external/               # Vendored upstream (e.g. OpenCode submodule) + kaggle tree — see OWNERS.md
 │
-├── docs/                   # Governance documents
-│   ├── SOUL.md             #   Expanded constitutional reference (canonical: SOUL.md at repo root)
-│   ├── SEED-RINGS.md       #   Compiler bootstrap rings
-│   ├── TECHNOLOGY-TREE.md  #   Evolution roadmap
-│   └── ...                 #   Standards, agent specs, ADRs
+├── docs/                   # First-party docs (27-agent / 3-nona layout — see docs/README.md)
+│   ├── README.md           #   Index: agents/, coordination/, nona-01..03/, clara/
+│   ├── NOW.md              #   Rolling snapshot (sync gates)
+│   ├── T27-CONSTITUTION.md #   Charter
+│   └── …                   #   nona-01-foundation/, nona-02-organism/, nona-03-manifest/, etc.
 │
 └── tests/                  # Ring verification + validation scripts
     ├── comprehensive_suite.t27 # Suite contract (see t27c suite)
     └── *.t27             #   Spec tests only — no shell runners
 ```
 
-**Domain ownership:** each major directory may include an `**OWNERS.md`** (Primary agent, dependencies, outputs). Start at `[OWNERS.md](OWNERS.md)` in the repo root; see also `[docs/AGENTS_ALPHABET.md](docs/AGENTS_ALPHABET.md)`.
+**Domain ownership:** each major directory may include an `**OWNERS.md`** (Primary agent, dependencies, outputs). Start at `[OWNERS.md](OWNERS.md)` in the repo root; see also `[docs/agents/AGENTS_ALPHABET.md](docs/agents/AGENTS_ALPHABET.md)`.
 
 ## CLARA Automated Reasoning
 
@@ -261,7 +261,7 @@ Trinity runs 27 autonomous agents -- one per Coptic register:
 | **27th**      | Security, AAIF compliance          | `.trinity/policy/`                  |
 
 
-Full list: [docs/AGENTS_ALPHABET.md](docs/AGENTS_ALPHABET.md)
+Full list: [docs/agents/AGENTS_ALPHABET.md](docs/agents/AGENTS_ALPHABET.md)
 
 ## Constitutional Laws
 
@@ -280,7 +280,7 @@ Full list: [docs/AGENTS_ALPHABET.md](docs/AGENTS_ALPHABET.md)
 | 8   | **GRAPH TOPOLOGY**   | Evolution follows `architecture/graph.tri`. No circular deps.                |
 
 
-Details: [SOUL.md](SOUL.md) | [SEED-RINGS](docs/SEED-RINGS.md) | [NUMERIC-STANDARD-001](docs/NUMERIC-STANDARD-001.md) | [SACRED-PHYSICS-001](docs/SACRED-PHYSICS-001.md)
+Details: [SOUL.md](SOUL.md) | [SEED-RINGS](docs/nona-01-foundation/SEED-RINGS.md) | [NUMERIC-STANDARD-001](docs/nona-02-organism/NUMERIC-STANDARD-001.md) | [SACRED-PHYSICS-001](docs/nona-02-organism/SACRED-PHYSICS-001.md)
 
 ## PHI LOOP Workflow
 
@@ -331,18 +331,20 @@ All PRs to `master` must:
 4. Pass gen header validation
 5. Pass seal coverage check
 
-See [ISSUE-GATE-001](docs/ISSUE-GATE-001.md) for details.
+See [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) for details.
 
 ## Documentation
+
+**Full map (27 agents / three nonas):** [docs/README.md](docs/README.md)
 
 ### Governance
 
 - [SOUL.md](SOUL.md) -- Constitutional law
-- [SEED-RINGS](docs/SEED-RINGS.md) -- Incremental compiler bootstrap
-- [NUMERIC-STANDARD-001](docs/NUMERIC-STANDARD-001.md) -- GoldenFloat specification
-- [SACRED-PHYSICS-001](docs/SACRED-PHYSICS-001.md) -- Sacred physics constants
-- [PHI LOOP Contract](docs/PHI_LOOP_CONTRACT.md) -- Workflow contract
-- [TDD Contract](docs/TDD-CONTRACT.md) -- Test-driven development policy
+- [SEED-RINGS](docs/nona-01-foundation/SEED-RINGS.md) -- Incremental compiler bootstrap
+- [NUMERIC-STANDARD-001](docs/nona-02-organism/NUMERIC-STANDARD-001.md) -- GoldenFloat specification
+- [SACRED-PHYSICS-001](docs/nona-02-organism/SACRED-PHYSICS-001.md) -- Sacred physics constants
+- [PHI LOOP Contract](docs/nona-03-manifest/PHI_LOOP_CONTRACT.md) -- Workflow contract
+- [TDD Contract](docs/nona-03-manifest/TDD-CONTRACT.md) -- Test-driven development policy
 
 ### Architecture
 
@@ -351,15 +353,15 @@ See [ISSUE-GATE-001](docs/ISSUE-GATE-001.md) for details.
 - [ADR-004: Language Policy](architecture/ADR-004-language-policy.md)
 - [ADR-005: De-Zig Strict](architecture/ADR-005-de-zig-strict.md)
 - [CANON DE-ZIGFICATION](architecture/CANON_DE_ZIGFICATION.md)
-- [TECHNOLOGY-TREE](docs/TECHNOLOGY-TREE.md) -- Evolution roadmap
+- [TECHNOLOGY-TREE](docs/nona-03-manifest/TECHNOLOGY-TREE.md) -- Evolution roadmap
 
 ### Agents & Operations
 
-- [27-Agent Alphabet](docs/AGENTS_ALPHABET.md) -- All 27 agents
-- [CLARA Preparation Plan](docs/CLARA-PREPARATION-PLAN.md) -- DARPA compliance
-- [Kleene Trit Isomorphism](docs/KLEENE-TRIT-ISOMORPHISM.md)
-- [TRI Syntax vNext](docs/TRI_SYNTAX_VNEXT.md)
-- [ISSUE-GATE-001](docs/ISSUE-GATE-001.md) -- Issue gate enforcement law
+- [27-Agent Alphabet](docs/agents/AGENTS_ALPHABET.md) -- All 27 agents
+- [CLARA Preparation Plan](docs/clara/CLARA-PREPARATION-PLAN.md) -- DARPA compliance
+- [Kleene Trit Isomorphism](docs/nona-02-organism/KLEENE-TRIT-ISOMORPHISM.md)
+- [TRI Syntax vNext](docs/nona-02-organism/TRI_SYNTAX_VNEXT.md)
+- [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) -- Issue gate enforcement law
 
 ## License
 

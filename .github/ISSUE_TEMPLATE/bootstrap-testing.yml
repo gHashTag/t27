@@ -7,7 +7,7 @@ body:
     id: ring
     attributes:
       label: Bootstrap ring
-      description: "Which ring does this issue advance? (See docs/T27-BOOTSTRAP-TESTING-PLAN.md)"
+      description: "Which ring does this issue advance? (See docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md)"
       options:
         - "0 — Rust seed (suite, parser, seals)"
         - "1 — .t27 fixtures + Rust runner"
@@ -43,7 +43,7 @@ body:
     id: oracle
     attributes:
       label: Oracle
-      description: "How do we know the output is correct? (See docs/GOLDEN-CHAIN-TESTING-ATLAS.md)"
+      description: "How do we know the output is correct? (See docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md)"
       options:
         - "reference (library / tables / CAS)"
         - "golden / snapshot"

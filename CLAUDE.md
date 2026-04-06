@@ -9,7 +9,7 @@ Use this file **together with** `[AGENTS.md](AGENTS.md)`. Repo-specific law alwa
 1. `[AGENTS.md](AGENTS.md)` — entry point and constitutional stack.
 2. `[SOUL.md](SOUL.md)` — canonical law (TDD, language, validation).
 3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**.
-4. `[TASK.md](TASK.md)` and `[docs/TASK_PROTOCOL.md](docs/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
+4. `[TASK.md](TASK.md)` and `[docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
 5. Nearest `[OWNERS.md](OWNERS.md)` for the directories you edit.
 
 Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the **`tri`** pipeline (`./scripts/tri`).

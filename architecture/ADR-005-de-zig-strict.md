@@ -190,5 +190,5 @@ All existing handwritten Zig with domain logic must be migrated:
 
 - ADR-001: De-Zigfication (original high-level principle)
 - SOUL.md: Constitutional Laws
-- docs/GENERATED-HEADER-POLICY.md: Header specification
+- docs/nona-03-manifest/GENERATED-HEADER-POLICY.md: Header specification
 - compiler/runtime/runtime.t27: CLI runtime specification (source of truth)

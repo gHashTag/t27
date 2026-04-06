@@ -19,16 +19,16 @@ alwaysApply: true
 ## Prohibitions
 
 - **Do not add** new Python (or other scripting) on the **critical path** (verdict, conformance, assurance scenarios) if the same can be expressed in t27 + tri.
-- **Do not add** new product logic in JS/TS/Go/etc. **SEED** = minimal Rust in `bootstrap/` only; purge list: **`docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`**.
+- **Do not add** new product logic in JS/TS/Go/etc. **SEED** = minimal Rust in `bootstrap/` only; purge list: **`docs/nona-01-foundation/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`**.
 - **Do not duplicate** formulas in README/Markdown without pointing to the canonical `.t27` spec.
 
 ## Exceptions (legacy)
 
-- Existing Python (`conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py`, `clara-bridge/tests/*.py`) is **legacy**; **do not** add new features there. Migrate per **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**.
+- Existing Python (`conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py`, `clara-bridge/tests/*.py`) is **legacy**; **do not** add new features there. Migrate per **`docs/nona-02-organism/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**.
 
 ## Conflict resolution
 
-- `.t27` specs, `docs/T27-CONSTITUTION.md`, `docs/TDD-CONTRACT.md`, and `docs/NUMERIC-STANDARD-001.md` override ad-hoc scripts.
+- `.t27` specs, `docs/T27-CONSTITUTION.md`, `docs/nona-03-manifest/TDD-CONTRACT.md`, and `docs/nona-02-organism/NUMERIC-STANDARD-001.md` override ad-hoc scripts.
 
 ## Language (English)
 
@@ -39,8 +39,8 @@ alwaysApply: true
 ## Golden rings (process gold)
 
 - Ring work = **micro-iterations**: `cargo build` in `bootstrap/`, `t27c parse` on touched specs, `cargo test`. **`bootstrap/stage0/FROZEN_HASH`** seals compiler gold per ring.
-- **Not gold:** Python on critical path, `f32`/`f64` product numerics, `external/` hacks — see **`docs/GOLDEN-RINGS-CANON.md`** (GOLD vs REFACTOR-HEAP).
+- **Not gold:** Python on critical path, `f32`/`f64` product numerics, `external/` hacks — see **`docs/nona-01-foundation/GOLDEN-RINGS-CANON.md`** (GOLD vs REFACTOR-HEAP).
 
 ## Required reading after clone
 
-After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`** (SSOT-MATH + LANG-EN) and **`docs/GOLDEN-RINGS-CANON.md`**.
+After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`** (SSOT-MATH + LANG-EN) and **`docs/nona-01-foundation/GOLDEN-RINGS-CANON.md`**.

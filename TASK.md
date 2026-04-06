@@ -1,6 +1,6 @@
 # TASK — inter-agent coordination
 
-**Law:** [docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md) (on GitHub: [T27-CONSTITUTION.md](https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md)) — Articles **TASK-MD**, **RING-LAW**, **AGENT-DOMAIN**, **COMPETITION-READY**. Normative protocol: [docs/TASK_PROTOCOL.md](docs/TASK_PROTOCOL.md) (**TASK Validation** + **TASK Verification**).
+**Law:** [docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md) (on GitHub: [T27-CONSTITUTION.md](https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md)) — Articles **TASK-MD**, **RING-LAW**, **AGENT-DOMAIN**, **COMPETITION-READY**. Normative protocol: [docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md) (**TASK Validation** + **TASK Verification**).
 
 **TASK Protocol version:** 1.0  
 **Last updated:** 2026-04-06
@@ -42,7 +42,7 @@
 *Format: `YYYY-MM-DDTHH:MMZ` | `agent_id` | intent | outcome | next (newest last).*
 
 - 2026-04-06T12:00Z | cursor-agent | Bootstrap TASK Protocol v1.0 + build.rs validation + Anchor #141 | protocol landed | maintainers set locks when parallel work starts
-- 2026-04-06T18:00Z | cursor-agent | Add `docs/inter-agent-handoff/` bundle (scientific excellence EPICs + zip) + TASK_PROTOCOL §8 pointer | landed | downstream agents read README in bundle; normative state stays TASK.md + #141
+- 2026-04-06T18:00Z | cursor-agent | Add `docs/coordination/inter-agent-handoff/` bundle (scientific excellence EPICs + zip) + TASK_PROTOCOL §8 pointer | landed | downstream agents read README in bundle; normative state stays TASK.md + #141
 - 2026-04-06T18:30Z | cursor-agent | Add `ERRATA_PERPLEXITY_HANDOFF.md` (Epoch-2 / “create RESEARCH_CLAIMS” text is non-canonical) | landed | agents with Perplexity paste read errata before executing TASK-01.1
 
 ---
@@ -58,7 +58,7 @@
 
 - When starting parallel agent work: set **Lock holder** / **Lock scope** and comment on **#141**.
 - Bump **Epoch** on intentional handoff or conflict resolution.
-- Keep **Anchor issue** URL in sync if ever migrated (update `docs/TASK_PROTOCOL.md` + constitution).
+- Keep **Anchor issue** URL in sync if ever migrated (update `docs/coordination/TASK_PROTOCOL.md` + constitution).
 
 ---
 

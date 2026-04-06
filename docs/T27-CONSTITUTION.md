@@ -26,7 +26,7 @@ The numeric formalism relies on repository standards (**NUMERIC-STANDARD-001**, 
 
 ## Article LANG-EN — English for first-party code and documentation
 
-**Article LANG-EN.** All **first-party** Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`, `SOUL.md`) **MUST** be written in **English**. Source files (`.t27`, `.zig`, etc.) **MUST** use **English** for comments and identifiers, and remain **ASCII-only** per **ADR-004** and root **`SOUL.md`** Article I (expanded detail in **`docs/SOUL.md`** Law #1).
+**Article LANG-EN.** All **first-party** Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`, `SOUL.md`) **MUST** be written in **English**. Source files (`.t27`, `.zig`, etc.) **MUST** use **English** for comments and identifiers, and remain **ASCII-only** per **ADR-004** and root **`SOUL.md`** Article I (expanded detail in **`docs/nona-03-manifest/SOUL.md`** Law #1).
 
 Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-docs`** until translated; **do not expand** that list without Architect approval. Vendored content under **`external/`** is exempt.
 
@@ -38,18 +38,19 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 
 | Document | Purpose |
 |----------|---------|
-| `docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md` | Technical specification for critical-path migration |
-| `docs/TDD-CONTRACT.md` | TDD and conformance from specs |
-| `docs/SOUL.md` | Expanded reference for root **`SOUL.md`** (esp. Law #1 language); **root `SOUL.md` is canonical** |
+| `docs/README.md` | Index of first-party docs (27-agent / three-nona layout) |
+| `docs/nona-02-organism/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md` | Technical specification for critical-path migration |
+| `docs/nona-03-manifest/TDD-CONTRACT.md` | TDD and conformance from specs |
+| `docs/nona-03-manifest/SOUL.md` | Expanded reference for root **`SOUL.md`** (esp. Law #1 language); **root `SOUL.md` is canonical** |
 | `architecture/ADR-004-language-policy.md` | ASCII source + English first-party docs |
-| `docs/NUMERIC-STANDARD-001.md` | GoldenFloat family, φ structure |
-| `docs/NUMERIC-GF16-DEBT-INVENTORY.md` | File-by-file non-GF16 / f32/f64 debt |
-| `docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Non-t27 language inventory + Lotus cleanup procedure |
-| `docs/GOLDEN-RINGS-CANON.md` | Ring + FROZEN_HASH micro-iterations; GOLD vs REFACTOR-HEAP |
-| `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md` | Unified brain charter; **t27** = `specs/brain/` SSOT, `trinity` = runtime integration |
-| `docs/MULTI-MODEL-TRUST-CHAIN-ANALYSIS.md` | Trust chain, executable rings, issue enforcement, test pyramid (synthesis note) |
-| `docs/T27-BOOTSTRAP-TESTING-PLAN.md` | Rust seed → `.t27` fixtures → self-eval → self-host; proposed ring/issue spine |
-| `docs/GOLDEN-CHAIN-TESTING-ATLAS.md` | Oracles, metamorphic/differential strategy, framework ladder; complements bootstrap plan |
+| `docs/nona-02-organism/NUMERIC-STANDARD-001.md` | GoldenFloat family, φ structure |
+| `docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md` | File-by-file non-GF16 / f32/f64 debt |
+| `docs/nona-01-foundation/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Non-t27 language inventory + Lotus cleanup procedure |
+| `docs/nona-01-foundation/GOLDEN-RINGS-CANON.md` | Ring + FROZEN_HASH micro-iterations; GOLD vs REFACTOR-HEAP |
+| `docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md` | Unified brain charter; **t27** = `specs/brain/` SSOT, `trinity` = runtime integration |
+| `docs/nona-03-manifest/MULTI-MODEL-TRUST-CHAIN-ANALYSIS.md` | Trust chain, executable rings, issue enforcement, test pyramid (synthesis note) |
+| `docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md` | Rust seed → `.t27` fixtures → self-eval → self-host; proposed ring/issue spine |
+| `docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md` | Oracles, metamorphic/differential strategy, framework ladder; complements bootstrap plan |
 | `.cursor/rules/t27-ssot-math.mdc` | Cursor rule for AI agents |
 
 ---
