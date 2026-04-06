@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:05 local time (+07) · RFC3339 2026-04-07T00:05:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:30 local time (+07) · Ring 47.1 ([#177](https://github.com/gHashTag/t27/issues/177)) true topological classification · RFC3339 2026-04-07T00:30:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** **Ring 46** — **Baseline 58/58 PASS** ✅. **#165 CLARA-Bridge cleanup** (L7 UNITY: `run_scenario.py` + `tests/` deleted, contract extracted to `scenarios/runner-contract.md`). **Seal fix:** `jones_topology_filter.t27` hash collision resolved. **Decision Gate:** 16/16 PASS, WEAK_CONFIRM recorded. **Track A:** [#163](https://github.com/gHashTag/t27/issues/163) — L5 identity seal. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) numeric debt sprint (after #163). **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — issues + specs only.
+**Revision:** **Ring 47.1** — **[#177](https://github.com/gHashTag/t27/issues/177)** True topological classification (compute Jones polynomial from input structure, NOT fixed φ). **Ring 46** ✅: Decision Gate 16/16 PASS, WEAK_CONFIRM, PR [#172](https://github.com/gHashTag/t27/pull/172) Merged. **Track A:** [#163](https://github.com/gHashTag/t27/issues/163) L5 identity seal. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase 2.6 numeric debt (after #163). **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — specs-only.
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
