@@ -1,0 +1,2 @@
+# T27 language - map to Zig for immediate GitHub syntax highlighting
+*.t27 linguist-language=Zig

@@ -1,0 +1,38 @@
+{
+  "name": "vscode-trinity-swe",
+  "displayName": "T27 Language Support",
+  "description": "Syntax highlighting for T27 (TRI-27), the ternary language for Trinity S³AI",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "t27",
+        "aliases": ["T27", "TRI-27", "TRI27"],
+        "extensions": [".t27"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "icons/light.png",
+          "dark": "icons/dark.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "t27",
+        "scopeName": "source.t27",
+        "path": "./syntaxes/t27.tmLanguage.json"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trinity-ssai/t27"
+  },
+  "license": "MIT",
+  "publisher": "trinity-ssai",
+  "keywords": ["t27", "tri-27", "ternary", "trinity", "triformat", "syntax", "highlighting"]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "tree-sitter-t27",
+  "version": "0.1.0",
+  "description": "T27 (TRI-27) grammar for tree-sitter - Trinity S³AI ternary language",
+  "main": "bindings/node",
+  "keywords": [
+    "parser",
+    "t27",
+    "tri-27",
+    "ternary",
+    "trinity",
+    "triformat"
+  ],
+  "author": "Trinity S³AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trinity-ssai/t27"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.t27",
+      "file-types": ["t27"],
+      "highlights": [
+        "queries/highlights.scm"
+      ]
+    }
+  ],
+  "dependencies": {
+    "tree-sitter-cli": "^0.20.0",
+    "tree-sitter": "^0.20.0",
+    "node-gyp-build": "^4.2.3"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0"
+  },
+  "scripts": {
+    "test": "tree-sitter test",
+    "generate": "tree-sitter generate",
+    "parse": "tree-sitter parse"
+  }
+}
