@@ -1,171 +1,457 @@
 {
-  "module": "GF20",
-  "spec_path": "specs/numeric/gf20.t27",
-  "ring": 27,
-  "generated_at": "2026-04-04T19:00:00Z",
-  "description": "GoldenFloat20 Conformance Vectors -- NUMERIC-STANDARD-001",
-  "version": "1.0",
-  "format_name": "GF20",
-  "format_bits": 20,
-  "phi_distance": 0.03463264154356299,
-  "sacred_ok": true,
-  "is_primary": false,
-
-  "format_spec": {
-    "bits": 20,
-    "sign_bits": 1,
-    "exp_bits": 7,
-    "mant_bits": 12,
-    "exp_mant_ratio": 0.5833333333333334,
-    "exp_bias": 63,
-    "memory_ratio_vs_fp32": 0.625
-  },
-
-  "vectors": [
-    {
-      "test_name": "gf20_decode_zero",
-      "inputs": { "raw": 0 },
-      "expected": { "decoded": 0.0, "tolerance_abs": 0.0 }
-    },
-    {
-      "test_name": "gf20_encode_zero_roundtrip",
-      "inputs": { "value": 0.0 },
-      "expected": { "raw": 0, "decoded": 0.0, "tolerance_abs": 0.0 }
-    },
-    {
-      "test_name": "gf20_bits_sum_correct",
-      "inputs": { "sign_bits": 1, "exp_bits": 7, "mant_bits": 12 },
-      "expected": { "total": 20 }
-    },
-    {
-      "test_name": "gf20_max_value_positive",
-      "inputs": {},
-      "expected": { "max_value_positive": true }
-    },
-    {
-      "test_name": "gf20_min_positive_greater_than_zero",
-      "inputs": {},
-      "expected": { "min_positive_gt_zero": true }
-    },
-    {
-      "test_name": "gf20_epsilon_positive",
-      "inputs": {},
-      "expected": { "epsilon": 0.000244140625, "positive": true }
-    },
-    {
-      "test_name": "gf20_phi_distance_within_tolerance",
-      "inputs": { "phi_distance": 0.03463264154356299 },
-      "expected": { "less_than": 0.04 }
-    },
-    {
-      "test_name": "gf20_memory_ratio_vs_fp32",
-      "inputs": { "ratio": 0.625 },
-      "expected": { "target": 0.625, "tolerance_abs": 0.01 }
-    },
-    {
-      "test_name": "gf20_validate_format_success",
-      "inputs": {},
-      "expected": { "valid": true }
-    },
-    {
-      "test_name": "gf20_one_point_zero",
-      "inputs": { "value": 1.0 },
-      "expected": {
-        "exp_biased": 63,
-        "mant": 0,
-        "decoded": 1.0,
-        "tolerance_abs": 0.000244140625
-      }
-    },
-    {
-      "test_name": "gf20_phi_golden_ratio",
-      "inputs": { "value": 1.61803398875 },
-      "expected": {
-        "decoded": 1.6181640625,
-        "tolerance_abs": 0.001,
-        "sacred_ok": true
-      }
-    },
-    {
-      "test_name": "gf20_pow_zero_exponent_returns_one",
-      "inputs": { "base": 2.0, "exponent": 0.0 },
-      "expected": { "result": 1.0, "tolerance_abs": 1e-6 }
-    },
-    {
-      "test_name": "gf20_pow_positive_integer_exponent",
-      "inputs": { "base": 2.0, "exponent": 5.0 },
-      "expected": { "result": 32.0, "tolerance_abs": 1e-5 }
-    },
-    {
-      "test_name": "gf20_pow_negative_integer_exponent",
-      "inputs": { "base": 2.0, "exponent": -3.0 },
-      "expected": { "result": 0.125, "tolerance_abs": 1e-5 }
-    },
-    {
-      "test_name": "gf20_pow_fractional_exponent",
-      "inputs": { "base": 4.0, "exponent": 0.5 },
-      "expected": { "result": 2.0, "tolerance_abs": 1e-4 }
-    },
-    {
-      "test_name": "gf20_ln_approx_of_one",
-      "inputs": { "x": 1.0 },
-      "expected": { "result": 0.0, "tolerance_abs": 1e-6 }
-    },
-    {
-      "test_name": "gf20_ln_approx_of_e",
-      "inputs": { "x": 2.718281828459045 },
-      "expected": { "result": 1.0, "tolerance_abs": 0.01 }
-    },
-    {
-      "test_name": "gf20_exp_approx_zero",
-      "inputs": { "x": 0.0 },
-      "expected": { "result": 1.0, "tolerance_abs": 1e-6 }
-    },
-    {
-      "test_name": "gf20_exp_approx_one",
-      "inputs": { "x": 1.0 },
-      "expected": { "result": 2.718281828459045, "tolerance_abs": 0.01 }
-    },
-    {
-      "test_name": "gf20_floor_positive",
-      "inputs": { "x": 3.7 },
-      "expected": { "result": 3.0, "tolerance_abs": 1e-6 }
-    },
-    {
-      "test_name": "gf20_floor_negative",
-      "inputs": { "x": -3.2 },
-      "expected": { "result": -4.0, "tolerance_abs": 1e-6 }
-    }
-  ],
-
-  "invariants": [
-    { "name": "gf20_bits_constant", "assertion": "BITS == 20" },
-    { "name": "gf20_sign_bits_is_one", "assertion": "SIGN_BITS == 1" },
-    { "name": "gf20_exp_bits_is_seven", "assertion": "EXP_BITS == 7" },
-    { "name": "gf20_mant_bits_is_twelve", "assertion": "MANT_BITS == 12" },
-    { "name": "gf20_max_ge_min_positive", "assertion": "max_value() >= min_positive()" },
-    { "name": "gf20_phi_distance_below_threshold", "assertion": "PHI_DISTANCE < 0.04" },
-    { "name": "gf20_exp_bias_positive", "assertion": "EXP_BIAS > 0" },
-    { "name": "gf20_pow_zero_exponent_identity", "assertion": "pow(x, 0.0) == 1.0 for all positive x" },
-    { "name": "gf20_pow_one_exponent_identity", "assertion": "pow(x, 1.0) == x for all valid x" },
-    { "name": "gf20_ln_exp_inversion", "assertion": "abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0" },
-    { "name": "gf20_floor_returns_integer", "assertion": "floor(x) is integer for all f32 x" },
-    { "name": "gf20_floor_monotonic", "assertion": "floor(2.5) <= floor(3.5)" }
-  ],
-
   "benchmark_metrics": {
-    "encode_latency_target_ns": 200,
     "decode_latency_target_ns": 150,
-    "pow_integer_latency_target_ns": 500,
-    "ln_latency_target_ns": 300,
+    "encode_latency_target_ns": 200,
     "exp_latency_target_ns": 500,
     "floor_latency_target_ns": 50,
+    "ln_latency_target_ns": 300,
     "memory_savings_vs_fp32": 0.375,
+    "pow_integer_latency_target_ns": 500,
     "use_cases": [
       "high_precision_ml_training",
       "gradient_accumulation",
       "scientific_computing",
       "near_fp32_quality"
     ]
-  }
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "GoldenFloat20 Conformance Vectors -- NUMERIC-STANDARD-001",
+  "format_bits": 20,
+  "format_family": "GF20",
+  "format_name": "GF20",
+  "format_spec": {
+    "bits": 20,
+    "exp_bias": 63,
+    "exp_bits": 7,
+    "exp_mant_ratio": 0.5833333333333334,
+    "mant_bits": 12,
+    "memory_ratio_vs_fp32": 0.625,
+    "sign_bits": 1
+  },
+  "generated_at": "2026-04-04T19:00:00Z",
+  "invariants": [
+    {
+      "assertion": "BITS == 20",
+      "name": "gf20_bits_constant"
+    },
+    {
+      "assertion": "SIGN_BITS == 1",
+      "name": "gf20_sign_bits_is_one"
+    },
+    {
+      "assertion": "EXP_BITS == 7",
+      "name": "gf20_exp_bits_is_seven"
+    },
+    {
+      "assertion": "MANT_BITS == 12",
+      "name": "gf20_mant_bits_is_twelve"
+    },
+    {
+      "assertion": "max_value() >= min_positive()",
+      "name": "gf20_max_ge_min_positive"
+    },
+    {
+      "assertion": "PHI_DISTANCE < 0.04",
+      "name": "gf20_phi_distance_below_threshold"
+    },
+    {
+      "assertion": "EXP_BIAS > 0",
+      "name": "gf20_exp_bias_positive"
+    },
+    {
+      "assertion": "pow(x, 0.0) == 1.0 for all positive x",
+      "name": "gf20_pow_zero_exponent_identity"
+    },
+    {
+      "assertion": "pow(x, 1.0) == x for all valid x",
+      "name": "gf20_pow_one_exponent_identity"
+    },
+    {
+      "assertion": "abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0",
+      "name": "gf20_ln_exp_inversion"
+    },
+    {
+      "assertion": "floor(x) is integer for all f32 x",
+      "name": "gf20_floor_returns_integer"
+    },
+    {
+      "assertion": "floor(2.5) <= floor(3.5)",
+      "name": "gf20_floor_monotonic"
+    }
+  ],
+  "is_primary": false,
+  "module": "GF20",
+  "phi_distance": 0.03463264154356299,
+  "ring": 27,
+  "sacred_ok": true,
+  "schema_version": 2,
+  "seal": "sha256:010eac0f017c87262355867ea4e917e2e9427aa3c83b154a66865271807c399e",
+  "spec_path": "specs/numeric/gf20.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "gf20 Vectors",
+  "vectors": [
+    {
+      "expected": {
+        "decoded": 0.0,
+        "tolerance_abs": 0.0
+      },
+      "inputs": {
+        "raw": 0
+      },
+      "test_name": "gf20_decode_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "decoded": 0.0,
+        "raw": 0,
+        "tolerance_abs": 0.0
+      },
+      "inputs": {
+        "value": 0.0
+      },
+      "test_name": "gf20_encode_zero_roundtrip",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "total": 20
+      },
+      "inputs": {
+        "exp_bits": 7,
+        "mant_bits": 12,
+        "sign_bits": 1
+      },
+      "test_name": "gf20_bits_sum_correct",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "max_value_positive": true
+      },
+      "inputs": {},
+      "test_name": "gf20_max_value_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "min_positive_gt_zero": true
+      },
+      "inputs": {},
+      "test_name": "gf20_min_positive_greater_than_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "epsilon": 0.000244140625,
+        "positive": true
+      },
+      "inputs": {},
+      "test_name": "gf20_epsilon_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "less_than": 0.04
+      },
+      "inputs": {
+        "phi_distance": 0.03463264154356299
+      },
+      "test_name": "gf20_phi_distance_within_tolerance",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "target": 0.625,
+        "tolerance_abs": 0.01
+      },
+      "inputs": {
+        "ratio": 0.625
+      },
+      "test_name": "gf20_memory_ratio_vs_fp32",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "valid": true
+      },
+      "inputs": {},
+      "test_name": "gf20_validate_format_success",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "decoded": 1.0,
+        "exp_biased": 63,
+        "mant": 0,
+        "tolerance_abs": 0.000244140625
+      },
+      "inputs": {
+        "value": 1.0
+      },
+      "test_name": "gf20_one_point_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "decoded": 1.6181640625,
+        "sacred_ok": true,
+        "tolerance_abs": 0.001
+      },
+      "inputs": {
+        "value": 1.61803398875
+      },
+      "test_name": "gf20_phi_golden_ratio",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 1.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "base": 2.0,
+        "exponent": 0.0
+      },
+      "test_name": "gf20_pow_zero_exponent_returns_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 32.0,
+        "tolerance_abs": 0.00001
+      },
+      "inputs": {
+        "base": 2.0,
+        "exponent": 5.0
+      },
+      "test_name": "gf20_pow_positive_integer_exponent",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 0.125,
+        "tolerance_abs": 0.00001
+      },
+      "inputs": {
+        "base": 2.0,
+        "exponent": -3.0
+      },
+      "test_name": "gf20_pow_negative_integer_exponent",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 2.0,
+        "tolerance_abs": 0.0001
+      },
+      "inputs": {
+        "base": 4.0,
+        "exponent": 0.5
+      },
+      "test_name": "gf20_pow_fractional_exponent",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 0.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": 1.0
+      },
+      "test_name": "gf20_ln_approx_of_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 1.0,
+        "tolerance_abs": 0.01
+      },
+      "inputs": {
+        "x": 2.718281828459045
+      },
+      "test_name": "gf20_ln_approx_of_e",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 1.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": 0.0
+      },
+      "test_name": "gf20_exp_approx_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 2.718281828459045,
+        "tolerance_abs": 0.01
+      },
+      "inputs": {
+        "x": 1.0
+      },
+      "test_name": "gf20_exp_approx_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 3.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": 3.7
+      },
+      "test_name": "gf20_floor_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": -4.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": -3.2
+      },
+      "test_name": "gf20_floor_negative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: BITS == 20",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "BITS == 20"
+      },
+      "name": "inv_gf20_bits_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: SIGN_BITS == 1",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "SIGN_BITS == 1"
+      },
+      "name": "inv_gf20_sign_bits_is_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: EXP_BITS == 7",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "EXP_BITS == 7"
+      },
+      "name": "inv_gf20_exp_bits_is_seven",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: MANT_BITS == 12",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "MANT_BITS == 12"
+      },
+      "name": "inv_gf20_mant_bits_is_twelve",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: max_value() >= min_positive()",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "max_value() >= min_positive()"
+      },
+      "name": "inv_gf20_max_ge_min_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: PHI_DISTANCE < 0.04",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "PHI_DISTANCE < 0.04"
+      },
+      "name": "inv_gf20_phi_distance_below_threshold",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: EXP_BIAS > 0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "EXP_BIAS > 0"
+      },
+      "name": "inv_gf20_exp_bias_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: pow(x, 0.0) == 1.0 for all positive x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "pow(x, 0.0) == 1.0 for all positive x"
+      },
+      "name": "inv_gf20_pow_zero_exponent_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: pow(x, 1.0) == x for all valid x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "pow(x, 1.0) == x for all valid x"
+      },
+      "name": "inv_gf20_pow_one_exponent_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0"
+      },
+      "name": "inv_gf20_ln_exp_inversion",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: floor(x) is integer for all f32 x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "floor(x) is integer for all f32 x"
+      },
+      "name": "inv_gf20_floor_returns_integer",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: floor(2.5) <= floor(3.5)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "floor(2.5) <= floor(3.5)"
+      },
+      "name": "inv_gf20_floor_monotonic",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "1.0"
 }

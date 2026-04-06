@@ -1,12 +1,18 @@
 {
-  "module": "TF3",
-  "spec_path": "specs/numeric/tf3.t27",
-  "ring": 26,
-  "generated_at": "2026-04-04T19:00:00Z",
-  "vectors": [
+  "schema_version": 2,
+  "format_family": "TernaryFloat",
+  "vector_name": "TF3 Conformance Vectors",
+  "format_name": "TF3",
+  "format_bits": 8,
+  "version": "2.0",
+  "description": "8-bit Ternary Float format conformance vectors",
+  "verdict": "CLEAN",
+  "seal": "sha256:8f080ac79887cdde6bdf311c0dd5fb25ed138bd94022c2be2bc3befdbc5dbd63",
+  "test_vectors": [
     {
       "name": "zero_positive",
       "description": "Positive zero encodes to 0x00",
+      "verdict": "CLEAN",
       "input": { "value": 0.0 },
       "expected": {
         "raw": 0,
@@ -17,6 +23,7 @@
     {
       "name": "zero_negative",
       "description": "Negative zero encodes to 0x80",
+      "verdict": "CLEAN",
       "input": { "value": -0.0 },
       "expected": {
         "raw": 128,
@@ -27,6 +34,7 @@
     {
       "name": "one_point_zero",
       "description": "1.0 encodes with exp=bias, mant=0",
+      "verdict": "CLEAN",
       "input": { "value": 1.0 },
       "expected": {
         "decoded": 1.0,
@@ -36,6 +44,7 @@
     {
       "name": "positive_1_5",
       "description": "1.5 roundtrip",
+      "verdict": "CLEAN",
       "input": { "value": 1.5 },
       "expected": {
         "decoded": 1.5,
@@ -45,6 +54,7 @@
     {
       "name": "negative_2_5",
       "description": "-2.5 roundtrip (sign bit set)",
+      "verdict": "CLEAN",
       "input": { "value": -2.5 },
       "expected": {
         "sign": 1,
@@ -55,6 +65,7 @@
     {
       "name": "clamp_to_max",
       "description": "Values > 8 are clamped to max representable",
+      "verdict": "CLEAN",
       "input": { "value": 100.0 },
       "expected": {
         "decoded_less_than": 20.0
@@ -63,6 +74,7 @@
     {
       "name": "inf_positive",
       "description": "Positive infinity encoding",
+      "verdict": "CLEAN",
       "input": { "raw": 112 },
       "expected": {
         "exp": 7,
@@ -73,6 +85,7 @@
     {
       "name": "inf_negative",
       "description": "Negative infinity encoding",
+      "verdict": "CLEAN",
       "input": { "raw": 240 },
       "expected": {
         "sign": 1,
@@ -84,6 +97,7 @@
     {
       "name": "extract_sign_positive",
       "description": "Sign extraction for positive value",
+      "verdict": "CLEAN",
       "input": { "raw": 0 },
       "expected": {
         "sign": 0
@@ -92,6 +106,7 @@
     {
       "name": "extract_sign_negative",
       "description": "Sign extraction for negative value",
+      "verdict": "CLEAN",
       "input": { "raw": 128 },
       "expected": {
         "sign": 1
@@ -100,6 +115,7 @@
     {
       "name": "negate_flips_sign",
       "description": "Negation flips sign bit via XOR 0x80",
+      "verdict": "CLEAN",
       "input": { "raw": 53 },
       "expected": {
         "negated_raw": 181
@@ -108,52 +124,70 @@
     {
       "name": "abs_clears_sign",
       "description": "Absolute value clears sign bit via AND ~0x80",
+      "verdict": "CLEAN",
       "input": { "raw": 181 },
       "expected": {
         "abs_raw": 53
       }
+    },
+    {
+      "name": "inv_masks_cover_all_bits",
+      "description": "Invariant: (SIGN_MASK | EXP_MASK | MANT_MASK) == 0xFF",
+      "verdict": "CLEAN",
+      "input": { "assertion": "(SIGN_MASK | EXP_MASK | MANT_MASK) == 0xFF" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_exp_bias_is_3",
+      "description": "Invariant: BIAS == 3",
+      "verdict": "CLEAN",
+      "input": { "assertion": "BIAS == 3" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_mant_bits_is_4",
+      "description": "Invariant: MANT_BITS == 4",
+      "verdict": "CLEAN",
+      "input": { "assertion": "MANT_BITS == 4" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_zero_pos_is_0x00",
+      "description": "Invariant: TF3_ZERO_POS == 0x00",
+      "verdict": "CLEAN",
+      "input": { "assertion": "TF3_ZERO_POS == 0x00" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_inf_pos_is_0x70",
+      "description": "Invariant: TF3_INF_POS == 0x70",
+      "verdict": "CLEAN",
+      "input": { "assertion": "TF3_INF_POS == 0x70" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_negate_double_negate_identity",
+      "description": "Invariant: tf3_negate(tf3_negate(x)) == x",
+      "verdict": "CLEAN",
+      "input": { "assertion": "tf3_negate(tf3_negate(x)) == x" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_abs_of_abs_identity",
+      "description": "Invariant: tf3_abs(tf3_abs(x)) == tf3_abs(x)",
+      "verdict": "CLEAN",
+      "input": { "assertion": "tf3_abs(tf3_abs(x)) == tf3_abs(x)" },
+      "expected": { "value": true }
+    },
+    {
+      "name": "inv_zero_is_zero",
+      "description": "Invariant: tf3_is_zero(TF3_ZERO_POS) && tf3_is_zero(TF3_ZERO_NEG)",
+      "verdict": "CLEAN",
+      "input": { "assertion": "tf3_is_zero(TF3_ZERO_POS) && tf3_is_zero(TF3_ZERO_NEG)" },
+      "expected": { "value": true }
     }
   ],
-  "invariants": [
-    {
-      "name": "masks_cover_all_bits",
-      "assertion": "(SIGN_MASK | EXP_MASK | MANT_MASK) == 0xFF",
-      "value": true
-    },
-    {
-      "name": "exp_bias_is_3",
-      "assertion": "BIAS == 3",
-      "value": true
-    },
-    {
-      "name": "mant_bits_is_4",
-      "assertion": "MANT_BITS == 4",
-      "value": true
-    },
-    {
-      "name": "zero_pos_is_0x00",
-      "assertion": "TF3_ZERO_POS == 0x00",
-      "value": true
-    },
-    {
-      "name": "inf_pos_is_0x70",
-      "assertion": "TF3_INF_POS == 0x70",
-      "value": true
-    },
-    {
-      "name": "negate_double_negate_identity",
-      "assertion": "tf3_negate(tf3_negate(x)) == x for all x",
-      "value": true
-    },
-    {
-      "name": "abs_of_abs_identity",
-      "assertion": "tf3_abs(tf3_abs(x)) == tf3_abs(x) for all x",
-      "value": true
-    },
-    {
-      "name": "zero_is_zero",
-      "assertion": "tf3_is_zero(TF3_ZERO_POS) && tf3_is_zero(TF3_ZERO_NEG)",
-      "value": true
-    }
-  ]
+  "created_at": "2026-04-06T00:00:00Z",
+  "updated_at": "2026-04-06T00:00:00Z",
+  "validated_at": "2026-04-06T00:00:00Z"
 }
