@@ -1,0 +1,29 @@
+{
+  "module": "PHI-IDENTITY-K2",
+  "id": "PHI-IDENTITY-K2-F64",
+  "standard": "AXIOM-K2",
+  "format": "IEEE754-binary64",
+  "formal_reference": "coq/Kernel/Phi.v",
+  "flocq_layer": "coq/Kernel/PhiFloat.v",
+  "formal_proof": "T27.Kernel.PhiFloat::phi_identity_contract",
+  "phi_hex": "0x1.9e3779b97f4a8p+0",
+  "phi_sq_hex": "0x1.4f1bbcdcbfa54p+1",
+  "phi_plus_one_hex": "0x1.4f1bbcdcbfa54p+1",
+  "f64_phi_sq_eq_phi_plus_one": true,
+  "phi_dec": "1.618033988749895",
+  "identity_residual_bound_theory": 1.454e-15,
+  "tolerance_formula": "5 * 2^-53 * phi^2 on R (Phi.v phi_tolerance / PhiFloat PHI_F64_TOLERANCE)",
+  "validation_script": "scripts/validate_phi_f64.py",
+  "vectors": [
+    {
+      "name": "phi_squared_identity_R",
+      "claim": "Rabs(phi*phi - (phi+1)) = 0",
+      "verdict": "PASS"
+    },
+    {
+      "name": "phi_identity_f64_residual",
+      "claim": "B2R(b64_mult NE phi phi) = B2R(b64_plus NE phi 1.0) (bit-identical floats)",
+      "verdict": "PASS"
+    }
+  ]
+}

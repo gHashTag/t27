@@ -1,0 +1,69 @@
+name: "Bootstrap testing"
+description: "Ring-scoped test work (Rust seed, .t27 fixtures, self-eval path)"
+title: "[bootstrap]: "
+labels: ["phi-loop"]
+body:
+  - type: dropdown
+    id: ring
+    attributes:
+      label: Bootstrap ring
+      description: "Which ring does this issue advance? (See docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md)"
+      options:
+        - "0 — Rust seed (suite, parser, seals)"
+        - "1 — .t27 fixtures + Rust runner"
+        - "2 — .t27 evaluates .t27 (Bootstrap Day track)"
+        - "3+ — .t27 compiles .t27 / framework in language"
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Primary language / surface
+      options:
+        - "Rust"
+        - ".t27"
+        - "Both"
+    validations:
+      required: true
+  - type: dropdown
+    id: test_type
+    attributes:
+      label: Test type
+      options:
+        - "unit"
+        - "snapshot"
+        - "pbt (property-based)"
+        - "metamorphic"
+        - "differential"
+        - "formal / exhaustive"
+        - "e2e / suite"
+    validations:
+      required: true
+  - type: dropdown
+    id: oracle
+    attributes:
+      label: Oracle
+      description: "How do we know the output is correct? (See docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md)"
+      options:
+        - "reference (library / tables / CAS)"
+        - "golden / snapshot"
+        - "metamorphic relation"
+        - "formal proof / enumeration"
+        - "seal / policy manifest"
+        - "mixed / TBD"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: "Exact command(s) + expected outcome (exit code, key stdout substring, or artifact)."
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / links
+      description: "Related specs, prior issues, or failing CI logs (optional)."
+    validations:
+      required: false

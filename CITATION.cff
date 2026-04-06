@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use T27 in research or software, please cite it as below."
+title: "T27: TRI-27 spec-first language for ternary computing"
+version: 0.1.0
+date-released: 2026-04-06
+license: MIT
+repository-code: "https://github.com/gHashTag/t27"
+url: "https://github.com/gHashTag/t27"
+authors:
+  - family-names: Vasilev
+    given-names: Dmitrii
+    affiliation: Trinity Project
+keywords:
+  - ternary computing
+  - specification language
+  - Zig
+  - Verilog

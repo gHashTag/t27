@@ -136,7 +136,7 @@ module gen_commands {
 
         // Determine output paths
         const output_dir = if (options.output_dir.len == 0)
-            "backend/" ++ options.backend
+            "gen/" ++ options.backend
         else
             options.output_dir;
 

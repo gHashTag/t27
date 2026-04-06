@@ -1,0 +1,28 @@
+{
+  "format_family": "GoldenFloat",
+  "version": "1.0",
+  "canonical_reference": "THM-009 (phi_ratio optimality) — see specs/numeric/phi_ratio.t27 and docs/nona-02-organism/NUMERIC-STANDARD-001.md",
+  "normative_markdown": "docs/nona-02-organism/NUMERIC-STANDARD-001.md",
+  "value_formula": "(-1)^S * 2^(E - bias) * (1 + M / 2^mant_bits)",
+  "formats": {
+    "GF4": { "bits": 4, "sign": 1, "exp": 1, "mant": 2, "bias": 0, "phi_dist": 0.118 },
+    "GF8": { "bits": 8, "sign": 1, "exp": 3, "mant": 4, "bias": 3, "phi_dist": 0.132 },
+    "GF12": { "bits": 12, "sign": 1, "exp": 4, "mant": 7, "bias": 7, "phi_dist": 0.047 },
+    "GF16": {
+      "bits": 16,
+      "sign": 1,
+      "exp": 6,
+      "mant": 9,
+      "bias": 31,
+      "phi_dist": 0.049,
+      "primary": true
+    },
+    "GF20": { "bits": 20, "sign": 1, "exp": 7, "mant": 12, "bias": 63, "phi_dist": 0.035 },
+    "GF24": { "bits": 24, "sign": 1, "exp": 9, "mant": 14, "bias": 255, "phi_dist": 0.025 },
+    "GF32": { "bits": 32, "sign": 1, "exp": 12, "mant": 19, "bias": 2047, "phi_dist": 0.014 }
+  },
+  "sacred_constants": {
+    "PHI": { "value": 1.6180339887498948482, "tolerance": 1e-15 },
+    "TRINITY": { "value": 3.0, "tolerance": 0.0 }
+  }
+}

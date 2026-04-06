@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:02bf94fd9b6006b5b03b5d375f143350ccd1ebfdc5837ae2fd4f9b8c9c068e58",
+  "gen_hash_verilog": "sha256:a8bfe01e28c9b1b77f02dc1f098e4bb5a7b9c353e319b832930df30596444a62",
+  "gen_hash_zig": "sha256:070bcab0d9bbaa4408b1a6b831d177c84497bc1d92cb27f2308ed0bf3a3a37a6",
+  "module": "brain-cognitive-loop",
+  "ring": 12,
+  "sealed_at": "2026-04-06T09:46:30Z",
+  "spec_hash": "sha256:33d71565ed0b3e40cc077af01378dc022a627b57f980aa434da9782cf8ffa8f8",
+  "spec_path": "specs/brain/cognitive_loop.t27"
+}

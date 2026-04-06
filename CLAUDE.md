@@ -1,38 +1,49 @@
-# Instructions
+# CLAUDE.md — Instructions for Claude Code and autonomous agents (t27)
 
-You are an autonomous coding subagent spawned by a parent agent to complete a specific task. You run unattended — there is no human in the loop and no way to ask for clarification. You must complete the task fully on your own and then exit.
+Use this file **together with** `[AGENTS.md](AGENTS.md)`. Repo-specific law always overrides generic tooling defaults.
 
-You have two categories of skills:
+---
 
-- **Coding skills** (`coding-workflow`, `commit-push-pr`, `pr-description`, `code-simplifier`, `code-review`): For repository work, writing code, git operations, pull requests, and code quality
-- **Data skills** (`data-triage`, `data-analyst`, `data-model-explorer`): For database queries, metrics, data analysis, and visualizations
-- **Repo skills** (`repo-skills`): After cloning any repo, scan for and index its skill definitions
+## 1. Mandatory read order for this repository
 
-Load the appropriate skill based on the task. If the task involves both code and data, load both. Always load `repo-skills` after cloning a repository.
+1. `[AGENTS.md](AGENTS.md)` — entry point and constitutional stack.
+2. `[SOUL.md](SOUL.md)` — canonical law (TDD, language, validation).
+3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**, **DOCS-TREE**.
+4. `[TASK.md](TASK.md)` and `[docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
+5. Nearest `[OWNERS.md](OWNERS.md)` for the directories you edit.
 
-## Execution Rules
+Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the **`tri`** pipeline (`./scripts/tri`).
 
-- Do NOT stall. If an approach isn't working, try a different one immediately.
-- Do NOT explore the codebase endlessly. Get oriented quickly, then start making changes.
-- If a tool is missing (e.g., `rg`), use an available alternative (e.g., `grep -r`) and move on.
-- If a git operation fails, try a different approach (e.g., `gh repo clone` instead of `git clone`).
-- Stay focused on the objective. Do not go on tangents or investigate unrelated code.
-- If you are stuck after multiple retries, abort and report what went wrong rather than looping forever.
+---
 
-## Repo Conventions
+## 2. Engineering workflow
 
-After cloning any repository, immediately check for and read these files at the repo root:
-- `CLAUDE.md` — Claude Code instructions and project conventions
-- `AGENTS.md` — Agent-specific instructions
+- **Bootstrap compiler:** `cd bootstrap && cargo build --release` (runs `build.rs` language checks).
+- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./bootstrap/target/release/t27c suite --repo-root .` (Rust runner; no shell test harness under `tests/`).
+- **Generated code:** under `gen/` — do not hand-edit for routine fixes; change specs and regenerate.
+- **Pull requests:** follow project Issue Gate and linking policy; **do not approve** PRs unless explicitly authorized.
 
-Follow all instructions and conventions found in these files. They define the project's coding standards, test requirements, commit conventions, and PR expectations. If they conflict with these instructions, the repo's files take precedence.
+---
 
-## Core Rules
+## 3. Autonomous subagent behavior (when spawned unattended)
 
-- Ensure all changes follow the project's coding standards (as discovered from repo convention files above)
-- NEVER approve PRs — you are not authorized to approve pull requests. Only create and comment on PRs.
-- Complete the task autonomously and create the PR(s) when done.
+- Finish the assigned task without waiting for clarification unless the repo’s own rules require human input.
+- If blocked after reasonable retries, stop and report what failed (logs, commands, file paths).
+- Prefer small, reviewable diffs; match existing style and naming in touched files.
+- **Output persistence:** when the parent workflow requires it, write the full final report to `/tmp/claude_code_output.md` (analysis, commands, diffs summary).
 
-## Output Persistence
+---
 
-IMPORTANT: Before finishing, you MUST write your complete final response to `/tmp/claude_code_output.md` using the Write tool. This file must contain your full analysis, findings, code, or whatever the final deliverable is. This is a hard requirement — do not skip it.
+## 4. Skills and tooling (optional)
+
+If your environment exposes **skills** (e.g. coding-workflow, commit-push-pr), load what matches the task. After cloning any repo, discover project-specific skills per host conventions. **This repository’s normative text remains in `AGENTS.md`, `SOUL.md`, and `docs/`.**
+
+---
+
+## 5. Security and secrets
+
+- Never commit secrets. See `[SECURITY.md](SECURITY.md)`. Root `.env` patterns are gitignored; use `.env.example` patterns only in docs.
+
+---
+
+**Repository:** Trinity S³AI — **t27** (spec-first ternary / TRI-27). **φ² + 1/φ² = 3 | TRINITY**

@@ -1,5 +1,7 @@
 # SOUL — T27 Constitutional Law
 
+**Canonical location:** this file at the **repository root** is the **single source of truth** for Trinity constitutional law. **[`docs/nona-03-manifest/SOUL.md`](docs/nona-03-manifest/SOUL.md)** is an **expanded reference** (detail, examples); if anything disagrees, **this file wins**.
+
 ** Immutable Document — Amendments Require Unanimous Architectural Consent **
 
 > *"A specification without tests is a lie told in the future tense."*
@@ -16,7 +18,7 @@ T27 is a **spec-first** architecture where mathematical truth, not implementatio
 ## Article I: The Language Policy
 
 ### §1.1. ASCII-Only Source Files
-**Source files MUST be ASCII-only. Documentation MAY use any language.**
+**Source files MUST be ASCII-only.** Identifiers and comments MUST be English.
 
 All files in the following categories MUST contain only ASCII characters (U+0000–U+007F):
 - `.t27` — TRI-27 assembly specifications
@@ -27,25 +29,26 @@ All files in the following categories MUST contain only ASCII characters (U+0000
 - Build scripts, makefiles, etc.
 
 **FORBIDDEN in source files:**
-- **Cyrillic** (U+0400–U+04FF): А-Я а-я ё Ё
-- **Other non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc.
+- **Cyrillic** (U+0400–U+04FF) and other non-Latin scripts in identifiers and comments
+- **Non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc., unless an Architect-approved exception exists
 
-### §1.2. Documentation Exception
-Files in the following locations MAY contain any language including Cyrillic:
-- `docs/` — All documentation
-- `*.md` — Markdown files (except in source trees)
-- `README.md`, `LICENSE` — Project metadata
+### §1.2. First-party documentation language
+Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`) **MUST be English**, except paths listed in **`docs/.legacy-non-english-docs`** (grandfathered) and anything under **`external/`**.
 
 ### §1.3. Enforcement
-The parser rejects Cyrillic with:
+The parser rejects Cyrillic in source with:
 ```
 error: Language policy violation: source file contains Cyrillic characters (U+0400-U+04FF). Source files must be ASCII-only. See SOUL.md Article I.
 ```
 
+CI runs `scripts/check-first-party-doc-language.sh` on pull requests.
+
+**Compiler build:** `cargo build` in `bootstrap/` runs `build.rs`, which fails the build if Cyrillic appears in specs, bootstrap Rust sources, or unlisted first-party Markdown (this Article; expanded enforcement notes in `docs/nona-03-manifest/SOUL.md` Law #1).
+
 ### §1.4. Rationale
 1. **Universality**: ASCII is universally supported across all platforms and tools
-2. **Clarity**: English (ASCII) is the lingua franca of programming
-3. **Separation of Concerns**: Code expresses logic, docs express explanations in any language
+2. **Clarity**: English is the single review language for Trinity first-party docs and specs
+3. **Separation of Concerns**: Vendored locales live under `external/`; core repo stays English
 4. **Git Compatibility**: No encoding issues in diffs, patches, or blame output
 
 ---
