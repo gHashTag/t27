@@ -197,6 +197,8 @@ class Tokenizer:
     def _skip_whitespace(self):
         while True:
             c = self._peek()
+            if c is None:
+                break
             if c in ' \t\r':
                 self._advance()
             elif c == '\n':
@@ -377,15 +379,24 @@ class Parser:
 
     def parse_module(self) -> ModuleNode:
         name = ""
+        decls = []
 
-        # Optional: module NAME;
         if self._eat(TokenKind.MODULE):
             name_tok = self._expect(TokenKind.IDENT)
             if name_tok:
                 name = name_tok.text
-            self._eat(TokenKind.SEMICOLON)
+            # module Foo; or module Foo { ... }
+            if self._eat(TokenKind.SEMICOLON):
+                pass  # module NAME; syntax
+            elif self._peek().kind == TokenKind.LBRACE:
+                self._next()  # consume LBRACE
+                while self._peek().kind != TokenKind.RBRACE and self._peek().kind != TokenKind.EOF:
+                    decl = self._parse_decl()
+                    if decl:
+                        decls.append(decl)
+                self._expect(TokenKind.RBRACE)
+                return ModuleNode(name=name, decls=decls)
 
-        decls = []
         while self._peek().kind != TokenKind.EOF:
             decl = self._parse_decl()
             if decl:
@@ -424,13 +435,17 @@ class Parser:
 
         self._expect(TokenKind.ASSIGN)
 
-        # Parse value (simplified: capture until semicolon)
+        # Parse value - stop at semicolon, RBRACE, or next declaration keyword
+        DECL_KEYWORDS = {TokenKind.ENUM, TokenKind.STRUCT, TokenKind.FN, 
+                         TokenKind.TEST, TokenKind.INVARIANT, TokenKind.CONST,
+                         TokenKind.PUB, TokenKind.EOF}
         value_parts = []
-        while self._peek().kind != TokenKind.SEMICOLON and self._peek().kind != TokenKind.EOF:
+        while self._peek().kind not in DECL_KEYWORDS:
             tok = self._next()
             value_parts.append(tok.text)
 
-        self._expect(TokenKind.SEMICOLON)
+        # Eat optional semicolon
+        self._eat(TokenKind.SEMICOLON)
 
         return ConstDeclNode(
             pub_=is_pub,
@@ -441,16 +456,22 @@ class Parser:
 
     def _parse_type_ref(self) -> str:
         parts = []
-        while self._peek().kind in [TokenKind.IDENT, TokenKind.LBRACKET, TokenKind.RBRACKET,
-                                       TokenKind.STAR, TokenKind.QUESTION]:
+        while self._peek().kind in [TokenKind.IDENT, TokenKind.LITERAL, TokenKind.LBRACKET, 
+                                       TokenKind.RBRACKET, TokenKind.STAR, TokenKind.QUESTION]:
             parts.append(self._next().text)
         return ''.join(parts)
 
     def _parse_enum_decl(self, is_pub: bool) -> EnumDeclNode:
         name_tok = self._expect(TokenKind.IDENT)
-        self._expect(TokenKind.LPAREN)
-        backing_tok = self._expect(TokenKind.IDENT)
-        self._expect(TokenKind.RPAREN)
+        
+        # Optional backing type: enum Name(type) { }
+        backing = "u32"
+        if self._eat(TokenKind.LPAREN):
+            backing_tok = self._expect(TokenKind.IDENT)
+            if backing_tok:
+                backing = backing_tok.text
+            self._expect(TokenKind.RPAREN)
+        
         self._expect(TokenKind.LBRACE)
 
         values = []
@@ -474,7 +495,7 @@ class Parser:
 
         return EnumDeclNode(
             name=name_tok.text if name_tok else "",
-            backing=backing_tok.text if backing_tok else "",
+            backing=backing,
             values=values
         )
 
