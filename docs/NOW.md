@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Tuesday, 06 April 2026 (UTC) · Phase 3 Ring 049 (sacred physics) — hard tolerance verification for 6 constants · RFC3339 2026-04-06T11:30:00Z
+**Last updated:** 2026-04-06 — Tuesday, 06 April 2026 (UTC) · Phase 3 Ring 051 (Jones Polynomial) — V(L,t) from input structure with variable t · RFC3339 2026-04-06T19:30:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Ring 49 → Phase 3** — Sacred physics hard tolerance verification (#145): Trinity identity 1e-12, Barbero-Immirzi 1e-15, all 6 constants within tolerance. All 63 seals verified.
+**Revision:** **Rings 46+47+49+51 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175) — all CLOSED. 79/79 specs PASS, all seals verified.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
