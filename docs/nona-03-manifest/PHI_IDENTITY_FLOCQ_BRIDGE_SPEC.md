@@ -1,4 +1,4 @@
-# PHI-IDENTITY — Flocq bridge (technical specification)
+# L5 IDENTITY — Flocq bridge (technical specification)
 
 **Status:** DRAFT → review. English-only.  
 **Repo:** `github.com/gHashTag/t27` · **Normative prose:** [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](../KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md) (K2), [`T27_KERNEL_FORMAL_COQ.md`](../T27_KERNEL_FORMAL_COQ.md), [`NUMERIC-CORE-PALETTE-REGISTRY.md`](../nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md).  
@@ -7,7 +7,7 @@
 ## Problem
 
 - **Layer A (`Coq.Reals`):** \(\varphi^2 = \varphi + 1\) is exact. Implemented in `coq/Kernel/Phi.v` (no `Admitted`).
-- **Engineering (`f64`):** \(\varphi\) is not representable exactly; operations round. The **PHI-IDENTITY** check in code uses a **tolerance**.
+- **Engineering (`f64`):** \(\varphi\) is not representable exactly; operations round. The **L5 IDENTITY** check in code uses a **tolerance**.
 - **Gap:** A machine-checked link between **IEEE binary64** semantics and `phi_tolerance` requires **Flocq** (or equivalent), as used by CompCert for float proofs.
 
 ## Goals (scope)
