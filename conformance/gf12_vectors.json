@@ -1,99 +1,129 @@
 {
+  "benchmark_metrics": {
+    "memory_savings": 0.625,
+    "mse_vs_fp32": null,
+    "speedup_vs_fp32": null,
+    "use_cases": [
+      "high_precision_quantization",
+      "attention_matrices",
+      "critical_path_weights"
+    ]
+  },
+  "best_phi_approximation": true,
+  "created_at": "2026-04-06T15:54:08Z",
   "description": "GoldenFloat12 Conformance Vectors — NUMERIC-STANDARD-001 (Agent 12)",
-  "version": "1.0",
-  "format_name": "GF12",
   "format_bits": 12,
+  "format_family": "GF12",
+  "format_name": "GF12",
+  "format_spec": {
+    "exp_bias": 7,
+    "exp_bits": 4,
+    "exp_mant_ratio": 0.5714285714285714,
+    "mant_bits": 7,
+    "memory_ratio_vs_fp32": 0.375,
+    "sign_bits": 1
+  },
+  "is_primary": false,
   "phi_distance": 0.04660512288042107,
   "sacred_ok": true,
-  "is_primary": false,
-  "best_phi_approximation": true,
-
-  "format_spec": {
-    "sign_bits": 1,
-    "exp_bits": 4,
-    "mant_bits": 7,
-    "exp_mant_ratio": 0.5714285714285714,
-    "exp_bias": 7,
-    "memory_ratio_vs_fp32": 0.375
-  },
-
+  "schema_version": 2,
+  "seal": "sha256:2f3e1dbb4fc3c235f0a08067294d33844976f2787a9dc72a906eaf4dd5acd0df",
   "test_vectors": [
     {
-      "name": "zero_positive",
       "description": "Positive zero encodes to 0x000",
-      "input": { "value": 0.0 },
       "expected": {
-        "raw": 0,
         "decoded": 0.0,
+        "raw": 0,
         "tolerance_abs": 0.0
-      }
+      },
+      "input": {
+        "value": 0.0
+      },
+      "name": "zero_positive",
+      "verdict": "CLEAN"
     },
     {
-      "name": "one_point_zero",
       "description": "1.0 encodes to exp=7, mant=0",
-      "input": { "value": 1.0 },
       "expected": {
+        "decoded": 1.0,
         "exp_biased": 7,
         "mant": 0,
-        "decoded": 1.0,
         "tolerance_abs": 0.0078125
-      }
+      },
+      "input": {
+        "value": 1.0
+      },
+      "name": "one_point_zero",
+      "verdict": "CLEAN"
     },
     {
-      "name": "max_value",
       "description": "Maximum value ≈ 254",
-      "input": { "value": 254.0 },
       "expected": {
         "decoded": 254.0,
         "tolerance_abs": 2.0
-      }
+      },
+      "input": {
+        "value": 254.0
+      },
+      "name": "max_value",
+      "verdict": "CLEAN"
     },
     {
-      "name": "min_positive",
       "description": "Minimum positive ≈ 0.0078",
-      "input": { "value": 0.0078125 },
       "expected": {
         "decoded": 0.0078125,
         "tolerance_abs": 0.001
-      }
+      },
+      "input": {
+        "value": 0.0078125
+      },
+      "name": "min_positive",
+      "verdict": "CLEAN"
     },
     {
-      "name": "pi_precise",
       "description": "π with good precision",
-      "input": { "value": 3.14159265359 },
       "expected": {
         "decoded": 3.140625,
-        "tolerance_abs": 0.001,
-        "relative_error": 0.0003
-      }
+        "relative_error": 0.0003,
+        "tolerance_abs": 0.001
+      },
+      "input": {
+        "value": 3.14159265359
+      },
+      "name": "pi_precise",
+      "verdict": "CLEAN"
     },
     {
-      "name": "phi_value",
       "description": "φ (golden ratio) representation",
-      "input": { "value": 1.61803398875 },
       "expected": {
         "decoded": 1.6171875,
-        "tolerance_abs": 0.001,
         "relative_error": 0.0005,
-        "sacred_ok": true
-      }
+        "sacred_ok": true,
+        "tolerance_abs": 0.001
+      },
+      "input": {
+        "value": 1.61803398875
+      },
+      "name": "phi_value",
+      "verdict": "CLEAN"
     },
     {
-      "name": "e_value",
       "description": "e (Euler's number) representation",
-      "input": { "value": 2.71828182846 },
       "expected": {
         "decoded": 2.71875,
-        "tolerance_abs": 0.001,
-        "relative_error": 0.0002
-      }
+        "relative_error": 0.0002,
+        "tolerance_abs": 0.001
+      },
+      "input": {
+        "value": 2.71828182846
+      },
+      "name": "e_value",
+      "verdict": "CLEAN"
     }
   ],
-
-  "benchmark_metrics": {
-    "mse_vs_fp32": null,
-    "speedup_vs_fp32": null,
-    "memory_savings": 0.625,
-    "use_cases": ["high_precision_quantization", "attention_matrices", "critical_path_weights"]
-  }
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "gf12 Vectors",
+  "verdict": "CLEAN",
+  "version": "1.0"
 }
