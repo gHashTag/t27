@@ -23,7 +23,10 @@ pub struct ToolResult {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StopReason {
-    // Note: enum variants not captured during parsing
+    EndTurn = 0,
+    ToolUse = 1,
+    MaxTokens = 2,
+    Unknown = 3,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

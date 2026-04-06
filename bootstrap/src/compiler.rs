@@ -16,6 +16,7 @@ pub enum NodeKind {
     UseDecl,
     ConstDecl,
     EnumDecl,
+    EnumVariant,
     StructDecl,
     FnDecl,
     InvariantBlock,
@@ -1128,7 +1129,7 @@ impl Parser {
                     }
                 }
 
-                let mut variant = Node::new(NodeKind::ExprLiteral);
+                let mut variant = Node::new(NodeKind::EnumVariant);
                 variant.name = name;
                 variant.value = value_str;
                 decl.children.push(variant);
@@ -2428,7 +2429,7 @@ impl Parser {
         }
 
         self.expect(TokenKind::LBrace)?;
-        self.skip_brace_body()?;
+        self.parse_enum_body(&mut decl)?;
         self.expect(TokenKind::RBrace)?;
         Ok(decl)
     }
@@ -5281,8 +5282,16 @@ impl RustCodegen {
         self.write_line(&format!("#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]"));
         self.write_line(&format!("pub enum {} {{", node.name));
         self.indent += 1;
-        // Note: enum variants are skipped during parsing, so we add placeholder
-        self.write_line("// Note: enum variants not captured during parsing");
+        for child in &node.children {
+            if child.kind == NodeKind::EnumVariant {
+                let variant_name = &child.name;
+                if child.value.is_empty() {
+                    self.write_line(&format!("{},", variant_name));
+                } else {
+                    self.write_line(&format!("{} = {},", variant_name, child.value));
+                }
+            }
+        }
         self.indent -= 1;
         self.write_line("}");
         self.blank_line();
@@ -5355,10 +5364,18 @@ impl RustCodegen {
     }
 
     fn t27_type_to_rust(t27_type: &str) -> String {
-        match t27_type.trim() {
-            "u8" | "u16" | "u32" | "u64" | "u128" => t27_type.to_string(),
-            "i8" | "i16" | "i32" | "i64" | "i128" => t27_type.to_string(),
-            "f32" | "f64" => t27_type.to_string(),
+        let t = t27_type.trim();
+        // Handle optional types
+        let (base_type, is_optional) = if t.ends_with('?') {
+            (&t[..t.len()-1], true)
+        } else {
+            (t, false)
+        };
+        
+        let rust_type = match base_type {
+            "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
+            "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
+            "f32" | "f64" => base_type.to_string(),
             "bool" => "bool".to_string(),
             "str" => "String".to_string(),
             "void" => "()".to_string(),
@@ -5366,11 +5383,22 @@ impl RustCodegen {
                 let inner = &t[2..];
                 format!("Vec<{}>", Self::t27_type_to_rust(inner))
             }
-            t if t.starts_with("[") && t.contains("]") => {
-                // [N]T format
-                t27_type.replace('[', "[").replace(']', "]").replace("u8", "u8")
+            t if t.starts_with('[') && t.contains(']') => {
+                // [N]T format - convert to Vec
+                if let Some(bracket_end) = t.find(']') {
+                    let inner = &t[bracket_end + 1..];
+                    format!("Vec<{}>", Self::t27_type_to_rust(inner))
+                } else {
+                    t.to_string()
+                }
             }
             t => t.to_string(), // Custom type name
+        };
+        
+        if is_optional {
+            format!("Option<{}>", rust_type)
+        } else {
+            rust_type
         }
     }
 
@@ -5393,7 +5421,14 @@ impl RustCodegen {
             }
             NodeKind::ExprStructLit => {
                 let fields: Vec<String> = node.children.iter()
-                    .map(|c| format!("{}: {}", c.name, Self::expr_to_rust(&c.children[0])))
+                    .map(|c| {
+                        let val = if c.children.is_empty() {
+                            "{}".to_string()
+                        } else {
+                            Self::expr_to_rust(&c.children[0])
+                        };
+                        format!("{}: {}", c.name, val)
+                    })
                     .collect();
                 format!("{} {{ {} }}", node.name, fields.join(", "))
             }

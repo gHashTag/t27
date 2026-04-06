@@ -5,7 +5,11 @@ pub const MAX_ROUTES: u32 = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HttpMethod {
-    // Note: enum variants not captured during parsing
+    GET = 0,
+    POST = 1,
+    PUT = 2,
+    PATCH = 3,
+    DELETE = 4,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

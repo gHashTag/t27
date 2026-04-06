@@ -3,12 +3,17 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MessageRole {
-    // Note: enum variants not captured during parsing
+    User = 0,
+    Assistant = 1,
+    System = 2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ContentBlockType {
-    // Note: enum variants not captured during parsing
+    Text = 0,
+    ToolUse = 1,
+    ToolResult = 2,
+    Thinking = 3,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

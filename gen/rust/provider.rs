@@ -3,7 +3,10 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ProviderType {
-    // Note: enum variants not captured during parsing
+    OpenAI = 0,
+    Anthropic = 1,
+    Google = 2,
+    Custom = 3,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -30,7 +33,7 @@ pub struct Model {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProviderManager {
-    pub providers: [16]Provider,
+    pub providers: Vec<Provider>,
     pub provider_count: u32,
     pub default_provider_id: String,
 }
@@ -55,7 +58,7 @@ pub fn set_default_provider(mgr: *ProviderManager, id: String) -> bool {
     return false;
 }
 
-pub fn list_providers(mgr: ProviderManager) -> [16]Provider {
+pub fn list_providers(mgr: ProviderManager) -> Vec<Provider> {
     return ();
 }
 
