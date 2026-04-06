@@ -13,8 +13,8 @@ Each **ring increment** is a **micro-iteration** that proves the spine still wor
 
 | Step | Command / artifact | Pass criterion |
 |------|-------------------|----------------|
-| M1 | `cd bootstrap && cargo build` (or `--release`) | **Must succeed** — runs `build.rs` language guard + builds `t27c`. |
-| M2 | `./bootstrap/target/release/t27c parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR. |
+| M1 | `cd bootstrap && cargo build` (or `--release`) | **Must succeed** — runs `build.rs` language guard + builds `t27c` (invoked via **`tri`**). |
+| M2 | `./scripts/tri parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR. |
 | M3 | `cargo test` in `bootstrap/` | **All tests green** for compiler changes. |
 | M4 | `bash tests/run_all.sh` (when available in CI) | Full spec parse/gen sweep as defined by repo. |
 | M5 | Update **`bootstrap/stage0/FROZEN_HASH`** | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see SEED-RINGS §9). |
@@ -35,7 +35,7 @@ If **M1–M4** are not green, the change is **not gold** — it belongs in a dra
 | **`docs/SEED-RINGS.md` + this file** | Process gold — how rings and micro-iterations work. |
 | **`docs/T27-CONSTITUTION.md` + `docs/SOUL.md` Law #1** | Policy gold — language and SSOT. |
 
-**Golden rule:** If it is not **`.t27` spec**, **`t27c`**, **frozen hash**, or **documented policy**, it is **not** where “the math lives” — it is implementation or debt.
+**Golden rule:** If it is not **`.t27` spec**, **`tri`** (compiler pipeline), **frozen hash**, or **documented policy**, it is **not** where “the math lives” — it is implementation or debt.
 
 ---
 
@@ -59,7 +59,7 @@ Label in PRs: **`[REFACTOR-HEAP]`** when touching only debt; **`[GOLD-RING]`** w
 
 | Activity | Class |
 |----------|-------|
-| New `.t27` spec + `t27c` parse/gen + tests + optional seal | **GOLD** |
+| New `.t27` spec + `tri` parse/gen + tests + optional seal | **GOLD** |
 | Extending `bootstrap` lexer/parser/codegen for one capability | **GOLD** |
 | Updating `FROZEN_HASH` after deliberate ring freeze | **GOLD** |
 | Adding Python to “verify” physics | **REFACTOR-HEAP** (forbidden as new work) |
@@ -72,7 +72,7 @@ Label in PRs: **`[REFACTOR-HEAP]`** when touching only debt; **`[GOLD-RING]`** w
 
 ```bash
 cd bootstrap && cargo build --release \
-  && ./target/release/t27c parse ../specs/base/types.t27
+  && ../scripts/tri parse ../specs/base/types.t27
 ```
 
 Add your changed spec path(s) in place of `types.t27`. For full repo sweep, use **`bash tests/run_all.sh`** when present.

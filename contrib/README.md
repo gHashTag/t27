@@ -1,6 +1,6 @@
 # contrib/ — Non-core project adjacency
 
-This directory holds **first-party** code and scripts that are **not** the TRI-27 language core (specs → `t27c` → `gen/`).
+This directory holds **first-party** code and scripts that are **not** the TRI-27 language core (specs → **`tri`** → `gen/`).
 
 | Path | Role |
 |------|------|

@@ -8,13 +8,13 @@
 
 ## Preamble
 
-The Trinity S³AI repository is built around the **t27** specification language and the **`tri` / `t27c`** toolchain. Mathematics, numerics, and physics formulas that participate in verification must not be split between “the spec” and “side scripts.” The following article establishes a single normative principle.
+The Trinity S³AI repository is built around the **t27** specification language and the **`tri`** toolchain (`./scripts/tri` forwards to the Rust `t27c` bootstrap binary). Mathematics, numerics, and physics formulas that participate in verification must not be split between “the spec” and “side scripts.” The following article establishes a single normative principle.
 
 ---
 
 ## Article SSOT-MATH — single source of truth for mathematics and physics
 
-**Article SSOT-MATH.** The mathematical, numeric, and physical meaning of Trinity S³AI / t27 has **one normative source of truth**: specifications in the **t27** language (`*.t27` files), exercised through the official **`tri` / `t27c`** pipeline and tied to **`.trinity/experience/`** artifacts where run experience is recorded.
+**Article SSOT-MATH.** The mathematical, numeric, and physical meaning of Trinity S³AI / t27 has **one normative source of truth**: specifications in the **t27** language (`*.t27` files), exercised through the official **`tri`** pipeline and tied to **`.trinity/experience/`** artifacts where run experience is recorded.
 
 It is **forbidden** to introduce new **Python** dependencies (or equivalent script bypasses) on the **critical path** of verification, conformance, or “verdict,” except for **explicitly marked legacy** code with a removal date and a tracked migration into `.t27`.
 

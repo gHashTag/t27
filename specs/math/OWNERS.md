@@ -10,4 +10,4 @@
 
 ## Generates
 
-Target outputs under `gen/` per spec when `t27c gen` is enabled for each file.
+Target outputs under `gen/` per spec when **`tri gen-zig`** (or other backends) is run for each file.

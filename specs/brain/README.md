@@ -1,12 +1,12 @@
 # specs/brain/ — Strand VI (neuroanatomical brain, spec-first)
 
-**Source of truth:** `.t27` specifications only. Zig, C, and Verilog are **generated** by `t27c` — see `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md` §4.2.
+**Source of truth:** `.t27` specifications only. Zig, C, and Verilog are **generated** via **`tri`** — see `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md` §4.2.
 
 **Do not add handwritten brain `*.zig` in the t27 repo** for semantics that belong here.
 
 ## Charter
 
-[`docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md`](../../docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md) — scope (t27 vs trinity), 27 regions, φ invariants, rings 33–39.
+[`docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md`](../../docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md) — scope (t27 vs trinity), 27 regions, φ invariants, rings 33–39, `tri brain` roadmap.
 
 ## Target layout (EPIC-6)
 
@@ -31,17 +31,24 @@ specs/brain/
 - `bus.t27` — bus version contract
 - `cognitive_loop.t27` — five-phase loop identity
 
-## Codegen
+## Codegen (`tri`)
+
+From repository root (after `cd bootstrap && cargo build --release`):
 
 ```bash
-# From repo root, after: (cd bootstrap && cargo build --release)
-./bootstrap/target/release/t27c gen           specs/brain/unified_state.t27
-./bootstrap/target/release/t27c gen-c         specs/brain/unified_state.t27
-./bootstrap/target/release/t27c gen-verilog specs/brain/unified_state.t27
-./bootstrap/target/release/t27c seal        specs/brain/unified_state.t27 --save
+./scripts/tri gen-zig       specs/brain/unified_state.t27    # stdout
+./scripts/tri gen-zig       specs/brain/                     # → gen/zig/brain/…
+./scripts/tri gen-c         specs/brain/unified_state.t27
+./scripts/tri gen-verilog   specs/brain/unified_state.t27
+./scripts/tri seal          specs/brain/unified_state.t27 --save
+./scripts/tri skill seal --hash specs/brain/unified_state.t27
+./scripts/tri validate-conformance specs/brain/
+./scripts/tri test
 ```
 
-Project-wide: `t27c compile-project --backend zig -o build` (all `specs/` + `compiler/`).
+Project-wide: `./scripts/tri compile-project --backend zig -o build`.
+
+**Note:** `./scripts/tri` is the committed CLI shim. A root `tri` binary may exist locally and is **gitignored**.
 
 ## Ownership
 

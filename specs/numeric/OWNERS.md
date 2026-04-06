@@ -11,4 +11,4 @@
 
 ## Generates
 
-- `gen/zig/*gf*.zig`, `gen/c/*gf*.c`, `gen/verilog/*gf*.v` (via `t27c`).
+- `gen/zig/*gf*.zig`, `gen/c/*gf*.c`, `gen/verilog/*gf*.v` (via **`tri`** / `t27c`).

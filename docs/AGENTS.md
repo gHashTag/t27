@@ -4,7 +4,7 @@
 
 ## Constitution and critical path
 
-- **`docs/T27-CONSTITUTION.md`** — **Article SSOT-MATH**: single source of math/physics in **`*.t27`**, verification via **`tri` / `t27c`**; **no new Python** on the critical path (legacy only with a migration plan).
+- **`docs/T27-CONSTITUTION.md`** — **Article SSOT-MATH**: single source of math/physics in **`*.t27`**, verification via **`tri`** (`./scripts/tri`); **no new Python** on the critical path (legacy only with a migration plan).
 - **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`** — technical specification for Python → t27 + tri migration.
 - Cursor rule: **`.cursor/rules/t27-ssot-math.mdc`**.
 

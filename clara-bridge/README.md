@@ -23,7 +23,7 @@ specification (.t27) → generation (tri gen) → testing (tri test) → verdict
 |-------|----------|---------|
 | **spec** | `tri skill seal --hash` | Cryptographically seal specification |
 | **gen** | `tri gen <spec>` | Generate executable code from spec |
-| **test** | `tri test <conformance>` or `t27c conformance <json>` | Run conformance tests |
+| **test** | `tri test` or `tri conformance <json>` | Run conformance tests |
 | **verdict** | `python conformance/kepler_newton_tests.py --category <CS\|sacred\|E8>` | High-precision verification |
 | **experience** | `.trinity/experience/` (auto-recorded) | Audit trail for verified learning |
 
@@ -108,13 +108,13 @@ If running steps manually (not via `run_scenario.py`):
 
 ```bash
 # 1. Seal spec
-t27c seal specs/math/constants.t27
+./scripts/tri seal specs/math/constants.t27
 
 # 2. Generate code
-t27c gen specs/math/constants.t27
+./scripts/tri gen-zig specs/math/constants.t27
 
 # 3. Run tests
-t27c conformance conformance/math_constants.json
+./scripts/tri conformance conformance/math_constants.json
 
 # 4. High-precision verification
 python conformance/kepler_newton_tests.py --category CS      # Chern-Simons

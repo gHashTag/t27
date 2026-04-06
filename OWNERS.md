@@ -6,7 +6,7 @@
 
 ## Notes
 
-- **Core language path:** `specs/` → `bootstrap/` (`t27c`) → `gen/` → `conformance/` / `tests/`.
+- **Core language path:** `specs/` → **`tri`** (`./scripts/tri` → `t27c`) → `gen/` → `conformance/` / `tests/`.
 - **Non-core adjacency:** `contrib/` (API, runners, portable setup).
 - **Vendored / datasets / upstream:** `external/`.
 - Each major directory has its own **`OWNERS.md`** with **Primary**, **Dependencies**, and **Outputs** where helpful.

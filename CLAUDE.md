@@ -1,18 +1,18 @@
 # CLAUDE.md — Instructions for Claude Code and autonomous agents (t27)
 
-Use this file **together with** [`AGENTS.md`](AGENTS.md). Repo-specific law always overrides generic tooling defaults.
+Use this file **together with** `[AGENTS.md](AGENTS.md)`. Repo-specific law always overrides generic tooling defaults.
 
 ---
 
 ## 1. Mandatory read order for this repository
 
-1. [`AGENTS.md`](AGENTS.md) — entry point and constitutional stack.
-2. [`SOUL.md`](SOUL.md) — canonical law (TDD, language, validation).
-3. [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md) — **SSOT-MATH**, **LANG-EN**.
-4. [`TASK.md`](TASK.md) and [`docs/TASK_PROTOCOL.md`](docs/TASK_PROTOCOL.md) — if the task touches coordination, locks, or shared hot paths.
-5. Nearest [`OWNERS.md`](OWNERS.md) for the directories you edit.
+1. `[AGENTS.md](AGENTS.md)` — entry point and constitutional stack.
+2. `[SOUL.md](SOUL.md)` — canonical law (TDD, language, validation).
+3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**.
+4. `[TASK.md](TASK.md)` and `[docs/TASK_PROTOCOL.md](docs/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
+5. Nearest `[OWNERS.md](OWNERS.md)` for the directories you edit.
 
-Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the `tri` / `t27c` pipeline.
+Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the **`tri`** pipeline (`./scripts/tri`).
 
 ---
 
@@ -42,7 +42,7 @@ If your environment exposes **skills** (e.g. coding-workflow, commit-push-pr), l
 
 ## 5. Security and secrets
 
-- Never commit secrets. See [`SECURITY.md`](SECURITY.md). Root `.env` patterns are gitignored; use `.env.example` patterns only in docs.
+- Never commit secrets. See `[SECURITY.md](SECURITY.md)`. Root `.env` patterns are gitignored; use `.env.example` patterns only in docs.
 
 ---
 
