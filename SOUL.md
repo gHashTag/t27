@@ -41,6 +41,8 @@ error: Language policy violation: source file contains Cyrillic characters (U+04
 
 CI runs `scripts/check-first-party-doc-language.sh` on pull requests.
 
+**Compiler build:** `cargo build` in `bootstrap/` runs `build.rs`, which fails the build if Cyrillic appears in specs, bootstrap Rust sources, or unlisted first-party Markdown (see `docs/SOUL.md` Law #1).
+
 ### §1.4. Rationale
 1. **Universality**: ASCII is universally supported across all platforms and tools
 2. **Clarity**: English is the single review language for Trinity first-party docs and specs

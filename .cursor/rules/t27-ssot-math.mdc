@@ -33,6 +33,7 @@ alwaysApply: true
 
 - **First-party** Markdown (`docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/`, root `README.md` / `AGENTS.md` / `CLAUDE.md` / `task.md` / `SOUL.md`) **must be English**. No new Cyrillic; legacy paths only in **`docs/.legacy-non-english-docs`**.
 - **Source** (`.t27`, `.zig`, …): English comments/identifiers, ASCII per ADR-004.
+- **`cargo build` in `bootstrap/`** runs **`build.rs`**: Cyrillic in `specs/**/*.t27`, `bootstrap/src/**/*.rs`, or unlisted Markdown **fails the build** with pointers to SOUL / ADR-004 / constitution.
 
 ## Required reading after clone
 
