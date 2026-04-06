@@ -308,6 +308,9 @@ class SacredPhysicsTests:
         # The sacred formula gives dimensionless Ω_Λ ≈ 0.685
         # For γ = 0.236..., Ω_Λ ≈ 0.000893 (extremely small!)
         # This is correct mathematically: γ⁸ × π⁴ / φ² = φ⁻¹⁸ × π⁴ / φ² ≈ 0.0009
+        # Mpmath branch: omega = exp(8*ln(γ) + 4*ln(π)) / phi² (same formula)
+        # Non-mpmath branch: gamma_pow_8 / phi² (same result)
+        # The test passes if the tiny computed value equals the measured value
         # The test passes if the tiny computed value equals the measured value
         error = abs(omega_computed - self.c.OMEGA_LAMBDA_MEASURED)
         rel_error = error / self.c.OMEGA_LAMBDA_MEASURED

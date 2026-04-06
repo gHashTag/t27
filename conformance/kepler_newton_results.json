@@ -1,7 +1,7 @@
 {
-  "total_tests": 5,
-  "passed": 4,
-  "failed": 1,
+  "total_tests": 16,
+  "passed": 12,
+  "failed": 4,
   "results": [
     {
       "name": "Quantum dimension equals \u03c6",
@@ -62,6 +62,138 @@
       "tolerance": 1e-10,
       "category": "CS",
       "notes": "k=3 from quantum dimension"
+    },
+    {
+      "name": "Barbero-Immirzi from \u03c6",
+      "formula": "\u03b3 = \u03c6\u207b\u00b3",
+      "expected": "0.23606797749999999802561490014340961351990699768066",
+      "computed": 0.23606797749978967,
+      "error": 2.103253924890511e-13,
+      "relative_error": 8.909526599771504e-13,
+      "passed": false,
+      "tolerance": 1e-15,
+      "category": "Sacred",
+      "notes": "LQG Immirzi parameter"
+    },
+    {
+      "name": "Sacred gravity constant",
+      "formula": "G = \u03c0\u00b3 \u00d7 \u03b3\u00b2 / \u03c6 (dimensionless)",
+      "expected": "100000000000.0",
+      "computed": 16000384260.738054,
+      "error": 83999615739.26195,
+      "relative_error": 0.8399961573926195,
+      "passed": false,
+      "tolerance": 0.1,
+      "category": "Sacred",
+      "notes": "G/G_measured \u2248 1.6\u00d710\u00b9\u00b9 (SI unit conversion)"
+    },
+    {
+      "name": "Sacred dark energy",
+      "formula": "\u03a9_\u039b = \u03b3\u2078 \u00d7 \u03c0\u2074 / \u03c6\u00b2",
+      "expected": "0.685",
+      "computed": 0.0009394985729804402,
+      "error": 0.6840605014270196,
+      "relative_error": 0.9986284692365249,
+      "passed": false,
+      "tolerance": 0.001,
+      "category": "Sacred",
+      "notes": "\u03a9_\u039b \u2248 0.0009 (dimensionless) vs 0.685 (measured)"
+    },
+    {
+      "name": "Consciousness threshold",
+      "formula": "C = \u03c6\u207b\u00b9",
+      "expected": "0.61803398874989501354804133370635099709033966064453",
+      "computed": 0.618033988749895,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 1e-15,
+      "category": "Sacred",
+      "notes": "IIT threshold hypothesis"
+    },
+    {
+      "name": "Specious present (seconds)",
+      "formula": "t_present = \u03c6\u207b\u00b2",
+      "expected": "0.38196601125010498645195866629364900290966033935547",
+      "computed": 0.381966011250105,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 1e-06,
+      "category": "Sacred",
+      "notes": "381.966011250105 ms (in 300-500ms range)"
+    },
+    {
+      "name": "E\u2088 dimension",
+      "formula": "dim(E\u2088) = 248",
+      "expected": "248",
+      "computed": 248.0,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 0.0,
+      "category": "E8",
+      "notes": "Adjoint representation dimension"
+    },
+    {
+      "name": "E\u2088 root count",
+      "formula": "roots(E\u2088) = 240",
+      "expected": "240",
+      "computed": 240.0,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 0.0,
+      "category": "E8",
+      "notes": "240 + 8 Cartan subalgebra = 248"
+    },
+    {
+      "name": "E\u2088 Cartan eigenvalue \u03bb\u2083",
+      "formula": "\u03bb\u2083 = 2 - 2cos(\u03c0/5) \u2248 \u03c6\u207b\u00b2",
+      "expected": "0.38196601125010498645195866629364900290966033935547",
+      "computed": 0.38196601125010515,
+      "error": 1.653434544993407e-16,
+      "relative_error": 4.328747836965959e-16,
+      "passed": true,
+      "tolerance": 0.01,
+      "category": "E8",
+      "notes": "Cartan matrix eigenvalue relation"
+    },
+    {
+      "name": "TRINITY Identity",
+      "formula": "\u03c6\u00b2 + \u03c6\u207b\u00b2",
+      "expected": "3.0",
+      "computed": 3.0,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 1e-12,
+      "category": "Core",
+      "notes": ""
+    },
+    {
+      "name": "Golden Ratio",
+      "formula": "\u03c6",
+      "expected": "1.618033988749895",
+      "computed": 1.618033988749895,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 1e-15,
+      "category": "Core",
+      "notes": ""
+    },
+    {
+      "name": "Inverse Golden Ratio",
+      "formula": "\u03c6\u207b\u00b9",
+      "expected": "0.618033988749895",
+      "computed": 0.618033988749895,
+      "error": 0.0,
+      "relative_error": 0.0,
+      "passed": true,
+      "tolerance": 1e-15,
+      "category": "Core",
+      "notes": ""
     }
   ],
   "categories": {
@@ -71,18 +203,18 @@
       "failed": 1
     },
     "Sacred": {
-      "total": 0,
-      "passed": 0,
-      "failed": 0
+      "total": 5,
+      "passed": 2,
+      "failed": 3
     },
     "E8": {
-      "total": 0,
-      "passed": 0,
+      "total": 3,
+      "passed": 3,
       "failed": 0
     },
     "Catalog": {
-      "total": 0,
-      "passed": 0,
+      "total": 3,
+      "passed": 3,
       "failed": 0
     }
   }
