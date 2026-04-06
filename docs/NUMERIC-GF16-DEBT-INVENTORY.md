@@ -122,7 +122,8 @@
 
 - `docs/NUMERIC-STANDARD-001.md` — primary format authority.  
 - `docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` — stop adding parallel Python/IEEE paths.  
-- `docs/T27-CONSTITUTION.md` — SSOT-MATH.
+- `docs/T27-CONSTITUTION.md` — SSOT-MATH.  
+- `docs/GOLDEN-RINGS-CANON.md` — **REFACTOR-HEAP** vs ring-sealed **GOLD** (this inventory is debt, not canon).
 
 ---
 

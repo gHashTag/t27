@@ -36,6 +36,11 @@ alwaysApply: true
 - **Source** (`.t27`, `.zig`, …): English comments/identifiers, ASCII per ADR-004.
 - **`cargo build` in `bootstrap/`** runs **`build.rs`**: Cyrillic in `specs/**/*.t27`, `bootstrap/src/**/*.rs`, or unlisted Markdown **fails the build** with pointers to SOUL / ADR-004 / constitution.
 
+## Golden rings (process gold)
+
+- Ring work = **micro-iterations**: `cargo build` in `bootstrap/`, `t27c parse` on touched specs, `cargo test`. **`stage0/FROZEN_HASH`** seals compiler gold per ring.
+- **Not gold:** Python on critical path, `f32`/`f64` product numerics, `external/` hacks — see **`docs/GOLDEN-RINGS-CANON.md`** (GOLD vs REFACTOR-HEAP).
+
 ## Required reading after clone
 
-After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`** (SSOT-MATH + LANG-EN).
+After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`** (SSOT-MATH + LANG-EN) and **`docs/GOLDEN-RINGS-CANON.md`**.
