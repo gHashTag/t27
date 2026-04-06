@@ -185,6 +185,7 @@ Moving tests to `.t27` is not stylistic preference — it is an **architectural 
 ## References
 
 - **`docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md`** — oracle taxonomy, metamorphic/differential testing, framework ladder  
+- **`docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md`** — math/physics test framework (Rings 050–054, `claim_tier`, CI ladder)  
 - Bootstrapping (compilers): [Wikipedia — Bootstrapping](https://en.wikipedia.org/wiki/Bootstrapping_(compilers))  
 - Readable metacompiler / bootstrap narrative: [tmewett — Bootstrapping](https://tmewett.com/bootstrapping-metacompiling/)
 

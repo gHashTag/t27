@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Fail if Cyrillic appears in first-party Markdown outside docs/.legacy-non-english-docs.
-See ADR-004, docs/SOUL.md Law #1.
+See ADR-004, docs/nona-03-manifest/SOUL.md Law #1.
 """
 from __future__ import annotations
 

@@ -34,7 +34,11 @@ Language spec, numerics, sacred physics, critical-path TZ, Kepler notes under **
 
 ## [`nona-03-manifest/`](nona-03-manifest/) — agents **S–Ϯ** (through security reserve)
 
-TDD, bootstrap/testing plans, PHI loop, technology tree, expanded **`SOUL.md`** (root **`SOUL.md`** remains canonical law).
+TDD, bootstrap/testing plans, math/physics test framework charter, PHI loop, technology tree, expanded **`SOUL.md`** (root **`SOUL.md`** remains canonical law).
+
+| Charter | Role |
+|---------|------|
+| [`nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md`](nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md) | Rings 050–054: oracles, `claim_tier`, sprints A–E, CI ladder |
 
 ## [`clara/`](clara/) — CLARA / DARPA-style pack
 
