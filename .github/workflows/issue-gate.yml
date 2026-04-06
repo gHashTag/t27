@@ -1,3 +1,4 @@
+# Enforces L1 TRACEABILITY: No code merged without Closes #N
 name: Issue Gate
 on:
   pull_request_target:
