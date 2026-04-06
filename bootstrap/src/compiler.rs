@@ -30,6 +30,7 @@ pub enum NodeKind {
     ExprSwitch,
     ExprBinary,
     ExprUnary,
+    ExprCast,     // as-cast: expr as Type (Ring 037)
     ExprReturn,
     ExprIndex,
     ExprIf,
@@ -116,7 +117,7 @@ pub enum TokenKind {
     // Keywords
     KwPub, KwConst, KwFn, KwEnum, KwStruct, KwTest, KwInvariant, KwBench,
     KwModule, KwIf, KwElse, KwFor, KwWhile, KwSwitch, KwReturn, KwVar, KwUsing, KwVoid,
-    KwTrue, KwFalse, KwUse, KwOr, KwAnd, KwTry,
+    KwTrue, KwFalse, KwUse, KwOr, KwAnd, KwTry, KwAs,  // as: type cast operator (Ring 037)
 
     // Literals
     Ident, Number, String, CharLiteral,
@@ -263,6 +264,7 @@ impl Lexer {
         match ident {
             "pub" => TokenKind::KwPub,
             "const" => TokenKind::KwConst,
+            "let" => TokenKind::KwVar,  // let is a synonym for var (Ring 037)
             "fn" => TokenKind::KwFn,
             "enum" => TokenKind::KwEnum,
             "struct" => TokenKind::KwStruct,
@@ -285,6 +287,7 @@ impl Lexer {
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
+            "as" => TokenKind::KwAs,
             _ => TokenKind::Ident,
         }
     }
@@ -830,13 +833,45 @@ impl Parser {
                 self.advance(); // consume {
                 self.parse_module_body(&mut module)?;
                 self.expect(TokenKind::RBrace)?;
+                // SOUL.md Article II enforcement: every spec must have test/invariant/bench
+                self.validate_soul_compliance(&module)?;
                 return Ok(module);
             }
         }
 
         self.parse_module_body(&mut module)?;
 
+        // SOUL.md Article II enforcement: every spec must have test/invariant/bench
+        self.validate_soul_compliance(&module)?;
+
         Ok(module)
+    }
+
+    // SOUL.md Article II enforcement (Ring 037)
+    fn validate_soul_compliance(&self, module: &Node) -> Result<(), String> {
+        let has_test_block = self.has_tdd_block(module);
+        if !has_test_block {
+            return Err(format!(
+                "SOUL.md Article II VIOLATION: Spec '{}' has no {{test}}, {{invariant}}, or {{bench}} block. \
+                Every .t27 spec must contain TDD content (SOUL.md Article II §2.1).",
+                module.name
+            ));
+        }
+        Ok(())
+    }
+
+    fn has_tdd_block(&self, node: &Node) -> bool {
+        // Check if this node is a test/invariant/bench block
+        if matches!(node.kind, NodeKind::TestBlock | NodeKind::InvariantBlock | NodeKind::BenchBlock) {
+            return true;
+        }
+        // Recursively check children
+        for child in &node.children {
+            if self.has_tdd_block(child) {
+                return true;
+            }
+        }
+        false
     }
 
     fn parse_module_body(&mut self, module: &mut Node) -> Result<(), String> {
@@ -1893,12 +1928,20 @@ impl Parser {
         self.parse_expr_postfix()
     }
 
-    /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), call (f(args))
+    /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), as-cast, call (f(args))
     fn parse_expr_postfix(&mut self) -> Result<Node, String> {
         let mut expr = self.parse_expr_primary()?;
 
         loop {
-            if self.current.kind == TokenKind::Dot {
+            if self.current.kind == TokenKind::KwAs {
+                // Type cast: expr as Type (Ring 037)
+                self.advance(); // consume 'as'
+                let mut cast = Node::new(NodeKind::ExprCast);
+                cast.extra_type = self.parse_type_annotation();  // Parse target type
+                cast.children.push(expr);
+                expr = cast;
+                // Continue loop to allow chained casts: expr as i32 as u8
+            } else if self.current.kind == TokenKind::Dot {
                 self.advance(); // consume .
                 if self.current.kind == TokenKind::Star {
                     // Dereference: expr.*
@@ -2190,19 +2233,28 @@ impl Parser {
         Ok(lit)
     }
 
-    /// Parse array literal: [_]Type{ values } or [N]Type{ values }
+    /// Parse array literal: [_]Type{ values } or [N]Type{ values } or nested [values]
     /// Collected verbatim as a literal string since Zig passes through
     fn parse_array_literal(&mut self) -> Result<Node, String> {
         let mut text = String::from("[");
         self.advance(); // consume [
 
-        // Collect everything up to ]
-        while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+        // Collect everything up to matching ] (handle nested brackets - Ring 037)
+        let mut bracket_depth: i32 = 1;
+        while bracket_depth > 0 && self.current.kind != TokenKind::Eof {
+            if self.current.kind == TokenKind::LBracket {
+                bracket_depth += 1;
+            } else if self.current.kind == TokenKind::RBracket {
+                bracket_depth -= 1;
+                if bracket_depth == 0 {
+                    break;  // Found the matching closing bracket
+                }
+            }
             text.push_str(&self.current.lexeme);
             self.advance();
         }
         text.push(']');
-        self.expect(TokenKind::RBracket)?;
+        self.expect(TokenKind::RBracket)?;  // consume the matching ]
 
         // Collect the type name (e.g. Trit, u8)
         if self.current.kind == TokenKind::Ident {
