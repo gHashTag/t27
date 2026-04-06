@@ -21,7 +21,7 @@ pub struct FileEntry {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProjectManager {
-    pub projects: [32]Project,
+    pub projects: Vec<Project>,
     pub project_count: u32,
     pub current_project_id: String,
 }
@@ -44,7 +44,7 @@ pub fn set_current_project(mgr: *ProjectManager, id: String) -> bool {
     return found;
 }
 
-pub fn list_projects(mgr: ProjectManager) -> [32]Project {
+pub fn list_projects(mgr: ProjectManager) -> Vec<Project> {
     return ();
 }
 
@@ -64,7 +64,7 @@ pub fn file_exists(path: String) -> bool {
     return false;
 }
 
-pub fn list_files(dir: String) -> [64]str {
+pub fn list_files(dir: String) -> Vec<String> {
     return [;64];
 }
 

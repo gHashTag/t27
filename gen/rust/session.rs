@@ -3,12 +3,18 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SessionState {
-    // Note: enum variants not captured during parsing
+    Pending = 0,
+    Active = 1,
+    Completed = 2,
+    Failed = 3,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MessageRole {
-    // Note: enum variants not captured during parsing
+    User = 0,
+    Assistant = 1,
+    System = 2,
+    Tool = 3,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -28,7 +34,7 @@ pub struct Message {
     pub role: MessageRole,
     pub content: String,
     pub timestamp: u64,
-    pub tool_calls: [8]ToolCall,
+    pub tool_calls: Vec<ToolCall>,
     pub tool_call_id: String,
 }
 
@@ -40,7 +46,7 @@ pub struct ToolCall {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionManager {
-    pub sessions: [256]Session,
+    pub sessions: Vec<Session>,
     pub session_count: u32,
     pub active_session_id: String,
 }
@@ -65,7 +71,7 @@ pub fn delete_session(mgr: *SessionManager, id: String) -> bool {
     return found;
 }
 
-pub fn list_sessions(mgr: SessionManager) -> [256]Session {
+pub fn list_sessions(mgr: SessionManager) -> Vec<Session> {
     return ();
 }
 
