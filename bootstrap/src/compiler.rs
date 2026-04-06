@@ -43,6 +43,7 @@ pub enum NodeKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Node {
     pub kind: NodeKind,
     pub name: String,
@@ -98,6 +99,7 @@ impl Node {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_child(mut self, child: Node) -> Self {
         self.children.push(child);
         self
@@ -622,6 +624,7 @@ impl Lexer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
         loop {
@@ -665,6 +668,7 @@ impl Parser {
         self.current.kind == kind
     }
 
+    #[allow(dead_code)]
     fn check_peek(&self, kind: TokenKind) -> bool {
         self.peek.kind == kind
     }
@@ -1145,8 +1149,9 @@ impl Parser {
                 let mut type_str = String::new();
                 if self.current.kind == TokenKind::Colon {
                     self.advance(); // consume :
-                    // Collect type tokens until comma or closing brace
+                    // Collect type tokens until comma, semicolon, or closing brace
                     while self.current.kind != TokenKind::Comma
+                        && self.current.kind != TokenKind::Semicolon
                         && self.current.kind != TokenKind::RBrace
                         && self.current.kind != TokenKind::Eof
                     {
@@ -1160,7 +1165,7 @@ impl Parser {
                 field.extra_type = type_str;
                 decl.children.push(field);
 
-                if self.current.kind == TokenKind::Comma {
+                if self.current.kind == TokenKind::Comma || self.current.kind == TokenKind::Semicolon {
                     self.advance();
                 }
             } else {
@@ -1224,10 +1229,26 @@ impl Parser {
             }
         }
 
-        // Main type identifier
+        // Main type identifier with namespace support (lexer::Lexer, base::types)
         if self.current.kind == TokenKind::Ident {
             ty.push_str(&self.current.lexeme);
             self.advance();
+            
+            // Handle :: namespace separators
+            while self.current.kind == TokenKind::Colon {
+                // Check for :: (two colons)
+                if self.peek.kind == TokenKind::Colon {
+                    ty.push_str("::");
+                    self.advance(); // consume first :
+                    self.advance(); // consume second :
+                    if self.current.kind == TokenKind::Ident {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                } else {
+                    break;
+                }
+            }
         } else if self.current.kind == TokenKind::KwVoid {
             ty.push_str("void");
             self.advance();
@@ -1996,15 +2017,31 @@ impl Parser {
 
             // Identifier, function call, @builtin call, or struct literal
             TokenKind::Ident => {
-                let name = self.current.lexeme.clone();
+                let mut name = self.current.lexeme.clone();
                 self.advance();
+
+                // Handle namespace-qualified names: lexer::next_token
+                while self.current.kind == TokenKind::Colon {
+                    // Check for :: (two colons)
+                    if self.peek.kind == TokenKind::Colon {
+                        name.push_str("::");
+                        self.advance(); // consume first :
+                        self.advance(); // consume second :
+                        if self.current.kind == TokenKind::Ident {
+                            name.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    } else {
+                        break;
+                    }
+                }
 
                 // Check for struct literal: Name{ .field = expr, ... }
                 if self.current.kind == TokenKind::LBrace {
                     return self.parse_struct_literal(name);
                 }
 
-                // Check for function call: name(args)
+                // Check for function call: name(args) or namespace::func(args)
                 if self.current.kind == TokenKind::LParen {
                     return self.parse_call_args(name);
                 }
@@ -2692,18 +2729,17 @@ impl Codegen {
             self.write("pub ");
         }
 
-        self.write(&format!("const {} = struct {{", node.name));
-        self.write_line("");
-
+        self.write_line(&format!("const {} = struct {{", node.name));
         self.indent();
 
         for field in &node.children {
             self.write_indent();
-            self.write(&format!("{}: ", field.name));
-            if !field.extra_type.is_empty() {
-                self.write(&field.extra_type);
-            }
-            self.write_line(",");
+            let ty = if !field.extra_type.is_empty() {
+                &field.extra_type
+            } else {
+                "void"
+            };
+            self.write_line(&format!("{}: {},", field.name, ty));
         }
 
         self.dedent();
@@ -2715,6 +2751,19 @@ impl Codegen {
             self.write("pub ");
         }
 
+        // T27 method syntax: fn foo(self: *Type, ...) -> ReturnType
+        // Zig syntax: fn foo(self: *Type, ...) ReturnType
+        // For methods, we put return type after ) without arrow
+        
+        let return_type = if node.extra_return_type.is_empty() {
+            "void".to_string()
+        } else {
+            node.extra_return_type.clone()
+        };
+
+        // Check if this is a method (first param is "self")
+        let is_method = node.params.iter().any(|(name, _)| name == "self");
+
         self.write(&format!("fn {}(", node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
@@ -2724,8 +2773,12 @@ impl Codegen {
         }
         self.write(")");
 
-        if !node.extra_return_type.is_empty() {
-            self.write(&format!(" {}", node.extra_return_type));
+        // T27 methods: return type after ) without arrow
+        if is_method {
+            self.write(&format!(" {}", return_type));
+        } else if !node.extra_return_type.is_empty() {
+            // Non-methods: use -> for consistency with T27 arrow syntax
+            self.write(&format!(" -> {}", return_type));
         }
 
         self.write_line(" {");
@@ -3033,8 +3086,8 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
-                if node.name == "@compileAssert" {
-                    // @compileAssert is not valid Zig — emit as comptime assert pattern
+                if node.name == "@compileAssert" || node.name == "assert" {
+                    // @compileAssert/assert is not valid Zig — emit as comptime assert pattern
                     if !node.children.is_empty() {
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
