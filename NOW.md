@@ -5,10 +5,11 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:05 local time (+07) · RFC3339 2026-04-07T00:05:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:25 local time (+07) · Ring 47.1 ([#177](https://github.com/gHashTag/t27/issues/177)) true topological classification · RFC3339 2026-04-07T00:25:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** **Ring 46** — **Baseline 58/58 PASS** ✅. **#165 CLARA-Bridge cleanup** (L7 UNITY: `run_scenario.py` + `tests/` deleted, contract extracted to `scenarios/runner-contract.md`). **Seal fix:** `jones_topology_filter.t27` hash collision resolved. **Decision Gate:** 16/16 PASS, WEAK_CONFIRM recorded. **Track A:** [#163](https://github.com/gHashTag/t27/issues/163) — L5 identity seal. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) numeric debt sprint (after #163). **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — issues + specs only.
+**Revision:** **Ring 47.1** — **[#177](https://github.com/gHashTag/t27/issues/177)** True topological classification (compute Jones polynomial from input structure, NOT fixed φ). **Ring 46** ✅: Decision Gate 16/16 PASS, WEAK_CONFIRM, PR [#172](https://github.com/gHashTag/t27/pull/172) Merged. **Track A:** [#163](https://github.com/gHashTag/t27/issues/163) L5 identity seal. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase 2.6 numeric debt (after #163). **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — specs-only.
+
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -198,7 +199,7 @@ CROWN (Queen brain & automation)
 | 1.5  | [#150](https://github.com/gHashTag/t27/issues/150) *(closed)* | Document / CI **seed → gen → zig test**                    | **✅** Minimal golden path in **`phi-loop-ci.yml`**; landed **PR [#152](https://github.com/gHashTag/t27/pull/152)**      |
 
 
-### Phase 2 — Stem: Conformance + benchmarks + seals *(in progress)*
+### Phase 2 — Stem: Conformance + benchmarks + seals *(DONE)*
 
 
 | Step | Issue                                              | Action                       | Status | Acceptance criterion                                                                                     |
@@ -208,24 +209,23 @@ CROWN (Queen brain & automation)
 | 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | **✅ DONE** | `t27c gen-nmse-benchmark` writes **`nmse_synthetic_roundtrip`** (IEEE f16 vs bfloat16 proxy; documented in JSON) |
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
-| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **✅ DONE** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
-| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(after #163)* |
+| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **✅ DONE** | `FORMAT-SPEC-001.json` v1.1 **`phi_identity`** + **`t27c validate-phi-identity`** (φ distance 0.0486326415435630 from `gf16_vectors`) |
+| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **✅ DONE** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(PR [#173](https://github.com/gHashTag/t27/pull/173))* |
 
 
-**Phase 2 handoff:** Steps **2.0–2.5** are **✅**; **2.3 #131** landed via **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**`CONTRIBUTING.md`** seal discipline + workflow paths). **Remaining:** **[#163](https://github.com/gHashTag/t27/issues/163)** (2.5 identity seal) **then** **[#167](https://github.com/gHashTag/t27/issues/167)** (2.6 numeric debt).
+**Phase 2 handoff:** Steps **2.0–2.6** are **✅** ( **2.3** **PR [#166](https://github.com/gHashTag/t27/pull/166)**; **2.5** **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163); **2.6** **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) ). **Phase 2 complete** — Phase 3 unblocked.
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
-### Phase 3 — Branches: Ring 050+ science tests *(upcoming)*
+### Phase 3 — Branches: Ring 050+ science tests *(in progress)*
 
 
 | Ring | Issue | Domain          | Key deliverable                     |
 | ---- | ----- | --------------- | ----------------------------------- |
-| 050  | open  | Math/physics    | `specs/test_framework/` per charter |
-| 051  | open  | Physics (P)     | Sacred physics claim audit          |
-| 052  | open  | Conformance (F) | Property-test template              |
-| 053  | open  | Verilog (V)     | Bench harness                       |
-| 054  | open  | Graph (G)       | Graph drift detection               |
+| 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | `specs/math/radix_economy.t27` (E(3) >= 99.5% E(e)) |
+| 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure |
+| 052  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) |
+| 053  | open  | Conformance (F) | Property-test template              |
 
 
 **Charter:** `[T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md](docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)`  
@@ -308,7 +308,7 @@ CROWN (Queen brain & automation)
 
 ## § 9  Next actions (48 h)
 
-**Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 1 step 1.5** ([#150](https://github.com/gHashTag/t27/issues/150)) is **closed** — shift focus to **Phase 2 — Stem** (conformance / benchmarks / seal coverage); see **§5**.
+**Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 2 is ✅ DONE** — shift focus to **Phase 3 — Science Tests**. **Ring 050**: [#142](https://github.com/gHashTag/t27/issues/142) (radix economy formal spec in `specs/math/radix_economy.t27`).
 
 ```bash
 # 0. NOW gate — run FIRST before any commit (otherwise push / hooks may fail)
