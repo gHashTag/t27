@@ -9,6 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: "🔒 NOW sync gate"
+        run: bash scripts/check-now-sync.sh
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 

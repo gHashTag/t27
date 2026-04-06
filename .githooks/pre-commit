@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Gate: NOW.md must be updated today before any commit
+# Refs: Ring 033 coordination (#128 / NOW sync policy; anchor #141)
+set -euo pipefail
+
+NOW_FILE="docs/NOW.md"
+TODAY=$(date +%Y-%m-%d)
+
+if [ ! -f "$NOW_FILE" ]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════╗"
+  echo "║  ❌  SYNC ERROR: docs/NOW.md not found               ║"
+  echo "║                                                      ║"
+  echo "║  You must create and update docs/NOW.md first.      ║"
+  echo "║  Format: Last updated: YYYY-MM-DD                   ║"
+  echo "╚══════════════════════════════════════════════════════╝"
+  exit 1
+fi
+
+LINE=$(grep -m1 "Last updated:" "$NOW_FILE" 2>/dev/null || true)
+LAST_UPDATED=""
+if [ -n "$LINE" ]; then
+  LAST_UPDATED=$(echo "$LINE" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1 || true)
+fi
+
+if [ "$LAST_UPDATED" != "$TODAY" ]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════╗"
+  echo "║  ❌  SYNC ERROR: docs/NOW.md is STALE               ║"
+  echo "╠══════════════════════════════════════════════════════╣"
+  echo "║  Last updated : ${LAST_UPDATED:-<missing>}                        "
+  echo "║  Today        : $TODAY                               ║"
+  echo "╠══════════════════════════════════════════════════════╣"
+  echo "║  ACTION REQUIRED:                                    ║"
+  echo "║  1. Open docs/NOW.md                                 ║"
+  echo "║  2. Update 'Last updated: $TODAY'                    ║"
+  echo "║  3. Sync with agents → read #141 (TASK anchor)      ║"
+  echo "║  4. Update current sprint status                     ║"
+  echo "║  5. Commit docs/NOW.md together with your changes    ║"
+  echo "╠══════════════════════════════════════════════════════╣"
+  echo "║  Agent sync: .trinity/state/github-sync.json        ║"
+  echo "║  Coordination: https://github.com/gHashTag/t27/issues/141 ║"
+  echo "╚══════════════════════════════════════════════════════╝"
+  exit 1
+fi
+
+if ! git diff --cached --name-only | grep -q '^docs/NOW.md$'; then
+  if git diff --name-only | grep -q '^docs/NOW.md$'; then
+    echo ""
+    echo "⚠️  WARNING: docs/NOW.md is modified but NOT staged."
+    echo "   Run: git add docs/NOW.md"
+    echo "   Or: commit NOW.md together with your changes."
+    echo ""
+  fi
+fi
+
+echo "✅ NOW.md is current ($TODAY) — proceed"

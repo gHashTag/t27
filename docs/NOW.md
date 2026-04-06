@@ -4,6 +4,7 @@
 
 This file is a **quick snapshot** for contributors and reviewers. Authoritative scheduling is **GitHub Issues** (and Project when it exists) — see `[docs/ROADMAP.md](ROADMAP.md)`.
 
+**NOW sync gates:** local **`.githooks/pre-commit`** (`bash scripts/setup-git-hooks.sh`), CI **`now-sync-gate.yml`**, and **`./scripts/tri check-now`** (also before **`tri gen*`** / **`tri compile*`**).  
 **Agent sync snapshot (machine-readable):** `[.trinity/state/github-sync.json](../.trinity/state/github-sync.json)`  
 **Human rollup:** `[.trinity/queen-brain/summaries/github-sync-2026-04-06.md](../.trinity/queen-brain/summaries/github-sync-2026-04-06.md)`  
 **TASK inter-agent protocol:** `[TASK.md](../TASK.md)` + `[docs/TASK_PROTOCOL.md](TASK_PROTOCOL.md)` + **Anchor** [#141](https://github.com/gHashTag/t27/issues/141) (always-on coordination thread). **Portable handoff (zip / folder):** `[docs/inter-agent-handoff/README.md](inter-agent-handoff/README.md)`.  

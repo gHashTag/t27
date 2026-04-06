@@ -9,6 +9,14 @@ Thank you for helping improve T27. This repository is **spec-first**: behavior l
 3. Open or reference a **GitHub Issue**; pull requests should satisfy the project **Issue Gate** where applicable (`Closes #N`).
 4. Multi-agent coordination: **[`TASK.md`](TASK.md)** and **[`docs/TASK_PROTOCOL.md`](docs/TASK_PROTOCOL.md)**.
 
+## NOW.md sync gates (Ring 033)
+
+Keep **`docs/NOW.md`** current: it is the rolling snapshot for humans and agents (see [#141](https://github.com/gHashTag/t27/issues/141)).
+
+1. **Local pre-commit:** run once after clone: **`bash scripts/setup-git-hooks.sh`** (sets `core.hooksPath` to **`.githooks/`**). Every commit is blocked unless `docs/NOW.md` contains **`Last updated: <today>`** (local calendar date).
+2. **CI:** **`.github/workflows/now-sync-gate.yml`** requires **`docs/NOW.md`** in each PR/push to `master` and checks the date (UTC today or yesterday). **`.github/workflows/phi-loop-ci.yml`** runs **`scripts/check-now-sync.sh`** before the Rust build (must match **runner’s “today”**, typically UTC).
+3. **`tri`:** **`./scripts/tri check-now`** runs the same script; **`gen*`** and **`compile*`** subcommands run it automatically before invoking `t27c`.
+
 ## Specs and tests
 
 - New or changed `.t27` files should include **`test`**, **`invariant`**, and/or **`bench`** blocks as required by SOUL (TDD mandate).
