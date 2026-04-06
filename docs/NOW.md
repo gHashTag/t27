@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 044 (PHI LOOP v2) — TOXIC rollback protocol, Verdict field definition, state machine diagram · RFC3339 2026-04-07T18:00:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 042 (GF8 hardening) — 32 conformance vectors, phi_distance invariant (0.132), seal updated · RFC3339 2026-04-07T13:00:00+07:00
 
 **Document class:** Operational focus document
 **Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors; **Ring 051** — `specs/vsa/jones_polynomial.t27` seal **`.trinity/seals/JonesPolynomial.json`** (module name, not snake_case file). **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
@@ -230,6 +230,7 @@ CROWN (Queen brain & automation)
 
 | Ring | Issue | Domain          | Key deliverable                     |
 | ---- | ----- | --------------- | ----------------------------------- |
+| 042  | [#137](https://github.com/gHashTag/t27/issues/137) | Numerics        | GF8 spec hardening: 32 conformance vectors |
 | 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | `specs/math/radix_economy.t27` (E(3) >= 99.5% E(e)) |
 | 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure |
 | 052  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) |

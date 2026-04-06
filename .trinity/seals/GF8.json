@@ -1,10 +1,14 @@
 {
-  "gen_hash_c": "sha256:3029c9f02b3314ba66a4861ec800e45aa84b799096c2fab5bd6e9209e52c346c",
-  "gen_hash_verilog": "sha256:4fd18846f8f7bdfe0aa0a3e091a7a2f5e337f5f86446124d4012ee1aebc99241",
-  "gen_hash_zig": "sha256:2397ff65d9e9f7e936b22f51ca78b6eb24396a446b584f5c930edb322477fb4c",
+  "conformance_hash": "sha256:dd1363dd0006596885691fdfc8a4cab1a8fd87215775b5cf58517c9ccc074885",
+  "conformance_vectors": 32,
+  "gen_hash_c": "sha256:39969806649f4d1ba6e6d684e6be8b603c5fa7d63845562963083881a46c4cf9",
+  "gen_hash_verilog": "sha256:1c83b931e019f791332939cc485891ba0c3a16718bccd3ff91576145a3d86def",
+  "gen_hash_zig": "sha256:4c806a17e37d030a29386ccff34c0ea483a6b435817062ce2440c8b0522a869d",
   "module": "GF8",
-  "ring": 12,
-  "sealed_at": "2026-04-06T14:43:48Z",
-  "spec_hash": "sha256:0538c88ed55d82d9fbe3da29ff75ada7c744f78c65ba33755de228f3c026e112",
-  "spec_path": "specs/numeric/gf8.t27"
+  "phi_distance": 0.132,
+  "ring": 42,
+  "sealed_at": "2026-04-07T12:00:00+07:00",
+  "spec_hash": "sha256:05bb65c92bd5587713c52d51c4588bfc55069e07095f52ea4a7951053c944691",
+  "spec_path": "specs/numeric/gf8.t27",
+  "verdict": "CLEAN"
 }
