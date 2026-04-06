@@ -33,13 +33,15 @@ cd ..
 # Parse a spec (canonical CLI: tri → wraps bootstrap t27c)
 ./scripts/tri parse specs/base/types.t27
 
-# Generate Zig backend (stdout, or pass a directory to write gen/zig/…)
+# Generate Zig (stdout for one file; if the path is a directory, batch → gen/zig/… by default)
 ./scripts/tri gen-zig specs/numeric/gf16.t27
+./scripts/tri gen-zig specs/numeric
+# Or: ./scripts/tri gen-dir --backend zig --out-root gen/zig <dir>
 
-# Generate Verilog
+# Generate Verilog (file or directory → gen/verilog/…)
 ./scripts/tri gen-verilog specs/fpga/mac.t27
 
-# Generate C
+# Generate C (file or directory → gen/c/…)
 ./scripts/tri gen-c specs/base/ops.t27
 
 # Verify a seal
@@ -54,7 +56,7 @@ cd ..
 # Validate generated file headers under gen/
 ./scripts/tri validate-gen-headers
 
-# NOW.md must reflect today’s calendar date (also enforced before gen/compile via tri)
+# NOW.md date gate (also runs inside t27c before gen / gen-dir / compile*)
 ./scripts/tri check-now
 ```
 

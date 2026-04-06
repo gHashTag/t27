@@ -1,66 +1,289 @@
 {
-  "module": "ZigCodeGen",
-  "spec_path": "compiler/codegen/zig/codegen.t27",
-  "ring": 37,
-  "generated_at": "2026-04-04T21:10:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "CodegenOptions",
-      "cases": [
-        { "inputs": { "field": "output_dir" }, "expected_type": "string" },
-        { "inputs": { "field": "emit_debug" }, "expected_type": "bool" },
-        { "inputs": { "field": "optimize" }, "expected_type": "bool" },
-        { "inputs": { "field": "strip" }, "expected_type": "bool" }
-      ]
+      "name": "zigcodegen_simple_fn_latency",
+      "target": "< 5ms"
     },
     {
-      "function": "ZigCodegen.indent",
-      "cases": [
-        { "inputs": { "initial_depth": 0 }, "expected_depth": 1 },
-        { "inputs": { "initial_depth": 1 }, "expected_depth": 2 },
-        { "inputs": { "initial_depth": 4 }, "expected_depth": 5 }
-      ]
+      "name": "zigcodegen_struct_generation_latency",
+      "target": "< 3ms"
     },
     {
-      "function": "ZigCodegen.dedent",
-      "cases": [
-        { "inputs": { "initial_depth": 1 }, "expected_depth": 0 },
-        { "inputs": { "initial_depth": 3 }, "expected_depth": 2 },
-        { "inputs": { "initial_depth": 0 }, "expected_depth": 0 }
-      ]
-    },
-    {
-      "function": "type_mapping",
-      "cases": [
-        { "inputs": { "t27_type": "i8" }, "expected": "i8" },
-        { "inputs": { "t27_type": "u8" }, "expected": "u8" },
-        { "inputs": { "t27_type": "i16" }, "expected": "i16" },
-        { "inputs": { "t27_type": "u16" }, "expected": "u16" },
-        { "inputs": { "t27_type": "i32" }, "expected": "i32" },
-        { "inputs": { "t27_type": "bool" }, "expected": "bool" },
-        { "inputs": { "t27_type": "void" }, "expected": "void" }
-      ]
-    },
-    {
-      "function": "generate_fn",
-      "cases": [
-        { "inputs": { "name": "add", "params": ["a: i8", "b: i8"], "return_type": "i8" }, "expected_contains": "fn add" },
-        { "inputs": { "name": "noop", "params": [], "return_type": "void" }, "expected_contains": "fn noop" }
-      ]
+      "name": "zigcodegen_full_module_latency",
+      "target": "< 50ms"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:10:00Z",
   "invariants": [
-    { "name": "codegen_options_has_defaults", "assert": "CodegenOptions provides sensible defaults for all fields" },
-    { "name": "indent_increments_by_one", "assert": "indent() increases depth by exactly 1" },
-    { "name": "dedent_floors_at_zero", "assert": "dedent() never decreases depth below 0" },
-    { "name": "type_mapping_covers_base_types", "assert": "All t27 base types have Zig equivalents" },
-    { "name": "generate_fn_valid_zig", "assert": "Generated function is syntactically valid Zig" },
-    { "name": "indentation_uses_four_spaces", "assert": "Each indent level produces 4 spaces" },
-    { "name": "output_contains_no_trailing_whitespace", "assert": "Generated lines have no trailing whitespace" }
+    {
+      "assert": "CodegenOptions provides sensible defaults for all fields",
+      "name": "codegen_options_has_defaults"
+    },
+    {
+      "assert": "indent() increases depth by exactly 1",
+      "name": "indent_increments_by_one"
+    },
+    {
+      "assert": "dedent() never decreases depth below 0",
+      "name": "dedent_floors_at_zero"
+    },
+    {
+      "assert": "All t27 base types have Zig equivalents",
+      "name": "type_mapping_covers_base_types"
+    },
+    {
+      "assert": "Generated function is syntactically valid Zig",
+      "name": "generate_fn_valid_zig"
+    },
+    {
+      "assert": "Each indent level produces 4 spaces",
+      "name": "indentation_uses_four_spaces"
+    },
+    {
+      "assert": "Generated lines have no trailing whitespace",
+      "name": "output_contains_no_trailing_whitespace"
+    }
   ],
-  "benchmarks": [
-    { "name": "zigcodegen_simple_fn_latency", "target": "< 5ms" },
-    { "name": "zigcodegen_struct_generation_latency", "target": "< 3ms" },
-    { "name": "zigcodegen_full_module_latency", "target": "< 50ms" }
-  ]
+  "module": "ZigCodeGen",
+  "ring": 37,
+  "schema_version": 2,
+  "seal": "sha256:151426c1c9efb1f0fd2e93a56397dbe1a6e89069b57510ed9e932032f994fbc9",
+  "spec_path": "compiler/codegen/zig/codegen.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_codegen_zig Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected_type": "string",
+          "inputs": {
+            "field": "output_dir"
+          }
+        },
+        {
+          "expected_type": "bool",
+          "inputs": {
+            "field": "emit_debug"
+          }
+        },
+        {
+          "expected_type": "bool",
+          "inputs": {
+            "field": "optimize"
+          }
+        },
+        {
+          "expected_type": "bool",
+          "inputs": {
+            "field": "strip"
+          }
+        }
+      ],
+      "function": "CodegenOptions",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_depth": 1,
+          "inputs": {
+            "initial_depth": 0
+          }
+        },
+        {
+          "expected_depth": 2,
+          "inputs": {
+            "initial_depth": 1
+          }
+        },
+        {
+          "expected_depth": 5,
+          "inputs": {
+            "initial_depth": 4
+          }
+        }
+      ],
+      "function": "ZigCodegen.indent",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_depth": 0,
+          "inputs": {
+            "initial_depth": 1
+          }
+        },
+        {
+          "expected_depth": 2,
+          "inputs": {
+            "initial_depth": 3
+          }
+        },
+        {
+          "expected_depth": 0,
+          "inputs": {
+            "initial_depth": 0
+          }
+        }
+      ],
+      "function": "ZigCodegen.dedent",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": "i8",
+          "inputs": {
+            "t27_type": "i8"
+          }
+        },
+        {
+          "expected": "u8",
+          "inputs": {
+            "t27_type": "u8"
+          }
+        },
+        {
+          "expected": "i16",
+          "inputs": {
+            "t27_type": "i16"
+          }
+        },
+        {
+          "expected": "u16",
+          "inputs": {
+            "t27_type": "u16"
+          }
+        },
+        {
+          "expected": "i32",
+          "inputs": {
+            "t27_type": "i32"
+          }
+        },
+        {
+          "expected": "bool",
+          "inputs": {
+            "t27_type": "bool"
+          }
+        },
+        {
+          "expected": "void",
+          "inputs": {
+            "t27_type": "void"
+          }
+        }
+      ],
+      "function": "type_mapping",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": "fn add",
+          "inputs": {
+            "name": "add",
+            "params": [
+              "a: i8",
+              "b: i8"
+            ],
+            "return_type": "i8"
+          }
+        },
+        {
+          "expected_contains": "fn noop",
+          "inputs": {
+            "name": "noop",
+            "params": [],
+            "return_type": "void"
+          }
+        }
+      ],
+      "function": "generate_fn",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_codegen_options_has_defaults",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_indent_increments_by_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_dedent_floors_at_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_type_mapping_covers_base_types",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_fn_valid_zig",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_indentation_uses_four_spaces",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_output_contains_no_trailing_whitespace",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }
