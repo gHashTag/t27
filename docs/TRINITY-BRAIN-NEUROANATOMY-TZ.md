@@ -32,7 +32,13 @@ Today, **Trinity** (not this repo) may contain **two parallel implementations**:
 Therefore:
 
 - **Hand-maintained `src/brain/*.zig` as SSOT is out of scope for t27** and is **technical debt** if it duplicates semantics that should be specified here.
-- **Brain region semantics** that must be **ring-sealed, versioned, and compiler-backed** should be expressed under **`specs/brain/`** and flow through **`t27c parse` / `gen-*` / `seal`** like every other domain.
+- **Brain region semantics** that must be **ring-sealed, versioned, and compiler-backed** should be expressed under **`specs/brain/`** and flow through **`t27c parse` / `gen` / `gen-c` / `gen-verilog` / `seal`** like every other domain.
+
+### 1.3 Normative language: `.t27`, not application Zig
+
+Brain semantics are authored in **T27** — the same spec language as `specs/numeric/gf16.t27` (`module`, `pub const`, `pub fn`, `test` blocks, etc.). **Zig, C, and Verilog are generated backends**, not the SSOT for brain behavior inside **this** repository.
+
+**Principle:** there must be **no handwritten `*.zig` brain SSOT in t27**; artifacts live under **`specs/brain/*.t27`** → **`t27c`** → **`gen/`** (or product integration paths in **trinity**).
 
 ---
 
@@ -57,29 +63,115 @@ Three layers × nine regions each (names are **stable identifiers** for specs an
 
 **Trinity identity check:** φ² + 1/φ² = 3 — used as a **design constraint** for phase weights and documented invariants (§8).
 
+### 3.1 Region → spec file (examples)
+
+| # | Region | Spec file (SSOT) | Layer | φ-weight (design doc) |
+|---|--------|------------------|-------|------------------------|
+| 1 | DLPFC | `specs/brain/cognitive/dlpfc.t27` | Cognitive | φ² |
+| 2 | ACC | `specs/brain/cognitive/acc.t27` | Cognitive | φ |
+| 3 | PCC | `specs/brain/cognitive/pcc.t27` | Cognitive | 1/φ |
+| … | … | `specs/brain/cognitive/*.t27` | Cognitive | … |
+| 10 | Amygdala | `specs/brain/limbic/amygdala.t27` | Limbic | φ |
+| 11 | Hippocampus | `specs/brain/limbic/hippocampus.t27` | Limbic | φ² |
+| … | … | `specs/brain/limbic/*.t27` | Limbic | … |
+| 19–27 | Brainstem | `specs/brain/brainstem/*.t27` | Brainstem | … |
+
 ---
 
-## 4. t27 spec layout (Strand VI) — target tree
+## 4. t27 spec layout (Strand VI) — target tree (EPIC-6)
 
 All **normative** brain logic for the t27 side lives as **`.t27`** under:
 
 ```text
 specs/brain/
-├── unified_state.t27      # shared BrainState / registers contract
-├── cognitive_loop.t27     # sense → evaluate → decide → act → consolidate
-├── phi_timing.t27         # phase durations; ties to GoldenFloat / constants
-├── api.t27                # periphery-facing brain API contract
-├── bus.t27                # inter-region messaging contract
-├── cognitive/             # L3 — nine region specs
-├── limbic/                # L2 — nine region specs
-└── brainstem/             # L1 — nine region specs
+├── unified_state.t27          # BrainState and shared registers contract
+├── cognitive_loop.t27         # Main loop (phases; wiring to regions)
+├── phi_timing.t27             # φ-timing controller (phase durations)
+├── api.t27                    # Brain public API (periphery-facing) — pending stable cross-module codegen
+├── bus.t27                    # BrainBus inter-region messaging contract
+│
+├── cognitive/                 # Layer 3 — nine region specs
+│   ├── dlpfc.t27
+│   ├── acc.t27
+│   ├── pcc.t27
+│   ├── ofc.t27
+│   ├── insula.t27
+│   ├── prefrontal.t27
+│   ├── visual_cortex.t27
+│   ├── motor_cortex.t27
+│   └── sacred_wave.t27
+│
+├── limbic/                    # Layer 2 — nine region specs
+│   ├── amygdala.t27
+│   ├── hippocampus.t27
+│   ├── basal_ganglia.t27
+│   ├── thalamus.t27
+│   ├── hypothalamus.t27
+│   ├── intraparietal.t27
+│   ├── cingulate.t27
+│   ├── vta.t27
+│   └── nucleus_accumbens.t27
+│
+├── brainstem/                 # Layer 1 — nine region specs
+│   ├── reticular_formation.t27
+│   ├── locus_coeruleus.t27
+│   ├── microglia.t27
+│   ├── cerebellum.t27
+│   ├── corpus_callosum.t27
+│   ├── persistence.t27
+│   ├── metrics.t27
+│   ├── async_relay.t27
+│   └── federation.t27
+│
+├── periphery/                 # Adapters (contracts only in t27)
+│   ├── tri27_adapter.t27
+│   ├── vsa_adapter.t27
+│   ├── fpga_adapter.t27
+│   └── hslm_adapter.t27
+│
+└── tests/
+    ├── cognitive_tests.t27
+    ├── limbic_tests.t27
+    ├── brainstem_tests.t27
+    ├── integration_tests.t27
+    └── phi_coherence_tests.t27
 ```
 
 **Each** `.t27` file MUST satisfy **SOUL / TDD mandate**: `test`, `invariant`, and/or `bench` as required by project law.
 
-**Generated artifacts** (no hand edit):
+**Canonical examples** in-repo: `specs/brain/unified_state.t27`, `specs/brain/phi_timing.t27`, `specs/brain/bus.t27`, `specs/brain/cognitive_loop.t27`.
 
-- `gen/zig/brain/…`, `gen/c/brain/…`, `gen/verilog/brain/…` — via `t27c gen-zig`, `gen-c`, `gen-verilog`.
+### 4.1 Deliverables: wrong path vs right path
+
+| TZ mistake (do not use in t27) | Correct (SSOT) |
+|--------------------------------|----------------|
+| `src/brain/unified_state.zig` | `specs/brain/unified_state.t27` |
+| `src/brain/cognitive_loop.zig` | `specs/brain/cognitive_loop.t27` |
+| `src/brain/phi_timing.zig` | `specs/brain/phi_timing.t27` |
+| `src/brain/api.zig` | `specs/brain/api.t27` |
+| `src/brain/bus.zig` | `specs/brain/bus.t27` |
+| `src/brain/regions/cognitive/dlpfc.zig` | `specs/brain/cognitive/dlpfc.t27` |
+| `src/brain/regions/limbic/amygdala.zig` | `specs/brain/limbic/amygdala.t27` |
+| `src/quantum/neuro_bridge.zig` | `specs/brain/quantum_bridge.t27` (name TBD) |
+| All 27 regions as `*.zig` | All 27 as `*.t27` region specs |
+
+### 4.2 Code generation (actual `t27c` commands)
+
+From repo root, after `cargo build --release` in `bootstrap/`:
+
+```bash
+t27c gen            specs/brain/unified_state.t27    # Zig to stdout
+t27c gen-c          specs/brain/unified_state.t27    # C to stdout
+t27c gen-verilog    specs/brain/unified_state.t27    # Verilog to stdout
+t27c compile        specs/brain/unified_state.t27 -o /tmp/out.zig
+t27c compile-project --backend zig -o build          # all specs/ + compiler/ (see CLI help)
+t27c seal           specs/brain/unified_state.t27 --save
+t27c seal           specs/brain/unified_state.t27 --verify
+```
+
+**Generated layout (target):** mirror `specs/brain/**` under `gen/zig/brain/`, `gen/c/brain/`, `gen/verilog/brain/` when using project-wide codegen — **never edit generated files by hand**.
+
+**Note:** `api.t27` that `use`s other brain modules is **parser-valid**; the bootstrap Zig backend may still need fixes for qualified types and `[]const u8` before `api.t27` can land as a first-class generated module. Until then, keep API contracts in comments or split stubs that `gen` accepts.
 
 **Conformance** (evidence vectors), analogous to existing JSON suites:
 
@@ -94,9 +186,9 @@ specs/brain/
 | 1 | Unified brain state | P0 | `unified_state.t27`, `bus.t27` | Adapters until codegen covers runtime |
 | 2 | φ-cognitive loop | P0 | `cognitive_loop.t27`, `phi_timing.t27` | Loop scheduler, arousal modulation |
 | 3 | Neuroanatomical mapping | P1 | Doc tables + spec headers | `NEUROANATOMY.md`, connectivity JSON |
-| 4 | Quantum–neuro bridge | P1 | Spec hooks to `specs/vsa/`, numeric sacred specs | Bridge modules + benchmarks |
-| 5 | Brain as core router | P0 | `api.t27` + periphery contracts | TRI-27 / VSA / FPGA adapters |
-| 6 | File reorganization | P1 | `specs/brain/**` only | `src/brain/regions/{cognitive,limbic,brainstem}/` **generated or shim** |
+| 4 | Quantum–neuro bridge | P1 | `specs/brain/quantum_bridge.t27` + hooks to `specs/vsa/`, numeric specs | Generated bridge + benchmarks in product |
+| 5 | Brain as core router | P0 | `api.t27` + `periphery/*.t27` contracts | TRI-27 / VSA / FPGA consume **generated** brain APIs |
+| 6 | File reorganization | P1 | Full tree under `specs/brain/**` (§4) | **trinity** integrates `gen/zig/brain/**` (or shims); **no** new handwritten brain Zig SSOT in **t27** |
 | 7 | Testing & validation | P0 | parse/gen/seal + conformance | Integration + legacy test port |
 | 8 | CLI & visualization | P2 | spec for CLI surface if needed | `tri brain …` commands, docs site |
 
@@ -123,11 +215,11 @@ Formal citations belong in spec comments and `docs/NEUROANATOMY.md` (to be added
 
 | Ring | Capability | Status |
 |------|------------|--------|
-| 33 | Core brain specs: `unified_state`, `cognitive_loop`, `phi_timing`, `api`, `bus` | TODO |
+| 33 | Core brain specs: `unified_state`, `cognitive_loop`, `phi_timing`, `bus`; `api` when codegen ready | IN PROGRESS |
 | 34 | L1 brainstem — nine `.t27` region specs | TODO |
 | 35 | L2 limbic — nine `.t27` region specs | TODO |
 | 36 | L3 cognitive — nine `.t27` region specs | TODO |
-| 37 | Full `gen-*` for all 27 + CI green | TODO |
+| 37 | Full `gen` / `gen-c` / `gen-verilog` for all 27 + CI green | TODO |
 | 38 | Brain conformance JSON + seal coverage | TODO |
 | 39 | Timing-critical Verilog targets (FPGA) | TODO |
 
@@ -141,7 +233,7 @@ The following are **engineering constraints** (to be encoded in tests / conforma
 
 | ID | Invariant |
 |----|-----------|
-| INV-1 | Σ(phase_durations) / base_ms = 3.0 ± ε |
+| INV-1 | Σ(phase_durations) / base_ms = 3.0 ± ε (use **float** phase ms for exact TRINITY; integer truncation per phase may sum to slightly less than `3 × base_ms`) |
 | INV-2 | \|regions\| = 27 = 3³ |
 | INV-3 | \|layers\| = 3 |
 | INV-4 | Regions per layer = 9 each |
@@ -160,7 +252,7 @@ Exact ε and definitions of “coherence” and “connectivity statistic” are
 
 - Single **spec-defined** brain state and loop contracts in **`specs/brain/`**.
 - φ phase sum invariant **tested**.
-- `t27c parse` / `gen-*` / `seal` succeed for brain specs in CI.
+- `t27c parse` / `gen` / `gen-c` / `gen-verilog` / `seal` succeed for brain specs in CI (`tests/run_all.sh`).
 - No new hand-written Zig SSOT for those semantics in **t27** (`gen/` only).
 
 **Should (P1)**

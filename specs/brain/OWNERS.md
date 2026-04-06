@@ -14,7 +14,7 @@
 
 ## Outputs
 
-- Generated `gen/{zig,c,verilog}/brain/**` via `t27c`.
+- Generated `gen/{zig,c,verilog}/brain/**` via `t27c gen`, `t27c gen-c`, `t27c gen-verilog`, or `t27c compile-project`.
 - Future `conformance/brain_*.json` vectors.
 
 ## Note
