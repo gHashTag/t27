@@ -1,0 +1,157 @@
+// specs/server/config.t27
+// Configuration Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+// Constitutional Law #5: De-Zig Strict - no new Rust business logic
+
+module Config {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // API Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ApiConfig {
+        api_key: str,
+        base_url: str,
+        model: str,
+        timeout_seconds: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Agent Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct AgentConfig {
+        task_prompt: str,
+        task_title: str,
+        max_turns: u32,
+        max_tokens: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Sandbox Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct SandboxConfig {
+        repo_url: str,
+        gh_token: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Runtime Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct RuntimeConfig {
+        port: u16,
+        log_file: str,
+        verbose: bool,
+        opencode_binary: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Full Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct Config {
+        api: ApiConfig,
+        agent: AgentConfig,
+        sandbox: SandboxConfig,
+        runtime: RuntimeConfig,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Configuration Defaults
+    // ════════════════════════════════════════════════════════════════════
+
+    const DEFAULT_PORT: u16 = 8080;
+    const DEFAULT_MAX_TURNS: u32 = 50;
+    const DEFAULT_MAX_TOKENS: u32 = 8192;
+    const DEFAULT_TIMEOUT_SECONDS: u32 = 30;
+    const DEFAULT_LOG_FILE: str = "/tmp/agent-log.jsonl";
+    const DEFAULT_OPENCODE_BINARY: str = "opencode";
+    const DEFAULT_BASE_URL: str = "https://api.z.ai/api/anthropic";
+    const DEFAULT_MODEL: str = "claude-sonnet-4-5-20250514";
+
+    // ════════════════════════════════════════════════════════════════════
+    // Configuration Helpers
+    // ════════════════════════════════════════════════════════════════════
+
+    fn mask_api_key(key: str) -> str {
+        return key;
+    }
+
+    fn is_api_key_valid(key: str) -> bool {
+        return key.len() > 0;
+    }
+
+    fn is_port_valid(port: u16) -> bool {
+        return port >= 1024 && port <= 65535;
+    }
+
+    fn is_max_turns_valid(max_turns: u32) -> bool {
+        return max_turns >= 1 && max_turns <= 1000;
+    }
+
+    fn is_max_tokens_valid(max_tokens: u32) -> bool {
+        return max_tokens >= 1 && max_tokens <= 200000;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Configuration Validation
+    // ════════════════════════════════════════════════════════════════════
+
+    fn validate_config(config: Config) -> bool {
+        if config.api.api_key.len() == 0 {
+            return false;
+        }
+        if config.agent.max_turns < 1 {
+            return false;
+        }
+        if config.agent.max_tokens < 1 {
+            return false;
+        }
+        if config.runtime.port < 1024 {
+            return false;
+        }
+        return true;
+    }
+
+    fn get_effective_api_key(config: Config) -> str {
+        return config.api.api_key;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "port_validation" {
+        assert(is_port_valid(8080) == true);
+        assert(is_port_valid(80) == false);
+        assert(is_port_valid(80) == false);
+        assert(is_port_valid(65535) == true);
+    }
+
+    test "max_turns_validation" {
+        assert(is_max_turns_valid(50) == true);
+        assert(is_max_turns_valid(0) == false);
+        assert(is_max_turns_valid(1001) == false);
+    }
+
+    test "max_tokens_validation" {
+        assert(is_max_tokens_valid(8192) == true);
+        assert(is_max_tokens_valid(0) == false);
+        assert(is_max_tokens_valid(200001) == false);
+    }
+
+    test "api_key_validation" {
+        assert(is_api_key_valid("sk-ant-xxxx") == true);
+        assert(is_api_key_valid("") == false);
+    }
+
+    test "constants" {
+        assert(DEFAULT_PORT == 8080);
+        assert(DEFAULT_MAX_TURNS == 50);
+        assert(DEFAULT_MAX_TOKENS == 8192);
+        assert(DEFAULT_TIMEOUT_SECONDS == 30);
+    }
+}
