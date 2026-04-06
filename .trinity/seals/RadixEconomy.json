@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:04cb3ae6bbcd1bdaa4a1fa63ed3d04907159df08008185134178953eb20af3f7",
+  "gen_hash_verilog": "sha256:f7c4d05572b7993f8e8e4d3a1b6d683234496ee9dfb532df2f969f878af05bcf",
+  "gen_hash_zig": "sha256:bffb86a7acdeefb01d7c4c98fd700f2a6a04a29815a8b88a266e97d54883c628",
+  "module": "RadixEconomy",
+  "ring": 50,
+  "sealed_at": "2026-04-07T00:10:00Z",
+  "spec_hash": "sha256:4603ad98bc054ddb39cdd7d880c0af0a6d029cc13a13783e14d6001d8a3e86d9",
+  "spec_path": "specs/math/radix_economy.t27"
+}
