@@ -23,7 +23,9 @@ Load the appropriate skill based on the task. If the task involves both code and
 
 After cloning any repository, immediately check for and read these files at the repo root:
 - `CLAUDE.md` — Claude Code instructions and project conventions
-- `AGENTS.md` — Agent-specific instructions
+- `AGENTS.md` — Agent-specific instructions (Trinity: see `docs/AGENTS.md` if absent at root)
+
+**Trinity S³AI / t27 (this repository):** also read **`docs/T27-CONSTITUTION.md`** — constitutional SSOT-MATH (math/physics only in `*.t27` + `tri`/`t27c`; no new Python on the critical path). Technical migration plan: **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**.
 
 Follow all instructions and conventions found in these files. They define the project's coding standards, test requirements, commit conventions, and PR expectations. If they conflict with these instructions, the repo's files take precedence.
 

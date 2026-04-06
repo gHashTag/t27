@@ -1,0 +1,34 @@
+---
+description: Single source of truth for math/physics in t27; no Python on critical path
+globs:
+  - "**/*.t27"
+  - "conformance/**"
+  - "clara-bridge/**"
+  - "bootstrap/**"
+  - "docs/**"
+alwaysApply: true
+---
+
+# T27 — SSOT-MATH (конституционное правило)
+
+## Источник правды
+
+- Вся **математика, физика, константы, формулы, тесты верификации** — в **`*.t27`** и прогон через **`tri` / `t27c`**.
+- Шаги пайплайна по возможности фиксировать в **`.trinity/experience/`** (jsonl / схема проекта).
+
+## Запреты
+
+- **Не добавлять** новый Python (и прочие скрипты) на **критический путь** (verdict, conformance, сценарии assurance), если это можно выразить в t27 + tri.
+- **Не дублировать** формулы в README/MD без ссылки на каноническую спеку `.t27`.
+
+## Исключения (legacy)
+
+- Существующий Python (`conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py`, `clara-bridge/tests/*.py`) — **legacy**; новый функционал — **не** туда. Миграция — по `docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`.
+
+## Приоритет при конфликте
+
+- Спека `.t27`, `docs/T27-CONSTITUTION.md`, `docs/TDD-CONTRACT.md`, `docs/NUMERIC-STANDARD-001.md` важнее временных скриптов.
+
+## Обязательное чтение при клонировании
+
+После `CLAUDE.md` прочитать **`docs/T27-CONSTITUTION.md`**.
