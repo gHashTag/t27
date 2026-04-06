@@ -1,6 +1,6 @@
 # TASK — inter-agent coordination
 
-**Law:** `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` (same file on GitHub: `https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md`) — Articles **TASK-MD**, **RING-LAW**, **AGENT-DOMAIN**, **COMPETITION-READY**; normative protocol `**[docs/TASK_PROTOCOL.md](docs/TASK_PROTOCOL.md)`** (**TASK Validation** + **TASK Verification**).
+**Law:** [docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md) (on GitHub: [T27-CONSTITUTION.md](https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md)) — Articles **TASK-MD**, **RING-LAW**, **AGENT-DOMAIN**, **COMPETITION-READY**. Normative protocol: [docs/TASK_PROTOCOL.md](docs/TASK_PROTOCOL.md) (**TASK Validation** + **TASK Verification**).
 
 **TASK Protocol version:** 1.0  
 **Last updated:** 2026-04-06
@@ -17,7 +17,7 @@
 
 ## Protocol
 
-1. **Read order:** `[.trinity/state/github-sync.json](.trinity/state/github-sync.json)` → **this file** → **Anchor issue** (latest comments) → your **work issue** for `Closes #N`.
+1. **Read order:** [.trinity/state/github-sync.json](.trinity/state/github-sync.json) → **this file** → **Anchor issue** (latest comments) → your **work issue** for `Closes #N`.
 2. **Git** is durable state; **Anchor issue** is the live channel (Fazm-style shared state + visible thread).
 3. **Locks** are soft: set **Coordination state** before editing hot paths; release + **Handoff log** when done.
 4. **Handoff log** is append-prefer; do not delete history (strike through if obsolete).
