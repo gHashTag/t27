@@ -2,7 +2,7 @@
 
 ## Primary
 
-**B-Builder** — Rust bootstrap compiler (`t27c`), `Cargo.toml`, `Dockerfile`, `build.rs` language guard.
+**B-Builder** — Rust bootstrap compiler (binary name `t27c`; user-facing **`tri`** via `scripts/tri`), `Cargo.toml`, `Dockerfile`, `build.rs` language guard.
 
 ## Dependencies
 

@@ -26,27 +26,27 @@ t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neur
 git clone https://github.com/gHashTag/t27.git
 cd t27
 
-# Build the bootstrap compiler (Rust)
+# Build the bootstrap compiler (Rust); use ./scripts/tri as the CLI entry (wraps t27c)
 cd bootstrap && cargo build --release
 cd ..
 
-# Parse a spec
-./bootstrap/target/release/t27c parse specs/base/types.t27
+# Parse a spec (canonical CLI: tri → wraps bootstrap t27c)
+./scripts/tri parse specs/base/types.t27
 
-# Generate Zig backend
-./bootstrap/target/release/t27c gen-zig specs/numeric/gf16.t27
+# Generate Zig backend (stdout, or pass a directory to write gen/zig/…)
+./scripts/tri gen-zig specs/numeric/gf16.t27
 
 # Generate Verilog
-./bootstrap/target/release/t27c gen-verilog specs/fpga/mac.t27
+./scripts/tri gen-verilog specs/fpga/mac.t27
 
 # Generate C
-./bootstrap/target/release/t27c gen-c specs/base/ops.t27
+./scripts/tri gen-c specs/base/ops.t27
 
 # Verify a seal
-./bootstrap/target/release/t27c seal --verify specs/numeric/gf16.t27
+./scripts/tri seal specs/numeric/gf16.t27 --verify
 
 # Run all tests
-bash tests/run_all.sh
+./scripts/tri test
 
 # Validate conformance vectors
 bash tests/validate_conformance.sh
@@ -135,7 +135,7 @@ t27/
     └── validate_gen_headers.sh  # Gen file header validation
 ```
 
-**Domain ownership:** each major directory may include an **`OWNERS.md`** (Primary agent, dependencies, outputs). Start at [`OWNERS.md`](OWNERS.md) in the repo root; see also [`docs/AGENTS_ALPHABET.md`](docs/AGENTS_ALPHABET.md).
+**Domain ownership:** each major directory may include an `**OWNERS.md`** (Primary agent, dependencies, outputs). Start at `[OWNERS.md](OWNERS.md)` in the repo root; see also `[docs/AGENTS_ALPHABET.md](docs/AGENTS_ALPHABET.md)`.
 
 ## CLARA Automated Reasoning
 

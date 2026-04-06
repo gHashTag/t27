@@ -15,6 +15,6 @@ Include:
 
 - Description of the issue and impact
 - Steps to reproduce (if possible)
-- Affected components (e.g. `bootstrap/`, `t27c serve`, CI)
+- Affected components (e.g. `bootstrap/`, `tri` / `t27c serve`, CI)
 
 We will acknowledge receipt as capacity allows and coordinate a fix and disclosure timeline.

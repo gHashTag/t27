@@ -6,7 +6,7 @@
 
 ## Dependencies
 
-- `bootstrap/target/release/t27c`, `specs/`, `conformance/`, `gen/`.
+- `./scripts/tri` (CLI shim), `bootstrap/target/release/t27c`, `specs/`, `conformance/`, `gen/`.
 
 ## Outputs
 

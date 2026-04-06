@@ -7,7 +7,7 @@
 
 ## 1. Scope
 
-This document will define a **core** fragment of t27 (lexical, syntactic, type, and dynamic semantics) that matches what `t27c` implements today. Extensions are **incremental** per SEED-RINGS.
+This document will define a **core** fragment of t27 (lexical, syntactic, type, and dynamic semantics) that matches what the **`tri`** / `t27c` compiler implements today. Extensions are **incremental** per SEED-RINGS.
 
 ---
 

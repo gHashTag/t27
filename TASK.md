@@ -82,7 +82,7 @@
 
 *Optional local backlog; promote to a GitHub issue when executing.*
 
-1. Trim long lines in `specs/fpga/mac.t27`; `cargo build --release` in `bootstrap/`; `t27c parse specs/fpga/mac.t27`.
+1. Trim long lines in `specs/fpga/mac.t27`; `cargo build --release` in `bootstrap/`; `./scripts/tri parse specs/fpga/mac.t27`.
 2. Verilog gen for MAC; `specs/fpga/uart.t27`, `specs/fpga/top_level.t27`.
 3. `scripts/fpga/build.sh`, `flash.sh`, `Makefile`.
 4. `specs/fpga/constraints/qmtech_a100t.xdc`.

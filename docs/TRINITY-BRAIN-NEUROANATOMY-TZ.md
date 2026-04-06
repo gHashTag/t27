@@ -32,13 +32,15 @@ Today, **Trinity** (not this repo) may contain **two parallel implementations**:
 Therefore:
 
 - **Hand-maintained `src/brain/*.zig` as SSOT is out of scope for t27** and is **technical debt** if it duplicates semantics that should be specified here.
-- **Brain region semantics** that must be **ring-sealed, versioned, and compiler-backed** should be expressed under **`specs/brain/`** and flow through **`t27c parse` / `gen` / `gen-c` / `gen-verilog` / `seal`** like every other domain.
+- **Brain region semantics** that must be **ring-sealed, versioned, and compiler-backed** should be expressed under **`specs/brain/`** and flow through **`tri`** (`tri parse`, `tri gen-zig`, `tri gen-c`, `tri gen-verilog`, `tri seal`, …) like every other domain.
 
 ### 1.3 Normative language: `.t27`, not application Zig
 
 Brain semantics are authored in **T27** — the same spec language as `specs/numeric/gf16.t27` (`module`, `pub const`, `pub fn`, `test` blocks, etc.). **Zig, C, and Verilog are generated backends**, not the SSOT for brain behavior inside **this** repository.
 
-**Principle:** there must be **no handwritten `*.zig` brain SSOT in t27**; artifacts live under **`specs/brain/*.t27`** → **`t27c`** → **`gen/`** (or product integration paths in **trinity**).
+**Principle:** there must be **no handwritten `*.zig` brain SSOT in t27**; artifacts live under **`specs/brain/*.t27`** → **`tri`** → **`gen/`** (or product integration paths in **trinity**).
+
+**Entry point:** use **`./scripts/tri`** from this repository (committed shim to the Rust `t27c` binary). A root file named `tri` may exist locally and is **gitignored** if you install a full Trinity CLI build there.
 
 ---
 
@@ -155,27 +157,89 @@ specs/brain/
 | `src/quantum/neuro_bridge.zig` | `specs/brain/quantum_bridge.t27` (name TBD) |
 | All 27 regions as `*.zig` | All 27 as `*.t27` region specs |
 
-### 4.2 Code generation (actual `t27c` commands)
+### 4.2 Code generation — **`tri`** commands
 
 From repo root, after `cargo build --release` in `bootstrap/`:
 
 ```bash
-t27c gen            specs/brain/unified_state.t27    # Zig to stdout
-t27c gen-c          specs/brain/unified_state.t27    # C to stdout
-t27c gen-verilog    specs/brain/unified_state.t27    # Verilog to stdout
-t27c compile        specs/brain/unified_state.t27 -o /tmp/out.zig
-t27c compile-project --backend zig -o build          # all specs/ + compiler/ (see CLI help)
-t27c seal           specs/brain/unified_state.t27 --save
-t27c seal           specs/brain/unified_state.t27 --verify
+# Whole brain tree → gen/{zig,c,verilog}/brain/…
+./scripts/tri gen-zig       specs/brain/
+./scripts/tri gen-c         specs/brain/
+./scripts/tri gen-verilog   specs/brain/
+
+# Single file (Zig on stdout)
+./scripts/tri gen-zig       specs/brain/unified_state.t27
+
+./scripts/tri parse         specs/brain/unified_state.t27
+./scripts/tri compile       specs/brain/unified_state.t27 -o /tmp/out.zig
+./scripts/tri compile-project --backend zig -o build
+
+# Seal (verify / save)
+./scripts/tri seal          specs/brain/unified_state.t27 --verify
+./scripts/tri seal          specs/brain/unified_state.t27 --save
+./scripts/tri skill seal --hash specs/brain/unified_state.t27   # same as seal --save
+
+# Conformance JSON check (full suite today; path filter reserved)
+./scripts/tri validate-conformance specs/brain/
+
+# Full compiler test suite (parse / gen / seal / fixed point)
+./scripts/tri test
 ```
 
-**Generated layout (target):** mirror `specs/brain/**` under `gen/zig/brain/`, `gen/c/brain/`, `gen/verilog/brain/` when using project-wide codegen — **never edit generated files by hand**.
+**Implementation note:** `scripts/tri` forwards to `bootstrap/target/release/t27c` (or `TRI_T27C`). Do not document direct `t27c` invocation in the TZ — **`tri` is the canonical CLI surface**.
+
+**Generated layout (target):** directory arguments write under `gen/zig/…`, `gen/c/…`, `gen/verilog/…` mirroring `specs/**` — **never edit generated files by hand**.
 
 **Note:** `api.t27` that `use`s other brain modules is **parser-valid**; the bootstrap Zig backend may still need fixes for qualified types and `[]const u8` before `api.t27` can land as a first-class generated module. Until then, keep API contracts in comments or split stubs that `gen` accepts.
 
 **Conformance** (evidence vectors), analogous to existing JSON suites:
 
 - `conformance/brain_*.json` — φ-timing, bus, loop, and region-critical behaviors.
+
+### 4.3 TZ string replacements (`t27c` → `tri`)
+
+| Was (wrong in TZ) | Use instead |
+|-------------------|-------------|
+| `t27c gen-zig` | `tri gen-zig` (this repo: `./scripts/tri gen-zig`) |
+| `t27c gen-c` | `tri gen-c` |
+| `t27c gen-verilog` | `tri gen-verilog` |
+| `t27c gen` | `tri gen-zig` (single file) or `tri gen` (same Zig backend) |
+| `t27c seal --save` | `tri seal <file.t27> --save` or `tri skill seal --hash <file.t27>` |
+| `t27c validate-conformance` | `tri validate-conformance` |
+| `./bootstrap/target/release/t27c` | `tri` (via `./scripts/tri`) |
+
+### 4.4 `tri brain` (planned product / charter CLI)
+
+Not implemented in **t27** yet; `tri brain` prints a pointer to this doc. Target surface:
+
+```bash
+tri brain status
+tri brain cycle --once
+tri brain cycle --count 10
+tri brain map
+tri brain map --phi
+tri brain regions
+tri brain coherence
+tri brain connectivity
+tri brain benchmark --full
+tri brain evolve --scenario baseline --cycles 1000
+```
+
+### 4.5 PHI LOOP (example — skills live in product / registry)
+
+```bash
+tri skill begin --issue 501
+tri spec edit specs/brain/cognitive/dlpfc.t27
+tri skill seal --hash
+tri gen
+tri test
+tri verdict --toxic
+tri experience save
+tri skill commit
+tri git commit -m "feat(brain): DLPFC spec — Closes #501"
+```
+
+Only the subset implemented in `scripts/tri` works here today (`skill seal --hash`, `gen`, `test`); the rest is **charter / Trinity app** wiring.
 
 ---
 
@@ -252,7 +316,7 @@ Exact ε and definitions of “coherence” and “connectivity statistic” are
 
 - Single **spec-defined** brain state and loop contracts in **`specs/brain/`**.
 - φ phase sum invariant **tested**.
-- `t27c parse` / `gen` / `gen-c` / `gen-verilog` / `seal` succeed for brain specs in CI (`tests/run_all.sh`).
+- `tri parse` / `tri gen-zig` / `tri gen-c` / `tri gen-verilog` / `tri seal` succeed for brain specs in CI (`tests/run_all.sh` uses `./scripts/tri`).
 - No new hand-written Zig SSOT for those semantics in **t27** (`gen/` only).
 
 **Should (P1)**

@@ -36,14 +36,14 @@ Each ring follows these steps in order:
 4. **Parse** - Extend the parser to build AST nodes for the new syntax.
 5. **Lower** - (Optional) Transform AST into a simpler IR if needed.
 6. **Gen** - Extend codegen to emit Zig/LLVM for the new construct.
-7. **Test** - `t27c parse spec.t27` must succeed; `cargo test` must pass; **`cargo build`** in `bootstrap/` must succeed (includes `build.rs` language guard).
+7. **Test** - `tri parse spec.t27` must succeed; `cargo test` must pass; **`cargo build`** in `bootstrap/` must succeed (includes `build.rs` language guard).
 8. **Freeze** - Record `sha256sum bootstrap/src/compiler.rs` in
    `bootstrap/stage0/FROZEN_HASH`.
 9. **Seal** - Commit, push, and open a PR that closes the ring's issue.
 
 ## Golden canon vs refactor debt
 
-**Where the gold is** (ring-sealed truth): specs that parse/gen under `t27c`, the frozen compiler hash, seals under `.trinity/seals/`, and policy docs. **Everything else** on the critical path that is not t27+t27c is **refactor heap** until removed.
+**Where the gold is** (ring-sealed truth): specs that parse/gen under **`tri`**, the frozen compiler hash, seals under `.trinity/seals/`, and policy docs. **Everything else** on the critical path that is not t27+**tri** is **refactor heap** until removed.
 
 See **`docs/GOLDEN-RINGS-CANON.md`** for the **micro-iteration checklist**, **GOLD vs REFACTOR-HEAP** tables, and links to numeric/language debt inventories.
 
@@ -57,8 +57,8 @@ Ring 0 establishes the minimal viable compiler:
   literal values (including negative numbers like `-1`), `enum(T) { }`,
   `struct { }`, `fn` headers with brace-skip bodies, `test`/`invariant`/
   `bench` blocks with brace-skip bodies.
-- Validation: `t27c parse tests/ring0_trivial.t27` and
-  `t27c parse specs/base/types.t27` both succeed.
+- Validation: `tri parse tests/ring0_trivial.t27` and
+  `tri parse specs/base/types.t27` both succeed.
 
 ---
 

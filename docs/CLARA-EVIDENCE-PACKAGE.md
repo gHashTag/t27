@@ -175,15 +175,15 @@ TRINITY satisfies CLARA FAQ 21 — AR is not a wrapper around ML but structurall
 
 ### 5.1 Compiler Targets
 
-The `t27c` compiler produces verified output in 4 formats:
+The **`tri`** CLI (`./scripts/tri`, wrapping the Rust `t27c` binary) produces verified output in 4 formats:
 
 | Phase | Command | Output | Purpose |
 |-------|---------|--------|---------|
-| Parse | `t27c parse <spec>` | AST validation | Syntax correctness |
-| Gen Zig | `t27c gen <spec>` | Zig source | Software execution |
-| Gen Verilog | `t27c gen-verilog <spec>` | Verilog HDL | FPGA synthesis |
-| Gen C | `t27c gen-c <spec>` | C source | Embedded targets |
-| Seal | `t27c seal <spec> --verify` | Hash seal | Tamper detection |
+| Parse | `tri parse <spec>` | AST validation | Syntax correctness |
+| Gen Zig | `tri gen-zig <spec>` | Zig source | Software execution |
+| Gen Verilog | `tri gen-verilog <spec>` | Verilog HDL | FPGA synthesis |
+| Gen C | `tri gen-c <spec>` | C source | Embedded targets |
+| Seal | `tri seal <spec> --verify` | Hash seal | Tamper detection |
 
 ### 5.2 Test Suite Results
 
@@ -258,7 +258,7 @@ Where γ = φ⁻³ = 0.2360679775 (Barbero-Immirzi parameter from Loop Quantum G
 | Correctness | Formal K3 proofs (6 lemmas, Q.E.D.) | `docs/KLEENE-TRIT-ISOMORPHISM.md` |
 | Explainability | ≤10 step traces, 3 explanation formats | `specs/ar/proof_trace.t27`, `specs/ar/explainability.t27` |
 | Scalability | O(n) composition, O(1) K3 ops | `specs/ar/composition.t27`, `docs/CLARA-COMPOSITION-PATTERNS.md` |
-| Verifiability | t27c seal (hash), 6-phase test suite | `tests/run_all.sh` — target: 100% pass |
+| Verifiability | `tri seal` (hash), 6-phase test suite | `tests/run_all.sh` — target: 100% pass |
 | Openness | Apache 2.0 on all artifacts | All file headers |
 | Restraint | K_UNKNOWN = bounded rationality | `specs/ar/restraint.t27` (553 lines) |
 | AR ≥2 Kinds | 3 kinds: Logic Programs, ASP, Classical | `specs/ar/` (7 spec files) |

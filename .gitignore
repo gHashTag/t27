@@ -1,5 +1,6 @@
 # Build artifacts (DNA)
-tri
+# Optional local Trinity CLI binary at repo root only (committed shim: scripts/tri)
+/tri
 zig-cache/
 zig-out/
 gen/
