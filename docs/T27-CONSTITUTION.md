@@ -46,6 +46,7 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 | `docs/NUMERIC-GF16-DEBT-INVENTORY.md` | File-by-file non-GF16 / f32/f64 debt |
 | `docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md` | Non-t27 language inventory + Lotus cleanup procedure |
 | `docs/GOLDEN-RINGS-CANON.md` | Ring + FROZEN_HASH micro-iterations; GOLD vs REFACTOR-HEAP |
+| `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md` | Unified brain charter; **t27** = `specs/brain/` SSOT, `trinity` = runtime integration |
 | `.cursor/rules/t27-ssot-math.mdc` | Cursor rule for AI agents |
 
 ---

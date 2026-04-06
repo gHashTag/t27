@@ -13,6 +13,7 @@
 | `math/`, `physics/` | **P-Physics** | Constants and sacred physics overlays |
 | `ar/` | **R-Reasoning** | CLARA / proof / ASP |
 | `queen/` | **T-Queen** | Lotus orchestration spec |
+| `brain/` | **T-Queen** + **P-Physics** + **N-Numeric** | Strand VI — unified brain specs; see `specs/brain/OWNERS.md` |
 | `fpga/` | **B-Builder** / hardware | Boards, constraints, testbenches |
 | `vsa/`, `nn/` | **N-Numeric** / ML adjacent | Bundles and attention specs |
 | `demos/`, `sandbox/` | **A-Architect** / **Q-QA** | Examples; not ring gold by default |
