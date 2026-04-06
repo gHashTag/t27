@@ -444,7 +444,7 @@ class Parser:
             tok = self._next()
             value_parts.append(tok.text)
 
-        # Eat optional semicolon
+        # Eat semicolon (required for module body consts)
         self._eat(TokenKind.SEMICOLON)
 
         return ConstDeclNode(
