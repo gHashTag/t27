@@ -205,6 +205,21 @@ tri git push origin HEAD
 3. **Push toxic skill**: Cannot push skills with `verdict = "TOXIC"` — fix or supersede.
 4. **Push to wrong remote**: In strict mode, only `github.com/gHashTag/t27` allowed.
 
+### TOXIC Verdict and Rollback Protocol
+
+When `verdict = "TOXIC"` is returned by `tri verdict` or `tri test`, the **atomic rollback protocol** defined in [`PHI_LOOP_CONTRACT.md`](PHI_LOOP_CONTRACT.md) **MUST** be executed:
+
+1. Revert all spec edits (`git checkout HEAD -- specs/**/*.t27 docs/**/*.md`)
+2. Delete generated artifacts from this ring (`rm -rf gen/zig/* gen/c/* gen/verilog/*`)
+3. Invalidate seal file (`rm .trinity/seals/<module>.json`)
+4. Append TOXIC episode to `.trinity/experience/episodes.jsonl`
+5. Exit 1 (blocks commit)
+6. Post TOXIC comment on GitHub Issue (optional)
+
+The rollback procedure is **atomic**: steps 1-4 must succeed as a unit. If any step fails, the system enters FROZEN state requiring manual intervention.
+
+For full specification of the Verdict enum (`CLEAN`, `TOXIC`, `FAIL`, `SKIP`, `TIMEOUT`) and exit codes, see [`specs/test_framework/core.t27`](../../specs/test_framework/core.t27).
+
 ---
 
 ## Constitutional Law #4: De-Zig-fication

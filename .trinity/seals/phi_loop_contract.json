@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:c62cd5816b0a919cf70c4bb8180cd4a0f661edee4f7d3034a87e9e577ae2739a",
+  "gen_hash_verilog": "sha256:98b12e9f1dc53a315036ea503e29d9ccffb8ed67ad2fead7f0fa1864c9e5b577",
+  "gen_hash_zig": "sha256:cdea7e681f9262734836a642d0c10b246601d51afb991551e916c81ffede6925",
+  "module": "PHI_LOOP_CONTRACT",
+  "ring": 12,
+  "sealed_at": "2026-04-06T18:29:59Z",
+  "spec_hash": "sha256:6fffcfaf97d03b6933ee9cd68fbba2399e7901aacf106a3e12acc305dfe7f39a",
+  "spec_path": "docs/nona-03-manifest/PHI_LOOP_CONTRACT.md"
+}

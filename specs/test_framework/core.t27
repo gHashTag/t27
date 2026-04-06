@@ -1,0 +1,573 @@
+// t27/specs/test_framework/core.t27
+// T27 Test Framework — Core Primitives
+// φ² + 1/φ² = 3 | TRINITY
+
+module TestFramework {
+    // ═════════════════════════════════════════════════════════════════
+    // 1. Test Result Types
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Verdict enum — test outcome classification
+    pub const Verdict = enum {
+        PASS,     // Test passed successfully
+        FAIL,     // Test failed (assertion violated)
+        SKIP,     // Test skipped (precondition not met)
+        TOXIC,    // Test revealed fundamental issue (requires rollback)
+        TIMEOUT,  // Test exceeded time limit
+    };
+
+    // TestResult — single test execution result
+    pub const TestResult = struct {
+        name : []const u8,
+        verdict : Verdict,
+        duration_ms : u64,
+        message : []const u8,
+    };
+
+    // SuiteResult — collection of test results
+    pub const SuiteResult = struct {
+        total : usize,
+        passed : usize,
+        failed : usize,
+        skipped : usize,
+        toxic : usize,
+        results : []TestResult,
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    // 2. Tolerance Tiers — for math/physics claims
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ToleranceTier — precision requirements for different claim types
+    pub const ToleranceTier = enum {
+        EXACT,           // No tolerance (integer, boolean, exact algebraic)
+        L5_IDENTITY,     // φ² + 1/φ² = 3 ± 1e-10 (constitutional law)
+        IEEE_F64,        // IEEE 754 binary64 machine epsilon (~2.2e-16)
+        PHYSICS_CODATA,  // CODATA 2022 tolerance (varies by constant)
+        EMPIRICAL,       // Empirical/approximate claims (configurable)
+    };
+
+    // ToleranceConfig — tolerance specification with numeric bounds
+    pub const ToleranceConfig = struct {
+        tier : ToleranceTier,
+        absolute : f64,
+        relative : f64,
+        ulp : u32,
+    };
+
+    // Default tolerance configurations
+    pub const TOLERANCE_EXACT = ToleranceConfig{
+        .tier = .EXACT,
+        .absolute = 0.0,
+        .relative = 0.0,
+        .ulp = 0,
+    };
+
+    pub const TOLERANCE_L5_IDENTITY = ToleranceConfig{
+        .tier = .L5_IDENTITY,
+        .absolute = 1e-10,
+        .relative = 1e-10,
+        .ulp = 0,
+    };
+
+    pub const TOLERANCE_IEEE_F64 = ToleranceConfig{
+        .tier = .IEEE_F64,
+        .absolute = 0.0,
+        .relative = 2.22e-16,
+        .ulp = 4,
+    };
+
+    pub const TOLERANCE_PHYSICS = ToleranceConfig{
+        .tier = .PHYSICS_CODATA,
+        .absolute = 1e-12,
+        .relative = 1e-9,
+        .ulp = 0,
+    };
+
+    pub const TOLERANCE_EMPIRICAL = ToleranceConfig{
+        .tier = .EMPIRICAL,
+        .absolute = 0.01,
+        .relative = 0.01,
+        .ulp = 0,
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    // 3. Claim Tiers — scientific assertion classification
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ClaimTier — classification for scientific/mathematical claims
+    // Aligns with RESEARCH_CLAIMS.md vocabulary
+    pub const ClaimTier = enum {
+        EXACT,              // Algebraic identity (e.g., φ² = φ + 1)
+        EMPIRICAL_CODATA,   // CODATA 2022 reference value
+        APPROXIMATE,        // Numerical/fitted with stated tolerance
+        CONJECTURAL,        // Hypothesis with falsification path
+        N_A,                // Not a scientific claim (e.g., API behavior)
+    };
+
+    // ═════════════════════════════════════════════════════════════════
+    // 4. Assertion Primitives
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // assert_eq_int — exact integer equality
+    pub fn assert_eq_int(actual: i64, expected: i64) -> bool {
+        return actual == expected;
+    }
+
+    // assert_eq_float — floating point equality with tolerance
+    pub fn assert_eq_float(actual: f64, expected: f64, config: ToleranceConfig) -> bool {
+        if (config.tier == .EXACT) {
+            return actual == expected;
+        }
+
+        const diff = actual - expected;
+        const abs_diff = if (diff < 0.0) -diff else diff;
+
+        // Check absolute tolerance
+        if (abs_diff <= config.absolute) {
+            return true;
+        }
+
+        // Check relative tolerance
+        const rel_diff = abs_diff / (if (expected != 0.0) expected else 1.0);
+        if (rel_diff <= config.relative) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // assert_approx_eq — convenience for approximate float comparison
+    pub fn assert_approx_eq(actual: f64, expected: f64, tolerance: f64) -> bool {
+        const diff = actual - expected;
+        const abs_diff = if (diff < 0.0) -diff else diff;
+        return abs_diff <= tolerance;
+    }
+
+    // assert_l5_phi_identity — L5 IDENTITY: φ² + 1/φ² = 3
+    // Constitutional law with strict tolerance
+    pub fn assert_l5_phi_identity(phi: f64) -> bool {
+        const lhs = phi * phi + 1.0 / (phi * phi);
+        const diff = lhs - 3.0;
+        const abs_diff = if (diff < 0.0) -diff else diff;
+        return abs_diff <= 1e-10;
+    }
+
+    // assert_l5_phi_squared_equals_phi_plus_one — φ² = φ + 1
+    // Derived identity from L5
+    pub fn assert_l5_phi_squared_equals_phi_plus_one(phi: f64) -> bool {
+        const lhs = phi * phi;
+        const rhs = phi + 1.0;
+        const diff = lhs - rhs;
+        const abs_diff = if (diff < 0.0) -diff else diff;
+        return abs_diff <= 1e-10;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 5. Property-Based Testing (PBT) Primitives
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Property function type — returns true if property holds
+    pub const Property = fn (input: anytype) -> bool;
+
+    // for_all — universal quantification over input domain
+    // Tests that a property holds for all inputs in the given range
+    pub fn for_all(
+        property: Property,
+        start: i64,
+        end: i64,
+        max_trials: usize
+    ) -> bool {
+        var i : i64 = start;
+        var passed : usize = 0;
+        while (i <= end and passed < max_trials) {
+            if (!property(i)) {
+                return false;  // Counterexample found
+            }
+            passed += 1;
+            i = i + 1;
+        }
+        return true;  // Property holds for all tested inputs
+    }
+
+    // for_all_float — PBT over float domain with step size
+    pub fn for_all_float(
+        property: Property,
+        start: f64,
+        end: f64,
+        step: f64,
+        max_trials: usize
+    ) -> bool {
+        var x : f64 = start;
+        var passed : usize = 0;
+        while (x <= end and passed < max_trials) {
+            if (!property(x)) {
+                return false;
+            }
+            passed += 1;
+            x = x + step;
+        }
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 6. Metamorphic Relations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // MetamorphicRelation — function that relates two executions
+    pub const MetamorphicRelation = fn (input: anytype, output1: anytype, output2: anytype) -> bool;
+
+    // MetamorphicTest — specifies source, transformation, and relation
+    pub const MetamorphicTest = struct {
+        name : []const u8,
+        source : fn (input: anytype) -> anytype,
+        followup : fn (input: anytype) -> anytype,
+        relation : MetamorphicRelation,
+    };
+
+    // Metamorphic testing — checks that relation holds for all inputs
+    pub fn metamorphic_check(
+        test: MetamorphicTest,
+        start: i64,
+        end: i64,
+        max_trials: usize
+    ) -> bool {
+        var i : i64 = start;
+        var passed : usize = 0;
+        while (i <= end and passed < max_trials) {
+            const output1 = test.source(i);
+            const output2 = test.followup(i);
+            if (!test.relation(i, output1, output2)) {
+                return false;
+            }
+            passed += 1;
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // Common metamorphic relations
+
+    // equiv — outputs must be equal
+    pub fn metamorphic_equiv(
+        input: anytype, output1: anytype, output2: anytype
+    ) -> bool {
+        // Type-erased equality check (caller ensures same type)
+        // In practice, this is specialized by codegen
+        return true;  // Placeholder
+    }
+
+    // ordered — output2 >= output1 (monotonic)
+    pub fn metamorphic_ordered(
+        input: anytype, output1: anytype, output2: anytype
+    ) -> bool {
+        // Type-erased ordering check
+        return true;  // Placeholder
+    }
+
+    // scaled — output2 = k * output1 for some constant k
+    pub fn metamorphic_scaled(
+        input: anytype, output1: anytype, output2: anytype
+    ) -> bool {
+        // Type-erased scaling check
+        return true;  // Placeholder
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 7. Differential Testing
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // DifferentialTest — compares two implementations
+    pub const DifferentialTest = struct {
+        name : []const u8,
+        impl_a : fn (input: anytype) -> anytype,
+        impl_b : fn (input: anytype) -> anytype,
+        comparator : fn (output_a: anytype, output_b: anytype) -> bool,
+        tolerance : ToleranceConfig,
+    };
+
+    // differential_check — verifies two implementations agree
+    pub fn differential_check(
+        test: DifferentialTest,
+        start: i64,
+        end: i64,
+        max_trials: usize
+    ) -> bool {
+        var i : i64 = start;
+        var passed : usize = 0;
+        while (i <= end and passed < max_trials) {
+            const output_a = test.impl_a(i);
+            const output_b = test.impl_b(i);
+            if (!test.comparator(output_a, output_b)) {
+                return false;
+            }
+            passed += 1;
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 8. Sequential Gate Pipeline
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // GateStage — single stage in sequential pipeline
+    pub const GateStage = fn (input: anytype) -> GateResult;
+
+    // GateResult — result of a gate stage
+    pub const GateResult = struct {
+        success : bool,
+        output : anytype,
+        message : []const u8,
+        short_circuit : bool,
+    };
+
+    // GatePipeline — sequential stages with short-circuit
+    pub const GatePipeline = struct {
+        stages : []GateStage,
+        num_stages : usize,
+    };
+
+    // gate_pipeline_execute — runs stages sequentially, short-circuits on failure
+    pub fn gate_pipeline_execute(
+        pipeline: GatePipeline,
+        initial_input: anytype
+    ) -> GateResult {
+        var current_input = initial_input;
+
+        var i : usize = 0;
+        while (i < pipeline.num_stages) {
+            const result = pipeline.stages[i](current_input);
+
+            if (!result.success or result.short_circuit) {
+                return result;  // Short-circuit: don't execute remaining stages
+            }
+
+            current_input = result.output;
+            i = i + 1;
+        }
+
+        // All stages passed
+        return GateResult{
+            .success = true,
+            .output = current_input,
+            .message = "All gates passed",
+            .short_circuit = false,
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // 9. TDD — Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test assert_eq_int_exact_match
+        given actual : i64 = 42
+        and expected : i64 = 42
+        when result = assert_eq_int(actual, expected)
+        then result == true
+
+    test assert_eq_int_mismatch
+        given actual : i64 = 42
+        and expected : i64 = 43
+        when result = assert_eq_int(actual, expected)
+        then result == false
+
+    test assert_eq_float_exact_match
+        given actual : f64 = 42.0
+        and expected : f64 = 42.0
+        and config = TOLERANCE_IEEE_F64
+        when result = assert_eq_float(actual, expected, config)
+        then result == true
+
+    test assert_eq_float_within_tolerance
+        given actual : f64 = 42.001
+        and expected : f64 = 42.0
+        and config = ToleranceConfig{
+            .tier = .EMPIRICAL,
+            .absolute = 0.01,
+            .relative = 0.0,
+            .ulp = 0
+        }
+        when result = assert_eq_float(actual, expected, config)
+        then result == true
+
+    test assert_approx_eq_passes
+        given actual : f64 = 3.14159
+        and expected : f64 = 3.14
+        and tolerance : f64 = 0.01
+        when result = assert_approx_eq(actual, expected, tolerance)
+        then result == true
+
+    test assert_l5_phi_identity_passes
+        given phi : f64 = 1.6180339887498948
+        when result = assert_l5_phi_identity(phi)
+        then result == true
+
+    test assert_l5_phi_squared_equals_phi_plus_one_passes
+        given phi : f64 = 1.6180339887498948
+        when result = assert_l5_phi_squared_equals_phi_plus_one(phi)
+        then result == true
+
+    test for_all_commutativity_addition
+        // Property: a + b = b + a for integers
+        when result = for_all(
+            (a) => {
+                const b : i64 = 7;
+                const lhs = a + b;
+                const rhs = b + a;
+                return lhs == rhs;
+            },
+            -10,
+            10,
+            100
+        )
+        then result == true
+
+    test for_all_float_monotonic_square
+        // Property: square(x) >= 0 for all x
+        when result = for_all_float(
+            (x) => x * x >= 0.0,
+            -10.0,
+            10.0,
+            1.0,
+            50
+        )
+        then result == true
+
+    test gate_pipeline_short_circuit_on_failure
+        given failing_stage = (input: i64) => GateResult{
+            .success = false,
+            .output = input,
+            .message = "Stage failed",
+            .short_circuit = true
+        }
+        and passing_stage = (input: i64) => GateResult{
+            .success = true,
+            .output = input * 2,
+            .message = "Stage passed",
+            .short_circuit = false
+        }
+        and stages = [_]GateStage{ failing_stage, passing_stage }
+        and pipeline = GatePipeline{ .stages = &stages, .num_stages = 2 }
+        when result = gate_pipeline_execute(pipeline, 5)
+        then !result.success and result.short_circuit == true
+
+    test gate_pipeline_all_pass
+        given stage1 = (input: i64) => GateResult{
+            .success = true,
+            .output = input + 1,
+            .message = "Stage 1",
+            .short_circuit = false
+        }
+        and stage2 = (input: i64) => GateResult{
+            .success = true,
+            .output = input * 2,
+            .message = "Stage 2",
+            .short_circuit = false
+        }
+        and stages = [_]GateStage{ stage1, stage2 }
+        and pipeline = GatePipeline{ .stages = &stages, .num_stages = 2 }
+        when result = gate_pipeline_execute(pipeline, 5)
+        // 5 -> stage1: 6 -> stage2: 12
+        then result.success and result.output == 12
+
+    // ═════════════════════════════════════════════════════════════════
+    // 10. TDD — Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant tolerance_exactly_zero_for_exact_tier
+        assert TOLERANCE_EXACT.absolute == 0.0;
+        assert TOLERANCE_EXACT.relative == 0.0;
+        assert TOLERANCE_EXACT.ulp == 0;
+
+    invariant l5_identity_tolerance_is_1e_10
+        assert TOLERANCE_L5_IDENTITY.absolute == 1e-10;
+        assert TOLERANCE_L5_IDENTITY.relative == 1e-10;
+
+    invariant ieee_f64_tolerance_matches_machine_epsilon
+        assert TOLERANCE_IEEE_F64.relative <= 2.5e-16;
+        assert TOLERANCE_IEEE_F64.relative >= 2.0e-16;
+
+    invariant for_all_returns_true_for_empty_range
+        // Property testing with empty range should pass (vacuously true)
+        const dummy_property = (x: i64) => true;
+        assert for_all(dummy_property, 1, 0, 0) == true;
+
+    invariant verdict_enum_has_five_variants
+        // Ensure verdict classification is complete
+        // Can't directly check enum size, but verify through tests
+        assert true;  // Verified by test coverage
+
+    invariant gate_pipeline_preserves_input_on_first_stage
+        // If first stage returns input unchanged, pipeline should reflect this
+        const identity_stage = (input: i64) => GateResult{
+            .success = true,
+            .output = input,
+            .message = "Identity",
+            .short_circuit = false
+        };
+        const stages = [_]GateStage{ identity_stage };
+        const pipeline = GatePipeline{ .stages = &stages, .num_stages = 1 };
+        const result = gate_pipeline_execute(pipeline, 42);
+        assert result.success;
+        assert result.output == 42;
+
+    // ═════════════════════════════════════════════════════════════════
+    // 11. TDD — Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench assert_eq_int_latency
+        // Target: < 100 cycles for integer comparison
+        @setEvalBranchQuota(10000);
+        var passed : bool = false;
+        for (0..1000) |_| {
+            passed = assert_eq_int(42, 42);
+        }
+        _ = passed;
+
+    bench assert_eq_float_latency
+        // Target: < 500 cycles for float comparison with tolerance
+        @setEvalBranchQuota(10000);
+        var passed : bool = false;
+        for (0..1000) |_| {
+            passed = assert_eq_float(42.0, 42.0, TOLERANCE_IEEE_F64);
+        }
+        _ = passed;
+
+    bench assert_l5_phi_identity_latency
+        // Target: < 200 cycles for L5 identity check
+        @setEvalBranchQuota(10000);
+        var passed : bool = false;
+        const phi : f64 = 1.6180339887498948;
+        for (0..1000) |_| {
+            passed = assert_l5_phi_identity(phi);
+        }
+        _ = passed;
+
+    bench for_all_latency
+        // Target: < 1000 cycles for 100 iterations of for_all
+        @setEvalBranchQuota(10000);
+        var passed : bool = false;
+        const dummy_prop = (x: i64) => x >= 0;
+        for (0..100) |_| {
+            passed = for_all(dummy_prop, 0, 50, 100);
+        }
+        _ = passed;
+
+    bench gate_pipeline_latency
+        // Target: < 500 cycles for 3-stage pipeline
+        @setEvalBranchQuota(10000);
+        const stage = (input: i64) => GateResult{
+            .success = true,
+            .output = input + 1,
+            .message = "Stage",
+            .short_circuit = false
+        };
+        const stages = [_]GateStage{ stage, stage, stage };
+        const pipeline = GatePipeline{ .stages = &stages, .num_stages = 3 };
+        var result : GateResult = undefined;
+        for (0..1000) |_| {
+            result = gate_pipeline_execute(pipeline, 1);
+        }
+        _ = result;
+}

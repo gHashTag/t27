@@ -42,4 +42,5 @@ tmp/
 external/opencode/dist/
 external/opencode/node_modules/
 bootstrap/target/
+bootstrap/.trinity/
 .trinity/experience/
