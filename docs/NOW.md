@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:59 local time (+07) · RFC3339 2026-04-06T23:59:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 start, Ring 050 (#142 radix economy) in progress · RFC3339 2026-04-07T00:00:00+07:00
 
 **Document class:** Operational focus document
 **Revision:** **Ring 47** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** / **#131** (seal discipline + **`conformance/**`** on **`seal-coverage.yml`**). **`31e0d47`** / **[#163](https://github.com/gHashTag/t27/issues/163)** — `FORMAT-SPEC-001.json` v1.1 + **`t27c validate-phi-identity`**. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; baseline **`tri test`** green. **Track A (carryover):** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase **2.6** numeric debt *(start only after Track A green)*. **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — **specs-only** this ring.
@@ -226,7 +226,6 @@ CROWN (Queen brain & automation)
 | 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure |
 | 052  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) |
 | 053  | open  | Conformance (F) | Property-test template              |
-| 054  | open  | Graph (G)       | Graph drift detection               |
 
 
 **Charter:** `[T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md](docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)`  
