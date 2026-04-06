@@ -115,9 +115,9 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 
 **The Rust bootstrap** (`t27c parse`, `t27c gen`, `t27c compile`, `t27c suite`) **exists**.
 **The closed loop** `seed.t27 → t27c gen → output.zig → zig test → GREEN` has been **demonstrated end-to-end** in `phi-loop-ci.yml` with **Zig 0.13.0** and **seed.t27** golden spec.
-**E2E status:** **DEMONSTRATED** — PR `feat/ring-46-e2e-ci` with **`Closes #150`** per **ISSUE-GATE**.
+**E2E status:** **DEMONSTRATED** — PR `feat/ring-051-jones-polynomial-clean` (run 24045822072) with **`Closes #150`** per **ISSUE-GATE**.
 
-**TV reference ([`qualification/TVP.md`](docs/qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (all 57 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (all 57 seals current)
+**TV reference ([`qualification/TVP.md`](docs/qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (63 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (63 seals current)
 
 **K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`t27c validate-phi`** (or **`./scripts/tri validate-phi`**). Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
 
