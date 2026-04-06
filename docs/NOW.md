@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:59 local time (UTC+07) · RFC3339 2026-04-06T23:59:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 21:30 local time (UTC+07) · RFC3339 2026-04-06T21:30:00+07:00
 
-**Document class:** Operational focus document  
-**Revision:** 2026-04-06 — NOW hardening: **#150** E2E CI, TV-01/02 refs, §2 PHI law, §7 Status column, §9 `check-now` first · Ring 47 K2 Flocq (`PhiFloat.v`)  
+**Document class:** Operational focus document
+**Revision:** 2026-04-06 — **#150** E2E CI **DEMONSTRATED** (seed.t27 → t27c gen → zig test → GREEN) · TV-01/02 **PASS** · PR `feat/ring-46-e2e-ci`
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
@@ -95,18 +95,17 @@ The **table counts** above are *ring narrative* snapshots; refresh them when you
 ```
 bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
                                                     │
-                         CI E2E not yet proven:     │
+                         CI E2E DEMONSTRATED:        │
                          seed.t27 → t27c gen → zig test → GREEN
                                                     │
                                               gen/zig/*.zig  (from t27c, not hand-written)
 ```
 
-**The Rust bootstrap** (`t27c parse`, `t27c gen`, `t27c compile`, `t27c suite`) **exists**.  
-**The closed loop** `seed.t27 → t27c gen → output.zig → zig test → GREEN` has **not yet been demonstrated end-to-end in CI** as a **single advertised pipeline**.  
-Treat that as the **highest-leverage** gap before Phase 3 (Brain) work is **evidence-grade**.  
-**Track in issue:** [#150](https://github.com/gHashTag/t27/issues/150) — every PR that implements this loop must use **`Closes #150`** (or a split child issue) per **ISSUE-GATE**.
+**The Rust bootstrap** (`t27c parse`, `t27c gen`, `t27c compile`, `t27c suite`) **exists**.
+**The closed loop** `seed.t27 → t27c gen → output.zig → zig test → GREEN` has been **demonstrated end-to-end** in `phi-loop-ci.yml` with **Zig 0.13.0** and **seed.t27** golden spec.
+**E2E status:** **DEMONSTRATED** — PR `feat/ring-46-e2e-ci` with **`Closes #150`** per **ISSUE-GATE**.
 
-**TV reference ([`qualification/TVP.md`](qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PENDING** full E2E closure · **TV-02** (regen + blessed hash of `gen/`) — **PENDING** until the same pipeline is wired. See TVP §3 note.
+**TV reference ([`qualification/TVP.md`](qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (all 57 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (all 57 seals current)
 
 **K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`scripts/validate_phi_f64.py`**. Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
 
