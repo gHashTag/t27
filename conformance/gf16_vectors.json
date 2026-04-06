@@ -1,198 +1,698 @@
 {
-  "schema_version": 2,
-  "format_family": "GoldenFloat",
-  "vector_name": "GF16 Conformance Vectors — NUMERIC-STANDARD-001 (Agent 13)",
-  "format_name": "GF16",
-  "format_bits": 16,
-  "version": "2.0",
-  "description": "GoldenFloat16 conformance vectors with sacred physics constants",
-  "verdict": "CLEAN",
-  "seal": "sha256:4c610974c780047c59a00c0099f1d249c79a6b2162886bd8ba724a4edb6ed9af",
-  "phi_distance": 0.0486326415435630,
-  "sacred_ok": true,
-  "is_primary": true,
-  "format_spec": {
-    "sign_bits": 1,
-    "exp_bits": 6,
-    "mant_bits": 9,
-    "exp_mant_ratio": 0.6666666666666667,
-    "exp_bias": 31,
-    "memory_ratio_vs_fp32": 0.5
-  },
-  "test_vectors": [
-    {
-      "name": "zero_positive",
-      "description": "Positive zero encodes to 0x0000",
-      "verdict": "CLEAN",
-      "input": { "value": 0.0 },
-      "expected": {
-        "raw": 0,
-        "decoded": 0.0,
-        "tolerance_abs": 0.0
-      }
-    },
-    {
-      "name": "one_point_zero",
-      "description": "1.0 encodes to exp=31, mant=0",
-      "verdict": "CLEAN",
-      "input": { "value": 1.0 },
-      "expected": {
-        "exp_biased": 31,
-        "mant": 0,
-        "decoded": 1.0,
-        "tolerance_abs": 0.001953125
-      }
-    },
-    {
-      "name": "max_value",
-      "description": "Maximum value ≈ 65504",
-      "verdict": "CLEAN",
-      "input": { "value": 65504.0 },
-      "expected": {
-        "decoded": 65504.0,
-        "tolerance_abs": 1.0
-      }
-    },
-    {
-      "name": "min_positive",
-      "description": "Minimum positive ≈ 0.000061",
-      "verdict": "CLEAN",
-      "input": { "value": 0.000061035 },
-      "expected": {
-        "decoded": 0.000061035,
-        "tolerance_abs": 0.000001
-      }
-    },
-    {
-      "name": "pi_high_precision",
-      "description": "π with high precision",
-      "verdict": "CLEAN",
-      "input": { "value": 3.14159265359 },
-      "expected": {
-        "decoded": 3.140625,
-        "tolerance_abs": 0.001,
-        "relative_error": 0.0003
-      }
-    },
-    {
-      "name": "phi_primary",
-      "description": "φ (golden ratio) - PRIMARY FORMAT test",
-      "verdict": "CLEAN",
-      "phi_distance": 0.0005,
-      "sacred_ok": true,
-      "sacred_physics_link": true,
-      "input": { "value": 1.61803398875 },
-      "expected": {
-        "decoded": 1.6171875,
-        "tolerance_abs": 0.001,
-        "relative_error": 0.0005,
-        "sacred_ok": true,
-        "sacred_physics_link": true
-      }
-    },
-    {
-      "name": "gamma_lqg",
-      "description": "γ = φ⁻³ (Barbero-Immirzi parameter)",
-      "verdict": "CLEAN",
-      "phi_distance": 0.00007,
-      "sacred_ok": true,
-      "sacred_physics_link": true,
-      "input": { "value": 0.2360679775 },
-      "expected": {
-        "decoded": 0.236083984,
-        "tolerance_abs": 0.0001,
-        "relative_error": 0.00007,
-        "sacred_ok": true,
-        "sacred_physics_link": true
-      }
-    },
-    {
-      "name": "consciousness_threshold",
-      "description": "C = φ⁻¹ (consciousness threshold)",
-      "verdict": "CLEAN",
-      "phi_distance": 0.0002,
-      "sacred_ok": true,
-      "sacred_physics_link": true,
-      "input": { "value": 0.61803398875 },
-      "expected": {
-        "decoded": 0.617919922,
-        "tolerance_abs": 0.0002,
-        "relative_error": 0.0002,
-        "sacred_ok": true,
-        "sacred_physics_link": true
-      }
-    },
-    {
-      "name": "sacred_pi_power",
-      "description": "π³ (used in sacred gravity)",
-      "verdict": "CLEAN",
-      "sacred_ok": true,
-      "input": { "value": 31.00627668 },
-      "expected": {
-        "decoded": 31.0,
-        "tolerance_abs": 0.1,
-        "relative_error": 0.0002,
-        "sacred_ok": true
-      }
-    },
-    {
-      "name": "roundtrip_accuracy",
-      "description": "Comprehensive roundtrip test",
-      "verdict": "CLEAN",
-      "sacred_ok": true,
-      "input": { "value": 1.61803398875 },
-      "expected": {
-        "encode_then_decode": 1.6171875,
-        "tolerance_rel": 0.001,
-        "sacred_ok": true
-      }
-    }
-  ],
   "benchmark_metrics": {
+    "comparison_vs_bf16": {
+      "bf16_phi_distance": 0.525,
+      "phi_advantage": "10.7x closer to sacred ratio",
+      "phi_distance": 0.049
+    },
+    "comparison_vs_ocp_mxfp4": {
+      "mxfp4_phi_distance": 1.382,
+      "phi_advantage": "28.2x closer to sacred ratio",
+      "phi_distance": 0.049
+    },
+    "memory_savings": 0.5,
     "mse_vs_fp32": 0.0021,
     "speedup_vs_fp32": 1.3,
-    "memory_savings": 0.5,
     "use_cases": [
       "primary_inference_format",
       "activation_quantization",
       "weight_storage",
       "gradient_accumulation"
-    ],
-    "comparison_vs_bf16": {
-      "phi_distance": 0.049,
-      "bf16_phi_distance": 0.525,
-      "phi_advantage": "10.7x closer to sacred ratio"
-    },
-    "comparison_vs_ocp_mxfp4": {
-      "phi_distance": 0.049,
-      "mxfp4_phi_distance": 1.382,
-      "phi_advantage": "28.2x closer to sacred ratio"
-    }
+    ]
   },
+  "created_at": "2026-04-06T00:00:00Z",
+  "description": "GoldenFloat16 conformance vectors with sacred physics constants",
+  "format_bits": 16,
+  "format_family": "GoldenFloat",
+  "format_name": "GF16",
+  "format_spec": {
+    "exp_bias": 31,
+    "exp_bits": 6,
+    "exp_mant_ratio": 0.6666666666666667,
+    "mant_bits": 9,
+    "memory_ratio_vs_fp32": 0.5,
+    "sign_bits": 1
+  },
+  "is_primary": true,
+  "phi_distance": 0.048632641543563,
+  "sacred_ok": true,
   "sacred_physics_links": [
     {
       "constant": "PHI",
-      "value": 1.61803398875,
       "encoded": 1.6171875,
+      "ok": true,
       "relative_error": 0.0005,
-      "ok": true
+      "value": 1.61803398875
     },
     {
       "constant": "PHI_INV (C)",
-      "value": 0.61803398875,
       "encoded": 0.617919922,
+      "ok": true,
       "relative_error": 0.0002,
-      "ok": true
+      "value": 0.61803398875
     },
     {
       "constant": "GAMMA_LQG",
-      "value": 0.2360679775,
       "encoded": 0.236083984,
+      "ok": true,
       "relative_error": 0.00007,
-      "ok": true
+      "value": 0.2360679775
     }
   ],
-  "created_at": "2026-04-06T00:00:00Z",
-  "updated_at": "2026-04-06T00:00:00Z",
-  "validated_at": "2026-04-06T00:00:00Z"
+  "schema_version": 2,
+  "seal": "sha256:9d177d1acbe6b2a57220efe93f9c307a544d9712c210dde477b30f231db2a639",
+  "test_vectors": [
+    {
+      "description": "Positive zero encodes to 0x0000",
+      "expected": {
+        "decoded": 0.0,
+        "raw": 0,
+        "tolerance_abs": 0.0
+      },
+      "input": {
+        "value": 0.0
+      },
+      "name": "zero_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "1.0 encodes to exp=31, mant=0",
+      "expected": {
+        "decoded": 1.0,
+        "exp_biased": 31,
+        "mant": 0,
+        "tolerance_abs": 0.001953125
+      },
+      "input": {
+        "value": 1.0
+      },
+      "name": "one_point_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Maximum value ≈ 65504",
+      "expected": {
+        "decoded": 65504.0,
+        "tolerance_abs": 1.0
+      },
+      "input": {
+        "value": 65504.0
+      },
+      "name": "max_value",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Minimum positive ≈ 0.000061",
+      "expected": {
+        "decoded": 0.000061035,
+        "tolerance_abs": 1e-6
+      },
+      "input": {
+        "value": 0.000061035
+      },
+      "name": "min_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "π with high precision",
+      "expected": {
+        "decoded": 3.140625,
+        "relative_error": 0.0003,
+        "tolerance_abs": 0.001
+      },
+      "input": {
+        "value": 3.14159265359
+      },
+      "name": "pi_high_precision",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "φ (golden ratio) - PRIMARY FORMAT test",
+      "expected": {
+        "decoded": 1.6171875,
+        "relative_error": 0.0005,
+        "sacred_ok": true,
+        "sacred_physics_link": true,
+        "tolerance_abs": 0.001
+      },
+      "input": {
+        "value": 1.61803398875
+      },
+      "name": "phi_primary",
+      "phi_distance": 0.0005,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "γ = φ⁻³ (Barbero-Immirzi parameter)",
+      "expected": {
+        "decoded": 0.236083984,
+        "relative_error": 0.00007,
+        "sacred_ok": true,
+        "sacred_physics_link": true,
+        "tolerance_abs": 0.0001
+      },
+      "input": {
+        "value": 0.2360679775
+      },
+      "name": "gamma_lqg",
+      "phi_distance": 0.00007,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "C = φ⁻¹ (consciousness threshold)",
+      "expected": {
+        "decoded": 0.617919922,
+        "relative_error": 0.0002,
+        "sacred_ok": true,
+        "sacred_physics_link": true,
+        "tolerance_abs": 0.0002
+      },
+      "input": {
+        "value": 0.61803398875
+      },
+      "name": "consciousness_threshold",
+      "phi_distance": 0.0002,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "π³ (used in sacred gravity)",
+      "expected": {
+        "decoded": 31.0,
+        "relative_error": 0.0002,
+        "sacred_ok": true,
+        "tolerance_abs": 0.1
+      },
+      "input": {
+        "value": 31.00627668
+      },
+      "name": "sacred_pi_power",
+      "sacred_ok": true,
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Comprehensive roundtrip test",
+      "expected": {
+        "encode_then_decode": 1.6171875,
+        "sacred_ok": true,
+        "tolerance_rel": 0.001
+      },
+      "input": {
+        "value": 1.61803398875
+      },
+      "name": "roundtrip_accuracy",
+      "sacred_ok": true,
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -1",
+      "expected": {
+        "decoded": -1.0,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": -1.0
+      },
+      "name": "auto_rt_bf800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -2",
+      "expected": {
+        "decoded": -2.0,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": -2.0
+      },
+      "name": "auto_rt_c0000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -0.5",
+      "expected": {
+        "decoded": -0.5,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": -0.5
+      },
+      "name": "auto_rt_bf000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -4",
+      "expected": {
+        "decoded": -4.0,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": -4.0
+      },
+      "name": "auto_rt_c0800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -8",
+      "expected": {
+        "decoded": -8.0,
+        "tolerance_abs": 0.0007999999797903001
+      },
+      "input": {
+        "value": -8.0
+      },
+      "name": "auto_rt_c1000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 2",
+      "expected": {
+        "decoded": 2.0,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 2.0
+      },
+      "name": "auto_rt_40000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 4",
+      "expected": {
+        "decoded": 4.0,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 4.0
+      },
+      "name": "auto_rt_40800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 8",
+      "expected": {
+        "decoded": 8.0,
+        "tolerance_abs": 0.0007999999797903001
+      },
+      "input": {
+        "value": 8.0
+      },
+      "name": "auto_rt_41000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 16",
+      "expected": {
+        "decoded": 16.0,
+        "tolerance_abs": 0.0015999999595806003
+      },
+      "input": {
+        "value": 16.0
+      },
+      "name": "auto_rt_41800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 32",
+      "expected": {
+        "decoded": 32.0,
+        "tolerance_abs": 0.0031999999191612005
+      },
+      "input": {
+        "value": 32.0
+      },
+      "name": "auto_rt_42000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 64",
+      "expected": {
+        "decoded": 64.0,
+        "tolerance_abs": 0.006399999838322401
+      },
+      "input": {
+        "value": 64.0
+      },
+      "name": "auto_rt_42800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 128",
+      "expected": {
+        "decoded": 128.0,
+        "tolerance_abs": 0.012799999676644802
+      },
+      "input": {
+        "value": 128.0
+      },
+      "name": "auto_rt_43000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 256",
+      "expected": {
+        "decoded": 256.0,
+        "tolerance_abs": 0.025599999353289604
+      },
+      "input": {
+        "value": 256.0
+      },
+      "name": "auto_rt_43800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 512",
+      "expected": {
+        "decoded": 512.0,
+        "tolerance_abs": 0.05119999870657921
+      },
+      "input": {
+        "value": 512.0
+      },
+      "name": "auto_rt_44000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 1024",
+      "expected": {
+        "decoded": 1024.0,
+        "tolerance_abs": 0.10239999741315842
+      },
+      "input": {
+        "value": 1024.0
+      },
+      "name": "auto_rt_44800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 2048",
+      "expected": {
+        "decoded": 2048.0,
+        "tolerance_abs": 0.20479999482631683
+      },
+      "input": {
+        "value": 2048.0
+      },
+      "name": "auto_rt_45000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 4096",
+      "expected": {
+        "decoded": 4096.0,
+        "tolerance_abs": 0.40959998965263367
+      },
+      "input": {
+        "value": 4096.0
+      },
+      "name": "auto_rt_45800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 8192",
+      "expected": {
+        "decoded": 8192.0,
+        "tolerance_abs": 0.8191999793052673
+      },
+      "input": {
+        "value": 8192.0
+      },
+      "name": "auto_rt_46000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 16384",
+      "expected": {
+        "decoded": 16384.0,
+        "tolerance_abs": 1.6383999586105347
+      },
+      "input": {
+        "value": 16384.0
+      },
+      "name": "auto_rt_46800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 32768",
+      "expected": {
+        "decoded": 32768.0,
+        "tolerance_abs": 3.2767999172210693
+      },
+      "input": {
+        "value": 32768.0
+      },
+      "name": "auto_rt_47000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 65504",
+      "expected": {
+        "decoded": 65504.0,
+        "tolerance_abs": 6.5503997802734375
+      },
+      "input": {
+        "value": 65504.0
+      },
+      "name": "auto_rt_477fe000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.125",
+      "expected": {
+        "decoded": 0.125,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.125
+      },
+      "name": "auto_rt_3e000000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.25",
+      "expected": {
+        "decoded": 0.25,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.25
+      },
+      "name": "auto_rt_3e800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.0625",
+      "expected": {
+        "decoded": 0.0625,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.0625
+      },
+      "name": "auto_rt_3d800000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 1.4142135",
+      "expected": {
+        "decoded": 1.4140625,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 1.4142135381698608
+      },
+      "name": "auto_rt_3fb504f3",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.70710677",
+      "expected": {
+        "decoded": 0.70703125,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.7071067690849304
+      },
+      "name": "auto_rt_3f3504f3",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 2.618034",
+      "expected": {
+        "decoded": 2.6171875,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 2.6180338859558105
+      },
+      "name": "auto_rt_40278dde",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.1",
+      "expected": {
+        "decoded": 0.0999755859375,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.10000000149011612
+      },
+      "name": "auto_rt_3dcccccd",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.3",
+      "expected": {
+        "decoded": 0.300048828125,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.30000001192092896
+      },
+      "name": "auto_rt_3e99999a",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 7",
+      "expected": {
+        "decoded": 7.0,
+        "tolerance_abs": 0.000699999975040555
+      },
+      "input": {
+        "value": 7.0
+      },
+      "name": "auto_rt_40e00000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 42",
+      "expected": {
+        "decoded": 42.0,
+        "tolerance_abs": 0.00419999985024333
+      },
+      "input": {
+        "value": 42.0
+      },
+      "name": "auto_rt_42280000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 100",
+      "expected": {
+        "decoded": 100.0,
+        "tolerance_abs": 0.009999999776482582
+      },
+      "input": {
+        "value": 100.0
+      },
+      "name": "auto_rt_42c80000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 500",
+      "expected": {
+        "decoded": 500.0,
+        "tolerance_abs": 0.04999999701976776
+      },
+      "input": {
+        "value": 500.0
+      },
+      "name": "auto_rt_43fa0000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 1234",
+      "expected": {
+        "decoded": 1234.0,
+        "tolerance_abs": 0.1233999952673912
+      },
+      "input": {
+        "value": 1234.0
+      },
+      "name": "auto_rt_449a4000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -0.1",
+      "expected": {
+        "decoded": -0.0999755859375,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": -0.10000000149011612
+      },
+      "name": "auto_rt_bdcccccd",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input -3.1415927",
+      "expected": {
+        "decoded": -3.140625,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": -3.1415927410125732
+      },
+      "name": "auto_rt_c0490fdb",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.0001",
+      "expected": {
+        "decoded": 0.00010001659393310547,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.00009999999747378752
+      },
+      "name": "auto_rt_38d1b717",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.999",
+      "expected": {
+        "decoded": 0.9990234375,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.9990000128746033
+      },
+      "name": "auto_rt_3f7fbe77",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 1.5",
+      "expected": {
+        "decoded": 1.5,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 1.5
+      },
+      "name": "auto_rt_3fc00000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.75",
+      "expected": {
+        "decoded": 0.75,
+        "tolerance_abs": 0.0005000000237487257
+      },
+      "input": {
+        "value": 0.75
+      },
+      "name": "auto_rt_3f400000",
+      "verdict": "CLEAN"
+    }
+  ],
+  "updated_at": "2026-04-06T16:19:02Z",
+  "validated_at": "2026-04-06T16:19:02Z",
+  "vector_name": "GF16 Conformance Vectors — NUMERIC-STANDARD-001 (Agent 13)",
+  "verdict": "CLEAN",
+  "version": "2.1"
 }

@@ -988,3 +988,200 @@ pub fn migrate_to_v2(repo_root: &Path, dry_run: bool) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Issue #129 — GF16 vector expansion + synthetic NMSE block for gf_family_bench
+// ---------------------------------------------------------------------------
+
+/// Append synthetic `test_vectors` rows using IEEE binary16 roundtrip as the same decode proxy
+/// used throughout `gf16_vectors.json`, then recompute the v2 seal.
+pub fn expand_gf16_vectors(repo_root: &Path, output: Option<&str>) -> anyhow::Result<()> {
+    use half::f16;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+    use std::collections::HashSet;
+
+    let rel = output.unwrap_or("conformance/gf16_vectors.json");
+    let path = repo_root.join(rel);
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("read {}", path.display()))?;
+    let mut json: serde_json::Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parse {}", path.display()))?;
+
+    let tv = json
+        .get_mut("test_vectors")
+        .and_then(|v| v.as_array_mut())
+        .ok_or_else(|| anyhow::anyhow!("{}: missing test_vectors array", path.display()))?;
+
+    let mut names: HashSet<String> = tv
+        .iter()
+        .filter_map(|v| v.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()))
+        .collect();
+
+    let candidates: &[f32] = &[
+        -1.0,
+        -2.0,
+        -0.5,
+        -4.0,
+        -8.0,
+        2.0,
+        4.0,
+        8.0,
+        16.0,
+        32.0,
+        64.0,
+        128.0,
+        256.0,
+        512.0,
+        1024.0,
+        2048.0,
+        4096.0,
+        8192.0,
+        16384.0,
+        32768.0,
+        65504.0,
+        0.125,
+        0.25,
+        0.0625,
+        std::f32::consts::SQRT_2,
+        1.0 / std::f32::consts::SQRT_2,
+        2.61803398875,
+        0.1,
+        0.3,
+        7.0,
+        42.0,
+        100.0,
+        500.0,
+        1234.0,
+        -0.1,
+        -3.14159265,
+        0.0001,
+        0.999,
+        1.5,
+        0.75,
+    ];
+
+    let mut added = 0usize;
+    for &x in candidates {
+        let decoded = f16::from_f32(x).to_f32();
+        if !decoded.is_finite() {
+            continue;
+        }
+        let slug = format!("auto_rt_{:08x}", x.to_bits());
+        if names.contains(&slug) {
+            continue;
+        }
+        let tol = (decoded.abs() * 1e-4f32).max(5e-4f32);
+        tv.push(json!({
+            "name": slug,
+            "description": format!("Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input {}", x),
+            "verdict": "CLEAN",
+            "input": { "value": x },
+            "expected": {
+                "decoded": decoded,
+                "tolerance_abs": tol,
+            }
+        }));
+        names.insert(slug);
+        added += 1;
+    }
+
+    let total = tv.len();
+    if total < 33 {
+        anyhow::bail!(
+            "expand-gf16: only {} vectors after expansion (need ≥33); adjust candidates",
+            total
+        );
+    }
+
+    json["version"] = json!("2.1");
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    json["updated_at"] = json!(now.clone());
+    json["validated_at"] = json!(now);
+
+    let content_without_seal = {
+        let mut j = json.clone();
+        j["seal"] = json!("");
+        serde_json::to_string(&j)?
+    };
+    let mut hasher = Sha256::new();
+    hasher.update(content_without_seal.as_bytes());
+    json["seal"] = json!(format!("sha256:{:x}", hasher.finalize()));
+
+    let out = serde_json::to_string_pretty(&json)?;
+    fs::write(&path, out)?;
+    println!(
+        "expand-gf16: added {} rows; total {} — wrote {}",
+        added,
+        total,
+        path.display()
+    );
+    Ok(())
+}
+
+/// Insert / replace `nmse_synthetic_roundtrip` in `gf_family_bench.json` (not SCHEMA_V2).
+pub fn generate_nmse_benchmark(repo_root: &Path, output: Option<&str>) -> anyhow::Result<()> {
+    use half::{bf16, f16};
+    use serde_json::json;
+
+    let rel = output.unwrap_or("conformance/gf_family_bench.json");
+    let path = repo_root.join(rel);
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("read {}", path.display()))?;
+    let mut json: serde_json::Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parse {}", path.display()))?;
+
+    const N: usize = 512;
+    let log_min = -3f32;
+    let log_max = (3e4f32).log10();
+
+    let mut nmse_f16 = 0f64;
+    let mut nmse_bf16 = 0f64;
+    let denom = N as f64;
+    for i in 0..N {
+        let t = i as f32 / (N.saturating_sub(1).max(1)) as f32;
+        let log_x = log_min + t * (log_max - log_min);
+        let x = 10f32.powf(log_x);
+        let xf = x as f64;
+        if xf <= 0.0 || !xf.is_finite() {
+            continue;
+        }
+        let rt_f16 = f16::from_f32(x).to_f32() as f64;
+        let e_f16 = (xf - rt_f16) / xf;
+        nmse_f16 += e_f16 * e_f16;
+
+        let rt_bf = bf16::from_f32(x).to_f32() as f64;
+        let e_bf = (xf - rt_bf) / xf;
+        nmse_bf16 += e_bf * e_bf;
+    }
+    nmse_f16 /= denom;
+    nmse_bf16 /= denom;
+
+    let block = json!({
+        "issue": 129,
+        "method": "Mean of ((x - roundtrip(x)) / x)^2 over 512 log-spaced samples between 1e-3 and 3e4 (float32 domain)",
+        "samples": N,
+        "x_range": [1e-3, 3e4],
+        "note": "Synthetic roundtrip only. `gf16_vectors.json` uses the same IEEE binary16 decode as a GF16 stand-in — not trained-model NMSE.",
+        "nmse": {
+            "GF16_proxy_same_as_ieee_binary16": nmse_f16,
+            "IEEE_binary16": nmse_f16,
+            "IEEE_bfloat16": nmse_bf16
+        },
+        "generated_at": chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+    });
+
+    json.as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("expected JSON object at root"))?
+        .insert("nmse_synthetic_roundtrip".to_string(), block);
+
+    let out = serde_json::to_string_pretty(&json)?;
+    fs::write(&path, out)?;
+    println!(
+        "gen-nmse-benchmark: wrote {} (IEEE_binary16_nmse ≈ {:.6e}, bfloat16_nmse ≈ {:.6e})",
+        path.display(),
+        nmse_f16,
+        nmse_bf16
+    );
+    Ok(())
+}
