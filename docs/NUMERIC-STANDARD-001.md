@@ -20,6 +20,12 @@ IEEE 754 formats are optimized for general computing but lack alignment with φ-
 3. **Memory efficiency** — 50% savings for primary format (GF16) vs FP32
 4. **Inference speed** — 1.3x speedup vs FP32
 
+## Debt inventory (non-GF16 in product specs)
+
+All modules that still use IEEE **`f32`/`f64`** for inference-scale math are **technical debt** against this standard. See **`docs/NUMERIC-GF16-DEBT-INVENTORY.md`** for a **file-by-file** list, tags (`[DEBT-f64]`, `[DEBT-f32]`, `[REFERENCE]`, `[BRIDGE]`), and recommended rewrite order.
+
+---
+
 ## Primary Format: GF16
 
 | Property | Value |
