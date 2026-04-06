@@ -79,8 +79,9 @@ Usage:
   tri skill seal --hash <file.t27>    # → seal --save
   tri conformance <file.json>
   tri stats
-  tri test                            # tests/run_all.sh
-  tri validate-conformance [path]
+  tri test                            # t27c suite (parse/gen/seal/fixed-point)
+  tri validate-conformance [path]     # t27c validate-conformance
+  tri validate-gen-headers            # t27c validate-gen-headers
   tri brain …                         # placeholder (see brain charter)
 
 Environment: TRI_T27C=path/to/t27c
@@ -152,13 +153,16 @@ case "$cmd" in
         exec "$T27C" stats "$@"
         ;;
     test)
-        exec bash "$ROOT/tests/run_all.sh"
+        exec "$T27C" suite --repo-root "$ROOT"
         ;;
     validate-conformance)
         if [[ -n "${1:-}" ]]; then
-            echo "tri: note: validate-conformance runs the full suite (path filter ignored for now)." >&2
+            echo "tri: note: validate-conformance path filter not implemented; running full JSON scan." >&2
         fi
-        exec bash "$ROOT/tests/validate_conformance.sh"
+        exec "$T27C" validate-conformance --repo-root "$ROOT"
+        ;;
+    validate-gen-headers)
+        exec "$T27C" validate-gen-headers --repo-root "$ROOT"
         ;;
     brain)
         echo "tri brain: not implemented in this repository yet." >&2

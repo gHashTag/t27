@@ -237,7 +237,7 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 
 | Month | Deliverable | Verification Method |
 |-------|------------|---------------------|
-| M1-M3 | K3 composition engine + 4 ML+AR patterns | `t27c parse` + `t27c gen` all 10 specs pass; `tests/run_all.sh` 100% |
+| M1-M3 | K3 composition engine + 4 ML+AR patterns | `t27c parse` + `t27c gen` all 10 specs pass; `t27c suite` 100% |
 | M4-M6 | Proof trace pipeline (≤10 steps per inference) | Demo: classify input + explain via 3 XAI formats |
 | M7-M9 | VSA integration + scalability benchmarks | Benchmark: >1M K3 ops/sec on commodity hardware |
 | M10-M12 | FPGA verification backend (Verilog from .t27) | Bitstream synthesis on QMTech XC7A100T, 63 tok/s @ 92 MHz |

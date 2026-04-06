@@ -187,7 +187,7 @@ The **`tri`** CLI (`./scripts/tri`, wrapping the Rust `t27c` binary) produces ve
 
 ### 5.2 Test Suite Results
 
-**Reference:** `tests/run_all.sh`
+**Reference:** `t27c suite` (`bootstrap/src/suite.rs`)
 
 The comprehensive test suite runs 6 phases across all specs:
 
@@ -247,7 +247,7 @@ Where γ = φ⁻³ = 0.2360679775 (Barbero-Immirzi parameter from Loop Quantum G
 | License | Apache 2.0 | Headers present on all documents and specs |
 | Repository | Publicly accessible | GitHub repository |
 | Dependencies | No proprietary deps | All tools are open-source |
-| Reproducibility | Deterministic codegen | Fixed-point test in `tests/run_all.sh` |
+| Reproducibility | Deterministic codegen | Fixed-point phase in `t27c suite` |
 
 ---
 
@@ -258,7 +258,7 @@ Where γ = φ⁻³ = 0.2360679775 (Barbero-Immirzi parameter from Loop Quantum G
 | Correctness | Formal K3 proofs (6 lemmas, Q.E.D.) | `docs/KLEENE-TRIT-ISOMORPHISM.md` |
 | Explainability | ≤10 step traces, 3 explanation formats | `specs/ar/proof_trace.t27`, `specs/ar/explainability.t27` |
 | Scalability | O(n) composition, O(1) K3 ops | `specs/ar/composition.t27`, `docs/CLARA-COMPOSITION-PATTERNS.md` |
-| Verifiability | `tri seal` (hash), 6-phase test suite | `tests/run_all.sh` — target: 100% pass |
+| Verifiability | `tri seal` (hash), 6-phase test suite | `t27c suite` / `tri test` — target: 100% pass |
 | Openness | Apache 2.0 on all artifacts | All file headers |
 | Restraint | K_UNKNOWN = bounded rationality | `specs/ar/restraint.t27` (553 lines) |
 | AR ≥2 Kinds | 3 kinds: Logic Programs, ASP, Classical | `specs/ar/` (7 spec files) |
@@ -279,7 +279,7 @@ Where γ = φ⁻³ = 0.2360679775 (Barbero-Immirzi parameter from Loop Quantum G
 | Numeric Standard (GF) | Standard | `docs/NUMERIC-STANDARD-001.md` |
 | GF16 Benchmarks | Data | `conformance/gf16_bench_results.json` |
 | GF16 Test Vectors | Data | `conformance/gf16_vectors.json` |
-| Test Suite | Script | `tests/run_all.sh` |
+| Test Suite | Rust (`t27c suite`) | `tri test` |
 | AR Specifications | Specs | `specs/ar/*.t27` (7 files) |
 | NN Specifications | Specs | `specs/nn/*.t27` (2 files) |
 | VSA Specifications | Specs | `specs/vsa/ops.t27` (1 file) |

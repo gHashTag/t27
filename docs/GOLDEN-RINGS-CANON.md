@@ -16,7 +16,7 @@ Each **ring increment** is a **micro-iteration** that proves the spine still wor
 | M1 | `cd bootstrap && cargo build` (or `--release`) | **Must succeed** — runs `build.rs` language guard + builds `t27c` (invoked via **`tri`**). |
 | M2 | `./scripts/tri parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR. |
 | M3 | `cargo test` in `bootstrap/` | **All tests green** for compiler changes. |
-| M4 | `bash tests/run_all.sh` (when available in CI) | Full spec parse/gen sweep as defined by repo. |
+| M4 | `t27c suite` / `tri test` (CI) | Full spec parse/gen sweep as defined by repo. |
 | M5 | Update **`bootstrap/stage0/FROZEN_HASH`** | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see SEED-RINGS §9). |
 | M6 | Seal / experience | `.trinity/seals/*.json` updated for modules that require sealing; optional `.trinity/experience/` record. |
 
@@ -75,7 +75,7 @@ cd bootstrap && cargo build --release \
   && ../scripts/tri parse ../specs/base/types.t27
 ```
 
-Add your changed spec path(s) in place of `types.t27`. For full repo sweep, use **`bash tests/run_all.sh`** when present.
+Add your changed spec path(s) in place of `types.t27`. For full repo sweep, use **`t27c suite`** or **`tri test`**.
 
 ---
 

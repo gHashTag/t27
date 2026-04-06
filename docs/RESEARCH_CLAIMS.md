@@ -45,12 +45,12 @@ Use these for **build, CI, and SSOT** rows (section 1).
 |-------|--------|------------------|----------------|----------------|
 | `.t27` specs are SOOT for product math on the critical path | `tested` | `docs/T27-CONSTITUTION.md`, `bootstrap/build.rs` | `cargo build` in `bootstrap/`, `tri parse` | Duplicate formula in verdict script without spec migration. |
 | Bootstrap compiler core matches `bootstrap/stage0/FROZEN_HASH` | `tested` | `FROZEN.md`, `build.rs` | `cargo build` | Change `compiler.rs` without M5 seal update → build fails. |
-| Zig codegen emits headers marking generated code | `tested` | `tests/validate_gen_headers.sh` | `make -C repro repro-language` | Strip header from `gen/zig/**` → script fails. |
-| 34 conformance vectors validate as JSON with vectors | `tested` | `tests/validate_conformance.sh`, `conformance/` | `bash tests/validate_conformance.sh` or `make -C repro repro-numerics` | Break vector → script fails. |
+| Zig codegen emits headers marking generated code | `tested` | `t27c validate-gen-headers` | `make -C repro repro-language` | Strip header from `gen/zig/**` → command fails. |
+| 34 conformance vectors validate as JSON with vectors | `tested` | `t27c validate-conformance`, `conformance/` | `tri validate-conformance` or `make -C repro repro-numerics` | Break vector → command fails. |
 | 48 module seals match `tri seal <spec> --verify` | `tested` | `.trinity/seals/`, CI | `tri seal <spec> --verify` | Intentional seal drift → verify fails. |
 | GoldenFloat GF16 is primary numeric format for new product work | `conjectural` (policy) | `docs/NUMERIC-STANDARD-001.md` | Specs under `specs/numeric/` | Tracked in `docs/NUMERIC-GF16-DEBT-INVENTORY.md`. |
 | Sacred / phi-linked physics constants as **exact** fundamental laws | `empirical` / `conjectural` | `specs/math/`, physics docs | Label each row in §2–3 | CODATA/NIST update falsifies “exact” wording. |
-| Self-hosting / fixed-point compiler story | `tested` (partial) | `docs/SEED-RINGS.md`, `CANON.md` | `tests/run_all.sh` fixed-point phase | Full formal self-host proof not yet `proved` — `docs/STATE_OF_THE_PROJECT.md`. |
+| Self-hosting / fixed-point compiler story | `tested` (partial) | `docs/SEED-RINGS.md`, `CANON.md` | `t27c suite` fixed-point phase | Full formal self-host proof not yet `proved` — `docs/STATE_OF_THE_PROJECT.md`. |
 | CLARA / AR pipeline soundness | `conjectural` | `specs/ar/`, conformance | AR vectors | Bounded proofs TBD. |
 | Cross-backend bit-exact equivalence (Zig vs C vs Verilog) | `conjectural` | — | Ring 39 roadmap | Mismatch allowed today. |
 

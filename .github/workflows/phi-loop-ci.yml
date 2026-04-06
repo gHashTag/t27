@@ -19,14 +19,14 @@ jobs:
       - name: Ensure tri shim is executable
         run: chmod +x scripts/tri
 
-      - name: Run comprehensive test suite
-        run: bash tests/run_all.sh
+      - name: Run comprehensive test suite (t27c suite)
+        run: ./bootstrap/target/release/t27c suite --repo-root .
 
       - name: Validate conformance vectors
-        run: bash tests/validate_conformance.sh
+        run: ./bootstrap/target/release/t27c validate-conformance --repo-root .
 
       - name: Validate gen headers
-        run: bash tests/validate_gen_headers.sh
+        run: ./bootstrap/target/release/t27c validate-gen-headers --repo-root .
 
       - name: Verify seal coverage
         run: |

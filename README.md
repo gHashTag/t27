@@ -45,14 +45,14 @@ cd ..
 # Verify a seal
 ./scripts/tri seal specs/numeric/gf16.t27 --verify
 
-# Run all tests
+# Run all tests (Rust suite: parse / gen / seal / fixed-point)
 ./scripts/tri test
 
-# Validate conformance vectors
-bash tests/validate_conformance.sh
+# Validate conformance vectors (JSON under conformance/)
+./scripts/tri validate-conformance
 
-# Validate gen headers
-bash tests/validate_gen_headers.sh
+# Validate generated file headers under gen/
+./scripts/tri validate-gen-headers
 ```
 
 ## Architecture
@@ -130,9 +130,8 @@ t27/
 │   └── ...                 #   Standards, agent specs, ADRs
 │
 └── tests/                  # Ring verification + validation scripts
-    ├── run_all.sh          #   Master test runner (6 phases)
-    ├── validate_conformance.sh  # Conformance vector validation
-    └── validate_gen_headers.sh  # Gen file header validation
+    ├── comprehensive_suite.t27 # Suite contract (see t27c suite)
+    └── *.t27             #   Spec tests only — no shell runners
 ```
 
 **Domain ownership:** each major directory may include an `**OWNERS.md`** (Primary agent, dependencies, outputs). Start at `[OWNERS.md](OWNERS.md)` in the repo root; see also `[docs/AGENTS_ALPHABET.md](docs/AGENTS_ALPHABET.md)`.
@@ -168,7 +167,7 @@ Every domain has language-agnostic conformance vectors in `conformance/*.json`. 
 - Neural architecture (attention, HSLM)
 - Domain modules (VSA ops, ISA registers, FPGA MAC, Queen Lotus)
 
-Validation: `bash tests/validate_conformance.sh`
+Validation: `./scripts/tri validate-conformance`
 
 ## SEED-RINGS Progress
 

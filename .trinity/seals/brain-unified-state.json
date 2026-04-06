@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:84c495ba7e88ffa04af8a5245ef4f419fe85d9bcefc0c7b9defc6d73d9dd1e5a",
   "module": "brain-unified-state",
   "ring": 12,
-  "sealed_at": "2026-04-06T09:20:29Z",
+  "sealed_at": "2026-04-06T09:46:30Z",
   "spec_hash": "sha256:779a2ca73d736df26d2248921e0e53d243105953b2234d38953168b3d7e0ffa4",
   "spec_path": "specs/brain/unified_state.t27"
 }

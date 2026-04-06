@@ -86,7 +86,7 @@
 2. Verilog gen for MAC; `specs/fpga/uart.t27`, `specs/fpga/top_level.t27`.
 3. `scripts/fpga/build.sh`, `flash.sh`, `Makefile`.
 4. `specs/fpga/constraints/qmtech_a100t.xdc`.
-5. CI: `tests/run_all.sh` / workflows as needed.
+5. CI: `t27c suite` / workflows as needed.
 
 ---
 

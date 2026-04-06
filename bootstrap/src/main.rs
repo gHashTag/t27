@@ -9,15 +9,16 @@
 // - seal: Compute seal hashes (with --save / --verify)
 // - serve: Start HTTP server (requires 'server' feature)
 
-mod compiler;
 mod bridge;
+mod compiler;
+mod suite;
 
 use clap::{Parser, Subcommand};
 use sha2::{Sha256, Digest};
 #[cfg(feature = "server")]
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // CLI Definition (clap)
@@ -126,6 +127,25 @@ enum Commands {
     Bridge {
         #[command(subcommand)]
         command: bridge::BridgeCommands,
+    },
+
+    /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
+    Suite {
+        /// Repository root (default: current directory)
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Validate conformance/*.json files (JSON + vector keys)
+    ValidateConformance {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Validate gen/** headers (Auto-generated / DO NOT EDIT / TRINITY)
+    ValidateGenHeaders {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
     },
 }
 
@@ -1802,6 +1822,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::ValidateConformance { repo_root } => {
+            suite::validate_conformance(&repo_root)?
+        }
+        Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
     }
 
     Ok(())
@@ -1827,6 +1852,11 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::ValidateConformance { repo_root } => {
+            suite::validate_conformance(&repo_root)?
+        }
+        Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");

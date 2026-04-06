@@ -1,21 +1,10 @@
 {
+  "gen_hash_c": "sha256:251517a515bf19bee61dd99d6ca9d4b1ae499ccc57eb1fbcc42951d7a7164543",
+  "gen_hash_verilog": "sha256:d9fa00d95fa046a04736bbd0cd6cfd9e793ab39e0359aa4216381a55c6e68286",
+  "gen_hash_zig": "sha256:2eb57c2a29fd079aeb00e97839e18acd917f491b88ea61aff0bdf5e1de291576",
   "module": "FPGA_Bridge",
-  "ring": 43,
-  "spec_path": "specs/fpga/bridge.t27",
-  "spec_hash": "sha256:a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f6071829304a5b6c7d8e",
-  "gen_hash_zig": "sha256:f0e1d2c3b4a5968778695a4b3c2d1e0f9a8b7c6d5e4f3021a9b8c7d6e5f4031",
-  "gen_hash_c": "sha256:1a2b3c4d5e6f70819203a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f",
-  "gen_hash_verilog": "sha256:9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a",
-  "conformance_hash": "sha256:2b3c4d5e6f708192a3b4c5d6e7f80910a2b3c4d5e6f708192a3b4c5d6e7f809",
-  "tests": {
-    "status": "passed",
-    "count": 16,
-    "invariants": 10,
-    "benchmarks": 4
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-05T12:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-06T09:46:30Z",
+  "spec_hash": "sha256:55eb424b792db0bb3c5efae81066cc2ecfe8dfc08bd6e0331d2a72fe7f632a80",
+  "spec_path": "specs/fpga/bridge.t27"
 }
