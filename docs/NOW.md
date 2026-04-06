@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 046 (E2E CI fix) — stderr fix + seal naming · RFC3339 2026-04-07T16:00:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 051 (Jones polynomial) — variable t support from structure · RFC3339 2026-04-07T17:00:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** **Ring 46 → Phase 3** — E2E CI fix (#150): NOW sync message → stderr, seal naming → module name (PascalCase). Rings 042, 043, 050 completed (GF8, ternary add, radix economy). All 63 seals verified.
+**Revision:** **Ring 51 → Phase 3** — Jones polynomial from input structure (#175): `jones_polynomial_from_structure(crossings, t)` with variable t support, `bracket_from_crossings()` for link invariants. All 63 seals verified.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
