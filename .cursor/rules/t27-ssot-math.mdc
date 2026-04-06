@@ -19,6 +19,7 @@ alwaysApply: true
 ## Prohibitions
 
 - **Do not add** new Python (or other scripting) on the **critical path** (verdict, conformance, assurance scenarios) if the same can be expressed in t27 + tri.
+- **Do not add** new product logic in JS/TS/Go/etc. **SEED** = minimal Rust in `bootstrap/` only; purge list: **`docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`**.
 - **Do not duplicate** formulas in README/Markdown without pointing to the canonical `.t27` spec.
 
 ## Exceptions (legacy)
