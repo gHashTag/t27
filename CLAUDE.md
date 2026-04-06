@@ -8,7 +8,7 @@ Use this file **together with** `[AGENTS.md](AGENTS.md)`. Repo-specific law alwa
 
 1. `[AGENTS.md](AGENTS.md)` — entry point and constitutional stack.
 2. `[SOUL.md](SOUL.md)` — canonical law (TDD, language, validation).
-3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**.
+3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**, **DOCS-TREE**.
 4. `[TASK.md](TASK.md)` and `[docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
 5. Nearest `[OWNERS.md](OWNERS.md)` for the directories you edit.
 
