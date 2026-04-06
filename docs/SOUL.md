@@ -40,18 +40,22 @@
 
 ### Enforcement
 
-1. **Parser Validation**: The parser rejects source files containing Cyrillic with error:
+1. **`cargo build` / `cargo build --release` in `bootstrap/`**: `build.rs` aborts the build if Cyrillic appears in `specs/**/*.t27`, `specs/**/*.tri`, `bootstrap/src/**/*.rs`, `bootstrap/tests/**/*.rs`, or first-party Markdown (same allowlist as CI). Error text cites this law and ADR-004.
+
+2. **Parser Validation**: The parser rejects source files containing Cyrillic with error:
    ```
    error: source file contains forbidden characters (Cyrillic U+0400–U+04FF)
    ```
 
-2. **CLI Validation**: `tri lint` and `tri gen` fail on files with Cyrillic:
+3. **CLI Validation**: `tri lint` and `tri gen` fail on files with Cyrillic:
    ```
    $ tri gen specs/my_spec.t27
    error: spec contains Cyrillic characters - not allowed in source files
    ```
 
-3. **Pre-commit Hook**: Git pre-commit hook checks for Cyrillic in staged source files
+4. **Pre-commit Hook**: Git pre-commit hook checks for Cyrillic in staged source files (if installed)
+
+5. **CI**: `scripts/check-first-party-doc-language.sh` on pull requests
 
 ### Violation Example
 

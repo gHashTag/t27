@@ -30,7 +30,7 @@ The numeric formalism relies on repository standards (**NUMERIC-STANDARD-001**, 
 
 Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-docs`** until translated; **do not expand** that list without Architect approval. Vendored content under **`external/`** is exempt.
 
-**Enforcement:** `scripts/check-first-party-doc-language.sh` (runs `scripts/check_first_party_doc_language.py`).
+**Enforcement:** (1) **`cargo build` / `cargo build --release` in `bootstrap/`** — `build.rs` fails the build with a cited error; (2) **`scripts/check-first-party-doc-language.sh`** in CI (Python checker).
 
 ---
 

@@ -88,6 +88,16 @@ $ tri gen specs/my_spec.t27
 error: Language policy violation - remove Cyrillic from spec
 ```
 
+### Compiler build (hard fail)
+
+Every `cargo build` / `cargo build --release` in **`bootstrap/`** runs **`build.rs`**, which **panics** (fails the build) if Cyrillic appears in:
+
+- `specs/**/*.t27`, `specs/**/*.tri` (no allowlist)
+- `bootstrap/src/**/*.rs`, `bootstrap/tests/**/*.rs`
+- First-party `*.md` (same allowlist as CI: `docs/.legacy-non-english-docs`)
+
+The error message includes file path, line, column, a snippet, and pointers to **docs/SOUL.md** Law #1 and this ADR.
+
 ### CI: First-party doc language
 
 `scripts/check-first-party-doc-language.sh` fails if Cyrillic appears in first-party Markdown outside `docs/.legacy-non-english-docs` and `external/`.
