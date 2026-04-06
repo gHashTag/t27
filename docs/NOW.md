@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:20 local time (+07) · Phase 3 Ring 050 ([#142](https://github.com/gHashTag/t27/issues/142) radix economy) · RFC3339 2026-04-07T00:20:00+07:00
+**Last updated:** 2026-04-06 — Tuesday, 06 April 2026 (UTC) · Phase 3 Ring 049 (sacred physics) — hard tolerance verification for 6 constants · RFC3339 2026-04-06T11:30:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors. **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
+**Revision:** **Ring 49 → Phase 3** — Sacred physics hard tolerance verification (#145): Trinity identity 1e-12, Barbero-Immirzi 1e-15, all 6 constants within tolerance. All 63 seals verified.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
@@ -47,7 +47,7 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 3. **Commit `NOW.md` in the same PR** as the work (or amend), per Ring 033 / [#141](https://github.com/gHashTag/t27/issues/141).
 
 
-**Skipping this is a **failed handoff** — the fleet coordinates here, not only in issues.
+**Skipping this is a failed handoff** — the fleet coordinates here, not only in issues.
 
 **Conflict Prevention (Ring 47+):**
 - **Root `NOW.md` is a symlink** to `docs/NOW.md` — prevents divergence
@@ -115,9 +115,9 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 
 **The Rust bootstrap** (`t27c parse`, `t27c gen`, `t27c compile`, `t27c suite`) **exists**.
 **The closed loop** `seed.t27 → t27c gen → output.zig → zig test → GREEN` has been **demonstrated end-to-end** in `phi-loop-ci.yml` with **Zig 0.13.0** and **seed.t27** golden spec.
-**E2E status:** **DEMONSTRATED** — PR `feat/ring-46-e2e-ci` with **`Closes #150`** per **ISSUE-GATE**.
+**E2E status:** **DEMONSTRATED** — PR `feat/ring-051-jones-polynomial-clean` (run 24045822072) with **`Closes #150`** per **ISSUE-GATE**.
 
-**TV reference ([`qualification/TVP.md`](docs/qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (all 57 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (all 57 seals current)
+**TV reference ([`qualification/TVP.md`](docs/qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (63 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (63 seals current)
 
 **K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`t27c validate-phi`** (or **`./scripts/tri validate-phi`**). Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
 
@@ -230,7 +230,9 @@ CROWN (Queen brain & automation)
 
 | Ring | Issue | Domain          | Key deliverable                     |
 | ---- | ----- | --------------- | ----------------------------------- |
-| 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | `specs/math/radix_economy.t27` (E(3) >= 99.5% E(e)) |
+| 042  | [#137](https://github.com/gHashTag/t27/issues/137) | Numerics        | GF8 spec hardening: 32 conformance vectors |
+| 043  | [#138](https://github.com/gHashTag/t27/issues/138) | ISA/Arithmetic  | Balanced ternary addition: carry propagation invariants |
+| 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | Radix economy: E(3)/E(e) >= 99.5%, 5.4% over base-2 |
 | 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure |
 | 052  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) |
 | 053  | open  | Conformance (F) | Property-test template              |

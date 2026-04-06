@@ -2,7 +2,7 @@
 //! Invoked as `t27c suite` from the repository root (or `tri test`).
 
 use anyhow::Context;
-use chrono::Local;
+use chrono::{Duration, Local, NaiveDate, Utc};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -382,12 +382,16 @@ fn optional_rfc3339_stamp(line: &str) -> Option<String> {
     None
 }
 
-/// Gate: root `NOW.md` must contain `Last updated:` with today's calendar date (local timezone).
+/// Gate: root `NOW.md` must contain `Last updated:` with a fresh calendar `YYYY-MM-DD`.
+/// - **Local dev:** must match **today** in the machine's local timezone.
+/// - **GitHub Actions** (`GITHUB_ACTIONS=true`): must be **today or yesterday in UTC** — same
+///   window as `.github/workflows/now-sync-gate.yml` freshness, so a single committed date can
+///   span the UTC midnight boundary relative to contributors in non-UTC timezones.
 /// Used by `tri` before gen/compile and by CI (see `phi-loop-ci.yml`).
 pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)?;
     let now_file = repo.join("NOW.md");
-    let today = Local::now().format("%Y-%m-%d").to_string();
+    let github_actions = std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true");
 
     if !now_file.is_file() {
         eprintln!(
@@ -403,8 +407,28 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
         .find(|l| l.contains("Last updated:"))
         .unwrap_or("");
     let last = first_yyyy_mm_dd_in_line(line);
+    let last_date = last
+        .as_deref()
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
 
-    if last.as_deref() != Some(today.as_str()) {
+    let (gate_label, ok, expected_hint) = if github_actions {
+        let today_utc = Utc::now().date_naive();
+        let yesterday_utc = today_utc - Duration::days(1);
+        let tomorrow_utc = today_utc + Duration::days(1);
+        let ok = match last_date {
+            Some(d) => d == today_utc || d == yesterday_utc || d == tomorrow_utc,
+            None => false,
+        };
+        let hint = format!("{}, {}, or {} (UTC)", yesterday_utc, today_utc, tomorrow_utc);
+        (today_utc.format("%Y-%m-%d").to_string(), ok, hint)
+    } else {
+        let today_local = Local::now().format("%Y-%m-%d").to_string();
+        let ok = last.as_deref() == Some(today_local.as_str());
+        let hint = today_local.clone();
+        (today_local, ok, hint)
+    };
+
+    if !ok {
         eprintln!(
             r#"
 
@@ -434,7 +458,7 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
         );
         eprintln!(
             "(Expected Last updated: {}; found: {})",
-            today,
+            expected_hint,
             last.as_deref().unwrap_or("<none>")
         );
         anyhow::bail!("NOW.md stale");
@@ -449,12 +473,15 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
                     .to_string()
             })
             .unwrap_or_else(|_| ts.clone());
-        println!(
+        eprintln!(
             "✅ NOW.md synced — gate date {} — doc time {} [{}] — build authorized",
-            today, human, ts
+            gate_label, human, ts
         );
     } else {
-        println!("✅ NOW.md synced ({}) — build authorized", today);
+        eprintln!(
+            "✅ NOW.md synced ({}) — build authorized",
+            gate_label
+        );
     }
     Ok(())
 }
@@ -629,6 +656,17 @@ pub fn validate_conformance_v2(repo_root: &Path) -> anyhow::Result<()> {
     }
 }
 
+/// Extract module name from .t27 spec file content.
+/// Looks for `module ModuleName {` pattern at the start of the file.
+fn extract_module_name(content: &str) -> Option<String> {
+    // Look for "module ModuleName {" pattern
+    // Module names in .t27 use PascalCase
+    let re = regex::Regex::new(r"module\s+([A-Z][a-zA-Z0-9_]*)\s*\{").ok()?;
+    re.captures(content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
 /// Validate seal coverage for changed .t27 specs (PR-scoped gate).
 /// Replaces inline bash in seal-coverage.yml (NO-SHELL law).
 pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Result<()> {
@@ -646,11 +684,18 @@ pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Resul
             .collect()
     } else {
         // If no PR files provided, validate all specs
-        fs::read_dir(repo.join("specs"))?
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| p.extension().map_or(false, |x| x == "t27"))
-            .collect()
+        let mut specs = Vec::new();
+        let specs_dir = repo.join("specs");
+        if specs_dir.exists() {
+            for entry in fs::read_dir(&specs_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.extension().map_or(false, |x| x == "t27") {
+                    specs.push(path);
+                }
+            }
+        }
+        specs
     };
 
     if changed_specs.is_empty() {
@@ -658,18 +703,28 @@ pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Resul
         return Ok(());
     }
 
-    println!("=== T27 Seal Coverage Gate (PR-scoped) ===");
-    println!("Checking {} changed spec(s)...", changed_specs.len());
+    eprintln!("=== T27 Seal Coverage Gate (PR-scoped) ===");
+    eprintln!("Checking {} changed spec(s)...", changed_specs.len());
 
     let mut missing = 0usize;
     let mut stale = 0usize;
     let mut failed_specs: Vec<String> = Vec::new();
 
     for spec_file in &changed_specs {
-        let module_name = spec_file
-            .file_stem()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        // Read spec content and extract module name
+        let spec_content = fs::read_to_string(spec_file)
+            .unwrap_or_default();
+
+        let module_name = extract_module_name(&spec_content)
+            .unwrap_or_else(|| {
+                // Fallback to file stem if module pattern not found
+                spec_file
+                    .file_stem()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            });
+
         let relative_path = spec_file
             .strip_prefix(&repo)
             .unwrap_or(spec_file)

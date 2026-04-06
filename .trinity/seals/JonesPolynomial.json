@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:ad95f1e9e48328f74ab15265f2d245c0ddc603a3e45d87628d861679f3d86263",
+  "gen_hash_verilog": "sha256:00bd4870c21cf5cea5d0961dbbfd8d19925d597caf8f4bd51cdbeaa2cdd63353",
+  "gen_hash_zig": "sha256:d2b0239d9f4d5da95c0703c02b88b30026ac065488d9db3e8d522073bfb1da40",
+  "module": "JonesPolynomial",
+  "ring": 12,
+  "sealed_at": "2026-04-06T19:04:30Z",
+  "spec_hash": "sha256:ff3440369acc550bbc7b09a96daea967988ec2e6536abf4db00dc52195f4d28e",
+  "spec_path": "specs/vsa/jones_polynomial.t27"
+}
