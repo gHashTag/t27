@@ -1,0 +1,62 @@
+{
+  "schema_version": "2.0",
+  "spec_file": "specs/math/radix_economy.t27",
+  "spec_hash": "SHA256:NOT_COMPUTED",
+  "generated_at": "2026-04-07T00:00:00+07:00",
+  "generator": "t27c",
+  "generator_version": "0.1.0",
+  "seal": "PENDING",
+  "verdict": "PENDING",
+  "vectors": [
+    {
+      "name": "e_base3_near_optimal",
+      "description": "E(3) >= 99.5% of E(e)",
+      "input": {},
+      "expected": {
+        "type": "boolean",
+        "value": true
+      },
+      "tolerance": null
+    },
+    {
+      "name": "e_base3_beats_base2",
+      "description": "E(3) > E(2) with 5.4% advantage",
+      "input": {},
+      "expected": {
+        "type": "boolean",
+        "value": true
+      },
+      "tolerance": null
+    },
+    {
+      "name": "log2_3_accuracy",
+      "description": "log2(3) ≈ 1.58496 within tolerance",
+      "input": {},
+      "expected": {
+        "type": "f64",
+        "value": 1.584962500721156
+      },
+      "tolerance": 1e-6
+    },
+    {
+      "name": "ternary_vs_binary_range_27trit",
+      "description": "27 trits > 42 bits, <= 43 bits",
+      "input": {},
+      "expected": {
+        "type": "boolean",
+        "value": true
+      },
+      "tolerance": null
+    },
+    {
+      "name": "base_advantage_3_vs_2",
+      "description": "E(3)/E(2) >= 1.054 (5.4% advantage)",
+      "input": {},
+      "expected": {
+        "type": "f64",
+        "value": 1.0544
+      },
+      "tolerance": 1e-4
+    }
+  ]
+}
