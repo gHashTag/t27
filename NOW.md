@@ -5,10 +5,11 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:05 local time (+07) · RFC3339 2026-04-07T00:05:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:59 local time (+07) · RFC3339 2026-04-06T23:59:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** **Ring 46** — **Baseline 58/58 PASS** ✅. **#165 CLARA-Bridge cleanup** (L7 UNITY: `run_scenario.py` + `tests/` deleted, contract extracted to `scenarios/runner-contract.md`). **Seal fix:** `jones_topology_filter.t27` hash collision resolved. **Decision Gate:** 16/16 PASS, WEAK_CONFIRM recorded. **Track A:** [#163](https://github.com/gHashTag/t27/issues/163) — L5 identity seal. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) numeric debt sprint (after #163). **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — issues + specs only.
+**Revision:** **Ring 47** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** / **#131** (seal discipline + **`conformance/**`** on **`seal-coverage.yml`**). **`31e0d47`** / **[#163](https://github.com/gHashTag/t27/issues/163)** — `FORMAT-SPEC-001.json` v1.1 + **`t27c validate-phi-identity`**. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; baseline **`tri test`** green. **Track A (carryover):** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase **2.6** numeric debt *(start only after Track A green)*. **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — **specs-only** this ring.
+
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -208,11 +209,11 @@ CROWN (Queen brain & automation)
 | 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | **✅ DONE** | `t27c gen-nmse-benchmark` writes **`nmse_synthetic_roundtrip`** (IEEE f16 vs bfloat16 proxy; documented in JSON) |
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
-| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **✅ DONE** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
-| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(after #163)* |
+| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **✅ DONE** | `FORMAT-SPEC-001.json` v1.1 **`phi_identity`** + **`t27c validate-phi-identity`** (φ distance 0.0486326415435630 from `gf16_vectors`) |
+| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(Track B — after Track A / Coq↔seals green)* |
 
 
-**Phase 2 handoff:** Steps **2.0–2.5** are **✅**; **2.3 #131** landed via **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**`CONTRIBUTING.md`** seal discipline + workflow paths). **Remaining:** **[#163](https://github.com/gHashTag/t27/issues/163)** (2.5 identity seal) **then** **[#167](https://github.com/gHashTag/t27/issues/167)** (2.6 numeric debt).
+**Phase 2 handoff:** Steps **2.0–2.5** are **✅** ( **2.3** **PR [#166](https://github.com/gHashTag/t27/pull/166)**; **2.5** **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) ). **Remaining:** **[#167](https://github.com/gHashTag/t27/issues/167)** (2.6) **only** — see **Revision** Track B. **Track order:** A (#163 Coq↔seals) → B (#167) → C (#142/#143 specs).
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
