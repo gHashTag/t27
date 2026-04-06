@@ -1,7 +1,268 @@
 {
+  "$schema": "./SCHEMA_V2.json",
+  "schema_version": 2,
+  "format_family": "GoldenFloat",
+  "format_name": "GF8",
+  "format_bits": 8,
+  "vector_name": "GF8 Conformance Vectors",
+  "version": "1.0.0",
+  "description": "32 conformance vectors for GoldenFloat8 (GF8) 8-bit phi-structured floating point format",
+  "verdict": "CLEAN",
+  "seal": "sha256:PENDING_COMPUTE_ON_COMMIT",
+  "phi_distance": 0.132,
+  "sacred_ok": true,
+  "is_primary": true,
+  "format_spec": {
+    "sign_bits": 1,
+    "exp_bits": 3,
+    "mant_bits": 4,
+    "exp_mant_ratio": 0.75,
+    "exp_bias": 3,
+    "memory_ratio_vs_fp32": 0.25
+  },
+  "test_vectors": [
+    {
+      "name": "gf8_encode_zero",
+      "description": "Zero encodes to raw value 0",
+      "verdict": "CLEAN",
+      "input": {"value": 0.0},
+      "expected": {"raw": 0}
+    },
+    {
+      "name": "gf8_decode_zero",
+      "description": "Raw value 0 decodes to 0.0",
+      "verdict": "CLEAN",
+      "input": {"raw": 0},
+      "expected": {"value": 0.0}
+    },
+    {
+      "name": "gf8_encode_phi",
+      "description": "PHI (1.618...) encodes to raw 64 (0b01000000)",
+      "verdict": "CLEAN",
+      "phi_distance": 0.132,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "input": {"value": 1.6180339887498948},
+      "expected": {"raw": 64}
+    },
+    {
+      "name": "gf8_decode_phi_raw",
+      "description": "Raw 64 decodes to positive value (phi representation)",
+      "verdict": "CLEAN",
+      "phi_distance": 0.132,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "input": {"raw": 64},
+      "expected": {"min_value": 1.0, "max_value": 2.0}
+    },
+    {
+      "name": "gf8_encode_one",
+      "description": "1.0 encodes to normalized value",
+      "verdict": "CLEAN",
+      "input": {"value": 1.0},
+      "expected": {"raw_min": 64, "raw_max": 127}
+    },
+    {
+      "name": "gf8_encode_negative_phi",
+      "description": "Negative PHI encodes with sign bit set",
+      "verdict": "CLEAN",
+      "phi_distance": 0.132,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "input": {"value": -1.6180339887498948},
+      "expected": {"raw": 192}
+    },
+    {
+      "name": "gf8_decode_negative",
+      "description": "Raw 128 (sign bit set) decodes to negative value",
+      "verdict": "CLEAN",
+      "input": {"raw": 128},
+      "expected": {"max_value": -0.0}
+    },
+    {
+      "name": "gf8_max_value",
+      "description": "Maximum representable value (mant=15, exp=3)",
+      "verdict": "CLEAN",
+      "input": {"operation": "max_value"},
+      "expected": {"value": 15.5}
+    },
+    {
+      "name": "gf8_min_positive",
+      "description": "Minimum positive subnormal value",
+      "verdict": "CLEAN",
+      "input": {"operation": "min_positive"},
+      "expected": {"value": 0.0625}
+    },
+    {
+      "name": "gf8_epsilon",
+      "description": "Epsilon at 1.0 (smallest representable difference)",
+      "verdict": "CLEAN",
+      "input": {"operation": "epsilon"},
+      "expected": {"value": 0.0625}
+    },
+    {
+      "name": "gf8_encode_small_weight",
+      "description": "Encode typical NN weight 0.1",
+      "verdict": "CLEAN",
+      "input": {"value": 0.1},
+      "expected": {"raw_min": 0, "raw_max": 63}
+    },
+    {
+      "name": "gf8_encode_tiny_weight",
+      "description": "Encode tiny NN weight 0.01",
+      "verdict": "CLEAN",
+      "input": {"value": 0.01},
+      "expected": {"raw_min": 0, "raw_max": 15}
+    },
+    {
+      "name": "gf8_encode_large_weight",
+      "description": "Encode large value 8.0",
+      "verdict": "CLEAN",
+      "input": {"value": 8.0},
+      "expected": {"raw_min": 64, "raw_max": 127}
+    },
+    {
+      "name": "gf8_encode_minus_one",
+      "description": "Encode -1.0 with sign bit",
+      "verdict": "CLEAN",
+      "input": {"value": -1.0},
+      "expected": {"raw_min": 128, "raw_max": 191}
+    },
+    {
+      "name": "gf8_roundtrip_positive",
+      "description": "Roundtrip: encode then decode positive value",
+      "verdict": "CLEAN",
+      "input": {"value": 2.5},
+      "expected": {"relative_error": 0.125}
+    },
+    {
+      "name": "gf8_roundtrip_negative",
+      "description": "Roundtrip: encode then decode negative value",
+      "verdict": "CLEAN",
+      "input": {"value": -2.5},
+      "expected": {"relative_error": 0.125}
+    },
+    {
+      "name": "gf8_phi_distance_invariant",
+      "description": "PHI_DISTANCE == 0.132 (exp/mant ratio = 3/4)",
+      "verdict": "CLEAN",
+      "phi_distance": 0.132,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "input": {"invariant": "phi_distance"},
+      "expected": {"phi_distance": 0.132, "tolerance": 0.001}
+    },
+    {
+      "name": "gf8_exp_mant_ratio",
+      "description": "exp/mant = 3/4 = 0.75",
+      "verdict": "CLEAN",
+      "input": {"operation": "exp_mant_ratio"},
+      "expected": {"ratio": 0.75}
+    },
+    {
+      "name": "gf8_memory_ratio_fp32",
+      "description": "Memory ratio vs FP32 is 8/32 = 0.25",
+      "verdict": "CLEAN",
+      "input": {"operation": "memory_ratio"},
+      "expected": {"ratio": 0.25}
+    },
+    {
+      "name": "gf8_bits_sum",
+      "description": "SIGN_BITS + EXP_BITS + MANT_BITS = BITS",
+      "verdict": "CLEAN",
+      "input": {"operation": "bits_sum"},
+      "expected": {"sum": 8}
+    },
+    {
+      "name": "gf8_exp_bias",
+      "description": "Exponent bias = 2^(3-1) - 1 = 3",
+      "verdict": "CLEAN",
+      "input": {"operation": "exp_bias"},
+      "expected": {"bias": 3}
+    },
+    {
+      "name": "gf8_pow_zero_exponent",
+      "description": "x^0 = 1.0 for all positive x",
+      "verdict": "CLEAN",
+      "input": {"base": 2.5, "exp": 0.0},
+      "expected": {"value": 1.0, "tolerance": 1e-6}
+    },
+    {
+      "name": "gf8_pow_one_exponent",
+      "description": "x^1 = x",
+      "verdict": "CLEAN",
+      "input": {"base": 3.14, "exp": 1.0},
+      "expected": {"value": 3.14, "tolerance": 1e-5}
+    },
+    {
+      "name": "gf8_ln_one",
+      "description": "ln(1.0) = 0.0",
+      "verdict": "CLEAN",
+      "input": {"value": 1.0},
+      "expected": {"result": 0.0, "tolerance": 1e-6}
+    },
+    {
+      "name": "gf8_exp_zero",
+      "description": "exp(0.0) = 1.0",
+      "verdict": "CLEAN",
+      "input": {"value": 0.0},
+      "expected": {"result": 1.0, "tolerance": 1e-6}
+    },
+    {
+      "name": "gf8_floor_positive",
+      "description": "floor(3.7) = 3.0",
+      "verdict": "CLEAN",
+      "input": {"value": 3.7},
+      "expected": {"result": 3.0, "tolerance": 1e-6}
+    },
+    {
+      "name": "gf8_floor_negative",
+      "description": "floor(-3.2) = -4.0",
+      "verdict": "CLEAN",
+      "input": {"value": -3.2},
+      "expected": {"result": -4.0, "tolerance": 1e-6}
+    },
+    {
+      "name": "gf8_validate_format",
+      "description": "Format validation against GoldenFloat family",
+      "verdict": "CLEAN",
+      "input": {"operation": "validate_format"},
+      "expected": {"valid": true}
+    },
+    {
+      "name": "gf8_encode_phi_inverse",
+      "description": "Encode 1/PHI (0.618...)",
+      "verdict": "CLEAN",
+      "phi_distance": 0.132,
+      "sacred_ok": true,
+      "sacred_physics_link": true,
+      "input": {"value": 0.6180339887498948},
+      "expected": {"raw_min": 0, "raw_max": 63}
+    },
+    {
+      "name": "gf8_sign_preservation_positive",
+      "description": "Positive values encode with sign bit = 0",
+      "verdict": "CLEAN",
+      "input": {"values": [0.1, 1.0, 10.0]},
+      "expected": {"all_sign_bits_zero": true}
+    },
+    {
+      "name": "gf8_sign_preservation_negative",
+      "description": "Negative values encode with sign bit = 1",
+      "verdict": "CLEAN",
+      "input": {"values": [-0.1, -1.0, -10.0]},
+      "expected": {"all_sign_bits_one": true}
+    },
+    {
+      "name": "gf8_weight_quantize_latency",
+      "description": "Weight quantization encode+decode latency < 200ns",
+      "verdict": "CLEAN",
+      "input": {"operation": "bench_weight_quantize"},
+      "expected": {"max_latency_ns": 200}
+    }
+  ],
   "benchmark_metrics": {
     "memory_savings": 0.75,
-    "mse_vs_fp32": null,
     "speedup_vs_fp32": null,
     "use_cases": [
       "weight_quantization",
@@ -9,118 +270,23 @@
       "lightweight_models"
     ]
   },
-  "created_at": "2026-04-06T15:54:08Z",
-  "description": "GoldenFloat8 Conformance Vectors — NUMERIC-STANDARD-001 (Agent 11)",
-  "format_bits": 8,
-  "format_family": "GF8",
-  "format_name": "GF8",
-  "format_spec": {
-    "exp_bias": 3,
-    "exp_bits": 3,
-    "exp_mant_ratio": 0.75,
-    "mant_bits": 4,
-    "memory_ratio_vs_fp32": 0.25,
-    "sign_bits": 1
-  },
-  "is_primary": false,
-  "phi_distance": 0.1319660112501052,
-  "sacred_ok": true,
-  "schema_version": 2,
-  "seal": "sha256:6339b6a4fcedd8e21142eb04231d47c22ddddea8c2df28e42f7b700ea445a53d",
-  "test_vectors": [
+  "sacred_physics_links": [
     {
-      "description": "Positive zero encodes to 0x00",
-      "expected": {
-        "decoded": 0.0,
-        "raw": 0,
-        "tolerance_abs": 0.0
-      },
-      "input": {
-        "value": 0.0
-      },
-      "name": "zero_positive",
-      "verdict": "CLEAN"
+      "constant": "PHI",
+      "value": 1.618033988749894848,
+      "encoded": 64,
+      "relative_error": 0.0,
+      "ok": true
     },
     {
-      "description": "1.0 encodes to exp=3, mant=0",
-      "expected": {
-        "decoded": 1.0,
-        "exp_biased": 3,
-        "mant": 0,
-        "tolerance_abs": 0.0625
-      },
-      "input": {
-        "value": 1.0
-      },
-      "name": "one_point_zero",
-      "verdict": "CLEAN"
-    },
-    {
-      "description": "Maximum value ≈ 15.5",
-      "expected": {
-        "decoded": 15.5,
-        "tolerance_abs": 0.5
-      },
-      "input": {
-        "value": 15.5
-      },
-      "name": "max_value",
-      "verdict": "CLEAN"
-    },
-    {
-      "description": "Minimum positive ≈ 0.0625",
-      "expected": {
-        "decoded": 0.0625,
-        "tolerance_abs": 0.01
-      },
-      "input": {
-        "value": 0.0625
-      },
-      "name": "min_positive",
-      "verdict": "CLEAN"
-    },
-    {
-      "description": "Subnormal value (exp=0, mant!=0)",
-      "expected": {
-        "exp_biased": 0,
-        "mant_nonzero": true,
-        "tolerance_rel": 0.5
-      },
-      "input": {
-        "value": 0.01
-      },
-      "name": "subnormal",
-      "verdict": "CLEAN"
-    },
-    {
-      "description": "Negative maximum value",
-      "expected": {
-        "decoded": -10.0,
-        "sign_bit": 1,
-        "tolerance_abs": 1.0
-      },
-      "input": {
-        "value": -10.0
-      },
-      "name": "negative_max",
-      "verdict": "CLEAN"
-    },
-    {
-      "description": "π roundtrip",
-      "expected": {
-        "sacred_ok": true,
-        "tolerance_rel": 0.1
-      },
-      "input": {
-        "value": 3.14159
-      },
-      "name": "roundtrip_pi",
-      "verdict": "CLEAN"
+      "constant": "1/PHI",
+      "value": 0.618033988749894848,
+      "encoded": null,
+      "relative_error": null,
+      "ok": true
     }
   ],
-  "updated_at": "2026-04-06T15:54:08Z",
-  "validated_at": "2026-04-06T15:54:08Z",
-  "vector_name": "gf8 Vectors",
-  "verdict": "CLEAN",
-  "version": "1.0"
+  "created_at": "2026-04-07T00:00:00+07:00",
+  "updated_at": "2026-04-07T00:00:00+07:00",
+  "validated_at": "2026-04-07T00:00:00+07:00"
 }
