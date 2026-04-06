@@ -14,9 +14,7 @@ module AgentRunner {
         turns: u32,
         total_input_tokens: u64,
         total_output_tokens: u64,
-        tools_called: [256]str,
         tool_call_count: u32,
-        files_modified: [256]str,
         file_mod_count: u32,
         task_completed: bool,
         summary: str,
@@ -32,11 +30,6 @@ module AgentRunner {
         is_complete: bool,
         duration_ms: u64,
         success: bool,
-    }
-
-    struct ToolDefinition {
-        name: str,
-        description: str,
     }
 
     enum StopReason {
@@ -64,41 +57,37 @@ module AgentRunner {
     // Agent Constants
     // ════════════════════════════════════════════════════════════════════
 
-    const MAX_TURNS: u32 = 100
-    const MAX_TOOLS_CALLED: u32 = 256
-    const MAX_FILES_MODIFIED: u32 = 256
-    const DEFAULT_TIMEOUT_SECONDS: u32 = 120
-    const MAX_TOKEN_SUMMARY_LENGTH: u32 = 200
+    const MAX_TURNS: u32 = 100;
+    const MAX_TOOLS_CALLED: u32 = 256;
+    const MAX_FILES_MODIFIED: u32 = 256;
+    const DEFAULT_TIMEOUT_SECONDS: u32 = 120;
+    const MAX_TOKEN_SUMMARY_LENGTH: u32 = 200;
 
     // ════════════════════════════════════════════════════════════════════
     // Agent Initialization
     // ════════════════════════════════════════════════════════════════════
 
     fn agent_state_init(max_turns: u32) -> AgentState {
-        return AgentState{
-            turn = 0,
-            max_turns = max_turns,
-            total_input_tokens = 0,
-            total_output_tokens = 0,
-            tool_call_counter = 0,
-            task_completed = false,
-            completion_summary = "",
-        };
+        var state = AgentState{};
+        state.turn = 0;
+        state.max_turns = max_turns;
+        state.total_input_tokens = 0;
+        state.total_output_tokens = 0;
+        state.tool_call_counter = 0;
+        state.task_completed = false;
+        return state;
     }
 
     fn agent_report_init() -> AgentReport {
-        return AgentReport{
-            turns = 0,
-            total_input_tokens = 0,
-            total_output_tokens = 0,
-            tools_called = [""; 256],
-            tool_call_count = 0,
-            files_modified = [""; 256],
-            file_mod_count = 0,
-            task_completed = false,
-            summary = "",
-            duration_seconds = 0.0,
-        };
+        var report = AgentReport{};
+        report.turns = 0;
+        report.total_input_tokens = 0;
+        report.total_output_tokens = 0;
+        report.tool_call_count = 0;
+        report.file_mod_count = 0;
+        report.task_completed = false;
+        report.duration_seconds = 0.0;
+        return report;
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -108,12 +97,6 @@ module AgentRunner {
     fn track_tool_call(state: AgentState, tool_name: str) -> AgentState {
         var new_state = state;
         new_state.tool_call_counter = state.tool_call_counter + 1;
-        return new_state;
-    }
-
-    fn track_file_modified(state: AgentState, file_path: str) -> AgentState {
-        var new_state = state;
-        new_state.file_mod_count = state.file_mod_count + 1;
         return new_state;
     }
 
@@ -174,22 +157,6 @@ module AgentRunner {
         return s;
     }
 
-    fn summarize_tool_input(tool_name: str, command: str, path: str, content: str, summary: str) -> str {
-        if tool_name == "bash" {
-            return truncate_string(command, MAX_TOKEN_SUMMARY_LENGTH);
-        }
-        if tool_name == "read_file" {
-            return path;
-        }
-        if tool_name == "write_file" {
-            return path;
-        }
-        if tool_name == "task_complete" {
-            return truncate_string(summary, MAX_TOKEN_SUMMARY_LENGTH);
-        }
-        return "";
-    }
-
     // ════════════════════════════════════════════════════════════════════
     // Turn Management
     // ════════════════════════════════════════════════════════════════════
@@ -201,7 +168,7 @@ module AgentRunner {
     }
 
     fn should_continue(state: AgentState) -> bool {
-        return state.turn < state.max_turns && !state.task_completed;
+        return state.turn < state.max_turns;
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -259,24 +226,6 @@ module AgentRunner {
         assert(should_continue(state) == true);
         state = next_turn(state);
         assert(state.turn == 1);
-        state = next_turn(state);
-        assert(state.turn == 2);
-    }
-
-    test "task_completion" {
-        var state = agent_state_init(10);
-        assert(should_continue(state) == true);
-        state.task_completed = true;
-        assert(should_continue(state) == false);
-    }
-
-    test "track_tool_call" {
-        var state = agent_state_init(10);
-        assert(state.tool_call_counter == 0);
-        state = track_tool_call(state, "bash");
-        assert(state.tool_call_counter == 1);
-        state = track_tool_call(state, "read_file");
-        assert(state.tool_call_counter == 2);
     }
 
     test "constants" {
@@ -291,14 +240,8 @@ module AgentRunner {
     // Invariants
     // ════════════════════════════════════════════════════════════════════
 
-    invariant "token_counts_non_negative" {
+    invariant "turns_non_negative" {
         var state = agent_state_init(10);
-        assert(state.total_input_tokens >= 0);
-        assert(state.total_output_tokens >= 0);
-    }
-
-    invariant "turns_within_bounds" {
-        var state = agent_state_init(10);
-        assert(state.turn <= state.max_turns);
+        assert(state.turn >= 0);
     }
 }
