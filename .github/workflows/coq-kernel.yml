@@ -36,8 +36,13 @@ jobs:
           cd coq
           coqchk -silent -R . T27 T27.Kernel.PhiFloat
 
-      - name: Validate phi f64 parameters (Python)
-        run: python3 scripts/validate_phi_f64.py
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build t27c and validate phi f64 parameters
+        run: |
+          cd bootstrap && cargo build --release
+          ./target/release/t27c validate-phi
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
