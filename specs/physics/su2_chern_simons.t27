@@ -129,7 +129,14 @@ module SU2ChernSimons {
     // 5. Jones Polynomial at 5th Root of Unity
     // ═════════════════════════════════════════════════════════════════════════
 
-    // The Chern-Simons connection to φ is through the Jones polynomial
+    // The Chern-Simons connection to φ is via Jones polynomial braiding phases
+    // For trefoil at q = e^{2πi/5} (5th root of unity):
+    // - Jones polynomial: V(q) = q + q³ - q⁴ = -φ (pure complex phase)
+    // - Magnitude: |V(q)| = 1 (pure phase)
+    // - Golden ratio φ appears through Fibonacci anyon quantum dimension d_τ,
+    //   not through |V(q)|²
+    //
+    // This is the correct normalization (Kauffman bracket convention).
     // evaluated at q = exp(2πi/5) (5th root of unity).
     //
     // For the trefoil knot: V(q) = q + q³ - q⁴

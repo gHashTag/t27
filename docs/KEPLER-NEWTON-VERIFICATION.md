@@ -136,11 +136,11 @@ Using φ ≈ 1.618:
 
 Ω_Λ_measured (Planck 2018/2020) = 0.685
 
-OMEGA_SCALE = Ω_Λ_measured / Ω_Λ_raw
+OMEGA_COARSE_SCALE = Ω_Λ_measured / Ω_Λ_raw
           ≈ 0.685 / 0.000939
           ≈ 728.9
 
-Therefore: Ω_Λ = Ω_Λ_raw × OMEGA_SCALE ≈ 0.000939 × 728.9 ≈ 0.685
+Therefore: Ω_Λ = Ω_Λ_raw × OMEGA_COARSE_SCALE ≈ 0.000939 × 728.9 ≈ 0.685
 ```
 
 **Conclusion**: The sacred formula produces extremely small Ω_Λ_raw because γ⁸ ≈ 1.6×10⁻⁶ is tiny. OMEGA_SCALE ≈ 728.9 is a required scale factor to match CODATA measured value.

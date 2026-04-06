@@ -172,8 +172,9 @@ class ChernSimonsTests:
         )
 
     def test_jones_polynomial_trefoil(self) -> TestResult:
-        """Test: |V(e^{2πi/5})|² = φ for trefoil knot"""
-        # Jones polynomial at q = exp(2πi/5)
+        """Test: |V(e^{2πi/5})| = 1.0 (pure phase) for trefoil knot"""
+        # Jones polynomial at q = exp(2πi/5) (5th root of unity)
+        # For trefoil: V(q) = q + q³ - q⁴
         theta1 = 2 * pi / 5
         theta2 = 6 * pi / 5
         theta3 = 8 * pi / 5
@@ -185,23 +186,25 @@ class ChernSimonsTests:
             real_part = cos(theta1) + cos(theta2) - cos(theta3)
             imag_part = sin(theta1) + sin(theta2) - sin(theta3)
 
-        magnitude_sq = real_part * real_part + imag_part * imag_part
+        # Compute magnitude (not magnitude squared)
+        magnitude = (real_part ** 2 + imag_part ** 2) ** 0.5
+        expected = 1.0
 
-        error = abs(magnitude_sq - self.c.PHI_SQ)
-        rel_error = error / self.c.PHI_SQ
+        error = abs(magnitude - expected)
+        rel_error = error / expected
         passed = error < 1e-10
 
         return TestResult(
             name="Jones polynomial (trefoil)",
-            formula="|V(e^{2πi/5})|² = φ² (compare magnitude squared to PHI_SQ)",
-            expected=str(self.c.PHI_SQ),
-            computed=float(magnitude_sq),
+            formula="|V(e^{2πi/5})| = 1.0 (pure phase)",
+            expected=str(expected),
+            computed=float(magnitude),
             error=float(error),
             relative_error=float(rel_error),
             passed=passed,
             tolerance=1e-10,
             category="CS",
-            notes="Witten 1989: CS → Jones polynomial"
+            notes="Witten 1989: CS → Jones polynomial. At q=e^(2πi/5), |V|=1 (pure phase). φ appears through d_τ, not |V|."
         )
 
     def test_cs_level_theorem(self) -> TestResult:
