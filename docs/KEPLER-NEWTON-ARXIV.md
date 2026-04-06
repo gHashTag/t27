@@ -236,7 +236,7 @@ Investigate whether there exists any mathematical framework that yields γ = φ�
 
 ### Priority 2: Sacred Formula Validation
 
-Complete the 152-formula catalog verification:
+Complete the [planned] 152-formula catalog verification (N implemented today):
 - Load full formula catalog from Trinity
 - Add scale factors to G and Ω_Λ formulas
 - Classify formulas: exact, approximate, conceptual
