@@ -656,6 +656,17 @@ pub fn validate_conformance_v2(repo_root: &Path) -> anyhow::Result<()> {
     }
 }
 
+/// Extract module name from .t27 spec file content.
+/// Looks for `module ModuleName {` pattern at the start of the file.
+fn extract_module_name(content: &str) -> Option<String> {
+    // Look for "module ModuleName {" pattern
+    // Module names in .t27 use PascalCase
+    let re = regex::Regex::new(r"module\s+([A-Z][a-zA-Z0-9_]*)\s*\{").ok()?;
+    re.captures(content)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
 /// Validate seal coverage for changed .t27 specs (PR-scoped gate).
 /// Replaces inline bash in seal-coverage.yml (NO-SHELL law).
 pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Result<()> {
@@ -673,11 +684,18 @@ pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Resul
             .collect()
     } else {
         // If no PR files provided, validate all specs
-        fs::read_dir(repo.join("specs"))?
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| p.extension().map_or(false, |x| x == "t27"))
-            .collect()
+        let mut specs = Vec::new();
+        let specs_dir = repo.join("specs");
+        if specs_dir.exists() {
+            for entry in fs::read_dir(&specs_dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.extension().map_or(false, |x| x == "t27") {
+                    specs.push(path);
+                }
+            }
+        }
+        specs
     };
 
     if changed_specs.is_empty() {
@@ -685,18 +703,28 @@ pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Resul
         return Ok(());
     }
 
-    println!("=== T27 Seal Coverage Gate (PR-scoped) ===");
-    println!("Checking {} changed spec(s)...", changed_specs.len());
+    eprintln!("=== T27 Seal Coverage Gate (PR-scoped) ===");
+    eprintln!("Checking {} changed spec(s)...", changed_specs.len());
 
     let mut missing = 0usize;
     let mut stale = 0usize;
     let mut failed_specs: Vec<String> = Vec::new();
 
     for spec_file in &changed_specs {
-        let module_name = spec_file
-            .file_stem()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        // Read spec content and extract module name
+        let spec_content = fs::read_to_string(spec_file)
+            .unwrap_or_default();
+
+        let module_name = extract_module_name(&spec_content)
+            .unwrap_or_else(|| {
+                // Fallback to file stem if module pattern not found
+                spec_file
+                    .file_stem()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("unknown")
+                    .to_string()
+            });
+
         let relative_path = spec_file
             .strip_prefix(&repo)
             .unwrap_or(spec_file)
