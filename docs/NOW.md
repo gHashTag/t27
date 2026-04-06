@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 (UTC) · Ring 048 VSA algebraic invariants · RFC3339 2026-04-06T21:20:00Z
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 (UTC) · Ring 032 canonical iteration schema · RFC3339 2026-04-06T21:30:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Rings 46+47+49+51+040+045+048 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175), Agent Alphabet (#135), ISA registers (#140), VSA algebra (#144) — all CLOSED. Seal cleanup: JonesPolynomial ring 12→51, SacredPhysics conformance hash fixed. L7 UNITY: NO-PYTHON migration (coq-kernel CI) in progress (#156). 79/79 specs PASS, all seals verified.
@@ -48,6 +48,23 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 
 
 **Skipping this is a failed handoff** — the fleet coordinates here, not only in issues.
+
+### § 1.2  Canonical iteration schema
+
+*When recording work iterations (PHI LOOP cycles), use this schema:*
+
+```markdown
+## Iteration <N>
+- **Goal**: <single capability, one sentence>
+- **Spec delta**: <which .t27 spec changed>
+- **Generated artifacts**: <zig/verilog/c outputs>
+- **Tests**: <test/invariant/bench executed>
+- **Seal**: <hash or PENDING>
+- **Verdict**: CLEAN | TOXIC
+- **Next constraint**: <single next bottleneck>
+```
+
+*This aligns with PHI LOOP (§4) and ISSUE-GATE laws (L1–L7).*
 
 **Conflict Prevention (Ring 47+):**
 - **Root `NOW.md` is a symlink** to `docs/NOW.md` — prevents divergence
