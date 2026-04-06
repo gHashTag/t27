@@ -1,10 +1,12 @@
 {
+  "conformance_hash": "sha256:PENDING_COMPUTE_ON_COMMIT",
   "gen_hash_c": "sha256:60929321e44334b4333c05e0e76a959ec24759a83f3bfce07d102a220781aa1f",
   "gen_hash_verilog": "sha256:b34d184fd8c56e9e483b4d323c588ff86644fdd935b3ff1e9f4f5c852f1e4a0f",
   "gen_hash_zig": "sha256:db4616fdecef0a9a2651abf01d5f3cf66f00c956818d04fc5333cdfb34fca278",
   "module": "SacredPhysics",
-  "ring": 12,
-  "sealed_at": "2026-04-06T14:43:48Z",
+  "ring": 49,
+  "sealed_at": "2026-04-07T18:30:00+07:00",
   "spec_hash": "sha256:4cd281c91afe18a00b5720a5d272b298eb615e95f68e179e06411fd651f22f5c",
-  "spec_path": "specs/math/sacred_physics.t27"
+  "spec_path": "specs/math/sacred_physics.t27",
+  "verdict": "CLEAN"
 }
