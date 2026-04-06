@@ -57,6 +57,12 @@ enum Commands {
         input: String,
     },
 
+    /// Generate Rust code from .t27 file
+    GenRust {
+        /// Input file path
+        input: String,
+    },
+
     /// Compute deterministic test_vector_hash from conformance JSON
     Conformance {
         /// Input conformance JSON file path
@@ -1072,6 +1078,17 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile_rust(&source) {
+        Ok(rust_code) => print!("{}", rust_code),
+        Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -1790,6 +1807,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::GenC { input } => run_gen_c(&input)?,
+        Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Compile { input, backend, output } => {
@@ -1816,6 +1834,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::GenC { input } => run_gen_c(&input)?,
+        Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Compile { input, backend, output } => {
