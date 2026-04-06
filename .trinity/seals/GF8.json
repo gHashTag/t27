@@ -6,8 +6,8 @@
   "gen_hash_zig": "sha256:4c806a17e37d030a29386ccff34c0ea483a6b435817062ce2440c8b0522a869d",
   "module": "GF8",
   "phi_distance": 0.132,
-  "ring": 42,
-  "sealed_at": "2026-04-07T12:00:00+07:00",
+  "ring": 51,
+  "sealed_at": "2026-04-07T18:15:00+07:00",
   "spec_hash": "sha256:05bb65c92bd5587713c52d51c4588bfc55069e07095f52ea4a7951053c944691",
   "spec_path": "specs/numeric/gf8.t27",
   "verdict": "CLEAN"
