@@ -1,6 +1,13 @@
 // t27/specs/demos/jones_topology_filter.t27
-// MVP: Topological Filter for Structure Classification
-// Hypothesis: Jones polynomial invariants can classify data structures by complexity
+// MVP: Structure Similarity Classifier using VSA + CS Constants
+// WHAT THIS CODE ACTUALLY DOES:
+// - Takes a hypervector representing a structure
+// - Computes dot_product similarity with a reference structure
+// - Classifies complexity based on similarity thresholds
+// - Uses a fixed Chern-Simons constant (φ) as reference value
+// WHAT THIS CODE DOES NOT DO:
+// - Does NOT compute Jones polynomial from input topology
+// - Does NOT provide "topological acceleration"
 
 module JonesTopologyFilter {
     use base::types;
