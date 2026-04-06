@@ -18,6 +18,9 @@ module Constants {
     const PHI_SQ     : f64 = PHI * PHI;
     const PHI_INV_SQ : f64 = PHI_INV * PHI_INV;
 
+    // GF8 phi_distance invariant (exp/mant = 3/4 = 0.75)
+    const PHI_DISTANCE : f64 = 0.132;
+
     // TRINITY = 3.0 within numeric tolerance
     const TRINITY    : f64 = 3.0;
 
