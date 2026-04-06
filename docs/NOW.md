@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:58 local time (+07) · RFC3339 2026-04-06T23:58:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:00 local time (+07) · RFC3339 2026-04-07T00:00:00+07:00
 
 **Document class:** Operational focus document
 **Revision:** **Ring 47** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** merged on **`master`** (**#131** seal discipline + **`conformance/**`** paths on **`seal-coverage.yml`**). Baseline: **`tri check-now`** + **`tri test`** ✅ on **2026-04-06**. **Track A (critical):** [#163](https://github.com/gHashTag/t27/issues/163) — L5 identity seal; wire Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) → CI artifact **`.trinity/seals/identity-*.json`**. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase **2.6** numeric debt sprint *(strictly after #163 — φ-tolerance SSOT first)*. **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — **issues + specs only** this ring (implementation **Ring 48+**). *When local calendar rolls to **2026-04-07**, refresh **Last updated** so **`tri check-now`** stays green.*
@@ -209,10 +209,10 @@ CROWN (Queen brain & automation)
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
 | 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **✅ DONE** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
-| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(after #163)* |
+| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **✅ DONE** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar (Ring 47 P2) |
 
 
-**Phase 2 handoff:** Steps **2.0–2.5** are **✅**; **2.3 #131** landed via **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**`CONTRIBUTING.md`** seal discipline + workflow paths). **Remaining:** **[#163](https://github.com/gHashTag/t27/issues/163)** (2.5 identity seal) **then** **[#167](https://github.com/gHashTag/t27/issues/167)** (2.6 numeric debt).
+**Phase 2 handoff:** Steps **2.0–2.6** are **✅**; Phase 2 complete. **Phase 3 (Ring 050+ science tests)** unblocked. **#163** (2.5 identity seal) landed via commit `31e0d47`; **#167** (2.6 numeric debt inventory) completed Ring 47 P2. |
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
