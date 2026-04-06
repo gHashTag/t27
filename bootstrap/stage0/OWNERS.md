@@ -6,7 +6,7 @@
 
 ## Contents
 
-- `FROZEN_HASH` — SHA-256 seal of the compiler snapshot for the current ring baseline (see `docs/SEED-RINGS.md`, `docs/GOLDEN-RINGS-CANON.md`).
+- `FROZEN_HASH` — SHA-256 seal of the compiler snapshot for the current ring baseline (see `docs/nona-01-foundation/SEED-RINGS.md`, `docs/nona-01-foundation/GOLDEN-RINGS-CANON.md`).
 
 ## Dependencies
 

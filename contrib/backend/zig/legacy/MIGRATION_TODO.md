@@ -31,4 +31,4 @@
 - All domain logic MUST be specified in `.t27` files first
 - Zig is ONLY for generated backends (with DO NOT EDIT header)
 - Bootstrap I/O layer is permitted (file I/O, process startup only)
-- See: `docs/GENERATED-HEADER-POLICY.md`
+- See: `docs/nona-03-manifest/GENERATED-HEADER-POLICY.md`

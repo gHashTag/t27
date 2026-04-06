@@ -1,5 +1,5 @@
 //! Hard language guard: fail `cargo build` if Cyrillic appears in specs or unlisted docs.
-//! See docs/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md Article LANG-EN.
+//! See docs/nona-03-manifest/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md Article LANG-EN.
 
 use std::collections::HashSet;
 use std::fs;
@@ -49,7 +49,7 @@ fn scan_cyrillic(
         return Ok(());
     }
     let content = fs::read_to_string(path).map_err(|e| {
-        format!("{ERR_HEAD}: cannot read {rel_posix}: {e}\nSee docs/SOUL.md Law #1.")
+        format!("{ERR_HEAD}: cannot read {rel_posix}: {e}\nSee docs/nona-03-manifest/SOUL.md Law #1.")
     })?;
     for (line_no, line) in content.lines().enumerate() {
         for (col, c) in line.chars().enumerate() {
@@ -60,7 +60,7 @@ fn scan_cyrillic(
                      Location: line {}, column {}\n\
                      Snippet: {}\n\
                      Fix: use English only in first-party sources and docs.\n\
-                     Docs: docs/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md (LANG-EN).\n\
+                     Docs: docs/nona-03-manifest/SOUL.md Law #1, architecture/ADR-004-language-policy.md, docs/T27-CONSTITUTION.md (LANG-EN).\n\
                      If this file is grandfathered non-English, add its repo-relative path to docs/.legacy-non-english-docs (Architect approval only).",
                     c as u32,
                     c,

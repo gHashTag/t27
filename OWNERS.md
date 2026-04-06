@@ -13,4 +13,4 @@
 
 ## Agent alphabet
 
-Full 27-agent mapping lives in **`docs/AGENTS_ALPHABET.md`**. Directory ownership uses **domains** (many agents may touch one tree); the **Primary** owner is the default reviewer for structural changes.
+Full 27-agent mapping lives in **`docs/agents/AGENTS_ALPHABET.md`**. Directory ownership uses **domains** (many agents may touch one tree); the **Primary** owner is the default reviewer for structural changes.

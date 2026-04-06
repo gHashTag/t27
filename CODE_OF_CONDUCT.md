@@ -16,4 +16,4 @@ For security-sensitive behavior, see **[`SECURITY.md`](SECURITY.md)**.
 
 ## References
 
-**Constitution:** **[`SOUL.md`](SOUL.md)** (root) is canonical. **[`docs/SOUL.md`](docs/SOUL.md)** expands it (not a second constitution). Process: **[`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md)**.
+**Constitution:** **[`SOUL.md`](SOUL.md)** (root) is canonical. **[`docs/nona-03-manifest/SOUL.md`](docs/nona-03-manifest/SOUL.md)** expands it (not a second constitution). Process: **[`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md)**.

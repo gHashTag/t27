@@ -377,7 +377,7 @@
     {
       "id": 18,
       "name": "docs/NUMERIC-STANDARD-001",
-      "path": "t27/docs/NUMERIC-STANDARD-001.md",
+      "path": "t27/docs/nona-02-organism/NUMERIC-STANDARD-001.md",
       "strand": "IV",
       "tier": 0,
       "kind": "standard",
@@ -404,7 +404,7 @@
     {
       "id": 19,
       "name": "docs/SACRED-PHYSICS-001",
-      "path": "t27/docs/SACRED-PHYSICS-001.md",
+      "path": "t27/docs/nona-02-organism/SACRED-PHYSICS-001.md",
       "strand": "IV",
       "tier": 0,
       "kind": "standard",

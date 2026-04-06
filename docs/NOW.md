@@ -7,7 +7,8 @@ This file is a **quick snapshot** for contributors and reviewers. Authoritative 
 **NOW sync gates:** local **`.githooks/pre-commit`** (`bash scripts/setup-git-hooks.sh`), CI **`now-sync-gate.yml`**, and **`./scripts/tri check-now`** (also before **`tri gen*`** / **`tri compile*`**).  
 **Agent sync snapshot (machine-readable):** `[.trinity/state/github-sync.json](../.trinity/state/github-sync.json)`  
 **Human rollup:** `[.trinity/queen-brain/summaries/github-sync-2026-04-06.md](../.trinity/queen-brain/summaries/github-sync-2026-04-06.md)`  
-**TASK inter-agent protocol:** `[TASK.md](../TASK.md)` + `[docs/TASK_PROTOCOL.md](TASK_PROTOCOL.md)` + **Anchor** [#141](https://github.com/gHashTag/t27/issues/141) (always-on coordination thread). **Portable handoff (zip / folder):** `[docs/inter-agent-handoff/README.md](inter-agent-handoff/README.md)`.  
+**Docs map:** [`docs/README.md`](README.md) — 27-agent / nona layout.  
+**TASK inter-agent protocol:** `[TASK.md](../TASK.md)` + [`docs/coordination/TASK_PROTOCOL.md`](coordination/TASK_PROTOCOL.md) + **Anchor** [#141](https://github.com/gHashTag/t27/issues/141) (always-on coordination thread). **Portable handoff (zip / folder):** [`docs/coordination/inter-agent-handoff/README.md`](coordination/inter-agent-handoff/README.md).  
 **Constitution:** `[docs/T27-CONSTITUTION.md](T27-CONSTITUTION.md)` **v1.7** — **RING-LAW**, **AGENT-DOMAIN**, **BRAIN-MAP**, **COMPETITION-READY**; canonical URL on GitHub: `https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md`.  
 **Milestone:** [EPOCH-01-HARDEN](https://github.com/gHashTag/t27/milestone/1) — ring issues **#127–#140**, **#142** attached. Next batch plan: `[docs/RING_BACKLOG_047_063.md](RING_BACKLOG_047_063.md)`.
 
@@ -37,7 +38,7 @@ This file is a **quick snapshot** for contributors and reviewers. Authoritative 
 ## Still useful (repo docs)
 
 - Publications conveyor: `[publications/README.md](../publications/README.md)`, `[docs/PUBLICATION_PIPELINE.md](PUBLICATION_PIPELINE.md)`, `[docs/PUBLICATION_AUDIT.md](PUBLICATION_AUDIT.md)`.  
-- Claims registry: `[docs/RESEARCH_CLAIMS.md](RESEARCH_CLAIMS.md)`.  
+- Claims registry: `[docs/nona-03-manifest/RESEARCH_CLAIMS.md](RESEARCH_CLAIMS.md)`.  
 - Numerics skeleton: `[docs/NUMERICS_VALIDATION.md](NUMERICS_VALIDATION.md)`.
 
 ## Next check-in
