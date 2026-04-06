@@ -1,4 +1,4 @@
-# ADR-001: De-Zigфикация — Tri as Source of Truth
+# ADR-001: De-Zigfication — Tri as Source of Truth
 
 **Status:** Accepted
 **Date:** 2026-04-04

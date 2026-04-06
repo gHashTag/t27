@@ -26,7 +26,7 @@ Non-ASCII characters in source files create several issues:
 
 ## Decision
 
-**Source files MUST be ASCII-only. Documentation MAY use any language.**
+**Source files MUST be ASCII-only.** **First-party Markdown documentation MUST be English** (see `docs/SOUL.md` Law #1 and `docs/.legacy-non-english-docs` for grandfathered paths). **Vendored trees under `external/` are exempt.**
 
 ### Source Files (ASCII-Only)
 
@@ -40,34 +40,32 @@ All files in the following categories MUST contain only ASCII characters (U+0000
 - Build scripts, makefiles, etc.
 
 Forbidden in source files:
-- **Cyrillic** (U+0400–U+04FF): А-Я а-я ё Ё
+- **Cyrillic** (U+0400–U+04FF) and other non-Latin scripts in identifiers and comments
 - **Other non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc.
 
-### Documentation Files (Any Language)
+### Documentation Files (English, First-Party)
 
-Files in the following locations MAY contain any language including Cyrillic:
+These locations MUST use English prose:
 
-- `docs/` — All documentation
-- `*.md` — Markdown files (except in source trees)
-- `README.md`, `LICENSE` — Project metadata
+- `docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/**/*.md`, root `README.md`, `AGENTS.md`, `CLAUDE.md`, `task.md`
+
+Grandfathered non-English files are listed in **`docs/.legacy-non-english-docs`** until translated.
 
 ### Allowed Characters in Source Files
 
 ```t27
-; ✅ ALLOWED
+; ALLOWED
 const EPS = 0.001  ; ASCII comment
 test my_test         ; ASCII identifier
 
-; ❌ FORBIDDEN
-; Это комментарий на русском
-const КОЭФФИЦИЕНТ = 1.0
+; FORBIDDEN: any comment or identifier containing U+0400-U+04FF (Cyrillic block)
 ```
 
 ## Rationale
 
 1. **Universality**: ASCII is universally supported across all platforms and tools
-2. **Clarity**: English (ASCII) is the lingua franca of programming
-3. **Separation of Concerns**: Code expresses logic, docs express explanations in any language
+2. **Clarity**: English is the single language for first-party docs and spec-adjacent Markdown
+3. **Separation of Concerns**: Vendored locales stay under `external/`; Trinity core stays reviewable in one language
 4. **Git Compatibility**: No encoding issues in diffs, patches, or blame output
 
 ## Enforcement
@@ -90,46 +88,23 @@ $ tri gen specs/my_spec.t27
 error: Language policy violation - remove Cyrillic from spec
 ```
 
-### Pre-commit Hook
+### CI: First-party doc language
 
-A `.git/hooks/pre-commit` hook checks staged files:
-
-```bash
-#!/bin/bash
-# Check for Cyrillic in source files (excluding docs/)
-for file in $(git diff --cached --name-only | grep -v '^docs/'); do
-    if file matches '\.(t27|tri|zig|c|h|v|verilog)$'; then
-        if grep -P '[\x{0400}-\x{04FF}]' "$file" > /dev/null; then
-            echo "error: $file contains Cyrillic - not allowed in source files"
-            exit 1
-        fi
-    fi
-done
-```
+`scripts/check-first-party-doc-language.sh` fails if Cyrillic appears in first-party Markdown outside `docs/.legacy-non-english-docs` and `external/`.
 
 ## Consequences
 
-1. **CI Failure**: Pull requests with Cyrillic in source files will fail CI
+1. **CI Failure**: Pull requests with Cyrillic in source files or unlisted first-party Markdown will fail CI
 2. **Parser Error**: Files with Cyrillic will not compile
-3. **Pre-commit Block**: Cannot commit files with Cyrillic (except in `docs/`)
+3. **Legacy list**: Non-English docs must be on the allowlist until translated; **do not grow the list** without Architect approval
 
 ## Migration
 
 For existing files with Cyrillic:
 
-1. **Translate comments** to English:
-   ```t27
-   ; Было: Это комментарий на русском
-   ; Стало: This is a comment in English
-   ```
-
-2. **Transliterate identifiers** (if necessary):
-   ```t27
-   ; Было: const КОЭФФИЦИЕНТ
-   ; Стало: const COEFFICIENT
-   ```
-
-3. **Keep docs in Russian** (if desired): Move explanations to `docs/` directory
+1. **Translate comments** to English in source files.
+2. **Transliterate identifiers** to ASCII.
+3. **Translate Markdown** to English; until done, add the path to `docs/.legacy-non-english-docs` once, then remove when translated.
 
 ## Exceptions
 
@@ -138,10 +113,7 @@ For existing files with Cyrillic:
 - Project domain (e.g., Russian physics terms)
 - Historical reasons
 
-If documentation needs to reference non-English concepts, use:
-- Transliteration (e.g., "phi (φ)" for golden ratio)
-- English explanations
-- Links to external docs in `docs/`
+If documentation needs to reference non-English concepts, use transliteration, Unicode names (e.g. U+03C6 for φ in running text if needed), and English explanations.
 
 ## Related Decisions
 
