@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 047 (K3 truth table) — exhaustive 27-entry verification + SCHEMA_V2 conformance · RFC3339 2026-04-07T18:00:00+07:00
+**Last updated:** 2026-04-06 — Tuesday, 06 April 2026 (UTC) · Phase 3 Ring 049 (sacred physics) — hard tolerance verification for 6 constants · RFC3339 2026-04-06T11:30:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Ring 47 → Phase 3** — K3 truth table exhaustive 27-entry verification (#143): AND (9), OR (9), NOT (3), no-tautology (3), isomorphism (3). Updated to SCHEMA_V2 conformance format. All 63 seals verified.
+**Revision:** **Ring 49 → Phase 3** — Sacred physics hard tolerance verification (#145): Trinity identity 1e-12, Barbero-Immirzi 1e-15, all 6 constants within tolerance. All 63 seals verified.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
