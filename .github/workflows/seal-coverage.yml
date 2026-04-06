@@ -1,0 +1,113 @@
+name: Seal Coverage Gate
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'specs/**/*.t27'
+      - '.trinity/seals/**'
+
+jobs:
+  seal-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for diff
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build compiler (t27c)
+        working-directory: bootstrap
+        run: cargo build --release
+
+      - name: 🔒 Seal Coverage Check (PR-scoped)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          echo "=== T27 Seal Coverage Gate (PR-scoped) ==="
+          echo "Only checking specs changed in this PR..."
+
+          # Get changed .t27 files in specs/
+          CHANGED_FILES=$(gh api \
+            repos/gHashTag/t27/pulls/$PR_NUMBER/files \
+            --jq '.[].filename' | grep '^specs/.*\.t27$' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No .t27 spec files changed in this PR. Gate PASS."
+            exit 0
+          fi
+
+          MISSING=0
+          STALE=0
+          TOTAL=0
+          FAILED_SPECS=()
+
+          # Check each changed spec
+          while IFS= read -r spec_file; do
+            ((TOTAL++))
+
+            # Extract module name and relative path
+            module_name=$(basename "$spec_file" .t27)
+            relative_path="${spec_file#specs/}"
+            seal_file=".trinity/seals/${module_name}.json"
+
+            echo -n "[$TOTAL] $relative_path ... "
+
+            # Check if seal exists
+            if [ ! -f "$seal_file" ]; then
+              echo -e "\033[0;31m✗ MISSING SEAL\033[0m"
+              ((MISSING++))
+              FAILED_SPECS+=("$relative_path (no seal file)")
+              continue
+            fi
+
+            # Compute current spec hash
+            current_hash=$(sha256sum "$spec_file" | cut -d' ' -f1)
+            current_hash="sha256:$current_hash"
+
+            # Get stored spec_hash from seal
+            stored_hash=$(jq -r '.spec_hash // empty' "$seal_file")
+
+            # Verify spec_hash matches
+            if [ "$current_hash" != "$stored_hash" ]; then
+              echo -e "\033[0;33m⚠ STALE (spec changed)\033[0m"
+              ((STALE++))
+              FAILED_SPECS+=("$relative_path (stale seal)")
+            else
+              echo -e "\033[0;32m✓ OK\033[0m"
+            fi
+          done <<< "$CHANGED_FILES"
+
+          echo ""
+          echo "=== Seal Coverage Summary ==="
+          echo "Changed specs: $TOTAL"
+          echo "Missing seals: $MISSING"
+          echo "Stale seals: $STALE"
+
+          if [ "$MISSING" -gt 0 ] || [ "$STALE" -gt 0 ]; then
+            echo ""
+            echo -e "\033[0;31m=== FAILED SPECS ===\033[0m"
+            for spec in "${FAILED_SPECS[@]}"; do
+              echo "  - $spec"
+            done
+            echo ""
+            echo -e "\033[0;31mGate FAILED: $MISSING missing, $STALE stale seals\033[0m"
+            echo ""
+            echo "To fix missing seals, run:"
+            echo "  ./scripts/tri seal <spec.t27> --save"
+            echo ""
+            echo "To fix stale seals, regenerate after spec changes:"
+            echo "  ./scripts/tri seal <spec.t27> --save"
+            echo ""
+            echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+            exit 1
+          fi
+
+          echo ""
+          echo -e "\033[0;32mAll changed specs have current seals! Gate PASS.\033[0m"
+          echo "phi^2 + 1/phi^2 = 3 | TRINITY"
