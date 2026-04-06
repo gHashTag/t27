@@ -32,8 +32,8 @@ tmp/
 .trinity/queues/
 #.trinity/events/ # Keeping events might be okay if they are small, but they grow.
 
-# Specific project paths
-opencode/dist/
-opencode/node_modules/
+# Specific project paths (vendored upstream lives under external/)
+external/opencode/dist/
+external/opencode/node_modules/
 bootstrap/target/
 .trinity/experience/
