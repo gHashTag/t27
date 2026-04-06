@@ -48,6 +48,7 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 | `docs/GOLDEN-RINGS-CANON.md` | Ring + FROZEN_HASH micro-iterations; GOLD vs REFACTOR-HEAP |
 | `docs/TRINITY-BRAIN-NEUROANATOMY-TZ.md` | Unified brain charter; **t27** = `specs/brain/` SSOT, `trinity` = runtime integration |
 | `docs/MULTI-MODEL-TRUST-CHAIN-ANALYSIS.md` | Trust chain, executable rings, issue enforcement, test pyramid (synthesis note) |
+| `docs/T27-BOOTSTRAP-TESTING-PLAN.md` | Rust seed → `.t27` fixtures → self-eval → self-host; proposed ring/issue spine |
 | `.cursor/rules/t27-ssot-math.mdc` | Cursor rule for AI agents |
 
 ---
