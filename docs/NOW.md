@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Monday, 07 April 2026 (UTC) · Ring 037 COMPLETE — Parser extended with `let`/`as` keywords and nested array support · RFC3339 2026-04-07T03:45:00Z
+**Last updated:** 2026-04-06 — Monday, 07 April 2026 (UTC+07) · Ring 037 COMPLETE — Parser extended with `let`/`as` keywords and nested array support · RFC3339 2026-04-06T22:00:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Rings 46+47+49+51 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175) — all CLOSED. Seal cleanup: JonesPolynomial ring 12→51, SacredPhysics conformance hash fixed. L7 UNITY: NO-PYTHON migration (coq-kernel CI) in progress (#156). 79/79 specs PASS, all seals verified.
+**Revision:** **Rings 46+47+49+51+040+045+048 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175), Agent Alphabet (#135), ISA registers (#140), VSA algebra (#144) — all CLOSED. Seal cleanup: JonesPolynomial ring 12→51, SacredPhysics conformance hash fixed. L7 UNITY: NO-PYTHON migration (coq-kernel CI) in progress (#156). 79/79 specs PASS, all seals verified.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
@@ -48,6 +48,23 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 
 
 **Skipping this is a failed handoff** — the fleet coordinates here, not only in issues.
+
+### § 1.2  Canonical iteration schema
+
+*When recording work iterations (PHI LOOP cycles), use this schema:*
+
+```markdown
+## Iteration <N>
+- **Goal**: <single capability, one sentence>
+- **Spec delta**: <which .t27 spec changed>
+- **Generated artifacts**: <zig/verilog/c outputs>
+- **Tests**: <test/invariant/bench executed>
+- **Seal**: <hash or PENDING>
+- **Verdict**: CLEAN | TOXIC
+- **Next constraint**: <single next bottleneck>
+```
+
+*This aligns with PHI LOOP (§4) and ISSUE-GATE laws (L1–L7).*
 
 **Conflict Prevention (Ring 47+):**
 - **Root `NOW.md` is a symlink** to `docs/NOW.md` — prevents divergence
@@ -155,16 +172,16 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 | [#129](https://github.com/gHashTag/t27/issues/129) | 034  | Numerics     | GoldenFloat benchmark spec (NMSE vs bfloat16)  |
 | [#130](https://github.com/gHashTag/t27/issues/130) | 035  | Architecture | `TECHNOLOGY-TREE.md` — ring DAG to 999         |
 | [#131](https://github.com/gHashTag/t27/issues/131) | 036  | CI           | Seal coverage — block PRs with missing SHA-256 |
-| [#132](https://github.com/gHashTag/t27/issues/132) | 037  | Language     | SOUL.md parser enforcement                     |
+| [#132](https://github.com/gHashTag/t27/issues/132) | 037  | Language     | SOUL.md parser enforcement (OPEN PR #190, CI blocking on compiler meta-specs) |
 | [#133](https://github.com/gHashTag/t27/issues/133) | 038  | Conformance  | Conformance vector schema v2                   |
 | [#134](https://github.com/gHashTag/t27/issues/134) | 039  | Science      | CLARA / DARPA TA1–TA2 submission checklist     |
-| [#135](https://github.com/gHashTag/t27/issues/135) | 040  | Agents       | `AGENTS_ALPHABET.md` — 27 agent definitions    |
+| [#135](https://github.com/gHashTag/t27/issues/135) | 040  | Agents       | `AGENTS_ALPHABET.md` — 27 agent definitions (CLOSED PR #191) |
 | [#138](https://github.com/gHashTag/t27/issues/138) | 043  | Math         | Balanced ternary addition formal spec          |
 | [#139](https://github.com/gHashTag/t27/issues/139) | 044  | Protocol     | PHI LOOP contract v2 + TOXIC rollback          |
-| [#140](https://github.com/gHashTag/t27/issues/140) | 045  | ISA          | 27 Coptic register invariants                  |
+| [#140](https://github.com/gHashTag/t27/issues/140) | 045  | ISA          | 27 Coptic register invariants (CLOSED PR #189) |
 | [#142](https://github.com/gHashTag/t27/issues/142) | 046  | Math         | Radix economy — base-3 optimality proof        |
 | [#143](https://github.com/gHashTag/t27/issues/143) | 047  | Math         | K3 logic truth table — 27-entry isomorphism    |
-| [#144](https://github.com/gHashTag/t27/issues/144) | 048  | VSA          | Trit-space bind/unbind formal spec             |
+| [#144](https://github.com/gHashTag/t27/issues/144) | 048  | VSA          | Trit-space bind/unbind formal spec (CLOSED PR #188) |
 | [#145](https://github.com/gHashTag/t27/issues/145) | 049  | Physics      | Sacred physics hard-tolerance conformance      |
 | [#150](https://github.com/gHashTag/t27/issues/150) *(closed)* | —    | CI           | E2E CI: `seed.t27` → `t27c gen` → `zig test` → GREEN |
 
