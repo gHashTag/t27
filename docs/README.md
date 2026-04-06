@@ -7,7 +7,7 @@ First-party docs follow the **27-agent trinity alphabet** grouping: **three nona
 | Path | Role |
 |------|------|
 | **[`NOW.md`](NOW.md)** | Rolling snapshot; sync gates require frequent updates. |
-| **[`T27-CONSTITUTION.md`](T27-CONSTITUTION.md)** | Repository constitution (SSOT-MATH, LANG-EN). |
+| **[`T27-CONSTITUTION.md`](T27-CONSTITUTION.md)** | Repository constitution (**SSOT-MATH**, **LANG-EN**, **DOCS-TREE**). |
 | **[`OWNERS.md`](OWNERS.md)** | Docs tree ownership note. |
 
 ## [`agents/`](agents/) — 27-agent canon

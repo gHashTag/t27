@@ -9,7 +9,7 @@ This file is a **quick snapshot** for contributors and reviewers. Authoritative 
 **Human rollup:** `[.trinity/queen-brain/summaries/github-sync-2026-04-06.md](../.trinity/queen-brain/summaries/github-sync-2026-04-06.md)`  
 **Docs map:** [`docs/README.md`](README.md) — 27-agent / nona layout.  
 **TASK inter-agent protocol:** `[TASK.md](../TASK.md)` + [`docs/coordination/TASK_PROTOCOL.md`](coordination/TASK_PROTOCOL.md) + **Anchor** [#141](https://github.com/gHashTag/t27/issues/141) (always-on coordination thread). **Portable handoff (zip / folder):** [`docs/coordination/inter-agent-handoff/README.md`](coordination/inter-agent-handoff/README.md).  
-**Constitution:** `[docs/T27-CONSTITUTION.md](T27-CONSTITUTION.md)` **v1.7** — **RING-LAW**, **AGENT-DOMAIN**, **BRAIN-MAP**, **COMPETITION-READY**; canonical URL on GitHub: `https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md`.  
+**Constitution:** [`docs/T27-CONSTITUTION.md`](T27-CONSTITUTION.md) **v1.2** — **SSOT-MATH**, **LANG-EN**, **DOCS-TREE** (normative `docs/` layout); milestone law (**RING-LAW**, **AGENT-DOMAIN**, …) remains in issues / `TASK.md`. Canonical URL: `https://github.com/gHashTag/t27/blob/master/docs/T27-CONSTITUTION.md`.  
 **Milestone:** [EPOCH-01-HARDEN](https://github.com/gHashTag/t27/milestone/1) — ring issues **#127–#140**, **#142** attached. Next batch plan: `[docs/RING_BACKLOG_047_063.md](RING_BACKLOG_047_063.md)`.
 
 ---
