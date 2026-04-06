@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 08 April 2026 (UTC+07) · Ring 037 COMPLETE — Parser extended with block expression support (for switch arms) · RFC3339 2026-04-07T12:00:00+07:00
+**Last updated:** 2026-04-06 — Monday, 07 April 2026 (UTC+07) · Ring 037 COMPLETE — Parser extended with block expression support (for switch arms) · RFC3339 2026-04-06T22:00:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Rings 46+47+49+51+040+045+048 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175), Agent Alphabet (#135), ISA registers (#140), VSA algebra (#144) — all CLOSED. Seal cleanup: JonesPolynomial ring 12→51, SacredPhysics conformance hash fixed. L7 UNITY: NO-PYTHON migration (coq-kernel CI) in progress (#156). 79/79 specs PASS, all seals verified.
