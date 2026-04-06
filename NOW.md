@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:20 local time (+07) · Phase 3 Ring 050 ([#142](https://github.com/gHashTag/t27/issues/142) radix economy) · RFC3339 2026-04-07T00:20:00+07:00
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:25 local time (+07) · Ring 47.1 ([#177](https://github.com/gHashTag/t27/issues/177)) true topological classification · RFC3339 2026-04-07T00:25:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors. **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
+**Revision:** **Ring 47.1** — **[#177](https://github.com/gHashTag/t27/issues/177)** True topological classification (compute Jones polynomial from input structure, NOT fixed φ). **Ring 46** ✅: Decision Gate 16/16 PASS, WEAK_CONFIRM, PR [#172](https://github.com/gHashTag/t27/pull/172) Merged. **Track A:** [#163](https://github.com/gHashTag/t27/issues/163) L5 identity seal. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase 2.6 numeric debt (after #163). **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — specs-only.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
