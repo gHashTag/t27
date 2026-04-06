@@ -2805,8 +2805,8 @@ impl Codegen {
         if is_method {
             self.write(&format!(" {}", return_type));
         } else if !node.extra_return_type.is_empty() {
-            // Non-methods: use -> for consistency with T27 arrow syntax
-            self.write(&format!(" -> {}", return_type));
+            // Zig uses space for return type, not : or ->
+            self.write(&format!(" {}", return_type));
         }
 
         self.write_line(" {");
