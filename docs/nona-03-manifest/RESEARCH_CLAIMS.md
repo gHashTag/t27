@@ -7,6 +7,8 @@
 
 **Rule:** Every **strong** statement in README, papers, or marketing should appear here (with an ID) or be downgraded to informal narrative.
 
+**See also:** **`docs/nona-03-manifest/CLAIM_TIERS.md`** (spec / physics tier policy), **`docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`** (catalog + FORMAT-SPEC), **`conformance/axiom_system.json`** (machine-readable seed).
+
 ---
 
 ## Status vocabularies

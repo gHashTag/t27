@@ -39,6 +39,8 @@ TDD, bootstrap/testing plans, math/physics test framework charter, PHI loop, tec
 | Charter | Role |
 |---------|------|
 | [`nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md`](nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md) | Rings 050–054: oracles, `claim_tier`, sprints A–E, CI ladder |
+| [`nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`](nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md) | Axioms/theorems/catalog + `FORMAT-SPEC-001` / `axiom_system.json` |
+| [`nona-03-manifest/CLAIM_TIERS.md`](nona-03-manifest/CLAIM_TIERS.md) | Policy: `claim_tier` for math/physics |
 
 ## [`clara/`](clara/) — CLARA / DARPA-style pack
 

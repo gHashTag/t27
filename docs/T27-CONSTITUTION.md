@@ -80,6 +80,8 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 | `docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md` | Rust seed → `.t27` fixtures → self-eval → self-host; proposed ring/issue spine |
 | `docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md` | Oracles, metamorphic/differential strategy, framework ladder; complements bootstrap plan |
 | `docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md` | Math/physics test framework charter (ring-aware oracles, `claim_tier`, sprint A–E) |
+| `docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md` | Unified axioms/theorems + `FORMAT-SPEC-001` + `axiom_system.json` charter |
+| `docs/nona-03-manifest/CLAIM_TIERS.md` | `claim_tier` policy for math/physics specs |
 | `.cursor/rules/t27-ssot-math.mdc` | Cursor rule for AI agents |
 
 ---
