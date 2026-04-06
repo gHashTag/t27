@@ -1,5 +1,5 @@
 -- T27 Sandbox Sessions — Initial Migration
--- Generated from backend/api/src/db/schema.ts (Drizzle ORM)
+-- Generated from contrib/backend/api/src/db/schema.ts (Drizzle ORM)
 -- Run: psql $DATABASE_URL < migrations/0000_init.sql
 
 CREATE TABLE IF NOT EXISTS "sessions" (

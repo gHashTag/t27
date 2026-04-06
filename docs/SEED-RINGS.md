@@ -9,7 +9,7 @@ Compiler Construction" (2006).
 1. **One ring = one capability.** Each ring adds exactly one language
    feature (e.g., const literals, function headers, type checking).
 2. **Sealed with 4 hashes.** Every ring is frozen by recording the
-   SHA-256 of the stage-0 compiler in `stage0/FROZEN_HASH`.
+   SHA-256 of the stage-0 compiler in `bootstrap/stage0/FROZEN_HASH`.
 3. **Reversible.** Any ring can be reverted by restoring the previous
    `FROZEN_HASH` and compiler source.
 4. **Cumulative.** Ring N includes all capabilities of rings 0..N-1.
@@ -38,7 +38,7 @@ Each ring follows these steps in order:
 6. **Gen** - Extend codegen to emit Zig/LLVM for the new construct.
 7. **Test** - `t27c parse spec.t27` must succeed; `cargo test` must pass; **`cargo build`** in `bootstrap/` must succeed (includes `build.rs` language guard).
 8. **Freeze** - Record `sha256sum bootstrap/src/compiler.rs` in
-   `stage0/FROZEN_HASH`.
+   `bootstrap/stage0/FROZEN_HASH`.
 9. **Seal** - Commit, push, and open a PR that closes the ring's issue.
 
 ## Golden canon vs refactor debt

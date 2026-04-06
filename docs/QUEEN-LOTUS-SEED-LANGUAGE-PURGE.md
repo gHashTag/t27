@@ -54,7 +54,7 @@ Use the **6-phase cycle** as the **only** approved cleanup / migration ritual fo
 |------|------|--------|
 | `research/tba/*.py` | Python research | Move to separate repo or `research/` with explicit “not CI” + no import from core |
 | `external/kaggle/scripts/*.py` | Python | Same |
-| `backend/agent-runner/agent-runner.py` | Python service | Trinity product boundary: submodule or separate crate; not part of SEED |
+| `contrib/backend/agent-runner/agent-runner.py` | Python service | Trinity product boundary: submodule or separate crate; not part of SEED |
 
 ### Tier P2 — Vendored non-t27 forests (delete, submodule, or `external/` only)
 

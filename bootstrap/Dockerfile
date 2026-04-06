@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 # Copy the entire opencode workspace
-COPY opencode/ ./
+COPY external/opencode/ ./
 # Install and build the app
 RUN bun install
 RUN bun run --cwd packages/app build

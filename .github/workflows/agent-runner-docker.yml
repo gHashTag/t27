@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'backend/agent-runner/**'
+      - 'contrib/backend/agent-runner/**'
       - '.github/workflows/agent-runner-docker.yml'
   workflow_dispatch:
 
@@ -37,7 +37,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: backend/agent-runner
+          context: contrib/backend/agent-runner
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest

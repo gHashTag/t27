@@ -1,7 +1,7 @@
 # Golden Rings Canon — where the gold is, what is refactor trash
 
 **Status:** Active  
-**Companion:** `docs/SEED-RINGS.md`, `stage0/FROZEN_HASH`, `docs/T27-CONSTITUTION.md`  
+**Companion:** `docs/SEED-RINGS.md`, `bootstrap/stage0/FROZEN_HASH`, `docs/T27-CONSTITUTION.md`  
 
 This document defines **GOLD** (canonical, ring-sealed, must stay green) versus **REFACTOR-HEAP** (explicit debt — code we tolerate until a ring or ADR removes it). **Nothing outside the golden cycle is product truth.**
 
@@ -17,7 +17,7 @@ Each **ring increment** is a **micro-iteration** that proves the spine still wor
 | M2 | `./bootstrap/target/release/t27c parse <new-or-touched.t27>` | **Parse OK** for every spec touched in the PR. |
 | M3 | `cargo test` in `bootstrap/` | **All tests green** for compiler changes. |
 | M4 | `bash tests/run_all.sh` (when available in CI) | Full spec parse/gen sweep as defined by repo. |
-| M5 | Update **`stage0/FROZEN_HASH`** | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see SEED-RINGS §9). |
+| M5 | Update **`bootstrap/stage0/FROZEN_HASH`** | **Only when intentionally sealing a ring** — SHA-256 of `bootstrap/src/compiler.rs` (see SEED-RINGS §9). |
 | M6 | Seal / experience | `.trinity/seals/*.json` updated for modules that require sealing; optional `.trinity/experience/` record. |
 
 If **M1–M4** are not green, the change is **not gold** — it belongs in a draft branch or must be reverted.
@@ -30,7 +30,7 @@ If **M1–M4** are not green, the change is **not gold** — it belongs in a dra
 |-------|---------|
 | **`specs/**/*.t27` that parse + gen in CI** | **Source of truth** for Trinity semantics. |
 | **`bootstrap/src/compiler.rs` (+ lexer/parser/codegen in `bootstrap/src/`)** | **Only** allowed hand-written compiler implementation until self-host ring. |
-| **`stage0/FROZEN_HASH`** | Cryptographic **seal** of the compiler snapshot for the current ring baseline. |
+| **`bootstrap/stage0/FROZEN_HASH`** | Cryptographic **seal** of the compiler snapshot for the current ring baseline. |
 | **`.trinity/seals/*.json`** | Module seals — **gold** for “this spec revision was verified under policy.” |
 | **`docs/SEED-RINGS.md` + this file** | Process gold — how rings and micro-iterations work. |
 | **`docs/T27-CONSTITUTION.md` + `docs/SOUL.md` Law #1** | Policy gold — language and SSOT. |

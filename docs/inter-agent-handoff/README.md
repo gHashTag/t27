@@ -18,19 +18,19 @@ This folder is a **portable package** for a downstream coding or research agent 
 
 **Do not** treat `SCIENTIFIC_EXCELLENCE_HANDOFF.md` as a second `TASK.md`. For merges: follow **Issue Gate**, `Closes #N`, and `cargo build` in `bootstrap/` (TASK Validation).
 
-If another channel sent **“Epoch 2 | Lock: target-agent | Create RESEARCH_CLAIMS.md”** — that text is **obsolete**; read **[`ERRATA_PERPLEXITY_HANDOFF.md`](ERRATA_PERPLEXITY_HANDOFF.md)** first.
+If another channel sent **“Epoch 2 | Lock: target-agent | Create RESEARCH_CLAIMS.md”** — that text is **obsolete**; read `**[ERRATA_PERPLEXITY_HANDOFF.md](ERRATA_PERPLEXITY_HANDOFF.md)`** first.
 
 ## Contents
 
 
 | File                                                                   | Description                                                                             |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `[ERRATA_PERPLEXITY_HANDOFF.md](ERRATA_PERPLEXITY_HANDOFF.md)`         | **Read first** if you have the Perplexity / Epoch-2 handoff — maps false steps to truth   |
+| `[ERRATA_PERPLEXITY_HANDOFF.md](ERRATA_PERPLEXITY_HANDOFF.md)`         | **Read first** if you have the Perplexity / Epoch-2 handoff — maps false steps to truth |
 | `[SCIENTIFIC_EXCELLENCE_HANDOFF.md](SCIENTIFIC_EXCELLENCE_HANDOFF.md)` | Long-form EPICs / work packages (corrected vs repo snapshot)                            |
 | `[GITHUB_ISSUES.md](GITHUB_ISSUES.md)`                                 | Issue bodies to paste when creating GitHub epics                                        |
 | `[PRIORITY_MATRIX.md](PRIORITY_MATRIX.md)`                             | Suggested week-by-week ordering                                                         |
 | `[BENCHMARK_COMPARISON.md](BENCHMARK_COMPARISON.md)`                   | t27 vs “etalon” OSS — **NOW** column synced to tree                                     |
-| `t27-inter-agent-handoff-2026-04-06.zip`                               | All `.md` files in this folder zipped (regenerate after edits; command below)            |
+| `t27-inter-agent-handoff-2026-04-06.zip`                               | All `.md` files in this folder zipped (regenerate after edits; command below)           |
 
 
 ## Download the zip
