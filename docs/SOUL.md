@@ -1,8 +1,12 @@
-# SOUL.md — Trinity Constitutional Laws
+# docs/SOUL.md — Expanded constitutional reference
 
-**Version**: 1.2
-**Date**: 2026-04-06
-**Status**: Sacred — Changes require consensus
+**Not the single source of truth for the constitution.** The **canonical** Trinity constitutional document is **[`SOUL.md`](../SOUL.md)** at the **repository root** (seven articles, preamble, amendment rules). Read that file first.
+
+This document **expands** root **SOUL** with operational detail—especially **Law #1** (English-first docs and ASCII source), enforcement tables, examples, and cross-links. If anything here **conflicts** with root **`SOUL.md`**, **root wins**.
+
+**Version** (this expansion): 1.2  
+**Date**: 2026-04-06  
+**Status**: Sacred — Changes require consensus with root **SOUL.md**
 
 > *SOUL = System of Universal Laws*
 
@@ -589,11 +593,11 @@ No byte enters master without:
 
 ## Amendment Process
 
-To amend SOUL.md:
+To amend the **constitution**, change **[`SOUL.md`](../SOUL.md)** at the repository root (per its Article V / project amendment rules). Then, if needed, update **this** expansion file so it stays aligned.
 
 1. Submit an ADR (Architecture Decision Record) proposing the change.
 2. Must have consensus from agents A (Architecture), S (Standards), and T (Queen Trinity).
-3. Update `SOUL.md` and create `docs/SOUL-v<new_version>.md` snapshot.
+3. Update root **`SOUL.md`**; optionally bump this file’s version and create `docs/SOUL-v<new_version>.md` snapshot for history.
 
 ---
 
