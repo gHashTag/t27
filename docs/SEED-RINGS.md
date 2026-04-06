@@ -56,4 +56,10 @@ Ring 0 establishes the minimal viable compiler:
 
 ---
 
+## Related: language discipline
+
+Agents must not treat “any script” as the product. **SEED** is the minimal Rust bootstrap to parse `.t27`; all other languages on the critical path are **debt**. See **`docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`** for the Queen Lotus cleanup inventory and **[trinity](https://github.com/gHashTag/trinity)** umbrella alignment.
+
+---
+
 *phi^2 + 1/phi^2 = 3 | TRINITY*
