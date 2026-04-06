@@ -1,0 +1,42 @@
+[package]
+name = "trinity-core"
+version = "0.1.0"
+edition = "2021"
+description = "Trinity Core - Session & Message management for Trinity Orchestrator"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP server
+axum = { version = "0.7", features = ["tokio", "macros", "http1", "http2", "json"] }
+tower-http = { version = "0.5", features = ["cors"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Timestamps
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+# SSE
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures-util = "0.3"
+async-stream = "0.3"
+
+# Parking lot for faster RwLock
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"
