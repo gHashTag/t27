@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Trinity / t27 CLI shim — forwards to the bootstrap compiler (Rust binary `t27c`).
+# Canonical pipeline entry for humans, agents, and CI: ./scripts/tri … (see README, CONTRIBUTING, phi-loop-ci.yml).
 # Use from repo root: ./scripts/tri …
 # Optional: ln -s "$(pwd)/scripts/tri" ~/.local/bin/tri
 # Override: export TRI_T27C=/path/to/t27c
@@ -82,7 +83,7 @@ Usage:
   tri test                            # t27c suite (parse/gen/seal/fixed-point)
   tri validate-conformance [path]     # t27c validate-conformance
   tri validate-gen-headers            # t27c validate-gen-headers
-  tri check-now                       # docs/NOW.md Last updated must be today (local date)
+  tri check-now                       # t27c check-now (docs/NOW.md date gate)
   tri brain …                         # placeholder (see brain charter)
 
 Environment: TRI_T27C=path/to/t27c
@@ -98,7 +99,7 @@ shift || true
 
 case "$cmd" in
     gen-zig | gen-c | gen-verilog | gen | compile | compile-project | compile-all)
-        bash "$ROOT/scripts/check-now-sync.sh"
+        "$T27C" check-now --repo-root "$ROOT"
         ;;
 esac
 
@@ -172,7 +173,7 @@ case "$cmd" in
         exec "$T27C" validate-gen-headers --repo-root "$ROOT"
         ;;
     check-now)
-        bash "$ROOT/scripts/check-now-sync.sh"
+        exec "$T27C" check-now --repo-root "$ROOT"
         ;;
     brain)
         echo "tri brain: not implemented in this repository yet." >&2

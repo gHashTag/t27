@@ -11,7 +11,11 @@
 
 NUMERIC-STANDARD-001 defines the **GoldenFloat Family** — φ-structured floating point formats for Trinity Project. All formats target the sacred ratio `exp/mant ≈ 1/φ ≈ 0.618` to optimize information density while maintaining numerical stability for sacred physics computations.
 
-**Machine-readable SSOT (must match this table):** **`conformance/FORMAT-SPEC-001.json`**, validated by **`schemas/numeric-format-v1.json`**. Charter: **`docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`**.
+**Machine-readable SSOT (must match this table):** **`conformance/FORMAT-SPEC-001.json`**, validated by **`schemas/numeric-format-v1.json`**. Charter: **`docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`**. **Single English core registry (Axiom 0, φ-distance, GF/TF3/PackedTrit facts):** [`docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md`](NUMERIC-CORE-PALETTE-REGISTRY.md).
+
+**Rationale:** Why GF16 is primary but **`f32`/`f64` still appear across specs** — **`docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md`**. **Full palette** (all widths, TF3, FFI status): **`docs/nona-02-organism/NUMERIC-GOLDENFLOAT-PALETTE.md`**.
+
+**Public numeric surface (hide IEEE at boundaries):** Spec **`specs/numeric/trinity_numeric_surface.t27`** — policy + raw bit-width constants for the GF family; generated Zig **`gen/zig/numeric/trinity_numeric_surface.zig`**. New **public** structs and IPC payloads SHOULD use **GF raw words** (`u16` for GF16, etc.) per that module; **`f32`/`f64`** remain **[BRIDGE]** inside numeric encode/decode or legacy adapters only.
 
 ## Motivation
 
@@ -142,6 +146,10 @@ See `conformance/gf*_vectors.json` for test vectors.
 - `specs/numeric/phi_ratio.t27` — φ-derivation proof
 - `conformance/gf_family_bench.json` — Benchmark results
 - `docs/GF_FAMILY_BENCH.md` — BENCH-005 documentation
+- [`docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md`](NUMERIC-GF16-CANONICAL-PICTURE.md) — Verified “full picture” (constants, GF16, vectors, benchmarks)
+- [`docs/nona-02-organism/NUMERIC-GOLDENFLOAT-PALETTE.md`](NUMERIC-GOLDENFLOAT-PALETTE.md) — Full format palette + TF3 + FFI / binding status
+- [`docs/nona-02-organism/NUMERIC-PALETTE-CROSS-REPO-SYNC.md`](NUMERIC-PALETTE-CROSS-REPO-SYNC.md) — Second-repo claims vs t27 (HybridBigInt, WASM, packing, master formula, Lucas)
+- [`docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md`](NUMERIC-CORE-PALETTE-REGISTRY.md) — Core palette registry (LANG-EN; corrects draft errors)
 - `architecture/ADR-001-de-zigfication.md` — Design decision
 
 ---

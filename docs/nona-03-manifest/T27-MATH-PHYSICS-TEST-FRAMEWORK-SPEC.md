@@ -223,7 +223,7 @@ Acceptance example: **≥ 90%** consistency on **N = 100** controlled paraphrase
 
 | Level | Intent | Target command / owner |
 |-------|--------|----------------------|
-| **L0** | NOW sync | `bash scripts/check-now-sync.sh` *(present)* |
+| **L0** | NOW sync | `t27c check-now --repo-root .` *(or `tri check-now`)* |
 | **L1** | Corpus suite | `./bootstrap/target/release/t27c suite --repo-root .` *(present)* |
 | **L2** | GF4 exhaustive / math PBT | `./bootstrap/target/release/t27c test <spec>` *(requires `tri test` / `t27c test`)* |
 | **L3** | Rust unit / nextest | `cargo nextest` or `cargo test` in `bootstrap/` *(optional gate)* |

@@ -13,9 +13,9 @@ Thank you for helping improve T27. This repository is **spec-first**: behavior l
 
 Keep **`docs/NOW.md`** current: it is the rolling snapshot for humans and agents (see [#141](https://github.com/gHashTag/t27/issues/141)).
 
-1. **Local pre-commit:** run once after clone: **`bash scripts/setup-git-hooks.sh`** (sets `core.hooksPath` to **`.githooks/`**). Every commit is blocked unless `docs/NOW.md` contains **`Last updated: <today>`** (local calendar date).
-2. **CI:** **`.github/workflows/now-sync-gate.yml`** requires **`docs/NOW.md`** in each PR/push to `master` and checks the date (UTC today or yesterday). **`.github/workflows/phi-loop-ci.yml`** runs **`scripts/check-now-sync.sh`** before the Rust build (must match **runner’s “today”**, typically UTC).
-3. **`tri`:** **`./scripts/tri check-now`** runs the same script; **`gen*`** and **`compile*`** subcommands run it automatically before invoking `t27c`.
+1. **Local pre-commit:** run once after clone: **`bash scripts/setup-git-hooks.sh`** (sets `core.hooksPath` to **`.githooks/`**). Every commit is blocked unless `docs/NOW.md` **Last updated** line includes **today’s calendar date `YYYY-MM-DD`** (checked against your **local** date when `tri check-now` runs). Prefer **human-readable local wall time** in that line, not UTC `Z`, unless you work in UTC (see **`docs/NOW.md`** header template).
+2. **CI:** **`.github/workflows/now-sync-gate.yml`** requires **`docs/NOW.md`** in each PR/push to `master` and checks the date (UTC today or yesterday). **`.github/workflows/phi-loop-ci.yml`** builds **`t27c`**, then runs the same gates through **`./scripts/tri`** (`check-now`, `test`, `validate-conformance`, `validate-gen-headers`). Calendar date for **`tri check-now`** must match the runner’s local “today” (typically UTC on GitHub Actions).
+3. **`tri`:** **`./scripts/tri check-now`** forwards to **`t27c check-now`**; **`gen*`** and **`compile*`** run that gate automatically before invoking codegen.
 
 ## Specs and tests
 

@@ -7,6 +7,7 @@
 // - gen-verilog: Generate synthesizable Verilog from .t27
 // - gen-c: Generate C code from .t27
 // - seal: Compute seal hashes (with --save / --verify)
+// - check-now: Gate on docs/NOW.md Last updated date
 // - serve: Start HTTP server (requires 'server' feature)
 
 mod bridge;
@@ -144,6 +145,12 @@ enum Commands {
 
     /// Validate gen/** headers (Auto-generated / DO NOT EDIT / TRINITY)
     ValidateGenHeaders {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Require docs/NOW.md "Last updated" calendar date to match today (local timezone)
+    CheckNow {
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,
     },
@@ -1827,6 +1834,7 @@ async fn main() -> anyhow::Result<()> {
             suite::validate_conformance(&repo_root)?
         }
         Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
+        Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
     }
 
     Ok(())
@@ -1857,6 +1865,7 @@ fn main() -> anyhow::Result<()> {
             suite::validate_conformance(&repo_root)?
         }
         Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
+        Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");

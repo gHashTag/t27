@@ -53,6 +53,9 @@ cd ..
 
 # Validate generated file headers under gen/
 ./scripts/tri validate-gen-headers
+
+# NOW.md must reflect today’s calendar date (also enforced before gen/compile via tri)
+./scripts/tri check-now
 ```
 
 ## Architecture
@@ -68,6 +71,10 @@ STRAND V   - AR (CLARA)   : ternary logic, proof traces, Datalog, restraint, XAI
 ```
 
 Gen backends (Zig, C, Verilog) and conformance vectors were generated across Rings 25-31.
+
+### Agent experience (design)
+
+Multi-agent memory, Queen wisdom, and planned **`tri`** subcommands for experience / insights are outlined in **[`docs/TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md`](docs/TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md)**. **Today’s supported pipeline** is the Quick Start block above (`tri test`, `tri check-now`, validators, codegen).
 
 ### Directory Structure
 
