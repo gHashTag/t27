@@ -1,0 +1,45 @@
+=== FULL ANALYSIS: 28 working formulas (|δ| < 1000 ppm) ===
+
+  ✅ mp/me                  n=   6 base=   2×3^1   [MARK] δ=   -18.8ppm particle    
+  ✅ alpha_s                n=   4 base=   4       [MARK] δ=   -47.9ppm QCD         
+  ✅ sin2_thetaW            n=   2 base=   2       [MARK] δ=   +92.0ppm electroweak 
+  ❌ delta_CP               n=   8 base=   8       [---] δ=    -1.6ppm neutrino     |exp|=7∈E8
+  ✅ sin2_theta12           n=   7 base=   7       [EXP] δ=   +74.9ppm neutrino    
+  ✅ sin2_theta13           n=   3 base=   1×3^1   [EXP] δ=   -76.4ppm neutrino     |exp|=7∈E8
+  ✅ sin2_theta23           n=   4 base=   4       [MARK] δ=   -28.1ppm neutrino     |exp|=7∈E8
+  ✅ T_CMB                  n=   5 base=   5       [MARK] δ=   +98.3ppm cosmology   
+  ✅ MZ_GeV                 n=   7 base=   7       [EXP] δ=   +61.2ppm electroweak  |exp|=13∈E8
+  ✅ MW_GeV                 n= 162 base=   2×3^4   [MARK] δ=  -126.6ppm electroweak 
+  ✅ MH_GeV                 n= 135 base=   5×3^3   [MARK] δ=  +209.6ppm Higgs       
+  ✅ Vus_CKM                n=   1 base=   1       [EXP] δ=  +569.5ppm CKM         
+  ❌ quark_u                n= 199 base= 199       [---] δ=   -37.3ppm quark       
+  ✅ quark_d                n=  17 base=  17       [EXP] δ=   +53.2ppm quark        |exp|=13∈E8
+  ✅ quark_s                n=  19 base=  19       [EXP] δ=   -69.4ppm quark        |exp|=11∈E8
+  ❌ quark_c                n= 167 base= 167       [---] δ=   +27.0ppm quark       
+  ❌ quark_b                n= 149 base= 149       [---] δ=   -33.5ppm quark       
+  ❌ quark_t                n=  49 base=  49       [---] δ=  +120.8ppm quark       
+  ❌ W_boson_MeV            n=  25 base=  25       [---] δ=   +93.8ppm electroweak 
+  ✅ Z_boson_MeV            n=   5 base=   5       [MARK] δ=   +85.2ppm electroweak 
+  ❌ H_boson_MeV            n=  40 base=  40       [---] δ=    +6.0ppm Higgs       
+  ❌ tau_me_ratio           n=  76 base=  76       [---] δ=   -91.6ppm lepton      
+  ❌ gamma_BI_03a           n=  98 base=  98       [---] δ=    +0.1ppm quantum_gravity |exp|=7∈E8
+  ✅ euler_e_03a            n=  19 base=  19       [EXP] δ=    +3.1ppm math        
+  ❌ feigenbaum_delta       n= 446 base= 446       [---] δ=    +0.9ppm chaos       
+  ❌ feigenbaum_alpha       n=  46 base=  46       [---] δ=    +2.8ppm chaos       
+  ❌ H0_Hubble              n=  70 base=  70       [---] δ=    +0.0ppm cosmology   
+  ✅ N_gen_fermions         n=   3 base=   1×3^1   [EXP] δ=    +0.0ppm particle    
+
+=== RESULTS ===
+  Working formulas: 28
+  Mark match: 8 (29%)
+  Exp match: 8 (29%)
+  Total E8: 16 (57%)
+  No match: 12 (43%)
+
+=== MARK → DOMAIN MAPPING ===
+  Mark 2: mp/me [particle], sin2_thetaW [electroweak], MW_GeV [electroweak]
+  Mark 4: alpha_s [QCD], sin2_theta23 [neutrino]
+  Mark 5: T_CMB [cosmology], MH_GeV [Higgs], Z_boson_MeV [electroweak]
+
+=== EXPONENT SUM = E8 EXPONENT ===
+  7/28 (25%)

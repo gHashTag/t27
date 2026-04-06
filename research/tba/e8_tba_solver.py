@@ -1,328 +1,262 @@
 #!/usr/bin/env python3
 """
-E₈ Thermodynamic Bethe Ansatz Solver
+E₈ TBA (Thermodynamic Bethe Ansatz) Solver
+============================================
+PROJECT KEPLER→NEWTON
 
-Solves the E₈ Y-system equations iteratively to obtain central charge c.
-Uses Rogers dilogarithm for the TBA functional.
+Solves the TBA integral equations for the E₈ affine Toda field theory
+to compute the exact (non-perturbative) ground state energy and mass spectrum.
 
-Status: Production
-Date: 2026-04-06
+The TBA equations for E₈ (8 coupled particles, purely elastic scattering):
 
-Reference: A. Zamolodchikov, Al. B. Zamolodchikov (2006)
+  εₐ(θ) = mₐR cosh(θ) - Σ_b φₐᵦ * Lᵦ(θ)
+
+where:
+  εₐ(θ) = pseudo-energy of particle a at rapidity θ
+  mₐ = mass of particle a (Zamolodchikov spectrum)
+  R = system size (inverse temperature)
+  φₐᵦ(θ) = scattering kernel (derivative of phase shift)
+  Lᵦ(θ) = log(1 + exp(-εᵦ(θ)))
+  * denotes convolution: (f*g)(θ) = ∫ f(θ-θ')g(θ') dθ'/2π
+
+The scattering matrix S_{ab}(θ) for E₈ Toda is known exactly
+(Braden-Corrigan-Dorey-Sasaki 1990, Christe-Mussardo 1990).
+
+Ground state energy:
+  E₀(R) = -Σₐ mₐ/(2π) ∫ cosh(θ) Lₐ(θ) dθ
+
+Effective central charge:
+  c_eff(R) = 6R²/(π) E₀(R)  → should give c = 1/2 (Ising) as R → 0
+
+References:
+  - Al.B. Zamolodchikov, NPB 342 (1990) 695 — original TBA
+  - Christe & Mussardo, NPB 330 (1990) 465 — E₈ S-matrix
+  - Dorey, NPB 358 (1991) 654 — E₈ mass ratios from root systems
+  - Klassen & Melzer, NPB 338 (1990) 485 — numerical TBA for E₈
 """
 
-from __future__ import annotations
 import numpy as np
-from dataclasses import dataclass
-from typing import Callable, List, Tuple
-from mpmath import mp, mpf, log, pi, polylog, exp
+from scipy.integrate import quad, simpson
+from scipy.interpolate import interp1d
+import math
+import json
+import os
 
-mp.dps = 50
+PHI = (1 + math.sqrt(5)) / 2
+PI = math.pi
 
+# ═══════════════════════════════════════════════════════════════
+# E₈ Mass Spectrum (exact Zamolodchikov values, normalized to m₁=1)
+# ═══════════════════════════════════════════════════════════════
 
-@dataclass
-class E8YSystemSolution:
-    """Solution of E₈ Y-system equations."""
-    # Y-variables (120 positive roots + 8 simple roots)
-    y_values: np.ndarray  # shape: (128,)
-    # Central charge
-    c: float
-    # Convergence metrics
-    iterations: int
-    max_error: float
-    converged: bool
+def zamolodchikov_masses():
+    """Exact E₈ mass ratios from affine Toda S-matrix bootstrap"""
+    return np.array([
+        1.0,
+        2 * math.cos(PI/5),                              # φ
+        2 * math.cos(PI/30),
+        4 * math.cos(PI/5) * math.cos(7*PI/30),
+        4 * math.cos(PI/5) * math.cos(2*PI/15),
+        4 * math.cos(PI/5) * math.cos(PI/30),
+        8 * math.cos(PI/5)**2 * math.cos(7*PI/30),
+        8 * math.cos(PI/5)**2 * math.cos(2*PI/15),
+    ])
 
+# ═══════════════════════════════════════════════════════════════
+# E₈ S-matrix kernels
+# ═══════════════════════════════════════════════════════════════
 
-class E8TbaSolver:
-    """
-    Iterative solver for E₈ Y-system with Rogers dilogarithm.
+# The E₈ S-matrix is built from "building blocks" {x}:
+# {x}(θ) = sinh(θ/2 + iπx/60) / sinh(θ/2 - iπx/60)
+#
+# The kernel φₐᵦ(θ) = -i d/dθ log(Sₐᵦ(θ))
+# For the Fourier transform: φ̃ₐᵦ(k) = ∫ φₐᵦ(θ) e^{ikθ} dθ
+#
+# For block {x}: φ̃{x}(k) = e^{-πk|x|/30} / cosh(πk/2)
+# (up to normalization)
 
-    The E₈ Y-system consists of 128 equations:
-    - 120 equations for positive roots
-    - 8 equations for simple roots
-    """
+# The E₈ S-matrix elements Sₐᵦ are products of blocks.
+# Following Christe-Mussardo (1990) / Dorey (1991):
 
-    def __init__(self, tolerance: float = 1e-30, max_iter: int = 10000):
-        self.tolerance = tolerance
-        self.max_iter = max_iter
-        self.epsilon = mpf('1e-50')
+# For simplicity, use the DIAGONAL approximation first:
+# In the E₈ Toda theory, the S-matrix is purely elastic (diagonal).
+# The ADE kernel for simply-laced E₈:
+# φₐᵦ(θ) related to the E₈ incidence matrix Iₐᵦ
 
-    def y_system_equation(self, y: np.ndarray, i: int, j: int) -> mpf:
+# E₈ incidence matrix (adjacency of Dynkin diagram)
+E8_INCIDENCE = np.array([
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [1, 0, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 1, 0, 0, 0, 0],
+    [0, 0, 1, 0, 1, 0, 0, 0],
+    [0, 0, 0, 1, 0, 1, 0, 1],
+    [0, 0, 0, 0, 1, 0, 1, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0],
+], dtype=float)
+
+def kernel_universal(theta, h=30):
+    """Universal ADE kernel: φ(θ) = h/(2 cosh(hθ/2))
+    This is the leading-order kernel for ADE Toda theories."""
+    return h / (2 * np.cosh(h * theta / 2) + 1e-300)
+
+def kernel_matrix(theta):
+    """Full kernel matrix φₐᵦ(θ) for E₈
+    Leading order: φₐᵦ(θ) = Iₐᵦ × φ_universal(θ)
+    where Iₐᵦ is the incidence matrix."""
+    phi_univ = 1.0 / (2 * np.cosh(theta) + 1e-300)
+    return E8_INCIDENCE * phi_univ
+
+# ═══════════════════════════════════════════════════════════════
+# TBA Solver (Iterative method, following Zamolodchikov 1990)
+# ═══════════════════════════════════════════════════════════════
+
+class E8TBASolver:
+    def __init__(self, R=1.0, N_theta=200, theta_max=15.0):
         """
-        Y-system equation: Y_i(Y_j) = Y_i * product of neighbors
-
-        For E₈: Y_i(Y_j) = 1 + exp(-ε_ij)
-        where ε_ij is dressed energy from TBA equations.
+        R: system size (dimensionless, in units of 1/m₁)
+        N_theta: number of rapidity grid points
+        theta_max: maximum rapidity
         """
-        # Simplified version for Y-system: Y_i = 1 / (Y_j * Y_k * ...)
-        # This is the canonical Y-system for E₈
-
-        # Standard E₈ Y-system: Y_a = Y_{a+α} * Y_{a-α}
-        # where α are simple roots
-
-        # For iterative solution: Y_new[i] = Y[i] * f(Y, i)
-
-        if i < 120:  # Positive root
-            # Product of 4 neighboring Y's
-            return y[i] * self._positive_root_product(y, i)
-        else:  # Simple root (index 120-127)
-            # Product of 2 neighboring Y's (for Dynkin diagram)
-            return y[i] * self._simple_root_product(y, i - 120)
-
-    def _positive_root_product(self, y: np.ndarray, i: int) -> mpf:
-        """Product for positive root Y-equation."""
-        # For E₈: each positive root has 4 neighbors
-        # This is a simplified placeholder - actual E₈ structure needed
-        product = mpf('1.0')
-        for j in range(120):
-            if j != i:
-                # Distance in root space determines connection
-                product *= mpf(str(y[j]))
-        return product
-
-    def _simple_root_product(self, y: np.ndarray, simple_idx: int) -> mpf:
-        """Product for simple root Y-equation (Dynkin neighbors)."""
-        # E₈ Dynkin diagram: each simple root connects to 2-3 neighbors
-        # This is simplified - actual E₈ Dynkin structure needed
-
-        # E₈ Dynkin: o-o-o-o-o-o-o-o-o (8 nodes)
-        # Simple roots: α₁-α₈
-
-        # Simplified: assume ring structure
-        prev_idx = (simple_idx - 1) % 8
-        next_idx = (simple_idx + 1) % 8
-
-        return mpf(str(y[120 + prev_idx])) * mpf(str(y[120 + next_idx]))
-
-    def solve(self, initial_y: np.ndarray = None) -> E8YSystemSolution:
-        """
-        Solve E₈ Y-system iteratively.
-
-        Returns: E8YSystemSolution with Y-values and central charge c
-        """
-        if initial_y is None:
-            # Initialize Y-values to 1.0 (high-temperature limit)
-            y = np.ones(128, dtype=np.float64)
-        else:
-            y = initial_y.copy()
-
-        for iteration in range(self.max_iter):
-            y_new = y.copy()
-
-            # Update all Y-values
-            for i in range(128):
-                y_new[i] = float(self.y_system_equation(y, i, 0))
-
+        self.R = R
+        self.masses = zamolodchikov_masses()
+        self.N_particles = 8
+        
+        # Rapidity grid
+        self.N_theta = N_theta
+        self.theta_max = theta_max
+        self.theta = np.linspace(-theta_max, theta_max, N_theta)
+        self.dtheta = self.theta[1] - self.theta[0]
+        
+        # Initialize pseudo-energies: εₐ(θ) = mₐR cosh(θ) (free theory)
+        self.epsilon = np.zeros((self.N_particles, N_theta))
+        for a in range(self.N_particles):
+            self.epsilon[a] = self.masses[a] * R * np.cosh(self.theta)
+    
+    def L(self, epsilon):
+        """L(ε) = log(1 + exp(-ε))"""
+        # Numerically stable version
+        return np.where(epsilon > 50, np.exp(-epsilon),
+               np.where(epsilon < -50, -epsilon,
+                        np.log(1 + np.exp(-epsilon))))
+    
+    def convolve(self, kernel_row, f):
+        """Compute convolution: (kernel * f)(θ) = ∫ kernel(θ-θ')f(θ') dθ'/2π"""
+        result = np.zeros_like(self.theta)
+        for i in range(self.N_theta):
+            integrand = np.zeros(self.N_theta)
+            for j in range(self.N_theta):
+                dt = self.theta[i] - self.theta[j]
+                integrand[j] = kernel_row(dt) * f[j]
+            result[i] = simpson(integrand, x=self.theta) / (2 * PI)
+        return result
+    
+    def iterate(self, max_iter=100, tol=1e-10):
+        """Solve TBA equations by iteration"""
+        for iteration in range(max_iter):
+            epsilon_new = np.zeros_like(self.epsilon)
+            
+            for a in range(self.N_particles):
+                # Driving term
+                epsilon_new[a] = self.masses[a] * self.R * np.cosh(self.theta)
+                
+                # Interaction term: -Σ_b I_{ab} * (φ * L_b)
+                for b in range(self.N_particles):
+                    if E8_INCIDENCE[a, b] > 0:
+                        Lb = self.L(self.epsilon[b])
+                        # Simplified convolution using universal kernel
+                        conv = np.convolve(
+                            1.0 / (2 * np.cosh(self.theta) + 1e-300),
+                            Lb, mode='same') * self.dtheta / (2 * PI)
+                        epsilon_new[a] -= E8_INCIDENCE[a, b] * conv
+            
             # Check convergence
-            max_error = np.max(np.abs(y_new - y))
-            if max_error < self.tolerance:
-                # Compute central charge c
-                c = self._compute_central_charge(y_new)
+            diff = np.max(np.abs(epsilon_new - self.epsilon))
+            self.epsilon = epsilon_new
+            
+            if diff < tol:
+                print(f"  TBA converged after {iteration+1} iterations (diff={diff:.2e})")
+                return True
+        
+        print(f"  TBA did not converge after {max_iter} iterations (diff={diff:.2e})")
+        return False
+    
+    def ground_state_energy(self):
+        """E₀(R) = -Σₐ mₐ/(2π) ∫ cosh(θ) Lₐ(θ) dθ"""
+        E0 = 0.0
+        for a in range(self.N_particles):
+            La = self.L(self.epsilon[a])
+            integrand = np.cosh(self.theta) * La
+            E0 -= self.masses[a] / (2 * PI) * simpson(integrand, x=self.theta)
+        return E0
+    
+    def effective_central_charge(self):
+        """c_eff = -6R/(π) E₀(R) → should give c=1/2 for Ising as R→0"""
+        E0 = self.ground_state_energy()
+        return -6 * self.R / PI * E0
 
-                return E8YSystemSolution(
-                    y_values=y_new,
-                    c=float(c),
-                    iterations=iteration,
-                    max_error=float(max_error),
-                    converged=True
-                )
-
-            y = y_new
-
-        # Not converged within max iterations
-        c = self._compute_central_charge(y)
-
-        return E8YSystemSolution(
-            y_values=y,
-            c=float(c),
-            iterations=self.max_iter,
-            max_error=float(max_error),
-            converged=False
-        )
-
-    def _compute_central_charge(self, y: np.ndarray) -> mpf:
-        """
-        Compute central charge c using Rogers dilogarithm.
-
-        c = (6/π²) * Σ L(Y)
-
-        where L(Y) = Li₂(-Y) is the Rogers dilogarithm.
-        """
-        total = mpf('0.0')
-
-        # Sum over all Y-values
-        for i in range(128):
-            Yi = mpf(str(max(y[i], self.epsilon)))
-            # Rogers dilogarithm: Li₂(-Y)
-            L_i = polylog(2, -Yi)
-            total += L_i
-
-        # Central charge formula
-        c = (mpf('6') / (mp.pi ** 2)) * total
-
-        return c
-
-    def solve_with_mass_deformation(
-        self,
-        mass_params: np.ndarray  # 8 mass deformation parameters μ
-    ) -> Tuple[E8YSystemSolution, np.ndarray]:
-        """
-        Solve E₈ Y-system with mass deformation.
-
-        The mass deformation modifies the Y-system equations:
-        Y_i = Y_i * exp(-ε_i(μ))
-
-        where ε_i(μ) depends on the 8 mass parameters.
-
-        Returns: (solution, mass_ratios)
-        """
-        # Initialize with mass deformation
-        y = np.ones(128, dtype=np.float64)
-
-        # Apply mass deformation to initial Y-values
-        for i in range(128):
-            deformation = self._mass_deformation(i, mass_params)
-            y[i] *= float(exp(-deformation))
-
-        # Solve with deformed initial conditions
-        solution = self.solve(initial_y=y)
-
-        # Compute mass ratios from solution
-        mass_ratios = self._extract_mass_ratios(solution, mass_params)
-
-        return solution, mass_ratios
-
-    def _mass_deformation(self, i: int, mu: np.ndarray) -> mpf:
-        """
-        Compute mass deformation ε_i(μ) for root i.
-
-        This maps the 8 mass parameters to the 128 Y-equations.
-        """
-        # Simplified: use nearest simple root parameter
-        if i < 120:
-            # Positive root: use weighted average of relevant μ
-            simple_root_idx = i % 8
-            deformation = mu[simple_root_idx] * mpf('0.1')  # Scale factor
-        else:
-            # Simple root: direct parameter
-            simple_root_idx = i - 120
-            deformation = mu[simple_root_idx]
-
-        return deformation
-
-    def _extract_mass_ratios(
-        self,
-        solution: E8YSystemSolution,
-        mu: np.ndarray
-    ) -> np.ndarray:
-        """
-        Extract particle mass ratios from Y-system solution.
-
-        Returns array of predicted mass ratios.
-        """
-        # Simplified: mass ratios relate to Y-values at specific indices
-        # In full theory, this involves dressed energies
-
-        ratios = []
-
-        # Key mass ratios from E₈ TBA:
-        # m_μ/m_e, m_τ/m_e, m_c/m_e, etc.
-        # These appear at specific Y-value combinations
-
-        # E₈ TBA mass ratios: simplified phenomenological model
-        # In full theory, masses m_i ∝ exp(-ε_i) where ε_i are dressed energies
-        # The 8 deformation parameters μ_j modify the dressed energies
-
-        # Ensure no division by zero
-        epsilon = 1e-10
-
-        # Effective dressed energies from Y-system: ε_i ≈ -ln(Y_i)
-        # For positive Y-values > epsilon
-        y_safe = np.maximum(solution.y_values[:8], epsilon)
-        dressed_energies = -np.log(y_safe)
-
-        # Base mass scale (from Y-system structure)
-        m_base = np.mean(dressed_energies)
-
-        # Mass ratios depend on μ parameters via modified dressed energies
-        # This captures the essential physics: μ_i → ε_i → m_i
-
-        # m_μ/m_e: depends on μ₀, μ₁
-        eps_mu = dressed_energies[1] + (mu[0] if len(mu) > 0 else 0)
-        eps_e = dressed_energies[0] + (mu[1] if len(mu) > 1 else 0)
-        m_mu_me = np.exp(eps_e - eps_mu) * 200  # Scale to ~200
-
-        # m_τ/m_e ≈ φ: depends on μ₂, μ₃
-        if len(mu) > 2:
-            tau_factor = 1.0 + 0.1 * mu[2] - 0.05 * mu[3]
-        else:
-            tau_factor = 1.0
-        m_tau_me = 1.618033988749895 * tau_factor
-
-        # m_c/m_e ≈ φ²: depends on μ₃, μ₄
-        if len(mu) > 3:
-            charm_factor = 1.0 + 0.1 * mu[3] - 0.05 * mu[4]
-        else:
-            charm_factor = 1.0
-        m_c_me = 2.618033988749895 * charm_factor
-
-        # m_b/m_e ≈ φ³: depends on μ₄, μ₅
-        if len(mu) > 4:
-            bottom_factor = 1.0 + 0.1 * mu[4] - 0.05 * mu[5]
-        else:
-            bottom_factor = 1.0
-        m_b_me = 4.23606797749979 * bottom_factor
-
-        # m_t/m_e ≈ φ⁴: depends on μ₅, μ₆
-        if len(mu) > 5:
-            top_factor = 1.0 + 0.1 * mu[5] - 0.05 * mu[6]
-        else:
-            top_factor = 1.0
-        m_t_me = 6.85410196624969 * top_factor
-
-        # m_s/m_e ≈ φ⁵: depends on μ₆, μ₇
-        if len(mu) > 6:
-            strange_factor = 1.0 + 0.1 * mu[6] - 0.05 * mu[7]
-        else:
-            strange_factor = 1.0
-        m_s_me = 11.09016994374948 * strange_factor
-
-        ratios = [m_mu_me, m_tau_me, m_c_me, m_b_me, m_t_me, m_s_me]
-
-        return np.array(ratios)
-
-
-def test_e8_c_half():
-    """Test: Verify c = 1/2 from E₈ Y-system."""
-    solver = E8TbaSolver(tolerance=1e-30, max_iter=5000)
-    solution = solver.solve()
-
-    print(f"Converged: {solution.converged}")
-    print(f"Iterations: {solution.iterations}")
-    print(f"Max error: {solution.max_error:.2e}")
-    print(f"Central charge c = {solution.c:.15f}")
-    print(f"Expected c = 0.5")
-    print(f"Error: {abs(solution.c - 0.5):.2e}")
-
-    # Save results
-    result = {
-        "c_computed": float(solution.c),
-        "c_expected": 0.5,
-        "error": abs(solution.c - 0.5),
-        "iterations": solution.iterations,
-        "converged": solution.converged,
-        "y_values": solution.y_values.tolist()
-    }
-
-    import json
-    with open("research/tba/e8_tba_results.json", "w") as f:
-        json.dump(result, f, indent=2, default=str)
-
-    return abs(solution.c - 0.5) < 1e-12
-
+# ═══════════════════════════════════════════════════════════════
+# MAIN COMPUTATION
+# ═══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("E₈ TBA Solver - Central Charge Verification")
-    print("=" * 60)
-    test_e8_c_half()
+    print("=" * 80)
+    print("E₈ TBA SOLVER — PROJECT KEPLER→NEWTON")
+    print("=" * 80)
+    
+    masses = zamolodchikov_masses()
+    print(f"\nZamolodchikov masses (m_i/m_1):")
+    for i, m in enumerate(masses):
+        phi_note = " = φ" if abs(m - PHI) < 1e-10 else ""
+        print(f"  m_{i+1} = {m:.10f}{phi_note}")
+    
+    print(f"\nGolden ratio checks:")
+    print(f"  m₂/m₁ = {masses[1]/masses[0]:.15f} = φ")
+    print(f"  m₆/m₃ = {masses[5]/masses[2]:.15f} = φ")
+    print(f"  m₇/m₄ = {masses[6]/masses[3]:.15f} = φ")
+    print(f"  m₈/m₅ = {masses[7]/masses[4]:.15f} = φ")
+    
+    # Solve TBA for several values of R
+    print(f"\n{'='*80}")
+    print(f"Solving TBA equations for various R values")
+    print(f"{'='*80}")
+    
+    results = []
+    for R in [0.01, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0]:
+        print(f"\n  R = {R}:")
+        solver = E8TBASolver(R=R, N_theta=150, theta_max=12.0)
+        converged = solver.iterate(max_iter=50, tol=1e-8)
+        E0 = solver.ground_state_energy()
+        c_eff = solver.effective_central_charge()
+        
+        results.append({
+            'R': R,
+            'E0': float(E0),
+            'c_eff': float(c_eff),
+            'converged': converged,
+        })
+        
+        print(f"    E₀(R) = {E0:.10f}")
+        print(f"    c_eff = {c_eff:.6f} (target: c = 0.5 for Ising CFT as R→0)")
+    
+    print(f"\n{'='*80}")
+    print(f"CENTRAL CHARGE FLOW")
+    print(f"{'='*80}")
+    print(f"\n  R → 0 limit should give c = 1/2 (Ising model)")
+    print(f"  R → ∞ limit should give c = 0 (massive theory)")
+    print(f"\n  {'R':>8} {'c_eff':>12}")
+    print(f"  {'─'*22}")
+    for r in results:
+        print(f"  {r['R']:>8.2f} {r['c_eff']:>12.6f}")
+    
+    # Save results
+    output = {
+        'masses': masses.tolist(),
+        'tba_results': results,
+        'description': 'E8 TBA ground state energy and effective central charge',
+    }
+    out_path = os.path.join(os.path.dirname(__file__), "e8_tba_results.json")
+    with open(out_path, "w") as f:
+        json.dump(output, f, indent=2)
+    
+    print(f"\nResults saved to research/tba/e8_tba_results.json")

@@ -1,0 +1,151 @@
+{
+  "env": {
+    "KAGGLE_API_TOKEN": "",
+    "TRINITY_PROJECT_ROOT": "/path/to/your/trinity-w1",
+    "ZIG_VERSION": "0.15",
+    "TRINITY_MCP_PORT": "8899",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:18789/api/anthropic",
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ANTHROPIC_AUTH_TOKEN": "",
+    "GH_TOKEN": ""
+  },
+  "includeCoAuthoredBy": true,
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "mcp__vibee__*",
+      "mcp__neon__*",
+      "mcp__trinity__*",
+      "mcp__needle__*",
+      "mcp__zig-docs__*",
+      "mcp__railway-mcp-server__*"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(eval:*)"
+    ]
+  },
+  "model": "claude-opus-4-6",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/AlertTones/Modern/Bamboo.m4r"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'CONTEXT REMINDER: Trinity project — Zig 0.15.x, VIBEE-first workflow, phi^2+1/phi^2=3. Skills: /fpga-synth, /vsa-verify, /vibee-gen, /trinity-test. MCP: trinity, needle, zig-docs.'"
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"Branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null)  |  Dirty: $(git status --short 2>/dev/null | wc -l | tr -d ' ') files  |  Last: $(git log -1 --format='%s' 2>/dev/null)\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if echo \"$file_path\" | grep -qE 'var/trinity/output/|trinity/output/|generated/'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Cannot edit generated files. Modify the .vibee spec and run /vibee-gen.\"}}'; else exit 0; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [ -n \"$file_path\" ] && echo \"$file_path\" | grep -q '\\.zig$'; then zig fmt \"$file_path\" 2>/dev/null; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [ -n \"$file_path\" ] && echo \"$file_path\" | grep -q '\\.v$'; then echo 'NOTICE: Verilog file modified. Consider running /fpga-synth to re-synthesize.'; fi"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
+  },
+  "enabledPlugins": {
+    "typescript-lsp@claude-plugins-official": true,
+    "clangd-lsp@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "railway-skills": {
+      "source": {
+        "source": "github",
+        "repo": "railwayapp/railway-skills"
+      }
+    },
+    "claude-code-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-code"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": true,
+  "voiceEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "mcpServers": {
+    "vibee": {
+      "command": "/path/to/your/vibee/gleam/run_mcp.sh",
+      "args": [],
+      "env": {}
+    },
+    "neon": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neondatabase/mcp-server-neon"
+      ],
+      "env": {}
+    },
+    "trinity": {
+      "command": "/path/to/your/trinity-w1/zig-out/bin/trinity-mcp",
+      "args": [],
+      "env": {
+        "TRINITY_MCP_PORT": "8899",
+        "TRINITY_LOG_LEVEL": "info"
+      }
+    },
+    "railway-mcp-server": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@railway/mcp-server"
+      ]
+    }
+  }
+}
