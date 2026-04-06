@@ -167,7 +167,16 @@ fn main() {
             rerun_line(&manifest_dir, &root, &path);
         }
     }
-    for name in ["README.md", "AGENTS.md", "CLAUDE.md", "task.md", "SOUL.md"] {
+    for name in [
+        "README.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "TASK.md",
+        "SOUL.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "CODE_OF_CONDUCT.md",
+    ] {
         let path = root.join(name);
         if path.is_file() {
             if let Err(msg) = scan_cyrillic(&path, name, &allow) {

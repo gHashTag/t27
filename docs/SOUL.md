@@ -16,7 +16,7 @@
 
 **Source files** (`.t27`, `.tri`, `.zig`, `.c`, `.v`, `.verilog`) **MUST NOT** contain Cyrillic or other non-Latin scripts in identifiers or comments (see ADR-004 for ASCII details). **Prose MUST be English.**
 
-**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `task.md`) **MUST be written in English**, except:
+**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`) **MUST be written in English**, except:
 
 - Paths listed in **`docs/.legacy-non-english-docs`** (grandfathered until translated; **no new entries** without Architect approval).
 - Vendored trees under **`external/`** (upstream locales).
@@ -43,18 +43,18 @@
 1. **`cargo build` / `cargo build --release` in `bootstrap/`**: `build.rs` aborts the build if Cyrillic appears in `specs/**/*.t27`, `specs/**/*.tri`, `bootstrap/src/**/*.rs`, `bootstrap/tests/**/*.rs`, or first-party Markdown (same allowlist as CI). Error text cites this law and ADR-004.
 
 2. **Parser Validation**: The parser rejects source files containing Cyrillic with error:
+
    ```
    error: source file contains forbidden characters (Cyrillic U+0400–U+04FF)
    ```
 
 3. **CLI Validation**: `tri lint` and `tri gen` fail on files with Cyrillic:
+
    ```
    $ tri gen specs/my_spec.t27
    error: spec contains Cyrillic characters - not allowed in source files
    ```
-
 4. **Pre-commit Hook**: Git pre-commit hook checks for Cyrillic in staged source files (if installed)
-
 5. **CI**: `scripts/check-first-party-doc-language.sh` on pull requests
 
 ### Violation Example
@@ -87,12 +87,10 @@ Every specification in Trinity **MUST** include at least one `test` or `invarian
 ### Enforcement
 
 1. **Parser Level**: The parser (`compiler/parser/parser.t27`) rejects specs without tests with error:
-   ```
+  ```
    TDD contract violated: spec must contain at least one 'test' or 'invariant' block
-   ```
-
+  ```
 2. **CLI Level**: `tri gen` fails with TDD violation if spec has no tests. No `--allow-no-tests` flag exists (prototype mode is disabled per policy).
-
 3. **Commit Level**: `tri git commit` requires at least one test or invariant in the spec.
 
 ### Syntax
@@ -151,6 +149,7 @@ The following are **VIOLATIONS** of TDD-Inside-Spec Law:
 ### Statement
 
 Any P0/P1 episode in `--strict` mode is considered complete **ONLY** after successful `tri git push` to `github.com/gHashTag/t27` with:
+
 - A bound sealed skill
 - Non-toxic verdict
 - Required artifacts per Policy Matrix
@@ -163,18 +162,20 @@ Any P0/P1 episode in `--strict` mode is considered complete **ONLY** after succe
 
 ### Enforcement
 
-1. **`tri git commit`**: Requires active or sealed skill with bound issue.
-2. **`tri git push`**: Requires sealed skill with non-toxic verdict and proper artifacts.
+1. `**tri git commit`**: Requires active or sealed skill with bound issue.
+2. `**tri git push`**: Requires sealed skill with non-toxic verdict and proper artifacts.
 3. **Strict Mode**: Only allows pushes to `github.com/gHashTag/t27`.
 
 ### Policy Matrix
 
-| Skill Kind | Min Checkpoints | Required Artifacts | Verdict |
-|------------|-----------------|---------------------|---------|
-| Recovery | 3 | spec, docs, checkpoints | NOT TOXIC |
-| Hotfix | 1 | checkpoint (fix-only areas) | NOT TOXIC |
-| Feature | 1 | spec (with tests) | NOT TOXIC |
-| Bugfix | 1 | spec (with tests) | NOT TOXIC |
+
+| Skill Kind | Min Checkpoints | Required Artifacts          | Verdict   |
+| ---------- | --------------- | --------------------------- | --------- |
+| Recovery   | 3               | spec, docs, checkpoints     | NOT TOXIC |
+| Hotfix     | 1               | checkpoint (fix-only areas) | NOT TOXIC |
+| Feature    | 1               | spec (with tests)           | NOT TOXIC |
+| Bugfix     | 1               | spec (with tests)           | NOT TOXIC |
+
 
 ### Workflow
 
@@ -243,8 +244,9 @@ AI agents MUST see `.tri` context and write `.tri`/`.t27` files, never Zig direc
 > 3. **Temporary Bootstrap**: Any new `.zig` file is permitted ONLY as temporary bootstrap layer (I/O, process startup). Domain logic in Zig is forbidden.
 > 4. **Migration Debt**: Any existing handwritten Zig code with domain logic MUST have an explicit migration task to `.t27/.tri`. Creating new debt is forbidden.
 > 5. **Enforcement**:
->    - `tri lint` fails if it detects new `.zig` files without `generated` marker
->    - `tri git push --strict` blocks push if there is diff in `src/` Zig files that did not pass validation
+>   - `tri lint` fails if it detects new `.zig` files without `generated` marker
+>   - `tri git push --strict` blocks push if there is diff in `src/` Zig files that did not pass validation
+
 ### Rationale
 
 1. **Spec-First Philosophy**: `.tri` and `.t27` files are the single source of truth. Zig is a generated backend, not an authoring language.
@@ -254,6 +256,7 @@ AI agents MUST see `.tri` context and write `.tri`/`.t27` files, never Zig direc
 ### Allowed Zig Files
 
 Zig is ONLY permitted for:
+
 1. **Generated backends** - From `.t27` specs with `DO NOT EDIT` header
 2. **Bootstrap layer** - Temporary I/O and process startup (no domain logic)
 3. **Legacy quarantine** - Existing code awaiting migration (with TODO comment)
@@ -262,6 +265,7 @@ Zig is ONLY permitted for:
 ### Forbidden Zig Files
 
 Writing Zig directly is **FORBIDDEN** for:
+
 - CLI commands and routing
 - Runtime domain logic
 - Numeric/mathematical operations
@@ -325,6 +329,7 @@ Files without this header are considered handwritten and will be blocked.
 Before any task, every agent must read `.trinity` as canonical coordination memory.
 
 `.trinity` is the source of truth for:
+
 - Active tasks
 - Agent claims
 - Swarm state
@@ -341,6 +346,7 @@ No agent may mutate any spec, graph node, runtime module, or generated target be
 
 If a claim already exists for the same `spec_path`, `graph_node`, or task resource, the agent must **NOT** proceed with mutation.
 It must either:
+
 - Wait
 - Choose a non-conflicting task
 - Request handoff
@@ -417,6 +423,7 @@ The following are **VIOLATIONS** of Akashic Coordination First Law:
 A writable resource may have only one active mutation owner at a time.
 
 Writable resources include:
+
 - `.t27` / `.tri` spec files
 - Graph nodes
 - Runtime spec modules
@@ -424,6 +431,7 @@ Writable resources include:
 - Generated target scopes
 
 Every active claim must include:
+
 - `agent_id`
 - `task_id`
 - `resource` (spec_path or graph_node)
@@ -537,6 +545,7 @@ Before starting any task, an agent must:
 ### Coordination Law
 
 See `.trinity/policy/coordination-law.md` for full protocol including:
+
 - Claim acquisition and heartbeat
 - Conflict resolution
 - Handoff procedures
