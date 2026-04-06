@@ -1,5 +1,7 @@
 # SOUL — T27 Constitutional Law
 
+**Canonical location:** this file at the **repository root** is the **single source of truth** for Trinity constitutional law. **[`docs/SOUL.md`](docs/SOUL.md)** is an **expanded reference** (detail, examples); if anything disagrees, **this file wins**.
+
 ** Immutable Document — Amendments Require Unanimous Architectural Consent **
 
 > *"A specification without tests is a lie told in the future tense."*
@@ -41,7 +43,7 @@ error: Language policy violation: source file contains Cyrillic characters (U+04
 
 CI runs `scripts/check-first-party-doc-language.sh` on pull requests.
 
-**Compiler build:** `cargo build` in `bootstrap/` runs `build.rs`, which fails the build if Cyrillic appears in specs, bootstrap Rust sources, or unlisted first-party Markdown (see `docs/SOUL.md` Law #1).
+**Compiler build:** `cargo build` in `bootstrap/` runs `build.rs`, which fails the build if Cyrillic appears in specs, bootstrap Rust sources, or unlisted first-party Markdown (this Article; expanded enforcement notes in `docs/SOUL.md` Law #1).
 
 ### §1.4. Rationale
 1. **Universality**: ASCII is universally supported across all platforms and tools

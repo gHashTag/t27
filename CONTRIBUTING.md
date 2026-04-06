@@ -4,7 +4,7 @@ Thank you for helping improve T27. This repository is **spec-first**: behavior l
 
 ## Before you change code or specs
 
-1. Read **[`SOUL.md`](SOUL.md)** (constitutional laws) and **[`docs/SOUL.md`](docs/SOUL.md)** (expanded policy).
+1. Read **[`SOUL.md`](SOUL.md)** at repo root — **canonical** constitutional law. Use **[`docs/SOUL.md`](docs/SOUL.md)** only as **expanded** reference (especially Law #1 detail); if they disagree, **root `SOUL.md` wins**.
 2. Open or reference a **GitHub Issue**; pull requests should satisfy the project **Issue Gate** where applicable (`Closes #N`).
 3. Multi-agent coordination: **[`TASK.md`](TASK.md)** and **[`docs/TASK_PROTOCOL.md`](docs/TASK_PROTOCOL.md)**.
 
@@ -16,7 +16,7 @@ Thank you for helping improve T27. This repository is **spec-first**: behavior l
 
 ## Language
 
-First-party Markdown and source comments must follow **English-first** policy (see `docs/SOUL.md` Law #1 and `architecture/ADR-004-language-policy.md`).
+First-party Markdown and source comments must follow **English-first** policy (see root **`SOUL.md`** Article I; **`docs/SOUL.md`** Law #1 for expansion; **`architecture/ADR-004-language-policy.md`**).
 
 ## Security
 

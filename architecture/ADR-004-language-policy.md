@@ -26,7 +26,7 @@ Non-ASCII characters in source files create several issues:
 
 ## Decision
 
-**Source files MUST be ASCII-only.** **First-party Markdown documentation MUST be English** (see `docs/SOUL.md` Law #1 and `docs/.legacy-non-english-docs` for grandfathered paths). **Vendored trees under `external/` are exempt.**
+**Source files MUST be ASCII-only.** **First-party Markdown documentation MUST be English** (see root **`SOUL.md`** Article I; expanded tables in **`docs/SOUL.md`** Law #1; `docs/.legacy-non-english-docs` for grandfathered paths). **Vendored trees under `external/` are exempt.**
 
 ### Source Files (ASCII-Only)
 
@@ -96,7 +96,7 @@ Every `cargo build` / `cargo build --release` in **`bootstrap/`** runs **`build.
 - `bootstrap/src/**/*.rs`, `bootstrap/tests/**/*.rs`
 - First-party `*.md` (same allowlist as CI: `docs/.legacy-non-english-docs`)
 
-The error message includes file path, line, column, a snippet, and pointers to **docs/SOUL.md** Law #1 and this ADR.
+The error message includes file path, line, column, a snippet, and pointers to **SOUL.md** (root) / **docs/SOUL.md** Law #1 and this ADR.
 
 ### CI: First-party doc language
 
@@ -127,7 +127,8 @@ If documentation needs to reference non-English concepts, use transliteration, U
 
 ## Related Decisions
 
-- [SOUL.md](../docs/SOUL.md) — Constitutional Law #1
+- [SOUL.md](../SOUL.md) — Canonical constitution (Article I)  
+- [docs/SOUL.md](../docs/SOUL.md) — Expanded Law #1 reference
 - [ADR-001: De-Zigfication](ADR-001-de-zigfication.md) — Spec-first philosophy
 - [ADR-003: TDD-Inside-Spec](ADR-003-tdd-inside-spec.md) — TDD enforcement
 

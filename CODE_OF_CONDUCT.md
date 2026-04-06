@@ -16,4 +16,4 @@ For security-sensitive behavior, see **[`SECURITY.md`](SECURITY.md)**.
 
 ## References
 
-Project law and process are documented in **[`SOUL.md`](SOUL.md)**, **[`docs/SOUL.md`](docs/SOUL.md)**, and **[`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md)**.
+**Constitution:** **[`SOUL.md`](SOUL.md)** (root) is canonical. **[`docs/SOUL.md`](docs/SOUL.md)** expands it (not a second constitution). Process: **[`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md)**.
