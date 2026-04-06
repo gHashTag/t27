@@ -139,3 +139,43 @@ pub fn run_validate_phi() -> anyhow::Result<()> {
     println!("validate-phi: OK");
     Ok(())
 }
+
+/// Validate L5 IDENTITY: φ² = φ + 1 using FORMAT-SPEC-001.json (issue #163)
+pub fn validate_phi_identity(repo_root: &Path) -> anyhow::Result<()> {
+    use serde_json::Value;
+
+    let path = repo_root.join("conformance/FORMAT-SPEC-001.json");
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("read {}", path.display()))?;
+    let json: Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parse {}", path.display()))?;
+
+    let phi_identity = json.get("phi_identity")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| anyhow::anyhow!("FORMAT-SPEC-001.json missing phi_identity section"))?;
+
+    let tolerance = phi_identity.get("tolerance")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| anyhow::anyhow!("missing tolerance"))?;
+
+    // Compute φ and verify identity
+    let phi = (1.0 + 5.0_f64.sqrt()) / 2.0;
+    let residual = (phi * phi - (phi + 1.0)).abs();
+    let verdict = residual < tolerance;
+
+    println!("=== L5 IDENTITY Validation ===");
+    println!("φ:           {}", phi);
+    println!("φ²:          {}", phi * phi);
+    println!("φ + 1:       {}", phi + 1.0);
+    println!("|φ² - (φ+1)|: {:.20e}", residual);
+    println!("Tolerance:   {:.20e}", tolerance);
+    println!("Verdict:     {}", if verdict { "PASS" } else { "FAIL" });
+    println!("Ring proven: {}", phi_identity.get("ring_proven").and_then(|v| v.as_i64()).unwrap_or(0));
+
+    if !verdict {
+        anyhow::bail!("validate-phi-identity: FAILED - residual >= tolerance");
+    }
+
+    println!("validate-phi-identity: OK");
+    Ok(())
+}

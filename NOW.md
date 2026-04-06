@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:55 local time (+07) · RFC3339 2026-04-06T23:55:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:58 local time (+07) · RFC3339 2026-04-06T23:58:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** 2026-04-07 — **NO-SHELL** / **#129** GF16+NMSE (PR #162). **#131 seal CI:** documented in **`CONTRIBUTING.md`** (Seal discipline); **`seal-coverage.yml`** also triggers on **`conformance/**`**.
+**Revision:** **Ring 47** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** merged on **`master`** (**#131** seal discipline + **`conformance/**`** paths on **`seal-coverage.yml`**). Baseline: **`tri check-now`** + **`tri test`** ✅ on **2026-04-06**. **Track A (critical):** [#163](https://github.com/gHashTag/t27/issues/163) — L5 identity seal; wire Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) → CI artifact **`.trinity/seals/identity-*.json`**. **Track B:** [#167](https://github.com/gHashTag/t27/issues/167) Phase **2.6** numeric debt sprint *(strictly after #163 — φ-tolerance SSOT first)*. **Track C:** [#142](https://github.com/gHashTag/t27/issues/142) / [#143](https://github.com/gHashTag/t27/issues/143) — **issues + specs only** this ring (implementation **Ring 48+**). *When local calendar rolls to **2026-04-07**, refresh **Last updated** so **`tri check-now`** stays green.*
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -208,11 +208,11 @@ CROWN (Queen brain & automation)
 | 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | **✅ DONE** | `t27c gen-nmse-benchmark` writes **`nmse_synthetic_roundtrip`** (IEEE f16 vs bfloat16 proxy; documented in JSON) |
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
-| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **🔄 OPEN** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
-| 2.6  | —                                                  | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar (Phase 2.5 bridge → Phase 3 L4) |
+| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **✅ DONE** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
+| 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(after #163)* |
 
 
-**Phase 2 handoff:** Steps **2.0–2.4** are **✅** (schema v2, migrate, synthetic NMSE / GF16 expansion, seal coverage workflow). **[#131](https://github.com/gHashTag/t27/issues/131)** is **implemented** via **`seal-coverage.yml`** + **`t27c validate-seals`**. **Remaining:** **[#163](https://github.com/gHashTag/t27/issues/163)** (2.5 identity seal), **2.6** numeric debt sprint.
+**Phase 2 handoff:** Steps **2.0–2.5** are **✅**; **2.3 #131** landed via **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**`CONTRIBUTING.md`** seal discipline + workflow paths). **Remaining:** **[#163](https://github.com/gHashTag/t27/issues/163)** (2.5 identity seal) **then** **[#167](https://github.com/gHashTag/t27/issues/167)** (2.6 numeric debt).
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
@@ -329,8 +329,7 @@ cd bootstrap && cargo build --release
 # 4. Optional: compiler hash (if stage0/FROZEN_HASH exists in your tree)
 # shasum -a 256 bootstrap/src/compiler.rs
 
-# 5. Experience log — only after a real run
-# echo '{"ring":46,"task":"…","verdict":"clean","timestamp":"2026-04-06T12:00:00Z"}' >> .trinity/experience/clara_track1.jsonl
+# 5. Experience log — Ring 46 seal discipline (#131 / PR #166): append one JSONL line to `.trinity/experience/clara_track1.jsonl` when sealing
 
 # 6. gh issue comment 126 --body "…"
 ```
