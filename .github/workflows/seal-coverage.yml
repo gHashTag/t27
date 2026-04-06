@@ -6,6 +6,7 @@ on:
     paths:
       - 'specs/**/*.t27'
       - '.trinity/seals/**'
+      - 'conformance/**'
 
 jobs:
   seal-coverage:

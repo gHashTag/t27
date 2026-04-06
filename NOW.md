@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:27 local time (+07) · RFC3339 2026-04-06T23:27:23+0700
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:55 local time (+07) · RFC3339 2026-04-06T23:55:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** 2026-04-07 — **NO-SHELL**: `scripts/tri` exec shim → `t27c`. **#129:** `t27c expand-gf16` → **50** rows in `gf16_vectors.json`; `t27c gen-nmse-benchmark` → `nmse_synthetic_roundtrip` in `gf_family_bench.json` (synthetic roundtrip NMSE; `half` crate).
+**Revision:** 2026-04-07 — **NO-SHELL** / **#129** GF16+NMSE (PR #162). **#131 seal CI:** documented in **`CONTRIBUTING.md`** (Seal discipline); **`seal-coverage.yml`** also triggers on **`conformance/**`**.
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -209,8 +209,10 @@ CROWN (Queen brain & automation)
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
 | 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **🔄 OPEN** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
-| 2.6  | —                                                  | Numeric debt sprint          | —      | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar |
+| 2.6  | —                                                  | Numeric debt sprint          | **⏳ OPEN** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar (Phase 2.5 bridge → Phase 3 L4) |
 
+
+**Phase 2 handoff:** Steps **2.0–2.4** are **✅** (schema v2, migrate, synthetic NMSE / GF16 expansion, seal coverage workflow). **[#131](https://github.com/gHashTag/t27/issues/131)** is **implemented** via **`seal-coverage.yml`** + **`t27c validate-seals`**. **Remaining:** **[#163](https://github.com/gHashTag/t27/issues/163)** (2.5 identity seal), **2.6** numeric debt sprint.
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
