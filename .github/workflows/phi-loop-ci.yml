@@ -38,8 +38,6 @@ jobs:
           echo "--- E2E GREEN ---"
 
       - name: Ensure tri shim is executable
-
-      - name: Ensure tri shim is executable
         run: chmod +x scripts/tri
 
       - name: "🔒 NOW sync gate (tri check-now)"
