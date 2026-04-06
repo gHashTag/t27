@@ -82,6 +82,7 @@ Usage:
   tri test                            # t27c suite (parse/gen/seal/fixed-point)
   tri validate-conformance [path]     # t27c validate-conformance
   tri validate-gen-headers            # t27c validate-gen-headers
+  tri check-now                       # docs/NOW.md Last updated must be today (local date)
   tri brain …                         # placeholder (see brain charter)
 
 Environment: TRI_T27C=path/to/t27c
@@ -94,6 +95,12 @@ cmd="${1:-}"
     exit 0
 }
 shift || true
+
+case "$cmd" in
+    gen-zig | gen-c | gen-verilog | gen | compile | compile-project | compile-all)
+        bash "$ROOT/scripts/check-now-sync.sh"
+        ;;
+esac
 
 case "$cmd" in
     help | -h | --help)
@@ -163,6 +170,9 @@ case "$cmd" in
         ;;
     validate-gen-headers)
         exec "$T27C" validate-gen-headers --repo-root "$ROOT"
+        ;;
+    check-now)
+        bash "$ROOT/scripts/check-now-sync.sh"
         ;;
     brain)
         echo "tri brain: not implemented in this repository yet." >&2
