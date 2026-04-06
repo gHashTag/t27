@@ -5,7 +5,7 @@
 module Routes {
     use base::types;
 
-    const MAX_ROUTES: u32 = 64
+    const MAX_ROUTES: u32 = 64;
 
     enum HttpMethod {
         GET = 0,
