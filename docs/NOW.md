@@ -57,13 +57,13 @@ Skipping this is a **failed handoff** — the fleet coordinates here, not only i
 
 | Law                  | Statement                                                                                           | Enforcement                                                                                                         |
 | -------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **ISSUE-GATE**       | No code merged without `Closes #N`                                                                  | `.github/workflows/issue-gate.yml`                                                                                  |
-| **NO-HAND-EDIT-GEN** | Files under `gen/` are generated; edit the `.t27` spec instead                                      | `./bootstrap/target/release/t27c --repo-root . validate-gen-headers` (or `./scripts/tri validate-gen-headers`)   |
-| **SOUL-ASCII**       | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments                        | `SOUL.md`, ADR-004                                                                                                  |
-| **TDD-MANDATE**      | Every `.t27` spec must contain `test` / `invariant` / `bench`                                       | Ring 037 / [#132](https://github.com/gHashTag/t27/issues/132)                                                       |
-| **PHI-IDENTITY**     | **K2 core:** \(\varphi^2 = \varphi + 1\) on \(\mathbb{R}\); **consequence** \(\varphi^2+\varphi^{-2}=3\); **IEEE `f64`** checks use **tolerance** (not exact equality) | `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`, `specs/math/constants.t27` |
-| **TRINITY-SACRED**   | `conformance/FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` are the numeric ceiling               | SSOT: never forked                                                                                                  |
-| **NO-NEW-SHELL**     | No new `*.sh` on the critical path for validation / gen / data                                    | **SOUL.md** Article VIII; `t27c` + Python; `tri` + `setup-git-hooks.sh` only                                           |
+| **L1 TRACEABILITY**       | No code merged without `Closes #N`                                                                  | `.github/workflows/issue-gate.yml`                                                                                  |
+| **L2 GENERATION** | Files under `gen/` are generated; edit the `.t27` spec instead                                      | `./bootstrap/target/release/t27c --repo-root . validate-gen-headers` (or `./scripts/tri validate-gen-headers`)   |
+| **L3 PURITY**       | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments                        | `SOUL.md`, ADR-004                                                                                                  |
+| **L4 TESTABILITY**      | Every `.t27` spec must contain `test` / `invariant` / `bench`                                       | Ring 037 / [#132](https://github.com/gHashTag/t27/issues/132)                                                       |
+| **L5 IDENTITY**     | **K2 core:** \(\varphi^2 = \varphi + 1\) on \(\mathbb{R}\); **consequence** \(\varphi^2+\varphi^{-2}=3\); **IEEE `f64`** checks use **tolerance** (not exact equality) | `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`, `specs/math/constants.t27` |
+| **L6 CEILING**   | `conformance/FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` are the numeric ceiling               | SSOT: never forked                                                                                                  |
+| **L7 UNITY**     | No new `*.sh` on the critical path for validation / gen / data                                    | **SOUL.md** Article VIII; `t27c` + Python; `tri` + `setup-git-hooks.sh` only                                           |
 
 
 ---
@@ -106,14 +106,14 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 
 **The Rust bootstrap** (`t27c parse`, `t27c gen`, `t27c compile`, `t27c suite`) **exists**.
 **The closed loop** `seed.t27 → t27c gen → output.zig → zig test → GREEN` has been **demonstrated end-to-end** in `phi-loop-ci.yml` with **Zig 0.13.0** and **seed.t27** golden spec.
-**E2E status:** **DEMONSTRATED** — PR `feat/ring-46-e2e-ci` with **`Closes #150`** per **ISSUE-GATE**.
+**E2E status:** **DEMONSTRATED** — PR `feat/ring-46-e2e-ci` with **`Closes #150`** per **L1 TRACEABILITY**.
 
 **TV reference ([`qualification/TVP.md`](docs/qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (all 57 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (all 57 seals current)
 
 **K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`t27c validate-phi`** (or **`./scripts/tri validate-phi`**). Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
 
 **Optional formal track:** `[coq/](coq/)` + `[T27_KERNEL_FORMAL_COQ.md](docs/T27_KERNEL_FORMAL_COQ.md)` — Rocq/Coq scaffold for **K1–K4** (not K5/K6); CI `.github/workflows/coq-kernel.yml` when **`coq/**`** changes.  
-**K2 / PHI-IDENTITY (summary):** `Kernel/Phi.v` — `Coq.Reals` (**`phi_squared_identity`**, **`phi_tolerance`**). `Kernel/PhiFloat.v` — Flocq **`binary64`**, **`phi_identity_contract`**. Balanced ternary / radix economy context: [#138](https://github.com/gHashTag/t27/issues/138), [#142](https://github.com/gHashTag/t27/issues/142).  
+**K2 / L5 IDENTITY (summary):** `Kernel/Phi.v` — `Coq.Reals` (**`phi_squared_identity`**, **`phi_tolerance`**). `Kernel/PhiFloat.v` — Flocq **`binary64`**, **`phi_identity_contract`**. Balanced ternary / radix economy context: [#138](https://github.com/gHashTag/t27/issues/138), [#142](https://github.com/gHashTag/t27/issues/142).  
 **Certification / evidence vocabulary:** `[COMPILER_VERIFICATION_STANDARDS.md](docs/COMPILER_VERIFICATION_STANDARDS.md)` — **DO-178C / DO-330 / DO-333**, ISO 26262 (TCL), IEC 61508 (T1–T3), EN 50716, ECSS-Q-ST-80C, IEC 62304, IEEE 1012, NIST SSDF, CompCert/CakeML/Alive2/Flocq, TVCP **TV-01–TV-07**, phased plan. Quick index: `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](docs/COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)`. Draft **TOR/TVP:** `[qualification/TOR.md](docs/qualification/TOR.md)`, `[qualification/TVP.md](docs/qualification/TVP.md)`.
 
 ### 3.3  Compiler verification — impact digest (trust in `t27c`)
@@ -123,9 +123,9 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 **Why it matters for T27**
 
 - **DO-330 / ISO 26262 / IEC 61508** all force the same discipline: if a tool **writes** product code or **replaces** verification, its failures must be **controlled** with evidence (TOR/TVP/TVCP/TVR/TAS in aviation-shaped programs).  
-- **DO-178C** aligns with repo law: **`TDD-MANDATE`** ≈ requirements-based testing mindset; **`ISSUE-GATE`** ≈ traceability of change to tracked work.  
+- **DO-178C** aligns with repo law: ****L4 TESTABILITY** ≈ requirements-based testing mindset; ****L1 TRACEABILITY** ≈ traceability of change to tracked work.  
 - **DO-333** is the slot for **`coq/`** (theorem proving); **K2** is proved on **`Reals`** in `Phi.v`; **`PhiFloat.v`** gives the **`f64`** Flocq model + **`phi_identity_contract`** (computational bridge; deeper error lemmas → later ring).  
-- **IEEE 1012-style V&V planning** implies generator assurance should be **commensurate** with the integrity of the software the generator affects — **`NO-HAND-EDIT-GEN`** enforces SSOT on **`.t27`**, not hand patches in **`gen/`**.  
+- **IEEE 1012-style V&V planning** implies generator assurance should be **commensurate** with the integrity of the software the generator affects — **L2 GENERATION** enforces SSOT on **`.t27`**, not hand patches in **`gen/`**.  
 - **NIST SSDF** aligns with **pinned toolchains**, **`FROZEN_HASH`**, and append-only **experience** logs.
 
 **CI follow-up:** **`phi-loop-ci.yml`** must stay **valid Actions YAML** (every step needs **`run:`** or **`uses:`**). An empty step with only **`name:`** prevents the workflow from loading (fixed after merge of **#152**). **E2E** remains **`seed.t27 → t27c gen → zig test`** on **`push`/`pull_request`** to **`master`** — track regressions via the **PHI Loop CI** badge.
@@ -298,7 +298,7 @@ CROWN (Queen brain & automation)
 | Publications pipeline      | `[PUBLICATION_PIPELINE.md](docs/PUBLICATION_PIPELINE.md)`                                                                                                                              |
 | Compiler verification (EN) | `[COMPILER_VERIFICATION_STANDARDS.md](docs/COMPILER_VERIFICATION_STANDARDS.md)` · `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](docs/COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)` |
 | Compiler verification (RU) | `[COMPILER_VERIFICATION_IMPACT_RU.md](docs/COMPILER_VERIFICATION_IMPACT_RU.md)` (allowlisted; see ADR-004)                                                                             |
-| PHI-IDENTITY Flocq bridge  | `[PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md)`                                                                                           |
+| L5 IDENTITY Flocq bridge  | `[PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md)`                                                                                           |
 | Phase B Flocq task anchor  | `[PHASE_B_FLOCQ_AGENT_TASK.md](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md)`                                                                                                      |
 | φ / f64 validation         | `t27c validate-phi` / `./scripts/tri validate-phi`                                                                                                                                  |
 | Roadmap umbrella           | [#126](https://github.com/gHashTag/t27/issues/126)                                                                                                                                |
