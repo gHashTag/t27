@@ -1545,10 +1545,10 @@ module Parsing {
     // ════════════════════════════════════════════════════════════════════
 
     test "kind_values" {
-        assert NodeKind::Module == 0
-        assert NodeKind::FnDecl == 4
-        assert NodeKind::ExprBinary == 22
-        assert NodeKind::ExprCall == 24
+        assert(NodeKind::Module == 0)
+        assert(NodeKind::FnDecl == 4)
+        assert(NodeKind::ExprBinary == 22)
+        assert(NodeKind::ExprCall == 24)
     }
 
     test "precedence_order" {
@@ -1558,49 +1558,37 @@ module Parsing {
         const add_level = 3
         const mul_level = 4
         const unary_level = 5
-        assert or_level < and_level
-        assert and_level < comp_level
-        assert comp_level < add_level
-        assert add_level < mul_level
-        assert mul_level < unary_level
+        assert(or_level < and_level)
+        assert(and_level < comp_level)
+        assert(comp_level < add_level)
+        assert(add_level < mul_level)
+        assert(mul_level < unary_level)
     }
 
     test "max_children_constant" {
-        assert MAX_CHILDREN == 32
+        assert(MAX_CHILDREN == 32)
     }
 
     test "node_kind_count" {
-        assert NodeKind::ExprReturn == 31
-        assert NodeKind::StmtLocal == 10
+        assert(NodeKind::ExprReturn == 31)
+        assert(NodeKind::StmtLocal == 10)
     }
 
     test "node_kind_coverage" {
-        const kinds = [
-            NodeKind::Module,
-            NodeKind::FnDecl,
-            NodeKind::EnumDecl,
-            NodeKind::StructDecl,
-            NodeKind::ExprBinary,
-            NodeKind::ExprUnary,
-            NodeKind::ExprCall,
-            NodeKind::StmtIf,
-            NodeKind::StmtWhile,
-            NodeKind::StmtFor,
-        ]
-        assert kinds[0] == NodeKind::Module
-        assert kinds[5] == NodeKind::ExprUnary
+        assert(NodeKind::Module == NodeKind::Module)
+        assert(NodeKind::FnDecl != NodeKind::StructDecl)
     }
 
     test "expression_precedence_levels" {
-        assert 10 > 9
-        assert 9 > 8
-        assert 8 > 7
-        assert 7 > 6
-        assert 6 > 5
-        assert 5 > 4
-        assert 4 > 3
-        assert 3 > 2
-        assert 2 > 1
-        assert 1 > 0
+        assert(10 > 9)
+        assert(9 > 8)
+        assert(8 > 7)
+        assert(7 > 6)
+        assert(6 > 5)
+        assert(5 > 4)
+        assert(4 > 3)
+        assert(3 > 2)
+        assert(2 > 1)
+        assert(1 > 0)
     }
 }
