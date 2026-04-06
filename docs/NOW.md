@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 033 issue-gate enforcement · RFC3339 2026-04-06T22:00:00Z
+**Last updated:** 2026-04-06 — Tuesday, 07 April 2026 (UTC+07) · Ring 039 CLARA TA1/TA2 checklist · RFC3339 2026-04-06T22:00:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Rings 46+47+49+51+040+045+048 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175), Agent Alphabet (#135), ISA registers (#140), VSA algebra (#144) — all CLOSED. Seal cleanup: JonesPolynomial ring 12→51, SacredPhysics conformance hash fixed. L7 UNITY: NO-PYTHON migration (coq-kernel CI) in progress (#156). 79/79 specs PASS, all seals verified.
