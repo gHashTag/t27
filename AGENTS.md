@@ -54,3 +54,22 @@ Use **domain directories**, not “one folder per agent.” Primary contact for 
 ---
 
 **φ² + 1/φ² = 3 | TRINITY**
+
+---
+
+## 5. Law Reference
+
+The seven **Invariant Laws (L1–L7)** are defined in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment):
+
+| Law | Name | Legacy alias | Summary |
+|-----|------|-------------|---------|
+| **L1** | TRACEABILITY | ISSUE-GATE | No code merged without `Closes #N` |
+| **L2** | GENERATION | NO-HAND-EDIT-GEN | Files under `gen/` are generated; edit specs instead |
+| **L3** | PURITY | SOUL-ASCII | Source files must be ASCII-only with English identifiers |
+| **L4** | TESTABILITY | TDD-MANDATE | Every `.t27` spec must contain `test`/`invariant`/`bench` |
+| **L5** | IDENTITY | PHI-IDENTITY | φ² = φ + 1; φ² + φ⁻² = 3; IEEE f64 checks use tolerance |
+| **L6** | CEILING | TRINITY-SACRED | `FORMAT-SPEC-001.json` + `gf16.t27` are numeric SSOT |
+| **L7** | UNITY | NO-NEW-SHELL | No new `*.sh` on critical path; use `tri`/`t27c` |
+
+**Law Priority:** L1 > L2 > L3 > L4 > L5 > L6 > L7 (Asimov-style hierarchy)
+
