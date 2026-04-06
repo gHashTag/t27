@@ -79,6 +79,7 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 | `docs/nona-03-manifest/MULTI-MODEL-TRUST-CHAIN-ANALYSIS.md` | Trust chain, executable rings, issue enforcement, test pyramid (synthesis note) |
 | `docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md` | Rust seed → `.t27` fixtures → self-eval → self-host; proposed ring/issue spine |
 | `docs/nona-03-manifest/GOLDEN-CHAIN-TESTING-ATLAS.md` | Oracles, metamorphic/differential strategy, framework ladder; complements bootstrap plan |
+| `docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md` | Math/physics test framework charter (ring-aware oracles, `claim_tier`, sprint A–E) |
 | `.cursor/rules/t27-ssot-math.mdc` | Cursor rule for AI agents |
 
 ---

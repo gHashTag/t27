@@ -2,7 +2,7 @@
 
 **Status:** Charter (2026-04-06)  
 **Language:** English (repository policy)  
-**Companion:** **`docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md`** (rings, issue spine, “when tests live in `.t27`”)
+**Companions:** **`docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md`** (rings, issue spine, “when tests live in `.t27`”); **`docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md`** (math/physics test framework, ring-aware oracles, `claim_tier`, CI ladder)
 
 This atlas names **oracles**, **metamorphic** and **differential** strategies, and how they map onto t27’s **Rust seed → Ring 1 fixtures → Ring 2 self-eval** path. It is governance for *what* to test, not a duplicate of the ring schedule.
 

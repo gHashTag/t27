@@ -1,0 +1,82 @@
+name: "Ring test framework (math / physics)"
+description: "Ring 050–054 work — oracle, claim_tier, TDD-CONTRACT (see docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)"
+title: "[ring-test]: "
+labels: ["phi-loop"]
+body:
+  - type: dropdown
+    id: ring
+    attributes:
+      label: Ring (sprint)
+      options:
+        - "050 — Core framework (stdlib/test, tri test)"
+        - "051 — Math (GF4 exhaustive, PBT, NMSE #129)"
+        - "052 — Physics (CODATA, gate pipeline, #145)"
+        - "053 — Brain MR (consistency, recovery, conflict)"
+        - "054 — Publication / arXiv (#136)"
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Primary surface
+      options:
+        - ".t27"
+        - "Rust"
+        - "Both"
+    validations:
+      required: true
+  - type: dropdown
+    id: test_type
+    attributes:
+      label: Test type
+      options:
+        - "unit"
+        - "snapshot"
+        - "pbt"
+        - "metamorphic"
+        - "differential"
+        - "exhaustive"
+        - "formal (Kani / bounded)"
+        - "e2e / suite"
+    validations:
+      required: true
+  - type: dropdown
+    id: oracle
+    attributes:
+      label: Oracle
+      options:
+        - "reference_mpmath"
+        - "golden_snapshot"
+        - "metamorphic_relation"
+        - "kani_formal"
+        - "codata_2022"
+        - "seal"
+        - "mixed"
+    validations:
+      required: true
+  - type: dropdown
+    id: claim_tier
+    attributes:
+      label: claim_tier (scientific claims; use n/a for pure infra)
+      options:
+        - "n/a"
+        - "exact"
+        - "empirical"
+        - "approximate"
+        - "conjectural"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: "Exact command(s) + expected exit code / output. PR must use Closes #N (issue-gate)."
+    validations:
+      required: true
+  - type: input
+    id: closes
+    attributes:
+      label: This issue number (for PR body)
+      description: "e.g. 200 — contributors paste Closes #200 in PR"
+    validations:
+      required: false

@@ -10,6 +10,8 @@
 
 This document defines the TDD (Test-Driven Development) contract for Trinity t27 specifications. The contract enforces that **every specification must include tests** — tests are not optional, they are mandatory.
 
+**See also:** **[`T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md`](T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)** — target `specs/test_framework/` layout, ring-aware oracles, **`claim_tier`**, and sprint **050–054** issue discipline.
+
 ---
 
 ## The Contract
