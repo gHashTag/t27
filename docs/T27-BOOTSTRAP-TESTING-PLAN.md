@@ -4,7 +4,7 @@
 **Date:** 2026-04-06  
 **Audience:** Compiler, QA, and ring owners  
 
-This document turns the **bootstrap compiler** story into an executable roadmap: when tests may be **authored** in `.t27`, when they are **executed** by Rust vs by t27 itself, and how issues should be structured. It complements **`docs/GOLDEN-RINGS-CANON.md`** and **`docs/MULTI-MODEL-TRUST-CHAIN-ANALYSIS.md`**.
+This document turns the **bootstrap compiler** story into an executable roadmap: when tests may be **authored** in `.t27`, when they are **executed** by Rust vs by t27 itself, and how issues should be structured. It complements **`docs/GOLDEN-RINGS-CANON.md`**, **`docs/MULTI-MODEL-TRUST-CHAIN-ANALYSIS.md`**, and **`docs/GOLDEN-CHAIN-TESTING-ATLAS.md`** (oracles, metamorphic/differential framing).
 
 ---
 
@@ -32,9 +32,11 @@ Until then, **Rust** owns the runner and the harness; `.t27` files may still exi
 
 These are **backlog templates**, not reserved GitHub numbers:
 
-| Range | Theme |
-|-------|--------|
+
+| Range  | Theme                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------- |
 | #1–#10 | Rust-only hardening: CI, parser/eval/snapshot smoke, reproducible builds, optional commit/issue hooks |
+
 
 Examples (rename/re-scope when opening real issues):
 
@@ -44,11 +46,11 @@ Examples (rename/re-scope when opening real issues):
 - **#4** Eval `1 + 1` → `2` (only if/when an eval path exists in seed)  
 - **#5** Domain check for a small numeric type (e.g. GF4)  
 - **#6–#7** AST / diagnostic snapshots  
-- **#8** Optional: commit hook requiring issue reference (align with **`.github/workflows/issue-gate.yml`** for PRs)  
+- **#8** Optional: commit hook requiring issue reference (align with `**.github/workflows/issue-gate.yml`** for PRs)  
 - **#9** Locked / reproducible toolchain for CI  
-- **#10** SPEC-000 style “hello world”: parse (+ gen) canonical fixture  
+- **#10** SPEC-000 style “hello world”: parse (+ gen) canonical fixture
 
-**Exit criterion (conceptual):** a documented **`tri`-family command** (or equivalent) can run a minimal `hello.t27` through the seed **without panic** and with bounded, tested behavior. Exact command names evolve with the CLI.
+**Exit criterion (conceptual):** a documented `**tri`-family command** (or equivalent) can run a minimal `hello.t27` through the seed **without panic** and with bounded, tested behavior. Exact command names evolve with the CLI.
 
 ---
 
@@ -60,21 +62,23 @@ Examples (rename/re-scope when opening real issues):
 
 ### Proposed issue spine #11–#25
 
-| ID | Direction |
-|----|-----------|
-| #11 | Runner: `tri run <file.t27>` (or `t27c run`) → capture stdout / exit code |
-| #12 | **First `.t27` fixture:** e.g. `ring1/assert_eq.t27` |
-| #13 | GF4 (or chosen domain) arithmetic fixture |
-| #14 | Parse / round-trip fixture |
-| #15 | Property tests on Rust generating `.t27` snippets → run under runner |
-| #16 | Golden/snapshot outputs for all Ring 1 fixtures |
-| #17 | CI: every Ring 1 `.t27` fixture passes via seed |
-| #18 | Differential: same fixture → Rust eval vs reference (e.g. high-precision library), where applicable |
-| #19 | Parser fuzzing (`cargo-fuzz` or equivalent) |
-| #20 | Formal / exhaustive checks where cheap (e.g. small finite domains) |
-| #21–#23 | First conformance-style vectors expressed as `.t27` or JSON sidecars |
-| #24 | Experience log: Ring 1 learnings → `.trinity/experience/` |
-| #25 | **Milestone:** Ring 1 sealed (seal event + green suite) |
+
+| ID      | Direction                                                                                           |
+| ------- | --------------------------------------------------------------------------------------------------- |
+| #11     | Runner: `tri run <file.t27>` (or `t27c run`) → capture stdout / exit code                           |
+| #12     | **First `.t27` fixture:** e.g. `ring1/assert_eq.t27`                                                |
+| #13     | GF4 (or chosen domain) arithmetic fixture                                                           |
+| #14     | Parse / round-trip fixture                                                                          |
+| #15     | Property tests on Rust generating `.t27` snippets → run under runner                                |
+| #16     | Golden/snapshot outputs for all Ring 1 fixtures                                                     |
+| #17     | CI: every Ring 1 `.t27` fixture passes via seed                                                     |
+| #18     | Differential: same fixture → Rust eval vs reference (e.g. high-precision library), where applicable |
+| #19     | Parser fuzzing (`cargo-fuzz` or equivalent)                                                         |
+| #20     | Formal / exhaustive checks where cheap (e.g. small finite domains)                                  |
+| #21–#23 | First conformance-style vectors expressed as `.t27` or JSON sidecars                                |
+| #24     | Experience log: Ring 1 learnings → `.trinity/experience/`                                           |
+| #25     | **Milestone:** Ring 1 sealed (seal event + green suite)                                             |
+
 
 ---
 
@@ -82,27 +86,29 @@ Examples (rename/re-scope when opening real issues):
 
 **This is the main inflection point (“Bootstrap Day”).** The language is rich enough to:
 
-1. Read `.t27` as data (source string)  
-2. Parse inside t27  
-3. Evaluate  
-4. Assert  
+1. Read `.t27` as data (source string)
+2. Parse inside t27
+3. Evaluate
+4. Assert
 
 ### Proposed issue spine #26–#40
 
-| ID | Direction |
-|----|-----------|
-| #26 | Meta-eval / exec in `.t27` |
-| #27 | **First self-referential test:** e.g. `ring2/self_eval.t27` — `eval("let x = 1 + 1")` → `2` |
-| #28 | Minimal test framework in `.t27` (`test`, `assert_eq`, failure reporting) |
-| #29–#31 | GF4 / parser / type-system tests **authored and run in .t27** |
-| #32–#33 | Metamorphic relations (e.g. commutativity, round-trip) in `.t27` |
-| #34 | Differential / reference oracles where still needed |
-| #35 | Ring 2 conformance suite (vector set) |
-| #36 | CI: Ring 2 suite runs via **.t27 runner** entrypoint |
-| #37 | Rust runner only on the cold-start / bootstrap path |
-| #38 | Coverage / metamorphic-coverage targets (policy TBD) |
-| #39 | Experience log v2 |
-| #40 | **Milestone:** Ring 2 sealed — **Bootstrap Day** |
+
+| ID      | Direction                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------- |
+| #26     | Meta-eval / exec in `.t27`                                                                  |
+| #27     | **First self-referential test:** e.g. `ring2/self_eval.t27` — `eval("let x = 1 + 1")` → `2` |
+| #28     | Minimal test framework in `.t27` (`test`, `assert_eq`, failure reporting)                   |
+| #29–#31 | GF4 / parser / type-system tests **authored and run in .t27**                               |
+| #32–#33 | Metamorphic relations (e.g. commutativity, round-trip) in `.t27`                            |
+| #34     | Differential / reference oracles where still needed                                         |
+| #35     | Ring 2 conformance suite (vector set)                                                       |
+| #36     | CI: Ring 2 suite runs via **.t27 runner** entrypoint                                        |
+| #37     | Rust runner only on the cold-start / bootstrap path                                         |
+| #38     | Coverage / metamorphic-coverage targets (policy TBD)                                        |
+| #39     | Experience log v2                                                                           |
+| #40     | **Milestone:** Ring 2 sealed — **Bootstrap Day**                                            |
+
 
 ---
 
@@ -119,7 +125,7 @@ The **test framework** and most suites live in `.t27`. Rust is needed mainly to 
 - **#52** First **brain** reasonableness tests (e.g. metamorphic paraphrase consistency — charter-level)  
 - **#53** Sacred physics / φ-ratio tests with dimensional or metamorphic oracles  
 - **#54** Experience log v3  
-- **#55** Ring 3 sealed  
+- **#55** Ring 3 sealed
 
 (Adjust numbering when merging with real GitHub milestones.)
 
@@ -157,18 +163,20 @@ oracle:       [reference | golden | metamorphic_relation | formal_proof | seal]
 acceptance:   concrete pass criteria (command + expected outcome)
 ```
 
-**Policy alignment:** “No issue → no merge” is already enforced for PRs via **`.github/workflows/issue-gate.yml`** (linked issues / `Closes #N`). Extending the same discipline to **every local commit** (git hook) is optional and should be tracked as its own issue.
+**Policy alignment:** “No issue → no merge” is already enforced for PRs via **`.github/workflows/issue-gate.yml`** (linked issues / `Closes #N`). Extending the same discipline to **every local commit** (git hook) is optional and should be tracked as its own issue. For new issues in this area, use the GitHub template **Bootstrap testing** (`.github/ISSUE_TEMPLATE/bootstrap-testing.yml`).
 
 ---
 
 ## Canonical answer: “On which ring can we write tests in `.t27`?”
 
-| Ring | Write test in `.t27`? | Executes via |
-|------|------------------------|----------------|
-| 0 | Only as **specs** consumed by Rust (`specs/`, `compiler/`) | Rust (`t27c suite`, etc.) |
-| 1 | **Yes** — as **fixtures** | **Rust runner** |
-| 2 | **Yes** — full programs + framework | **t27 interpreter on t27** |
-| 3+ | **Yes** — compiled test binaries / modules | **t27-compiled code** (+ minimal Rust shim) |
+
+| Ring | Write test in `.t27`?                                      | Executes via                                |
+| ---- | ---------------------------------------------------------- | ------------------------------------------- |
+| 0    | Only as **specs** consumed by Rust (`specs/`, `compiler/`) | Rust (`t27c suite`, etc.)                   |
+| 1    | **Yes** — as **fixtures**                                  | **Rust runner**                             |
+| 2    | **Yes** — full programs + framework                        | **t27 interpreter on t27**                  |
+| 3+   | **Yes** — compiled test binaries / modules                 | **t27-compiled code** (+ minimal Rust shim) |
+
 
 Moving tests to `.t27` is not stylistic preference — it is an **architectural milestone**. Ring 1 starts when the first **executable** `.t27` fixture lands (#12-class work). Ring 2 marks **autonomy** (#27 / #40-class work).
 
@@ -176,8 +184,9 @@ Moving tests to `.t27` is not stylistic preference — it is an **architectural 
 
 ## References
 
+- **`docs/GOLDEN-CHAIN-TESTING-ATLAS.md`** — oracle taxonomy, metamorphic/differential testing, framework ladder  
 - Bootstrapping (compilers): [Wikipedia — Bootstrapping](https://en.wikipedia.org/wiki/Bootstrapping_(compilers))  
-- Readable metacompiler / bootstrap narrative: [tmewett — Bootstrapping](https://tmewett.com/bootstrapping-metacompiling/)  
+- Readable metacompiler / bootstrap narrative: [tmewett — Bootstrapping](https://tmewett.com/bootstrapping-metacompiling/)
 
 ---
 

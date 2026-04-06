@@ -49,6 +49,8 @@ This document captures a cross-model consensus useful for t27 governance: prefer
 
 Primary runner in this repository: **`t27c suite`** (see `bootstrap/src/suite.rs`, `tests/comprehensive_suite.t27`). Legacy `tests/*.sh` runners were removed because they could **false-pass** seal verification (e.g. broken `pipefail` / `grep` pipelines).
 
+Roadmap (rings, when `.t27` tests execute under Rust vs t27): **`docs/T27-BOOTSTRAP-TESTING-PLAN.md`**. Testing oracles and metamorphic/differential strategy: **`docs/GOLDEN-CHAIN-TESTING-ATLAS.md`**.
+
 ---
 
 **φ² + 1/φ² = 3 | TRINITY**

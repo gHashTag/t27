@@ -1,7 +1,7 @@
 # Golden Rings Canon — where the gold is, what is refactor trash
 
 **Status:** Active  
-**Companion:** `docs/SEED-RINGS.md`, `bootstrap/stage0/FROZEN_HASH`, `docs/T27-CONSTITUTION.md`, `docs/T27-BOOTSTRAP-TESTING-PLAN.md`  
+**Companion:** `docs/SEED-RINGS.md`, `bootstrap/stage0/FROZEN_HASH`, `docs/T27-CONSTITUTION.md`, `docs/T27-BOOTSTRAP-TESTING-PLAN.md`, `docs/GOLDEN-CHAIN-TESTING-ATLAS.md`  
 
 This document defines **GOLD** (canonical, ring-sealed, must stay green) versus **REFACTOR-HEAP** (explicit debt — code we tolerate until a ring or ADR removes it). **Nothing outside the golden cycle is product truth.**
 

@@ -62,6 +62,12 @@ Ring 0 establishes the minimal viable compiler:
 
 ---
 
+## Related: bootstrap testing roadmap
+
+Ring **schedules**, when tests are authored in **`.t27`** vs executed only by Rust, and the **issue spine**: **`docs/T27-BOOTSTRAP-TESTING-PLAN.md`**. Oracle vocabulary (golden, metamorphic, differential): **`docs/GOLDEN-CHAIN-TESTING-ATLAS.md`**. Planned Ring 1 fixture directory: **`tests/ring1/`**.
+
+---
+
 ## Related: language discipline
 
 Agents must not treat “any script” as the product. **SEED** is the minimal Rust bootstrap to parse `.t27`; all other languages on the critical path are **debt**. See **`docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`** for the Queen Lotus cleanup inventory and **[trinity](https://github.com/gHashTag/trinity)** umbrella alignment.
