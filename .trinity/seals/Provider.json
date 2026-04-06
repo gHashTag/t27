@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:8464ba004e36812ac5f4543972ec30e6422b83c5c550aade8d0a339af063c837",
   "module": "Provider",
   "ring": 12,
-  "sealed_at": "2026-04-06T14:43:48Z",
+  "sealed_at": "2026-04-06T22:22:49Z",
   "spec_hash": "sha256:35c5b29c0a41f3c6169d4ae45f6f2c89a52029f17643aa476b37712a4254c528",
   "spec_path": "specs/server/provider.t27"
 }
