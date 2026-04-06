@@ -1195,17 +1195,28 @@ impl Parser {
             return ty;
         }
 
-        // Handle slice/array prefix: []Type, [N]Type, []const Type
+        // Handle slice/array prefix: []Type, [N]Type, [[f64; 8]; 8], []const Type
         while self.current.kind == TokenKind::LBracket {
             ty.push('[');
             self.advance(); // consume [
-            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                ty.push_str(&self.current.lexeme);
-                self.advance();
-            }
-            ty.push(']');
-            if self.current.kind == TokenKind::RBracket {
-                self.advance();
+            let mut depth: usize = 1;
+            while depth > 0 && self.current.kind != TokenKind::Eof {
+                match self.current.kind {
+                    TokenKind::LBracket => {
+                        depth += 1;
+                        ty.push('[');
+                        self.advance();
+                    }
+                    TokenKind::RBracket => {
+                        depth -= 1;
+                        ty.push(']');
+                        self.advance();
+                    }
+                    _ => {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
             }
         }
 
@@ -1341,18 +1352,29 @@ impl Parser {
                 }
             }
         } else if self.current.kind == TokenKind::LBracket {
-            // Handle one or more bracket levels: []Type, [][]const u8, [N]Type
+            // Handle one or more bracket levels: []Type, [][]const u8, [N]Type, [[f64; 8]; 8]
             let mut rt = String::new();
             while self.current.kind == TokenKind::LBracket {
                 rt.push('[');
                 self.advance(); // consume [
-                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                    rt.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                rt.push(']');
-                if self.current.kind == TokenKind::RBracket {
-                    self.advance();
+                let mut depth: usize = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBracket => {
+                            depth += 1;
+                            rt.push('[');
+                            self.advance();
+                        }
+                        TokenKind::RBracket => {
+                            depth -= 1;
+                            rt.push(']');
+                            self.advance();
+                        }
+                        _ => {
+                            rt.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    }
                 }
             }
             // Handle 'const' qualifier in return type: []const u8
