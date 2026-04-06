@@ -3086,8 +3086,8 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
-                if node.name == "@compileAssert" {
-                    // @compileAssert is not valid Zig — emit as comptime assert pattern
+                if node.name == "@compileAssert" || node.name == "assert" {
+                    // @compileAssert/assert is not valid Zig — emit as comptime assert pattern
                     if !node.children.is_empty() {
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
