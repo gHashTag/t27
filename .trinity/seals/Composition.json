@@ -1,10 +1,10 @@
 {
-  "gen_hash_c": "sha256:9ac7e3354bce19794f1969c3dbea88489a51937421c63063660d5990e8797338",
-  "gen_hash_verilog": "sha256:a7572b4aba8c53be511d9e88589b8040a7b3b7f7184e10fa0d35656f48945bbc",
-  "gen_hash_zig": "sha256:f7d19a5e12a60a8434b27dbf5dfdd17226df060350a38fba8ede6f4fe9a47c6d",
+  "gen_hash_c": "sha256:9ae0c962b73a8ebad43080b23982c2de59ff331f5119b2e34b71d3c0f8f91cc2",
+  "gen_hash_verilog": "sha256:2960664a08998f0a47fb7d0ee45ae39612fed8dcd3ca36fcf8d65b48f0f6ebfd",
+  "gen_hash_zig": "sha256:da92a8e010b1a6554b9ae19a518545e75ccbe7f409e3cbc745d35728500f966e",
   "module": "Composition",
   "ring": 12,
-  "sealed_at": "2026-04-06T09:46:30Z",
+  "sealed_at": "2026-04-06T14:43:48Z",
   "spec_hash": "sha256:2fb9382777d17c70796a78aba5de5f8ab72fb10ada959a72457b0c9e44f50112",
   "spec_path": "specs/ar/composition.t27"
 }
