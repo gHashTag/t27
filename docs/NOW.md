@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 21:30 local time (UTC+07) · RFC3339 2026-04-06T21:30:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:30 local time (UTC+07) · RFC3339 2026-04-06T23:30:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** 2026-04-06 — **#150** E2E CI **DEMONSTRATED** (seed.t27 → t27c gen → zig test → GREEN) · TV-01/02 **PASS** · PR `feat/ring-46-e2e-ci`
+**Revision:** 2026-04-06 — **#150** CLOSED (PR #152 merged) · E2E CI DEMONSTRATED · TV-01/02 PASS · Phase 1 COMPLETE
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
@@ -90,7 +90,7 @@ find conformance -name "*.json" | wc -l
 
 The **table counts** above are *ring narrative* snapshots; refresh them when you seal a ring.
 
-### 3.2  Critical open gap
+### 3.2  E2E compiler loop (#150 closed)
 
 ```
 bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
@@ -125,7 +125,7 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 - **IEEE 1012-style V&V planning** implies generator assurance should be **commensurate** with the integrity of the software the generator affects — **`NO-HAND-EDIT-GEN`** enforces SSOT on **`.t27`**, not hand patches in **`gen/`**.  
 - **NIST SSDF** aligns with **pinned toolchains**, **`FROZEN_HASH`**, and append-only **experience** logs.
 
-**Immediate blocker (unchanged):** until **`seed.t27 → t27c gen → zig test → GREEN`** runs as **one advertised CI job**, end-to-end “we can show the compiler pipeline works” remains **weaker than** the standards narrative we are writing. That job is **Phase 1 / NOW §5 step 1.5** — **[#150](https://github.com/gHashTag/t27/issues/150)**.
+**CI follow-up:** **`phi-loop-ci.yml`** must stay **valid Actions YAML** (every step needs **`run:`** or **`uses:`**). An empty step with only **`name:`** prevents the workflow from loading (fixed after merge of **#152**). **E2E** remains **`seed.t27 → t27c gen → zig test`** on **`push`/`pull_request`** to **`master`** — track regressions via the **PHI Loop CI** badge.
 
 **Russian full narrative (impact per section):** `[COMPILER_VERIFICATION_IMPACT_RU.md](COMPILER_VERIFICATION_IMPACT_RU.md)` — allowlisted Cyrillic companion; **English SSOT** remains `[COMPILER_VERIFICATION_STANDARDS.md](COMPILER_VERIFICATION_STANDARDS.md)`.
 
@@ -154,7 +154,7 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 | [#143](https://github.com/gHashTag/t27/issues/143) | 047  | Math         | K3 logic truth table — 27-entry isomorphism    |
 | [#144](https://github.com/gHashTag/t27/issues/144) | 048  | VSA          | Trit-space bind/unbind formal spec             |
 | [#145](https://github.com/gHashTag/t27/issues/145) | 049  | Physics      | Sacred physics hard-tolerance conformance      |
-| [#150](https://github.com/gHashTag/t27/issues/150) | —    | CI           | E2E CI: `seed.t27` → `t27c gen` → `zig test` → GREEN |
+| [#150](https://github.com/gHashTag/t27/issues/150) *(closed)* | —    | CI           | E2E CI: `seed.t27` → `t27c gen` → `zig test` → GREEN |
 
 
 *Confirm issue titles with `gh issue view` if links drift.*
@@ -192,7 +192,7 @@ CROWN (Queen brain & automation)
 | 1.2  | [#132](https://github.com/gHashTag/t27/issues/132) | Parser enforces SOUL.md                                    | Spec without `test`/`invariant`/`bench` → error (when enforced) |
 | 1.3  | [#127](https://github.com/gHashTag/t27/issues/127) | Canonicalise `TASK.md` + iteration schema                  | `tri check-now` passes on clean repo                            |
 | 1.4  | —                                                  | Verify `FORMAT-SPEC-001.json` + `gf16.t27` as numeric SSOT | Numeric PRs link to these                                       |
-| 1.5  | [#150](https://github.com/gHashTag/t27/issues/150) | Document / CI **seed → gen → zig test**                    | Minimal golden spec path green in CI; PRs **`Closes #150`**      |
+| 1.5  | [#150](https://github.com/gHashTag/t27/issues/150) *(closed)* | Document / CI **seed → gen → zig test**                    | **✅** Minimal golden path in **`phi-loop-ci.yml`**; landed **PR [#152](https://github.com/gHashTag/t27/pull/152)**      |
 
 
 ### Phase 2 — Stem: Conformance + benchmarks + seals *(next)*
@@ -263,7 +263,7 @@ CROWN (Queen brain & automation)
 | ------------------- | ------------ | ----------------------------------------- | ----------------------------------- |
 | `pre-commit`        | local commit | `tri check-now`; `NOW.md` date            | active if hooks installed           |
 | `issue-gate.yml`    | PR           | `Closes #N`                               | see badge / Actions                 |
-| `phi-loop-ci.yml`   | push         | parse / gen / conformance (see workflow) | **⚠️ E2E gap** — [#150](https://github.com/gHashTag/t27/issues/150) |
+| `phi-loop-ci.yml`   | push / PR    | E2E + `tri` suite + conformance (see workflow) | **E2E in CI** — [#150](https://github.com/gHashTag/t27/issues/150) **closed** |
 | `now-sync-gate.yml` | push         | `NOW.md` freshness window                 | see badge / Actions                 |
 | **Conformance**     | CI / local   | `t27c validate-conformance --repo-root .` | run locally or in CI                |
 | **Gen headers**     | CI / local   | `t27c validate-gen-headers --repo-root .` | run locally or in CI                |
@@ -301,14 +301,14 @@ CROWN (Queen brain & automation)
 
 ## § 9  Next actions (48 h)
 
-**Priority:** Close **E2E** `seed.t27 → t27c gen → zig test → GREEN` in **phi-loop CI** — **[#150](https://github.com/gHashTag/t27/issues/150)** (see **§3.2–3.3**, **§5 Phase 1 step 1.5**). Everything else is secondary until that loop is green.
+**Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 1 step 1.5** ([#150](https://github.com/gHashTag/t27/issues/150)) is **closed** — shift focus to **Phase 2 — Stem** (conformance / benchmarks / seal coverage); see **§5**.
 
 ```bash
 # 0. NOW gate — run FIRST before any commit (otherwise push / hooks may fail)
 ./scripts/tri check-now
 
-# 1. E2E CI issue (created — link PRs with Closes #150)
-# gh issue view 150
+# 1. E2E CI — #150 closed (PR #152); verify Actions after workflow edits
+# gh run list --workflow=phi-loop-ci.yml --limit 3
 
 # 2. Milestone hygiene (needs gh auth)
 # gh issue edit 127 128 129 130 131 132 133 --milestone "EPOCH-01-HARDEN"
