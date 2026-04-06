@@ -2,6 +2,7 @@
 //! Invoked as `t27c suite` from the repository root (or `tri test`).
 
 use anyhow::Context;
+use chrono::Local;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -320,4 +321,140 @@ pub fn validate_gen_headers(repo_root: &Path) -> anyhow::Result<()> {
     } else {
         anyhow::bail!("HEADER FAILURES DETECTED");
     }
+}
+
+fn char_boundary_indices(line: &str) -> Vec<usize> {
+    line.char_indices()
+        .map(|(i, _)| i)
+        .chain(std::iter::once(line.len()))
+        .collect()
+}
+
+fn first_yyyy_mm_dd_in_line(line: &str) -> Option<String> {
+    let idx = char_boundary_indices(line);
+    for &i in &idx {
+        if i + 10 > line.len() {
+            continue;
+        }
+        let Some(slice) = line.get(i..i + 10) else {
+            continue;
+        };
+        if !slice.is_ascii() {
+            continue;
+        }
+        if chrono::NaiveDate::parse_from_str(slice, "%Y-%m-%d").is_ok() {
+            return Some(slice.to_string());
+        }
+    }
+    None
+}
+
+/// First RFC3339 timestamp on the line (UTC `…Z` or numeric offset `…+07:00`), if any.
+fn optional_rfc3339_stamp(line: &str) -> Option<String> {
+    let idx = char_boundary_indices(line);
+    for (k, &i) in idx.iter().enumerate() {
+        if i + 10 > line.len() {
+            continue;
+        }
+        let date = match line.get(i..i + 10) {
+            Some(s) if s.is_ascii() => s,
+            _ => continue,
+        };
+        if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
+            continue;
+        }
+        let mut longest: Option<String> = None;
+        for &j in idx.iter().skip(k + 1) {
+            if j < i + 19 {
+                continue;
+            }
+            let Some(cand) = line.get(i..j) else {
+                continue;
+            };
+            if chrono::DateTime::parse_from_rfc3339(cand).is_ok() {
+                longest = Some(cand.to_string());
+            }
+        }
+        if let Some(s) = longest {
+            return Some(s);
+        }
+    }
+    None
+}
+
+/// Gate: `docs/NOW.md` must contain `Last updated:` with today's calendar date (local timezone).
+/// Used by `tri` before gen/compile and by CI (see `phi-loop-ci.yml`).
+pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
+    let repo = fs::canonicalize(repo_root)?;
+    let now_file = repo.join("docs/NOW.md");
+    let today = Local::now().format("%Y-%m-%d").to_string();
+
+    if !now_file.is_file() {
+        eprintln!(
+            "tri/CI: docs/NOW.md not found at {}",
+            now_file.display()
+        );
+        anyhow::bail!("NOW.md missing");
+    }
+
+    let content = fs::read_to_string(&now_file)?;
+    let line = content
+        .lines()
+        .find(|l| l.contains("Last updated:"))
+        .unwrap_or("");
+    let last = first_yyyy_mm_dd_in_line(line);
+
+    if last.as_deref() != Some(today.as_str()) {
+        eprintln!(
+            r#"
+
+╔═══════════════════════════════════════════════════════════════╗
+║              ⛔  BUILD BLOCKED: SYNC REQUIRED                  ║
+╠═══════════════════════════════════════════════════════════════╣
+║  docs/NOW.md is STALE. All agents must be synchronized       ║
+║  before any build can proceed.                               ║
+╠═══════════════════════════════════════════════════════════════╣
+║  STEPS TO UNBLOCK:                                            ║
+║                                                               ║
+║  1. Read coordination anchor:                                 ║
+║     https://github.com/gHashTag/t27/issues/141               ║
+║                                                               ║
+║  2. Read agent sync state:                                    ║
+║     cat .trinity/state/github-sync.json                      ║
+║                                                               ║
+║  3. Update docs/NOW.md:                                       ║
+║     - Set calendar date YYYY-MM-DD (must match today locally) ║
+║     - Use your local wall time (see NOW.md header template)   ║
+║     - Update sprint status + what you build and why           ║
+║                                                               ║
+║  4. Stage and commit NOW.md with your changes:               ║
+║     git add docs/NOW.md && git commit --amend                ║
+╚═══════════════════════════════════════════════════════════════╝
+"#
+        );
+        eprintln!(
+            "(Expected Last updated: {}; found: {})",
+            today,
+            last.as_deref().unwrap_or("<none>")
+        );
+        anyhow::bail!("NOW.md stale");
+    }
+
+    if let Some(ts) = optional_rfc3339_stamp(line) {
+        let human = chrono::DateTime::parse_from_rfc3339(&ts)
+            .map(|dt| {
+                let local = dt.with_timezone(&Local);
+                local
+                    .format("%A, %d %B %Y · %H:%M local time (%:z)")
+                    .to_string()
+            })
+            .unwrap_or_else(|_| ts.clone());
+        println!(
+            "✅ NOW.md synced — gate date {} — doc time {} [{}] — build authorized",
+            today, human, ts
+        );
+    } else {
+        println!("✅ NOW.md synced ({}) — build authorized", today);
+    }
+    Ok(())
 }

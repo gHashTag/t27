@@ -2,6 +2,8 @@
 
 **Status:** Active audit list  
 **Canon:** `docs/nona-02-organism/NUMERIC-STANDARD-001.md` — **GF16 is PRIMARY** for inference; other GoldenFloat widths are **family members**, not substitutes for “IEEE f32/f64 everywhere.”  
+**Why not GF16 everywhere yet?** **`docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md`**.  
+**Public GF-first surface (policy + constants):** **`specs/numeric/trinity_numeric_surface.t27`** → **`gen/zig/numeric/trinity_numeric_surface.zig`**.  
 **Tag legend:**
 - **`[REFERENCE]`** — Spec intentionally defines multiple formats; keep until family is collapsed by ADR.
 - **`[DEBT-f64]`** — Uses IEEE `f64` (or pervasive `f64` math); **should migrate** to GF16 (or explicit GF20/GF24 only where standard allows) per product path.
@@ -15,6 +17,7 @@
 | File | Tag | Notes |
 |------|-----|-------|
 | `specs/numeric/gf16.t27` | **CANON** | Primary format; target state for product numerics. |
+| `specs/numeric/trinity_numeric_surface.t27` | **POLICY** | Declares GF raw words as preferred **public** interchange; IEEE only **[BRIDGE]**. |
 | `specs/numeric/gf4.t27` | `[REFERENCE]` | Smallest GF; only for masks/sparsity stories — not default compute. |
 | `specs/numeric/gf8.t27` | `[REFERENCE]` | Compression tier. |
 | `specs/numeric/gf12.t27` | `[REFERENCE]` | Was “attention, embeddings” in table — **conflicts** with GF16-primary; treat as **legacy width** unless ADR demotes GF12 from hot path. |

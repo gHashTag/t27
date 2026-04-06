@@ -9,9 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "🔒 NOW sync gate"
-        run: bash scripts/check-now-sync.sh
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -22,14 +19,17 @@ jobs:
       - name: Ensure tri shim is executable
         run: chmod +x scripts/tri
 
-      - name: Run comprehensive test suite (t27c suite)
-        run: ./bootstrap/target/release/t27c suite --repo-root .
+      - name: "🔒 NOW sync gate (tri check-now)"
+        run: ./scripts/tri check-now
 
-      - name: Validate conformance vectors
-        run: ./bootstrap/target/release/t27c validate-conformance --repo-root .
+      - name: Run comprehensive test suite (tri test)
+        run: ./scripts/tri test
 
-      - name: Validate gen headers
-        run: ./bootstrap/target/release/t27c validate-gen-headers --repo-root .
+      - name: Validate conformance vectors (tri validate-conformance)
+        run: ./scripts/tri validate-conformance
+
+      - name: Validate gen headers (tri validate-gen-headers)
+        run: ./scripts/tri validate-gen-headers
 
       - name: Verify seal coverage
         run: |

@@ -22,6 +22,7 @@ First-party docs follow the **27-agent trinity alphabet** grouping: **three nona
 | Path | Role |
 |------|------|
 | [`coordination/TASK_PROTOCOL.md`](coordination/TASK_PROTOCOL.md) | Inter-agent TASK protocol. |
+| [`coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md`](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md) | Phased plan: seed → tests → Queen brain (`tri`/`t27c`, conformance, codegen gap). |
 | [`coordination/inter-agent-handoff/`](coordination/inter-agent-handoff/) | Portable handoff bundle. |
 
 ## [`nona-01-foundation/`](nona-01-foundation/) — agents **A–I**
