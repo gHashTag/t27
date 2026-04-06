@@ -15,7 +15,7 @@ Let \(\varphi = (1+\sqrt5)/2\). Then
 \varphi^2 = \frac{3+\sqrt5}{2},\quad \frac{1}{\varphi^2} = \frac{3-\sqrt5}{2},\quad \varphi^2 + \frac{1}{\varphi^2} = 3.
 \]
 
-**t27:** Constants and commentary in **`specs/math/constants.t27`**; interchange tolerances in **`FORMAT-SPEC-001.json`** (`TRINITY`). **Floating-point** equality at runtime is **not** exact—use stated tolerances or integer/rational proofs in docs.
+**t27:** Constants and commentary in **`specs/math/constants.t27`**; interchange tolerances in **`FORMAT-SPEC-001.json`** (`TRINITY`). **Floating-point** equality at runtime is **not** exact—use stated tolerances or integer/rational proofs in docs. **Formal (Rocq/Coq):** exact \(\varphi\) identities in **`coq/Kernel/Phi.v`**; engineering scale **`phi_tolerance`** \(= 5\cdot 2^{-53}\cdot\varphi^2\) on **`R`**; IEEE bridge plan in **`docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`** and **`coq/Kernel/PhiFloat.v`**.
 
 **Bridge to ternary:** The scalar **3** aligns with **three-valued** logic / trits as a **design metaphor**; the formal link is specified in **`specs/ar/ternary_logic.t27`** and related modules—not via floating-point identity alone.
 
