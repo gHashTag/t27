@@ -1,46 +1,207 @@
 {
-  "module": "SpecCommands",
-  "spec_path": "compiler/cli/spec.t27",
-  "ring": 36,
-  "generated_at": "2026-04-04T21:00:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "is_valid_spec_name",
-      "cases": [
-        { "inputs": { "name": "valid_name" }, "expected": true },
-        { "inputs": { "name": "another123" }, "expected": true },
-        { "inputs": { "name": "a" }, "expected": true },
-        { "inputs": { "name": "" }, "expected": false },
-        { "inputs": { "name": "Invalid-Name" }, "expected": false },
-        { "inputs": { "name": "123start" }, "expected": false },
-        { "inputs": { "name": "has.dots" }, "expected": false }
-      ]
+      "name": "spec_create_latency",
+      "target": "< 10ms"
     },
     {
-      "function": "spec_create",
-      "cases": [
-        { "inputs": { "name": "test_spec", "path": "" }, "expected": 0 },
-        { "inputs": { "name": "", "path": "" }, "expected": 1 }
-      ]
+      "name": "spec_validate_latency",
+      "target": "< 5ms"
     },
     {
-      "function": "generate_spec_template",
-      "cases": [
-        { "inputs": { "name": "test" }, "expected_contains": [".test", ".invariant", ".bench"] }
-      ]
+      "name": "spec_list_latency",
+      "target": "< 10ms"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:00:00Z",
   "invariants": [
-    { "name": "spec_create_returns_zero_or_one", "assert": "Returns 0 on success, 1 on failure" },
-    { "name": "is_valid_spec_name_rejects_empty", "assert": "Empty name is never valid" },
-    { "name": "is_valid_spec_name_requires_lowercase_start", "assert": "First char must be a-z" },
-    { "name": "generate_spec_template_includes_tdd", "assert": "Template includes TDD contract" },
-    { "name": "validate_tdd_compliance_checks_all", "assert": "Checks test, invariant, spec_decl" },
-    { "name": "parse_context_has_errors_returns_bool", "assert": "has_errors() returns bool" }
+    {
+      "assert": "Returns 0 on success, 1 on failure",
+      "name": "spec_create_returns_zero_or_one"
+    },
+    {
+      "assert": "Empty name is never valid",
+      "name": "is_valid_spec_name_rejects_empty"
+    },
+    {
+      "assert": "First char must be a-z",
+      "name": "is_valid_spec_name_requires_lowercase_start"
+    },
+    {
+      "assert": "Template includes TDD contract",
+      "name": "generate_spec_template_includes_tdd"
+    },
+    {
+      "assert": "Checks test, invariant, spec_decl",
+      "name": "validate_tdd_compliance_checks_all"
+    },
+    {
+      "assert": "has_errors() returns bool",
+      "name": "parse_context_has_errors_returns_bool"
+    }
   ],
-  "benchmarks": [
-    { "name": "spec_create_latency", "target": "< 10ms" },
-    { "name": "spec_validate_latency", "target": "< 5ms" },
-    { "name": "spec_list_latency", "target": "< 10ms" }
-  ]
+  "module": "SpecCommands",
+  "ring": 36,
+  "schema_version": 2,
+  "seal": "sha256:b7a449218d02e73c1782c97fe674806cff69f81b97d2191fe94ed8a41b87173d",
+  "spec_path": "compiler/cli/spec.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_cli_spec Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "name": "valid_name"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "name": "another123"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "name": "a"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "name": ""
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "name": "Invalid-Name"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "name": "123start"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "name": "has.dots"
+          }
+        }
+      ],
+      "function": "is_valid_spec_name",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "name": "test_spec",
+            "path": ""
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "name": "",
+            "path": ""
+          }
+        }
+      ],
+      "function": "spec_create",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": [
+            ".test",
+            ".invariant",
+            ".bench"
+          ],
+          "inputs": {
+            "name": "test"
+          }
+        }
+      ],
+      "function": "generate_spec_template",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_spec_create_returns_zero_or_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_is_valid_spec_name_rejects_empty",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_is_valid_spec_name_requires_lowercase_start",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_spec_template_includes_tdd",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_validate_tdd_compliance_checks_all",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_parse_context_has_errors_returns_bool",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

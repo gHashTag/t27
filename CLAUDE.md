@@ -47,3 +47,19 @@ If your environment exposes **skills** (e.g. coding-workflow, commit-push-pr), l
 ---
 
 **Repository:** Trinity S³AI — **t27** (spec-first ternary / TRI-27). **φ² + 1/φ² = 3 | TRINITY**
+---
+
+## The 7 Invariant Laws
+
+| Law | Name | Description |
+|------|------|-------------|
+| L1 | TRACEABILITY | No code merged without `Closes #N` |
+| L2 | GENERATION | Files under `gen/` are generated; edit specs instead |
+| L3 | PURITY | Source files must be ASCII-only with English identifiers |
+| L4 | TESTABILITY | Every `.t27` spec must contain `test`/`invariant`/`bench` |
+| L5 | IDENTITY | φ² = φ + 1; φ² + φ⁻² = 3; IEEE f64 checks use tolerance |
+| L6 | CEILING | `FORMAT-SPEC-001.json` + `gf16.t27` are numeric SSOT |
+| L7 | UNITY | No new `*.sh` on critical path; use `tri`/`t27c` |
+
+See [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment) for full details.
+

@@ -1,282 +1,392 @@
 {
-  "module": "ZeroDSP_MAC",
-  "spec_path": "specs/fpga/mac.t27",
-  "ring": 28,
-  "generated_at": "2026-04-04T19:00:00Z",
-  "description": "ZeroDSP FPGA MAC conformance vectors -- 8 parallel MAC units, 4-stage pipeline, ternary LUT",
-  "encoding": {
-    "trit_neg": -1,
-    "trit_zero": 0,
-    "trit_pos": 1,
-    "pack_neg": 2,
-    "pack_zero": 0,
-    "pack_pos": 1,
-    "note": "Packed encoding uses 2 bits per trit: 0b00=zero, 0b01=pos, 0b10=neg"
-  },
   "constants": {
-    "MAC_WIDTH": 27,
     "MAC_ACC_BITS": 32,
+    "MAC_WIDTH": 27,
     "NUM_MAC_UNITS": 8,
     "PIPELINE_STAGES": 4,
-    "STATUS_READY": 0,
     "STATUS_BUSY": 1,
-    "STATUS_DONE": 2
+    "STATUS_DONE": 2,
+    "STATUS_READY": 0
   },
-  "mac_lut": {
-    "description": "9-entry LUT for ternary multiplication: index = (a+1)*3 + (b+1)",
-    "entries": [
-      {"index": 0, "a": -1, "b": -1, "result":  1},
-      {"index": 1, "a": -1, "b":  0, "result":  0},
-      {"index": 2, "a": -1, "b":  1, "result": -1},
-      {"index": 3, "a":  0, "b": -1, "result":  0},
-      {"index": 4, "a":  0, "b":  0, "result":  0},
-      {"index": 5, "a":  0, "b":  1, "result":  0},
-      {"index": 6, "a":  1, "b": -1, "result": -1},
-      {"index": 7, "a":  1, "b":  0, "result":  0},
-      {"index": 8, "a":  1, "b":  1, "result":  1}
-    ]
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "ZeroDSP FPGA MAC conformance vectors -- 8 parallel MAC units, 4-stage pipeline, ternary LUT",
+  "encoding": {
+    "note": "Packed encoding uses 2 bits per trit: 0b00=zero, 0b01=pos, 0b10=neg",
+    "pack_neg": 2,
+    "pack_pos": 1,
+    "pack_zero": 0,
+    "trit_neg": -1,
+    "trit_pos": 1,
+    "trit_zero": 0
   },
-  "vectors": {
-    "extract_trit": {
-      "description": "Trit extraction from packed TernaryWord",
-      "cases": [
-        {
-          "id": "mac_extract_trit_zero",
-          "word_raw": 0,
-          "index": 0,
-          "expected_trit": 0
-        },
-        {
-          "id": "mac_extract_trit_pos",
-          "word_raw": 1,
-          "index": 0,
-          "expected_trit": 1
-        },
-        {
-          "id": "mac_extract_trit_neg",
-          "word_raw": 2,
-          "index": 0,
-          "expected_trit": -1
-        }
-      ]
-    },
-    "pack_trit": {
-      "description": "Trit packing roundtrip",
-      "cases": [
-        {
-          "id": "mac_pack_trit_roundtrip_pos",
-          "trit": 1,
-          "index": 0,
-          "expected_packed": 1
-        },
-        {
-          "id": "mac_pack_trit_roundtrip_neg",
-          "trit": -1,
-          "index": 0,
-          "expected_packed": 2
-        },
-        {
-          "id": "mac_pack_trit_roundtrip_zero",
-          "trit": 0,
-          "index": 0,
-          "expected_packed": 0
-        }
-      ]
-    },
-    "mac_multiply": {
-      "description": "Trit-wise multiplication using LUT",
-      "cases": [
-        {
-          "id": "mac_lut_multiply_pos_pos",
-          "a_trit0": 1,
-          "b_trit0": 1,
-          "expected_trit0": 1,
-          "note": "(+1)*(+1) = +1"
-        },
-        {
-          "id": "mac_lut_multiply_neg_neg",
-          "a_trit0": -1,
-          "b_trit0": -1,
-          "expected_trit0": 1,
-          "note": "(-1)*(-1) = +1"
-        },
-        {
-          "id": "mac_lut_multiply_pos_neg",
-          "a_trit0": 1,
-          "b_trit0": -1,
-          "expected_trit0": -1,
-          "note": "(+1)*(-1) = -1"
-        },
-        {
-          "id": "mac_lut_multiply_with_zero",
-          "a_trit0": 1,
-          "b_trit0": 0,
-          "expected_trit0": 0,
-          "note": "(+1)*(0) = 0"
-        }
-      ]
-    },
-    "mac_cycle": {
-      "description": "Single MAC cycle: acc += dot(a,b)",
-      "cases": [
-        {
-          "id": "mac_cycle_with_zero_accumulator",
-          "a_trits": [1, 1],
-          "b_trits": [1, 1],
-          "initial_acc": 0,
-          "expected_acc": 2,
-          "note": "Two pos*pos products = 2"
-        },
-        {
-          "id": "mac_cycle_with_initial_accumulator",
-          "a_trits": [1],
-          "b_trits": [1],
-          "initial_acc": 5,
-          "expected_acc": 6,
-          "note": "5 + (1*1) = 6"
-        }
-      ]
-    },
-    "mac_dot_product": {
-      "description": "Full vector dot product",
-      "cases": [
-        {
-          "id": "mac_dot_product_simple",
-          "a_words": [{"trit0": 1}, {"trit0": 1}],
-          "b_words": [{"trit0": 1}, {"trit0": 1}],
-          "len": 2,
-          "expected": 2
-        },
-        {
-          "id": "mac_dot_product_with_negatives",
-          "a_words": [{"trit0": 1}, {"trit0": -1}],
-          "b_words": [{"trit0": 1}, {"trit0": 1}],
-          "len": 2,
-          "expected": 0
-        }
-      ]
-    },
-    "mac_status": {
-      "description": "MAC unit status tracking",
-      "cases": [
-        {
-          "id": "mac_status_initially_ready",
-          "unit": 0,
-          "expected": 0
-        },
-        {
-          "id": "mac_status_after_operation_is_done",
-          "unit": 0,
-          "operation": "multiply",
-          "expected": 2
-        }
-      ]
-    },
-    "mac_reset": {
-      "description": "MAC unit reset clears accumulator and status",
-      "cases": [
-        {
-          "id": "mac_reset_clears_accumulator",
-          "unit": 0,
-          "expected_acc_after_reset": 0
-        },
-        {
-          "id": "mac_reset_clears_status",
-          "unit": 0,
-          "expected_status_after_reset": 0
-        },
-        {
-          "id": "mac_reset_all_clears_all_units",
-          "units_checked": [0, 1],
-          "expected_acc": 0
-        }
-      ]
-    },
-    "mac_invalid_unit": {
-      "description": "Invalid unit handling",
-      "cases": [
-        {
-          "id": "mac_invalid_unit_returns_zero",
-          "unit": 99,
-          "expected_raw": 0
-        }
-      ]
-    },
-    "mac_matrix_vector": {
-      "description": "Matrix-vector multiplication",
-      "cases": [
-        {
-          "id": "mac_matrix_vector_2x2",
-          "mat": [[1,0],[0,1]],
-          "vec": [1, 1],
-          "rows": 2,
-          "cols": 2,
-          "expected_result": [1, 1],
-          "note": "Identity matrix times [1,1] = [1,1]"
-        }
-      ]
-    }
-  },
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T19:00:00Z",
   "invariants": [
     {
-      "id": "mac_lut_size_constant",
       "description": "MAC_LUT has exactly 9 entries (3x3)",
+      "id": "mac_lut_size_constant",
       "value": 9
     },
     {
-      "id": "mac_lut_covers_all_combinations",
-      "description": "MAC_LUT.len == 3*3"
+      "description": "MAC_LUT.len == 3*3",
+      "id": "mac_lut_covers_all_combinations"
     },
     {
-      "id": "mac_num_units_constant",
       "description": "NUM_MAC_UNITS == 8",
+      "id": "mac_num_units_constant",
       "value": 8
     },
     {
-      "id": "mac_width_constant",
       "description": "MAC_WIDTH == 27",
+      "id": "mac_width_constant",
       "value": 27
     },
     {
-      "id": "mac_pipeline_stages_constant",
       "description": "PIPELINE_STAGES == 4",
+      "id": "mac_pipeline_stages_constant",
       "value": 4
     },
     {
-      "id": "mac_lut_correctness_pos_pos",
-      "description": "MAC_LUT[8] == 1: (+1,+1) -> +1"
+      "description": "MAC_LUT[8] == 1: (+1,+1) -> +1",
+      "id": "mac_lut_correctness_pos_pos"
     },
     {
-      "id": "mac_lut_correctness_neg_neg",
-      "description": "MAC_LUT[0] == 1: (-1,-1) -> +1"
+      "description": "MAC_LUT[0] == 1: (-1,-1) -> +1",
+      "id": "mac_lut_correctness_neg_neg"
     },
     {
-      "id": "mac_lut_correctness_pos_neg",
-      "description": "MAC_LUT[6] == -1: (+1,-1) -> -1"
+      "description": "MAC_LUT[6] == -1: (+1,-1) -> -1",
+      "id": "mac_lut_correctness_pos_neg"
     },
     {
-      "id": "mac_lut_correctness_with_zero",
-      "description": "All zero-involving entries are 0"
+      "description": "All zero-involving entries are 0",
+      "id": "mac_lut_correctness_with_zero"
     },
     {
-      "id": "mac_status_range_valid",
-      "description": "Status in {READY, BUSY, DONE}"
+      "description": "Status in {READY, BUSY, DONE}",
+      "id": "mac_status_range_valid"
     },
     {
-      "id": "mac_reset_clears_accumulator",
-      "description": "After reset, accumulator == 0"
+      "description": "After reset, accumulator == 0",
+      "id": "mac_reset_clears_accumulator"
     },
     {
-      "id": "mac_reset_sets_status_ready",
-      "description": "After reset, status == READY"
+      "description": "After reset, status == READY",
+      "id": "mac_reset_sets_status_ready"
     },
     {
-      "id": "mac_dot_product_commutes_with_scalar",
-      "description": "dot(a,b) == dot(b,a) for single-element vectors"
+      "description": "dot(a,b) == dot(b,a) for single-element vectors",
+      "id": "mac_dot_product_commutes_with_scalar"
     },
     {
-      "id": "mac_units_independent",
-      "description": "Operations on unit 0 do not affect unit 1"
+      "description": "Operations on unit 0 do not affect unit 1",
+      "id": "mac_units_independent"
     }
-  ]
+  ],
+  "mac_lut": {
+    "description": "9-entry LUT for ternary multiplication: index = (a+1)*3 + (b+1)",
+    "entries": [
+      {
+        "a": -1,
+        "b": -1,
+        "index": 0,
+        "result": 1
+      },
+      {
+        "a": -1,
+        "b": 0,
+        "index": 1,
+        "result": 0
+      },
+      {
+        "a": -1,
+        "b": 1,
+        "index": 2,
+        "result": -1
+      },
+      {
+        "a": 0,
+        "b": -1,
+        "index": 3,
+        "result": 0
+      },
+      {
+        "a": 0,
+        "b": 0,
+        "index": 4,
+        "result": 0
+      },
+      {
+        "a": 0,
+        "b": 1,
+        "index": 5,
+        "result": 0
+      },
+      {
+        "a": 1,
+        "b": -1,
+        "index": 6,
+        "result": -1
+      },
+      {
+        "a": 1,
+        "b": 0,
+        "index": 7,
+        "result": 0
+      },
+      {
+        "a": 1,
+        "b": 1,
+        "index": 8,
+        "result": 1
+      }
+    ]
+  },
+  "module": "ZeroDSP_MAC",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:f2c2b9a2fd0b5e0652c594f64cefda71f269d164cf8f85c2b930ebabe52c10d4",
+  "spec_path": "specs/fpga/mac.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "fpga_mac Vectors",
+  "vectors": {
+    "extract_trit": {
+      "cases": [
+        {
+          "expected_trit": 0,
+          "id": "mac_extract_trit_zero",
+          "index": 0,
+          "word_raw": 0
+        },
+        {
+          "expected_trit": 1,
+          "id": "mac_extract_trit_pos",
+          "index": 0,
+          "word_raw": 1
+        },
+        {
+          "expected_trit": -1,
+          "id": "mac_extract_trit_neg",
+          "index": 0,
+          "word_raw": 2
+        }
+      ],
+      "description": "Trit extraction from packed TernaryWord"
+    },
+    "mac_cycle": {
+      "cases": [
+        {
+          "a_trits": [
+            1,
+            1
+          ],
+          "b_trits": [
+            1,
+            1
+          ],
+          "expected_acc": 2,
+          "id": "mac_cycle_with_zero_accumulator",
+          "initial_acc": 0,
+          "note": "Two pos*pos products = 2"
+        },
+        {
+          "a_trits": [
+            1
+          ],
+          "b_trits": [
+            1
+          ],
+          "expected_acc": 6,
+          "id": "mac_cycle_with_initial_accumulator",
+          "initial_acc": 5,
+          "note": "5 + (1*1) = 6"
+        }
+      ],
+      "description": "Single MAC cycle: acc += dot(a,b)"
+    },
+    "mac_dot_product": {
+      "cases": [
+        {
+          "a_words": [
+            {
+              "trit0": 1
+            },
+            {
+              "trit0": 1
+            }
+          ],
+          "b_words": [
+            {
+              "trit0": 1
+            },
+            {
+              "trit0": 1
+            }
+          ],
+          "expected": 2,
+          "id": "mac_dot_product_simple",
+          "len": 2
+        },
+        {
+          "a_words": [
+            {
+              "trit0": 1
+            },
+            {
+              "trit0": -1
+            }
+          ],
+          "b_words": [
+            {
+              "trit0": 1
+            },
+            {
+              "trit0": 1
+            }
+          ],
+          "expected": 0,
+          "id": "mac_dot_product_with_negatives",
+          "len": 2
+        }
+      ],
+      "description": "Full vector dot product"
+    },
+    "mac_invalid_unit": {
+      "cases": [
+        {
+          "expected_raw": 0,
+          "id": "mac_invalid_unit_returns_zero",
+          "unit": 99
+        }
+      ],
+      "description": "Invalid unit handling"
+    },
+    "mac_matrix_vector": {
+      "cases": [
+        {
+          "cols": 2,
+          "expected_result": [
+            1,
+            1
+          ],
+          "id": "mac_matrix_vector_2x2",
+          "mat": [
+            [
+              1,
+              0
+            ],
+            [
+              0,
+              1
+            ]
+          ],
+          "note": "Identity matrix times [1,1] = [1,1]",
+          "rows": 2,
+          "vec": [
+            1,
+            1
+          ]
+        }
+      ],
+      "description": "Matrix-vector multiplication"
+    },
+    "mac_multiply": {
+      "cases": [
+        {
+          "a_trit0": 1,
+          "b_trit0": 1,
+          "expected_trit0": 1,
+          "id": "mac_lut_multiply_pos_pos",
+          "note": "(+1)*(+1) = +1"
+        },
+        {
+          "a_trit0": -1,
+          "b_trit0": -1,
+          "expected_trit0": 1,
+          "id": "mac_lut_multiply_neg_neg",
+          "note": "(-1)*(-1) = +1"
+        },
+        {
+          "a_trit0": 1,
+          "b_trit0": -1,
+          "expected_trit0": -1,
+          "id": "mac_lut_multiply_pos_neg",
+          "note": "(+1)*(-1) = -1"
+        },
+        {
+          "a_trit0": 1,
+          "b_trit0": 0,
+          "expected_trit0": 0,
+          "id": "mac_lut_multiply_with_zero",
+          "note": "(+1)*(0) = 0"
+        }
+      ],
+      "description": "Trit-wise multiplication using LUT"
+    },
+    "mac_reset": {
+      "cases": [
+        {
+          "expected_acc_after_reset": 0,
+          "id": "mac_reset_clears_accumulator",
+          "unit": 0
+        },
+        {
+          "expected_status_after_reset": 0,
+          "id": "mac_reset_clears_status",
+          "unit": 0
+        },
+        {
+          "expected_acc": 0,
+          "id": "mac_reset_all_clears_all_units",
+          "units_checked": [
+            0,
+            1
+          ]
+        }
+      ],
+      "description": "MAC unit reset clears accumulator and status"
+    },
+    "mac_status": {
+      "cases": [
+        {
+          "expected": 0,
+          "id": "mac_status_initially_ready",
+          "unit": 0
+        },
+        {
+          "expected": 2,
+          "id": "mac_status_after_operation_is_done",
+          "operation": "multiply",
+          "unit": 0
+        }
+      ],
+      "description": "MAC unit status tracking"
+    },
+    "pack_trit": {
+      "cases": [
+        {
+          "expected_packed": 1,
+          "id": "mac_pack_trit_roundtrip_pos",
+          "index": 0,
+          "trit": 1
+        },
+        {
+          "expected_packed": 2,
+          "id": "mac_pack_trit_roundtrip_neg",
+          "index": 0,
+          "trit": -1
+        },
+        {
+          "expected_packed": 0,
+          "id": "mac_pack_trit_roundtrip_zero",
+          "index": 0,
+          "trit": 0
+        }
+      ],
+      "description": "Trit packing roundtrip"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

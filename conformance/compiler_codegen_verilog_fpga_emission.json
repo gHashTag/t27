@@ -1,62 +1,76 @@
 {
-  "module": "fpga_emission",
-  "spec_path": "compiler/codegen/verilog/fpga_emission.t27",
-  "ring": 43,
-  "generated_at": "2026-04-05T12:00:00Z",
-  "description": "FPGA emission conformance vectors -- top module, UART, SPI Verilog code generation",
   "constants": {},
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "FPGA emission conformance vectors -- top module, UART, SPI Verilog code generation",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-05T12:00:00Z",
+  "invariants": {},
+  "module": "fpga_emission",
+  "ring": 43,
+  "schema_version": 2,
+  "seal": "sha256:6e28ca8d993e17df9082a9261845ca13eb3c636a45b4de72b08505a550cbc5c7",
+  "spec_path": "compiler/codegen/verilog/fpga_emission.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_codegen_verilog_fpga_emission Vectors",
   "vectors": {
     "emit_fpga_top": {
-      "description": "Top-level FPGA module emission",
       "cases": [
         {
-          "id": "emit_fpga_top_module_header",
-          "target": "xc7a100t",
           "expected_contains": "module trinity_fpga_top",
-          "note": "Emitted Verilog contains correct module declaration"
+          "id": "emit_fpga_top_module_header",
+          "note": "Emitted Verilog contains correct module declaration",
+          "target": "xc7a100t"
         },
         {
-          "id": "emit_fpga_top_clk_port",
           "expected_contains": "input wire clk",
+          "id": "emit_fpga_top_clk_port",
           "note": "Top module has clock input port"
         },
         {
-          "id": "emit_fpga_top_reset_port",
           "expected_contains": "input wire reset_n",
+          "id": "emit_fpga_top_reset_port",
           "note": "Top module has active-low reset port"
         }
-      ]
-    },
-    "emit_uart_module": {
-      "description": "UART module Verilog emission",
-      "cases": [
-        {
-          "id": "emit_uart_module_header",
-          "expected_contains": "module uart_bridge",
-          "note": "Emitted UART module declaration"
-        },
-        {
-          "id": "emit_uart_baud_param",
-          "expected_contains": "parameter BAUD_DIVISOR",
-          "note": "UART module has baud divisor parameter"
-        }
-      ]
+      ],
+      "description": "Top-level FPGA module emission"
     },
     "emit_spi_module": {
-      "description": "SPI module Verilog emission",
       "cases": [
         {
-          "id": "emit_spi_module_header",
           "expected_contains": "module spi_master",
+          "id": "emit_spi_module_header",
           "note": "Emitted SPI module declaration"
         },
         {
+          "expected_ports": [
+            "sclk",
+            "mosi",
+            "miso",
+            "cs_n"
+          ],
           "id": "emit_spi_ports",
-          "expected_ports": ["sclk", "mosi", "miso", "cs_n"],
           "note": "SPI module has standard SPI port set"
         }
-      ]
+      ],
+      "description": "SPI module Verilog emission"
+    },
+    "emit_uart_module": {
+      "cases": [
+        {
+          "expected_contains": "module uart_bridge",
+          "id": "emit_uart_module_header",
+          "note": "Emitted UART module declaration"
+        },
+        {
+          "expected_contains": "parameter BAUD_DIVISOR",
+          "id": "emit_uart_baud_param",
+          "note": "UART module has baud divisor parameter"
+        }
+      ],
+      "description": "UART module Verilog emission"
     }
   },
-  "invariants": {}
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

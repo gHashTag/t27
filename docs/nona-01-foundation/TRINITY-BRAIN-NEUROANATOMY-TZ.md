@@ -162,31 +162,31 @@ specs/brain/
 From repo root, after `cargo build --release` in `bootstrap/`:
 
 ```bash
-# Whole brain tree → gen/{zig,c,verilog}/brain/…
-./scripts/tri gen-zig       specs/brain/
-./scripts/tri gen-c         specs/brain/
-./scripts/tri gen-verilog   specs/brain/
+# Whole brain tree (path is a directory → batch under gen/{zig,c,verilog}/…)
+./scripts/tri gen-zig       specs/brain
+./scripts/tri gen-c         specs/brain
+./scripts/tri gen-verilog   specs/brain
 
 # Single file (Zig on stdout)
 ./scripts/tri gen-zig       specs/brain/unified_state.t27
 
 ./scripts/tri parse         specs/brain/unified_state.t27
 ./scripts/tri compile       specs/brain/unified_state.t27 -o /tmp/out.zig
-./scripts/tri compile-project --backend zig -o build
+./scripts/tri compile-project --backend zig --output build
 
 # Seal (verify / save)
 ./scripts/tri seal          specs/brain/unified_state.t27 --verify
 ./scripts/tri seal          specs/brain/unified_state.t27 --save
-./scripts/tri skill seal --hash specs/brain/unified_state.t27   # same as seal --save
+./scripts/tri skill-seal    specs/brain/unified_state.t27
 
-# Conformance JSON check (full suite today; path filter reserved)
-./scripts/tri validate-conformance specs/brain/
+# Conformance JSON check (full repo scan)
+./scripts/tri validate-conformance
 
 # Full compiler test suite (parse / gen / seal / fixed point)
 ./scripts/tri test
 ```
 
-**Implementation note:** `scripts/tri` forwards to `bootstrap/target/release/t27c` (or `TRI_T27C`). Do not document direct `t27c` invocation in the TZ — **`tri` is the canonical CLI surface**.
+**Implementation note:** `scripts/tri` is an **exec shim** (`t27c --repo-root <repo> …`). **`t27c`** is equivalent when **`--repo-root`** is set.
 
 **Generated layout (target):** directory arguments write under `gen/zig/…`, `gen/c/…`, `gen/verilog/…` mirroring `specs/**` — **never edit generated files by hand**.
 
@@ -204,13 +204,13 @@ From repo root, after `cargo build --release` in `bootstrap/`:
 | `t27c gen-c` | `tri gen-c` |
 | `t27c gen-verilog` | `tri gen-verilog` |
 | `t27c gen` | `tri gen-zig` (single file) or `tri gen` (same Zig backend) |
-| `t27c seal --save` | `tri seal <file.t27> --save` or `tri skill seal --hash <file.t27>` |
+| `t27c seal --save` | `tri seal <file.t27> --save` or `tri skill-seal <file.t27>` |
 | `t27c validate-conformance` | `tri validate-conformance` |
 | `./bootstrap/target/release/t27c` | `tri` (via `./scripts/tri`) |
 
 ### 4.4 `tri brain` (planned product / charter CLI)
 
-Not implemented in **t27** yet; `tri brain` prints a pointer to this doc. Target surface:
+In **t27**, `./scripts/tri brain` (→ **`t27c brain`**) exits with a pointer to this doc. Target **product** surface:
 
 ```bash
 tri brain status
@@ -239,7 +239,7 @@ tri skill commit
 tri git commit -m "feat(brain): DLPFC spec — Closes #501"
 ```
 
-Only the subset implemented in `scripts/tri` works here today (`skill seal --hash`, `gen`, `test`); the rest is **charter / Trinity app** wiring.
+Only what **`t27c`** implements applies in this repo (`gen`, `skill-seal`, `test`, …); **`tri skill …`** lines above are **charter / Trinity app** wiring, not the exec shim.
 
 ---
 
