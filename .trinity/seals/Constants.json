@@ -3,8 +3,10 @@
   "gen_hash_verilog": "sha256:a6e638930b1552f9d21c1a9b3996548538a0fa880985dd2e7be87dcd874310b4",
   "gen_hash_zig": "sha256:a9ccacf0fc31e555a68fdde8e8f0fc0a39ee6e8c31adadf5c436a4f7f08c0a92",
   "module": "Constants",
-  "ring": 12,
-  "sealed_at": "2026-04-06T14:43:48Z",
-  "spec_hash": "sha256:6bf826d00d7993c592564b19bbac3fe1880ef71b1e51df62560cbda0165b888e",
-  "spec_path": "specs/math/constants.t27"
+  "phi_distance": 0.132,
+  "ring": 42,
+  "sealed_at": "2026-04-07T13:00:00+07:00",
+  "spec_hash": "sha256:48a977888e1af08ca36fc675960e52133072e9989bcf933181b2a3bedc585126",
+  "spec_path": "specs/math/constants.t27",
+  "verdict": "CLEAN"
 }
