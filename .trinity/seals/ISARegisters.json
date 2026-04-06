@@ -1,10 +1,10 @@
 {
-  "gen_hash_c": "sha256:6a5cce6b004827683216eed0374e289cb710c28eeff48b47c5d35b9aaa5f9667",
-  "gen_hash_verilog": "sha256:b172789e1e7c11dd5e38ebe987de092fa60dfea724c403e647daddfbacf239a1",
-  "gen_hash_zig": "sha256:42702ecf2749a65934deb7dee9fbb0c3dd8274b1fac8f887ddd41d432f48f069",
+  "gen_hash_c": "sha256:ca72db071435cde41597bda0947e41be5d3802af96ba42035b1072f0f9eeb73d",
+  "gen_hash_verilog": "sha256:68ccb2e92db88d8bfde298d64d5723aaf654b190d94859aee81eef40d09ceee3",
+  "gen_hash_zig": "sha256:e6927adcaf24e837c6c55c5e499ec3ceb623d410e733e88c3cf806fa8f7062b4",
   "module": "ISARegisters",
   "ring": 12,
-  "sealed_at": "2026-04-06T09:46:30Z",
+  "sealed_at": "2026-04-06T14:43:48Z",
   "spec_hash": "sha256:7bb12b72319d35b5c28a8dc9f44542e681418b372f6edb2d0a54b31ed336cb64",
   "spec_path": "specs/isa/registers.t27"
 }

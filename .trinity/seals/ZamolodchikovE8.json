@@ -1,10 +1,10 @@
 {
   "gen_hash_c": "sha256:bb9555f7d697222682e9f0accce28d64e8912094775feab04cea9a8f54ba0794",
   "gen_hash_verilog": "sha256:a161c8fafabfce9c6cf77a57e4b9fe0c6e80596ae5d10fb75afeb0ff36c58ec5",
-  "gen_hash_zig": "sha256:85efc4486c4778035a45708614fcc338614e6d514d55492fede8bcedf7e442e9",
+  "gen_hash_zig": "sha256:b255c6194f010303d455367590a39797b06ac5d2a909c40c996f622b97bf8698",
   "module": "ZamolodchikovE8",
   "ring": 12,
-  "sealed_at": "2026-04-06T09:46:30Z",
+  "sealed_at": "2026-04-06T14:43:48Z",
   "spec_hash": "sha256:3eee903032cb99dc6c326f8312e5120d46a017d6cd9bc179fd08316462872dca",
   "spec_path": "specs/math/zamolodchikov_e8.t27"
 }
