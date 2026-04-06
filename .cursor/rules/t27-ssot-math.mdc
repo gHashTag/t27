@@ -29,6 +29,11 @@ alwaysApply: true
 
 - `.t27` specs, `docs/T27-CONSTITUTION.md`, `docs/TDD-CONTRACT.md`, and `docs/NUMERIC-STANDARD-001.md` override ad-hoc scripts.
 
+## Language (English)
+
+- **First-party** Markdown (`docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/`, root `README.md` / `AGENTS.md` / `CLAUDE.md` / `task.md` / `SOUL.md`) **must be English**. No new Cyrillic; legacy paths only in **`docs/.legacy-non-english-docs`**.
+- **Source** (`.t27`, `.zig`, …): English comments/identifiers, ASCII per ADR-004.
+
 ## Required reading after clone
 
-After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`**.
+After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`** (SSOT-MATH + LANG-EN).

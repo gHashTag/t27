@@ -1,28 +1,31 @@
 # SOUL.md — Trinity Constitutional Laws
 
-**Version**: 1.1
-**Date**: 2026-04-04
+**Version**: 1.2
+**Date**: 2026-04-06
 **Status**: Sacred — Changes require consensus
 
-> *SOUL = System of Universal Laws (Система Универсальных Законов)*
+> *SOUL = System of Universal Laws*
 
 ---
 
-## Constitutional Law #1: No Cyrillic in Source Files
+## Constitutional Law #1: English-first source and first-party documentation
 
-**Status**: MANDATORY (no exceptions)
+**Status**: MANDATORY (see legacy allowlist for grandfathered docs)
 
 ### Statement
 
-Source files (`.t27`, `.tri`, `.zig`, `.c`, `.v`, `.verilog`) **MUST NOT** contain Cyrillic characters (Unicode range U+0400–U+04FF).
+**Source files** (`.t27`, `.tri`, `.zig`, `.c`, `.v`, `.verilog`) **MUST NOT** contain Cyrillic or other non-Latin scripts in identifiers or comments (see ADR-004 for ASCII details). **Prose MUST be English.**
 
-Documentation files (`docs/*.md`, `AGENTS.md`, `README.md`, `*.md`) MAY contain Cyrillic.
+**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `task.md`) **MUST be written in English**, except:
+
+- Paths listed in **`docs/.legacy-non-english-docs`** (grandfathered until translated; **no new entries** without Architect approval).
+- Vendored trees under **`external/`** (upstream locales).
 
 ### Rationale
 
-1. **Code Consistency**: Source code must be universally readable without encoding issues.
-2. **Tool Compatibility**: Many tools have issues with non-ASCII in source files.
-3. **Clear Separation**: Code = ASCII-only, Docs = any language (including Cyrillic).
+1. **One review language**: International contributors and CI can enforce style uniformly.
+2. **Tooling**: Aligns with ASCII-first source (ADR-004) and avoids mixed-locale drift in specs adjacent to code.
+3. **Agents**: Machine-readable policy; Cursor rules reference this law.
 
 ### Allowed Characters in Source Files
 
@@ -32,14 +35,8 @@ Documentation files (`docs/*.md`, `AGENTS.md`, `README.md`, `*.md`) MAY contain 
 
 ### Forbidden in Source Files
 
-- **Cyrillic** (U+0400–U+04FF): Русские буквы А-Я а-я Ё ё
-- **Cyrillic Extended** (U+0500–U+052F)
-- **Non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc.
-
-### Exceptions
-
-- **Documentation files** (`docs/`, `*.md`) can use any language including Cyrillic
-- **String literals** in source files should also be ASCII-only for portability
+- **Cyrillic** (U+0400–U+04FF) and other non-Latin scripts in identifiers/comments (see ADR-004).
+- **String literals** in source files should be ASCII-only for portability unless a documented exception exists.
 
 ### Enforcement
 
@@ -59,13 +56,11 @@ Documentation files (`docs/*.md`, `AGENTS.md`, `README.md`, `*.md`) MAY contain 
 ### Violation Example
 
 ```t27
-; ❌ VIOLATION: Cyrillic in comment
-; Это комментарий на русском
-; ✅ CORRECT: ASCII-only comment
+; VIOLATION: comment containing Cyrillic (U+0400-U+04FF)
+; CORRECT: English-only comment
 ; This is a comment in English
-; ❌ VIOLATION: Cyrillic in identifier
-const КОЭФФИЦИЕНТ = 1.0
-; ✅ CORRECT: ASCII identifier
+; VIOLATION: non-ASCII identifier
+; CORRECT: ASCII identifier
 const COEFFICIENT = 1.0
 ```
 

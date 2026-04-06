@@ -31,3 +31,6 @@ jobs:
           SEALS=$(find .trinity/seals -name '*.json' | wc -l)
           echo "Specs: $SPECS, Seals: $SEALS"
           echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+
+      - name: First-party docs must be English (Cyrillic check)
+        run: bash scripts/check-first-party-doc-language.sh
