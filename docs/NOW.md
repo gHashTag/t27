@@ -5,11 +5,17 @@
 
 # NOW — Rolling integration snapshot
 
+<<<<<<< HEAD
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:20 local time (+07) · Phase 3 Ring 050 ([#142](https://github.com/gHashTag/t27/issues/142) radix economy) · RFC3339 2026-04-07T00:20:00+07:00
+
+**Document class:** Operational focus document
+**Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors. **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
 **Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:20 local time (+07) · Phase 3 Ring 050 ([#142](https://github.com/gHashTag/t27/issues/142) radix economy) · RFC3339 2026-04-07T00:20:00+07:00
 
 **Document class:** Operational focus document
 **Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors. **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
 
+>>>>>>> b4eadc473f4f8d4390c3cea35388d75e3df5b5ce
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -308,7 +314,11 @@ CROWN (Queen brain & automation)
 
 ## § 9  Next actions (48 h)
 
+<<<<<<< HEAD
+**Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 1 step 1.5** ([#150](https://github.com/gHashTag/t27/issues/150)) is **closed** — shift focus to **Phase 2 — Stem** (conformance / benchmarks / seal coverage); see **§5**.
+=======
 **Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 2 is ✅ DONE** — shift focus to **Phase 3 — Science Tests**. **Ring 050**: [#142](https://github.com/gHashTag/t27/issues/142) (radix economy formal spec in `specs/math/radix_economy.t27`).
+>>>>>>> b4eadc473f4f8d4390c3cea35388d75e3df5b5ce
 
 ```bash
 # 0. NOW gate — run FIRST before any commit (otherwise push / hooks may fail)
