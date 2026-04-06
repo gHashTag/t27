@@ -221,6 +221,10 @@ enum Commands {
     /// Cross-check IEEE binary64 φ / φ² / φ+1 (Flocq bridge; former validate_phi_f64.py)
     ValidatePhi,
 
+    /// Validate L5 IDENTITY: φ² = φ + 1 from FORMAT-SPEC-001.json (issue #163)
+    #[command(name = "validate-phi-identity")]
+    ValidatePhiIdentity,
+
     /// Product CLI placeholder — not implemented in this repo (see docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md)
     Brain,
 }
@@ -2059,6 +2063,7 @@ fn run_rest(cmd: Commands, repo_root: &Path) -> anyhow::Result<()> {
         Commands::CheckNow => suite::check_now_sync(repo_root)?,
         Commands::LintDocs => tooling::run_lint_docs(repo_root)?,
         Commands::ValidatePhi => tooling::run_validate_phi()?,
+        Commands::ValidatePhiIdentity => tooling::validate_phi_identity(repo_root)?,
         Commands::Brain => {
             eprintln!("tri brain: not implemented in this repository yet.");
             eprintln!("Planned: status, cycle, map, regions, coherence, connectivity, benchmark, evolve");
