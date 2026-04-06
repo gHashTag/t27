@@ -472,12 +472,12 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
                     .to_string()
             })
             .unwrap_or_else(|_| ts.clone());
-        println!(
+        eprintln!(
             "✅ NOW.md synced — gate date {} — doc time {} [{}] — build authorized",
             gate_label, human, ts
         );
     } else {
-        println!(
+        eprintln!(
             "✅ NOW.md synced ({}) — build authorized",
             gate_label
         );
