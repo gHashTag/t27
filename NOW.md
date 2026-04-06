@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:20 local time (UTC+07) · RFC3339 2026-04-06T23:20:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:27 local time (+07) · RFC3339 2026-04-06T23:27:23+0700
 
 **Document class:** Operational focus document
 **Revision:** 2026-04-07 — **NO-SHELL**: `scripts/tri` exec shim → `t27c`. **#129:** `t27c expand-gf16` → **50** rows in `gf16_vectors.json`; `t27c gen-nmse-benchmark` → `nmse_synthetic_roundtrip` in `gf_family_bench.json` (synthetic roundtrip NMSE; `half` crate).
@@ -208,7 +208,8 @@ CROWN (Queen brain & automation)
 | 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | **✅ DONE** | `t27c gen-nmse-benchmark` writes **`nmse_synthetic_roundtrip`** (IEEE f16 vs bfloat16 proxy; documented in JSON) |
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
-| 2.5  | —                                                  | Numeric debt sprint          | —      | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar |
+| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **🔄 OPEN** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
+| 2.6  | —                                                  | Numeric debt sprint          | —      | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar |
 
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`

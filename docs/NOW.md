@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 22:30 local time (UTC+07) · RFC3339 2026-04-06T22:30:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:27 local time (+07) · RFC3339 2026-04-06T23:27:23+0700
 
 **Document class:** Operational focus document
-**Revision:** 2026-04-07 — **NO-SHELL**: `scripts/tri` is **exec-only (~12 lines)** → `t27c --repo-root …`; directory batch + NOW pre-flight live in **Rust** (`gen`/`gen-c`/`gen-verilog` detect dirs; `compile*` / `gen-dir` gate on **NOW.md**). **`validate-conformance-v2`** / **`seal-coverage`** → **`t27c`** (no new `.sh`).
+**Revision:** 2026-04-07 — **NO-SHELL**: `scripts/tri` exec shim → `t27c`. **#129:** `t27c expand-gf16` → **50** rows in `gf16_vectors.json`; `t27c gen-nmse-benchmark` → `nmse_synthetic_roundtrip` in `gf_family_bench.json` (synthetic roundtrip NMSE; `half` crate).
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -205,10 +205,11 @@ CROWN (Queen brain & automation)
 | ---- | -------------------------------------------------- | ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
 | 2.0  | —                                                  | SCHEMA_V2 + validator        | **✅ DONE** | `conformance/SCHEMA_V2.json` + `t27c validate-conformance-v2` (NO-SHELL law)                           |
 | 2.1  | [#133](https://github.com/gHashTag/t27/issues/133) | Migrate vectors to v2        | **✅ DONE** (58/58) | `t27c migrate-v2` — all vectors migrated to v2 format (schema_version, verdict, seal, timestamps)    |
-| 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | —      | `gf_family_bench.json` semantics documented                                                              |
+| 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | **✅ DONE** | `t27c gen-nmse-benchmark` writes **`nmse_synthetic_roundtrip`** (IEEE f16 vs bfloat16 proxy; documented in JSON) |
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
-| 2.4  | —                                                  | GF16 vectors grow            | —      | e.g. 10 → 33+ in `gf16_vectors.json`                                                                     |
-| 2.5  | —                                                  | Numeric debt sprint          | —      | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar |
+| 2.4  | —                                                  | GF16 vectors grow            | **✅ DONE** | **`t27c expand-gf16`** → **50** rows in `gf16_vectors.json` (≥33 target); v2 seal recomputed                     |
+| 2.5  | [#163](https://github.com/gHashTag/t27/issues/163) | L5 IDENTITY seal refresh     | **🔄 OPEN** | `FORMAT-SPEC-001.json` → v2 + phi_distance + seal (0.0486326415435630 from gf16_vectors) |
+| 2.6  | —                                                  | Numeric debt sprint          | —      | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` — math → nn/vsa → ar |
 
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
