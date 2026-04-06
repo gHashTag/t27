@@ -6,6 +6,41 @@
 
 ---
 
+## § 2 — Invariant Laws (never change without constitutional amendment)
+
+These seven laws are the **constitutional bedrock** of Trinity S³AI / t27. They govern behavior, not formats or scientific claims. Amendments require explicit consensus and version bump.
+
+### Law Table (L1–L7)
+
+| Law # | Name | Body | Enforcement |
+|-------|------|------|-------------|
+| **L1** | **TRACEABILITY** | No code merged without `Closes #N` — every PR must reference a GitHub issue | `.github/workflows/issue-gate.yml` |
+| **L2** | **GENERATION** | Files under `gen/` are generated; edit the `.t27` spec instead | `./bootstrap/target/release/t27c validate-gen-headers` |
+| **L3** | **PURITY** | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments | `SOUL.md`, `ADR-004`, build.rs language checks |
+| **L4** | **TESTABILITY** | Every `.t27` spec must contain `test` / `invariant` / `bench` | Ring 037 / #132, parser enforcement |
+| **L5** | **IDENTITY** | **K2 core:** φ² = φ + 1 on ℝ; consequence φ² + φ⁻² = 3; IEEE f64 checks use tolerance | `NUMERIC-CORE-PALETTE-REGISTRY.md`, `specs/math/constants.t27` |
+| **L6** | **CEILING** | `conformance/FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` are the numeric ceiling — never forked | SSOT: seal coverage CI |
+| **L7** | **UNITY** | No new `*.sh` on the critical path for validation / gen / data | `SOUL.md` Article VIII; `t27c` + `tri` only |
+
+### Alias Index (legacy names)
+
+| Legacy name | New name |
+|-------------|----------|
+| ISSUE-GATE | L1 TRACEABILITY |
+| NO-HAND-EDIT-GEN | L2 GENERATION |
+| SOUL-ASCII | L3 PURITY |
+| TDD-MANDATE | L4 TESTABILITY |
+| PHI-IDENTITY | L5 IDENTITY |
+| TRINITY-SACRED | L6 CEILING |
+| NO-NEW-SHELL | L7 UNITY |
+
+### Law Priority
+
+L1 > L2 > L3 > L4 > L5 > L6 > L7 (Asimov-style hierarchy). When laws conflict, the lower-numbered law takes precedence.
+
+---
+
+
 ## Preamble
 
 The Trinity S³AI repository is built around the **t27** specification language and the **`tri`** toolchain (`./scripts/tri` forwards to the Rust `t27c` bootstrap binary). Mathematics, numerics, and physics formulas that participate in verification must not be split between “the spec” and “side scripts.” First-party documentation under **`docs/`** follows a **single, published tree** so contributors and agents do not accumulate ad-hoc files at the wrong depth. The following articles establish these norms.
@@ -59,6 +94,48 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 
 **Enforcement:** **Code review** and **Issue Gate**; optional CI path checks may be added later. **OWNERS** for **`docs/`** is **`docs/OWNERS.md`**.
 
+
+## § 2 — Invariant Laws (never change without constitutional amendment)
+
+These seven laws are the **constitutional bedrock** of Trinity S³AI / t27. They govern behavior, not formats or scientific claims. Amendments require explicit consensus and version bump.
+
+### Law Table (L1–L7)
+
+| Law # | Name | Body | Enforcement |
+|-------|------|------|-------------|
+| **L1** | **TRACEABILITY** | No code merged without `Closes #N` — every PR must reference a GitHub issue | `.github/workflows/issue-gate.yml` |
+| **L2** | **GENERATION** | Files under `gen/` are generated; edit the `.t27` spec instead | `./bootstrap/target/release/t27c validate-gen-headers` |
+| **L3** | **PURITY** | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments | `SOUL.md`, `ADR-004`, build.rs language checks |
+| **L4** | **TESTABILITY** | Every `.t27` spec must contain `test` / `invariant` / `bench` | Ring 037 / #132, parser enforcement |
+| **L5** | **IDENTITY** | **K2 core:** φ² = φ + 1 on ℝ; consequence φ² + φ⁻² = 3; IEEE f64 checks use tolerance | `NUMERIC-CORE-PALETTE-REGISTRY.md`, `specs/math/constants.t27` |
+| **L6** | **CEILING** | `conformance/FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` are the numeric ceiling — never forked | SSOT: seal coverage CI |
+| **L7** | **UNITY** | No new `*.sh` on the critical path for validation / gen / data | `SOUL.md` Article VIII; `t27c` + `tri` only |
+
+### Alias Index (legacy → L1–L7)
+
+| Legacy name | New name |
+|-------------|----------|
+| ISSUE-GATE | L1 TRACEABILITY |
+| NO-HAND-EDIT-GEN | L2 GENERATION |
+| SOUL-ASCII | L3 PURITY |
+| TDD-MANDATE | L4 TESTABILITY |
+| PHI-IDENTITY | L5 IDENTITY |
+| TRINITY-SACRED | L6 CEILING |
+| NO-NEW-SHELL | L7 UNITY |
+
+### Law Priority
+
+Laws follow **Asimov-style priority** (L1 > L2 > … > L7):
+
+1. **L1 TRACEABILITY** (highest) — Without issue linkage, nothing enters the repository
+2. **L2 GENERATION** — Generated files are output, not source
+3. **L3 PURITY** — Language policy enables universal tooling
+4. **L4 TESTABILITY** — TDD ensures specifications are verifiable
+5. **L5 IDENTITY** — Mathematical truth (φ) has specific tolerance requirements
+6. **L6 CEILING** — Numeric formats are SSOT; never forked
+7. **L7 UNITY** — Toolchain consolidation via `tri` / `t27c`
+
+In conflict scenarios, the higher-priority law prevails.
 ---
 
 ## Related documents
