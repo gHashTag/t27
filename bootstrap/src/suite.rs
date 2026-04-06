@@ -414,11 +414,12 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     let (gate_label, ok, expected_hint) = if github_actions {
         let today_utc = Utc::now().date_naive();
         let yesterday_utc = today_utc - Duration::days(1);
+        let tomorrow_utc = today_utc + Duration::days(1);
         let ok = match last_date {
-            Some(d) => d == today_utc || d == yesterday_utc,
+            Some(d) => d == today_utc || d == yesterday_utc || d == tomorrow_utc,
             None => false,
         };
-        let hint = format!("{} or {} (UTC)", today_utc, yesterday_utc);
+        let hint = format!("{}, {}, or {} (UTC)", yesterday_utc, today_utc, tomorrow_utc);
         (today_utc.format("%Y-%m-%d").to_string(), ok, hint)
     } else {
         let today_local = Local::now().format("%Y-%m-%d").to_string();
