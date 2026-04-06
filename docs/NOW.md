@@ -52,7 +52,15 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 2. Fix **§ 3** state, **critical gap**, **links**, or **milestone notes** so the **next agent** reads **current truth**, not yesterday’s story.
 3. **Commit `NOW.md` in the same PR** as the work (or amend), per Ring 033 / [#141](https://github.com/gHashTag/t27/issues/141).
 
-Skipping this is a **failed handoff** — the fleet coordinates here, not only in issues.
+
+**Skipping this is a **failed handoff** — the fleet coordinates here, not only in issues.
+
+**Conflict Prevention (Ring 47+):**
+- **Root `NOW.md` is a symlink** to `docs/NOW.md` — prevents divergence
+- **`.trinity/experience/*.jsonl` are not tracked** — local-only append logs
+- **`.gitattributes` merge drivers** — auto-resolve append-only conflicts
+- Edit only `docs/NOW.md`; root `NOW.md` follows automatically
+
 
 **Recent methodology docs (kernel + experience + formal + science/ops):**  
 `[KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md](docs/KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md)` · `[KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md](docs/KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md)` · `[SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md](docs/SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md)` · `[RESEARCH_WRITING_T27.md](docs/RESEARCH_WRITING_T27.md)` · `[TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md](docs/TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md)` · `[T27_KERNEL_FORMAL_COQ.md](docs/T27_KERNEL_FORMAL_COQ.md)` · `[COMPILER_VERIFICATION_STANDARDS.md](docs/COMPILER_VERIFICATION_STANDARDS.md)` (deep map + ring plan; index `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](docs/COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)`; RU impact `[COMPILER_VERIFICATION_IMPACT_RU.md](docs/COMPILER_VERIFICATION_IMPACT_RU.md)`; TOR/TVP `[qualification/](docs/qualification/)`; template `[templates/TOOL_QUALIFICATION_SKETCH_DO330.md](docs/templates/TOOL_QUALIFICATION_SKETCH_DO330.md)`) · repo `[coq/](coq/)` (Rocq/Coq scaffold; workflow `.github/workflows/coq-kernel.yml`)
