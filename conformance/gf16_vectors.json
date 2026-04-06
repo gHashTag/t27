@@ -60,7 +60,7 @@
     }
   ],
   "schema_version": 2,
-  "seal": "sha256:9d177d1acbe6b2a57220efe93f9c307a544d9712c210dde477b30f231db2a639",
+  "seal": "sha256:435aaea2a6dd1f4fbe09875a3c71ea2cf230aba875e34b3e4774fb19ce503bdb",
   "test_vectors": [
     {
       "description": "Positive zero encodes to 0x0000",
@@ -309,7 +309,7 @@
       "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 16",
       "expected": {
         "decoded": 16.0,
-        "tolerance_abs": 0.0015999999595806003
+        "tolerance_abs": 0.0015999999595806005
       },
       "input": {
         "value": 16.0
@@ -429,7 +429,7 @@
       "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 16384",
       "expected": {
         "decoded": 16384.0,
-        "tolerance_abs": 1.6383999586105347
+        "tolerance_abs": 1.638399958610535
       },
       "input": {
         "value": 16384.0
@@ -644,7 +644,7 @@
     {
       "description": "Synthetic IEEE binary16 roundtrip row (GF16 conformance proxy): input 0.0001",
       "expected": {
-        "decoded": 0.00010001659393310547,
+        "decoded": 0.00010001659393310548,
         "tolerance_abs": 0.0005000000237487257
       },
       "input": {
@@ -660,7 +660,7 @@
         "tolerance_abs": 0.0005000000237487257
       },
       "input": {
-        "value": 0.9990000128746033
+        "value": 0.9990000128746032
       },
       "name": "auto_rt_3f7fbe77",
       "verdict": "CLEAN"
@@ -690,8 +690,8 @@
       "verdict": "CLEAN"
     }
   ],
-  "updated_at": "2026-04-06T16:19:02Z",
-  "validated_at": "2026-04-06T16:19:02Z",
+  "updated_at": "2026-04-06T16:21:07Z",
+  "validated_at": "2026-04-06T16:21:07Z",
   "vector_name": "GF16 Conformance Vectors — NUMERIC-STANDARD-001 (Agent 13)",
   "verdict": "CLEAN",
   "version": "2.1"
