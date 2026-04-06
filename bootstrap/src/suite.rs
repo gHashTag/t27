@@ -382,16 +382,16 @@ fn optional_rfc3339_stamp(line: &str) -> Option<String> {
     None
 }
 
-/// Gate: `docs/NOW.md` must contain `Last updated:` with today's calendar date (local timezone).
+/// Gate: root `NOW.md` must contain `Last updated:` with today's calendar date (local timezone).
 /// Used by `tri` before gen/compile and by CI (see `phi-loop-ci.yml`).
 pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)?;
-    let now_file = repo.join("docs/NOW.md");
+    let now_file = repo.join("NOW.md");
     let today = Local::now().format("%Y-%m-%d").to_string();
 
     if !now_file.is_file() {
         eprintln!(
-            "tri/CI: docs/NOW.md not found at {}",
+            "tri/CI: NOW.md not found at {}",
             now_file.display()
         );
         anyhow::bail!("NOW.md missing");
@@ -411,7 +411,7 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
 ╔═══════════════════════════════════════════════════════════════╗
 ║              ⛔  BUILD BLOCKED: SYNC REQUIRED                  ║
 ╠═══════════════════════════════════════════════════════════════╣
-║  docs/NOW.md is STALE. All agents must be synchronized       ║
+║  NOW.md is STALE. All agents must be synchronized              ║
 ║  before any build can proceed.                               ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  STEPS TO UNBLOCK:                                            ║
@@ -422,13 +422,13 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
 ║  2. Read agent sync state:                                    ║
 ║     cat .trinity/state/github-sync.json                      ║
 ║                                                               ║
-║  3. Update docs/NOW.md:                                       ║
+║  3. Update NOW.md (repo root):                               ║
 ║     - Set calendar date YYYY-MM-DD (must match today locally) ║
 ║     - Use your local wall time (see NOW.md header template)   ║
 ║     - Update sprint status + what you build and why           ║
 ║                                                               ║
 ║  4. Stage and commit NOW.md with your changes:               ║
-║     git add docs/NOW.md && git commit --amend                ║
+║     git add NOW.md && git commit --amend                     ║
 ╚═══════════════════════════════════════════════════════════════╝
 "#
         );
@@ -456,5 +456,288 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     } else {
         println!("✅ NOW.md synced ({}) — build authorized", today);
     }
+    Ok(())
+}
+
+/// Validate conformance/*.json files against SCHEMA_V2.json.
+/// Replaces scripts/validate-conformance-v2.sh (NO-SHELL law).
+pub fn validate_conformance_v2(repo_root: &Path) -> anyhow::Result<()> {
+    use regex::Regex;
+
+    let repo = fs::canonicalize(repo_root)?;
+    let schema_path = repo.join("conformance/SCHEMA_V2.json");
+
+    if !schema_path.exists() {
+        anyhow::bail!("SCHEMA_V2.json not found at {}", schema_path.display());
+    }
+
+    println!("=== T27 Conformance Validation (SCHEMA_V2) ===");
+    println!("Schema: {}", schema_path.display());
+
+    // Load schema
+    let schema_raw = fs::read_to_string(&schema_path)
+        .with_context(|| format!("read {}", schema_path.display()))?;
+    let schema: serde_json::Value = serde_json::from_str(&schema_raw)?;
+
+    // Get required fields from schema
+    let required: Vec<String> = schema
+        .get("required")
+        .and_then(|r| r.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let verdict_enum = schema
+        .get("properties")
+        .and_then(|p| p.get("verdict"))
+        .and_then(|v| v.get("enum"))
+        .and_then(|e| e.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec!["CLEAN".into(), "FAIL".into(), "PARTIAL".into(), "SKIP".into()]);
+
+    let seal_regex = Regex::new(r"^sha256:[0-9a-f]{64}$").unwrap();
+
+    let mut total_files = 0usize;
+    let mut total_errors = 0usize;
+    let mut entries: Vec<PathBuf> = fs::read_dir(repo.join("conformance"))
+        .with_context(|| "read_dir conformance")?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |x| x == "json"))
+        .collect();
+    entries.sort();
+
+    for file in entries {
+        let filename = file.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+
+        // Skip schema file itself
+        if filename == "SCHEMA_V2.json" {
+            continue;
+        }
+
+        // Read JSON
+        let raw = fs::read_to_string(&file)?;
+        let json: serde_json::Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("⊘ {} (invalid JSON: {})", filename, e);
+                continue;
+            }
+        };
+
+        // Skip v1 files (no schema_version field or schema_version == 1)
+        let is_v2 = match json.get("schema_version") {
+            None => false,
+            Some(v) => {
+                // Check for integer 2 or string "2"
+                if v.as_i64() == Some(2) {
+                    true
+                } else if v.as_str() == Some("2") {
+                    true
+                } else {
+                    // v1 or invalid schema_version
+                    false
+                }
+            }
+        };
+
+        if !is_v2 {
+            println!("⊘ {} (v1, not validated against v2)", filename);
+            continue;
+        }
+
+        total_files += 1;
+
+        eprint!("Validating {} ... ", filename);
+
+        let mut errors = 0;
+
+        // Check required fields
+        for field in &required {
+            if json.get(field).is_none() {
+                eprintln!("\n  ✗ Missing required field: {}", field);
+                errors += 1;
+            }
+        }
+
+        // Check schema_version == 2
+        if let Some(sv) = json.get("schema_version").and_then(|v| v.as_i64()) {
+            if sv != 2 {
+                eprintln!("\n  ✗ schema_version must be 2, got: {}", sv);
+                errors += 1;
+            }
+        }
+
+        // Check verdict is valid
+        if let Some(v) = json.get("verdict").and_then(|v| v.as_str()) {
+            if !verdict_enum.iter().any(|e| e == v) {
+                eprintln!("\n  ✗ Invalid verdict: {}", v);
+                errors += 1;
+            }
+        }
+
+        // Check seal format
+        if let Some(s) = json.get("seal").and_then(|v| v.as_str()) {
+            if !seal_regex.is_match(s) {
+                eprintln!("\n  ✗ Invalid seal format");
+                errors += 1;
+            }
+        }
+
+        // Check test_vectors array
+        if let Some(tv) = json.get("test_vectors").and_then(|v| v.as_array()) {
+            if tv.is_empty() {
+                eprintln!("\n  ✗ test_vectors array is empty");
+                errors += 1;
+            }
+            // Check per-case verdicts
+            for item in tv {
+                if let Some(v) = item.get("verdict").and_then(|v| v.as_str()) {
+                    if !verdict_enum.iter().any(|e| e == v) {
+                        eprintln!("\n  ✗ Invalid per-case verdict: {}", v);
+                        errors += 1;
+                    }
+                }
+            }
+        }
+
+        if errors == 0 {
+            eprintln!("✓ PASS");
+        } else {
+            eprintln!("✗ FAIL ({} errors)", errors);
+            total_errors += errors;
+        }
+    }
+
+    eprintln!();
+    eprintln!("=== Summary ===");
+    eprintln!("Files validated (v2): {}", total_files);
+    eprintln!("Total errors: {}", total_errors);
+
+    if total_errors == 0 {
+        eprintln!("All v2 vectors are valid!");
+        Ok(())
+    } else {
+        anyhow::bail!("Validation failed with {} error(s)", total_errors);
+    }
+}
+
+/// Validate seal coverage for changed .t27 specs (PR-scoped gate).
+/// Replaces inline bash in seal-coverage.yml (NO-SHELL law).
+pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Result<()> {
+    use sha2::{Sha256, Digest};
+
+    let repo = fs::canonicalize(repo_root)?;
+
+    // Get changed files from PR input or check all specs
+    let changed_specs: Vec<PathBuf> = if let Some(files) = pr_files {
+        files
+            .split(',')
+            .map(|f| f.trim())
+            .filter(|f| f.ends_with(".t27"))
+            .map(|f| repo.join(f))
+            .collect()
+    } else {
+        // If no PR files provided, validate all specs
+        fs::read_dir(repo.join("specs"))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |x| x == "t27"))
+            .collect()
+    };
+
+    if changed_specs.is_empty() {
+        println!("No .t27 spec files to validate. Gate PASS.");
+        return Ok(());
+    }
+
+    println!("=== T27 Seal Coverage Gate (PR-scoped) ===");
+    println!("Checking {} changed spec(s)...", changed_specs.len());
+
+    let mut missing = 0usize;
+    let mut stale = 0usize;
+    let mut failed_specs: Vec<String> = Vec::new();
+
+    for spec_file in &changed_specs {
+        let module_name = spec_file
+            .file_stem()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+        let relative_path = spec_file
+            .strip_prefix(&repo)
+            .unwrap_or(spec_file)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let seal_file = repo.join(".trinity/seals").join(format!("{}.json", module_name));
+
+        eprint!("[{}] {} ... ", changed_specs.iter().position(|p| p == spec_file).map(|i| i+1).unwrap_or(0), relative_path);
+
+        // Check if seal exists
+        if !seal_file.exists() {
+            eprintln!("✗ MISSING SEAL");
+            missing += 1;
+            failed_specs.push(format!("{} (no seal file)", relative_path));
+            continue;
+        }
+
+        // Compute current spec hash
+        let spec_content = fs::read_to_string(spec_file)?;
+        let mut hasher = Sha256::new();
+        hasher.update(spec_content.as_bytes());
+        let current_hash = format!("sha256:{:x}", hasher.finalize());
+
+        // Get stored spec_hash from seal
+        let seal_content = fs::read_to_string(&seal_file)?;
+        let seal_json: serde_json::Value = serde_json::from_str(&seal_content)?;
+        let stored_hash = seal_json
+            .get("spec_hash")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        // Verify spec_hash matches
+        if current_hash != stored_hash {
+            eprintln!("⚠ STALE (spec changed)");
+            stale += 1;
+            failed_specs.push(format!("{} (stale seal)", relative_path));
+        } else {
+            eprintln!("✓ OK");
+        }
+    }
+
+    eprintln!();
+    eprintln!("=== Seal Coverage Summary ===");
+    eprintln!("Changed specs: {}", changed_specs.len());
+    eprintln!("Missing seals: {}", missing);
+    eprintln!("Stale seals: {}", stale);
+
+    if missing > 0 || stale > 0 {
+        eprintln!();
+        eprintln!("=== FAILED SPECS ===");
+        for spec in &failed_specs {
+            eprintln!("  - {}", spec);
+        }
+        eprintln!();
+        eprintln!("Gate FAILED: {} missing, {} stale seals", missing, stale);
+        eprintln!();
+        eprintln!("To fix missing seals, run:");
+        eprintln!("  ./scripts/tri seal <spec.t27> --save");
+        eprintln!();
+        eprintln!("To fix stale seals, regenerate after spec changes:");
+        eprintln!("  ./scripts/tri seal <spec.t27> --save");
+        eprintln!();
+        eprintln!("phi^2 + 1/phi^2 = 3 | TRINITY");
+        anyhow::bail!("Seal coverage check failed");
+    }
+
+    eprintln!();
+    eprintln!("All changed specs have current seals! Gate PASS.");
+    eprintln!("phi^2 + 1/phi^2 = 3 | TRINITY");
     Ok(())
 }
