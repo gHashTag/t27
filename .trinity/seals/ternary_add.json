@@ -1,13 +1,10 @@
 {
-  "conformance_hash": "sha256:27977435363f91d56403e322e6f15118766e3782c0f66de2ba34e121f05ef884",
-  "conformance_vectors": 27,
-  "gen_hash_c": "sha256:PENDING_ON_GENERATION",
-  "gen_hash_verilog": "sha256:PENDING_ON_GENERATION",
-  "gen_hash_zig": "sha256:PENDING_ON_GENERATION",
-  "module": "TernaryAdd",
-  "ring": 43,
-  "sealed_at": "2026-04-07T14:00:00+07:00",
+  "gen_hash_c": "sha256:73f35fa2993ff35910ac67125b9cf0873034b4d21e6dbb4a9a5ed33bd42b1ad1",
+  "gen_hash_verilog": "sha256:bb251fa7f1ffb912b8bdd25a0a7766e8991d3caa175af2768e2be0ffa44de520",
+  "gen_hash_zig": "sha256:857295786fea13530ce7a9cad65f5805e663cd7a5f46ac0e94c97065835042ce",
+  "module": "ternary_add",
+  "ring": 12,
+  "sealed_at": "2026-04-06T18:49:24Z",
   "spec_hash": "sha256:69d67a9601b329f117424a3aa75e79e78689aaf1e378428368bbd4e23cbb2765",
-  "spec_path": "specs/base/ternary_add.t27",
-  "verdict": "CLEAN"
+  "spec_path": "specs/base/ternary_add.t27"
 }
