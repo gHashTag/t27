@@ -2,7 +2,7 @@
 
 **Status:** Design note — aligns agent/Queen memory with multi-agent learning literature.  
 **CLI spine:** Prefer **`./scripts/tri …`** for build gates and suite; `t27c` is the bootstrap binary behind `tri`.  
-**See also:** [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md) (IMRaD experiments, kernel axioms K1–K6, Queen channels).
+**See also:** [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md), [`KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md`](KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md), [`SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md`](SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md), [`RESEARCH_WRITING_T27.md`](RESEARCH_WRITING_T27.md).
 
 ## Executive summary
 

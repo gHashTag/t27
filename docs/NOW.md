@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 18:53 local time (UTC+07) · RFC3339 2026-04-06T18:53:16+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:59 local time (UTC+07) · RFC3339 2026-04-06T23:59:00+07:00
 
 **Document class:** Operational focus document  
-**Revision:** 2026-04-06 — Monday, 06 April 2026 · 18:53 local (UTC+07) · Ring 45 (narrative seal — verify in `.trinity/` + CI)  
+**Revision:** 2026-04-06 — NOW hardening: **#150** E2E CI, TV-01/02 refs, §2 PHI law, §7 Status column, §9 `check-now` first · Ring 47 K2 Flocq (`PhiFloat.v`)  
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
@@ -30,6 +30,24 @@ and **not** a design specification (→ `specs/`).
 **Replace this file’s body at every ring boundary.**  
 Stale content here is a quality defect — treat it as a failing test.
 
+**Science ↔ ops:** Treat **NOW** as the live **structured abstract + methods log** (context, state, gap, next actions); on each ring boundary, freeze/export for longer IMRaD-style reports without duplicating SSOT — see `[RESEARCH_WRITING_T27.md](RESEARCH_WRITING_T27.md)` and `[SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md](SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md)`.
+
+### § 1.1  Agent handoff — talk to the next agent / Queen via NOW
+
+**Canonical URL (SSOT for humans + agents):**  
+`https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
+
+When you **complete a non-trivial task** (code, specs, CI, seals, architecture docs), **update `NOW.md` before you stop**:
+
+1. Refresh **`Last updated:`** (calendar **`YYYY-MM-DD`** must match **today** for `./scripts/tri check-now`; keep **local wall time** + **RFC3339 with offset** as in the header template).
+2. Fix **§ 3** state, **critical gap**, **links**, or **milestone notes** so the **next agent** reads **current truth**, not yesterday’s story.
+3. **Commit `docs/NOW.md` in the same PR** as the work (or amend), per Ring 033 / [#141](https://github.com/gHashTag/t27/issues/141).
+
+Skipping this is a **failed handoff** — the fleet coordinates here, not only in issues.
+
+**Recent methodology docs (kernel + experience + formal + science/ops):**  
+`[KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md)` · `[KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md](KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md)` · `[SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md](SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md)` · `[RESEARCH_WRITING_T27.md](RESEARCH_WRITING_T27.md)` · `[TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md](TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md)` · `[T27_KERNEL_FORMAL_COQ.md](T27_KERNEL_FORMAL_COQ.md)` · `[COMPILER_VERIFICATION_STANDARDS.md](COMPILER_VERIFICATION_STANDARDS.md)` (deep map + ring plan; index `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)`; RU impact `[COMPILER_VERIFICATION_IMPACT_RU.md](COMPILER_VERIFICATION_IMPACT_RU.md)`; TOR/TVP `[qualification/](qualification/)`; template `[templates/TOOL_QUALIFICATION_SKETCH_DO330.md](templates/TOOL_QUALIFICATION_SKETCH_DO330.md)`) · repo `[coq/](../coq/)` (Rocq/Coq scaffold; workflow `.github/workflows/coq-kernel.yml`)
+
 ---
 
 ## § 2  Invariant law (never changes)
@@ -41,13 +59,13 @@ Stale content here is a quality defect — treat it as a failing test.
 | **NO-HAND-EDIT-GEN** | Files under `gen/` are generated; edit the `.t27` spec instead                                      | `./bootstrap/target/release/t27c validate-gen-headers --repo-root .` (or `./scripts/tri` wrapper)                   |
 | **SOUL-ASCII**       | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments                        | `SOUL.md`, ADR-004                                                                                                  |
 | **TDD-MANDATE**      | Every `.t27` spec must contain `test` / `invariant` / `bench`                                       | Ring 037 / [#132](https://github.com/gHashTag/t27/issues/132)                                                       |
-| **PHI-IDENTITY**     | \varphi^2 + \varphi^{-2} = 3 — **algebraic** truth; **IEEE `f64`** checks use **tolerance** in code | `[NUMERIC-CORE-PALETTE-REGISTRY.md](nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`, `specs/math/constants.t27` |
+| **PHI-IDENTITY**     | **K2 core:** \(\varphi^2 = \varphi + 1\) on \(\mathbb{R}\); **consequence** \(\varphi^2+\varphi^{-2}=3\); **IEEE `f64`** checks use **tolerance** (not exact equality) | `[NUMERIC-CORE-PALETTE-REGISTRY.md](nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`, `specs/math/constants.t27` |
 | **TRINITY-SACRED**   | `conformance/FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` are the numeric ceiling               | SSOT: never forked                                                                                                  |
 
 
 ---
 
-## § 3  System state (as of Ring 45 · 2026-04-06)
+## § 3  System state (narrative seal · 2026-04-06; verify `.trinity/` + CI)
 
 ### 3.1  Sealed artifacts
 
@@ -62,7 +80,15 @@ Stale content here is a quality defect — treat it as a failing test.
 | Queen health         | 1.0 / GREEN                            | 2026-04-05 | 17/17 domains                        |
 
 
-***Workspace snapshot (re-scan at each seal):*** `specs/**/*.t27` ≈ **50**, `gen/zig/**/*.zig` ≈ **97**, `conformance/**/*.json` ≈ **65** — run `find`/`wc` before quoting in commits.
+***Re-scan before every commit (do not treat stale counts as SSOT):***
+
+```bash
+find specs -name "*.t27" | wc -l
+find gen/zig -name "*.zig" | wc -l
+find conformance -name "*.json" | wc -l
+```
+
+The **table counts** above are *ring narrative* snapshots; refresh them when you seal a ring.
 
 ### 3.2  Critical open gap
 
@@ -75,9 +101,34 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
                                               gen/zig/*.zig  (from t27c, not hand-written)
 ```
 
-**The Rust bootstrap** (`t27c parse`, `**t27c gen`**, `t27c compile`, `t27c suite`) **exists**.  
+**The Rust bootstrap** (`t27c parse`, `t27c gen`, `t27c compile`, `t27c suite`) **exists**.  
 **The closed loop** `seed.t27 → t27c gen → output.zig → zig test → GREEN` has **not yet been demonstrated end-to-end in CI** as a **single advertised pipeline**.  
-Treat that as the **highest-leverage** gap before Phase 3 (Brain) work is **evidence-grade**.
+Treat that as the **highest-leverage** gap before Phase 3 (Brain) work is **evidence-grade**.  
+**Track in issue:** [#150](https://github.com/gHashTag/t27/issues/150) — every PR that implements this loop must use **`Closes #150`** (or a split child issue) per **ISSUE-GATE**.
+
+**TV reference ([`qualification/TVP.md`](qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PENDING** full E2E closure · **TV-02** (regen + blessed hash of `gen/`) — **PENDING** until the same pipeline is wired. See TVP §3 note.
+
+**K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`scripts/validate_phi_f64.py`**. Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
+
+**Optional formal track:** `[coq/](../coq/)` + `[T27_KERNEL_FORMAL_COQ.md](T27_KERNEL_FORMAL_COQ.md)` — Rocq/Coq scaffold for **K1–K4** (not K5/K6); CI `.github/workflows/coq-kernel.yml` when **`coq/**`** changes.  
+**K2 / PHI-IDENTITY (summary):** `Kernel/Phi.v` — `Coq.Reals` (**`phi_squared_identity`**, **`phi_tolerance`**). `Kernel/PhiFloat.v` — Flocq **`binary64`**, **`phi_identity_contract`**. Balanced ternary / radix economy context: [#138](https://github.com/gHashTag/t27/issues/138), [#142](https://github.com/gHashTag/t27/issues/142).  
+**Certification / evidence vocabulary:** `[COMPILER_VERIFICATION_STANDARDS.md](COMPILER_VERIFICATION_STANDARDS.md)` — **DO-178C / DO-330 / DO-333**, ISO 26262 (TCL), IEC 61508 (T1–T3), EN 50716, ECSS-Q-ST-80C, IEC 62304, IEEE 1012, NIST SSDF, CompCert/CakeML/Alive2/Flocq, TVCP **TV-01–TV-07**, phased plan. Quick index: `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)`. Draft **TOR/TVP:** `[qualification/TOR.md](qualification/TOR.md)`, `[qualification/TVP.md](qualification/TVP.md)`.
+
+### 3.3  Compiler verification — impact digest (trust in `t27c`)
+
+**Question the standards pack answers:** how we **justify trust** in **`t27c`** as a code generator (and in **`coqc`** as proof-checking tooling) using the same vocabulary regulators use (tool qualification, V&V, formal methods).
+
+**Why it matters for T27**
+
+- **DO-330 / ISO 26262 / IEC 61508** all force the same discipline: if a tool **writes** product code or **replaces** verification, its failures must be **controlled** with evidence (TOR/TVP/TVCP/TVR/TAS in aviation-shaped programs).  
+- **DO-178C** aligns with repo law: **`TDD-MANDATE`** ≈ requirements-based testing mindset; **`ISSUE-GATE`** ≈ traceability of change to tracked work.  
+- **DO-333** is the slot for **`coq/`** (theorem proving); **K2** is proved on **`Reals`** in `Phi.v`; **`PhiFloat.v`** gives the **`f64`** Flocq model + **`phi_identity_contract`** (computational bridge; deeper error lemmas → later ring).  
+- **IEEE 1012-style V&V planning** implies generator assurance should be **commensurate** with the integrity of the software the generator affects — **`NO-HAND-EDIT-GEN`** enforces SSOT on **`.t27`**, not hand patches in **`gen/`**.  
+- **NIST SSDF** aligns with **pinned toolchains**, **`FROZEN_HASH`**, and append-only **experience** logs.
+
+**Immediate blocker (unchanged):** until **`seed.t27 → t27c gen → zig test → GREEN`** runs as **one advertised CI job**, end-to-end “we can show the compiler pipeline works” remains **weaker than** the standards narrative we are writing. That job is **Phase 1 / NOW §5 step 1.5** — **[#150](https://github.com/gHashTag/t27/issues/150)**.
+
+**Russian full narrative (impact per section):** `[COMPILER_VERIFICATION_IMPACT_RU.md](COMPILER_VERIFICATION_IMPACT_RU.md)` — allowlisted Cyrillic companion; **English SSOT** remains `[COMPILER_VERIFICATION_STANDARDS.md](COMPILER_VERIFICATION_STANDARDS.md)`.
 
 ---
 
@@ -104,11 +155,12 @@ Treat that as the **highest-leverage** gap before Phase 3 (Brain) work is **evid
 | [#143](https://github.com/gHashTag/t27/issues/143) | 047  | Math         | K3 logic truth table — 27-entry isomorphism    |
 | [#144](https://github.com/gHashTag/t27/issues/144) | 048  | VSA          | Trit-space bind/unbind formal spec             |
 | [#145](https://github.com/gHashTag/t27/issues/145) | 049  | Physics      | Sacred physics hard-tolerance conformance      |
+| [#150](https://github.com/gHashTag/t27/issues/150) | —    | CI           | E2E CI: `seed.t27` → `t27c gen` → `zig test` → GREEN |
 
 
 *Confirm issue titles with `gh issue view` if links drift.*
 
-**Also:** `[docs/RING_BACKLOG_047_063.md](RING_BACKLOG_047_063.md)` · `[docs/coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md)` · anchor [#141](https://github.com/gHashTag/t27/issues/141)
+**Also:** `[RING_BACKLOG_047_063.md](RING_BACKLOG_047_063.md)` · `[coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md)` · `[KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md](KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md)` · `[SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md](SCIENCE-OPS-DUAL-TRACK-SYNTHESIS.md)` · `[RESEARCH_WRITING_T27.md](RESEARCH_WRITING_T27.md)` · anchor [#141](https://github.com/gHashTag/t27/issues/141)
 
 ---
 
@@ -141,7 +193,7 @@ CROWN (Queen brain & automation)
 | 1.2  | [#132](https://github.com/gHashTag/t27/issues/132) | Parser enforces SOUL.md                                    | Spec without `test`/`invariant`/`bench` → error (when enforced) |
 | 1.3  | [#127](https://github.com/gHashTag/t27/issues/127) | Canonicalise `TASK.md` + iteration schema                  | `tri check-now` passes on clean repo                            |
 | 1.4  | —                                                  | Verify `FORMAT-SPEC-001.json` + `gf16.t27` as numeric SSOT | Numeric PRs link to these                                       |
-| 1.5  | —                                                  | Document / CI **seed → gen → zig test**                    | Minimal golden spec path green in CI                            |
+| 1.5  | [#150](https://github.com/gHashTag/t27/issues/150) | Document / CI **seed → gen → zig test**                    | Minimal golden spec path green in CI; PRs **`Closes #150`**      |
 
 
 ### Phase 2 — Stem: Conformance + benchmarks + seals *(next)*
@@ -191,16 +243,16 @@ CROWN (Queen brain & automation)
 ## § 6  Matryoshka layer map
 
 
-| Layer  | Name               | Key files                                                                   | Integration phase |
-| ------ | ------------------ | --------------------------------------------------------------------------- | ----------------- |
-| **L0** | **Seed**           | `bootstrap/src/compiler.rs`; `stage0/FROZEN_HASH` *if shipped*              | genesis           |
-| **L1** | **Bootstrap**      | `bootstrap/src/main.rs`, `bootstrap/main.zig`                               | Phase 1           |
-| **L2** | **Base types**     | `specs/base/types.t27`, `specs/base/ops.t27`                                | Phase 1           |
-| **L3** | **Numerics**       | `specs/numeric/gf*.t27`, `specs/numeric/tf3.t27`                            | Phase 2           |
-| **L4** | **Math / physics** | `specs/math/constants.t27`, `specs/math/sacred_physics.t27`                 | Phase 3           |
-| **L5** | **Compiler**       | `specs/compiler/`**, `gen/zig/compiler/*`*                                  | Phase 1–2         |
-| **L6** | **Hardware**       | `specs/fpga/`**, `specs/isa/registers.t27`                                  | Phase 3           |
-| **L7** | **Queen brain**    | `specs/queen/lotus.t27`, `specs/nn/hslm.t27`, `specs/vsa/`**, `specs/ar/`** | Phase 4           |
+| Layer  | Name               | Key files                                                                | Integration phase |
+| ------ | ------------------ | ------------------------------------------------------------------------ | ----------------- |
+| **L0** | **Seed**           | `bootstrap/src/compiler.rs`; `stage0/FROZEN_HASH` *if shipped*           | genesis           |
+| **L1** | **Bootstrap**      | `bootstrap/src/main.rs`, `bootstrap/main.zig`                            | Phase 1           |
+| **L2** | **Base types**     | `specs/base/types.t27`, `specs/base/ops.t27`                             | Phase 1           |
+| **L3** | **Numerics**       | `specs/numeric/gf*.t27`, `specs/numeric/tf3.t27`                         | Phase 2           |
+| **L4** | **Math / physics** | `specs/math/constants.t27`, `specs/math/sacred_physics.t27`              | Phase 3           |
+| **L5** | **Compiler**       | `specs/compiler/`, `gen/zig/compiler/`                                   | Phase 1–2         |
+| **L6** | **Hardware**       | `specs/fpga/`, `specs/isa/registers.t27`                                 | Phase 3           |
+| **L7** | **Queen brain**    | `specs/queen/lotus.t27`, `specs/nn/hslm.t27`, `specs/vsa/`, `specs/ar/`* | Phase 4           |
 
 
 ---
@@ -208,14 +260,14 @@ CROWN (Queen brain & automation)
 ## § 7  Sync gates and tooling
 
 
-| Gate                | Trigger      | Checks                                    |
-| ------------------- | ------------ | ----------------------------------------- |
-| `pre-commit`        | local commit | `tri check-now`; `NOW.md` date            |
-| `issue-gate.yml`    | PR           | `Closes #N`                               |
-| `phi-loop-ci.yml`   | push         | parse / gen / conformance (see workflow)  |
-| `now-sync-gate.yml` | push         | `NOW.md` freshness window                 |
-| **Conformance**     | CI / local   | `t27c validate-conformance --repo-root .` |
-| **Gen headers**     | CI / local   | `t27c validate-gen-headers --repo-root .` |
+| Gate                | Trigger      | Checks                                    | Status *(verify in Actions)*        |
+| ------------------- | ------------ | ----------------------------------------- | ----------------------------------- |
+| `pre-commit`        | local commit | `tri check-now`; `NOW.md` date            | active if hooks installed           |
+| `issue-gate.yml`    | PR           | `Closes #N`                               | see badge / Actions                 |
+| `phi-loop-ci.yml`   | push         | parse / gen / conformance (see workflow) | **⚠️ E2E gap** — [#150](https://github.com/gHashTag/t27/issues/150) |
+| `now-sync-gate.yml` | push         | `NOW.md` freshness window                 | see badge / Actions                 |
+| **Conformance**     | CI / local   | `t27c validate-conformance --repo-root .` | run locally or in CI                |
+| **Gen headers**     | CI / local   | `t27c validate-gen-headers --repo-root .` | run locally or in CI                |
 
 
 **Agent sync:** `.trinity/state/github-sync.json`  
@@ -227,36 +279,46 @@ CROWN (Queen brain & automation)
 ## § 8  Document map
 
 
-| Topic                      | Document                                                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Constitution v1.2          | `[T27-CONSTITUTION.md](T27-CONSTITUTION.md)`                                                                |
-| Ring log                   | `.trinity/experience/clara_track1.jsonl`                                                                    |
-| Queen health               | `.trinity/state/queen-health.json`                                                                          |
-| Rolling integration detail | `[ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md)`       |
-| Numeric SSOT               | `conformance/FORMAT-SPEC-001.json` + `[NUMERIC-STANDARD-001.md](nona-02-organism/NUMERIC-STANDARD-001.md)`  |
-| Claims registry            | `[RESEARCH_CLAIMS.md](nona-03-manifest/RESEARCH_CLAIMS.md)`                                                 |
-| Math/physics test charter  | `[T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md](nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)`       |
-| Axiom/theorem format       | `[T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md](nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md)` |
-| Publications pipeline      | `[PUBLICATION_PIPELINE.md](PUBLICATION_PIPELINE.md)`                                                        |
-| Roadmap umbrella           | [#126](https://github.com/gHashTag/t27/issues/126)                                                          |
+| Topic                      | Document                                                                                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Constitution v1.2          | `[T27-CONSTITUTION.md](T27-CONSTITUTION.md)`                                                                                                                                      |
+| Ring log                   | `.trinity/experience/clara_track1.jsonl`                                                                                                                                          |
+| Queen health               | `.trinity/state/queen-health.json`                                                                                                                                                |
+| Rolling integration detail | `[ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md](coordination/ROLLING-INTEGRATION-PLAN-SEED-TO-QUEEN.md)`                                                                             |
+| Numeric SSOT               | `conformance/FORMAT-SPEC-001.json` + `[NUMERIC-STANDARD-001.md](nona-02-organism/NUMERIC-STANDARD-001.md)`                                                                        |
+| Claims registry            | `[RESEARCH_CLAIMS.md](nona-03-manifest/RESEARCH_CLAIMS.md)`                                                                                                                       |
+| Math/physics test charter  | `[T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md](nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)`                                                                             |
+| Axiom/theorem format       | `[T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md](nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md)`                                                                       |
+| Publications pipeline      | `[PUBLICATION_PIPELINE.md](PUBLICATION_PIPELINE.md)`                                                                                                                              |
+| Compiler verification (EN) | `[COMPILER_VERIFICATION_STANDARDS.md](COMPILER_VERIFICATION_STANDARDS.md)` · `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)` |
+| Compiler verification (RU) | `[COMPILER_VERIFICATION_IMPACT_RU.md](COMPILER_VERIFICATION_IMPACT_RU.md)` (allowlisted; see ADR-004)                                                                             |
+| PHI-IDENTITY Flocq bridge  | `[PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md](nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md)`                                                                                           |
+| Phase B Flocq task anchor  | `[PHASE_B_FLOCQ_AGENT_TASK.md](nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md)`                                                                                                      |
+| φ / f64 validation script  | [`scripts/validate_phi_f64.py`](../scripts/validate_phi_f64.py)                                                                                                                    |
+| Roadmap umbrella           | [#126](https://github.com/gHashTag/t27/issues/126)                                                                                                                                |
 
 
 ---
 
 ## § 9  Next actions (48 h)
 
+**Priority:** Close **E2E** `seed.t27 → t27c gen → zig test → GREEN` in **phi-loop CI** — **[#150](https://github.com/gHashTag/t27/issues/150)** (see **§3.2–3.3**, **§5 Phase 1 step 1.5**). Everything else is secondary until that loop is green.
+
 ```bash
-# 1. Milestone (needs gh auth)
+# 0. NOW gate — run FIRST before any commit (otherwise push / hooks may fail)
+./scripts/tri check-now
+
+# 1. E2E CI issue (created — link PRs with Closes #150)
+# gh issue view 150
+
+# 2. Milestone hygiene (needs gh auth)
 # gh issue edit 127 128 129 130 131 132 133 --milestone "EPOCH-01-HARDEN"
 
-# 2. Bootstrap + suite
+# 3. Bootstrap + suite
 cd bootstrap && cargo build --release
 ./target/release/t27c validate-conformance --repo-root ..
 ./target/release/t27c validate-gen-headers --repo-root ..
 ./target/release/t27c suite --repo-root ..
-
-# 3. NOW gate (local calendar date must match **Last updated** date prefix)
-cd .. && ./scripts/tri check-now
 
 # 4. Optional: compiler hash (if stage0/FROZEN_HASH exists in your tree)
 # shasum -a 256 bootstrap/src/compiler.rs
@@ -269,4 +331,4 @@ cd .. && ./scripts/tri check-now
 
 ---
 
-*Living documentation corpus · `[T27-CONSTITUTION.md](T27-CONSTITUTION.md)` v1.2, Article DOCS-TREE · **Last updated** must include **calendar date** `YYYY-MM-DD` (for `tri check-now`). Prefer **human-readable local wall time** plus optional **RFC3339 with offset** (e.g. `2026-04-06T18:45:00+07:00`) so tools can echo it — **do not require UTC `Z`** unless you work in UTC.*
+*Living documentation corpus · `[T27-CONSTITUTION.md](T27-CONSTITUTION.md)` v1.2, Article DOCS-TREE · **Last updated** must include **calendar date** `YYYY-MM-DD` (for `tri check-now`). Prefer **human-readable local wall time** plus optional **RFC3339 with offset** (e.g. `2026-04-06T18:45:00+07:00`) so tools can echo it — do not require UTC `Z` unless you work in UTC.*

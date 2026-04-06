@@ -6,3 +6,5 @@ docs/agents/AGENTS_ALPHABET.md
 docs/nona-01-foundation/SANDBOX-ARCHITECTURE.md
 docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md
 task.md
+# RU companion: compiler verification impact (NOW links here; Cyrillic allowed only in allowlisted paths)
+docs/COMPILER_VERIFICATION_IMPACT_RU.md
