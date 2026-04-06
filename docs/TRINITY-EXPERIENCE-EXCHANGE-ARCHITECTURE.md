@@ -1,7 +1,8 @@
 # Trinity experience exchange — architecture (draft)
 
 **Status:** Design note — aligns agent/Queen memory with multi-agent learning literature.  
-**CLI spine:** Prefer **`./scripts/tri …`** for build gates and suite; `t27c` is the bootstrap binary behind `tri`.
+**CLI spine:** Prefer **`./scripts/tri …`** for build gates and suite; `t27c` is the bootstrap binary behind `tri`.  
+**See also:** [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md) (IMRaD experiments, kernel axioms K1–K6, Queen channels).
 
 ## Executive summary
 
