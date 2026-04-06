@@ -1069,10 +1069,15 @@ impl Parser {
 
             // After reading the first value token, skip any remaining expression
             // tokens (operators, more operands) until semicolon
-            if self.current.kind != TokenKind::Semicolon {
+            // But don't skip past module body closing brace or next declaration
+            if self.current.kind != TokenKind::Semicolon 
+                && self.current.kind != TokenKind::RBrace 
+                && !self.is_top_level_start() 
+                && self.current.kind != TokenKind::Eof 
+            {
                 self.skip_to_semicolon()?;
-                return Ok(decl);
             }
+            return Ok(decl);
         }
 
         // Consume trailing semicolon
