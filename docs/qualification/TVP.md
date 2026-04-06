@@ -32,12 +32,12 @@ Per objective:
 
 ## 3. TVCP mapping (procedures)
 
-**NOW cross-ref:** **TV-01** / **TV-02** **PASS** — see `docs/NOW.md` §3.2. E2E loop `seed.t27 → t27c gen → zig test → GREEN` demonstrated in `phi-loop-ci.yml` with Zig 0.13.0. **[#150](https://github.com/gHashTag/t27/issues/150)** closed by PR `feat/ring-46-e2e-ci`.
+**NOW cross-ref:** **TV-01** / **TV-02** **PASS** — see `docs/NOW.md` §3.2. E2E loop `seed.t27 → t27c gen → zig test → GREEN` demonstrated in `phi-loop-ci.yml` (run 24045822072) with Zig 0.13.0. **[#150](https://github.com/gHashTag/t27/issues/150)** closed by PR `feat/ring-051-jones-polynomial-clean`.
 
 | TVCP ID | Command(s) | Maps to | Status |
 |---------|------------|---------|--------|
-| TV-01 | `./scripts/tri test` | O-1 | ✅ PASS — 57/57 specs, 0 failures |
-| TV-02 | Regen + hash `gen/` | O-2 | ✅ PASS — all 57 seals current |
+| TV-01 | `./scripts/tri test` | O-1 | ✅ PASS — 63/63 specs, 0 failures |
+| TV-02 | Regen + hash `gen/` | O-2 | ✅ PASS — all 63 seals current |
 | TV-03 | `./scripts/tri validate-gen-headers` | O-3 |
 | TV-04 | `./scripts/tri validate-conformance` | O-4 |
 | TV-05 | `make -C coq/` (or workflow) | O-5 |
