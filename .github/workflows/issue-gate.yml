@@ -32,8 +32,9 @@ jobs:
             }' --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' 2>/dev/null)
 
           if [ -z "$ISSUES" ]; then
-            echo "::warning::No linked issues found. Consider adding 'Closes #N' to PR description."
-            echo "✅ Continuing without linked issue (allowed for documentation/fixup PRs)"
+            echo "::error::TOXIC: PR must reference an issue with 'Closes #N', 'Fixes #N', or 'Resolves #N' (L1 TRACEABILITY)"
+            echo "::error::See issue #128 for ISSUE-GATE requirements"
+            exit 1
           else
             echo "✅ Linked issues: $ISSUES"
           fi
