@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 00:30 local time (UTC+07) · RFC3339 2026-04-06T00:30:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 22:30 local time (UTC+07) · RFC3339 2026-04-06T22:30:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** 2026-04-06 — **Phase 2 STEM** in progress · **SCHEMA_V2** defined · 5 vectors migrated to v2 · **Seal coverage CI** PR-scoped · **#133** target
+**Revision:** 2026-04-07 — **NO-SHELL fix**: `validate-conformance-v2.sh` deleted → `t27c validate-conformance-v2` · `seal-coverage.yml` → thin Rust call
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -58,7 +58,7 @@ Skipping this is a **failed handoff** — the fleet coordinates here, not only i
 | Law                  | Statement                                                                                           | Enforcement                                                                                                         |
 | -------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **ISSUE-GATE**       | No code merged without `Closes #N`                                                                  | `.github/workflows/issue-gate.yml`                                                                                  |
-| **NO-HAND-EDIT-GEN** | Files under `gen/` are generated; edit the `.t27` spec instead                                      | `./bootstrap/target/release/t27c validate-gen-headers --repo-root .` (or `./scripts/tri` wrapper)                   |
+| **NO-HAND-EDIT-GEN** | Files under `gen/` are generated; edit the `.t27` spec instead                                      | `./bootstrap/target/release/t27c --repo-root . validate-gen-headers` (or `./scripts/tri validate-gen-headers`)   |
 | **SOUL-ASCII**       | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments                        | `SOUL.md`, ADR-004                                                                                                  |
 | **TDD-MANDATE**      | Every `.t27` spec must contain `test` / `invariant` / `bench`                                       | Ring 037 / [#132](https://github.com/gHashTag/t27/issues/132)                                                       |
 | **PHI-IDENTITY**     | **K2 core:** \(\varphi^2 = \varphi + 1\) on \(\mathbb{R}\); **consequence** \(\varphi^2+\varphi^{-2}=3\); **IEEE `f64`** checks use **tolerance** (not exact equality) | `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`, `specs/math/constants.t27` |
@@ -110,7 +110,7 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 
 **TV reference ([`qualification/TVP.md`](docs/qualification/TVP.md)):** **TV-01** (`tri test` / suite on golden snapshot) — **PASS** (all 57 specs) · **TV-02** (regen + blessed hash of `gen/`) — **PASS** (all 57 seals current)
 
-**K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`scripts/validate_phi_f64.py`**. Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
+**K2 fast path (binary64):** For the IEEE literal of \(\varphi\), **`fl(φ·φ)`** and **`fl(φ+1.0)`** are **bit-identical** (`0x4004F1BBCDCBFA54`). So **`phi_identity_contract`** in `coq/Kernel/PhiFloat.v` is **`Rabs(0) < phi_tolerance`** (trivial residual). Mantissa / exponent for Flocq: **`7286977268806824`**, exp **`-52`** — cross-check with **`t27c validate-phi`** (or **`./scripts/tri validate-phi`**). Spec: [`PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md`](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md) · task anchor: [`PHASE_B_FLOCQ_AGENT_TASK.md`](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md).
 
 **Optional formal track:** `[coq/](coq/)` + `[T27_KERNEL_FORMAL_COQ.md](docs/T27_KERNEL_FORMAL_COQ.md)` — Rocq/Coq scaffold for **K1–K4** (not K5/K6); CI `.github/workflows/coq-kernel.yml` when **`coq/**`** changes.  
 **K2 / PHI-IDENTITY (summary):** `Kernel/Phi.v` — `Coq.Reals` (**`phi_squared_identity`**, **`phi_tolerance`**). `Kernel/PhiFloat.v` — Flocq **`binary64`**, **`phi_identity_contract`**. Balanced ternary / radix economy context: [#138](https://github.com/gHashTag/t27/issues/138), [#142](https://github.com/gHashTag/t27/issues/142).  
@@ -269,8 +269,8 @@ CROWN (Queen brain & automation)
 | `issue-gate.yml`    | PR           | `Closes #N`                               | see badge / Actions                 |
 | `phi-loop-ci.yml`   | push / PR    | E2E + `tri` suite + conformance (see workflow) | **E2E in CI** — [#150](https://github.com/gHashTag/t27/issues/150) **closed** |
 | `now-sync-gate.yml` | push         | `NOW.md` freshness window                 | see badge / Actions                 |
-| **Conformance**     | CI / local   | `t27c validate-conformance --repo-root .` | run locally or in CI                |
-| **Gen headers**     | CI / local   | `t27c validate-gen-headers --repo-root .` | run locally or in CI                |
+| **Conformance**     | CI / local   | `t27c --repo-root . validate-conformance` | run locally or in CI                |
+| **Gen headers**     | CI / local   | `t27c --repo-root . validate-gen-headers` | run locally or in CI                |
 
 
 **Agent sync:** `.trinity/state/github-sync.json`  
@@ -297,7 +297,7 @@ CROWN (Queen brain & automation)
 | Compiler verification (RU) | `[COMPILER_VERIFICATION_IMPACT_RU.md](docs/COMPILER_VERIFICATION_IMPACT_RU.md)` (allowlisted; see ADR-004)                                                                             |
 | PHI-IDENTITY Flocq bridge  | `[PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md](docs/nona-03-manifest/PHI_IDENTITY_FLOCQ_BRIDGE_SPEC.md)`                                                                                           |
 | Phase B Flocq task anchor  | `[PHASE_B_FLOCQ_AGENT_TASK.md](docs/nona-03-manifest/PHASE_B_FLOCQ_AGENT_TASK.md)`                                                                                                      |
-| φ / f64 validation script  | [`scripts/validate_phi_f64.py`](../scripts/validate_phi_f64.py)                                                                                                                    |
+| φ / f64 validation         | `t27c validate-phi` / `./scripts/tri validate-phi`                                                                                                                                  |
 | Roadmap umbrella           | [#126](https://github.com/gHashTag/t27/issues/126)                                                                                                                                |
 
 
@@ -319,9 +319,9 @@ CROWN (Queen brain & automation)
 
 # 3. Bootstrap + suite
 cd bootstrap && cargo build --release
-./target/release/t27c validate-conformance --repo-root ..
-./target/release/t27c validate-gen-headers --repo-root ..
-./target/release/t27c suite --repo-root ..
+./target/release/t27c --repo-root .. validate-conformance
+./target/release/t27c --repo-root .. validate-gen-headers
+./target/release/t27c --repo-root .. suite
 
 # 4. Optional: compiler hash (if stage0/FROZEN_HASH exists in your tree)
 # shasum -a 256 bootstrap/src/compiler.rs
