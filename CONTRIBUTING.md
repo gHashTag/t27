@@ -17,6 +17,27 @@ Keep **`docs/NOW.md`** current: it is the rolling snapshot for humans and agents
 2. **CI:** **`.github/workflows/now-sync-gate.yml`** requires **`docs/NOW.md`** in each PR/push to `master` and checks the date (UTC today or yesterday). **`.github/workflows/phi-loop-ci.yml`** builds **`t27c`**, then runs the same gates through **`./scripts/tri`** (`check-now`, `test`, `validate-conformance`, `validate-gen-headers`). Calendar date for **`tri check-now`** must match the runner’s local “today” (typically UTC on GitHub Actions).
 3. **`tri`:** **`./scripts/tri check-now`** forwards to **`t27c check-now`**; **`gen*`** and **`compile*`** run that gate automatically before invoking codegen.
 
+## PHI Loop CI — why assistants do not “see” red builds
+
+GitHub Actions does **not** push logs into Cursor or chat by default. To inspect failures you (or an agent with shell + `gh`) must **pull** them:
+
+```bash
+gh run list --workflow=phi-loop-ci.yml --limit 8
+gh run view <run-id> --log-failed
+# or, from repo root:
+bash scripts/ci/phi-loop-last-failure.sh
+```
+
+Install the **GitHub Actions** extension in the editor if you want in-UI log links. After **`git push`**, run **`gh run watch`** to stream the current workflow.
+
+**Common `tri test` failure — seal verify:** new `.t27` under `specs/` needs a saved seal:
+
+```bash
+./scripts/tri seal specs/path/to/module.t27 --save
+```
+
+If **`gen_hash_*` mismatches** appear for many specs, the compiler output changed; refresh seals intentionally (same `--save` per spec or batch policy from maintainers) and commit **`.trinity/seals/*.json`**.
+
 ## Specs and tests
 
 - New or changed `.t27` files should include **`test`**, **`invariant`**, and/or **`bench`** blocks as required by SOUL (TDD mandate).

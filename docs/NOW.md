@@ -1,9 +1,14 @@
+[![PHI Loop CI](https://github.com/gHashTag/t27/actions/workflows/phi-loop-ci.yml/badge.svg?branch=master)](https://github.com/gHashTag/t27/actions/workflows/phi-loop-ci.yml)
+[![NOW sync gate](https://github.com/gHashTag/t27/actions/workflows/now-sync-gate.yml/badge.svg?branch=master)](https://github.com/gHashTag/t27/actions/workflows/now-sync-gate.yml)
+[![NOW document](https://img.shields.io/badge/NOW%20document-ACTIVE-brightgreen)](https://github.com/gHashTag/t27/blob/master/docs/NOW.md)
+[![Queen health](https://img.shields.io/badge/Queen%20health-GREEN%20%2F%201.0-brightgreen)](https://github.com/gHashTag/t27/blob/master/.trinity/state/queen-health.json)
+
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 18:45 local time (UTC+07) · RFC3339 2026-04-06T18:45:00+07:00
+**Last updated:** 2026-04-06 — Monday, 06 April 2026 · 18:53 local time (UTC+07) · RFC3339 2026-04-06T18:53:16+07:00
 
 **Document class:** Operational focus document  
-**Revision:** 2026-04-06 — Monday, 06 April 2026 · 18:45 local (UTC+07) · Ring 45 (narrative seal — verify in `.trinity/` + CI)  
+**Revision:** 2026-04-06 — Monday, 06 April 2026 · 18:53 local (UTC+07) · Ring 45 (narrative seal — verify in `.trinity/` + CI)  
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
