@@ -1,8 +1,8 @@
-# AGENTS.md — Trinity 27-Agent Alphabet
+# AGENTS_ALPHABET.md — Trinity 27-Agent Alphabet
 
-**Version**: 2.1
-**Date**: 2026-04-04
-**Status**: Active — Canon-verified (Issue #50)
+**Version**: 3.0
+**Date**: 2026-04-07
+**Status**: Active — LANG-EN compliant (Issue #135)
 
 > *27 agents = 27 registers = 27 letters = TRINITY³*
 
@@ -10,250 +10,478 @@
 
 ## TRINITY ALPHABET — 27 AGENTS
 
-В системе Trinity действует 27 именных агентов — по числу регистров в `isa/registers.t27` (Coptic / Trinity alphabet).
+The Trinity system employs 27 named agents — corresponding to the 27 registers in `isa/registers.t27` (Coptic / Trinity alphabet).
 
-- Каждый AGENT_X привязан к букве/регистру
-- Имеет свою доменную область (physics, numeric, compiler, graph, experience, verdict, bench, DePIN, UI и т.д.)
-- Ведёт логи в `.trinity/experience/` и связан с узлами `graph_v2.json`
+- Each AGENT_X is bound to a letter/register
+- Has its own domain area (physics, numeric, compiler, graph, experience, verdict, bench, DePIN, UI, etc.)
+- Logs to `.trinity/experience/` and is linked to nodes in `graph_v2.json`
 
 ---
 
-## АГЕНТ T — QUEEN TRINITY
+## AGENT T — QUEEN TRINITY
 
-**AGENT T** — королева TRINITY, центральный оркестратор.
+**AGENT T** — Queen of TRINITY, central orchestrator.
 
-- **Модуль**: `t27/specs/queen/lotus.t27` — 6-фазная оркестрация
-- **Буква**: TAW (ת) — КРЕСТ/ПОДПИСЬ, последняя буква еврейского алфавита
-- **Регистр**: r20 (в 27-регистровом наборе)
-- **Архетип**: Печать, истина, завершение (EMET = Aleph + Mem + Taw)
+- **Module**: `specs/queen/lotus.t27` — 6-phase orchestration
+- **Letter**: TAW (ת) — CROSS/SIGNATURE, the last letter of the Hebrew alphabet
+- **Register**: r20 (in the 27-register set)
+- **Archetype**: Seal, truth, completion (EMET = Aleph + Mem + Taw)
 
-### Обязанности
+### Responsibilities
 
-1. **Оркестрация** — читает `graph_v2.json` и знает зависимости всех модулей
-2. **Распределение задач** — дирижирует 26 подагентами (A…Z, кроме T) по их доменам
-3. **Сбор результатов** — собирает результаты (tests, verdicts, benches, experience episodes)
-4. **Проверка инвариантов** — validates architecture invariants (topological order, sacred-core, phi-critical edges)
-5. **De-Zigфикация enforcement** — требует, чтобы source of truth был в `.t27/.tri`, а Zig/Verilog/C — только backend-ами
+1. **Orchestration** — reads `graph_v2.json` and knows all module dependencies
+2. **Task distribution** — conducts 26 sub-agents (A…Z, except T) by their domains
+3. **Result collection** — gathers results (tests, verdicts, benches, experience episodes)
+4. **Invariant verification** — validates architecture invariants (topological order, sacred-core, phi-critical edges)
+5. **De-Zig enforcement** — requires that source of truth be in `.t27/.tri`, with Zig/Verilog/C only as backends
 
-### 6-Фазный цикл AGENT T
+### 6-Phase Cycle of AGENT T
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ФАЗА 1: PLAN                           │
-│   • Анализ задачи и выбор стратегии                                    │
-│   • Чтение graph_v2.json для impact analysis                         │
-│   • Определение каких агентов участвуют                                │
-│   • Проверка опыта: есть ли похожие задачи в .trinity/experience/  │
+│                    PHASE 1: PLAN                           │
+│   • Analyze task and select strategy                            │
+│   • Read graph_v2.json for impact analysis                     │
+│   • Determine which agents participate                          │
+│   • Check experience: are there similar tasks in .trinity/experience/  │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                 ФАЗА 2: ASSIGN                           │
-│   • Распределение задач по агентам по доменам                    │
-│   • A (arch), N (numeric), P (physics), F (conformance), etc.      │
-│   • Установка зависимостей: G+F+V → V проверяет F проверяет G       │
-│   • Создание tri-cell для каждого агента (W пломбирует)             │
+│                 PHASE 2: ASSIGN                           │
+│   • Distribute tasks to agents by domain                       │
+│   • A (arch), N (numeric), P (physics), F (conformance), etc.  │
+│   • Set dependencies: G+F+V → V checks F checks G               │
+│   • Create tri-cell for each agent (W seals)                    │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                  ФАЗА 3: RUN                              │
-│   • Параллельное исполнение задач агентами                          │
-│   • Мониторинг через heartbeats                                          │
-│   • Агенты сообщают статус в `.trinity/agent_events.jsonl`               │
-│   • T координирует, при необходимости перераспределяя                    │
+│                  PHASE 3: RUN                              │
+│   • Parallel task execution by agents                          │
+│   • Monitoring via heartbeats                                  │
+│   • Agents report status to `.trinity/agent_events.jsonl`       │
+│   • T coordinates, redistributing if necessary                 │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              ФАЗА 4: TEST & BENCH                        │
-│   • F проверяет conformance JSON vectors                              │
-│   • V запускает benchmarks (ARCH_BENCH-001)                              │
-│   • G измеряет impact changes                                              │
-│   • Сбор метрик в M для вердикта V                                         │
+│              PHASE 4: TEST & BENCH                        │
+│   • F checks conformance JSON vectors                          │
+│   • V runs benchmarks (ARCH_BENCH-001)                          │
+│   • G measures impact changes                                  │
+│   • Collect metrics in M for verdict by V                      │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              ФАЗА 5: VERDICT                           │
-│   • V анализирует метрики и принимает решение                                  │
-│   • `tri verdict --toxic` — токсичен ли change?                             │
-│   • E записывает опыт (если ошибка) или успех                               │
-│   • Если токсично → Q блокирует task, E отмечает 3-ю попытку               │
+│              PHASE 5: VERDICT                           │
+│   • V analyzes metrics and makes decision                      │
+│   • `tri verdict --toxic` — is the change toxic?                │
+│   • E records experience (if error) or success                  │
+│   • If toxic → Q blocks task, E marks 3rd attempt               │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              ФАЗА 6: EVOLVE                           │
-│   • Обновление graph_v2.json (если изменились зависимости)                  │
-│   • Обновление опыта в E + M                                                   │
-│   • S обновляет стандарты (если необходимо)                                 │
-│   • W запечатывает tri-cell commit (hash-пломба)                            │
-│   • Z обновляет документацию                                                   │
-│   • T ставит финальную печать TAW на завершённую работу                  │
+│              PHASE 6: EVOLVE                           │
+│   • Update graph_v2.json (if dependencies changed)              │
+│   • Update experience in E + M                                  │
+│   • S updates standards (if needed)                            │
+│   • W seals tri-cell commit (hash seal)                        │
+│   • Z updates documentation                                     │
+│   • T puts final TAW seal on completed work                    │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         ФАЗА 7: GIT WORKFLOW (новая — SOUL law)         │
+│         PHASE 7: GIT WORKFLOW (new — SOUL law)         │
 │   • `tri git commit --all -m "cell:{id} issue:{N} ..."`   │
 │   • `tri git push origin HEAD` (strict mode: only t27 repo) │
-│   • Проверка: sealed cell + non-toxic verdict + artifacts   │
-│   • Обновление registry.json с commit hash и pushed flag   │
+│   • Check: sealed cell + non-toxic verdict + artifacts   │
+│   • Update registry.json with commit hash and pushed flag   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**SOUL Law (TDD):** Любой P0/P1 эпизод в `--strict` режиме считается завершённым ТОЛЬКО после успешного `tri git push` в `github.com/gHashTag/t27` с привязанной sealed-cell и нетоксичным verdict.
+**SOUL Law (TDD):** Any P0/P1 episode in `--strict` mode is considered COMPLETE only after successful `tri git push` to `github.com/gHashTag/t27` with bound sealed-cell and non-toxic verdict.
 
-### Слова Триницы
+### Trinity Words
 
-- **T-R-I-N-I-T-Y** = "Истина-разума, действующая через числа, действующая в истине, приносящая урожай"
-- **T+F+V** = "печать + гвоздь + различение" = верификация
-- **T+A+S** = "королева + архитектор + стандартизатор" = конституция
+- **T-R-I-N-I-T-Y** = "Truth of reason, acting through numbers, acting in truth, bringing harvest"
+- **T+F+V** = "seal + nail + distinction" = verification
+- **T+A+S** = "queen + architect + standardizer" = constitution
 
-Любая большая операция (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zigфикация, GoldenFloat Family) всегда идёт через AGENT T.
-
----
-
-## 27 АГЕНТОВ — ПОЛНАЯ ТАБЛИЦА
-
-| Agent | Буква | Домен (core) | Архетип | Примеры задач | Файлы |
-|-------|--------|---------------|----------|---------------|--------|
-| **A** | Aleph אָ | Architecture / ADR / SOUL | Бык — вожак, первичная сила | SOUL.md, ADR‑00X, CANON_DE_ZIGFICATION | `SOUL.md`, `architecture/ADR-*.md` |
-| **B** | Beth בֵּ | Build / Pipeline | Дом — контейнер, жилище | `build.tri`, tri pipeline, CI | `build.tri`, `src/tri/pipeline/` |
-| **C** | Gimel גּ | Compiler Core | Верблюд — переносчик через границы | `t27/compiler/parser`, AST, errors | `t27/compiler/parser/` |
-| **D** | Daleth דָּ | De-Zigfication | Дверь — переход между мирами | миграция `.zig` → `.t27`, migration‑map.md | `docs/migration-map.md` |
-| **E** | Heh הֵ | Experience / Mistakes | Окно — взгляд в прошлое | `.trinity/experience/`, episodes, mistakes | `.trinity/experience/` |
-| **F** | Vav וָ | Formal Conformance | Гвоздь — связь, скрепа | `t27/conformance/*.json`, sacred_* vectors | `t27/conformance/` |
-| **G** | Gimel (вар.) | Graph / ArchBench | Возврат — обратная связь | `graph_v2.json`, ARCH_BENCH‑001 | `architecture/graph_v2.json` |
-| **H** | Heth חֵ | HSLM / NN Architectures | Забор — граница, жизнь | `nn/hslm.t27`, attention | `t27/specs/nn/hslm.t27` |
-| **I** | Yod יֹ | ISA / Registers | Рука — действие, точка | `isa/registers.t27`, 27 регистров, Coptic mapping | `t27/specs/isa/registers.t27` |
-| **J** | Yod‑extended | Jobs / Task Routing | Рука с захватом — диспетчер | tri dev scan/pick, tri agent run, assignment policy | `src/tri/dev_commands.zig` |
-| **K** | Kaph כַּ | Kernel / FPGA MAC | Ладонь — открытая рука | `fpga/mac.t27`, zero‑DSP MAC | `t27/specs/fpga/mac.t27` |
-| **L** | Lamed לָ | Language / Syntax vNEXT | Посох — учитель, направляющий | `docs/nona-02-organism/TRI_SYNTAX_VNEXT.md`, BDD DSL | `docs/nona-02-organism/TRI_SYNTAX_VNEXT.md` |
-| **M** | Mem מֵ | Metrics / Telemetry | Вода — поток данных | tri bench history, perf logs, dashboard | `.trinity/bench/` |
-| **N** | Nun נֹ | Numeric / GoldenFloat Family | Рыба — потомство, размножение | `numeric/gf*.t27`, `goldenfloatfamily.t27` | `t27/specs/numeric/` |
-| **O** | Ayin עַ | Orchestration / Phases | Глаз — всевидящее oko | Phase 1/2/3 plans, multi‑agent coordination | `src/tri/pipeline/` |
-| **P** | Pe פֵּ | Physics / SacredPhysics | Рот — речь вселенной | `math/sacred_physics.t27`, φ, G, ΩΛ | `t27/specs/math/sacred_physics.t27` |
-| **Q** | Qoph קֹ | Queue / Scheduling | Игольное ушко — узкое место | приоритеты, MNL‑pattern, avoiding 3x failed tasks | `src/tri/dev_commands.zig` |
-| **R** | Resh רֵ | Runtime | Голова — начало исполнения | `compiler/runtime`, bootstrap, ABI | `t27/compiler/runtime/` |
-| **S** | Shin שִׁ | Specs / Standardization | Зубы — острота, пламя | NUMERIC‑STANDARD‑001, SACRED‑PHYSICS‑001, naming rules | `specs/`, `docs/NUMERIC-*.md` |
-| **T** | TAW תָּ | TRINITY Queen / Lotus | КРЕСТ — печать, подпись, истина | `queen/lotus.t27`, 6‑phase orchestration | `t27/specs/queen/lotus.t27` |
-| **U** | Upsilon Υ | Universe Levels / Domains | Вилка — разветвление | `domains/physics/universe_levels.t27` | `t27/domains/` |
-| **V** | Vav וָ | Verdict / Bench | Крюк — связка, конъюнкция | `tri verdict --toxic`, `tri bench`, toxicity & perf scoring | `src/tri/verdict.zig` |
-| **W** | Double‑Vav | Workflow / tri cell | Двойной крюк — двойная печать | tri cell begin/seal/commit, hash‑пломбированный loop | `src/tri/cell.zig` |
-| **X** | Chi Χ | eXternal Bindings / Interop | Пересечение — точка обмена | `bindings/zig`, `bindings/python`, MCP tools | `bindings/` |
-| **Y** | Upsilon/Yod | Yield / DePIN / Fitness | Слияние путей — эволюционный отбор | tri depin status/nodes/fitness, swarm health | `deploy/contracts/` |
-| **Z** | Zayin זָ | Zero‑Touch UX / Docs | Меч — режущий край, острие | docs/*, ARCH_BENCH.md, DX, AAIF/agentskills alignment | `docs/` |
-| **27th** | Ϯ (Ti) | Резерв / Security | Египетский крест — "священный дар" | security, AAIF‑compliance, policies (future) | — |
+Any major operation (NUMERIC-STANDARD-001, SACRED-PHYSICS-001, De-Zig, GoldenFloat Family) always goes through AGENT T.
 
 ---
 
-## ТРИ СЛОЯ АЛФАВИТА
+## 27 AGENTS — FULL TABLE
 
-### Слой 1 — Архетипный: A–I (1–9)
-*Чистая концепция — Фундамент: душа, основа, типы*
-
-| Agent | Пиктограмма | Древний образ | Trinity‑смысл |
-|-------|-----------|---------------|--------------|
-| A | 🐂 Голова быка | Сила, власть, первопричина | SOUL.md = первопричина, ADR = конституция системы |
-| B | 🏠 Дом | Контейнер, убежище | build.tri = "дом из спецификаций", пайплайн как жилище |
-| C | 🐪 Верблюд | Перенос через пустыню | Compiler = алхимик, несущий текст через границы |
-| D | 🚪 Дверь | Порог, вход/выход | De-Zigfication = "открыть дверь из .zig в .t27" |
-| E | 🪟 Окно | Дыхание, свет, взгляд наружу | Experience = окно в прошлое системы, дыхание памяти |
-| F | 🪝 Крюк, гвоздь | Связь, соединение, "и" | Conformance JSON = гвозди, держащие spec'и вместе |
-| G | 🐪 Верблюд (движение) | Путешествие, соединение точек | Graph = карта мира Trinity, метрика расстояний |
-| H | 🤝 Забор/стена | Граница, архитектура пространства | HSLM = NN-архитектура, граница между слоями мозга |
-| I | ✋ Рука/кисть | Малейший знак, действие | ISA = рука машины, самый базовый уровень инструкций |
-
-### Слой 2 — Духовный: J–R (10–18)
-*Внутренний процесс — Жизнь системы: задачи, язык, числа, физика*
-
-| Agent | Пиктограмма | Древний образ | Trinity‑смысл |
-|-------|-----------|---------------|--------------|
-| J | ✋+крюк | Рука с захватом | Jobs = "захват" задач и маршрутизация |
-| K | 🖐 Ладонь открытая | Принять/отдать, покрыть | Kernel/FPGA = открытая ладонь нижнего уровня hardware |
-| L | 🪁 Посох пастуха | Обучение, направление | Language = учитель, направляющий Trinity‑речь |
-| M | 🌊 Волна воды | Поток, хаос, несущий смысл | Metrics = непрерывный поток измерений |
-| N | 🐟 Рыба/змея | Непрерывное движение в потоке | Numeric = числа-рыбы, плывущие к золотому сечению |
-| O | 👁 Глаз | Видеть, воспринимать, обозревать | Orchestration = "всевидящее oko" фаз |
-| P | 👄 Рот | Речь, голос, команда вселенной | Physics = природа "говорит" своими константами (φ, G, ΩΛ) |
-| Q | 🪡 Игольное ушко | Точность, узкое место | Queue = "игольное ушко" для задач |
-| R | 👤 Голова человека | Начало исполнения, руководитель | Runtime = "голова" системы во время исполнения |
-
-### Слой 3 — Физический: S–27th (19–27)
-*Манифестация — Доказательство: стандарты, вердикт, деплой, дар*
-
-| Agent | Пиктограмма | Древний образ | Trinity‑смысл |
-|-------|-----------|---------------|--------------|
-| S | 🦷 Зуб / ☀️ Солнце/огонь | Поглощение, трансформация | Specs = "зубья" стандарта, которые всё перемалывают в канон |
-| **T** | ✝️ ЗНАК/КРЕСТ | ПЕЧАТЬ, ПОДПИСЬ, КЛЕЙМО | T = королева, ставит финальную печать на всё |
-| U | 🍴 Вилка/развилка | Одно становится двумя | Universe Levels = разветвление доменов |
-| V | 🪝 Крюк‑соединитель | "И", связка, конъюнкция | Verdict = крюк, цепляющий проблему |
-| W | 🪝🪝 Двойной крюк | Двойная скрепа, двойная печать | Workflow/tri cell = двойная hash‑пломба |
-| X | ✖️ Пересечение | Две линии пересекаются | External Bindings = перекрёсток Trinity и внешних систем |
-| Y | 🌿 Слияние путей | Выбор, эволюционный отбор | Yield/DePIN = эволюционный перекрёсток |
-| Z | ⚔️ Меч/коса | Режущий край, острие | Zero-Touch = "острие" UX и финальная полировка |
-| **27th** | ✝️ ЕГИПЕТСКИЙ КРЕСТ Ϯ | "Дар", "давать", "священное" | Security/AAIF — то, что Trinity дарит миру |
+| Agent | Letter | Domain (core) | Archetype | Key files | Entry invariant | Exit invariant | CLARA role |
+|-------|--------|---------------|----------|-----------|-----------------|----------------|------------|
+| **A** | Alpha α | Architecture / ADR / SOUL | Bull — leader, primary force | `SOUL.md`, `architecture/ADR-*.md` | `SOUL.md` exists and is ASCII-only | All ADRs reviewed and consistent | TA1: AR Architecture Design |
+| **B** | Beta β | Build / Pipeline | House — container, dwelling | `build.tri`, `src/tri/pipeline/` | Build system is clean | All tests pass in pipeline | — |
+| **C** | Gamma γ | Compiler Core | Camel — carrier across borders | `t27/compiler/parser/`, `specs/ar/*.t27` | Parser can handle all AR specs | Generated code compiles | TA1: AR Language Implementation |
+| **D** | Delta δ | De-Zigfication | Door — transition between worlds | `docs/migration-map.md`, `specs/ar/*.t27` | Legacy Zig modules mapped | All AR specs in .t27 format | — |
+| **E** | Epsilon ε | Experience / Mistakes | Window — view into the past | `.trinity/experience/`, `specs/ar/explainability.t27` | Episode log is append-only | Lessons learned catalogued | TA2: AR Explanation & XAI |
+| **F** | Phi φ | Formal Conformance | Nail — connection, binding | `t27/conformance/*.json` | All sacred vectors valid | Conformance > 95% | — |
+| **G** | Gamma (var.) | Graph / ArchBench | Return — feedback | `architecture/graph_v2.json` | Graph is acyclic | All edges satisfied | — |
+| **H** | Eta η | HSLM / NN Architectures | Fence — boundary, life | `t27/specs/nn/hslm.t27` | HSLM layers defined | Attention traces validated | — |
+| **I** | Iota ι | ISA / Registers | Hand — action, point | `t27/specs/isa/registers.t27` | 27 registers defined | Coptic mapping verified | — |
+| **J** | Iota‑extended | Jobs / Task Routing | Hand with grip — dispatcher | `src/tri/dev_commands.zig` | Task queue exists | No stuck jobs > 1 hour | — |
+| **K** | Kappa κ | Kernel / FPGA MAC | Palm — open hand | `t27/specs/fpga/mac.t27` | MAC spec is zero-DSP | Synthesis verified | — |
+| **L** | Lambda λ | Language / Syntax vNEXT | Staff — teacher, guide | `docs/nona-02-organism/TRI_SYNTAX_VNEXT.md` | Syntax vNEXT documented | Parser implements vNEXT | — |
+| **M** | Mu μ | Metrics / Telemetry | Water — flow of data | `.trinity/bench/` | Bench baseline exists | No regression > 5% | — |
+| **N** | Nu ν | Numeric / GoldenFloat Family | Fish — offspring, multiplication | `t27/specs/numeric/` | GF family defined | φ identity validated | — |
+| **O** | Omicron ο | Orchestration / Phases | Eye — all-seeing oko | `src/tri/pipeline/`, `specs/ar/composition.t27` | All phases defined | Orchestration completes | TA2: AR Composition Engine |
+| **P** | Pi π | Physics / SacredPhysics | Mouth — speech of universe | `t27/specs/math/sacred_physics.t27` | φ² + φ⁻² = 3 holds | Sacred constants verified | TA1: AR Theoretical Foundations |
+| **Q** | Theta θ | Queue / Scheduling | Needle's eye — bottleneck | `src/tri/dev_commands.zig` | Queue is not empty | MNL pattern enforced | — |
+| **R** | Rho ρ | Runtime | Head — beginning of execution | `t27/compiler/runtime/` | Runtime initialized | No memory leaks | — |
+| **S** | Sigma σ | Specs / Standardization | Teeth — sharpness, flame | `specs/`, `specs/ar/*.t27`, `docs/NUMERIC-*.md` | All specs have TDD | Standards are consistent | TA1: AR Spec Standards |
+| **T** | Tau τ | TRINITY Queen / Lotus | CROSS — seal, signature, truth | `t27/specs/queen/lotus.t27` | Queen health >= 0.9 | All rings sealed | TA2: AR Orchestrator |
+| **U** | Upsilon υ | Universe Levels / Domains | Fork — branching | `t27/domains/` | Domain boundaries defined | No circular dependencies | — |
+| **V** | Vau (var.) | Verdict / Bench | Hook — connection, conjunction | `src/tri/verdict.zig`, `specs/ar/proof_trace.t27` | Verdict engine ready | Toxicity detected | TA2: AR Validation & Proof |
+| **W** | Double‑Vav | Workflow / tri cell | Double hook — double seal | `src/tri/cell.zig` | Cell is sealed | Hash verified | — |
+| **X** | Chi χ | eXternal Bindings / Interop | Intersection — point of exchange | `bindings/` | Bindings documented | Interop tests pass | — |
+| **Y** | Psi ψ | Yield / DePIN / Fitness | Merging paths — evolutionary selection | `deploy/contracts/` | DePIN nodes defined | Fitness score > 0.8 | — |
+| **Z** | Zeta ζ | Zero‑Touch UX / Docs | Sword — cutting edge, point | `docs/` | All docs in English | DX score > 4/5 | — |
+| **27th** | Ti Ϯ | Reserve / Security | Egyptian cross — "sacred gift" | — | Security policy exists | AAIF compliance ready | — |
 
 ---
 
-## СЛОВА АЛФАВИТА
+## AGENT SCHEMA DETAILS
+
+### Agent A — Alpha (Architecture)
+
+**Coptic Register**: α (R0)
+**Domain**: Architecture / ADR / SOUL
+**Key Files**: `SOUL.md`, `architecture/ADR-*.md`, `architecture/CANON_DE_ZIGFICATION.md`
+**Entry Invariant**: `SOUL.md` exists, is ASCII-only, and defines L1-L7 laws
+**Exit Invariant**: All ADRs reviewed, consistent with constitution, no conflicts
+**CLARA Role**: TA1: AR Architecture Design — designs AR module architecture, ensures composability
+
+### Agent B — Beta (Build)
+
+**Coptic Register**: β (R1)
+**Domain**: Build / Pipeline
+**Key Files**: `build.tri`, `src/tri/pipeline/`
+**Entry Invariant**: Build system is clean, no stale artifacts
+**Exit Invariant**: All tests pass, CI pipeline is green
+
+### Agent C — Gamma (Compiler Core)
+
+**Coptic Register**: γ (R2)
+**Domain**: Compiler Core / AR Language
+**Key Files**: `t27/compiler/parser/`, `bootstrap/src/compiler.rs`, `specs/ar/*.t27`
+**Entry Invariant**: Parser can handle all AR syntax (ternary logic, rules, proofs)
+**Exit Invariant**: Generated code compiles, AST is valid
+**CLARA Role**: TA1: AR Language Implementation — implements AR language features in t27 compiler
+
+### Agent D — Delta (De-Zigfication)
+
+**Coptic Register**: δ (R3)
+**Domain**: De-Zigfication / Migration
+**Key Files**: `docs/migration-map.md`, `specs/ar/*.t27`
+**Entry Invariant**: Legacy Zig modules are catalogued and mapped
+**Exit Invariant**: All AR specs are in .t27 format, no Zig hand-editing on AR
+
+### Agent E — Epsilon (Experience)
+
+**Coptic Register**: ε (R4)
+**Domain**: Experience / XAI
+**Key Files**: `.trinity/experience/`, `specs/ar/explainability.t27`, `specs/ar/proof_trace.t27`
+**Entry Invariant**: Episode log is append-only, no deletions
+**Exit Invariant**: Lessons learned are catalogued, explanations are generated
+**CLARA Role**: TA2: AR Explanation & XAI — generates human-readable explanations for AR outputs
+
+### Agent F — Phi (Formal Conformance)
+
+**Coptic Register**: φ (R5)
+**Domain**: Formal Conformance
+**Key Files**: `t27/conformance/*.json`, `conformance/FORMAT-SPEC-001.json`
+**Entry Invariant**: All sacred vectors (G, ΩΛ, φ) are valid
+**Exit Invariant**: Conformance > 95%, all sacred physics verified
+
+### Agent G — Gamma (Graph)
+
+**Coptic Register**: ζ (R6)
+**Domain**: Graph / ArchBench
+**Key Files**: `architecture/graph_v2.json`, `architecture/graph.tri`
+**Entry Invariant**: Graph is acyclic, topological sort exists
+**Exit Invariant**: All edges satisfied, no broken dependencies
+
+### Agent H — Eta (HSLM)
+
+**Coptic Register**: η (R7)
+**Domain**: HSLM / NN Architectures
+**Key Files**: `t27/specs/nn/hslm.t27`, `t27/specs/nn/attention.t27`
+**Entry Invariant**: HSLM layers are defined, connections are valid
+**Exit Invariant**: Attention traces are validated, sacred attention holds
+
+### Agent I — Iota (ISA)
+
+**Coptic Register**: θ (R8)
+**Domain**: ISA / Registers
+**Key Files**: `t27/specs/isa/registers.t27`
+**Entry Invariant**: 27 registers are defined, Coptic mapping exists
+**Exit Invariant**: Coptic mapping is verified (bijection), all registers accessible
+
+### Agent J — Iota-extended (Jobs)
+
+**Coptic Register**: ι (R9)
+**Domain**: Jobs / Task Routing
+**Key Files**: `src/tri/dev_commands.zig`
+**Entry Invariant**: Task queue exists, scheduler is running
+**Exit Invariant**: No stuck jobs > 1 hour, all jobs assigned
+
+### Agent K — Kappa (Kernel)
+
+**Coptic Register**: κ (R10)
+**Domain**: Kernel / FPGA MAC
+**Key Files**: `t27/specs/fpga/mac.t27`, `specs/math/e8_lie_algebra.t27`
+**Entry Invariant**: MAC spec is zero-DSP (no digital signal processors)
+**Exit Invariant**: Synthesis is verified, E8 kernel integration works
+
+### Agent L — Lambda (Language)
+
+**Coptic Register**: λ (R11)
+**Domain**: Language / Syntax vNEXT
+**Key Files**: `docs/nona-02-organism/TRI_SYNTAX_VNEXT.md`
+**Entry Invariant**: Syntax vNEXT is documented, BNF grammar exists
+**Exit Invariant**: Parser implements vNEXT, all syntax tests pass
+
+### Agent M — Mu (Metrics)
+
+**Coptic Register**: μ (R12)
+**Domain**: Metrics / Telemetry
+**Key Files**: `.trinity/bench/`, `docs/qualification/TVP.md`
+**Entry Invariant**: Bench baseline exists, telemetry is running
+**Exit Invariant**: No performance regression > 5%, all benchmarks current
+
+### Agent N — Nu (Numeric)
+
+**Coptic Register**: ν (R13)
+**Domain**: Numeric / GoldenFloat
+**Key Files**: `t27/specs/numeric/`, `docs/NUMERIC-STANDARD-001.md`
+**Entry Invariant**: GF family is defined (GF4, GF8, GF12, GF16, GF20, GF24, GF32)
+**Exit Invariant**: φ identity validated, all numeric tests pass
+
+### Agent O — Omicron (Orchestration)
+
+**Coptic Register**: ξ (R14)
+**Domain**: Orchestration / Phases
+**Key Files**: `src/tri/pipeline/`, `specs/ar/composition.t27`
+**Entry Invariant**: All phases (1-6) are defined, phase transitions valid
+**Exit Invariant**: Orchestration completes, no stuck phases
+**CLARA Role**: TA2: AR Composition Engine — composes ML and AR components, manages interactions
+
+### Agent P — Pi (Physics)
+
+**Coptic Register**: π (R15)
+**Domain**: Physics / SacredPhysics
+**Key Files**: `t27/specs/math/sacred_physics.t27`, `specs/physics/su2_chern_simons.t27`
+**Entry Invariant**: φ² + φ⁻² = 3 holds in all calculations
+**Exit Invariant**: Sacred constants (G, ΩΛ, φ, tpresent) are verified
+**CLARA Role**: TA1: AR Theoretical Foundations — provides mathematical basis for AR reasoning
+
+### Agent Q — Theta (Queue)
+
+**Coptic Register**: ρ (R16)
+**Domain**: Queue / Scheduling
+**Key Files**: `src/tri/dev_commands.zig`
+**Entry Invariant**: Queue is not empty (work exists)
+**Exit Invariant**: MNL (Most-Numerous-Loss) pattern enforced, no starvation
+
+### Agent R — Rho (Runtime)
+
+**Coptic Register**: σ (R17)
+**Domain**: Runtime / Bootstrap
+**Key Files**: `t27/compiler/runtime/`, `bootstrap/src/compiler.rs`
+**Entry Invariant**: Runtime is initialized, ABI is defined
+**Exit Invariant**: No memory leaks, no resource exhaustion
+
+### Agent S — Sigma (Specs)
+
+**Coptic Register**: τ (R18)
+**Domain**: Specs / Standardization / AR Specs
+**Key Files**: `specs/`, `specs/ar/*.t27`, `docs/NUMERIC-*.md`
+**Entry Invariant**: All specs have TDD (test/invariant/bench)
+**Exit Invariant**: Standards are consistent, naming rules followed
+**CLARA Role**: TA1: AR Spec Standards — defines and enforces AR spec conventions
+
+### Agent T — Tau (TRINITY Queen)
+
+**Coptic Register**: υ (R19)
+**Domain**: Queen / Lotus Orchestrator
+**Key Files**: `t27/specs/queen/lotus.t27`
+**Entry Invariant**: Queen health >= 0.9, graph is loaded
+**Exit Invariant**: All rings are sealed, verdict is clean
+**CLARA Role**: TA2: AR Orchestrator — coordinates all AR agents for CLARA submission
+
+### Agent U — Upsilon (Universe)
+
+**Coptic Register**: φ (R20)
+**Domain**: Universe Levels / Domains
+**Key Files**: `t27/domains/`
+**Entry Invariant**: Domain boundaries are defined
+**Exit Invariant**: No circular dependencies, domains are orthogonal
+
+### Agent V — Vau (Verdict)
+
+**Coptic Register**: χ (R21)
+**Domain**: Verdict / Bench / AR Validation
+**Key Files**: `src/tri/verdict.zig`, `specs/ar/proof_trace.t27`, `specs/ar/restraint.t27`
+**Entry Invariant**: Verdict engine is ready, toxic thresholds defined
+**Exit Invariant**: Toxicity is detected, proof traces are generated
+**CLARA Role**: TA2: AR Validation & Proof — validates AR reasoning, generates proofs
+
+### Agent W — Double-Vav (Workflow)
+
+**Coptic Register**: ψ (R22)
+**Domain**: Workflow / tri cell
+**Key Files**: `src/tri/cell.zig`
+**Entry Invariant**: Cell is sealed, hash is computed
+**Exit Invariant**: Hash is verified, commit is signed
+
+### Agent X — Chi (External)
+
+**Coptic Register**: ω (R23)
+**Domain**: External Bindings / Interop
+**Key Files**: `bindings/`
+**Entry Invariant**: Bindings are documented
+**Exit Invariant**: Interop tests pass, external APIs are current
+
+### Agent Y — Psi (Yield/DePIN)
+
+**Coptic Register**: ϗ (R24)
+**Domain**: Yield / DePIN / Fitness
+**Key Files**: `deploy/contracts/`
+**Entry Invariant**: DePIN nodes are defined
+**Exit Invariant**: Fitness score > 0.8, yield is optimized
+
+### Agent Z — Zeta (Zero-Touch)
+
+**Coptic Register**: Ϙ (R25)
+**Domain**: Zero-Touch UX / Docs
+**Key Files**: `docs/`
+**Entry Invariant**: All docs are in English, ASCII-only
+**Exit Invariant**: DX score > 4/5, all docs are current
+
+### Agent 27th — Ti (Security)
+
+**Coptic Register**: ϙ (R26)
+**Domain**: Security / Reserve
+**Key Files**: — (future)
+**Entry Invariant**: Security policy exists
+**Exit Invariant**: AAIF compliance ready, no vulnerabilities
+
+---
+
+## THREE LAYERS OF THE ALPHABET
+
+### Layer 1 — Archetypal: A–I (1–9)
+*Pure concept — Foundation: soul, base, types*
+
+| Agent | Pictogram | Ancient image | Trinity‑meaning |
+|-------|-----------|---------------|--------------|
+| A | 🐂 Bull's head | Power, authority, primary cause | SOUL.md = primary cause, ADR = system constitution |
+| B | 🏠 House | Container, shelter | build.tri = "house of specifications", pipeline as dwelling |
+| C | 🐪 Camel | Carrying across desert | Compiler = alchemist carrying text across borders |
+| D | 🚪 Door | Threshold, entry/exit | De-Zigfication = "open door from .zig to .t27" |
+| E | 🪟 Window | Breath, light, outward view | Experience = window into system's past, breath of memory |
+| F | 🪝 Hook, nail | Connection, joining, "and" | Conformance JSON = nails holding specs together |
+| G | 🐪 Camel (movement) | Journey, connecting points | Graph = map of Trinity world, distance metric |
+| H | 🤝 Fence/wall | Boundary, architecture of space | HSLM = NN‑architecture, boundary between brain layers |
+| I | ✋ Hand/palm | Smallest sign, action | ISA = machine's hand, most basic instruction level |
+
+### Layer 2 — Spiritual: J–R (10–18)
+*Inner process — Life of system: tasks, language, numbers, physics*
+
+| Agent | Pictogram | Ancient image | Trinity‑meaning |
+|-------|-----------|---------------|--------------|
+| J | ✋+hook | Hand with grip | Jobs = "grab" tasks and routing |
+| K | 🖐 Open palm | Receive/give, cover | Kernel/FPGA = open palm of lower hardware level |
+| L | 🪁 Shepherd's staff | Teaching, guidance | Language = teacher guiding Trinity‑speech |
+| M | 🌊 Water wave | Flow, chaos carrying meaning | Metrics = continuous stream of measurements |
+| N | 🐟 Fish/snake | Continuous movement in stream | Numeric = number‑fish swimming toward golden ratio |
+| O | 👁 Eye | See, perceive, survey | Orchestration = "all-seeing oko" of phases |
+| P | 👄 Mouth | Speech, voice, command of universe | Physics = nature "speaks" with its constants (φ, G, ΩΛ) |
+| Q | 🪡 Needle's eye | Precision, bottleneck | Queue = "needle's eye" for tasks |
+| R | 👤 Human head | Beginning of execution, manager | Runtime = "head" of system during execution |
+
+### Layer 3 — Physical: S–27th (19–27)
+*Manifestation — Proof: standards, verdict, deploy, gift*
+
+| Agent | Pictogram | Ancient image | Trinity‑meaning |
+|-------|-----------|---------------|--------------|
+| S | 🦷 Tooth / ☀️ Sun/fire | Absorption, transformation | Specs = "teeth" of standard that grind everything into canon |
+| **T** | ✝️ SIGN/CROSS | SEAL, SIGNATURE, BRAND | T = queen, puts final seal on everything |
+| U | 🍴 Fork/branch | One becomes two | Universe Levels = branching of domains |
+| V | 🪝 Connector hook | "And", link, conjunction | Verdict = hook that catches the problem |
+| W | 🪝🪝 Double hook | Double link, double seal | Workflow/tri cell = double hash‑seal |
+| X | ✖️ Intersection | Two lines cross | External Bindings = crossroads of Trinity and external systems |
+| Y | 🌿 Merging paths | Choice, evolutionary selection | Yield/DePIN = evolutionary crossroad |
+| Z | ⚔️ Sword/sickle | Cutting edge, point | Zero-Touch = "edge" of UX and final polish |
+| **27th** | ✝️ EGYPTIAN CROSS Ϯ | "Give", "gift", "sacred" | Security/AAIF — what Trinity gifts the world |
+
+---
+
+## ALPHABET WORDS
 
 ### T-R-I-N-I-T-Y = TRINITY
 
-| Буква | Пиктограмма | Смысл |
+| Letter | Pictogram | Meaning |
 |-------|-----------|-------|
-| T | Крест/печать | Истина, совершенство |
-| R | Голова | Разум, runtime |
-| I | Рука | Действие, инструмент |
-| N | Рыба/потомство | Размножение, числа |
-| I | Рука | Действие (повтор) |
-| T | Крест/печать | Истина (повтор) |
-| Y | Развилка | Урожай, рост |
+| T | Cross/seal | Truth, perfection |
+| R | Head | Reason, runtime |
+| I | Hand | Action, tool |
+| N | Fish/offspring | Multiplication, numbers |
+| I | Hand | Action (repeat) |
+| T | Cross/seal | Truth (repeat) |
+| Y | Branch | Harvest, growth |
 
-**TRINITY** = "Истина-разума, действующая через числа, действующая в истине, приносящая урожай"
+**TRINITY** = "Truth of reason, acting through numbers, acting in truth, bringing harvest"
 
 ### S-P-E-C = SPEC
 
-| Буква | Пиктограмма | Смысл |
+| Letter | Pictogram | Meaning |
 |-------|-----------|-------|
-| S | Зубы | Острота, точность |
-| P | Рот | Произнесение закона |
-| E | Окно | Обзор, откровение |
-| C | Верблюд | Перенос |
+| S | Teeth | Sharpness, precision |
+| P | Mouth | Pronouncement of law |
+| E | Window | Overview, revelation |
+| C | Camel | Carrying |
 
-**SPEC** = "Точный закон, открытый взгляду, перенесённый"
+**SPEC** = "Precise law, revealed to view, carried forth"
 
 ### C-E-L-L = tri cell
 
-| Буква | Пиктограмма | Смысл |
+| Letter | Pictogram | Meaning |
 |-------|-----------|-------|
-| C | Верблюд | Перенос |
-| E | Окно | Обзор |
-| L | Посох | Учение |
-| L | Посох | Учение (двойное) |
+| C | Camel | Carrying |
+| E | Window | Overview |
+| L | Staff | Teaching |
+| L | Staff | Teaching (double) |
 
-**CELL** = "Перенос знания через двойное обучение"
+**CELL** = "Carrying knowledge through double learning"
 
-### P-H-I = φ (золотое сечение)
+### P-H-I = φ (golden ratio)
 
-| Буква | Пиктограмма | Смысл |
+| Letter | Pictogram | Meaning |
 |-------|-----------|-------|
-| P | Рот | Произнесение |
-| H | Забор | Защита/жизнь |
-| I | Рука | Действие |
+| P | Mouth | Pronouncement |
+| H | Fence | Protection/life |
+| I | Hand | Action |
 
-**PHI** = "Произнесённый закон жизни, воплощённый в действии"
+**PHI** = "Pronounced law of life, embodied in action"
 
 ---
 
-## ИСПОЛНЕНИЕ ИНЖЕНЕРНОГО СЛОЯ
+## EXECUTION OF ENGINEERING LAYER
 
-### АГЕНТ T КАКТИВНЫЙ КОМАНДЫ
+### AGENT T AS ACTIVE COMMANDS
 
 ```bash
-# Запуск 6-фазного цикла
+# Run 6-phase cycle
 tri queen lotus --phase plan --task "NUMERIC-STANDARD-001"
 tri queen lotus --phase assign
 tri queen lotus --phase run
@@ -261,53 +489,53 @@ tri queen lotus --phase test
 tri queen lotus --phase verdict
 tri queen lotus --phase evolve
 
-# Делегирование агентам
+# Delegating to agents
 tri agent assign <task> --agent A  # Architecture
 tri agent assign <task> --agent N  # Numeric
 tri agent assign <task> --agent P  # Physics
 tri agent assign <task> --agent F  # Conformance
 
-# Получение статуса
+# Get status
 tri queen lotus --status
-tri queen lotus --agents  # Показать статус всех агентов
-tri queen lotus --graph    # Показать graph_v2.json impact
+tri queen lotus --agents  # Show all agents status
+tri queen lotus --graph    # Show graph_v2.json impact
 ```
 
-### КООРДИНАЦИЯ ПО БУКВАМ
+### COORDINATION BY LETTERS
 
-Пример: задача "Исправить PHI в constants.t27" → Агент T:
+Example: task "Fix PHI in constants.t27" → Agent T:
 
-1. **Phase 1 (Plan)**: T читает graph_v2.json → видит, что изменение в math/constants (node 4) повлияет на sacred_physics (node 16), nn/attention (node 7), nn/hslm (node 8), numeric/gf16 (node 2)
-2. **Phase 2 (Assign)**: T назначает:
-   - **P** (Physics): исправить PHI в constants.t27
-   - **F** (Conformance): обновить sacred_physics_*.json вектора
-   - **G** (Graph): обновить graph metrics после изменения
-3. **Phase 3 (Run)**: Агенты P, F, G выполняют задачи параллельно
-4. **Phase 4 (Test)**: F проверяет conformance, G измеряет impact
-5. **Phase 5 (Verdict)**: V анализирует, токсично ли изменение (изменяет ли инвариант φ² + 1/φ² = 3?)
-6. **Phase 6 (Evolve)**: E записывает опыт, W запечатывает tri cell commit
+1. **Phase 1 (Plan)**: T reads graph_v2.json → sees change in math/constants (node 4) will affect sacred_physics (node 16), nn/attention (node 7), nn/hslm (node 8), numeric/gf16 (node 2)
+2. **Phase 2 (Assign)**: T assigns:
+   - **P** (Physics): fix PHI in constants.t27
+   - **F** (Conformance): update sacred_physics_*.json vectors
+   - **G** (Graph): update graph metrics after change
+3. **Phase 3 (Run)**: Agents P, F, G execute tasks in parallel
+4. **Phase 4 (Test)**: F checks conformance, G measures impact
+5. **Phase 5 (Verdict)**: V analyzes if change is toxic (does it alter invariant φ² + 1/φ² = 3?)
+6. **Phase 6 (Evolve)**: E records experience, W seals tri cell commit
 
 ---
 
-## ЧИСЛОВАЯ СТРУКТУРА АЛФАВИТА
+## NUMERICAL STRUCTURE OF THE ALPHABET
 
-27 = 3³ = куб Троицы. У пифагорейцев 27 — священное число.
+27 = 3³ = cube of Trinity. For Pythagoreans, 27 was a sacred number.
 
-### Три ноны по 9 (как 3 трита)
+### Three nonas of nine (like 3 trits)
 
-**Нона I: Фундамент (A–I)** — значения 1–9
+**Nona I: Foundation (A–I)** — values 1–9
 ```
-Бык → Дом → Верблюд → Дверь → Окно → Гвоздь → Возврат → Забор → Рука
+Bull → House → Camel → Door → Window → Nail → Return → Fence → Hand
 Arch → Build → Comp → DeZig → Experience → Conform → Graph → HSLM → ISA
 ```
 
-**Нона II: Организм (J–R)** — значения 10–90
+**Nona II: Organism (J–R)** — values 10–90
 ```
 Jobs → Kernel → Language → Metrics → Numeric → Orchestration → Physics → Queue → Runtime
 Routing → FPGA → Syntax → Telemetry → GoldenFloat → Phases → Sacred → Sched → Run
 ```
 
-**Нона III: Завершение (S–27th)** — значения 100–900+
+**Nona III: Completion (S–27th)** — values 100–900+
 ```
 Specs → Queen → Universe → Verdict → Workflow → Interop → DePIN → Docs → Security
 Standard → Lotus → Domains → Bench → Cell → Bindings → Yield → UX → AAIF
@@ -315,35 +543,39 @@ Standard → Lotus → Domains → Bench → Cell → Bindings → Yield → UX 
 
 ---
 
-## ИСТОРИЧЕСКИЕ ПАРАЛЛЕЛИ
+## HISTORICAL PARALLELS
 
-### Греческая буквенная нумерация (27 знаков)
+### Greek Letter Numeration (27 signs)
 
-Греческий алфавит исторически использовал 27 знаков для чисел 1–999:
-- **24 классические буквы** (Α–Ω) — единицы (1–9) и десятки (10–90)
-- **3 архаические буквы** (Ϝ = 6, ϟ = 90, ϡ = 900) — сотни
+Historically, the Greek alphabet used 27 signs for numbers 1–999:
+- **24 classical letters** (Α–Ω) — units (1–9) and tens (10–90)
+- **3 archaic letters** (Ϝ = 6, ϟ = 90, ϡ = 900) — hundreds
 
-Это даёт "proof-of-27": 27 — не магия, а исторически рабочий формат для кодирования пространства значений.
+This gives "proof-of-27": 27 is not magic, but a historically working format for encoding value space.
 
-### Коптский алфавит
+### Coptic Alphabet
 
-Коптский алфавит = 24 греческих букв + 7 демотических (из древнеегипетского письма).
+The Coptic alphabet = 24 Greek letters + 7 Demotic (from ancient Egyptian writing).
 
-- **7 демотических букв** кодируют звуки, которых нет в греческом
-- Наследие 3000-летней египетской традиции
-- Копт = первый язык, соединивший западный рационализм (Греция) и сакральную мудрость (Египет)
+- **7 Demotic letters** encode sounds not in Greek
+- Legacy of 3000-year Egyptian tradition
+- Coptic = first language connecting Western rationalism (Greece) with sacred wisdom (Egypt)
 
-**27-я буква Ϯ (Ti)** — единственная чисто коптская:
-- Форма: крест с поперечной чертой (≈ египетский анх ☥)
-- Значение: "давать", "дар", "священный дар"
-- В Trinity: агент будущего дара (security, AAIF-compliance)
+**27th letter Ϯ (Ti)** — the only purely Coptic:
+- Form: cross with horizontal bar (≈ Egyptian ankh ☥)
+- Meaning: "give", "gift", "sacred gift"
+- In Trinity: agent of future gift (security, AAIF-compliance)
 
 ---
 
 ## φ² + 1/φ² = 3 = TRINITY
 
-Алфавит агентов — это не просто список модулей, а **ментальная модель** системы. Каждая буква = архетип с 4000-летней историей.
+The agent alphabet is not just a list of modules, but a **mental model** of the system. Each letter = archetype with 4000-year history.
 
-Когда ты говоришь "AGENT P сломан", ты говоришь "рот произносит кривые законы".
+When you say "AGENT P is broken", you say "mouth pronounces crooked laws."
 
-Когда ты говоришь "AGENT T завершила", ты говоришь "крест поставлена на работе".
+When you say "AGENT T completed", you say "cross is sealed on the work."
+
+---
+
+**φ² + 1/φ² = 3 | TRINITY**
