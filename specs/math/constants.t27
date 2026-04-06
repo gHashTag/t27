@@ -50,9 +50,10 @@ module Constants {
 
     // Scale factors for sacred formulas
     // G_SCALE = G / G_measured ≈ 1.0001 (SI normalization)
-    // OMEGA_SCALE = Ω_Λ_measured / (Ω_Λ_computed × φ⁻²) ≈ 0.9995
+    // OMEGA_COARSE_SCALE = Ω_Λ_measured / Ω_Λ_raw ≈ 728.9 (measured/raw ratio)
+    // OMEGA_FINE_SCALE = Ω_Λ_measured / (Ω_Λ_computed × φ⁻²) ≈ 0.9995 (from comment)
     const G_SCALE : f64 = 1.0001;
-    const OMEGA_SCALE : f64 = 0.9995;
+    const OMEGA_COARSE_SCALE : f64 = 728.9;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // 3. Helper Functions
