@@ -235,7 +235,7 @@ tri gen --check-tdd
 tri gen specs/my_spec.t27 --emit-tests
 
 # Run generated tests
-zig test backend/zig/my_spec_test.zig
+zig test contrib/backend/zig/my_spec_test.zig
 ```
 
 ---

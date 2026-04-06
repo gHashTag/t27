@@ -51,11 +51,11 @@ Zig files are ONLY permitted in these cases:
    - No domain logic (no Trinity-specific algorithms, math, physics, etc.)
 
 3. **Legacy quarantine** - Existing Zig being migrated:
-   - `backend/zig/legacy/*.zig` - Handwritten code awaiting migration
+   - `contrib/backend/zig/legacy/*.zig` - Handwritten code awaiting migration
    - Each file must have `TODO: migrate to .t27 spec` comment
 
 4. **Hardware bridge** - FPGA bindings and external system interfaces:
-   - `backend/bridges/*.zig` - Foreign function interfaces only
+   - `contrib/backend/bridges/*.zig` - Foreign function interfaces only (if present)
 
 ### Forbidden Zig Files
 
@@ -105,7 +105,7 @@ error: Zig file lacks generated header
 $ tri lint src/bootstrap/main.zig
 ok: bootstrap file (no domain logic detected)
 
-$ tri lint backend/zig/legacy/old_code.zig
+$ tri lint contrib/backend/zig/legacy/old_code.zig
 warning: legacy file detected
   Status: awaiting migration to .t27
   Hint: Create migration task for this file

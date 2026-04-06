@@ -6,7 +6,7 @@ version: "3.9"
 #   docker compose logs -f api
 #   docker compose down -v  (remove volumes too)
 #
-# Requires: backend/api/Dockerfile, backend/sandbox/Dockerfile
+# Requires: contrib/backend/api/Dockerfile, contrib/backend/sandbox/Dockerfile
 # Env overrides: create a .env file alongside this file and fill in secrets.
 
 services:

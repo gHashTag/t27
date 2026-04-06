@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'backend/api/**'
+      - 'contrib/backend/api/**'
       - '.github/workflows/deploy-api.yml'
   workflow_dispatch:
 
@@ -24,10 +24,10 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        working-directory: backend/api
+        working-directory: contrib/backend/api
         run: npm ci
       - name: Run tests
-        working-directory: backend/api
+        working-directory: contrib/backend/api
         run: npx vitest run
 
   build-and-push:
@@ -52,7 +52,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: backend/api
+          context: contrib/backend/api
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest

@@ -173,6 +173,7 @@ fn main() {
         "CLAUDE.md",
         "TASK.md",
         "SOUL.md",
+        "OWNERS.md",
         "CONTRIBUTING.md",
         "SECURITY.md",
         "CODE_OF_CONDUCT.md",

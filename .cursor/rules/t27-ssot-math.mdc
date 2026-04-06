@@ -38,7 +38,7 @@ alwaysApply: true
 
 ## Golden rings (process gold)
 
-- Ring work = **micro-iterations**: `cargo build` in `bootstrap/`, `t27c parse` on touched specs, `cargo test`. **`stage0/FROZEN_HASH`** seals compiler gold per ring.
+- Ring work = **micro-iterations**: `cargo build` in `bootstrap/`, `t27c parse` on touched specs, `cargo test`. **`bootstrap/stage0/FROZEN_HASH`** seals compiler gold per ring.
 - **Not gold:** Python on critical path, `f32`/`f64` product numerics, `external/` hacks — see **`docs/GOLDEN-RINGS-CANON.md`** (GOLD vs REFACTOR-HEAP).
 
 ## Required reading after clone

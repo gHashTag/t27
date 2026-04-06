@@ -115,7 +115,7 @@ pub fn main() !void {
 
 ### Legacy Quarantine
 
-Legacy files in `backend/zig/legacy/` have special header:
+Legacy files in `contrib/backend/zig/legacy/` have special header:
 
 ```zig
 // LEGACY FILE - Awaiting migration to .t27
@@ -130,7 +130,7 @@ pub fn oldFunction() u32 {
 
 ### Hardware Bridges
 
-Bridge files in `backend/bridges/` are exempt:
+Bridge files in `contrib/backend/bridges/` are exempt:
 
 ```zig
 // Hardware bridge for FPGA interface
@@ -251,7 +251,7 @@ jobs:
 1. **Create .t27 spec** describing the logic
 2. **Add test blocks** to spec (TDD-Inside-Spec)
 3. **Run tri gen** to produce Zig with proper header
-4. **Move original** to `backend/zig/legacy/` with TODO comment
+4. **Move original** to `contrib/backend/zig/legacy/` with TODO comment
 5. **Update imports** to use generated file
 6. **Commit** the new generated file
 7. **Delete** the legacy file after verification

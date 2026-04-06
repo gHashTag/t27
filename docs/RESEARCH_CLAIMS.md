@@ -44,7 +44,7 @@ Use these for **build, CI, and SSOT** rows (section 1).
 | Claim | Status | Primary evidence | Repro artifact | How to falsify |
 |-------|--------|------------------|----------------|----------------|
 | `.t27` specs are SOOT for product math on the critical path | `tested` | `docs/T27-CONSTITUTION.md`, `bootstrap/build.rs` | `cargo build` in `bootstrap/`, `t27c parse` | Duplicate formula in verdict script without spec migration. |
-| Bootstrap compiler core matches `stage0/FROZEN_HASH` | `tested` | `FROZEN.md`, `build.rs` | `cargo build` | Change `compiler.rs` without M5 seal update → build fails. |
+| Bootstrap compiler core matches `bootstrap/stage0/FROZEN_HASH` | `tested` | `FROZEN.md`, `build.rs` | `cargo build` | Change `compiler.rs` without M5 seal update → build fails. |
 | Zig codegen emits headers marking generated code | `tested` | `tests/validate_gen_headers.sh` | `make -C repro repro-language` | Strip header from `gen/zig/**` → script fails. |
 | 34 conformance vectors validate as JSON with vectors | `tested` | `tests/validate_conformance.sh`, `conformance/` | `bash tests/validate_conformance.sh` or `make -C repro repro-numerics` | Break vector → script fails. |
 | 48 module seals match `t27c seal --verify` | `tested` | `.trinity/seals/`, CI | `t27c seal <spec> --verify` | Intentional seal drift → verify fails. |
