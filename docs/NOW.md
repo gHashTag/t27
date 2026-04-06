@@ -198,7 +198,7 @@ CROWN (Queen brain & automation)
 | 1.5  | [#150](https://github.com/gHashTag/t27/issues/150) *(closed)* | Document / CI **seed → gen → zig test**                    | **✅** Minimal golden path in **`phi-loop-ci.yml`**; landed **PR [#152](https://github.com/gHashTag/t27/pull/152)**      |
 
 
-### Phase 2 — Stem: Conformance + benchmarks + seals *(in progress)*
+### Phase 2 — Stem: Conformance + benchmarks + seals *(DONE)*
 
 
 | Step | Issue                                              | Action                       | Status | Acceptance criterion                                                                                     |
@@ -216,18 +216,15 @@ CROWN (Queen brain & automation)
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
-### Phase 3 — Branches: Ring 050+ science tests *(upcoming)*
-
+### Phase 3 — Branches: Ring 050+ science tests *(in progress)*
 
 | Ring | Issue | Domain          | Key deliverable                     |
 | ---- | ----- | --------------- | ----------------------------------- |
-| 050  | open  | Math/physics    | `specs/test_framework/` per charter |
-| 051  | open  | Physics (P)     | Sacred physics claim audit          |
-| 052  | open  | Conformance (F) | Property-test template              |
-| 053  | open  | Verilog (V)     | Bench harness                       |
+| 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | `specs/math/radix_economy.t27` (E(3) >= 99.5% E(e)) |
+| 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure |
+| 052  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) |
+| 053  | open  | Conformance (F) | Property-test template              |
 | 054  | open  | Graph (G)       | Graph drift detection               |
-
-
 **Charter:** `[T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md](docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)`  
 **Claims:** `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` · `[CLAIM_TIERS.md](docs/nona-03-manifest/CLAIM_TIERS.md)`
 
