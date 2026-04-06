@@ -60,4 +60,4 @@ jobs:
           echo "phi^2 + 1/phi^2 = 3 | TRINITY"
 
       - name: First-party docs must be English (Cyrillic check)
-        run: bash scripts/check-first-party-doc-language.sh
+        run: ./bootstrap/target/release/t27c lint-docs  # L7 UNITY: no .sh on critical path
