@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 051 (Jones polynomial) — Seal Coverage Gate fix (renamed seal file) · RFC3339 2026-04-07T01:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 047 (K3 truth table) — 27-entry exhaustive verification + no-tautology property · RFC3339 2026-04-07T18:00:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors. **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
+**Revision:** **Ring 47 → Phase 3** — **PR [#166](https://github.com/gHashTag/t27/pull/166)** (**#131** seal discipline + **`conformance/**`**); **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163) L5 **`validate-phi-identity`**; **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) **Phase 2.6** DONE. **#165** — CLARA-Bridge L7 cleanup + `jones_topology_filter` seal fix; Decision Gate 16/16. **Phase 3** — `specs/math/radix_economy.t27` + conformance vectors; **Ring 051** — `specs/vsa/jones_polynomial.t27` seal **`.trinity/seals/JonesPolynomial.json`** (module name, not snake_case file). **Carryover:** Coq **`phi_identity_contract`** (`coq/Kernel/Phi.v`) ↔ **`.trinity/seals/identity-*.json`**.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
@@ -47,7 +47,7 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 3. **Commit `NOW.md` in the same PR** as the work (or amend), per Ring 033 / [#141](https://github.com/gHashTag/t27/issues/141).
 
 
-**Skipping this is a **failed handoff** — the fleet coordinates here, not only in issues.
+**Skipping this is a failed handoff** — the fleet coordinates here, not only in issues.
 
 **Conflict Prevention (Ring 47+):**
 - **Root `NOW.md` is a symlink** to `docs/NOW.md` — prevents divergence

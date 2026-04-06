@@ -1,0 +1,329 @@
+{
+  "schema_version": "2.0",
+  "module": "TernaryLogic",
+  "format_family": "Conformance",
+  "vector_name": "K3 Truth Table Vectors",
+  "version": "1.0",
+  "description": "Exhaustive 27-entry verification of Kleene K3 ternary logic operations: AND (9), OR (9), NOT (3), no-tautology (6)",
+  "generated_at": "2026-04-07T01:00:00Z",
+  "validated_at": "2026-04-07T01:00:00Z",
+  "seal": "",
+  "verdict": "CLEAN",
+  "vectors": [
+    {
+      "name": "and_false_false",
+      "description": "K3 AND: F ∧ F = F",
+      "input": {
+        "a": -1,
+        "b": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "and_false_unknown",
+      "description": "K3 AND: F ∧ U = F",
+      "input": {
+        "a": -1,
+        "b": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "and_false_true",
+      "description": "K3 AND: F ∧ T = F",
+      "input": {
+        "a": -1,
+        "b": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "and_unknown_false",
+      "description": "K3 AND: U ∧ F = F",
+      "input": {
+        "a": 0,
+        "b": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "and_unknown_unknown",
+      "description": "K3 AND: U ∧ U = U",
+      "input": {
+        "a": 0,
+        "b": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "and_unknown_true",
+      "description": "K3 AND: U ∧ T = U",
+      "input": {
+        "a": 0,
+        "b": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "and_true_false",
+      "description": "K3 AND: T ∧ F = F",
+      "input": {
+        "a": 1,
+        "b": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "and_true_unknown",
+      "description": "K3 AND: T ∧ U = U",
+      "input": {
+        "a": 1,
+        "b": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "and_true_true",
+      "description": "K3 AND: T ∧ T = T",
+      "input": {
+        "a": 1,
+        "b": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "or_false_false",
+      "description": "K3 OR: F ∨ F = F",
+      "input": {
+        "a": -1,
+        "b": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "or_false_unknown",
+      "description": "K3 OR: F ∨ U = U",
+      "input": {
+        "a": -1,
+        "b": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "or_false_true",
+      "description": "K3 OR: F ∨ T = T",
+      "input": {
+        "a": -1,
+        "b": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "or_unknown_false",
+      "description": "K3 OR: U ∨ F = U",
+      "input": {
+        "a": 0,
+        "b": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "or_unknown_unknown",
+      "description": "K3 OR: U ∨ U = U",
+      "input": {
+        "a": 0,
+        "b": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "or_unknown_true",
+      "description": "K3 OR: U ∨ T = T",
+      "input": {
+        "a": 0,
+        "b": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "or_true_false",
+      "description": "K3 OR: T ∨ F = T",
+      "input": {
+        "a": 1,
+        "b": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "or_true_unknown",
+      "description": "K3 OR: T ∨ U = T",
+      "input": {
+        "a": 1,
+        "b": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "or_true_true",
+      "description": "K3 OR: T ∨ T = T",
+      "input": {
+        "a": 1,
+        "b": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "not_false",
+      "description": "K3 NOT: ¬F = T",
+      "input": {
+        "a": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "not_unknown",
+      "description": "K3 NOT: ¬U = U (Kleene property)",
+      "input": {
+        "a": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "not_true",
+      "description": "K3 NOT: ¬T = F",
+      "input": {
+        "a": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": -1
+      }
+    },
+    {
+      "name": "no_tautology_or_not_false",
+      "description": "No-tautology: OR(F, NOT(F)) = OR(F, T) = T (binary-like case)",
+      "input": {
+        "a": -1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "no_tautology_or_not_true",
+      "description": "No-tautology: OR(T, NOT(T)) = OR(T, F) = T (binary-like case)",
+      "input": {
+        "a": 1
+      },
+      "expected": {
+        "type": "i8",
+        "value": 1
+      }
+    },
+    {
+      "name": "no_tautology_or_not_unknown_k3_violation",
+      "description": "No-tautology: OR(U, NOT(U)) = OR(U, U) = U != T (K3 violation of binary tautology)",
+      "input": {
+        "a": 0
+      },
+      "expected": {
+        "type": "i8",
+        "value": 0
+      }
+    },
+    {
+      "name": "isomorphism_bijection_neg_to_false",
+      "description": "Isomorphism: Trit.neg maps to K_FALSE",
+      "input": {
+        "trit": -1
+      },
+      "expected": {
+        "type": "string",
+        "value": "K_FALSE"
+      }
+    },
+    {
+      "name": "isomorphism_bijection_zero_to_unknown",
+      "description": "Isomorphism: Trit.zero maps to K_UNKNOWN",
+      "input": {
+        "trit": 0
+      },
+      "expected": {
+        "type": "string",
+        "value": "K_UNKNOWN"
+      }
+    },
+    {
+      "name": "isomorphism_bijection_pos_to_true",
+      "description": "Isomorphism: Trit.pos maps to K_TRUE",
+      "input": {
+        "trit": 1
+      },
+      "expected": {
+        "type": "string",
+        "value": "K_TRUE"
+      }
+    }
+  ]
+}
