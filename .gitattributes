@@ -1,2 +1,13 @@
 # T27 language - map to Zig for immediate GitHub syntax highlighting
 *.t27 linguist-language=Zig
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CONFLICT PREVENTION — Merge Drivers (see .git/config for implementations)
+# ═════════════════════════════════════════════════════════════════════════════════════════
+
+# Experience logs are append-only JSONL — concatenate both sides on merge
+.trinity/experience/*.jsonl merge=append-log
+
+# NOW.md: canonical location is docs/NOW.md
+# Root NOW.md is a symlink to docs/NOW.md — prefer incoming version
+NOW.md merge=theirs
