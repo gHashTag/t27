@@ -8,7 +8,7 @@
 **Last updated:** 2026-04-06 — Monday, 06 April 2026 · 23:59 local time (UTC+07) · RFC3339 2026-04-06T23:59:00+07:00
 
 **Document class:** Operational focus document  
-**Revision:** 2026-04-06 — NOW hardening: **#150** E2E CI, TV-01/02 refs, §2 PHI law, §7 Status column, §9 `check-now` first · Ring 47 K2 Flocq (`PhiFloat.v`)  
+**Revision:** 2026-04-06 — **PR #121 merged** (Ring 46); §3.2 seal · #141/#126 closed · #150 E2E outstanding  
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
@@ -112,6 +112,9 @@ Treat that as the **highest-leverage** gap before Phase 3 (Brain) work is **evid
 
 **Optional formal track:** `[coq/](../coq/)` + `[T27_KERNEL_FORMAL_COQ.md](T27_KERNEL_FORMAL_COQ.md)` — Rocq/Coq scaffold for **K1–K4** (not K5/K6); CI `.github/workflows/coq-kernel.yml` when **`coq/**`** changes.  
 **K2 / PHI-IDENTITY (summary):** `Kernel/Phi.v` — `Coq.Reals` (**`phi_squared_identity`**, **`phi_tolerance`**). `Kernel/PhiFloat.v` — Flocq **`binary64`**, **`phi_identity_contract`**. Balanced ternary / radix economy context: [#138](https://github.com/gHashTag/t27/issues/138), [#142](https://github.com/gHashTag/t27/issues/142).  
+
+**Ring 46 — PR [#121](https://github.com/gHashTag/t27/pull/121) merged** (squash `4794a22`): **[#141](https://github.com/gHashTag/t27/issues/141) CLOSED** (NOW / handoff tracking), **[#126](https://github.com/gHashTag/t27/issues/126) CLOSED** (roadmap umbrella). Formal layer: `Phi.v` — no `Admitted`; `PhiFloat.v` — Flocq + `phi_identity_contract`; **`.github/workflows/coq-kernel.yml`** on **`coq/**`**. **[#150](https://github.com/gHashTag/t27/issues/150) OPEN** — E2E `seed.t27 → t27c gen → zig test` (→ Agent A).
+
 **Certification / evidence vocabulary:** `[COMPILER_VERIFICATION_STANDARDS.md](COMPILER_VERIFICATION_STANDARDS.md)` — **DO-178C / DO-330 / DO-333**, ISO 26262 (TCL), IEC 61508 (T1–T3), EN 50716, ECSS-Q-ST-80C, IEC 62304, IEEE 1012, NIST SSDF, CompCert/CakeML/Alive2/Flocq, TVCP **TV-01–TV-07**, phased plan. Quick index: `[COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md](COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md)`. Draft **TOR/TVP:** `[qualification/TOR.md](qualification/TOR.md)`, `[qualification/TVP.md](qualification/TVP.md)`.
 
 ### 3.3  Compiler verification — impact digest (trust in `t27c`)
