@@ -2,7 +2,7 @@
 //! Invoked as `t27c suite` from the repository root (or `tri test`).
 
 use anyhow::Context;
-use chrono::Local;
+use chrono::{Duration, Local, NaiveDate, Utc};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -382,12 +382,16 @@ fn optional_rfc3339_stamp(line: &str) -> Option<String> {
     None
 }
 
-/// Gate: root `NOW.md` must contain `Last updated:` with today's calendar date (local timezone).
+/// Gate: root `NOW.md` must contain `Last updated:` with a fresh calendar `YYYY-MM-DD`.
+/// - **Local dev:** must match **today** in the machine's local timezone.
+/// - **GitHub Actions** (`GITHUB_ACTIONS=true`): must be **today or yesterday in UTC** — same
+///   window as `.github/workflows/now-sync-gate.yml` freshness, so a single committed date can
+///   span the UTC midnight boundary relative to contributors in non-UTC timezones.
 /// Used by `tri` before gen/compile and by CI (see `phi-loop-ci.yml`).
 pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
     let repo = fs::canonicalize(repo_root)?;
     let now_file = repo.join("NOW.md");
-    let today = Local::now().format("%Y-%m-%d").to_string();
+    let github_actions = std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true");
 
     if !now_file.is_file() {
         eprintln!(
@@ -403,8 +407,27 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
         .find(|l| l.contains("Last updated:"))
         .unwrap_or("");
     let last = first_yyyy_mm_dd_in_line(line);
+    let last_date = last
+        .as_deref()
+        .and_then(|s| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
 
-    if last.as_deref() != Some(today.as_str()) {
+    let (gate_label, ok, expected_hint) = if github_actions {
+        let today_utc = Utc::now().date_naive();
+        let yesterday_utc = today_utc - Duration::days(1);
+        let ok = match last_date {
+            Some(d) => d == today_utc || d == yesterday_utc,
+            None => false,
+        };
+        let hint = format!("{} or {} (UTC)", today_utc, yesterday_utc);
+        (today_utc.format("%Y-%m-%d").to_string(), ok, hint)
+    } else {
+        let today_local = Local::now().format("%Y-%m-%d").to_string();
+        let ok = last.as_deref() == Some(today_local.as_str());
+        let hint = today_local.clone();
+        (today_local, ok, hint)
+    };
+
+    if !ok {
         eprintln!(
             r#"
 
@@ -434,7 +457,7 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
         );
         eprintln!(
             "(Expected Last updated: {}; found: {})",
-            today,
+            expected_hint,
             last.as_deref().unwrap_or("<none>")
         );
         anyhow::bail!("NOW.md stale");
@@ -451,10 +474,13 @@ pub fn check_now_sync(repo_root: &Path) -> anyhow::Result<()> {
             .unwrap_or_else(|_| ts.clone());
         println!(
             "✅ NOW.md synced — gate date {} — doc time {} [{}] — build authorized",
-            today, human, ts
+            gate_label, human, ts
         );
     } else {
-        println!("✅ NOW.md synced ({}) — build authorized", today);
+        println!(
+            "✅ NOW.md synced ({}) — build authorized",
+            gate_label
+        );
     }
     Ok(())
 }
