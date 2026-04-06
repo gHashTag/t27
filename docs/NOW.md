@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · Phase 3 Ring 051 (Jones Polynomial) — V(L,t) from input structure with variable t · RFC3339 2026-04-07T02:30:00+07:00
+**Last updated:** 2026-04-06 — Tuesday, 06 April 2026 (UTC) · Phase 3 Ring 051 (Jones Polynomial) — V(L,t) from input structure with variable t · RFC3339 2026-04-06T19:30:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Rings 46+47+49+51 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175) — all CLOSED. 79/79 specs PASS, all seals verified.
