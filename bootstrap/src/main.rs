@@ -48,25 +48,30 @@ enum Commands {
         input: String,
     },
 
-    /// Generate Zig code from .t27 file
+    /// Generate Zig code from .t27 file (stdout), or all *.t27 under a directory (writes under --out-root)
     #[command(visible_alias = "gen-zig")]
     Gen {
-        /// Input file path
+        /// Single .t27 file, or a directory of .t27 files
         input: String,
+        /// When `input` is a directory: output tree root (default gen/zig)
+        #[arg(long, default_value = "gen/zig")]
+        out_root: String,
     },
 
-    /// Generate synthesizable Verilog from .t27 file
+    /// Generate synthesizable Verilog from .t27 file, or batch a directory (writes under --out-root)
     #[command(visible_alias = "gen-verilog")]
     GenVerilog {
-        /// Input file path
         input: String,
+        #[arg(long, default_value = "gen/verilog")]
+        out_root: String,
     },
 
-    /// Generate C code (.c/.h style) from .t27 file
+    /// Generate C code (.c/.h style) from .t27 file, or batch a directory (writes under --out-root)
     #[command(visible_alias = "gen-c")]
     GenC {
-        /// Input file path
         input: String,
+        #[arg(long, default_value = "gen/c")]
+        out_root: String,
     },
 
     /// Generate Rust code from .t27 file
@@ -105,6 +110,12 @@ enum Commands {
         /// Verify current hashes match previously saved seals
         #[arg(long)]
         verify: bool,
+    },
+
+    /// Save seal hashes (compat: former `tri skill seal --hash <file.t27>` → `seal <file> --save`)
+    #[command(name = "skill-seal", visible_alias = "skill-seal-hash")]
+    SkillSeal {
+        input: String,
     },
 
     /// Compile a .t27 file and write generated code to a file
@@ -168,6 +179,13 @@ enum Commands {
     /// Validate conformance/*.json files against SCHEMA_V2.json
     ValidateConformanceV2,
 
+    /// Migrate conformance/*.json files to SCHEMA_V2 (add schema_version, verdict, seal)
+    MigrateV2 {
+        /// Show diff without applying changes
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Validate gen/** headers (Auto-generated / DO NOT EDIT / TRINITY)
     ValidateGenHeaders,
 
@@ -186,6 +204,9 @@ enum Commands {
 
     /// Cross-check IEEE binary64 φ / φ² / φ+1 (Flocq bridge; former validate_phi_f64.py)
     ValidatePhi,
+
+    /// Product CLI placeholder — not implemented in this repo (see docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md)
+    Brain,
 }
 
 // ============================================================================
@@ -1098,10 +1119,17 @@ fn run_parse(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_gen(input_path: &str) -> anyhow::Result<()> {
-    let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
+fn resolve_repo_path(repo_root: &Path, input: &str) -> PathBuf {
+    let p = Path::new(input);
+    if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        repo_root.join(p)
+    }
+}
 
+fn run_gen_file(path: &Path) -> anyhow::Result<()> {
+    let source = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     match compiler::Compiler::compile(&source) {
         Ok(zig_code) => print!("{}", zig_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
@@ -1109,10 +1137,8 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_gen_verilog(input_path: &str) -> anyhow::Result<()> {
-    let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
+fn run_gen_verilog_file(path: &Path) -> anyhow::Result<()> {
+    let source = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     match compiler::Compiler::compile_verilog(&source) {
         Ok(verilog_code) => print!("{}", verilog_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
@@ -1120,10 +1146,8 @@ fn run_gen_verilog(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
-    let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
+fn run_gen_c_file(path: &Path) -> anyhow::Result<()> {
+    let source = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     match compiler::Compiler::compile_c(&source) {
         Ok(c_code) => print!("{}", c_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
@@ -1131,10 +1155,8 @@ fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
-    let path = Path::new(input_path);
-    let source = fs::read_to_string(path)?;
-
+fn run_gen_rust_path(path: &Path) -> anyhow::Result<()> {
+    let source = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     match compiler::Compiler::compile_rust(&source) {
         Ok(rust_code) => print!("{}", rust_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
@@ -1170,7 +1192,6 @@ fn run_gen_dir(
     out_root: &str,
     repo_root: &Path,
 ) -> anyhow::Result<()> {
-    suite::check_now_sync(repo_root)?;
     let root = fs::canonicalize(repo_root)?;
     let input_path = Path::new(input_dir);
     let input_abs = if input_path.is_absolute() {
@@ -1953,34 +1974,77 @@ fn run_rest(cmd: Commands, repo_root: &Path) -> anyhow::Result<()> {
     match cmd {
         Commands::Serve { .. } => unreachable!("serve is dispatched in async main"),
         Commands::Parse { input } => run_parse(&input)?,
-        Commands::Gen { input } => run_gen(&input)?,
-        Commands::GenVerilog { input } => run_gen_verilog(&input)?,
-        Commands::GenC { input } => run_gen_c(&input)?,
-        Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::Gen { input, out_root } => {
+            suite::check_now_sync(repo_root)?;
+            let full = resolve_repo_path(repo_root, &input);
+            if full.is_dir() {
+                run_gen_dir("zig", &input, &out_root, repo_root)?;
+            } else {
+                run_gen_file(&full)?;
+            }
+        }
+        Commands::GenVerilog { input, out_root } => {
+            suite::check_now_sync(repo_root)?;
+            let full = resolve_repo_path(repo_root, &input);
+            if full.is_dir() {
+                run_gen_dir("verilog", &input, &out_root, repo_root)?;
+            } else {
+                run_gen_verilog_file(&full)?;
+            }
+        }
+        Commands::GenC { input, out_root } => {
+            suite::check_now_sync(repo_root)?;
+            let full = resolve_repo_path(repo_root, &input);
+            if full.is_dir() {
+                run_gen_dir("c", &input, &out_root, repo_root)?;
+            } else {
+                run_gen_c_file(&full)?;
+            }
+        }
+        Commands::GenRust { input } => {
+            let full = resolve_repo_path(repo_root, &input);
+            run_gen_rust_path(&full)?;
+        }
         Commands::GenDir {
             backend,
             input,
             out_root,
-        } => run_gen_dir(&backend, &input, &out_root, repo_root)?,
+        } => {
+            suite::check_now_sync(repo_root)?;
+            run_gen_dir(&backend, &input, &out_root, repo_root)?;
+        }
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::SkillSeal { input } => run_seal(&input, true, false)?,
         Commands::Compile { input, backend, output } => {
+            suite::check_now_sync(repo_root)?;
             run_compile(&input, &backend, output.as_deref())?
         }
         Commands::CompileAll { backend, output, specs_dir } => {
+            suite::check_now_sync(repo_root)?;
             run_compile_all(&backend, &output, specs_dir.as_deref())?
         }
-        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::CompileProject { backend, output } => {
+            suite::check_now_sync(repo_root)?;
+            run_compile_project(&backend, &output)?
+        }
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Suite => suite::run_comprehensive(repo_root)?,
         Commands::ValidateConformance => suite::validate_conformance(repo_root)?,
         Commands::ValidateConformanceV2 => suite::validate_conformance_v2(repo_root)?,
+        Commands::MigrateV2 { dry_run } => suite::migrate_to_v2(repo_root, dry_run)?,
         Commands::ValidateGenHeaders => suite::validate_gen_headers(repo_root)?,
         Commands::ValidateSeals { pr_files } => suite::validate_seals(repo_root, pr_files.as_deref())?,
         Commands::CheckNow => suite::check_now_sync(repo_root)?,
         Commands::LintDocs => tooling::run_lint_docs(repo_root)?,
         Commands::ValidatePhi => tooling::run_validate_phi()?,
+        Commands::Brain => {
+            eprintln!("tri brain: not implemented in this repository yet.");
+            eprintln!("Planned: status, cycle, map, regions, coherence, connectivity, benchmark, evolve");
+            eprintln!("See docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md");
+            std::process::exit(2);
+        }
     }
     Ok(())
 }

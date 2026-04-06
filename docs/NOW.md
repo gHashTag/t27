@@ -8,7 +8,7 @@
 **Last updated:** 2026-04-06 — Monday, 06 April 2026 · 22:30 local time (UTC+07) · RFC3339 2026-04-06T22:30:00+07:00
 
 **Document class:** Operational focus document
-**Revision:** 2026-04-07 — **NO-SHELL fix**: `validate-conformance-v2.sh` deleted → `t27c validate-conformance-v2` · `seal-coverage.yml` → thin Rust call
+**Revision:** 2026-04-07 — **NO-SHELL**: `scripts/tri` is **exec-only (~12 lines)** → `t27c --repo-root …`; directory batch + NOW pre-flight live in **Rust** (`gen`/`gen-c`/`gen-verilog` detect dirs; `compile*` / `gen-dir` gate on **NOW.md**). **`validate-conformance-v2`** / **`seal-coverage`** → **`t27c`** (no new `.sh`).
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
 **Canonical URL:** `https://github.com/gHashTag/t27/blob/master/NOW.md`
@@ -203,8 +203,8 @@ CROWN (Queen brain & automation)
 
 | Step | Issue                                              | Action                       | Status | Acceptance criterion                                                                                     |
 | ---- | -------------------------------------------------- | ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
-| 2.0  | —                                                  | SCHEMA_V2 + validator        | **✅ DONE** | `conformance/SCHEMA_V2.json` + `scripts/validate-conformance-v2.sh`                                        |
-| 2.1  | [#133](https://github.com/gHashTag/t27/issues/133) | Migrate vectors to v2        | **🔄 IN PROGRESS** (5/65) | `phi_distance` + `verdict` in v2 vectors · gf16, phi_ratio, tf3, sacred_physics migrated |
+| 2.0  | —                                                  | SCHEMA_V2 + validator        | **✅ DONE** | `conformance/SCHEMA_V2.json` + `t27c validate-conformance-v2` (NO-SHELL law)                           |
+| 2.1  | [#133](https://github.com/gHashTag/t27/issues/133) | Migrate vectors to v2        | **✅ DONE** (58/58) | `t27c migrate-v2` — all vectors migrated to v2 format (schema_version, verdict, seal, timestamps)    |
 | 2.2  | [#129](https://github.com/gHashTag/t27/issues/129) | GoldenFloat NMSE benchmark   | —      | `gf_family_bench.json` semantics documented                                                              |
 | 2.3  | [#131](https://github.com/gHashTag/t27/issues/131) | Seal coverage CI             | **✅ DONE** | `.github/workflows/seal-coverage.yml` (PR-scoped gate)                                                     |
 | 2.4  | —                                                  | GF16 vectors grow            | —      | e.g. 10 → 33+ in `gf16_vectors.json`                                                                     |

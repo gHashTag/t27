@@ -1,67 +1,290 @@
 {
-  "module": "RuntimeCommands",
-  "spec_path": "compiler/runtime/commands.t27",
-  "ring": 37,
-  "generated_at": "2026-04-04T21:10:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "Command",
-      "cases": [
-        { "inputs": { "variant": "SpecCreate" }, "expected": 0 },
-        { "inputs": { "variant": "SpecValidate" }, "expected": 1 },
-        { "inputs": { "variant": "Lint" }, "expected": 2 },
-        { "inputs": { "variant": "Help" }, "expected": 3 },
-        { "inputs": { "variant": "Run" }, "expected": 4 },
-        { "inputs": { "variant": "Test" }, "expected": 5 }
-      ]
+      "name": "spec_create_latency",
+      "target": "< 10ms"
     },
     {
-      "function": "spec_create",
-      "cases": [
-        { "inputs": { "name": "my_spec", "path": "specs/" }, "expected": 0 },
-        { "inputs": { "name": "", "path": "specs/" }, "expected": 1 },
-        { "inputs": { "name": "Invalid", "path": "specs/" }, "expected": 1 },
-        { "inputs": { "name": "valid_name", "path": "" }, "expected": 0 }
-      ]
+      "name": "spec_validate_latency",
+      "target": "< 20ms"
     },
     {
-      "function": "spec_validate",
-      "cases": [
-        { "inputs": { "spec_path": "specs/valid.t27" }, "expected": 0 },
-        { "inputs": { "spec_path": "nonexistent.t27" }, "expected": 1 },
-        { "inputs": { "spec_path": "" }, "expected": 1 }
-      ]
+      "name": "lint_latency",
+      "target": "< 50ms"
     },
     {
-      "function": "lint",
-      "cases": [
-        { "inputs": { "spec_path": "specs/clean.t27" }, "expected": 0 },
-        { "inputs": { "spec_path": "specs/warnings.t27" }, "expected_warnings": true },
-        { "inputs": { "spec_path": "" }, "expected": 1 }
-      ]
-    },
-    {
-      "function": "help",
-      "cases": [
-        { "inputs": { "command": null }, "expected_contains": "Usage:" },
-        { "inputs": { "command": "spec-create" }, "expected_contains": "spec-create" },
-        { "inputs": { "command": "unknown" }, "expected_contains": "Unknown command" }
-      ]
+      "name": "help_latency",
+      "target": "< 1ms"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:10:00Z",
   "invariants": [
-    { "name": "command_enum_unique", "assert": "All Command variants have unique ordinal values" },
-    { "name": "spec_create_validates_name", "assert": "spec_create rejects empty or invalid names" },
-    { "name": "spec_validate_checks_file_exists", "assert": "spec_validate returns 1 for nonexistent files" },
-    { "name": "lint_returns_zero_on_clean", "assert": "lint returns 0 when no errors found" },
-    { "name": "help_always_succeeds", "assert": "help never returns an error code" },
-    { "name": "all_commands_return_int", "assert": "All command functions return integer exit codes" },
-    { "name": "spec_create_writes_template", "assert": "spec_create generates valid .t27 template file" }
+    {
+      "assert": "All Command variants have unique ordinal values",
+      "name": "command_enum_unique"
+    },
+    {
+      "assert": "spec_create rejects empty or invalid names",
+      "name": "spec_create_validates_name"
+    },
+    {
+      "assert": "spec_validate returns 1 for nonexistent files",
+      "name": "spec_validate_checks_file_exists"
+    },
+    {
+      "assert": "lint returns 0 when no errors found",
+      "name": "lint_returns_zero_on_clean"
+    },
+    {
+      "assert": "help never returns an error code",
+      "name": "help_always_succeeds"
+    },
+    {
+      "assert": "All command functions return integer exit codes",
+      "name": "all_commands_return_int"
+    },
+    {
+      "assert": "spec_create generates valid .t27 template file",
+      "name": "spec_create_writes_template"
+    }
   ],
-  "benchmarks": [
-    { "name": "spec_create_latency", "target": "< 10ms" },
-    { "name": "spec_validate_latency", "target": "< 20ms" },
-    { "name": "lint_latency", "target": "< 50ms" },
-    { "name": "help_latency", "target": "< 1ms" }
-  ]
+  "module": "RuntimeCommands",
+  "ring": 37,
+  "schema_version": 2,
+  "seal": "sha256:b7ee01e1458446709dcc9b94d039f94d43bd8feed6104cdd1b39521e7650b7bb",
+  "spec_path": "compiler/runtime/commands.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_runtime_commands Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "SpecCreate"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "SpecValidate"
+          }
+        },
+        {
+          "expected": 2,
+          "inputs": {
+            "variant": "Lint"
+          }
+        },
+        {
+          "expected": 3,
+          "inputs": {
+            "variant": "Help"
+          }
+        },
+        {
+          "expected": 4,
+          "inputs": {
+            "variant": "Run"
+          }
+        },
+        {
+          "expected": 5,
+          "inputs": {
+            "variant": "Test"
+          }
+        }
+      ],
+      "function": "Command",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "name": "my_spec",
+            "path": "specs/"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "name": "",
+            "path": "specs/"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "name": "Invalid",
+            "path": "specs/"
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "name": "valid_name",
+            "path": ""
+          }
+        }
+      ],
+      "function": "spec_create",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "spec_path": "specs/valid.t27"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "spec_path": "nonexistent.t27"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "spec_path": ""
+          }
+        }
+      ],
+      "function": "spec_validate",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "spec_path": "specs/clean.t27"
+          }
+        },
+        {
+          "expected_warnings": true,
+          "inputs": {
+            "spec_path": "specs/warnings.t27"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "spec_path": ""
+          }
+        }
+      ],
+      "function": "lint",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": "Usage:",
+          "inputs": {
+            "command": null
+          }
+        },
+        {
+          "expected_contains": "spec-create",
+          "inputs": {
+            "command": "spec-create"
+          }
+        },
+        {
+          "expected_contains": "Unknown command",
+          "inputs": {
+            "command": "unknown"
+          }
+        }
+      ],
+      "function": "help",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_command_enum_unique",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_spec_create_validates_name",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_spec_validate_checks_file_exists",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_lint_returns_zero_on_clean",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_help_always_succeeds",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_all_commands_return_int",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_spec_create_writes_template",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

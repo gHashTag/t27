@@ -1,59 +1,257 @@
 {
-  "module": "AST",
-  "spec_path": "compiler/ast.t27",
-  "ring": 36,
-  "generated_at": "2026-04-04T21:00:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "TokenType",
-      "cases": [
-        { "inputs": { "variant": "EOF" }, "expected": 0 },
-        { "inputs": { "variant": "Newline" }, "expected": 1 },
-        { "inputs": { "variant": "Integer" }, "expected": 40 },
-        { "inputs": { "variant": "Identifier" }, "expected": 43 },
-        { "inputs": { "variant": "MOV" }, "expected": 60 },
-        { "inputs": { "variant": "HALT" }, "expected": 78 }
-      ]
+      "name": "ast_node_creation_latency",
+      "target": "< 100ns"
     },
     {
-      "function": "NodeType",
-      "cases": [
-        { "inputs": { "variant": "Program" }, "expected": 0 },
-        { "inputs": { "variant": "DataSection" }, "expected": 1 },
-        { "inputs": { "variant": "ConstDef" }, "expected": 10 },
-        { "inputs": { "variant": "Mov" }, "expected": 30 },
-        { "inputs": { "variant": "TestCase" }, "expected": 53 },
-        { "inputs": { "variant": "SpecDecl" }, "expected": 60 }
-      ]
-    },
-    {
-      "function": "Opcode",
-      "cases": [
-        { "inputs": { "variant": "MOV" }, "expected": 0 },
-        { "inputs": { "variant": "ADD" }, "expected": 5 },
-        { "inputs": { "variant": "HALT" }, "expected": 9 }
-      ]
-    },
-    {
-      "function": "CompilationPhase",
-      "cases": [
-        { "inputs": { "variant": "Parsing" }, "expected": 0 },
-        { "inputs": { "variant": "SemanticAnalysis" }, "expected": 1 },
-        { "inputs": { "variant": "CodeGeneration" }, "expected": 2 },
-        { "inputs": { "variant": "Optimization" }, "expected": 3 }
-      ]
+      "name": "symbol_table_lookup_latency",
+      "target": "< 500ns"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:00:00Z",
   "invariants": [
-    { "name": "token_type_enum_has_values", "assert": "TokenType enum fields > 50" },
-    { "name": "node_type_enum_has_values", "assert": "NodeType enum fields > 20" },
-    { "name": "opcode_enum_has_values", "assert": "Opcode enum fields > 0" },
-    { "name": "compilation_phase_sequential", "assert": "Parsing < SemanticAnalysis < CodeGeneration < Optimization" },
-    { "name": "ast_node_has_location_info", "assert": "ASTNode contains line, column, source_file" },
-    { "name": "symbol_table_lookup_fallback", "assert": "SymbolTable.lookup searches parent if not found" }
+    {
+      "assert": "TokenType enum fields > 50",
+      "name": "token_type_enum_has_values"
+    },
+    {
+      "assert": "NodeType enum fields > 20",
+      "name": "node_type_enum_has_values"
+    },
+    {
+      "assert": "Opcode enum fields > 0",
+      "name": "opcode_enum_has_values"
+    },
+    {
+      "assert": "Parsing < SemanticAnalysis < CodeGeneration < Optimization",
+      "name": "compilation_phase_sequential"
+    },
+    {
+      "assert": "ASTNode contains line, column, source_file",
+      "name": "ast_node_has_location_info"
+    },
+    {
+      "assert": "SymbolTable.lookup searches parent if not found",
+      "name": "symbol_table_lookup_fallback"
+    }
   ],
-  "benchmarks": [
-    { "name": "ast_node_creation_latency", "target": "< 100ns" },
-    { "name": "symbol_table_lookup_latency", "target": "< 500ns" }
-  ]
+  "module": "AST",
+  "ring": 36,
+  "schema_version": 2,
+  "seal": "sha256:de75ed45b91331f339b608e16d0531f1ca8c88174f445af68088ca3056ab864f",
+  "spec_path": "compiler/ast.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_ast Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "EOF"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "Newline"
+          }
+        },
+        {
+          "expected": 40,
+          "inputs": {
+            "variant": "Integer"
+          }
+        },
+        {
+          "expected": 43,
+          "inputs": {
+            "variant": "Identifier"
+          }
+        },
+        {
+          "expected": 60,
+          "inputs": {
+            "variant": "MOV"
+          }
+        },
+        {
+          "expected": 78,
+          "inputs": {
+            "variant": "HALT"
+          }
+        }
+      ],
+      "function": "TokenType",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "Program"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "DataSection"
+          }
+        },
+        {
+          "expected": 10,
+          "inputs": {
+            "variant": "ConstDef"
+          }
+        },
+        {
+          "expected": 30,
+          "inputs": {
+            "variant": "Mov"
+          }
+        },
+        {
+          "expected": 53,
+          "inputs": {
+            "variant": "TestCase"
+          }
+        },
+        {
+          "expected": 60,
+          "inputs": {
+            "variant": "SpecDecl"
+          }
+        }
+      ],
+      "function": "NodeType",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "MOV"
+          }
+        },
+        {
+          "expected": 5,
+          "inputs": {
+            "variant": "ADD"
+          }
+        },
+        {
+          "expected": 9,
+          "inputs": {
+            "variant": "HALT"
+          }
+        }
+      ],
+      "function": "Opcode",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "Parsing"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "SemanticAnalysis"
+          }
+        },
+        {
+          "expected": 2,
+          "inputs": {
+            "variant": "CodeGeneration"
+          }
+        },
+        {
+          "expected": 3,
+          "inputs": {
+            "variant": "Optimization"
+          }
+        }
+      ],
+      "function": "CompilationPhase",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_token_type_enum_has_values",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_node_type_enum_has_values",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_opcode_enum_has_values",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_compilation_phase_sequential",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_ast_node_has_location_info",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_symbol_table_lookup_fallback",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

@@ -1,333 +1,408 @@
 {
-  "module": "Restraint",
-  "spec_path": "specs/ar/restraint.t27",
-  "ring": 30,
-  "generated_at": "2026-04-04T19:00:00Z",
-  "description": "Bounded rationality conformance vectors — 3 quality levels, depth/rule/confidence limits, meta-rules",
   "constants": {
     "QualityLevel": {
+      "good": 2,
       "unknown": 0,
-      "unstable": 1,
-      "good": 2
+      "unstable": 1
     }
   },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "Bounded rationality conformance vectors — 3 quality levels, depth/rule/confidence limits, meta-rules",
   "encoding": {
     "K_FALSE": -1,
-    "K_UNKNOWN": 0,
-    "K_TRUE": 1
+    "K_TRUE": 1,
+    "K_UNKNOWN": 0
   },
-  "vectors": {
-    "params_for_quality_unknown_conservative": {
-      "description": "Unknown quality gets minimal/conservative resources",
-      "cases": [
-        {
-          "inputs": { "quality": "unknown" },
-          "expected": {
-            "max_depth": 3,
-            "max_rules": 10,
-            "timeout_ms": 100,
-            "confidence_threshold_f32": 0.85,
-            "tolerance": 1e-3
-          }
-        }
-      ]
-    },
-    "params_for_quality_unstable_moderate": {
-      "description": "Unstable quality gets moderate resources",
-      "cases": [
-        {
-          "inputs": { "quality": "unstable" },
-          "expected": {
-            "max_depth": 7,
-            "max_rules": 50,
-            "timeout_ms": 1000,
-            "confidence_threshold_f32": 0.75,
-            "tolerance": 1e-3
-          }
-        }
-      ]
-    },
-    "params_for_quality_good_permissive": {
-      "description": "Good quality gets full/permissive resources",
-      "cases": [
-        {
-          "inputs": { "quality": "good" },
-          "expected": {
-            "max_depth": 15,
-            "max_rules": 500,
-            "timeout_ms": 10000,
-            "confidence_threshold_f32": 0.70,
-            "tolerance": 1e-3
-          }
-        }
-      ]
-    },
-    "params_for_quality_gf16_thresholds": {
-      "description": "All quality levels use GF16-encoded confidence thresholds",
-      "cases": [
-        {
-          "inputs": { "quality": "unknown" },
-          "expected": { "confidence_threshold_f32": 0.85, "tolerance": 1e-3 }
-        },
-        {
-          "inputs": { "quality": "unstable" },
-          "expected": { "confidence_threshold_f32": 0.75, "tolerance": 1e-3 }
-        },
-        {
-          "inputs": { "quality": "good" },
-          "expected": { "confidence_threshold_f32": 0.70, "tolerance": 1e-3 }
-        }
-      ]
-    },
-    "should_continue_allows_initial_state": {
-      "description": "Initial state with sufficient confidence passes all checks",
-      "cases": [
-        {
-          "inputs": {
-            "state": {
-              "current_depth": 0,
-              "rules_fired": 0,
-              "current_confidence_f32": 0.8,
-              "start_time_ms": 0,
-              "quality": "good"
-            },
-            "params_quality": "good"
-          },
-          "expected": 1,
-          "note": "K_TRUE — all checks pass"
-        }
-      ]
-    },
-    "should_continue_blocks_on_depth_limit": {
-      "description": "Exceeding depth limit triggers K_FALSE restraint",
-      "cases": [
-        {
-          "inputs": {
-            "state": {
-              "current_depth": 3,
-              "rules_fired": 0,
-              "current_confidence_f32": 0.9,
-              "start_time_ms": 0,
-              "quality": "good"
-            },
-            "params": {
-              "max_depth": 2,
-              "max_rules": 100,
-              "confidence_threshold_f32": 0.5,
-              "timeout_ms": 1000
-            }
-          },
-          "expected": -1,
-          "note": "K_FALSE — depth 3 >= max_depth 2"
-        }
-      ]
-    },
-    "should_continue_blocks_on_rule_limit": {
-      "description": "Exceeding rule limit triggers K_FALSE restraint",
-      "cases": [
-        {
-          "inputs": {
-            "state": {
-              "current_depth": 0,
-              "rules_fired": 10,
-              "current_confidence_f32": 0.9,
-              "start_time_ms": 0,
-              "quality": "good"
-            },
-            "params": {
-              "max_depth": 100,
-              "max_rules": 5,
-              "confidence_threshold_f32": 0.5,
-              "timeout_ms": 1000
-            }
-          },
-          "expected": -1,
-          "note": "K_FALSE — rules_fired 10 >= max_rules 5"
-        }
-      ]
-    },
-    "should_continue_blocks_on_low_confidence": {
-      "description": "Confidence below threshold triggers K_FALSE restraint",
-      "cases": [
-        {
-          "inputs": {
-            "state": {
-              "current_depth": 0,
-              "rules_fired": 0,
-              "current_confidence_f32": 0.5,
-              "start_time_ms": 0,
-              "quality": "good"
-            },
-            "params": {
-              "max_depth": 100,
-              "max_rules": 100,
-              "confidence_threshold_f32": 0.7,
-              "timeout_ms": 1000
-            }
-          },
-          "expected": -1,
-          "note": "K_FALSE — confidence 0.5 < threshold 0.7"
-        }
-      ]
-    },
-    "should_continue_allows_sufficient_confidence": {
-      "description": "Confidence above threshold allows continuation",
-      "cases": [
-        {
-          "inputs": {
-            "state": {
-              "current_depth": 0,
-              "rules_fired": 0,
-              "current_confidence_f32": 0.8,
-              "start_time_ms": 0,
-              "quality": "good"
-            },
-            "params": {
-              "max_depth": 100,
-              "max_rules": 100,
-              "confidence_threshold_f32": 0.7,
-              "timeout_ms": 1000
-            }
-          },
-          "expected": 1,
-          "note": "K_TRUE — confidence 0.8 >= threshold 0.7"
-        }
-      ]
-    },
-    "is_restraint_value_true_for_zero": {
-      "description": "Trit.zero (K_UNKNOWN) is the restraint value",
-      "cases": [
-        { "input": 0, "expected": true, "note": "K_UNKNOWN = restraint = don't-care" }
-      ]
-    },
-    "is_restraint_value_false_for_neg": {
-      "description": "Trit.neg (K_FALSE) is not restraint",
-      "cases": [
-        { "input": -1, "expected": false, "note": "K_FALSE != restraint" }
-      ]
-    },
-    "is_restraint_value_false_for_pos": {
-      "description": "Trit.pos (K_TRUE) is not restraint",
-      "cases": [
-        { "input": 1, "expected": false, "note": "K_TRUE != restraint" }
-      ]
-    },
-    "step_depth_increments": {
-      "description": "step_depth increments current_depth by delta",
-      "cases": [
-        {
-          "inputs": { "initial_depth": 0, "delta": 1 },
-          "expected": { "current_depth": 1 }
-        }
-      ]
-    },
-    "step_depth_multiple": {
-      "description": "step_depth can increment by more than 1",
-      "cases": [
-        {
-          "inputs": { "initial_depth": 0, "delta": 5 },
-          "expected": { "current_depth": 5 }
-        }
-      ]
-    },
-    "apply_meta_rules_empty": {
-      "description": "No meta-rules returns K_TRUE (continue)",
-      "cases": [
-        {
-          "inputs": { "meta_rules": [], "count": 0 },
-          "expected": 1,
-          "note": "K_TRUE — default is continue"
-        }
-      ]
-    },
-    "apply_meta_rules_halt_on_false_action": {
-      "description": "Meta-rule with K_FALSE action triggers immediate halt",
-      "cases": [
-        {
-          "inputs": {
-            "meta_rules": [
-              { "condition": 1, "action": -1, "priority": 0 }
-            ],
-            "count": 1
-          },
-          "expected": -1,
-          "note": "K_FALSE — immediate halt"
-        }
-      ]
-    },
-    "apply_meta_rules_restraint_on_unknown_action": {
-      "description": "Meta-rule with K_UNKNOWN action returns restraint",
-      "cases": [
-        {
-          "inputs": {
-            "meta_rules": [
-              { "condition": 1, "action": 0, "priority": 0 }
-            ],
-            "count": 1
-          },
-          "expected": 0,
-          "note": "K_UNKNOWN — restraint/caution"
-        }
-      ]
-    },
-    "apply_meta_rules_priority_first_wins": {
-      "description": "Higher priority meta-rule checked first determines result",
-      "cases": [
-        {
-          "inputs": {
-            "meta_rules": [
-              { "condition": 1, "action": 0, "priority": 10 },
-              { "condition": 1, "action": -1, "priority": 1 }
-            ],
-            "count": 2
-          },
-          "expected": 0,
-          "note": "K_UNKNOWN — priority 10 rule (action=K_UNKNOWN) evaluated before priority 1 (action=K_FALSE); K_UNKNOWN downgrades result but K_FALSE in second rule triggers immediate halt — spec says result == K_UNKNOWN so first-evaluated wins"
-        }
-      ]
-    },
-    "apply_meta_rules_condition_mismatch": {
-      "description": "Meta-rule with K_FALSE condition does not trigger",
-      "cases": [
-        {
-          "inputs": {
-            "meta_rules": [
-              { "condition": -1, "action": -1, "priority": 0 }
-            ],
-            "count": 1
-          },
-          "expected": 1,
-          "note": "K_TRUE — condition K_FALSE does not match, rule skipped"
-        }
-      ]
-    },
-    "init_state_sets_defaults": {
-      "description": "init_state creates proper initial state with GF16 zero confidence",
-      "cases": [
-        {
-          "inputs": {
-            "quality": "unstable",
-            "start_time": 12345
-          },
-          "expected": {
-            "current_depth": 0,
-            "rules_fired": 0,
-            "current_confidence_f32": 0.0,
-            "start_time_ms": 12345,
-            "quality": "unstable"
-          }
-        }
-      ]
-    }
-  },
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T19:00:00Z",
   "invariants": {
+    "execution_state_fields_initialized": "init_state initializes all fields: current_depth, rules_fired, current_confidence, start_time_ms, quality",
+    "gf16_confidence_in_valid_range": "GF16 confidence values are in [0, 1]: 0.0 <= gf16_decode_to_f32(conf) <= 1.0",
+    "meta_rule_action_validity": "All meta-rule actions are valid Trit values: K_FALSE, K_UNKNOWN, or K_TRUE",
     "quality_level_coverage": "All quality levels have defined params; max_depth: unknown(3) < unstable(7) < good(15); max_rules: unknown(10) < unstable(50) < good(500)",
     "quality_thresholds_decrease": "Higher quality = lower threshold: unknown(0.85) > unstable(0.75) > good(0.70)",
     "restraint_params_nonzero": "All restraint parameters are non-zero: max_depth > 0, max_rules > 0, timeout_ms > 0",
-    "should_continue_monotonic_depth": "Deeper state is more likely to be restrained; once K_FALSE, stays K_FALSE for deeper depths",
     "restraint_value_isomorphism": "is_restraint_value(.zero)==true, is_restraint_value(.neg)==false, is_restraint_value(.pos)==false",
-    "meta_rule_action_validity": "All meta-rule actions are valid Trit values: K_FALSE, K_UNKNOWN, or K_TRUE",
-    "execution_state_fields_initialized": "init_state initializes all fields: current_depth, rules_fired, current_confidence, start_time_ms, quality",
-    "gf16_confidence_in_valid_range": "GF16 confidence values are in [0, 1]: 0.0 <= gf16_decode_to_f32(conf) <= 1.0"
-  }
+    "should_continue_monotonic_depth": "Deeper state is more likely to be restrained; once K_FALSE, stays K_FALSE for deeper depths"
+  },
+  "module": "Restraint",
+  "ring": 30,
+  "schema_version": 2,
+  "seal": "sha256:b0abd08625e0cc636a65f660a11e37621d1a13e2db99e9085eba10fd8410cd22",
+  "spec_path": "specs/ar/restraint.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "ar_restraint Vectors",
+  "vectors": {
+    "apply_meta_rules_condition_mismatch": {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "count": 1,
+            "meta_rules": [
+              {
+                "action": -1,
+                "condition": -1,
+                "priority": 0
+              }
+            ]
+          },
+          "note": "K_TRUE — condition K_FALSE does not match, rule skipped"
+        }
+      ],
+      "description": "Meta-rule with K_FALSE condition does not trigger"
+    },
+    "apply_meta_rules_empty": {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "count": 0,
+            "meta_rules": []
+          },
+          "note": "K_TRUE — default is continue"
+        }
+      ],
+      "description": "No meta-rules returns K_TRUE (continue)"
+    },
+    "apply_meta_rules_halt_on_false_action": {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "count": 1,
+            "meta_rules": [
+              {
+                "action": -1,
+                "condition": 1,
+                "priority": 0
+              }
+            ]
+          },
+          "note": "K_FALSE — immediate halt"
+        }
+      ],
+      "description": "Meta-rule with K_FALSE action triggers immediate halt"
+    },
+    "apply_meta_rules_priority_first_wins": {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "count": 2,
+            "meta_rules": [
+              {
+                "action": 0,
+                "condition": 1,
+                "priority": 10
+              },
+              {
+                "action": -1,
+                "condition": 1,
+                "priority": 1
+              }
+            ]
+          },
+          "note": "K_UNKNOWN — priority 10 rule (action=K_UNKNOWN) evaluated before priority 1 (action=K_FALSE); K_UNKNOWN downgrades result but K_FALSE in second rule triggers immediate halt — spec says result == K_UNKNOWN so first-evaluated wins"
+        }
+      ],
+      "description": "Higher priority meta-rule checked first determines result"
+    },
+    "apply_meta_rules_restraint_on_unknown_action": {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "count": 1,
+            "meta_rules": [
+              {
+                "action": 0,
+                "condition": 1,
+                "priority": 0
+              }
+            ]
+          },
+          "note": "K_UNKNOWN — restraint/caution"
+        }
+      ],
+      "description": "Meta-rule with K_UNKNOWN action returns restraint"
+    },
+    "init_state_sets_defaults": {
+      "cases": [
+        {
+          "expected": {
+            "current_confidence_f32": 0.0,
+            "current_depth": 0,
+            "quality": "unstable",
+            "rules_fired": 0,
+            "start_time_ms": 12345
+          },
+          "inputs": {
+            "quality": "unstable",
+            "start_time": 12345
+          }
+        }
+      ],
+      "description": "init_state creates proper initial state with GF16 zero confidence"
+    },
+    "is_restraint_value_false_for_neg": {
+      "cases": [
+        {
+          "expected": false,
+          "input": -1,
+          "note": "K_FALSE != restraint"
+        }
+      ],
+      "description": "Trit.neg (K_FALSE) is not restraint"
+    },
+    "is_restraint_value_false_for_pos": {
+      "cases": [
+        {
+          "expected": false,
+          "input": 1,
+          "note": "K_TRUE != restraint"
+        }
+      ],
+      "description": "Trit.pos (K_TRUE) is not restraint"
+    },
+    "is_restraint_value_true_for_zero": {
+      "cases": [
+        {
+          "expected": true,
+          "input": 0,
+          "note": "K_UNKNOWN = restraint = don't-care"
+        }
+      ],
+      "description": "Trit.zero (K_UNKNOWN) is the restraint value"
+    },
+    "params_for_quality_gf16_thresholds": {
+      "cases": [
+        {
+          "expected": {
+            "confidence_threshold_f32": 0.85,
+            "tolerance": 0.001
+          },
+          "inputs": {
+            "quality": "unknown"
+          }
+        },
+        {
+          "expected": {
+            "confidence_threshold_f32": 0.75,
+            "tolerance": 0.001
+          },
+          "inputs": {
+            "quality": "unstable"
+          }
+        },
+        {
+          "expected": {
+            "confidence_threshold_f32": 0.7,
+            "tolerance": 0.001
+          },
+          "inputs": {
+            "quality": "good"
+          }
+        }
+      ],
+      "description": "All quality levels use GF16-encoded confidence thresholds"
+    },
+    "params_for_quality_good_permissive": {
+      "cases": [
+        {
+          "expected": {
+            "confidence_threshold_f32": 0.7,
+            "max_depth": 15,
+            "max_rules": 500,
+            "timeout_ms": 10000,
+            "tolerance": 0.001
+          },
+          "inputs": {
+            "quality": "good"
+          }
+        }
+      ],
+      "description": "Good quality gets full/permissive resources"
+    },
+    "params_for_quality_unknown_conservative": {
+      "cases": [
+        {
+          "expected": {
+            "confidence_threshold_f32": 0.85,
+            "max_depth": 3,
+            "max_rules": 10,
+            "timeout_ms": 100,
+            "tolerance": 0.001
+          },
+          "inputs": {
+            "quality": "unknown"
+          }
+        }
+      ],
+      "description": "Unknown quality gets minimal/conservative resources"
+    },
+    "params_for_quality_unstable_moderate": {
+      "cases": [
+        {
+          "expected": {
+            "confidence_threshold_f32": 0.75,
+            "max_depth": 7,
+            "max_rules": 50,
+            "timeout_ms": 1000,
+            "tolerance": 0.001
+          },
+          "inputs": {
+            "quality": "unstable"
+          }
+        }
+      ],
+      "description": "Unstable quality gets moderate resources"
+    },
+    "should_continue_allows_initial_state": {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "params_quality": "good",
+            "state": {
+              "current_confidence_f32": 0.8,
+              "current_depth": 0,
+              "quality": "good",
+              "rules_fired": 0,
+              "start_time_ms": 0
+            }
+          },
+          "note": "K_TRUE — all checks pass"
+        }
+      ],
+      "description": "Initial state with sufficient confidence passes all checks"
+    },
+    "should_continue_allows_sufficient_confidence": {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "params": {
+              "confidence_threshold_f32": 0.7,
+              "max_depth": 100,
+              "max_rules": 100,
+              "timeout_ms": 1000
+            },
+            "state": {
+              "current_confidence_f32": 0.8,
+              "current_depth": 0,
+              "quality": "good",
+              "rules_fired": 0,
+              "start_time_ms": 0
+            }
+          },
+          "note": "K_TRUE — confidence 0.8 >= threshold 0.7"
+        }
+      ],
+      "description": "Confidence above threshold allows continuation"
+    },
+    "should_continue_blocks_on_depth_limit": {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "params": {
+              "confidence_threshold_f32": 0.5,
+              "max_depth": 2,
+              "max_rules": 100,
+              "timeout_ms": 1000
+            },
+            "state": {
+              "current_confidence_f32": 0.9,
+              "current_depth": 3,
+              "quality": "good",
+              "rules_fired": 0,
+              "start_time_ms": 0
+            }
+          },
+          "note": "K_FALSE — depth 3 >= max_depth 2"
+        }
+      ],
+      "description": "Exceeding depth limit triggers K_FALSE restraint"
+    },
+    "should_continue_blocks_on_low_confidence": {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "params": {
+              "confidence_threshold_f32": 0.7,
+              "max_depth": 100,
+              "max_rules": 100,
+              "timeout_ms": 1000
+            },
+            "state": {
+              "current_confidence_f32": 0.5,
+              "current_depth": 0,
+              "quality": "good",
+              "rules_fired": 0,
+              "start_time_ms": 0
+            }
+          },
+          "note": "K_FALSE — confidence 0.5 < threshold 0.7"
+        }
+      ],
+      "description": "Confidence below threshold triggers K_FALSE restraint"
+    },
+    "should_continue_blocks_on_rule_limit": {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "params": {
+              "confidence_threshold_f32": 0.5,
+              "max_depth": 100,
+              "max_rules": 5,
+              "timeout_ms": 1000
+            },
+            "state": {
+              "current_confidence_f32": 0.9,
+              "current_depth": 0,
+              "quality": "good",
+              "rules_fired": 10,
+              "start_time_ms": 0
+            }
+          },
+          "note": "K_FALSE — rules_fired 10 >= max_rules 5"
+        }
+      ],
+      "description": "Exceeding rule limit triggers K_FALSE restraint"
+    },
+    "step_depth_increments": {
+      "cases": [
+        {
+          "expected": {
+            "current_depth": 1
+          },
+          "inputs": {
+            "delta": 1,
+            "initial_depth": 0
+          }
+        }
+      ],
+      "description": "step_depth increments current_depth by delta"
+    },
+    "step_depth_multiple": {
+      "cases": [
+        {
+          "expected": {
+            "current_depth": 5
+          },
+          "inputs": {
+            "delta": 5,
+            "initial_depth": 0
+          }
+        }
+      ],
+      "description": "step_depth can increment by more than 1"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

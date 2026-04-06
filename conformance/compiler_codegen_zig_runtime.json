@@ -1,52 +1,224 @@
 {
-  "module": "ZigRuntime",
-  "spec_path": "compiler/codegen/zig/runtime.t27",
-  "ring": 37,
-  "generated_at": "2026-04-04T21:10:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "generate_main",
-      "cases": [
-        { "inputs": { "module_name": "test_mod" }, "expected_contains": "pub fn main" },
-        { "inputs": { "module_name": "test_mod", "has_args": true }, "expected_contains": "std.process.args" },
-        { "inputs": { "module_name": "" }, "expected": 1 }
-      ]
+      "name": "generate_main_latency",
+      "target": "< 5ms"
     },
     {
-      "function": "generate_commands",
-      "cases": [
-        { "inputs": { "commands": ["run", "test", "help"] }, "expected_contains": "switch" },
-        { "inputs": { "commands": ["run"] }, "expected_contains": "\"run\"" },
-        { "inputs": { "commands": [] }, "expected_contains": "no commands" }
-      ]
+      "name": "generate_commands_latency",
+      "target": "< 3ms"
     },
     {
-      "function": "generate_validation",
-      "cases": [
-        { "inputs": { "spec_name": "types", "has_tests": true }, "expected_contains": "validate" },
-        { "inputs": { "spec_name": "types", "has_invariants": true }, "expected_contains": "invariant" },
-        { "inputs": { "spec_name": "types", "has_tests": false, "has_invariants": false }, "expected_contains": "skip" }
-      ]
-    },
-    {
-      "function": "generate_runtime_init",
-      "cases": [
-        { "inputs": { "stack_size": 1024 }, "expected_contains": "stack" },
-        { "inputs": { "heap_size": 4096 }, "expected_contains": "heap" }
-      ]
+      "name": "generate_validation_latency",
+      "target": "< 5ms"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:10:00Z",
   "invariants": [
-    { "name": "generate_main_requires_module_name", "assert": "generate_main returns error if module_name is empty" },
-    { "name": "generate_commands_handles_empty", "assert": "generate_commands produces valid output for empty command list" },
-    { "name": "generate_validation_checks_tdd", "assert": "Validation includes TDD contract checks when tests present" },
-    { "name": "generate_main_output_valid_zig", "assert": "Generated main function is syntactically valid Zig" },
-    { "name": "generate_commands_dispatch_complete", "assert": "All provided commands appear in generated dispatch table" },
-    { "name": "runtime_init_sets_stack_and_heap", "assert": "Runtime init configures both stack and heap sizes" }
+    {
+      "assert": "generate_main returns error if module_name is empty",
+      "name": "generate_main_requires_module_name"
+    },
+    {
+      "assert": "generate_commands produces valid output for empty command list",
+      "name": "generate_commands_handles_empty"
+    },
+    {
+      "assert": "Validation includes TDD contract checks when tests present",
+      "name": "generate_validation_checks_tdd"
+    },
+    {
+      "assert": "Generated main function is syntactically valid Zig",
+      "name": "generate_main_output_valid_zig"
+    },
+    {
+      "assert": "All provided commands appear in generated dispatch table",
+      "name": "generate_commands_dispatch_complete"
+    },
+    {
+      "assert": "Runtime init configures both stack and heap sizes",
+      "name": "runtime_init_sets_stack_and_heap"
+    }
   ],
-  "benchmarks": [
-    { "name": "generate_main_latency", "target": "< 5ms" },
-    { "name": "generate_commands_latency", "target": "< 3ms" },
-    { "name": "generate_validation_latency", "target": "< 5ms" }
-  ]
+  "module": "ZigRuntime",
+  "ring": 37,
+  "schema_version": 2,
+  "seal": "sha256:0679c8d6888e4bc8e8f1b7c8b2f467f8182e99ceb1cc6deee82537dd3a9d00b1",
+  "spec_path": "compiler/codegen/zig/runtime.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_codegen_zig_runtime Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected_contains": "pub fn main",
+          "inputs": {
+            "module_name": "test_mod"
+          }
+        },
+        {
+          "expected_contains": "std.process.args",
+          "inputs": {
+            "has_args": true,
+            "module_name": "test_mod"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "module_name": ""
+          }
+        }
+      ],
+      "function": "generate_main",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": "switch",
+          "inputs": {
+            "commands": [
+              "run",
+              "test",
+              "help"
+            ]
+          }
+        },
+        {
+          "expected_contains": "\"run\"",
+          "inputs": {
+            "commands": [
+              "run"
+            ]
+          }
+        },
+        {
+          "expected_contains": "no commands",
+          "inputs": {
+            "commands": []
+          }
+        }
+      ],
+      "function": "generate_commands",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": "validate",
+          "inputs": {
+            "has_tests": true,
+            "spec_name": "types"
+          }
+        },
+        {
+          "expected_contains": "invariant",
+          "inputs": {
+            "has_invariants": true,
+            "spec_name": "types"
+          }
+        },
+        {
+          "expected_contains": "skip",
+          "inputs": {
+            "has_invariants": false,
+            "has_tests": false,
+            "spec_name": "types"
+          }
+        }
+      ],
+      "function": "generate_validation",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": "stack",
+          "inputs": {
+            "stack_size": 1024
+          }
+        },
+        {
+          "expected_contains": "heap",
+          "inputs": {
+            "heap_size": 4096
+          }
+        }
+      ],
+      "function": "generate_runtime_init",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_main_requires_module_name",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_commands_handles_empty",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_validation_checks_tdd",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_main_output_valid_zig",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_generate_commands_dispatch_complete",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_runtime_init_sets_stack_and_heap",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

@@ -1,197 +1,532 @@
 {
-  "module": "SacredAttention",
-  "spec_path": "specs/nn/attention.t27",
-  "ring": 29,
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
   "generated_at": "2026-04-04T19:00:00Z",
+  "invariants": [
+    {
+      "condition": "SACRED_GAMMA > 0.0",
+      "name": "attn_sacred_gamma_positive"
+    },
+    {
+      "condition": "SACRED_GAMMA < 1.0",
+      "name": "attn_sacred_gamma_less_than_one"
+    },
+    {
+      "condition": "SACRED_SCALE > 0.0",
+      "name": "attn_sacred_scale_positive"
+    },
+    {
+      "condition": "SACRED_SCALE > 0.3 && SACRED_SCALE < 0.4",
+      "name": "attn_sacred_scale_reasonable"
+    },
+    {
+      "condition": "NUM_HEADS == 3",
+      "name": "attn_num_heads_constant"
+    },
+    {
+      "condition": "HEAD_DIM == 81",
+      "name": "attn_head_dim_constant"
+    },
+    {
+      "condition": "EMBED_DIM == 243",
+      "name": "attn_embed_dim_constant"
+    },
+    {
+      "condition": "CONTEXT_LEN == 81",
+      "name": "attn_context_len_constant"
+    },
+    {
+      "condition": "ROPE_PAIRS == 40",
+      "name": "attn_rope_pairs_constant"
+    },
+    {
+      "condition": "EMBED_DIM == NUM_HEADS * HEAD_DIM",
+      "name": "attn_embed_dim_equals_heads_times_head_dim"
+    },
+    {
+      "condition": "ROPE_PAIRS == CONTEXT_LEN / 2",
+      "name": "attn_rope_pairs_is_half_context_len"
+    },
+    {
+      "condition": "ternary_matmul output length == out_dim",
+      "name": "attn_ternary_matmul_output_dim"
+    },
+    {
+      "condition": "add_residual preserves output dimension",
+      "name": "attn_add_residual_preserves_dim"
+    },
+    {
+      "condition": "sum(softmax(scores)) == 1.0 && all(scores >= 0)",
+      "name": "attn_softmax_output_probability_distribution"
+    },
+    {
+      "condition": "rope_tables.cos[i] >= -1.0 && rope_tables.cos[i] <= 1.0",
+      "name": "attn_rope_cos_in_valid_range"
+    },
+    {
+      "condition": "rope_tables.sin[i] >= -1.0 && rope_tables.sin[i] <= 1.0",
+      "name": "attn_rope_sin_in_valid_range"
+    }
+  ],
+  "module": "SacredAttention",
+  "ring": 29,
+  "schema_version": 2,
+  "seal": "sha256:a35ffde425650dc6027dd7ac5a17c7b0e86f0a657510c1457047f1c6b472cc26",
+  "spec_path": "specs/nn/attention.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "nn_attention Vectors",
   "vectors": [
     {
-      "name": "attn_sacred_scaling_constant",
       "description": "SACRED_SCALE = pow(81.0, -SACRED_GAMMA) ~ 0.354",
-      "input": { "base": 81.0, "exponent": -0.2360679774997897 },
-      "expected": { "value": 0.35355339059327376, "tolerance_abs": 0.001 }
+      "expected": {
+        "tolerance_abs": 0.001,
+        "value": 0.3535533905932738
+      },
+      "input": {
+        "base": 81.0,
+        "exponent": -0.2360679774997897
+      },
+      "name": "attn_sacred_scaling_constant",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_sacred_gamma_is_phi_cubed_inv",
       "description": "SACRED_GAMMA = phi^-3 ~ 0.236",
-      "input": { "phi_inv": 0.6180339887498948 },
-      "expected": { "value": 0.2360679774997897, "tolerance_abs": 0.00001 }
+      "expected": {
+        "tolerance_abs": 0.00001,
+        "value": 0.2360679774997897
+      },
+      "input": {
+        "phi_inv": 0.6180339887498948
+      },
+      "name": "attn_sacred_gamma_is_phi_cubed_inv",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_num_heads_is_trinity",
       "description": "NUM_HEADS must equal 3",
+      "expected": {
+        "NUM_HEADS": 3
+      },
       "input": {},
-      "expected": { "NUM_HEADS": 3 }
+      "name": "attn_num_heads_is_trinity",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_head_dim_is_three_pow_four",
       "description": "HEAD_DIM must equal 81 = 3^4",
+      "expected": {
+        "HEAD_DIM": 81
+      },
       "input": {},
-      "expected": { "HEAD_DIM": 81 }
+      "name": "attn_head_dim_is_three_pow_four",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_embed_dim_is_heads_times_head_dim",
       "description": "EMBED_DIM = NUM_HEADS * HEAD_DIM = 243",
+      "expected": {
+        "EMBED_DIM": 243,
+        "computed": 243
+      },
       "input": {},
-      "expected": { "EMBED_DIM": 243, "computed": 243 }
+      "name": "attn_embed_dim_is_heads_times_head_dim",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_rope_pairs_is_context_len_div_two",
       "description": "ROPE_PAIRS = CONTEXT_LEN / 2 = 40",
+      "expected": {
+        "ROPE_PAIRS": 40
+      },
       "input": {},
-      "expected": { "ROPE_PAIRS": 40 }
+      "name": "attn_rope_pairs_is_context_len_div_two",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_ternary_matmul_identity",
       "description": "Identity ternary matrix preserves input",
-      "input": {
-        "input": [1.0, 2.0, 3.0, 4.0],
-        "weights_trit": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        "in_dim": 4,
-        "out_dim": 4
+      "expected": {
+        "output": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ]
       },
-      "expected": { "output": [1.0, 2.0, 3.0, 4.0] }
+      "input": {
+        "in_dim": 4,
+        "input": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "out_dim": 4,
+        "weights_trit": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "name": "attn_ternary_matmul_identity",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_ternary_matmul_negation",
       "description": "All-negative ternary matrix negates and sums",
+      "expected": {
+        "output": [
+          -10.0,
+          -10.0,
+          -10.0,
+          -10.0
+        ]
+      },
       "input": {
-        "input": [1.0, 2.0, 3.0, 4.0],
-        "weights_trit": [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
         "in_dim": 4,
-        "out_dim": 4
+        "input": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "out_dim": 4,
+        "weights_trit": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ]
       },
-      "expected": { "output": [-10.0, -10.0, -10.0, -10.0] }
+      "name": "attn_ternary_matmul_negation",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_add_residual_identity",
       "description": "Residual connection adds element-wise",
-      "input": {
-        "output": [5.0, 10.0, 15.0, 20.0],
-        "input": [2.0, 4.0, 6.0, 8.0]
+      "expected": {
+        "output": [
+          7.0,
+          14.0,
+          21.0,
+          28.0
+        ]
       },
-      "expected": { "output": [7.0, 14.0, 21.0, 28.0] }
+      "input": {
+        "input": [
+          2.0,
+          4.0,
+          6.0,
+          8.0
+        ],
+        "output": [
+          5.0,
+          10.0,
+          15.0,
+          20.0
+        ]
+      },
+      "name": "attn_add_residual_identity",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_softmax_normalization",
       "description": "Softmax output sums to 1.0",
-      "input": { "scores": [1.0, 2.0, 3.0, 4.0], "seq_len": 4 },
-      "expected": { "sum": 1.0, "tolerance_abs": 0.0001 }
+      "expected": {
+        "sum": 1.0,
+        "tolerance_abs": 0.0001
+      },
+      "input": {
+        "scores": [
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "seq_len": 4
+      },
+      "name": "attn_softmax_normalization",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_softmax_positive",
       "description": "All softmax outputs are non-negative",
-      "input": { "scores": [1.0, -1.0, 2.0, -2.0], "seq_len": 4 },
-      "expected": { "all_non_negative": true }
+      "expected": {
+        "all_non_negative": true
+      },
+      "input": {
+        "scores": [
+          1.0,
+          -1.0,
+          2.0,
+          -2.0
+        ],
+        "seq_len": 4
+      },
+      "name": "attn_softmax_positive",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_sacred_scale_range",
       "description": "SACRED_SCALE is between 0.3 and 0.4",
+      "expected": {
+        "max": 0.4,
+        "min": 0.3
+      },
       "input": {},
-      "expected": { "min": 0.3, "max": 0.4 }
+      "name": "attn_sacred_scale_range",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_rope_tables_initialized",
       "description": "After init, cos[0] > 0 and table length correct",
-      "input": {},
       "expected": {
         "cos_0_positive": true,
         "table_length": 3240
-      }
+      },
+      "input": {},
+      "name": "attn_rope_tables_initialized",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_cache_kv_stores_values",
       "description": "cache_kv stores k and v buffers at position offset",
-      "input": {
-        "k_buffer_prefix": [1.0, 2.0, 3.0],
-        "v_buffer_prefix": [4.0, 5.0, 6.0],
-        "position": 0
-      },
       "expected": {
         "cache_k_0": 1.0,
         "cache_k_1": 2.0,
         "cache_v_0": 4.0,
         "cache_v_1": 5.0
-      }
+      },
+      "input": {
+        "k_buffer_prefix": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "position": 0,
+        "v_buffer_prefix": [
+          4.0,
+          5.0,
+          6.0
+        ]
+      },
+      "name": "attn_cache_kv_stores_values",
+      "verdict": "CLEAN"
     },
     {
-      "name": "attn_compute_scores_applies_scale",
       "description": "Score = dot(Q,K) * SACRED_SCALE",
-      "input": {
-        "q_prefix": [1.0, 1.0, 1.0],
-        "k_prefix": [1.0, 1.0, 1.0],
-        "position": 0,
-        "seq_len": 1
-      },
       "expected": {
         "score_0": "3.0 * SACRED_SCALE",
         "tolerance_abs": 0.001
-      }
+      },
+      "input": {
+        "k_prefix": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "position": 0,
+        "q_prefix": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "seq_len": 1
+      },
+      "name": "attn_compute_scores_applies_scale",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_sacred_gamma_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_sacred_gamma_less_than_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_sacred_scale_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_sacred_scale_reasonable",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_num_heads_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_head_dim_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_embed_dim_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_context_len_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_rope_pairs_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_embed_dim_equals_heads_times_head_dim",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_rope_pairs_is_half_context_len",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_ternary_matmul_output_dim",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_add_residual_preserves_dim",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_softmax_output_probability_distribution",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_rope_cos_in_valid_range",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_attn_rope_sin_in_valid_range",
+      "verdict": "CLEAN"
     }
   ],
-  "invariants": [
-    {
-      "name": "attn_sacred_gamma_positive",
-      "condition": "SACRED_GAMMA > 0.0"
-    },
-    {
-      "name": "attn_sacred_gamma_less_than_one",
-      "condition": "SACRED_GAMMA < 1.0"
-    },
-    {
-      "name": "attn_sacred_scale_positive",
-      "condition": "SACRED_SCALE > 0.0"
-    },
-    {
-      "name": "attn_sacred_scale_reasonable",
-      "condition": "SACRED_SCALE > 0.3 && SACRED_SCALE < 0.4"
-    },
-    {
-      "name": "attn_num_heads_constant",
-      "condition": "NUM_HEADS == 3"
-    },
-    {
-      "name": "attn_head_dim_constant",
-      "condition": "HEAD_DIM == 81"
-    },
-    {
-      "name": "attn_embed_dim_constant",
-      "condition": "EMBED_DIM == 243"
-    },
-    {
-      "name": "attn_context_len_constant",
-      "condition": "CONTEXT_LEN == 81"
-    },
-    {
-      "name": "attn_rope_pairs_constant",
-      "condition": "ROPE_PAIRS == 40"
-    },
-    {
-      "name": "attn_embed_dim_equals_heads_times_head_dim",
-      "condition": "EMBED_DIM == NUM_HEADS * HEAD_DIM"
-    },
-    {
-      "name": "attn_rope_pairs_is_half_context_len",
-      "condition": "ROPE_PAIRS == CONTEXT_LEN / 2"
-    },
-    {
-      "name": "attn_ternary_matmul_output_dim",
-      "condition": "ternary_matmul output length == out_dim"
-    },
-    {
-      "name": "attn_add_residual_preserves_dim",
-      "condition": "add_residual preserves output dimension"
-    },
-    {
-      "name": "attn_softmax_output_probability_distribution",
-      "condition": "sum(softmax(scores)) == 1.0 && all(scores >= 0)"
-    },
-    {
-      "name": "attn_rope_cos_in_valid_range",
-      "condition": "rope_tables.cos[i] >= -1.0 && rope_tables.cos[i] <= 1.0"
-    },
-    {
-      "name": "attn_rope_sin_in_valid_range",
-      "condition": "rope_tables.sin[i] >= -1.0 && rope_tables.sin[i] <= 1.0"
-    }
-  ]
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

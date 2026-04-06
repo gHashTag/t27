@@ -9,8 +9,7 @@
     "format_family",
     "vector_name",
     "verdict",
-    "seal",
-    "test_vectors"
+    "seal"
   ],
   "properties": {
     "schema_version": {

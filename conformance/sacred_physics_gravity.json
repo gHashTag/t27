@@ -1,49 +1,56 @@
 {
-  "description": "Sacred Gravity — SACRED-PHYSICS-003/2",
-  "version": "1.0",
-  "source_module": "math::sacred_physics",
   "category": "gravity",
-  "target_quantity": "G",
-  "reference_source": "CODATA 2022",
-
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "Sacred Gravity — SACRED-PHYSICS-003/2",
+  "format_family": "SacredPhysics",
   "measured_value": {
-    "value": 6.67430e-11,
-    "unit": "m³ kg⁻¹ s⁻²",
+    "reference": "CODATA 2022 recommended value",
     "uncertainty": "1.5e-16",
-    "reference": "CODATA 2022 recommended value"
+    "unit": "m³ kg⁻¹ s⁻²",
+    "value": 6.6743e-11
   },
-
+  "reference_source": "CODATA 2022",
   "sacred_formula": {
-    "function": "sacred_gravity(pi)",
+    "derivation": "From TRINITY identity φ² + 1/φ² = 3, substitute γ = φ⁻³",
     "formula": "G = π³ × γ² / φ",
-    "derivation": "From TRINITY identity φ² + 1/φ² = 3, substitute γ = φ⁻³"
+    "function": "sacred_gravity(pi)"
   },
-
+  "schema_version": 2,
+  "seal": "sha256:ea9d009b8360ab1d4a0f5fef41b57d62b1ce438be0c84da5070fc4acf2ff84cc",
+  "source_module": "math::sacred_physics",
+  "target_quantity": "G",
   "test_vectors": [
     {
-      "name": "Standard Gravity Prediction",
       "description": "Compute G_sacred using sacred formula with π",
+      "expected": {
+        "g_pred": 6.671281904336001e-11,
+        "tolerance_rel": 0.001
+      },
       "input": {
         "pi_value": 3.141592653589793
       },
-      "expected": {
-        "g_pred": 6.671281904336e-11,
-        "tolerance_rel": 0.001
-      }
+      "name": "Standard Gravity Prediction",
+      "verdict": "CLEAN"
     },
     {
-      "name": "CODATA Comparison",
       "description": "Verify sacred prediction matches measured value within 0.1%",
+      "expected": {
+        "g_measured": 6.6743e-11,
+        "g_ok": true,
+        "g_pred": 6.671281904336001e-11,
+        "g_rel_error": 0.00045,
+        "tolerance_rel": 0.001
+      },
       "input": {
         "pi_value": 3.141592653589793
       },
-      "expected": {
-        "g_measured": 6.67430e-11,
-        "g_pred": 6.671281904336e-11,
-        "g_rel_error": 0.00045,
-        "tolerance_rel": 0.001,
-        "g_ok": true
-      }
+      "name": "CODATA Comparison",
+      "verdict": "CLEAN"
     }
-  ]
+  ],
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "sacred_physics_gravity Vectors",
+  "verdict": "CLEAN",
+  "version": "1.0"
 }

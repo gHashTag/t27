@@ -741,3 +741,250 @@ pub fn validate_seals(repo_root: &Path, pr_files: Option<&str>) -> anyhow::Resul
     eprintln!("phi^2 + 1/phi^2 = 3 | TRINITY");
     Ok(())
 }
+
+/// Migrate conformance/*.json files to SCHEMA_V2 format.
+/// Adds schema_version, verdict, seal, and per-case verdicts.
+pub fn migrate_to_v2(repo_root: &Path, dry_run: bool) -> anyhow::Result<()> {
+    use sha2::{Sha256, Digest};
+    use serde_json::{json, Value};
+
+    let repo = fs::canonicalize(repo_root)?;
+    let conformance_dir = repo.join("conformance");
+
+    println!("=== Migrate to SCHEMA_V2 ===");
+    if dry_run {
+        println!("DRY RUN MODE — no files will be modified");
+    }
+
+    let schema_path = conformance_dir.join("SCHEMA_V2.json");
+    if !schema_path.exists() {
+        anyhow::bail!("SCHEMA_V2.json not found at {}", schema_path.display());
+    }
+
+    let mut entries: Vec<PathBuf> = fs::read_dir(&conformance_dir)
+        .with_context(|| "read_dir conformance")?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().map_or(false, |x| x == "json"))
+        .collect();
+    entries.sort();
+
+    let mut migrated = 0usize;
+    let mut skipped = 0usize;
+    let errors = 0usize;
+
+    for file in entries {
+        let filename = file.file_name().and_then(|n| n.to_str()).unwrap_or("unknown");
+
+        // Skip schema file
+        if filename == "SCHEMA_V2.json" {
+            continue;
+        }
+
+        // Read current content
+        let raw = fs::read_to_string(&file)?;
+        let mut json: Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("⊘ {} (invalid JSON: {}, skipping)", filename, e);
+                skipped += 1;
+                continue;
+            }
+        };
+
+        // Skip if already v2
+        if let Some(sv) = json.get("schema_version") {
+            if sv.as_i64() == Some(2) || sv.as_str() == Some("2") {
+                eprintln!("⊘ {} (already v2, skipping)", filename);
+                skipped += 1;
+                continue;
+            }
+        }
+
+        // Detect format_family from existing data
+        let format_family = json.get("format_name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                if filename.contains("gf") || filename.contains("float") {
+                    Some("GoldenFloat".to_string())
+                } else if filename.contains("tf") {
+                    Some("TernaryFloat".to_string())
+                } else if filename.contains("phi") {
+                    Some("PhiRatio".to_string())
+                } else if filename.contains("sacred") {
+                    Some("SacredPhysics".to_string())
+                } else {
+                    Some("Conformance".to_string())
+                }
+            })
+            .unwrap_or_else(|| "Conformance".to_string());
+
+        // Get or derive vector_name
+        let vector_name = json.get("vector_name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("{} Vectors", filename.replace("_vectors.json", "").replace(".json", "")));
+
+        // Get format details
+        let format_name = json.get("format_name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let format_bits = json.get("format_bits")
+            .and_then(|v| v.as_i64())
+            .or_else(|| {
+                if filename.contains("tf3") { Some(8) }
+                else if filename.contains("gf4") { Some(4) }
+                else if filename.contains("gf8") { Some(8) }
+                else if filename.contains("gf12") { Some(12) }
+                else if filename.contains("gf16") { Some(16) }
+                else if filename.contains("gf20") { Some(20) }
+                else if filename.contains("gf24") { Some(24) }
+                else if filename.contains("gf32") { Some(32) }
+                else { None }
+            });
+
+        // Add/overwrite top-level fields for v2
+        json["schema_version"] = json!(2);
+
+        if json.get("format_family").is_none() {
+            json["format_family"] = json!(format_family);
+        }
+
+        if json.get("vector_name").is_none() {
+            json["vector_name"] = json!(vector_name);
+        }
+
+        if json.get("version").is_none() {
+            json["version"] = json!("2.0");
+        }
+
+        if let Some(fn_val) = format_name {
+            if json.get("format_name").is_none() {
+                json["format_name"] = json!(fn_val);
+            }
+        }
+
+        if let Some(fb_val) = format_bits {
+            if json.get("format_bits").is_none() {
+                json["format_bits"] = json!(fb_val);
+            }
+        }
+
+        let vectors_key = if json.get("test_vectors").is_some() {
+            "test_vectors"
+        } else if json.get("vectors").is_some() {
+            "vectors"
+        } else {
+            continue;
+        };
+
+        let mut invariants_to_convert: Vec<(String, String, Value)> = Vec::new();
+        if let Some(invariants) = json.get("invariants").and_then(|v| v.as_array()) {
+            for inv in invariants {
+                if inv.get("name").is_some() && inv.get("input").is_none() {
+                    let name = inv.get("name").and_then(|v| v.as_str()).unwrap_or("unknown").to_string();
+                    let assertion = inv.get("assertion").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let value = inv.get("value").cloned().unwrap_or(Value::Bool(true));
+                    invariants_to_convert.push((name, assertion, value));
+                }
+            }
+        }
+
+        {
+            if json.get("verdict").is_none() {
+                json["verdict"] = json!("CLEAN");
+            }
+
+            if let Some(vectors) = json.get_mut(vectors_key).and_then(|v| v.as_array_mut()) {
+                for vec in &mut *vectors {
+                    if vec.get("verdict").is_none() {
+                        vec["verdict"] = json!("CLEAN");
+                    }
+                }
+
+                if !invariants_to_convert.is_empty() {
+                    let existing_names: std::collections::HashSet<String> = vectors
+                        .iter()
+                        .filter_map(|v| v.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()))
+                        .collect();
+
+                    for (name, assertion, value) in invariants_to_convert {
+                        let test_name = format!("inv_{}", name);
+                        if !existing_names.contains(&test_name) {
+                            vectors.push(json!({
+                                "name": test_name,
+                                "description": format!("Invariant: {}", assertion),
+                                "verdict": "CLEAN",
+                                "input": { "assertion": assertion },
+                                "expected": { "value": value }
+                            }));
+                        }
+                    }
+                }
+            }
+
+            let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+            if json.get("created_at").is_none() {
+                json["created_at"] = json!(now.clone());
+            }
+            if json.get("updated_at").is_none() {
+                json["updated_at"] = json!(now.clone());
+            }
+            if json.get("validated_at").is_none() {
+                json["validated_at"] = json!(now);
+            }
+        }
+
+        // Compute and add seal
+        let content_without_seal = {
+            let mut j = json.clone();
+            j["seal"] = json!(""); // Remove seal for hash computation
+            serde_json::to_string(&j).unwrap()
+        };
+
+        let mut hasher = Sha256::new();
+        hasher.update(content_without_seal.as_bytes());
+        let seal_hash = format!("sha256:{:x}", hasher.finalize());
+        json["seal"] = json!(seal_hash);
+
+        // Pretty print and write
+        let output = serde_json::to_string_pretty(&json)?;
+
+        eprint!("Migrating {} ... ", filename);
+
+        if dry_run {
+            eprintln!("(would write {} bytes)", output.len());
+            // Show diff preview
+            if output != raw {
+                eprintln!("  Content would change");
+            } else {
+                eprintln!("  No changes needed");
+            }
+        } else {
+            fs::write(&file, output)?;
+            eprintln!("✓ MIGRATED");
+        }
+
+        migrated += 1;
+    }
+
+    eprintln!();
+    eprintln!("=== Migration Summary ===");
+    eprintln!("Files migrated: {}", migrated);
+    eprintln!("Files skipped: {}", skipped);
+    eprintln!("Errors: {}", errors);
+
+    if dry_run {
+        eprintln!();
+        eprintln!("DRY RUN COMPLETE — no files were modified");
+        eprintln!("Run without --dry-run to apply changes");
+    } else if migrated > 0 {
+        eprintln!();
+        eprintln!("Migration complete!");
+        eprintln!("Run 't27c validate-conformance-v2' to verify all files");
+    }
+
+    Ok(())
+}

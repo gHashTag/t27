@@ -1,93 +1,124 @@
 {
-  "module": "UART_Testbench",
-  "spec_path": "specs/fpga/testbench/uart_tb.t27",
-  "ring": 43,
-  "generated_at": "2026-04-05T12:00:00Z",
-  "description": "UART Testbench conformance vectors -- byte TX/RX, loopback verification",
   "constants": {
     "CLK_PERIOD": 20,
     "SIM_TIMEOUT": 10000000,
     "TEST_DATA_1": 170,
     "TEST_DATA_2": 85
   },
-  "vectors": {
-    "uart_tx_byte": {
-      "description": "Byte transmission test",
-      "cases": [
-        {
-          "id": "tb_uart_tx_0xAA",
-          "data": 170,
-          "expected_start_bit": 0,
-          "expected_stop_bit": 1,
-          "expected_bit_count": 10,
-          "note": "Transmit 0xAA with 8N1 framing"
-        },
-        {
-          "id": "tb_uart_tx_0x55",
-          "data": 85,
-          "expected_start_bit": 0,
-          "expected_stop_bit": 1,
-          "expected_bit_count": 10,
-          "note": "Transmit 0x55 with 8N1 framing"
-        }
-      ]
-    },
-    "uart_rx_byte": {
-      "description": "Byte reception test",
-      "cases": [
-        {
-          "id": "tb_uart_rx_0xAA",
-          "inject_bits": [0, 0, 1, 0, 1, 0, 1, 0, 1, 1],
-          "expected_data": 170,
-          "expected_valid": true,
-          "note": "Receive 0xAA via bit injection"
-        },
-        {
-          "id": "tb_uart_rx_0x55",
-          "inject_bits": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-          "expected_data": 85,
-          "expected_valid": true,
-          "note": "Receive 0x55 via bit injection"
-        }
-      ]
-    },
-    "uart_loopback": {
-      "description": "UART loopback test (TX -> RX)",
-      "cases": [
-        {
-          "id": "tb_uart_loopback_0xAA",
-          "tx_data": 170,
-          "expected_rx_data": 170,
-          "expected_match": true,
-          "note": "Loopback 0xAA: TX output feeds RX input"
-        },
-        {
-          "id": "tb_uart_loopback_0x55",
-          "tx_data": 85,
-          "expected_rx_data": 85,
-          "expected_match": true,
-          "note": "Loopback 0x55: TX output feeds RX input"
-        },
-        {
-          "id": "tb_uart_loopback_0x00",
-          "tx_data": 0,
-          "expected_rx_data": 0,
-          "expected_match": true,
-          "note": "Loopback 0x00: all-zero data byte"
-        }
-      ]
-    }
-  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "UART Testbench conformance vectors -- byte TX/RX, loopback verification",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-05T12:00:00Z",
   "invariants": [
     {
-      "id": "tb_clk_period_correct",
       "description": "CLK_PERIOD == 20 ns (50 MHz)",
+      "id": "tb_clk_period_correct",
       "value": 20
     },
     {
-      "id": "tb_baud_divisor_matches_uart",
       "description": "Testbench baud timing matches UART module BAUD_DIVISOR (434)",
+      "id": "tb_baud_divisor_matches_uart",
       "value": 434
     }
-  ]
+  ],
+  "module": "UART_Testbench",
+  "ring": 43,
+  "schema_version": 2,
+  "seal": "sha256:6b52d4a5a424ee1ee7bab1124268ca4a4e1ccd621cb7c3de646c183c068a6db8",
+  "spec_path": "specs/fpga/testbench/uart_tb.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "fpga_testbench_uart_tb Vectors",
+  "vectors": {
+    "uart_loopback": {
+      "cases": [
+        {
+          "expected_match": true,
+          "expected_rx_data": 170,
+          "id": "tb_uart_loopback_0xAA",
+          "note": "Loopback 0xAA: TX output feeds RX input",
+          "tx_data": 170
+        },
+        {
+          "expected_match": true,
+          "expected_rx_data": 85,
+          "id": "tb_uart_loopback_0x55",
+          "note": "Loopback 0x55: TX output feeds RX input",
+          "tx_data": 85
+        },
+        {
+          "expected_match": true,
+          "expected_rx_data": 0,
+          "id": "tb_uart_loopback_0x00",
+          "note": "Loopback 0x00: all-zero data byte",
+          "tx_data": 0
+        }
+      ],
+      "description": "UART loopback test (TX -> RX)"
+    },
+    "uart_rx_byte": {
+      "cases": [
+        {
+          "expected_data": 170,
+          "expected_valid": true,
+          "id": "tb_uart_rx_0xAA",
+          "inject_bits": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            1
+          ],
+          "note": "Receive 0xAA via bit injection"
+        },
+        {
+          "expected_data": 85,
+          "expected_valid": true,
+          "id": "tb_uart_rx_0x55",
+          "inject_bits": [
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          "note": "Receive 0x55 via bit injection"
+        }
+      ],
+      "description": "Byte reception test"
+    },
+    "uart_tx_byte": {
+      "cases": [
+        {
+          "data": 170,
+          "expected_bit_count": 10,
+          "expected_start_bit": 0,
+          "expected_stop_bit": 1,
+          "id": "tb_uart_tx_0xAA",
+          "note": "Transmit 0xAA with 8N1 framing"
+        },
+        {
+          "data": 85,
+          "expected_bit_count": 10,
+          "expected_start_bit": 0,
+          "expected_stop_bit": 1,
+          "id": "tb_uart_tx_0x55",
+          "note": "Transmit 0x55 with 8N1 framing"
+        }
+      ],
+      "description": "Byte transmission test"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
 }
