@@ -1,40 +1,40 @@
-# Trinity S³AI / t27 — Конституция (устав репозитория)
+# Trinity S³AI / t27 — Repository constitution
 
-**Статус:** Active  
-**Версия:** 1.0  
-**Дата:** 2026-04-06  
-
----
-
-## Преамбула
-
-Репозиторий Trinity S³AI строится вокруг языка спецификаций **t27** и контура **`tri` / `t27c`**. Математика, числа и физические формулы, участвующие в верификации, не должны расщепляться между «спекой» и «скриптами на стороне». Ниже закреплён единый нормативный принцип.
+**Status:** Active  
+**Version:** 1.0  
+**Date:** 2026-04-06  
 
 ---
 
-## Статья SSOT-MATH — единый источник математики и физики
+## Preamble
 
-**Статья SSOT-MATH.** Математический, числовой и физический смысл системы Trinity S³AI / t27 имеет **единственный нормативный источник правды** — спецификации на языке **t27** (файлы `*.t27`), проверяемые через официальный контур **`tri` / `t27c`** и связанные с артефактами **`.trinity/experience/`** там, где фиксируется опыт прогона.
-
-**Запрещено** вводить на **критическом пути** верификации, соответствия или «verdict» новые зависимости на **Python** (и аналогичные скриптовые обходы), за исключением **явно помеченного legacy** с датой удаления и ссылкой на задачу миграции в `.t27`.
-
-Целевые бэкенды (**Zig, C, Verilog**) являются **выводом компилятора**, а не ручными языками прикладной логики; ручной Zig вне сгенерированного контура допускается только в **bootstrap** (реализация компилятора) и сопутствующей инфраструктуре сборки.
-
-Числовой формализм опирается на принятые в репозитории стандарты (**NUMERIC-STANDARD-001**, GoldenFloat, Strand I в `specs/math/sacred_physics.t27` и связанные спеки); расширение точности или новых числовых примитивов выполняется через **язык t27 и компилятор**, а не через внешние интерпретаторы.
+The Trinity S³AI repository is built around the **t27** specification language and the **`tri` / `t27c`** toolchain. Mathematics, numerics, and physics formulas that participate in verification must not be split between “the spec” and “side scripts.” The following article establishes a single normative principle.
 
 ---
 
-## Связанные документы
+## Article SSOT-MATH — single source of truth for mathematics and physics
 
-| Документ | Назначение |
-|----------|------------|
-| `docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md` | Техническое задание на миграцию критического пути |
-| `docs/TDD-CONTRACT.md` | TDD и conformance из спек |
-| `docs/NUMERIC-STANDARD-001.md` | Семейство GoldenFloat, φ-структура |
-| `.cursor/rules/t27-ssot-math.mdc` | Правило для ИИ-агентов в Cursor |
+**Article SSOT-MATH.** The mathematical, numeric, and physical meaning of Trinity S³AI / t27 has **one normative source of truth**: specifications in the **t27** language (`*.t27` files), exercised through the official **`tri` / `t27c`** pipeline and tied to **`.trinity/experience/`** artifacts where run experience is recorded.
+
+It is **forbidden** to introduce new **Python** dependencies (or equivalent script bypasses) on the **critical path** of verification, conformance, or “verdict,” except for **explicitly marked legacy** code with a removal date and a tracked migration into `.t27`.
+
+Target backends (**Zig, C, Verilog**) are **compiler output**, not hand-written application languages; hand-written Zig outside the generated pipeline is allowed only in **bootstrap** (compiler implementation) and related build infrastructure.
+
+The numeric formalism relies on repository standards (**NUMERIC-STANDARD-001**, GoldenFloat, Strand I in `specs/math/sacred_physics.t27` and related specs). Extensions for precision or new numeric primitives are delivered through the **t27 language and compiler**, not external interpreters.
 
 ---
 
-## Поправки
+## Related documents
 
-Поправки к конституции оформляются PR с явным указанием версии устава и мотивации.
+| Document | Purpose |
+|----------|---------|
+| `docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md` | Technical specification for critical-path migration |
+| `docs/TDD-CONTRACT.md` | TDD and conformance from specs |
+| `docs/NUMERIC-STANDARD-001.md` | GoldenFloat family, φ structure |
+| `.cursor/rules/t27-ssot-math.mdc` | Cursor rule for AI agents |
+
+---
+
+## Amendments
+
+Amendments to this constitution are made via pull request with an explicit charter version bump and rationale.

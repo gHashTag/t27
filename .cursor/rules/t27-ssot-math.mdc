@@ -9,26 +9,26 @@ globs:
 alwaysApply: true
 ---
 
-# T27 — SSOT-MATH (конституционное правило)
+# T27 — SSOT-MATH (constitutional rule)
 
-## Источник правды
+## Source of truth
 
-- Вся **математика, физика, константы, формулы, тесты верификации** — в **`*.t27`** и прогон через **`tri` / `t27c`**.
-- Шаги пайплайна по возможности фиксировать в **`.trinity/experience/`** (jsonl / схема проекта).
+- All **mathematics, physics, constants, formulas, and verification tests** live in **`*.t27`** and are run through **`tri` / `t27c`**.
+- Pipeline steps should record experience in **`.trinity/experience/`** (jsonl / project schema) when applicable.
 
-## Запреты
+## Prohibitions
 
-- **Не добавлять** новый Python (и прочие скрипты) на **критический путь** (verdict, conformance, сценарии assurance), если это можно выразить в t27 + tri.
-- **Не дублировать** формулы в README/MD без ссылки на каноническую спеку `.t27`.
+- **Do not add** new Python (or other scripting) on the **critical path** (verdict, conformance, assurance scenarios) if the same can be expressed in t27 + tri.
+- **Do not duplicate** formulas in README/Markdown without pointing to the canonical `.t27` spec.
 
-## Исключения (legacy)
+## Exceptions (legacy)
 
-- Существующий Python (`conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py`, `clara-bridge/tests/*.py`) — **legacy**; новый функционал — **не** туда. Миграция — по `docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`.
+- Existing Python (`conformance/kepler_newton_tests.py`, `clara-bridge/run_scenario.py`, `clara-bridge/tests/*.py`) is **legacy**; **do not** add new features there. Migrate per **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**.
 
-## Приоритет при конфликте
+## Conflict resolution
 
-- Спека `.t27`, `docs/T27-CONSTITUTION.md`, `docs/TDD-CONTRACT.md`, `docs/NUMERIC-STANDARD-001.md` важнее временных скриптов.
+- `.t27` specs, `docs/T27-CONSTITUTION.md`, `docs/TDD-CONTRACT.md`, and `docs/NUMERIC-STANDARD-001.md` override ad-hoc scripts.
 
-## Обязательное чтение при клонировании
+## Required reading after clone
 
-После `CLAUDE.md` прочитать **`docs/T27-CONSTITUTION.md`**.
+After `CLAUDE.md`, read **`docs/T27-CONSTITUTION.md`**.
