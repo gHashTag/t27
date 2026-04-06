@@ -2,13 +2,13 @@
 
 ---
 
-## Конституция и критический путь
+## Constitution and critical path
 
-- **`docs/T27-CONSTITUTION.md`** — Статья **SSOT-MATH**: единый источник математики/физики в **`*.t27`**, верификация через **`tri` / `t27c`**; новый Python на критическом пути **запрещён** (legacy только с планом миграции).
-- **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`** — техническое задание на миграцию Python → t27 + tri.
-- Правило для Cursor: **`.cursor/rules/t27-ssot-math.mdc`**.
+- **`docs/T27-CONSTITUTION.md`** — **Article SSOT-MATH**: single source of math/physics in **`*.t27`**, verification via **`tri` / `t27c`**; **no new Python** on the critical path (legacy only with a migration plan).
+- **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`** — technical specification for Python → t27 + tri migration.
+- Cursor rule: **`.cursor/rules/t27-ssot-math.mdc`**.
 
-Агенты не добавляют параллельные реализации формул в скриптах, если это можно выразить в спеках t27.
+Agents must not add parallel formula implementations in scripts when the same can be expressed in t27 specs.
 
 ---
 

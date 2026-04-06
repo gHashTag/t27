@@ -1,74 +1,74 @@
-# ТЗ-T27-001 — Миграция критического пути с Python на t27 + tri
+# TZ-T27-001 — Migrate critical path from Python to t27 + tri
 
-**Статус:** Draft (рабочее ТЗ)  
-**Версия:** 1.0  
-**Дата:** 2026-04-06  
-**Конституция:** `docs/T27-CONSTITUTION.md` (Статья SSOT-MATH)
-
----
-
-## 1. Цель
-
-Устранить документированный разрыв, при котором «verdict» и сценарии assurance выполняются через **Python**, и обеспечить **критический путь** верификации математики/физики через **`.t27` + `tri` / `t27c` + `.trinity/experience/`** (где применимо).
+**Status:** Draft (working specification)  
+**Version:** 1.0  
+**Date:** 2026-04-06  
+**Constitution:** `docs/T27-CONSTITUTION.md` (Article SSOT-MATH)
 
 ---
 
-## 2. Термины
+## 1. Objective
 
-- **Критический путь** — всё, что влияет на решение о соответствии математике / sacred-цепочкам: численные проверки, conformance, сценарии типа CLARA-Bridge.
-- **Legacy-Python** — существующие `*.py`, не удаляемые до завершения миграции.
-- **Канон** — спецификации `*.t27` и артефакты, генерируемые/проверяемые `tri` / `t27c`.
+Remove the documented split where “verdict” and assurance scenarios run through **Python**, and make the **critical path** for math/physics verification **`.t27` + `tri` / `t27c` + `.trinity/experience/`** (where applicable).
 
 ---
 
-## 3. Текущее состояние (baseline)
+## 2. Definitions
 
-| Компонент | Путь | Проблема относительно SSOT-MATH |
-|-----------|------|----------------------------------|
-| Высокоточные / каталожные проверки | `conformance/kepler_newton_tests.py` | Логика вне `tri` |
-| Оркестрация сценария | `clara-bridge/run_scenario.py` | Не подкоманда `tri` |
-| Тесты bridge | `clara-bridge/tests/*.py` | Assurance bridge без t27 |
-| Документация | `clara-bridge/README.md` | Упоминания `python …` на критическом пути |
+- **Critical path** — Anything that gates release decisions on math / sacred chains: numeric checks, conformance, CLARA-Bridge-style scenarios.
+- **Legacy-Python** — Existing `*.py` kept until migration completes.
+- **Canon** — `*.t27` specifications and artifacts generated or checked by `tri` / `t27c`.
 
 ---
 
-## 4. Требования
+## 3. Current state (baseline)
 
-| ID | Требование | Критерий приёмки |
-|----|------------|------------------|
-| **R1** | Формулы и допуски Kepler/Newton перенесены в канонические **`*.t27`** (или агрегирующий модуль спеки) | Дублирования логики в Python нет; Python удалён или сведён к thin-wrapper, вызывающему `tri`, с пометкой deprecated |
-| **R2** | **Verdict** вызывается как **`tri verdict …`** (или эквивалент `t27c`) | README и CI не требуют обязательного `python conformance/kepler_newton_tests.py` для релиза |
-| **R3** | Сценарии CLARA-Bridge исполняются через **`tri scenario …`** или объединённые подкоманды CLI | `run_scenario.py` deprecated или thin-wrapper |
-| **R4** | Обязательные шаги сценария при возможности пишут событие в **`.trinity/experience/`** согласованной схемы | Пример прогона с ≥2 шагами задокументирован |
-| **R5** | Точность: либо достаточно GoldenFloat / `f64` в спеках, либо введено **одно** расширение языка/рантайма (без нового Python на пути) | ADR или раздел в `docs/` |
-| **R6** | Обновлены README, CLARA-bridge, KEPLER-доки — нет противоречий конституции | Чеклист ревью |
+| Component | Path | Issue vs SSOT-MATH |
+|-----------|------|-------------------|
+| High-precision / catalog checks | `conformance/kepler_newton_tests.py` | Logic outside `tri` |
+| Scenario orchestration | `clara-bridge/run_scenario.py` | Not a `tri` subcommand |
+| Bridge tests | `clara-bridge/tests/*.py` | Assurance without t27 |
+| Documentation | `clara-bridge/README.md` | `python …` on critical path |
 
 ---
 
-## 5. Не входит в объём (v1)
+## 4. Requirements
 
-- Полная перезапись **bootstrap** с Rust на t27 (self-host) — отдельный эпик.
-- Зачистка **external/** и сторонних монореп.
-
----
-
-## 6. Риски
-
-- **Выразимость t27** для произвольной высокой точности → заложить **R5** до удаления Python.
-- **Длительность миграции** → явные флаги legacy и поэтапное отключение в CI.
-
----
-
-## 7. Порядок работ (эпики)
-
-1. Инвентаризация всех `*.py` на критическом пути.
-2. Спеки `.t27` + conformance из спек (`tri gen … --emit-conformance`, где применимо).
-3. Расширение **`tri` / `t27c`**: `verdict`, `scenario` (или эквивалент).
-4. Интеграция записей **`.trinity/experience/`** после шагов сценария.
-5. Удаление / deprecation Python, обновление CI.
+| ID | Requirement | Acceptance criteria |
+|----|-------------|---------------------|
+| **R1** | Kepler/Newton formulas and tolerances live in canonical **`*.t27`** (or one aggregating spec module) | No duplicated logic in Python; Python removed or reduced to a thin `tri` wrapper marked deprecated |
+| **R2** | **Verdict** is invoked as **`tri verdict …`** (or equivalent `t27c`) | README and CI do not require `python conformance/kepler_newton_tests.py` for release |
+| **R3** | CLARA-Bridge scenarios run via **`tri scenario …`** or merged CLI | `run_scenario.py` deprecated or thin-wrapper |
+| **R4** | Mandatory scenario steps write to **`.trinity/experience/`** under an agreed schema when possible | Documented example run with ≥2 steps |
+| **R5** | Precision: either GoldenFloat / `f64` in specs suffices, or **one** language/runtime extension (no new Python on path) | ADR or `docs/` section |
+| **R6** | README, CLARA-bridge, KEPLER docs updated — no conflict with constitution | Review checklist |
 
 ---
 
-## 8. Трассировка на конституцию
+## 5. Out of scope (v1)
 
-Все пункты ТЗ подчиняются **Статье SSOT-MATH** (`docs/T27-CONSTITUTION.md`).
+- Rewriting **bootstrap** from Rust to t27 (self-host) — separate epic.
+- Cleaning **external/** third-party trees.
+
+---
+
+## 6. Risks
+
+- **t27 expressiveness** for arbitrary high precision → complete **R5** before deleting Python.
+- **Migration duration** → explicit legacy flags and phased CI cutover.
+
+---
+
+## 7. Work order (epics)
+
+1. Inventory all `*.py` on the critical path.
+2. `.t27` specs + conformance from specs (`tri gen … --emit-conformance` where applicable).
+3. Extend **`tri` / `t27c`**: `verdict`, `scenario` (or equivalent).
+4. Integrate **`.trinity/experience/`** writes after scenario steps.
+5. Remove / deprecate Python; update CI.
+
+---
+
+## 8. Traceability
+
+All requirements are subordinate to **Article SSOT-MATH** (`docs/T27-CONSTITUTION.md`).
