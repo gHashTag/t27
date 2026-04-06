@@ -40,6 +40,7 @@ from scipy.integrate import quad, simpson
 from scipy.interpolate import interp1d
 import math
 import json
+import os
 
 PHI = (1 + math.sqrt(5)) / 2
 PI = math.pi
@@ -254,7 +255,8 @@ if __name__ == "__main__":
         'tba_results': results,
         'description': 'E8 TBA ground state energy and effective central charge',
     }
-    with open('/home/user/workspace/t27-work/research/tba/e8_tba_results.json', 'w') as f:
+    out_path = os.path.join(os.path.dirname(__file__), "e8_tba_results.json")
+    with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
     
     print(f"\nResults saved to research/tba/e8_tba_results.json")

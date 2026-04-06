@@ -1,0 +1,133 @@
+{
+  "scenario_id": "chern-simons-phi-verification",
+  "name": "SU(2)₃ Chern-Simons to Sacred Physics Chain",
+  "description": "Composition path: constants → chern-simons → sacred_physics. Demonstrates CLARA-style spec → gen → test → verdict → experience pipeline.",
+  "subgraph": "math/constants (node 4) → physics/chern-simons (node 54) → math/sacred_physics (node 17)",
+  "steps": [
+    {
+      "name": "spec-seal-constants",
+      "phase": "spec",
+      "command": "tri skill seal --hash",
+      "description": "Seal the current skill specification with cryptographic hash",
+      "expected_outcome": "spec_hash unchanged (or new hash created)",
+      "verify_by": "tri skill status == sealed",
+      "affected_nodes": ["math/constants"]
+    },
+    {
+      "name": "gen-constants",
+      "phase": "gen",
+      "command": "tri gen specs/math/constants.t27",
+      "depends_on": ["spec-seal-constants"],
+      "description": "Generate Zig/C code from math/constants spec",
+      "expected_outcome": "gen output matches spec (no errors)",
+      "verify_by": "tri test conformance/math_constants.json",
+      "affected_nodes": ["math/constants"],
+      "note": "No --backend flag uses default; check tri help for available backends"
+    },
+    {
+      "name": "test-constants",
+      "phase": "test",
+      "command": "tri test conformance/math_constants.json",
+      "depends_on": ["gen-constants"],
+      "description": "Run conformance tests for math constants",
+      "expected_outcome": "all tests pass, TRINITY invariant holds",
+      "verify_by": "output shows 'passed' for TRINITY identity test",
+      "conformance_file": "conformance/math_constants.json"
+    },
+    {
+      "name": "spec-seal-chern-simons",
+      "phase": "spec",
+      "command": "tri skill seal --hash",
+      "description": "Seal Chern-Simons spec with cryptographic hash",
+      "expected_outcome": "spec_hash unchanged",
+      "verify_by": "tri skill status == sealed",
+      "affected_nodes": ["physics/chern-simons"]
+    },
+    {
+      "name": "gen-chern-simons",
+      "phase": "gen",
+      "command": "tri gen specs/physics/su2_chern_simons.t27",
+      "depends_on": ["spec-seal-chern-simons", "test-constants"],
+      "description": "Generate code from Chern-Simons spec (depends on constants)",
+      "expected_outcome": "gen output matches spec",
+      "verify_by": "python conformance/kepler_newton_tests.py --category CS",
+      "affected_nodes": ["physics/chern-simons"],
+      "note": "CS category tests quantum dimension d_τ = φ with 50+ decimal precision"
+    },
+    {
+      "name": "test-chern-simons",
+      "phase": "test",
+      "command": "python conformance/kepler_newton_tests.py --category CS",
+      "depends_on": ["gen-chern-simons"],
+      "description": "Run high-precision Chern-Simons tests (50+ decimal places)",
+      "expected_outcome": "all CS tests pass, d_τ ≈ φ within 1e-10",
+      "verify_by": "output shows 'passed' for CS category",
+      "precision": "50+ decimal places (using mpmath if available)"
+    },
+    {
+      "name": "spec-seal-sacred-physics",
+      "phase": "spec",
+      "command": "tri skill seal --hash",
+      "description": "Seal sacred physics spec with cryptographic hash",
+      "expected_outcome": "spec_hash unchanged",
+      "verify_by": "tri skill status == sealed",
+      "affected_nodes": ["math/sacred_physics"]
+    },
+    {
+      "name": "gen-sacred-physics",
+      "phase": "gen",
+      "command": "tri gen specs/math/sacred_physics.t27",
+      "depends_on": ["spec-seal-sacred-physics", "test-chern-simons"],
+      "description": "Generate code from sacred physics spec",
+      "expected_outcome": "gen output matches spec",
+      "verify_by": "tri test conformance/sacred_physics.json",
+      "affected_nodes": ["math/sacred_physics"]
+    },
+    {
+      "name": "test-sacred-physics",
+      "phase": "test",
+      "command": "tri test conformance/sacred_physics.json",
+      "depends_on": ["gen-sacred-physics"],
+      "description": "Run conformance tests for sacred physics",
+      "expected_outcome": "all tests pass, TRINITY verification holds",
+      "verify_by": "output shows 'passed' for sacred physics tests",
+      "conformance_file": "conformance/sacred_physics.json"
+    },
+    {
+      "name": "verdict-phi",
+      "phase": "verdict",
+      "command": "python conformance/kepler_newton_tests.py --category sacred",
+      "depends_on": ["test-sacred-physics"],
+      "description": "Run final verdict for sacred physics chain (TRINITY verification)",
+      "expected_outcome": "verdict=clean, trinity_verified=true",
+      "verify_by": "kepler_newton_tests.py reports sacred category with all passed",
+      "critical": true,
+      "note": "This is the CLARA verdict step — validates the entire composition chain"
+    },
+    {
+      "name": "experience-save",
+      "phase": "experience",
+      "command": "tri gen specs/math/sacred_physics.t27  # Auto-records on successful gen",
+      "depends_on": ["verdict-phi"],
+      "description": "Generate final sacred_physics (Trinity auto-records experience on successful gen)",
+      "expected_outcome": "gen output matches spec + episode written to .trinity/experience/",
+      "verify_by": "ls .trinity/experience/episodes/*.jsonl shows new entry",
+      "note": "Experience is auto-recorded by Trinity after successful tri gen. Manual save command exists but is not standard workflow."
+    }
+  ],
+  "invariants": {
+    "TRINITY": "PHI^2 + PHI^-2 = 3.000000 (within 1e-12)",
+    "fibonacci_quantum_dimension": "d_τ = sin(3π/5) / sin(π/5) = φ (1.618034...)",
+    "chern_simons_level_theorem": "For SU(2)_k at k=3: φ^2 + φ^-2 = k"
+  },
+  "toxicity_policy": {
+    "blocked_modules_on_regression": ["nn/attention", "nn/hslm"],
+    "quarantine_file": ".trinity/experience/mistakes.jsonl",
+    "unblock_requires": "Explicit resolution and removal from mistakes.jsonl"
+  },
+  "metadata": {
+    "scenario_version": "1.0",
+    "claera_domain": "compositional-assurance",
+    "created_date": "2026-04-06"
+  }
+}

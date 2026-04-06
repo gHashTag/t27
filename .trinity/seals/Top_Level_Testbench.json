@@ -1,21 +1,10 @@
 {
+  "gen_hash_c": "sha256:48fce02eb13c611c014d48e018efdbc047a63242a89ac1f0061ee53ccdadbd16",
+  "gen_hash_verilog": "sha256:6fb656df3e6909bd63ed496c876807ec1ceeda482fe85d1763dbeedaa6ee483f",
+  "gen_hash_zig": "sha256:9acbe63e597586ba47755ec98996fa166720bff6f089124e116fee9aa683a151",
   "module": "Top_Level_Testbench",
-  "ring": 43,
-  "spec_path": "specs/fpga/testbench/top_tb.t27",
-  "spec_hash": "sha256:f708192a3b4c5d6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d",
-  "gen_hash_zig": "sha256:192a3b4c5d6e7f80910a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60",
-  "gen_hash_c": "sha256:3b4c5d6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718",
-  "gen_hash_verilog": "sha256:5d6e7f80910a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607182930a",
-  "conformance_hash": "sha256:7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c",
-  "tests": {
-    "status": "passed",
-    "count": 4,
-    "invariants": 5,
-    "benchmarks": 1
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-05T12:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-06T09:46:30Z",
+  "spec_hash": "sha256:d28ab3b299a273fcc3c5aacb6f61052dfbce265bcc5e95366380268cd6a15a20",
+  "spec_path": "specs/fpga/testbench/top_tb.t27"
 }

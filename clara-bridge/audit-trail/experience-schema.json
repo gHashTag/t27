@@ -1,0 +1,69 @@
+{
+  "schema_name": "trinity-experience",
+  "schema_version": "1.0",
+  "description": "Schema for .trinity/experience/ learning recording — verified learning, NOT gradient training",
+
+  "episode_entry": {
+    "episode_id": "uuid-v4 string",
+    "timestamp": "ISO-8601 datetime",
+    "skill_id": "skill identifier (from tri skill begin)",
+    "scenario_id": "identifier from scenarios/ directory",
+
+    "spec_chain": ["array of spec names involved in composition"],
+    "verdict": "clean | toxic | blocked",
+    "error_type": "regression | invariant_violation | conformance_failure | null",
+    "blocked_modules": ["array of module paths affected"],
+    "explanation": "human-readable explanation of outcome",
+
+    "invariants_checked": {
+      "TRINITY": "PHI^2 + PHI^-2 = 3",
+      "fibonacci_quantum_dimension": "d_τ = φ at k=3",
+      "passed": ["array of invariant names that passed"],
+      "failed": ["array of invariant names that failed"]
+    },
+
+    "metrics": {
+      "conformance_score": "0.0-1.0 float",
+      "precision_used": "float | 50+ (mpmath) | standard",
+      "test_count": "integer",
+      "test_passed": "integer"
+    },
+
+    "blocked_until": "episode_id:resolution-id | null (for toxic verdicts)",
+    "resolution_episode": "episode_id that resolved this (if resolved)"
+  },
+
+  "mistakes_entry": {
+    "episode_id": "reference to original episode",
+    "verdict": "toxic (only for mistakes)",
+    "error_type": "regression | invariant_violation",
+    "blocked_modules": ["nn/attention", "nn/hslm", ...],
+    "explanation": "Changed phi constant broke trinity invariant in downstream",
+    "blocked_until": "episode_id:verification-resolution",
+    "quarantine_timestamp": "ISO-8601 datetime"
+  },
+
+  "learning_entry": {
+    "episode_id": "reference to episode",
+    "lesson_learned": "human-readable pattern extracted",
+    "pattern_type": "invariant-stability | composition-pattern | test-coverage",
+    "confidence": "0.0-1.0 float"
+  },
+
+  "quarantine_semantics": {
+    "block": "cannot proceed with tri gen if module in mistakes.jsonl",
+    "unblock": "explicitly resolve error and remove entry from mistakes.jsonl",
+    "not": "permanent ban — quarantine until resolution"
+  },
+
+  "directories": {
+    "episodes": ".trinity/experience/episodes/",
+    "learnings": ".trinity/experience/learnings/",
+    "mistakes": ".trinity/experience/mistakes/",
+    "formats": {
+      "episodes": ".jsonl (newline-delimited JSON)",
+      "learnings": ".jsonl",
+      "mistakes": ".jsonl"
+    }
+  }
+}

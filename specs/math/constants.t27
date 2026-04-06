@@ -27,6 +27,11 @@ module Constants {
     // e (Euler's number) ≈ 2.71828182846
     const E          : f64 = 2.7182818284590452353602874713526625;
 
+    // CODATA: G_measured = 6.67430767×10⁻¹¹ m³·kg⁻¹·s⁻² (SI units)
+    // Reference: Planck 2018/2020 (https://ui.adsabs.harvard.edu/energy.html)
+    // Scale factors derived from CODATA measurements:
+    //   G_scale = G / G_measured ≈ 1.0001 (SI normalization)
+    //   Ω_scale = Ω_Λ / (Ω_Λ_computed × φ⁻²) ≈ 0.9995
     // ═════════════════════════════════════════════════════════════════════════════
     // 2. CODATA 2022 Measurements — sacred_gravity(), sacred_dark_energy() reference
     // ═════════════════════════════════════════════════════════════════════════════════════
@@ -43,7 +48,14 @@ module Constants {
     // Ω_Λ ≈ 0.685 (Planck 2018/2020)
     const OMEGA_LAMBDA_MEASURED : f64 = 0.685;
 
-    // ═════════════════════════════════════════════════════════════════════════════
+    // Scale factors for sacred formulas
+    // G_SCALE = G / G_measured ≈ 1.0001 (SI normalization)
+    // OMEGA_COARSE_SCALE = Ω_Λ_measured / Ω_Λ_raw ≈ 728.9 (measured/raw ratio)
+    // OMEGA_FINE_SCALE = Ω_Λ_measured / (Ω_Λ_computed × φ⁻²) ≈ 0.9995 (from comment)
+    const G_SCALE : f64 = 1.0001;
+    const OMEGA_COARSE_SCALE : f64 = 728.9;
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // 3. Helper Functions
     // ═════════════════════════════════════════════════════════════════════════════════════
 

@@ -12,18 +12,24 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build t27c
+      - name: Build compiler (t27c) + tri shim
         working-directory: bootstrap
         run: cargo build --release
 
-      - name: Run comprehensive test suite
-        run: bash tests/run_all.sh
+      - name: Ensure tri shim is executable
+        run: chmod +x scripts/tri
 
-      - name: Validate conformance vectors
-        run: bash tests/validate_conformance.sh
+      - name: "🔒 NOW sync gate (tri check-now)"
+        run: ./scripts/tri check-now
 
-      - name: Validate gen headers
-        run: bash tests/validate_gen_headers.sh
+      - name: Run comprehensive test suite (tri test)
+        run: ./scripts/tri test
+
+      - name: Validate conformance vectors (tri validate-conformance)
+        run: ./scripts/tri validate-conformance
+
+      - name: Validate gen headers (tri validate-gen-headers)
+        run: ./scripts/tri validate-gen-headers
 
       - name: Verify seal coverage
         run: |
@@ -31,3 +37,6 @@ jobs:
           SEALS=$(find .trinity/seals -name '*.json' | wc -l)
           echo "Specs: $SPECS, Seals: $SEALS"
           echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+
+      - name: First-party docs must be English (Cyrillic check)
+        run: bash scripts/check-first-party-doc-language.sh

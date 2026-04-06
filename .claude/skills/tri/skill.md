@@ -41,9 +41,9 @@ When starting any task, check these files first before touching backend code:
 - `specs/numeric/*.t27` — GoldenFloat, TF, IPS formats
 - `architecture/CANON_DE_ZIGFICATION.md` — De-zig hierarchy
 - `architecture/ADR-001-de-zigfication.md` — Architecture decisions
-- `docs/SOUL.md` — Constitution
-- `docs/NUMERIC-STANDARD-001.md` — Numeric standards
-- `docs/SACRED-PHYSICS-001.md` — Sacred physics standards
+- `docs/nona-03-manifest/SOUL.md` — Constitution
+- `docs/nona-02-organism/NUMERIC-STANDARD-001.md` — Numeric standards
+- `docs/nona-02-organism/SACRED-PHYSICS-001.md` — Sacred physics standards
 - `architecture/graph.tri` — Module dependency graph
 - `architecture/graphv2.json` — Typed graph definition
 
@@ -147,7 +147,7 @@ Map spec changes to standards:
 | `specs/math/sacred*.t27` | SACRED-PHYSICS-001 | tri-sacred | sacred-physics-001 |
 | `specs/base/*.t27` | BASE-TYPES-001 | tri-base | base-types-001 |
 | `specs/numeric/tf*.t27` | NUMERIC-STANDARD-002 | tri-pipeline | numeric-standard-002 |
-| `docs/SOUL.md` | CONSTITUTION | tri-constitution | constitution |
+| `docs/nona-03-manifest/SOUL.md` | CONSTITUTION | tri-constitution | constitution |
 
 ## PHI LOOP: Five Steps
 

@@ -2,7 +2,11 @@
 
 # CLARA Demo Pipeline
 
-End-to-end demonstration of the TRINITY S³AI CLARA pipeline for DARPA PA-25-07-02 reviewers.
+End-to-end demonstration of TRINITY S³AI CLARA pipeline for DARPA PA-25-07-02 reviewers.
+
+## Related: CLARA-Bridge Assurance Pack
+
+See [../clara-bridge/](../clara-bridge/) for extracted patterns, scenario runner, and audit trail schemas.
 
 ## Prerequisites
 - Rust toolchain (for t27c compiler)

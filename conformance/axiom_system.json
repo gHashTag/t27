@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "status": "draft_seed",
+  "system": "Trinity Axiom / Theorem / Physics Claim Catalog",
+  "date": "2026-04-06",
+  "documentation": "docs/nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md",
+  "claims_policy": "docs/nona-03-manifest/CLAIM_TIERS.md",
+  "research_registry": "docs/nona-03-manifest/RESEARCH_CLAIMS.md",
+  "entries": [
+    {
+      "id": "AX-001",
+      "tier": "exact_definition",
+      "statement": "phi = (1 + sqrt(5)) / 2",
+      "source": "specs/math/constants.t27",
+      "falsifiable": false
+    },
+    {
+      "id": "THM-001",
+      "tier": "exact_algebraic",
+      "statement": "phi^2 + phi^(-2) = 3 (TRINITY identity)",
+      "source": "publications/trinity-sacred-mathematics.tex; specs/math/constants.t27",
+      "falsifiable": false
+    },
+    {
+      "id": "THM-009",
+      "tier": "exact_algebraic",
+      "statement": "exp/mant = 1/phi maximizes exp*mant for fixed total exponent+mantissa bit budget",
+      "source": "specs/numeric/phi_ratio.t27",
+      "falsifiable": false
+    },
+    {
+      "id": "THM-010",
+      "tier": "empirical_benchmark",
+      "statement": "GF16 more accurate than BF16 for selected sacred constants (e.g. ~1.8x BENCH-005 scenario)",
+      "source": "docs/nona-02-organism/NUMERIC-STANDARD-001.md",
+      "falsifiable": true
+    },
+    {
+      "id": "PHY-001",
+      "tier": "empirical_fit",
+      "statement": "G ≈ pi^3 * gamma^2 / phi (sacred physics ansatz)",
+      "error_percent_note": "~0.09% vs CODATA (see sacred physics specs / publications)",
+      "source": "docs/nona-02-organism/SACRED-PHYSICS-001.md",
+      "falsifiable": true
+    },
+    {
+      "id": "PHY-005",
+      "tier": "falsified_as_exact",
+      "statement": "gamma = phi^(-3) as exact Barbero–Immirzi identity",
+      "note": "Useful numerically near measured BI; not exact — document error ~0.617%",
+      "source": "FOR_SCIENTISTS.md; publications",
+      "falsifiable": true
+    }
+  ]
+}

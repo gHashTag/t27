@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:e7b8b86dbc3b528002b8d5e46a39188d09e751d6068ff2a1a157d9735aaa0f2b",
+  "gen_hash_verilog": "sha256:c467b422977ab400e2f13f95cfb6b49932d4c3771296fc8b5dcc3fba44d4a50a",
+  "gen_hash_zig": "sha256:6b8fc1c1d4a73c88c7c246f4008aa39ddf8f463742e2b094de777ea75327d230",
+  "module": "ZeroDSP_TopLevel",
+  "ring": 12,
+  "sealed_at": "2026-04-06T09:46:30Z",
+  "spec_hash": "sha256:0919c1d233e1a9795ea4b4faa164cfe310604a14328bc44cbae798b2db06da41",
+  "spec_path": "specs/fpga/top_level.t27"
+}
