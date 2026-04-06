@@ -186,6 +186,22 @@ enum Commands {
         dry_run: bool,
     },
 
+    /// Expand GF16 conformance vectors using IEEE f16 roundtrip as decode proxy (issue #129)
+    #[command(name = "expand-gf16")]
+    ExpandGf16 {
+        /// Output file (default: conformance/gf16_vectors.json)
+        #[arg(long)]
+        output: Option<String>,
+    },
+
+    /// Add synthetic NMSE (roundtrip) block to gf_family_bench.json (issue #129)
+    #[command(name = "gen-nmse-benchmark")]
+    GenNmseBenchmark {
+        /// Output file (default: conformance/gf_family_bench.json)
+        #[arg(long)]
+        output: Option<String>,
+    },
+
     /// Validate gen/** headers (Auto-generated / DO NOT EDIT / TRINITY)
     ValidateGenHeaders,
 
@@ -2034,6 +2050,10 @@ fn run_rest(cmd: Commands, repo_root: &Path) -> anyhow::Result<()> {
         Commands::ValidateConformance => suite::validate_conformance(repo_root)?,
         Commands::ValidateConformanceV2 => suite::validate_conformance_v2(repo_root)?,
         Commands::MigrateV2 { dry_run } => suite::migrate_to_v2(repo_root, dry_run)?,
+        Commands::ExpandGf16 { output } => suite::expand_gf16_vectors(repo_root, output.as_deref())?,
+        Commands::GenNmseBenchmark { output } => {
+            suite::generate_nmse_benchmark(repo_root, output.as_deref())?
+        },
         Commands::ValidateGenHeaders => suite::validate_gen_headers(repo_root)?,
         Commands::ValidateSeals { pr_files } => suite::validate_seals(repo_root, pr_files.as_deref())?,
         Commands::CheckNow => suite::check_now_sync(repo_root)?,
