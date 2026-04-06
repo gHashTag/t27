@@ -4,8 +4,8 @@
   "gen_hash_zig": "sha256:a9ccacf0fc31e555a68fdde8e8f0fc0a39ee6e8c31adadf5c436a4f7f08c0a92",
   "module": "Constants",
   "phi_distance": 0.132,
-  "ring": 42,
-  "sealed_at": "2026-04-07T13:00:00+07:00",
+  "ring": 49,
+  "sealed_at": "2026-04-07T18:00:00+07:00",
   "spec_hash": "sha256:48a977888e1af08ca36fc675960e52133072e9989bcf933181b2a3bedc585126",
   "spec_path": "specs/math/constants.t27",
   "verdict": "CLEAN"
