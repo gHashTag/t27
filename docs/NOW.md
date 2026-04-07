@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 055 ACTIVE — Experience log schema v2 with tiered claims · RFC3339 2026-04-07T14:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 056 ACTIVE — CI validation for schemas · RFC3339 2026-04-07T14:30:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 4 Crown extended** — Rings 051-055 (#197, #199, #201, #203, #205) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA.
+**Revision:** **Phase 4 Crown extended** — Rings 051-056 (#197, #199, #201, #203, #205, #207) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
