@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_string.t27",
+  "spec_hash": "sha256:e3c602c8ce197df1376b12e680f9f054ee58938f64083c95bf77cf2398e0a964",
+  "gen_hash_zig": "sha256:5246271f5e23f3512520499146e8ba231a07c9bd75ec22a4eb2684ba54dbe4ee",
+  "gen_hash_verilog": "sha256:91277f1bb65519fd739931859674b2fe09d6f490c1e38762c2c500542dbea425",
+  "gen_hash_c": "sha256:1866e492e7238b2c396858be4df9e2795e857000bed86b3156344f0b1b6d5d23",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:30:00Z",
+  "ring": 72,
+  "verdict": "clean",
+  "notes": "Ternary string operations spec (encoding, length, copy, compare, concat)"
+}

@@ -1,0 +1,498 @@
+// t27/specs/isa/ternary_string.t27
+// Ternary String Operations Specification
+// Ring 072 - String manipulation operations for ternary data
+// Defines string representation and basic operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryString {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. String Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // String encoding
+    const STRING_MAX_LEN : usize = 256;
+    const CHAR_BITS : usize = 6;  // 6 trits per character
+
+    // Character codes (simple ASCII subset)
+    const CHAR_NULL : i32 = 0;
+    const CHAR_SPACE : i32 = 32;
+    const CHAR_DIGIT_0 : i32 = 48;
+    const CHAR_DIGIT_9 : i32 = 57;
+    const CHAR_A : i32 = 65;
+    const CHAR_Z : i32 = 90;
+    const CHAR_a : i32 = 97;
+    const CHAR_z : i32 = 122;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Character Encoding/Decoding
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // char_encode(char_code: i32, result: []i32) → void
+    // Encode a character code into trits
+    fn char_encode(char_code: i32, result: []i32) → void {
+        var code : i32 = char_code;
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            const trit_val = code % 3;
+            if (trit_val == 2) {
+                result[i] = TRIT_NEG;
+            } else if (trit_val == 1) {
+                result[i] = TRIT_POS;
+            } else {
+                result[i] = TRIT_ZERO;
+            }
+            code = code / 3;
+            i = i + 1;
+        }
+    }
+
+    // char_decode(encoded: []i32) → i32
+    // Decode trits back to character code
+    fn char_decode(encoded: []i32) → i32 {
+        var result : i32 = 0;
+        var power : i32 = 1;
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            var trit_val : i32 = encoded[i];
+            if (trit_val == TRIT_NEG) {
+                trit_val = 2;
+            }
+            result = result + trit_val * power;
+            power = power * 3;
+            i = i + 1;
+        }
+        return result;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. String Length
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // string_length(str: []i32) → usize
+    // Get string length (count until null terminator)
+    fn string_length(str: []i32) → usize {
+        var len : usize = 0;
+        var i : usize = 0;
+        while (i < str.len and i < STRING_MAX_LEN * CHAR_BITS) {
+            // Check for null terminator (6 consecutive zeros)
+            var is_null : bool = true;
+            var j : usize = 0;
+            while (j < CHAR_BITS and i + j < str.len) {
+                if (str[i + j] != TRIT_ZERO) {
+                    is_null = false;
+                    break;
+                }
+                j = j + 1;
+            }
+            if (is_null) {
+                break;
+            }
+            len = len + 1;
+            i = i + CHAR_BITS;
+        }
+        return len;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. String Copy
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // string_copy(src: []i32, dst: []i32) → bool
+    // Copy string from src to dst
+    fn string_copy(src: []i32, dst: []i32) → bool {
+        var i : usize = 0;
+        while (i < dst.len and i < src.len) {
+            dst[i] = src[i];
+            i = i + 1;
+            // Stop at null terminator
+            if (i >= CHAR_BITS) {
+                var is_null : bool = true;
+                var j : usize = 0;
+                while (j < CHAR_BITS) {
+                    if (src[i - CHAR_BITS + j] != TRIT_ZERO) {
+                        is_null = false;
+                        break;
+                    }
+                    j = j + 1;
+                }
+                if (is_null) {
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. String Comparison
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // string_compare(a: []i32, b: []i32) → i32
+    // Compare two strings
+    // Returns -1 if a < b, 0 if equal, 1 if a > b
+    fn string_compare(a: []i32, b: []i32) → i32 {
+        var i : usize = 0;
+        while (i < a.len and i < b.len) {
+            const char_a = char_decode(&a[i]);
+            const char_b = char_decode(&b[i]);
+
+            if (char_a < char_b) {
+                return TRIT_NEG;
+            } else if (char_a > char_b) {
+                return TRIT_POS;
+            }
+
+            i = i + CHAR_BITS;
+
+            // Check for null terminator
+            if (i >= CHAR_BITS) {
+                var a_null : bool = true;
+                var b_null : bool = true;
+                var j : usize = 0;
+                while (j < CHAR_BITS) {
+                    if (a[i - CHAR_BITS + j] != TRIT_ZERO) { a_null = false; }
+                    if (b[i - CHAR_BITS + j] != TRIT_ZERO) { b_null = false; }
+                    j = j + 1;
+                }
+                if (a_null and b_null) {
+                    return TRIT_ZERO;
+                } else if (a_null) {
+                    return TRIT_NEG;
+                } else if (b_null) {
+                    return TRIT_POS;
+                }
+            }
+        }
+        return TRIT_ZERO;
+    }
+
+    // string_equal(a: []i32, b: []i32) → bool
+    // Check if two strings are equal
+    fn string_equal(a: []i32, b: []i32) → bool {
+        return string_compare(a, b) == TRIT_ZERO;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. String Concatenation
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // string_concat(a: []i32, b: []i32, result: []i32) → bool
+    // Concatenate two strings
+    fn string_concat(a: []i32, b: []i32, result: []i32) → bool {
+        var i : usize = 0;
+
+        // Copy first string
+        while (i < a.len and i < result.len) {
+            result[i] = a[i];
+            i = i + 1;
+            // Check for null terminator
+            if (i >= CHAR_BITS) {
+                var is_null : bool = true;
+                var j : usize = 0;
+                while (j < CHAR_BITS) {
+                    if (a[i - CHAR_BITS + j] != TRIT_ZERO) {
+                        is_null = false;
+                        break;
+                    }
+                    j = j + 1;
+                }
+                if (is_null) {
+                    break;
+                }
+            }
+        }
+
+        // Append second string (overwrite null of first)
+        i = i - CHAR_BITS;  // Back up to null terminator position
+        var j : usize = 0;
+        while (j < b.len and i + j < result.len) {
+            result[i + j] = b[j];
+            j = j + 1;
+        }
+
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test char_encode_decode_roundtrip
+        var encoded : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded);  // 'A'
+        const decoded = char_decode(&encoded);
+        assert decoded == 65
+
+    test char_encode_space
+        var encoded : [CHAR_BITS]i32 = undefined;
+        char_encode(CHAR_SPACE, &encoded);
+        const decoded = char_decode(&encoded);
+        assert decoded == CHAR_SPACE
+
+    test string_length_simple
+        var str : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded_a);  // 'A'
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            str[i] = encoded_a[i];
+            i = i + 1;
+        }
+        // Null terminator
+        while (i < 20) {
+            str[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+
+        assert string_length(&str) == 1
+
+    test string_length_zero
+        var str : [20]i32 = [_]i32{TRIT_ZERO} ** 20;
+        assert string_length(&str) == 0
+
+    test string_copy_simple
+        var src : [20]i32 = undefined;
+        var dst : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded_a);
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            src[i] = encoded_a[i];
+            i = i + 1;
+        }
+        while (i < 20) {
+            src[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+
+        assert string_copy(&src, &dst) == true
+        assert dst[0] == src[0]
+
+    test string_equal_same
+        var str1 : [20]i32 = [_]i32{TRIT_ZERO} ** 20;
+        var str2 : [20]i32 = [_]i32{TRIT_ZERO} ** 20;
+        assert string_equal(&str1, &str2) == true
+
+    test string_equal_different
+        var str1 : [20]i32 = undefined;
+        var str2 : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        var encoded_b : [CHAR_BITS]i32 = undefined;
+
+        char_encode(65, &encoded_a);
+        char_encode(66, &encoded_b);
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            str1[i] = encoded_a[i];
+            str2[i] = encoded_b[i];
+            i = i + 1;
+        }
+
+        assert string_equal(&str1, &str2) == false
+
+    test string_compare_greater
+        var str_a : [20]i32 = undefined;
+        var str_b : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        var encoded_b : [CHAR_BITS]i32 = undefined;
+
+        char_encode(66, &encoded_a);  // 'B'
+        char_encode(65, &encoded_b);  // 'A'
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            str_a[i] = encoded_a[i];
+            str_b[i] = encoded_b[i];
+            i = i + 1;
+        }
+
+        assert string_compare(&str_a, &str_b) == TRIT_POS
+
+    test string_concat_simple
+        var a : [20]i32 = undefined;
+        var b : [20]i32 = undefined;
+        var result : [40]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        var encoded_b : [CHAR_BITS]i32 = undefined;
+
+        char_encode(65, &encoded_a);  // 'A'
+        char_encode(66, &encoded_b);  // 'B'
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            a[i] = encoded_a[i];
+            b[i] = encoded_b[i];
+            i = i + 1;
+        }
+
+        assert string_concat(&a, &b, &result) == true
+        assert result[0] == encoded_a[0]  // First char from A
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant char_encode_decode_idempotent
+        // Encoding then decoding returns original
+        const codes = [_]i32{0, 32, 48, 65, 97, 122, 255};
+        var i : usize = 0;
+        while (i < 7) {
+            var encoded : [CHAR_BITS]i32 = undefined;
+            char_encode(codes[i], &encoded);
+            const decoded = char_decode(&encoded);
+            assert decoded == codes[i]
+            i = i + 1;
+        }
+
+    invariant string_compare_reflexive
+        // String compare with self is equal
+        var str : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded_a);
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            str[i] = encoded_a[i];
+            i = i + 1;
+        }
+
+        assert string_compare(&str, &str) == TRIT_ZERO
+
+    invariant string_compare_antisymmetric
+        // If a > b, then b < a
+        var str_a : [20]i32 = undefined;
+        var str_b : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        var encoded_b : [CHAR_BITS]i32 = undefined;
+
+        char_encode(66, &encoded_a);  // 'B'
+        char_encode(65, &encoded_b);  // 'A'
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            str_a[i] = encoded_a[i];
+            str_b[i] = encoded_b[i];
+            i = i + 1;
+        }
+
+        assert string_compare(&str_a, &str_b) == TRIT_POS
+        assert string_compare(&str_b, &str_a) == TRIT_NEG
+
+    invariant string_copy_preserves
+        // Copy creates identical string
+        var src : [20]i32 = undefined;
+        var dst : [20]i32 = undefined;
+        var encoded_a : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded_a);
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            src[i] = encoded_a[i];
+            i = i + 1;
+        }
+
+        string_copy(&src, &dst);
+
+        i = 0;
+        while (i < CHAR_BITS) {
+            assert src[i] == dst[i]
+            i = i + 1;
+        }
+
+    invariant empty_string_length_zero
+        // Empty string has length 0
+        var str : [20]i32 = [_]i32{TRIT_ZERO} ** 20;
+        assert string_length(&str) == 0
+        assert string_equal(&str, &str) == true
+
+    // ═════════════════════════════════════════════════════
+    // 9. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench char_encode_performance
+        // Measure: cycles for 1000 character encodings
+        // Target: < 3000 cycles
+        var encoded : [CHAR_BITS]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            char_encode(65, &encoded);
+        }
+
+    bench char_decode_performance
+        // Measure: cycles for 1000 character decodings
+        // Target: < 3000 cycles
+        var encoded : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded);
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = char_decode(&encoded);
+        }
+        _ = result;
+
+    bench string_length_performance
+        // Measure: cycles for 1000 string length calls
+        // Target: < 5000 cycles
+        var str : [100]i32 = undefined;
+        char_encode(65, &str[0..6]);
+        char_encode(66, &str[6..12]);
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        for (0..1000) |_| {
+            result = string_length(&str);
+        }
+        _ = result;
+
+    bench string_compare_performance
+        // Measure: cycles for 1000 string comparisons
+        // Target: < 5000 cycles
+        var str_a : [20]i32 = undefined;
+        var str_b : [20]i32 = undefined;
+        var encoded : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded);
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            str_a[i] = encoded[i];
+            str_b[i] = encoded[i];
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = string_compare(&str_a, &str_b);
+        }
+        _ = result;
+
+    bench string_concat_performance
+        // Measure: cycles for 1000 string concatenations
+        // Target: < 6000 cycles
+        var a : [20]i32 = undefined;
+        var b : [20]i32 = undefined;
+        var result : [40]i32 = undefined;
+        var encoded : [CHAR_BITS]i32 = undefined;
+        char_encode(65, &encoded);
+
+        var i : usize = 0;
+        while (i < CHAR_BITS) {
+            a[i] = encoded[i];
+            b[i] = encoded[i];
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = string_concat(&a, &b, &result);
+        }
+}
