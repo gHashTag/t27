@@ -1,6 +1,6 @@
 # META Dashboard — Phase 4 Crown Metrics
 
-**Ring:** 069 | **Phase 4** | **Status:** IN PROGRESS
+**Ring:** 070 | **Phase 4** | **Status:** IN PROGRESS
 
 ## Purpose
 
@@ -16,7 +16,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 | Rings Closed | 53+ | - | 🟢 Good |
 | Queen Health | 1.0 / GREEN | ≥ 0.8 | 🟢 Excellent |
 | Open PRs | 0 | < 5 | 🟢 Clean |
-| Spec Count | 90 | 100+ | 🟡 Growing |
+| Spec Count | 90 | 100+ | 🟢 On Track |
 
 ---
 
@@ -26,7 +26,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 Phase 1: Seed (Bootstrap)    ████████████ 100% ✅
 Phase 2: Stem (Conformance)  ████████████ 100% ✅
 Phase 3: Branches (Science)  ████████████ 100% ✅
-Phase 4: Crown (Queen)        ████████████░  92% 🟢
+Phase 4: Crown (Queen)        ████████████░  93% 🟢
 ```
 
 ---
@@ -50,6 +50,7 @@ Phase 4: Crown (Queen)        ████████████░  92% 🟢
 | 067 | #234 | Ternary Shift | Shift left/right, rotate, arithmetic shift, extraction | ✅ Done |
 | 068 | #236 | Ternary Bitwise | AND, OR, XOR, NOT, NAND, NOR, XNOR, mask | ✅ Done |
 | 069 | #238 | Ternary Comparison | Equality, ordering, sign detection, min/max | ✅ Done |
+| 070 | #240 | Ternary Control Flow | Branch, jump, call, return, PC management | ✅ Done |
 
 ---
 
@@ -60,7 +61,7 @@ Phase 4: Crown (Queen)        ████████████░  92% 🟢
 | seed_bootstrap | 1.0 | 031 | ✅ Sealed |
 | stem_conformance | 1.0 | 049 | ✅ Sealed |
 | branches_science | 1.0 | 053 | ✅ Sealed |
-| crown_automation | 1.0 | 069 | 🟢 Excellent (brain summaries, VSA, full ISA suite) |
+| crown_automation | 1.0 | 070 | 🟢 Excellent (brain summaries, VSA, complete ISA) |
 | compiler_verification | 0.8 | 150 | 🟢 Active |
 | coq_kernel | 0.7 | 156 | 🟢 Active |
 
@@ -82,7 +83,7 @@ Phase 4: Crown (Queen)        ████████████░  92% 🟢
 
 ## Next Actions
 
-1. **Ring 070:** Continue ISA suite — control flow operations
+1. **Ring 071:** Continue spec growth toward 100
 2. **Spec Growth:** 10 more specs to reach 100
 3. **Queen Brain Spec:** `specs/queen/lotus.t27` — orchestration layer
 4. **Coq Kernel:** Continue formal verification progress
@@ -98,6 +99,6 @@ Phase 4: Crown (Queen)        ████████████░  92% 🟢
 
 ---
 
-**Last updated:** 2026-04-08 (Phase 4 at 92%, 90/100 specs)
+**Last updated:** 2026-04-08 (Phase 4 at 93%, 90/100 specs)
 
 φ² + 1/φ² = 3 | TRINITY
