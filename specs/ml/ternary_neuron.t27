@@ -1,0 +1,404 @@
+// Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0
+// t27/specs/ml/ternary_neuron.t27
+// Ternary Neural Network: Single Neuron with K3 Activation
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryNeuron;
+    use base::types;
+    use math::constants;
+    use numeric::gf16;
+
+    // ═══════════════════════════════════════════════════════════
+    // 1. Constants
+    // ═══════════════════════════════════════════════════════════
+
+    // K3 ring (ternary neuron activation function)
+    const K3_NEG : u8 = 0;
+    const K3_ZERO : u8 = 1;
+    const K3_POS : u8 = 2;
+
+    // Activation function types
+    const ACT_SIGN : u8 = 0;
+    const ACT_K3 : u8 = 1;
+    const ACT_TANH : u8 = 2;
+    const ACT_STEP : u8 = 3;
+
+    // Default neuron parameters
+    const DEFAULT_INPUT_SIZE : usize = 64;
+    const DEFAULT_BIAS : i8 = 0;
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Core Types
+    // ═══════════════════════════════════════════════════════════
+
+    pub const TernaryWeights = []Trit;
+
+    pub const K3Output = struct {
+        value : u8,
+        trit : Trit,
+    };
+
+    pub const TernaryNeuron = struct {
+        weights : TernaryWeights,
+        bias   : Trit,
+        input_size : usize,
+        activation : u8,
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. K3 Activation Function (Ring 090)
+    // ═══════════════════════════════════════════════════════════
+
+    // k3_activate(x: GF16) → K3Output
+    fn k3_activate(x: GF16) -> K3Output {
+        const x_f32 = gf16::gf16_decode_to_f32(x);
+        const phi = constants::PHI;
+        const threshold = phi / 3.0;
+
+        var k3_value : u8;
+        var trit_value : Trit;
+
+        if (x_f32 < -threshold) {
+            k3_value = K3_NEG;
+            trit_value = Trit.neg;
+        } else if (x_f32 <= threshold) {
+            k3_value = K3_ZERO;
+            trit_value = Trit.zero;
+        } else {
+            k3_value = K3_POS;
+            trit_value = Trit.pos;
+        }
+
+        return K3Output{
+            .value = k3_value,
+            .trit = trit_value,
+        };
+    }
+
+    // k3_inverse(k3: u8) → GF16
+    fn k3_inverse(k3: u8) -> GF16 {
+        const phi = constants::PHI;
+        const threshold = phi / 3.0;
+
+        switch (k3) {
+            K3_NEG => gf16::gf16_encode_f32(@as(f32, -threshold)),
+            K3_ZERO => gf16::gf16_encode_f32(0.0),
+            K3_POS => gf16::gf16_encode_f32(threshold),
+            _ => gf16::gf16_encode_f32(0.0),
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. Ternary Neuron Forward Pass
+    // ═══════════════════════════════════════════════════════════
+
+    // neuron_forward(neuron, inputs) → GF16
+    fn neuron_forward(neuron: TernaryNeuron, inputs: []GF16) -> GF16 {
+        var accumulator : GF16 = gf16::GF16_ZERO_POS;
+
+        var i : usize = 0;
+        while (i < neuron.input_size) {
+            const weight_trit = neuron.weights[i];
+            const weight_gf16 = trit_to_gf16(weight_trit);
+            accumulator = gf16::gf16_add(accumulator, gf16::gf16_mul(weight_gf16, inputs[i]));
+            i = i + 1;
+        }
+
+        const bias_gf16 = trit_to_gf16(neuron.bias);
+        accumulator = gf16::gf16_add(accumulator, bias_gf16);
+
+        switch (neuron.activation) {
+            ACT_K3 => {
+                const k3 = k3_activate(accumulator);
+                return gf16::gf16_encode_f32(@as(f32, @floatFromInt(k3.value)));
+            },
+            ACT_SIGN => sign_activate_gf16(accumulator),
+            ACT_TANH => tanh_ternary_gf16(accumulator),
+            ACT_STEP => step_ternary_gf16(accumulator),
+            _ => {
+                const k3 = k3_activate(accumulator);
+                return gf16::gf16_encode_f32(@as(f32, @floatFromInt(k3.value)));
+            },
+        }
+    }
+
+    // neuron_output_trit(neuron, inputs) → Trit
+    fn neuron_output_trit(neuron: TernaryNeuron, inputs: []GF16) -> Trit {
+        const output_gf16 = neuron_forward(neuron, inputs);
+        const k3_result = k3_activate(output_gf16);
+        return k3_result.trit;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 5. Activation Functions
+    // ═══════════════════════════════════════════════════════════
+
+    fn sign_activate_gf16(x: GF16) -> GF16 {
+        const neg_one = gf16::gf16_encode_f32(-1.0);
+        const pos_one = gf16::gf16_encode_f32(1.0);
+        const zero = gf16::GF16_ZERO_POS;
+
+        if (gf16::gf16_lt(x, zero)) {
+            return neg_one;
+        } else if (gf16::gf16_gt(x, zero)) {
+            return pos_one;
+        }
+        return zero;
+    }
+
+    fn tanh_ternary_gf16(x: GF16) -> GF16 {
+        const x_f32 = gf16::gf16_decode_to_f32(x);
+        const tanh_val = tanh(x_f32);
+        const sign = sign_activate_gf16(x);
+        return gf16::gf16_mul(sign, gf16::gf16_encode_f32(tanh_val));
+    }
+
+    fn step_ternary_gf16(x: GF16) -> GF16 {
+        const phi = constants::PHI;
+        const threshold = gf16::gf16_encode_f32(phi / 3.0);
+
+        const neg_one = gf16::gf16_encode_f32(-1.0);
+        const pos_one = gf16::gf16_encode_f32(1.0);
+        const zero = gf16::GF16_ZERO_POS;
+
+        if (gf16::gf16_lt(x, gf16::gf16_negate(threshold))) {
+            return neg_one;
+        } else if (gf16::gf16_le(x, threshold)) {
+            return zero;
+        }
+        return pos_one;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 6. Utility Functions
+    // ═══════════════════════════════════════════════════════════
+
+    fn trit_to_gf16(t: Trit) -> GF16 {
+        switch (t) {
+            .neg => gf16::gf16_encode_f32(-1.0),
+            .zero => gf16::gf16_encode_f32(0.0),
+            .pos => gf16::gf16_encode_f32(1.0),
+        }
+    }
+
+    fn gf16_to_trit(x: GF16) -> Trit {
+        return k3_activate(x).trit;
+    }
+
+    fn neuron_create(input_size: usize, activation: u8) -> TernaryNeuron {
+        var weights : TernaryWeights = undefined;
+        var i : usize = 0;
+        while (i < input_size) {
+            weights[i] = random_trit();
+            i = i + 1;
+        }
+
+        return TernaryNeuron{
+            .weights = weights,
+            .bias = DEFAULT_BIAS,
+            .input_size = input_size,
+            .activation = activation,
+        };
+    }
+
+    fn random_trit() -> Trit {
+        const r = random() % 3;
+        switch (r) {
+            0 => Trit.neg,
+            1 => Trit.zero,
+            _ => Trit.pos,
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests
+    // ═══════════════════════════════════════════════════════════
+
+    test neuron_k3_activate_negative
+        given x = gf16::gf16_encode_f32(-1.0)
+        when result = k3_activate(x)
+        then result.value == K3_NEG
+        then result.trit == Trit.neg
+
+    test neuron_k3_activate_zero
+        given x = gf16::gf16_encode_f32(0.0)
+        when result = k3_activate(x)
+        then result.value == K3_ZERO
+        then result.trit == Trit.zero
+
+    test neuron_k3_activate_positive
+        given x = gf16::gf16_encode_f32(1.0)
+        when result = k3_activate(x)
+        then result.value == K3_POS
+        then result.trit == Trit.pos
+
+    test neuron_k3_threshold_phi_div_3
+        given phi = constants::PHI
+        and   threshold = phi / 3.0
+        and   just_below = gf16::gf16_encode_f32(phi / 3.0 - 0.01)
+        and   just_above = gf16::gf16_encode_f32(phi / 3.0 + 0.01)
+        when r1 = k3_activate(just_below)
+        and  r2 = k3_activate(gf16::gf16_encode_f32(-threshold))
+        and  r3 = k3_activate(gf16::GF16_ZERO_POS)
+        and  r4 = k3_activate(gf16::gf16_encode_f32(threshold))
+        and  r5 = k3_activate(just_above)
+        then r1.value == K3_NEG and r2.value == K3_ZERO
+        then r3.value == K3_ZERO
+        then r4.value == K3_ZERO and r5.value == K3_POS
+
+    test neuron_forward_single_input
+        given neuron = TernaryNeuron{
+            .weights = [Trit.pos],
+            .bias = Trit.zero,
+            .input_size = 1,
+            .activation = ACT_K3,
+        }
+        and   inputs = [gf16::gf16_encode_f32(1.5)]
+        when output = neuron_forward(neuron, inputs)
+        and   out_f32 = gf16::gf16_decode_to_f32(output)
+        then out_f32 >= 1.9  // K3_POS as GF16
+
+    test neuron_forward_weighted_sum
+        given neuron = TernaryNeuron{
+            .weights = [Trit.pos, Trit.neg, Trit.zero],
+            .bias = Trit.zero,
+            .input_size = 3,
+            .activation = ACT_K3,
+        }
+        and   inputs = [gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]
+        when output = neuron_forward(neuron, inputs)
+        and   out_f32 = gf16::gf16_decode_to_f32(output)
+        then abs(out_f32 - 1.0) < 0.2  // 1*1 + (-1)*1 + 0*1 = 0 → K3_ZERO
+
+    test neuron_output_trit_matches_k3
+        given neuron = TernaryNeuron{
+            .weights = [Trit.pos],
+            .bias = Trit.zero,
+            .input_size = 1,
+            .activation = ACT_K3,
+        }
+        and   inputs = [gf16::gf16_encode_f32(-1.5)]
+        when output = neuron_output_trit(neuron, inputs)
+        then output == Trit.neg
+
+    test trit_to_gf16_roundtrip
+        given inputs = [Trit.neg, Trit.zero, Trit.pos]
+        when results = [trit_to_gf16(inputs[0]), trit_to_gf16(inputs[1]), trit_to_gf16(inputs[2])]
+        and   r0 = gf16::gf16_decode_to_f32(results[0])
+        and   r1 = gf16::gf16_decode_to_f32(results[1])
+        and   r2 = gf16::gf16_decode_to_f32(results[2])
+        then abs(r0 + 1.0) < 0.01
+        then abs(r1) < 0.01
+        then abs(r2 - 1.0) < 0.01
+
+    test neuron_create_initializes_correctly
+        given neuron = neuron_create(10, ACT_K3)
+        and   size = neuron.input_size
+        and   activation = neuron.activation
+        then size == 10
+        then activation == ACT_K3
+        then len(neuron.weights) == 10
+
+    test k3_inverse_roundtrip
+        given original = gf16::gf16_encode_f32(1.5)
+        and   k3 = k3_activate(original)
+        and   inverted = k3_inverse(k3.value)
+        and   inv_f32 = gf16::gf16_decode_to_f32(inverted)
+        then k3.value == K3_POS
+        then inv_f32 > 0.5
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Invariants
+    // ═══════════════════════════════════════════════════════════
+
+    invariant neuron_k3_output_in_range
+        given x = gf16::gf16_encode_f32((random() as f32 * 10.0 - 5.0))
+        and   result = k3_activate(x)
+        then result.value == K3_NEG or result.value == K3_ZERO or result.value == K3_POS
+        then result.trit == Trit.neg or result.trit == Trit.zero or result.trit == Trit.pos
+
+    invariant neuron_k3_trit_matches_value
+        given x = gf16::gf16_encode_f32((random() as f32 * 10.0 - 5.0))
+        and   result = k3_activate(x)
+        and   value_is_neg = result.value == K3_NEG
+        and   trit_is_neg = result.trit == Trit.neg
+        and   value_is_zero = result.value == K3_ZERO
+        and   trit_is_zero = result.trit == Trit.zero
+        and   value_is_pos = result.value == K3_POS
+        and   trit_is_pos = result.trit == Trit.pos
+        then value_is_neg == trit_is_neg
+        then value_is_zero == trit_is_zero
+        then value_is_pos == trit_is_pos
+
+    invariant neuron_trit_to_gf16_bounds
+        given t = random_trit()
+        and   f = trit_to_gf16(t)
+        and   f_f32 = gf16::gf16_decode_to_f32(f)
+        then abs(f_f32 + 1.0) < 0.1 or abs(f_f32) < 0.1 or abs(f_f32 - 1.0) < 0.1
+
+    invariant neuron_sign_ternary_output
+        given x = gf16::gf16_encode_f32((random() as f32 * 10.0 - 5.0))
+        and   output = sign_activate_gf16(x)
+        and   out_f32 = gf16::gf16_decode_to_f32(output)
+        then abs(out_f32 + 1.0) < 0.1 or abs(out_f32) < 0.1 or abs(out_f32 - 1.0) < 0.1
+
+    invariant neuron_forward_consistent
+        given neuron = TernaryNeuron{
+            .weights = [Trit.pos, Trit.neg],
+            .bias = Trit.zero,
+            .input_size = 2,
+            .activation = ACT_K3,
+        }
+        and   inputs = [gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]
+        and   output1 = neuron_forward(neuron, inputs)
+        and   output2 = neuron_forward(neuron, inputs)
+        then gf16::gf16_eq(output1, output2)
+
+    invariant neuron_k3_preserves_order
+        given x1 = gf16::gf16_encode_f32(-2.0)
+        and   x2 = gf16::gf16_encode_f32(-0.5)
+        and   x3 = gf16::gf16_encode_f32(0.5)
+        and   x4 = gf16::gf16_encode_f32(2.0)
+        and   k3_1 = k3_activate(x1).value
+        and   k3_2 = k3_activate(x2).value
+        and   k3_3 = k3_activate(x3).value
+        and   k3_4 = k3_activate(x4).value
+        then k3_1 <= k3_2
+        then k3_2 <= k3_3
+        then k3_3 <= k3_4
+
+    invariant neuron_bias_respects_trit_domain
+        given neuron = neuron_create(5, ACT_K3)
+        and   bias_gf16 = trit_to_gf16(neuron.bias)
+        and   bias_f32 = gf16::gf16_decode_to_f32(bias_gf16)
+        then abs(bias_f32 + 1.0) < 0.1 or abs(bias_f32) < 0.1 or abs(bias_f32 - 1.0) < 0.1
+
+    invariant neuron_input_size_matches_weights
+        given size = 8
+        and   neuron = neuron_create(size, ACT_K3)
+        then len(neuron.weights) == size
+        then neuron.input_size == size
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Benchmarks
+    // ═══════════════════════════════════════════════════════════
+
+    bench neuron_k3_activate_latency
+        measure: nanoseconds to k3_activate(gf16::gf16_encode_f32(1.5))
+        target: < 50ns
+
+    bench neuron_forward_latency_64_inputs
+        measure: nanoseconds to neuron_forward(test_neuron_64, test_inputs_gf16_64)
+        target: < 500ns
+
+    bench neuron_output_trit_latency
+        measure: nanoseconds to neuron_output_trit(test_neuron_32, test_inputs_gf16_32)
+        target: < 500ns
+
+    bench neuron_trit_to_gf16_latency
+        measure: nanoseconds to trit_to_gf16(Trit.pos)
+        target: < 10ns
+
+    bench neuron_k3_inverse_latency
+        measure: nanoseconds to k3_inverse(K3_POS)
+        target: < 30ns
