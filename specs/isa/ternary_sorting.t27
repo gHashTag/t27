@@ -1,0 +1,429 @@
+// t27/specs/isa/ternary_sorting.t27
+// Ternary Sorting Operations Specification
+// Ring 080 - Sorting algorithms for ternary data
+// Defines bubble sort and comparison-based sorting
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernarySorting {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Sorting Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Array size limits
+    const ARRAY_MAX_SIZE : usize = 27;
+
+    // Comparison results
+    const COMP_LESS : i32 = -1;
+    const COMP_EQUAL : i32 = 0;
+    const COMP_GREATER : i32 = 1;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Comparison Helper
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // sort_compare(a: i32, b: i32) → i32
+    // Compare two trits for sorting
+    fn sort_compare(a: i32, b: i32) → i32 {
+        if (a < b) {
+            return COMP_LESS;
+        } else if (a > b) {
+            return COMP_GREATER;
+        }
+        return COMP_EQUAL;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Bubble Sort
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // bubble_sort(arr: []i32, len: usize) → void
+    // Bubble sort in ascending order
+    fn bubble_sort(arr: []i32, len: usize) → void {
+        var i : usize = 0;
+        while (i < len - 1) {
+            var j : usize = 0;
+            var swapped : bool = false;
+            while (j < len - i - 1) {
+                if (sort_compare(arr[j], arr[j + 1]) == COMP_GREATER) {
+                    // Swap
+                    const temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                    swapped = true;
+                }
+                j = j + 1;
+            }
+            if (swapped == false) {
+                break;  // Early exit if no swaps
+            }
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Selection Sort
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // selection_sort(arr: []i32, len: usize) → void
+    // Selection sort in ascending order
+    fn selection_sort(arr: []i32, len: usize) → void {
+        var i : usize = 0;
+        while (i < len - 1) {
+            var min_idx : usize = i;
+            var j : usize = i + 1;
+            while (j < len) {
+                if (sort_compare(arr[j], arr[min_idx]) == COMP_LESS) {
+                    min_idx = j;
+                }
+                j = j + 1;
+            }
+            // Swap arr[i] and arr[min_idx]
+            const temp = arr[i];
+            arr[i] = arr[min_idx];
+            arr[min_idx] = temp;
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. Insertion Sort
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // insertion_sort(arr: []i32, len: usize) → void
+    // Insertion sort in ascending order
+    fn insertion_sort(arr: []i32, len: usize) → void {
+        var i : usize = 1;
+        while (i < len) {
+            var key = arr[i];
+            var j : usize = i - 1;
+            while (j >= 0 and sort_compare(arr[j], key) == COMP_GREATER) {
+                arr[j + 1] = arr[j];
+                if (j == 0) { break; }
+                j = j - 1;
+            }
+            arr[j + 1] = key;
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. Quick Sort (simplified)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // quick_sort_helper(arr: []i32, low: i64, high: i64) → void
+    // Recursive quick sort helper
+    fn quick_sort_helper(arr: []i32, low: i64, high: i64) → void {
+        if (low >= high) {
+            return;
+        }
+
+        // Partition
+        var pivot = arr[@as(usize, @intCast(high))];
+        var i : i64 = low - 1;
+        var j : i64 = low;
+
+        while (j < high) {
+            if (sort_compare(arr[@as(usize, @intCast(j))], pivot) == COMP_LESS) {
+                i = i + 1;
+                // Swap arr[i] and arr[j]
+                const temp = arr[@as(usize, @intCast(i))];
+                arr[@as(usize, @intCast(i))] = arr[@as(usize, @intCast(j))];
+                arr[@as(usize, @intCast(j))] = temp;
+            }
+            j = j + 1;
+        }
+
+        // Place pivot
+        i = i + 1;
+        const temp = arr[@as(usize, @intCast(i))];
+        arr[@as(usize, @intCast(i))] = arr[@as(usize, @intCast(high))];
+        arr[@as(usize, @intCast(high))] = temp;
+
+        // Recurse
+        quick_sort_helper(arr, low, i - 1);
+        quick_sort_helper(arr, i + 1, high);
+    }
+
+    // quick_sort(arr: []i32, len: usize) → void
+    // Quick sort in ascending order
+    fn quick_sort(arr: []i32, len: usize) → void {
+        if (len > 1) {
+            quick_sort_helper(arr, 0, @as(i64, @intCast(len - 1)));
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test bubble_sort_basic
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        bubble_sort(&arr, 5);
+
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+
+    test selection_sort_basic
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        selection_sort(&arr, 5);
+
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+
+    test insertion_sort_basic
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        insertion_sort(&arr, 5);
+
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+
+    test quick_sort_basic
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        quick_sort(&arr, 5);
+
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+
+    test sort_preserves_elements
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        var i : usize = 0;
+        var pos_count : usize = 0;
+        var neg_count : usize = 0;
+        var zero_count : usize = 0;
+        while (i < 5) {
+            if (arr[i] == TRIT_POS) { pos_count = pos_count + 1; }
+            else if (arr[i] == TRIT_NEG) { neg_count = neg_count + 1; }
+            else { zero_count = zero_count + 1; }
+            i = i + 1;
+        }
+
+        quick_sort(&arr, 5);
+
+        i = 0;
+        var new_pos : usize = 0;
+        var new_neg : usize = 0;
+        var new_zero : usize = 0;
+        while (i < 5) {
+            if (arr[i] == TRIT_POS) { new_pos = new_pos + 1; }
+            else if (arr[i] == TRIT_NEG) { new_neg = new_neg + 1; }
+            else { new_zero = new_zero + 1; }
+            i = i + 1;
+        }
+
+        assert pos_count == new_pos
+        assert neg_count == new_neg
+        assert zero_count == new_zero
+
+    test sort_single_element
+        var arr : [1]i32 = [_]i32{TRIT_POS};
+        quick_sort(&arr, 1);
+        assert arr[0] == TRIT_POS
+
+    test sort_already_sorted
+        var arr : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_POS};
+        quick_sort(&arr, 5);
+
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant bubble_sort_produces_sorted
+        // Bubble sort produces sorted output
+        var arr : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+            i = i + 1;
+        }
+
+        bubble_sort(&arr, 10);
+
+        i = 0;
+        while (i < 9) {
+            assert sort_compare(arr[i], arr[i + 1]) != COMP_GREATER
+            i = i + 1;
+        }
+
+    invariant selection_sort_produces_sorted
+        // Selection sort produces sorted output
+        var arr : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+            i = i + 1;
+        }
+
+        selection_sort(&arr, 10);
+
+        i = 0;
+        while (i < 9) {
+            assert sort_compare(arr[i], arr[i + 1]) != COMP_GREATER
+            i = i + 1;
+        }
+
+    invariant insertion_sort_produces_sorted
+        // Insertion sort produces sorted output
+        var arr : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+            i = i + 1;
+        }
+
+        insertion_sort(&arr, 10);
+
+        i = 0;
+        while (i < 9) {
+            assert sort_compare(arr[i], arr[i + 1]) != COMP_GREATER
+            i = i + 1;
+        }
+
+    invariant quick_sort_produces_sorted
+        // Quick sort produces sorted output
+        var arr : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+            i = i + 1;
+        }
+
+        quick_sort(&arr, 10);
+
+        i = 0;
+        while (i < 9) {
+            assert sort_compare(arr[i], arr[i + 1]) != COMP_GREATER
+            i = i + 1;
+        }
+
+    invariant sort_preserves_count
+        // Sorting preserves element counts
+        var arr : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            arr[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        var pos_before : usize = 0;
+        var neg_before : usize = 0;
+        var zero_before : usize = 0;
+        i = 0;
+        while (i < 10) {
+            if (arr[i] == TRIT_POS) { pos_before = pos_before + 1; }
+            else if (arr[i] == TRIT_NEG) { neg_before = neg_before + 1; }
+            else { zero_before = zero_before + 1; }
+            i = i + 1;
+        }
+
+        quick_sort(&arr, 10);
+
+        var pos_after : usize = 0;
+        var neg_after : usize = 0;
+        var zero_after : usize = 0;
+        i = 0;
+        while (i < 10) {
+            if (arr[i] == TRIT_POS) { pos_after = pos_after + 1; }
+            else if (arr[i] == TRIT_NEG) { neg_after = neg_after + 1; }
+            else { zero_after = zero_after + 1; }
+            i = i + 1;
+        }
+
+        assert pos_before == pos_after
+        assert neg_before == neg_after
+        assert zero_before == zero_after
+
+    // ═════════════════════════════════════════════════════
+    // 9. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench bubble_sort_performance
+        // Measure: cycles for 100 bubble sort operations on 10 elements
+        // Target: < 50000 cycles
+        var arr : [10]i32 = undefined;
+        @setEvalBranchQuota(20000);
+        for (0..100) |_| {
+            var i : usize = 0;
+            while (i < 10) {
+                arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+                i = i + 1;
+            }
+            bubble_sort(&arr, 10);
+        }
+
+    bench selection_sort_performance
+        // Measure: cycles for 100 selection sort operations on 10 elements
+        // Target: < 40000 cycles
+        var arr : [10]i32 = undefined;
+        @setEvalBranchQuota(20000);
+        for (0..100) |_| {
+            var i : usize = 0;
+            while (i < 10) {
+                arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+                i = i + 1;
+            }
+            selection_sort(&arr, 10);
+        }
+
+    bench insertion_sort_performance
+        // Measure: cycles for 100 insertion sort operations on 10 elements
+        // Target: < 30000 cycles
+        var arr : [10]i32 = undefined;
+        @setEvalBranchQuota(20000);
+        for (0..100) |_| {
+            var i : usize = 0;
+            while (i < 10) {
+                arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+                i = i + 1;
+            }
+            insertion_sort(&arr, 10);
+        }
+
+    bench quick_sort_performance
+        // Measure: cycles for 100 quick sort operations on 10 elements
+        // Target: < 20000 cycles
+        var arr : [10]i32 = undefined;
+        @setEvalBranchQuota(20000);
+        for (0..100) |_| {
+            var i : usize = 0;
+            while (i < 10) {
+                arr[i] = @as(i32, @intCast(9 - i % 10)) - 5;
+                i = i + 1;
+            }
+            quick_sort(&arr, 10);
+        }
+
+    bench sort_compare_performance
+        // Measure: cycles for 10000 comparison operations
+        // Target: < 1000 cycles
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..10000) |_| {
+            result = sort_compare(TRIT_POS, TRIT_NEG);
+        }
+        _ = result;
+}

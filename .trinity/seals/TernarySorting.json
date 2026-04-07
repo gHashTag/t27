@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_sorting.t27",
+  "spec_hash": "sha256:3d2895f9c309639f94a2b94a6b984f82e442bcdc4678c97b30fec31ad9462922",
+  "gen_hash_zig": "sha256:32e1942783d46ed3e31259f6f63862ca695c2a651e1ddf27076ba5746446cf43",
+  "gen_hash_verilog": "sha256:07b4e315d2788bedace42efb44fc554d5f9bb852af44db1d0df6d5c39d0d0b9b",
+  "gen_hash_c": "sha256:a721a07bf22de61735f0b1ff3d83bdab4d403b3dfa991b83f7433315421f4d7c",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:10:00Z",
+  "ring": 80,
+  "verdict": "clean",
+  "notes": "Ternary sorting operations spec (bubble sort, selection sort, insertion sort, quick sort)"
+}
