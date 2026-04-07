@@ -13,6 +13,7 @@
 
 mod bridge;
 mod compiler;
+mod math_compare;
 mod suite;
 mod tooling;
 
@@ -220,6 +221,12 @@ enum Commands {
 
     /// Cross-check IEEE binary64 φ / φ² / φ+1 (Flocq bridge; former validate_phi_f64.py)
     ValidatePhi,
+
+    /// Trinity x Pellis numeric compare and experience log (issue #277)
+    Math {
+        #[command(subcommand)]
+        command: math_compare::MathCommands,
+    },
 
     /// Validate L5 IDENTITY: φ² = φ + 1 from FORMAT-SPEC-001.json (issue #163)
     #[command(name = "validate-phi-identity")]
@@ -2084,6 +2091,7 @@ fn run_rest(cmd: Commands, repo_root: &Path) -> anyhow::Result<()> {
         Commands::CheckNow => suite::check_now_sync(repo_root)?,
         Commands::LintDocs => tooling::run_lint_docs(repo_root)?,
         Commands::ValidatePhi => tooling::run_validate_phi()?,
+        Commands::Math { command } => math_compare::run_math_command(command, repo_root)?,
         Commands::ValidatePhiIdentity => tooling::validate_phi_identity(repo_root)?,
         Commands::Brain => {
             eprintln!("tri brain: not implemented in this repository yet.");
