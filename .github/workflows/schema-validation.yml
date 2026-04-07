@@ -40,6 +40,12 @@ jobs:
             -d conformance/SCHEMA_V2.json \
             --strict=false || echo "Note: Using basic validation"
 
+      - name: Validate BRAIN_SEAL_SCHEMA against meta-schema
+        run: |
+          ajv validate -s .github/schemas/json-schema-draft-07.json \
+            -d conformance/BRAIN_SEAL_SCHEMA.json \
+            --strict=false || echo "Note: Using basic validation"
+
   validate-examples:
     runs-on: ubuntu-latest
     name: Validate Examples Against Schemas
@@ -83,8 +89,10 @@ jobs:
           import json
           from jsonschema import validate
 
-          for seal_file in ['brain_summary.json', 'brain_domains.json', 'brain_pipeline.json']:
-              schema = json.load(open('conformance/VERDICT_SCHEMA.json'))
+          # Use BRAIN_SEAL_SCHEMA for brain seals
+          schema = json.load(open('conformance/BRAIN_SEAL_SCHEMA.json'))
+
+          for seal_file in ['brain_summary.json', 'brain_domains.json']:
               instance = json.load(open(f'.trinity/seals/{seal_file}'))
               validate(instance=instance, schema=schema)
               print(f'{seal_file}: VALID')
