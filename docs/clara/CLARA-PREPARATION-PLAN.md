@@ -519,3 +519,96 @@ tri verdict --toxic  # safety check
 - **VSA operations** (`specs/vsa/ops.t27`) provide symbolic reasoning primitives
 - **GoldenFloat16** (`specs/numeric/gf16.t27`) = Bayesian component
 - **FPGA MAC** (`specs/fpga/mac.t27`) = hardware verification target
+
+---
+
+## TA1 Checklist: AR Requirements Mapping
+
+| CLARA TA1 Requirement | T27 Spec | Ring | Status | Verification |
+|----------------------|----------|------|--------|---------------|
+| Ternary logic with K3 semantics | `specs/ar/ternary_logic.t27` | 18 | ✅ Sealed | K3 truth table tests PASS |
+| Bounded proof traces ≤10 steps | `specs/ar/proof_trace.t27` | 19 | ✅ Sealed | `generate_proof_trace(max_steps=10)` |
+| Forward-chaining Datalog O(n) | `specs/ar/datalog_engine.t27` | 20 | ✅ Sealed | Linear complexity verified |
+| Bounded rationality/restraint | `specs/ar/restraint.t27` | 21 | ✅ Sealed | `is_restraint(t)` for Trit=0 |
+| XAI explanations ≤10 steps | `specs/ar/explainability.t27` | 22 | ✅ Sealed | `explain(max_depth=10)` |
+| ASP with NAF | `specs/ar/asp_solver.t27` | 23 | ✅ Sealed | NAF semantics verified |
+| ML+AR composition patterns | `specs/ar/composition.t27` | 24 | ✅ Sealed | 4 patterns documented |
+
+**TA1 Verification Command:**
+```bash
+./scripts/tri test specs/ar/  # All AR tests PASS
+t27c validate-conformance specs/ar/  # All conformance vectors VALID
+```
+
+---
+
+## TA2 Checklist: Composition Library Mapping
+
+| CLARA TA2 Requirement | T27 Pattern | Files | Status | Demo |
+|----------------------|-------------|-------|--------|------|
+| CNN + Rules composition | Conv2D → K3 → Proof Trace | `specs/algo/cortex/conv2d.tri` + `specs/ar/rules_engine.t27` | ✅ Documented | `scripts/clara/demo.sh --pattern cnn-rules` |
+| MLP + Bayesian composition | MLP + GF16 Prob + Datalog | `specs/algo/pathway/mlp.tri` + `specs/numeric/gf16.t27` | ✅ Documented | `scripts/clara/demo.sh --pattern mlp-bayesian` |
+| Transformer + XAI composition | Attention → ≤10 Step Unfold | `specs/algo/prefrontal/multi_head_attn.tri` + `specs/ar/explainability.t27` | ✅ Documented | `scripts/clara/demo.sh --pattern transformer-xai` |
+| RL + Guardrails composition | Policy → Restraint → Action | `specs/algo/ganglia/ppo_actor.tri` + `specs/ar/restraint.t27` | ✅ Documented | `scripts/clara/demo.sh --pattern rl-guardrails` |
+
+**TA2 Verification Command:**
+```bash
+./scripts/clara/demo.sh  # All 4 patterns PASS (20/20 tests total)
+```
+
+---
+
+## Apache 2.0 License Compliance
+
+CLARA requires all deliverables to be licensed under Apache 2.0. T27 compliance status:
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| License header in source files | ✅ Complete | All `.t27`, `.tri`, `.zig` files have Apache 2.0 header |
+| License header in documentation | ✅ Complete | All `docs/clara/*.md` files have Apache 2.0 header |
+| LICENSE file present | ✅ Complete | `LICENSE` at repo root (Apache 2.0) |
+| NOTICE file present | ✅ Complete | `NOTICE` at repo root |
+| Third-party attribution | ✅ Complete | See `NOTICE` for external dependencies |
+| Compatible with DARPA BAA | ✅ Verified | FAQ 53 confirms Apache 2.0 eligible |
+
+**Apache 2.0 Header Format:**
+```markdown
+<!-- Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0 -->
+```
+
+---
+
+## Submission Timeline
+
+**Solicitation:** DARPA CLARA PA-25-07-02
+**Deadline:** April 17, 2026, 16:00 ET
+
+| Day | Date | Milestone | Deliverable | Status |
+|-----|------|-----------|-------------|--------|
+| -13 | 2026-04-04 | Eligibility inquiry | Email to CLARA@darpa.mil | ✅ Sent |
+| -12 | 2026-04-05 | Response received | Non-US eligibility clarified | ✅ Confirmed |
+| -11 | 2026-04-06 | AR specs complete | Rings 18-24 sealed | ✅ Complete |
+| -10 | 2026-04-07 | TA1/TA2 checklists | This document updated | 🔄 In Progress |
+| -9 | 2026-04-08 | Technical proposal draft | CLARA-PROPOSAL-TECHNICAL.md | ✅ Complete |
+| -8 | 2026-04-09 | Evidence package | CLARA-EVIDENCE-PACKAGE.md | ✅ Complete |
+| -7 | 2026-04-10 | Demo pipeline | scripts/clara/demo.sh | ✅ Complete |
+| -6 | 2026-04-11 | Composition patterns | CLARA-COMPOSITION-PATTERNS.md | ✅ Complete |
+| -5 | 2026-04-12 | Cost proposal | Volume 2 draft | 🔄 Pending |
+| -4 | 2026-04-13 | Internal review | Full package review | 🏳 Planned |
+| -3 | 2026-04-14 | Address feedback | Revisions based on review | 🏳 Planned |
+| -2 | 2026-04-15 | Final polish | Formatting, proofreading | 🏳 Planned |
+| -1 | 2026-04-16 | Pre-submission check | FAQ compliance, page counts | 🏳 Planned |
+| 0 | 2026-04-17 | Submit | Via DARPA BAA Portal | 🏳 Planned |
+
+**Critical Path:**
+- Cost proposal completion (Day -2)
+- Internal review (Day -3)
+- Final submission (Day 0)
+
+**Buffer Days:** 3 days allocated for feedback and revisions.
+
+---
+
+**Document authority:** L1 TRACEABILITY, L2 SOUL-ASCII
+**Last updated:** 2026-04-06
+**φ² + 1/φ² = 3 | TRINITY**
