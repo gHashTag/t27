@@ -1,10 +1,10 @@
 {
-  "gen_hash_c": "sha256:293c9ba185ed09501329fe00c0de34b6e7463b56ebd893542781d180b566a7bc",
-  "gen_hash_verilog": "sha256:21e7d3196fe65d48861ca326a1def27a180859a815cc4130056ec189f4b17722",
-  "gen_hash_zig": "sha256:6a09c7d9b6422f98f7e89ce906712bb2f23aaa44a6d22d0e2f9312bb96fa1fbc",
+  "gen_hash_c": "sha256:5efc3cfb06fccedffb9292855f144590995f7d26f2b38883aed713e2a292d92d",
+  "gen_hash_verilog": "sha256:07a0771fb6c4d960d9616ff457a97099db00217cc7e435d4a57f77a6d262104b",
+  "gen_hash_zig": "sha256:da60e2ed7db829071b61481470869248dd1f76be79c6582f4a72a3e7811921ec",
   "module": "GoldenFloatFamily",
   "ring": 12,
-  "sealed_at": "2026-04-06T14:43:48Z",
+  "sealed_at": "2026-04-06T22:23:30Z",
   "spec_hash": "sha256:37c5b5303bee350796f227724559dabbf12c5f4e30287521caa564307b6fa482",
   "spec_path": "specs/numeric/goldenfloat_family.t27"
 }
