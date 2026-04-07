@@ -1,0 +1,494 @@
+// t27/specs/isa/ternary_priority_queue.t27
+// Ternary Priority Queue Operations Specification
+// Ring 086 - Priority queue operations for ternary data
+// Defines min-heap based priority queue with trit priorities
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryPriorityQueue {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Priority Queue Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values (used as priorities: NEG < ZERO < POS)
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Priority queue limits
+    const PQ_MAX_SIZE : usize = 27;
+
+    // Priority values (lower = higher priority for min-heap)
+    const PRIO_HIGHEST : i32 = TRIT_NEG;
+    const PRIO_MEDIUM : i32 = TRIT_ZERO;
+    const PRIO_LOWEST : i32 = TRIT_POS;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Priority Queue Structure (Array-based Min-Heap)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // pq_init(values: []i32, priorities: []i32, size: *usize) → void
+    // Initialize empty priority queue
+    fn pq_init(values: []i32, priorities: []i32, size: *usize) → void {
+        var i : usize = 0;
+        while (i < PQ_MAX_SIZE and i < values.len and i < priorities.len) {
+            values[i] = TRIT_ZERO;
+            priorities[i] = PRIO_LOWEST;  // Default to lowest priority
+            i = i + 1;
+        }
+        size.* = 0;
+    }
+
+    // pq_parent(idx: usize) → usize
+    // Get parent index in heap
+    fn pq_parent(idx: usize) → usize {
+        if (idx == 0) {
+            return 0;
+        }
+        return (idx - 1) / 2;
+    }
+
+    // pq_left_child(idx: usize) → usize
+    // Get left child index in heap
+    fn pq_left_child(idx: usize) → usize {
+        return idx * 2 + 1;
+    }
+
+    // pq_right_child(idx: usize) → usize
+    // Get right child index in heap
+    fn pq_right_child(idx: usize) → usize {
+        return idx * 2 + 2;
+    }
+
+    // pq_swap(values: []i32, priorities: []i32, i: usize, j: usize) → void
+    // Swap two elements in heap
+    fn pq_swap(values: []i32, priorities: []i32, i: usize, j: usize) → void {
+        const temp_val = values[i];
+        const temp_prio = priorities[i];
+        values[i] = values[j];
+        priorities[i] = priorities[j];
+        values[j] = temp_val;
+        priorities[j] = temp_prio;
+    }
+
+    // pq_heapify_up(values: []i32, priorities: []i32, idx: usize) → void
+    // Bubble up element to maintain heap property
+    fn pq_heapify_up(values: []i32, priorities: []i32, idx: usize) → void {
+        var current = idx;
+        while (current > 0) {
+            const parent = pq_parent(current);
+            if (priorities[current] < priorities[parent]) {
+                pq_swap(values, priorities, current, parent);
+                current = parent;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // pq_heapify_down(values: []i32, priorities: []i32, idx: usize, size: usize) → void
+    // Bubble down element to maintain heap property
+    fn pq_heapify_down(values: []i32, priorities: []i32, idx: usize, size: usize) → void {
+        var current = idx;
+        while (true) {
+            const left = pq_left_child(current);
+            const right = pq_right_child(current);
+            var smallest = current;
+
+            if (left < size and priorities[left] < priorities[smallest]) {
+                smallest = left;
+            }
+            if (right < size and priorities[right] < priorities[smallest]) {
+                smallest = right;
+            }
+
+            if (smallest != current) {
+                pq_swap(values, priorities, current, smallest);
+                current = smallest;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Priority Queue Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // pq_enqueue(values: []i32, priorities: []i32, size: *usize, value: i32, priority: i32) → bool
+    // Add element with priority to queue
+    fn pq_enqueue(values: []i32, priorities: []i32, size: *usize, value: i32, priority: i32) → bool {
+        if (size.* >= PQ_MAX_SIZE or size.* >= values.len or size.* >= priorities.len) {
+            return false;
+        }
+
+        values[size.*] = value;
+        priorities[size.*] = priority;
+        size.* = size.* + 1;
+
+        // Bubble up to maintain heap property
+        pq_heapify_up(values, priorities, size.* - 1);
+        return true;
+    }
+
+    // pq_dequeue(values: []i32, priorities: []i32, size: *usize, value: *i32, priority: *i32) → bool
+    // Remove and return highest priority element
+    fn pq_dequeue(values: []i32, priorities: []i32, size: *usize, value: *i32, priority: *i32) → bool {
+        if (size.* == 0) {
+            return false;
+        }
+
+        value.* = values[0];
+        priority.* = priorities[0];
+
+        // Move last element to root
+        size.* = size.* - 1;
+        if (size.* > 0) {
+            values[0] = values[size.*];
+            priorities[0] = priorities[size.*];
+            // Bubble down to maintain heap property
+            pq_heapify_down(values, priorities, 0, size.*);
+        }
+
+        return true;
+    }
+
+    // pq_peek(values: []i32, priorities: []i32, size: usize, value: *i32, priority: *i32) → bool
+    // Peek at highest priority element without removing
+    fn pq_peek(values: []i32, priorities: []i32, size: usize, value: *i32, priority: *i32) → bool {
+        if (size == 0) {
+            return false;
+        }
+        value.* = values[0];
+        priority.* = priorities[0];
+        return true;
+    }
+
+    // pq_is_empty(size: usize) → bool
+    // Check if queue is empty
+    fn pq_is_empty(size: usize) → bool {
+        return size == 0;
+    }
+
+    // pq_is_full(size: usize) → bool
+    // Check if queue is full
+    fn pq_is_full(size: usize) → bool {
+        return size >= PQ_MAX_SIZE;
+    }
+
+    // pq_size(size: usize) → usize
+    // Get queue size
+    fn pq_size(size: usize) → usize {
+        return size;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test pq_init_empty
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 99;
+        pq_init(&values, &priorities, &size);
+
+        assert size == 0
+
+    test pq_enqueue_dequeue
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        pq_enqueue(&values, &priorities, &size, 2, PRIO_HIGHEST);
+        pq_enqueue(&values, &priorities, &size, 3, PRIO_LOWEST);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        const success = pq_dequeue(&values, &priorities, &size, &value, &priority);
+
+        assert success
+        assert priority == PRIO_HIGHEST  // Highest priority first
+
+    test pq_peek
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 100, PRIO_HIGHEST);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        const success = pq_peek(&values, &priorities, size, &value, &priority);
+
+        assert success
+        assert value == 100
+        assert priority == PRIO_HIGHEST
+
+    test pq_dequeue_ordering
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_LOWEST);
+        pq_enqueue(&values, &priorities, &size, 2, PRIO_MEDIUM);
+        pq_enqueue(&values, &priorities, &size, 3, PRIO_HIGHEST);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+
+        pq_dequeue(&values, &priorities, &size, &value, &priority);
+        assert priority == PRIO_HIGHEST
+
+        pq_dequeue(&values, &priorities, &size, &value, &priority);
+        assert priority == PRIO_MEDIUM
+
+        pq_dequeue(&values, &priorities, &size, &value, &priority);
+        assert priority == PRIO_LOWEST
+
+    test pq_is_empty_full
+        var values : [5]i32 = undefined;
+        var priorities : [5]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        assert pq_is_empty(size)
+        assert !pq_is_full(size)
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        assert !pq_is_empty(size)
+
+    test pq_enqueue_full
+        var values : [3]i32 = undefined;
+        var priorities : [3]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        pq_enqueue(&values, &priorities, &size, 2, PRIO_MEDIUM);
+        pq_enqueue(&values, &priorities, &size, 3, PRIO_MEDIUM);
+        const success = pq_enqueue(&values, &priorities, &size, 4, PRIO_MEDIUM);
+
+        assert !success
+        assert pq_is_full(size)
+
+    test pq_dequeue_empty
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        const success = pq_dequeue(&values, &priorities, &size, &value, &priority);
+
+        assert !success
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant pq_size_matches_elements
+        // Queue size equals number of enqueued elements
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var i : usize = 0;
+        while (i < 5) {
+            pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), PRIO_MEDIUM);
+            i = i + 1;
+        }
+
+        assert pq_size(size) == 5
+
+    invariant pq_dequeue_reduces_size
+        // Dequeue reduces queue size
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        pq_enqueue(&values, &priorities, &size, 2, PRIO_MEDIUM);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        pq_dequeue(&values, &priorities, &size, &value, &priority);
+
+        assert pq_size(size) == 1
+
+    invariant pq_peek_does_not_change_size
+        // Peek does not change queue size
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        pq_enqueue(&values, &priorities, &size, 2, PRIO_MEDIUM);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        _ = pq_peek(&values, &priorities, size, &value, &priority);
+
+        assert pq_size(size) == 2
+
+    invariant pq_highest_priority_first
+        // Dequeue always returns highest priority
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var i : usize = 0;
+        while (i < 9) {
+            const prio = @as(i32, @intCast(i % 3)) - 1;  // Cycle through priorities
+            pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), prio);
+            i = i + 1;
+        }
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        var prev_prio : i32 = PRIO_HIGHEST - 1;
+
+        while (!pq_is_empty(size)) {
+            pq_dequeue(&values, &priorities, &size, &value, &priority);
+            assert priority >= prev_prio  // Non-decreasing priorities
+            prev_prio = priority;
+        }
+
+    invariant pq_empty_after_all_dequeues
+        // Queue is empty after dequeuing all elements
+        var values : [10]i32 = undefined;
+        var priorities : [10]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var i : usize = 0;
+        while (i < 5) {
+            pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), PRIO_MEDIUM);
+            i = i + 1;
+        }
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        while (!pq_is_empty(size)) {
+            _ = pq_dequeue(&values, &priorities, &size, &value, &priority);
+        }
+
+        assert pq_is_empty(size)
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench pq_enqueue_performance
+        // Measure: cycles for 1000 enqueue operations
+        // Target: < 5000 cycles
+        var values : [PQ_MAX_SIZE]i32 = undefined;
+        var priorities : [PQ_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            size = 0;
+            pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        }
+
+    bench pq_dequeue_performance
+        // Measure: cycles for 1000 dequeue operations
+        // Target: < 5000 cycles
+        var values : [PQ_MAX_SIZE]i32 = undefined;
+        var priorities : [PQ_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var i : usize = 0;
+        while (i < 10) {
+            pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), PRIO_MEDIUM);
+            i = i + 1;
+        }
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            size = 10;
+            i = 0;
+            while (i < 10) {
+                pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), PRIO_MEDIUM);
+                i = i + 1;
+            }
+            i = 0;
+            while (i < 10) {
+                pq_dequeue(&values, &priorities, &size, &value, &priority);
+                i = i + 1;
+            }
+        }
+
+    bench pq_peek_performance
+        // Measure: cycles for 10000 peek operations
+        // Target: < 3000 cycles
+        var values : [PQ_MAX_SIZE]i32 = undefined;
+        var priorities : [PQ_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        pq_enqueue(&values, &priorities, &size, 1, PRIO_MEDIUM);
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        @setEvalBranchQuota(10000);
+        for (0..10000) |_| {
+            _ = pq_peek(&values, &priorities, size, &value, &priority);
+        }
+
+    bench pq_heapify_performance
+        // Measure: cycles for 1000 heapify operations
+        // Target: < 5000 cycles
+        var values : [PQ_MAX_SIZE]i32 = undefined;
+        var priorities : [PQ_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var i : usize = 0;
+        while (i < PQ_MAX_SIZE) {
+            pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), PRIO_MEDIUM);
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            pq_heapify_down(&values, &priorities, 0, size);
+        }
+
+    bench pq_mixed_performance
+        // Measure: cycles for 100 enqueue/dequeue cycles
+        // Target: < 8000 cycles
+        var values : [PQ_MAX_SIZE]i32 = undefined;
+        var priorities : [PQ_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        pq_init(&values, &priorities, &size);
+
+        var value : i32 = 0;
+        var priority : i32 = 0;
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            size = 0;
+            var i : usize = 0;
+            while (i < 10) {
+                pq_enqueue(&values, &priorities, &size, @as(i32, @intCast(i)), PRIO_MEDIUM);
+                i = i + 1;
+            }
+            i = 0;
+            while (i < 5) {
+                pq_dequeue(&values, &priorities, &size, &value, &priority);
+                i = i + 1;
+            }
+        }
+}

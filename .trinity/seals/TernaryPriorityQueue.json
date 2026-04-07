@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_priority_queue.t27",
+  "spec_hash": "sha256:8e35310d8c255de99f7f84df021cd0579197c7a455909997a0acc6789da2dd37",
+  "gen_hash_zig": "sha256:f4d172558d193940e00c276a3851ce7cdaf59a79d79479c4fa871fe9b2ed565c",
+  "gen_hash_verilog": "sha256:bbed7141cc3b6f9328dbdaf1746731dcd6c2406ea68cc7c8d12aaa15c5b3c753",
+  "gen_hash_c": "sha256:b2ae6d9bf86f113f53efa1d4ba863cab92b81b44371023bcac380bd7eb0785eb",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:40:00Z",
+  "ring": 86,
+  "verdict": "clean",
+  "notes": "Ternary priority queue spec (min-heap based, enqueue/dequeue/peek, trit priorities)"
+}
