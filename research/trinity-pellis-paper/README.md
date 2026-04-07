@@ -23,7 +23,16 @@ Each run appends one JSON line to `.trinity/experience/math_compare.jsonl` (proo
 | File | Purpose |
 |------|---------|
 | [`FORMULA_TABLE.md`](FORMULA_TABLE.md) | Placeholder catalog toward 152 formulas (IDs + category + status). |
+| [`hybrid-conjecture.md`](hybrid-conjecture.md) | Formal sketch of the hybrid hypothesis, falsifiers, sensitivity scope, open work. |
+| [`ROADMAP.md`](ROADMAP.md) | Post-merge priorities (formula table, outreach, preprint). |
 | `README.md` | Hypothesis, scope, and CLI pointers. |
+
+## Project impact (summary)
+
+- **SSOT:** `pellis-formulas.t27` places a **Pell ladder** next to the existing **Trinity / \(\phi\)** layer in one verifiable spec (issue #277).
+- **CLI:** `tri math compare` exposes Pellis-style contrasts, SM reference constants, hybrid scalar, and \(\phi\)-sensitivity — all in Rust via `t27c`.
+- **Traceability:** experience JSONL lines now include **`pellis_spec_seal_hash`** when the seal file is present, linking runs to the sealed spec revision.
+
 
 ## Specs
 

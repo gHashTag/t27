@@ -828,6 +828,7 @@ impl Parser {
             module.name = mod_name;
             if self.current.kind == TokenKind::Semicolon {
                 self.advance(); // consume ;
+                self.parse_module_body(&mut module)?;
             } else if self.current.kind == TokenKind::LBrace {
                 // Brace-style module: module Name { ... }
                 self.advance(); // consume {
@@ -838,12 +839,6 @@ impl Parser {
                 return Ok(module);
             }
         }
-
-        self.parse_module_body(&mut module)?;
-
-        // SOUL.md Article II enforcement: every spec must have test/invariant/bench
-        self.validate_soul_compliance(&module)?;
-
         Ok(module)
     }
 

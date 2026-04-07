@@ -107,6 +107,17 @@ fn hybrid_inner_product(phi: f64) -> f64 {
         .sum()
 }
 
+/// SSOT anchor: `spec_hash` from sealed `PellisFormulas` spec (if present in checkout).
+fn read_pellis_spec_seal_hash(repo_root: &Path) -> Option<String> {
+    let path = repo_root.join(".trinity/seals/PellisFormulas.json");
+    let text = fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    v.get("spec_hash")
+        .and_then(|x| x.as_str())
+        .map(std::string::ToString::to_string)
+}
+
+
 fn append_experience(repo_root: &Path, record: &serde_json::Value) -> anyhow::Result<()> {
     let dir = repo_root.join(".trinity").join("experience");
     fs::create_dir_all(&dir)?;
@@ -211,6 +222,11 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
             record["d_hybrid_inner_d_phi"] = json!(dh);
         }
     }
+
+    if let Some(h) = read_pellis_spec_seal_hash(repo_root) {
+        record["pellis_spec_seal_hash"] = json!(h);
+    }
+
 
     append_experience(repo_root, &record)?;
     println!(

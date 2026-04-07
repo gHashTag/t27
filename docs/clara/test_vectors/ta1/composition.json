@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "spec_name": "composition",
+  "spec_file": "specs/ar/composition.t27",
+  "ring": 24,
+  "description": "ML+AR Composition Patterns",
+  "generated": "2026-04-08",
+  "phi_identity": "phi² + 1/phi² = 3 | TRINITY",
+
+  "test_cases": [
+    {
+      "name": "cnn_rules_pattern",
+      "pattern": "CNN_RULES",
+      "description": "Neural features → Rule pattern matching → Deduction",
+      "pipeline": {
+        "stages": [
+          {"component": "CNN", "operation": "extract_features"},
+          {"component": "RuleEngine", "operation": "match_patterns"},
+          {"component": "AR", "operation": "deduce"},
+          {"component": "XAI", "operation": "generate_explanation"}
+        ],
+        "max_explanation_steps": 10
+      },
+      "expected_output": "AR conclusion with ≤10 step explanation"
+    },
+    {
+      "name": "mlp_bayesian_pattern",
+      "pattern": "MLP_BAYESIAN",
+      "description": "Neural forward pass → Bayesian inference",
+      "pipeline": {
+        "stages": [
+          {"component": "MLP", "operation": "forward_pass"},
+          {"component": "BayesianInference", "operation": "update_beliefs"},
+          {"component": "Restraint", "operation": "check_constraints"}
+        ],
+        "quality_threshold": 0.7
+      },
+      "expected_output": "Probabilistic belief with quality >= threshold"
+    },
+    {
+      "name": "transformer_xai_pattern",
+      "pattern": "TRANSFORMER_XAI",
+      "description": "Self-attention → Explanation with step limit",
+      "pipeline": {
+        "stages": [
+          {"component": "Transformer", "operation": "self_attention"},
+          {"component": "XAI", "operation": "generate_explanation"},
+          {"component": "Restraint", "operation": "enforce_step_limit"}
+        ],
+        "max_steps": 10
+      },
+      "expected_output": "Explanation with exactly ≤10 steps"
+    },
+    {
+      "name": "rl_guardrails_pattern",
+      "pattern": "RL_GUARDRAILS",
+      "description": "Policy network → AR constraint checking",
+      "pipeline": {
+        "stages": [
+          {"component": "RL", "operation": "select_action"},
+          {"component": "RuleEngine", "operation": "check_constraints"},
+          {"component": "Guardrails", "operation": "allow_or_block"}
+        ],
+        "safety_critical": true
+      },
+      "expected_output": "Action allowed if all constraints satisfied"
+    }
+  ]
+}
