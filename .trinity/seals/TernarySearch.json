@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_search.t27",
+  "spec_hash": "sha256:4790783eaceae47ab4d3a2594c7e70245f7f3ccdd4960b0862f057561d073c9a",
+  "gen_hash_zig": "sha256:2366bfbaa5ca1971d01d038c97ca25d16af4328627151f23629292d341b59118",
+  "gen_hash_verilog": "sha256:abca0c74835496a2f5206185021f99239d7b4902a8d8df39f2756131a6619d23",
+  "gen_hash_c": "sha256:b31a19a0bf58e40a54f123784cae7242688abdcd2484eef46d32305b183c08ba",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:15:00Z",
+  "ring": 81,
+  "verdict": "clean",
+  "notes": "Ternary search operations spec (linear, binary, ternary search, count, find_all)"
+}

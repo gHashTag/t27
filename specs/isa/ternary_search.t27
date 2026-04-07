@@ -1,0 +1,340 @@
+// t27/specs/isa/ternary_search.t27
+// Ternary Search Operations Specification
+// Ring 081 - Search algorithms for ternary data
+// Defines linear search, binary search, and ternary search
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernarySearch {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Search Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Search results
+    const NOT_FOUND : usize = 999999;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Linear Search
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // linear_search(arr: []i32, len: usize, target: i32) → usize
+    // Linear search for target in array
+    fn linear_search(arr: []i32, len: usize, target: i32) → usize {
+        var i : usize = 0;
+        while (i < len and i < arr.len) {
+            if (arr[i] == target) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return NOT_FOUND;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Binary Search
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // binary_search(arr: []i32, len: usize, target: i32) → usize
+    // Binary search for target in sorted array
+    fn binary_search(arr: []i32, len: usize, target: i32) → usize {
+        var low : usize = 0;
+        var high : usize = len;
+
+        while (low < high) {
+            const mid = low + (high - low) / 2;
+
+            if (arr[mid] == target) {
+                return mid;
+            } else if (arr[mid] < target) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+
+        return NOT_FOUND;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Ternary Search (two midpoints)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ternary_search(arr: []i32, len: usize, target: i32) → usize
+    // Ternary search for target in sorted array
+    fn ternary_search(arr: []i32, len: usize, target: i32) → usize {
+        var left : usize = 0;
+        var right : usize = len;
+
+        while (left + 1 < right) {
+            const third = (right - left) / 3;
+            const mid1 = left + third;
+            const mid2 = right - third;
+
+            if (arr[mid1] == target) {
+                return mid1;
+            }
+            if (arr[mid2] == target) {
+                return mid2;
+            }
+
+            if (target < arr[mid1]) {
+                right = mid1;
+            } else if (target > arr[mid2]) {
+                left = mid2 + 1;
+            } else {
+                left = mid1 + 1;
+                right = mid2;
+            }
+        }
+
+        if (left < len and left < arr.len and arr[left] == target) {
+            return left;
+        }
+
+        return NOT_FOUND;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. Count Occurrences
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // count_occurrences(arr: []i32, len: usize, target: i32) → usize
+    // Count occurrences of target in array
+    fn count_occurrences(arr: []i32, len: usize, target: i32) → usize {
+        var count : usize = 0;
+        var i : usize = 0;
+        while (i < len and i < arr.len) {
+            if (arr[i] == target) {
+                count = count + 1;
+            }
+            i = i + 1;
+        }
+        return count;
+    }
+
+    // find_all(arr: []i32, len: usize, target: i32, indices: []usize) → usize
+    // Find all indices of target in array
+    fn find_all(arr: []i32, len: usize, target: i32, indices: []usize) → usize {
+        var found : usize = 0;
+        var i : usize = 0;
+        while (i < len and i < arr.len and found < indices.len) {
+            if (arr[i] == target) {
+                indices[found] = i;
+                found = found + 1;
+            }
+            i = i + 1;
+        }
+        return found;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test linear_search_found
+        var arr : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO};
+        const idx = linear_search(&arr, 5, TRIT_POS);
+        assert idx == 2
+
+    test linear_search_not_found
+        var arr : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        const idx = linear_search(&arr, 3, TRIT_POS);
+        assert idx == NOT_FOUND
+
+    test binary_search_found
+        var arr : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_POS};
+        const idx = binary_search(&arr, 5, TRIT_ZERO);
+        assert idx == 2
+
+    test binary_search_not_found
+        var arr : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_ZERO};
+        const idx = binary_search(&arr, 3, TRIT_POS);
+        assert idx == NOT_FOUND
+
+    test ternary_search_found
+        var arr : [9]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_ZERO, TRIT_ZERO, TRIT_POS, TRIT_POS, TRIT_POS};
+        const idx = ternary_search(&arr, 9, TRIT_ZERO);
+        assert idx == 3 or idx == 4 or idx == 5
+
+    test ternary_search_not_found
+        var arr : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_ZERO};
+        const idx = ternary_search(&arr, 3, TRIT_POS);
+        assert idx == NOT_FOUND
+
+    test count_occurrences_multiple
+        var arr : [10]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG};
+        const count = count_occurrences(&arr, 10, TRIT_POS);
+        assert count == 5
+
+    test count_occurrences_zero
+        var arr : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_ZERO, TRIT_NEG};
+        const count = count_occurrences(&arr, 5, TRIT_POS);
+        assert count == 0
+
+    test find_all_multiple
+        var arr : [10]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_NEG};
+        var indices : [10]usize = undefined;
+        const found = find_all(&arr, 10, TRIT_POS, &indices);
+        assert found == 5
+        assert indices[0] == 0
+        assert indices[1] == 2
+        assert indices[2] == 4
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant linear_search_finds_first
+        // Linear search returns first occurrence
+        var arr : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            arr[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        const idx = linear_search(&arr, 10, TRIT_ZERO);
+        if (idx != NOT_FOUND) {
+            // Verify it's the first zero at index 1
+            assert idx == 1
+        }
+
+    invariant binary_search_requires_sorted
+        // Binary search works on sorted arrays
+        var arr : [27]i32 = undefined;
+        var i : usize = 0;
+        while (i < 27) {
+            if (i < 9) {
+                arr[i] = TRIT_NEG;
+            } else if (i < 18) {
+                arr[i] = TRIT_ZERO;
+            } else {
+                arr[i] = TRIT_POS;
+            }
+            i = i + 1;
+        }
+
+        const idx = binary_search(&arr, 27, TRIT_ZERO);
+        assert idx >= 9 and idx < 18
+
+    invariant ternary_search_works_on_uniform
+        // Ternary search handles uniform regions
+        var arr : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        const idx = ternary_search(&arr, 27, TRIT_ZERO);
+        assert idx != NOT_FOUND
+
+    invariant count_matches_find_all
+        // count_occurrences matches find_all result count
+        var arr : [20]i32 = undefined;
+        var i : usize = 0;
+        while (i < 20) {
+            arr[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        const count1 = count_occurrences(&arr, 20, TRIT_POS);
+        var indices : [20]usize = undefined;
+        const count2 = find_all(&arr, 20, TRIT_POS, &indices);
+        assert count1 == count2
+
+    invariant search_preserves_array
+        // Search operations do not modify the array
+        var arr : [10]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var copy : [10]i32 = undefined;
+        var i : usize = 0;
+        while (i < 10) {
+            copy[i] = arr[i];
+            i = i + 1;
+        }
+
+        _ = linear_search(&arr, 10, TRIT_ZERO);
+        _ = binary_search(&arr, 10, TRIT_POS);
+        _ = ternary_search(&arr, 10, TRIT_NEG);
+
+        i = 0;
+        while (i < 10) {
+            assert arr[i] == copy[i]
+            i = i + 1;
+        }
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench linear_search_performance
+        // Measure: cycles for 1000 linear search operations on 100 elements
+        // Target: < 5000 cycles
+        var arr : [100]i32 = undefined;
+        var i : usize = 0;
+        while (i < 100) {
+            arr[i] = @as(i32, @intCast(i % 27));
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = linear_search(&arr, 100, 13);
+        }
+
+    bench binary_search_performance
+        // Measure: cycles for 1000 binary search operations on 100 elements
+        // Target: < 3000 cycles
+        var arr : [100]i32 = undefined;
+        var i : usize = 0;
+        while (i < 100) {
+            arr[i] = @as(i32, @intCast(i));
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = binary_search(&arr, 100, 50);
+        }
+
+    bench ternary_search_performance
+        // Measure: cycles for 1000 ternary search operations on 100 elements
+        // Target: < 4000 cycles
+        var arr : [100]i32 = undefined;
+        var i : usize = 0;
+        while (i < 100) {
+            arr[i] = @as(i32, @intCast(i));
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = ternary_search(&arr, 100, 50);
+        }
+
+    bench count_occurrences_performance
+        // Measure: cycles for 1000 count operations on 100 elements
+        // Target: < 3000 cycles
+        var arr : [100]i32 = undefined;
+        var i : usize = 0;
+        while (i < 100) {
+            arr[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = count_occurrences(&arr, 100, TRIT_POS);
+        }
+
+    bench find_all_performance
+        // Measure: cycles for 1000 find_all operations on 100 elements
+        // Target: < 4000 cycles
+        var arr : [100]i32 = undefined;
+        var i : usize = 0;
+        while (i < 100) {
+            arr[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+        var indices : [100]usize = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = find_all(&arr, 100, TRIT_POS, &indices);
+        }
+}
