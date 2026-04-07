@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 053 ACTIVE — Property-test template for conformance vectors · RFC3339 2026-04-07T13:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 055 ACTIVE — Experience log schema v2 with tiered claims · RFC3339 2026-04-07T14:00:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 3 Branches extended** — Ring 053 (#201) property_test_template.t27 with Associative, Commutative, Distributive, Identity, Inverse, Idempotent properties.
+**Revision:** **Phase 4 Crown extended** — Rings 051-055 (#197, #199, #201, #203, #205) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
