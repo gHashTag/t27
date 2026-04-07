@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_control_flow.t27",
+  "spec_hash": "sha256:f936984d2a8261077c0f77b65ed32255315a6181ca42b1cb6499b298df0f0cb9",
+  "gen_hash_zig": "sha256:4b245e4431e192c0cdc29a03c161da3869e29eb62eb7583728066fc03c23af73",
+  "gen_hash_verilog": "sha256:632edbbf8736d364348913e745225683ffcc1f2dc9057a4bc6b1ad020021587d",
+  "gen_hash_c": "sha256:b5202cce4d178dc47ae0cc21fdb7c79d4064f31ae84eeadd398c5e9f929eedde",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:15:00Z",
+  "ring": 70,
+  "verdict": "clean",
+  "notes": "Ternary control flow operations spec (branch, jump, call, return)"
+}
