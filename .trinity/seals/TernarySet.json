@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_set.t27",
+  "spec_hash": "sha256:494877d793f962cf5e08d50bc0a7763e0d56d2c8ecf3af3a4d80d52619b5b502",
+  "gen_hash_zig": "sha256:42bc88edfbe6006129a5645ea0e2449efc0b80d1564eb1ba1992fd3f2f5d56e8",
+  "gen_hash_verilog": "sha256:079dc5bf1aaffeabf0d723ca586db13eb23fbdfec43af6e483004dc6992306a1",
+  "gen_hash_c": "sha256:63892c0af0eee56446e93baf9f12b9873dc51fafef2235c5d8bca5200ed71900",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:35:00Z",
+  "ring": 85,
+  "verdict": "clean",
+  "notes": "Ternary set operations spec (add, remove, contains, union, intersection, difference)"
+}

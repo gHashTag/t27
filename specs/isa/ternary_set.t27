@@ -1,0 +1,509 @@
+// t27/specs/isa/ternary_set.t27
+// Ternary Set Operations Specification
+// Ring 085 - Set data structure operations for ternary data
+// Defines set operations, membership, union, intersection, difference
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernarySet {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Set Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Set limits
+    const SET_MAX_SIZE : usize = 27;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Set Basic Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // set_init(set: []i32, size: *usize) → void
+    // Initialize empty set
+    fn set_init(set: []i32, size: *usize) → void {
+        var i : usize = 0;
+        while (i < SET_MAX_SIZE and i < set.len) {
+            set[i] = TRIT_ZERO;  // Use 0 as empty marker
+            i = i + 1;
+        }
+        size.* = 0;
+    }
+
+    // set_add(set: []i32, size: *usize, value: i32) → bool
+    // Add value to set, return true if added
+    fn set_add(set: []i32, size: *usize, value: i32) → bool {
+        if (size.* >= SET_MAX_SIZE) {
+            return false;
+        }
+
+        // Check if value already exists
+        var i : usize = 0;
+        while (i < size.* and i < set.len) {
+            if (set[i] == value) {
+                return false;  // Already in set
+            }
+            i = i + 1;
+        }
+
+        // Add value
+        set[size.*] = value;
+        size.* = size.* + 1;
+        return true;
+    }
+
+    // set_remove(set: []i32, size: *usize, value: i32) → bool
+    // Remove value from set, return true if removed
+    fn set_remove(set: []i32, size: *usize, value: i32) → bool {
+        var i : usize = 0;
+        while (i < size.* and i < set.len) {
+            if (set[i] == value) {
+                // Shift remaining elements
+                var j : usize = i;
+                while (j + 1 < size.* and j + 1 < set.len) {
+                    set[j] = set[j + 1];
+                    j = j + 1;
+                }
+                size.* = size.* - 1;
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    // set_contains(set: []i32, size: usize, value: i32) → bool
+    // Check if value is in set
+    fn set_contains(set: []i32, size: usize, value: i32) → bool {
+        var i : usize = 0;
+        while (i < size and i < set.len) {
+            if (set[i] == value) {
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    // set_is_empty(set: []i32, size: usize) → bool
+    // Check if set is empty
+    fn set_is_empty(set: []i32, size: usize) → bool {
+        return size == 0;
+    }
+
+    // set_size(set: []i32, size: usize) → usize
+    // Get set size
+    fn set_size(set: []i32, size: usize) → usize {
+        return size;
+    }
+
+    // set_clear(set: []i32, size: *usize) → void
+    // Clear all elements from set
+    fn set_clear(set: []i32, size: *usize) → void {
+        var i : usize = 0;
+        while (i < SET_MAX_SIZE and i < set.len) {
+            set[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+        size.* = 0;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Set Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // set_union(a: []i32, a_size: usize, b: []i32, b_size: usize, result: []i32, result_size: *usize) → void
+    // Union: all elements from both sets
+    fn set_union(a: []i32, a_size: usize, b: []i32, b_size: usize, result: []i32, result_size: *usize) → void {
+        result_size.* = 0;
+
+        // Add elements from A
+        var i : usize = 0;
+        while (i < a_size and i < a.len) {
+            _ = set_add(result, result_size, a[i]);
+            i = i + 1;
+        }
+
+        // Add elements from B
+        i = 0;
+        while (i < b_size and i < b.len) {
+            _ = set_add(result, result_size, b[i]);
+            i = i + 1;
+        }
+    }
+
+    // set_intersection(a: []i32, a_size: usize, b: []i32, b_size: usize, result: []i32, result_size: *usize) → void
+    // Intersection: elements in both sets
+    fn set_intersection(a: []i32, a_size: usize, b: []i32, b_size: usize, result: []i32, result_size: *usize) → void {
+        result_size.* = 0;
+
+        var i : usize = 0;
+        while (i < a_size and i < a.len) {
+            if (set_contains(b, b_size, a[i])) {
+                _ = set_add(result, result_size, a[i]);
+            }
+            i = i + 1;
+        }
+    }
+
+    // set_difference(a: []i32, a_size: usize, b: []i32, b_size: usize, result: []i32, result_size: *usize) → void
+    // Difference: elements in A but not in B
+    fn set_difference(a: []i32, a_size: usize, b: []i32, b_size: usize, result: []i32, result_size: *usize) → void {
+        result_size.* = 0;
+
+        var i : usize = 0;
+        while (i < a_size and i < a.len) {
+            if (!set_contains(b, b_size, a[i])) {
+                _ = set_add(result, result_size, a[i]);
+            }
+            i = i + 1;
+        }
+    }
+
+    // set_subset(a: []i32, a_size: usize, b: []i32, b_size: usize) → bool
+    // Check if A is subset of B
+    fn set_subset(a: []i32, a_size: usize, b: []i32, b_size: usize) → bool {
+        var i : usize = 0;
+        while (i < a_size and i < a.len) {
+            if (!set_contains(b, b_size, a[i])) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // set_equal(a: []i32, a_size: usize, b: []i32, b_size: usize) → bool
+    // Check if sets are equal
+    fn set_equal(a: []i32, a_size: usize, b: []i32, b_size: usize) → bool {
+        if (a_size != b_size) {
+            return false;
+        }
+        return set_subset(a, a_size, b, b_size);
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test set_init_empty
+        var set : [10]i32 = undefined;
+        var size : usize = 99;
+        set_init(&set, &size);
+
+        assert size == 0
+
+    test set_add_unique
+        var set : [10]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+
+        const added1 = set_add(&set, &size, TRIT_POS);
+        const added2 = set_add(&set, &size, TRIT_NEG);
+
+        assert added1
+        assert added2
+        assert size == 2
+
+    test set_add_duplicate
+        var set : [10]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+
+        set_add(&set, &size, TRIT_POS);
+        const added = set_add(&set, &size, TRIT_POS);
+
+        assert !added
+        assert size == 1
+
+    test set_contains
+        var set : [10]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+
+        set_add(&set, &size, TRIT_POS);
+        set_add(&set, &size, TRIT_NEG);
+
+        assert set_contains(&set, size, TRIT_POS)
+        assert !set_contains(&set, size, TRIT_ZERO)
+
+    test set_remove
+        var set : [10]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+
+        set_add(&set, &size, TRIT_POS);
+        set_add(&set, &size, TRIT_NEG);
+        const removed = set_remove(&set, &size, TRIT_POS);
+
+        assert removed
+        assert size == 1
+        assert !set_contains(&set, size, TRIT_POS)
+
+    test set_union
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var result : [20]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&a, &a_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_ZERO);
+
+        set_union(&a, a_size, &b, b_size, &result, &result_size);
+
+        assert result_size == 3
+        assert set_contains(&result, result_size, TRIT_POS)
+        assert set_contains(&result, result_size, TRIT_NEG)
+        assert set_contains(&result, result_size, TRIT_ZERO)
+
+    test set_intersection
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var result : [10]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&a, &a_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_ZERO);
+
+        set_intersection(&a, a_size, &b, b_size, &result, &result_size);
+
+        assert result_size == 1
+        assert set_contains(&result, result_size, TRIT_NEG)
+
+    test set_difference
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var result : [10]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&a, &a_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_NEG);
+
+        set_difference(&a, a_size, &b, b_size, &result, &result_size);
+
+        assert result_size == 1
+        assert set_contains(&result, result_size, TRIT_POS)
+        assert !set_contains(&result, result_size, TRIT_NEG)
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant set_size_matches_elements
+        // Set size equals number of non-zero elements
+        var set : [10]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+
+        set_add(&set, &size, TRIT_POS);
+        set_add(&set, &size, TRIT_NEG);
+        set_add(&set, &size, TRIT_ZERO);
+
+        assert size == 3
+
+    invariant union_contains_both
+        // Union contains elements from both sets
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var result : [20]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&b, &b_size, TRIT_NEG);
+
+        set_union(&a, a_size, &b, b_size, &result, &result_size);
+
+        assert set_contains(&result, result_size, TRIT_POS)
+        assert set_contains(&result, result_size, TRIT_NEG)
+
+    invariant intersection_is_subset
+        // Intersection is subset of both input sets
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var result : [10]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&a, &a_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_ZERO);
+
+        set_intersection(&a, a_size, &b, b_size, &result, &result_size);
+
+        assert set_subset(&result, result_size, &a, a_size)
+        assert set_subset(&result, result_size, &b, b_size)
+
+    invariant difference_subset_of_first
+        // Difference is subset of first set
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var result : [10]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&a, &a_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_NEG);
+
+        set_difference(&a, a_size, &b, b_size, &result, &result_size);
+
+        assert set_subset(&result, result_size, &a, a_size)
+
+    invariant set_equal_symmetric
+        // Set equality is symmetric
+        var a : [10]i32 = undefined;
+        var b : [10]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+
+        set_init(&a, &a_size);
+        set_init(&b, &b_size);
+        set_add(&a, &a_size, TRIT_POS);
+        set_add(&a, &a_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_NEG);
+        set_add(&b, &b_size, TRIT_POS);
+
+        assert set_equal(&a, a_size, &b, b_size)
+        assert set_equal(&b, b_size, &a, a_size)
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench set_add_performance
+        // Measure: cycles for 1000 set add operations
+        // Target: < 5000 cycles
+        var set : [SET_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            size = 0;
+            set_add(&set, &size, TRIT_POS);
+        }
+
+    bench set_contains_performance
+        // Measure: cycles for 10000 set contains operations
+        // Target: < 3000 cycles
+        var set : [SET_MAX_SIZE]i32 = undefined;
+        var size : usize = 0;
+        set_init(&set, &size);
+        set_add(&set, &size, TRIT_POS);
+        @setEvalBranchQuota(10000);
+        for (0..10000) |_| {
+            _ = set_contains(&set, size, TRIT_POS);
+        }
+
+    bench set_union_performance
+        // Measure: cycles for 1000 union operations
+        // Target: < 8000 cycles
+        var a : [SET_MAX_SIZE]i32 = undefined;
+        var b : [SET_MAX_SIZE]i32 = undefined;
+        var result : [SET_MAX_SIZE * 2]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        var i : usize = 0;
+        while (i < 10) {
+            set_add(&a, &a_size, @as(i32, @intCast(i)));
+            i = i + 1;
+        }
+        i = 0;
+        while (i < 10) {
+            set_add(&b, &b_size, @as(i32, @intCast(i + 5)));
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            result_size = 0;
+            set_union(&a, a_size, &b, b_size, &result, &result_size);
+        }
+
+    bench set_intersection_performance
+        // Measure: cycles for 1000 intersection operations
+        // Target: < 6000 cycles
+        var a : [SET_MAX_SIZE]i32 = undefined;
+        var b : [SET_MAX_SIZE]i32 = undefined;
+        var result : [SET_MAX_SIZE]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        var i : usize = 0;
+        while (i < 10) {
+            set_add(&a, &a_size, @as(i32, @intCast(i)));
+            i = i + 1;
+        }
+        i = 0;
+        while (i < 10) {
+            set_add(&b, &b_size, @as(i32, @intCast(i + 5)));
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            result_size = 0;
+            set_intersection(&a, a_size, &b, b_size, &result, &result_size);
+        }
+
+    bench set_difference_performance
+        // Measure: cycles for 1000 difference operations
+        // Target: < 6000 cycles
+        var a : [SET_MAX_SIZE]i32 = undefined;
+        var b : [SET_MAX_SIZE]i32 = undefined;
+        var result : [SET_MAX_SIZE]i32 = undefined;
+        var a_size : usize = 0;
+        var b_size : usize = 0;
+        var result_size : usize = 0;
+
+        var i : usize = 0;
+        while (i < 10) {
+            set_add(&a, &a_size, @as(i32, @intCast(i)));
+            i = i + 1;
+        }
+        i = 0;
+        while (i < 10) {
+            set_add(&b, &b_size, @as(i32, @intCast(i + 5)));
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            result_size = 0;
+            set_difference(&a, a_size, &b, b_size, &result, &result_size);
+        }
+}
