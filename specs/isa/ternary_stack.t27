@@ -1,0 +1,390 @@
+// t27/specs/isa/ternary_stack.t27
+// Ternary Stack Operations Specification
+// Ring 075 - Stack data structure operations for ternary data
+// Defines push, pop, and stack management
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryStack {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Stack Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Stack size limits
+    const STACK_MAX_SIZE : usize = 64;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Stack Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // stack_init(stack: []i32, top: *usize) → void
+    // Initialize stack
+    fn stack_init(stack: []i32, top: *usize) → void {
+        top.* = 0;
+        var i : usize = 0;
+        while (i < STACK_MAX_SIZE and i < stack.len) {
+            stack[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+    }
+
+    // stack_push(stack: []i32, top: *usize, value: i32) → bool
+    // Push value onto stack
+    fn stack_push(stack: []i32, top: *usize, value: i32) → bool {
+        if (top.* >= STACK_MAX_SIZE or top.* >= stack.len) {
+            return false;  // Stack overflow
+        }
+        stack[top.*] = value;
+        top.* = top.* + 1;
+        return true;
+    }
+
+    // stack_pop(stack: []i32, top: *usize) → i32
+    // Pop value from stack (returns TRIT_ZERO if underflow)
+    fn stack_pop(stack: []i32, top: *usize) → i32 {
+        if (top.* == 0) {
+            return TRIT_ZERO;  // Stack underflow
+        }
+        top.* = top.* - 1;
+        const value = stack[top.*];
+        stack[top.*] = TRIT_ZERO;  // Clear slot
+        return value;
+    }
+
+    // stack_peek(stack: []i32, top: usize) → i32
+    // Peek at top value without popping
+    fn stack_peek(stack: []i32, top: usize) → i32 {
+        if (top == 0 or top > stack.len) {
+            return TRIT_ZERO;
+        }
+        return stack[top - 1];
+    }
+
+    // stack_is_empty(top: usize) → bool
+    // Check if stack is empty
+    fn stack_is_empty(top: usize) → bool {
+        return top == 0;
+    }
+
+    // stack_is_full(top: usize) → bool
+    // Check if stack is full
+    fn stack_is_full(top: usize) → bool {
+        return top >= STACK_MAX_SIZE;
+    }
+
+    // stack_size(top: usize) → usize
+    // Get current stack size
+    fn stack_size(top: usize) → usize {
+        return top;
+    }
+
+    // stack_clear(stack: []i32, top: *usize) → void
+    // Clear all values from stack
+    fn stack_clear(stack: []i32, top: *usize) → void {
+        var i : usize = 0;
+        while (i < top.* and i < stack.len) {
+            stack[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+        top.* = 0;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test stack_init_empty
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 99;
+
+        stack_init(&stack, &top);
+
+        assert top == 0
+        assert stack[0] == TRIT_ZERO
+
+    test stack_push_pop_roundtrip
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        assert stack_push(&stack, &top, TRIT_POS) == true
+        assert top == 1
+
+        const popped = stack_pop(&stack, &top);
+        assert popped == TRIT_POS
+        assert top == 0
+
+    test stack_push_overflow
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        var i : usize = 0;
+        while (i < STACK_MAX_SIZE) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            i = i + 1;
+        }
+
+        assert stack_is_full(top) == true
+        assert stack_push(&stack, &top, TRIT_POS) == false
+
+    test stack_pop_underflow
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        assert stack_is_empty(top) == true
+        assert stack_pop(&stack, &top) == TRIT_ZERO
+
+    test stack_peek_no_pop
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        _ = stack_push(&stack, &top, TRIT_POS);
+
+        const peeked = stack_peek(&stack, top);
+        assert peeked == TRIT_POS
+        assert top == 1  // Top unchanged
+
+    test stack_size_matches
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+
+        var i : usize = 0;
+        while (i < 5) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            assert stack_size(top) == i + 1
+            i = i + 1;
+        }
+
+    test stack_clear_empties
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+
+        var i : usize = 0;
+        while (i < 5) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            i = i + 1;
+        }
+
+        assert top == 5
+        stack_clear(&stack, &top);
+        assert top == 0
+        assert stack_is_empty(top) == true
+
+    test stack_lifo_order
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        _ = stack_push(&stack, &top, 1);
+        _ = stack_push(&stack, &top, 0);
+        _ = stack_push(&stack, &top, -1);
+
+        assert stack_pop(&stack, &top) == -1
+        assert stack_pop(&stack, &top) == 0
+        assert stack_pop(&stack, &top) == 1
+
+    test stack_multiple_values
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        _ = stack_push(&stack, &top, 1);
+        _ = stack_push(&stack, &top, 1);
+        _ = stack_push(&stack, &top, -1);
+        _ = stack_push(&stack, &top, 0);
+
+        assert stack_count(&stack, top, 1) == 2
+        assert stack_count(&stack, top, 0) == 1
+        assert stack_count(&stack, top, -1) == 1
+
+    // stack_count not defined above, let me fix this
+
+    // ═════════════════════════════════════════════════════
+    // 4. Stack Query Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // stack_count(stack: []i32, top: usize, value: i32) → usize
+    // Count occurrences of value in stack
+    fn stack_count(stack: []i32, top: usize, value: i32) → usize {
+        var count : usize = 0;
+        var i : usize = 0;
+        while (i < top and i < stack.len) {
+            if (stack[i] == value) {
+                count = count + 1;
+            }
+            i = i + 1;
+        }
+        return count;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant stack_push_pop_preserves
+        // Push then pop returns to original state
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 5;
+
+        stack_init(&stack, &top);
+        var i : usize = 0;
+        while (i < 5) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            i = i + 1;
+        }
+
+        const size_before = stack_size(top);
+        _ = stack_push(&stack, &top, TRIT_NEG);
+        _ = stack_pop(&stack, &top);
+
+        assert stack_size(top) == size_before
+
+    invariant stack_clear_equal_init
+        // Clearing stack is same as initializing
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        var i : usize = 0;
+        while (i < 10) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            i = i + 1;
+        }
+
+        stack_clear(&stack, &top);
+
+        assert stack_is_empty(top) == true
+
+    invariant stack_size_consistent
+        // Stack size equals top pointer
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+
+        var i : usize = 0;
+        while (i < 15) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            assert stack_size(top) == top
+            i = i + 1;
+        }
+
+    invariant stack_peek_preserves
+        // Peek doesn't modify stack
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        _ = stack_push(&stack, &top, TRIT_POS);
+
+        const top_before = top;
+        const value_before = stack[top - 1];
+        _ = stack_peek(&stack, top);
+
+        assert top == top_before
+        assert stack[top - 1] == value_before
+
+    invariant stack_count_sum
+        // Sum of all counts equals stack size
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+
+        stack_init(&stack, &top);
+        _ = stack_push(&stack, &top, 1);
+        _ = stack_push(&stack, &top, 0);
+        _ = stack_push(&stack, &top, -1);
+        _ = stack_push(&stack, &top, 1);
+
+        const pos = stack_count(&stack, top, 1);
+        const zero = stack_count(&stack, top, 0);
+        const neg = stack_count(&stack, top, -1);
+
+        assert (pos + zero + neg) == stack_size(top)
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench stack_push_performance
+        // Measure: cycles for 1000 push operations
+        // Target: < 2000 cycles
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+        stack_init(&stack, &top);
+        @setEvalBranchQuota(10000);
+        var result : bool = false;
+        for (0..1000) |_| {
+            top = 0;
+            result = stack_push(&stack, &top, TRIT_POS);
+        }
+        _ = result;
+
+    bench stack_pop_performance
+        // Measure: cycles for 1000 pop operations
+        // Target: < 2000 cycles
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 0;
+        stack_init(&stack, &top);
+        var i : usize = 0;
+        while (i < 10) {
+            _ = stack_push(&stack, &top, TRIT_POS);
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            top = 10;
+            result = stack_pop(&stack, &top);
+        }
+        _ = result;
+
+    bench stack_peek_performance
+        // Measure: cycles for 1000 peek operations
+        // Target: < 1000 cycles
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 5;
+        stack_init(&stack, &top);
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = stack_peek(&stack, top);
+        }
+        _ = result;
+
+    bench stack_count_performance
+        // Measure: cycles for 1000 count operations
+        // Target: < 3000 cycles
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 10;
+        stack_init(&stack, &top);
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        for (0..1000) |_| {
+            result = stack_count(&stack, top, 1);
+        }
+        _ = result;
+
+    bench stack_clear_performance
+        // Measure: cycles for 1000 clear operations
+        // Target: < 2000 cycles
+        var stack : [STACK_MAX_SIZE]i32 = undefined;
+        var top : usize = 20;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            top = 20;
+            stack_clear(&stack, &top);
+        }
+}

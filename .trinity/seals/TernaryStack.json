@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_stack.t27",
+  "spec_hash": "sha256:08c8514b1ce6ab53c789f8320a2dacdf54e32cc9c6adc2c0e56ba2f03de2dca1",
+  "gen_hash_zig": "sha256:9c67715fc509de99fdbd74b914489c652cd4e351bfb92562e056909515652dea",
+  "gen_hash_verilog": "sha256:9f5a502e57dd6faae687a998aac557ea908f3700ecb9c5e80b2ddec112b702f1",
+  "gen_hash_c": "sha256:4aa9dafe366c7988b3fab3149774ae48877c4b495044394292ea823ee6847f1d",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:45:00Z",
+  "ring": 75,
+  "verdict": "clean",
+  "notes": "Ternary stack operations spec (push, pop, peek, clear, count)"
+}
