@@ -1,0 +1,388 @@
+// t27/specs/isa/ternary_matrix.t27
+// Ternary Matrix Operations Specification
+// Ring 073 - Matrix operations for ternary data
+// Defines matrix representation and basic operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryMatrix {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Matrix Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Matrix size limits
+    const MATRIX_MAX_ROWS : usize = 8;
+    const MATRIX_MAX_COLS : usize = 8;
+    const MATRIX_MAX_SIZE : usize = MATRIX_MAX_ROWS * MATRIX_MAX_COLS;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Matrix Element Access
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // matrix_get(matrix: []i32, rows: usize, cols: usize, row: usize, col: usize) → i32
+    // Get element at (row, col)
+    fn matrix_get(matrix: []i32, rows: usize, cols: usize, row: usize, col: usize) → i32 {
+        const idx = row * cols + col;
+        if (idx < matrix.len) {
+            return matrix[idx];
+        }
+        return TRIT_ZERO;
+    }
+
+    // matrix_set(matrix: []i32, rows: usize, cols: usize, row: usize, col: usize, value: i32) → bool
+    // Set element at (row, col)
+    fn matrix_set(matrix: []i32, rows: usize, cols: usize, row: usize, col: usize, value: i32) → bool {
+        const idx = row * cols + col;
+        if (idx < matrix.len) {
+            matrix[idx] = value;
+            return true;
+        }
+        return false;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Matrix Initialization
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // matrix_zero(matrix: []i32, size: usize) → void
+    // Initialize matrix to all zeros
+    fn matrix_zero(matrix: []i32, size: usize) → void {
+        var i : usize = 0;
+        while (i < size) {
+            matrix[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+    }
+
+    // matrix_identity(matrix: []i32, n: usize) → void
+    // Initialize to identity matrix
+    fn matrix_identity(matrix: []i32, n: usize) → void {
+        var i : usize = 0;
+        while (i < n) {
+            var j : usize = 0;
+            while (j < n) {
+                const idx = i * n + j;
+                if (i == j) {
+                    matrix[idx] = TRIT_POS;
+                } else {
+                    matrix[idx] = TRIT_ZERO;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+    }
+
+    // matrix_fill(matrix: []i32, size: usize, value: i32) → void
+    // Fill matrix with constant value
+    fn matrix_fill(matrix: []i32, size: usize, value: i32) → void {
+        var i : usize = 0;
+        while (i < size) {
+            matrix[i] = value;
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Matrix Copy
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // matrix_copy(src: []i32, dst: []i32, size: usize) → void
+    // Copy matrix from src to dst
+    fn matrix_copy(src: []i32, dst: []i32, size: usize) → void {
+        var i : usize = 0;
+        while (i < size and i < src.len and i < dst.len) {
+            dst[i] = src[i];
+            i = i + 1;
+        }
+    }
+
+    // matrix_transpose(src: []i32, dst: []i32, rows: usize, cols: usize) → void
+    // Transpose matrix (swap rows and columns)
+    fn matrix_transpose(src: []i32, dst: []i32, rows: usize, cols: usize) → void {
+        var i : usize = 0;
+        while (i < rows) {
+            var j : usize = 0;
+            while (j < cols) {
+                const src_idx = i * cols + j;
+                const dst_idx = j * rows + i;
+                if (dst_idx < dst.len and src_idx < src.len) {
+                    dst[dst_idx] = src[src_idx];
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. Matrix Comparison
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // matrix_equal(a: []i32, b: []i32, size: usize) → bool
+    // Check if two matrices are equal
+    fn matrix_equal(a: []i32, b: []i32, size: usize) → bool {
+        var i : usize = 0;
+        while (i < size and i < a.len and i < b.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test matrix_get_set_roundtrip
+        var m : [16]i32 = undefined;
+        matrix_zero(&m, 16);
+
+        assert matrix_set(&m, 4, 4, 1, 2, TRIT_POS) == true
+        assert matrix_get(&m, 4, 4, 1, 2) == TRIT_POS
+        assert matrix_get(&m, 4, 4, 0, 0) == TRIT_ZERO
+
+    test matrix_zero_initializes
+        var m : [9]i32 = undefined;
+        var i : usize = 0;
+        while (i < 9) {
+            m[i] = TRIT_POS;
+            i = i + 1;
+        }
+
+        matrix_zero(&m, 9);
+
+        i = 0;
+        while (i < 9) {
+            assert m[i] == TRIT_ZERO
+            i = i + 1;
+        }
+
+    test matrix_identity_diagonal
+        var m : [9]i32 = undefined;
+        matrix_identity(&m, 3);
+
+        assert matrix_get(&m, 3, 3, 0, 0) == TRIT_POS
+        assert matrix_get(&m, 3, 3, 1, 1) == TRIT_POS
+        assert matrix_get(&m, 3, 3, 2, 2) == TRIT_POS
+        assert matrix_get(&m, 3, 3, 0, 1) == TRIT_ZERO
+        assert matrix_get(&m, 3, 3, 1, 0) == TRIT_ZERO
+
+    test matrix_fill_constant
+        var m : [9]i32 = undefined;
+        matrix_fill(&m, 9, TRIT_NEG);
+
+        var i : usize = 0;
+        while (i < 9) {
+            assert m[i] == TRIT_NEG
+            i = i + 1;
+        }
+
+    test matrix_copy_preserves
+        var src : [9]i32 = undefined;
+        var dst : [9]i32 = undefined;
+        matrix_fill(&src, 9, TRIT_POS);
+
+        matrix_copy(&src, &dst, 9);
+
+        var i : usize = 0;
+        while (i < 9) {
+            assert dst[i] == src[i]
+            i = i + 1;
+        }
+
+    test matrix_transpose_square
+        var src : [9]i32 = undefined;
+        var dst : [9]i32 = undefined;
+
+        // Fill with pattern
+        var i : usize = 0;
+        while (i < 9) {
+            src[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        matrix_transpose(&src, &dst, 3, 3);
+
+        // Diagonal should be unchanged
+        assert dst[0] == src[0]
+        assert dst[4] == src[4]
+        assert dst[8] == src[8]
+        // Off-diagonal should be swapped
+        assert dst[1] == src[3]
+        assert dst[3] == src[1]
+
+    test matrix_equal_true
+        var a : [9]i32 = undefined;
+        var b : [9]i32 = undefined;
+        matrix_fill(&a, 9, TRIT_POS);
+        matrix_fill(&b, 9, TRIT_POS);
+
+        assert matrix_equal(&a, &b, 9) == true
+
+    test matrix_equal_false
+        var a : [9]i32 = undefined;
+        var b : [9]i32 = undefined;
+        matrix_fill(&a, 9, TRIT_POS);
+        matrix_fill(&b, 9, TRIT_NEG);
+
+        assert matrix_equal(&a, &b, 9) == false
+
+    test matrix_set_out_of_bounds
+        var m : [9]i32 = undefined;
+        matrix_zero(&m, 9);
+
+        assert matrix_set(&m, 3, 3, 5, 5, TRIT_POS) == false
+
+    test matrix_get_out_of_bounds
+        var m : [9]i32 = undefined;
+        matrix_zero(&m, 9);
+
+        assert matrix_get(&m, 3, 3, 10, 10) == TRIT_ZERO
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant matrix_transpose_twice_original
+        // Transposing twice returns original
+        var src : [9]i32 = undefined;
+        var temp : [9]i32 = undefined;
+        var dst : [9]i32 = undefined;
+
+        var i : usize = 0;
+        while (i < 9) {
+            src[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        matrix_transpose(&src, &temp, 3, 3);
+        matrix_transpose(&temp, &dst, 3, 3);
+
+        i = 0;
+        while (i < 9) {
+            assert dst[i] == src[i]
+            i = i + 1;
+        }
+
+    invariant identity_matrix_diagonal_ones
+        // Identity matrix has 1s on diagonal, 0s elsewhere
+        var m : [9]i32 = undefined;
+        matrix_identity(&m, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            var j : usize = 0;
+            while (j < 3) {
+                const idx = i * 3 + j;
+                if (i == j) {
+                    assert m[idx] == TRIT_POS
+                } else {
+                    assert m[idx] == TRIT_ZERO
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+    invariant matrix_copy_idempotent
+        // Copying twice gives same result as copying once
+        var src : [9]i32 = undefined;
+        var dst1 : [9]i32 = undefined;
+        var dst2 : [9]i32 = undefined;
+
+        matrix_fill(&src, 9, TRIT_POS);
+        matrix_copy(&src, &dst1, 9);
+        matrix_copy(&dst1, &dst2, 9);
+
+        var i : usize = 0;
+        while (i < 9) {
+            assert dst1[i] == dst2[i]
+            i = i + 1;
+        }
+
+    invariant matrix_equal_reflexive
+        // Matrix equals itself
+        var m : [9]i32 = undefined;
+        matrix_fill(&m, 9, TRIT_POS);
+
+        assert matrix_equal(&m, &m, 9) == true
+
+    invariant matrix_fill_overwrites
+        // Fill overwrites previous values
+        var m : [9]i32 = undefined;
+        matrix_fill(&m, 9, TRIT_POS);
+        matrix_fill(&m, 9, TRIT_NEG);
+
+        var i : usize = 0;
+        while (i < 9) {
+            assert m[i] == TRIT_NEG
+            i = i + 1;
+        }
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench matrix_get_performance
+        // Measure: cycles for 1000 matrix get operations
+        // Target: < 2000 cycles
+        var m : [64]i32 = [_]i32{TRIT_POS} ** 64;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = matrix_get(&m, 8, 8, 3, 4);
+        }
+        _ = result;
+
+    bench matrix_set_performance
+        // Measure: cycles for 1000 matrix set operations
+        // Target: < 2000 cycles
+        var m : [64]i32 = [_]i32{TRIT_ZERO} ** 64;
+        @setEvalBranchQuota(10000);
+        var result : bool = false;
+        for (0..1000) |_| {
+            result = matrix_set(&m, 8, 8, 3, 4, TRIT_POS);
+        }
+        _ = result;
+
+    bench matrix_copy_performance
+        // Measure: cycles for 1000 matrix copy operations
+        // Target: < 3000 cycles
+        var src : [64]i32 = [_]i32{TRIT_POS} ** 64;
+        var dst : [64]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            matrix_copy(&src, &dst, 64);
+        }
+
+    bench matrix_transpose_performance
+        // Measure: cycles for 1000 matrix transpose operations
+        // Target: < 5000 cycles
+        var src : [64]i32 = [_]i32{TRIT_POS} ** 64;
+        var dst : [64]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            matrix_transpose(&src, &dst, 8, 8);
+        }
+
+    bench matrix_equal_performance
+        // Measure: cycles for 1000 matrix equality checks
+        // Target: < 3000 cycles
+        var a : [64]i32 = [_]i32{TRIT_POS} ** 64;
+        var b : [64]i32 = [_]i32{TRIT_POS} ** 64;
+        @setEvalBranchQuota(10000);
+        var result : bool = false;
+        for (0..1000) |_| {
+            result = matrix_equal(&a, &b, 64);
+        }
+        _ = result;
+}

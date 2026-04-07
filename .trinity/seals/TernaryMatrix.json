@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_matrix.t27",
+  "spec_hash": "sha256:3db16af0e8e404aeb1ec175ec25e1cdd97a1267793627f93215ea61bef615d6f",
+  "gen_hash_zig": "sha256:320b9828bdcbe6094a99090a44873ba998c86b201e39227107a9118524b33196",
+  "gen_hash_verilog": "sha256:ece481612d1699bbf78af553c5624f885a346c5fd8ce4258aa6dbb57378539c3",
+  "gen_hash_c": "sha256:5e2240b70d3cc81cc125711446fcd467a1e86d8a7fbf3288482a8d250c7edd7d",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:35:00Z",
+  "ring": 73,
+  "verdict": "clean",
+  "notes": "Ternary matrix operations spec (access, init, copy, transpose, compare)"
+}
