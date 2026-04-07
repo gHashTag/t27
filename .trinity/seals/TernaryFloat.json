@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_float.t27",
+  "spec_hash": "sha256:e3979ede2b129b710d9ea1347d3a42477775e5092711f6ce88769e555616d70c",
+  "gen_hash_zig": "sha256:50b31de77d363a88abf4e6989a90f61af73d10d865642d742518dbf2bcfa129c",
+  "gen_hash_verilog": "sha256:edb2672172b15d9523ef17f7d010d47b4bd2874f91caa1eb451ed7d8f8366e85",
+  "gen_hash_c": "sha256:08d265d3ab0b399facfc891f1169c5b01391b10bba325adac650275fc6552a3a",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:25:00Z",
+  "ring": 71,
+  "verdict": "clean",
+  "notes": "Ternary floating-point operations spec (component extraction, construction, abs, negate)"
+}
