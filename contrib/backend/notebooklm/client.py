@@ -7,7 +7,6 @@
 from typing import Optional, Dict, Any
 
 from .config import NotebookLMConfig
-from .cookie_auth import authenticate_with_cookies, client_close_sync
 
 
 # Global client state for singleton pattern
