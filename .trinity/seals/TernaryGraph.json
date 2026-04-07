@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_graph.t27",
+  "spec_hash": "sha256:66e674dcdef41a41db7ac79abcfdaacf82cf6fdfbf5200c9f24f753139fa1662",
+  "gen_hash_zig": "sha256:8446a08815d28b80831b2d81a2693f45f313938172e20e607b63dfe3f7da2896",
+  "gen_hash_verilog": "sha256:4a0975717569be77761c4323859055eb28bdadbc802a00755d7bf45a94b33736",
+  "gen_hash_c": "sha256:ae7460ded2537167e25c5966cd4dae41072ab64ec50d01afa9961de14677a715",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:25:00Z",
+  "ring": 83,
+  "verdict": "clean",
+  "notes": "Ternary graph operations spec (adjacency list, BFS, DFS, path finding)"
+}

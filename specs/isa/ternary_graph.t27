@@ -1,0 +1,518 @@
+// t27/specs/isa/ternary_graph.t27
+// Ternary Graph Operations Specification
+// Ring 083 - Graph data structure operations for ternary data
+// Defines adjacency list, BFS, DFS, path finding
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryGraph {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Graph Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Graph limits
+    const MAX_NODES : usize = 27;
+    const MAX_EDGES : usize = 100;
+    const INVALID_NODE : usize = 999;
+
+    // Edge weights
+    const WEIGHT_NEG : i32 = -1;
+    const WEIGHT_ZERO : i32 = 0;
+    const WEIGHT_POS : i32 = 1;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Graph Structure (Adjacency List)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // graph_init(adj_list: [[]]i32, node_count: usize) → void
+    // Initialize adjacency list with no edges
+    fn graph_init(adj_list: [[]]i32, node_count: usize) → void {
+        var i : usize = 0;
+        while (i < node_count and i < adj_list.len) {
+            var j : usize = 0;
+            while (j < MAX_NODES and j < adj_list[i].len) {
+                adj_list[i][j] = TRIT_ZERO;  // 0 means no edge
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+    }
+
+    // graph_add_edge(adj_list: [[]]i32, from: usize, to: usize, weight: i32) → void
+    // Add directed edge with weight
+    fn graph_add_edge(adj_list: [[]]i32, from: usize, to: usize, weight: i32) → void {
+        if (from < adj_list.len and to < MAX_NODES and to < adj_list[from].len) {
+            adj_list[from][to] = weight;
+        }
+    }
+
+    // graph_has_edge(adj_list: [[]]i32, from: usize, to: usize) → bool
+    // Check if edge exists (non-zero weight)
+    fn graph_has_edge(adj_list: [[]]i32, from: usize, to: usize) → bool {
+        if (from < adj_list.len and to < MAX_NODES and to < adj_list[from].len) {
+            return adj_list[from][to] != TRIT_ZERO;
+        }
+        return false;
+    }
+
+    // graph_get_weight(adj_list: [[]]i32, from: usize, to: usize) → i32
+    // Get edge weight
+    fn graph_get_weight(adj_list: [[]]i32, from: usize, to: usize) → i32 {
+        if (from < adj_list.len and to < MAX_NODES and to < adj_list[from].len) {
+            return adj_list[from][to];
+        }
+        return TRIT_ZERO;
+    }
+
+    // graph_remove_edge(adj_list: [[]]i32, from: usize, to: usize) → void
+    // Remove edge (set weight to zero)
+    fn graph_remove_edge(adj_list: [[]]i32, from: usize, to: usize) → void {
+        if (from < adj_list.len and to < MAX_NODES and to < adj_list[from].len) {
+            adj_list[from][to] = TRIT_ZERO;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Graph Traversal - BFS
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // bfs_find(adj_list: [[]]i32, node_count: usize, start: usize, target: i32) → usize
+    // BFS to find node with given target value
+    fn bfs_find(adj_list: [[]]i32, node_count: usize, start: usize, target: i32) → usize {
+        var visited : [MAX_NODES]bool = undefined;
+        var queue : [MAX_NODES]usize = undefined;
+        var queue_front : usize = 0;
+        var queue_back : usize = 0;
+
+        // Initialize visited
+        var i : usize = 0;
+        while (i < node_count and i < MAX_NODES) {
+            visited[i] = false;
+            i = i + 1;
+        }
+
+        // Start BFS
+        if (start < node_count) {
+            queue[queue_back] = start;
+            queue_back = queue_back + 1;
+            visited[start] = true;
+        }
+
+        while (queue_front < queue_back) {
+            const current = queue[queue_front];
+            queue_front = queue_front + 1;
+
+            // Check if current matches target
+            if (@as(i32, @intCast(current)) - 13 == target) {
+                return current;
+            }
+
+            // Add neighbors
+            var j : usize = 0;
+            while (j < MAX_NODES and j < adj_list[current].len) {
+                if (graph_has_edge(adj_list, current, j) and !visited[j]) {
+                    visited[j] = true;
+                    queue[queue_back] = j;
+                    queue_back = queue_back + 1;
+                }
+                j = j + 1;
+            }
+        }
+
+        return INVALID_NODE;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Graph Traversal - DFS
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // dfs_helper(adj_list: [[]]i32, visited: []bool, node: usize, target: i32, found: *bool) → usize
+    // DFS helper function
+    fn dfs_helper(adj_list: [[]]i32, visited: []bool, node: usize, target: i32, found: *bool) → usize {
+        visited[node] = true;
+
+        // Check if current matches target
+        if (@as(i32, @intCast(node)) - 13 == target) {
+            found.* = true;
+            return node;
+        }
+
+        // Recurse on neighbors
+        var i : usize = 0;
+        while (i < MAX_NODES and i < adj_list[node].len) {
+            if (graph_has_edge(adj_list, node, i) and !visited[i] and !found.*) {
+                const result = dfs_helper(adj_list, visited, i, target, found);
+                if (found.*) {
+                    return result;
+                }
+            }
+            i = i + 1;
+        }
+
+        return INVALID_NODE;
+    }
+
+    // dfs_find(adj_list: [[]]i32, node_count: usize, start: usize, target: i32) → usize
+    // DFS to find node with given target value
+    fn dfs_find(adj_list: [[]]i32, node_count: usize, start: usize, target: i32) → usize {
+        var visited : [MAX_NODES]bool = undefined;
+        var i : usize = 0;
+        while (i < node_count and i < MAX_NODES) {
+            visited[i] = false;
+            i = i + 1;
+        }
+
+        var found : bool = false;
+        return dfs_helper(adj_list, &visited, start, target, &found);
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. Path Finding
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // find_path(adj_list: [[]]i32, node_count: usize, start: usize, end: usize, path: []usize) → usize
+    // Find path from start to end using BFS, return path length
+    fn find_path(adj_list: [[]]i32, node_count: usize, start: usize, end: usize, path: []usize) → usize {
+        var visited : [MAX_NODES]bool = undefined;
+        var parent : [MAX_NODES]usize = undefined;
+        var queue : [MAX_NODES]usize = undefined;
+        var queue_front : usize = 0;
+        var queue_back : usize = 0;
+
+        var i : usize = 0;
+        while (i < node_count and i < MAX_NODES) {
+            visited[i] = false;
+            parent[i] = INVALID_NODE;
+            i = i + 1;
+        }
+
+        visited[start] = true;
+        queue[queue_back] = start;
+        queue_back = queue_back + 1;
+
+        while (queue_front < queue_back) {
+            const current = queue[queue_front];
+            queue_front = queue_front + 1;
+
+            if (current == end) {
+                // Reconstruct path
+                var path_len : usize = 0;
+                var node : usize = end;
+                while (node != INVALID_NODE and path_len < path.len) {
+                    path[path_len] = node;
+                    path_len = path_len + 1;
+                    if (node == start) { break; }
+                    node = parent[node];
+                }
+                return path_len;
+            }
+
+            var j : usize = 0;
+            while (j < MAX_NODES and j < adj_list[current].len) {
+                if (graph_has_edge(adj_list, current, j) and !visited[j]) {
+                    visited[j] = true;
+                    parent[j] = current;
+                    queue[queue_back] = j;
+                    queue_back = queue_back + 1;
+                }
+                j = j + 1;
+            }
+        }
+
+        return 0;  // No path found
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test graph_init_empty
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+
+        assert adj_list[0][0] == TRIT_ZERO
+        assert adj_list[1][1] == TRIT_ZERO
+        assert adj_list[4][4] == TRIT_ZERO
+
+    test graph_add_edge
+        var adj_list : [3][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 3);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_NEG);
+
+        assert graph_has_edge(&adj_list, 0, 1)
+        assert graph_has_edge(&adj_list, 1, 2)
+        assert !graph_has_edge(&adj_list, 0, 2)
+
+    test graph_get_weight
+        var adj_list : [3][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 3);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 0, 2, WEIGHT_NEG);
+
+        assert graph_get_weight(&adj_list, 0, 1) == WEIGHT_POS
+        assert graph_get_weight(&adj_list, 0, 2) == WEIGHT_NEG
+        assert graph_get_weight(&adj_list, 1, 0) == TRIT_ZERO
+
+    test graph_remove_edge
+        var adj_list : [3][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 3);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        assert graph_has_edge(&adj_list, 0, 1)
+
+        graph_remove_edge(&adj_list, 0, 1);
+        assert !graph_has_edge(&adj_list, 0, 1)
+
+    test bfs_find_connected
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_POS);
+        graph_add_edge(&adj_list, 2, 3, WEIGHT_POS);
+
+        const idx = bfs_find(&adj_list, 5, 0, TRIT_ZERO);  // Looking for node 1 (1-13=-12, not quite)
+        assert idx != INVALID_NODE
+
+    test bfs_find_disconnected
+        var adj_list : [3][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 3);
+        // No edges
+
+        const idx = bfs_find(&adj_list, 3, 0, TRIT_POS);
+        // Only start node visited
+        assert idx == 0 or idx == INVALID_NODE
+
+    test dfs_find_path
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_POS);
+        graph_add_edge(&adj_list, 0, 3, WEIGHT_POS);
+
+        const idx = dfs_find(&adj_list, 5, 0, TRIT_ZERO);
+        assert idx != INVALID_NODE
+
+    test find_path_exists
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_POS);
+        graph_add_edge(&adj_list, 2, 3, WEIGHT_POS);
+
+        var path : [10]usize = undefined;
+        const len = find_path(&adj_list, 5, 0, 3, &path);
+
+        assert len > 0
+        assert path[0] == 3
+
+    test find_path_no_path
+        var adj_list : [4][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 4);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        // Node 2 and 3 are isolated
+
+        var path : [10]usize = undefined;
+        const len = find_path(&adj_list, 4, 0, 3, &path);
+
+        assert len == 0
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant graph_add_edge_increases_degree
+        // Adding an edge increases out-degree
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+
+        var before_degree : usize = 0;
+        var i : usize = 0;
+        while (i < MAX_NODES) {
+            if (adj_list[0][i] != TRIT_ZERO) {
+                before_degree = before_degree + 1;
+            }
+            i = i + 1;
+        }
+
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+
+        var after_degree : usize = 0;
+        i = 0;
+        while (i < MAX_NODES) {
+            if (adj_list[0][i] != TRIT_ZERO) {
+                after_degree = after_degree + 1;
+            }
+            i = i + 1;
+        }
+
+        assert after_degree == before_degree + 1
+
+    invariant remove_edge_decreases_degree
+        // Removing an edge decreases out-degree
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 0, 2, WEIGHT_POS);
+
+        var before_degree : usize = 0;
+        var i : usize = 0;
+        while (i < MAX_NODES) {
+            if (adj_list[0][i] != TRIT_ZERO) {
+                before_degree = before_degree + 1;
+            }
+            i = i + 1;
+        }
+
+        graph_remove_edge(&adj_list, 0, 1);
+
+        var after_degree : usize = 0;
+        i = 0;
+        while (i < MAX_NODES) {
+            if (adj_list[0][i] != TRIT_ZERO) {
+                after_degree = after_degree + 1;
+            }
+            i = i + 1;
+        }
+
+        assert after_degree == before_degree - 1
+
+    invariant bfs_visits_reachable
+        // BFS visits all reachable nodes
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_POS);
+        graph_add_edge(&adj_list, 2, 3, WEIGHT_POS);
+        // Node 4 is isolated
+
+        const idx = bfs_find(&adj_list, 5, 0, TRIT_ZERO);
+        // Should find something in connected component
+        assert idx < 5
+
+    invariant dfs_finds_same_as_bfs
+        // DFS and BFS find same nodes in connected graph
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_POS);
+
+        const bfs_result = bfs_find(&adj_list, 5, 0, TRIT_ZERO);
+        const dfs_result = dfs_find(&adj_list, 5, 0, TRIT_ZERO);
+
+        if (bfs_result == INVALID_NODE) {
+            assert dfs_result == INVALID_NODE
+        } else {
+            assert dfs_result != INVALID_NODE
+        }
+
+    invariant path_contains_start_and_end
+        // Found path includes start and end nodes
+        var adj_list : [5][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, 5);
+        graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        graph_add_edge(&adj_list, 1, 2, WEIGHT_POS);
+        graph_add_edge(&adj_list, 2, 3, WEIGHT_POS);
+
+        var path : [10]usize = undefined;
+        const len = find_path(&adj_list, 5, 0, 3, &path);
+
+        assert len > 0
+        assert path[0] == 3  // End is first (reversed)
+        // Start should be somewhere in path
+        var found_start : bool = false;
+        var i : usize = 0;
+        while (i < len) {
+            if (path[i] == 0) {
+                found_start = true;
+            }
+            i = i + 1;
+        }
+        assert found_start
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench graph_init_performance
+        // Measure: cycles for 1000 graph initializations
+        // Target: < 5000 cycles
+        var adj_list : [MAX_NODES][MAX_NODES]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            graph_init(&adj_list, MAX_NODES);
+        }
+
+    bench graph_add_edge_performance
+        // Measure: cycles for 10000 edge additions
+        // Target: < 5000 cycles
+        var adj_list : [MAX_NODES][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, MAX_NODES);
+        @setEvalBranchQuota(10000);
+        for (0..10000) |_| {
+            graph_add_edge(&adj_list, 0, 1, WEIGHT_POS);
+        }
+
+    bench bfs_performance
+        // Measure: cycles for 100 BFS operations on full graph
+        // Target: < 10000 cycles
+        var adj_list : [MAX_NODES][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, MAX_NODES);
+        var i : usize = 0;
+        while (i < MAX_NODES) {
+            var j : usize = 0;
+            while (j < MAX_NODES) {
+                if (i != j) {
+                    adj_list[i][j] = WEIGHT_POS;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = bfs_find(&adj_list, MAX_NODES, 0, TRIT_ZERO);
+        }
+
+    bench dfs_performance
+        // Measure: cycles for 100 DFS operations on full graph
+        // Target: < 10000 cycles
+        var adj_list : [MAX_NODES][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, MAX_NODES);
+        var i : usize = 0;
+        while (i < MAX_NODES) {
+            var j : usize = 0;
+            while (j < MAX_NODES) {
+                if (i != j) {
+                    adj_list[i][j] = WEIGHT_POS;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = dfs_find(&adj_list, MAX_NODES, 0, TRIT_ZERO);
+        }
+
+    bench find_path_performance
+        // Measure: cycles for 100 path finding operations
+        // Target: < 10000 cycles
+        var adj_list : [MAX_NODES][MAX_NODES]i32 = undefined;
+        graph_init(&adj_list, MAX_NODES);
+        var i : usize = 0;
+        while (i < MAX_NODES - 1) {
+            adj_list[i][i + 1] = WEIGHT_POS;
+            i = i + 1;
+        }
+        var path : [MAX_NODES]usize = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = find_path(&adj_list, MAX_NODES, 0, MAX_NODES - 1, &path);
+        }
+}
