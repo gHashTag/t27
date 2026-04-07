@@ -27,10 +27,10 @@
       "resource_type": "software"
     },
     {
-      "relation": "isDocumentedBy",
-      "identifier": "https://github.com/gHashTag/t27/issues/1",
+      "relation": "documents",
+      "identifier": "https://github.com/gHashTag/t27",
       "resource_type": "software",
-      "title": "GitHub Issue: Sprint 7 - Zenodo Publication Pipeline"
+      "title": "T27: TRI-27 — Spec-First Language for Ternary Computing"
     }
   ],
   "version": "0.1.0",

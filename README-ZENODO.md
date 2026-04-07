@@ -6,6 +6,13 @@ This repository is published to Zenodo with DOI: `https://doi.org/10.5281/zenodo
 
 Vasilev, Dmitrii — Trinity Computing
 
+## Repository Structure
+
+**Main framework:** `https://github.com/gHashTag/trinity` — Trinity S³AI Framework
+**Spec language (this repo):** `https://github.com/gHashTag/t27` — T27 specification language
+
+This Zenodo entry publishes the **T27 specification language** which is used within the Trinity framework.
+
 ## Citation
 
 ```bibtex
@@ -46,7 +53,8 @@ T27 implements the TRI-27 spec-first language with:
 
 Whitepaper: "GoldenFloat: φ-Optimal Floating-Point Formats" (in-progress)
 
-GitHub Repository: https://github.com/gHashTag/t27
+**Trinity framework:** https://github.com/gHashTag/trinity — Main repository
+**T27 spec language:** https://github.com/gHashTag/t27 — This repository
 
 ## Zenodo Rules
 
