@@ -1,0 +1,480 @@
+// t27/specs/isa/ternary_hash_table.t27
+// Ternary Hash Table Operations Specification
+// Ring 087 - Hash table operations for ternary data
+// Defines key-value storage with open addressing collision resolution
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryHashTable {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Hash Table Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Hash table limits
+    const TABLE_SIZE : usize = 27;
+
+    // Special markers
+    const KEY_EMPTY : i32 = 999999;
+    const KEY_DELETED : i32 = 999998;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Hash Function
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ht_hash(key: i32) → usize
+    // Simple hash function for ternary keys
+    fn ht_hash(key: i32) → usize {
+        // Use absolute value and modulo
+        var k = key;
+        if (k < 0) {
+            k = -k;
+        }
+        return @as(usize, @intCast(k)) % TABLE_SIZE;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Hash Table Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ht_init(keys: []i32, values: []i32, count: *usize) → void
+    // Initialize empty hash table
+    fn ht_init(keys: []i32, values: []i32, count: *usize) → void {
+        var i : usize = 0;
+        while (i < TABLE_SIZE and i < keys.len and i < values.len) {
+            keys[i] = KEY_EMPTY;
+            values[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+        count.* = 0;
+    }
+
+    // ht_insert(keys: []i32, values: []i32, count: *usize, key: i32, value: i32) → bool
+    // Insert key-value pair, return true if successful
+    fn ht_insert(keys: []i32, values: []i32, count: *usize, key: i32, value: i32) → bool {
+        var idx : usize = ht_hash(key);
+        var first_deleted : usize = TABLE_SIZE;
+        var i : usize = 0;
+
+        while (i < TABLE_SIZE) {
+            const slot = (idx + i) % TABLE_SIZE;
+            if (slot >= keys.len or slot >= values.len) {
+                return false;
+            }
+
+            if (keys[slot] == KEY_EMPTY) {
+                // Found empty slot
+                if (first_deleted < TABLE_SIZE) {
+                    // Use deleted slot first
+                    keys[first_deleted] = key;
+                    values[first_deleted] = value;
+                } else {
+                    keys[slot] = key;
+                    values[slot] = value;
+                }
+                count.* = count.* + 1;
+                return true;
+            } else if (keys[slot] == KEY_DELETED) {
+                // Remember first deleted slot
+                if (first_deleted == TABLE_SIZE) {
+                    first_deleted = slot;
+                }
+            } else if (keys[slot] == key) {
+                // Update existing key
+                values[slot] = value;
+                return true;
+            }
+            i = i + 1;
+        }
+
+        // Table is full
+        return false;
+    }
+
+    // ht_get(keys: []i32, values: []i32, key: i32) → i32
+    // Get value for key, return TRIT_ZERO if not found
+    fn ht_get(keys: []i32, values: []i32, key: i32) → i32 {
+        var idx : usize = ht_hash(key);
+        var i : usize = 0;
+
+        while (i < TABLE_SIZE) {
+            const slot = (idx + i) % TABLE_SIZE;
+            if (slot >= keys.len or slot >= values.len) {
+                return TRIT_ZERO;
+            }
+
+            if (keys[slot] == KEY_EMPTY) {
+                return TRIT_ZERO;  // Key not found
+            } else if (keys[slot] == key) {
+                return values[slot];  // Found key
+            }
+            i = i + 1;
+        }
+
+        return TRIT_ZERO;  // Not found (table full)
+    }
+
+    // ht_has_key(keys: []i32, key: i32) → bool
+    // Check if key exists in table
+    fn ht_has_key(keys: []i32, key: i32) → bool {
+        var idx : usize = ht_hash(key);
+        var i : usize = 0;
+
+        while (i < TABLE_SIZE) {
+            const slot = (idx + i) % TABLE_SIZE;
+            if (slot >= keys.len) {
+                return false;
+            }
+
+            if (keys[slot] == KEY_EMPTY) {
+                return false;
+            } else if (keys[slot] == key) {
+                return true;
+            }
+            i = i + 1;
+        }
+
+        return false;
+    }
+
+    // ht_delete(keys: []i32, values: []i32, count: *usize, key: i32) → bool
+    // Delete key from table, return true if found and deleted
+    fn ht_delete(keys: []i32, values: []i32, count: *usize, key: i32) → bool {
+        var idx : usize = ht_hash(key);
+        var i : usize = 0;
+
+        while (i < TABLE_SIZE) {
+            const slot = (idx + i) % TABLE_SIZE;
+            if (slot >= keys.len or slot >= values.len) {
+                return false;
+            }
+
+            if (keys[slot] == KEY_EMPTY) {
+                return false;  // Key not found
+            } else if (keys[slot] == key) {
+                keys[slot] = KEY_DELETED;  // Mark as deleted
+                values[slot] = TRIT_ZERO;
+                count.* = count.* - 1;
+                return true;
+            }
+            i = i + 1;
+        }
+
+        return false;
+    }
+
+    // ht_size(count: usize) → usize
+    // Get number of elements in table
+    fn ht_size(count: usize) → usize {
+        return count;
+    }
+
+    // ht_is_empty(count: usize) → bool
+    // Check if table is empty
+    fn ht_is_empty(count: usize) → bool {
+        return count == 0;
+    }
+
+    // ht_is_full(count: usize) → bool
+    // Check if table is full
+    fn ht_is_full(count: usize) → bool {
+        return count >= TABLE_SIZE;
+    }
+
+    // ht_clear(keys: []i32, values: []i32, count: *usize) → void
+    // Clear all entries from table
+    fn ht_clear(keys: []i32, values: []i32, count: *usize) → void {
+        var i : usize = 0;
+        while (i < TABLE_SIZE and i < keys.len and i < values.len) {
+            keys[i] = KEY_EMPTY;
+            values[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+        count.* = 0;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test ht_init_empty
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 99;
+        ht_init(&keys, &values, &count);
+
+        assert count == 0
+
+    test ht_insert_get
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        ht_insert(&keys, &values, &count, 2, TRIT_NEG);
+
+        assert ht_get(&keys, &values, 1) == TRIT_POS
+        assert ht_get(&keys, &values, 2) == TRIT_NEG
+
+    test ht_has_key
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+
+        assert ht_has_key(&keys, 1)
+        assert !ht_has_key(&keys, 2)
+
+    test ht_delete
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        const deleted = ht_delete(&keys, &values, &count, 1);
+
+        assert deleted
+        assert !ht_has_key(&keys, 1)
+        assert ht_get(&keys, &values, 1) == TRIT_ZERO
+
+    test ht_update_existing
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        const inserted = ht_insert(&keys, &values, &count, 1, TRIT_NEG);  // Update
+
+        assert !inserted  // Not a new insertion
+        assert ht_get(&keys, &values, 1) == TRIT_NEG  // Updated
+
+    test ht_size_count
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        ht_insert(&keys, &values, &count, 2, TRIT_NEG);
+        ht_insert(&keys, &values, &count, 3, TRIT_ZERO);
+
+        assert ht_size(count) == 3
+
+    test ht_clear
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        ht_insert(&keys, &values, &count, 2, TRIT_NEG);
+        ht_clear(&keys, &values, &count);
+
+        assert ht_is_empty(count)
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant ht_size_matches_inserts
+        // Size equals number of successful inserts
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        var i : usize = 0;
+        while (i < 5) {
+            ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), TRIT_POS);
+            i = i + 1;
+        }
+
+        assert ht_size(count) == 5
+
+    invariant ht_delete_reduces_size
+        // Delete reduces size
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        ht_insert(&keys, &values, &count, 2, TRIT_NEG);
+        ht_delete(&keys, &values, &count, 1);
+
+        assert ht_size(count) == 1
+
+    invariant ht_get_returns_inserted_value
+        // Get returns the value that was inserted
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        var i : usize = 0;
+        while (i < 10) {
+            ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), @as(i32, @intCast(i % 3)) - 1);
+            i = i + 1;
+        }
+
+        i = 0;
+        while (i < 10) {
+            assert ht_get(&keys, &values, @as(i32, @intCast(i))) == @as(i32, @intCast(i % 3)) - 1
+            i = i + 1;
+        }
+
+    invariant ht_clear_resets_size
+        // Clear resets size to zero
+        var keys : [10]i32 = undefined;
+        var values : [10]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        var i : usize = 0;
+        while (i < 5) {
+            ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), TRIT_POS);
+            i = i + 1;
+        }
+
+        ht_clear(&keys, &values, &count);
+        assert ht_is_empty(count)
+
+    invariant ht_hash_distributes
+        // Hash function distributes keys reasonably
+        var counts : [TABLE_SIZE]usize = undefined;
+        var i : usize = 0;
+        while (i < TABLE_SIZE) {
+            counts[i] = 0;
+            i = i + 1;
+        }
+
+        i = 0;
+        while (i < 50) {
+            const hash = ht_hash(@as(i32, @intCast(i)));
+            if (hash < TABLE_SIZE) {
+                counts[hash] = counts[hash] + 1;
+            }
+            i = i + 1;
+        }
+
+        // At least some buckets should have entries
+        var non_empty : usize = 0;
+        i = 0;
+        while (i < TABLE_SIZE) {
+            if (counts[i] > 0) {
+                non_empty = non_empty + 1;
+            }
+            i = i + 1;
+        }
+
+        assert non_empty > 3
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench ht_insert_performance
+        // Measure: cycles for 1000 insert operations
+        // Target: < 5000 cycles
+        var keys : [TABLE_SIZE]i32 = undefined;
+        var values : [TABLE_SIZE]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            count = 0;
+            ht_insert(&keys, &values, &count, 1, TRIT_POS);
+        }
+
+    bench ht_get_performance
+        // Measure: cycles for 10000 get operations
+        // Target: < 3000 cycles
+        var keys : [TABLE_SIZE]i32 = undefined;
+        var values : [TABLE_SIZE]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        var i : usize = 0;
+        while (i < 10) {
+            ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), TRIT_POS);
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..10000) |_| {
+            _ = ht_get(&keys, &values, 5);
+        }
+
+    bench ht_delete_performance
+        // Measure: cycles for 1000 delete operations
+        // Target: < 4000 cycles
+        var keys : [TABLE_SIZE]i32 = undefined;
+        var values : [TABLE_SIZE]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        var i : usize = 0;
+        while (i < 10) {
+            ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), TRIT_POS);
+            i = i + 1;
+        }
+
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            count = 10;
+            i = 0;
+            while (i < 10) {
+                ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), TRIT_POS);
+                i = i + 1;
+            }
+            ht_delete(&keys, &values, &count, 5);
+        }
+
+    bench ht_has_key_performance
+        // Measure: cycles for 10000 has_key operations
+        // Target: < 3000 cycles
+        var keys : [TABLE_SIZE]i32 = undefined;
+        var values : [TABLE_SIZE]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        ht_insert(&keys, &values, &count, 5, TRIT_POS);
+        @setEvalBranchQuota(10000);
+        for (0..10000) |_| {
+            _ = ht_has_key(&keys, 5);
+        }
+
+    bench ht_mixed_performance
+        // Measure: cycles for 100 insert/get/delete cycles
+        // Target: < 8000 cycles
+        var keys : [TABLE_SIZE]i32 = undefined;
+        var values : [TABLE_SIZE]i32 = undefined;
+        var count : usize = 0;
+        ht_init(&keys, &values, &count);
+
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            count = 0;
+            var i : usize = 0;
+            while (i < 10) {
+                ht_insert(&keys, &values, &count, @as(i32, @intCast(i)), TRIT_POS);
+                i = i + 1;
+            }
+            i = 0;
+            while (i < 5) {
+                _ = ht_get(&keys, &values, @as(i32, @intCast(i)));
+                i = i + 1;
+            }
+            ht_delete(&keys, &values, &count, 0);
+        }
+}

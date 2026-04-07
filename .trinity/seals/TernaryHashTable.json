@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_hash_table.t27",
+  "spec_hash": "sha256:40c71e5ef50bda77a84eccd2ddaa154b7e50b50cb1560d3c5ba6364268077cbb",
+  "gen_hash_zig": "sha256:23fcec58ca64602bd7e1331f3ac0a33c1c26e73980a8a45acf9ef07a9992c3d1",
+  "gen_hash_verilog": "sha256:8e74932ae59627fad04832e71e50ea04ce169341a518f1720477fd00cd0b42f9",
+  "gen_hash_c": "sha256:fda6ddbc8e57da5da53915f0fbf3376558f8549f7529609952d13a392dd0a7ec",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:45:00Z",
+  "ring": 87,
+  "verdict": "clean",
+  "notes": "Ternary hash table spec (key-value storage, open addressing, insert/get/delete)"
+}
