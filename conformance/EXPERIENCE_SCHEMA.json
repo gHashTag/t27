@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gHashTag/t27/conformance/EXPERIENCE_SCHEMA.json",
+  "title": "T27 Experience Log Schema v2",
+  "description": "Schema for PHI LOOP experience episodes with tiered claims",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "episode_id",
+    "ring_number",
+    "timestamp",
+    "verdict",
+    "claim_tier"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version (2 for v2)",
+      "const": 2,
+      "enum": [2]
+    },
+    "episode_id": {
+      "type": "string",
+      "description": "Unique episode identifier (UUID or timestamp-based)"
+    },
+    "ring_number": {
+      "type": "integer",
+      "description": "Ring number",
+      "minimum": 0,
+      "maximum": 999
+    },
+    "issue_number": {
+      "type": "integer",
+      "description": "GitHub issue number (L1 TRACEABILITY)",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "RFC3339 timestamp of episode",
+      "format": "date-time"
+    },
+    "verdict": {
+      "type": "string",
+      "description": "PHI LOOP verdict",
+      "enum": ["CLEAN", "TOXIC", "WEAK_CONFIRM"]
+    },
+    "claim_tier": {
+      "type": "string",
+      "description": "Research claim tier (from RESEARCH_CLAIMS.md)",
+      "enum": ["PROVEN", "TESTED", "CLAIMED", "SPECULATIVE"],
+      "default": "TESTED"
+    },
+    "task": {
+      "type": "string",
+      "description": "Brief description of the task"
+    },
+    "spec_delta": {
+      "type": "string",
+      "description": "Which .t27 spec changed"
+    },
+    "generated_artifacts": {
+      "type": "array",
+      "description": "List of generated files",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {"type": "string"},
+          "type": {"type": "string"},
+          "hash": {"type": "string"}
+        },
+        "required": ["path", "type"]
+      }
+    },
+    "tests": {
+      "type": "object",
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0}
+      },
+      "required": ["total", "passed", "failed"]
+    },
+    "hashes": {
+      "type": "object",
+      "properties": {
+        "spec_hash_before": {"type": "string"},
+        "spec_hash_after": {"type": "string"},
+        "gen_hash_after": {"type": "string"},
+        "test_vector_hash": {"type": "string"}
+      },
+      "required": ["spec_hash_before", "spec_hash_after", "gen_hash_after", "test_vector_hash"]
+    },
+    "next_constraint": {
+      "type": "string",
+      "description": "Single next bottleneck"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Agent that produced this episode"
+    },
+    "law_violations": {
+      "type": "array",
+      "description": "L1-L7 law violations if verdict is TOXIC",
+      "items": {
+        "type": "object",
+        "properties": {
+          "law": {"type": "string", "enum": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"]},
+          "description": {"type": "string"}
+        },
+        "required": ["law", "description"]
+      }
+    },
+    "claim_evidence": {
+      "type": "object",
+      "description": "Evidence supporting the claim tier",
+      "properties": {
+        "proof_type": {
+          "type": "string",
+          "enum": ["formal", "test_vector", "argument", "hypothesis"],
+          "description": "Type of evidence"
+        },
+        "proof_system": {
+          "type": "string",
+          "description": "Proof system used (e.g., Coq, test vectors)"
+        },
+        "confidence": {
+          "type": "number",
+          "description": "Confidence score (0-1)",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "citations": {
+          "type": "array",
+          "description": "Academic or technical citations",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  }
+}
