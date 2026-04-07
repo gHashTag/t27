@@ -1,10 +1,10 @@
 {
-  "gen_hash_c": "sha256:PLACEHOLDER",
-  "gen_hash_verilog": "sha256:PLACEHOLDER",
-  "gen_hash_zig": "sha256:PLACEHOLDER",
+  "gen_hash_c": "sha256:a423ac269616555a4d7ff4d7d6298cc7134cbbe794cf20baaa7c5f7d8c7a7a94",
+  "gen_hash_verilog": "sha256:a3de5b47a48825a9fba03eebaef982272c63995421d3f9dd17212492c8f6b142",
+  "gen_hash_zig": "sha256:810ea5b9d0569c0de0af4157debbd1f97d96bfc60dceee96e6eaa329b3ccc4bb",
   "module": "PhiSplitOptimality",
-  "ring": 48,
-  "sealed_at": "2026-04-07T18:20:00Z",
-  "spec_hash": "sha256:PLACEHOLDER",
+  "ring": 12,
+  "sealed_at": "2026-04-07T17:55:24Z",
+  "spec_hash": "sha256:0e42278fe6ab0734eeda8c5775d1efaf099ece208eaf90520fd0a9554b742b19",
   "spec_path": "specs/math/phi_split_optimality.t27"
 }

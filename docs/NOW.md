@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — NotebookLM Phase 2-5 complete · PR #317 (OPEN) · RFC3339 2026-04-07T17:30:00Z
+**Last updated:** 2026-04-07 — Ring 050 complete: radix_economy.t27 (ternary beats binary by 5.4%) · PR #316 MERGED · Ring 051 in progress: phi_split_optimality.t27 · RFC3339 2026-04-07T17:56:00Z
 
 **Document class:** Operational focus document
 **Revision:** **P0 Sprint 1 Complete** — 6 files converted from trinity-source/src/ to .t27 specs:
