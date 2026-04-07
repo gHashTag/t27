@@ -5,10 +5,17 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 at 90% · Rings 061-066 complete · Trinity-Pellis research docs handoff (#283 / #285) · RFC3339 2026-04-07T23:59:00Z
+**Last updated:** 2026-04-08 — Wednesday, 08 April 2026 (UTC+07) · Sprint 1 Complete · 6 Zig→t27 specs (151 tests, 82 invariants, 73 benchmarks) · PR #311 merged · RFC3339 2026-04-08T23:59:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 4 at 90%** — Rings 061-066 complete; Crown baseline through Rings 051-059 (#197, #199, #201, #203, #205, #207, #209, #216) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution, experience aggregation for Queen brain seals. Spec growth: 86/100 target. Base layer (encoding, memory) + ISA (gates, arithmetic) well-defined. **Issue [#277](https://github.com/gHashTag/t27/issues/277):** `tri math compare` (Pellis / hybrid / sensitivity) + `specs/physics/pellis-formulas.t27` + `research/trinity-pellis-paper/` scaffold. **PR [#283](https://github.com/gHashTag/t27/pull/283) / [#285](https://github.com/gHashTag/t27/issues/285):** formal Conjecture H1, `ROADMAP.md`, `FORMULA_TABLE.md` SSOT notes under `research/trinity-pellis-paper/`.
+**Revision:** **P0 Sprint 1 Complete** — 6 files converted from trinity-source/src/ to .t27 specs:
+- `specs/ternary/bigint.t27` (32 tests, 15 invariants, 11 benchmarks)
+- `specs/jit/jit.t27` (15 tests, 10 invariants, 8 benchmarks)
+- `specs/vsa/vsa_core.t27` (22 tests, 13 invariants, 12 benchmarks)
+- `specs/ternary/hybrid_bigint.t27` (30 tests, 15 invariants, 14 benchmarks)
+- `specs/neural/forward_pass.t27` (30 tests, 15 invariants, 14 benchmarks)
+- `specs/numeric/format_conversion.t27` (22 tests, 14 invariants, 14 benchmarks)
+Total: 151 tests, 82 invariants, 73 benchmarks. Commit `af9556b`, PR #311.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
