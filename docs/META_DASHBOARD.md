@@ -1,6 +1,6 @@
 # META Dashboard — Phase 4 Crown Metrics
 
-**Ring:** 061 | **Phase 4** | **Status:** IN PROGRESS
+**Ring:** 069 | **Phase 4** | **Status:** IN PROGRESS
 
 ## Purpose
 
@@ -16,7 +16,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 | Rings Closed | 53+ | - | 🟢 Good |
 | Queen Health | 1.0 / GREEN | ≥ 0.8 | 🟢 Excellent |
 | Open PRs | 0 | < 5 | 🟢 Clean |
-| Spec Count | 86 | 100+ | 🟡 Growing |
+| Spec Count | 90 | 100+ | 🟡 Growing |
 
 ---
 
@@ -26,7 +26,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 Phase 1: Seed (Bootstrap)    ████████████ 100% ✅
 Phase 2: Stem (Conformance)  ████████████ 100% ✅
 Phase 3: Branches (Science)  ████████████ 100% ✅
-Phase 4: Crown (Queen)        ████████████░░  90% 🟡
+Phase 4: Crown (Queen)        ████████████░  92% 🟢
 ```
 
 ---
@@ -47,7 +47,9 @@ Phase 4: Crown (Queen)        ████████████░░  90% �
 | 064 | #228 | Ternary Arithmetic | Addition, subtraction, multiplication, conversion | ✅ Done |
 | 065 | #230 | Ternary Encoding | Bit/byte to trit conversion, balanced/unipolar | ✅ Done |
 | 066 | #232 | Ternary Memory | Trit cell, word, memory bank operations | ✅ Done |
-| 061 | - | Brain Summaries | Brain summaries pipeline spec, schema, CI integration | ✅ Done |
+| 067 | #234 | Ternary Shift | Shift left/right, rotate, arithmetic shift, extraction | ✅ Done |
+| 068 | #236 | Ternary Bitwise | AND, OR, XOR, NOT, NAND, NOR, XNOR, mask | ✅ Done |
+| 069 | #238 | Ternary Comparison | Equality, ordering, sign detection, min/max | ✅ Done |
 
 ---
 
@@ -58,7 +60,7 @@ Phase 4: Crown (Queen)        ████████████░░  90% �
 | seed_bootstrap | 1.0 | 031 | ✅ Sealed |
 | stem_conformance | 1.0 | 049 | ✅ Sealed |
 | branches_science | 1.0 | 053 | ✅ Sealed |
-| crown_automation | 1.0 | 066 | 🟢 Excellent (brain summaries, VSA, ISA, memory) |
+| crown_automation | 1.0 | 069 | 🟢 Excellent (brain summaries, VSA, full ISA suite) |
 | compiler_verification | 0.8 | 150 | 🟢 Active |
 | coq_kernel | 0.7 | 156 | 🟢 Active |
 
@@ -80,9 +82,9 @@ Phase 4: Crown (Queen)        ████████████░░  90% �
 
 ## Next Actions
 
-1. **Queen Brain Spec:** `specs/queen/lotus.t27` — orchestration layer
-2. **Lotus Phase Automation:** `.trinity/queen-brain/summaries/` pipeline
-3. **Spec Growth:** Target 100 specs by Ring 070
+1. **Ring 070:** Continue ISA suite — control flow operations
+2. **Spec Growth:** 10 more specs to reach 100
+3. **Queen Brain Spec:** `specs/queen/lotus.t27` — orchestration layer
 4. **Coq Kernel:** Continue formal verification progress
 
 ---
@@ -96,6 +98,6 @@ Phase 4: Crown (Queen)        ████████████░░  90% �
 
 ---
 
-**Last updated:** 2026-04-07 (Phase 3 complete, Phase 4 in progress)
+**Last updated:** 2026-04-08 (Phase 4 at 92%, 90/100 specs)
 
 φ² + 1/φ² = 3 | TRINITY
