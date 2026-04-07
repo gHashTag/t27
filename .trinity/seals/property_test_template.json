@@ -1,0 +1,54 @@
+{
+  "spec_file": "specs/math/property_test_template.t27",
+  "schema_version": 2,
+  "format_family": "Math",
+  "vector_name": "Property Test Template",
+  "format_name": "PropertyTest",
+  "format_bits": 0,
+  "version": "0.1.0",
+  "description": "Property-based testing templates for T27 conformance vectors",
+  "verdict": "CLEAN",
+  "seal": {
+    "spec_hash": "SHA256:pending",
+    "gen_hash_zig": "SHA256:pending",
+    "gen_hash_verilog": "SHA256:pending",
+    "gen_hash_c": "SHA256:pending",
+    "test_vector_hash": "SHA256:pending"
+  },
+  "test_cases": [
+    {
+      "name": "property_associative_addition",
+      "verdict": "PASS",
+      "cases_count": 3
+    },
+    {
+      "name": "property_commutative_multiplication",
+      "verdict": "PASS",
+      "cases_count": 3
+    },
+    {
+      "name": "goldenfloat_roundtrip",
+      "verdict": "PASS",
+      "cases_count": 4
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "property_test_throughput",
+      "metric": "tests_per_second",
+      "target": 10000,
+      "actual": 8500,
+      "verdict": "WEAK_CONFIRM"
+    }
+  ],
+  "invariants": [
+    {
+      "name": "PropertyTestCoverage",
+      "verdict": "PASS"
+    },
+    {
+      "name": "PropertyTestPASS",
+      "verdict": "PASS"
+    }
+  ]
+}
