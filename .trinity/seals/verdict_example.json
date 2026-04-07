@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "ring_number": 51,
+  "issue_number": 197,
+  "verdict": "CLEAN",
+  "timestamp": "2026-04-07T12:00:00Z",
+  "spec_delta": "conformance/VERDICT_SCHEMA.json (new schema definition)",
+  "hashes": {
+    "spec_hash_before": "0000000000000000000000000000000000000000000000000000000000000000",
+    "spec_hash_after": "a1b2c3d4e5f60192837465a0b1c2d3e4f5061728394a5b6c7d8e9f0a1b2c3d4",
+    "gen_hash_after": "e5f60192837465a0b1c2d3e4f5061728394a5b6c7d8e9f0a1b2c3d4e5f601928",
+    "test_vector_hash": "f5061728394a5b6c7d8e9f0a1b2c3d4e5f60192837465a0b1c2d3e4a1b2c3d4e5"
+  },
+  "generated_artifacts": [
+    {
+      "path": "conformance/VERDICT_SCHEMA.json",
+      "type": "json",
+      "hash": "b1c2d3e4f5061728394a5b6c7d8e9f0a1b2c3d4e5f60192837465a0b1c2d3e4f5"
+    }
+  ],
+  "tests": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "next_constraint": "CI validation for verdict schema",
+  "agent": "t27-autonomous"
+}
