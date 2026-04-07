@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:f4792851d2e43f85515323d55757ab390e3a864a1c43bb63d4bec171facfb83f",
+  "gen_hash_verilog": "sha256:545be19a5a9198e0f69df92b2b4a65a0ade27bbe6f7fcf5d36ae6c1b0442a243",
+  "gen_hash_zig": "sha256:61cdf1b182ea9f78c40631cf284230bf62666b1fa2554125800410de0d71e856",
+  "module": "format_conversion",
+  "ring": 12,
+  "sealed_at": "2026-04-07T17:17:17Z",
+  "spec_hash": "sha256:c05c1bfd3ca3a6103bdc4fef0bcba949ece573fc109cf6abe20fec397339b52b",
+  "spec_path": "specs/numeric/format_conversion.t27"
+}
