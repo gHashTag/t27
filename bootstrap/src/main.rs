@@ -335,6 +335,35 @@ enum Commands {
         #[arg(long, default_value = ".")]
         repo_root: String,
     },
+
+    /// Rename a symbol across a .t27 file (function/variable/struct/enum)
+    Rename {
+        input: String,
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        dry_run: bool,
+    },
+
+    /// Check for potential identifier typos (similar names)
+    Spellcheck {
+        input: String,
+        #[arg(long, default_value = "2")]
+        max_distance: u32,
+    },
+
+    /// Show test coverage per function (which functions have tests)
+    Coverage {
+        input: String,
+    },
+
+    /// Cross-validate spec consistency (struct fields, return types, etc.)
+    Validate {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+    },
 }
 
 // ============================================================================
@@ -1213,6 +1242,7 @@ async fn optimize_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse 
                 "strengths_reduced": stats.strengths_reduced,
                 "cse_eliminated": stats.cse_eliminated,
                 "dead_stores": stats.dead_stores,
+                "loops_unrolled": stats.loops_unrolled,
                 "passes": stats.passes,
             });
             (StatusCode::OK, Json(ApiResponse {
@@ -2541,6 +2571,7 @@ fn run_optimize(input_path: &str, opt_level: u32) -> anyhow::Result<()> {
     println!("  Strength reductions: {}", stats.strengths_reduced);
     println!("  CSE eliminated: {}", stats.cse_eliminated);
     println!("  Dead stores removed: {}", stats.dead_stores);
+    println!("  Loops unrolled: {}", stats.loops_unrolled);
     println!("  Passes: {}", stats.passes);
     Ok(())
 }
@@ -2701,38 +2732,240 @@ fn run_fmt(input_path: &str) -> anyhow::Result<()> {
     let source = fs::read_to_string(input_path)?;
     let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
 
+    fn fmt_expr(node: &compiler::Node) -> String {
+        match node.kind {
+            compiler::NodeKind::ExprLiteral => node.value.clone(),
+            compiler::NodeKind::ExprIdentifier => node.name.clone(),
+            compiler::NodeKind::ExprBinary => {
+                if node.children.len() >= 2 {
+                    let l = fmt_expr(&node.children[0]);
+                    let r = fmt_expr(&node.children[1]);
+                    format!("{} {} {}", l, node.extra_op, r)
+                } else {
+                    "()".to_string()
+                }
+            }
+            compiler::NodeKind::ExprUnary => {
+                if !node.children.is_empty() {
+                    format!("{}{}", node.extra_op, fmt_expr(&node.children[0]))
+                } else {
+                    node.extra_op.clone()
+                }
+            }
+            compiler::NodeKind::ExprCall => {
+                let args: Vec<String> = node.children.iter().map(fmt_expr).collect();
+                format!("{}({})", node.name, args.join(", "))
+            }
+            compiler::NodeKind::ExprFieldAccess => {
+                if !node.children.is_empty() {
+                    format!("{}.{}", fmt_expr(&node.children[0]), node.name)
+                } else {
+                    node.name.clone()
+                }
+            }
+            compiler::NodeKind::ExprIndex => {
+                if node.children.len() >= 2 {
+                    format!("{}[{}]", fmt_expr(&node.children[0]), fmt_expr(&node.children[1]))
+                } else {
+                    "()".to_string()
+                }
+            }
+            compiler::NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
+            compiler::NodeKind::ExprStructLit => {
+                let fields: Vec<String> = node.children.iter().map(|c| {
+                    let val = if c.children.is_empty() { "".to_string() } else { format!(" = {}", fmt_expr(&c.children[0])) };
+                    format!("{}:{}", c.name, val)
+                }).collect();
+                format!("{} {{ {} }}", node.name, fields.join(", "))
+            }
+            compiler::NodeKind::ExprArrayLiteral => {
+                let elems: Vec<String> = node.children.iter().map(fmt_expr).collect();
+                format!("[{}]", elems.join(", "))
+            }
+            _ => format!("/* {:?} */", node.kind),
+        }
+    }
+
+    fn fmt_stmt(node: &compiler::Node, indent: usize) -> String {
+        let pad = "    ".repeat(indent);
+        let mut out = String::new();
+        match node.kind {
+            compiler::NodeKind::StmtLocal => {
+                let kw = if node.extra_mutable { "var" } else { "const" };
+                if node.children.is_empty() {
+                    if node.extra_type.is_empty() {
+                        out.push_str(&format!("{}{} {};\n", pad, kw, node.name));
+                    } else {
+                        out.push_str(&format!("{}{} {}: {};\n", pad, kw, node.name, node.extra_type));
+                    }
+                } else {
+                    let val = fmt_expr(&node.children[0]);
+                    if node.extra_type.is_empty() {
+                        out.push_str(&format!("{}{} {} = {};\n", pad, kw, node.name, val));
+                    } else {
+                        out.push_str(&format!("{}{} {}: {} = {};\n", pad, kw, node.name, node.extra_type, val));
+                    }
+                }
+            }
+            compiler::NodeKind::StmtAssign => {
+                if node.children.len() >= 2 {
+                    let target = fmt_expr(&node.children[0]);
+                    let val = fmt_expr(&node.children[1]);
+                    out.push_str(&format!("{}{} = {};\n", pad, target, val));
+                }
+            }
+            compiler::NodeKind::ExprReturn => {
+                if node.children.is_empty() {
+                    out.push_str(&format!("{}return;\n", pad));
+                } else {
+                    out.push_str(&format!("{}return {};\n", pad, fmt_expr(&node.children[0])));
+                }
+            }
+            compiler::NodeKind::StmtExpr => {
+                if node.children.len() == 1 {
+                    out.push_str(&format!("{}{};\n", pad, fmt_expr(&node.children[0])));
+                }
+            }
+            compiler::NodeKind::StmtIf => {
+                out.push_str(&pad);
+                out.push_str("if (");
+                if !node.children.is_empty() {
+                    out.push_str(&fmt_expr(&node.children[0]));
+                }
+                out.push_str(") {\n");
+                if node.children.len() > 1 {
+                    for s in &node.children[1].children {
+                        out.push_str(&fmt_stmt(s, indent + 1));
+                    }
+                }
+                out.push_str(&format!("{}}}\n", pad));
+                if node.children.len() > 2 {
+                    out.push_str(&format!("{} else {{\n", pad));
+                    for s in &node.children[2].children {
+                        out.push_str(&fmt_stmt(s, indent + 1));
+                    }
+                    out.push_str(&format!("{}}}\n", pad));
+                }
+            }
+            compiler::NodeKind::StmtWhile => {
+                out.push_str(&pad);
+                out.push_str("while (");
+                if !node.children.is_empty() {
+                    out.push_str(&fmt_expr(&node.children[0]));
+                }
+                out.push_str(") {\n");
+                if node.children.len() > 1 {
+                    for s in &node.children[1].children {
+                        out.push_str(&fmt_stmt(s, indent + 1));
+                    }
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::StmtFor => {
+                out.push_str(&pad);
+                out.push_str("for (");
+                if !node.children.is_empty() {
+                    out.push_str(&fmt_expr(&node.children[0]));
+                }
+                if node.children.len() > 1 {
+                    out.push_str(&format!(") |{}| {{\n", node.children[1].name));
+                } else {
+                    out.push_str(") {\n");
+                }
+                if node.children.len() > 2 {
+                    for s in &node.children[2].children {
+                        out.push_str(&fmt_stmt(s, indent + 1));
+                    }
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::StmtBreak => {
+                out.push_str(&format!("{}break;\n", pad));
+            }
+            compiler::NodeKind::StmtContinue => {
+                out.push_str(&format!("{}continue;\n", pad));
+            }
+            _ => {
+                out.push_str(&format!("{}// {:?}\n", pad, node.kind));
+            }
+        }
+        out
+    }
+
     fn fmt_node(node: &compiler::Node, indent: usize) -> String {
-        let pad = " ".repeat(indent);
+        let pad = "    ".repeat(indent);
         let mut out = String::new();
         match node.kind {
             compiler::NodeKind::Module => {
                 out.push_str(&format!("{}module {} {{\n", pad, node.name));
                 for child in &node.children {
-                    out.push_str(&fmt_node(child, indent + 4));
+                    out.push_str(&fmt_node(child, indent + 1));
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::UseDecl => {
+                out.push_str(&format!("{}using {};\n", pad, node.value));
+            }
+            compiler::NodeKind::ConstDecl => {
+                if node.children.is_empty() {
+                    out.push_str(&format!("{}const {}: {};\n", pad, node.name, node.extra_type));
+                } else {
+                    out.push_str(&format!("{}const {} = {};\n", pad, node.name, fmt_expr(&node.children[0])));
+                }
+            }
+            compiler::NodeKind::EnumDecl => {
+                out.push_str(&format!("{}enum {} {{\n", pad, node.name));
+                for child in &node.children {
+                    if child.kind == compiler::NodeKind::EnumVariant {
+                        if child.value.is_empty() {
+                            out.push_str(&format!("    {}{},\n", pad, child.name));
+                        } else {
+                            out.push_str(&format!("    {}{} = {},\n", pad, child.name, child.value));
+                        }
+                    }
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::StructDecl => {
+                out.push_str(&format!("{}struct {} {{\n", pad, node.name));
+                for child in &node.children {
+                    if child.kind == compiler::NodeKind::ExprIdentifier && !child.name.is_empty() {
+                        out.push_str(&format!("    {}{}: {},\n", pad, child.name, child.extra_type));
+                    }
                 }
                 out.push_str(&format!("{}}}\n", pad));
             }
             compiler::NodeKind::FnDecl => {
-                out.push_str(&format!("{}fn {}() {{\n", pad, node.name));
+                let params: Vec<String> = node.params.iter().map(|(n, t)| {
+                    if t.is_empty() { n.clone() } else { format!("{}: {}", n, t) }
+                }).collect();
+                let ret = if node.extra_return_type.is_empty() { String::new() } else { format!(" -> {}", node.extra_return_type) };
+                out.push_str(&format!("{}fn {}({}){} {{\n", pad, node.name, params.join(", "), ret));
                 for child in &node.children {
-                    out.push_str(&fmt_node(child, indent + 4));
+                    out.push_str(&fmt_stmt(child, indent + 1));
                 }
-                out.push_str(&format!("{}}}\n", pad));
+                out.push_str(&format!("{}}}\n\n", pad));
             }
             compiler::NodeKind::TestBlock => {
                 out.push_str(&format!("{}test {} {{\n", pad, node.name));
                 for child in &node.children {
-                    out.push_str(&fmt_node(child, indent + 4));
+                    out.push_str(&fmt_stmt(child, indent + 1));
                 }
-                out.push_str(&format!("{}}}\n", pad));
+                out.push_str(&format!("{}}}\n\n", pad));
             }
             compiler::NodeKind::InvariantBlock => {
-                out.push_str(&format!("{}invariant {} {}\n", pad, node.name, node.value));
+                out.push_str(&format!("{}invariant {} {}\n\n", pad, node.name, node.value));
+            }
+            compiler::NodeKind::BenchBlock => {
+                out.push_str(&format!("{}bench {} {{\n", pad, node.name));
+                for child in &node.children {
+                    out.push_str(&fmt_stmt(child, indent + 1));
+                }
+                out.push_str(&format!("{}}}\n\n", pad));
             }
             _ => {
-                out.push_str(&format!("{}{}: {}\n", pad, node.name, node.value));
                 for child in &node.children {
-                    out.push_str(&fmt_node(child, indent + 2));
+                    out.push_str(&fmt_node(child, indent));
                 }
             }
         }
@@ -3305,6 +3538,229 @@ fn run_deps_tree(repo_root: &str) -> anyhow::Result<()> {
     println!("---");
     println!("Modules: {}", deps.len());
     println!("Total imports: {}", deps.values().map(|v| v.len()).sum::<usize>());
+    Ok(())
+}
+
+fn run_validate(repo_root: &str) -> anyhow::Result<()> {
+    let mut total = 0u32;
+    let mut issues = 0u32;
+    let mut warnings = 0u32;
+    let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+
+    for dir in &dirs {
+        let path = std::path::Path::new(dir);
+        if !path.exists() { continue; }
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(current) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() { stack.push(p); continue; }
+                    if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                    total += 1;
+                    if let Ok(source) = std::fs::read_to_string(&p) {
+                        if compiler::Compiler::parse_ast(&source).is_err() {
+                            issues += 1;
+                            let short = p.strip_prefix(std::path::Path::new(".")).unwrap_or(&p).to_string_lossy();
+                            println!("  PARSE FAIL: {}", short);
+                            continue;
+                        }
+                        let ast = compiler::Compiler::parse_ast(&source).unwrap();
+                        let tc = compiler::typecheck_ast(&ast);
+                        if !tc.ok {
+                            issues += tc.error_count as u32;
+                        }
+                        warnings += tc.warnings;
+
+                        let mut fn_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+                        for child in &ast.children {
+                            if child.kind == compiler::NodeKind::FnDecl {
+                                if fn_names.contains(&child.name) {
+                                    issues += 1;
+                                    let short = p.strip_prefix(std::path::Path::new(".")).unwrap_or(&p).to_string_lossy();
+                                    println!("  DUPLICATE fn '{}' in {}", child.name, short);
+                                }
+                                fn_names.insert(child.name.clone());
+                            }
+                        }
+
+                        for child in &ast.children {
+                            if child.kind == compiler::NodeKind::FnDecl && child.children.is_empty() {
+                                let short = p.strip_prefix(std::path::Path::new(".")).unwrap_or(&p).to_string_lossy();
+                                println!("  EMPTY BODY: fn '{}' in {}", child.name, short);
+                                warnings += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!("=== T27 Validation Report ===");
+    println!("Files checked:  {}", total);
+    println!("Issues:        {}", issues);
+    println!("Warnings:      {}", warnings);
+    if issues == 0 {
+        println!("VALIDATION: PASSED");
+    } else {
+        println!("VALIDATION: FAILED");
+    }
+    Ok(())
+}
+
+fn run_coverage(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    let mut fn_names: Vec<String> = Vec::new();
+    let mut tested_fns: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    fn collect_calls(node: &compiler::Node, calls: &mut std::collections::HashSet<String>) {
+        if node.kind == compiler::NodeKind::ExprCall && !node.name.is_empty() {
+            calls.insert(node.name.clone());
+        }
+        for child in &node.children { collect_calls(child, calls); }
+    }
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            fn_names.push(child.name.clone());
+        }
+        if matches!(child.kind, compiler::NodeKind::TestBlock | compiler::NodeKind::InvariantBlock | compiler::NodeKind::BenchBlock) {
+            collect_calls(child, &mut tested_fns);
+        }
+    }
+
+    let covered: Vec<&String> = fn_names.iter().filter(|f| tested_fns.contains(*f)).collect();
+    let uncovered: Vec<&String> = fn_names.iter().filter(|f| !tested_fns.contains(*f)).collect();
+    let pct = if !fn_names.is_empty() { 100.0 * covered.len() as f64 / fn_names.len() as f64 } else { 0.0 };
+
+    println!("=== {} test coverage ===", file_name);
+    println!("Functions: {}", fn_names.len());
+    println!("Tested:    {} ({:.0}%)", covered.len(), pct);
+    println!("Untested:  {}", uncovered.len());
+    if !uncovered.is_empty() {
+        println!("--- untested functions ---");
+        for f in &uncovered {
+            println!("  {}", f);
+        }
+    }
+    Ok(())
+}
+
+fn run_spellcheck(input_path: &str, max_distance: u32) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    fn levenshtein(a: &str, b: &str) -> u32 {
+        let a_len = a.len();
+        let b_len = b.len();
+        if a_len == 0 { return b_len as u32; }
+        if b_len == 0 { return a_len as u32; }
+        let mut matrix = vec![vec![0u32; b_len + 1]; a_len + 1];
+        for (i, row) in matrix.iter_mut().enumerate() { row[0] = i as u32; }
+        for j in 0..=b_len { matrix[0][j] = j as u32; }
+        let a_chars: Vec<char> = a.chars().collect();
+        let b_chars: Vec<char> = b.chars().collect();
+        for i in 1..=a_len {
+            for j in 1..=b_len {
+                let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+                matrix[i][j] = (matrix[i-1][j] + 1)
+                    .min(matrix[i][j-1] + 1)
+                    .min(matrix[i-1][j-1] + cost);
+            }
+        }
+        matrix[a_len][b_len]
+    }
+
+    let mut all_names: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    fn collect_names(node: &compiler::Node, names: &mut std::collections::BTreeSet<String>) {
+        match node.kind {
+            compiler::NodeKind::FnDecl => { names.insert(node.name.clone()); }
+            compiler::NodeKind::StructDecl | compiler::NodeKind::EnumDecl => { names.insert(node.name.clone()); }
+            compiler::NodeKind::ConstDecl | compiler::NodeKind::StmtLocal => { names.insert(node.name.clone()); }
+            compiler::NodeKind::ExprIdentifier => { names.insert(node.name.clone()); }
+            _ => {}
+        }
+        for child in &node.children { collect_names(child, names); }
+    }
+    collect_names(&ast, &mut all_names);
+
+    let names: Vec<&String> = all_names.iter()
+        .filter(|n| n.len() >= 3 && !n.starts_with('_'))
+        .collect();
+
+    println!("=== {} spellcheck ===", file_name);
+    let mut found = 0u32;
+    for i in 0..names.len() {
+        for j in (i+1)..names.len() {
+            let dist = levenshtein(names[i], names[j]);
+            if dist > 0 && dist <= max_distance {
+                println!("  '{}' <-> '{}' (distance={})", names[i], names[j], dist);
+                found += 1;
+            }
+        }
+    }
+    if found == 0 {
+        println!("No potential typos found.");
+    } else {
+        println!("---");
+        println!("{} potential typo(s) detected.", found);
+    }
+    Ok(())
+}
+
+fn run_rename(input_path: &str, from: &str, to: &str, dry_run: bool) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let mut found = 0u32;
+
+    fn rename_node(node: &mut compiler::Node, from: &str, to: &str, count: &mut u32) {
+        match node.kind {
+            compiler::NodeKind::FnDecl => {
+                if node.name == from { node.name = to.to_string(); *count += 1; }
+                for p in &mut node.params {
+                    if p.0 == from { p.0 = to.to_string(); *count += 1; }
+                }
+            }
+            compiler::NodeKind::StructDecl | compiler::NodeKind::EnumDecl => {
+                if node.name == from { node.name = to.to_string(); *count += 1; }
+            }
+            compiler::NodeKind::ConstDecl | compiler::NodeKind::StmtLocal => {
+                if node.name == from { node.name = to.to_string(); *count += 1; }
+            }
+            compiler::NodeKind::ExprIdentifier => {
+                if node.name == from { node.name = to.to_string(); *count += 1; }
+            }
+            compiler::NodeKind::ExprCall => {
+                if node.name == from { node.name = to.to_string(); *count += 1; }
+            }
+            _ => {}
+        }
+        for child in &mut node.children {
+            rename_node(child, from, to, count);
+        }
+    }
+
+    let mut ast_mut = ast;
+    rename_node(&mut ast_mut, from, to, &mut found);
+
+    if found == 0 {
+        println!("Symbol '{}' not found in {}", from, input_path);
+        return Ok(());
+    }
+
+    if dry_run {
+        println!("Would rename '{}' -> '{}' ({} occurrences) in {}", from, to, found, input_path);
+    } else {
+        let new_source = format!("{:#?}", ast_mut);
+        let output_path = input_path.to_string() + ".renamed";
+        fs::write(&output_path, new_source)?;
+        println!("Renamed '{}' -> '{}' ({} occurrences) -> {}", from, to, found, output_path);
+    }
     Ok(())
 }
 
@@ -4150,6 +4606,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Flatten { input, output } => run_flatten(&input, output.as_deref())?,
         Commands::DepsTree { repo_root } => run_deps_tree(&repo_root)?,
         Commands::Todo { repo_root } => run_todo(&repo_root)?,
+        Commands::Rename { input, from, to, dry_run } => run_rename(&input, &from, &to, dry_run)?,
+        Commands::Spellcheck { input, max_distance } => run_spellcheck(&input, max_distance)?,
+        Commands::Coverage { input } => run_coverage(&input)?,
+        Commands::Validate { repo_root } => run_validate(&repo_root)?,
     }
 
     Ok(())
@@ -4211,6 +4671,10 @@ fn main() -> anyhow::Result<()> {
         Commands::Flatten { input, output } => run_flatten(&input, output.as_deref())?,
         Commands::DepsTree { repo_root } => run_deps_tree(&repo_root)?,
         Commands::Todo { repo_root } => run_todo(&repo_root)?,
+        Commands::Rename { input, from, to, dry_run } => run_rename(&input, &from, &to, dry_run)?,
+        Commands::Spellcheck { input, max_distance } => run_spellcheck(&input, max_distance)?,
+        Commands::Coverage { input } => run_coverage(&input)?,
+        Commands::Validate { repo_root } => run_validate(&repo_root)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
