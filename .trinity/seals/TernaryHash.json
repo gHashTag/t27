@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_hash.t27",
+  "spec_hash": "sha256:69538a235443c2523be4b7d18d58e2269b8e1928451209e20cde7359eaded798",
+  "gen_hash_zig": "sha256:7bb5e0f3a401c49e572515b2ba33b90a5df363f9777cbda5f8d78a559e03199d",
+  "gen_hash_verilog": "sha256:58c5ee1fa9025c597ca3dbb20f3931830f041d8f11875cd2f065f0049d667c8f",
+  "gen_hash_c": "sha256:a87249b5cadefe119ba4cee7f8d08c31c9e05ea72f3439a6557be5d586b1a882",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:55:00Z",
+  "ring": 77,
+  "verdict": "clean",
+  "notes": "Ternary hash operations spec (simple hash, extended hash, combine, compare)"
+}

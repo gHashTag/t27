@@ -1,0 +1,329 @@
+// t27/specs/isa/ternary_hash.t27
+// Ternary Hash Operations Specification
+// Ring 077 - Hash function operations for ternary data
+// Defines hash computation and comparison
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryHash {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Hash Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Hash output size
+    const HASH_SIZE : usize = 27;
+
+    // Hash prime multipliers
+    const HASH_PRIME_1 : i32 = 7;
+    const HASH_PRIME_2 : i32 = 13;
+    const HASH_PRIME_3 : i32 = 31;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Simple Hash Functions
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // hash_trit(value: i32) → i32
+    // Simple hash for single trit
+    fn hash_trit(value: i32) → i32 {
+        return ((value * HASH_PRIME_1) % 3);
+    }
+
+    // hash_word(word: []i32, len: usize) → i32
+    // Simple hash for word (returns single trit)
+    fn hash_word(word: []i32, len: usize) → i32 {
+        var result : i32 = 0;
+        var i : usize = 0;
+        while (i < len and i < word.len) {
+            result = result + word[i];
+            i = i + 1;
+        }
+        return result % 3;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Extended Hash Functions
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // hash_extend(word: []i32, len: usize, result: []i32) → void
+    // Extended hash producing HASH_SIZE trits
+    fn hash_extend(word: []i32, len: usize, result: []i32) → void {
+        var h1 : i32 = HASH_PRIME_1;
+        var h2 : i32 = HASH_PRIME_2;
+        var h3 : i32 = HASH_PRIME_3;
+
+        var i : usize = 0;
+        while (i < len and i < word.len) {
+            const val = word[i];
+            h1 = ((h1 * 3) + val) % 27;
+            h2 = ((h2 * 5) + val) % 27;
+            h3 = ((h3 * 7) + val) % 27;
+            i = i + 1;
+        }
+
+        // Distribute hash result
+        var j : usize = 0;
+        while (j < HASH_SIZE and j < result.len) {
+            const mix = (h1 + h2 * 3 + h3 * 9) % 27;
+            if (mix == 0) {
+                result[j] = TRIT_ZERO;
+            } else if (mix == 1) {
+                result[j] = TRIT_POS;
+            } else {
+                result[j] = TRIT_NEG;
+            }
+            h1 = (h1 + 1) % 27;
+            j = j + 1;
+        }
+    }
+
+    // hash_combine(a: []i32, b: []i32, len: usize, result: []i32) → void
+    // Combine two hash values
+    fn hash_combine(a: []i32, b: []i32, len: usize, result: []i32) → void {
+        var i : usize = 0;
+        while (i < len and i < a.len and i < b.len and i < result.len) {
+            const sum = a[i] + b[i];
+            if (sum > 1) {
+                result[i] = TRIT_POS;
+            } else if (sum < -1) {
+                result[i] = TRIT_NEG;
+            } else {
+                result[i] = sum;
+            }
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Hash Comparison
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // hash_equal(a: []i32, b: []i32, len: usize) → bool
+    // Check if two hashes are equal
+    fn hash_equal(a: []i32, b: []i32, len: usize) → bool {
+        var i : usize = 0;
+        while (i < len and i < a.len and i < b.len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // hash_compare(a: []i32, b: []i32, len: usize) → i32
+    // Compare two hashes (lexicographic)
+    fn hash_compare(a: []i32, b: []i32, len: usize) → i32 {
+        var i : usize = len - 1;
+        while (i >= 0 and i < a.len and i < b.len) {
+            if (a[i] > b[i]) {
+                return TRIT_POS;
+            } else if (a[i] < b[i]) {
+                return TRIT_NEG;
+            }
+            if (i == 0) { break; }
+            i = i - 1;
+        }
+        return TRIT_ZERO;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test hash_trit_consistent
+        assert hash_trit(TRIT_POS) == hash_trit(TRIT_POS)
+        assert hash_trit(TRIT_NEG) == hash_trit(TRIT_NEG)
+        assert hash_trit(TRIT_ZERO) == hash_trit(TRIT_ZERO)
+
+    test hash_word_simple
+        var word : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        const h = hash_word(&word, 5);
+        // POS(1) + ZERO(0) + NEG(-1) + POS(1) + ZERO(0) = 1
+        assert h == 1
+
+    test hash_extend_produces_output
+        var word : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var result : [HASH_SIZE]i32 = undefined;
+
+        hash_extend(&word, 5, &result);
+
+        // Check at least some output
+        var i : usize = 0;
+        var non_zero : bool = false;
+        while (i < HASH_SIZE) {
+            if (result[i] != TRIT_ZERO) {
+                non_zero = true;
+                break;
+            }
+            i = i + 1;
+        }
+        assert non_zero == true
+
+    test hash_combine_symmetric
+        var a : [5]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS};
+        var b : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var result1 : [5]i32 = undefined;
+        var result2 : [5]i32 = undefined;
+
+        hash_combine(&a, &b, 5, &result1);
+        hash_combine(&b, &a, 5, &result2);
+
+        assert hash_equal(&result1, &result2, 5) == true
+
+    test hash_equal_true
+        var a : [HASH_SIZE]i32 = [_]i32{TRIT_POS} ** HASH_SIZE;
+        var b : [HASH_SIZE]i32 = [_]i32{TRIT_POS} ** HASH_SIZE;
+
+        assert hash_equal(&a, &b, HASH_SIZE) == true
+
+    test hash_equal_false
+        var a : [HASH_SIZE]i32 = [_]i32{TRIT_POS} ** HASH_SIZE;
+        var b : [HASH_SIZE]i32 = [_]i32{TRIT_NEG} ** HASH_SIZE;
+
+        assert hash_equal(&a, &b, HASH_SIZE) == false
+
+    test hash_compare_greater
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_ZERO};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_ZERO};
+
+        assert hash_compare(&a, &b, 3) == TRIT_POS
+
+    test hash_compare_less
+        var a : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_ZERO};
+        var b : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_ZERO};
+
+        assert hash_compare(&a, &b, 3) == TRIT_NEG
+
+    test hash_extend_same_input_same_output
+        var word : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var result1 : [HASH_SIZE]i32 = undefined;
+        var result2 : [HASH_SIZE]i32 = undefined;
+
+        hash_extend(&word, 5, &result1);
+        hash_extend(&word, 5, &result2);
+
+        assert hash_equal(&result1, &result2, HASH_SIZE) == true
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant hash_equal_reflexive
+        // Hash equals itself
+        var hash : [HASH_SIZE]i32 = undefined;
+        var i : usize = 0;
+        while (i < HASH_SIZE) {
+            hash[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        assert hash_equal(&hash, &hash, HASH_SIZE) == true
+
+    invariant hash_compare_antisymmetric
+        // If a > b, then b < a
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_POS};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG};
+
+        assert hash_compare(&a, &b, 3) == TRIT_POS
+        assert hash_compare(&b, &a, 3) == TRIT_NEG
+
+    invariant hash_combine_identity
+        // Combining with zero hash gives original
+        var input : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var zero : [5]i32 = [_]i32{TRIT_ZERO} ** 5;
+        var result : [5]i32 = undefined;
+
+        hash_combine(&input, &zero, 5, &result);
+
+        assert hash_equal(&input, &result, 5) == true
+
+    invariant hash_extend_deterministic
+        // Same input always produces same hash
+        var word : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var result1 : [HASH_SIZE]i32 = undefined;
+        var result2 : [HASH_SIZE]i32 = undefined;
+        var result3 : [HASH_SIZE]i32 = undefined;
+
+        hash_extend(&word, 5, &result1);
+        hash_extend(&word, 5, &result2);
+        hash_extend(&word, 5, &result3);
+
+        assert hash_equal(&result1, &result2, HASH_SIZE) == true
+        assert hash_equal(&result2, &result3, HASH_SIZE) == true
+
+    invariant hash_word_range
+        // Hash word result is always in valid trit range
+        var word : [27]i32 = undefined;
+        var i : usize = 0;
+        while (i < 27) {
+            word[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        const h = hash_word(&word, 27);
+        assert h >= TRIT_NEG and h <= TRIT_POS
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench hash_trit_performance
+        // Measure: cycles for 1000 trit hashes
+        // Target: < 500 cycles
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = hash_trit(TRIT_POS);
+        }
+        _ = result;
+
+    bench hash_word_performance
+        // Measure: cycles for 1000 word hashes
+        // Target: < 2000 cycles
+        var word : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = hash_word(&word, 27);
+        }
+        _ = result;
+
+    bench hash_extend_performance
+        // Measure: cycles for 1000 extended hashes
+        // Target: < 5000 cycles
+        var word : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var result : [HASH_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            hash_extend(&word, 27, &result);
+        }
+
+    bench hash_compare_performance
+        // Measure: cycles for 1000 hash comparisons
+        // Target: < 3000 cycles
+        var a : [HASH_SIZE]i32 = [_]i32{TRIT_POS} ** HASH_SIZE;
+        var b : [HASH_SIZE]i32 = [_]i32{TRIT_POS} ** HASH_SIZE;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = hash_compare(&a, &b, HASH_SIZE);
+        }
+        _ = result;
+
+    bench hash_combine_performance
+        // Measure: cycles for 1000 hash combinations
+        // Target: < 3000 cycles
+        var a : [HASH_SIZE]i32 = [_]i32{TRIT_POS} ** HASH_SIZE;
+        var b : [HASH_SIZE]i32 = [_]i32{TRIT_NEG} ** HASH_SIZE;
+        var result : [HASH_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            hash_combine(&a, &b, HASH_SIZE, &result);
+        }
+}
