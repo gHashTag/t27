@@ -227,6 +227,23 @@ enum Commands {
 
     /// Product CLI placeholder — not implemented in this repo (see docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md)
     Brain,
+
+    /// Validate a JSON schema against Draft-07 meta-schema
+    ValidateSchema {
+        /// Schema file path
+        schema: String,
+    },
+
+    /// Validate a JSON instance against a schema
+    ValidateInstance {
+        /// Instance file path
+        instance: String,
+        /// Schema file path
+        schema: String,
+    },
+
+    /// Check claim tiers consistency between EXPERIENCE_SCHEMA and RESEARCH_CLAIMS.md
+    CheckClaimTiers,
 }
 
 // ============================================================================
