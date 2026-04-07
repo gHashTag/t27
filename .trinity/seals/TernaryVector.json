@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_vector.t27",
+  "spec_hash": "sha256:2ff36275e51e8f4129dcd071bfa373223a1fe41f7cdd7cfdb4b8f30cc1206832",
+  "gen_hash_zig": "sha256:e50e4d7c21bd455cb4ab027e74c2d34c040719ec1185110dd1249717db4be280",
+  "gen_hash_verilog": "sha256:53e833b940969bf18ba76b844b5154142210357cdbd98df56fd80f46ea7407a9",
+  "gen_hash_c": "sha256:cb49de6d9a8825cd184c6af891b9f35ecc2e3d2eddc6c3da22612b77bfd80c6c",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:40:00Z",
+  "ring": 74,
+  "verdict": "clean",
+  "notes": "Ternary vector operations spec (access, init, copy, swap, reverse, compare, count)"
+}
