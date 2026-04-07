@@ -40,6 +40,17 @@ spec "doc-sacred-physics" {
     agent = "P";
 }
 
+spec "doc-clara-prep-plan" {
+    tier = 0;
+    description = "CLARA-PREPARATION-PLAN: DARPA TA1/TA2 submission checklist";
+    path = "docs/CLARA-PREPARATION-PLAN.md";
+    exports = ["CLARA_TA1_CHECKLIST", "CLARA_TA2_CHECKLIST", "CLARA_TIMELINE"];
+    deps = ["doc-numeric-standard"];
+    competency = "CLARAPreparation";
+    status = "done";
+    agent = "S";
+}
+
 // ============================================================================
 // Tier 1: Core Arithmetic & Numeric Formats
 // ============================================================================
