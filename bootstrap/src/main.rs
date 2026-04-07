@@ -244,6 +244,10 @@ enum Commands {
 
     /// Check claim tiers consistency between EXPERIENCE_SCHEMA and RESEARCH_CLAIMS.md
     CheckClaimTiers,
+
+    /// Refresh brain seals from experience aggregation (Ring 059 - Crown automation)
+    #[command(name = "brain-seal-refresh")]
+    BrainSealRefresh,
 }
 
 // ============================================================================
@@ -2087,6 +2091,10 @@ fn run_rest(cmd: Commands, repo_root: &Path) -> anyhow::Result<()> {
             eprintln!("See docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md");
             std::process::exit(2);
         }
+        Commands::ValidateSchema { schema } => tooling::validate_schema(&schema)?,
+        Commands::ValidateInstance { instance, schema } => tooling::validate_instance(&instance, &schema)?,
+        Commands::CheckClaimTiers => tooling::check_claim_tiers(repo_root)?,
+        Commands::BrainSealRefresh => tooling::brain_seal_refresh(repo_root)?,
     }
     Ok(())
 }
