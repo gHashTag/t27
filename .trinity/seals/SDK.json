@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c69e9919c4d9c20f23cf8073ea3a74055b040455024ec82caab305d4e1f25e8d",
+  "gen_hash_rust": "sha256:c9bfa1632e446c4afdb8d98fdeb989f75f0fe87bcdc83dc4ba3b5a1c5fa8e979",
+  "gen_hash_verilog": "sha256:b3870b9f3c6146990e4c769badaaa6313e041d6766312e3fda74c23a6d3f66fd",
+  "gen_hash_zig": "sha256:c8927809b6634a5bf680cccd1402be84473781449e55bac9f8fab3f2141851f8",
+  "module": "SDK",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:53:42Z",
+  "spec_hash": "sha256:eea742753092a23a42d67b72f7de0e73bec4313cdcbc656c94d4f867cc857263",
+  "spec_path": "specs/vsa/sdk.t27"
+}

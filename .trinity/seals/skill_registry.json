@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:813a2c5624ccae553d9722b7a7b9462c4691cd03c263e597c0e59b19af823069",
+  "gen_hash_rust": "sha256:1e777d7a480cb143e9d82d315168e2fab8758356a4833c1003b8d1206b03096b",
+  "gen_hash_verilog": "sha256:22ecf04a9c447d613cfa2924e32e119668e4dcafe84a819e3d27a78e57cbfe76",
+  "gen_hash_zig": "sha256:92b794a93b7fa2d47ac77c839bcc0b42efdc87db2046a45acddc6f9b01666bf7",
   "module": "skill_registry",
-  "ring": 38,
-  "spec_path": "compiler/skill/registry.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-07T17:07:00Z",
   "spec_hash": "sha256:d492aa25a1e06b4ced6c44067db4ae48e4cfa14f2939dea8c45cfc838f38c6b6",
-  "gen_hash_zig": "sha256:011fc799b3eccec1d6684f9bc18882315fe4b614122b37667d020cd7619375ab",
-  "gen_hash_c": "sha256:4bb4e0788af3dd1f0913be516713db0f1a230f0bc9d0c86f65c6f9705433a433",
-  "gen_hash_verilog": "sha256:05411a3b70b666b4a9785164ae307a6ab66befc1d1f21c54d54361652a02fe1e",
-  "conformance_hash": "sha256:33f622a75ffc4be4df9176f373861e83f478c96d79728c73b649fd2940d4c266",
-  "tests": {
-    "status": "passed",
-    "count": 12,
-    "invariants": 5,
-    "benchmarks": 2
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T21:30:00Z"
+  "spec_path": "compiler/skill/registry.t27"
 }
