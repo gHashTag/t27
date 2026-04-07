@@ -10,18 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Update .zenodo.json version
-        run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          jq --arg v "$VERSION" '.version = $v' .zenodo.json > tmp.json
-          mv tmp.json .zenodo.json
-
       - name: Upload to Zenodo
         uses: megasanjay/upload-to-zenodo@v2.0.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           zenodo_token: ${{ secrets.ZENODO_TOKEN }}
-          zenodo_deposition_id: ${{ secrets.ZENODO_DEPOSITION_ID }}
+          zenodo_deposition_id: "19456875"
           zenodo_publish: true
           zenodo_sandbox: false
           update_metadata_files: true
