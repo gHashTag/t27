@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_tree.t27",
+  "spec_hash": "sha256:eccf467e5dd6ca7c009846e2fd90bdaf70159a2a5bbfc1ae19ced6c2ecd30f4d",
+  "gen_hash_zig": "sha256:ff01673bf87963d961b75e0e107b077f810951c5bc083bcced96b5535b452b6d",
+  "gen_hash_verilog": "sha256:847d9ef6a253555fb37986ab14aa01ba3b63e95e53a8fc8157c55e07826ad407",
+  "gen_hash_c": "sha256:2c4e716ff6e14f2f2ecf8423eac0a2b4c4783f8c5633f6a6ac3912df0b50cf83",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:30:00Z",
+  "ring": 84,
+  "verdict": "clean",
+  "notes": "Ternary tree operations spec (3-ary tree, preorder/inorder traversal, search, height)"
+}
