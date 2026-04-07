@@ -1,0 +1,414 @@
+// t27/specs/isa/ternary_queue.t27
+// Ternary Queue Operations Specification
+// Ring 076 - Queue (FIFO) data structure operations for ternary data
+// Defines enqueue, dequeue, and queue management
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryQueue {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Queue Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Queue size limits
+    const QUEUE_MAX_SIZE : usize = 64;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Queue Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // queue_init(queue: []i32, head: *usize, tail: *usize, count: *usize) → void
+    // Initialize queue
+    fn queue_init(queue: []i32, head: *usize, tail: *usize, count: *usize) → void {
+        head.* = 0;
+        tail.* = 0;
+        count.* = 0;
+        var i : usize = 0;
+        while (i < QUEUE_MAX_SIZE and i < queue.len) {
+            queue[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+    }
+
+    // queue_enqueue(queue: []i32, head: *usize, tail: *usize, count: *usize, value: i32) → bool
+    // Enqueue value at tail
+    fn queue_enqueue(queue: []i32, head: *usize, tail: *usize, count: *usize, value: i32) → bool {
+        if (count.* >= QUEUE_MAX_SIZE) {
+            return false;  // Queue full
+        }
+        queue[tail.*] = value;
+        tail.* = (tail.* + 1) % QUEUE_MAX_SIZE;
+        count.* = count.* + 1;
+        return true;
+    }
+
+    // queue_dequeue(queue: []i32, head: *usize, tail: *usize, count: *usize) → i32
+    // Dequeue value from head (returns TRIT_ZERO if empty)
+    fn queue_dequeue(queue: []i32, head: *usize, tail: *usize, count: *usize) → i32 {
+        if (count.* == 0) {
+            return TRIT_ZERO;  // Queue empty
+        }
+        const value = queue[head.*];
+        queue[head.*] = TRIT_ZERO;
+        head.* = (head.* + 1) % QUEUE_MAX_SIZE;
+        count.* = count.* - 1;
+        return value;
+    }
+
+    // queue_peek(queue: []i32, head: usize, count: usize) → i32
+    // Peek at head value without dequeuing
+    fn queue_peek(queue: []i32, head: usize, count: usize) → i32 {
+        if (count == 0) {
+            return TRIT_ZERO;
+        }
+        return queue[head];
+    }
+
+    // queue_is_empty(count: usize) → bool
+    // Check if queue is empty
+    fn queue_is_empty(count: usize) → bool {
+        return count == 0;
+    }
+
+    // queue_is_full(count: usize) → bool
+    // Check if queue is full
+    fn queue_is_full(count: usize) → bool {
+        return count >= QUEUE_MAX_SIZE;
+    }
+
+    // queue_size(count: usize) → usize
+    // Get current queue size
+    fn queue_size(count: usize) → usize {
+        return count;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test queue_init_empty
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 99;
+        var tail : usize = 99;
+        var count : usize = 99;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        assert head == 0
+        assert tail == 0
+        assert count == 0
+        assert queue[0] == TRIT_ZERO
+
+    test queue_enqueue_dequeue_fifo
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+        assert queue_enqueue(&queue, &head, &tail, &count, 1) == true
+        assert queue_enqueue(&queue, &head, &tail, &count, 0) == true
+        assert queue_enqueue(&queue, &head, &tail, &count, -1) == true
+
+        assert queue_dequeue(&queue, &head, &tail, &count) == 1
+        assert queue_dequeue(&queue, &head, &tail, &count) == 0
+        assert queue_dequeue(&queue, &head, &tail, &count) == -1
+
+    test queue_enqueue_full
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : usize = 0;
+        while (i < QUEUE_MAX_SIZE) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            i = i + 1;
+        }
+
+        assert queue_is_full(count) == true
+        assert queue_enqueue(&queue, &head, &tail, &count, TRIT_POS) == false
+
+    test queue_dequeue_empty
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+        assert queue_is_empty(count) == true
+        assert queue_dequeue(&queue, &head, &tail, &count) == TRIT_ZERO
+
+    test queue_peek_no_dequeue
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+        _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+
+        const peeked = queue_peek(&queue, head, count);
+        assert peeked == TRIT_POS
+        assert count == 1  // Count unchanged
+
+    test queue_size_matches
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : usize = 0;
+        while (i < 5) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            assert queue_size(count) == i + 1
+            i = i + 1;
+        }
+
+    test queue_wrap_around
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        // Fill most of queue
+        var i : usize = 0;
+        while (i < QUEUE_MAX_SIZE - 1) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            i = i + 1;
+        }
+
+        // Dequeue most
+        i = 0;
+        while (i < QUEUE_MAX_SIZE - 2) {
+            _ = queue_dequeue(&queue, &head, &tail, &count);
+            i = i + 1;
+        }
+
+        // Enqueue more to test wrap-around
+        _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_NEG);
+        _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_NEG);
+
+        assert count == 3
+
+    test queue_circular_preserves
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : usize = 0;
+        while (i < 3) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, i);
+            i = i + 1;
+        }
+
+        // Dequeue and enqueue multiple cycles
+        i = 0;
+        while (i < 10) {
+            _ = queue_dequeue(&queue, &head, &tail, &count);
+            _ = queue_enqueue(&queue, &head, &tail, &count, 100 + i);
+            i = i + 1;
+        }
+
+        assert count == 3
+
+    // ═════════════════════════════════════════════════════
+    // 4. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant queue_enqueue_dequeue_preserves_size
+        // Enqueue then dequeue returns to original size
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : usize = 0;
+        while (i < 5) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            i = i + 1;
+        }
+
+        const size_before = queue_size(count);
+        _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_NEG);
+        _ = queue_dequeue(&queue, &head, &tail, &count);
+
+        assert queue_size(count) == size_before
+
+    invariant queue_size_consistent
+        // Queue size equals count
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : usize = 0;
+        while (i < 15) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            assert queue_size(count) == count
+            i = i + 1;
+        }
+
+    invariant queue_peek_preserves
+        // Peek doesn't modify queue
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+        _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+
+        const head_before = head;
+        const tail_before = tail;
+        const count_before = count;
+        const value_before = queue[head];
+
+        _ = queue_peek(&queue, head, count);
+
+        assert head == head_before
+        assert tail == tail_before
+        assert count == count_before
+        assert queue[head] == value_before
+
+    invariant queue_fifo_order
+        // First in, first out
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : i32 = 0;
+        while (i < 5) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, i);
+            i = i + 1;
+        }
+
+        i = 0;
+        while (i < 5) {
+            const dequeued = queue_dequeue(&queue, &head, &tail, &count);
+            assert dequeued == i
+            i = i + 1;
+        }
+
+    invariant queue_count_bound
+        // Count never exceeds max size
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+
+        queue_init(&queue, &head, &tail, &count);
+
+        var i : usize = 0;
+        while (i < QUEUE_MAX_SIZE * 2) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            if (count > QUEUE_MAX_SIZE) {
+                break;
+            }
+            _ = queue_dequeue(&queue, &head, &tail, &count);
+            i = i + 1;
+        }
+
+        assert count <= QUEUE_MAX_SIZE
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench queue_enqueue_performance
+        // Measure: cycles for 1000 enqueue operations
+        // Target: < 2000 cycles
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+        queue_init(&queue, &head, &tail, &count);
+        @setEvalBranchQuota(10000);
+        var result : bool = false;
+        for (0..1000) |_| {
+            count = 0;
+            result = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+        }
+        _ = result;
+
+    bench queue_dequeue_performance
+        // Measure: cycles for 1000 dequeue operations
+        // Target: < 2000 cycles
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+        queue_init(&queue, &head, &tail, &count);
+        var i : usize = 0;
+        while (i < 10) {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            i = i + 1;
+        }
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            count = 10;
+            result = queue_dequeue(&queue, &head, &tail, &count);
+        }
+        _ = result;
+
+    bench queue_peek_performance
+        // Measure: cycles for 1000 peek operations
+        // Target: < 1000 cycles
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 5;
+        var count : usize = 5;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = queue_peek(&queue, head, count);
+        }
+        _ = result;
+
+    bench queue_size_performance
+        // Measure: cycles for 1000 size operations
+        // Target: < 500 cycles
+        var count : usize = 10;
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        for (0..1000) |_| {
+            result = queue_size(count);
+        }
+        _ = result;
+
+    bench queue_circular_performance
+        // Measure: cycles for 1000 enqueue/dequeue cycles
+        // Target: < 4000 cycles
+        var queue : [QUEUE_MAX_SIZE]i32 = undefined;
+        var head : usize = 0;
+        var tail : usize = 0;
+        var count : usize = 0;
+        queue_init(&queue, &head, &tail, &count);
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            _ = queue_enqueue(&queue, &head, &tail, &count, TRIT_POS);
+            _ = queue_dequeue(&queue, &head, &tail, &count);
+        }
+}

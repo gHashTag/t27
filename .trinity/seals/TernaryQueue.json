@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_queue.t27",
+  "spec_hash": "sha256:1393b392a8280e051ab941baf92a443439b02f0e92d9f2aa48fa57a389a38ea1",
+  "gen_hash_zig": "sha256:9f880065002d6dfed7ba38a9ffaa8cac3f354f06b9c504440d7030e99ef0ea87",
+  "gen_hash_verilog": "sha256:2f9d791cabde23ce54e9aaae26fd2dce94b138e31751da15c0bf0a1e9b00f05b",
+  "gen_hash_c": "sha256:343cfbe18127fd7104f09dcc5f9ae8c43dca5c7986f939b63d4a3655f9d845bc",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:50:00Z",
+  "ring": 76,
+  "verdict": "clean",
+  "notes": "Ternary queue operations spec (enqueue, dequeue, peek, circular buffer)"
+}
