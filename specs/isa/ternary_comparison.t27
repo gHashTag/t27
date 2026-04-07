@@ -1,0 +1,454 @@
+// t27/specs/isa/ternary_comparison.t27
+// Ternary Comparison Operations Specification
+// Ring 069 - Comparison and conditional operations for ternary values
+// Defines equality, ordering, and sign detection
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryComparison {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Comparison Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Comparison results
+    const COMP_LESS : i32 = -1;
+    const COMP_EQUAL : i32 = 0;
+    const COMP_GREATER : i32 = 1;
+
+    // Word size
+    const WORD_SIZE : usize = 27;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Single Trit Comparison
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // trit_compare(a: i32, b: i32) → i32
+    // Compare two trits
+    // Returns -1 if a < b, 0 if a == b, 1 if a > b
+    fn trit_compare(a: i32, b: i32) → i32 {
+        if (a < b) {
+            return COMP_LESS;
+        } else if (a > b) {
+            return COMP_GREATER;
+        }
+        return COMP_EQUAL;
+    }
+
+    // trit_equal(a: i32, b: i32) → bool
+    // Check if two trits are equal
+    fn trit_equal(a: i32, b: i32) → bool {
+        return a == b;
+    }
+
+    // trit_not_equal(a: i32, b: i32) → bool
+    // Check if two trits are not equal
+    fn trit_not_equal(a: i32, b: i32) → bool {
+        return a != b;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Word Comparison
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ternary_word_compare(a: []i32, b: []i32, len: usize) → i32
+    // Compare two ternary words
+    // Returns -1 if a < b, 0 if a == b, 1 if a > b
+    fn ternary_word_compare(a: []i32, b: []i32, len: usize) → i32 {
+        // Compare from most significant trit
+        var i : i64 = @as(i64, @intCast(len)) - 1;
+
+        while (i >= 0) {
+            const idx = @as(usize, @intCast(i));
+            const cmp = trit_compare(a[idx], b[idx]);
+
+            if (cmp != COMP_EQUAL) {
+                return cmp;
+            }
+
+            i = i - 1;
+        }
+
+        return COMP_EQUAL;
+    }
+
+    // ternary_word_equal(a: []i32, b: []i32, len: usize) → bool
+    // Check if two ternary words are equal
+    fn ternary_word_equal(a: []i32, b: []i32, len: usize) → bool {
+        var i : usize = 0;
+        while (i < len) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // ternary_word_not_equal(a: []i32, b: []i32, len: usize) → bool
+    // Check if two ternary words are not equal
+    fn ternary_word_not_equal(a: []i32, b: []i32, len: usize) → bool {
+        var i : usize = 0;
+        while (i < len) {
+            if (a[i] != b[i]) {
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Sign Detection
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ternary_word_sign(word: []i32, len: usize) → i32
+    // Get the sign of a ternary word
+    // Returns -1 (negative), 0 (zero), or 1 (positive)
+    fn ternary_word_sign(word: []i32, len: usize) → i32 {
+        // Find the most significant non-zero trit
+        var i : i64 = @as(i64, @intCast(len)) - 1;
+
+        while (i >= 0) {
+            const idx = @as(usize, @intCast(i));
+
+            if (word[idx] != TRIT_ZERO) {
+                if (word[idx] == TRIT_NEG) {
+                    return COMP_LESS;
+                } else {
+                    return COMP_GREATER;
+                }
+            }
+
+            i = i - 1;
+        }
+
+        return COMP_EQUAL;  // Word is zero
+    }
+
+    // ternary_word_is_zero(word: []i32, len: usize) → bool
+    // Check if a ternary word is all zeros
+    fn ternary_word_is_zero(word: []i32, len: usize) → bool {
+        var i : usize = 0;
+        while (i < len) {
+            if (word[i] != TRIT_ZERO) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // ternary_word_is_negative(word: []i32, len: usize) → bool
+    // Check if a ternary word is negative
+    fn ternary_word_is_negative(word: []i32, len: usize) → bool {
+        return ternary_word_sign(word, len) == COMP_LESS;
+    }
+
+    // ternary_word_is_positive(word: []i32, len: usize) → bool
+    // Check if a ternary word is positive
+    fn ternary_word_is_positive(word: []i32, len: usize) → bool {
+        return ternary_word_sign(word, len) == COMP_GREATER;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. Conditional Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ternary_select(condition: i32, a: []i32, b: []i32, result: []i32, len: usize) → void
+    // Select between a and b based on condition
+    // If condition is POSITIVE, select a; if NEGATIVE, select b; if ZERO, result is undefined
+    fn ternary_select(condition: i32, a: []i32, b: []i32, result: []i32, len: usize) → bool {
+        if (condition == TRIT_POS) {
+            var i : usize = 0;
+            while (i < len) {
+                result[i] = a[i];
+                i = i + 1;
+            }
+            return true;
+        } else if (condition == TRIT_NEG) {
+            var i : usize = 0;
+            while (i < len) {
+                result[i] = b[i];
+                i = i + 1;
+            }
+            return true;
+        }
+        return false;  // Zero condition is invalid for select
+    }
+
+    // ternary_conditional_move(condition: i32, src: []i32, dst: []i32, len: usize) → bool
+    // Conditionally move src to dst
+    fn ternary_conditional_move(condition: i32, src: []i32, dst: []i32, len: usize) → bool {
+        if (condition == TRIT_POS) {
+            var i : usize = 0;
+            while (i < len) {
+                dst[i] = src[i];
+                i = i + 1;
+            }
+            return true;
+        }
+        return false;  // NEGATIVE or ZERO: no move
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. Min/Max Operations
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // ternary_word_min(a: []i32, b: []i32, result: []i32, len: usize) → void
+    // Get minimum of two ternary words (lexicographic)
+    fn ternary_word_min(a: []i32, b: []i32, result: []i32, len: usize) → void {
+        const cmp = ternary_word_compare(a, b, len);
+
+        if (cmp == COMP_LESS or cmp == COMP_EQUAL) {
+            var i : usize = 0;
+            while (i < len) {
+                result[i] = a[i];
+                i = i + 1;
+            }
+        } else {
+            var i : usize = 0;
+            while (i < len) {
+                result[i] = b[i];
+                i = i + 1;
+            }
+        }
+    }
+
+    // ternary_word_max(a: []i32, b: []i32, result: []i32, len: usize) → void
+    // Get maximum of two ternary words (lexicographic)
+    fn ternary_word_max(a: []i32, b: []i32, result: []i32, len: usize) → void {
+        const cmp = ternary_word_compare(a, b, len);
+
+        if (cmp == COMP_GREATER or cmp == COMP_EQUAL) {
+            var i : usize = 0;
+            while (i < len) {
+                result[i] = a[i];
+                i = i + 1;
+            }
+        } else {
+            var i : usize = 0;
+            while (i < len) {
+                result[i] = b[i];
+                i = i + 1;
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test trit_compare_basic
+        assert trit_compare(TRIT_NEG, TRIT_ZERO) == COMP_LESS
+        assert trit_compare(TRIT_ZERO, TRIT_POS) == COMP_LESS
+        assert trit_compare(TRIT_POS, TRIT_NEG) == COMP_GREATER
+        assert trit_compare(TRIT_POS, TRIT_POS) == COMP_EQUAL
+        assert trit_compare(TRIT_NEG, TRIT_NEG) == COMP_EQUAL
+        assert trit_compare(TRIT_ZERO, TRIT_ZERO) == COMP_EQUAL
+
+    test trit_equal_basic
+        assert trit_equal(TRIT_POS, TRIT_POS) == true
+        assert trit_equal(TRIT_POS, TRIT_NEG) == false
+        assert trit_equal(TRIT_ZERO, TRIT_ZERO) == true
+
+    test ternary_word_compare_basic
+        var a : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var b : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_NEG, TRIT_POS};
+
+        assert ternary_word_compare(&a, &b, 5) == COMP_GREATER
+
+        var c : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        assert ternary_word_compare(&a, &c, 5) == COMP_EQUAL
+
+    test ternary_word_equal_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        assert ternary_word_equal(&a, &b, 3) == true
+
+        var c : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var d : [3]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_NEG};
+        assert ternary_word_equal(&c, &d, 3) == false
+
+    test ternary_word_sign_positive
+        var word : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_ZERO, TRIT_ZERO};
+        assert ternary_word_sign(&word, 5) == COMP_GREATER
+        assert ternary_word_is_positive(&word, 5) == true
+
+    test ternary_word_sign_negative
+        var word : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        assert ternary_word_sign(&word, 5) == COMP_LESS
+        assert ternary_word_is_negative(&word, 5) == true
+
+    test ternary_word_is_zero
+        var word : [5]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
+        assert ternary_word_sign(&word, 5) == COMP_EQUAL
+        assert ternary_word_is_zero(&word, 5) == true
+
+    test ternary_select_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_POS};
+        var result : [3]i32 = undefined;
+
+        assert ternary_select(TRIT_POS, &a, &b, &result, 3) == true
+        assert result[0] == TRIT_POS
+
+        assert ternary_select(TRIT_NEG, &a, &b, &result, 3) == true
+        assert result[0] == TRIT_NEG
+
+    test ternary_word_min_max
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var min_result : [3]i32 = undefined;
+        var max_result : [3]i32 = undefined;
+
+        ternary_word_min(&a, &b, &min_result, 3);
+        ternary_word_max(&a, &b, &max_result, 3);
+
+        // Min should be b (more negative), Max should be a
+        var i : usize = 0;
+        while (i < 3) {
+            assert min_result[i] == b[i]
+            assert max_result[i] == a[i]
+            i = i + 1;
+        }
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant trit_compare_reflexivity
+        // trit_compare(a, a) == COMP_EQUAL for all trits
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var i : usize = 0;
+        while (i < 3) {
+            assert trit_compare(vals[i], vals[i]) == COMP_EQUAL
+            i = i + 1;
+        }
+
+    invariant trit_compare_antisymmetry
+        // If trit_compare(a, b) < 0, then trit_compare(b, a) > 0
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var i : usize = 0;
+        while (i < 3) {
+            var j : usize = 0;
+            while (j < 3) {
+                const cmp1 = trit_compare(vals[i], vals[j]);
+                const cmp2 = trit_compare(vals[j], vals[i]);
+
+                if (cmp1 == COMP_LESS) {
+                    assert cmp2 == COMP_GREATER
+                } else if (cmp1 == COMP_GREATER) {
+                    assert cmp2 == COMP_LESS
+                }
+
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+    invariant ternary_word_compare_transitivity
+        // If a < b and b < c, then a < c
+        var a : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_ZERO};
+        var b : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
+        var c : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_POS};
+
+        assert ternary_word_compare(&a, &b, 3) == COMP_LESS
+        assert ternary_word_compare(&b, &c, 3) == COMP_LESS
+        assert ternary_word_compare(&a, &c, 3) == COMP_LESS
+
+    invariant min_max_consistency
+        // Min(a, b) <= Max(a, b) for all words
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_POS};
+
+        var min_result : [3]i32 = undefined;
+        var max_result : [3]i32 = undefined;
+
+        ternary_word_min(&a, &b, &min_result, 3);
+        ternary_word_max(&a, &b, &max_result, 3);
+
+        // Min should be less than or equal to max
+        const cmp = ternary_word_compare(&min_result, &max_result, 3);
+        assert cmp == COMP_LESS or cmp == COMP_EQUAL
+
+    invariant min_idempotent
+        // Min(a, a) == a for all words
+        var word : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var result : [3]i32 = undefined;
+
+        ternary_word_min(&word, &word, &result, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            assert result[i] == word[i]
+            i = i + 1;
+        }
+
+    // ═════════════════════════════════════════════════════
+    // 9. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench trit_compare_performance
+        // Measure: cycles to compare 1000 pairs of trits
+        // Target: < 500 cycles
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        var idx : usize = 0;
+        for (0..1000) |_| {
+            result = trit_compare(vals[idx % 3], vals[(idx + 1) % 3]);
+            idx = idx + 1;
+        }
+        _ = result;
+
+    bench ternary_word_compare_performance
+        // Measure: cycles to compare 100 pairs of 27-trit words
+        // Target: < 5000 cycles
+        var a : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var b : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = ternary_word_compare(&a, &b, 27);
+        }
+        _ = result;
+
+    bench ternary_word_sign_performance
+        // Measure: cycles to determine sign of 1000 words
+        // Target: < 3000 cycles
+        var words : [27][27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |i| {
+            result = ternary_word_sign(&words[@as(usize, @intCast(i % 27))], 27);
+        }
+        _ = result;
+
+    bench ternary_word_min_performance
+        // Measure: cycles to compute 1000 min operations
+        // Target: < 8000 cycles
+        var a : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var b : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            ternary_word_min(&a, &b, &result, 27);
+        }
+
+    bench ternary_word_max_performance
+        // Measure: cycles to compute 1000 max operations
+        // Target: < 8000 cycles
+        var a : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var b : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            ternary_word_max(&a, &b, &result, 27);
+        }
+}

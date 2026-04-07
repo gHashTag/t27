@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_comparison.t27",
+  "spec_hash": "sha256:e9319b64e6ce32c21d485a3fdbcba42d79e5929f5f9e8dfe87bca0c92c668cf7",
+  "gen_hash_zig": "sha256:cc77e7199744b9e669345ccb893bc3e3bcd62d8a9d4b063078075246a4c786bb",
+  "gen_hash_verilog": "sha256:175c7654c48f9bd060a24a63585cb925de8ebee9d27ace07a2c3f44406a5afc6",
+  "gen_hash_c": "sha256:9b58d8169de164ee610e6733415f03b3ecfe2a12d5346acdb8727556de9e3c03",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T01:00:00Z",
+  "ring": 69,
+  "verdict": "clean",
+  "notes": "Ternary comparison operations spec (equality, ordering, sign detection, min/max)"
+}
