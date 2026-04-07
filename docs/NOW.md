@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Fixing brain seal validation · RFC3339 2026-04-07T16:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Fixing property-test template syntax · RFC3339 2026-04-07T17:00:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Phase 4 Crown extended** — Rings 051-059 (#197, #199, #201, #203, #205, #207, #209, #216) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution, experience aggregation for Queen brain seals.
