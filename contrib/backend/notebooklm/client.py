@@ -7,7 +7,7 @@
 from typing import Optional, Dict, Any
 
 from .config import NotebookLMConfig
-from .cookie_auth import authenticate_with_cookies, client_close_sync
+from .cookie_auth import authenticate_with_cookies
 
 
 # Global client state for singleton pattern
@@ -75,14 +75,13 @@ def client_close() -> bool:
     if client is None:
         return False
 
-    result = client_close_sync(client)
-
+    # Reset state (notebooklm-py client doesn't require explicit close)
     _client_state.update({
         "client": None,
         "authenticated": False,
     })
 
-    return result
+    return True
 
 
 def client_get_current() -> Optional[Any]:

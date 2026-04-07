@@ -27,13 +27,18 @@ class AuthTokens:
     
     def to_dict(self) -> dict:
         """Convert to dictionary.
-        
+
         Returns:
             Dict representation of tokens
-            
+
         Complexity: O(1)
         """
-        return asdict(self)
+        return {
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token,
+            "expires_at": self.expires_at.isoformat(),
+            "token_type": self.token_type,
+        }
     
     def is_expired(self, buffer_seconds: int = 300) -> bool:
         """Check if token is expired.
