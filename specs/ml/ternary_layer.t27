@@ -1,0 +1,431 @@
+// Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0
+// t27/specs/ml/ternary_layer.t27
+// Ternary Neural Network: Layer with Matrix Operations (Ring 091)
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryLayer;
+
+use base::types;
+use math::constants;
+use ml::ternary_neuron;
+use numeric::gf16;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 1. Constants
+// ═════════════════════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_INPUT_SIZE : usize = 64;
+const DEFAULT_OUTPUT_SIZE : usize = 32;
+const DEFAULT_BATCH_SIZE : usize = 1;
+
+const MAT_MUL : u8 = 0;
+const MAT_ADD : u8 = 1;
+const MAT_MUL_ELEM : u8 = 2;
+const MAT_TRANSPOSE : u8 = 3;
+
+const LAYER_DENSE : u8 = 0;
+const LAYER_CONV1D : u8 = 1;
+const LAYER_RECURRENT : u8 = 2;
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// 2. Core Types
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+pub const TernaryMatrix = [][]Trit;
+
+pub const TernaryBias = []Trit;
+
+pub const LayerConfig = struct {
+    input_size : usize,
+    output_size : usize,
+    layer_type : u8,
+    activation : u8,
+    has_bias : bool,
+};
+
+pub const TernaryLayer = struct {
+    weights : TernaryMatrix,
+    bias : TernaryBias,
+    config : LayerConfig,
+};
+
+pub const LayerOutput = struct {
+    activations : [][]GF16,
+    pre_activation : [][]GF16,
+};
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// 3. Ternary Matrix Operations
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// matmul_ternary(a, b) → [][]GF16
+fn matmul_ternary(a: TernaryMatrix, b: [][]GF16) -> [][]GF16 {
+    const m = len(a);
+    const n = len(a[0]);
+    const p = len(b[0]);
+
+    var result : [][]GF16 = undefined;
+    var i : usize = 0;
+    while (i < m) {
+        result[i] = [gf16::GF16_ZERO_POS; p];
+        var j : usize = 0;
+        while (j < p) {
+            var sum : GF16 = gf16::GF16_ZERO_POS;
+            var k : usize = 0;
+            while (k < n) {
+                const weight_gf16 = ternary_neuron::trit_to_gf16(a[i][k]);
+                const weight_f32 = gf16::gf16_decode_to_f32(weight_gf16);
+                const b_f32 = gf16::gf16_decode_to_f32(b[k][j]);
+                const prod_f32 = weight_f32 * b_f32;
+                sum = gf16::gf16_add(sum, gf16::gf16_encode_f32(prod_f32));
+                k = k + 1;
+            }
+            result[i][j] = sum;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    return result;
+}
+
+// matmul_elementwise(a, b, op) → [][]GF16
+fn matmul_elementwise(a: TernaryMatrix, b: [][]GF16, op: u8) -> [][]GF16 {
+    const m = len(a);
+    const n = len(a[0]);
+
+    var result : [][]GF16 = undefined;
+    var i : usize = 0;
+    while (i < m) {
+        result[i] = [gf16::GF16_ZERO_POS; n];
+        var j : usize = 0;
+        while (j < n) {
+            const weight_gf16 = ternary_neuron::trit_to_gf16(a[i][j]);
+            const weight_f32 = gf16::gf16_decode_to_f32(weight_gf16);
+            const b_f32 = gf16::gf16_decode_to_f32(b[i][j]);
+
+            switch (op) {
+                MAT_MUL_ELEM => {
+                    const prod_f32 = weight_f32 * b_f32;
+                    result[i][j] = gf16::gf16_encode_f32(prod_f32);
+                },
+                MAT_ADD => {
+                    result[i][j] = gf16::gf16_add(weight_gf16, b[i][j]);
+                },
+                _ => {
+                    const prod_f32 = weight_f32 * b_f32;
+                    result[i][j] = gf16::gf16_encode_f32(prod_f32);
+                },
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    return result;
+}
+
+// transpose_ternary(a) → TernaryMatrix
+fn transpose_ternary(a: TernaryMatrix) -> TernaryMatrix {
+    const m = len(a);
+    const n = len(a[0]);
+
+    var result : TernaryMatrix = undefined;
+    var i : usize = 0;
+    while (i < m) {
+        var j : usize = 0;
+        while (j < n) {
+            result[j][i] = a[i][j];
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// 4. Layer Forward Pass
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// layer_forward(layer, inputs) → LayerOutput
+fn layer_forward(layer: TernaryLayer, inputs: [][]GF16) -> LayerOutput {
+    const batch_size = len(inputs);
+    const output_size = layer.config.output_size;
+
+    const matmul_result = matmul_ternary(layer.weights, inputs);
+
+    var pre_act : [][]GF16 = undefined;
+    var activations : [][]GF16 = undefined;
+
+    var b : usize = 0;
+    while (b < batch_size) {
+        pre_act[b] = [gf16::GF16_ZERO_POS; output_size];
+        activations[b] = [gf16::GF16_ZERO_POS; output_size];
+
+        var i : usize = 0;
+        while (i < output_size) {
+            var val = matmul_result[i][b];
+
+            if (layer.config.has_bias) {
+                const bias_gf16 = ternary_neuron::trit_to_gf16(layer.bias[i]);
+                val = gf16::gf16_add(val, bias_gf16);
+            }
+
+            pre_act[b][i] = val;
+
+            switch (layer.config.activation) {
+                ternary_neuron::ACT_K3 => {
+                    const k3 = ternary_neuron::k3_activate(val);
+                    const k3_gf16 = gf16::gf16_encode_f32(@as(f32, @floatFromInt(k3.value)));
+                    activations[b][i] = k3_gf16;
+                },
+                ternary_neuron::ACT_SIGN => {
+                    const sign_out = ternary_neuron::sign_activate_gf16(val);
+                    activations[b][i] = sign_out;
+                },
+                ternary_neuron::ACT_TANH => {
+                    activations[b][i] = ternary_neuron::tanh_ternary_gf16(val);
+                },
+                ternary_neuron::ACT_STEP => {
+                    activations[b][i] = ternary_neuron::step_ternary_gf16(val);
+                },
+                _ => {
+                    const k3 = ternary_neuron::k3_activate(val);
+                    const k3_gf16 = gf16::gf16_encode_f32(@as(f32, @floatFromInt(k3.value)));
+                    activations[b][i] = k3_gf16;
+                },
+            }
+            i = i + 1;
+        }
+        b = b + 1;
+    }
+
+    return LayerOutput{
+        .activations = activations,
+        .pre_activation = pre_act,
+    };
+}
+
+// layer_output_trits(layer, inputs) → [][]Trit
+fn layer_output_trits(layer: TernaryLayer, inputs: [][]GF16) -> [][]Trit {
+    const output = layer_forward(layer, inputs);
+    const batch_size = len(inputs);
+    const output_size = layer.config.output_size;
+
+    var result : [][]Trit = undefined;
+    var b : usize = 0;
+    while (b < batch_size) {
+        result[b] = [Trit.zero; output_size];
+        var i : usize = 0;
+        while (i < output_size) {
+            result[b][i] = ternary_neuron::gf16_to_trit(output.activations[b][i]);
+            i = i + 1;
+        }
+        b = b + 1;
+    }
+
+    return result;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// 5. Layer Construction
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+fn layer_create(config: LayerConfig) -> TernaryLayer {
+    var weights : TernaryMatrix = undefined;
+    var bias : TernaryBias = undefined;
+
+    var i : usize = 0;
+    while (i < config.output_size) {
+        weights[i] = [Trit.zero; config.input_size];
+        var j : usize = 0;
+        while (j < config.input_size) {
+            weights[i][j] = ternary_neuron::random_trit();
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+
+    if (config.has_bias) {
+        var b : usize = 0;
+        while (b < config.output_size) {
+            bias[b] = ternary_neuron::random_trit();
+            b = b + 1;
+        }
+    }
+
+    return TernaryLayer{
+        .weights = weights,
+        .bias = bias,
+        .config = config,
+    };
+}
+
+fn layer_dense(input_size: usize, output_size: usize, activation: u8) -> TernaryLayer {
+    const config = LayerConfig{
+        .input_size = input_size,
+        .output_size = output_size,
+        .layer_type = LAYER_DENSE,
+        .activation = activation,
+        .has_bias = true,
+    };
+    return layer_create(config);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// TDD-Inside-Spec: Tests
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+test layer_matmul_identity
+    given inputs = [[gf16::gf16_encode_f32(1.0), gf16::GF16_ZERO_POS], [gf16::GF16_ZERO_POS, gf16::gf16_encode_f32(1.0)]]
+    and   result = matmul_ternary(inputs, inputs)
+    and   r00_f32 = gf16::gf16_decode_to_f32(result[0][0])
+    and   r11_f32 = gf16::gf16_decode_to_f32(result[1][1])
+    then abs(r00_f32 - 1.0) < 0.01
+    then abs(r11_f32 - 1.0) < 0.01
+
+test layer_matmul_with_negatives
+    given weights = [[Trit.pos, Trit.neg], [Trit.zero, Trit.pos]]
+    and   inputs = [[gf16::gf16_encode_f32(1.0)], [gf16::gf16_encode_f32(1.0)]]
+    and   result = matmul_ternary(weights, inputs)
+    then abs(gf16::gf16_decode_to_f32(result[0][0])) < 0.01
+    then abs(gf16::gf16_decode_to_f32(result[1][0]) - 1.0) < 0.01
+
+test layer_transpose_square
+    given matrix = [[Trit.pos, Trit.neg], [Trit.zero, Trit.pos]]
+    when transposed = transpose_ternary(matrix)
+    then transposed[0][0] == matrix[0][0]
+    then transposed[0][1] == matrix[1][0]
+    then transposed[1][0] == matrix[0][1]
+    then transposed[1][1] == matrix[1][1]
+
+test layer_forward_single_sample
+    given layer = layer_dense(2, 2, ternary_neuron::ACT_K3)
+    and   inputs = [[gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(-1.0)]]
+    when output = layer_forward(layer, inputs)
+    then len(output.activations) == 1
+    then len(output.activations[0]) == 2
+
+test layer_forward_batch
+    given layer = layer_dense(3, 2, ternary_neuron::ACT_K3)
+    and   inputs = [[gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(-1.0)], [gf16::gf16_encode_f32(-1.0), gf16::gf16_encode_f32(-1.0), gf16::gf16_encode_f32(-1.0)]]
+    when output = layer_forward(layer, inputs)
+    then len(output.activations) == 2
+
+test layer_output_trits_all_in_range
+    given layer = layer_dense(2, 3, ternary_neuron::ACT_K3)
+    and   inputs = [[gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]]
+    when output = layer_output_trits(layer, inputs)
+    then all_trits_in_result(output[0])
+
+test layer_create_correct_dimensions
+    given config = LayerConfig{
+        .input_size = 10,
+        .output_size = 5,
+        .layer_type = LAYER_DENSE,
+        .activation = ternary_neuron::ACT_K3,
+        .has_bias = true,
+    }
+    and   layer = layer_create(config)
+    then len(layer.weights) == 5
+    then len(layer.weights[0]) == 10
+    then len(layer.bias) == 5
+
+test layer_dense_no_bias
+    given layer = layer_dense(2, 2, ternary_neuron::ACT_K3)
+    then len(layer.bias) == 2
+    then layer.config.has_bias == true
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// TDD-Inside-Spec: Invariants
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+invariant layer_matmul_output_dimensions
+    given a = [[Trit.pos]]
+    and   b = [[gf16::gf16_encode_f32(1.0)]]
+    and   c = matmul_ternary(a, b)
+    then len(c) == len(a)
+    then len(c[0]) == len(b[0])
+
+invariant layer_transpose_dimensions
+    given matrix = [[Trit.pos, Trit.neg, Trit.zero], [Trit.neg, Trit.pos, Trit.zero]]
+    and   transposed = transpose_ternary(matrix)
+    then len(transposed) == len(matrix[0])
+    then len(transposed[0]) == len(matrix)
+
+invariant layer_forward_batch_preserved
+    given layer = layer_dense(3, 2, ternary_neuron::ACT_K3)
+    and   batch_size = 5
+    and   inputs = [[gf16::gf16_encode_f32(1.0)], [gf16::gf16_encode_f32(-1.0)], [gf16::gf16_encode_f32(1.0)], [gf16::gf16_encode_f32(1.0)], [gf16::gf16_encode_f32(-1.0)]]
+    and   output = layer_forward(layer, inputs)
+    then len(output.activations) == batch_size
+
+invariant layer_weights_all_trits
+    given layer = layer_create(LayerConfig{
+        .input_size = 10,
+        .output_size = 5,
+        .layer_type = LAYER_DENSE,
+        .activation = ternary_neuron::ACT_K3,
+        .has_bias = true,
+    })
+    then all_trits_in_matrix(layer.weights) == true
+
+invariant layer_output_size_matches_config
+    given config = LayerConfig{
+        .input_size = 5,
+        .output_size = 3,
+        .layer_type = LAYER_DENSE,
+        .activation = ternary_neuron::ACT_K3,
+        .has_bias = false,
+    }
+    and   layer = layer_create(config)
+    and   inputs = [[gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]]
+    and   output = layer_forward(layer, inputs)
+    then len(output.activations[0]) == config.output_size
+
+invariant layer_pre_activation_matches_activation
+    given layer = layer_dense(2, 2, ternary_neuron::ACT_K3)
+    and   inputs = [[gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]]
+    and   output = layer_forward(layer, inputs)
+    then check_k3_activation_output(output)
+
+invariant layer_config_preserved
+    given original = LayerConfig{
+        .input_size = 7,
+        .output_size = 4,
+        .layer_type = LAYER_DENSE,
+        .activation = ternary_neuron::ACT_SIGN,
+        .has_bias = true,
+    }
+    and   layer = layer_create(original)
+    and   stored = layer.config
+    then stored.input_size == original.input_size
+    then stored.output_size == original.output_size
+    then stored.layer_type == original.layer_type
+    then stored.activation == original.activation
+    then stored.has_bias == original.has_bias
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// TDD-Inside-Spec: Benchmarks
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+bench layer_matmul_latency_2x2
+    measure: nanoseconds to matmul_ternary([[Trit.pos, Trit.neg]], [[gf16::gf16_encode_f32(1.0)], [gf16::gf16_encode_f32(1.0)]])
+    target: < 200ns
+
+bench layer_transpose_latency_3x3
+    measure: nanoseconds to transpose_ternary([[Trit.pos, Trit.neg, Trit.zero], [Trit.neg, Trit.pos, Trit.pos], [Trit.zero, Trit.neg, Trit.pos]])
+    target: < 100ns
+
+bench layer_forward_latency_64x32
+    measure: nanoseconds to layer_forward(test_layer_64x32, test_inputs_gf16_64)
+    target: < 2000ns
+
+bench layer_forward_batch_latency
+    measure: nanoseconds to layer_forward(test_layer_32x16, test_inputs_gf16_batch_16)
+    target: < 10000ns
+
+bench layer_output_trits_latency
+    measure: nanoseconds to layer_output_trits(test_layer_16x8, test_inputs_gf16_16)
+    target: < 5000ns
