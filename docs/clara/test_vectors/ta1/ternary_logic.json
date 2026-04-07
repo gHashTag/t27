@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "spec_name": "ternary_logic",
+  "spec_file": "specs/ar/ternary_logic.t27",
+  "ring": 18,
+  "description": "Kleene K3 Ternary Logic for Automated Reasoning",
+  "generated": "2026-04-08",
+  "phi_identity": "phi² + 1/phi² = 3 | TRINITY",
+
+  "constants": {
+    "K_FALSE": -1,
+    "K_UNKNOWN": 0,
+    "K_TRUE": 1
+  },
+
+  "test_cases": [
+    {
+      "name": "k3_and_truth_table",
+      "description": "Verify Kleene AND matches trit_min (full 3x3 truth table)",
+      "inputs": [
+        {"a": -1, "b": -1, "expected": -1},
+        {"a": -1, "b": 0, "expected": -1},
+        {"a": -1, "b": 1, "expected": -1},
+        {"a": 0, "b": -1, "expected": -1},
+        {"a": 0, "b": 0, "expected": 0},
+        {"a": 0, "b": 1, "expected": 0},
+        {"a": 1, "b": -1, "expected": -1},
+        {"a": 1, "b": 0, "expected": 0},
+        {"a": 1, "b": 1, "expected": 1}
+      ]
+    },
+    {
+      "name": "k3_or_truth_table",
+      "description": "Verify Kleene OR matches trit_max (full 3x3 truth table)",
+      "inputs": [
+        {"a": -1, "b": -1, "expected": -1},
+        {"a": -1, "b": 0, "expected": 0},
+        {"a": -1, "b": 1, "expected": 1},
+        {"a": 0, "b": -1, "expected": 0},
+        {"a": 0, "b": 0, "expected": 0},
+        {"a": 0, "b": 1, "expected": 1},
+        {"a": 1, "b": -1, "expected": 1},
+        {"a": 1, "b": 0, "expected": 1},
+        {"a": 1, "b": 1, "expected": 1}
+      ]
+    },
+    {
+      "name": "k3_not_truth_table",
+      "description": "Verify Kleene NOT matches trit_not",
+      "inputs": [
+        {"input": -1, "expected": 1},
+        {"input": 0, "expected": 0},
+        {"input": 1, "expected": -1}
+      ]
+    },
+    {
+      "name": "k3_no_tautology_or_not_false",
+      "description": "OR(F, NOT(F)) = OR(F, T) = T (binary-like case)",
+      "inputs": [
+        {"input": -1, "expected": 1}
+      ]
+    },
+    {
+      "name": "k3_no_tautology_or_not_true",
+      "description": "OR(T, NOT(T)) = OR(T, F) = T (binary-like case)",
+      "inputs": [
+        {"input": 1, "expected": 1}
+      ]
+    },
+    {
+      "name": "k3_no_tautology_or_not_unknown",
+      "description": "OR(U, NOT(U)) = OR(U, U) = U (K3 difference - not a tautology)",
+      "inputs": [
+        {"input": 0, "expected": 0}
+      ]
+    },
+    {
+      "name": "k3_implication_ex_falso",
+      "description": "Implication: F -> anything = T",
+      "inputs": [
+        {"antecedent": -1, "consequent": -1, "expected": 1},
+        {"antecedent": -1, "consequent": 0, "expected": 1},
+        {"antecedent": -1, "consequent": 1, "expected": 1}
+      ]
+    },
+    {
+      "name": "k3_implication_when_antecedent_true",
+      "description": "Implication: T -> F = F, T -> T = T",
+      "inputs": [
+        {"antecedent": 1, "consequent": -1, "expected": -1},
+        {"antecedent": 1, "consequent": 0, "expected": 0},
+        {"antecedent": 1, "consequent": 1, "expected": 1}
+      ]
+    },
+    {
+      "name": "forward_chain_modus_ponens_true",
+      "description": "Forward chain with Modus Ponens: A -> B, A = B",
+      "inputs": [
+        {"implication_a": -1, "implication_b": 1, "assertion": -1, "expected": 1},
+        {"implication_a": 0, "implication_b": 1, "assertion": 0, "expected": 0},
+        {"implication_a": 1, "implication_b": 1, "assertion": 1, "expected": 1}
+      ]
+    },
+    {
+      "name": "forward_chain_modus_tollens_false",
+      "description": "Forward chain with Modus Tollens: A -> B, not B = not A",
+      "inputs": [
+        {"implication_a": 1, "implication_b": 1, "assertion": 0, "expected": 0}
+      ]
+    },
+    {
+      "name": "k3_double_negation",
+      "description": "Double negation: NOT(NOT(x)) = x",
+      "inputs": [
+        {"input": -1, "expected": -1},
+        {"input": 0, "expected": 0},
+        {"input": 1, "expected": 1}
+      ]
+    }
+  ],
+
+  "invariants": [
+    {
+      "name": "k3_and_bounded",
+      "description": "AND result is bounded by both inputs",
+      "property": "result <= max(a, b) in K3 ordering"
+    },
+    {
+      "name": "k3_or_bounded",
+      "description": "OR result is bounded below by both inputs",
+      "property": "result >= min(a, b) in K3 ordering"
+    },
+    {
+      "name": "k3_consistent_with_binary",
+      "description": "K3 consistent with binary on TRUE/FALSE values",
+      "property": "For a,b ∈ {TRUE, FALSE}: K3(a,b) = Binary(a,b)"
+    }
+  ],
+
+  "benchmarks": [
+    {
+      "name": "k3_and_performance",
+      "description": "Measure cycles for 10000 AND operations",
+      "target_cycles": 1000,
+      "operation_count": 10000
+    },
+    {
+      "name": "k3_or_performance",
+      "description": "Measure cycles for 10000 OR operations",
+      "target_cycles": 1000,
+      "operation_count": 10000
+    },
+    {
+      "name": "k3_implication_performance",
+      "description": "Measure cycles for 10000 IMPLIES operations",
+      "target_cycles": 2000,
+      "operation_count": 10000
+    }
+  ]
+}

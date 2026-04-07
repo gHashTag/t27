@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "spec_name": "restraint",
+  "spec_file": "specs/ar/restraint.t27",
+  "ring": 21,
+  "description": "Bounded Rationality and Restraint Parameters",
+  "generated": "2026-04-08",
+  "phi_identity": "phi² + 1/phi² = 3 | TRINITY",
+
+  "test_cases": [
+    {
+      "name": "continue_below_max_steps",
+      "description": "Should continue when below MAX_STEPS",
+      "params": {"max_steps": 10, "min_quality": 0.7},
+      "current_steps": 5,
+      "current_quality": 0.8,
+      "expected": true
+    },
+    {
+      "name": "stop_at_max_steps",
+      "description": "Should stop at MAX_STEPS",
+      "params": {"max_steps": 10, "min_quality": 0.7},
+      "current_steps": 10,
+      "current_quality": 0.8,
+      "expected": false
+    },
+    {
+      "name": "continue_above_min_quality",
+      "description": "Should continue when above MIN_QUALITY",
+      "params": {"max_steps": 100, "min_quality": 0.7},
+      "current_steps": 5,
+      "current_quality": 0.9,
+      "expected": true
+    },
+    {
+      "name": "stop_below_min_quality",
+      "description": "Should stop below MIN_QUALITY",
+      "params": {"max_steps": 100, "min_quality": 0.7},
+      "current_steps": 5,
+      "current_quality": 0.5,
+      "expected": false
+    }
+  ]
+}
