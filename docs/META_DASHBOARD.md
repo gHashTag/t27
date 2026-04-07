@@ -16,7 +16,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 | Rings Closed | 53+ | - | 🟢 Good |
 | Queen Health | 1.0 / GREEN | ≥ 0.8 | 🟢 Excellent |
 | Open PRs | 0 | < 5 | 🟢 Clean |
-| Spec Count | 81 | 100+ | 🟡 Growing |
+| Spec Count | 82 | 100+ | 🟡 Growing |
 
 ---
 
@@ -26,7 +26,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 Phase 1: Seed (Bootstrap)    ████████████ 100% ✅
 Phase 2: Stem (Conformance)  ████████████ 100% ✅
 Phase 3: Branches (Science)  ████████████ 100% ✅
-Phase 4: Crown (Queen)        ████████░░░░  50% 🟡
+Phase 4: Crown (Queen)        █████████░░░  60% 🟡
 ```
 
 ---
@@ -41,6 +41,8 @@ Phase 4: Crown (Queen)        ████████░░░░  50% 🟡
 | 058 | - | Schema validation CI | Draft-07 meta-schema validation | ✅ Done |
 | 059 | - | BRAIN_SEAL_SCHEMA | Brain seal schema for Queen | ✅ Done |
 | 060 | - | Brain seal refresh | Experience aggregation pipeline | ✅ Done |
+| 061 | #222 | Brain Summaries | Brain summaries pipeline spec, schema, CI | ✅ Done |
+| 062 | #224 | VSA Similarity Search | Semantic similarity operations for recall | ✅ Done |
 | 061 | - | Brain Summaries | Brain summaries pipeline spec, schema, CI integration | ✅ Done |
 
 ---
@@ -52,7 +54,7 @@ Phase 4: Crown (Queen)        ████████░░░░  50% 🟡
 | seed_bootstrap | 1.0 | 031 | ✅ Sealed |
 | stem_conformance | 1.0 | 049 | ✅ Sealed |
 | branches_science | 1.0 | 053 | ✅ Sealed |
-| crown_automation | 0.92 | 061 | 🟡 In progress (brain summaries pipeline added) |
+| crown_automation | 0.95 | 062 | 🟢 Active (brain summaries + VSA similarity search) |
 | compiler_verification | 0.8 | 150 | 🟢 Active |
 | coq_kernel | 0.7 | 156 | 🟢 Active |
 

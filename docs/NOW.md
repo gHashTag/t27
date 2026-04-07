@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 in progress · Ring 061 complete · RFC3339 2026-04-07T19:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 at 60% · Rings 061-062 complete · RFC3339 2026-04-07T20:00:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 3 Complete — Phase 4 Crown** — Rings 050-053 sealed, BRAIN_SEAL_SCHEMA added, property-test template fixed. Phase 4 Crown automation in progress.
+**Revision:** **Phase 4 at 60%** — Rings 061 (brain summaries), 062 (VSA similarity search) complete. Spec growth: 82/100 target.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
