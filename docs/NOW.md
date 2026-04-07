@@ -5,10 +5,20 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 051 ACTIVE — Verdict export JSON schema for Queen tooling · RFC3339 2026-04-07T12:00:00Z
 
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 051 ACTIVE — Verdict export JSON schema for Queen tooling · RFC3339 2026-04-07T12:00:00Z
 **Document class:** Operational focus document
 **Revision:** **Rings 46+47+49+51+040+045+048 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175), Agent Alphabet (#135), ISA registers (#140), VSA algebra (#144) — all CLOSED. **Phase 4 STARTED:** Ring 051 (#197) — Verdict export JSON schema for Queen tooling.
+
+
+**Last updated:** 2026-04-06 — Tuesday, 07 April 2026 (UTC+07) · Ring 039 CLARA TA1/TA2 checklist · RFC3339 2026-04-06T22:00:00Z
+**Last updated:** 2026-04-06 — Tuesday, 07 April 2026 (UTC+07) · Ring 041 GoldenFloat arXiv draft + Ring 035 TECHNOLOGY-TREE · RFC3339 2026-04-06T22:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 054 ACTIVE — META dashboard for Crown metrics · RFC3339 2026-04-07T13:30:00Z
+
+
+**Document class:** Operational focus document
+**Revision:** **Phase 4 Crown in progress** — Rings 051-054 (#197, #199, #201, #203) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD.
+ъ
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
