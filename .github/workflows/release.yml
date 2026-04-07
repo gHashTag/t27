@@ -137,6 +137,12 @@ jobs:
           npm pkg set repository.url=https://github.com/trinity-s3ai/t27
           npm pkg set author="Trinity S3AI"
 
+      - name: Configure npm for publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > .npmrc
+          echo "scope=@trinity" >> .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+
       - name: Publish to npm
         working-directory: bindings/javascript/pkg
         run: npm publish --access public
