@@ -1,0 +1,42 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0", "toml", "typing"]
+build-backend = "maturin"
+
+[project]
+name = "golden-float"
+version = "0.1.0"
+description = "Phi-structured floating-point formats for ML and scientific computing"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Trinity S3AI", email = "t27@trinity.ai" }
+]
+keywords = ["golden-float", "phi", "floating-point", "ml", "numpy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/trinity-s3ai/t27"
+Documentation = "https://github.com/trinity-s3ai/t27#readme"
+Repository = "https://github.com/trinity-s3ai/t27"
+
+[tool.maturin]
