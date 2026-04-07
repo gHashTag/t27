@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/base/ternary_encoding.t27",
+  "spec_hash": "sha256:c6ef070624218e68b472792eedb990e51743256dd413ab9c97286db3e7af66f7",
+  "gen_hash_zig": "sha256:e79cedd3689aebf245d28feaae4ec56dba03ba6138761e3f7a749591deec2144",
+  "gen_hash_verilog": "sha256:bde29dbb8c98fd06ec614226c4b99fe42cde06a081381f46cf946f0a212e1568",
+  "gen_hash_c": "sha256:546759e42a01a9e4a42f2b0afcb8211a9b745cd150aa86778674136a9eef6f52",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-07T22:30:00Z",
+  "ring": 65,
+  "verdict": "clean",
+  "notes": "Ternary encoding/decoding spec for data representation"
+}

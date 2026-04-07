@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:275087183a000e0ddf04b5c7b2695bda7cd74b28b6d85dbcf4a918222d841e00",
+  "gen_hash_verilog": "sha256:bb6a0e267ae8fe6ebf66012e75ed383787d688a06006ef55d39af8bc3f6300fa",
+  "gen_hash_zig": "sha256:9a6dca871637b6acabf9b960991b31d59680d9e4ced3d215d7c6b6207ddb458b",
+  "module": "TernaryLoss",
+  "ring": 12,
+  "sealed_at": "2026-04-07T11:01:21Z",
+  "spec_hash": "sha256:757fb51137a2944bc8ff31d6e015d0974267bab364d0903c107162fba9b05688",
+  "spec_path": "specs/ml/ternary_loss.t27"
+}

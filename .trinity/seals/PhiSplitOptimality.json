@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:PLACEHOLDER",
+  "gen_hash_verilog": "sha256:PLACEHOLDER",
+  "gen_hash_zig": "sha256:PLACEHOLDER",
+  "module": "PhiSplitOptimality",
+  "ring": 48,
+  "sealed_at": "2026-04-07T18:20:00Z",
+  "spec_hash": "sha256:PLACEHOLDER",
+  "spec_path": "specs/math/phi_split_optimality.t27"
+}

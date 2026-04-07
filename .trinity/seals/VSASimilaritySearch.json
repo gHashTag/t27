@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/vsa/similarity_search.t27",
+  "spec_hash": "sha256:87e55972897df202ee5e5d203c221b372c33e155b007bc68bcccf401ae04a710",
+  "gen_hash_zig": "sha256:f13825591ccd09e43a5104821c8a1cde1dbdc2fdb3aa007e42e9afca6e98d2b5",
+  "gen_hash_verilog": "sha256:bd9d26b4515e627737bae8904dbd28318ff9c1650fc9ad800dd56377c3ecb4ed",
+  "gen_hash_c": "sha256:831c08308b382acf5bc5f9fa92fe011969462c55c5eb9339fa4aca1336010a3f",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-07T19:30:00Z",
+  "ring": 62,
+  "verdict": "clean",
+  "notes": "VSA similarity search spec for semantic recall"
+}

@@ -33,6 +33,7 @@ Each run appends one JSON line to `.trinity/experience/math_compare.jsonl` (proo
 - **CLI:** `tri math compare` exposes Pellis-style contrasts, SM reference constants, hybrid scalar, and \(\phi\)-sensitivity — all in Rust via `t27c`.
 - **Traceability:** experience JSONL lines now include **`pellis_spec_seal_hash`** when the seal file is present, linking runs to the sealed spec revision.
 
+
 ## Specs
 
 - `specs/physics/pellis-formulas.t27` — L5 anchor, Pell block, alpha^-1 reference, TDD blocks.

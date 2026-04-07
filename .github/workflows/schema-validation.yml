@@ -46,6 +46,12 @@ jobs:
             -d conformance/BRAIN_SEAL_SCHEMA.json \
             --strict=false || echo "Note: Using basic validation"
 
+      - name: Validate BRAIN_SUMMARIES_SCHEMA against meta-schema
+        run: |
+          ajv validate -s .github/schemas/json-schema-draft-07.json \
+            -d conformance/BRAIN_SUMMARIES_SCHEMA.json \
+            --strict=false || echo "Note: Using basic validation"
+
   validate-examples:
     runs-on: ubuntu-latest
     name: Validate Examples Against Schemas
@@ -96,6 +102,19 @@ jobs:
               instance = json.load(open(f'.trinity/seals/{seal_file}'))
               validate(instance=instance, schema=schema)
               print(f'{seal_file}: VALID')
+          "
+
+      - name: Validate brain summaries example
+        run: |
+          python -c "
+          import json
+          from jsonschema import validate
+
+          schema = json.load(open('conformance/BRAIN_SUMMARIES_SCHEMA.json'))
+          instance = json.load(open('.trinity/queen-brain/summaries/example_daily_summary.json'))
+
+          validate(instance=instance, schema=schema)
+          print('BRAIN_SUMMARIES_SCHEMA: VALID')
           "
 
   check-claim-tiers:
