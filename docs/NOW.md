@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — Wednesday, 08 April 2026 (UTC+07) · Sprint 1 Complete · 6 Zig→t27 specs (151 tests, 82 invariants, 73 benchmarks) · PR #311 merged · RFC3339 2026-04-08T23:59:00Z
+**Last updated:** 2026-04-07 — NotebookLM Phase 2-5 complete · PR #317 (OPEN) · RFC3339 2026-04-07T17:30:00Z
 
 **Document class:** Operational focus document
 **Revision:** **P0 Sprint 1 Complete** — 6 files converted from trinity-source/src/ to .t27 specs:

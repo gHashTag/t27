@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from .session import SessionContext
-from .sources import source_upload_text
+from contrib.backend.notebooklm.sources import source_upload_text
 
 
 @dataclass
