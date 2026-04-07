@@ -1,0 +1,26 @@
+{
+  "title": "GoldenFloat: φ-Optimal Floating-Point Formats for Ternary Computing",
+  "upload_type": "software",
+  "description": "GoldenFloat (GF) — семейство из 7 узких форматов с плавающей точкой, параметризованных φ ≈ 1.618. Включает Theorem 3 (φ как universal fixed-point attractor), формальные Coq-доказательства и tri CLI.",
+  "creators": [
+    {
+      "name": "gHashTag",
+      "affiliation": "Trinity Computing"
+    }
+  ],
+  "keywords": [
+    "golden ratio", "floating point", "ternary computing",
+    "GoldenFloat", "phi", "number format", "t27", "tri CLI"
+  ],
+  "license": "MIT",
+  "communities": [{"identifier": "trinity"}],
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "identifier": "https://github.com/gHashTag/t27",
+      "resource_type": "software"
+    }
+  ],
+  "version": "0.1.0",
+  "language": "eng"
+}
