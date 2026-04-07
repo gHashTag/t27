@@ -16,7 +16,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 | Rings Closed | 53+ | - | 🟢 Good |
 | Queen Health | 1.0 / GREEN | ≥ 0.8 | 🟢 Excellent |
 | Open PRs | 0 | < 5 | 🟢 Clean |
-| Spec Count | 82 | 100+ | 🟡 Growing |
+| Spec Count | 83 | 100+ | 🟡 Growing |
 
 ---
 
@@ -26,7 +26,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 Phase 1: Seed (Bootstrap)    ████████████ 100% ✅
 Phase 2: Stem (Conformance)  ████████████ 100% ✅
 Phase 3: Branches (Science)  ████████████ 100% ✅
-Phase 4: Crown (Queen)        █████████░░░  60% 🟡
+Phase 4: Crown (Queen)        ██████████░░░  70% 🟡
 ```
 
 ---
@@ -43,6 +43,7 @@ Phase 4: Crown (Queen)        █████████░░░  60% 🟡
 | 060 | - | Brain seal refresh | Experience aggregation pipeline | ✅ Done |
 | 061 | #222 | Brain Summaries | Brain summaries pipeline spec, schema, CI | ✅ Done |
 | 062 | #224 | VSA Similarity Search | Semantic similarity operations for recall | ✅ Done |
+| 063 | #226 | Ternary Gates | NOT, MIN, MAX, consensus, majority gates | ✅ Done |
 | 061 | - | Brain Summaries | Brain summaries pipeline spec, schema, CI integration | ✅ Done |
 
 ---

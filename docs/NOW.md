@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 at 60% · Rings 061-062 complete · RFC3339 2026-04-07T20:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 at 70% · Rings 061-063 complete · RFC3339 2026-04-07T21:30:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 4 at 60%** — Rings 061 (brain summaries), 062 (VSA similarity search) complete. Spec growth: 82/100 target.
+**Revision:** **Phase 4 at 70%** — Rings 061 (brain summaries), 062 (VSA similarity search), 063 (ternary gates) complete. Spec growth: 83/100 target.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
