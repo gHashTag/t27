@@ -10,7 +10,7 @@ for integration with t27's synchronous workflow.
 """
 
 from .config import config_from_env, NotebookLMConfig, DEFAULT_CONFIG
-from .token import token_load, token_save, token_is_valid, token_clear, AuthTokens
+from .auth_token import token_load, token_save, token_is_valid, token_clear, AuthTokens
 from .cookie_auth import authenticate_with_cookies, notebooklm_client_init, test_notebooklm_sdk_integration
 from .client import client_new, client_authenticate, client_close, client_is_authenticated
 from .notebooks import notebook_create, notebook_list, notebook_get, notebook_find_by_name, notebook_delete

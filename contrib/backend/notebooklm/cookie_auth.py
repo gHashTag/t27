@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from pathlib import Path
 
 from .config import NotebookLMConfig
-from .token import AuthTokens, token_save
+from .auth_token import AuthTokens, token_save
 
 
 def _check_sdk_available() -> bool:
