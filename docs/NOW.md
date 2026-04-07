@@ -5,11 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-<<<<<<< HEAD
-**Last updated:** 2026-04-08 — Ring 050 complete: radix_economy.t27 proves ternary beats binary by 5.4% · PR #316 (OPEN) · RFC3339 2026-04-08T00:45:00Z
-=======
-**Last updated:** 2026-04-08 — NotebookLM Phase 2-5 complete · PR #317 (OPEN) · RFC3339 2026-04-08T00:30:00Z
->>>>>>> feat/ring-050-radix-economy
+**Last updated:** 2026-04-07 — NotebookLM Phase 2-5 complete · PR #317 (OPEN) · RFC3339 2026-04-07T17:30:00Z
 
 **Document class:** Operational focus document
 **Revision:** **P0 Sprint 1 Complete** — 6 files converted from trinity-source/src/ to .t27 specs:
