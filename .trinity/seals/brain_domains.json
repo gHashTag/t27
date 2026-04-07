@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "seal_type": "brain_domains",
+  "timestamp": "2026-04-07T12:00:00Z",
+  "domains": [
+    {
+      "name": "seed_bootstrap",
+      "status": "SEALED",
+      "health": 1.0,
+      "last_ring": 31
+    },
+    {
+      "name": "stem_conformance",
+      "status": "SEALED",
+      "health": 1.0,
+      "last_ring": 49
+    },
+    {
+      "name": "branches_science",
+      "status": "SEALED",
+      "health": 1.0,
+      "last_ring": 51
+    },
+    {
+      "name": "crown_automation",
+      "status": "ACTIVE",
+      "health": 0.5,
+      "last_ring": 52
+    },
+    {
+      "name": "compiler_verification",
+      "status": "ACTIVE",
+      "health": 0.8,
+      "last_ring": 150
+    },
+    {
+      "name": "coq_kernel",
+      "status": "ACTIVE",
+      "health": 0.7,
+      "last_ring": 156
+    }
+  ],
+  "meta": {
+    "total_domains": 6,
+    "sealed_domains": 3,
+    "active_domains": 3
+  }
+}
