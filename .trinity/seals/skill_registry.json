@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:92b794a93b7fa2d47ac77c839bcc0b42efdc87db2046a45acddc6f9b01666bf7",
   "module": "skill_registry",
   "ring": 12,
-  "sealed_at": "2026-04-07T17:07:00Z",
+  "sealed_at": "2026-04-07T18:10:11Z",
   "spec_hash": "sha256:d492aa25a1e06b4ced6c44067db4ae48e4cfa14f2939dea8c45cfc838f38c6b6",
   "spec_path": "compiler/skill/registry.t27"
 }

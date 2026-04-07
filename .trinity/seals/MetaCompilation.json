@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:aaf675788ad4fd642d09c9b10219a658c14c5988c9e8a261fb2a3a0e278539bb",
-  "gen_hash_rust": "sha256:a882a95aab555c28494e2b414670467ff99f35ecab9dfddc21063c1d84b8b3b0",
+  "gen_hash_rust": "sha256:488e9d15dc4788bf519d4ca68515cf2b18167d086c4b35b042e797dfd19e6377",
   "gen_hash_verilog": "sha256:54160f0a7178c2f5951ee7ca9cafc304dc337a171d1186f21a827abd29356f05",
   "gen_hash_zig": "sha256:cc90736589709a6b90019c3093db00cb1b2bf4affbfa26ae1ced6ad850449f55",
   "module": "MetaCompilation",
   "ring": 12,
-  "sealed_at": "2026-04-07T17:07:00Z",
+  "sealed_at": "2026-04-07T18:10:10Z",
   "spec_hash": "sha256:d2a1107ae7018bc9b6657bb5ba5c211e1319c7ced8f6c361e44fe1e206ee27f6",
   "spec_path": "specs/compiler/meta_compile.t27"
 }

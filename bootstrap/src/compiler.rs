@@ -6078,6 +6078,20 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
 
     for child in &ast.children {
         if child.kind == NodeKind::FnDecl {
+            if child.params.len() > 8 {
+                result.warnings += 1;
+                let line = if child.line > 0 {
+                    format!(":{}", child.line)
+                } else {
+                    String::new()
+                };
+                result.errors.push(format!(
+                    "warning: function '{}' has {} parameters{} — consider refactoring",
+                    child.name,
+                    child.params.len(),
+                    line
+                ));
+            }
             let mut fn_symbols = symbols.clone();
             for (pname, ptype) in &child.params {
                 fn_symbols.push(SymbolEntry {
@@ -6148,6 +6162,47 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
         }
     }
 
+    let mut enum_variants: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for child in &ast.children {
+        if child.kind == NodeKind::EnumDecl {
+            let variants: Vec<String> = child
+                .children
+                .iter()
+                .filter(|c| c.kind == NodeKind::EnumVariant)
+                .map(|c| format!("{}::{}", child.name, c.name))
+                .collect();
+            enum_variants.insert(child.name.clone(), variants);
+        }
+    }
+
+    let mut used_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
+    fn collect_enum_values(node: &Node, used: &mut std::collections::HashSet<String>) {
+        if node.kind == NodeKind::ExprEnumValue {
+            used.insert(format!("{}::{}", node.name, node.extra_field));
+        }
+        for child in &node.children {
+            collect_enum_values(child, used);
+        }
+    }
+    collect_enum_values(&ast, &mut used_variants);
+
+    for (enum_name, variants) in &enum_variants {
+        let unused: Vec<&String> = variants
+            .iter()
+            .filter(|v| !used_variants.contains(*v))
+            .collect();
+        if !unused.is_empty() && unused.len() < variants.len() {
+            for v in &unused {
+                result.warnings += 1;
+                result.errors.push(format!(
+                    "info: unused enum variant '{}' in enum '{}'",
+                    v, enum_name
+                ));
+            }
+        }
+    }
+
     if result.error_count > 0 {
         result.ok = false;
     }
@@ -6178,6 +6233,24 @@ fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
         }
         NodeKind::StmtAssign => {
             if !node.children.is_empty() {
+                if let Some(sym) = symbols.iter().find(|s| {
+                    node.children[0].kind == NodeKind::ExprIdentifier
+                        && s.name == node.children[0].name
+                }) {
+                    if !sym.is_mutable {
+                        let name = &node.children[0].name;
+                        let line = if node.line > 0 {
+                            format!(":{}", node.line)
+                        } else {
+                            String::new()
+                        };
+                        result.warnings += 1;
+                        result.errors.push(format!(
+                            "warning: cannot assign to immutable '{}'{}",
+                            name, line
+                        ));
+                    }
+                }
                 let target_type = infer_expr(&node.children[0], symbols, fns);
                 if node.children.len() > 1 {
                     let value_type = infer_expr(&node.children[1], symbols, fns);
@@ -6904,7 +6977,12 @@ impl RustCodegen {
                 if node.children.len() >= 2 {
                     let left = Self::expr_to_rust(&node.children[0]);
                     let right = Self::expr_to_rust(&node.children[1]);
-                    format!("({} {} {})", left, node.extra_op, right)
+                    let op = match node.extra_op.as_str() {
+                        "and" => "&&",
+                        "or" => "||",
+                        op => op,
+                    };
+                    format!("({} {} {})", left, op, right)
                 } else {
                     "()".to_string()
                 }

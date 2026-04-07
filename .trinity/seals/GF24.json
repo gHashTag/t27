@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e02c7021a800ea22c24c3cb3086f760ed9c0e5042be58c63f07359f25dce5cc0",
   "module": "GF24",
   "ring": 12,
-  "sealed_at": "2026-04-07T17:06:59Z",
+  "sealed_at": "2026-04-07T18:10:10Z",
   "spec_hash": "sha256:90c26b6e25af5216e9c6f952f94e52bf19c821eb37a690688b0b623e7a7f0d0d",
   "spec_path": "specs/numeric/gf24.t27"
 }
