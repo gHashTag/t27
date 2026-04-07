@@ -1,10 +1,11 @@
 {
-  "gen_hash_c": "sha256:2edd21c4dd71ddf840d3432ec8a34bfc809926702b538e32c75bdcb31ae28af4",
-  "gen_hash_verilog": "sha256:dec0ec5d8f2ba5c73b7877113bda8064bd88ae32bd9796de2055b951a3887dce",
-  "gen_hash_zig": "sha256:37164005062ba42a444b02073bbbd04d9b3ffc7a7a81f6bedc50018179b875fb",
+  "gen_hash_c": "sha256:05121d7ab816de1494b54dddad5385ae11f4d59a4d35f84c18c698b5a67baf70",
+  "gen_hash_rust": "sha256:2e4f89f840463e32e08e77b84a8a6738a0b9c052437d8bf86412e8ae94a2bcff",
+  "gen_hash_verilog": "sha256:8a311fb9a0688051693abba7a4798d7ffc89a9c53581636e810a08612b19f701",
+  "gen_hash_zig": "sha256:0baf94f803ae1530157b1678fed3e0fb1b5101dfea89528f312a9446a00fecba",
   "module": "DatalogEngine",
   "ring": 12,
-  "sealed_at": "2026-04-06T14:43:48Z",
+  "sealed_at": "2026-04-07T17:06:59Z",
   "spec_hash": "sha256:30f9ede1d2afebc229f303f07941c3154e1dc3342f5a58e7cbd0cc57a000d5d6",
   "spec_path": "specs/ar/datalog_engine.t27"
 }

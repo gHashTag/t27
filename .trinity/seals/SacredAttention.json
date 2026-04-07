@@ -1,10 +1,11 @@
 {
-  "gen_hash_c": "sha256:5da876697c3eb61bccfef485a626c8173d9a89fdff7cc9abb64ec83635422ab6",
-  "gen_hash_verilog": "sha256:bdbd50a7654af62fb31cd8157f1b5ab4e96d9e0a89a139652246905559bc21c7",
-  "gen_hash_zig": "sha256:b6d298a958c1e7483131b5b3a55f2c284ff9ad58d5e863811b3e90a242d74b94",
+  "gen_hash_c": "sha256:7238ffa1b7a6e8576a157ea2330273ff3ab36dff8cf3842bcf5e29ab495d9392",
+  "gen_hash_rust": "sha256:a851a5afb246a5a7c7594178f3b01948270b3a269d0a0d3d12d586efc01542c7",
+  "gen_hash_verilog": "sha256:e2836abed9ddeaacb9d9bd676c3762bb34e0c5c99d62753d76322676f652a067",
+  "gen_hash_zig": "sha256:38c4974e6aeb8e615fe901ee71d5a71df1841466ddf534d2ed3039c40d180f46",
   "module": "SacredAttention",
   "ring": 12,
-  "sealed_at": "2026-04-06T22:23:30Z",
+  "sealed_at": "2026-04-07T17:06:59Z",
   "spec_hash": "sha256:040670fefe75e4de94153cc64f5a7c8f3babb4d5878e506e44e5cfc26a2e2524",
   "spec_path": "specs/nn/attention.t27"
 }
