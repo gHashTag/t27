@@ -1,10 +1,10 @@
 {
-  "gen_hash_c": "sha256:86dfcbed00effad4b992cbcbde93ecf7e660cfec3fcab5524b9c5c9fdd468037",
-  "gen_hash_verilog": "sha256:bf5a92524702be43adb32bf69b7b37a5d90221ac7b2df49287d5d177bdd52cfe",
-  "gen_hash_zig": "sha256:7870e05f4bc37d1c4451e523526b13a978e4066c25ad0a9a6696198ff6d9dbb4",
+  "gen_hash_c": "sha256:787f8be5c9087f3d64791989accc86fa29622caecb4311a07c346baa729d2b3b",
+  "gen_hash_verilog": "sha256:309c320c81f66b73a8fb37f325592067788e681dba8b47679ae81510bf5baa3c",
+  "gen_hash_zig": "sha256:eedd17896613952fdcfe6858bcc0033b4fda39eb332bf291411a93a7c64b870c",
   "module": "JonesTopologyFilter",
   "ring": 12,
-  "sealed_at": "2026-04-06T16:51:46Z",
+  "sealed_at": "2026-04-06T22:23:30Z",
   "spec_hash": "sha256:1f8395954880fc6e8fba6012b3d029ed300500f6fb4b4e45e850de8a5fcae0c3",
   "spec_path": "specs/demos/jones_topology_filter.t27"
 }

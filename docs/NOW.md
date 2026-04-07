@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 033 issue-gate enforcement · RFC3339 2026-04-06T22:00:00Z
+**Last updated:** 2026-04-06 — Monday, 07 April 2026 (UTC+07) · Ring 037 COMPLETE — Parser extended with block expression support (for switch arms) · RFC3339 2026-04-06T22:00:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Rings 46+47+49+51+040+045+048 → Phase 3 Complete** — E2E CI loop (#150), K3 truth table (#143), Sacred physics (#145), Jones polynomial (#175), Agent Alphabet (#135), ISA registers (#140), VSA algebra (#144) — all CLOSED. Seal cleanup: JonesPolynomial ring 12→51, SacredPhysics conformance hash fixed. L7 UNITY: NO-PYTHON migration (coq-kernel CI) in progress (#156). 79/79 specs PASS, all seals verified.
@@ -86,7 +86,7 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 | **ISSUE-GATE**       | No code merged without `Closes #N`                                                                  | `.github/workflows/issue-gate.yml`                                                                                  |
 | **NO-HAND-EDIT-GEN** | Files under `gen/` are generated; edit the `.t27` spec instead                                      | `./bootstrap/target/release/t27c --repo-root . validate-gen-headers` (or `./scripts/tri validate-gen-headers`)   |
 | **SOUL-ASCII**       | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments                        | `SOUL.md`, ADR-004                                                                                                  |
-| **TDD-MANDATE**      | Every `.t27` spec must contain `test` / `invariant` / `bench`                                       | Ring 037 / [#132](https://github.com/gHashTag/t27/issues/132)                                                       |
+| **TDD-MANDATE**      | Every `.t27` spec must contain `test` / `invariant` / `bench` — **ENFORCED** (Ring 037 ✅)                                     | `SOUL.md Article II`, `bootstrap/src/compiler.rs:validate_soul_compliance()`                                            |
 | **PHI-IDENTITY**     | **K2 core:** \(\varphi^2 = \varphi + 1\) on \(\mathbb{R}\); **consequence** \(\varphi^2+\varphi^{-2}=3\); **IEEE `f64`** checks use **tolerance** (not exact equality) | `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`, `specs/math/constants.t27` |
 | **TRINITY-SACRED**   | `conformance/FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` are the numeric ceiling               | SSOT: never forked                                                                                                  |
 | **NO-NEW-SHELL**     | No new `*.sh` on the critical path for validation / gen / data                                    | **SOUL.md** Article VIII; `t27c` + Python; `tri` + `setup-git-hooks.sh` only                                           |
