@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gHashTag/t27/conformance/BRAIN_SEAL_SCHEMA.json",
+  "title": "T27 Brain Seal Schema v1",
+  "description": "Schema for Queen brain seals generated from experience aggregation",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "seal_type",
+    "timestamp"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version",
+      "const": 1
+    },
+    "seal_type": {
+      "type": "string",
+      "description": "Type of brain seal",
+      "enum": ["brain_summary", "brain_domains"]
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "RFC3339 timestamp of seal generation",
+      "format": "date-time"
+    },
+    "ring_range": {
+      "type": "object",
+      "description": "Ring range covered by this seal",
+      "properties": {
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0}
+      },
+      "required": ["start", "end"]
+    },
+    "summary": {
+      "type": "object",
+      "description": "Summary statistics (for brain_summary only)",
+      "properties": {
+        "total_rings": {"type": "integer", "minimum": 0},
+        "rings_closed": {"type": "integer", "minimum": 0},
+        "rings_open": {"type": "integer", "minimum": 0},
+        "clean_verdicts": {"type": "integer", "minimum": 0},
+        "toxic_verdicts": {"type": "integer", "minimum": 0},
+        "weak_confirms": {"type": "integer", "minimum": 0}
+      }
+    },
+    "domains": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Domain status map (for brain_summary only)",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "status": {"type": "string", "enum": ["SEALED", "ACTIVE", "DEGRADED"]},
+              "health": {"type": "number", "minimum": 0, "maximum": 1},
+              "last_ring": {"type": "integer", "minimum": 0}
+            },
+            "required": ["status", "health", "last_ring"]
+          }
+        },
+        {
+          "type": "array",
+          "description": "Domains list (for brain_domains only)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "status": {"type": "string", "enum": ["SEALED", "ACTIVE", "DEGRADED"]},
+              "health": {"type": "number", "minimum": 0, "maximum": 1},
+              "last_ring": {"type": "integer", "minimum": 0}
+            },
+            "required": ["name", "status", "health", "last_ring"]
+          }
+        }
+      ]
+    },
+    "queen_health": {
+      "type": "object",
+      "description": "Queen health metrics (for brain_summary only)",
+      "properties": {
+        "overall": {"type": "string", "enum": ["GREEN", "YELLOW", "RED"]},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "domains": {"type": "integer", "minimum": 0},
+        "last_updated": {"type": "string", "format": "date-time"}
+      },
+      "required": ["overall", "domains", "last_updated"]
+    },
+    "domains_list": {
+      "type": "array",
+      "description": "Domains list (for brain_domains only)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "status": {"type": "string", "enum": ["SEALED", "ACTIVE", "DEGRADED"]},
+          "health": {"type": "number", "minimum": 0, "maximum": 1},
+          "last_ring": {"type": "integer", "minimum": 0}
+        },
+        "required": ["name", "status", "health", "last_ring"]
+      }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Metadata (for brain_domains only)",
+      "properties": {
+        "total_domains": {"type": "integer", "minimum": 0},
+        "sealed_domains": {"type": "integer", "minimum": 0},
+        "active_domains": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

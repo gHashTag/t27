@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
   "seal_type": "brain_summary",
-  "timestamp": "2026-04-07T02:15:07Z",
+  "timestamp": "2026-04-07T02:51:45Z",
   "ring_range": {
     "start": 0,
-    "end": 0
+    "end": 59
   },
   "summary": {
-    "total_rings": 0,
-    "rings_closed": 1,
-    "rings_open": -1,
-    "clean_verdicts": 1,
+    "total_rings": 59,
+    "rings_closed": 3,
+    "rings_open": 56,
+    "clean_verdicts": 3,
     "toxic_verdicts": 0,
     "weak_confirms": 0
   },
@@ -22,8 +22,8 @@
   },
   "queen_health": {
     "overall": "GREEN",
-    "score": "1.0",
+    "score": 0.0508,
     "domains": 4,
-    "last_updated": "2026-04-07T02:15:07Z"
+    "last_updated": "2026-04-07T02:51:45Z"
   }
 }

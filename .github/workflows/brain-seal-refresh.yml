@@ -27,8 +27,8 @@ jobs:
           import json
           from jsonschema import validate
 
-          # Validate against VERDICT_SCHEMA
-          schema = json.load(open('conformance/VERDICT_SCHEMA.json'))
+          # Validate against BRAIN_SEAL_SCHEMA
+          schema = json.load(open('conformance/BRAIN_SEAL_SCHEMA.json'))
 
           for seal_file in ['.trinity/seals/brain_summary.json', '.trinity/seals/brain_domains.json']:
               instance = json.load(open(seal_file))
