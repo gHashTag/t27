@@ -1,6 +1,6 @@
 ---
 name: tri
-description: This skill should be used when user asks to "tri skill begin", "PHI LOOP", "edit .t27 spec", "seal hash", "tri gen", "tri test", "tri verdict", "tri experience save", or any task requiring spec-first development in the t27 Trinity S³AI project. Implements the canonical PHI LOOP workflow following constitutional laws.
+description: This skill should be used when user asks to "tri skill begin", "PHI LOOP", "edit .t27 spec", "seal hash", "tri gen", "tri test", "tri verdict", "tri experience save", "tri notebook query", "tri notebook wrapup", or any task requiring spec-first development in the t27 Trinity S³AI project. Implements the canonical PHI LOOP workflow following constitutional laws with NotebookLM-backed semantic memory.
 version: 1.2.0
 ---
 
@@ -54,6 +54,42 @@ When starting any task, check these files first before touching backend code:
 - `.trinity/state/queen-health.json` — Current swarm health
 
 Never start from `src/*.zig` or runtime code. Always begin in specs/architecture/docs layers.
+
+## NotebookLM Integration (Session Memory)
+
+Before starting any task, query NotebookLM for existing work to prevent duplication:
+
+```bash
+# Check if work already done (avoids session amnesia)
+tri notebook query "What is the current status of <task/topic>?"
+
+# This returns:
+# - Task completion status
+# - Relevant decisions from previous sessions
+# - Key files and patterns used
+# - Known blockers or open issues
+```
+
+After completing work, upload wrap-up to NotebookLM:
+
+```bash
+# Save session context for future agents
+tri notebook wrapup --summary "completed <task>" \
+                 --decisions "used <approach>" \
+                 --files "changed <files>" \
+                 --next "下一步 action"
+```
+
+**NotebookLM Configuration:**
+- Storage: `~/.notebooklm/storage_state.json`
+- Active Notebook: Set via `notebooklm use <id>` (default: t27-QUEEN-BRAIN)
+- Auth: Cookie-based via `notebooklm login` CLI
+
+**Query Patterns:**
+- "status of <feature/module> integration" — Check completion
+- "decisions made for <task>" — Retrieve context
+- "known issues with <spec>" — Find blockers
+- "architecture of <component>" — Get design context
 
 ## Standard /tri Status Output
 
@@ -225,7 +261,13 @@ Register the step as an immutable skill:
 Standard PHI LOOP execution:
 
 ```bash
+# Step 1: Check NotebookLM (pre-work) — AVOID duplication
+tri notebook query "<task/topic> status"  # Returns if already done
+
+# Step 2: Start skill if new work
 tri skill begin --issue N --description "task description"
+
+# Step 3: Execute PHI LOOP
 tri spec edit <module>
 tri cell checkpoint --step "description"
 tri skill seal --hash
@@ -235,6 +277,23 @@ tri verdict --toxic
 tri experience save
 tri skill commit
 tri git commit
+
+# Step 4: Upload wrap-up (post-work) — ENABLE future agents
+tri notebook wrapup --summary "completed <task>" \
+                 --decisions "used <approach>" \
+                 --files "changed <files>" \
+                 --next "next action"
+```
+
+**Example with NotebookLM:**
+```bash
+# Before starting
+tri notebook query "What is the status of GoldenFloat ternary float format?"
+
+# Response: "GoldenFloat Ring-050 complete, 7 formats defined, PR #317 merged"
+# → Skip work, move to next task
+
+# If no match found → Proceed with PHI LOOP
 ```
 
 ## Swarm Coordination (.trinity)
