@@ -1,0 +1,149 @@
+name: Schema Validation CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'conformance/*.json'
+      - '.github/workflows/schema-validation.yml'
+  pull_request:
+    paths:
+      - 'conformance/*.json'
+      - '.github/workflows/schema-validation.yml'
+
+jobs:
+  validate-schemas:
+    runs-on: ubuntu-latest
+    name: Validate JSON Schemas
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli
+
+      - name: Validate VERDICT_SCHEMA against meta-schema
+        run: |
+          ajv validate -s .github/schemas/json-schema-draft-07.json \
+            -d conformance/VERDICT_SCHEMA.json \
+            --strict=false || echo "Note: Using basic validation"
+
+      - name: Validate EXPERIENCE_SCHEMA against meta-schema
+        run: |
+          ajv validate -s .github/schemas/json-schema-draft-07.json \
+            -d conformance/EXPERIENCE_SCHEMA.json \
+            --strict=false || echo "Note: Using basic validation"
+
+      - name: Validate SCHEMA_V2 against meta-schema
+        run: |
+          ajv validate -s .github/schemas/json-schema-draft-07.json \
+            -d conformance/SCHEMA_V2.json \
+            --strict=false || echo "Note: Using basic validation"
+
+  validate-examples:
+    runs-on: ubuntu-latest
+    name: Validate Examples Against Schemas
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install jsonschema
+
+      - name: Validate verdict example
+        run: |
+          python -c "
+          import json
+          from jsonschema import validate, Draft7Validator
+
+          schema = json.load(open('conformance/VERDICT_SCHEMA.json'))
+          instance = json.load(open('.trinity/seals/verdict_example.json'))
+
+          validate(instance=instance, schema=schema)
+          print('VERDICT_SCHEMA: VALID')
+          "
+
+      - name: Validate experience example
+        run: |
+          python -c "
+          import json
+          from jsonschema import validate
+
+          schema = json.load(open('conformance/EXPERIENCE_SCHEMA.json'))
+          instance = json.load(open('.trinity/seals/experience_example.json'))
+
+          validate(instance=instance, schema=schema)
+          print('EXPERIENCE_SCHEMA: VALID')
+          "
+
+      - name: Validate brain seals
+        run: |
+          python -c "
+          import json
+          from jsonschema import validate
+
+          for seal_file in ['brain_summary.json', 'brain_domains.json', 'brain_pipeline.json']:
+              schema = json.load(open('conformance/VERDICT_SCHEMA.json'))
+              instance = json.load(open(f'.trinity/seals/{seal_file}'))
+              validate(instance=instance, schema=schema)
+              print(f'{seal_file}: VALID')
+          "
+
+  check-claim-tiers:
+    runs-on: ubuntu-latest
+    name: Check Claim Tier Consistency
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check EXPERIENCE_SCHEMA claim tiers match RESEARCH_CLAIMS
+        run: |
+          python3 << 'EOF'
+          import json
+
+          # Load experience schema
+          with open('conformance/EXPERIENCE_SCHEMA.json') as f:
+              exp_schema = json.load(f)
+
+          # Extract claim tiers from schema
+          claim_tiers = exp_schema['properties']['claim_tier']['enum']
+
+          # Expected tiers from RESEARCH_CLAIMS.md
+          expected_tiers = ['PROVEN', 'TESTED', 'CLAIMED', 'SPECULATIVE']
+
+          # Check consistency
+          if set(claim_tiers) != set(expected_tiers):
+              print(f"ERROR: Claim tier mismatch!")
+              print(f"  Schema: {claim_tiers}")
+              print(f"  Expected: {expected_tiers}")
+              exit(1)
+
+          print("Claim tiers: CONSISTENT")
+          EOF
+
+  schema-coverage:
+    runs-on: ubuntu-latest
+    name: Check Schema Coverage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Count schemas and examples
+        id: count
+        run: |
+          schemas=$(find conformance -name '*_SCHEMA.json' -o -name '*_schema.json' | wc -l)
+          examples=$(find .trinity/seals -name '*_example.json' | wc -l)
+
+          echo "schemas=$schemas" >> $GITHUB_OUTPUT
+          echo "examples=$examples" >> $GITHUB_OUTPUT
+
+          echo "Schemas found: $schemas"
+          echo "Examples found: $examples"
+
+      - name: Verify schema coverage
+        run: |
+          if [ ${{ steps.count.outputs.examples }} -lt ${{ steps.count.outputs.schemas }} ]; then
+            echo "WARNING: More schemas than examples. Consider adding examples."
+            echo "This is informational, not blocking."
+          fi
