@@ -16,7 +16,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 | Rings Closed | 53+ | - | 🟢 Good |
 | Queen Health | 1.0 / GREEN | ≥ 0.8 | 🟢 Excellent |
 | Open PRs | 0 | < 5 | 🟢 Clean |
-| Spec Count | 83 | 100+ | 🟡 Growing |
+| Spec Count | 85 | 100+ | 🟡 Growing |
 
 ---
 
@@ -26,7 +26,7 @@ The META dashboard provides real-time visibility into Queen health, ring progres
 Phase 1: Seed (Bootstrap)    ████████████ 100% ✅
 Phase 2: Stem (Conformance)  ████████████ 100% ✅
 Phase 3: Branches (Science)  ████████████ 100% ✅
-Phase 4: Crown (Queen)        ██████████░░░  70% 🟡
+Phase 4: Crown (Queen)        ███████████░░  80% 🟡
 ```
 
 ---
@@ -44,6 +44,8 @@ Phase 4: Crown (Queen)        ██████████░░░  70% 🟡
 | 061 | #222 | Brain Summaries | Brain summaries pipeline spec, schema, CI | ✅ Done |
 | 062 | #224 | VSA Similarity Search | Semantic similarity operations for recall | ✅ Done |
 | 063 | #226 | Ternary Gates | NOT, MIN, MAX, consensus, majority gates | ✅ Done |
+| 064 | #228 | Ternary Arithmetic | Addition, subtraction, multiplication, conversion | ✅ Done |
+| 065 | #230 | Ternary Encoding | Bit/byte to trit conversion, balanced/unipolar | ✅ Done |
 | 061 | - | Brain Summaries | Brain summaries pipeline spec, schema, CI integration | ✅ Done |
 
 ---
@@ -55,7 +57,7 @@ Phase 4: Crown (Queen)        ██████████░░░  70% 🟡
 | seed_bootstrap | 1.0 | 031 | ✅ Sealed |
 | stem_conformance | 1.0 | 049 | ✅ Sealed |
 | branches_science | 1.0 | 053 | ✅ Sealed |
-| crown_automation | 0.95 | 062 | 🟢 Active (brain summaries + VSA similarity search) |
+| crown_automation | 0.98 | 065 | 🟢 Active (brain summaries, VSA search, ISA layer) |
 | compiler_verification | 0.8 | 150 | 🟢 Active |
 | coq_kernel | 0.7 | 156 | 🟢 Active |
 
