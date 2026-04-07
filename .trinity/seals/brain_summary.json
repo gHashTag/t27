@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
   "seal_type": "brain_summary",
-  "timestamp": "2026-04-07T12:00:00Z",
+  "timestamp": "2026-04-07T02:15:07Z",
   "ring_range": {
     "start": 0,
-    "end": 52
+    "end": 0
   },
   "summary": {
-    "total_rings": 52,
-    "rings_closed": 45,
-    "rings_open": 7,
-    "clean_verdicts": 43,
+    "total_rings": 0,
+    "rings_closed": 1,
+    "rings_open": -1,
+    "clean_verdicts": 1,
     "toxic_verdicts": 0,
-    "weak_confirms": 2
+    "weak_confirms": 0
   },
   "domains": {
-    "seed": {"status": "COMPLETE", "rings": "0-31"},
-    "stem": {"status": "COMPLETE", "rings": "32-49"},
-    "branches": {"status": "COMPLETE", "rings": "50-51"},
-    "crown": {"status": "IN_PROGRESS", "rings": "52+"}
+    "seed_bootstrap": {"status": "SEALED", "health": 1.0, "last_ring": 31},
+    "stem_conformance": {"status": "SEALED", "health": 1.0, "last_ring": 49},
+    "branches_science": {"status": "SEALED", "health": 1.0, "last_ring": 58},
+    "crown_automation": {"status": "ACTIVE", "health": 0.9, "last_ring": 59}
   },
   "queen_health": {
     "overall": "GREEN",
-    "score": 1.0,
-    "domains": 17,
-    "last_updated": "2026-04-07T12:00:00Z"
+    "score": "1.0",
+    "domains": 4,
+    "last_updated": "2026-04-07T02:15:07Z"
   }
 }

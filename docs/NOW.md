@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 057 ACTIVE — Conflict resolution strategy · RFC3339 2026-04-07T15:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 059 ACTIVE — Experience aggregation pipeline · RFC3339 2026-04-07T15:30:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 4 Crown extended** — Rings 051-057 (#197, #199, #201, #203, #205, #207, #209) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution.
+**Revision:** **Phase 4 Crown extended** — Rings 051-059 (#197, #199, #201, #203, #205, #207, #209, #216) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution, experience aggregation for Queen brain seals.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
