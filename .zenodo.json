@@ -1,24 +1,36 @@
 {
-  "title": "GoldenFloat: φ-Optimal Floating-Point Formats for Ternary Computing",
+  "title": "T27: TRI-27 — Spec-First Language for Ternary Computing",
   "upload_type": "software",
-  "description": "GoldenFloat (GF) — семейство из 7 узких форматов с плавающей точкой, параметризованных φ ≈ 1.618. Включает Theorem 3 (φ как universal fixed-point attractor), формальные Coq-доказательства и tri CLI.",
+  "description": "T27 is a spec-first language for ternary computing built on Zig with formal verification support via Coq. Provides comprehensive tooling for software development, specification, and testing.",
   "creators": [
     {
-      "name": "gHashTag",
-      "affiliation": "Trinity Computing"
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Computing",
+      "orcid": "0000-0002-5135-5363"
     }
   ],
   "keywords": [
-    "golden ratio", "floating point", "ternary computing",
-    "GoldenFloat", "phi", "number format", "t27", "tri CLI"
+    "ternary computing", "specification language", "Zig", "Coq",
+    "formal verification", "t27", "tri CLI", "golden ratio",
+    "phi", "floating point", "number format", "software",
+    "spec-first development", "Theorem 3", "generative mechanism"
   ],
   "license": "MIT",
   "communities": [{"identifier": "trinity"}],
+  "access_right": "open",
+  "embargo_date": null,
+  "publication_date": "2026-04-07",
   "related_identifiers": [
     {
       "relation": "isSupplementTo",
-      "identifier": "https://github.com/gHashTag/t27",
+      "identifier": "https://github.com/gHashTag/trinity",
       "resource_type": "software"
+    },
+    {
+      "relation": "isDocumentedBy",
+      "identifier": "https://github.com/gHashTag/t27/issues/1",
+      "resource_type": "software",
+      "title": "GitHub Issue: Sprint 7 - Zenodo Publication Pipeline"
     }
   ],
   "version": "0.1.0",
