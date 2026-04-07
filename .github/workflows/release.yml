@@ -79,6 +79,9 @@ jobs:
     name: Publish to PyPI
     needs: python
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # IMPORTANT: required for Trusted Publisher (OIDC)
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,13 +98,11 @@ jobs:
           path: target/wheels/
           merge-multiple: true
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (Trusted Publisher OIDC)
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --no-sdist target/wheels/*
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+          args: target/wheels/*
 
   # ========================================================================
   # JavaScript: npm Publication via wasm-pack
