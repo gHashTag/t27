@@ -1,7 +1,7 @@
 # Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language
 
-[![CI](https://github.com/gHashTag/t27/actions/workflows/ci.yml/badge.svg)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
-[![Zenodo](https://zenodo.org/badge/876888867.svg)](https://doi.org/10.5281/zenodo.19456875)
+[![CI](https://img.shields.io/github/actions/workflow/status/gHashTag/t27/ci.yml?branch=master&logo=github&label=CI)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
+[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.19456875.svg)](https://doi.org/10.5281/zenodo.19456875)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
 
