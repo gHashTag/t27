@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1bbff13bef8e0fb4cdc4f36e4696b04459a31ab877715bfc6c4bad049f58ff13",
   "module": "brain-cognitive-loop",
   "ring": 12,
-  "sealed_at": "2026-04-07T17:06:59Z",
+  "sealed_at": "2026-04-07T18:10:10Z",
   "spec_hash": "sha256:33d71565ed0b3e40cc077af01378dc022a627b57f980aa434da9782cf8ffa8f8",
   "spec_path": "specs/brain/cognitive_loop.t27"
 }

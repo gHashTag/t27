@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7b3cb6aaa15ea061e6f96f8178af4dd4ac0b369fa9a3a581ba1994f6da39b9f8",
   "module": "SPI_Master",
   "ring": 12,
-  "sealed_at": "2026-04-07T17:06:59Z",
+  "sealed_at": "2026-04-07T18:10:10Z",
   "spec_hash": "sha256:e65ad18557493e54c116ff26f4af89bca95ed60294c4f062238caa9540238ac3",
   "spec_path": "specs/fpga/spi.t27"
 }
