@@ -1,0 +1,442 @@
+// t27/specs/isa/ternary_pattern.t27
+// Ternary Pattern Matching Specification
+// Ring 082 - Pattern matching operations for ternary data
+// Defines naive string matching, KMP, and pattern utilities
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryPattern {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Pattern Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Pattern max sizes
+    const MAX_PATTERN_LEN : usize = 27;
+    const MAX_TEXT_LEN : usize = 128;
+
+    // Pattern match result
+    const NO_MATCH : usize = 999999;
+
+    // ═════════════════════════════════════════════════════
+    // 2. Naive Pattern Matching
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // naive_search(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize) → usize
+    // Naive pattern matching (O(n*m))
+    fn naive_search(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize) → usize {
+        if (pattern_len == 0 or pattern_len > text_len) {
+            return NO_MATCH;
+        }
+
+        var i : usize = 0;
+        while (i <= text_len - pattern_len) {
+            var j : usize = 0;
+            var match : bool = true;
+
+            while (j < pattern_len and match) {
+                if (text[i + j] != pattern[j]) {
+                    match = false;
+                }
+                j = j + 1;
+            }
+
+            if (match) {
+                return i;
+            }
+            i = i + 1;
+        }
+
+        return NO_MATCH;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. KMP Prefix Function
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // compute_prefix(pattern: []i32, pattern_len: usize, lps: []usize) → void
+    // Compute Longest Prefix Suffix array for KMP
+    fn compute_prefix(pattern: []i32, pattern_len: usize, lps: []usize) → void {
+        var i : usize = 1;
+        var len : usize = 0;
+        lps[0] = 0;
+
+        while (i < pattern_len and i < pattern.len) {
+            if (pattern[i] == pattern[len]) {
+                len = len + 1;
+                lps[i] = len;
+                i = i + 1;
+            } else {
+                if (len != 0) {
+                    len = lps[len - 1];
+                } else {
+                    lps[i] = 0;
+                    i = i + 1;
+                }
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. KMP Pattern Matching
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // kmp_search(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize) → usize
+    // Knuth-Morris-Pratt pattern matching (O(n+m))
+    fn kmp_search(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize) → usize {
+        if (pattern_len == 0 or pattern_len > text_len) {
+            return NO_MATCH;
+        }
+
+        var lps : [MAX_PATTERN_LEN]usize = undefined;
+        compute_prefix(pattern, pattern_len, &lps);
+
+        var i : usize = 0;  // index for text
+        var j : usize = 0;  // index for pattern
+
+        while (i < text_len) {
+            if (text[i] == pattern[j]) {
+                i = i + 1;
+                j = j + 1;
+
+                if (j == pattern_len) {
+                    return i - j;  // Pattern found at i-j
+                }
+            } else {
+                if (j != 0) {
+                    j = lps[j - 1];
+                } else {
+                    i = i + 1;
+                }
+            }
+        }
+
+        return NO_MATCH;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. Pattern Utilities
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // pattern_count(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize) → usize
+    // Count all occurrences of pattern in text
+    fn pattern_count(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize) → usize {
+        if (pattern_len == 0 or pattern_len > text_len) {
+            return 0;
+        }
+
+        var count : usize = 0;
+        var i : usize = 0;
+
+        while (i <= text_len - pattern_len) {
+            var j : usize = 0;
+            var match : bool = true;
+
+            while (j < pattern_len and match) {
+                if (text[i + j] != pattern[j]) {
+                    match = false;
+                }
+                j = j + 1;
+            }
+
+            if (match) {
+                count = count + 1;
+                i = i + pattern_len;  // Skip to after this match
+            } else {
+                i = i + 1;
+            }
+        }
+
+        return count;
+    }
+
+    // pattern_replace(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize,
+    //                replacement: []i32, replacement_len: usize, result: []i32) → usize
+    // Replace all occurrences of pattern with replacement
+    fn pattern_replace(text: []i32, text_len: usize, pattern: []i32, pattern_len: usize,
+                       replacement: []i32, replacement_len: usize, result: []i32) → usize {
+        if (pattern_len == 0) {
+            var i : usize = 0;
+            while (i < text_len and i < result.len) {
+                result[i] = text[i];
+                i = i + 1;
+            }
+            return text_len;
+        }
+
+        var i : usize = 0;
+        var result_idx : usize = 0;
+
+        while (i < text_len and result_idx < result.len) {
+            var match : bool = true;
+            var j : usize = 0;
+
+            if (i + pattern_len <= text_len) {
+                while (j < pattern_len and match) {
+                    if (text[i + j] != pattern[j]) {
+                        match = false;
+                    }
+                    j = j + 1;
+                }
+            } else {
+                match = false;
+            }
+
+            if (match) {
+                // Copy replacement
+                j = 0;
+                while (j < replacement_len and result_idx < result.len) {
+                    result[result_idx] = replacement[j];
+                    result_idx = result_idx + 1;
+                    j = j + 1;
+                }
+                i = i + pattern_len;
+            } else {
+                // Copy original
+                result[result_idx] = text[i];
+                result_idx = result_idx + 1;
+                i = i + 1;
+            }
+        }
+
+        return result_idx;
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test naive_search_found
+        var text : [10]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        var pattern : [3]i32 = [_]i32{TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        const idx = naive_search(&text, 10, &pattern, 3);
+        assert idx == 1
+
+    test naive_search_not_found
+        var text : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+        const idx = naive_search(&text, 5, &pattern, 2);
+        assert idx == NO_MATCH
+
+    test naive_search_empty_pattern
+        var text : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var pattern : [1]i32 = undefined;
+        const idx = naive_search(&text, 5, &pattern, 0);
+        assert idx == NO_MATCH
+
+    test kmp_search_found
+        var text : [15]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var pattern : [3]i32 = [_]i32{TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        const idx = kmp_search(&text, 15, &pattern, 3);
+        assert idx == 1
+
+    test kmp_search_not_found
+        var text : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+        const idx = kmp_search(&text, 5, &pattern, 2);
+        assert idx == NO_MATCH
+
+    test kmp_search_single_char
+        var text : [5]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var pattern : [1]i32 = [_]i32{TRIT_POS};
+        const idx = kmp_search(&text, 5, &pattern, 1);
+        assert idx == 1
+
+    test pattern_count_multiple
+        var text : [10]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_POS};
+        const count = pattern_count(&text, 10, &pattern, 2);
+        assert count == 3
+
+    test pattern_count_zero
+        var text : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+        const count = pattern_count(&text, 5, &pattern, 2);
+        assert count == 0
+
+    test pattern_replace_simple
+        var text : [10]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_POS};
+        var replacement : [1]i32 = [_]i32{TRIT_ZERO};
+        var result : [10]i32 = undefined;
+        const len = pattern_replace(&text, 10, &pattern, 2, &replacement, 1, &result);
+
+        assert len == 7
+        assert result[0] == TRIT_ZERO
+        assert result[1] == TRIT_NEG
+
+    test pattern_replace_no_match
+        var text : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+        var replacement : [1]i32 = [_]i32{TRIT_ZERO};
+        var result : [5]i32 = undefined;
+        const len = pattern_replace(&text, 5, &pattern, 2, &replacement, 1, &result);
+
+        assert len == 5
+        assert result[0] == TRIT_NEG
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant naive_kmp_agree
+        // Naive and KMP find same match
+        var text : [20]i32 = undefined;
+        var pattern : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var i : usize = 0;
+        while (i < 20) {
+            text[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+
+        const naive_idx = naive_search(&text, 20, &pattern, 5);
+        const kmp_idx = kmp_search(&text, 20, &pattern, 5);
+
+        if (naive_idx == NO_MATCH) {
+            assert kmp_idx == NO_MATCH
+        } else {
+            assert kmp_idx == naive_idx
+        }
+
+    invariant kmp_finds_first_occurrence
+        // KMP finds first occurrence
+        var text : [15]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_POS, TRIT_POS, TRIT_NEG};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_POS};
+        const idx = kmp_search(&text, 15, &pattern, 2);
+        assert idx == 0
+
+    invariant pattern_count_matches_find
+        // Pattern count equals number of non-overlapping matches
+        var text : [20]i32 = undefined;
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_POS};
+        var i : usize = 0;
+        while (i < 20) {
+            text[i] = @as(i32, @intCast(i % 2));
+            i = i + 1;
+        }
+
+        const count = pattern_count(&text, 20, &pattern, 2);
+
+        // Verify each found position
+        var found : usize = 0;
+        i = 0;
+        while (i <= 18 and found < count) {
+            if (text[i] == TRIT_POS and text[i + 1] == TRIT_POS) {
+                found = found + 1;
+                i = i + 2;
+            } else {
+                i = i + 1;
+            }
+        }
+        assert found == count
+
+    invariant replace_preserves_length_when_no_match
+        // Replace doesn't change length when no matches
+        var text : [5]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+        var replacement : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
+        var result : [5]i32 = undefined;
+        const len = pattern_replace(&text, 5, &pattern, 2, &replacement, 3, &result);
+
+        assert len == 5
+        var i : usize = 0;
+        while (i < 5) {
+            assert result[i] == text[i]
+            i = i + 1;
+        }
+
+    invariant pattern_at_end
+        // Both algorithms find pattern at end
+        var text : [10]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var pattern : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+        const naive_idx = naive_search(&text, 10, &pattern, 2);
+        const kmp_idx = kmp_search(&text, 10, &pattern, 2);
+        assert naive_idx == 8
+        assert kmp_idx == 8
+
+    // ═════════════════════════════════════════════════════
+    // 8. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench naive_search_performance
+        // Measure: cycles for 100 naive search operations
+        // Target: < 5000 cycles
+        var text : [MAX_TEXT_LEN]i32 = undefined;
+        var i : usize = 0;
+        while (i < MAX_TEXT_LEN) {
+            text[i] = @as(i32, @intCast(i % 27));
+            i = i + 1;
+        }
+        var pattern : [5]i32 = [_]i32{1, 2, 3, 4, 5};
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = naive_search(&text, MAX_TEXT_LEN, &pattern, 5);
+        }
+
+    bench kmp_search_performance
+        // Measure: cycles for 100 KMP search operations
+        // Target: < 4000 cycles
+        var text : [MAX_TEXT_LEN]i32 = undefined;
+        var i : usize = 0;
+        while (i < MAX_TEXT_LEN) {
+            text[i] = @as(i32, @intCast(i % 27));
+            i = i + 1;
+        }
+        var pattern : [5]i32 = [_]i32{1, 2, 3, 4, 5};
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = kmp_search(&text, MAX_TEXT_LEN, &pattern, 5);
+        }
+
+    bench prefix_computation_performance
+        // Measure: cycles for 1000 prefix computations
+        // Target: < 3000 cycles
+        var pattern : [MAX_PATTERN_LEN]i32 = undefined;
+        var i : usize = 0;
+        while (i < MAX_PATTERN_LEN) {
+            pattern[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+        var lps : [MAX_PATTERN_LEN]usize = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            compute_prefix(&pattern, MAX_PATTERN_LEN, &lps);
+        }
+
+    bench pattern_count_performance
+        // Measure: cycles for 100 pattern count operations
+        // Target: < 5000 cycles
+        var text : [MAX_TEXT_LEN]i32 = undefined;
+        var i : usize = 0;
+        while (i < MAX_TEXT_LEN) {
+            text[i] = @as(i32, @intCast(i % 2));
+            i = i + 1;
+        }
+        var pattern : [2]i32 = [_]i32{0, 0};
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = pattern_count(&text, MAX_TEXT_LEN, &pattern, 2);
+        }
+
+    bench pattern_replace_performance
+        // Measure: cycles for 100 pattern replace operations
+        // Target: < 8000 cycles
+        var text : [MAX_TEXT_LEN]i32 = undefined;
+        var i : usize = 0;
+        while (i < MAX_TEXT_LEN) {
+            text[i] = @as(i32, @intCast(i % 2));
+            i = i + 1;
+        }
+        var pattern : [2]i32 = [_]i32{0, 0};
+        var replacement : [1]i32 = [_]i32{1};
+        var result : [MAX_TEXT_LEN]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            _ = pattern_replace(&text, MAX_TEXT_LEN, &pattern, 2, &replacement, 1, &result);
+        }
+}

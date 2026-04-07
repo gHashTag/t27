@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_pattern.t27",
+  "spec_hash": "sha256:467879f04e8116d28d77bf93456de52f93490c451a867ee49206a18660f7986e",
+  "gen_hash_zig": "sha256:db16edaaf13c0f0494443a2b58597d1b242127541d7bfc5058b1b2fba57ba6cf",
+  "gen_hash_verilog": "sha256:340f32240fdca91fec7d9079248df7421f2f7770ea2984a5afed406a0013abb2",
+  "gen_hash_c": "sha256:cdc6f9f845a79695336564cecc7d8ffb25dc263dccfc6ba826259f5f007b55b6",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:20:00Z",
+  "ring": 82,
+  "verdict": "clean",
+  "notes": "Ternary pattern matching spec (naive search, KMP, pattern count/replace)"
+}
