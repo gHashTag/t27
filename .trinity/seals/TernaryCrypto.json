@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_crypto.t27",
+  "spec_hash": "sha256:0ee2895c517101b0aa03ee1bc1fc913c41d03a4d14b45842d5dc319bbf5a89ad",
+  "gen_hash_zig": "sha256:38dd608e7388174e9eec69c8fe5edb9b7dc9047e8b6bf76700a81960115815e9",
+  "gen_hash_verilog": "sha256:9b8b846bd7976a8482fa4169f0dcbd673bd774a544cc1f1dcd9fe473ef077c83",
+  "gen_hash_c": "sha256:f21d5ef567d6a5c9806a96106b3a1a29ca4846264efb2648257537642455eb05",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:00:00Z",
+  "ring": 78,
+  "verdict": "clean",
+  "notes": "Ternary cryptographic operations spec (XOR cipher, substitution cipher, permutation cipher)"
+}

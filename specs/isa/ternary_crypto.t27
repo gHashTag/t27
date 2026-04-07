@@ -1,0 +1,416 @@
+// t27/specs/isa/ternary_crypto.t27
+// Ternary Cryptographic Operations Specification
+// Ring 078 - Basic cryptographic operations for ternary data
+// Defines XOR cipher, substitution, and simple crypto primitives
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryCrypto {
+    use base::types;
+
+    // ═════════════════════════════════════════════════════
+    // 1. Crypto Constants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Block size
+    const BLOCK_SIZE : usize = 27;
+
+    // Key size
+    const KEY_SIZE : usize = 27;
+
+    // ═════════════════════════════════════════════════════
+    // 2. XOR Cipher (Stream Cipher)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // xor_cipher_encrypt(plaintext: []i32, key: []i32, len: usize, ciphertext: []i32) → void
+    // XOR encryption with ternary key
+    fn xor_cipher_encrypt(plaintext: []i32, key: []i32, len: usize, ciphertext: []i32) → void {
+        var i : usize = 0;
+        while (i < len and i < plaintext.len and i < ciphertext.len) {
+            const key_trit = key[i % KEY_SIZE];
+            const p = plaintext[i];
+
+            // XOR for trits: if same, zero; if different, sign of plaintext
+            if (p == key_trit) {
+                ciphertext[i] = TRIT_ZERO;
+            } else if (key_trit == TRIT_ZERO) {
+                ciphertext[i] = p;
+            } else {
+                ciphertext[i] = -p;
+            }
+            i = i + 1;
+        }
+    }
+
+    // xor_cipher_decrypt(ciphertext: []i32, key: []i32, len: usize, plaintext: []i32) → void
+    // XOR decryption (same as encryption)
+    fn xor_cipher_decrypt(ciphertext: []i32, key: []i32, len: usize, plaintext: []i32) → void {
+        xor_cipher_encrypt(ciphertext, key, len, plaintext);
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 3. Substitution Cipher
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // substitution_cipher_encrypt(plaintext: []i32, sbox: []i32, len: usize, ciphertext: []i32) → void
+    // Substitution cipher using S-box
+    fn substitution_cipher_encrypt(plaintext: []i32, sbox: []i32, len: usize, ciphertext: []i32) → void {
+        var i : usize = 0;
+        while (i < len and i < plaintext.len and i < ciphertext.len) {
+            const p = plaintext[i];
+            // Map trit to S-box index (0, 1, 2)
+            const idx = p + 1;  // -1->0, 0->1, 1->2
+            if (idx >= 0 and idx < 3 and idx < sbox.len) {
+                ciphertext[i] = sbox[idx];
+            } else {
+                ciphertext[i] = p;
+            }
+            i = i + 1;
+        }
+    }
+
+    // substitution_cipher_decrypt(ciphertext: []i32, sbox: []i32, len: usize, plaintext: []i32) → void
+    // Substitution decryption (need inverse S-box)
+    fn substitution_cipher_decrypt(ciphertext: []i32, sbox: []i32, len: usize, plaintext: []i32) → void {
+        // Build inverse S-box
+        var inv_sbox : [3]i32 = undefined;
+        var i : usize = 0;
+        while (i < 3 and i < sbox.len) {
+            const val = sbox[i];
+            if (val == TRIT_NEG) {
+                inv_sbox[0] = @as(i32, @intCast(i)) - 1;
+            } else if (val == TRIT_ZERO) {
+                inv_sbox[1] = @as(i32, @intCast(i)) - 1;
+            } else if (val == TRIT_POS) {
+                inv_sbox[2] = @as(i32, @intCast(i)) - 1;
+            }
+            i = i + 1;
+        }
+
+        i = 0;
+        while (i < len and i < ciphertext.len and i < plaintext.len) {
+            const c = ciphertext[i];
+            const idx = c + 1;
+            if (idx >= 0 and idx < 3) {
+                plaintext[i] = inv_sbox[idx];
+            } else {
+                plaintext[i] = c;
+            }
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 4. Permutation Cipher
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // permutation_cipher_encrypt(plaintext: []i32, perm: []i32, len: usize, ciphertext: []i32) → void
+    // Permutation cipher using permutation vector
+    fn permutation_cipher_encrypt(plaintext: []i32, perm: []i32, len: usize, ciphertext: []i32) → void {
+        var i : usize = 0;
+        while (i < len and i < perm.len and i < plaintext.len) {
+            const p_idx = @as(usize, @intCast(perm[i] + 1));
+            if (p_idx < len and p_idx < ciphertext.len) {
+                ciphertext[i] = plaintext[p_idx];
+            }
+            i = i + 1;
+        }
+    }
+
+    // permutation_cipher_decrypt(ciphertext: []i32, perm: []i32, len: usize, plaintext: []i32) → void
+    // Permutation decryption (need inverse permutation)
+    fn permutation_cipher_decrypt(ciphertext: []i32, perm: []i32, len: usize, plaintext: []i32) → void {
+        var i : usize = 0;
+        while (i < len and i < perm.len and i < plaintext.len) {
+            const p_idx = @as(usize, @intCast(perm[i] + 1));
+            if (p_idx < len and p_idx < ciphertext.len) {
+                plaintext[p_idx] = ciphertext[i];
+            }
+            i = i + 1;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════
+    // 5. TDD - Tests
+    // ═════════════════════════════════════════════════════════════════════════
+
+    test xor_cipher_roundtrip
+        var plaintext : [10]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS};
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO} ** 9;
+        var ciphertext : [10]i32 = undefined;
+        var decrypted : [10]i32 = undefined;
+
+        xor_cipher_encrypt(&plaintext, &key, 10, &ciphertext);
+        xor_cipher_decrypt(&ciphertext, &key, 10, &decrypted);
+
+        var i : usize = 0;
+        while (i < 10) {
+            assert decrypted[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test xor_cipher_with_zero_key
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_ZERO} ** KEY_SIZE;
+        var ciphertext : [5]i32 = undefined;
+
+        xor_cipher_encrypt(&plaintext, &key, 5, &ciphertext);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert ciphertext[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test substitution_cipher_roundtrip
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var sbox : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};  // Swap NEG and POS
+        var ciphertext : [5]i32 = undefined;
+        var decrypted : [5]i32 = undefined;
+
+        substitution_cipher_encrypt(&plaintext, &sbox, 5, &ciphertext);
+        substitution_cipher_decrypt(&ciphertext, &sbox, 5, &decrypted);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert decrypted[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test substitution_cipher_identity
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var sbox : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};  // Identity S-box
+        var ciphertext : [5]i32 = undefined;
+
+        substitution_cipher_encrypt(&plaintext, &sbox, 5, &ciphertext);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert ciphertext[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test permutation_cipher_roundtrip
+        var plaintext : [5]i32 = [_]i32{0, 1, 2, 3, 4};  // Values 0-4
+        var perm : [5]i32 = [_]i32{1, 0, 3, 2, 4};  // Swap 0<->1, 2<->3
+        var ciphertext : [5]i32 = undefined;
+        var decrypted : [5]i32 = undefined;
+
+        permutation_cipher_encrypt(&plaintext, &perm, 5, &ciphertext);
+        permutation_cipher_decrypt(&ciphertext, &perm, 5, &decrypted);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert decrypted[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test permutation_cipher_identity
+        var plaintext : [5]i32 = [_]i32{0, 1, 2, 3, 4};
+        var perm : [5]i32 = [_]i32{0, 1, 2, 3, 4};  // Identity permutation
+        var ciphertext : [5]i32 = undefined;
+
+        permutation_cipher_encrypt(&plaintext, &perm, 5, &ciphertext);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert ciphertext[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test xor_cipher_decrypt_same_as_encrypt
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_POS} ** KEY_SIZE;
+        var encrypted : [5]i32 = undefined;
+        var decrypted : [5]i32 = undefined;
+
+        xor_cipher_encrypt(&plaintext, &key, 5, &encrypted);
+        xor_cipher_encrypt(&encrypted, &key, 5, &decrypted);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert decrypted[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    test substitution_swaps_values
+        var plaintext : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var sbox : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};  // Swap NEG and POS
+        var ciphertext : [3]i32 = undefined;
+
+        substitution_cipher_encrypt(&plaintext, &sbox, 3, &ciphertext);
+
+        assert ciphertext[0] == TRIT_NEG  // POS -> NEG
+        assert ciphertext[1] == TRIT_POS  // ZERO -> POS
+        assert ciphertext[2] == TRIT_ZERO  // NEG -> ZERO
+
+    // ═════════════════════════════════════════════════════
+    // 6. TDD - Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    invariant xor_cipher_symmetric
+        // XOR encryption and decryption are the same operation
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO} ** 9;
+        var encrypted : [5]i32 = undefined;
+        var decrypted1 : [5]i32 = undefined;
+        var decrypted2 : [5]i32 = undefined;
+
+        xor_cipher_encrypt(&plaintext, &key, 5, &encrypted);
+        xor_cipher_decrypt(&encrypted, &key, 5, &decrypted1);
+        xor_cipher_encrypt(&encrypted, &key, 5, &decrypted2);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert decrypted1[i] == decrypted2[i]
+            i = i + 1;
+        }
+
+    invariant xor_cipher_idempotent_with_zero
+        // XOR cipher with zero key is identity
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_ZERO} ** KEY_SIZE;
+        var result : [5]i32 = undefined;
+
+        xor_cipher_encrypt(&plaintext, &key, 5, &result);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert result[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    invariant substitution_cipher_roundtrip
+        // Substitution encrypt then decrypt returns original
+        var plaintext : [5]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var sbox : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var encrypted : [5]i32 = undefined;
+        var decrypted : [5]i32 = undefined;
+
+        substitution_cipher_encrypt(&plaintext, &sbox, 5, &encrypted);
+        substitution_cipher_decrypt(&encrypted, &sbox, 5, &decrypted);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert decrypted[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    invariant permutation_cipher_roundtrip
+        // Permutation encrypt then decrypt returns original
+        var plaintext : [5]i32 = [_]i32{0, 1, 2, 3, 4};
+        var perm : [5]i32 = [_]i32{1, 0, 3, 2, 4};
+        var encrypted : [5]i32 = undefined;
+        var decrypted : [5]i32 = undefined;
+
+        permutation_cipher_encrypt(&plaintext, &perm, 5, &encrypted);
+        permutation_cipher_decrypt(&encrypted, &perm, 5, &decrypted);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert decrypted[i] == plaintext[i]
+            i = i + 1;
+        }
+
+    invariant permutation_preserves_count
+        // Permutation preserves value counts
+        var plaintext : [10]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS};
+        var perm : [10]i32 = [_]i32{9, 8, 7, 6, 5, 4, 3, 2, 1, 0};  // Reverse
+        var encrypted : [10]i32 = undefined;
+
+        permutation_cipher_encrypt(&plaintext, &perm, 10, &encrypted);
+
+        var pos_p : usize = 0;
+        var pos_e : usize = 0;
+        var i : usize = 0;
+        while (i < 10) {
+            if (plaintext[i] == TRIT_POS) { pos_p = pos_p + 1; }
+            if (encrypted[i] == TRIT_POS) { pos_e = pos_e + 1; }
+            i = i + 1;
+        }
+
+        assert pos_p == pos_e
+
+    // ═════════════════════════════════════════════════════
+    // 7. TDD - Benchmarks
+    // ═════════════════════════════════════════════════════════════════════════
+
+    bench xor_cipher_performance
+        // Measure: cycles for 1000 XOR cipher operations
+        // Target: < 5000 cycles
+        var plaintext : [BLOCK_SIZE]i32 = [_]i32{TRIT_POS} ** BLOCK_SIZE;
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_POS} ** KEY_SIZE;
+        var ciphertext : [BLOCK_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            xor_cipher_encrypt(&plaintext, &key, BLOCK_SIZE, &ciphertext);
+        }
+
+    bench substitution_cipher_performance
+        // Measure: cycles for 1000 substitution cipher operations
+        // Target: < 5000 cycles
+        var plaintext : [BLOCK_SIZE]i32 = [_]i32{TRIT_POS} ** BLOCK_SIZE;
+        var sbox : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var ciphertext : [BLOCK_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            substitution_cipher_encrypt(&plaintext, &sbox, BLOCK_SIZE, &ciphertext);
+        }
+
+    bench permutation_cipher_performance
+        // Measure: cycles for 1000 permutation cipher operations
+        // Target: < 5000 cycles
+        var plaintext : [BLOCK_SIZE]i32 = undefined;
+        var i : usize = 0;
+        while (i < BLOCK_SIZE) {
+            plaintext[i] = @as(i32, @intCast(i % 3)) - 1;
+            i = i + 1;
+        }
+        var perm : [BLOCK_SIZE]i32 = undefined;
+        var j : usize = 0;
+        while (j < BLOCK_SIZE) {
+            perm[j] = @as(i32, @intCast((BLOCK_SIZE - 1 - j) % 3)) - 1;
+            j = j + 1;
+        }
+        var ciphertext : [BLOCK_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            permutation_cipher_encrypt(&plaintext, &perm, BLOCK_SIZE, &ciphertext);
+        }
+
+    bench combined_cipher_performance
+        // Measure: cycles for 1000 combined cipher operations
+        // Target: < 15000 cycles
+        var plaintext : [BLOCK_SIZE]i32 = [_]i32{TRIT_POS} ** BLOCK_SIZE;
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_POS} ** KEY_SIZE;
+        var sbox : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var perm : [BLOCK_SIZE]i32 = undefined;
+        var j : usize = 0;
+        while (j < BLOCK_SIZE) {
+            perm[j] = @as(i32, @intCast((BLOCK_SIZE - 1 - j) % 3)) - 1;
+            j = j + 1;
+        }
+        var temp : [BLOCK_SIZE]i32 = undefined;
+        var ciphertext : [BLOCK_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            xor_cipher_encrypt(&plaintext, &key, BLOCK_SIZE, &temp);
+            substitution_cipher_encrypt(&temp, &sbox, BLOCK_SIZE, &ciphertext);
+            permutation_cipher_encrypt(&ciphertext, &perm, BLOCK_SIZE, &temp);
+        }
+
+    bench xor_cipher_decrypt_performance
+        // Measure: cycles for 1000 XOR cipher decrypt operations
+        // Target: < 5000 cycles
+        var ciphertext : [BLOCK_SIZE]i32 = [_]i32{TRIT_POS} ** BLOCK_SIZE;
+        var key : [KEY_SIZE]i32 = [_]i32{TRIT_POS} ** KEY_SIZE;
+        var plaintext : [BLOCK_SIZE]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            xor_cipher_decrypt(&ciphertext, &key, BLOCK_SIZE, &plaintext);
+        }
+}
