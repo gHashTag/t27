@@ -1,0 +1,46 @@
+{
+  "description": "GF32 encode/decode roundtrip (f32 reference), matches gf32.t27 layout",
+  "tests": [
+    {
+      "name": "phi",
+      "reference_f32": "1.6180340051651",
+      "gf32_roundtrip_f32": "1.618032455444336",
+      "relative_error": 9.577800956056091e-07
+    },
+    {
+      "name": "phi_inv",
+      "reference_f32": "0.6180340051651001",
+      "gf32_roundtrip_f32": "0.6180334091186523",
+      "relative_error": 9.644233857240265e-07
+    },
+    {
+      "name": "pi",
+      "reference_f32": "3.1415927410125732",
+      "gf32_roundtrip_f32": "3.141590118408203",
+      "relative_error": 8.348008753266633e-07
+    },
+    {
+      "name": "e",
+      "reference_f32": "2.7182817459106445",
+      "gf32_roundtrip_f32": "2.718280792236328",
+      "relative_error": 3.5083718523326286e-07
+    },
+    {
+      "name": "one_third",
+      "reference_f32": "0.3333333432674408",
+      "gf32_roundtrip_f32": "0.33333301544189453",
+      "relative_error": 9.834766094840583e-07
+    }
+  ],
+  "decimal_one_third_sample": "0.33333333333333333333333333333333333333333333333333...",
+  "float32_one_third": "0.3333333432674408",
+  "summary": {
+    "phi_gf32_rel_err": 9.577800956056091e-07,
+    "pi_gf32_rel_err": 8.348008753266633e-07,
+    "e_gf32_rel_err": 3.5083718523326286e-07,
+    "one_third_gf32_rel_err": 9.834766094840583e-07,
+    "decimal_one_third_is_exact": true,
+    "float32_one_third_repeats_binary": true,
+    "spec_pointer": "specs/numeric/gf32.t27, conformance/FORMAT-SPEC-001.json"
+  }
+}

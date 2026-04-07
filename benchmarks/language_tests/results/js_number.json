@@ -1,0 +1,49 @@
+{
+  "language": "JavaScript",
+  "precision": "Number (IEEE 754 binary64)",
+  "tests": [
+    {
+      "name": "phi",
+      "expected": 1.618033988749895,
+      "computed": 1.618033988749895,
+      "error": 0,
+      "decimal_places": 20,
+      "passed": true
+    },
+    {
+      "name": "phi_squared_equals_phi_plus_one",
+      "phi_sq": 2.618033988749895,
+      "phi_plus_one": 2.618033988749895,
+      "error": 0,
+      "passed": true
+    },
+    {
+      "name": "trinity_identity",
+      "trinity": 3,
+      "expected": 3,
+      "error": 0,
+      "passed": true
+    },
+    {
+      "name": "one_third",
+      "value": 0.3333333333333333,
+      "value_str": "0.3333333333333333",
+      "expected_str": "0.3333333333333333",
+      "decimal_places": 15,
+      "error": 0,
+      "passed": true
+    },
+    {
+      "name": "accumulation",
+      "n_terms": 100000,
+      "total": 12.090146129863335,
+      "passed": true
+    }
+  ],
+  "all_passed": true,
+  "summary": {
+    "phi_error": 0,
+    "phi_decimal_places": 20,
+    "one_third_decimal_places": 15
+  }
+}
