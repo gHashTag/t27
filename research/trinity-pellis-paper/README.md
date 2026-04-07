@@ -24,6 +24,7 @@ Each run appends one JSON line to `.trinity/experience/math_compare.jsonl` (proo
 |------|---------|
 | [`FORMULA_TABLE.md`](FORMULA_TABLE.md) | Placeholder catalog toward 152 formulas (IDs + category + status). |
 | [`hybrid-conjecture.md`](hybrid-conjecture.md) | Formal sketch of the hybrid hypothesis, falsifiers, sensitivity scope, open work. |
+| [`ROADMAP.md`](ROADMAP.md) | Post-merge priorities (formula table, outreach, preprint). |
 | `README.md` | Hypothesis, scope, and CLI pointers. |
 
 ## Project impact (summary)
