@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_compression.t27",
+  "spec_hash": "sha256:12461c0116cdbf0da7de257f0590f9341da61ce77240b6a27d3c4fbaabad3861",
+  "gen_hash_zig": "sha256:0a4e61b9aed1a65b202cc5b8eba757095d79758932af54ad151d60acf872b410",
+  "gen_hash_verilog": "sha256:265552254132b03ee9dd66a2ab35362cdaba00eb6861327d961a2606667c2ce0",
+  "gen_hash_c": "sha256:c3ecb121f633307922541e7c9cd89f2e6c2896849ddab04e51b5b5b83ae0cf48",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T02:05:00Z",
+  "ring": 79,
+  "verdict": "clean",
+  "notes": "Ternary compression operations spec (RLE encode/decode, delta encode/decode)"
+}
