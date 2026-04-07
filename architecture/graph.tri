@@ -741,3 +741,66 @@ kepler_newton_edges {
     // Cross-connection: CS and E8 share phi through cyclotomic Q(sqrt(5))
     physics-su2-chern-simons -> math-zamolodchikov-e8;
 }
+
+// ============================================================================
+// TECHNOLOGY-TREE Phase Nodes (Ring 32–999)
+// Added: 2026-04-07 for Ring 035 (#130)
+// ============================================================================
+
+phase "PHASE-HARDEN" {
+    tier = 0;
+    description = "Phase 1: HARDEN (Rings 32–63) — docs, validation, CI, TASK.md";
+    ring_start = 32;
+    ring_end = 63;
+    status = "in_progress";
+    key_deliverables = ["NOW.md schema", "ISSUE-GATE", "E2E CI", "TECHNOLOGY-TREE"];
+}
+
+phase "PHASE-EXTEND" {
+    tier = 0;
+    description = "Phase 2: EXTEND (Rings 64–127) — RISC-V, WASM, quantum, crypto backends";
+    ring_start = 64;
+    ring_end = 127;
+    status = "planned";
+    key_deliverables = ["RISC-V backend", "WASM backend", "Quantum ops", "Crypto primitives"];
+}
+
+phase "PHASE-OPTIMIZE" {
+    tier = 0;
+    description = "Phase 3: OPTIMIZE (Rings 128–255) — performance, benchmarks, GF peer review";
+    ring_start = 128;
+    ring_end = 255;
+    status = "planned";
+    key_deliverables = ["Profiling", "PGO", "LTO", "GF arXiv papers"];
+}
+
+phase "PHASE-SCALE" {
+    tier = 0;
+    description = "Phase 4: SCALE (Rings 256–511) — multi-agent, DARPA CLARA, swarm";
+    ring_start = 256;
+    ring_end = 511;
+    status = "planned";
+    key_deliverables = ["Swarm orchestration", "CLARA TA1/TA2", "Production hardening"];
+}
+
+phase "PHASE-SUMMIT" {
+    tier = 0;
+    description = "Phase 5: SUMMIT (Rings 512–999) — publications, ecosystem, production";
+    ring_start = 512;
+    ring_end = 999;
+    status = "planned";
+    key_deliverables = ["arXiv papers", "Conference submissions", "Open source release"];
+}
+
+phase_edges {
+    // Phase progression: each phase unlocks the next
+    PHASE-HARDEN -> PHASE-EXTEND;
+    PHASE-EXTEND -> PHASE-OPTIMIZE;
+    PHASE-OPTIMIZE -> PHASE-SCALE;
+    PHASE-SCALE -> PHASE-SUMMIT;
+
+    // Hard critical dependencies between phases
+    PHASE-HARDEN -> PHASE-OPTIMIZE;  // Harden foundations enable optimization
+    PHASE-EXTEND -> PHASE-SCALE;      // Extended backends enable scaling
+    PHASE-OPTIMIZE -> PHASE-SUMMIT;   // Optimized codebase ready for publication
+}
