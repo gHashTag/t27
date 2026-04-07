@@ -5,7 +5,11 @@
 
 # NOW — Rolling integration snapshot
 
+<<<<<<< feat/ring-035-technology-tree
+**Last updated:** 2026-04-06 — Tuesday, 07 April 2026 (UTC+07) · Ring 041 GoldenFloat arXiv draft + Ring 035 TECHNOLOGY-TREE · RFC3339 2026-04-06T22:00:00Z
+=======
 **Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 054 ACTIVE — META dashboard for Crown metrics · RFC3339 2026-04-07T13:30:00Z
+>>>>>>> master
 
 **Document class:** Operational focus document
 **Revision:** **Phase 4 Crown in progress** — Rings 051-054 (#197, #199, #201, #203) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD.
