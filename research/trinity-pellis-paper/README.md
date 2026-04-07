@@ -6,7 +6,7 @@ This directory holds the **IMRaD-style scaffold** for the central question:
 
 ## Hypothesis (falsifiable)
 
-**Pellis (thin-structure proxies) -> Trinity (effective scaling law):** Trinity monomials may behave as stable fixed points of a renormalized Pell-weighted map. The CLI diagnostic `tri math compare --hybrid` prints **hybrid v1** (H_5^(v1), L1+max Pell map) only; **hybrid v2** (L2 cosine, variable N) is specified in `hybrid-conjecture.md` and tracked in [#287](https://github.com/gHashTag/t27/issues/287). Neither proves H1 by itself.
+**Pellis (thin-structure proxies) -> Trinity (effective scaling law):** Trinity monomials may behave as stable fixed points of a renormalized Pell-weighted map. The CLI diagnostic `tri math compare --hybrid` prints a **scalar inner product** only; it does **not** prove physics.
 
 ## Commands (SSOT path)
 
