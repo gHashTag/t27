@@ -8,8 +8,8 @@ use std::path::Path;
 
 use clap::Subcommand;
 
-/// CODATA 2018 fine-structure constant inverse (dimensionless), reference only.
-const ALPHA_INV_REF: f64 = 137.035999084_f64;
+/// CODATA 2022 recommended inverse fine-structure constant α⁻¹ (dimensionless), reference only.
+const ALPHA_INV_REF: f64 = 137.035999166_f64;
 
 /// PDG-scale electroweak / Higgs masses (GeV), rounded references — not metrology SSOT.
 const M_W_GEV: f64 = 80.379;
