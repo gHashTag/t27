@@ -1,7 +1,12 @@
 # Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language
 
-The canonical source of truth for Trinity S3AI.  
-`.t27` specs in -> Zig, Verilog, C out.
+[![CI](https://github.com/gHashTag/t27/actions/workflows/ci.yml/badge.svg)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
+[![Zenodo](https://zenodo.org/badge/876888867.svg)](https://doi.org/10.5281/zenodo.19456875)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
+
+The canonical source of truth for Trinity S3AI.
+`.t27` specs in → Zig, Verilog, C out.
 
 **φ² + 1/φ² = 3 | TRINITY**
 
@@ -378,8 +383,10 @@ MIT
 
 ---
 
-**phi^2 + 1/phi^2 = 3 | TRINITY**  
-Maintained by [Dmitrii [Vasilev]](https://github.com/gHashTag) -- 27 agents, 45 specs, 31 sealed rings
+**φ² + 1/φ² = 3 | TRINITY**
 
-**Maintained by**: Trinity Project
-**Status:** Ring 31 Complete (2026-04-04) -- 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+**Maintained by**: [Trinity Project](https://github.com/gHashTag) — [Dmitrii Vasilev](https://github.com/gHashTag)
+
+**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+
+**DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)
