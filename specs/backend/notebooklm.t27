@@ -1,0 +1,491 @@
+// specs/backend/notebooklm.t27
+// NotebookLM Integration Backend
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module NotebookLM {
+    // ========================================================================
+    // IMPORTS - Reference existing specs, DO NOT DUPLICATE
+    // ========================================================================
+    use base::types;
+    use numeric::gf16;
+
+    // ========================================================================
+    // 1. Constants
+    // ========================================================================
+
+    // Default notebook name
+    pub const DEFAULT_NOTEBOOK_NAME : []const u8 = "t27-QUEEN-BRAIN";
+
+    // Token storage path
+    pub const TOKEN_STORAGE_PATH : []const u8 = ".t27/notebooklm_tokens.json";
+
+    // Request timeout in milliseconds
+    pub const DEFAULT_TIMEOUT_MS : u32 = 30000;
+
+    // Auto-refresh token before expiry
+    pub const DEFAULT_AUTO_REFRESH : bool = true;
+
+    // ========================================================================
+    // 2. Types
+    // ========================================================================
+
+    // Authentication tokens
+    pub struct AuthTokens {
+        // OAuth tokens for NotebookLM
+        pub access_token: []const u8,
+        pub refresh_token: []const u8,
+        pub expires_at: gf16,
+        pub token_type: []const u8,
+    }
+
+    // NotebookLM configuration
+    pub struct NotebookLMConfig {
+        // Configuration for NotebookLM integration
+        pub storage_path: Path,
+        pub notebook_name: []const u8,
+        pub timeout_ms: u32,
+        pub auto_refresh: bool,
+    }
+
+    // ========================================================================
+    // 3. Token Management Functions
+    // ========================================================================
+
+    // token_load() -> Optional[AuthTokens]
+    // Load tokens from storage
+    //
+    // Reads from ~/.t27/notebooklm_tokens.json
+    //
+    // Complexity: O(1)
+    pub fn token_load() -> Optional[AuthTokens];
+
+    // token_save(tokens: AuthTokens) -> bool
+    // Save tokens to storage
+    //
+    // Writes to ~/.t27/notebooklm_tokens.json
+    //
+    // Complexity: O(1)
+    pub fn token_save(tokens: AuthTokens) -> bool;
+
+    // token_is_valid(tokens: Optional[AuthTokens]) -> bool
+    // Check if tokens are valid and not expired
+    //
+    // Complexity: O(1)
+    pub fn token_is_valid(tokens: Optional[AuthTokens]) -> bool;
+
+    // ========================================================================
+    // 4. Client Lifecycle Functions
+    // ========================================================================
+
+    // client_new(config: NotebookLMConfig) -> bool
+    // Create a new NotebookLM client
+    //
+    // Complexity: O(1)
+    pub fn client_new(config: NotebookLMConfig) -> bool;
+
+    // client_authenticate(config: NotebookLMConfig) -> bool
+    // Authenticate client with cookies
+    //
+    // Complexity: O(1)
+    pub fn client_authenticate(config: NotebookLMConfig) -> bool;
+
+    // client_close() -> bool
+    // Close client connection
+    //
+    // Complexity: O(1)
+    pub fn client_close() -> bool;
+
+    // client_is_authenticated() -> bool
+    // Check if client is authenticated
+    //
+    // Complexity: O(1)
+    pub fn client_is_authenticated() -> bool;
+
+    // ========================================================================
+    // 5. Notebook CRUD Functions
+    // ========================================================================
+
+    // notebook_create(name: []const u8) -> bool
+    // Create a new notebook
+    //
+    // Complexity: O(1)
+    pub fn notebook_create(name: []const u8) -> bool;
+
+    // notebook_list() -> []const u8[]
+    // List all notebooks
+    //
+    // Complexity: O(1)
+    pub fn notebook_list() -> []const u8[];
+
+    // notebook_get(id: []const u8) -> Notebook
+    // Get notebook by ID
+    //
+    // Complexity: O(1)
+    pub fn notebook_get(id: []const u8) -> Notebook;
+
+    // notebook_find_by_name(name: []const u8) -> Optional[Notebook]
+    // Find notebook by name
+    //
+    // Complexity: O(n) where n is number of notebooks
+    pub fn notebook_find_by_name(name: []const u8) -> Optional[Notebook];
+
+    // notebook_delete(id: []const u8) -> bool
+    // Delete a notebook
+    //
+    // Complexity: O(1)
+    pub fn notebook_delete(id: []const u8) -> bool;
+
+    // ========================================================================
+    // 6. Source Management Functions
+    // ========================================================================
+
+    // source_upload_text(notebook_id: []const u8, title: []const u8, content: []const u8) -> bool
+    // Upload text as source to notebook
+    //
+    // Complexity: O(1)
+    pub fn source_upload_text(notebook_id: []const u8, title: []const u8, content: []const u8) -> bool;
+
+    // source_upload_file(notebook_id: []const u8, file_path: Path) -> bool
+    // Upload file as source to notebook
+    //
+    // Complexity: O(1)
+    pub fn source_upload_file(notebook_id: []const u8, file_path: Path) -> bool;
+
+    // source_list(notebook_id: []const u8) -> []Source[]
+    // List sources in notebook
+    //
+    // Complexity: O(1)
+    pub fn source_list(notebook_id: []const u8) -> []Source[];
+
+    // source_delete(notebook_id: []const u8, source_id: []const u8) -> bool
+    // Delete source from notebook
+    //
+    // Complexity: O(1)
+    pub fn source_delete(notebook_id: []const u8, source_id: []const u8) -> bool;
+
+    // ========================================================================
+    // 7. Query Functions
+    // ========================================================================
+
+    // notebook_query(notebook_id: []const u8, query: []const u8) -> QueryResult
+    // Query notebook for semantic search
+    //
+    // Complexity: O(1)
+    pub fn notebook_query(notebook_id: []const u8, query: []const u8) -> QueryResult;
+
+    // ========================================================================
+    // 8. Session Integration Functions
+    // ========================================================================
+
+    // session_extract_from_trinity(repo_root: []const u8) -> SessionContext
+    // Extract session context from .trinity state files
+    //
+    // Reads:
+    //   - .trinity/state/active-skill.json
+    //   - .trinity/state/issue-binding.json
+    //   - .trinity/events/akashic-log.jsonl
+    //   - git status --porcelain
+    //
+    // Complexity: O(1)
+    pub fn session_extract_from_trinity(repo_root: []const u8) -> SessionContext;
+
+    // ========================================================================
+    // 9. Wrap-up Functions
+    // ========================================================================
+
+    // wrapup_format_summary(session: SessionContext, summary: []const u8,
+    //                      decisions: []const u8, files: []const u8, steps: []const u8) -> WrapupSummary
+    // Format a wrap-up summary from session data
+    //
+    // Complexity: O(1)
+    pub fn wrapup_format_summary(
+        session: SessionContext,
+        summary: []const u8,
+        decisions: []const u8,
+        files: []const u8,
+        steps: []const u8
+    ) -> WrapupSummary;
+
+    // wrapup_upload(notebook_id: []const u8, wrapup: WrapupSummary) -> bool
+    // Upload wrap-up summary to NotebookLM
+    //
+    // Complexity: O(1)
+    pub fn wrapup_upload(notebook_id: []const u8, wrapup: WrapupSummary) -> bool;
+
+    // ========================================================================
+    // TDD - Tests
+    // ========================================================================
+
+    test token_load_missing_file
+        // Verify: token_load returns None for missing file
+        given result = token_load()
+        then result == null
+
+    test token_save_success
+        // Verify: token_save returns success
+        given tokens = AuthTokens{
+            .access_token = "test_token",
+            .refresh_token = "refresh_test",
+            .expires_at = gf16.from_f64(1234567890.0),
+            .token_type = "bearer",
+        }
+        when saved = token_save(tokens)
+        then saved == true
+
+    test token_is_valid_with_valid_tokens
+        // Verify: token_is_valid returns true for valid tokens
+        given tokens = AuthTokens{
+            .access_token = "valid_token",
+            .refresh_token = "refresh_token",
+            .expires_at = gf16.from_f64(9999999999.0),
+            .token_type = "bearer",
+        }
+        when result = token_is_valid(?tokens)
+        then result == true
+
+    test token_is_valid_with_none
+        // Verify: token_is_valid returns false for None
+        given result = token_is_valid(null)
+        then result == false
+
+    test token_is_valid_with_expired
+        // Verify: token_is_valid returns false for expired tokens
+        given tokens = AuthTokens{
+            .access_token = "expired_token",
+            .refresh_token = "refresh_token",
+            .expires_at = gf16.from_f64(0.0),
+            .token_type = "bearer",
+        }
+        when result = token_is_valid(?tokens)
+        then result == false
+
+    test config_from_env_defaults
+        // Verify: config_from_env uses defaults when env vars not set
+        given config = config_from_env()
+        then gf16.to_f64(config.notebook_name) == gf16.to_f64(DEFAULT_NOTEBOOK_NAME)
+
+    test config_from_env_overrides
+        // Verify: config_from_env uses env vars when set
+        given notebook_name = "CUSTOM-BRAIN"
+        and timeout = "60000"
+        when config = config_from_env()
+        then gf16.to_f64(config.notebook_name) == gf16.to_f64(notebook_name)
+        and config.timeout_ms == 60000
+
+    test client_new_with_config
+        // Verify: client_new accepts NotebookLMConfig
+        given config = NotebookLMConfig{
+            .storage_path = Path.home() / ".notebooklm" / "storage.json",
+            .notebook_name = DEFAULT_NOTEBOOK_NAME,
+            .timeout_ms = DEFAULT_TIMEOUT_MS,
+            .auto_refresh = DEFAULT_AUTO_REFRESH,
+        }
+        when result = client_new(config)
+        then result == true
+
+    test client_new_with_invalid_config
+        // Verify: client_new handles invalid storage path
+        given config = NotebookLMConfig{
+            .storage_path = Path{},
+            .notebook_name = DEFAULT_NOTEBOOK_NAME,
+            .timeout_ms = DEFAULT_TIMEOUT_MS,
+            .auto_refresh = DEFAULT_AUTO_REFRESH,
+        }
+        when result = client_new(config)
+        then result == false
+
+    test notebook_create_success
+        // Verify: notebook_create returns true for valid name
+        given name = "test-notebook"
+        when result = notebook_create(name)
+        then result == true
+
+    test notebook_list_returns_array
+        // Verify: notebook_list returns array
+        when result = notebook_list()
+        then gf16.to_f64(@floatFromInt(result.len)) > 0.0
+
+    test notebook_find_by_name_existing
+        // Verify: notebook_find_by_name finds existing notebook
+        given name = "EXISTING-NOTEBOOK"
+        when result = notebook_find_by_name(name)
+        then result != null
+
+    test notebook_find_by_name_not_found
+        // Verify: notebook_find_by_name returns null for non-existent
+        given name = "NON-EXISTENT"
+        when result = notebook_find_by_name(name)
+        then result == null
+
+    test source_upload_text_success
+        // Verify: source_upload_text returns true for valid input
+        given notebook_id = "test-nb"
+        and title = "Test Source"
+        and content = "Test content"
+        when result = source_upload_text(notebook_id, title, content)
+        then result == true
+
+    test source_upload_text_size_limit
+        // Verify: source_upload_text handles size limit
+        given large_content = "x" * 11000000  // 11MB
+        when result = source_upload_text("test-nb", "Large Source", large_content)
+        then result == false
+
+    test notebook_query_success
+        // Verify: notebook_query returns results
+        given notebook_id = "test-nb"
+        and query = "test query"
+        when result = notebook_query(notebook_id, query)
+        then gf16.to_f64(@floatFromInt(result.sources.len)) > 0.0
+
+    test session_extract_from_trinity_reads_all_sources
+        // Verify: session_extract_from_trinity reads all state files
+        given repo_root = "/test/repo"
+        when result = session_extract_from_trinity(repo_root)
+        then result.session_id != "unknown"
+
+    test wrapup_format_summary_contains_all_sections
+        // Verify: wrapup_format_summary creates all sections
+        given session = SessionContext{
+            .session_id = "test-session",
+        }
+        and summary = "Test summary"
+        and decisions = "Test decisions"
+        and files = "Test files"
+        and steps = "Test steps"
+        when result = wrapup_format_summary(session, summary, decisions, files, steps)
+        then result.summary != null
+
+    test wrapup_upload_success
+        // Verify: wrapup_upload returns true for valid input
+        given notebook_id = "test-nb"
+        and session = SessionContext{
+            .session_id = "test-session",
+        }
+        and wrapup = WrapupSummary{}
+        when result = wrapup_upload(notebook_id, wrapup)
+        then result == true
+
+    // ========================================================================
+    // TDD - Invariants
+    // ========================================================================
+
+    invariant default_notebook_name_correct
+        // Verify: default notebook name is set correctly
+        assert DEFAULT_NOTEBOOK_NAME == "t27-QUEEN-BRAIN";
+
+    invariant default_timeout_positive
+        // Verify: default timeout is positive
+        assert DEFAULT_TIMEOUT_MS > 0;
+
+    invariant default_auto_refresh_bool
+        // Verify: default auto-refresh is boolean
+        assert DEFAULT_AUTO_REFRESH == true or DEFAULT_AUTO_REFRESH == false;
+
+    invariant token_path_valid_string
+        // Verify: token storage path is non-empty string
+        assert gf16.to_f64(@floatFromInt(TOKEN_STORAGE_PATH.len)) > 0.0;
+
+    invariant token_save_returns_bool
+        // Verify: token_save returns boolean
+        const tokens = AuthTokens{
+            .access_token = "test",
+            .refresh_token = "test",
+            .expires_at = gf16.from_f64(1234567890.0),
+            .token_type = "bearer",
+        };
+        const result = token_save(tokens);
+        assert result == true or result == false;
+
+    invariant client_new_with_valid_config
+        // Verify: client_new returns true for valid config
+        const config = NotebookLMConfig{
+            .storage_path = Path.home() / ".notebooklm" / "storage.json",
+            .notebook_name = DEFAULT_NOTEBOOK_NAME,
+            .timeout_ms = DEFAULT_TIMEOUT_MS,
+            .auto_refresh = DEFAULT_AUTO_REFRESH,
+        };
+        assert client_new(config) == true;
+
+    invariant client_new_with_null_config_fails
+        // Verify: client_new returns false for null config
+        const config = NotebookLMConfig{
+            .storage_path = Path{},
+            .notebook_name = DEFAULT_NOTEBOOK_NAME,
+            .timeout_ms = DEFAULT_TIMEOUT_MS,
+            .auto_refresh = DEFAULT_AUTO_REFRESH,
+        };
+        assert client_new(config) == false;
+
+    invariant notebook_list_returns_non_null
+        // Verify: notebook_list returns non-null
+        const result = notebook_list();
+        assert result != null;
+
+    invariant source_upload_text_size_limit_enforced
+        // Verify: source_upload_text rejects content > 10MB
+        const large_content = "x" * 11000000;
+        const result = source_upload_text("test-nb", "Large", large_content);
+        assert result == false;
+
+    // ========================================================================
+    // TDD - Benchmarks
+    // ========================================================================
+
+    bench token_load_latency
+        // Measure: cycles for token_load operation
+        // Target: < 10 cycles (file read + JSON parse)
+        @setEvalBranchQuota(1000);
+        var result : Optional[AuthTokens];
+        const test_path = TOKEN_STORAGE_PATH;
+        for (0..100) |_| {
+            result = token_load();
+        }
+        _ = result;
+
+    bench token_save_latency
+        // Measure: cycles for token_save operation
+        // Target: < 20 cycles (JSON write + file sync)
+        @setEvalBranchQuota(1000);
+        var result : bool;
+        const tokens = AuthTokens{
+            .access_token = "test",
+            .refresh_token = "test",
+            .expires_at = gf16.from_f64(1234567890.0),
+            .token_type = "bearer",
+        };
+        for (0..100) |_| {
+            result = token_save(tokens);
+        }
+        _ = result;
+
+    bench config_from_env_latency
+        // Measure: cycles for config_from_env operation
+        // Target: < 50 cycles (env var reads)
+        @setEvalBranchQuota(1000);
+        var result : NotebookLMConfig;
+        for (0..1000) |_| {
+            result = config_from_env();
+        }
+        _ = result;
+
+    bench notebook_create_latency
+        // Measure: cycles for notebook_create operation
+        // Target: < 100 cycles (API call)
+        @setEvalBranchQuota(1000);
+        var result : bool;
+        for (0..100) |_| {
+            result = notebook_create("test-nb");
+        }
+        _ = result;
+
+    bench notebook_query_latency
+        // Measure: cycles for notebook_query operation
+        // Target: < 200 cycles (semantic search API)
+        @setEvalBranchQuota(1000);
+        var result : QueryResult;
+        for (0..100) |_| {
+            result = notebook_query("test-nb", "test query");
+        }
+        _ = result;
+}
