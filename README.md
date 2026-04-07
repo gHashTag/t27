@@ -240,6 +240,33 @@ phi-structured floating-point formats where `exp/mant ~ 1/phi`:
 | GF24     | 24     | 9     | 14    | 0.025        | Precision      |
 | GF32     | 32     | 12    | 19    | 0.014        | Full precision |
 
+### Multi-Language Installation
+
+GoldenFloat is available as native packages for Python, JavaScript, Rust, and C:
+
+**Python (PyPI):**
+```bash
+pip install golden-float
+```
+
+**JavaScript (npm):**
+```bash
+npm install golden-float
+```
+
+**Rust (crates.io):**
+```toml
+[dependencies]
+golden-float-ffi = "0.1"
+```
+
+**C/C++ (header-only):**
+```c
+#include "golden_float.h"  // Auto-generated from gen/c/numeric/
+```
+
+All implementations share a single Rust core with a C-compatible ABI, guaranteeing **bit-identical results** across languages. See [`docs/MIGRATION.md`](docs/MIGRATION.md) for detailed installation and migration guides.
+
 
 ## Sacred Constants
 
