@@ -76,7 +76,7 @@ cat > "$BRAIN_SUMMARY" << EOF
   },
   "queen_health": {
     "overall": "$([ $TOXIC -eq 0 ] && echo "GREEN" || echo "YELLOW")",
-    "score": "$([ $LAST_RING -gt 0 ] && awk "BEGIN {printf \"%.4f\", $CLEAN / $LAST_RING}" || echo "1.0")",
+    "score": $([ $LAST_RING -gt 0 ] && awk "BEGIN {printf \"%.4f\", $CLEAN / $LAST_RING}" || echo "1.0"),
     "domains": 4,
     "last_updated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   }
