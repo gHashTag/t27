@@ -1,0 +1,964 @@
+// Format Conversion Utilities for Trinity Benchmarks
+// Supports GF16, FP16, BF16, and Ternary formats
+//
+// GF16 bit layout (identical to DLFloat 6:9):
+//   [S(1) E(6) M(9)] = [15:15][14:9][8:0]
+//   - Sign: bit 15 (0x8000)
+//   - Exponent: bits 14-9 (0x7E00), bias = 31
+//   - Mantissa: bits 8-0 (0x01FF)
+//   Range: 2^-31 to 2^32
+//
+// Author: Dmitrii Vasilev
+// SPDX-License-Identifier: Apache-2.0
+
+module format_conversion;
+
+import numeric::gf16;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/// Sign mask for GF16 (bit 15)
+pub const SIGN_MASK: u16 = 0x8000;
+
+/// Exponent mask for GF16 (bits 14-9)
+pub const EXP_MASK: u16 = 0x7E00;
+
+/// Mantissa mask for GF16 (bits 8-0)
+pub const MANT_MASK: u16 = 0x01FF;
+
+/// Exponent shift (9 bits for mantissa)
+pub const EXP_SHIFT: u8 = 9;
+
+/// Sign shift (15 bits)
+pub const SIGN_SHIFT: u8 = 15;
+
+/// Exponent bias for GF16
+pub const EXP_BIAS: i16 = 31;
+
+/// Maximum exponent value (all 1s)
+pub const EXP_MAX: u16 = 63;
+
+/// Minimum exponent value (all 0s)
+pub const EXP_MIN: u16 = 0;
+
+/// Mantissa bits for GF16
+pub const MANT_BITS: u8 = 9;
+
+/// Mantissa scaling factor (2^9 = 512)
+pub const MANT_SCALE: gf16 = 512.0;
+
+/// FP16 mantissa bits
+pub const FP16_MANT_BITS: u8 = 10;
+
+/// FP16 exponent bias
+pub const FP16_EXP_BIAS: i16 = 15;
+
+/// BF16 mantissa bits
+pub const BF16_MANT_BITS: u8 = 8;
+
+/// BF16 exponent bias (same as f32)
+pub const BF16_EXP_BIAS: i16 = 127;
+
+/// Ternary quantization threshold
+pub const TERNARY_THRESHOLD: gf16 = 0.5;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/// Supported numeric formats
+pub type Format = enum {
+    fp32,   // 32-bit IEEE 754 floating point
+    fp16,   // 16-bit IEEE 754 floating point
+    bf16,   // 16-bit Brain Float
+    gf16,   // 16-bit GF format (6:9)
+    ternary, // Ternary {-1, 0, +1}
+};
+
+/// Convolution configuration
+pub struct ConvConfig {
+    pub in_channels: u32,
+    pub out_channels: u32,
+    pub in_height: u32,
+    pub in_width: u32,
+    pub kernel_size: u32,
+    pub stride: u32,
+    pub padding: u32,
+}
+
+/// Max pooling configuration
+pub struct PoolConfig {
+    pub height: u32,
+    pub width: u32,
+    pub channels: u32,
+    pub kernel_size: u32,
+    pub stride: u32,
+}
+
+// ============================================================================
+// GF16 Conversion
+// ============================================================================
+
+/// Convert GF16 to f32 (decode)
+pub fn gf16_to_f32(x: u16) -> gf16 {
+    let s = ((x >> SIGN_SHIFT) & 1) as i16;
+    let e = ((x & EXP_MASK) >> EXP_SHIFT) as i16;
+    let m = (x & MANT_MASK) as i16;
+
+    if e == 0 && m == 0 {
+        // Signed zero
+        return if s == 0 { 0.0 } else { -0.0 };
+    } else if e == 0 {
+        // Denormals
+        let exp = 1 - EXP_BIAS;
+        let frac = (m as gf16) / MANT_SCALE;
+        let val = 2.0f16.pow(exp as gf16) * frac;
+        return if s == 0 { val } else { -val };
+    } else if e == EXP_MAX as i16 {
+        // Special values (Inf/NaN)
+        if m == 0 {
+            return if s == 0 { gf16::INFINITY } else { gf16::NEG_INFINITY };
+        } else {
+            return gf16::NAN;
+        }
+    } else {
+        // Normal: value = (-1)^s * (1 + m/2^9) * 2^(e - Bias)
+        let exp = e - EXP_BIAS;
+        let frac = 1.0 + (m as gf16) / MANT_SCALE;
+        let val = frac * 2.0f16.pow(exp as gf16);
+        return if s == 0 { val } else { -val };
+    }
+}
+
+/// Convert f32 to GF16 (encode, round-to-nearest)
+pub fn f32_to_gf16(a: gf16) -> u16 {
+    // Handle signed zero
+    if a == 0.0 {
+        return if a.is_sign_negative() { SIGN_MASK } else { 0 };
+    }
+
+    let sign_bit: u16 = if a < 0.0 { 1 << SIGN_SHIFT } else { 0 };
+    let abs = if a < 0.0 { -a } else { a };
+
+    // Handle special cases
+    if abs.is_infinite() {
+        return sign_bit | EXP_MASK;
+    }
+    if abs.is_nan() {
+        return sign_bit | EXP_MASK | 1;
+    }
+
+    // Get exponent and mantissa via frexp
+    let (m, e_i) = abs.frexp();
+
+    // Normalize to 1.x format
+    let m_norm = m * 2.0;
+    let mut e = e_i as i16 + EXP_BIAS - 1;
+
+    if e <= 0 {
+        return sign_bit; // Underflow
+    } else if e >= EXP_MAX as i16 {
+        return sign_bit | EXP_MASK; // Overflow
+    }
+
+    // Mantissa: (m - 1.0) * 2^9, round to nearest
+    let mant_f = (m_norm - 1.0) * MANT_SCALE;
+    let mut mant_i = mant_f.round() as i16;
+
+    // Handle mantissa overflow
+    if mant_i == MANT_SCALE as i16 {
+        mant_i = 0;
+        e += 1;
+        if e >= EXP_MAX as i16 {
+            return sign_bit | EXP_MASK;
+        }
+    }
+
+    let e_bits: u16 = ((e as u16) << EXP_SHIFT) & EXP_MASK;
+    let m_bits: u16 = (mant_i as u16) & MANT_MASK;
+
+    sign_bit | e_bits | m_bits
+}
+
+// ============================================================================
+// FP16 Conversion (IEEE 754 binary16)
+// ============================================================================
+
+/// Convert f32 to FP16
+pub fn f32_to_fp16(a: gf16) -> u16 {
+    if a == 0.0 {
+        return if a.is_sign_negative() { 0x8000 } else { 0 };
+    }
+    if a.is_infinite() {
+        return if a < 0.0 { 0xFC00 } else { 0x7C00 };
+    }
+    if a.is_nan() {
+        return 0x7E00;
+    }
+
+    let sign_bit: u16 = if a < 0.0 { 0x8000 } else { 0 };
+    let abs_a = if a < 0.0 { -a } else { a };
+
+    let (m_val, mut e) = abs_a.frexp();
+    let m_norm = m_val * 2.0;
+    e = e as i16 - 1;
+
+    e = e.min(FP16_EXP_BIAS as i16);
+    if e <= -10 {
+        return sign_bit; // Underflow
+    }
+
+    let mant_f = (m_norm - 1.0) * 1024.0;
+    let mut mant_i = mant_f.round() as i16;
+
+    if mant_i == 1024 {
+        mant_i = 1023;
+        e += 1;
+        if e >= 31 {
+            return if sign_bit != 0 { 0xFC00 } else { 0x7C00 };
+        }
+    }
+
+    let mant_bits: u16 = (mant_i as u16) & 0x03FF;
+    let e_bits: u16 = ((e + FP16_EXP_BIAS) as u16) << 10;
+
+    sign_bit | e_bits | mant_bits
+}
+
+/// Convert FP16 to f32
+pub fn fp16_to_f32(x: u16) -> gf16 {
+    if x == 0 {
+        return 0.0;
+    }
+    if x == 0x8000 {
+        return -0.0;
+    }
+
+    let sign = ((x >> 15) & 1) as i16;
+    let e = ((x >> 10) & 0x1F) as i16;
+    let m = (x & 0x03FF) as i16;
+
+    if e == 0 {
+        // Denormal
+        let frac = (m as gf16) / 1024.0;
+        let exp = (e - 1 - FP16_EXP_BIAS) as gf16;
+        let val = frac * 2.0f16.pow(exp);
+        return if sign != 0 { -val } else { val };
+    } else {
+        let frac = ((m + 1024) as gf16) / 1024.0;
+        let exp = (e - FP16_EXP_BIAS) as gf16;
+        let val = (1.0 + frac) * 2.0f16.pow(exp);
+        return if sign != 0 { -val } else { val };
+    }
+}
+
+// ============================================================================
+// BF16 Conversion (Brain Float 16)
+// ============================================================================
+
+/// Convert f32 to BF16
+pub fn f32_to_bf16(a: gf16) -> u16 {
+    if a == 0.0 {
+        return if a.is_sign_negative() { 0x8000 } else { 0 };
+    }
+    if a.is_infinite() {
+        return if a < 0.0 { 0xFF80 } else { 0x7F80 };
+    }
+    if a.is_nan() {
+        return 0x7FC0;
+    }
+
+    let sign_bit: u16 = if a < 0.0 { 0x8000 } else { 0 };
+    let abs_a = if a < 0.0 { -a } else { a };
+
+    let (m_val, mut e) = abs_a.frexp();
+    e = (e as i16) - 127;
+
+    if e < -7 {
+        return sign_bit; // Flush to zero
+    }
+
+    e = e.min(7);
+    if e <= 0 && m_val < 0.5 {
+        return sign_bit; // Subnormal -> zero
+    }
+
+    let mant_f = (m_val - 1.0) * 256.0;
+    let mut mant_i = mant_f.round() as i16;
+
+    if mant_i == 256 {
+        mant_i = 255;
+        e += 1;
+        if e >= 7 {
+            return if sign_bit != 0 { 0xFF80 } else { 0x7F80 };
+        }
+    }
+
+    let mant_bits: u16 = (mant_i as u16) & 0x00FF;
+    let e_bits: u16 = ((e as u16) & 0x7F) << 7;
+
+    sign_bit | e_bits | mant_bits
+}
+
+/// Convert BF16 to f32
+pub fn bf16_to_f32(x: u16) -> gf16 {
+    if x == 0 {
+        return 0.0;
+    }
+    if x == 0x8000 {
+        return -0.0;
+    }
+
+    let sign = ((x >> 15) & 1) as i16;
+    let e = ((x >> 7) & 0x7F) as i16;
+    let m = (x & 0x00FF) as i16;
+
+    if e == 0 {
+        // Denormalized
+        let frac = (m as gf16) / 256.0;
+        let exp = (e - 1 - BF16_EXP_BIAS) as gf16;
+        let val = frac * 2.0f16.pow(exp);
+        return if sign != 0 { -val } else { val };
+    } else {
+        let frac = (m as gf16) / 256.0;
+        let exp = (e - BF16_EXP_BIAS) as gf16;
+        let val = (1.0 + frac) * 2.0f16.pow(exp);
+        return if sign != 0 { -val } else { val };
+    }
+}
+
+// ============================================================================
+// Ternary Conversion
+// ============================================================================
+
+/// Symmetric quantization: w -> {-1, 0, +1}
+/// Threshold: |w| > 0.5 -> +/-1, else -> 0
+pub fn f32_to_ternary(x: gf16) -> i8 {
+    if x > TERNARY_THRESHOLD {
+        1
+    } else if x < -TERNARY_THRESHOLD {
+        -1
+    } else {
+        0
+    }
+}
+
+/// Convert ternary to f32
+pub fn ternary_to_f32(t: i8) -> gf16 {
+    t as gf16
+}
+
+// ============================================================================
+// Format Utilities
+// ============================================================================
+
+/// Get byte size for a format
+pub fn format_bytes(fmt: Format) -> usize {
+    match fmt {
+        Format::fp32 => 4,
+        Format::fp16 => 2,
+        Format::bf16 => 2,
+        Format::gf16 => 2,
+        Format::ternary => 1,
+    }
+}
+
+/// Quantize single f32 value to target format (returns f32 for convenience)
+pub fn quantize_value(x: gf16, fmt: Format) -> gf16 {
+    match fmt {
+        Format::fp32 => x,
+        Format::fp16 => fp16_to_f32(f32_to_fp16(x)),
+        Format::bf16 => bf16_to_f32(f32_to_bf16(x)),
+        Format::gf16 => gf16_to_f32(f32_to_gf16(x)),
+        Format::ternary => ternary_to_f32(f32_to_ternary(x)),
+    }
+}
+
+// ============================================================================
+// CNN Operations
+// ============================================================================
+
+/// 2D convolution: output[y,x,c] = sum over kernel weights
+pub fn conv2d(
+    input: &[gf16],
+    weights: &[gf16],
+    bias: &[gf16],
+    output: &mut [gf16],
+    config: &ConvConfig,
+) {
+    let k = config.kernel_size;
+    let p = config.padding;
+    let s = config.stride;
+
+    // Output dimensions with valid padding
+    let out_h = (config.in_height + 2 * p - k) / s + 1;
+    let out_w = (config.in_width + 2 * p - k) / s + 1;
+    let in_area = config.in_height * config.in_width;
+
+    // For each output channel
+    for oc in 0..config.out_channels {
+        let bias_val = bias[oc as usize];
+        let out_offset = (oc * out_h * out_w) as usize;
+
+        // For each output position
+        for oy in 0..out_h {
+            for ox in 0..out_w {
+                let mut sum: gf16 = bias_val;
+
+                // For each input channel
+                for ic in 0..config.in_channels {
+                    // For each kernel position
+                    for ky in 0..k {
+                        for kx in 0..k {
+                            // Input position
+                            let in_y = oy * s + ky - p;
+                            let in_x = ox * s + kx - p;
+
+                            if in_y < config.in_height && in_x < config.in_width {
+                                let in_idx = (ic * in_area + in_y * config.in_width + in_x) as usize;
+                                let w_idx = (oc * config.in_channels * k * k + ic * k * k + ky * k + kx) as usize;
+                                sum += input[in_idx] * weights[w_idx];
+                            }
+                        }
+                    }
+                }
+
+                output[out_offset + (oy * out_w + ox) as usize] = sum;
+            }
+        }
+    }
+}
+
+/// 2D max pooling: output[y,x,c] = max over kernel window
+pub fn max_pool2d(
+    input: &[gf16],
+    output: &mut [gf16],
+    config: &PoolConfig,
+) {
+    let k = config.kernel_size;
+    let s = config.stride;
+
+    let out_h = config.height / s;
+    let out_w = config.width / s;
+    let in_area = config.height * config.width;
+
+    // For each channel
+    for c in 0..config.channels {
+        let out_offset = (c * out_h * out_w) as usize;
+
+        // For each output position
+        for oy in 0..out_h {
+            for ox in 0..out_w {
+                // Find max in kernel window
+                let mut max_val: gf16 = gf16::NEG_INFINITY;
+
+                for ky in 0..k {
+                    let in_y = oy * s + ky;
+                    if in_y < config.height {
+                        for kx in 0..k {
+                            let in_x = ox * s + kx;
+                            if in_x < config.width {
+                                let in_idx = (c * in_area + in_y * config.width + in_x) as usize;
+                                max_val = max_val.max(input[in_idx]);
+                            }
+                        }
+                    }
+                }
+
+                output[out_offset + (oy * out_w + ox) as usize] = max_val;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "gf16_to_f32_zero" {
+    let pos_zero = gf16_to_f32(0);
+    let neg_zero = gf16_to_f32(SIGN_MASK);
+
+    assert_eq!(pos_zero, 0.0);
+    assert!(neg_zero.is_sign_negative());
+}
+
+test "f32_to_gf16_zero" {
+    let pos_zero = f32_to_gf16(0.0);
+    let neg_zero = f32_to_gf16(-0.0);
+
+    assert_eq!(pos_zero, 0);
+    assert_eq!(neg_zero, SIGN_MASK);
+}
+
+test "gf16_roundtrip_zero" {
+    let recovered = gf16_to_f32(f32_to_gf16(0.0));
+    assert_eq!(recovered, 0.0);
+}
+
+test "gf16_infinity" {
+    let pos_inf = f32_to_gf16(gf16::INFINITY);
+    let neg_inf = f32_to_gf16(gf16::NEG_INFINITY);
+
+    assert_eq!(pos_inf, EXP_MASK);
+    assert_eq!(neg_inf, SIGN_MASK | EXP_MASK);
+}
+
+test "gf16_roundtrip_small_values" {
+    let values = [1.0, -1.0, 0.5, -0.5, 2.0, -2.0, 0.1, -0.1, 1.5, -1.5];
+
+    for v in values {
+        let gf16 = f32_to_gf16(v);
+        let recovered = gf16_to_f32(gf16);
+        let err = (recovered - v).abs();
+        // Allow some error due to quantization
+        assert!(err < 0.01);
+    }
+}
+
+test "gf16_bit_masks" {
+    assert_eq!(SIGN_MASK, 0x8000);
+    assert_eq!(EXP_MASK, 0x7E00);
+    assert_eq!(MANT_MASK, 0x01FF);
+}
+
+test "gf16_encode_preserves_sign" {
+    let pos = f32_to_gf16(1.0);
+    let neg = f32_to_gf16(-1.0);
+
+    assert_eq!(pos & SIGN_MASK, 0);
+    assert!(neg & SIGN_MASK != 0);
+}
+
+test "ternary_quantization" {
+    assert_eq!(f32_to_ternary(1.0), 1);
+    assert_eq!(f32_to_ternary(-1.0), -1);
+    assert_eq!(f32_to_ternary(0.3), 0);
+    assert_eq!(f32_to_ternary(-0.3), 0);
+    assert_eq!(f32_to_ternary(0.6), 1);
+    assert_eq!(f32_to_ternary(-0.6), -1);
+}
+
+test "ternary_to_f32" {
+    assert_eq!(ternary_to_f32(1), 1.0);
+    assert_eq!(ternary_to_f32(-1), -1.0);
+    assert_eq!(ternary_to_f32(0), 0.0);
+}
+
+test "format_bytes" {
+    assert_eq!(format_bytes(Format::fp32), 4);
+    assert_eq!(format_bytes(Format::fp16), 2);
+    assert_eq!(format_bytes(Format::bf16), 2);
+    assert_eq!(format_bytes(Format::gf16), 2);
+    assert_eq!(format_bytes(Format::ternary), 1);
+}
+
+test "quantize_value_fp32" {
+    let value = 1.2345;
+    let quantized = quantize_value(value, Format::fp32);
+    assert_eq!(quantized, value);
+}
+
+test "quantize_value_gf16" {
+    let value = 1.2345;
+    let quantized = quantize_value(value, Format::gf16);
+    // Should be close but not exact
+    assert!((quantized - 1.2345).abs() < 0.01);
+}
+
+test "quantize_value_ternary" {
+    let pos = quantize_value(1.5, Format::ternary);
+    let zero = quantize_value(0.3, Format::ternary);
+    let neg = quantize_value(-1.5, Format::ternary);
+
+    assert_eq!(pos, 1.0);
+    assert_eq!(zero, 0.0);
+    assert_eq!(neg, -1.0);
+}
+
+test "fp16_roundtrip" {
+    let values = [1.0, -1.0, 0.5, 2.0, 0.1];
+
+    for v in values {
+        let fp16 = f32_to_fp16(v);
+        let recovered = fp16_to_f32(fp16);
+        assert!((recovered - v).abs() < 0.01);
+    }
+}
+
+test "bf16_roundtrip" {
+    let values = [1.0, -1.0, 0.5, 2.0, 0.1];
+
+    for v in values {
+        let bf16 = f32_to_bf16(v);
+        let recovered = bf16_to_f32(bf16);
+        assert!((recovered - v).abs() < 0.01);
+    }
+}
+
+test "fp16_infinity" {
+    let pos_inf = f32_to_fp16(gf16::INFINITY);
+    let neg_inf = f32_to_fp16(gf16::NEG_INFINITY);
+
+    assert_eq!(pos_inf, 0x7C00);
+    assert_eq!(neg_inf, 0xFC00);
+}
+
+test "bf16_infinity" {
+    let pos_inf = f32_to_bf16(gf16::INFINITY);
+    let neg_inf = f32_to_bf16(gf16::NEG_INFINITY);
+
+    assert_eq!(pos_inf, 0x7F80);
+    assert_eq!(neg_inf, 0xFF80);
+}
+
+test "conv2d_basic" {
+    let input = vec![1.0; 16]; // 4x4, 1 channel
+    let mut weights = vec![0.5; 4]; // 1x1 kernel, 1 input channel, 1 output channel
+    let bias = vec![0.0; 1];
+    let mut output = vec![0.0; 16];
+
+    let config = ConvConfig {
+        in_channels: 1,
+        out_channels: 1,
+        in_height: 4,
+        in_width: 4,
+        kernel_size: 1,
+        stride: 1,
+        padding: 0,
+    };
+
+    conv2d(&input, &weights, &bias, &mut output, &config);
+
+    // With 1x1 kernel of 0.5, output should be 0.5 * input
+    assert!((output[0] - 0.5).abs() < 0.01);
+}
+
+test "max_pool2d_basic" {
+    let mut input = vec![0.0; 16];
+    input[0] = 1.0;
+    input[1] = 2.0;
+    input[4] = 3.0;
+    input[5] = 4.0;
+
+    let mut output = vec![0.0; 4];
+
+    let config = PoolConfig {
+        height: 4,
+        width: 4,
+        channels: 1,
+        kernel_size: 2,
+        stride: 2,
+    };
+
+    max_pool2d(&input, &mut output, &config);
+
+    // First 2x2 window max should be 4.0
+    assert_eq!(output[0], 4.0);
+}
+
+test "gf16_exponent_range" {
+    let small = gf16_to_f32(f32_to_gf16(0.0001));
+    let large = gf16_to_f32(f32_to_gf16(1000000.0));
+
+    // Should preserve order
+    assert!(small < 1.0);
+    assert!(large > 1000.0);
+}
+
+test "ternary_threshold_edge_cases" {
+    assert_eq!(f32_to_ternary(0.5000001), 1);
+    assert_eq!(f32_to_ternary(0.4999999), 0);
+    assert_eq!(f32_to_ternary(-0.5000001), -1);
+    assert_eq!(f32_to_ternary(-0.4999999), 0);
+}
+
+test "gf16_nan_handling" {
+    let nan_val = f32_to_gf16(gf16::NAN);
+    let recovered = gf16_to_f32(nan_val);
+    assert!(recovered.is_nan());
+}
+
+test "conv2d_with_bias" {
+    let input = vec![1.0; 4];
+    let weights = vec![1.0; 1];
+    let bias = vec![2.0];
+
+    let mut output = vec![0.0; 4];
+
+    let config = ConvConfig {
+        in_channels: 1,
+        out_channels: 1,
+        in_height: 2,
+        in_width: 2,
+        kernel_size: 1,
+        stride: 1,
+        padding: 0,
+    };
+
+    conv2d(&input, &weights, &bias, &mut output, &config);
+
+    // output = input * weight + bias = 1 * 1 + 2 = 3
+    for val in output {
+        assert!((val - 3.0).abs() < 0.01);
+    }
+}
+
+test "conv2d_stride_2" {
+    let input = vec![1.0; 16];
+    let weights = vec![1.0; 1];
+    let bias = vec![0.0];
+    let mut output = vec![0.0; 4];
+
+    let config = ConvConfig {
+        in_channels: 1,
+        out_channels: 1,
+        in_height: 4,
+        in_width: 4,
+        kernel_size: 1,
+        stride: 2,
+        padding: 0,
+    };
+
+    conv2d(&input, &weights, &bias, &mut output, &config);
+
+    // With stride 2, output should be 2x2
+    assert_eq!(output.len(), 4);
+}
+
+test "max_pool2d_stride_1" {
+    let mut input = vec![0.0; 4];
+    input[0] = 1.0;
+    input[1] = 2.0;
+    input[2] = 3.0;
+    input[3] = 4.0;
+
+    let mut output = vec![0.0; 1];
+
+    let config = PoolConfig {
+        height: 2,
+        width: 2,
+        channels: 1,
+        kernel_size: 2,
+        stride: 1,
+    };
+
+    max_pool2d(&input, &mut output, &config);
+
+    assert_eq!(output[0], 4.0);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant "gf16_zero_encode" {
+    assert_eq!(f32_to_gf16(0.0), 0);
+}
+
+invariant "gf16_neg_zero_encode" {
+    assert_eq!(f32_to_gf16(-0.0), SIGN_MASK);
+}
+
+invariant "gf16_infinity_encode" {
+    assert_eq!(f32_to_gf16(gf16::INFINITY), EXP_MASK);
+}
+
+invariant "gf16_neg_infinity_encode" {
+    assert_eq!(f32_to_gf16(gf16::NEG_INFINITY), SIGN_MASK | EXP_MASK);
+}
+
+invariant "ternary_range" {
+    let t = f32_to_ternary(1.5);
+    assert!(t >= -1 && t <= 1);
+}
+
+invariant "format_bytes_positive" {
+    assert!(format_bytes(Format::fp32) > 0);
+    assert!(format_bytes(Format::gf16) > 0);
+    assert!(format_bytes(Format::ternary) > 0);
+}
+
+invariant "gf16_bit_mask_no_overlap" {
+    assert_eq!(SIGN_MASK & EXP_MASK, 0);
+    assert_eq!(EXP_MASK & MANT_MASK, 0);
+    assert_eq!(SIGN_MASK & MANT_MASK, 0);
+}
+
+invariant "ternary_symmetric" {
+    assert_eq!(f32_to_ternary(1.5), -f32_to_ternary(-1.5));
+}
+
+invariant "fp16_exp_bias_positive" {
+    assert!(FP16_EXP_BIAS > 0);
+}
+
+invariant "bf16_exp_bias_positive" {
+    assert!(BF16_EXP_BIAS > 0);
+}
+
+invariant "gf16_exp_bias_positive" {
+    assert!(EXP_BIAS > 0);
+}
+
+invariant "mant_bits_positive" {
+    assert!(MANT_BITS > 0);
+    assert!(FP16_MANT_BITS > 0);
+    assert!(BF16_MANT_BITS > 0);
+}
+
+invariant "ternary_threshold_positive" {
+    assert!(TERNARY_THRESHOLD > 0.0);
+}
+
+invariant "format_bytes_fp32_largest" {
+    assert!(format_bytes(Format::fp32) >= format_bytes(Format::gf16));
+    assert!(format_bytes(Format::fp32) >= format_bytes(Format::ternary));
+}
+
+invariant "gf16_roundtrip_preserves_sign" {
+    let v = 1.234;
+    let encoded = f32_to_gf16(v);
+    let decoded = gf16_to_f32(encoded);
+    assert_eq!(v.is_sign_negative(), decoded.is_sign_negative());
+
+    let v_neg = -1.234;
+    let encoded_neg = f32_to_gf16(v_neg);
+    let decoded_neg = gf16_to_f32(encoded_neg);
+    assert_eq!(v_neg.is_sign_negative(), decoded_neg.is_sign_negative());
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench "gf16_to_f32" {
+    let iterations = 10000;
+    let x: u16 = 0x3C00; // 1.0 in FP16 format
+
+    for _ in 0..iterations {
+        let _ = gf16_to_f32(x);
+    }
+}
+
+bench "f32_to_gf16" {
+    let iterations = 10000;
+    let v: gf16 = 1.234;
+
+    for _ in 0..iterations {
+        let _ = f32_to_gf16(v);
+    }
+}
+
+bench "fp16_roundtrip" {
+    let iterations = 10000;
+    let v: gf16 = 1.234;
+
+    for _ in 0..iterations {
+        let _ = fp16_to_f32(f32_to_fp16(v));
+    }
+}
+
+bench "bf16_roundtrip" {
+    let iterations = 10000;
+    let v: gf16 = 1.234;
+
+    for _ in 0..iterations {
+        let _ = bf16_to_f32(f32_to_bf16(v));
+    }
+}
+
+bench "ternary_conversion" {
+    let iterations = 10000;
+    let v: gf16 = 1.234;
+
+    for _ in 0..iterations {
+        let _ = f32_to_ternary(v);
+        let _ = ternary_to_f32(1);
+    }
+}
+
+bench "quantize_value_gf16" {
+    let iterations = 10000;
+    let v: gf16 = 1.234;
+
+    for _ in 0..iterations {
+        let _ = quantize_value(v, Format::gf16);
+    }
+}
+
+bench "quantize_value_ternary" {
+    let iterations = 10000;
+    let v: gf16 = 1.234;
+
+    for _ in 0..iterations {
+        let _ = quantize_value(v, Format::ternary);
+    }
+}
+
+bench "conv2d_3x3" {
+    let iterations = 100;
+    let input = vec![1.0; 256]; // 16x16, 1 channel
+    let weights = vec![0.5; 9]; // 3x3 kernel
+    let bias = vec![0.0; 1];
+    let mut output = vec![0.0; 196]; // 14x14 output
+
+    let config = ConvConfig {
+        in_channels: 1,
+        out_channels: 1,
+        in_height: 16,
+        in_width: 16,
+        kernel_size: 3,
+        stride: 1,
+        padding: 0,
+    };
+
+    for _ in 0..iterations {
+        conv2d(&input, &weights, &bias, &mut output, &config);
+    }
+}
+
+bench "max_pool2d_2x2" {
+    let iterations = 100;
+    let input = vec![1.0; 256]; // 16x16, 1 channel
+    let mut output = vec![0.0; 64]; // 8x8 output
+
+    let config = PoolConfig {
+        height: 16,
+        width: 16,
+        channels: 1,
+        kernel_size: 2,
+        stride: 2,
+    };
+
+    for _ in 0..iterations {
+        max_pool2d(&input, &mut output, &config);
+    }
+}
+
+bench "gf16_infinity_conversion" {
+    let iterations = 10000;
+
+    for _ in 0..iterations {
+        let _ = f32_to_gf16(gf16::INFINITY);
+    }
+}
+
+bench "gf16_zero_conversion" {
+    let iterations = 100000;
+
+    for _ in 0..iterations {
+        let _ = f32_to_gf16(0.0);
+    }
+}
+
+bench "ternary_threshold_check" {
+    let iterations = 100000;
+    let v: gf16 = 0.5;
+
+    for _ in 0..iterations {
+        let _ = f32_to_ternary(v);
+    }
+}
