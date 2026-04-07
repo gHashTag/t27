@@ -72,7 +72,7 @@ This self-similarity property connects $\varphi$ to information-theoretic effici
 
 ### 2.2 Proposition 1: Golden Self-Similarity
 
-**Theorem:** The golden ratio $\varphi$ is the unique self-similar proportion for bit allocation in floating-point formats.
+**Proposition:** The golden ratio $\varphi$ is the unique self-similar proportion for bit allocation in floating-point formats.
 
 **Self-similarity constraint:**
 
@@ -99,9 +99,9 @@ Since $r = e/m = 1/\varphi$, we have proven that $\varphi$ is the unique self-si
 
 **Key distinction:** This derivation is NOT an optimization result. Maximizing the product $e \times m$ gives $r = 1$ by AM-GM inequality, not $r = 1/\varphi$. Self-similarity is a defining property of $\varphi$, not an outcome of maximizing some objective function.
 
-### 2.3 Theorem 2: Optimal Integer Rounding
+### 2.3 Proposition 2: Optimal Integer Rounding
 
-**Theorem:** The integer allocation $\text{exp\_bits} = \text{round}((N-1)/\varphi^2)$ minimizes $\varphi$-distance between the actual and ideal $\varphi$-proportion.
+**Proposition:** The integer allocation $\text{exp\_bits} = \text{round}((N-1)/\varphi^2)$ minimizes $\varphi$-distance between the actual and ideal $\varphi$-proportion.
 
 **Proof:**
 
@@ -204,12 +204,12 @@ Compare $\varphi$-guided allocation against ILP optimal on:
 | Bit allocation | Empirical (FP16: 5/10, BF16: 8/7) | Variable-length encoding | $\varphi$-derived: $\text{round}((N-1)/\varphi^2)$ |
 | Signed number | Two's complement (separate sign bit) | Sign-magnitude | Balanced ternary $\{-1, 0, +1\}$ |
 | Decode latency | Fast (fixed format) | Slower (sequential decode) | TBD (to benchmark) |
-| Mathematical basis | IEEE committee (1985) | John Gustafson (2017) | Self-similarity theorem (Section 2.1) |
+| Mathematical basis | IEEE committee (1985) | John Gustafson (2017) | Self-similarity proposition (Section 2.1) |
 
 #### 4.1.2 Positioning Claim
 
 GF is the only ternary float format with:
-1. Formal mathematical derivation (Self-Similarity Theorem, Section 2.1)
+1. Formal mathematical derivation (Self-Similarity Proposition, Section 2.1)
 2. Family of 7 standardized formats (GF4-GF32) with exact formula matching
 3. TDD-validated specifications (L4 compliant)
 4. Hardware-friendliness ($\varphi$-optimal for all sizes)
@@ -295,7 +295,7 @@ Test: $1/3$ representation (finite in balanced ternary: $0.\overline{1}_3$).
 
 2. **Parallel decode structure:** GF uses fixed-width fields with parallelizable decoding steps ($O(1)$), while Posit requires sequential regime detection ($O(N)$ worst case).
 
-3. **$\varphi$-guidance in mixed precision:** Closed-form $O(L)$ layer-wise allocation provides $\geq 98\%$ of ILP optimal accuracy with 10x lower compute time.
+3. **$\varphi$-guidance in mixed precision:** Closed-form $O(L)$ layer-wise allocation provides near-ILP optimal accuracy (validation pending, Section 3.3).
 
 ### 6.2 What GF Does NOT Do Better
 
@@ -327,24 +327,23 @@ Test: $1/3$ representation (finite in balanced ternary: $0.\overline{1}_3$).
 
 ## 8. Conclusion
 
-GoldenFloat (GF) is a family of seven formally verified, $\varphi$-optimal floating-point formats for ternary and mixed-precision computing. We prove that $\varphi$ emerges as the unique self-similar proportion for bit allocation (Theorem 1) and that the rounding rule $\text{round}((N-1)/\varphi^2)$ provides optimal integer approximations (Theorem 2), with all seven GF formats satisfying this rule exactly (7/7 match verified). Experimental results show that $\varphi$-guided mixed-precision allocation achieves $\geq 98\%$ of ILP optimal accuracy with 10x lower computational cost. Competitive analysis demonstrates that GF's parallel decode structure outperforms Posit's sequential regime detection. The structural isomorphism between balanced ternary and qutrit basis states positions GF for future quantum computing applications.
+GoldenFloat (GF) is a family of seven formally verified, $\varphi$-optimal floating-point formats for ternary and mixed-precision computing. We prove that $\varphi$ emerges as the unique self-similar proportion for bit allocation (Proposition 1) and that the rounding rule $\text{round}((N-1)/\varphi^2)$ matches all seven GF formats exactly (Proposition 2, 7/7 verified). We analyze GF's structural advantages over Posit (parallel vs serial decoding) and propose $\varphi$-guided mixed-precision quantization as an $O(1)$ baseline for future evaluation. The structural isomorphism between balanced ternary and qutrit basis states positions GF for future quantum computing applications.
 
 **Key contributions:**
-1. Golden Self-Similarity Theorem: $\varphi$ derived from first principles as unique self-similar proportion
-2. Optimal Rounding Theorem: $\text{round}((N-1)/\varphi^2)$) achieves exact 7/7 GF family match
-3. $\varphi$-Guided Mixed-Precision: Closed-form $O(L)$ layer-wise bit allocation baseline
-4. Competitive Analysis: GF vs Posit decode complexity and ternary-exact constant representation
+1. Golden Self-Similarity Proposition: $\varphi$ derived from first principles as unique self-similar proportion
+2. Optimal Rounding Proposition: $\text{round}((N-1)/\varphi^2)$ achieves exact 7/7 GF family match
+3. $\varphi$-Guided Mixed-Precision: Proposed closed-form $O(L)$ layer-wise bit allocation baseline for future evaluation
+4. Competitive Analysis: Structural comparison of GF vs Posit decode complexity — benchmarks pending
 5. Ternary-Hardware Readiness: Formal verification and structural isomorphism to qutrits
-6. Artifact Package: Complete benchmark suite and reproduction instructions
 
 ---
 
 ## References
 
-- t27 Project. GoldenFloat specification system. `https://github.com/t27project/trinity`
+- t27 Project. GoldenFloat specification system. `https://github.com/gHashTag/trinity`
 - Donald E. Knuth (1974). *The Art of Computer Programming, Volume 2.* Addison-Wesley.
 - John L. Gustafson (2017). "The Posit: A New Kind of Floating-Point." arXiv:1712.04546.
 - Daniel Etiemble (2019). "Ternary Circuits: Why R=3 is NOT the Optimal Radix for Computation." arXiv:1908.06841.
 - Huawei Technologies (2025). Ternary logic gate patent application.
-- Bennett & Brassard (2025). Qutrit quantum key distribution protocols. *Communications of the ACM* Turing Award 2026.
+- C. H. Bennett and G. Brassard (1984). Quantum cryptography: Public key distribution and coin tossing. IFIP 1984.
 - Mixed-Precision Quantization Survey. 2024. arXiv:2311.11897.
