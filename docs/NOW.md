@@ -5,6 +5,11 @@
 
 # NOW — Rolling integration snapshot
 
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Ring 057 ACTIVE — Conflict resolution strategy · RFC3339 2026-04-07T15:00:00Z
+
+
+**Document class:** Operational focus document
+**Revision:** **Phase 4 Crown extended** — Rings 051-057 (#197, #199, #201, #203, #205, #207, #209) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution.
 
 **Last updated:** 2026-04-06 — Tuesday, 07 April 2026 (UTC+07) · Ring 041 GoldenFloat arXiv paper draft · RFC3339 2026-04-06T22:00:00Z
 
