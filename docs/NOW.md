@@ -8,7 +8,7 @@
 **Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 at 90% · Rings 061-066 complete · RFC3339 2026-04-07T23:59:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 4 at 90%** — Rings 061-066 complete. Spec growth: 86/100 target. Base layer (encoding, memory) + ISA (gates, arithmetic) well-defined.
+**Revision:** **Phase 4 at 90%** — Rings 061-066 complete. Spec growth: 86/100 target. Base layer (encoding, memory) + ISA (gates, arithmetic) well-defined. **Issue [#277](https://github.com/gHashTag/t27/issues/277):** `tri math compare` (Pellis / hybrid / sensitivity) + `specs/physics/pellis-formulas.t27` + `research/trinity-pellis-paper/` scaffold.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
@@ -348,6 +348,7 @@ CROWN (Queen brain & automation)
 - 🟡 META dashboard (#126) — needs updates for completed Phase 3
 - 📋 Queen-brain spec (`specs/queen/lotus.t27`) — orchestration layer
 - 📋 Lotus phase automation — `.trinity/queen-brain/summaries/` pipeline
+- ✅ Trinity x Pellis hybrid path ([#277](https://github.com/gHashTag/t27/issues/277)): `./scripts/tri math compare` writes `.trinity/experience/math_compare.jsonl` (gitignored); SSOT spec `pellis-formulas.t27`; paper scaffold under `research/trinity-pellis-paper/`.
 
 ```bash
 # 0. NOW gate — run FIRST before any commit (otherwise push / hooks may fail)
@@ -364,6 +365,9 @@ cd bootstrap && cargo build --release
 ./target/release/t27c --repo-root .. validate-conformance
 ./target/release/t27c --repo-root .. validate-gen-headers
 ./target/release/t27c --repo-root .. suite
+
+# 3b. Trinity x Pellis (issue #277) — Rust-only; appends local experience JSONL
+./scripts/tri math compare --pellis --pellis-extended --hybrid --sensitivity
 
 # 4. Optional: compiler hash (if stage0/FROZEN_HASH exists in your tree)
 # shasum -a 256 bootstrap/src/compiler.rs
