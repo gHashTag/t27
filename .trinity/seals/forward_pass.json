@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:bac602cb7a271f35bd116f52bb9849c190a251a221938dc0d949127e9bb5a591",
+  "gen_hash_verilog": "sha256:97bb5b1cbbc345e2f0e443a760a61935bc8af10e6c40147a7c45a1b544f35b89",
+  "gen_hash_zig": "sha256:049f0a30fbaf9b3e941205383f110ae75905bea44118d41f109d546493885354",
+  "module": "forward_pass",
+  "ring": 12,
+  "sealed_at": "2026-04-07T17:17:17Z",
+  "spec_hash": "sha256:c763650c8fdc2e77ad17d147463a2a41f6073827281085c720bbe33671c396a9",
+  "spec_path": "specs/neural/forward_pass.t27"
+}

@@ -3,19 +3,20 @@ message: "If you use T27/GoldenFloat in research or software, please cite it as 
 title: "GoldenFloat: φ-Optimal Floating-Point Formats for Ternary Computing (T27)"
 version: 0.1.0
 date-released: 2026-04-07
+orcid: 0009-0008-429-6159-6159-6159
+authors:
+  - family-names: Vasilev
+    given-names: Dmitrii
+    affiliation: Trinity Computing
 license: MIT
-repository-code: "https://github.com/gHashTag/t27"
-url: "https://github.com/gHashTag/t27"
+repository-code: https://github.com/gHashTag/t27
+url: https://github.com/gHashTag/t27
 abstract: >
   GoldenFloat (GF) is a family of seven narrow floating-point
-  formats parameterized by φ ≈ 1.618. We prove that φ is the
+  formats parameterized by φ ≈ 1.618. We prove that φ is
   unique fixed point of balancing recursion f(x)=(x+x⁻¹+1)/2
   (Theorem 3, zero free parameters). T27 provides spec-first
   development with formal verification.
-authors:
-  - family-names: Playra
-    given-names: AI Assistant
-    affiliation: Trinity Computing
 keywords:
   - golden ratio
   - floating point
@@ -27,3 +28,5 @@ keywords:
   - tri CLI
   - Coq
   - formal verification
+  - Theorem 3
+  - generative mechanism
