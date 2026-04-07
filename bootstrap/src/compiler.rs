@@ -5466,6 +5466,7 @@ pub struct OptStats {
     pub strengths_reduced: u32,
     pub cse_eliminated: u32,
     pub dead_stores: u32,
+    pub loops_unrolled: u32,
     pub passes: u32,
 }
 
@@ -5477,6 +5478,7 @@ pub fn optimize(ast: &mut Node, config: &OptConfig) -> OptStats {
         strengths_reduced: 0,
         cse_eliminated: 0,
         dead_stores: 0,
+        loops_unrolled: 0,
         passes: 0,
     };
     if config.opt_level == 0 {
@@ -5524,6 +5526,7 @@ fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStat
     strength_reduce(stmts, stats);
     common_subexpr_elim(stmts, stats);
     dead_store_elim(stmts, stats);
+    loop_unroll(stmts, stats);
 }
 
 fn is_dead_local(node: &Node) -> bool {
@@ -5888,6 +5891,60 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     stats.dead_stores += (before - stmts.len()) as u32;
 }
 
+fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut insertions: Vec<(usize, Vec<Node>)> = Vec::new();
+    for (i, stmt) in stmts.iter_mut().enumerate() {
+        if stmt.kind == NodeKind::StmtFor && stmt.children.len() >= 3 {
+            let iter_expr = &stmt.children[0];
+            if iter_expr.kind == NodeKind::ExprBinary && iter_expr.extra_op == ".." {
+                if iter_expr.children.len() >= 2 {
+                    let start = parse_int_value(&iter_expr.children[0].value);
+                    let end = parse_int_value(&iter_expr.children[1].value);
+                    if let (Some(s), Some(e)) = (start, end) {
+                        let count = e - s;
+                        if count > 0 && count <= 4 {
+                            let body = &stmt.children[2];
+                            let iter_var = if stmt.children.len() > 1 {
+                                stmt.children[1].name.clone()
+                            } else {
+                                "_i".to_string()
+                            };
+                            let mut unrolled = Vec::new();
+                            for v in s..e {
+                                let mut body_clone = body.clone();
+                                replace_iter_var(&mut body_clone, &iter_var, v);
+                                for child in body_clone.children.drain(..) {
+                                    unrolled.push(child);
+                                }
+                            }
+                            insertions.push((i, unrolled));
+                            stats.loops_unrolled += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (idx, unrolled) in insertions.into_iter().rev() {
+        stmts.remove(idx);
+        for (j, s) in unrolled.into_iter().enumerate() {
+            stmts.insert(idx + j, s);
+        }
+    }
+}
+
+fn replace_iter_var(node: &mut Node, var: &str, val: i64) {
+    if node.kind == NodeKind::ExprIdentifier && node.name == var {
+        node.kind = NodeKind::ExprLiteral;
+        node.value = val.to_string();
+        node.name.clear();
+        return;
+    }
+    for child in &mut node.children {
+        replace_iter_var(child, var, val);
+    }
+}
+
 fn collect_reads(node: &Node, reads: &mut std::collections::HashSet<String>) {
     if node.kind == NodeKind::ExprIdentifier {
         reads.insert(node.name.clone());
@@ -6061,6 +6118,33 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                     }
                 }
             }
+
+            fn is_tail_call(fn_body: &[Node], fn_name: &str) -> bool {
+                let last = match fn_body.last() {
+                    Some(s) => s,
+                    None => return false,
+                };
+                if last.kind == NodeKind::ExprReturn && !last.children.is_empty() {
+                    if last.children[0].kind == NodeKind::ExprCall
+                        && last.children[0].name == fn_name
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+
+            if is_tail_call(&child.children, &child.name) {
+                let line = if child.line > 0 {
+                    format!(":{}", child.line)
+                } else {
+                    String::new()
+                };
+                result.errors.push(format!(
+                    "info: tail call detected in '{}'{} — candidate for optimization",
+                    child.name, line
+                ));
+            }
         }
     }
 
@@ -6200,6 +6284,20 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
             }
         }
         NodeKind::ExprFieldAccess | NodeKind::ExprIndex => {
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        NodeKind::ExprStructLit => {
+            if let Some(_sym) = symbols.iter().find(|s| {
+                if let TypeInfo::Custom(ref name) = s.type_info {
+                    name == &node.name
+                } else {
+                    false
+                }
+            }) {
+                // We found the struct type — field validation happens at gen time
+            }
             for child in &node.children {
                 check_expr(child, symbols, fns, result);
             }
