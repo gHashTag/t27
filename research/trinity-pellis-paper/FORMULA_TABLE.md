@@ -23,10 +23,11 @@ The table is intentionally sparse at scaffold time; fill rows as each identity i
 
 ## Next steps
 
-1. **SSOT for 152 rows (this repo):** derive rows from `specs/physics/sacred_verification.t27` and linked conformance/docs — there is **no** `src/particle_physics/formulas.zig` in t27. When a single JSON catalog for all 152 IDs exists, generate or sync table rows from that file under `tri` (no Python on the verification critical path per AGENTS).
-2. Mirror each **EXACT** row with a `test` / `invariant` in the owning `.t27` file.
-3. Add columns **Pellis equivalent** (if known) and **delta_ppm** vs experiment once definitions are frozen.
-4. Use `tri math compare --sensitivity` to track numeric stability of the hybrid proxy under phi perturbations.
+1. Import row metadata from the sacred formula JSON when it lands in-repo.
+2. **SSOT for 152 rows (this repo):** derive rows from `specs/physics/sacred_verification.t27` and linked conformance/docs — there is **no** `src/particle_physics/formulas.zig` in t27. When a single JSON catalog for all 152 IDs exists, generate or sync table rows from that file under `tri` (no Python on the verification critical path per AGENTS).
+3. Mirror each **EXACT** row with a `test` / `invariant` in the owning `.t27` file.
+4. Add columns **Pellis equivalent** (if known) and **delta_ppm** vs experiment once definitions are frozen.
+5. Use `tri math compare --sensitivity` to track numeric stability of the hybrid proxy under phi perturbations.
 
 ## Outreach snippet (Pellis / collaborators)
 
@@ -41,3 +42,4 @@ P1..P5 = {1,2,5,12,29} are in specs/physics/pellis-formulas.t27.
 Current hybrid inner product (diagnostic v1) ~ 0.5638 — first joint numeric handle;
 see research/trinity-pellis-paper/hybrid-conjecture.md for Conjecture H1 and limits.
 ```
+

@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_bitwise.t27",
+  "spec_hash": "sha256:4788e04f460b679dbf5f23235bc21f74a06be4466c5c9ffac1dc3d29e05d7043",
+  "gen_hash_zig": "sha256:7ae5f3c23ec046e4df4736b4617d5305f788c29f472e520656d90f83cd99f119",
+  "gen_hash_verilog": "sha256:c92ed85c1bf015c3ed94e2fd7c4878ff720d5d27e938c6d9613506d0b2e4f089",
+  "gen_hash_c": "sha256:e5ca81263a830052352fd36b6d4f2b6756b30fb067a3e3e923bc708dffe34f57",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-08T00:30:00Z",
+  "ring": 68,
+  "verdict": "clean",
+  "notes": "Ternary bitwise operations spec (AND, OR, XOR, NOT, NAND, NOR, XNOR, mask)"
+}

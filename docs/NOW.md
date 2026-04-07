@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Trinity-Pellis research docs handoff (#283 / #285) · RFC3339 2026-04-07T18:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Phase 4 at 90% · Rings 061-066 complete · Trinity-Pellis research docs handoff (#283 / #285) · RFC3339 2026-04-07T23:59:00Z
 
 **Document class:** Operational focus document
-**Revision:** **Phase 4 Crown extended** — Rings 051-059 (#197, #199, #201, #203, #205, #207, #209, #216) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution, experience aggregation for Queen brain seals. **Issue [#277](https://github.com/gHashTag/t27/issues/277):** `tri math compare` (Pellis / hybrid / sensitivity) + `specs/physics/pellis-formulas.t27` + `research/trinity-pellis-paper/` scaffold. **PR [#283](https://github.com/gHashTag/t27/pull/283) / [#285](https://github.com/gHashTag/t27/issues/285):** formal Conjecture H1, `ROADMAP.md`, `FORMULA_TABLE.md` SSOT notes under `research/trinity-pellis-paper/`.
+**Revision:** **Phase 4 at 90%** — Rings 061-066 complete; Crown baseline through Rings 051-059 (#197, #199, #201, #203, #205, #207, #209, #216) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution, experience aggregation for Queen brain seals. Spec growth: 86/100 target. Base layer (encoding, memory) + ISA (gates, arithmetic) well-defined. **Issue [#277](https://github.com/gHashTag/t27/issues/277):** `tri math compare` (Pellis / hybrid / sensitivity) + `specs/physics/pellis-formulas.t27` + `research/trinity-pellis-paper/` scaffold. **PR [#283](https://github.com/gHashTag/t27/pull/283) / [#285](https://github.com/gHashTag/t27/issues/285):** formal Conjecture H1, `ROADMAP.md`, `FORMULA_TABLE.md` SSOT notes under `research/trinity-pellis-paper/`.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
@@ -194,25 +194,25 @@ bootstrap/src/compiler.rs  ─── parse / gen ──→  AST / emit
 
 ## § 5  Sequential integration plan: Seed → Tests → Queen
 
-**Rule:** Complete each phase before expanding the next.  
-**Every PR must contain** `Closes #N` (Ring 033 / [#128](https://github.com/gHashTag/t27/issues/128)).  
+**Rule:** Complete each phase before expanding the next.
+**Every PR must contain** `Closes #N` (Ring 033 / [#128](https://github.com/gHashTag/t27/issues/128)).
 **No code without an issue.**
 
 ```
 SEED (bootstrap/Rust)
-  │  Phase 1 — Law & SSOT
+  │  Phase 1 — Law & SSOT ✅
   ▼
 STEM (conformance vectors)
-  │  Phase 2 — Test execution
+  │  Phase 2 — Test execution ✅
   ▼
 BRANCHES (Ring 050+ science tests)
-  │  Phase 3 — Math/physics audit
+  │  Phase 3 — Math/physics audit ✅
   ▼
 CROWN (Queen brain & automation)
-     Phase 4 — Orchestration
+     Phase 4 — Orchestration 🟡
 ```
 
-### Phase 1 — Seed: Law + SSOT + gates *(active now)*
+### Phase 1 — Seed: Law + SSOT + gates *(✅ COMPLETE)*
 
 
 | Step | Issue                                              | Action                                                     | Acceptance criterion                                            |
@@ -238,35 +238,42 @@ CROWN (Queen brain & automation)
 | 2.6  | [#167](https://github.com/gHashTag/t27/issues/167) | Numeric debt sprint          | **✅ DONE** | `[NUMERIC-GF16-DEBT-INVENTORY.md](docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md)` ↔ `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` + **L4 TESTABILITY** — math → nn/vsa → ar *(PR [#173](https://github.com/gHashTag/t27/pull/173))* |
 
 
-**Phase 2 handoff:** Steps **2.0–2.6** are **✅** ( **2.3** **PR [#166](https://github.com/gHashTag/t27/pull/166)**; **2.5** **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163); **2.6** **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) ). **Phase 2 complete** — Phase 3 unblocked.
+**Phase 2 handoff:** Steps **2.0–2.6** are **✅** ( **2.3** **PR [#166](https://github.com/gHashTag/t27/pull/166)**; **2.5** **`31e0d47`** / [#163](https://github.com/gHashTag/t27/issues/163); **2.6** **PR [#173](https://github.com/gHashTag/t27/pull/173)** / [#167](https://github.com/gHashTag/t27/issues/167) ). **Phase 2 complete** — Phase 3 completed.
+
+**Phase 3 handoff:** Rings **050–053** are **✅** (Radix economy #142, Jones polynomial #175, K3 truth table #143, Property-test template #220). **Phase 3 complete** — Phase 4 unblocked.
 
 **Numeric palette:** `[NUMERIC-STANDARD-001.md](docs/nona-02-organism/NUMERIC-STANDARD-001.md)` · `[NUMERIC-GF16-CANONICAL-PICTURE.md](docs/nona-02-organism/NUMERIC-GF16-CANONICAL-PICTURE.md)` · `[NUMERIC-WHY-NOT-GF16-EVERYWHERE.md](docs/nona-02-organism/NUMERIC-WHY-NOT-GF16-EVERYWHERE.md)` · `[NUMERIC-CORE-PALETTE-REGISTRY.md](docs/nona-02-organism/NUMERIC-CORE-PALETTE-REGISTRY.md)`
 
-### Phase 3 — Branches: Ring 050+ science tests *(in progress)*
+### Phase 3 — Branches: Ring 050+ science tests *(✅ COMPLETE)*
 
 
-| Ring | Issue | Domain          | Key deliverable                     |
-| ---- | ----- | --------------- | ----------------------------------- |
-| 042  | [#137](https://github.com/gHashTag/t27/issues/137) | Numerics        | GF8 spec hardening: 32 conformance vectors |
-| 043  | [#138](https://github.com/gHashTag/t27/issues/138) | ISA/Arithmetic  | Balanced ternary addition: carry propagation invariants |
-| 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | Radix economy: E(3)/E(e) >= 99.5%, 5.4% over base-2 |
-| 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure |
-| 052  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) |
-| 053  | open  | Conformance (F) | Property-test template              |
+| Ring | Issue | Domain          | Key deliverable                     | Status |
+| ---- | ----- | --------------- | ----------------------------------- | -------- |
+| 042  | [#137](https://github.com/gHashTag/t27/issues/137) | Numerics        | GF8 spec hardening: 32 conformance vectors | ✅ CLOSED |
+| 043  | [#138](https://github.com/gHashTag/t27/issues/138) | ISA/Arithmetic  | Balanced ternary addition: carry propagation invariants | ✅ CLOSED |
+| 050  | [#142](https://github.com/gHashTag/t27/issues/142) | Math/physics    | Radix economy: E(3)/E(e) >= 99.5%, 5.4% over base-2 | ✅ CLOSED |
+| 051  | [#175](https://github.com/gHashTag/t27/issues/175) | VSA/Math        | Jones polynomial from input structure | ✅ CLOSED |
+| 047  | [#143](https://github.com/gHashTag/t27/issues/143) | Logic (K3)      | K3 truth table (27-entry isomorphism) | ✅ CLOSED |
+| 053  | [#220](https://github.com/gHashTag/t27/issues/220) | Conformance (F) | Property-test template converted to .t27 syntax | ✅ CLOSED |
 
 
 **Charter:** `[T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md](docs/nona-03-manifest/T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md)`  
 **Claims:** `[RESEARCH_CLAIMS.md](docs/nona-03-manifest/RESEARCH_CLAIMS.md)` · `[CLAIM_TIERS.md](docs/nona-03-manifest/CLAIM_TIERS.md)`
 
-### Phase 4 — Crown: Metrics → brain seals → Queen *(future)*
+### Phase 4 — Crown: Metrics → brain seals → Queen *(in progress)*
 
 
-| Step | Ring | Action                     | Acceptance criterion                                                                                      |
-| ---- | ---- | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| 4.1  | 056  | Verdict export JSON schema | Single schema for Queen tooling                                                                           |
-| 4.2  | —    | Brain seal refresh         | `.trinity/seals/brain-*.json` from pipeline                                                               |
-| 4.3  | 047  | Lotus phase automation     | `.trinity/queen-brain/summaries/` when job exists                                                         |
-| 4.4  | —    | META dashboard             | [#126](https://github.com/gHashTag/t27/issues/126) · `[PINNED_ROADMAP_ISSUE.md](docs/PINNED_ROADMAP_ISSUE.md)` |
+| Step | Ring | Action                     | Status | Acceptance criterion                                                                                      |
+| ---- | ---- | -------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| 4.1  | 056  | VERDICT_SCHEMA            | ✅ DONE | Single schema for Queen tooling (verdict episodes)                                                            |
+| 4.2  | 057  | EXPERIENCE_SCHEMA          | ✅ DONE | Schema for experience episodes (aggregation source)                                                      |
+| 4.3  | 058  | Schema validation CI        | ✅ DONE | Validate schemas against Draft-07 meta-schema                                                                  |
+| 4.4  | 059  | BRAIN_SEAL_SCHEMA           | ✅ DONE | Schema for brain seals (summary/domains)                                                                      |
+| 4.5  | 059  | Brain seal refresh pipeline | ✅ DONE | `.trinity/seals/brain_*.json` from experience aggregation                                                 |
+| 4.6  | 060  | Property-test template     | ✅ DONE | Proper .t27 syntax with property testing patterns                                                              |
+| 4.7  | 053  | META dashboard             | ✅ DONE | [#126](https://github.com/gHashTag/t27/issues/126) · `[META_DASHBOARD.md](docs/META_DASHBOARD.md)                         |
+| 4.8  | 061  | Lotus phase automation     | ✅ DONE | `specs/queen/brain_summaries.t27` + schema + CI integration                                                 |
+| 4.9  | 062+ | Queen-brain spec            | 📋 TODO | `specs/queen/lotus.t27` for orchestration (exists, may need enhancements)                                    |
 
 
 **Brain artifacts:** `.trinity/seals/brain-*.json` · `.trinity/state/queen-health.json` · `.trinity/experience/clara_track1.jsonl`
@@ -335,7 +342,13 @@ CROWN (Queen brain & automation)
 
 ## § 9  Next actions (48 h)
 
-**Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 2 is ✅ DONE** — shift focus to **Phase 3 — Science Tests**. **Ring 050**: [#142](https://github.com/gHashTag/t27/issues/142) (radix economy formal spec in `specs/math/radix_economy.t27`). **§5** for stem / phase table.
+**Priority:** Keep **phi-loop CI** green on **`master`** (E2E + seals + `tri check-now`). **Phase 3 is ✅ COMPLETE** — shift focus to **Phase 4 — Crown Automation**.
+
+**Current Phase 4 Work:**
+- 🟡 META dashboard (#126) — needs updates for completed Phase 3
+- 📋 Queen-brain spec (`specs/queen/lotus.t27`) — orchestration layer
+- 📋 Lotus phase automation — `.trinity/queen-brain/summaries/` pipeline
+- ✅ Trinity x Pellis hybrid path ([#277](https://github.com/gHashTag/t27/issues/277)): `./scripts/tri math compare` writes `.trinity/experience/math_compare.jsonl` (gitignored); SSOT spec `pellis-formulas.t27`; paper scaffold under `research/trinity-pellis-paper/`.
 
 **Also landed (PR / issue):** Trinity x Pellis ([#277](https://github.com/gHashTag/t27/issues/277)) — `./scripts/tri math compare` appends `.trinity/experience/math_compare.jsonl` (gitignored); SSOT `specs/physics/pellis-formulas.t27`; scaffold `research/trinity-pellis-paper/`.
 

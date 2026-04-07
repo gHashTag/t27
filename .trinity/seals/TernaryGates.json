@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "spec_file": "specs/isa/ternary_gates.t27",
+  "spec_hash": "sha256:080d569a1ff8a89c94dd728f3f71ee6eefb2c92ec22448e85035998318e221c9",
+  "gen_hash_zig": "sha256:53f2117ebf6fa2526af46a8b52c04237bf7439e80f94ab4592b0869faa566254",
+  "gen_hash_verilog": "sha256:dca58dfec929c6dbc314f5ca2e8b072b233cffb7ace7fdeb0a92ed081bcdb3e4",
+  "gen_hash_c": "sha256:346703fd86fb605842a86cf04972f46682476af74c5ec83d23e2d61e55cbf5ae",
+  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "2026-04-07T21:00:00Z",
+  "ring": 63,
+  "verdict": "clean",
+  "notes": "Ternary logic gates spec for balanced ternary operations"
+}
