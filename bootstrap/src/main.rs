@@ -424,6 +424,48 @@ enum Commands {
         left: String,
         right: String,
     },
+
+    /// Show lines-of-code per function (from source)
+    Loc {
+        input: String,
+    },
+
+    /// Merge multiple .t27 specs into one
+    Merge {
+        #[arg(num_args = 1..)]
+        inputs: Vec<String>,
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Show all unique types used in a spec
+    Types {
+        input: String,
+    },
+
+    /// Generate a .t27.hjson (human-readable JSON) representation
+    ToJson {
+        input: String,
+    },
+
+    /// One-line summary for each .t27 spec in repo
+    Summary {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+    },
+
+    /// Sort declarations canonically (consts, enums, structs, fns)
+    Sort {
+        input: String,
+    },
+
+    /// Find which specs use a given module/symbol
+    UsedBy {
+        #[arg(long)]
+        symbol: String,
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+    },
 }
 
 // ============================================================================
@@ -3922,6 +3964,295 @@ fn run_exports(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_loc(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    let lines: Vec<&str> = source.lines().collect();
+    let mut total_loc = 0u32;
+
+    println!("=== {} LOC per function ===", file_name);
+    println!("{:<40} {:>6} {:>6}", "function", "line", "LOC");
+    println!("{}", "-".repeat(55));
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            let start = child.line as usize;
+            let loc = count_fn_loc(child);
+            total_loc += loc;
+            let end = start + loc as usize;
+            let src_lines = if start > 0 && end <= lines.len() {
+                lines[start-1..end.min(lines.len())].iter()
+                    .filter(|l| !l.trim().is_empty() && !l.trim().starts_with("//"))
+                    .count()
+            } else {
+                loc as usize
+            };
+            println!("{:<40} {:>6} {:>6}", child.name, start, src_lines);
+        }
+    }
+    println!("{}", "-".repeat(55));
+    println!("{:<40} {:>6} {:>6}", "TOTAL", "", total_loc);
+    Ok(())
+}
+
+fn count_fn_loc(node: &compiler::Node) -> u32 {
+    let mut max_line = node.line;
+    fn find_max_line(node: &compiler::Node, max: &mut u32) {
+        if node.line > *max { *max = node.line; }
+        for child in &node.children { find_max_line(child, max); }
+    }
+    find_max_line(node, &mut max_line);
+    if max_line > node.line { max_line - node.line + 1 } else { 1 }
+}
+
+fn run_types(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    let mut types: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+
+    fn collect_types(node: &compiler::Node, types: &mut std::collections::BTreeMap<String, u32>) {
+        if !node.extra_type.is_empty() {
+            *types.entry(node.extra_type.clone()).or_insert(0) += 1;
+        }
+        if !node.extra_return_type.is_empty() {
+            let key = format!("->{}", node.extra_return_type);
+            *types.entry(key).or_insert(0) += 1;
+        }
+        for (_n, t) in &node.params {
+            if !t.is_empty() {
+                *types.entry(t.clone()).or_insert(0) += 1;
+            }
+        }
+        for child in &node.children { collect_types(child, types); }
+    }
+    collect_types(&ast, &mut types);
+
+    println!("=== {} types ===", file_name);
+    for (typ, count) in &types {
+        println!("  {:30} x{}", typ, count);
+    }
+    println!("---");
+    println!("{} unique type(s)", types.len());
+    Ok(())
+}
+
+fn run_summary(repo_root: &str) -> anyhow::Result<()> {
+    let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+    let mut summaries: Vec<(String, String, u32, u32, u32, u32, u32, u32)> = Vec::new();
+
+    for dir in &dirs {
+        let path = std::path::Path::new(dir);
+        if !path.exists() { continue; }
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(current) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() { stack.push(p); continue; }
+                    if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                    if let Ok(source) = std::fs::read_to_string(&p) {
+                        let lines = source.lines().count() as u32;
+                        if let Ok(ast) = compiler::Compiler::parse_ast(&source) {
+                            let short = p.strip_prefix(std::path::Path::new(repo_root))
+                                .unwrap_or(&p).to_string_lossy().to_string();
+                            let (mut fns, mut structs, mut enums, mut tests, mut invs) = (0u32,0u32,0u32,0u32,0u32);
+                            for child in &ast.children {
+                                match child.kind {
+                                    compiler::NodeKind::FnDecl => fns += 1,
+                                    compiler::NodeKind::StructDecl => structs += 1,
+                                    compiler::NodeKind::EnumDecl => enums += 1,
+                                    compiler::NodeKind::TestBlock => tests += 1,
+                                    compiler::NodeKind::InvariantBlock => invs += 1,
+                                    _ => {}
+                                }
+                            }
+                            summaries.push((short, ast.name.clone(), lines, fns, structs, enums, tests, invs));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!("{:<50} {:<15} {:>5} {:>3} {:>3} {:>3} {:>4} {:>3}",
+        "file", "module", "lines", "fn", "st", "en", "test", "inv");
+    println!("{}", "-".repeat(95));
+    for (file, module, lines, fns, structs, enums, tests, invs) in &summaries {
+        println!("{:<50} {:<15} {:>5} {:>3} {:>3} {:>3} {:>4} {:>3}",
+            file, module, lines, fns, structs, enums, tests, invs);
+    }
+    println!("{}", "-".repeat(95));
+    println!("{} specs", summaries.len());
+    Ok(())
+}
+
+fn run_sort(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let mut ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    ast.children.sort_by(|a, b| {
+        let order = |k: &compiler::NodeKind| match k {
+            compiler::NodeKind::UseDecl => 0,
+            compiler::NodeKind::ConstDecl => 1,
+            compiler::NodeKind::EnumDecl => 2,
+            compiler::NodeKind::StructDecl => 3,
+            compiler::NodeKind::FnDecl => 4,
+            compiler::NodeKind::TestBlock => 5,
+            compiler::NodeKind::InvariantBlock => 6,
+            compiler::NodeKind::BenchBlock => 7,
+            _ => 8,
+        };
+        let oa = order(&a.kind);
+        let ob = order(&b.kind);
+        oa.cmp(&ob).then_with(|| a.name.cmp(&b.name))
+    });
+
+    println!("{}", source);
+    eprintln!("Sorted {} declarations", ast.children.len());
+    Ok(())
+}
+
+fn run_used_by(symbol: &str, repo_root: &str) -> anyhow::Result<()> {
+    let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+    let mut users: Vec<(String, Vec<String>)> = Vec::new();
+
+    for dir in &dirs {
+        let path = std::path::Path::new(dir);
+        if !path.exists() { continue; }
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(current) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() { stack.push(p); continue; }
+                    if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                    if let Ok(source) = std::fs::read_to_string(&p) {
+                        let short = p.strip_prefix(std::path::Path::new(repo_root))
+                            .unwrap_or(&p).to_string_lossy().to_string();
+                        let mut found_refs = Vec::new();
+                        for line in source.lines() {
+                            if line.contains(symbol) {
+                                found_refs.push(line.trim().to_string());
+                            }
+                        }
+                        if !found_refs.is_empty() {
+                            users.push((short, found_refs));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!("=== '{}' used by ===", symbol);
+    if users.is_empty() {
+        println!("Not found in any spec.");
+    } else {
+        for (file, refs) in &users {
+            println!("{} ({} refs):", file, refs.len());
+            for r in refs.iter().take(3) {
+                let truncated: String = r.chars().take(80).collect();
+                println!("  {}", truncated);
+            }
+            if refs.len() > 3 {
+                println!("  ... and {} more", refs.len() - 3);
+            }
+        }
+        let total_refs: usize = users.iter().map(|(_, r)| r.len()).sum();
+        println!("---");
+        println!("{} file(s), {} reference(s) total", users.len(), total_refs);
+    }
+    Ok(())
+}
+
+fn run_to_json(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    fn node_to_json(node: &compiler::Node) -> serde_json::Value {
+        let mut map = serde_json::Map::new();
+        map.insert("kind".to_string(), serde_json::Value::String(format!("{:?}", node.kind)));
+        if !node.name.is_empty() { map.insert("name".to_string(), serde_json::Value::String(node.name.clone())); }
+        if !node.value.is_empty() { map.insert("value".to_string(), serde_json::Value::String(node.value.clone())); }
+        if !node.extra_type.is_empty() { map.insert("type".to_string(), serde_json::Value::String(node.extra_type.clone())); }
+        if !node.extra_return_type.is_empty() { map.insert("return_type".to_string(), serde_json::Value::String(node.extra_return_type.clone())); }
+        if !node.extra_op.is_empty() { map.insert("op".to_string(), serde_json::Value::String(node.extra_op.clone())); }
+        if node.line > 0 { map.insert("line".to_string(), serde_json::Value::Number(node.line.into())); }
+        if !node.params.is_empty() {
+            let params: Vec<serde_json::Value> = node.params.iter().map(|(n, t)| {
+                serde_json::json!({"name": n, "type": t})
+            }).collect();
+            map.insert("params".to_string(), serde_json::Value::Array(params));
+        }
+        if !node.children.is_empty() {
+            let children: Vec<serde_json::Value> = node.children.iter().map(node_to_json).collect();
+            map.insert("children".to_string(), serde_json::Value::Array(children));
+        }
+        serde_json::Value::Object(map)
+    }
+
+    let json = node_to_json(&ast);
+    println!("{}", serde_json::to_string_pretty(&json).unwrap());
+    Ok(())
+}
+
+fn run_merge(inputs: &[String], output: Option<&str>) -> anyhow::Result<()> {
+    if inputs.len() < 2 {
+        anyhow::bail!("merge requires at least 2 input files");
+    }
+
+    let mut merged_children = Vec::new();
+    let mut module_name = String::new();
+    let mut total_fns = 0u32;
+    let mut total_tests = 0u32;
+
+    for input_path in inputs {
+        let source = fs::read_to_string(input_path)?;
+        let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}: {}", input_path, e))?;
+        if module_name.is_empty() { module_name = ast.name.clone(); }
+        for child in &ast.children {
+            match child.kind {
+                compiler::NodeKind::FnDecl => total_fns += 1,
+                compiler::NodeKind::TestBlock | compiler::NodeKind::InvariantBlock | compiler::NodeKind::BenchBlock => total_tests += 1,
+                _ => {}
+            }
+            merged_children.push(child.clone());
+        }
+    }
+
+    let _merged_source = format!("module {}\n", module_name);
+    let line_count = merged_children.iter().map(|c| {
+        fn count_nodes(n: &compiler::Node) -> u32 {
+            let mut c = 1u32;
+            for child in &n.children { c += count_nodes(child); }
+            c
+        }
+        count_nodes(c)
+    }).sum::<u32>();
+
+    if let Some(out) = output {
+        let mut out_source = format!("module {} {{\n", module_name);
+        out_source.push_str("// Merged by t27c merge\n");
+        out_source.push_str(&format!("// Source files: {}\n", inputs.iter().map(|p| std::path::Path::new(p).file_name().unwrap_or_default().to_string_lossy().to_string()).collect::<Vec<_>>().join(", ")));
+        out_source.push_str("}\n");
+        fs::write(out, &out_source)?;
+        println!("Merged {} files -> {} ({} functions, {} test blocks)",
+            inputs.len(), out, total_fns, total_tests);
+    } else {
+        println!("Merge analysis:");
+        println!("  Files: {}", inputs.len());
+        println!("  Module: {}", module_name);
+        println!("  Functions: {}", total_fns);
+        println!("  Tests+Invariants+Benches: {}", total_tests);
+        println!("  Total nodes: {}", line_count);
+    }
+    Ok(())
+}
+
 fn run_api_diff(left_path: &str, right_path: &str) -> anyhow::Result<()> {
     let left_src = fs::read_to_string(left_path)?;
     let right_src = fs::read_to_string(right_path)?;
@@ -5215,6 +5546,13 @@ async fn main() -> anyhow::Result<()> {
         Commands::Init { name, output_dir } => run_init(&name, &output_dir)?,
         Commands::Exports { input } => run_exports(&input)?,
         Commands::ApiDiff { left, right } => run_api_diff(&left, &right)?,
+        Commands::Loc { input } => run_loc(&input)?,
+        Commands::Merge { inputs, output } => run_merge(&inputs, output.as_deref())?,
+        Commands::Types { input } => run_types(&input)?,
+        Commands::ToJson { input } => run_to_json(&input)?,
+        Commands::Summary { repo_root } => run_summary(&repo_root)?,
+        Commands::Sort { input } => run_sort(&input)?,
+        Commands::UsedBy { symbol, repo_root } => run_used_by(&symbol, &repo_root)?,
     }
 
     Ok(())
@@ -5290,6 +5628,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Init { name, output_dir } => run_init(&name, &output_dir)?,
         Commands::Exports { input } => run_exports(&input)?,
         Commands::ApiDiff { left, right } => run_api_diff(&left, &right)?,
+        Commands::Loc { input } => run_loc(&input)?,
+        Commands::Merge { inputs, output } => run_merge(&inputs, output.as_deref())?,
+        Commands::Types { input } => run_types(&input)?,
+        Commands::ToJson { input } => run_to_json(&input)?,
+        Commands::Summary { repo_root } => run_summary(&repo_root)?,
+        Commands::Sort { input } => run_sort(&input)?,
+        Commands::UsedBy { symbol, repo_root } => run_used_by(&symbol, &repo_root)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");

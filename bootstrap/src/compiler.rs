@@ -6104,6 +6104,26 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                 check_stmt(body_child, &fn_symbols, &fns, &mut result);
             }
 
+            let mut found_return = false;
+            for body_child in &child.children {
+                if found_return {
+                    result.warnings += 1;
+                    let line = if body_child.line > 0 {
+                        format!(":{}", body_child.line)
+                    } else {
+                        String::new()
+                    };
+                    result.errors.push(format!(
+                        "warning: unreachable code in function '{}'{}",
+                        child.name, line
+                    ));
+                    break;
+                }
+                if body_child.kind == NodeKind::ExprReturn {
+                    found_return = true;
+                }
+            }
+
             let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
             fn collect_reads(node: &Node, reads: &mut std::collections::HashSet<String>) {
                 if node.kind == NodeKind::ExprIdentifier {
