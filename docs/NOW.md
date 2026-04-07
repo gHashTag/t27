@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · Fixing property-test template syntax · RFC3339 2026-04-07T17:00:00Z
+**Last updated:** 2026-04-07 — Tuesday, 07 April 2026 (UTC+07) · CLARA deliverables complete (all 6 items) · RFC3339 2026-04-07T17:45:00Z
 
 **Document class:** Operational focus document
 **Revision:** **Phase 4 Crown extended** — Rings 051-059 (#197, #199, #201, #203, #205, #207, #209, #216) — VERDICT_SCHEMA, brain seals, property-test template, META_DASHBOARD, EXPERIENCE_SCHEMA, schema-validation CI, conflict resolution, experience aggregation for Queen brain seals. **Issue [#277](https://github.com/gHashTag/t27/issues/277):** `tri math compare` (Pellis / hybrid / sensitivity) + `specs/physics/pellis-formulas.t27` + `research/trinity-pellis-paper/` scaffold.
