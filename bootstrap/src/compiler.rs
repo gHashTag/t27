@@ -3900,11 +3900,7 @@ impl VerilogCodegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                let kw = if node.extra_mutable {
-                    "reg"
-                } else {
-                    "// const"
-                };
+                let kw = if node.extra_mutable { "reg" } else { "reg" };
                 let width = Self::type_to_width(&node.extra_type);
                 let signed = Self::type_is_signed(&node.extra_type);
                 let signed_str = if signed { "signed " } else { "" };
