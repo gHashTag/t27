@@ -5,17 +5,17 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-07 — NotebookLM Phase 2-5 complete · PR #317 (OPEN) · RFC3339 2026-04-07T17:30:00Z
+**Last updated:** 2026-04-08 — P2 brain/physics rewrite · PR #322 (OPEN) · RFC3339 2026-04-08T00:00:00Z
 
 **Document class:** Operational focus document
-**Revision:** **P0 Sprint 1 Complete** — 6 files converted from trinity-source/src/ to .t27 specs:
-- `specs/ternary/bigint.t27` (32 tests, 15 invariants, 11 benchmarks)
-- `specs/jit/jit.t27` (15 tests, 10 invariants, 8 benchmarks)
-- `specs/vsa/vsa_core.t27` (22 tests, 13 invariants, 12 benchmarks)
-- `specs/ternary/hybrid_bigint.t27` (30 tests, 15 invariants, 14 benchmarks)
-- `specs/neural/forward_pass.t27` (30 tests, 15 invariants, 14 benchmarks)
-- `specs/numeric/format_conversion.t27` (22 tests, 14 invariants, 14 benchmarks)
-Total: 151 tests, 82 invariants, 73 benchmarks. Commit `af9556b`, PR #311.
+**Revision:** **P2 Sprint 1** — 6 brain/physics specs from Trinity Zig rewrite:
+- `specs/brain/brain.t27` — S³AI Neuroanatomy v5.1 (23 brain regions)
+- `specs/brain/neural_gamma.t27` — Consciousness & Golden Ratio
+- `specs/brain/gwt_model.t27` — Global Workspace Theory
+- `specs/physics/hslm_benchmark.t27` — HSLM Platform Benchmark Suite
+- `specs/physics/quantum.t27` — Ternary Quantum VM
+- `specs/physics/e8_lqg_bridge.t27` — E8-Quantum Gravity Bridge
+Total: 6 specs. Commit `bb71939`, PR #322.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
