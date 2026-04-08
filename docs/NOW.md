@@ -861,3 +861,13 @@ Last updated: 2026-04-08
  - New CLI flags: `--synth-only`, `--minimal`, `--nextpnr`, `--chipdb`, `--xdc`, `--fasm2frames`, `--frames2bit`, `--prjxray-db`
 
 **Last updated:** 2026-04-08 — E2E FPGA bitstream generation (open-source, zero Vivado) · Issue #367
+
+
+## Railway Docker Build Optimization (PR #375)
+
+- Added `.dockerignore` to exclude 3.1GB `external/opencode/` from build context
+- Optimized `bootstrap/Dockerfile` COPY order for better caching
+- Added BuildKit syntax and cache mounts
+- Added `buildTimeout = 1200` to `railway.toml`
+
+**Last updated:** 2026-04-08 — Railway Docker build fix (PR #375)
