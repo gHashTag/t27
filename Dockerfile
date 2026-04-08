@@ -14,10 +14,11 @@ COPY external/opencode/packages/web/package.json ./
 # Install dependencies
 RUN bun install --frozen-lockfile
 
-# Copy rest of web source
+# Copy all web source files
 COPY external/opencode/packages/web/tsconfig*.json ./
 COPY external/opencode/packages/web/vite.config.ts ./
 COPY external/opencode/packages/web/src ./
+COPY external/opencode/packages/web/public ./
 
 # Build the app
 RUN bun run build
