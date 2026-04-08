@@ -1,0 +1,384 @@
+// specs/lsp/language.t27
+// LSP Language Mapping Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module LspLanguage {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Language Mappings
+    // ════════════════════════════════════════════════════════════════════
+
+    struct LanguageMapping {
+        extension: str,
+        language_id: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Language Database (120 entries from source)
+    // ════════════════════════════════════════════════════════════════════
+
+    const LANGUAGE_COUNT: u32 = 120;
+
+    fn extension_to_language(ext: str) -> str {
+        if (ext == ".bat" || ext == ".cmd") { return "batchfile"; }
+        if (ext == ".c") { return "c"; }
+        if (ext == ".cmake") { return "cmake"; }
+        if (ext == ".cob" || ext == ".cbl" || ext == ".cpy") { return "cobol"; }
+        if (ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".hpp" || ext == ".h" || ext == ".hxx") { return "cpp"; }
+        if (ext == ".cs") { return "csharp"; }
+        if (ext == ".css") { return "css"; }
+        if (ext == ".d") { return "d"; }
+        if (ext == ".dart") { return "dart"; }
+        if (ext == ".dj" || ext == ".django" || ext == ".jinja") { return "django-html"; }
+        if (ext == ".dockerfile") { return "dockerfile"; }
+        if (ext == ".edn") { return "clojure"; }
+        if (ext == ".ejs") { return "ejs"; }
+        if (ext == ".ex" || ext == ".exs") { return "elixir"; }
+        if (ext == ".erl" || ext == ".hrl") { return "erlang"; }
+        if (ext == ".fs" || ext == ".fsi" || ext == ".fsx") { return "fsharp"; }
+        if (ext == ".feature") { return "gherkin"; }
+        if (ext == ".fidl") { return "fidl"; }
+        if (ext == ".fortran" || ext == ".f" || ext == ".f90" || ext == ".f95") { return "fortran"; }
+        if (ext == ".g4") { return "antlr"; }
+        if (ext == ".glsl") { return "glsl"; }
+        if (ext == ".go") { return "go"; }
+        if (ext == ".graphql" || ext == ".gql") { return "graphql"; }
+        if (ext == ".groovy" || ext == ".gvy") { return "groovy"; }
+        if (ext == ".hbs" || ext == ".handlebars") { return "handlebars"; }
+        if (ext == ".hs") { return "haskell"; }
+        if (ext == ".html") { return "html"; }
+        if (ext == ".hx" || ext == ".hxl") { return "haxe"; }
+        if (ext == ".ini") { return "ini"; }
+        if (ext == ".java") { return "java"; }
+        if (ext == ".jl") { return "julia"; }
+        if (ext == ".js") { return "javascript"; }
+        if (ext == ".json") { return "json"; }
+        if (ext == ".json5") { return "json5"; }
+        if (ext == ".jsx") { return "javascriptreact"; }
+        if (ext == ".kt" || ext == ".kts") { return "kotlin"; }
+        if (ext == ".less") { return "less"; }
+        if (ext == ".lhs") { return "literature-haskell"; }
+        if (ext == ".lua") { return "lua"; }
+        if (ext == ".md" || ext == ".markdown") { return "markdown"; }
+        if (ext == ".m" || ext == ".mm") { return "objective-c"; }
+        if (ext == ".makefile" || ext == ".mak") { return "makefile"; }
+        if (ext == ".mustache") { return "mustache"; }
+        if (ext == ".nim") { return "nim"; }
+        if (ext == ".nix") { return "nix"; }
+        if (ext == ".nu") { return "nu"; }
+        if (ext == ".ocaml" || ext == ".mli" || ext == ".ml" || ext == ".rei") { return "ocaml"; }
+        if (ext == ".p8") { return "p8"; }
+        if (ext == ".pas" || ext == ".pp") { return "pascal"; }
+        if (ext == ".pl" || ext == ".pm") { return "perl"; }
+        if (ext == ".php") { return "php"; }
+        if (ext == ".pony") { return "pony"; }
+        if (ext == ".ps1" || ext == ".psm1" || ext == ".psd1") { return "powershell"; }
+        if (ext == ".pro" || ext == ".pl") { return "prolog"; }
+        if (ext == ".proto") { return "proto3"; }
+        if (ext == ".purs") { return "purescript"; }
+        if (ext == ".py") { return "python"; }
+        if (ext == ".pyx") { return "cython"; }
+        if (ext == ".qm" || ext == ".qtml") { return "qtml"; }
+        if (ext == ".r" || ext == ".rhistory" || ext == ".rprofile" || ext == ".rt") { return "r"; }
+        if (ext == ".raku" || ext == ".rakumod" || ext == ".rakutest" || ext == ".t6" || ext == ".pm6") { return "raku"; }
+        if (ext == ".razor" || ext == ".cshtml") { return "razor"; }
+        if (ext == ".rb") { return "ruby"; }
+        if (ext == ".rs") { return "rust"; }
+        if (ext == ".sass") { return "sass"; }
+        if (ext == ".sc" || ext == ".scd") { return "supercollider"; }
+        if (ext == ".scala") { return "scala"; }
+        if (ext == ".scm") { return "scheme"; }
+        if (ext == ".scss") { return "scss"; }
+        if (ext == ".sh") { return "shellscript"; }
+        if (ext == ".sml" || ext == ".sig") { return "sml"; }
+        if (ext == ".sol") { return "solidity"; }
+        if (ext == ".sql") { return "sql"; }
+        if (ext == ".star") { return "star"; }
+        if (ext == ".styl") { return "stylus"; }
+        if (ext == ".swift") { return "swift"; }
+        if (ext == ".t") { return "perl"; }
+        if (ext == ".tex") { return "tex"; }
+        if (ext == ".toml") { return "toml"; }
+        if (ext == ".ts") { return "typescript"; }
+        if (ext == ".tsx") { return "typescriptreact"; }
+        if (ext == ".twig") { return "twig"; }
+        if (ext == ".v") { return "verilog"; }
+        if (ext == ".vala") { return "vala"; }
+        if (ext == ".vhdl") { return "vhdl"; }
+        if (ext == ".vim") { return "viml"; }
+        if (ext == ".vue") { return "vue"; }
+        if (ext == ".wgsl") { return "wgsl"; }
+        if (ext == ".xml") { return "xml"; }
+        if (ext == ".yaml" || ext == ".yml") { return "yaml"; }
+        if (ext == "Dockerfile") { return "dockerfile"; }
+        if (ext == "Makefile") { return "makefile"; }
+        if (ext == "COMMIT_EDITMSG") { return "git-commit"; }
+        if (ext == "MERGE_MSG") { return "git-commit"; }
+        return "plaintext";
+    }
+
+    fn language_id(extension: str) -> str {
+        return extension_to_language(extension);
+    }
+
+    fn is_supported_language(ext: str) -> bool {
+        const lang = extension_to_language(ext);
+        return lang != "plaintext";
+    }
+
+    fn get_all_extensions() -> [120]str {
+        return [
+            ".bat", ".cmd",
+            ".c",
+            ".cmake",
+            ".cob", ".cbl", ".cpy",
+            ".cpp", ".cc", ".cxx", ".hpp", ".h", ".hxx",
+            ".cs",
+            ".css",
+            ".d",
+            ".dart",
+            ".dj", ".django", ".jinja",
+            ".dockerfile",
+            ".edn",
+            ".ejs",
+            ".ex", ".exs",
+            ".erl", ".hrl",
+            ".fs", ".fsi", ".fsx",
+            ".feature",
+            ".fidl",
+            ".fortran", ".f", ".f90", ".f95",
+            ".g4",
+            ".glsl",
+            ".go",
+            ".graphql", ".gql",
+            ".groovy", ".gvy",
+            ".hbs", ".handlebars",
+            ".hs",
+            ".html",
+            ".hx", ".hxl",
+            ".ini",
+            ".java",
+            ".jl",
+            ".js",
+            ".json",
+            ".json5",
+            ".jsx",
+            ".kt", ".kts",
+            ".less",
+            ".lhs",
+            ".lua",
+            ".md", ".markdown",
+            ".m", ".mm",
+            ".makefile", ".mak",
+            ".mustache",
+            ".nim",
+            ".nix",
+            ".nu",
+            ".ocaml", ".mli", ".ml", ".rei",
+            ".p8",
+            ".pas", ".pp",
+            ".pl", ".pm",
+            ".php",
+            ".pony",
+            ".ps1", ".psm1", ".psd1",
+            ".pro",
+            ".proto",
+            ".purs",
+            ".py",
+            ".pyx",
+            ".qm", ".qtml",
+            ".r", ".rhistory", ".rprofile", ".rt",
+            ".raku", ".rakumod", ".rakutest", ".t6", ".pm6",
+            ".razor", ".cshtml",
+            ".rb",
+            ".rs",
+            ".sass",
+            ".sc", ".scd",
+            ".scala",
+            ".scm",
+            ".scss",
+            ".sh",
+            ".sml", ".sig",
+            ".sol",
+            ".sql",
+            ".star",
+            ".styl",
+            ".swift",
+            ".t",
+            ".tex",
+            ".toml",
+            ".ts",
+            ".tsx",
+            ".twig",
+            ".v",
+            ".vala",
+            ".vhdl",
+            ".vim",
+            ".vue",
+            ".wgsl",
+            ".xml",
+            ".yaml", ".yml",
+        ];
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "extension_to_language_typescript" {
+        const lang = extension_to_language(".ts")
+        assert(lang == "typescript")
+    }
+
+    test "extension_to_language_javascript" {
+        const lang = extension_to_language(".js")
+        assert(lang == "javascript")
+    }
+
+    test "extension_to_language_python" {
+        const lang = extension_to_language(".py")
+        assert(lang == "python")
+    }
+
+    test "extension_to_language_rust" {
+        const lang = extension_to_language(".rs")
+        assert(lang == "rust")
+    }
+
+    test "extension_to_language_go" {
+        const lang = extension_to_language(".go")
+        assert(lang == "go")
+    }
+
+    test "extension_to_language_cpp" {
+        const lang = extension_to_language(".cpp")
+        assert(lang == "cpp")
+    }
+
+    test "extension_to_language_c" {
+        const lang = extension_to_language(".c")
+        assert(lang == "c")
+    }
+
+    test "extension_to_language_java" {
+        const lang = extension_to_language(".java")
+        assert(lang == "java")
+    }
+
+    test "extension_to_language_html" {
+        const lang = extension_to_language(".html")
+        assert(lang == "html")
+    }
+
+    test "extension_to_language_css" {
+        const lang = extension_to_language(".css")
+        assert(lang == "css")
+    }
+
+    test "extension_to_language_json" {
+        const lang = extension_to_language(".json")
+        assert(lang == "json")
+    }
+
+    test "extension_to_language_yaml" {
+        const lang = extension_to_language(".yaml")
+        assert(lang == "yaml")
+    }
+
+    test "extension_to_language_markdown" {
+        const lang = extension_to_language(".md")
+        assert(lang == "markdown")
+    }
+
+    test "extension_to_language_shell" {
+        const lang = extension_to_language(".sh")
+        assert(lang == "shellscript")
+    }
+
+    test "extension_to_language_unknown" {
+        const lang = extension_to_language(".unknown")
+        assert(lang == "plaintext")
+    }
+
+    test "language_id_alias" {
+        const lang1 = language_id(".ts")
+        const lang2 = extension_to_language(".ts")
+        assert(lang1 == lang2)
+    }
+
+    test "is_supported_language_true" {
+        assert(is_supported_language(".ts") == true)
+        assert(is_supported_language(".py") == true)
+        assert(is_supported_language(".rs") == true)
+    }
+
+    test "is_supported_language_false" {
+        assert(is_supported_language(".unknown") == false)
+    }
+
+    test "extension_to_language_tsx" {
+        const lang = extension_to_language(".tsx")
+        assert(lang == "typescriptreact")
+    }
+
+    test "extension_to_language_jsx" {
+        const lang = extension_to_language(".jsx")
+        assert(lang == "javascriptreact")
+    }
+
+    test "extension_to_language_dockerfile" {
+        const lang = extension_to_language(".dockerfile")
+        assert(lang == "dockerfile")
+    }
+
+    test "extension_to_language_solidity" {
+        const lang = extension_to_language(".sol")
+        assert(lang == "solidity")
+    }
+
+    test "extension_to_language_kotlin" {
+        const lang = extension_to_language(".kt")
+        assert(lang == "kotlin")
+    }
+
+    test "extension_to_language_swift" {
+        const lang = extension_to_language(".swift")
+        assert(lang == "swift")
+    }
+
+    test "extension_to_language_ruby" {
+        const lang = extension_to_language(".rb")
+        assert(lang == "ruby")
+    }
+
+    test "extension_to_language_php" {
+        const lang = extension_to_language(".php")
+        assert(lang == "php")
+    }
+
+    test "extension_to_language_scala" {
+        const lang = extension_to_language(".scala")
+        assert(lang == "scala")
+    }
+
+    test "extension_to_language_lua" {
+        const lang = extension_to_language(".lua")
+        assert(lang == "lua")
+    }
+
+    test "extension_to_language_elixir" {
+        const lang = extension_to_language(".ex")
+        assert(lang == "elixir")
+    }
+
+    test "extension_to_language_haskell" {
+        const lang = extension_to_language(".hs")
+        assert(lang == "haskell")
+    }
+
+    test "extension_to_language_nim" {
+        const lang = extension_to_language(".nim")
+        assert(lang == "nim")
+    }
+}

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6aa34930fe347da0644641f2b66cebbfda94b3673a9a894cf420de51947d2aa0",
-  "gen_hash_verilog": "sha256:74693ef4099d5e78aa2d7b1150edee7e7af80238e888d540fb8a57691a656a7f",
-  "gen_hash_zig": "sha256:674788d860bc718edbb7cc87c2c2952cad1243289838f4b431417bd5dee0252e",
+  "gen_hash_c": "sha256:1cd51786d1f7619118452124583d6b9b645fd77bd8c09558fbe8616203655b6b",
+  "gen_hash_rust": "sha256:7e0d974be808cc07b5971a22905744b80e3e2e60fb13d63273120f0e2922bcf8",
+  "gen_hash_verilog": "sha256:32750b0887868454cbc67c8f5c4d8d68fca9d788abcf48266493d0b6014ef8a2",
+  "gen_hash_zig": "sha256:600af5bd5abbb67830d4ebbb510c8ec0ef7871abc3575cbcfac9785fbee5f9d9",
   "module": "TestRunner",
-  "ring": 47,
-  "sealed_at": "2026-04-07T17:45:00+07:00",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:53:42Z",
   "spec_hash": "sha256:039c9d6c1292f24ecf386829bc50705e873f56fc08dd51f351b342255570a840",
-  "spec_path": "specs/test_framework/runner.t27",
-  "verdict": "CLEAN"
+  "spec_path": "specs/test_framework/runner.t27"
 }

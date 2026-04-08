@@ -1,10 +1,18 @@
+<<<<<<< HEAD
+=======
+// SPDX-License-Identifier: Apache-2.0
+>>>>>>> origin/master
 // t27/specs/isa/ternary_memory.t27
 // Ternary Memory Specification
 // Ring 089 - Memory operations for ternary architecture
 // Load/store operations with ternary address and data
 // φ² + 1/φ² = 3 | TRINITY
 
+<<<<<<< HEAD
 module TernaryMemory {
+=======
+module ISAMemoryOps {
+>>>>>>> origin/master
     use base::types;
 
     // ═════════════════════════════════════════════════════════════════

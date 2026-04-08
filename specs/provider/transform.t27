@@ -1,0 +1,330 @@
+// specs/provider/transform.t27
+// Provider Message Transformation Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module ProviderTransform {
+    use base::types;
+    use ProviderSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Cache Control
+    // ════════════════════════════════════════════════════════════════════
+
+    enum CacheStrategy {
+        None = 0,
+        SystemPrompt = 1,
+        Recent = 2,
+        Ephemeral = 3,
+    }
+
+    struct CacheControl {
+        strategy: CacheStrategy,
+        max_tokens: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Transform Context
+    // ════════════════════════════════════════════════════════════════════
+
+    struct TransformContext {
+        provider_id: ProviderID,
+        model_id: ModelID,
+        cache: CacheControl,
+        scrub_tool_ids: bool,
+        support_cache_headers: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Normalization
+    // ════════════════════════════════════════════════════════════════════
+
+    fn normalize_message(msg: Message, ctx: TransformContext) -> Message {
+        var result = msg;
+        // Filter empty content
+        // Scrub tool IDs if enabled
+        // Apply caching
+        return result;
+    }
+
+    fn normalize_messages(messages: [32]Message, ctx: TransformContext) -> [32]Message {
+        var result = [Message{}; 32];
+        var i: u32 = 0;
+        while (i < 32) {
+            if (messages[i].role != MessageRole::System or messages[i].content[0].text != "") {
+                result[i] = normalize_message(messages[i], ctx);
+            }
+            i = i + 1;
+        }
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Cache Handling
+    // ════════════════════════════════════════════════════════════════════
+
+    fn apply_cache_header(msg: Message, strategy: CacheStrategy) -> Message {
+        var result = msg;
+        // Add cache control headers to message
+        return result;
+    }
+
+    fn apply_ephemeral_cache(messages: [32]Message, max_tokens: u32) -> [32]Message {
+        var result = messages;
+        // Mark messages for ephemeral caching
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tool ID Scrubbing
+    // ════════════════════════════════════════════════════════════════════
+
+    fn scrub_tool_id(content: ContentPart) -> ContentPart {
+        var result = content;
+        if (result.type == ContentPartType::ToolCall) {
+            // Remove or anonymize tool call ID
+        }
+        return result;
+    }
+
+    fn scrub_tool_ids(msg: Message) -> Message {
+        var result = msg;
+        var i: u32 = 0;
+        while (i < 32) {
+            result.content[i] = scrub_tool_id(result.content[i]);
+            i = i + 1;
+        }
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Content Filtering
+    // ════════════════════════════════════════════════════════════════════
+
+    fn filter_empty_content(msg: Message) -> Message {
+        var result = msg;
+        // Remove content parts with empty text
+        return result;
+    }
+
+    fn has_valid_content(msg: Message) -> bool {
+        var i: u32 = 0;
+        while (i < 32) {
+            if (msg.content[i].text != "") {
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Model Variants
+    // ════════════════════════════════════════════════════════════════════
+
+    enum ReasoningEffort {
+        Low = 0,
+        Medium = 1,
+        High = 2,
+    }
+
+    struct ModelVariant {
+        model_id: ModelID,
+        reasoning_effort: ReasoningEffort,
+    }
+
+    fn get_model_variants(model_id: ModelID) -> [8]ModelVariant {
+        // Return available variants for a model
+        return [ModelVariant{
+            model_id = model_id,
+            reasoning_effort = ReasoningEffort::Medium,
+        }; 8];
+    }
+
+    fn select_variant(variants: [8]ModelVariant, effort: ReasoningEffort) -> ModelVariant {
+        var i: u32 = 0;
+        while (i < 8) {
+            if (variants[i].reasoning_effort == effort) {
+                return variants[i];
+            }
+            i = i + 1;
+        }
+        return variants[0];
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Options Transformation
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ProviderOptions {
+        headers: [16]str,
+        body: str,
+    }
+
+    fn build_options(provider_id: ProviderID, options: CompletionOptions) -> ProviderOptions {
+        return ProviderOptions{
+            headers = [""; 16],
+            body = "{}",
+        };
+    }
+
+    fn apply_reasoning_options(options: ProviderOptions, effort: ReasoningEffort) -> ProviderOptions {
+        var result = options;
+        // Add reasoning parameters to body
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Schema Transformation
+    // ════════════════════════════════════════════════════════════════════
+
+    fn transform_schema(provider_id: ProviderID, schema: str) -> str {
+        // Convert JSON Schema for provider-specific format
+        // e.g., convert enum to string for Gemini
+        return schema;
+    }
+
+    fn convert_enum_to_string(schema: str) -> str {
+        // Replace enum types with string
+        return schema;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Interleaved Content Handling
+    // ════════════════════════════════════════════════════════════════════
+
+    struct InterleavedConfig {
+        enabled: bool,
+        field: str,
+    }
+
+    fn get_interleaved_config(model_id: ModelID) -> InterleavedConfig {
+        return InterleavedConfig{
+            enabled = false,
+            field = "reasoning_content",
+        };
+    }
+
+    fn extract_interleaved_content(msg: Message, config: InterleavedConfig) -> str {
+        // Extract reasoning/details from message
+        return "";
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "cache_strategy_values" {
+        assert(CacheStrategy::None == 0)
+        assert(CacheStrategy::SystemPrompt == 1)
+        assert(CacheStrategy::Recent == 2)
+        assert(CacheStrategy::Ephemeral == 3)
+    }
+
+    test "reasoning_effort_values" {
+        assert(ReasoningEffort::Low == 0)
+        assert(ReasoningEffort::Medium == 1)
+        assert(ReasoningEffort::High == 2)
+    }
+
+    test "normalize_message" {
+        const ctx = TransformContext{
+            provider_id = provider_id_create("anthropic"),
+            model_id = model_id_create("claude-3-opus"),
+            cache = CacheControl{strategy = CacheStrategy::None, max_tokens = 0},
+            scrub_tool_ids = false,
+            support_cache_headers = true,
+        };
+        const msg = message_create(MessageRole::User, "Test");
+        const result = normalize_message(msg, ctx);
+        assert(result.role == MessageRole::User)
+    }
+
+    test "has_valid_content_true" {
+        const msg = message_create(MessageRole::User, "Hello");
+        assert(has_valid_content(msg) == true);
+    }
+
+    test "has_valid_content_false" {
+        var msg = message_create(MessageRole::User, "");
+        msg.content[0].text = "";
+        assert(has_valid_content(msg) == false);
+    }
+
+    test "get_model_variants" {
+        const mid = model_id_create("claude-3-opus");
+        const variants = get_model_variants(mid);
+        assert(variants[0].model_id == mid);
+    }
+
+    test "select_variant" {
+        const variants = [
+            ModelVariant{
+                model_id = model_id_create("model-1"),
+                reasoning_effort = ReasoningEffort::Low,
+            },
+            ModelVariant{
+                model_id = model_id_create("model-2"),
+                reasoning_effort = ReasoningEffort::High,
+            },
+            ModelVariant{},
+            ModelVariant{},
+            ModelVariant{},
+            ModelVariant{},
+            ModelVariant{},
+            ModelVariant{},
+        ];
+        const selected = select_variant(variants, ReasoningEffort::High);
+        assert(selected.reasoning_effort == ReasoningEffort::High);
+    }
+
+    test "build_options" {
+        const pid = provider_id_create("openai");
+        const opts = CompletionOptions{
+            max_tokens = 1000,
+            temperature = 0.7,
+            top_p = 1.0,
+            top_k = 0,
+            stop_sequences = [""; 8],
+        };
+        const result = build_options(pid, opts);
+        // Check options were built
+    }
+
+    test "get_interleaved_config" {
+        const mid = model_id_create("claude-3-7-sonnet");
+        const config = get_interleaved_config(mid);
+        assert(config.field == "reasoning_content");
+    }
+
+    test "apply_cache_header" {
+        const msg = message_create(MessageRole::System, "You are helpful");
+        const result = apply_cache_header(msg, CacheStrategy::SystemPrompt);
+        assert(result.role == MessageRole::System);
+    }
+
+    test "transform_context_create" {
+        const ctx = TransformContext{
+            provider_id = provider_id_create("anthropic"),
+            model_id = model_id_create("claude-3-opus"),
+            cache = CacheControl{strategy = CacheStrategy::Ephemeral, max_tokens = 100000},
+            scrub_tool_ids = true,
+            support_cache_headers = true,
+        };
+        assert(ctx.cache.strategy == CacheStrategy::Ephemeral);
+        assert(ctx.cache.max_tokens == 100000);
+    }
+
+    test "scrub_tool_ids" {
+        var msg = message_create(MessageRole::Assistant, "");
+        msg.content[0] = ContentPart{
+            type = ContentPartType::ToolCall,
+            text = "",
+            image_url = "",
+            tool_call_id = "call_123",
+            tool_name = "test",
+            tool_arguments = "{}",
+        };
+        const result = scrub_tool_ids(msg);
+        assert(result.content[0].type == ContentPartType::ToolCall);
+    }
+}

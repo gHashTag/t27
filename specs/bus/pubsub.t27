@@ -1,0 +1,398 @@
+// specs/bus/pubsub.t27
+// Event Bus Pub/Sub Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module BusPubSub {
+    use base::types;
+    use BusSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Subscriber
+    // ════════════════════════════════════════════════════════════════════
+
+    struct SubscriberID(u32);
+
+    struct Subscriber {
+        id: SubscriberID,
+        event_type: EventType,
+        callback_id: u32,
+        is_active: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // PubSub Channel
+    // ════════════════════════════════════════════════════════════════════
+
+    struct PubSubChannel {
+        event_type: EventType,
+        subscribers: [64]Subscriber,
+        subscriber_count: u32,
+        is_shutdown: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Bus
+    // ════════════════════════════════════════════════════════════════════
+
+    struct EventBus {
+        wildcard_channel: PubSubChannel,
+        typed_channels: [64]PubSubChannel,
+        channel_count: u32,
+        next_subscriber_id: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Bus Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    fn event_bus_create() -> EventBus {
+        return EventBus{
+            wildcard_channel = PubSubChannel{
+                event_type = event_type_create("*"),
+                subscribers = [Subscriber{}; 64],
+                subscriber_count = 0,
+                is_shutdown = false,
+            },
+            typed_channels = [PubSubChannel{
+                event_type = event_type_create(""),
+                subscribers = [Subscriber{}; 64],
+                subscriber_count = 0,
+                is_shutdown = false,
+            }; 64],
+            channel_count = 0,
+            next_subscriber_id = 1,
+        };
+    }
+
+    fn publish(bus: *EventBus, payload: EventPayload) -> void {
+        // Publish to typed channel
+        var i: u32 = 0;
+        while (i < bus.channel_count) {
+            if (event_type_get(bus.typed_channels[i].event_type) == event_type_get(payload.type)) {
+                publish_to_channel(&bus.typed_channels[i], payload);
+            }
+            i = i + 1;
+        }
+        // Publish to wildcard
+        publish_to_channel(&bus.wildcard_channel, payload);
+    }
+
+    fn publish_to_channel(channel: *PubSubChannel, payload: EventPayload) -> void {
+        if (channel.is_shutdown) {
+            return;
+        }
+        var i: u32 = 0;
+        while (i < channel.subscriber_count) {
+            if (channel.subscribers[i].is_active) {
+                // Deliver to subscriber
+            }
+            i = i + 1;
+        }
+    }
+
+    fn subscribe(bus: *EventBus, event_type: EventType) -> SubscriberID {
+        // Find or create channel
+        var channel_idx: u32 = 0;
+        var found: bool = false;
+        var i: u32 = 0;
+        while (i < bus.channel_count) {
+            if (event_type_get(bus.typed_channels[i].event_type) == event_type_get(event_type)) {
+                channel_idx = i;
+                found = true;
+            }
+            i = i + 1;
+        }
+
+        if (!found and bus.channel_count < 64) {
+            bus.typed_channels[bus.channel_count] = PubSubChannel{
+                event_type = event_type,
+                subscribers = [Subscriber{}; 64],
+                subscriber_count = 0,
+                is_shutdown = false,
+            };
+            channel_idx = bus.channel_count;
+            bus.channel_count = bus.channel_count + 1;
+        }
+
+        // Add subscriber
+        const sub_id = SubscriberID(bus.next_subscriber_id);
+        bus.next_subscriber_id = bus.next_subscriber_id + 1;
+
+        if (channel_idx < 64) {
+            var channel = &bus.typed_channels[channel_idx];
+            if (channel.subscriber_count < 64) {
+                channel.subscribers[channel.subscriber_count] = Subscriber{
+                    id = sub_id,
+                    event_type = event_type,
+                    callback_id = 0,
+                    is_active = true,
+                };
+                channel.subscriber_count = channel.subscriber_count + 1;
+            }
+        }
+
+        return sub_id;
+    }
+
+    fn subscribe_all(bus: *EventBus) -> SubscriberID {
+        const sub_id = SubscriberID(bus.next_subscriber_id);
+        bus.next_subscriber_id = bus.next_subscriber_id + 1;
+
+        if (bus.wildcard_channel.subscriber_count < 64) {
+            bus.wildcard_channel.subscribers[bus.wildcard_channel.subscriber_count] = Subscriber{
+                id = sub_id,
+                event_type = event_type_create("*"),
+                callback_id = 0,
+                is_active = true,
+            };
+            bus.wildcard_channel.subscriber_count = bus.wildcard_channel.subscriber_count + 1;
+        }
+
+        return sub_id;
+    }
+
+    fn unsubscribe(bus: *EventBus, sub_id: SubscriberID) -> bool {
+        // Remove from wildcard channel
+        var i: u32 = 0;
+        while (i < bus.wildcard_channel.subscriber_count) {
+            if (bus.wildcard_channel.subscribers[i].id == sub_id) {
+                bus.wildcard_channel.subscribers[i].is_active = false;
+                return true;
+            }
+            i = i + 1;
+        }
+
+        // Remove from typed channels
+        i = 0;
+        while (i < bus.channel_count) {
+            var j: u32 = 0;
+            while (j < bus.typed_channels[i].subscriber_count) {
+                if (bus.typed_channels[i].subscribers[j].id == sub_id) {
+                    bus.typed_channels[i].subscribers[j].is_active = false;
+                    return true;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+        return false;
+    }
+
+    fn broadcast(bus: *EventBus, payload: EventPayload) -> void {
+        publish(bus, payload);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Channel Management
+    // ════════════════════════════════════════════════════════════════════
+
+    fn get_channel(bus: EventBus, event_type: EventType) -> PubSubChannel {
+        var i: u32 = 0;
+        while (i < bus.channel_count) {
+            if (event_type_get(bus.typed_channels[i].event_type) == event_type_get(event_type)) {
+                return bus.typed_channels[i];
+            }
+            i = i + 1;
+        }
+        return PubSubChannel{
+            event_type = event_type,
+            subscribers = [Subscriber{}; 64],
+            subscriber_count = 0,
+            is_shutdown = false,
+        };
+    }
+
+    fn shutdown_channel(channel: *PubSubChannel) -> void {
+        channel.is_shutdown = true;
+        var i: u32 = 0;
+        while (i < channel.subscriber_count) {
+            channel.subscribers[i].is_active = false;
+            i = i + 1;
+        }
+    }
+
+    fn shutdown_bus(bus: *EventBus) -> void {
+        shutdown_channel(&bus.wildcard_channel);
+        var i: u32 = 0;
+        while (i < bus.channel_count) {
+            shutdown_channel(&bus.typed_channels[i]);
+            i = i + 1;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Subscriber ID Helpers
+    // ════════════════════════════════════════════════════════════════════
+
+    fn subscriber_id_create(id: u32) -> SubscriberID {
+        return SubscriberID(id);
+    }
+
+    fn subscriber_id_get(sid: SubscriberID) -> u32 {
+        return sid.0;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "event_bus_create" {
+        const bus = event_bus_create()
+        assert(bus.channel_count == 0)
+        assert(bus.next_subscriber_id == 1)
+        assert(bus.wildcard_channel.subscriber_count == 0)
+    }
+
+    test "subscribe" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        const sub_id = subscribe(&bus, et)
+        assert(bus.channel_count == 1)
+        assert(bus.typed_channels[0].subscriber_count == 1)
+    }
+
+    test "subscribe_all" {
+        var bus = event_bus_create()
+        const sub_id = subscribe_all(&bus)
+        assert(bus.wildcard_channel.subscriber_count == 1)
+    }
+
+    test "unsubscribe" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        const sub_id = subscribe(&bus, et)
+        const result = unsubscribe(&bus, sub_id)
+        assert(result == true)
+    }
+
+    test "unsubscribe_missing" {
+        var bus = event_bus_create()
+        const sub_id = SubscriberID(999)
+        const result = unsubscribe(&bus, sub_id)
+        assert(result == false)
+    }
+
+    test "publish" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        subscribe(&bus, et)
+        const payload = event_payload_create(et)
+        publish(&bus, payload)
+        // Verify publish occurred
+    }
+
+    test "publish_to_wildcard" {
+        var bus = event_bus_create()
+        subscribe_all(&bus)
+        const et = event_type_create("test.event")
+        const payload = event_payload_create(et)
+        publish(&bus, payload)
+        // Should be delivered to wildcard subscribers
+    }
+
+    test "get_channel" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        subscribe(&bus, et)
+        const channel = get_channel(bus, et)
+        assert(event_type_get(channel.event_type) == "test.event")
+        assert(channel.subscriber_count == 1)
+    }
+
+    test "get_channel_missing" {
+        var bus = event_bus_create()
+        const et = event_type_create("missing.event")
+        const channel = get_channel(bus, et)
+        assert(channel.subscriber_count == 0)
+    }
+
+    test "shutdown_channel" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        subscribe(&bus, et)
+        shutdown_channel(&bus.typed_channels[0])
+        assert(bus.typed_channels[0].is_shutdown == true)
+        assert(bus.typed_channels[0].subscribers[0].is_active == false)
+    }
+
+    test "shutdown_bus" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        subscribe(&bus, et)
+        subscribe_all(&bus)
+        shutdown_bus(&bus)
+        assert(bus.wildcard_channel.is_shutdown == true)
+        assert(bus.typed_channels[0].is_shutdown == true)
+    }
+
+    test "subscribe_multiple" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        subscribe(&bus, et)
+        subscribe(&bus, et)
+        subscribe(&bus, et)
+        assert(bus.channel_count == 1)
+        assert(bus.typed_channels[0].subscriber_count == 3)
+    }
+
+    test "subscribe_multiple_events" {
+        var bus = event_bus_create()
+        const et1 = event_type_create("event1")
+        const et2 = event_type_create("event2")
+        subscribe(&bus, et1)
+        subscribe(&bus, et2)
+        assert(bus.channel_count == 2)
+    }
+
+    test "subscriber_id_helpers" {
+        const sid = subscriber_id_create(123)
+        assert(subscriber_id_get(sid) == 123)
+    }
+
+    test "max_subscribers_per_channel" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        var i: u32 = 0
+        while (i < 70) {
+            subscribe(&bus, et)
+            i = i + 1
+        }
+        // Should cap at 64
+        assert(bus.typed_channels[0].subscriber_count == 64)
+    }
+
+    test "max_channels" {
+        var bus = event_bus_create()
+        var i: u32 = 0
+        while (i < 70) {
+            const et = event_type_create("event")
+            subscribe(&bus, et)
+            i = i + 1
+        }
+        // Should cap at 64
+        assert(bus.channel_count == 64)
+    }
+
+    test "subscriber_id_sequence" {
+        var bus = event_bus_create()
+        const et1 = event_type_create("event1")
+        const et2 = event_type_create("event2")
+        const id1 = subscribe(&bus, et1)
+        const id2 = subscribe(&bus, et2)
+        const id3 = subscribe_all(&bus)
+        assert(subscriber_id_get(id1) == 1)
+        assert(subscriber_id_get(id2) == 2)
+        assert(subscriber_id_get(id3) == 3)
+    }
+
+    test "broadcast" {
+        var bus = event_bus_create()
+        const et = event_type_create("test.event")
+        subscribe(&bus, et)
+        subscribe_all(&bus)
+        const payload = event_payload_create(et)
+        broadcast(&bus, payload)
+        // Should deliver to both typed and wildcard subscribers
+    }
+}

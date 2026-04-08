@@ -1,0 +1,254 @@
+// specs/bus/schema.t27
+// Event Bus Schema Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module BusSchema {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Type
+    // ════════════════════════════════════════════════════════════════════
+
+    struct EventType(str);
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Payload
+    // ════════════════════════════════════════════════════════════════════
+
+    struct EventProperty {
+        key: str,
+        value: str,
+    }
+
+    struct EventPayload {
+        type: EventType,
+        properties: [32]EventProperty,
+        property_count: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Definition
+    // ════════════════════════════════════════════════════════════════════
+
+    struct EventDefinition {
+        type: EventType,
+        schema: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Registry
+    // ════════════════════════════════════════════════════════════════════
+
+    struct EventRegistry {
+        definitions: [128]EventDefinition,
+        count: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Well-known Events
+    // ════════════════════════════════════════════════════════════════════
+
+    const EVENT_INSTANCE_DISPOSED: &str = "server.instance.disposed";
+    const EVENT_DIAGNOSTICS_PUBLISHED: &str = "textDocument.publishDiagnostics";
+    const EVENT_DOCUMENT_OPENED: &str = "textDocument.didOpen";
+    const EVENT_DOCUMENT_CHANGED: &str = "textDocument.didChange";
+    const EVENT_DOCUMENT_CLOSED: &str = "textDocument.didClose";
+
+    // ════════════════════════════════════════════════════════════════════
+    // Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    fn event_type_create(name: str) -> EventType {
+        return EventType(name);
+    }
+
+    fn event_type_get(et: EventType) -> str {
+        return et.0;
+    }
+
+    fn event_payload_create(type: EventType) -> EventPayload {
+        return EventPayload{
+            type = type,
+            properties = [EventProperty{}; 32],
+            property_count = 0,
+        };
+    }
+
+    fn event_payload_set_property(payload: *EventPayload, key: str, value: str) -> void {
+        if (payload.property_count < 32) {
+            payload.properties[payload.property_count] = EventProperty{
+                key = key,
+                value = value,
+            };
+            payload.property_count = payload.property_count + 1;
+        }
+    }
+
+    fn event_payload_get_property(payload: EventPayload, key: str) -> str {
+        var i: u32 = 0;
+        while (i < payload.property_count) {
+            if (payload.properties[i].key == key) {
+                return payload.properties[i].value;
+            }
+            i = i + 1;
+        }
+        return "";
+    }
+
+    fn event_registry_create() -> EventRegistry {
+        return EventRegistry{
+            definitions = [EventDefinition{}; 128],
+            count = 0,
+        };
+    }
+
+    fn event_registry_register(registry: *EventRegistry, def: EventDefinition) -> void {
+        if (registry.count < 128) {
+            registry.definitions[registry.count] = def;
+            registry.count = registry.count + 1;
+        }
+    }
+
+    fn event_registry_lookup(registry: EventRegistry, type: EventType) -> EventDefinition {
+        var i: u32 = 0;
+        while (i < registry.count) {
+            if (event_type_get(registry.definitions[i].type) == event_type_get(type)) {
+                return registry.definitions[i];
+            }
+            i = i + 1;
+        }
+        return EventDefinition{
+            type = type,
+            schema = "",
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "event_type_create" {
+        const et = event_type_create("test.event")
+        assert(event_type_get(et) == "test.event")
+    }
+
+    test "event_payload_create" {
+        const et = event_type_create("test.event")
+        const payload = event_payload_create(et)
+        assert(payload.property_count == 0)
+        assert(event_type_get(payload.type) == "test.event")
+    }
+
+    test "event_payload_set_property" {
+        const et = event_type_create("test.event")
+        var payload = event_payload_create(et)
+        event_payload_set_property(&payload, "key1", "value1")
+        assert(payload.property_count == 1)
+        assert(payload.properties[0].key == "key1")
+        assert(payload.properties[0].value == "value1")
+    }
+
+    test "event_payload_set_multiple_properties" {
+        const et = event_type_create("test.event")
+        var payload = event_payload_create(et)
+        event_payload_set_property(&payload, "key1", "value1")
+        event_payload_set_property(&payload, "key2", "value2")
+        event_payload_set_property(&payload, "key3", "value3")
+        assert(payload.property_count == 3)
+    }
+
+    test "event_payload_get_property" {
+        const et = event_type_create("test.event")
+        var payload = event_payload_create(et)
+        event_payload_set_property(&payload, "key1", "value1")
+        const value = event_payload_get_property(payload, "key1")
+        assert(value == "value1")
+    }
+
+    test "event_payload_get_property_missing" {
+        const et = event_type_create("test.event")
+        const payload = event_payload_create(et)
+        const value = event_payload_get_property(payload, "missing")
+        assert(value == "")
+    }
+
+    test "event_registry_create" {
+        const registry = event_registry_create()
+        assert(registry.count == 0)
+    }
+
+    test "event_registry_register" {
+        var registry = event_registry_create()
+        const et = event_type_create("test.event")
+        const def = EventDefinition{
+            type = et,
+            schema = "{}",
+        }
+        event_registry_register(&registry, def)
+        assert(registry.count == 1)
+    }
+
+    test "event_registry_lookup" {
+        var registry = event_registry_create()
+        const et = event_type_create("test.event")
+        const def = EventDefinition{
+            type = et,
+            schema = "{\"type\":\"object\"}",
+        }
+        event_registry_register(&registry, def)
+        const found = event_registry_lookup(registry, et)
+        assert(found.schema == "{\"type\":\"object\"}")
+    }
+
+    test "event_registry_lookup_missing" {
+        const registry = event_registry_create()
+        const et = event_type_create("missing.event")
+        const found = event_registry_lookup(registry, et)
+        assert(found.schema == "")
+    }
+
+    test "well_known_events" {
+        assert(EVENT_INSTANCE_DISPOSED == "server.instance.disposed")
+        assert(EVENT_DIAGNOSTICS_PUBLISHED == "textDocument.publishDiagnostics")
+        assert(EVENT_DOCUMENT_OPENED == "textDocument.didOpen")
+        assert(EVENT_DOCUMENT_CHANGED == "textDocument.didChange")
+        assert(EVENT_DOCUMENT_CLOSED == "textDocument.didClose")
+    }
+
+    test "event_payload_max_properties" {
+        const et = event_type_create("test.event")
+        var payload = event_payload_create(et)
+        var i: u32 = 0
+        while (i < 35) {
+            event_payload_set_property(&payload, "key", "value")
+            i = i + 1
+        }
+        // Should cap at 32
+        assert(payload.property_count == 32)
+    }
+
+    test "event_registry_max_definitions" {
+        var registry = event_registry_create()
+        var i: u32 = 0
+        while (i < 130) {
+            const et = event_type_create("event")
+            const def = EventDefinition{
+                type = et,
+                schema = "{}",
+            }
+            event_registry_register(&registry, def)
+            i = i + 1
+        }
+        // Should cap at 128
+        assert(registry.count == 128)
+    }
+
+    test "event_property_fields" {
+        const prop = EventProperty{
+            key = "test_key",
+            value = "test_value",
+        }
+        assert(prop.key == "test_key")
+        assert(prop.value == "test_value")
+    }
+}

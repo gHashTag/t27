@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+// SPDX-License-Identifier: Apache-2.0
+>>>>>>> origin/master
 // t27/specs/isa/ternary_shift.t27
 // Ternary Shift and Rotate Operations Specification
 // Ring 067 - Bitwise/Tritwise shift and rotate operations

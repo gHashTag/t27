@@ -1,0 +1,253 @@
+// specs/lsp/client.t27
+// LSP Client Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module LspClient {
+    use base::types;
+    use LspSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Client Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ClientConfig {
+        server_command: str,
+        server_args: [8]str,
+        cwd: str,
+        env: [16]str,
+        timeout_ms: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // LSP Client State
+    // ════════════════════════════════════════════════════════════════════
+
+    struct LspClient {
+        config: ClientConfig,
+        status: LspStatus,
+        process_id: u32,
+        initialized: bool,
+        capabilities: [256]u8,
+        document_count: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Initialize Options
+    // ════════════════════════════════════════════════════════════════════
+
+    struct InitializeOptions {
+        root_uri: str,
+        workspace_folders: [16]str,
+        capabilities: str,
+    }
+
+    struct InitializeResult {
+        capabilities: str,
+        server_info: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Client Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    fn client_create(config: ClientConfig) -> LspClient {
+        return LspClient{
+            config = config,
+            status = LspStatus::Stopped,
+            process_id = 0,
+            initialized = false,
+            capabilities = [0u8; 256],
+            document_count = 0,
+        };
+    }
+
+    fn client_initialize(client: *LspClient, options: InitializeOptions) -> InitializeResult {
+        client.status = LspStatus::Starting;
+        // Send initialize request to server
+        client.status = LspStatus::Running;
+        client.initialized = true;
+        return InitializeResult{
+            capabilities = "{}",
+            server_info = "t27-lsp",
+        };
+    }
+
+    fn client_shutdown(client: *LspClient) -> bool {
+        if (client.status == LspStatus::Running) {
+            // Send shutdown request
+            client.status = LspStatus::Stopped;
+            client.initialized = false;
+            return true;
+        }
+        return false;
+    }
+
+    fn client_did_open(client: *LspClient, doc: TextDocumentItem) -> void {
+        if (client.status == LspStatus::Running and client.initialized) {
+            client.document_count = client.document_count + 1;
+            // Send textDocument/didOpen notification
+        }
+    }
+
+    fn client_did_change(client: *LspClient, uri: str, text: str, version: u32) -> void {
+        if (client.status == LspStatus::Running and client.initialized) {
+            // Send textDocument/didChange notification
+        }
+    }
+
+    fn client_did_close(client: *LspClient, uri: str) -> void {
+        if (client.status == LspStatus::Running and client.initialized) {
+            if (client.document_count > 0) {
+                client.document_count = client.document_count - 1;
+            }
+            // Send textDocument/didClose notification
+        }
+    }
+
+    fn client_wait_for_diagnostics(client: LspClient, uri: str, timeout_ms: u32) -> [32]Diagnostic {
+        if (client.status != LspStatus::Running) {
+            return [Diagnostic{}; 32];
+        }
+        // Wait for diagnostics via pub/sub
+        return [Diagnostic{}; 32];
+    }
+
+    fn client_is_running(client: LspClient) -> bool {
+        return client.status == LspStatus::Running;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Configuration Helpers
+    // ════════════════════════════════════════════════════════════════════
+
+    fn config_create(command: str, args: [8]str, cwd: str) -> ClientConfig {
+        return ClientConfig{
+            server_command = command,
+            server_args = args,
+            cwd = cwd,
+            env = [""; 16],
+            timeout_ms = 30000,
+        };
+    }
+
+    fn config_set_env(config: *ClientConfig, key: str, value: str) -> void {
+        // Set environment variable
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "client_create" {
+        const config = config_create("server", [""; 8], "/cwd")
+        const client = client_create(config)
+        assert(client.status == LspStatus::Stopped)
+        assert(client.initialized == false)
+        assert(client.document_count == 0)
+    }
+
+    test "client_initialize" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        const opts = InitializeOptions{
+            root_uri = "file:///test",
+            workspace_folders = [""; 16],
+            capabilities = "{}",
+        }
+        const result = client_initialize(&client, opts)
+        assert(client.status == LspStatus::Running)
+        assert(client.initialized == true)
+    }
+
+    test "client_shutdown" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        const opts = InitializeOptions{
+            root_uri = "file:///test",
+            workspace_folders = [""; 16],
+            capabilities = "{}",
+        }
+        client_initialize(&client, opts)
+        const result = client_shutdown(&client)
+        assert(result == true)
+        assert(client.status == LspStatus::Stopped)
+    }
+
+    test "client_did_open" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        const opts = InitializeOptions{
+            root_uri = "file:///test",
+            workspace_folders = [""; 16],
+            capabilities = "{}",
+        }
+        client_initialize(&client, opts)
+        const doc = TextDocumentItem{
+            uri = "file:///test.ts",
+            language_id = "typescript",
+            version = 1,
+            text = "content",
+        }
+        client_did_open(&client, doc)
+        assert(client.document_count == 1)
+    }
+
+    test "client_did_close" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        const opts = InitializeOptions{
+            root_uri = "file:///test",
+            workspace_folders = [""; 16],
+            capabilities = "{}",
+        }
+        client_initialize(&client, opts)
+        const doc = TextDocumentItem{
+            uri = "file:///test.ts",
+            language_id = "typescript",
+            version = 1,
+            text = "content",
+        }
+        client_did_open(&client, doc)
+        client_did_close(&client, "file:///test.ts")
+        assert(client.document_count == 0)
+    }
+
+    test "client_is_running" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        assert(client_is_running(client) == false)
+        const opts = InitializeOptions{
+            root_uri = "file:///test",
+            workspace_folders = [""; 16],
+            capabilities = "{}",
+        }
+        client_initialize(&client, opts)
+        assert(client_is_running(client) == true)
+    }
+
+    test "config_create" {
+        const config = config_create("typescript-language-server", ["--stdio"; 8], "/project")
+        assert(config.server_command == "typescript-language-server")
+        assert(config.timeout_ms == 30000)
+    }
+
+    test "client_did_change" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        const opts = InitializeOptions{
+            root_uri = "file:///test",
+            workspace_folders = [""; 16],
+            capabilities = "{}",
+        }
+        client_initialize(&client, opts)
+        client_did_change(&client, "file:///test.ts", "new content", 2)
+        // Verify notification was sent (no assertion for now)
+    }
+
+    test "client_shutdown_when_stopped" {
+        const config = config_create("server", [""; 8], "/cwd")
+        var client = client_create(config)
+        const result = client_shutdown(&client)
+        assert(result == false)
+    }
+}

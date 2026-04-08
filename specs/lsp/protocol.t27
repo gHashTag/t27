@@ -1,0 +1,340 @@
+// specs/lsp/protocol.t27
+// LSP Protocol Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module LspProtocol {
+    use base::types;
+    use LspSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // JSON-RPC Message
+    // ════════════════════════════════════════════════════════════════════
+
+    enum MessageType {
+        Request = 0,
+        Response = 1,
+        Notification = 2,
+    }
+
+    struct JsonRpcMessage {
+        jsonrpc: str,
+        id: str,
+        method: str,
+        params: str,
+        result: str,
+        error: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // LSP Methods
+    // ════════════════════════════════════════════════════════════════════
+
+    enum LspMethod {
+        Initialize = 0,
+        Initialized = 1,
+        Shutdown = 2,
+        Exit = 3,
+
+        DidOpen = 10,
+        DidChange = 11,
+        DidClose = 12,
+        DidSave = 13,
+
+        PublishDiagnostics = 20,
+
+        Completion = 30,
+        Hover = 31,
+        Definition = 32,
+        TypeDefinition = 33,
+        Implementation = 34,
+        References = 35,
+        DocumentSymbol = 36,
+        WorkspaceSymbol = 37,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Protocol Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    fn protocol_publish_diagnostics(uri: str, diagnostics: [32]Diagnostic) -> str {
+        // Build textDocument/publishDiagnostics notification
+        return "{\"method\":\"textDocument/publishDiagnostics\"}";
+    }
+
+    fn protocol_completion(uri: str, position: Position) -> str {
+        // Build textDocument/completion request
+        return "{\"method\":\"textDocument/completion\"}";
+    }
+
+    fn protocol_hover(uri: str, position: Position) -> str {
+        // Build textDocument/hover request
+        return "{\"method\":\"textDocument/hover\"}";
+    }
+
+    fn protocol_definition(uri: str, position: Position) -> str {
+        // Build textDocument/definition request
+        return "{\"method\":\"textDocument/definition\"}";
+    }
+
+    fn protocol_references(uri: str, position: Position) -> str {
+        // Build textDocument/references request
+        return "{\"method\":\"textDocument/references\"}";
+    }
+
+    fn protocol_implementation(uri: str, position: Position) -> str {
+        // Build textDocument/implementation request
+        return "{\"method\":\"textDocument/implementation\"}";
+    }
+
+    fn protocol_document_symbol(uri: str) -> str {
+        // Build textDocument/documentSymbol request
+        return "{\"method\":\"textDocument/documentSymbol\"}";
+    }
+
+    fn protocol_workspace_symbol(query: str) -> str {
+        // Build workspace/symbol request
+        return "{\"method\":\"workspace/symbol\"}";
+    }
+
+    fn protocol_did_open(uri: str, language_id: str, version: u32, text: str) -> str {
+        // Build textDocument/didOpen notification
+        return "{\"method\":\"textDocument/didOpen\"}";
+    }
+
+    fn protocol_did_change(uri: str, text: str, version: u32) -> str {
+        // Build textDocument/didChange notification
+        return "{\"method\":\"textDocument/didChange\"}";
+    }
+
+    fn protocol_did_close(uri: str) -> str {
+        // Build textDocument/didClose notification
+        return "{\"method\":\"textDocument/didClose\"}";
+    }
+
+    fn protocol_initialize(root_uri: str, capabilities: str) -> str {
+        // Build initialize request
+        return "{\"method\":\"initialize\"}";
+    }
+
+    fn protocol_initialized() -> str {
+        // Build initialized notification
+        return "{\"method\":\"initialized\"}";
+    }
+
+    fn protocol_shutdown() -> str {
+        // Build shutdown request
+        return "{\"method\":\"shutdown\"}";
+    }
+
+    fn protocol_exit() -> str {
+        // Build exit notification
+        return "{\"method\":\"exit\"}";
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Parsing
+    // ════════════════════════════════════════════════════════════════════
+
+    fn protocol_parse_message(content: str) -> JsonRpcMessage {
+        return JsonRpcMessage{
+            jsonrpc = "2.0",
+            id = "",
+            method = "",
+            params = "{}",
+            result = "{}",
+            error = "",
+        };
+    }
+
+    fn protocol_extract_method(message: JsonRpcMessage) -> LspMethod {
+        if (message.method == "textDocument/publishDiagnostics") {
+            return LspMethod::PublishDiagnostics;
+        }
+        if (message.method == "textDocument/completion") {
+            return LspMethod::Completion;
+        }
+        if (message.method == "textDocument/hover") {
+            return LspMethod::Hover;
+        }
+        if (message.method == "textDocument/definition") {
+            return LspMethod::Definition;
+        }
+        if (message.method == "textDocument/implementation") {
+            return LspMethod::Implementation;
+        }
+        if (message.method == "textDocument/references") {
+            return LspMethod::References;
+        }
+        if (message.method == "textDocument/documentSymbol") {
+            return LspMethod::DocumentSymbol;
+        }
+        if (message.method == "workspace/symbol") {
+            return LspMethod::WorkspaceSymbol;
+        }
+        if (message.method == "textDocument/didOpen") {
+            return LspMethod::DidOpen;
+        }
+        if (message.method == "textDocument/didChange") {
+            return LspMethod::DidChange;
+        }
+        if (message.method == "textDocument/didClose") {
+            return LspMethod::DidClose;
+        }
+        if (message.method == "initialize") {
+            return LspMethod::Initialize;
+        }
+        if (message.method == "shutdown") {
+            return LspMethod::Shutdown;
+        }
+        return LspMethod::Exit;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "message_type_values" {
+        assert(MessageType::Request == 0)
+        assert(MessageType::Response == 1)
+        assert(MessageType::Notification == 2)
+    }
+
+    test "lsp_method_values" {
+        assert(LspMethod::Initialize == 0)
+        assert(LspMethod::DidOpen == 10)
+        assert(LspMethod::PublishDiagnostics == 20)
+        assert(LspMethod::Completion == 30)
+    }
+
+    test "protocol_publish_diagnostics" {
+        const msg = protocol_publish_diagnostics("file:///test.ts", [Diagnostic{}; 32])
+        assert(msg != "")
+    }
+
+    test "protocol_completion" {
+        const pos = Position{line = 0, character = 0}
+        const msg = protocol_completion("file:///test.ts", pos)
+        assert(msg != "")
+    }
+
+    test "protocol_hover" {
+        const pos = Position{line = 0, character = 0}
+        const msg = protocol_hover("file:///test.ts", pos)
+        assert(msg != "")
+    }
+
+    test "protocol_definition" {
+        const pos = Position{line = 0, character = 0}
+        const msg = protocol_definition("file:///test.ts", pos)
+        assert(msg != "")
+    }
+
+    test "protocol_did_open" {
+        const msg = protocol_did_open("file:///test.ts", "typescript", 1, "content")
+        assert(msg != "")
+    }
+
+    test "protocol_did_change" {
+        const msg = protocol_did_change("file:///test.ts", "new content", 2)
+        assert(msg != "")
+    }
+
+    test "protocol_did_close" {
+        const msg = protocol_did_close("file:///test.ts")
+        assert(msg != "")
+    }
+
+    test "protocol_initialize" {
+        const msg = protocol_initialize("file:///project", "{}")
+        assert(msg != "")
+    }
+
+    test "protocol_shutdown" {
+        const msg = protocol_shutdown()
+        assert(msg != "")
+    }
+
+    test "protocol_exit" {
+        const msg = protocol_exit()
+        assert(msg != "")
+    }
+
+    test "protocol_parse_message" {
+        const msg = protocol_parse_message("{\"jsonrpc\":\"2.0\"}")
+        assert(msg.jsonrpc == "2.0")
+    }
+
+    test "protocol_extract_method_completion" {
+        var message = JsonRpcMessage{
+            jsonrpc = "2.0",
+            id = "1",
+            method = "textDocument/completion",
+            params = "{}",
+            result = "{}",
+            error = "",
+        }
+        const method = protocol_extract_method(message)
+        assert(method == LspMethod::Completion)
+    }
+
+    test "protocol_extract_method_hover" {
+        var message = JsonRpcMessage{
+            jsonrpc = "2.0",
+            id = "2",
+            method = "textDocument/hover",
+            params = "{}",
+            result = "{}",
+            error = "",
+        }
+        const method = protocol_extract_method(message)
+        assert(method == LspMethod::Hover)
+    }
+
+    test "protocol_extract_method_did_open" {
+        var message = JsonRpcMessage{
+            jsonrpc = "2.0",
+            id = "",
+            method = "textDocument/didOpen",
+            params = "{}",
+            result = "{}",
+            error = "",
+        }
+        const method = protocol_extract_method(message)
+        assert(method == LspMethod::DidOpen)
+    }
+
+    test "protocol_extract_method_initialize" {
+        var message = JsonRpcMessage{
+            jsonrpc = "2.0",
+            id = "1",
+            method = "initialize",
+            params = "{}",
+            result = "{}",
+            error = "",
+        }
+        const method = protocol_extract_method(message)
+        assert(method == LspMethod::Initialize)
+    }
+
+    test "protocol_references" {
+        const pos = Position{line = 0, character = 0}
+        const msg = protocol_references("file:///test.ts", pos)
+        assert(msg != "")
+    }
+
+    test "protocol_implementation" {
+        const pos = Position{line = 0, character = 0}
+        const msg = protocol_implementation("file:///test.ts", pos)
+        assert(msg != "")
+    }
+
+    test "protocol_document_symbol" {
+        const msg = protocol_document_symbol("file:///test.ts")
+        assert(msg != "")
+    }
+
+    test "protocol_workspace_symbol" {
+        const msg = protocol_workspace_symbol("test")
+        assert(msg != "")
+    }
+}

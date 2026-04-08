@@ -1,573 +1,317 @@
-// t27/specs/test_framework/core.t27
-// T27 Test Framework — Core Primitives
-// φ² + 1/φ² = 3 | TRINITY
+// SPDX-License-Identifier: Apache-2.0
+// t27 Math/Physics Test Framework - Core
+//
+// Ring 050: Test framework core per T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md
+// Provides fundamental testing constructs for scientific computing
 
-module TestFramework {
-    // ═════════════════════════════════════════════════════════════════
-    // 1. Test Result Types
-    // ═════════════════════════════════════════════════════════════════════════
+module core;
 
-    // Verdict enum — test outcome classification
-    pub const Verdict = enum {
-        PASS,     // Test passed successfully
-        FAIL,     // Test failed (assertion violated)
-        SKIP,     // Test skipped (precondition not met)
-        TOXIC,    // Test revealed fundamental issue (requires rollback)
-        TIMEOUT,  // Test exceeded time limit
-    };
+// § Core testing enums and structures
 
-    // TestResult — single test execution result
-    pub const TestResult = struct {
-        name : []const u8,
-        verdict : Verdict,
-        duration_ms : u64,
-        message : []const u8,
-    };
+/// Test verdict/tier classification
+enum Verdict {
+    CLEAN,
+    FAIL, 
+    PARTIAL,
+    SKIP
+}
 
-    // SuiteResult — collection of test results
-    pub const SuiteResult = struct {
-        total : usize,
-        passed : usize,
-        failed : usize,
-        skipped : usize,
-        toxic : usize,
-        results : []TestResult,
-    };
+/// Test tolerance tier (numeric/physics precision levels)
+enum ToleranceTier {
+    EXACT,              // Mathematical identity (e.g., φ² = φ + 1)
+    WITHIN_UNCERTAINTY,  // Within experimental uncertainty (CODATA)
+    EMPIRICAL_FIT,      // Empirical formula, good accuracy
+    APPROXIMATION,      // Approximation > experimental uncertainty
+    FALSIFIED_AS_EXACT, // Cannot claim as exact vs experiment
+    CONJECTURAL,        // Hypothesis, insufficient verification
+    UNTTESTED           // Not yet checked quantitatively
+}
 
-    // ═════════════════════════════════════════════════════════════════
-    // 2. Tolerance Tiers — for math/physics claims
-    // ═════════════════════════════════════════════════════════════════════════
+/// Engineering status for toolchain tests  
+enum EngineeringStatus {
+    proved,     // Theorem or machine-checked proof in-repo
+    tested,     // Automated test / conformance fails if violated
+    empirical,  // Observed in practice; not formal proof
+    conjectural, // Open or partial
+    deprecated  // Superseded; history only
+}
 
-    // ToleranceTier — precision requirements for different claim types
-    pub const ToleranceTier = enum {
-        EXACT,           // No tolerance (integer, boolean, exact algebraic)
-        L5_IDENTITY,     // φ² + 1/φ² = 3 ± 1e-10 (constitutional law)
-        IEEE_F64,        // IEEE 754 binary64 machine epsilon (~2.2e-16)
-        PHYSICS_CODATA,  // CODATA 2022 tolerance (varies by constant)
-        EMPIRICAL,       // Empirical/approximate claims (configurable)
-    };
+/// Test result container
+struct TestResult {
+    name: string,
+    verdict: Verdict,
+    tolerance: ToleranceTier,
+    engineering: EngineeringStatus,
+    claim_id: Option<string>,  // Link to RESEARCH_CLAIMS.md
+    input: any,
+    expected: any,
+    actual: any,
+    delta: Option<f64>,
+    message: Option<string>
+}
 
-    // ToleranceConfig — tolerance specification with numeric bounds
-    pub const ToleranceConfig = struct {
-        tier : ToleranceTier,
-        absolute : f64,
-        relative : f64,
-        ulp : u32,
-    };
+/// Sequential gate pipeline with short-circuit
+/// Pattern: parse → type_check → semantic → numeric_stability → physics_constraint → audit
+struct GatePipeline {
+    parse_ok: bool,
+    type_check_ok: bool,  
+    semantic_ok: bool,
+    numeric_stability_ok: bool,
+    physics_constraint_ok: bool,
+    audit_ok: bool
+}
 
-    // Default tolerance configurations
-    pub const TOLERANCE_EXACT = ToleranceConfig{
-        .tier = .EXACT,
-        .absolute = 0.0,
-        .relative = 0.0,
-        .ulp = 0,
-    };
-
-    pub const TOLERANCE_L5_IDENTITY = ToleranceConfig{
-        .tier = .L5_IDENTITY,
-        .absolute = 1e-10,
-        .relative = 1e-10,
-        .ulp = 0,
-    };
-
-    pub const TOLERANCE_IEEE_F64 = ToleranceConfig{
-        .tier = .IEEE_F64,
-        .absolute = 0.0,
-        .relative = 2.22e-16,
-        .ulp = 4,
-    };
-
-    pub const TOLERANCE_PHYSICS = ToleranceConfig{
-        .tier = .PHYSICS_CODATA,
-        .absolute = 1e-12,
-        .relative = 1e-9,
-        .ulp = 0,
-    };
-
-    pub const TOLERANCE_EMPIRICAL = ToleranceConfig{
-        .tier = .EMPIRICAL,
-        .absolute = 0.01,
-        .relative = 0.01,
-        .ulp = 0,
-    };
-
-    // ═════════════════════════════════════════════════════════════════
-    // 3. Claim Tiers — scientific assertion classification
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // ClaimTier — classification for scientific/mathematical claims
-    // Aligns with RESEARCH_CLAIMS.md vocabulary
-    pub const ClaimTier = enum {
-        EXACT,              // Algebraic identity (e.g., φ² = φ + 1)
-        EMPIRICAL_CODATA,   // CODATA 2022 reference value
-        APPROXIMATE,        // Numerical/fitted with stated tolerance
-        CONJECTURAL,        // Hypothesis with falsification path
-        N_A,                // Not a scientific claim (e.g., API behavior)
-    };
-
-    // ═════════════════════════════════════════════════════════════════
-    // 4. Assertion Primitives
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // assert_eq_int — exact integer equality
-    pub fn assert_eq_int(actual: i64, expected: i64) -> bool {
-        return actual == expected;
+impl GatePipeline {
+    // Sequential evaluation - if gate N fails, gates N+1... are not evaluated
+    fn run_sequential(self) -> bool {
+        self.parse_ok &&
+        (if self.parse_ok { self.type_check_ok } else { false }) &&
+        (if self.parse_ok && self.type_check_ok { self.semantic_ok } else { false }) &&
+        (if self.parse_ok && self.type_check_ok && self.semantic_ok { self.numeric_stability_ok } else { false }) &&
+        (if self.parse_ok && self.type_check_ok && self.semantic_ok && self.numeric_stability_ok { self.physics_constraint_ok } else { false }) &&
+        (if self.parse_ok && self.type_check_ok && self.semantic_ok && self.numeric_stability_ok && self.physics_constraint_ok { self.audit_ok } else { false })
     }
+    
+    fn verdict(self) -> Verdict {
+        if self.run_sequential() { Verdict::CLEAN } else { Verdict::FAIL }
+    }
+}
 
-    // assert_eq_float — floating point equality with tolerance
-    pub fn assert_eq_float(actual: f64, expected: f64, config: ToleranceConfig) -> bool {
-        if (config.tier == .EXACT) {
-            return actual == expected;
+// § Core testing utilities
+
+/// Property-based testing: for all x in domain, property holds
+fn for_all<T>(domain: fn() -> T, property: fn(T) -> bool, iterations: u32) -> TestResult {
+    let mut failures = 0u32;
+    let mut last_failure = None;
+    
+    for i in 0..iterations {
+        let input = domain();
+        if !property(input) {
+            failures += 1;
+            last_failure = Some(input);
         }
+    }
+    
+    let verdict = if failures == 0 { Verdict::CLEAN } else { Verdict::FAIL };
+    let message = if failures > 0 { 
+        Some(format!("{} failures in {} iterations (last failure: {:?})", failures, iterations, last_failure)) 
+    } else { None };
+    
+    TestResult {
+        name: format!("for_all_{} iterations", iterations),
+        verdict,
+        tolerance: ToleranceTier::EXACT,
+        engineering: EngineeringStatus::tested,
+        claim_id: None,
+        input: iterations,
+        expected: 0u32,
+        actual: failures,
+        delta: None,
+        message
+    }
+}
 
-        const diff = actual - expected;
-        const abs_diff = if (diff < 0.0) -diff else diff;
-
-        // Check absolute tolerance
-        if (abs_diff <= config.absolute) {
-            return true;
+/// Metamorphic testing: if input(x) produces y, then input(f(x)) should produce g(y)
+fn metamorphic<T, R>(input: fn(T) -> R, transform: fn(T) -> T, relation: fn(R, R) -> bool, test_cases: Vec<T>) -> Vec<TestResult> {
+    test_cases.iter().map(|x| {
+        let y1 = input(*x);
+        let x_transformed = transform(*x);
+        let y2 = input(x_transformed);
+        
+        let relation_holds = relation(y1, y2);
+        let verdict = if relation_holds { Verdict::CLEAN } else { Verdict::FAIL };
+        
+        TestResult {
+            name: format!("metamorphic_{:?}", x),
+            verdict,
+            tolerance: ToleranceTier::EXACT,
+            engineering: EngineeringStatus::tested,
+            claim_id: None,
+            input: *x,
+            expected: y1,
+            actual: y2,
+            delta: None,
+            message: if !relation_holds { Some("Metamorphic relation violated") } else { None }
         }
+    }).collect()
+}
 
-        // Check relative tolerance
-        const rel_diff = abs_diff / (if (expected != 0.0) expected else 1.0);
-        if (rel_diff <= config.relative) {
-            return true;
-        }
-
-        return false;
-    }
-
-    // assert_approx_eq — convenience for approximate float comparison
-    pub fn assert_approx_eq(actual: f64, expected: f64, tolerance: f64) -> bool {
-        const diff = actual - expected;
-        const abs_diff = if (diff < 0.0) -diff else diff;
-        return abs_diff <= tolerance;
-    }
-
-    // assert_l5_phi_identity — L5 IDENTITY: φ² + 1/φ² = 3
-    // Constitutional law with strict tolerance
-    pub fn assert_l5_phi_identity(phi: f64) -> bool {
-        const lhs = phi * phi + 1.0 / (phi * phi);
-        const diff = lhs - 3.0;
-        const abs_diff = if (diff < 0.0) -diff else diff;
-        return abs_diff <= 1e-10;
-    }
-
-    // assert_l5_phi_squared_equals_phi_plus_one — φ² = φ + 1
-    // Derived identity from L5
-    pub fn assert_l5_phi_squared_equals_phi_plus_one(phi: f64) -> bool {
-        const lhs = phi * phi;
-        const rhs = phi + 1.0;
-        const diff = lhs - rhs;
-        const abs_diff = if (diff < 0.0) -diff else diff;
-        return abs_diff <= 1e-10;
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 5. Property-Based Testing (PBT) Primitives
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // Property function type — returns true if property holds
-    pub const Property = fn (input: anytype) -> bool;
-
-    // for_all — universal quantification over input domain
-    // Tests that a property holds for all inputs in the given range
-    pub fn for_all(
-        property: Property,
-        start: i64,
-        end: i64,
-        max_trials: usize
-    ) -> bool {
-        var i : i64 = start;
-        var passed : usize = 0;
-        while (i <= end and passed < max_trials) {
-            if (!property(i)) {
-                return false;  // Counterexample found
-            }
-            passed += 1;
-            i = i + 1;
-        }
-        return true;  // Property holds for all tested inputs
-    }
-
-    // for_all_float — PBT over float domain with step size
-    pub fn for_all_float(
-        property: Property,
-        start: f64,
-        end: f64,
-        step: f64,
-        max_trials: usize
-    ) -> bool {
-        var x : f64 = start;
-        var passed : usize = 0;
-        while (x <= end and passed < max_trials) {
-            if (!property(x)) {
-                return false;
-            }
-            passed += 1;
-            x = x + step;
-        }
-        return true;
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 6. Metamorphic Relations
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // MetamorphicRelation — function that relates two executions
-    pub const MetamorphicRelation = fn (input: anytype, output1: anytype, output2: anytype) -> bool;
-
-    // MetamorphicTest — specifies source, transformation, and relation
-    pub const MetamorphicTest = struct {
-        name : []const u8,
-        source : fn (input: anytype) -> anytype,
-        followup : fn (input: anytype) -> anytype,
-        relation : MetamorphicRelation,
-    };
-
-    // Metamorphic testing — checks that relation holds for all inputs
-    pub fn metamorphic_check(
-        test: MetamorphicTest,
-        start: i64,
-        end: i64,
-        max_trials: usize
-    ) -> bool {
-        var i : i64 = start;
-        var passed : usize = 0;
-        while (i <= end and passed < max_trials) {
-            const output1 = test.source(i);
-            const output2 = test.followup(i);
-            if (!test.relation(i, output1, output2)) {
-                return false;
-            }
-            passed += 1;
-            i = i + 1;
-        }
-        return true;
-    }
-
-    // Common metamorphic relations
-
-    // equiv — outputs must be equal
-    pub fn metamorphic_equiv(
-        input: anytype, output1: anytype, output2: anytype
-    ) -> bool {
-        // Type-erased equality check (caller ensures same type)
-        // In practice, this is specialized by codegen
-        return true;  // Placeholder
-    }
-
-    // ordered — output2 >= output1 (monotonic)
-    pub fn metamorphic_ordered(
-        input: anytype, output1: anytype, output2: anytype
-    ) -> bool {
-        // Type-erased ordering check
-        return true;  // Placeholder
-    }
-
-    // scaled — output2 = k * output1 for some constant k
-    pub fn metamorphic_scaled(
-        input: anytype, output1: anytype, output2: anytype
-    ) -> bool {
-        // Type-erased scaling check
-        return true;  // Placeholder
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 7. Differential Testing
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // DifferentialTest — compares two implementations
-    pub const DifferentialTest = struct {
-        name : []const u8,
-        impl_a : fn (input: anytype) -> anytype,
-        impl_b : fn (input: anytype) -> anytype,
-        comparator : fn (output_a: anytype, output_b: anytype) -> bool,
-        tolerance : ToleranceConfig,
-    };
-
-    // differential_check — verifies two implementations agree
-    pub fn differential_check(
-        test: DifferentialTest,
-        start: i64,
-        end: i64,
-        max_trials: usize
-    ) -> bool {
-        var i : i64 = start;
-        var passed : usize = 0;
-        while (i <= end and passed < max_trials) {
-            const output_a = test.impl_a(i);
-            const output_b = test.impl_b(i);
-            if (!test.comparator(output_a, output_b)) {
-                return false;
-            }
-            passed += 1;
-            i = i + 1;
-        }
-        return true;
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 8. Sequential Gate Pipeline
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // GateStage — single stage in sequential pipeline
-    pub const GateStage = fn (input: anytype) -> GateResult;
-
-    // GateResult — result of a gate stage
-    pub const GateResult = struct {
-        success : bool,
-        output : anytype,
-        message : []const u8,
-        short_circuit : bool,
-    };
-
-    // GatePipeline — sequential stages with short-circuit
-    pub const GatePipeline = struct {
-        stages : []GateStage,
-        num_stages : usize,
-    };
-
-    // gate_pipeline_execute — runs stages sequentially, short-circuits on failure
-    pub fn gate_pipeline_execute(
-        pipeline: GatePipeline,
-        initial_input: anytype
-    ) -> GateResult {
-        var current_input = initial_input;
-
-        var i : usize = 0;
-        while (i < pipeline.num_stages) {
-            const result = pipeline.stages[i](current_input);
-
-            if (!result.success or result.short_circuit) {
-                return result;  // Short-circuit: don't execute remaining stages
-            }
-
-            current_input = result.output;
-            i = i + 1;
-        }
-
-        // All stages passed
-        return GateResult{
-            .success = true,
-            .output = current_input,
-            .message = "All gates passed",
-            .short_circuit = false,
+/// Differential testing: compare two implementations for equality within tolerance
+fn differential<T>(impl1: fn(T) -> T, impl2: fn(T) -> T, tolerance: f64, test_cases: Vec<T>) -> Vec<TestResult> {
+    test_cases.iter().map(|x| {
+        let result1 = impl1(*x);
+        let result2 = impl2(*x);
+        
+        // For numeric types, check relative difference
+        let delta = match (result1, result2) {
+            (f64::INF(a), f64::INF(b)) => 0.0,
+            (f64::INF(a), b) => f64::INFINITY,
+            (a, f64::INF(b)) => f64::INFINITY,
+            (a, b) => (a - b).abs() / a.abs().max(b.abs()).max(1e-15)
         };
+        
+        let verdict = if delta <= tolerance { Verdict::CLEAN } else { Verdict::FAIL };
+        let tol_tier = if tolerance == 0.0 { ToleranceTier::EXACT } else { ToleranceTier::WITHIN_UNCERTAINTY };
+        
+        TestResult {
+            name: format!("differential_{:?}", x),
+            verdict,
+            tolerance: tol_tier,
+            engineering: EngineeringStatus::empirical,
+            claim_id: None,
+            input: *x,
+            expected: result1,
+            actual: result2,
+            delta: Some(delta),
+            message: if delta > tolerance { Some(format!("Delta {} exceeds tolerance {}", delta, tolerance)) } else { None }
+        }
+    }).collect()
+}
+
+// § Test runners and reporting
+
+/// TAP (Test Anything Protocol) output generator
+struct TapReporter {
+    results: Vec<TestResult>
+}
+
+impl TapReporter {
+    fn new(results: Vec<TestResult>) -> TapReporter {
+        TapReporter { results }
     }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 9. TDD — Tests
-    // ═════════════════════════════════════════════════════════════════════════
-
-    test assert_eq_int_exact_match
-        given actual : i64 = 42
-        and expected : i64 = 42
-        when result = assert_eq_int(actual, expected)
-        then result == true
-
-    test assert_eq_int_mismatch
-        given actual : i64 = 42
-        and expected : i64 = 43
-        when result = assert_eq_int(actual, expected)
-        then result == false
-
-    test assert_eq_float_exact_match
-        given actual : f64 = 42.0
-        and expected : f64 = 42.0
-        and config = TOLERANCE_IEEE_F64
-        when result = assert_eq_float(actual, expected, config)
-        then result == true
-
-    test assert_eq_float_within_tolerance
-        given actual : f64 = 42.001
-        and expected : f64 = 42.0
-        and config = ToleranceConfig{
-            .tier = .EMPIRICAL,
-            .absolute = 0.01,
-            .relative = 0.0,
-            .ulp = 0
+    
+    fn generate_tap(self) -> string {
+        let total = self.results.len();
+        let mut output = format!("1..{}\n", total);
+        
+        for (i, result) in self.results.iter().enumerate() {
+            let status = match result.verdict {
+                Verdict::CLEAN => "ok",
+                Verdict::PARTIAL => "ok # TODO",
+                Verdict::SKIP => "ok # SKIP",
+                Verdict::FAIL => "not ok"
+            };
+            
+            output.push_str(&format!("{} {} - {}\n", status, i + 1, result.name));
+            
+            if result.verdict == Verdict::FAIL {
+                if let Some(ref msg) = result.message {
+                    output.push_str(&format!("  ---\n  {}\n  ...\n", msg));
+                }
+            }
         }
-        when result = assert_eq_float(actual, expected, config)
-        then result == true
+        
+        output
+    }
+}
 
-    test assert_approx_eq_passes
-        given actual : f64 = 3.14159
-        and expected : f64 = 3.14
-        and tolerance : f64 = 0.01
-        when result = assert_approx_eq(actual, expected, tolerance)
-        then result == true
+/// JSON test report generator
+struct JsonReporter {
+    results: Vec<TestResult>
+}
 
-    test assert_l5_phi_identity_passes
-        given phi : f64 = 1.6180339887498948
-        when result = assert_l5_phi_identity(phi)
-        then result == true
+impl JsonReporter {
+    fn new(results: Vec<TestResult>) -> JsonReporter {
+        JsonReporter { results }
+    }
+    
+    fn generate_json(self) -> string {
+        // Simplified JSON generation
+        let total = self.results.len();
+        let passed = self.results.iter().filter(|r| r.verdict == Verdict::CLEAN).count();
+        let failed = self.results.iter().filter(|r| r.verdict == Verdict::FAIL).count();
+        let skipped = self.results.iter().filter(|r| r.verdict == Verdict::SKIP).count();
+        
+        format!(r#"{{
+  "total": {},
+  "passed": {},
+  "failed": {},
+  "skipped": {},
+  "results": []
+}}"#, total, passed, failed, skipped)
+    }
+}
 
-    test assert_l5_phi_squared_equals_phi_plus_one_passes
-        given phi : f64 = 1.6180339887498948
-        when result = assert_l5_phi_squared_equals_phi_plus_one(phi)
-        then result == true
+// § Test invariants and properties
 
-    test for_all_commutativity_addition
-        // Property: a + b = b + a for integers
-        when result = for_all(
-            (a) => {
-                const b : i64 = 7;
-                const lhs = a + b;
-                const rhs = b + a;
-                return lhs == rhs;
-            },
-            -10,
-            10,
-            100
-        )
-        then result == true
+/// Sequential gate invariant - enforces strict ordering
+invariant gate_pipeline_sequential(gate: GatePipeline) -> bool {
+    gate.run_sequential() == (gate.parse_ok && gate.type_check_ok && gate.semantic_ok && 
+                              gate.numeric_stability_ok && gate.physics_constraint_ok && gate.audit_ok)
+}
 
-    test for_all_float_monotonic_square
-        // Property: square(x) >= 0 for all x
-        when result = for_all_float(
-            (x) => x * x >= 0.0,
-            -10.0,
-            10.0,
-            1.0,
-            50
-        )
-        then result == true
+/// GoldenFloat identity property: for any GF number, round-trip conversion preserves value
+invariant gf16_roundtrip_preservation(value: f64) -> bool {
+    // This would call actual GF16 encode/decode functions
+    // For now, this is a placeholder showing the invariant structure
+    let encoded = gf16_encode_f32(value as f32);
+    let decoded = gf16_decode_to_f32(encoded);
+    (decoded - value as f32).abs() < 1e-6
+}
 
-    test gate_pipeline_short_circuit_on_failure
-        given failing_stage = (input: i64) => GateResult{
-            .success = false,
-            .output = input,
-            .message = "Stage failed",
-            .short_circuit = true
-        }
-        and passing_stage = (input: i64) => GateResult{
-            .success = true,
-            .output = input * 2,
-            .message = "Stage passed",
-            .short_circuit = false
-        }
-        and stages = [_]GateStage{ failing_stage, passing_stage }
-        and pipeline = GatePipeline{ .stages = &stages, .num_stages = 2 }
-        when result = gate_pipeline_execute(pipeline, 5)
-        then !result.success and result.short_circuit == true
+/// Phi algebraic identity: φ² = φ + 1 (exact mathematical identity)
+invariant phi_squared_identity(phi: f64) -> bool {
+    (phi * phi - phi - 1.0).abs() < 1e-15  // Exact within floating point precision
+}
 
-    test gate_pipeline_all_pass
-        given stage1 = (input: i64) => GateResult{
-            .success = true,
-            .output = input + 1,
-            .message = "Stage 1",
-            .short_circuit = false
-        }
-        and stage2 = (input: i64) => GateResult{
-            .success = true,
-            .output = input * 2,
-            .message = "Stage 2",
-            .short_circuit = false
-        }
-        and stages = [_]GateStage{ stage1, stage2 }
-        and pipeline = GatePipeline{ .stages = &stages, .num_stages = 2 }
-        when result = gate_pipeline_execute(pipeline, 5)
-        // 5 -> stage1: 6 -> stage2: 12
-        then result.success and result.output == 12
+// § Test entry point
+fn run_test_suite() -> Vec<TestResult> {
+    let mut results = Vec::new();
+    
+    // Example: Test GF4 exhaustive properties
+    // This would generate all 16 GF4 values and test commutativity, associativity, etc.
+    let gf4_exhaustive_results = test_gf4_exhaustive();
+    results.extend(gf4_exhaustive_results);
+    
+    // Example: Test phi identities
+    let phi = 1.618033988749895;  // Golden ratio
+    results.push(TestResult {
+        name: "phi_squared_identity".to_string(),
+        verdict: if phi_squared_identity(phi) { Verdict::CLEAN } else { Verdict::FAIL },
+        tolerance: ToleranceTier::EXACT,
+        engineering: EngineeringStatus::proved,
+        claim_id: Some("C-phi-001".to_string()),
+        input: phi,
+        expected: phi + 1.0,
+        actual: phi * phi,
+        delta: Some((phi * phi - phi - 1.0).abs()),
+        message: None
+    });
+    
+    results
+}
 
-    // ═════════════════════════════════════════════════════════════════
-    // 10. TDD — Invariants
-    // ═════════════════════════════════════════════════════════════════════════
+// Test helpers (would be expanded based on actual GF implementations)
+fn test_gf4_exhaustive() -> Vec<TestResult> {
+    // Placeholder for GF4 exhaustive testing
+    // In reality, this would enumerate all 16 GF4 values and test all binary operations
+    vec![]
+}
 
-    invariant tolerance_exactly_zero_for_exact_tier
-        assert TOLERANCE_EXACT.absolute == 0.0;
-        assert TOLERANCE_EXACT.relative == 0.0;
-        assert TOLERANCE_EXACT.ulp == 0;
+fn gf16_encode_f32(value: f32) -> u16 {
+    // Placeholder for actual GF16 encoding
+    0u16
+}
 
-    invariant l5_identity_tolerance_is_1e_10
-        assert TOLERANCE_L5_IDENTITY.absolute == 1e-10;
-        assert TOLERANCE_L5_IDENTITY.relative == 1e-10;
+fn gf16_decode_to_f32(encoded: u16) -> f32 {
+    // Placeholder for actual GF16 decoding  
+    0.0f32
+}
 
-    invariant ieee_f64_tolerance_matches_machine_epsilon
-        assert TOLERANCE_IEEE_F64.relative <= 2.5e-16;
-        assert TOLERANCE_IEEE_F64.relative >= 2.0e-16;
-
-    invariant for_all_returns_true_for_empty_range
-        // Property testing with empty range should pass (vacuously true)
-        const dummy_property = (x: i64) => true;
-        assert for_all(dummy_property, 1, 0, 0) == true;
-
-    invariant verdict_enum_has_five_variants
-        // Ensure verdict classification is complete
-        // Can't directly check enum size, but verify through tests
-        assert true;  // Verified by test coverage
-
-    invariant gate_pipeline_preserves_input_on_first_stage
-        // If first stage returns input unchanged, pipeline should reflect this
-        const identity_stage = (input: i64) => GateResult{
-            .success = true,
-            .output = input,
-            .message = "Identity",
-            .short_circuit = false
-        };
-        const stages = [_]GateStage{ identity_stage };
-        const pipeline = GatePipeline{ .stages = &stages, .num_stages = 1 };
-        const result = gate_pipeline_execute(pipeline, 42);
-        assert result.success;
-        assert result.output == 42;
-
-    // ═════════════════════════════════════════════════════════════════
-    // 11. TDD — Benchmarks
-    // ═════════════════════════════════════════════════════════════════════════
-
-    bench assert_eq_int_latency
-        // Target: < 100 cycles for integer comparison
-        @setEvalBranchQuota(10000);
-        var passed : bool = false;
-        for (0..1000) |_| {
-            passed = assert_eq_int(42, 42);
-        }
-        _ = passed;
-
-    bench assert_eq_float_latency
-        // Target: < 500 cycles for float comparison with tolerance
-        @setEvalBranchQuota(10000);
-        var passed : bool = false;
-        for (0..1000) |_| {
-            passed = assert_eq_float(42.0, 42.0, TOLERANCE_IEEE_F64);
-        }
-        _ = passed;
-
-    bench assert_l5_phi_identity_latency
-        // Target: < 200 cycles for L5 identity check
-        @setEvalBranchQuota(10000);
-        var passed : bool = false;
-        const phi : f64 = 1.6180339887498948;
-        for (0..1000) |_| {
-            passed = assert_l5_phi_identity(phi);
-        }
-        _ = passed;
-
-    bench for_all_latency
-        // Target: < 1000 cycles for 100 iterations of for_all
-        @setEvalBranchQuota(10000);
-        var passed : bool = false;
-        const dummy_prop = (x: i64) => x >= 0;
-        for (0..100) |_| {
-            passed = for_all(dummy_prop, 0, 50, 100);
-        }
-        _ = passed;
-
-    bench gate_pipeline_latency
-        // Target: < 500 cycles for 3-stage pipeline
-        @setEvalBranchQuota(10000);
-        const stage = (input: i64) => GateResult{
-            .success = true,
-            .output = input + 1,
-            .message = "Stage",
-            .short_circuit = false
-        };
-        const stages = [_]GateStage{ stage, stage, stage };
-        const pipeline = GatePipeline{ .stages = &stages, .num_stages = 3 };
-        var result : GateResult = undefined;
-        for (0..1000) |_| {
-            result = gate_pipeline_execute(pipeline, 1);
-        }
-        _ = result;
+test {
+    let suite_results = run_test_suite();
+    
+    // Check that all tests pass
+    let failed_count = suite_results.iter().filter(|r| r.verdict == Verdict::FAIL).count();
+    assert!(failed_count == 0, "Test suite had {} failures", failed_count);
+    
+    // Generate TAP output
+    let tap_reporter = TapReporter::new(suite_results.clone());
+    let tap_output = tap_reporter.generate_tap();
+    println!("TAP Output:\n{}", tap_output);
+    
+    // Generate JSON output  
+    let json_reporter = JsonReporter::new(suite_results);
+    let json_output = json_reporter.generate_json();
+    println!("JSON Output:\n{}", json_output);
 }

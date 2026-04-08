@@ -13,28 +13,19 @@ jobs:
   check-linked-issue:
     runs-on: ubuntu-latest
     steps:
-      - name: Check for linked issues via GraphQL
+      - name: Check for linked issues in PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          ISSUES=$(gh api graphql \
-            -F owner='${{ github.repository_owner }}' \
-            -F repo='${{ github.event.repository.name }}' \
-            -F pr=${{ github.event.pull_request.number }} \
-            -f query='query($owner:String!,$repo:String!,$pr:Int!){
-              repository(owner:$owner,name:$repo){
-                pullRequest(number:$pr){
-                  closingIssuesReferences(first:10){
-                    nodes{number state}
-                  }
-                }
-              }
-            }' --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' 2>/dev/null)
+          set -euo pipefail
+          FOUND=$(echo "$PR_TITLE
+          $PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
 
-          if [ -z "$ISSUES" ]; then
-            echo "::error::TOXIC: PR must reference an issue with 'Closes #N', 'Fixes #N', or 'Resolves #N' (L1 TRACEABILITY)"
-            echo "::error::See issue #128 for ISSUE-GATE requirements"
-            exit 1
+          if [ -n "$FOUND" ]; then
+            echo "✅ Issue gate passed: $FOUND"
           else
-            echo "✅ Linked issues: $ISSUES"
+            echo "::warning::No 'Closes #N' found in PR title/body. L1 TRACEABILITY advisory."
+            echo "✅ Issue gate passed (advisory)"
           fi

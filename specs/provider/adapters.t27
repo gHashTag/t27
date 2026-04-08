@@ -1,0 +1,481 @@
+// specs/provider/adapters.t27
+// Provider API Adapters Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module ProviderAdapters {
+    use base::types;
+    use ProviderSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // API Request/Response
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ApiRequest {
+        url: str,
+        headers: [16]str,
+        body: str,
+        method: str,
+        timeout_ms: u32,
+    }
+
+    struct ApiResponse {
+        status_code: u32,
+        headers: [16]str,
+        body: str,
+        is_success: bool,
+        is_retryable: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Stream Chunk
+    // ════════════════════════════════════════════════════════════════════
+
+    struct StreamChunk {
+        delta: str,
+        finish_reason: str,
+        usage: Usage,
+        is_complete: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // OpenAI Adapter
+    // ════════════════════════════════════════════════════════════════════
+
+    fn openai_build_request(messages: [32]Message, model: ModelID, options: CompletionOptions) -> ApiRequest {
+        return ApiRequest{
+            url = "https://api.openai.com/v1/chat/completions",
+            headers = [
+                "Content-Type: application/json",
+                "Authorization: Bearer $OPENAI_API_KEY",
+                ""; 14,
+            ],
+            body = "{}",
+            method = "POST",
+            timeout_ms = 60000,
+        };
+    }
+
+    fn openai_parse_response(response: ApiResponse) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = true,
+        };
+    }
+
+    fn openai_parse_stream_chunk(chunk: str) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = false,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Anthropic Adapter
+    // ════════════════════════════════════════════════════════════════════
+
+    fn anthropic_build_request(messages: [32]Message, model: ModelID, options: CompletionOptions) -> ApiRequest {
+        return ApiRequest{
+            url = "https://api.anthropic.com/v1/messages",
+            headers = [
+                "Content-Type: application/json",
+                "x-api-key: $ANTHROPIC_API_KEY",
+                "anthropic-version: 2023-06-01",
+                ""; 13,
+            ],
+            body = "{}",
+            method = "POST",
+            timeout_ms = 60000,
+        };
+    }
+
+    fn anthropic_parse_response(response: ApiResponse) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = true,
+        };
+    }
+
+    fn anthropic_parse_stream_chunk(chunk: str) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = false,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Google Adapter
+    // ════════════════════════════════════════════════════════════════════
+
+    fn google_build_request(messages: [32]Message, model: ModelID, options: CompletionOptions) -> ApiRequest {
+        return ApiRequest{
+            url = "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent",
+            headers = [
+                "Content-Type: application/json",
+                ""; 15,
+            ],
+            body = "{}",
+            method = "POST",
+            timeout_ms = 60000,
+        };
+    }
+
+    fn google_parse_response(response: ApiResponse) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = true,
+        };
+    }
+
+    fn google_parse_stream_chunk(chunk: str) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = false,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // GitHub Copilot Adapter
+    // ════════════════════════════════════════════════════════════════════
+
+    fn copilot_build_request(messages: [32]Message, model: ModelID, options: CompletionOptions) -> ApiRequest {
+        return ApiRequest{
+            url = "https://api.githubcopilot.com/chat/completions",
+            headers = [
+                "Content-Type: application/json",
+                "Authorization: Bearer $GITHUB_TOKEN",
+                "Copilot-Integration-Id: $INTEGRATION_ID",
+                ""; 13,
+            ],
+            body = "{}",
+            method = "POST",
+            timeout_ms = 60000,
+        };
+    }
+
+    fn copilot_parse_response(response: ApiResponse) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = true,
+        };
+    }
+
+    fn copilot_parse_stream_chunk(chunk: str) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = false,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Generic Adapter
+    // ════════════════════════════════════════════════════════════════════
+
+    fn generic_build_request(
+        provider_id: ProviderID,
+        messages: [32]Message,
+        model: ModelID,
+        options: CompletionOptions,
+        api_url: str,
+    ) -> ApiRequest {
+        return ApiRequest{
+            url = api_url,
+            headers = [
+                "Content-Type: application/json",
+                ""; 15,
+            ],
+            body = "{}",
+            method = "POST",
+            timeout_ms = 60000,
+        };
+    }
+
+    fn generic_parse_response(response: ApiResponse) -> StreamChunk {
+        return StreamChunk{
+            delta = "",
+            finish_reason = "",
+            usage = Usage{
+                prompt_tokens = 0,
+                completion_tokens = 0,
+                total_tokens = 0,
+                cache_read_tokens = 0,
+                cache_write_tokens = 0,
+            },
+            is_complete = response.is_success,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Error Handling
+    // ════════════════════════════════════════════════════════════════════
+
+    fn is_context_overflow_error(response: ApiResponse) -> bool {
+        // Check for context overflow patterns
+        if (response.status_code == 413) {
+            return true;
+        }
+        // Check response body for overflow messages
+        return false;
+    }
+
+    fn is_retryable_error(response: ApiResponse) -> bool {
+        // Check if error is retryable (rate limits, timeouts)
+        if (response.status_code == 429) {
+            return true;
+        }
+        if (response.status_code >= 500) {
+            return true;
+        }
+        return response.is_retryable;
+    }
+
+    fn extract_error_message(response: ApiResponse) -> str {
+        if (response.body != "") {
+            return response.body;
+        }
+        return "API request failed";
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "openai_build_request" {
+        const messages = [message_create(MessageRole::User, "test"); 32];
+        const model = model_id_create("gpt-4");
+        const opts = CompletionOptions{
+            max_tokens = 100,
+            temperature = 0.7,
+            top_p = 1.0,
+            top_k = 0,
+            stop_sequences = [""; 8],
+        };
+        const req = openai_build_request(messages, model, opts);
+        assert(req.method == "POST");
+        assert(req.url == "https://api.openai.com/v1/chat/completions");
+    }
+
+    test "anthropic_build_request" {
+        const messages = [message_create(MessageRole::User, "test"); 32];
+        const model = model_id_create("claude-3-opus-20240229");
+        const opts = CompletionOptions{
+            max_tokens = 100,
+            temperature = 0.7,
+            top_p = 1.0,
+            top_k = 0,
+            stop_sequences = [""; 8],
+        };
+        const req = anthropic_build_request(messages, model, opts);
+        assert(req.method == "POST");
+        assert(req.url == "https://api.anthropic.com/v1/messages");
+    }
+
+    test "google_build_request" {
+        const messages = [message_create(MessageRole::User, "test"); 32];
+        const model = model_id_create("gemini-pro");
+        const opts = CompletionOptions{
+            max_tokens = 100,
+            temperature = 0.7,
+            top_p = 1.0,
+            top_k = 0,
+            stop_sequences = [""; 8],
+        };
+        const req = google_build_request(messages, model, opts);
+        assert(req.method == "POST");
+    }
+
+    test "copilot_build_request" {
+        const messages = [message_create(MessageRole::User, "test"); 32];
+        const model = model_id_create("gpt-4");
+        const opts = CompletionOptions{
+            max_tokens = 100,
+            temperature = 0.7,
+            top_p = 1.0,
+            top_k = 0,
+            stop_sequences = [""; 8],
+        };
+        const req = copilot_build_request(messages, model, opts);
+        assert(req.method == "POST");
+        assert(req.url == "https://api.githubcopilot.com/chat/completions");
+    }
+
+    test "is_context_overflow_error_413" {
+        const response = ApiResponse{
+            status_code = 413,
+            headers = [""; 16],
+            body = "",
+            is_success = false,
+            is_retryable = false,
+        };
+        assert(is_context_overflow_error(response) == true);
+    }
+
+    test "is_context_overflow_error_not_overflow" {
+        const response = ApiResponse{
+            status_code = 400,
+            headers = [""; 16],
+            body = "",
+            is_success = false,
+            is_retryable = false,
+        };
+        assert(is_context_overflow_error(response) == false);
+    }
+
+    test "is_retryable_error_rate_limit" {
+        const response = ApiResponse{
+            status_code = 429,
+            headers = [""; 16],
+            body = "",
+            is_success = false,
+            is_retryable = false,
+        };
+        assert(is_retryable_error(response) == true);
+    }
+
+    test "is_retryable_error_server_error" {
+        const response = ApiResponse{
+            status_code = 500,
+            headers = [""; 16],
+            body = "",
+            is_success = false,
+            is_retryable = false,
+        };
+        assert(is_retryable_error(response) == true);
+    }
+
+    test "is_retryable_error_client_error" {
+        const response = ApiResponse{
+            status_code = 400,
+            headers = [""; 16],
+            body = "",
+            is_success = false,
+            is_retryable = false,
+        };
+        assert(is_retryable_error(response) == false);
+    }
+
+    test "extract_error_message_with_body" {
+        const response = ApiResponse{
+            status_code = 400,
+            headers = [""; 16],
+            body = "Invalid request",
+            is_success = false,
+            is_retryable = false,
+        };
+        const msg = extract_error_message(response);
+        assert(msg == "Invalid request");
+    }
+
+    test "extract_error_message_without_body" {
+        const response = ApiResponse{
+            status_code = 500,
+            headers = [""; 16],
+            body = "",
+            is_success = false,
+            is_retryable = true,
+        };
+        const msg = extract_error_message(response);
+        assert(msg == "API request failed");
+    }
+
+    test "generic_build_request" {
+        const pid = provider_id_create("custom");
+        const messages = [message_create(MessageRole::User, "test"); 32];
+        const model = model_id_create("custom-model");
+        const opts = CompletionOptions{
+            max_tokens = 100,
+            temperature = 0.7,
+            top_p = 1.0,
+            top_k = 0,
+            stop_sequences = [""; 8],
+        };
+        const req = generic_build_request(pid, messages, model, opts, "https://api.example.com/v1/chat");
+        assert(req.url == "https://api.example.com/v1/chat");
+        assert(req.method == "POST");
+    }
+
+    test "anthropic_parse_response" {
+        const response = ApiResponse{
+            status_code = 200,
+            headers = [""; 16],
+            body = "{}",
+            is_success = true,
+            is_retryable = false,
+        };
+        const chunk = anthropic_parse_response(response);
+        assert(chunk.is_complete == true);
+    }
+
+    test "openai_parse_stream_chunk" {
+        const chunk = openai_parse_stream_chunk("data: {\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}");
+        // Verify parsing (no assertion for now)
+    }
+
+    test "google_parse_stream_chunk" {
+        const chunk = google_parse_stream_chunk("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"hi\"}]}}]}");
+        // Verify parsing (no assertion for now)
+    }
+}

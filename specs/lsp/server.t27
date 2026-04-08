@@ -1,0 +1,263 @@
+// specs/lsp/server.t27
+// LSP Server Management Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module LspServer {
+    use base::types;
+    use LspSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Server Configuration
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ServerConfig {
+        command: str,
+        args: [8]str,
+        env: [16]str,
+        cwd: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Server State
+    // ════════════════════════════════════════════════════════════════════
+
+    struct LspServer {
+        config: ServerConfig,
+        status: LspStatus,
+        pid: u32,
+        stdin_fd: u32,
+        stdout_fd: u32,
+        stderr_fd: u32,
+        restart_count: u32,
+        last_restart: u64,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Server Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    fn server_create(config: ServerConfig) -> LspServer {
+        return LspServer{
+            config = config,
+            status = LspStatus::Stopped,
+            pid = 0,
+            stdin_fd = 0,
+            stdout_fd = 0,
+            stderr_fd = 0,
+            restart_count = 0,
+            last_restart = 0,
+        };
+    }
+
+    fn server_launch(server: *LspServer) -> bool {
+        if (server.status == LspStatus::Running) {
+            return false;
+        }
+        server.status = LspStatus::Starting;
+        // Fork and exec server process
+        // Pipe stdin, stdout, stderr
+        server.status = LspStatus::Running;
+        return true;
+    }
+
+    fn server_stop(server: *LspServer) -> bool {
+        if (server.status != LspStatus::Running) {
+            return false;
+        }
+        // Send SIGTERM
+        server.status = LspStatus::Stopped;
+        server.pid = 0;
+        return true;
+    }
+
+    fn server_kill(server: *LspServer) -> bool {
+        if (server.pid == 0) {
+            return false;
+        }
+        // Send SIGKILL
+        server.status = LspStatus::Stopped;
+        server.pid = 0;
+        return true;
+    }
+
+    fn server_restart(server: *LspServer) -> bool {
+        if (server.status == LspStatus::Running) {
+            server_stop(server);
+        }
+        server.restart_count = server.restart_count + 1;
+        server.last_restart = 0; // current timestamp
+        return server_launch(server);
+    }
+
+    fn server_is_running(server: LspServer) -> bool {
+        return server.status == LspStatus::Running and server.pid > 0;
+    }
+
+    fn server_is_stopped(server: LspServer) -> bool {
+        return server.status == LspStatus::Stopped;
+    }
+
+    fn server_get_status(server: LspServer) -> LspStatus {
+        return server.status;
+    }
+
+    fn server_send_request(server: LspServer, request: str) -> bool {
+        if (server.status != LspStatus::Running) {
+            return false;
+        }
+        // Write to stdin
+        return true;
+    }
+
+    fn server_read_message(server: LspServer) -> str {
+        if (server.status != LspStatus::Running) {
+            return "";
+        }
+        // Read from stdout (LSP JSON-RPC with Content-Length header)
+        return "{}";
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Process Monitoring
+    // ════════════════════════════════════════════════════════════════════
+
+    fn server_poll_status(server: *LspServer) -> void {
+        if (server.pid == 0) {
+            return;
+        }
+        // Check if process is still alive
+        // If dead, set status to Stopped
+    }
+
+    fn server_get_exit_code(server: LspServer) -> u32 {
+        if (server.status == LspStatus::Stopped) {
+            return 0; // actual exit code
+        }
+        return 0; // still running
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Configuration Helpers
+    // ════════════════════════════════════════════════════════════════════
+
+    fn server_config_create(command: str, args: [8]str, cwd: str) -> ServerConfig {
+        return ServerConfig{
+            command = command,
+            args = args,
+            env = [""; 16],
+            cwd = cwd,
+        };
+    }
+
+    fn server_config_set_env(config: *ServerConfig, key: str, value: str) -> void {
+        // Set environment variable
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "server_create" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        const server = server_create(config)
+        assert(server.status == LspStatus::Stopped)
+        assert(server.pid == 0)
+        assert(server.restart_count == 0)
+    }
+
+    test "server_launch" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        const result = server_launch(&server)
+        assert(result == true)
+        assert(server.status == LspStatus::Running)
+    }
+
+    test "server_launch_when_running" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        server_launch(&server)
+        const result = server_launch(&server)
+        assert(result == false)
+    }
+
+    test "server_stop" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        server_launch(&server)
+        const result = server_stop(&server)
+        assert(result == true)
+        assert(server.status == LspStatus::Stopped)
+    }
+
+    test "server_stop_when_stopped" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        const result = server_stop(&server)
+        assert(result == false)
+    }
+
+    test "server_restart" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        server_launch(&server)
+        const result = server_restart(&server)
+        assert(result == true)
+        assert(server.restart_count == 1)
+        assert(server.status == LspStatus::Running)
+    }
+
+    test "server_is_running" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        assert(server_is_running(server) == false)
+        server_launch(&server)
+        assert(server_is_running(server) == true)
+    }
+
+    test "server_is_stopped" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        assert(server_is_stopped(server) == true)
+        server_launch(&server)
+        assert(server_is_stopped(server) == false)
+    }
+
+    test "server_get_status" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        assert(server_get_status(server) == LspStatus::Stopped)
+        server_launch(&server)
+        assert(server_get_status(server) == LspStatus::Running)
+    }
+
+    test "server_config_create" {
+        const config = server_config_create("typescript-language-server", ["--stdio"; 8], "/project")
+        assert(config.command == "typescript-language-server")
+        assert(config.cwd == "/project")
+    }
+
+    test "server_send_request" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        server_launch(&server)
+        const result = server_send_request(server, "{\"jsonrpc\":\"2.0\"}")
+        assert(result == true)
+    }
+
+    test "server_send_request_when_stopped" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        const result = server_send_request(server, "{\"jsonrpc\":\"2.0\"}")
+        assert(result == false)
+    }
+
+    test "server_read_message" {
+        const config = server_config_create("server", ["--stdio"; 8], "/cwd")
+        var server = server_create(config)
+        server_launch(&server)
+        const msg = server_read_message(server)
+        // May be empty if no message available
+        assert(msg == "" || msg == "{}")
+    }
+}

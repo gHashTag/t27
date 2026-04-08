@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+// SPDX-License-Identifier: Apache-2.0
+>>>>>>> origin/master
 // t27/specs/isa/ternary_arithmetic.t27
 // Ternary Arithmetic Operations Specification
 // Ring 064 - Balanced ternary arithmetic for T27

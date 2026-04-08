@@ -385,7 +385,7 @@ async fn add_part_handler(
 /// List parts for a message
 async fn list_parts_handler(
     State(state): State<AppState>,
-    Path(message_id): Path<String>,
+    Path((_, message_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let parts = state.store.list_parts(&message_id);
     Json(parts)
@@ -415,4 +415,218 @@ pub fn create_router(state: AppState) -> Router {
         .route("/session/:session_id/message/:message_id/part", post(add_part_handler))
         .layer(cors)
         .with_state(state)
+}
+
+#[cfg(test)]
+mod e2e {
+    use super::*;
+    use axum::body::Body;
+    use axum::extract::Request;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    fn app() -> Router {
+        let state = AppState::new();
+        create_router(state)
+    }
+
+    async fn body_string(body: Body) -> String {
+        let bytes = body.collect().await.unwrap().to_bytes();
+        String::from_utf8(bytes.to_vec()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn health() {
+        let app = app();
+        let req = Request::builder()
+            .uri("/health")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = body_string(resp.into_body()).await;
+        assert!(body.contains("healthy"));
+    }
+
+    #[tokio::test]
+    async fn session_lifecycle() {
+        let app = app();
+
+let req = Request::builder()
+            .method("POST")
+            .uri("/session")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"directory":"/tmp/e2e","title":"test"}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let session: serde_json::Value = serde_json::from_str(&body_string(resp.into_body()).await).unwrap();
+        let sid = session["id"].as_str().unwrap().to_string();
+
+        let req = Request::builder()
+            .uri(&format!("/session/{}", sid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let req = Request::builder()
+            .method("PATCH")
+            .uri(&format!("/session/{}", sid))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"status":"busy","title":"renamed"}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let updated: serde_json::Value = serde_json::from_str(&body_string(resp.into_body()).await).unwrap();
+        assert_eq!(updated["title"], "renamed");
+
+        let req = Request::builder()
+            .uri("/session?directory=/tmp/e2e")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let list: Vec<serde_json::Value> = serde_json::from_str(&body_string(resp.into_body()).await).unwrap();
+        assert_eq!(list.len(), 1);
+
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(&format!("/session/{}", sid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        let req = Request::builder()
+            .uri(&format!("/session/{}", sid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn message_lifecycle() {
+        let app = app();
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("/session")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"directory":"/tmp/msg"}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let sid = serde_json::from_str::<serde_json::Value>(&body_string(resp.into_body()).await).unwrap()["id"].as_str().unwrap().to_string();
+
+        let req = Request::builder()
+            .method("POST")
+.uri(&format!("/session/{}/message", sid))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"role":"assistant","parent_id":"root","content":[]}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let req = Request::builder()
+            .method("POST")
+            .uri(&format!("/session/{}/message", sid))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"role":"assistant","parent_id":"root","content":[]}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let mid = serde_json::from_str::<serde_json::Value>(&body_string(resp.into_body()).await).unwrap()["data"]["id"].as_str().unwrap().to_string();
+
+        let req = Request::builder()
+            .uri(&format!("/session/{}/message", sid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let msgs: Vec<serde_json::Value> = serde_json::from_str(&body_string(resp.into_body()).await).unwrap();
+        assert_eq!(msgs.len(), 2);
+
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(&format!("/session/{}/message/{}", sid, mid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn parts_lifecycle() {
+        let app = app();
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("/session")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"directory":"/tmp/parts"}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let sid = serde_json::from_str::<serde_json::Value>(&body_string(resp.into_body()).await).unwrap()["id"].as_str().unwrap().to_string();
+
+        let req = Request::builder()
+            .method("POST")
+            .uri(&format!("/session/{}/message", sid))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"role":"assistant","parent_id":"root","content":[]}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let mid = serde_json::from_str::<serde_json::Value>(&body_string(resp.into_body()).await).unwrap()["data"]["id"].as_str().unwrap().to_string();
+
+        let req = Request::builder()
+            .method("POST")
+            .uri(&format!("/session/{}/message/{}/part", sid, mid))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"type":"text","content":"world"}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let req = Request::builder()
+            .uri(&format!("/session/{}/message/{}/part", sid, mid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let parts: Vec<serde_json::Value> = serde_json::from_str(&body_string(resp.into_body()).await).unwrap();
+        assert_eq!(parts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn not_found_session() {
+        let app = app();
+        let req = Request::builder()
+            .uri("/session/nonexistent")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn invalid_role_rejected() {
+        let app = app();
+
+        let req = Request::builder()
+            .method("POST")
+            .uri("/session")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"directory":"/tmp/ir"}"#))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        let sid = serde_json::from_str::<serde_json::Value>(&body_string(resp.into_body()).await).unwrap()["id"].as_str().unwrap().to_string();
+
+        let req = Request::builder()
+            .method("POST")
+            .uri(&format!("/session/{}/message", sid))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"role":"invalid","parent_id":"root","content":[]}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
 }

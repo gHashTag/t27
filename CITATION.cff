@@ -1,17 +1,32 @@
 cff-version: 1.2.0
-message: "If you use T27 in research or software, please cite it as below."
-title: "T27: TRI-27 spec-first language for ternary computing"
+message: "If you use T27/GoldenFloat in research or software, please cite it as below."
+title: "GoldenFloat: φ-Optimal Floating-Point Formats for Ternary Computing (T27)"
 version: 0.1.0
-date-released: 2026-04-06
-license: MIT
-repository-code: "https://github.com/gHashTag/t27"
-url: "https://github.com/gHashTag/t27"
+date-released: 2026-04-07
+orcid: 0009-0008-429-6159-6159-6159
 authors:
   - family-names: Vasilev
     given-names: Dmitrii
-    affiliation: Trinity Project
+    affiliation: Trinity Computing
+license: MIT
+repository-code: https://github.com/gHashTag/t27
+url: https://github.com/gHashTag/t27
+abstract: >
+  GoldenFloat (GF) is a family of seven narrow floating-point
+  formats parameterized by φ ≈ 1.618. We prove that φ is
+  unique fixed point of balancing recursion f(x)=(x+x⁻¹+1)/2
+  (Theorem 3, zero free parameters). T27 provides spec-first
+  development with formal verification.
 keywords:
+  - golden ratio
+  - floating point
   - ternary computing
-  - specification language
-  - Zig
-  - Verilog
+  - GoldenFloat
+  - phi
+  - number format
+  - t27
+  - tri CLI
+  - Coq
+  - formal verification
+  - Theorem 3
+  - generative mechanism

@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+// SPDX-License-Identifier: Apache-2.0
+>>>>>>> origin/master
 // t27/specs/isa/ternary_gates.t27
 // Ternary Logic Gates Specification
 // Ring 063 - Basic ternary logic gates for balanced ternary

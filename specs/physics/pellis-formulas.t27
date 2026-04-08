@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+// SPDX-License-Identifier: Apache-2.0
+>>>>>>> origin/master
 // t27/specs/physics/pellis-formulas.t27
 // Trinity x Pellis hybrid — thin-structure formulas anchored on L5 (issue #277).
 // SSOT: invariants tie Pell ladders to phi; observables are references for tri math compare.

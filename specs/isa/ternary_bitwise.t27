@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+// SPDX-License-Identifier: Apache-2.0
+>>>>>>> origin/master
 // t27/specs/isa/ternary_bitwise.t27
 // Ternary Bitwise Operations Specification
 // Ring 068 - Bitwise AND, OR, XOR for ternary data

@@ -8,8 +8,8 @@ use std::path::Path;
 
 use clap::Subcommand;
 
-/// CODATA 2018 fine-structure constant inverse (dimensionless), reference only.
-const ALPHA_INV_REF: f64 = 137.035999084_f64;
+/// CODATA 2022 recommended inverse fine-structure constant α⁻¹ (dimensionless), reference only.
+const ALPHA_INV_REF: f64 = 137.035999166_f64;
 
 /// PDG-scale electroweak / Higgs masses (GeV), rounded references — not metrology SSOT.
 const M_W_GEV: f64 = 80.379;
@@ -116,6 +116,7 @@ fn read_pellis_spec_seal_hash(repo_root: &Path) -> Option<String> {
         .and_then(|x| x.as_str())
         .map(std::string::ToString::to_string)
 }
+
 
 fn append_experience(repo_root: &Path, record: &serde_json::Value) -> anyhow::Result<()> {
     let dir = repo_root.join(".trinity").join("experience");
@@ -225,6 +226,7 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
     if let Some(h) = read_pellis_spec_seal_hash(repo_root) {
         record["pellis_spec_seal_hash"] = json!(h);
     }
+
 
     append_experience(repo_root, &record)?;
     println!(

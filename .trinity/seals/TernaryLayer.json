@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6355c45100080b6376c9d8a9b6c281a16fc89a6b8a1e227b4026c25154e622f7",
+  "gen_hash_rust": "sha256:f36489f23bb6162e1cd39f3576643c4df2bea0f9675279c4478eba5dd518be54",
+  "gen_hash_verilog": "sha256:7d19df581264b841fab1fe0b36ad04fc58c42538f9aab5d58f21120203c4a36a",
+  "gen_hash_zig": "sha256:8068481a76cfc7fe246f9a4e2d042a0393a551bbcbe7c3e746371380b986dab4",
+  "module": "TernaryLayer",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:b0039c0390d43ebfb1a0106f00f822af4c92dc5afaf5adc1ca302127ae93f73e",
+  "spec_path": "specs/ml/ternary_layer.t27"
+}

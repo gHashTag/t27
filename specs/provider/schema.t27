@@ -1,0 +1,355 @@
+// specs/provider/schema.t27
+// Provider Schema Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module ProviderSchema {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Brand Types
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ProviderID(str);
+    struct ModelID(str);
+
+    // ════════════════════════════════════════════════════════════════════
+    // Well-known Providers
+    // ════════════════════════════════════════════════════════════════════
+
+    const PROVIDER_OPENCODE: &str = "opencode";
+    const PROVIDER_ANTHROPIC: &str = "anthropic";
+    const PROVIDER_OPENAI: &str = "openai";
+    const PROVIDER_GOOGLE: &str = "google";
+    const PROVIDER_GOOGLE_VERTEX: &str = "google-vertex";
+    const PROVIDER_GITHUB_COPILOT: &str = "github-copilot";
+    const PROVIDER_AMAZON_BEDROCK: &str = "amazon-bedrock";
+    const PROVIDER_AZURE: &str = "azure";
+    const PROVIDER_OPENROUTER: &str = "openrouter";
+    const PROVIDER_MISTRAL: &str = "mistral";
+    const PROVIDER_GITLAB: &str = "gitlab";
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Types
+    // ════════════════════════════════════════════════════════════════════
+
+    enum MessageRole {
+        System = 0,
+        User = 1,
+        Assistant = 2,
+        Tool = 3,
+    }
+
+    enum ContentPartType {
+        Text = 0,
+        Image = 1,
+        ToolCall = 2,
+        ToolResult = 3,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Structures
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ContentPart {
+        type: ContentPartType,
+        text: str,
+        image_url: str,
+        tool_call_id: str,
+        tool_name: str,
+        tool_arguments: str,
+    }
+
+    struct Message {
+        role: MessageRole,
+        content: [32]ContentPart,
+        tool_call_id: str,
+        reasoning_content: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tool Call
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ToolCall {
+        id: str,
+        name: str,
+        arguments: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Usage Statistics
+    // ════════════════════════════════════════════════════════════════════
+
+    struct Usage {
+        prompt_tokens: u32,
+        completion_tokens: u32,
+        total_tokens: u32,
+        cache_read_tokens: u32,
+        cache_write_tokens: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Cost Information
+    // ════════════════════════════════════════════════════════════════════
+
+    struct Cost {
+        input: f64,
+        output: f64,
+        cache_read: f64,
+        cache_write: f64,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Model Limits
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ModelLimit {
+        context: u32,
+        input: u32,
+        output: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Model Modalities
+    // ════════════════════════════════════════════════════════════════════
+
+    enum Modality {
+        Text = 0,
+        Audio = 1,
+        Image = 2,
+        Video = 3,
+        Pdf = 4,
+    }
+
+    struct Modalities {
+        input: [8]Modality,
+        output: [8]Modality,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Model Information
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ModelInfo {
+        id: ModelID,
+        name: str,
+        family: str,
+        release_date: str,
+        has_attachment: bool,
+        has_reasoning: bool,
+        has_temperature: bool,
+        has_tool_call: bool,
+        has_interleaved: bool,
+        interleaved_field: str,
+        cost: Cost,
+        limit: ModelLimit,
+        modalities: Modalities,
+        is_experimental: bool,
+        status: str,
+        options: [32]str,
+        headers: [16]str,
+        provider_npm: str,
+        provider_api: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Provider Information
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ProviderInfo {
+        id: ProviderID,
+        name: str,
+        api: str,
+        npm: str,
+        env_keys: [8]str,
+        models: [64]ModelInfo,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Completion Options
+    // ════════════════════════════════════════════════════════════════════
+
+    struct CompletionOptions {
+        max_tokens: u32,
+        temperature: f64,
+        top_p: f64,
+        top_k: u32,
+        stop_sequences: [8]str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    fn provider_id_create(id: str) -> ProviderID {
+        return ProviderID(id);
+    }
+
+    fn model_id_create(id: str) -> ModelID {
+        return ModelID(id);
+    }
+
+    fn provider_id_get(pid: ProviderID) -> str {
+        return pid.0;
+    }
+
+    fn model_id_get(mid: ModelID) -> str {
+        return mid.0;
+    }
+
+    fn message_create(role: MessageRole, content: str) -> Message {
+        var parts = [ContentPart{}; 32];
+        parts[0] = ContentPart{
+            type = ContentPartType::Text,
+            text = content,
+            image_url = "",
+            tool_call_id = "",
+            tool_name = "",
+            tool_arguments = "",
+        };
+        return Message{
+            role = role,
+            content = parts,
+            tool_call_id = "",
+            reasoning_content = "",
+        };
+    }
+
+    fn usage_create(prompt: u32, completion: u32) -> Usage {
+        return Usage{
+            prompt_tokens = prompt,
+            completion_tokens = completion,
+            total_tokens = prompt + completion,
+            cache_read_tokens = 0,
+            cache_write_tokens = 0,
+        };
+    }
+
+    fn cost_create(input: f64, output: f64) -> Cost {
+        return Cost{
+            input = input,
+            output = output,
+            cache_read = 0.0,
+            cache_write = 0.0,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "message_role_values" {
+        assert(MessageRole::System == 0)
+        assert(MessageRole::User == 1)
+        assert(MessageRole::Assistant == 2)
+        assert(MessageRole::Tool == 3)
+    }
+
+    test "content_part_type_values" {
+        assert(ContentPartType::Text == 0)
+        assert(ContentPartType::Image == 1)
+        assert(ContentPartType::ToolCall == 2)
+        assert(ContentPartType::ToolResult == 3)
+    }
+
+    test "provider_id_create" {
+        const pid = provider_id_create("anthropic")
+        assert(provider_id_get(pid) == "anthropic")
+    }
+
+    test "model_id_create" {
+        const mid = model_id_create("claude-3-opus-20240229")
+        assert(model_id_get(mid) == "claude-3-opus-20240229")
+    }
+
+    test "message_create" {
+        const msg = message_create(MessageRole::User, "Hello")
+        assert(msg.role == MessageRole::User)
+        assert(msg.content[0].text == "Hello")
+    }
+
+    test "usage_create" {
+        const usage = usage_create(100, 50)
+        assert(usage.prompt_tokens == 100)
+        assert(usage.completion_tokens == 50)
+        assert(usage.total_tokens == 150)
+    }
+
+    test "cost_create" {
+        const cost = cost_create(0.001, 0.002)
+        assert(cost.input == 0.001)
+        assert(cost.output == 0.002)
+    }
+
+    test "modality_values" {
+        assert(Modality::Text == 0)
+        assert(Modality::Audio == 1)
+        assert(Modality::Image == 2)
+        assert(Modality::Video == 3)
+        assert(Modality::Pdf == 4)
+    }
+
+    test "well_known_providers" {
+        assert(PROVIDER_OPENCODE == "opencode")
+        assert(PROVIDER_ANTHROPIC == "anthropic")
+        assert(PROVIDER_OPENAI == "openai")
+        assert(PROVIDER_GOOGLE == "google")
+        assert(PROVIDER_GITHUB_COPILOT == "github-copilot")
+        assert(PROVIDER_MISTRAL == "mistral")
+    }
+
+    test "model_info_fields" {
+        const limit = ModelLimit{context = 200000, input = 200000, output = 4096}
+        const cost = cost_create(0.003, 0.015)
+        const modalities = Modalities{
+            input = [Modality::Text, Modality::Image; 8],
+            output = [Modality::Text; 8],
+        }
+        const info = ModelInfo{
+            id = model_id_create("test-model"),
+            name = "Test Model",
+            family = "test",
+            release_date = "2024-01-01",
+            has_attachment = true,
+            has_reasoning = false,
+            has_temperature = true,
+            has_tool_call = true,
+            has_interleaved = false,
+            interleaved_field = "",
+            cost = cost,
+            limit = limit,
+            modalities = modalities,
+            is_experimental = false,
+            status = "",
+            options = [""; 32],
+            headers = [""; 16],
+            provider_npm = "",
+            provider_api = "",
+        }
+        assert(info.name == "Test Model")
+        assert(info.limit.context == 200000)
+    }
+
+    test "content_part_text" {
+        const part = ContentPart{
+            type = ContentPartType::Text,
+            text = "Hello world",
+            image_url = "",
+            tool_call_id = "",
+            tool_name = "",
+            tool_arguments = "",
+        }
+        assert(part.type == ContentPartType::Text)
+        assert(part.text == "Hello world")
+    }
+
+    test "tool_call_fields" {
+        const tc = ToolCall{
+            id = "call_123",
+            name = "test_function",
+            arguments = "{\"arg\":\"value\"}",
+        }
+        assert(tc.id == "call_123")
+        assert(tc.name == "test_function")
+    }
+}

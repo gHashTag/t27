@@ -1,0 +1,260 @@
+// specs/lsp/schema.t27
+// LSP Schema Specification
+// Constitutional Law #4: De-Zig-fication - .t27 is source of truth
+
+module LspSchema {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Diagnostic Severity
+    // ════════════════════════════════════════════════════════════════════
+
+    enum DiagnosticSeverity {
+        Error = 1,
+        Warning = 2,
+        Information = 3,
+        Hint = 4,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Position and Range
+    // ════════════════════════════════════════════════════════════════════
+
+    struct Position {
+        line: u32,
+        character: u32,
+    }
+
+    struct Range {
+        start: Position,
+        end: Position,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Diagnostic
+    // ════════════════════════════════════════════════════════════════════
+
+    struct Diagnostic {
+        range: Range,
+        severity: DiagnosticSeverity,
+        code: str,
+        source: str,
+        message: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Completion
+    // ════════════════════════════════════════════════════════════════════
+
+    struct CompletionItem {
+        label: str,
+        kind: u32,
+        detail: str,
+        documentation: str,
+        sort_text: str,
+        filter_text: str,
+        insert_text: str,
+    }
+
+    struct CompletionList {
+        items: [64]CompletionItem,
+        is_incomplete: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Symbol Information
+    // ════════════════════════════════════════════════════════════════════
+
+    enum SymbolKind {
+        File = 1,
+        Module = 2,
+        Namespace = 3,
+        Package = 4,
+        Class = 5,
+        Method = 6,
+        Property = 7,
+        Field = 8,
+        Constructor = 9,
+        Enum = 10,
+        Interface = 11,
+        Function = 12,
+        Variable = 13,
+        Constant = 14,
+        String = 15,
+        Number = 16,
+        Boolean = 17,
+        Array = 18,
+        Object = 19,
+        Key = 20,
+        Null = 21,
+        EnumMember = 22,
+        Struct = 23,
+        Event = 24,
+        Operator = 25,
+        TypeParameter = 26,
+    }
+
+    struct Symbol {
+        name: str,
+        kind: SymbolKind,
+        range: Range,
+        selection_range: Range,
+        children: [32]Symbol,
+        detail: str,
+    }
+
+    struct Location {
+        uri: str,
+        range: Range,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Hover
+    // ════════════════════════════════════════════════════════════════════
+
+    struct MarkupContent {
+        kind: str,
+        value: str,
+    }
+
+    struct Hover {
+        contents: MarkupContent,
+        range: Range,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Text Document Item
+    // ════════════════════════════════════════════════════════════════════
+
+    struct TextDocumentItem {
+        uri: str,
+        language_id: str,
+        version: u32,
+        text: str,
+    }
+
+    struct TextDocumentIdentifier {
+        uri: str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // LSP Status
+    // ════════════════════════════════════════════════════════════════════
+
+    enum LspStatus {
+        Stopped = 0,
+        Starting = 1,
+        Running = 2,
+        Error = 3,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    fn position_create(line: u32, character: u32) -> Position {
+        return Position{
+            line = line,
+            character = character,
+        };
+    }
+
+    fn range_create(start_line: u32, start_char: u32, end_line: u32, end_char: u32) -> Range {
+        return Range{
+            start = Position{line = start_line, character = start_char},
+            end = Position{line = end_line, character = end_char},
+        };
+    }
+
+    fn diagnostic_create(msg: str, severity: DiagnosticSeverity, range: Range) -> Diagnostic {
+        return Diagnostic{
+            range = range,
+            severity = severity,
+            code = "",
+            source = "",
+            message = msg,
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "diagnostic_severity_values" {
+        assert(DiagnosticSeverity::Error == 1)
+        assert(DiagnosticSeverity::Warning == 2)
+        assert(DiagnosticSeverity::Information == 3)
+        assert(DiagnosticSeverity::Hint == 4)
+    }
+
+    test "position_create" {
+        const pos = position_create(5, 10)
+        assert(pos.line == 5)
+        assert(pos.character == 10)
+    }
+
+    test "range_create" {
+        const rng = range_create(0, 0, 5, 10)
+        assert(rng.start.line == 0)
+        assert(rng.start.character == 0)
+        assert(rng.end.line == 5)
+        assert(rng.end.character == 10)
+    }
+
+    test "diagnostic_create" {
+        const rng = range_create(0, 0, 1, 5)
+        const diag = diagnostic_create("test error", DiagnosticSeverity::Error, rng)
+        assert(diag.message == "test error")
+        assert(diag.severity == DiagnosticSeverity::Error)
+    }
+
+    test "symbol_kind_values" {
+        assert(SymbolKind::File == 1)
+        assert(SymbolKind::Function == 12)
+        assert(SymbolKind::Variable == 13)
+        assert(SymbolKind::Class == 5)
+    }
+
+    test "lsp_status_values" {
+        assert(LspStatus::Stopped == 0)
+        assert(LspStatus::Starting == 1)
+        assert(LspStatus::Running == 2)
+        assert(LspStatus::Error == 3)
+    }
+
+    test "range_equality" {
+        const r1 = range_create(0, 0, 1, 1)
+        const r2 = range_create(0, 0, 1, 1)
+        assert(r1.start.line == r2.start.line)
+        assert(r1.end.character == r2.end.character)
+    }
+
+    test "completion_item_fields" {
+        const item = CompletionItem{
+            label = "test",
+            kind = 1,
+            detail = "detail",
+            documentation = "docs",
+            sort_text = "a",
+            filter_text = "test",
+            insert_text = "test",
+        }
+        assert(item.label == "test")
+        assert(item.kind == 1)
+    }
+
+    test "symbol_fields" {
+        const rng = range_create(0, 0, 1, 1)
+        const sel = range_create(0, 0, 0, 4)
+        const sym = Symbol{
+            name = "testFunc",
+            kind = SymbolKind::Function,
+            range = rng,
+            selection_range = sel,
+            children = [Symbol{}; 32],
+            detail = "fn testFunc()",
+        }
+        assert(sym.name == "testFunc")
+        assert(sym.kind == SymbolKind::Function)
+    }
+}
