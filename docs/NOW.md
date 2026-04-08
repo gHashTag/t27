@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — Arty A7 board profile spec · PR #389
+**Last updated:** 2026-04-09 — Board profiles for XC7A100T (minimal + full) · PR #382
 
 **Document class:** Operational focus document
 
@@ -832,14 +832,14 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 ---
 
-## Arty A7 Board Profile (PR #389)
+## Board Profiles (PR #382)
 
- - `specs/boards/arty_a7.t27` — Digilent Arty A7 (XC7A35T/100T), 100MHz, 4 LEDs, 4 buttons, UART, SPI
- - 18 tests + 10 invariants
- - Dual FPGA part support: XC7A35T and XC7A100T variants
- - emitter_xdc already has `arty_a7_minimal()` preset (PR #385)
+ - `specs/boards/xc7a100t_minimal.t27` — 12 prjxray-verified pins (LED+UART+clock+reset), 25 tests, 14 invariants
+ - `specs/boards/xc7a100t_full.t27` — Full QMTECH profile (LED+UART+SPI+MAC debug), prjxray_verified flag per pin
+ - `specs/boards/OWNERS.md` — Domain ownership
+ - Both specs parse, seal successfully. Minimal profile pins match the working `fpga-build --minimal` XDC
 
-**Last updated:** 2026-04-08 — Arty A7 board profile for multi-board FPGA support
+**Last updated:** 2026-04-09 — Board profiles: structured pin data for open-source FPGA flow
 
 ## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
 
