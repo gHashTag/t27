@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — PHASE 3 spec completion: shell/, tools/, file/ (3,384 lines) · PR #379
+**Last updated:** 2026-04-08 — Arty A7 board profile spec · PR #389
 
 **Document class:** Operational focus document
 
@@ -831,6 +831,15 @@ eW91IHdvcmsgaW4gVVRDLio=
 **Verdict:** READY FOR MERGE — Waiting for CI approval
 
 ---
+
+## Arty A7 Board Profile (PR #389)
+
+ - `specs/boards/arty_a7.t27` — Digilent Arty A7 (XC7A35T/100T), 100MHz, 4 LEDs, 4 buttons, UART, SPI
+ - 18 tests + 10 invariants
+ - Dual FPGA part support: XC7A35T and XC7A100T variants
+ - emitter_xdc already has `arty_a7_minimal()` preset (PR #385)
+
+**Last updated:** 2026-04-08 — Arty A7 board profile for multi-board FPGA support
 
 ## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
 
