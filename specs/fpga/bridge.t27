@@ -78,12 +78,12 @@ module FPGA_Bridge;
 
     // buffer_write(buf: []u8, size: usize, head: usize, data: u8) → bool
     // Write byte to circular buffer
-    fn buffer_write(buf: []u8, size: usize, head: usize, data: u8) -> bool {
+    fn buffer_write(buf_in: []u8, size: usize, head: usize, data: u8) -> bool {
         const new_head = (head + 1) % size;
         if (new_head == 0 && head == size - 1) {
             return false;  // Buffer full
         }
-        buf[head] = data;
+        buf_in[head] = data;
         return true;
     }
 
