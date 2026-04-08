@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:45783ab2d36539173b56dbfe316c25c0912924631f1e214949b9ee880768834f",
   "module": "TernaryBackprop",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:2399210b7e35a6de5c137a5ed9dff419968d354fa63044e862b223cc167957a9",
   "spec_path": "specs/ml/ternary_backprop.t27"
 }
