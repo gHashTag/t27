@@ -3,11 +3,8 @@ name: SEAL Coverage
 on:
   pull_request:
     branches: [master]
-<<<<<<< HEAD
-=======
   push:
     branches: [master]
->>>>>>> origin/master
 
 jobs:
   coverage:
@@ -15,31 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect changed specs (variant 1: hashFiles check)
-        id: changed-specs
-        run: |
-          # Get list of changed files in this PR
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            CHANGED_FILES=$(gh api \
-              repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files \
-              --jq '.[].filename' 2>/dev/null || echo "")
-          else
-            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} 2>/dev/null || echo "")
-          fi
-          # Filter for .t27 spec files (GoldenFloat specs)
-          SPECS_CHANGED=$(echo "$CHANGED_FILES" | grep -E '\.t27$' || echo "")
-          if [ -n "$SPECS_CHANGED" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "specs_changed=true" >> $GITHUB_ENV
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "specs_changed=false" >> $GITHUB_ENV
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Run coverage
-        if: steps.changed-specs.outputs.changed == 'true'
         run: |
           echo "Running SEAL coverage analysis..."
-          echo "Specs changed in this PR - checking L8 compliance and SEAL hashes"
