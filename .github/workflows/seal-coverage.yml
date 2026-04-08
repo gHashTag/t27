@@ -55,8 +55,8 @@ jobs:
           PR_FILES=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
 
           # Call Rust validator (NO-SHELL law)
-          ./target/release/t27c --repo-root . validate-seals --pr-files "$PR_FILES"
+          ./target/release/t27c validate-seals --pr-files "$PR_FILES"
 
       - name: 🔢 L5 IDENTITY Check (phi-identity)
         run: |
-          ./target/release/t27c --repo-root . validate-phi-identity
+          ./target/release/t27c validate-phi-identity
