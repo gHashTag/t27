@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:2d460424bb81c1421a79ab4b38bb056dce05dc46172c51f328685116cd4d2bd3",
+  "gen_hash_rust": "sha256:278d65f0d2b4357b5f7fc67be341f646d398037a076ea8b2ad630b49fa72cda8",
+  "gen_hash_verilog": "sha256:f179051acd0d8880a962b00da532cf3397a649894beda72d46f054cc0fb5e627",
+  "gen_hash_zig": "sha256:a768d52a1dc0abcb23b983e604b2040d04c4819d54021f2e811448a519d3d3bd",
+  "module": "PackedVsa",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
+  "spec_hash": "sha256:756f2dc9e08d062433eb9e1ec4dd87943dab5849b82d03eccc60a25ab9c44a08",
+  "spec_path": "specs/vsa/packed_vsa.t27"
+}
