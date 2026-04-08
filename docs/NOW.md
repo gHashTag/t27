@@ -871,3 +871,4 @@ Last updated: 2026-04-08
 - Added `buildTimeout = 1200` to `railway.toml`
 
 **Last updated:** 2026-04-08 — Railway Docker build fix (PR #375)
+
