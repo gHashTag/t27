@@ -13,17 +13,19 @@ jobs:
   check-linked-issue:
     runs-on: ubuntu-latest
     steps:
-      - name: Check for linked issues via GraphQL
+      - name: Check for linked issues in PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          # Extract issue number from PR description/body (first number found)
-          ISSUE_NUM=$(echo "${{ github.event.pull_request.title }}
-${{ github.event.pull_request.body }}" | grep -oE 'Fixes #[0-9]+' | head -1 | tr -d '\n' || true)
+          set -euo pipefail
+          FOUND=$(echo "$PR_TITLE
+          $PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
 
-          if [ -n "$ISSUE_NUM" ]; then
-            echo "::notice::No linked issue found in PR. Issue gate will PASS."
-            echo "✅ No issue to close"
+          if [ -n "$FOUND" ]; then
+            echo "✅ Issue gate passed: $FOUND"
           else
-            echo "::notice::Issue #$ISSUE_NUM will be linked via issue gate action after merge"
+            echo "::warning::No 'Closes #N' found in PR title/body. L1 TRACEABILITY advisory."
+            echo "✅ Issue gate passed (advisory)"
           fi

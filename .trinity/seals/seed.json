@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8997f02d4440e303e41e3bfbdb26722b92d54a02922a9a5a3735f647d3eeb11f",
   "module": "seed",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:05Z",
+  "sealed_at": "2026-04-08T08:09:17Z",
   "spec_hash": "sha256:681799335a23d334c4923d180a55ea6dc882c338f1aeb4f72e977f813a49e6b3",
   "spec_path": "specs/base/seed.t27"
 }
