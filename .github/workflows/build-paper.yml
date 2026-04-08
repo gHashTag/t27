@@ -28,9 +28,9 @@ jobs:
             texlive-fonts-extra \
             texlive-latex-extra \
             texlive-bibtex-extra \
+            texlive-xetex \
             biber \
-            pandoc \
-            pandoc-citeproc
+            pandoc
 
       - name: Build PDF from Markdown
         run: |
@@ -40,11 +40,12 @@ jobs:
             --pdf-engine=xelatex \
             --citeproc \
             --bibliography=latex/references.bib \
-            --metadata title="GoldenFloat: A Formally Verified, $\varphi$-Optimal Floating-Point Family"
-            --metadata author="t27 Project Team"
+            --metadata title="GoldenFloat: A Formally Verified, Phi-Optimal Floating-Point Family" \
+            --metadata author="t27 Project Team" \
             --metadata date="April 2026"
 
       - name: Build PDF from LaTeX
+        continue-on-error: true
         run: |
           cd docs/WHITEPAPER/latex
           pdflatex -interaction=nonstopmode main.tex

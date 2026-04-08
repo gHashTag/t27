@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/numeric/gf_competitive.t27
 // Cross-format competitive testing framework
 // COMPETITIVE-001 — GoldenFloat vs IEEE 754, OCP MXFP, cross-language verification

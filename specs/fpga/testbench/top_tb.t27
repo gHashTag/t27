@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/testbench/top_tb.t27
 // Top-Level FPGA Testbench Specification
 // Tests complete FPGA system with UART, SPI, MAC, and bridge
