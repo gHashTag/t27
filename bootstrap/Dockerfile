@@ -8,13 +8,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy package.json
-COPY external/opencode/package.json ./
+# Copy package.json from parent dir
+COPY ../external/opencode/package.json ./
 
 # Copy rest of opencode first (to populate workspace)
-COPY external/opencode/ ./
+COPY ../external/opencode/ ./
 
-# Install dependencies (without lockfile to avoid Railway cache issues)
+# Install dependencies
 RUN bun install
 
 # Build the app
