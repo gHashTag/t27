@@ -13,7 +13,7 @@ WORKDIR /app
 COPY external/opencode/package.json external/opencode/bun.lock ./
 
 # Install dependencies with cache mount (BuildKit)
-RUN --mount=type=cache,target=/root/.cache/bun bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.cache/bun,id=bun_cache bun install --frozen-lockfile
 
 # Copy source files
 COPY external/opencode/ ./
