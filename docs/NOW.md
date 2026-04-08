@@ -5,10 +5,10 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — P2 Sprint 2 benchmarks & contracts · PR #326 (OPEN) · RFC3339 2026-04-08T00:00:00Z
+**Last updated:** 2026-04-08 — Ring-072 GitHub SSOT + P2 brain/physics · PR #322, #323 · RFC3339 2026-04-08T00:00:00Z
 
 **Document class:** Operational focus document
-**Revision:** **P2 Sprint 1** — 6 brain/physics specs from Trinity Zig rewrite:
+**Revision:** **P2 Sprint 1 + Ring-072** — 6 brain/physics specs + 5 GitHub SSOT specs:
 - `specs/brain/brain.t27` — S³AI Neuroanatomy v5.1 (23 brain regions)
 - `specs/brain/neural_gamma.t27` — Consciousness & Golden Ratio
 - `specs/brain/gwt_model.t27` — Global Workspace Theory
@@ -16,15 +16,15 @@
 - `specs/physics/quantum.t27` — Ternary Quantum VM
 - `specs/physics/e8_lqg_bridge.t27` — E8-Quantum Gravity Bridge
 
-**P2 Sprint 2** — Benchmarks & contracts (from trinity-w1 rewrite):
-- `specs/benchmarks/ternary_vs_binary.t27` — Format comparison benchmark
-- `specs/benchmarks/bench_main.t27` — NN inference benchmark (100→64→10)
-- `specs/benchmarks/bench_nn.t27` — Format comparison detailed spec
-- `specs/api/sdk_contract.t27` — Trinity SDK high-level API
-- `specs/api/c_api_contract.t27` — C API FFI bridge contract
-- `specs/conformance/e2e_scenarios.t27` — E2E full pipeline verification
+**Ring-072** — GitHub SSOT (Zero Python, .t27 Native):
+- `specs/github/auth.t27` — GitHub auth spec + TDD
+- `specs/github/issues.t27` — Issues API spec + TDD
+- `specs/github/prs.t27` — PRs API spec + TDD
+- `specs/github/comments.t27` — Comments API spec + TDD
+- `specs/tri/sync.t27` — Sync orchestrator + TDD
+- `bootstrap/src/bridge.rs` — Extended with GitHubCommands, gh CLI integration
 
-Total P2: 13 specs. Commit PR #326.
+Total: 11 specs. Commits `bb71939` (P2), `bfdd462` (Ring-072). PRs #322, #331.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
@@ -117,7 +117,7 @@ When you **complete a non-trivial task** (code, specs, CI, seals, architecture d
 
 | Artifact             | Count / version                        | Last ring  | Verdict                              |
 | -------------------- | -------------------------------------- | ---------- | ------------------------------------ |
-| `.t27` specs         | 43 files *(ring narrative)*            | Ring 43    | 43/43 parse PASS                     |
+| `.t27` specs         | 48 files *(ring narrative)*            | Ring 072   | 48/48 parse PASS                     |
 | `gen/zig/`           | 52 files *(ring narrative)*            | Ring 43    | generated, compile-checked           |
 | `conformance/` JSON  | 62 files *(ring narrative)*            | Ring 44    | schema v1                            |
 | `stage0/FROZEN_HASH` | SHA-256 of `bootstrap/src/compiler.rs` | genesis    | immutable *(if present in checkout)* |
