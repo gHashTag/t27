@@ -1,13 +1,11 @@
 {
-  "conformance_hash": "sha256:2c565058844c425b51d49ce03815432403d3019574e90c4a1cb8bf7d4910b8de",
-  "conformance_vectors": 27,
-  "gen_hash_c": "sha256:ce48f159fe0c3827dc4d2684180bd5ad19747b4d070869a528e8fbda69eedce9",
-  "gen_hash_verilog": "sha256:451a96a21930a3a533d8aaf799045db78cc9cd1c9c721130a5b5ed1d9d7a115f",
-  "gen_hash_zig": "sha256:b2b3c78b3360d2cee3e131fb7feaa392aa37dda6a9fc039fb12ba2b45905193e",
+  "gen_hash_c": "sha256:f5798aab777afe986ad9914d087b9da29922693c88e8411d309a445376193ce5",
+  "gen_hash_rust": "sha256:fabbf79882fdf81e09d36cc3cb7b370600cc17628a48a639740af808be8e6e6d",
+  "gen_hash_verilog": "sha256:c7d491521d8aeeeb94b8bb9960c261ef14df0cb5366fe4fe4adbed2856ee6c23",
+  "gen_hash_zig": "sha256:9adf104fc17b487b1987326469b320706192d87ae791651cbcceb56caa759a5d",
   "module": "TernaryLogic",
-  "ring": 47,
-  "sealed_at": "2026-04-07T18:00:00+07:00",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:2a12b678b332a3f49043adfeb6e520fac554da9fd2387bdd53250818181c5ab8",
-  "spec_path": "specs/ar/ternary_logic.t27",
-  "verdict": "CLEAN"
+  "spec_path": "specs/ar/ternary_logic.t27"
 }

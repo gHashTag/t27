@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9a200bb8cc66d5b2c89318a843c013a80b3fa41825214dc41eabbe78e105ee0f",
+  "gen_hash_rust": "sha256:cb53887e1c88c51e10c782f66a2f3603e51643d4aa9ff76db7b69baa87b0018f",
+  "gen_hash_verilog": "sha256:ab11d4b62af8353163014e6f0fa87249641d64097f477d94ba13e7c25eec1d01",
+  "gen_hash_zig": "sha256:28d388c0d00c195728f045d365a50c31ae30d44205ffeba16600a0e1a6f875f3",
+  "module": "TypeChecking",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:05Z",
+  "spec_hash": "sha256:44c53a65d673af3396778b957c2783d6765020666b6029519059a9dc7854a6b7",
+  "spec_path": "specs/compiler/typechecker.t27"
+}

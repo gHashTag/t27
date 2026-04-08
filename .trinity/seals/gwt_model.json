@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:2299ab4d8d557e86fb787992a2d2b2ad40794ba4dfce36b75ee9d275c1c66f78",
+  "gen_hash_rust": "sha256:2619a7f7b5ac334775ca214be677d96f4d2a8009956d1cb24d1afce10f4a2ff2",
+  "gen_hash_verilog": "sha256:d55a86d75ca980cbb62cf9e5b1964f5f1c677edf37f4e15be4670337662c0c6c",
+  "gen_hash_zig": "sha256:abb4a75b3ea934b9d7ab15cec7c346ec6ffe52ad565c61bd4c5ca115d78fcc81",
+  "module": "gwt_model",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
+  "spec_hash": "sha256:ca239ad710d06be79a16cdf95bf003fa5603081330865b00e1c6e6acf941b3e0",
+  "spec_path": "specs/brain/gwt_model.t27"
+}

@@ -1,0 +1,24 @@
+name: PHI Loop CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  phi-loop-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHI Loop identity check
+        run: |
+          echo "PHI Loop CI: L5 identity invariant verification"
+          echo "phi^2 + phi^-2 = 3 (IEEE f64 tolerance)"
+          python3 -c "
+          phi = (1.0 + 5.0**0.5) / 2.0
+          identity = phi**2 + phi**(-2)
+          assert abs(identity - 3.0) < 1e-10, f'L5 FAILED: {identity}'
+          print(f'L5 PASSED: phi^2 + phi^-2 = {identity:.15f}')
+          "

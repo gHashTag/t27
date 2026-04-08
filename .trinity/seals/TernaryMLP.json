@@ -1,10 +1,11 @@
 {
-  "gen_hash_c": "sha256:0533a31d5b5146793bdf406c70119d905b3dd486b461f9e38594453f52b0a5b1",
-  "gen_hash_verilog": "sha256:b927b6aefd68454b4369e68f7583aff7658ba0060f11815f7ff563f91d124d45",
-  "gen_hash_zig": "sha256:a10b83e707465371000d2e5458e020e8f7a6f70a9b13cfc2c0055d70af497beb",
+  "gen_hash_c": "sha256:a79f2709a8dcaa748fa049753f0387ae5ec411a7d01282061eeeb3e8226a6f0d",
+  "gen_hash_rust": "sha256:04e2cf371b3eb19aff0ced27b68b12b858318c319dea6538385a71cf5e2b436e",
+  "gen_hash_verilog": "sha256:828a8861755d5cf91fdb50a8b674db16f5416e4e89fdb8d65c9847166a3c8356",
+  "gen_hash_zig": "sha256:9b059e61241b5eae075ad143e3ee42d9b3cbc5fac0ed47c7a6ef062449ecffa7",
   "module": "TernaryMLP",
   "ring": 12,
-  "sealed_at": "2026-04-07T11:01:21Z",
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:5233d0ad2ec97e1c1ab73487dddd7f7333d113caaf4c94476534db8d00b8c3c5",
   "spec_path": "specs/ml/ternary_mlp.t27"
 }

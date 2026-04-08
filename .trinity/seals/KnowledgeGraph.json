@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6c26f5ebc410c398b64d6e6831187bdbba8dbe02bbc0a54b6e65ef61250c5f63",
+  "gen_hash_rust": "sha256:1c3beaf95812d782e41496c10f03117b634883ea6f851e6e13ecaf207b644dc2",
+  "gen_hash_verilog": "sha256:9edf38aa5a8b99f7f136f7241a84bdbe6e1515910b4fb1f00567f362aaa2aecd",
+  "gen_hash_zig": "sha256:e986d2f2fc9862081b2b4644463db6331e66b121c17310c905aa78d8de89893b",
+  "module": "KnowledgeGraph",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
+  "spec_hash": "sha256:8f6202e0dd35bf5cc8974301ca0373974f52e41fba52a7e10fe8436b73fa438a",
+  "spec_path": "specs/graph/knowledge_graph.t27"
+}

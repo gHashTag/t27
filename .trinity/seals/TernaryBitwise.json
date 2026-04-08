@@ -1,13 +1,11 @@
 {
-  "schema_version": 2,
-  "spec_file": "specs/isa/ternary_bitwise.t27",
+  "gen_hash_c": "sha256:3eb85e66963f0dd13d94b6d5b94630208fb32d8a8f5eff4713f78be83d83cd37",
+  "gen_hash_rust": "sha256:323a423a191d3151e3a5de746a9ec62e722af5041ef880e7da71ceae93aa6d2c",
+  "gen_hash_verilog": "sha256:c2a6cf512d52293a094432672ea5cfb5660364ec73c96838fc78d03deb5dd60d",
+  "gen_hash_zig": "sha256:519ee2c3a00cdee9fb0c832c83dce50a6e1b1e0de483223033f93152b1872436",
+  "module": "TernaryBitwise",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:4788e04f460b679dbf5f23235bc21f74a06be4466c5c9ffac1dc3d29e05d7043",
-  "gen_hash_zig": "sha256:7ae5f3c23ec046e4df4736b4617d5305f788c29f472e520656d90f83cd99f119",
-  "gen_hash_verilog": "sha256:c92ed85c1bf015c3ed94e2fd7c4878ff720d5d27e938c6d9613506d0b2e4f089",
-  "gen_hash_c": "sha256:e5ca81263a830052352fd36b6d4f2b6756b30fb067a3e3e923bc708dffe34f57",
-  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "timestamp": "2026-04-08T00:30:00Z",
-  "ring": 68,
-  "verdict": "clean",
-  "notes": "Ternary bitwise operations spec (AND, OR, XOR, NOT, NAND, NOR, XNOR, mask)"
+  "spec_path": "specs/isa/ternary_bitwise.t27"
 }

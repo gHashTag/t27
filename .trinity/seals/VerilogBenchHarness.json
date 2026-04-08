@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f50747ab2ff22710a199c30434da462db4882dd13cf3d8c87bc221a1d7ec5f35",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:548c56163c3ca537c7db7f80cc9e9c5f8196a2a1173df923d0d03eede8678c09",
+  "gen_hash_zig": "sha256:bc9a298e5fb1a467de4b9892f31a0068cbf865f6130a26ebd09228f4d7f3649d",
+  "module": "VerilogBenchHarness",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
+  "spec_hash": "sha256:a8fb64f1537e45619a49c23fc5099a6682a58899dff0d03f345774678752aa13",
+  "spec_path": "specs/test_framework/verilog_bench_harness.t27"
+}

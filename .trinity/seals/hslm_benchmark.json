@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:442df89a4cc2c2803405224ee43699d37d8747a152e3e2d9c13104b74fcc3e18",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:f43b4452435085bbd8b35715a938e171bd98019e6e678c39bc9e50beee143926",
+  "gen_hash_zig": "sha256:54b09b5e8122d12d80f242e2933f49113efee6cb1a6240acdf8058b7f2c8193a",
+  "module": "hslm_benchmark",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:04Z",
+  "spec_hash": "sha256:6f9d76516e22751e7ae2f35fc06c3837faa2f499577eebe5b5877c57bbd33239",
+  "spec_path": "specs/physics/hslm_benchmark.t27"
+}
