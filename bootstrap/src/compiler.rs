@@ -1983,7 +1983,7 @@ impl Parser {
     /// Parse bitwise or (|)
     fn parse_expr_bitor(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_bitxor()?;
-        while self.current.kind == TokenKind::Pipe {
+        while self.current.kind == TokenKind::Pipe && self.current.lexeme == "|" {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_bitxor()?;
@@ -2017,7 +2017,7 @@ impl Parser {
     /// Parse bitwise and (&)
     fn parse_expr_bitand(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_shift()?;
-        while self.current.kind == TokenKind::Amp {
+        while self.current.kind == TokenKind::Amp && self.current.lexeme == "&" {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_shift()?;
@@ -4205,14 +4205,27 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
-                // Verilog doesn't have field access — flatten to name_field
                 if !node.children.is_empty() {
-                    self.gen_verilog_expr(&node.children[0]);
-                    self.write("_");
+                    let child = &node.children[0];
+                    if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
+                        let base_name = match child.children[0].kind {
+                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                            _ => String::new(),
+                        };
+                        let flat_name = format!("{}{}", base_name, node.name);
+                        self.write(&flat_name);
+                    } else if child.kind == NodeKind::ExprIdentifier {
+                        self.write(&child.name);
+                        self.write("_");
+                        self.write(&node.name);
+                    } else {
+                        self.gen_verilog_expr(child);
+                        self.write("_");
+                        self.write(&node.name);
+                    }
                 } else {
-                    // Just the field name
+                    self.write(&node.name);
                 }
-                self.write(&node.name);
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
