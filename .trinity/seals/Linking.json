@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e4fffdeb2662ff9fa5048391be0c6cdbe0568fe64079e4c2aad5fe8fccf5481a",
   "module": "Linking",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:6448910d761b6124ebe7b93730f46b8b62040eeac93924794a72bca4ca40aec0",
   "spec_path": "specs/compiler/linker.t27"
 }

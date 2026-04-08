@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:92fd5d45819b26fa748573203a799d14b7a8803eff5f54afd0be123145049fef",
   "module": "tri::sync",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:7f5bcaf4ca85e98adb35e2abaf5673da717be57e3139e70d764db5f505c369bb",
   "spec_path": "specs/tri/sync.t27"
 }

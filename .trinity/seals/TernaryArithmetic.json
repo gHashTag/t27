@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:856c4c6d9feaaf7621af94a5c5c7b7dacca17ed032cb3ed515634bccdb5cf732",
   "module": "TernaryArithmetic",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:2630cd17e8b1ce24a57f207098d599cd50adf7cf9897535fa51e4dcbdee6e0ef",
   "spec_path": "specs/isa/ternary_arithmetic.t27"
 }
