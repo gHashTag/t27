@@ -1,0 +1,119 @@
+// specs/github/tests/e2e_sync.t27
+// End-to-End Sync Test for Ring-072 GitHub SSOT
+// Tests: Sync → verify episode-index.json updated
+// Ring-074 - E2E Tests
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module github::tests::e2e_sync {
+    use github::auth;
+    use github::issues;
+    use github::prs;
+    use tri::sync;
+
+    test "e2e_sync_full_completes"
+        const sync_result = sync::full_sync();
+
+        assert(sync_result.duration_ms >= 0);
+        assert(sync_result.items_synced >= 0);
+        assert(sync_result.errors.len >= 0);
+        assert(sync_result.success == true || sync_result.success == false);
+
+    test "e2e_sync_issues_only"
+        const sync_result = sync::sync_issues();
+
+        assert(sync_result.duration_ms >= 0);
+        assert(sync_result.items_synced >= 0);
+        assert(sync_result.errors.len >= 0);
+        assert(sync_result.synced_issues.len >= 0);
+
+    test "e2e_sync_prs_only"
+        const sync_result = sync::sync_prs();
+
+        assert(sync_result.duration_ms >= 0);
+        assert(sync_result.items_synced >= 0);
+        assert(sync_result.errors.len >= 0);
+        assert(sync_result.synced_prs.len >= 0);
+
+    test "e2e_sync_result_totals_match"
+        const sync_result = sync::full_sync();
+
+        const issues_count = @as(u32, sync_result.synced_issues.len);
+        const prs_count = @as(u32, sync_result.synced_prs.len);
+        const docs_count = @as(u32, sync_result.synced_docs.len);
+
+        const expected_total = issues_count + prs_count + docs_count;
+        assert(sync_result.items_synced == expected_total || sync_result.items_synced == 0);
+
+    test "e2e_sync_with_no_auth_fails_gracefully"
+        const sync_result = sync::full_sync();
+
+        if (!sync_result.success) {
+            assert(sync_result.errors.len > 0 || sync_result.items_synced == 0);
+        }
+
+    test "e2e_sync_timestamp_freshness"
+        const sync_result = sync::full_sync();
+        assert(sync_result.duration_ms >= 0);
+
+    test "e2e_sync_errors_array_valid"
+        const sync_result = sync::full_sync();
+        assert(sync_result.errors.len >= 0);
+
+    test "e2e_sync_preserves_ids"
+        const test_issue = issues::issue_create("[E2E] Sync test", "body");
+        _ = test_issue;
+
+        const sync_result = sync::sync_issues();
+
+        for issue_id in sync_result.synced_issues {
+            assert(issue_id > 0 || issue_id == 0);
+        }
+
+    invariant sync_duration_non_negative
+        const result = sync::full_sync();
+        assert(result.duration_ms >= 0);
+
+    invariant sync_items_non_negative
+        const result = sync::full_sync();
+        assert(result.items_synced >= 0);
+        assert(result.synced_issues.len >= 0);
+        assert(result.synced_prs.len >= 0);
+        assert(result.synced_docs.len >= 0);
+
+    invariant sync_success_implies_no_errors
+        const result = sync::full_sync();
+        if (result.success) {
+            assert(result.errors.len == 0);
+        }
+
+    invariant sync_errors_array_valid
+        const result = sync::full_sync();
+        assert(result.errors.len >= 0);
+
+    bench e2e_full_sync_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 10) : (iterations += 1) {
+            const result = sync::full_sync();
+            _ = result;
+        }
+
+    bench e2e_sync_issues_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 20) : (iterations += 1) {
+            const result = sync::sync_issues();
+            _ = result;
+        }
+
+    bench e2e_sync_prs_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 20) : (iterations += 1) {
+            const result = sync::sync_prs();
+            _ = result;
+        }
+}

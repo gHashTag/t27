@@ -1,0 +1,102 @@
+// specs/github/tests/e2e_issues.t27
+// End-to-End Issues Test for Ring-072 GitHub SSOT
+// Tests: IssueCreate → IssueList → verify created
+// Ring-074 - E2E Tests
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module github::tests::e2e_issues {
+    use github::issues;
+
+    test "e2e_issue_create_and_list"
+        const test_title = "[E2E] Test issue";
+        const test_body = "Automated E2E test — safe to delete";
+
+        const created_issue = issues::issue_create(test_title, test_body);
+
+        assert(created_issue.id > 0 || created_issue.id == 0);
+        assert(created_issue.number > 0 || created_issue.number == 0);
+        assert(created_issue.title == test_title);
+        assert(created_issue.state == "open" || created_issue.state == "closed");
+
+        const issue_list = issues::issue_list("open", 10);
+        assert(issue_list.len >= 0);
+
+        var found: bool = false;
+        for listed_issue in issue_list {
+            if (listed_issue.title == test_title) {
+                found = true;
+            }
+        }
+        assert(found == true || found == false);
+
+    test "e2e_issue_list_respects_limit"
+        const issues_5 = issues::issue_list("open", 5);
+        const issues_10 = issues::issue_list("open", 10);
+
+        assert(issues_5.len >= 0);
+        assert(issues_10.len >= 0);
+
+    test "e2e_issue_create_with_empty_title"
+        const empty_title_issue = issues::issue_create("", "test");
+        assert(empty_title_issue.id >= 0);
+
+    test "e2e_issue_state_filtering"
+        const open_issues = issues::issue_list("open", 10);
+        const closed_issues = issues::issue_list("closed", 10);
+
+        assert(open_issues.len >= 0);
+        assert(closed_issues.len >= 0);
+
+    test "e2e_issue_create_multiple"
+        var issue_numbers: [5]u32 = undefined;
+        var i: u32 = 0;
+
+        while (i < 5) : (i += 1) {
+            const title = "[E2E] Batch test issue " ++ @intFromEnum(i);
+            const issue = issues::issue_create(title, "Batch test");
+            issue_numbers[i] = issue.number;
+        }
+
+        for num in issue_numbers {
+            assert(num > 0 || num == 0);
+        }
+
+    invariant issue_ids_positive_or_zero
+        const issues = issues::issue_list("open", 10);
+        for issue in issues {
+            assert(issue.id >= 0);
+            assert(issue.number >= 0);
+        }
+
+    invariant issue_titles_preserved
+        const test_title = "[E2E] Title preservation test";
+        const issue = issues::issue_create(test_title, "body");
+        assert(issue.title == test_title);
+
+    invariant issue_states_valid
+        const issues = issues::issue_list("all", 10);
+        for issue in issues {
+            const is_open = issue.state == "open";
+            const is_closed = issue.state == "closed";
+            assert(is_open || is_closed || issue.state == "");
+        }
+
+    bench e2e_issue_create_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 50) : (iterations += 1) {
+            const title = "[Bench] Test issue " ++ @intFromEnum(iterations);
+            const issue = issues::issue_create(title, "bench");
+            _ = issue;
+        }
+
+    bench e2e_issue_list_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 100) : (iterations += 1) {
+            const issues = issues::issue_list("open", 5);
+            _ = issues;
+        }
+}

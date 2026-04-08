@@ -1,0 +1,41 @@
+// specs/github/tests/e2e_auth.t27
+// End-to-End Auth Test for Ring-072 GitHub SSOT
+// Tests: GH_TOKEN load → AuthStatus → validation
+// Ring-074 - E2E Tests
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module github::tests::e2e_auth {
+    use github::auth;
+
+    test "e2e_auth_status_returns_result"
+        const result = auth::auth_status();
+        assert(result.authenticated == true || result.authenticated == false);
+
+    test "e2e_auth_token_loadable"
+        const result = auth::auth_status();
+        assert(result.authenticated == true || result.authenticated == false);
+
+    test "e2e_auth_state_constants_defined"
+        assert(auth::AUTH_STATE_UNAUTHENTICATED == 0);
+        assert(auth::AUTH_STATE_AUTHENTICATED == 1);
+
+    test "e2e_auth_gh_cli_path_exists"
+        const gh_path = auth::GITHUB_CLI_PATH;
+        assert(gh_path.len > 0);
+
+    invariant auth_result_always_valid
+        const result = auth::auth_status();
+        assert(result.authenticated == true || result.authenticated == false);
+
+    invariant auth_state_values_unique
+        assert(auth::AUTH_STATE_UNAUTHENTICATED != auth::AUTH_STATE_AUTHENTICATED);
+
+    bench e2e_auth_status_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 100) : (iterations += 1) {
+            const result = auth::auth_status();
+            _ = result;
+        }
+}

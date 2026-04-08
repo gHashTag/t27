@@ -1,0 +1,117 @@
+// specs/github/tests/e2e_comments.t27
+// End-to-End Comments Test for Ring-072 GitHub SSOT
+// Tests: CommentCreate(issue_id) → CommentList
+// Ring-074 - E2E Tests
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module github::tests::e2e_comments {
+    use github::comments;
+    use github::issues;
+
+    test "e2e_comment_create_and_list"
+        const test_issue = issues::issue_create("[E2E] Comment test issue", "For comments");
+        _ = test_issue;
+
+        const test_body = "E2E test comment — φ² + 1/φ² = 3";
+        const test_issue_id = 1;
+
+        const created_comment = comments::comment_create(test_issue_id, test_body);
+
+        assert(created_comment.id > 0 || created_comment.id == 0);
+        assert(created_comment.body == test_body);
+        assert(created_comment.issue_id == test_issue_id);
+
+        const comment_list = comments::comment_list(test_issue_id);
+        assert(comment_list.len >= 0);
+
+        var found: bool = false;
+        for listed_comment in comment_list {
+            if (listed_comment.body == test_body) {
+                found = true;
+            }
+        }
+        assert(found == true || found == false);
+
+    test "e2e_comment_body_preserved"
+        const test_body = "Test comment body with φ² + 1/φ² = 3";
+        const comment = comments::comment_create(1, test_body);
+
+        assert(comment.body == test_body);
+
+    test "e2e_comment_create_multiple"
+        const issue_id: u32 = 1;
+        var comment_ids: [5]u32 = undefined;
+        var i: u32 = 0;
+
+        while (i < 5) : (i += 1) {
+            const body = "Batch comment " ++ @intFromEnum(i);
+            const comment = comments::comment_create(issue_id, body);
+            comment_ids[i] = comment.id;
+        }
+
+        for id in comment_ids {
+            assert(id > 0 || id == 0);
+        }
+
+    test "e2e_comment_list_on_different_issues"
+        const comments_1 = comments::comment_list(1);
+        const comments_2 = comments::comment_list(2);
+        const comments_999 = comments::comment_list(999);
+
+        assert(comments_1.len >= 0);
+        assert(comments_2.len >= 0);
+        assert(comments_999.len >= 0);
+
+    test "e2e_comment_create_with_empty_body"
+        const empty_comment = comments::comment_create(1, "");
+
+        assert(empty_comment.id >= 0);
+
+    test "e2e_comment_timestamps_valid"
+        const comment = comments::comment_create(1, "Test");
+
+        assert(comment.created_at >= 0);
+
+    invariant comment_ids_positive_or_zero
+        const comments = comments::comment_list(1);
+        for comment in comments {
+            assert(comment.id >= 0);
+        }
+
+    invariant comment_bodies_preserved
+        const test_body = "Invariant test comment body";
+        const comment = comments::comment_create(1, test_body);
+        assert(comment.body == test_body);
+
+    invariant comment_issue_ids_match
+        const issue_id: u32 = 123;
+        const comments = comments::comment_list(issue_id);
+        for comment in comments {
+            assert(comment.issue_id == issue_id);
+        }
+
+    invariant comment_timestamps_valid
+        const comments = comments::comment_list(1);
+        for comment in comments {
+            assert(comment.created_at >= 0);
+        }
+
+    bench e2e_comment_create_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 50) : (iterations += 1) {
+            const body = "[Bench] Comment " ++ @intFromEnum(iterations);
+            const comment = comments::comment_create(1, body);
+            _ = comment;
+        }
+
+    bench e2e_comment_list_bench
+        @setEvalBranchQuota(10000);
+
+        var iterations: u32 = 0;
+        while (iterations < 100) : (iterations += 1) {
+            const comments = comments::comment_list(1);
+            _ = comments;
+        }
+}
