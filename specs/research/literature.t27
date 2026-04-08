@@ -1,0 +1,322 @@
+// specs/research/literature.t27
+// Bibliographic database for GoldenFloat paper
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module research::literature {
+    // ============================================================================
+    // Constants
+    // ============================================================================
+
+    const MAX_ENTRIES: u32 = 500;
+    const BIB_PATH: str = "docs/WHITEPAPER/latex/references_expanded.bib";
+
+    // Categories for GoldenFloat paper (aligned with bibliography structure)
+    const CATEGORIES: [str] = [
+        "ieee754",          // IEEE standards and classic floating-point
+        "posit",            // Posit/Unum formats
+        "low_precision_ml", // FP8, FP16, bfloat16, mixed precision
+        "ternary_nn",       // Ternary neural networks
+        "golden_ratio",     // Phi mathematics and applications
+        "hardware",         // Hardware implementations (ternary, etc.)
+        "theory",           // Floating point theory and arithmetic
+    ];
+
+    const ENTRY_TYPES: [str] = [
+        "article",          // Journal articles
+        "inproceedings",    // Conference papers
+        "book",             // Books
+        "misc",             // Misc (standards, patents, etc.)
+        "techreport",       // Technical reports
+    ];
+
+    // ============================================================================
+    // Types
+    // ============================================================================
+
+    /// BibTeX entry with category support
+    struct BibEntry {
+        cite_key: str,      // Unique citation key, e.g., "gustafson2017posit"
+        entry_type: str,    // From ENTRY_TYPES
+        author: str,        // "Last, First" format
+        title: str,         // Paper title
+        year: u32,          // Publication year
+        venue: str,         // journal or booktitle
+        volume: str,        // Optional volume
+        number: str,        // Optional number
+        pages: str,         // Page range, e.g., "123--145"
+        doi: str,           // Digital Object Identifier
+        url: str,           // Paper URL
+        category: str,      // From CATEGORIES
+        notes: str,         // Additional notes
+    }
+
+    /// Category coverage report
+    struct CoverageReport {
+        category: str,
+        count: u32,
+        min_required: u32,  // Typically 3 for each category
+        is_covered: bool,
+    }
+
+    /// Bibliography statistics
+    struct BibStats {
+        total_entries: u32,
+        by_category: [(str, u32)],
+        by_type: [(str, u32)],
+        by_year: [(u32, u32)],  // (year, count)
+    }
+
+    /// Export format options
+    const EXPORT_FORMATS: [str] = ["bibtex", "bibjson", "csv"];
+
+    // ============================================================================
+    // Functions
+    // ============================================================================
+
+    /// Add a BibTeX entry to the bibliography
+    /// Returns ErrorCode::AlreadyExists if cite_key conflicts
+    fn bib_add(entry: BibEntry) -> ErrorCode;
+
+    /// Search bibliography by keyword, cite_key, author, or category
+    fn bib_search(query: str) -> ([BibEntry], ErrorCode);
+
+    /// Validate BibTeX entry format
+    /// Returns validation result with errors and warnings
+    fn bib_validate(entry: &BibEntry) -> (bool, [str], [str]);
+    // Returns: (is_valid, errors, warnings)
+
+    /// Export bibliography in specified format
+    fn bib_export(format: str) -> (str, ErrorCode);
+
+    /// Get count of entries by category
+    fn bib_count_by_category() -> ([(str, u32)], ErrorCode);
+
+    /// Check coverage: identify categories below minimum threshold
+    fn bib_check_coverage(min_per_category: u32) -> ([str], ErrorCode);
+    // Returns list of uncovered categories
+
+    /// Get complete bibliography statistics
+    fn bib_get_stats() -> (BibStats, ErrorCode);
+
+    /// Remove entry by cite_key
+    fn bib_remove(cite_key: str) -> ErrorCode;
+
+    /// Update existing entry
+    fn bib_update(cite_key: str, entry: BibEntry) -> ErrorCode;
+
+    /// Load bibliography from BIB_PATH
+    fn bib_load() -> ErrorCode;
+
+    /// Save bibliography to BIB_PATH
+    fn bib_save() -> ErrorCode;
+
+    // ============================================================================
+    // Invariants
+    // ============================================================================
+
+    invariant "cite_keys_unique" {
+        // All cite keys must be unique
+        forall k1, k2 in entries where k1 != k2:
+            entries[k1].cite_key != entries[k2].cite_key
+    }
+
+    invariant "valid_category" {
+        // All entries must have valid categories
+        forall entry in entries:
+            entry.category in CATEGORIES
+    }
+
+    invariant "valid_entry_type" {
+        // All entries must have valid entry types
+        forall entry in entries:
+            entry.entry_type in ENTRY_TYPES
+    }
+
+    // ============================================================================
+    // Tests
+    // ============================================================================
+
+    test "bib_has_minimum_coverage" {
+        // Setup: Add entries for each category
+        const entries: [BibEntry] = [
+            BibEntry {
+                cite_key: "ieee2019",
+                entry_type: "misc",
+                author: "IEEE",
+                title: "IEEE 754 Standard",
+                year: 2019,
+                venue: "IEEE",
+                volume: "",
+                number: "",
+                pages: "",
+                doi: "",
+                url: "",
+                category: "ieee754",
+                notes: "",
+            },
+            BibEntry {
+                cite_key: "gustafson2017",
+                entry_type: "article",
+                author: "Gustafson, J.L.",
+                title: "The Posit",
+                year: 2017,
+                venue: "arXiv",
+                volume: "",
+                number: "",
+                pages: "",
+                doi: "",
+                url: "",
+                category: "posit",
+                notes: "",
+            },
+            // ... add more entries
+        ];
+
+        for entry in entries {
+            _ = bib_add(entry);
+        }
+
+        const (counts, err) = bib_count_by_category();
+        assert(err == ErrorCode::Success);
+
+        // Each category should have at least 3 papers for NeurIPS
+        for (cat, count) in counts {
+            assert(count >= 3, "Category {cat} has only {count} entries, need >= 3");
+        }
+
+        const uncovered = bib_check_coverage(3).0;
+        assert(uncovered.len() == 0, "Uncovered categories: {uncovered}");
+    }
+
+    test "bib_validate_format" {
+        const entry = BibEntry {
+            cite_key: "gustafson2017posit",
+            entry_type: "article",
+            author: "Gustafson, John L.",
+            title: "Posit: New Kind of Floating-Point",
+            year: 2017,
+            venue: "arXiv",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "",
+            category: "posit",
+            notes: "",
+        };
+
+        const (is_valid, errors, warnings) = bib_validate(&entry);
+        assert(is_valid);
+        assert(errors.len() == 0);
+
+        // Test invalid entry
+        const invalid_entry = BibEntry {
+            cite_key: "",  // Missing required field
+            entry_type: "article",
+            author: "Test",
+            title: "Test",
+            year: 2024,
+            venue: "Test",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "",
+            category: "ieee754",
+            notes: "",
+        };
+
+        const (valid2, errors2, _) = bib_validate(&invalid_entry);
+        assert(!valid2);
+        assert(errors2.len() > 0);
+    }
+
+    test "bib_export_bibtex" {
+        const entry = BibEntry {
+            cite_key: "gustafson2017posit",
+            entry_type: "article",
+            author: "Gustafson, John L.",
+            title: "The Posit: A New Kind of Floating-Point",
+            year: 2017,
+            venue: "arXiv",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "https://arxiv.org/abs/1712.04546",
+            category: "posit",
+            notes: "",
+        };
+
+        _ = bib_add(entry);
+
+        const (bibtex, err) = bib_export("bibtex");
+        assert(err == ErrorCode::Success);
+        assert(bibtex.contains("@article{gustafson2017posit,"));
+        assert(bibtex.contains("author = {Gustafson, John L.}"));
+        assert(bibtex.contains("year = {2017}"));
+        assert(bibtex.contains("journal = {arXiv}"));
+    }
+
+    test "bib_search_by_category" {
+        // Add entries to different categories
+        _ = bib_add(BibEntry {
+            cite_key: "test1",
+            entry_type: "article",
+            author: "Author One",
+            title: "Paper One",
+            year: 2020,
+            venue: "Venue",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "",
+            category: "posit",
+            notes: "",
+        });
+
+        _ = bib_add(BibEntry {
+            cite_key: "test2",
+            entry_type: "article",
+            author: "Author Two",
+            title: "Paper Two",
+            year: 2021,
+            venue: "Venue",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "",
+            category: "ieee754",
+            notes: "",
+        });
+
+        const (posit_results, err1) = bib_search("posit");
+        assert(err1 == ErrorCode::Success);
+        assert(posit_results.len() >= 1);
+        assert(posit_results[0].category == "posit");
+    }
+
+    test "bib_get_stats" {
+        const (stats, err) = bib_get_stats();
+        assert(err == ErrorCode::Success);
+        assert(stats.total_entries > 0);
+        assert(stats.by_category.len() == CATEGORIES.len());
+    }
+
+    // ============================================================================
+    // Benchmarks
+    // ============================================================================
+
+    bench "bib_search_performance" {
+        // Benchmark: Search in bibliography with 100+ entries
+        const query = "floating point";
+        bench_iter(|| bib_search(query).0.len());
+    }
+
+    bench "bib_export_performance" {
+        // Benchmark: Export bibliography with 100+ entries
+        bench_iter(|| bib_export("bibtex").0.len());
+    }
+}

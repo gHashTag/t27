@@ -1,0 +1,7 @@
+{
+  "issue": "SANDBOX-012",
+  "title": "HTTPS Enforcement",
+  "status": "in_progress",
+  "started_at": "2026-04-08",
+  "description": "Enforce HTTPS for all API requests with proper redirect handling"
+}

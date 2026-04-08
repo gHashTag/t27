@@ -1,0 +1,336 @@
+// specs/control-plane/schema.t27
+// Control Plane Types Specification
+// φ² + 1/φ² = 3 | TRINITY
+
+module ControlPlane {
+    use base::types;
+    use project::schema as ProjectSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Brand Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // WorkspaceID is a branded string representing a unique workspace identifier
+    struct WorkspaceID(str);
+
+    // ════════════════════════════════════════════════════════════════════
+    // Workspace Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // WorkspaceType represents the type of workspace
+    enum WorkspaceType {
+        Local = 0,
+        Remote = 1,
+        Container = 2,
+        Worktree = 3,
+        VM = 4,
+    }
+
+    // WorkspaceState represents the state of a workspace
+    enum WorkspaceState {
+        Disconnected = 0,
+        Connecting = 1,
+        Connected = 2,
+        Syncing = 3,
+        Error = 4,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Workspace Info
+    // ════════════════════════════════════════════════════════════════════
+
+    // WorkspaceInfo represents complete workspace information
+    struct WorkspaceInfo {
+        id: WorkspaceID,
+        type: str,               // Workspace type (string for flexibility)
+        branch: str?,            // Git branch (if applicable)
+        name: str?,             // Workspace name
+        directory: str?,         // Local directory path
+        extra: any?,             // Additional type-specific data
+        projectID: ProjectSchema::ProjectID,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // EventType represents the type of control plane event
+    enum EventType {
+        WorkspaceReady = 0,
+        WorkspaceFailed = 1,
+        WorkspaceConnected = 2,
+        WorkspaceDisconnected = 3,
+        WorkspaceSync = 4,
+        Message = 5,
+    }
+
+    // Event represents a control plane event
+    struct Event {
+        type: EventType,
+        workspaceID: WorkspaceID?,
+        payload: any,            // Event-specific data
+        timestamp: u64,          // Event timestamp
+        id: str?,               // Event ID (for SSE)
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SSE Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SSEMessage represents a Server-Sent Events message
+    struct SSEMessage {
+        id: str?,               // Event ID
+        event: str?,            // Event type
+        data: str,              // Event data (JSON string)
+        retry: u32?,            // Retry interval in ms
+    }
+
+    // SSEClient represents an SSE client connection
+    struct SSEClient {
+        id: str,                // Client ID
+        workspaceID: WorkspaceID,
+        connectedAt: u64,       // Connection timestamp
+        lastEventID: str?,      // Last received event ID
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Sync Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SyncStatus represents the sync status of a workspace
+    struct SyncStatus {
+        state: WorkspaceState,
+        lastSync: u64?,        // Last sync timestamp
+        lastError: str?,       // Last error message
+        pendingChanges: u32,   // Number of pending changes
+    }
+
+    // SyncResult represents the result of a sync operation
+    struct SyncResult {
+        success: bool,
+        changes: u32,          // Number of changes synced
+        conflicts: u32,        // Number of conflicts
+        error: str?,           // Error message if failed
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Constants
+    // ════════════════════════════════════════════════════════════════════
+
+    const DEFAULT_SSE_RETRY: u32 = 1000;
+    const SSE_EVENT_PATH: str = "/event";
+    const MAX_PENDING_CHANGES: u32 = 1000;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // make_workspace_id creates a WorkspaceID from a string
+    fn make_workspace_id(id: str) -> WorkspaceID {
+        return WorkspaceID(id);
+    }
+
+    // is_connected checks if a workspace is in a connected state
+    fn is_connected(state: WorkspaceState) -> bool {
+        return state == WorkspaceState::Connected || state == WorkspaceState::Syncing;
+    }
+
+    // is_terminal checks if a workspace state is terminal (no further transitions)
+    fn is_terminal(state: WorkspaceState) -> bool {
+        return state == WorkspaceState::Disconnected || state == WorkspaceState::Error;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "workspace_id_creation" {
+        var id = WorkspaceID("workspace-123");
+        assert(id.0 == "workspace-123");
+    }
+
+    test "workspace_type_values" {
+        assert(WorkspaceType::Local as u32 == 0);
+        assert(WorkspaceType::Remote as u32 == 1);
+        assert(WorkspaceType::Container as u32 == 2);
+        assert(WorkspaceType::Worktree as u32 == 3);
+        assert(WorkspaceType::VM as u32 == 4);
+    }
+
+    test "workspace_state_values" {
+        assert(WorkspaceState::Disconnected as u32 == 0);
+        assert(WorkspaceState::Connecting as u32 == 1);
+        assert(WorkspaceState::Connected as u32 == 2);
+        assert(WorkspaceState::Syncing as u32 == 3);
+        assert(WorkspaceState::Error as u32 == 4);
+    }
+
+    test "workspace_info_creation" {
+        var info = WorkspaceInfo {
+            id = WorkspaceID("ws-1"),
+            type = "remote",
+            branch = "main",
+            name = "My Workspace",
+            directory = "/path/to/workspace",
+            extra = { "url": "https://example.com" },
+            projectID = ProjectSchema::ProjectID("proj-1"),
+        };
+        assert(info.id.0 == "ws-1");
+        assert(info.type == "remote");
+        assert(info.branch == "main");
+        assert(info.name == "My Workspace");
+    }
+
+    test "workspace_info_minimal" {
+        var info = WorkspaceInfo {
+            id = WorkspaceID("ws-1"),
+            type = "local",
+            branch = null,
+            name = null,
+            directory = null,
+            extra = null,
+            projectID = ProjectSchema::ProjectID("proj-1"),
+        };
+        assert(info.branch == null);
+        assert(info.directory == null);
+        assert(info.extra == null);
+    }
+
+    test "event_creation" {
+        var event = Event {
+            type = EventType::WorkspaceReady,
+            workspaceID = WorkspaceID("ws-1"),
+            payload = { "name": "My Workspace" },
+            timestamp = 1234567890,
+            id = "event-1",
+        };
+        assert(event.type == EventType::WorkspaceReady);
+        assert(event.workspaceID?.0 == "ws-1");
+        assert(event.timestamp == 1234567890);
+    }
+
+    test "event_type_values" {
+        assert(EventType::WorkspaceReady as u32 == 0);
+        assert(EventType::WorkspaceFailed as u32 == 1);
+        assert(EventType::WorkspaceConnected as u32 == 2);
+        assert(EventType::WorkspaceDisconnected as u32 == 3);
+        assert(EventType::WorkspaceSync as u32 == 4);
+        assert(EventType::Message as u32 == 5);
+    }
+
+    test "sse_message_creation" {
+        var msg = SSEMessage {
+            id = "msg-1",
+            event = "update",
+            data = "{\"key\":\"value\"}",
+            retry = 3000,
+        };
+        assert(msg.id == "msg-1");
+        assert(msg.event == "update");
+        assert(msg.data == "{\"key\":\"value\"}");
+        assert(msg.retry == 3000);
+    }
+
+    test "sse_message_minimal" {
+        var msg = SSEMessage {
+            id = null,
+            event = null,
+            data = "plain text",
+            retry = null,
+        };
+        assert(msg.id == null);
+        assert(msg.event == null);
+        assert(msg.retry == null);
+    }
+
+    test "sse_client_creation" {
+        var client = SSEClient {
+            id = "client-1",
+            workspaceID = WorkspaceID("ws-1"),
+            connectedAt = 1234567890,
+            lastEventID = "event-1",
+        };
+        assert(client.id == "client-1");
+        assert(client.workspaceID.0 == "ws-1");
+        assert(client.connectedAt == 1234567890);
+    }
+
+    test "sync_status_creation" {
+        var status = SyncStatus {
+            state = WorkspaceState::Connected,
+            lastSync = 1234567890,
+            lastError = null,
+            pendingChanges = 5,
+        };
+        assert(status.state == WorkspaceState::Connected);
+        assert(status.lastSync == 1234567890);
+        assert(status.pendingChanges == 5);
+    }
+
+    test "sync_status_error" {
+        var status = SyncStatus {
+            state = WorkspaceState::Error,
+            lastSync = null,
+            lastError = "Connection failed",
+            pendingChanges = 0,
+        };
+        assert(status.state == WorkspaceState::Error);
+        assert(status.lastError == "Connection failed");
+    }
+
+    test "sync_result_success" {
+        var result = SyncResult {
+            success = true,
+            changes = 10,
+            conflicts = 0,
+            error = null,
+        };
+        assert(result.success);
+        assert(result.changes == 10);
+        assert(result.conflicts == 0);
+    }
+
+    test "sync_result_failure" {
+        var result = SyncResult {
+            success = false,
+            changes = 0,
+            conflicts = 0,
+            error = "Sync failed",
+        };
+        assert(!result.success);
+        assert(result.error == "Sync failed");
+    }
+
+    test "constants_values" {
+        assert(DEFAULT_SSE_RETRY == 1000);
+        assert(SSE_EVENT_PATH == "/event");
+        assert(MAX_PENDING_CHANGES == 1000);
+    }
+
+    test "make_workspace_id" {
+        var id = make_workspace_id("test-id");
+        assert(id.0 == "test-id");
+    }
+
+    test "is_connected_true" {
+        assert(is_connected(WorkspaceState::Connected));
+        assert(is_connected(WorkspaceState::Syncing));
+    }
+
+    test "is_connected_false" {
+        assert(!is_connected(WorkspaceState::Disconnected));
+        assert(!is_connected(WorkspaceState::Connecting));
+        assert(!is_connected(WorkspaceState::Error));
+    }
+
+    test "is_terminal_true" {
+        assert(is_terminal(WorkspaceState::Disconnected));
+        assert(is_terminal(WorkspaceState::Error));
+    }
+
+    test "is_terminal_false" {
+        assert(!is_terminal(WorkspaceState::Connecting));
+        assert(!is_terminal(WorkspaceState::Connected));
+        assert(!is_terminal(WorkspaceState::Syncing));
+    }
+}

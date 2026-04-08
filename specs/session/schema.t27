@@ -1,0 +1,576 @@
+// specs/session/schema.t27
+// Session Types Specification
+// φ² + 1/φ² = 3 | TRINITY
+
+module Session {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Brand Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SessionID is a branded string representing a unique session identifier
+    struct SessionID(str);
+
+    // MessageID is a branded string representing a unique message identifier
+    struct MessageID(str);
+
+    // PartID is a branded string representing a unique part identifier
+    struct PartID(str);
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // Role represents the role of a message sender
+    enum Role {
+        User = 0,
+        Assistant = 1,
+        System = 2,
+    }
+
+    // MessagePart represents a part of a message
+    enum MessagePart {
+        Text = 0,
+        File = 1,
+        Tool = 2,
+        Agent = 3,
+        Subtask = 4,
+        Compaction = 5,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Time Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // Timestamp represents time information for messages/sessions
+    struct Timestamp {
+        created: u64,        // Creation timestamp
+        completed: u64?,     // Completion timestamp (for assistant messages)
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Session Time Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SessionTime represents time information for a session
+    struct SessionTime {
+        created: u64,        // When the session was created
+        updated: u64,        // Last update timestamp
+        compacting: u64?,    // When compaction started (if in progress)
+        archived: u64?,      // When the session was archived
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Summary Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SessionSummary represents a summary of changes in the session
+    struct SessionSummary {
+        additions: u32,      // Number of lines added
+        deletions: u32,      // Number of lines deleted
+        files: u32,          // Number of files changed
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Revert Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SessionRevert represents revert state for a session
+    struct SessionRevert {
+        messageID: MessageID,     // The message to revert to
+        partID: PartID?,           // Optional part to revert to
+        snapshot: str?,           // Snapshot ID if taken
+        diff: str?,               // Diff text if computed
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Share Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SessionShare represents share information for a session
+    struct SessionShare {
+        url: str,           // Share URL
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Info Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // Path represents path information for a message
+    struct Path {
+        cwd: str,           // Current working directory
+        root: str,          // Root directory of the project
+    }
+
+    // Model represents model information
+    struct Model {
+        providerID: str,    // Provider identifier
+        modelID: str,       // Model identifier
+    }
+
+    // Tokens represents token usage information
+    struct Tokens {
+        input: u32,         // Input tokens used
+        output: u32,        // Output tokens generated
+        reasoning: u32,     // Reasoning tokens used
+        cache: CacheTokens, // Cache token information
+    }
+
+    // CacheTokens represents cache token usage
+    struct CacheTokens {
+        read: u32,          // Cached input tokens read
+        write: u32,         // Cache write tokens
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Text Part Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // TextPart represents a text part of a message
+    struct TextPart {
+        id: PartID,
+        messageID: MessageID,
+        sessionID: SessionID,
+        text: str,
+        synthetic: bool?,    // Whether this is a synthetic (system-generated) part
+        ignored: bool?,      // Whether this part should be ignored
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // File Part Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // FilePart represents a file part of a message
+    struct FilePart {
+        id: PartID,
+        messageID: MessageID,
+        sessionID: SessionID,
+        url: str,            // File URL (data: or file:)
+        mime: str,           // MIME type
+        filename: str?,      // Original filename
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tool Part Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // ToolState represents the state of a tool execution
+    enum ToolState {
+        Pending = 0,
+        Running = 1,
+        Completed = 2,
+        Error = 3,
+        Cancelled = 4,
+    }
+
+    // ToolTime represents time information for a tool
+    struct ToolTime {
+        start: u64,          // When the tool started
+        end: u64?,           // When the tool completed
+    }
+
+    // ToolInput represents input data for a tool
+    struct ToolInput {
+        // Tool-specific input data (serialized)
+    }
+
+    // ToolStateData represents the state of a tool execution
+    struct ToolStateData {
+        status: ToolState,
+        input: ToolInput?,
+        output: str?,       // Tool output
+        title: str?,        // Tool title
+        metadata: any?,     // Additional metadata
+        error: str?,        // Error message if failed
+        time: ToolTime,
+    }
+
+    // ToolPart represents a tool call part of a message
+    struct ToolPart {
+        id: PartID,
+        messageID: MessageID,
+        sessionID: SessionID,
+        tool: str,           // Tool name/callID
+        callID: str,         // Unique call identifier
+        state: ToolStateData,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Agent Part Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // AgentPart represents an agent invocation part
+    struct AgentPart {
+        id: PartID,
+        messageID: MessageID,
+        sessionID: SessionID,
+        name: str,           // Agent name
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Subtask Part Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SubtaskPart represents a subtask invocation part
+    struct SubtaskPart {
+        id: PartID,
+        messageID: MessageID,
+        sessionID: SessionID,
+        agent: str,          // Agent type
+        prompt: str,         // Task prompt
+        description: str,    // Task description
+        command: str?,       // Command to execute
+        model: Model?,       // Model to use
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Compaction Part Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // CompactionPart represents a history compaction operation
+    struct CompactionPart {
+        id: PartID,
+        messageID: MessageID,
+        sessionID: SessionID,
+        auto: bool,          // Whether this was an automatic compaction
+        overflow: bool?,     // Whether this was triggered by overflow
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Info
+    // ════════════════════════════════════════════════════════════════════
+
+    // MessageInfo represents the header information of a message
+    struct MessageInfo {
+        id: MessageID,
+        sessionID: SessionID,
+        role: Role,
+        parentID: MessageID?, // Parent message ID (for threaded responses)
+        time: Timestamp,
+        agent: str?,         // Agent name (for assistant messages)
+        model: Model?,       // Model used
+        system: str?,        // System prompt override
+        finish: str?,        // Finish reason
+        error: any?,         // Error information if failed
+        cost: f64,           // Cost in currency units
+        tokens: Tokens,      // Token usage
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Parts
+    // ════════════════════════════════════════════════════════════════════
+
+    // MessageParts represents the union type of all message part types
+    // (This is represented as a tagged union in practice)
+
+    // ════════════════════════════════════════════════════════════════════
+    // User Message
+    // ════════════════════════════════════════════════════════════════════
+
+    // UserMessage represents a user message
+    struct UserMessage {
+        info: MessageInfo,
+        parts: [MessagePart], // Union of TextPart, FilePart, AgentPart, SubtaskPart
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Assistant Message
+    // ════════════════════════════════════════════════════════════════════
+
+    // AssistantMessage represents an assistant message
+    struct AssistantMessage {
+        info: MessageInfo,
+        parts: [MessagePart], // Union of TextPart, ToolPart, FilePart
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Constants
+    // ════════════════════════════════════════════════════════════════════
+
+    const DEFAULT_TITLE_PREFIX: str = "New session - ";
+    const CHILD_TITLE_PREFIX: str = "Child session - ";
+    const MAX_SESSION_TITLE_LENGTH: u32 = 100;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // make_session_id creates a SessionID from a string
+    fn make_session_id(id: str) -> SessionID {
+        return SessionID(id);
+    }
+
+    // make_message_id creates a MessageID from a string
+    fn make_message_id(id: str) -> MessageID {
+        return MessageID(id);
+    }
+
+    // make_part_id creates a PartID from a string
+    fn make_part_id(id: str) -> PartID {
+        return PartID(id);
+    }
+
+    // is_default_title checks if a title is a default generated title
+    fn is_default_title(title: str) -> bool {
+        // Implementation: Check if title matches default pattern
+    }
+
+    // create_default_title generates a default session title
+    fn create_default_title(is_child: bool) -> str {
+        // Implementation: Generate title with timestamp
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "session_id_creation" {
+        var id = SessionID("session-123");
+        assert(id.0 == "session-123");
+    }
+
+    test "message_id_creation" {
+        var id = MessageID("message-456");
+        assert(id.0 == "message-456");
+    }
+
+    test "part_id_creation" {
+        var id = PartID("part-789");
+        assert(id.0 == "part-789");
+    }
+
+    test "role_values" {
+        assert(Role::User as u32 == 0);
+        assert(Role::Assistant as u32 == 1);
+        assert(Role::System as u32 == 2);
+    }
+
+    test "message_part_values" {
+        assert(MessagePart::Text as u32 == 0);
+        assert(MessagePart::File as u32 == 1);
+        assert(MessagePart::Tool as u32 == 2);
+        assert(MessagePart::Agent as u32 == 3);
+        assert(MessagePart::Subtask as u32 == 4);
+        assert(MessagePart::Compaction as u32 == 5);
+    }
+
+    test "timestamp_creation" {
+        var ts = Timestamp {
+            created = 1234567890,
+            completed = 1234567900,
+        };
+        assert(ts.created == 1234567890);
+        assert(ts.completed == 1234567900);
+    }
+
+    test "session_time_creation" {
+        var st = SessionTime {
+            created = 1234567890,
+            updated = 1234567900,
+            compacting = null,
+            archived = null,
+        };
+        assert(st.created == 1234567890);
+        assert(st.updated == 1234567900);
+        assert(st.compacting == null);
+    }
+
+    test "session_summary_creation" {
+        var summary = SessionSummary {
+            additions = 100,
+            deletions = 50,
+            files = 10,
+        };
+        assert(summary.additions == 100);
+        assert(summary.deletions == 50);
+        assert(summary.files == 10);
+    }
+
+    test "session_revert_creation" {
+        var revert = SessionRevert {
+            messageID = MessageID("msg-1"),
+            partID = PartID("part-1"),
+            snapshot = "snap-123",
+            diff = "diff output",
+        };
+        assert(revert.messageID.0 == "msg-1");
+        assert(revert.partID?.0 == "part-1");
+        assert(revert.snapshot == "snap-123");
+    }
+
+    test "session_share_creation" {
+        var share = SessionShare {
+            url = "https://share.example.com/abc123",
+        };
+        assert(share.url == "https://share.example.com/abc123");
+    }
+
+    test "path_creation" {
+        var path = Path {
+            cwd = "/path/to/cwd",
+            root = "/path/to/root",
+        };
+        assert(path.cwd == "/path/to/cwd");
+        assert(path.root == "/path/to/root");
+    }
+
+    test "model_creation" {
+        var model = Model {
+            providerID = "anthropic",
+            modelID = "claude-sonnet-4-20250514",
+        };
+        assert(model.providerID == "anthropic");
+        assert(model.modelID == "claude-sonnet-4-20250514");
+    }
+
+    test "tokens_creation" {
+        var tokens = Tokens {
+            input = 1000,
+            output = 500,
+            reasoning = 100,
+            cache = CacheTokens { read: 200, write: 50 },
+        };
+        assert(tokens.input == 1000);
+        assert(tokens.output == 500);
+        assert(tokens.cache.read == 200);
+        assert(tokens.cache.write == 50);
+    }
+
+    test "tool_state_values" {
+        assert(ToolState::Pending as u32 == 0);
+        assert(ToolState::Running as u32 == 1);
+        assert(ToolState::Completed as u32 == 2);
+        assert(ToolState::Error as u32 == 3);
+        assert(ToolState::Cancelled as u32 == 4);
+    }
+
+    test "text_part_creation" {
+        var part = TextPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            text = "Hello world",
+            synthetic = false,
+            ignored = false,
+        };
+        assert(part.text == "Hello world");
+        assert(!part.synthetic);
+    }
+
+    test "file_part_creation" {
+        var part = FilePart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            url = "file:///path/to/file.txt",
+            mime = "text/plain",
+            filename = "file.txt",
+        };
+        assert(part.filename == "file.txt");
+        assert(part.mime == "text/plain");
+    }
+
+    test "tool_part_creation" {
+        var part = ToolPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            tool = "bash",
+            callID = "call-123",
+            state = ToolStateData {
+                status = ToolState::Completed,
+                input = null,
+                output = "command output",
+                title = "Command output",
+                metadata = null,
+                error = null,
+                time = ToolTime { start: 1000, end: 2000 },
+            },
+        };
+        assert(part.tool == "bash");
+        assert(part.state.status == ToolState::Completed);
+    }
+
+    test "agent_part_creation" {
+        var part = AgentPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            name = "coder",
+        };
+        assert(part.name == "coder");
+    }
+
+    test "subtask_part_creation" {
+        var part = SubtaskPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            agent = "general",
+            prompt = "Fix the bug",
+            description = "Bug fix task",
+            command = null,
+            model = null,
+        };
+        assert(part.agent == "general");
+        assert(part.prompt == "Fix the bug");
+    }
+
+    test "compaction_part_creation" {
+        var part = CompactionPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            auto = true,
+            overflow = true,
+        };
+        assert(part.auto);
+        assert(part.overflow == true);
+    }
+
+    test "message_info_creation" {
+        var info = MessageInfo {
+            id = MessageID("msg-1"),
+            sessionID: SessionID("sess-1"),
+            role = Role::User,
+            parentID = null,
+            time = Timestamp { created: 1000, completed: null },
+            agent = null,
+            model = null,
+            system = null,
+            finish = null,
+            error = null,
+            cost = 0.0,
+            tokens = Tokens {
+                input = 0,
+                output = 0,
+                reasoning = 0,
+                cache = CacheTokens { read: 0, write: 0 },
+            },
+        };
+        assert(info.role == Role::User);
+        assert(info.cost == 0.0);
+    }
+
+    test "constants_values" {
+        assert(DEFAULT_TITLE_PREFIX == "New session - ");
+        assert(CHILD_TITLE_PREFIX == "Child session - ");
+        assert(MAX_SESSION_TITLE_LENGTH == 100);
+    }
+
+    test "make_session_id" {
+        var id = make_session_id("test-id");
+        assert(id.0 == "test-id");
+    }
+
+    test "make_message_id" {
+        var id = make_message_id("test-id");
+        assert(id.0 == "test-id");
+    }
+
+    test "make_part_id" {
+        var id = make_part_id("test-id");
+        assert(id.0 == "test-id");
+    }
+}

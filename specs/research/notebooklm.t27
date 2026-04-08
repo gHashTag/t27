@@ -1,0 +1,207 @@
+// specs/research/notebooklm.t27
+// Extended NotebookLM for GoldenFloat paper research
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module research::notebooklm {
+    use memory::notebooklm;
+
+    // ============================================================================
+    // 1. Literature Types (simplified vs full implementation)
+    // ============================================================================
+
+    /// Paper source retrieved from literature search
+    struct PaperSource {
+        id: str,              // Unique identifier (UUID or citation key)
+        title: str,           // Paper title
+        authors: str,         // Comma-separated author names
+        year: u32,            // Publication year
+        venue: str,           // "arXiv", "NeurIPS", "ICML", "IEEE", etc.
+        url: str,             // Paper URL
+        doi: str,             // DOI (empty if not available)
+        bibtex: str,          // BibTeX entry string
+        relevance: f64,       // RAG score [0.0, 1.0]
+        category: str,        // "baseline", "related", "foundational"
+        added_at: u64,        // Unix timestamp
+    }
+
+    /// Query for literature search
+    struct LiteratureQuery {
+        topic: str,           // Main research topic
+        keywords: [str],      // Search keywords
+        year_min: u32,        // Minimum year (default: 2010)
+        year_max: u32,        // Maximum year (default: current year)
+        limit: u32,           // Max results (default: 10)
+        category_filter: [str], // Filter by categories (empty = all)
+    }
+
+    /// Result of literature query
+    struct LiteratureResult {
+        sources: [PaperSource],
+        gaps: [str],          // Identified research gaps
+        confidence: f64,      // Overall result confidence [0.0, 1.0]
+        query_ref: str,       // Reference to original query
+    }
+
+    // ============================================================================
+    // 2. BibTeX Types
+    // ============================================================================
+
+    /// BibTeX entry for bibliography
+    struct BibEntry {
+        cite_key: str,        // e.g., "gustafson2017posit"
+        entry_type: str,      // "article", "inproceedings", "book", "misc"
+        author: str,
+        title: str,
+        year: u32,
+        venue: str,           // journal or booktitle
+        volume: str,          // Optional
+        number: str,          // Optional
+        pages: str,           // Optional
+        doi: str,             // Optional
+        url: str,             // Optional
+        note: str,            // Optional notes
+    }
+
+    /// Validation result for BibTeX entry
+    struct BibValidation {
+        is_valid: bool,
+        errors: [str],
+        warnings: [str],
+    }
+
+    // ============================================================================
+    // 3. Functions
+    // ============================================================================
+
+    /// Query NotebookLM for literature on a topic
+    /// Returns relevant sources and identified research gaps
+    fn literature_query(
+        client: &NotebookLMClient,
+        query: LiteratureQuery,
+    ) -> (LiteratureResult, ErrorCode);
+
+    /// Add BibTeX entry to bibliography database
+    fn bib_add(entry: BibEntry) -> ErrorCode;
+
+    /// Search bibliography by keyword or cite_key
+    fn bib_search(query: str) -> ([BibEntry], ErrorCode);
+
+    /// Validate BibTeX entry format
+    fn bib_validate(entry: &BibEntry) -> BibValidation;
+
+    /// Export bibliography to specified format
+    fn bib_export(format: str) -> (str, ErrorCode);
+    // Supported formats: "bibtex", "bibjson"
+
+    /// Review paper using NotebookLM AI
+    /// Returns review text focused on NeurIPS criteria
+    fn paper_review(
+        client: &NotebookLMClient,
+        paper_text: str,
+        criteria: [str],  // e.g., ["claims", "related-work", "limitations"]
+    ) -> (str, ErrorCode);
+
+    // ============================================================================
+    // 4. Tests
+    // ============================================================================
+
+    test "literature_query_returns_sources" {
+        const query = LiteratureQuery {
+            topic: "ternary floating point",
+            keywords: ["ternary", "floating-point", "quantization"],
+            year_min: 2010,
+            year_max: 2026,
+            limit: 5,
+            category_filter: [],
+        };
+
+        const (result, err) = literature_query(&mock_client, query);
+        assert(err == ErrorCode::Success);
+        assert(result.sources.len() > 0);
+        assert(result.confidence > 0.0);
+    }
+
+    test "bib_add_retrieves_by_cite_key" {
+        const entry = BibEntry {
+            cite_key: "test2024example",
+            entry_type: "article",
+            author: "Test Author",
+            title: "Test Paper",
+            year: 2024,
+            venue: "Test Journal",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "",
+            note: "",
+        };
+
+        const err = bib_add(entry);
+        assert(err == ErrorCode::Success);
+
+        const (results, err2) = bib_search("test2024example");
+        assert(err2 == ErrorCode::Success);
+        assert(results.len() == 1);
+        assert(results[0].cite_key == "test2024example");
+    }
+
+    test "bib_validate_catches_missing_required_fields" {
+        const invalid_entry = BibEntry {
+            cite_key: "",  // Missing required field
+            entry_type: "article",
+            author: "Test Author",
+            title: "Test Paper",
+            year: 2024,
+            venue: "Test Journal",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "",
+            note: "",
+        };
+
+        const validation = bib_validate(&invalid_entry);
+        assert(!validation.is_valid);
+        assert(validation.errors.len() > 0);
+    }
+
+    test "bib_export_generates_valid_bibtex" {
+        const entry = BibEntry {
+            cite_key: "gustafson2017posit",
+            entry_type: "article",
+            author: "Gustafson, John L.",
+            title: "The Posit: A New Kind of Floating-Point",
+            year: 2017,
+            venue: "arXiv",
+            volume: "",
+            number: "",
+            pages: "",
+            doi: "",
+            url: "https://arxiv.org/abs/1712.04546",
+            note: "",
+        };
+
+        _ = bib_add(entry);
+
+        const (bibtex, err) = bib_export("bibtex");
+        assert(err == ErrorCode::Success);
+        assert(bibtex.contains("@article{gustafson2017posit,"));
+        assert(bibtex.contains("author = {Gustafson, John L.}"));
+        assert(bibtex.contains("year = {2017}"));
+    }
+
+    test "paper_review_returns_criteria_focused_feedback" {
+        const paper_text = "We present a new floating-point format...";
+
+        const (review, err) = paper_review(
+            &mock_client,
+            paper_text,
+            ["claims", "limitations"],
+        );
+
+        assert(err == ErrorCode::Success);
+        assert(review.len() > 0);
+    }
+}

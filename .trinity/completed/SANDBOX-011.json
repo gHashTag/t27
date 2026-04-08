@@ -1,0 +1,7 @@
+{
+  "issue": "SANDBOX-011",
+  "title": "Orphaned Session Detection",
+  "status": "in_progress",
+  "started_at": "2026-04-08",
+  "description": "Detect sessions with no associated Railway resources (orphaned) and flag for cleanup"
+}

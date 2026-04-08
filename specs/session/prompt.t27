@@ -1,0 +1,397 @@
+// specs/session/prompt.t27
+// Session Prompt Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module SessionPrompt {
+    use base::types;
+    use session::schema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Prompt Input
+    // ════════════════════════════════════════════════════════════════════
+
+    // PromptInput represents the input for creating a prompt
+    struct PromptInput {
+        sessionID: SessionID,
+        messageID: MessageID?,
+        model: Model?,
+        agent: str?,          // Agent name
+        noReply: bool?,       // Skip generating a response
+        tools: [str: bool]?,  // Tool permissions
+        format: PromptFormat?, // Output format
+        system: str?,         // System prompt override
+        variant: str?,        // Model variant
+        parts: [PromptPart],   // Message parts
+    }
+
+    // PromptPart represents a part of a prompt
+    enum PromptPart {
+        Text(TextPart),
+        File(FilePart),
+        Agent(AgentPart),
+        Subtask(SubtaskPart),
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Prompt Format
+    // ════════════════════════════════════════════════════════════════════
+
+    // PromptFormat represents the desired output format
+    enum PromptFormat {
+        Text = 0,
+        JsonSchema = 1,      // Structured JSON output
+    }
+
+    // JsonSchemaFormat represents JSON schema output format
+    struct JsonSchemaFormat {
+        type: str,            // Always "json_schema"
+        schema: any,         // JSON schema definition
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Prompt Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // build_prompt builds a complete prompt from session history
+    fn build_prompt(sessionID: SessionID, options: BuildOptions) -> Result<BuiltPrompt, PromptError> {
+        // Implementation: Assemble system prompt + messages
+    }
+
+    // instructions retrieves the system instructions for an agent
+    fn instructions(agent: str) -> Result<[str], PromptError> {
+        // Implementation: Load agent-specific instructions
+    }
+
+    // summarize generates a summary of the session
+    fn summarize(sessionID: SessionID) -> Result<SessionSummary, PromptError> {
+        // Implementation: Generate summary of changes made in session
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // System Prompt Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // system_prompt retrieves the base system prompt
+    fn system_prompt() -> str {
+        // Implementation: Return base system prompt text
+    }
+
+    // environment_prompt retrieves environment-specific prompts
+    fn environment_prompt(model: Model) -> Result<[str], PromptError> {
+        // Implementation: Get OS, shell, and other env prompts
+    }
+
+    // skills_prompt retrieves skills/configuration prompts
+    fn skills_prompt(agent: str) -> Result<str?, PromptError> {
+        // Implementation: Get skills and configuration prompts
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Template Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // resolve_template resolves template references in a prompt
+    fn resolve_template(template: str) -> Result<str, PromptError> {
+        // Implementation: Replace file: and agent: references
+    }
+
+    // resolve_file_reference resolves a file: reference to content
+    fn resolve_file_reference(path: str, sessionID: SessionID) -> Result<str, PromptError> {
+        // Implementation: Read file and return content
+    }
+
+    // resolve_agent_reference resolves an agent: reference
+    fn resolve_agent_reference(agent: str) -> Result<str, PromptError> {
+        // Implementation: Get agent description
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // BuildOptions represents options for building a prompt
+    struct BuildOptions {
+        includeSystem: bool,     // Include system prompt
+        maxMessages: u32,         // Maximum messages to include
+        maxTokens: u32,           // Maximum tokens
+        includeTools: bool,       // Include tool descriptions
+        compact: bool,            // Use compacted history
+    }
+
+    // BuiltPrompt represents a fully assembled prompt
+    struct BuiltPrompt {
+        system: [str],            // System prompt lines
+        messages: [ModelMessage], // Model messages
+        tools: [ToolDefinition],  // Available tools
+        format: PromptFormat?,    // Output format
+    }
+
+    // ModelMessage represents a message formatted for the model
+    struct ModelMessage {
+        role: ModelRole,
+        content: str,             // Message content
+    }
+
+    // ModelRole represents the role for model messages
+    enum ModelRole {
+        System = 0,
+        User = 1,
+        Assistant = 2,
+    }
+
+    // ToolDefinition represents a tool available to the model
+    struct ToolDefinition {
+        name: str,                 // Tool name
+        description: str,          // Tool description
+        parameters: any,           // JSON schema for parameters
+    }
+
+    // PromptError represents errors in prompt operations
+    enum PromptError {
+        NotFound = 0,
+        InvalidTemplate = 1,
+        FileReadError = 2,
+        AgentNotFound = 3,
+        BuildError = 4,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "prompt_input_creation" {
+        var input = PromptInput {
+            sessionID = SessionID("sess-1"),
+            messageID = MessageID("msg-1"),
+            model = Model {
+                providerID = "anthropic",
+                modelID = "claude-sonnet-4-20250514",
+            },
+            agent = "coder",
+            noReply = false,
+            tools = null,
+            format = null,
+            system = null,
+            variant = null,
+            parts = [],
+        };
+        assert(input.sessionID.0 == "sess-1");
+        assert(input.agent == "coder");
+        assert(input.parts.len == 0);
+    }
+
+    test "prompt_input_with_parts" {
+        var input = PromptInput {
+            sessionID = SessionID("sess-1"),
+            messageID = null,
+            model = null,
+            agent = null,
+            noReply = null,
+            tools = null,
+            format = null,
+            system = null,
+            variant = null,
+            parts = [
+                PromptPart::Text(TextPart {
+                    id = PartID("part-1"),
+                    messageID = MessageID("msg-1"),
+                    sessionID = SessionID("sess-1"),
+                    text = "Hello",
+                    synthetic = null,
+                    ignored = null,
+                }),
+            ],
+        };
+        assert(input.parts.len == 1);
+    }
+
+    test "prompt_format_values" {
+        assert(PromptFormat::Text as u32 == 0);
+        assert(PromptFormat::JsonSchema as u32 == 1);
+    }
+
+    test "json_schema_format_creation" {
+        var format = JsonSchemaFormat {
+            type = "json_schema",
+            schema = {
+                type = "object",
+                properties: {
+                    answer: { type = "string" },
+                },
+            },
+        };
+        assert(format.type == "json_schema");
+    }
+
+    test "build_options_creation" {
+        var options = BuildOptions {
+            includeSystem = true,
+            maxMessages = 50,
+            maxTokens = 100000,
+            includeTools = true,
+            compact = false,
+        };
+        assert(options.includeSystem);
+        assert(options.maxMessages == 50);
+        assert(options.maxTokens == 100000);
+    }
+
+    test "built_prompt_creation" {
+        var prompt = BuiltPrompt {
+            system = ["System prompt line 1", "System prompt line 2"],
+            messages = [
+                ModelMessage {
+                    role = ModelRole::User,
+                    content = "Hello",
+                },
+            ],
+            tools = [
+                ToolDefinition {
+                    name = "read",
+                    description = "Read a file",
+                    parameters = {},
+                },
+            ],
+            format = PromptFormat::Text,
+        };
+        assert(prompt.system.len == 2);
+        assert(prompt.messages.len == 1);
+        assert(prompt.tools.len == 1);
+    }
+
+    test "model_message_creation" {
+        var msg = ModelMessage {
+            role = ModelRole::Assistant,
+            content = "I can help with that.",
+        };
+        assert(msg.role == ModelRole::Assistant);
+        assert(msg.content == "I can help with that.");
+    }
+
+    test "model_role_values" {
+        assert(ModelRole::System as u32 == 0);
+        assert(ModelRole::User as u32 == 1);
+        assert(ModelRole::Assistant as u32 == 2);
+    }
+
+    test "tool_definition_creation" {
+        var tool = ToolDefinition {
+            name = "bash",
+            description = "Execute bash command",
+            parameters = {
+                type = "object",
+                properties = {
+                    command: { type = "string" },
+                },
+            },
+        };
+        assert(tool.name == "bash");
+        assert(tool.description == "Execute bash command");
+    }
+
+    test "prompt_error_values" {
+        assert(PromptError::NotFound as u32 == 0);
+        assert(PromptError::InvalidTemplate as u32 == 1);
+        assert(PromptError::FileReadError as u32 == 2);
+        assert(PromptError::AgentNotFound as u32 == 3);
+        assert(PromptError::BuildError as u32 == 4);
+    }
+
+    test "build_options_minimal" {
+        var options = BuildOptions {
+            includeSystem = false,
+            maxMessages = 10,
+            maxTokens = 5000,
+            includeTools = false,
+            compact = true,
+        };
+        assert(!options.includeSystem);
+        assert(options.compact);
+    }
+
+    test "built_prompt_no_tools" {
+        var prompt = BuiltPrompt {
+            system = [],
+            messages = [],
+            tools = [],
+            format = null,
+        };
+        assert(prompt.tools.len == 0);
+        assert(prompt.format == null);
+    }
+
+    test "built_prompt_with_format" {
+        var prompt = BuiltPrompt {
+            system = [],
+            messages = [],
+            tools = [],
+            format = PromptFormat::JsonSchema,
+        };
+        assert(prompt.format == PromptFormat::JsonSchema);
+    }
+
+    test "prompt_input_no_reply" {
+        var input = PromptInput {
+            sessionID = SessionID("sess-1"),
+            messageID = null,
+            model = null,
+            agent = null,
+            noReply = true,
+            tools = null,
+            format = null,
+            system = null,
+            variant = null,
+            parts = [],
+        };
+        assert(input.noReply == true);
+    }
+
+    test "prompt_input_with_tools" {
+        var input = PromptInput {
+            sessionID = SessionID("sess-1"),
+            messageID = null,
+            model = null,
+            agent = null,
+            noReply = null,
+            tools = { "bash": true, "read": false },
+            format = null,
+            system = null,
+            variant = null,
+            parts = [],
+        };
+        assert(input.tools?["bash"] == true);
+        assert(input.tools?["read"] == false);
+    }
+
+    test "prompt_input_with_system" {
+        var input = PromptInput {
+            sessionID = SessionID("sess-1"),
+            messageID = null,
+            model = null,
+            agent = null,
+            noReply = null,
+            tools = null,
+            format = null,
+            system = "You are a helpful assistant.",
+            variant = null,
+            parts = [],
+        };
+        assert(input.system == "You are a helpful assistant.");
+    }
+
+    test "prompt_input_with_variant" {
+        var input = PromptInput {
+            sessionID = SessionID("sess-1"),
+            messageID = null,
+            model = null,
+            agent = null,
+            noReply = null,
+            tools = null,
+            format = null,
+            system = null,
+            variant = "sonnet-4-20250514",
+            parts = [],
+        };
+        assert(input.variant == "sonnet-4-20250514");
+    }
+}

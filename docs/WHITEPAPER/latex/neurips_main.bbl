@@ -1,0 +1,42 @@
+\begin{thebibliography}{6}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[iee(2019)]{ieee754_2019}
+Ieee standard for floating-point arithmetic, 2019.
+
+\bibitem[Anonymous(2025)]{huawei2025}
+Anonymous.
+\newblock Ternary logic gates with 30\% latency reduction and 66\% energy
+  savings.
+\newblock In \emph{Proceedings of the 2025 International Conference on
+  Computer-Aided Design}, pages 1--12, 2025.
+\newblock Patent Application (Anonymous Submission).
+
+\bibitem[Etiemble(2011)]{etiemble2019}
+Daniel Etiemble.
+\newblock Ternary circuits: Why r=3 is not the optimal radix for computation.
+\newblock In \emph{Proceedings of the IEEE 29th International Conference on
+  Computer Design}, pages 123--130, 2011.
+
+\bibitem[Gustafson(2017)]{gustafson2017}
+John~L. Gustafson.
+\newblock The posit: A new kind of floating-point.
+\newblock \emph{arXiv}, 2017.
+
+\bibitem[Sun et~al.(2019)Sun, Shrivastava, Rippel, and Madry]{sun2019fp8}
+De~Sun, Ashish Shrivastava, Oren Rippel, and Upamanyu Madry.
+\newblock Toward efficient deep learning: A comparative analysis of 8-bit
+  floating point formats.
+\newblock \emph{arXiv}, 2019.
+
+\bibitem[Zhu et~al.(2016)Zhu, Zhao, and Han]{zhu2016ternary}
+Chunyong Zhu, Han Zhao, and Song Han.
+\newblock Ternary neural networks with fine-grained weights.
+\newblock In \emph{Proceedings of the 2016 Conference on Computer Vision and
+  Pattern Recognition}, pages 4795--4803, 2016.
+
+\end{thebibliography}

@@ -48,6 +48,48 @@ pub enum BridgeCommands {
     },
     /// Read last loop.handoff and show FUTURE OPTIONS
     Handoff,
+    /// Research commands for GoldenFloat paper workflow
+    #[command(subcommand)]
+    Research(ResearchCommands),
+}
+
+/// Research commands for academic paper workflow
+/// Specs: specs/research/notebooklm.t27, specs/research/literature.t27
+#[derive(Subcommand, Debug)]
+pub enum ResearchCommands {
+    /// Add BibTeX entry to bibliography
+    BibAdd {
+        #[arg(long)] key: String,
+        #[arg(long, default_value = "article")] entry_type: String,
+        #[arg(long)] title: String,
+        #[arg(long)] author: String,
+        #[arg(long)] year: u32,
+        #[arg(long)] venue: String,
+        #[arg(long, default_value = "")] doi: String,
+        #[arg(long, default_value = "")] url: String,
+        #[arg(long, default_value = "related")] category: String,
+    },
+    /// Search bibliography by keyword or cite_key
+    BibSearch {
+        #[arg(long)] query: String,
+    },
+    /// Export bibliography to specified format (bibtex, bibjson, csv)
+    BibExport {
+        #[arg(long, default_value = "bibtex")] format: String,
+    },
+    /// Validate BibTeX entry format
+    BibValidate {
+        #[arg(long)] key: String,
+    },
+    /// Check category coverage (minimum entries per category)
+    BibCoverage {
+        #[arg(long, default_value = "3")] min_per_category: u32,
+    },
+    /// Query NotebookLM for literature review
+    LitQuery {
+        #[arg(long)] topic: String,
+        #[arg(long, default_value = "10")] limit: u32,
+    },
 }
 
 pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
@@ -64,6 +106,7 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
         } => cmd_send(&root, &session_id, &message),
         BridgeCommands::Watch { session_id } => cmd_watch(&root, &session_id),
         BridgeCommands::Handoff => cmd_handoff(&root),
+        BridgeCommands::Research(cmd) => handle_research(cmd, &root),
     }
     Ok(())
 }
@@ -346,6 +389,46 @@ fn cmd_handoff(root: &Path) {
                     }
                 }
             }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Research Commands (Stubs — implementation pending spec generation)
+//
+// Specs: specs/research/notebooklm.t27, specs/research/literature.t27
+// ═══════════════════════════════════════════════════════════════
+
+/// Handle research commands for academic paper workflow
+fn handle_research(cmd: ResearchCommands, root: &Path) {
+    match cmd {
+        ResearchCommands::BibAdd {
+            key,
+            entry_type,
+            title,
+            author,
+            year,
+            venue,
+            doi,
+            url,
+            category,
+        } => {
+            todo!("ResearchCommands::BibAdd — implementation pending spec generation");
+        }
+        ResearchCommands::BibSearch { query } => {
+            todo!("ResearchCommands::BibSearch — implementation pending spec generation");
+        }
+        ResearchCommands::BibExport { format } => {
+            todo!("ResearchCommands::BibExport — implementation pending spec generation");
+        }
+        ResearchCommands::BibValidate { key } => {
+            todo!("ResearchCommands::BibValidate — implementation pending spec generation");
+        }
+        ResearchCommands::BibCoverage { min_per_category } => {
+            todo!("ResearchCommands::BibCoverage — implementation pending spec generation");
+        }
+        ResearchCommands::LitQuery { topic, limit } => {
+            todo!("ResearchCommands::LitQuery — implementation pending spec generation");
         }
     }
 }

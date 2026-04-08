@@ -1,0 +1,371 @@
+// specs/session/lifecycle.t27
+// Session Lifecycle Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module SessionLifecycle {
+    use base::types;
+    use session::schema;
+    use project::schema as ProjectSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Session Info
+    // ════════════════════════════════════════════════════════════════════
+
+    // SessionInfo represents complete session information
+    struct SessionInfo {
+        id: SessionID,
+        slug: str,                   // URL-friendly identifier
+        projectID: ProjectSchema::ProjectID,
+        workspaceID: str?,          // Workspace ID (if applicable)
+        directory: str,              // Working directory
+        parentID: SessionID?,        // Parent session ID (for forks)
+        title: str,                  // Session title
+        version: str,                // Application version
+        summary: SessionSummary?,    // Change summary
+        share: SessionShare?,        // Share information
+        permission: [any]?,          // Permission ruleset
+        revert: SessionRevert?,      // Revert state
+        time: SessionTime,           // Timestamps
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Creation Input
+    // ════════════════════════════════════════════════════════════════════
+
+    // CreateInput represents the input for creating a session
+    struct CreateInput {
+        parentID: SessionID?,        // Parent session ID (for forking)
+        title: str?,                 // Custom title
+        permission: [any]?,          // Permission ruleset
+        workspaceID: str?,           // Workspace ID
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Lifecycle Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // create creates a new session
+    fn create(input: CreateInput?) -> Result<SessionInfo, SessionError> {
+        // Implementation: Create session in storage with default values
+    }
+
+    // fork creates a fork of an existing session
+    fn fork(sessionID: SessionID, messageID: MessageID?) -> Result<SessionInfo, SessionError> {
+        // Implementation: Copy messages up to messageID to new session
+    }
+
+    // get retrieves a session by ID
+    fn get(id: SessionID) -> Result<SessionInfo, SessionError> {
+        // Implementation: Query session from storage
+    }
+
+    // list returns sessions matching criteria
+    fn list(filter: ListFilter?) -> Result<[SessionInfo], SessionError> {
+        // Implementation: Query sessions with optional filters
+    }
+
+    // touch updates the session's updated timestamp
+    fn touch(sessionID: SessionID) -> Result<void, SessionError> {
+        // Implementation: Update time.updated to now
+    }
+
+    // remove deletes a session and all its messages
+    fn remove(sessionID: SessionID) -> Result<void, SessionError> {
+        // Implementation: Delete session and associated data
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // State Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // set_title updates the session title
+    fn set_title(sessionID: SessionID, title: str) -> Result<void, SessionError> {
+        // Implementation: Update session title
+    }
+
+    // set_archived marks a session as archived
+    fn set_archived(sessionID: SessionID, time: u64?) -> Result<void, SessionError> {
+        // Implementation: Set archived timestamp
+    }
+
+    // set_permission updates the session permission ruleset
+    fn set_permission(sessionID: SessionID, permission: [any]) -> Result<void, SessionError> {
+        // Implementation: Update permission rules
+    }
+
+    // set_revert sets the revert state for a session
+    fn set_revert(sessionID: SessionID, revert: SessionRevert, summary: SessionSummary?) -> Result<void, SessionError> {
+        // Implementation: Store revert state and summary
+    }
+
+    // clear_revert clears the revert state for a session
+    fn clear_revert(sessionID: SessionID) -> Result<void, SessionError> {
+        // Implementation: Remove revert state
+    }
+
+    // set_summary updates the session summary
+    fn set_summary(sessionID: SessionID, summary: SessionSummary?) -> Result<void, SessionError> {
+        // Implementation: Update change summary
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Share Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // share generates a share URL for a session
+    fn share(sessionID: SessionID) -> Result<SessionShare, SessionError> {
+        // Implementation: Create share link
+    }
+
+    // unshare removes the share URL for a session
+    fn unshare(sessionID: SessionID) -> Result<void, SessionError> {
+        // Implementation: Remove share link
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Completion Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // complete marks a session as successfully completed
+    fn complete(sessionID: SessionID) -> Result<void, SessionError> {
+        // Implementation: Update session state to completed
+    }
+
+    // fail marks a session as failed
+    fn fail(sessionID: SessionID, error: str) -> Result<void, SessionError> {
+        // Implementation: Store error and mark as failed
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // ListFilter represents filter criteria for listing sessions
+    struct ListFilter {
+        directory: str?,      // Filter by directory
+        workspaceID: str?,     // Filter by workspace
+        roots: bool?,          // Only root sessions (no parent)
+        start: u64?,           // Filter by start time (updated >= start)
+        search: str?,          // Search in title
+        limit: u32?,           // Maximum results
+        archived: bool?,       // Include archived sessions
+    }
+
+    // SessionError represents errors in session operations
+    enum SessionError {
+        NotFound = 0,
+        InvalidInput = 1,
+        StorageError = 2,
+        Busy = 3,
+        AlreadyShared = 4,
+        ShareDisabled = 5,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "session_info_creation" {
+        var info = SessionInfo {
+            id = SessionID("sess-1"),
+            slug = "abc123",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            workspaceID = null,
+            directory = "/path/to/dir",
+            parentID = null,
+            title = "Test Session",
+            version = "1.0.0",
+            summary = null,
+            share = null,
+            permission = null,
+            revert = null,
+            time = SessionTime {
+                created = 1000,
+                updated = 2000,
+                compacting = null,
+                archived = null,
+            },
+        };
+        assert(info.id.0 == "sess-1");
+        assert(info.title == "Test Session");
+        assert(info.parentID == null);
+    }
+
+    test "session_info_with_parent" {
+        var info = SessionInfo {
+            id = SessionID("child-1"),
+            slug = "child-abc",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            workspaceID = null,
+            directory = "/path/to/dir",
+            parentID = SessionID("parent-1"),
+            title = "Child Session",
+            version = "1.0.0",
+            summary = null,
+            share = null,
+            permission = null,
+            revert = null,
+            time = SessionTime {
+                created = 1000,
+                updated = 2000,
+                compacting = null,
+                archived = null,
+            },
+        };
+        assert(info.parentID?.0 == "parent-1");
+    }
+
+    test "create_input_creation" {
+        var input = CreateInput {
+            parentID = SessionID("parent-1"),
+            title = "Forked Session",
+            permission = null,
+            workspaceID = null,
+        };
+        assert(input.parentID?.0 == "parent-1");
+        assert(input.title == "Forked Session");
+    }
+
+    test "create_input_nulls" {
+        var input = CreateInput {
+            parentID = null,
+            title = null,
+            permission = null,
+            workspaceID = null,
+        };
+        assert(input.parentID == null);
+        assert(input.title == null);
+    }
+
+    test "list_filter_creation" {
+        var filter = ListFilter {
+            directory: "/path",
+            workspaceID: null,
+            roots: true,
+            start: 1000,
+            search: "test",
+            limit: 50,
+            archived: false,
+        };
+        assert(filter.directory == "/path");
+        assert(filter.roots == true);
+        assert(filter.limit == 50);
+    }
+
+    test "list_filter_minimal" {
+        var filter = ListFilter {
+            directory = null,
+            workspaceID = null,
+            roots = null,
+            start: null,
+            search = null,
+            limit: null,
+            archived: null,
+        };
+        assert(filter.directory == null);
+    }
+
+    test "session_error_values" {
+        assert(SessionError::NotFound as u32 == 0);
+        assert(SessionError::InvalidInput as u32 == 1);
+        assert(SessionError::StorageError as u32 == 2);
+        assert(SessionError::Busy as u32 == 3);
+        assert(SessionError::AlreadyShared as u32 == 4);
+        assert(SessionError::ShareDisabled as u32 == 5);
+    }
+
+    test "session_info_with_summary" {
+        var summary = SessionSummary {
+            additions: 100,
+            deletions: 50,
+            files: 10,
+        };
+        var info = SessionInfo {
+            id = SessionID("sess-1"),
+            slug = "abc",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            workspaceID = null,
+            directory = "/dir",
+            parentID = null,
+            title = "Test",
+            version = "1.0",
+            summary = summary,
+            share = null,
+            permission = null,
+            revert = null,
+            time = SessionTime { created: 0, updated: 0, compacting: null, archived = null },
+        };
+        assert(info.summary?.additions == 100);
+    }
+
+    test "session_info_with_share" {
+        var share = SessionShare {
+            url = "https://share.example.com/abc",
+        };
+        var info = SessionInfo {
+            id = SessionID("sess-1"),
+            slug = "abc",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            workspaceID = null,
+            directory = "/dir",
+            parentID = null,
+            title = "Test",
+            version = "1.0",
+            summary = null,
+            share = share,
+            permission = null,
+            revert = null,
+            time = SessionTime { created: 0, updated: 0, compacting: null, archived = null },
+        };
+        assert(info.share?.url == "https://share.example.com/abc");
+    }
+
+    test "session_info_with_revert" {
+        var revert = SessionRevert {
+            messageID = MessageID("msg-1"),
+            partID = PartID("part-1"),
+            snapshot: null,
+            diff = null,
+        };
+        var info = SessionInfo {
+            id = SessionID("sess-1"),
+            slug = "abc",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            workspaceID = null,
+            directory = "/dir",
+            parentID = null,
+            title = "Test",
+            version = "1.0",
+            summary = null,
+            share = null,
+            permission = null,
+            revert = revert,
+            time = SessionTime { created: 0, updated: 0, compacting: null, archived = null },
+        };
+        assert(info.revert?.messageID.0 == "msg-1");
+    }
+
+    test "session_info_archived" {
+        var info = SessionInfo {
+            id = SessionID("sess-1"),
+            slug = "abc",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            workspaceID = null,
+            directory = "/dir",
+            parentID = null,
+            title = "Test",
+            version = "1.0",
+            summary = null,
+            share = null,
+            permission = null,
+            revert = null,
+            time = SessionTime {
+                created = 1000,
+                updated = 2000,
+                compacting = null,
+                archived = 3000,
+            },
+        };
+        assert(info.time.archived == 3000);
+    }
+}

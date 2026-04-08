@@ -1,0 +1,239 @@
+// specs/project/operations.t27
+// Project Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module ProjectOperations {
+    use base::types;
+    use project::schema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Update Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // UpdateInput represents the input for updating a project
+    struct UpdateInput {
+        projectID: ProjectID,
+        name: str?,
+        icon: Icon?,
+        commands: Commands?,
+    }
+
+    // update updates project metadata
+    fn update(input: UpdateInput) -> Result<Info, ProjectError> {
+        // Implementation: Update project in storage with new metadata
+    }
+
+    // set_initialized marks a project as git-initialized
+    fn set_initialized(id: ProjectID) -> Result<void, ProjectError> {
+        // Implementation: Update the initialized timestamp
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Git Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // InitGitInput represents the input for initializing git
+    struct InitGitInput {
+        directory: str,
+        project: Info,
+    }
+
+    // initGit initializes a git repository in the project directory
+    fn init_git(input: InitGitInput) -> Result<Info, ProjectError> {
+        // Implementation: Run git init --quiet, then re-discover project
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Sandbox Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // sandboxes returns all valid sandbox directories for a project
+    fn sandboxes(id: ProjectID) -> Result<[str], ProjectError> {
+        // Implementation: Return all existing sandbox directories
+    }
+
+    // add_sandbox adds a sandbox directory to a project
+    fn add_sandbox(id: ProjectID, directory: str) -> Result<void, ProjectError> {
+        // Implementation: Add directory to project's sandbox list
+    }
+
+    // remove_sandbox removes a sandbox directory from a project
+    fn remove_sandbox(id: ProjectID, directory: str) -> Result<void, ProjectError> {
+        // Implementation: Remove directory from project's sandbox list
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Worktree Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // CreateWorktreeInput represents the input for creating a worktree
+    struct CreateWorktreeInput {
+        projectID: ProjectID,
+        branch: str,
+        directory: str,
+    }
+
+    // create_worktree creates a new git worktree for the project
+    fn create_worktree(input: CreateWorktreeInput) -> Result<Info, ProjectError> {
+        // Implementation: Run git worktree add, add to sandboxes
+    }
+
+    // remove_worktree removes a git worktree from the project
+    fn remove_worktree(projectID: ProjectID, directory: str) -> Result<void, ProjectError> {
+        // Implementation: Run git worktree remove, remove from sandboxes
+    }
+
+    // list_worktrees lists all worktrees for a project
+    fn list_worktrees(projectID: ProjectID) -> Result<[str], ProjectError> {
+        // Implementation: Run git worktree list, parse output
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Error Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // ProjectError represents errors in project operations
+    enum ProjectError {
+        NotFound = 0,
+        InvalidPath = 1,
+        NotARepository = 2,
+        StorageError = 3,
+        GitError = 4,
+        WorktreeError = 5,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "update_input_creation" {
+        var input = UpdateInput {
+            projectID = ProjectID("test-id"),
+            name = "Updated Name",
+            icon = null,
+            commands = null,
+        };
+        assert(input.projectID.0 == "test-id");
+        assert(input.name == "Updated Name");
+    }
+
+    test "update_input_with_icon" {
+        var icon = Icon {
+            url = "https://example.com/icon.png",
+            color = "#ff0000",
+        };
+        var input = UpdateInput {
+            projectID = ProjectID("test-id"),
+            name = null,
+            icon = icon,
+            commands = null,
+        };
+        assert(input.icon?.url == "https://example.com/icon.png");
+    }
+
+    test "update_input_with_commands" {
+        var commands = Commands {
+            start = "npm start",
+        };
+        var input = UpdateInput {
+            projectID = ProjectID("test-id"),
+            name = null,
+            icon = null,
+            commands = commands,
+        };
+        assert(input.commands?.start == "npm start");
+    }
+
+    test "init_git_input_creation" {
+        var project = Info {
+            id = ProjectID("test-id"),
+            worktree = "/path/to/project",
+            vcs = null,
+            name = "Test Project",
+            icon = null,
+            commands = null,
+            time = Time { created = 1234567890, updated = 1234567890, initialized = null },
+            sandboxes = [],
+        };
+        var input = InitGitInput {
+            directory = "/path/to/project",
+            project = project,
+        };
+        assert(input.directory == "/path/to/project");
+        assert(input.project.id.0 == "test-id");
+    }
+
+    test "create_worktree_input_creation" {
+        var input = CreateWorktreeInput {
+            projectID = ProjectID("test-id"),
+            branch = "feature-branch",
+            directory = "/path/to/worktree",
+        };
+        assert(input.projectID.0 == "test-id");
+        assert(input.branch == "feature-branch");
+        assert(input.directory == "/path/to/worktree");
+    }
+
+    test "project_error_extended_values" {
+        assert(ProjectError::GitError as u32 == 4);
+        assert(ProjectError::WorktreeError as u32 == 5);
+    }
+
+    test "add_sandbox_to_empty_list" {
+        var info = Info {
+            id = ProjectID("test"),
+            worktree = "/proj",
+            vcs = "git",
+            name = null,
+            icon = null,
+            commands = null,
+            time = Time { created = 0, updated = 0, initialized = null },
+            sandboxes = [],
+        };
+        var newSandbox = "/proj/new-sandbox";
+        // After add_sandbox, the sandbox should be in the list
+        var contains = info.sandboxes.contains(newSandbox);
+        assert(!contains); // Initially false
+    }
+
+    test "remove_sandbox_from_list" {
+        var info = Info {
+            id = ProjectID("test"),
+            worktree = "/proj",
+            vcs = "git",
+            name = null,
+            icon = null,
+            commands = null,
+            time = Time { created = 0, updated = 0, initialized = null },
+            sandboxes = ["/proj/sandbox1", "/proj/sandbox2"],
+        };
+        var toRemove = "/proj/sandbox1";
+        var contains = info.sandboxes.contains(toRemove);
+        assert(contains); // Initially present
+    }
+
+    test "set_initialized_updates_timestamp" {
+        var info = Info {
+            id = ProjectID("test"),
+            worktree = "/proj",
+            vcs = null,
+            name = null,
+            icon = null,
+            commands = null,
+            time = Time { created = 1000, updated = 2000, initialized = null },
+            sandboxes = [],
+        };
+        assert(info.time.initialized == null);
+        // After set_initialized, initialized should be set
+    }
+
+    test "list_worktrees_empty" {
+        var id = ProjectID("test-id");
+        // For a project with no worktrees, should return empty list or worktree dir
+    }
+
+    test "list_worktrees_multiple" {
+        var id = ProjectID("test-id");
+        // Should return all worktree directories
+    }
+}

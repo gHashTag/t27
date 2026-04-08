@@ -1,0 +1,219 @@
+// specs/project/vcs.t27
+// Project VCS Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module ProjectVcs {
+    use base::types;
+    use project::schema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // VCS Root Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // vcs_root finds the root of the version control system
+    fn vcs_root(cwd: str) -> Result<str?, VcsError> {
+        // Implementation: Search upward for .git, .hg, .svn, etc.
+    }
+
+    // detect_vcs detects the type of version control system in use
+    fn detect_vcs(cwd: str) -> Result<VcsType, VcsError> {
+        // Implementation: Check for .git, .hg, .svn directories
+    }
+
+    // is_git_repo checks if the directory is a git repository
+    fn is_git_repo(cwd: str) -> Result<bool, VcsError> {
+        // Implementation: Check for .git directory or git rev-parse
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Git Worktree Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // git_worktrees returns all git worktrees for a repository
+    fn git_worktrees(cwd: str) -> Result<[WorktreeInfo], VcsError> {
+        // Implementation: Run git worktree list --porcelain
+    }
+
+    // git_worktree_root finds the root of the current worktree
+    fn git_worktree_root(cwd: str) -> Result<str?, VcsError> {
+        // Implementation: Run git rev-parse --show-toplevel
+    }
+
+    // git_common_dir finds the common git directory (for worktrees)
+    fn git_common_dir(cwd: str) -> Result<str?, VcsError> {
+        // Implementation: Run git rev-parse --git-common-dir
+    }
+
+    // is_main_worktree checks if the current directory is the main worktree
+    fn is_main_worktree(cwd: str) -> Result<bool, VcsError> {
+        // Implementation: Compare .git location with common dir
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Git Branch Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // git_current_branch returns the current branch name
+    fn git_current_branch(cwd: str) -> Result<str?, VcsError> {
+        // Implementation: Run git symbolic-ref --short HEAD
+    }
+
+    // git_default_branch returns the default branch name
+    fn git_default_branch(cwd: str) -> Result<str?, VcsError> {
+        // Implementation: Check remote HEAD, then configured, then main/master
+    }
+
+    // git_branch_list returns all local branches
+    fn git_branch_list(cwd: str) -> Result<[str], VcsError> {
+        // Implementation: Run git branch --format=%(refname:short)
+    }
+
+    // git_has_head checks if the repository has a HEAD commit
+    fn git_has_head(cwd: str) -> Result<bool, VcsError> {
+        // Implementation: Run git rev-parse --verify HEAD
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Git Remote Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // git_remote_url returns the URL for a remote
+    fn git_remote_url(cwd: str, name: str) -> Result<str, VcsError> {
+        // Implementation: Run git remote get-url name
+    }
+
+    // git_remotes returns all configured remotes
+    fn git_remotes(cwd: str) -> Result<[str], VcsError> {
+        // Implementation: Run git remote
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // VcsType represents the type of version control system
+    enum VcsType {
+        Git = 0,
+        Mercurial = 1,
+        Subversion = 2,
+        None = 3,
+    }
+
+    // WorktreeInfo represents information about a git worktree
+    struct WorktreeInfo {
+        path: str,           // Path to the worktree
+        branch: str?,        // Branch name
+        commit: str?,        // HEAD commit
+        is_main: bool,       // Whether this is the main worktree
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Error Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // VcsError represents errors in VCS operations
+    enum VcsError {
+        NotARepository = 0,
+        CommandFailed = 1,
+        InvalidPath = 2,
+        NotFound = 3,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "vcs_type_values" {
+        assert(VcsType::Git as u32 == 0);
+        assert(VcsType::Mercurial as u32 == 1);
+        assert(VcsType::Subversion as u32 == 2);
+        assert(VcsType::None as u32 == 3);
+    }
+
+    test "vcs_error_values" {
+        assert(VcsError::NotARepository as u32 == 0);
+        assert(VcsError::CommandFailed as u32 == 1);
+        assert(VcsError::InvalidPath as u32 == 2);
+        assert(VcsError::NotFound as u32 == 3);
+    }
+
+    test "worktree_info_creation" {
+        var info = WorktreeInfo {
+            path = "/path/to/worktree",
+            branch = "feature-branch",
+            commit = "abc123def456",
+            is_main = false,
+        };
+        assert(info.path == "/path/to/worktree");
+        assert(info.branch == "feature-branch");
+        assert(info.commit == "abc123def456");
+        assert(!info.is_main);
+    }
+
+    test "worktree_info_main" {
+        var info = WorktreeInfo {
+            path = "/path/to/main",
+            branch = "main",
+            commit = "abc123",
+            is_main = true,
+        };
+        assert(info.is_main);
+        assert(info.branch == "main");
+    }
+
+    test "worktree_info_optional_fields" {
+        var info = WorktreeInfo {
+            path = "/path/to/worktree",
+            branch = null,
+            commit = null,
+            is_main = false,
+        };
+        assert(info.branch == null);
+        assert(info.commit == null);
+    }
+
+    test "vcs_root_not_found" {
+        var result = vcs_root("/nonexistent/path");
+        // Should return Ok(null) for non-VCS directories
+    }
+
+    test "detect_vcs_none" {
+        var result = detect_vcs("/tmp");
+        // Should return None for directories without VCS
+    }
+
+    test "git_worktrees_empty" {
+        var result = git_worktrees("/non/git/dir");
+        // Should return empty list or error
+    }
+
+    test "git_branch_list_empty" {
+        var result = git_branch_list("/non/git/dir");
+        // Should return empty list or error
+    }
+
+    test "git_has_head_false" {
+        var result = git_has_head("/non/git/dir");
+        // Should return false for no HEAD
+    }
+
+    test "git_remotes_empty" {
+        var result = git_remotes("/non/git/dir");
+        // Should return empty list or error
+    }
+
+    test "is_main_worktree_false" {
+        var result = is_main_worktree("/path/to/worktree");
+        // For worktrees, should return false
+    }
+
+    test "git_current_branch_detached" {
+        var result = git_current_branch("/git/dir");
+        // For detached HEAD, should return null
+    }
+
+    test "git_remote_url_not_found" {
+        var result = git_remote_url("/git/dir", "nonexistent");
+        // Should return error for non-existent remote
+    }
+}

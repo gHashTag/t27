@@ -1,0 +1,194 @@
+// specs/project/schema.t27
+// Project Types Specification
+// φ² + 1/φ² = 3 | TRINITY
+
+module Project {
+    use base::types;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Brand Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // ProjectID is a branded string representing a unique project identifier
+    struct ProjectID(str);
+
+    // ════════════════════════════════════════════════════════════════════
+    // Icon Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // Icon represents project icon information
+    struct Icon {
+        url: str?,           // Data URL or remote URL for the icon
+        override: str?,      // Manual override text/icon
+        color: str?,         // Color hex code
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Command Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // Commands represents project-specific command configurations
+    struct Commands {
+        start: str?,         // Startup script to run when creating a new workspace
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Time Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // Time represents timestamp information for the project
+    struct Time {
+        created: u64,        // When the project was first discovered
+        updated: u64,        // Last update timestamp
+        initialized: u64?,   // When git was initialized (if applicable)
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Project Info
+    // ════════════════════════════════════════════════════════════════════
+
+    // Info represents complete project information
+    struct Info {
+        id: ProjectID,
+        worktree: str,       // Path to the project worktree
+        vcs: str?,           // Version control system type ("git" or null)
+        name: str?,          // Project name
+        icon: Icon?,         // Project icon
+        commands: Commands?, // Project commands
+        time: Time,          // Timestamps
+        sandboxes: [str],    // List of sandbox directories
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // VCS Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // VcsType represents the type of version control system
+    enum VcsType {
+        Git = 0,
+        None = 1,
+    }
+
+    // VcsInfo represents VCS branch information
+    struct VcsInfo {
+        branch: str?,       // Current branch name
+        default_branch: str?, // Default branch name
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Constants
+    // ════════════════════════════════════════════════════════════════════
+
+    const GLOBAL_PROJECT_ID: str = "global";
+    const GIT_DIR_NAME: str = ".git";
+    const OPENCODE_MARKER: str = "opencode";
+    const FAKE_VCS: str = "fake";
+
+    // ════════════════════════════════════════════════════════════════════
+    // Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // make_project_id creates a ProjectID from a string
+    fn make_project_id(id: str) -> ProjectID {
+        return ProjectID(id);
+    }
+
+    // is_global checks if the project ID is the global project
+    fn is_global(id: ProjectID) -> bool {
+        return id.0 == GLOBAL_PROJECT_ID;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "project_id_creation" {
+        var id = ProjectID("proj-123");
+        assert(id.0 == "proj-123");
+    }
+
+    test "icon_creation" {
+        var icon = Icon {
+            url = "https://example.com/icon.png",
+            color = "#ff0000",
+        };
+        assert(icon.url == "https://example.com/icon.png");
+        assert(icon.color == "#ff0000");
+        assert(icon.override == null);
+    }
+
+    test "commands_creation" {
+        var commands = Commands {
+            start = "npm run dev",
+        };
+        assert(commands.start == "npm run dev");
+    }
+
+    test "time_creation" {
+        var time = Time {
+            created = 1234567890,
+            updated = 1234567900,
+            initialized = 1234567910,
+        };
+        assert(time.created == 1234567890);
+        assert(time.updated == 1234567900);
+        assert(time.initialized == 1234567910);
+    }
+
+    test "info_creation" {
+        var info = Info {
+            id = ProjectID("proj-123"),
+            worktree = "/path/to/project",
+            vcs = "git",
+            name = "My Project",
+            icon = null,
+            commands = null,
+            time = Time {
+                created = 1234567890,
+                updated = 1234567900,
+                initialized = null,
+            },
+            sandboxes = [],
+        };
+        assert(info.id.0 == "proj-123");
+        assert(info.worktree == "/path/to/project");
+        assert(info.vcs == "git");
+        assert(info.sandboxes.len == 0);
+    }
+
+    test "vcs_type_values" {
+        assert(VcsType::Git as u32 == 0);
+        assert(VcsType::None as u32 == 1);
+    }
+
+    test "vcs_info_creation" {
+        var info = VcsInfo {
+            branch = "main",
+            default_branch = "main",
+        };
+        assert(info.branch == "main");
+        assert(info.default_branch == "main");
+    }
+
+    test "make_project_id" {
+        var id = make_project_id("test-id");
+        assert(id.0 == "test-id");
+    }
+
+    test "is_global_true" {
+        var id = ProjectID(GLOBAL_PROJECT_ID);
+        assert(is_global(id));
+    }
+
+    test "is_global_false" {
+        var id = ProjectID("local-proj");
+        assert(!is_global(id));
+    }
+
+    test "constants_values" {
+        assert(GLOBAL_PROJECT_ID == "global");
+        assert(GIT_DIR_NAME == ".git");
+        assert(OPENCODE_MARKER == "opencode");
+        assert(FAKE_VCS == "fake");
+    }
+}

@@ -1,0 +1,263 @@
+// specs/session/revert.t27
+// Session Revert Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module SessionRevert {
+    use base::types;
+    use session::schema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Revert Input
+    // ════════════════════════════════════════════════════════════════════
+
+    // RevertInput represents the input for reverting a session
+    struct RevertInput {
+        sessionID: SessionID,
+        messageID: MessageID,      // Revert to this message
+        partID: PartID?,           // Optional: revert to specific part
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Revert Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // revert reverts the session to a previous state
+    fn revert(input: RevertInput) -> Result<SessionInfo, RevertError> {
+        // Implementation: Undo changes after the target message/part
+    }
+
+    // unrevert restores the session from a revert state
+    fn unrevert(sessionID: SessionID) -> Result<SessionInfo, RevertError> {
+        // Implementation: Restore to pre-revert state
+    }
+
+    // cleanup finalizes a revert by removing reverted messages
+    fn cleanup(session: SessionInfo) -> Result<void, RevertError> {
+        // Implementation: Remove messages that were reverted
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Snapshot Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // snapshot creates a snapshot of the current file state
+    fn snapshot(sessionID: SessionID) -> Result<str, RevertError> {
+        // Implementation: Track file changes and return snapshot ID
+    }
+
+    // restore restores a snapshot
+    fn restore(snapshotID: str) -> Result<void, RevertError> {
+        // Implementation: Restore files to snapshot state
+    }
+
+    // revert_patches applies patches in reverse to undo changes
+    fn revert_patches(patches: [any]) -> Result<void, RevertError> {
+        // Implementation: Apply patches in reverse order
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Diff Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // compute_diff computes the diff between two snapshots
+    fn compute_diff(fromSnapshot: str, toSnapshot: str) -> Result<str, RevertError> {
+        // Implementation: Generate diff between snapshots
+    }
+
+    // get_diff retrieves the stored diff for a session
+    fn get_diff(sessionID: SessionID) -> Result<str?, RevertError> {
+        // Implementation: Retrieve stored diff from storage
+    }
+
+    // apply_diff applies a diff to the current state
+    fn apply_diff(diff: str) -> Result<void, RevertError> {
+        // Implementation: Apply diff patches
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // State Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // has_revert checks if a session is in a reverted state
+    fn has_revert(sessionID: SessionID) -> Result<bool, RevertError> {
+        // Implementation: Check if session has revert state
+    }
+
+    // get_revert_state retrieves the current revert state
+    fn get_revert_state(sessionID: SessionID) -> Result<SessionRevert?, RevertError> {
+        // Implementation: Get revert state from session
+    }
+
+    // clear_revert_state clears the revert state for a session
+    fn clear_revert_state(sessionID: SessionID) -> Result<void, RevertError> {
+        // Implementation: Remove revert state from session
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // FileDiff represents a file change in a revert
+    struct FileDiff {
+        file: str,            // File path
+        before: str?,         // Content before change
+        after: str?,          // Content after change
+        additions: u32,       // Lines added
+        deletions: u32,       // Lines deleted
+        status: DiffStatus,   // Type of change
+    }
+
+    // DiffStatus represents the type of file change
+    enum DiffStatus {
+        Added = 0,
+        Deleted = 1,
+        Modified = 2,
+    }
+
+    // RevertError represents errors in revert operations
+    enum RevertError {
+        NotFound = 0,
+        InvalidState = 1,
+        SnapshotError = 2,
+        PatchError = 3,
+        SessionBusy = 4,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "revert_input_creation" {
+        var input = RevertInput {
+            sessionID = SessionID("sess-1"),
+            messageID = MessageID("msg-10"),
+            partID = null,
+        };
+        assert(input.sessionID.0 == "sess-1");
+        assert(input.messageID.0 == "msg-10");
+        assert(input.partID == null);
+    }
+
+    test "revert_input_with_part" {
+        var input = RevertInput {
+            sessionID = SessionID("sess-1"),
+            messageID = MessageID("msg-10"),
+            partID = PartID("part-5"),
+        };
+        assert(input.partID?.0 == "part-5");
+    }
+
+    test "file_diff_creation" {
+        var diff = FileDiff {
+            file = "src/main.ts",
+            before = "old content",
+            after = "new content",
+            additions = 5,
+            deletions = 3,
+            status = DiffStatus::Modified,
+        };
+        assert(diff.file == "src/main.ts");
+        assert(diff.status == DiffStatus::Modified);
+    }
+
+    test "file_diff_added" {
+        var diff = FileDiff {
+            file = "src/new.ts",
+            before = "",
+            after = "new file content",
+            additions = 10,
+            deletions = 0,
+            status = DiffStatus::Added,
+        };
+        assert(diff.status == DiffStatus::Added);
+        assert(diff.deletions == 0);
+    }
+
+    test "file_diff_deleted" {
+        var diff = FileDiff {
+            file = "src/old.ts",
+            before = "old content",
+            after = "",
+            additions = 0,
+            deletions = 8,
+            status = DiffStatus::Deleted,
+        };
+        assert(diff.status == DiffStatus::Deleted);
+        assert(diff.additions == 0);
+    }
+
+    test "diff_status_values" {
+        assert(DiffStatus::Added as u32 == 0);
+        assert(DiffStatus::Deleted as u32 == 1);
+        assert(DiffStatus::Modified as u32 == 2);
+    }
+
+    test "revert_error_values" {
+        assert(RevertError::NotFound as u32 == 0);
+        assert(RevertError::InvalidState as u32 == 1);
+        assert(RevertError::SnapshotError as u32 == 2);
+        assert(RevertError::PatchError as u32 == 3);
+        assert(RevertError::SessionBusy as u32 == 4);
+    }
+
+    test "file_diff_no_before" {
+        var diff = FileDiff {
+            file = "src/new.ts",
+            before = null,
+            after = "content",
+            additions = 5,
+            deletions = 0,
+            status = DiffStatus::Added,
+        };
+        assert(diff.before == null);
+    }
+
+    test "file_diff_no_after" {
+        var diff = FileDiff {
+            file = "src/old.ts",
+            before = "content",
+            after = null,
+            additions = 0,
+            deletions = 3,
+            status = DiffStatus::Deleted,
+        };
+        assert(diff.after == null);
+    }
+
+    test "file_diff_zero_changes" {
+        var diff = FileDiff {
+            file = "src/unchanged.ts",
+            before = "same",
+            after = "same",
+            additions = 0,
+            deletions = 0,
+            status = DiffStatus::Modified,
+        };
+        assert(diff.additions == 0);
+        assert(diff.deletions == 0);
+    }
+
+    test "session_revert_creation" {
+        var revert = SessionRevert {
+            messageID = MessageID("msg-1"),
+            partID = PartID("part-1"),
+            snapshot = "snap-123",
+            diff = "diff output",
+        };
+        assert(revert.messageID.0 == "msg-1");
+        assert(revert.snapshot == "snap-123");
+        assert(revert.diff == "diff output");
+    }
+
+    test "session_revert_minimal" {
+        var revert = SessionRevert {
+            messageID = MessageID("msg-1"),
+            partID = null,
+            snapshot = null,
+            diff = null,
+        };
+        assert(revert.partID == null);
+        assert(revert.snapshot == null);
+        assert(revert.diff == null);
+    }
+}

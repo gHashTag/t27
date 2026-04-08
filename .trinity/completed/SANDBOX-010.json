@@ -1,0 +1,19 @@
+{
+  "issue": "SANDBOX-010",
+  "title": "Session Timeout Enforcement",
+  "status": "completed",
+  "completed_at": "2026-04-08",
+  "deliverables": {
+    "spec": "specs/sandbox/session_timeout.t27",
+    "rust_backend": "gen/rust/sandbox.session_timeout.rs",
+    "typescript_routing": "contrib/backend/api/src/routes/sandbox.ts",
+    "tests_passed": 6,
+    "architecture_updated": "architecture/graph.tri"
+  },
+  "verification": {
+    "spec_tests": "PASS",
+    "rust_tests": "PASS (6/6)",
+    "typescript_compiles": "PASS",
+    "ci_check": "PASS (spec parses correctly)"
+  }
+}

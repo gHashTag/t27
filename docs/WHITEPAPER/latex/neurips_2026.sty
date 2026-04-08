@@ -1,0 +1,66 @@
+% NeurIPS 2026 LaTeX Style Package
+% Based on official NeurIPS 2026 formatting instructions
+
+\ProvidesPackage{neurips_2026}
+
+% Page layout
+\RequirePackage{geometry}
+\geometry{paperwidth=8.5in, paperheight=11in, top=1in, bottom=1in, left=1in, right=1in}
+
+% Fonts and encoding
+\RequirePackage[T1]{fontenc}
+\RequirePackage[utf8]{inputenc}
+
+% Math packages
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{amsfonts}
+\RequirePackage{mathtools}
+
+% Graphics and tables
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\RequirePackage{array}
+
+% Hyperlinks
+\RequirePackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+% Algorithms
+% \RequirePackage{algorithm}
+% \RequirePackage{algpseudocode}
+
+% Typography
+\RequirePackage{xcolor}
+\RequirePackage{microtype}
+
+% Section numbering
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+% Figure and table captions
+\RequirePackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+% Code listings
+\RequirePackage{listings}
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{green!50!black}
+}
+
+% NeurIPS-specific commands
+\newcommand{\notebooklm}[1]{\textcolor{gray}{\texttt{[#1]}}}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{TODO:} #1}}
+
+% Double-blind helpers
+\newcommand{\blinded}[1]{\textit{#1}}

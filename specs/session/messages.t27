@@ -1,0 +1,341 @@
+// specs/session/messages.t27
+// Session Message Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module SessionMessages {
+    use base::types;
+    use session::schema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Message Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // add_message adds a new message to a session
+    fn add_message(info: MessageInfo) -> Result<MessageInfo, MessageError> {
+        // Implementation: Store message info in storage
+    }
+
+    // get_messages retrieves all messages for a session
+    fn get_messages(sessionID: SessionID, limit: u32?) -> Result[[MessageInfo], MessageError> {
+        // Implementation: Query messages by sessionID, optionally limit
+    }
+
+    // get_message retrieves a specific message by ID
+    fn get_message(messageID: MessageID) -> Result<MessageInfo?, MessageError> {
+        // Implementation: Query message by ID
+    }
+
+    // remove_message deletes a message from a session
+    fn remove_message(sessionID: SessionID, messageID: MessageID) -> Result<MessageID, MessageError> {
+        // Implementation: Delete message and its parts
+    }
+
+    // update_message updates message metadata
+    fn update_message(info: MessageInfo) -> Result<MessageInfo, MessageError> {
+        // Implementation: Update message in storage
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Part Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // add_part adds a part to a message
+    fn add_part(part: MessagePart) -> Result<MessagePart, MessageError> {
+        // Implementation: Store part in storage
+    }
+
+    // get_parts retrieves all parts for a message
+    fn get_parts(messageID: MessageID) -> Result[[MessagePart], MessageError> {
+        // Implementation: Query parts by messageID
+    }
+
+    // remove_part deletes a part from a message
+    fn remove_part(sessionID: SessionID, messageID: MessageID, partID: PartID) -> Result<PartID, MessageError> {
+        // Implementation: Delete part from storage
+    }
+
+    // update_part updates part data
+    fn update_part(part: MessagePart) -> Result<MessagePart, MessageError> {
+        // Implementation: Update part in storage
+    }
+
+    // update_part_delta incrementally updates a part field
+    fn update_part_delta(sessionID: SessionID, messageID: MessageID, partID: PartID, field: str, delta: str) -> Result<void, MessageError> {
+        // Implementation: Append delta to part field
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // History Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // compact_history compacts the message history for a session
+    fn compact_history(sessionID: SessionID, options: CompactOptions) -> Result<void, MessageError> {
+        // Implementation: Summarize and archive old messages
+    }
+
+    // restore_history restores a compacted history
+    fn restore_history(sessionID: SessionID) -> Result<void, MessageError> {
+        // Implementation: Expand compacted messages
+    }
+
+    // get_history_stats returns statistics about message history
+    fn get_history_stats(sessionID: SessionID) -> Result<HistoryStats, MessageError> {
+        // Implementation: Calculate message and token counts
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Query Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // find_messages_by_role retrieves messages filtered by role
+    fn find_messages_by_role(sessionID: SessionID, role: Role) -> Result[[MessageInfo], MessageError> {
+        // Implementation: Query messages by sessionID and role
+    }
+
+    // find_last_user_message finds the most recent user message
+    fn find_last_user_message(sessionID: SessionID) -> Result<MessageInfo?, MessageError> {
+        // Implementation: Query last message with role=User
+    }
+
+    // find_last_assistant_message finds the most recent assistant message
+    fn find_last_assistant_message(sessionID: SessionID) -> Result<MessageInfo?, MessageError> {
+        // Implementation: Query last message with role=Assistant
+    }
+
+    // find_messages_since finds messages created after a timestamp
+    fn find_messages_since(sessionID: SessionID, since: u64) -> Result[[MessageInfo], MessageError> {
+        // Implementation: Query messages where time.created > since
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // CompactOptions represents options for history compaction
+    struct CompactOptions {
+        keep_last: u32,       // Number of recent messages to keep
+        summarize: bool,      // Whether to create a summary
+        auto: bool,           // Whether this is an automatic compaction
+        overflow: bool?,      // Whether triggered by token overflow
+    }
+
+    // HistoryStats represents statistics about message history
+    struct HistoryStats {
+        total_messages: u32,     // Total message count
+        user_messages: u32,      // User message count
+        assistant_messages: u32,  // Assistant message count
+        total_parts: u32,        // Total part count
+        total_tokens: u64,       // Total tokens used
+    }
+
+    // MessageError represents errors in message operations
+    enum MessageError {
+        NotFound = 0,
+        InvalidInput = 1,
+        StorageError = 2,
+        ReadOnly = 3,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "compact_options_creation" {
+        var options = CompactOptions {
+            keep_last: 10,
+            summarize: true,
+            auto: false,
+            overflow = false,
+        };
+        assert(options.keep_last == 10);
+        assert(options.summarize);
+        assert(!options.auto);
+    }
+
+    test "compact_options_auto" {
+        var options = CompactOptions {
+            keep_last: 5,
+            summarize: true,
+            auto: true,
+            overflow = true,
+        };
+        assert(options.auto);
+        assert(options.overflow == true);
+    }
+
+    test "history_stats_creation" {
+        var stats = HistoryStats {
+            total_messages: 100,
+            user_messages: 50,
+            assistant_messages: 50,
+            total_parts: 200,
+            total_tokens: 50000,
+        };
+        assert(stats.total_messages == 100);
+        assert(stats.user_messages == 50);
+        assert(stats.assistant_messages == 50);
+        assert(stats.total_parts == 200);
+        assert(stats.total_tokens == 50000);
+    }
+
+    test "message_error_values" {
+        assert(MessageError::NotFound as u32 == 0);
+        assert(MessageError::InvalidInput as u32 == 1);
+        assert(MessageError::StorageError as u32 == 2);
+        assert(MessageError::ReadOnly as u32 == 3);
+    }
+
+    test "message_info_with_tokens" {
+        var info = MessageInfo {
+            id = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            role = Role::Assistant,
+            parentID = null,
+            time = Timestamp { created: 1000, completed: 2000 },
+            agent = "coder",
+            model = Model {
+                providerID = "anthropic",
+                modelID = "claude-sonnet-4-20250514",
+            },
+            system = null,
+            finish = "stop",
+            error = null,
+            cost = 0.05,
+            tokens = Tokens {
+                input: 1000,
+                output: 500,
+                reasoning: 0,
+                cache = CacheTokens { read: 200, write: 50 },
+            },
+        };
+        assert(info.role == Role::Assistant);
+        assert(info.tokens.input == 1000);
+        assert(info.cost == 0.05);
+    }
+
+    test "message_info_user" {
+        var info = MessageInfo {
+            id = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            role = Role::User,
+            parentID = null,
+            time = Timestamp { created: 1000, completed: null },
+            agent = null,
+            model = null,
+            system = null,
+            finish = null,
+            error = null,
+            cost = 0.0,
+            tokens = Tokens {
+                input = 0,
+                output = 0,
+                reasoning = 0,
+                cache = CacheTokens { read: 0, write: 0 },
+            },
+        };
+        assert(info.role == Role::User);
+        assert(info.time.completed == null);
+    }
+
+    test "text_part_creation_minimal" {
+        var part = TextPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            text = "Hello",
+            synthetic = null,
+            ignored = null,
+        };
+        assert(part.text == "Hello");
+    }
+
+    test "file_part_creation_minimal" {
+        var part = FilePart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            url = "file:///path",
+            mime = "text/plain",
+            filename = null,
+        };
+        assert(part.mime == "text/plain");
+    }
+
+    test "tool_part_creation_minimal" {
+        var part = ToolPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            tool = "bash",
+            callID = "call-1",
+            state = ToolStateData {
+                status = ToolState::Pending,
+                input = null,
+                output = null,
+                title = null,
+                metadata = null,
+                error = null,
+                time = ToolTime { start: 1000, end = null },
+            },
+        };
+        assert(part.state.status == ToolState::Pending);
+    }
+
+    test "agent_part_creation_minimal" {
+        var part = AgentPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            name = "coder",
+        };
+        assert(part.name == "coder");
+    }
+
+    test "subtask_part_creation_minimal" {
+        var part = SubtaskPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            agent = "general",
+            prompt = "Task",
+            description = "Task description",
+            command = null,
+            model = null,
+        };
+        assert(part.prompt == "Task");
+    }
+
+    test "compaction_part_creation_minimal" {
+        var part = CompactionPart {
+            id = PartID("part-1"),
+            messageID = MessageID("msg-1"),
+            sessionID = SessionID("sess-1"),
+            auto = false,
+            overflow = null,
+        };
+        assert(!part.auto);
+    }
+
+    test "history_stats_zero" {
+        var stats = HistoryStats {
+            total_messages: 0,
+            user_messages: 0,
+            assistant_messages: 0,
+            total_parts: 0,
+            total_tokens: 0,
+        };
+        assert(stats.total_messages == 0);
+        assert(stats.total_tokens == 0);
+    }
+
+    test "compact_options_keep_zero" {
+        var options = CompactOptions {
+            keep_last: 0,
+            summarize: false,
+            auto = false,
+            overflow = null,
+        };
+        assert(options.keep_last == 0);
+        assert(!options.summarize);
+    }
+}

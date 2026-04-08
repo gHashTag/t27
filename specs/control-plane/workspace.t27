@@ -1,0 +1,299 @@
+// specs/control-plane/workspace.t27
+// Control Plane Workspace Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module ControlPlaneWorkspace {
+    use base::types;
+    use control-plane::schema;
+    use project::schema as ProjectSchema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Workspace Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // CreateInput represents the input for creating a workspace
+    struct CreateInput {
+        id: WorkspaceID?,
+        type: str,               // Workspace type identifier
+        branch: str?,            // Git branch for the workspace
+        projectID: ProjectSchema::ProjectID,
+        extra: any?,             // Type-specific configuration
+        name: str?,             // Workspace name
+        directory: str?,         // Local directory (for local workspaces)
+    }
+
+    // create creates a new workspace
+    fn create(input: CreateInput) -> Result<WorkspaceInfo, WorkspaceError> {
+        // Implementation: Create workspace and initialize
+    }
+
+    // list returns all workspaces for a project
+    fn list(projectID: ProjectSchema::ProjectID) -> Result<[WorkspaceInfo], WorkspaceError> {
+        // Implementation: Query workspaces by project ID
+    }
+
+    // get retrieves a workspace by ID
+    fn get(id: WorkspaceID) -> Result<WorkspaceInfo?, WorkspaceError> {
+        // Implementation: Query workspace by ID
+    }
+
+    // remove deletes a workspace
+    fn remove(id: WorkspaceID) -> Result<WorkspaceInfo?, WorkspaceError> {
+        // Implementation: Delete workspace and cleanup resources
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Connection Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // connect connects to a remote workspace
+    fn connect(workspaceID: WorkspaceID) -> Result<void, WorkspaceError> {
+        // Implementation: Establish connection to workspace
+    }
+
+    // disconnect disconnects from a workspace
+    fn disconnect(workspaceID: WorkspaceID) -> Result<void, WorkspaceError> {
+        // Implementation: Close connection and cleanup
+    }
+
+    // reconnect reconnects to a disconnected workspace
+    fn reconnect(workspaceID: WorkspaceID) -> Result<void, WorkspaceError> {
+        // Implementation: Re-establish connection
+    }
+
+    // is_connected checks if a workspace is connected
+    fn is_connected(workspaceID: WorkspaceID) -> Result<bool, WorkspaceError> {
+        // Implementation: Check workspace connection state
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Sync Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // sync synchronizes changes with the workspace
+    fn sync(workspaceID: WorkspaceID) -> Result<SyncResult, WorkspaceError> {
+        // Implementation: Push/pull changes
+    }
+
+    // start_syncing starts automatic sync for a project's workspaces
+    fn start_syncing(projectID: ProjectSchema::ProjectID) -> Result<SyncHandle, WorkspaceError> {
+        // Implementation: Start background sync loop
+    }
+
+    // stop_syncing stops automatic sync
+    fn stop_syncing(handle: SyncHandle) -> Result<void, WorkspaceError> {
+        // Implementation: Stop background sync loop
+    }
+
+    // sync_status returns the current sync status
+    fn sync_status(workspaceID: WorkspaceID) -> Result<SyncStatus, WorkspaceError> {
+        // Implementation: Get current sync state
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SyncHandle represents a handle to an active sync process
+    struct SyncHandle {
+        projectID: ProjectSchema::ProjectID,
+        started: u64,           // When sync was started
+    }
+
+    // WorkspaceError represents errors in workspace operations
+    enum WorkspaceError {
+        NotFound = 0,
+        AlreadyExists = 1,
+        InvalidType = 2,
+        ConnectionError = 3,
+        SyncError = 4,
+        PermissionError = 5,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "create_input_creation" {
+        var input = CreateInput {
+            id = WorkspaceID("ws-1"),
+            type = "remote",
+            branch = "main",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            extra = { "url": "https://example.com" },
+            name = "My Workspace",
+            directory = null,
+        };
+        assert(input.id?.0 == "ws-1");
+        assert(input.type == "remote");
+        assert(input.branch == "main");
+    }
+
+    test "create_input_minimal" {
+        var input = CreateInput {
+            id = null,
+            type = "local",
+            branch = null,
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            extra = null,
+            name = null,
+            directory = "/local/path",
+        };
+        assert(input.id == null);
+        assert(input.directory == "/local/path");
+    }
+
+    test "sync_handle_creation" {
+        var handle = SyncHandle {
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            started = 1234567890,
+        };
+        assert(handle.projectID.0 == "proj-1");
+        assert(handle.started == 1234567890);
+    }
+
+    test "workspace_error_values" {
+        assert(WorkspaceError::NotFound as u32 == 0);
+        assert(WorkspaceError::AlreadyExists as u32 == 1);
+        assert(WorkspaceError::InvalidType as u32 == 2);
+        assert(WorkspaceError::ConnectionError as u32 == 3);
+        assert(WorkspaceError::SyncError as u32 == 4);
+        assert(WorkspaceError::PermissionError as u32 == 5);
+    }
+
+    test "workspace_info_from_create" {
+        var input = CreateInput {
+            id = WorkspaceID("ws-1"),
+            type = "remote",
+            branch = "feature",
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            extra = null,
+            name = "Feature Branch",
+            directory = null,
+        };
+        var info = WorkspaceInfo {
+            id = input.id ?? WorkspaceID("generated"),
+            type = input.type,
+            branch = input.branch,
+            name = input.name,
+            directory = input.directory,
+            extra = input.extra,
+            projectID = input.projectID,
+        };
+        assert(info.id.0 == "ws-1");
+        assert(info.branch == "feature");
+        assert(info.name == "Feature Branch");
+    }
+
+    test "sync_result_all_success" {
+        var result = SyncResult {
+            success = true,
+            changes = 25,
+            conflicts = 0,
+            error = null,
+        };
+        assert(result.success);
+        assert(result.changes == 25);
+    }
+
+    test "sync_result_with_conflicts" {
+        var result = SyncResult {
+            success = true,
+            changes = 10,
+            conflicts = 3,
+            error = null,
+        };
+        assert(result.success);
+        assert(result.conflicts == 3);
+    }
+
+    test "sync_result_partial_failure" {
+        var result = SyncResult {
+            success = false,
+            changes = 5,
+            conflicts = 1,
+            error = "Some files failed to sync",
+        };
+        assert(!result.success);
+        assert(result.error == "Some files failed to sync");
+    }
+
+    test "sync_status_connected" {
+        var status = SyncStatus {
+            state = WorkspaceState::Connected,
+            lastSync = 1234567890,
+            lastError = null,
+            pendingChanges = 0,
+        };
+        assert(status.state == WorkspaceState::Connected);
+        assert(status.pendingChanges == 0);
+    }
+
+    test "sync_status_syncing" {
+        var status = SyncStatus {
+            state = WorkspaceState::Syncing,
+            lastSync = 1234567800,
+            lastError = null,
+            pendingChanges = 15,
+        };
+        assert(status.state == WorkspaceState::Syncing);
+        assert(status.pendingChanges == 15);
+    }
+
+    test "sync_status_error" {
+        var status = SyncStatus {
+            state = WorkspaceState::Error,
+            lastSync = null,
+            lastError = "Network timeout",
+            pendingChanges = 10,
+        };
+        assert(status.state == WorkspaceState::Error);
+        assert(status.lastError == "Network timeout");
+    }
+
+    test "create_input_with_name_only" {
+        var input = CreateInput {
+            id = null,
+            type = "local",
+            branch = null,
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            extra = null,
+            name = "Test Workspace",
+            directory = "/test",
+        };
+        assert(input.name == "Test Workspace");
+        assert(input.directory == "/test");
+    }
+
+    test "create_input_with_extra_data" {
+        var extra = {
+            "url": "https://github.com/user/repo",
+            "ssh_key": "key-name",
+        };
+        var input = CreateInput {
+            id = null,
+            type = "remote",
+            branch = null,
+            projectID = ProjectSchema::ProjectID("proj-1"),
+            extra = extra,
+            name = null,
+            directory = null,
+        };
+        // extra is any type, so we can't check structure
+    }
+
+    test "workspace_info_null_fields" {
+        var info = WorkspaceInfo {
+            id = WorkspaceID("ws-1"),
+            type = "worktree",
+            branch = null,
+            name = null,
+            directory = null,
+            extra = null,
+            projectID = ProjectSchema::ProjectID("proj-1"),
+        };
+        assert(info.branch == null);
+        assert(info.name == null);
+        assert(info.directory == null);
+    }
+}
