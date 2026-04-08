@@ -14,6 +14,7 @@ mod bridge;
 mod compiler;
 mod suite;
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use sha2::{Sha256, Digest};
 #[cfg(feature = "server")]
@@ -517,6 +518,37 @@ enum Commands {
     /// Show which functions are never called (entry point analysis)
     Orphans {
         input: String,
+    },
+
+    /// Check claim tiers consistency between EXPERIENCE_SCHEMA and RESEARCH_CLAIMS.md
+    CheckClaimTiers,
+
+    /// Refresh brain seals from experience aggregation (Ring 059 - Crown automation)
+    #[command(name = "brain-seal-refresh")]
+    BrainSealRefresh,
+
+    /// FPGA build pipeline: generate Verilog + top-level wrapper from specs/fpga/*.t27
+    #[command(name = "fpga-build")]
+    FpgaBuild {
+        /// Smoke test: generate Verilog only, skip synthesis
+        #[arg(long)]
+        smoke: bool,
+
+        /// FPGA device identifier (default: xc7a100tcsg324-1)
+        #[arg(long, default_value = "xc7a100tcsg324-1")]
+        device: String,
+
+        /// Top-level module name (default: zerodsp_top)
+        #[arg(long, default_value = "zerodsp_top")]
+        top: String,
+
+        /// Use Docker for synthesis tools (default: true if no local Yosys)
+        #[arg(long, default_missing_value = "true")]
+        docker: Option<bool>,
+
+        /// Output directory (default: build/fpga)
+        #[arg(short, long, default_value = "build/fpga")]
+        output: String,
     },
 }
 
@@ -2785,6 +2817,161 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
             println!("  - {}", err);
         }
     }
+    Ok(())
+}
+
+fn run_fpga_build(
+    repo_root: &Path,
+    smoke: bool,
+    _device: &str,
+    top: &str,
+    docker: Option<bool>,
+    output: &str,
+) -> anyhow::Result<()> {
+    let specs_dir = repo_root.join("specs/fpga");
+    let build_dir = repo_root.join(output);
+    let gen_dir = build_dir.join("generated");
+    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+
+    fs::create_dir_all(&gen_dir).context("create build/fpga/generated")?;
+
+    let modules = ["mac", "uart", "spi", "bridge", "top_level"];
+
+    println!("=== FPGA Build: Verilog generation ===");
+    let mut generated_count = 0u32;
+    for module in &modules {
+        let spec_file = specs_dir.join(format!("{}.t27", module));
+        let out_file = gen_dir.join(format!("{}.v", module));
+        if !spec_file.exists() {
+            println!("  SKIP {} (spec not found)", module);
+            continue;
+        }
+        let status = std::process::Command::new(&t27c)
+            .arg("gen-verilog")
+            .arg(&spec_file)
+            .stdout(std::fs::File::create(&out_file)?)
+            .stderr(std::process::Stdio::inherit())
+            .status()
+            .context("t27c gen-verilog")?;
+        if !status.success() {
+            anyhow::bail!("t27c gen-verilog failed for {}", module);
+        }
+        println!("  OK {}.v", module);
+        generated_count += 1;
+    }
+
+    let top_wrapper = gen_dir.join(format!("{}.v", top));
+    let wrapper_source = format!(
+r#"`timescale 1ns / 1ps
+
+module {top} (
+    input  wire        clk,
+    input  wire        rst_n,
+    input  wire        uart_rx,
+    output wire        uart_tx,
+    output wire        spi_cs,
+    output wire        spi_sck,
+    output wire        spi_mosi,
+    input  wire        spi_miso,
+    output wire [7:0]  led,
+    output wire        mac_done,
+    output wire [31:0] mac_result
+);
+    wire sys_clk   = clk;
+    wire sys_rst_n = rst_n;
+    reg [26:0] heartbeat_ctr;
+
+    always @(posedge sys_clk) begin
+        if (!sys_rst_n)
+            heartbeat_ctr <= 27'd0;
+        else
+            heartbeat_ctr <= heartbeat_ctr + 1'b1;
+    end
+
+    assign led[0]     = heartbeat_ctr[24];
+    assign led[7:1]   = 7'b0;
+    assign uart_tx    = uart_rx;
+    assign mac_done   = 1'b0;
+    assign mac_result = {{5'd0, heartbeat_ctr}};
+    assign spi_cs     = 1'b1;
+    assign spi_sck    = 1'b0;
+    assign spi_mosi   = 1'b0;
+endmodule
+"#
+    );
+    fs::write(&top_wrapper, &wrapper_source)?;
+    println!("  OK {}.v (top-level wrapper)", top);
+
+    println!("Verilog generation: {} modules + wrapper", generated_count);
+
+    if smoke {
+        println!("=== Smoke test passed (gen-only) ===");
+        return Ok(());
+    }
+
+    let use_docker = docker.unwrap_or_else(|| {
+        std::process::Command::new("yosys")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_err()
+    });
+
+    if use_docker {
+        if std::process::Command::new("docker")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_err()
+        {
+            anyhow::bail!("Docker is required for synthesis but not installed. Use --smoke for gen-only, or install Yosys locally and pass --docker false.");
+        }
+        println!("=== Synthesizing with Yosys (Docker) ===");
+        let synth_script = build_dir.join("synth.ys");
+        fs::create_dir_all(build_dir.join("synth"))?;
+        fs::write(
+            &synth_script,
+            format!(
+                "read_verilog {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                gen = gen_dir.display(),
+                top = top,
+            ),
+        )?;
+        let status = std::process::Command::new("docker")
+            .args(["run", "--rm", "-v", &format!("{}:/project", repo_root.display()), "-w", "/project", "hdlc/oss-cad-suite:latest", "yosys", "-s", &format!("{}", synth_script.display())])
+            .status()
+            .context("docker run yosys")?;
+        if !status.success() {
+            anyhow::bail!("Yosys synthesis failed");
+        }
+        println!("Synthesis complete.");
+    } else {
+        println!("=== Synthesizing with local Yosys ===");
+        let synth_script = build_dir.join("synth.ys");
+        fs::create_dir_all(build_dir.join("synth"))?;
+        fs::write(
+            &synth_script,
+            format!(
+                "read_verilog {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                gen = gen_dir.display(),
+                top = top,
+            ),
+        )?;
+        let status = std::process::Command::new("yosys")
+            .arg("-s")
+            .arg(&synth_script)
+            .current_dir(build_dir.join("synth"))
+            .status()
+            .context("yosys")?;
+        if !status.success() {
+            anyhow::bail!("Yosys synthesis failed");
+        }
+        println!("Synthesis complete.");
+    }
+
+    println!("=== FPGA build finished ===");
     Ok(())
 }
 
@@ -5876,6 +6063,16 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
+        Commands::FpgaBuild { smoke, device, top, docker, output } => {
+            let repo_root = std::env::current_dir()?;
+            run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
+        }
+        Commands::CheckClaimTiers => {
+            eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+        }
+        Commands::BrainSealRefresh => {
+            eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+        }
     }
 
     Ok(())
@@ -5970,6 +6167,16 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
+        Commands::FpgaBuild { smoke, device, top, docker, output } => {
+            let repo_root = std::env::current_dir()?;
+            run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
+        }
+        Commands::CheckClaimTiers => {
+            eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+        }
+        Commands::BrainSealRefresh => {
+            eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");

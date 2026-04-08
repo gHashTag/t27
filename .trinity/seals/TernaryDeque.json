@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:9183f085c3e8903152a07aa20690098550ad2c3734b40cb23e3bdb91d77766ca",
   "module": "TernaryDeque",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:53:42Z",
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:5e98fbf087d9bd35dc96ff4e11ba89a02a9a52040974c0102a00e16496961bbc",
   "spec_path": "specs/isa/ternary_deque.t27"
 }

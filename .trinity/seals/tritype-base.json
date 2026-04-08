@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d8f7c48d7aa7a6d64dcf31d06c5d04ea8177be7bbc000412dda2b7cba86567bd",
   "module": "tritype-base",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:10Z",
+  "sealed_at": "2026-04-08T06:22:05Z",
   "spec_hash": "sha256:e445b7998c9a9c41447d2fe5ccf01a622d408e62dc98886f9a40d4c17359d170",
   "spec_path": "specs/base/types.t27"
 }

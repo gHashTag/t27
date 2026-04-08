@@ -2,7 +2,7 @@
 // Ring 052 — Property-Based Testing Template for GoldenFloat
 // Standardized PBT patterns following T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md
 
-module PropertyTestTemplate {
+module PBTTemplate {
     use test_framework::core::{TestResult, Verdict, ToleranceTier, EngineeringStatus};
     use numeric::golden_float::{GF16, GF32};
     

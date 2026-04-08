@@ -4,7 +4,7 @@
 // Load/store operations with ternary address and data
 // φ² + 1/φ² = 3 | TRINITY
 
-module TernaryMemory {
+module ISAMemoryOps {
     use base::types;
 
     // ═════════════════════════════════════════════════════════════════
