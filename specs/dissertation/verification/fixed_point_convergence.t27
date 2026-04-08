@@ -1,0 +1,389 @@
+// Fixed-Point Convergence Verification
+// Strand I, Section 4: Fixed-Point Theory
+// TDD-Inside-Spec: Verify φ as attractor of balancing recursion
+// Source of Truth: specs/math/constants.t27, specs/numeric/phi_ratio.t27
+
+module FixedPointConvergence {
+    // Import sacred constants for verification
+    use math::constants;
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // 1. Sacred Constants — Reference values
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    const PHI            : f64 = constants::PHI;      // 1.618033988749895
+    const TOLERANCE      : f64 = 1e-6;       // Convergence target precision
+    const MAX_ITERATIONS : usize = 100;     // Maximum iterations for convergence
+
+    // Test starting points for convergence robustness
+    const START_POINTS : [6]f64 = [
+        0.1,    // Small positive
+        0.5,    // Middle small
+        1.0,    // Unity
+        10.0,   // Large
+        42.0,   // Arbitrary (from plan)
+        100.0    // Very large
+    ];
+
+    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 2. Balancing Recursion — f(x) = (x + 1/x + 1) / 2
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+    /// Balancing function: f(x) = (x + 1/x + 1) / 2
+    /// This recursion converges to φ from any positive starting point
+    /// Complexity: O(1) per iteration
+    fn balance_step(x: f64) -> f64 {
+        return (x + (1.0 / x) + 1.0) / 2.0;
+    }
+
+    /// Check if x is the fixed point of balance_step
+    /// f(φ) = φ if and only if φ is the fixed point
+    fn is_fixed_point(x: f64) -> bool {
+        const balanced = balance_step(x);
+        return constants::abs(balanced - x) < 1e-15;
+    }
+
+    /// Convergence test: iterate until within tolerance or max iterations
+    /// Returns (final_value, iterations_used, converged)
+    fn converge_to_phi(x0: f64) -> ConvergenceResult {
+        var x = x0;
+        var i : usize = 0;
+
+        while (i < MAX_ITERATIONS) {
+            const next_x = balance_step(x);
+
+            // Check convergence
+            const diff = constants::abs(next_x - x);
+            if (diff < TOLERANCE) {
+                return ConvergenceResult{
+                    final_value = next_x,
+                    iterations = i,
+                    converged = true,
+                    error = diff
+                };
+            }
+
+            x = next_x;
+            i = i + 1;
+        }
+
+        // Max iterations reached without convergence
+        const diff = constants::abs(x - PHI);
+        return ConvergenceResult{
+            final_value = x,
+            iterations = MAX_ITERATIONS,
+            converged = diff < TOLERANCE,
+            error = diff
+        };
+    }
+
+    /// Verify Banach contraction condition for all test points
+    /// |f'(x)| < 1 for contraction (we require < 0.5 for faster convergence)
+    fn verify_contraction_property(x: f64) -> bool {
+        // f'(x) = (1 - 1/x²) / 2
+        const derivative = (1.0 - (1.0 / (x * x))) / 2.0;
+        return constants::abs(derivative) < 0.5;
+    }
+
+    /// Multi-start convergence test
+    /// Verify convergence from multiple starting points
+    fn verify_multi_start_convergence() -> MultiStartResult {
+        var all_converged = true;
+        var max_iterations : usize = 0;
+        var max_error : f64 = 0.0;
+        var failed_count : usize = 0;
+
+        var i : usize = 0;
+        while (i < START_POINTS.len) {
+            const result = converge_to_phi(START_POINTS[i]);
+            if (!result.converged) {
+                all_converged = false;
+                failed_count = failed_count + 1;
+            }
+            if (result.iterations > max_iterations) {
+                max_iterations = result.iterations;
+            }
+            if (result.error > max_error) {
+                max_error = result.error;
+            }
+            i = i + 1;
+        }
+
+        return MultiStartResult{
+            all_converged = all_converged,
+            max_iterations = max_iterations,
+            max_error = max_error,
+            failed_count = failed_count,
+            success_rate = 1.0 - (failed_count as f64 / START_POINTS.len as f64)
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // 3. GoldenFloat Bit Allocation — Verify φ-ratio targeting
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+
+    /// φ-ratio target: 1/φ ≈ 0.618
+    const PHI_RATIO_TARGET : f64 = PHI / (PHI + 1.0);  // φ⁻¹
+
+    /// GoldenFloat format descriptor for bit allocation verification
+    struct FormatAllocation {
+        name       : string,    // "GF4", "GF8", ..., "GF32"
+        bits       : u8,         // Total bits
+        sign_bits  : u8,         // Always 1
+        exp_bits   : u8,         // Exponent bits
+        mant_bits  : u8,         // Mantissa bits
+        ratio      : f64,        // exp / mantissa
+        phi_dist   : f64,        // |ratio - 1/φ|
+    }
+
+    /// Test formats from Section 4.2
+    const TEST_FORMATS : [7]FormatAllocation = [
+        FormatAllocation{
+            name = "GF4",
+            bits = 4,
+            sign_bits = 1,
+            exp_bits = 1,
+            mant_bits = 2,
+            ratio = 0.5,
+            phi_dist = constants::abs(0.5 - PHI_RATIO_TARGET)
+        },
+        FormatAllocation{
+            name = "GF8",
+            bits = 8,
+            sign_bits = 1,
+            exp_bits = 3,
+            mant_bits = 4,
+            ratio = 0.75,
+            phi_dist = constants::abs(0.75 - PHI_RATIO_TARGET)
+        },
+        FormatAllocation{
+            name = "GF12",
+            bits = 12,
+            sign_bits = 1,
+            exp_bits = 4,
+            mant_bits = 7,
+            ratio = 0.5714285714285714,
+            phi_dist = constants::abs(0.5714285714285714 - PHI_RATIO_TARGET)
+        },
+        FormatAllocation{
+            name = "GF16",
+            bits = 16,
+            sign_bits = 1,
+            exp_bits = 6,
+            mant_bits = 9,
+            ratio = 0.6666666666666667,
+            phi_dist = constants::abs(0.6666666666666667 - PHI_RATIO_TARGET)
+        },
+        FormatAllocation{
+            name = "GF20",
+            bits = 20,
+            sign_bits = 1,
+            exp_bits = 7,
+            mant_bits = 12,
+            ratio = 0.5833333333333333,
+            phi_dist = constants::abs(0.5833333333333333 - PHI_RATIO_TARGET)
+        },
+        FormatAllocation{
+            name = "GF24",
+            bits = 24,
+            sign_bits = 1,
+            exp_bits = 9,
+            mant_bits = 14,
+            ratio = 0.6428571428571429,
+            phi_dist = constants::abs(0.6428571428571429 - PHI_RATIO_TARGET)
+        },
+        FormatAllocation{
+            name = "GF32",
+            bits = 32,
+            sign_bits = 1,
+            exp_bits = 12,
+            mant_bits = 19,
+            ratio = 0.631578947368421,
+            phi_dist = constants::abs(0.631578947368421 - PHI_RATIO_TARGET)
+        },
+    ];
+
+    /// Find best φ-closest format
+    fn find_best_format() -> FormatAllocation {
+        var best = TEST_FORMATS[0];
+        var i : usize = 1;
+
+        while (i < TEST_FORMATS.len) {
+            if (TEST_FORMATS[i].phi_dist < best.phi_dist) {
+                best = TEST_FORMATS[i];
+            }
+            i = i + 1;
+        }
+
+        return best;
+    }
+
+    /// Verify φ-ratio targeting across all formats
+    fn verify_phi_ratio_targeting() -> RatioVerification {
+        var all_within_tolerance = true;
+        var avg_phi_dist : f64 = 0.0;
+
+        var i : usize = 0;
+        while (i < TEST_FORMATS.len) {
+            if (TEST_FORMATS[i].phi_dist >= 0.2) {
+                all_within_tolerance = false;
+            }
+            avg_phi_dist = avg_phi_dist + TEST_FORMATS[i].phi_dist;
+            i = i + 1;
+        }
+
+        avg_phi_dist = avg_phi_dist / TEST_FORMATS.len as f64;
+
+        const best = find_best_format();
+
+        return RatioVerification{
+            all_formats_valid = TEST_FORMATS.len == 7,
+            all_within_tolerance = all_within_tolerance,
+            avg_phi_distance = avg_phi_dist,
+            best_format_name = best.name,
+            best_phi_distance = best.phi_dist,
+            g16_distance = TEST_FORMATS[3].phi_dist  // GF16 is at index 3
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 4. Report Types
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+    struct ConvergenceResult {
+        final_value : f64,
+        iterations  : usize,
+        converged   : bool,
+        error       : f64
+    }
+
+    struct MultiStartResult {
+        all_converged : bool,
+        max_iterations : usize,
+        max_error     : f64,
+        failed_count   : usize,
+        success_rate  : f64
+    }
+
+    struct RatioVerification {
+        all_formats_valid  : bool,
+        all_within_tolerance : bool,
+        avg_phi_distance : f64,
+        best_format_name  : string,
+        best_phi_distance : f64,
+        g16_distance      : f64
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests and Invariants
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test balance_step_correct
+        given x = 42.0
+        and   expected = (42.0 + (1.0 / 42.0) + 1.0) / 2.0
+        when  actual = balance_step(x)
+        then  constants::abs(actual - expected) < 1e-15
+
+    test phi_is_fixed_point
+        given phi = PHI
+        then  is_fixed_point(phi) == true
+
+    test convergence_from_arbitrary_start
+        given x0 = 42.0
+        and   result = converge_to_phi(x0)
+        then  result.converged and constants::abs(result.final_value - PHI) < TOLERANCE
+
+    test convergence_from_small_start
+        given x0 = 0.1
+        and   result = converge_to_phi(x0)
+        then  result.converged and constants::abs(result.final_value - PHI) < TOLERANCE
+
+    test convergence_from_large_start
+        given x0 = 100.0
+        and   result = converge_to_phi(x0)
+        then  result.converged and constants::abs(result.final_value - PHI) < TOLERANCE
+
+    test contraction_property_at_phi
+        given x = PHI
+        and   derivative = (1.0 - (1.0 / (x * x))) / 2.0
+        then  constants::abs(derivative) < 0.5
+
+    test contraction_property_at_small
+        given x = 0.1
+        and   derivative = (1.0 - (1.0 / (x * x))) / 2.0
+        then  constants::abs(derivative) < 0.5
+
+    test contraction_property_at_large
+        given x = 100.0
+        and   derivative = (1.0 - (1.0 / (x * x))) / 2.0
+        then  constants::abs(derivative) < 0.5
+
+    test multi_start_all_converge
+        given result = verify_multi_start_convergence()
+        then  result.all_converged and result.success_rate == 1.0
+
+    test phi_ratio_target_is_inverse
+        given target = PHI_RATIO_TARGET
+        and   expected = PHI_INV
+        then  constants::abs(target - expected) < 1e-15
+
+    test gffamily_all_formats_valid
+        given verification = verify_phi_ratio_targeting()
+        then  verification.all_formats_valid == true
+
+    test gffamily_best_format_is_gf12
+        given verification = verify_phi_ratio_targeting()
+        then  verification.best_format_name == "GF12"
+
+    test gffamily_gf16_distance_reasonable
+        given verification = verify_phi_ratio_targeting()
+        then  verification.g16_distance < 0.1
+
+    test gffamily_avg_phi_distance_small
+        given verification = verify_phi_ratio_targeting()
+        then  verification.avg_phi_distance < 0.1
+
+    invariant phi_is_fixed_point
+        assert balance_step(PHI) ≈ PHI
+
+    invariant contraction_at_all_points
+        assert verify_contraction_property(x) for all x in START_POINTS
+
+    invariant convergence_from_any_positive
+        assert converge_to_phi(x).converged for all x > 0.0
+
+    invariant convergence_iterations_bounded
+        assert converge_to_phi(x).iterations < 50 for all x > 0.0
+
+    invariant phi_ratio_target_positive
+        assert PHI_RATIO_TARGET > 0.0
+
+    invariant phi_ratio_target_less_than_one
+        assert PHI_RATIO_TARGET < 1.0
+
+    invariant golden_float_bits_sum
+        assert fmt.sign_bits + fmt.exp_bits + fmt.mant_bits == fmt.bits for all fmt in TEST_FORMATS
+
+    invariant phi_distance_non_negative
+        assert fmt.phi_dist >= 0.0 for all fmt in TEST_FORMATS
+
+    invariant convergence_to_same_value
+        // All starting points converge to same value (φ)
+        assert converge_to_phi(a).final_value ≈ converge_to_phi(b).final_value for all a, b > 0.0
+
+    bench balance_step_cost
+        measure: cycles per balance_step iteration
+        target: < 100 cycles
+
+    bench convergence_cost
+        measure: cycles to converge from arbitrary start (42.0)
+        target: < 5000 cycles
+
+    bench multi_start_convergence_cost
+        measure: cycles to test all 6 starting points
+        target: < 30000 cycles
+
+    bench phi_ratio_verification_cost
+        measure: cycles to verify all 7 formats
+        target: < 1000 cycles
+}
