@@ -5,7 +5,7 @@
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — P2 brain/physics rewrite · PR #322 (OPEN) · RFC3339 2026-04-08T00:00:00Z
+**Last updated:** 2026-04-08 — P2 Sprint 2 benchmarks & contracts · PR #326 (OPEN) · RFC3339 2026-04-08T00:00:00Z
 
 **Document class:** Operational focus document
 **Revision:** **P2 Sprint 1** — 6 brain/physics specs from Trinity Zig rewrite:
@@ -15,7 +15,16 @@
 - `specs/physics/hslm_benchmark.t27` — HSLM Platform Benchmark Suite
 - `specs/physics/quantum.t27` — Ternary Quantum VM
 - `specs/physics/e8_lqg_bridge.t27` — E8-Quantum Gravity Bridge
-Total: 6 specs. Commit `bb71939`, PR #322.
+
+**P2 Sprint 2** — Benchmarks & contracts (from trinity-w1 rewrite):
+- `specs/benchmarks/ternary_vs_binary.t27` — Format comparison benchmark
+- `specs/benchmarks/bench_main.t27` — NN inference benchmark (100→64→10)
+- `specs/benchmarks/bench_nn.t27` — Format comparison detailed spec
+- `specs/api/sdk_contract.t27` — Trinity SDK high-level API
+- `specs/api/c_api_contract.t27` — C API FFI bridge contract
+- `specs/conformance/e2e_scenarios.t27` — E2E full pipeline verification
+
+Total P2: 13 specs. Commit PR #326.
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
