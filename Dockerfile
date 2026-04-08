@@ -8,17 +8,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy Railway fork web package files
-COPY external/opencode/packages/web/package.json ./
+# Copy entire web package (preserves directory structure)
+COPY external/opencode/packages/web/ ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile
-
-# Copy all web source files
-COPY external/opencode/packages/web/tsconfig*.json ./
-COPY external/opencode/packages/web/vite.config.ts ./
-COPY external/opencode/packages/web/src ./
-COPY external/opencode/packages/web/public ./
 
 # Build the app
 RUN bun run build
