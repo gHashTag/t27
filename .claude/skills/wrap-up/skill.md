@@ -32,7 +32,18 @@ Or with full details:
 
 ## Configuration
 
-Requires `NOTEBOOKLM_NOTEBOOK_ID` environment variable or creates default notebook.
+- **Auth**: Cookie-based via `notebooklm login` (stores in `~/.notebooklm/storage_state.json`)
+- **Active Notebook**: Set via `notebooklm use <id>` or `NOTEBOOKLM_NOTEBOOK_ID` env var
+- **Default Notebook**: "t27-QUEEN-BRAIN" (creates if not exists)
+- **Storage**: `~/.notebooklm/` — browser profile, storage state
+
+**Setup Commands:**
+```bash
+notebooklm login              # Authenticate via browser (one-time)
+notebooklm list               # List available notebooks
+notebooklm use <id>          # Set active notebook
+notebooklm status             # Check current session
+```
 
 ## Output
 
