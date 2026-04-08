@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Gate: NotebookLM notebook must be created before any push.
+# Enforces L7 UNITY + knowledge management requirements.
+# phi^2 + 1/phi^2 = 3 | TRINITY
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Emergency bypass: SKIP_NOTEBOOK_GATE=1 git push
+if [ "${SKIP_NOTEBOOK_GATE:-}" = "1" ]; then
+    BYPASS_LOG="$ROOT/.trinity/gate_bypasses.log"
+    mkdir -p "$(dirname "$BYPASS_LOG")"
+    {
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) BYPASS by $(git config user.email) on $(git rev-parse --abbrev-ref HEAD)"
+    } >> "$BYPASS_LOG"
+    echo "⚠️  WARNING: Notebook gate bypassed via SKIP_NOTEBOOK_GATE=1"
+    echo "✅ Push proceeding (bypass logged to $BYPASS_LOG)"
+    exit 0
+fi
+
+NOTEBOOK_ID_FILE="$ROOT/.trinity/current_task/.notebook_id"
+
+# Check if file exists
+if [ ! -f "$NOTEBOOK_ID_FILE" ]; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║            📓 NOTEBOOKLM GATE — PUSH BLOCKED                    ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "❌ ERROR: No NotebookLM notebook ID found"
+    echo ""
+    echo "You must create a NotebookLM notebook before pushing code."
+    echo "This ensures knowledge persistence and audit trail for all work."
+    echo ""
+    echo "To fix this, run:"
+    echo "  t27c bridge task start --title \"Your task description\""
+    echo ""
+    echo "Or, for emergency bypass:"
+    echo "  SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+# Check if file is non-empty
+NOTEBOOK_ID=$(cat "$NOTEBOOK_ID_FILE")
+if [ -z "$NOTEBOOK_ID" ]; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║            📓 NOTEBOOKLM GATE — PUSH BLOCKED                    ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "❌ ERROR: Notebook ID file is empty"
+    echo ""
+    echo "The .notebook_id file exists but contains no ID."
+    echo ""
+    echo "To fix this, run:"
+    echo "  t27c bridge task start --title \"Your task description\""
+    echo ""
+    echo "Or, for emergency bypass:"
+    echo "  SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+# Validate notebook ID format (8+ hex/alphanumeric chars)
+if ! echo "$NOTEBOOK_ID" | grep -qE '^[a-zA-Z0-9]{8,}$'; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║            📓 NOTEBOOKLM GATE — PUSH BLOCKED                    ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "❌ ERROR: Invalid notebook ID format"
+    echo ""
+    echo "Expected: 8+ alphanumeric characters"
+    echo "Got: $NOTEBOOK_ID"
+    echo ""
+    echo "To fix this, run:"
+    echo "  t27c bridge task start --title \"Your task description\""
+    echo ""
+    echo "Or, for emergency bypass:"
+    echo "  SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+echo "✅ NotebookLM gate passed — notebook: $NOTEBOOK_ID"
+echo "   URL: https://notebooklm.google.com/notebook/$NOTEBOOK_ID"

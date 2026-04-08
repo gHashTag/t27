@@ -1,0 +1,91 @@
+# Enforces L7 UNITY: No code merged without NotebookLM notebook
+# Ensures knowledge persistence and audit trail for all work
+# phi^2 + 1/phi^2 = 3 | TRINITY
+name: NotebookLM Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master, main]
+  push:
+    branches:
+      - '*'
+      - '**/*'
+    # Allow pushes to master without gate (for deployments)
+    branches-ignore:
+      - 'master'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check-notebook-id:
+    runs-on: ubuntu-latest
+    name: 🔒 NotebookLM notebook required
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for .notebook_id
+        id: check
+        run: |
+          NOTEBOOK_ID_FILE=".trinity/current_task/.notebook_id"
+
+          if [ ! -f "$NOTEBOOK_ID_FILE" ]; then
+            echo "notebook_id_found=false" >> $GITHUB_OUTPUT
+            echo "notebook_id=" >> $GITHUB_OUTPUT
+            echo "::error file=$NOTEBOOK_ID_FILE::No .notebook_id file found"
+            exit 1
+          fi
+
+          NOTEBOOK_ID=$(cat "$NOTEBOOK_ID_FILE")
+
+          if [ -z "$NOTEBOOK_ID" ]; then
+            echo "notebook_id_found=true" >> $GITHUB_OUTPUT
+            echo "notebook_id=" >> $GITHUB_OUTPUT
+            echo "::error file=$NOTEBOOK_ID_FILE::.notebook_id file is empty"
+            exit 1
+          fi
+
+          # Validate notebook ID format (8+ hex/alphanumeric chars)
+          if ! echo "$NOTEBOOK_ID" | grep -qE '^[a-zA-Z0-9]{8,}$'; then
+            echo "notebook_id_found=true" >> $GITHUB_OUTPUT
+            echo "notebook_id=$NOTEBOOK_ID" >> $GITHUB_OUTPUT
+            echo "::error file=$NOTEBOOK_ID_FILE::Invalid notebook ID format: $NOTEBOOK_ID"
+            exit 1
+          fi
+
+          echo "notebook_id_found=true" >> $GITHUB_OUTPUT
+          echo "notebook_id=$NOTEBOOK_ID" >> $GITHUB_OUTPUT
+          echo "notebook_url=https://notebooklm.google.com/notebook/$NOTEBOOK_ID" >> $GITHUB_OUTPUT
+
+      - name: Show notebook info
+        if: steps.check.outputs.notebook_id_found == 'true'
+        run: |
+          echo "✅ NotebookLM gate passed"
+          echo "   Notebook ID: ${{ steps.check.outputs.notebook_id }}"
+          echo "   URL: ${{ steps.check.outputs.notebook_url }}"
+
+      - name: Check for notebook_meta.json (warning only)
+        run: |
+          META_FILE=".trinity/current_task/notebook_meta.json"
+
+          if [ ! -f "$META_FILE" ]; then
+            echo "::warning file=$META_FILE::notebook_meta.json not found. Run 't27c bridge task start' to create it."
+          else
+            echo "✅ notebook_meta.json found"
+            cat "$META_FILE"
+          fi
+
+      - name: Post PR comment (if on PR)
+        if: github.event_name == 'pull_request' && steps.check.outputs.notebook_id_found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment $PR_NUMBER --body "📓 **NotebookLM Notebook** linked to this PR
+
+          - **Notebook ID**: \`${{ steps.check.outputs.notebook_id }}\`
+          - **URL**: ${{ steps.check.outputs.notebook_url }}
+
+          This notebook contains session context, decisions, and artifacts for this work." || true
