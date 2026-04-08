@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/pins/ir.tri
+// Pins IR: intermediate representation for pin assignments
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module PinsIR {
+    struct PinLocation {
+        name: String,
+        bank: u32,
+    }
+
+    struct IoStandard {
+        name: String,
+    }
+
+    struct SignalReference {
+        port: String,
+        index: Option<u32>,
+    }
+
+    struct Binding {
+        signal: SignalReference,
+        pin: PinLocation,
+        iostandard: IoStandard,
+        is_clock: bool,
+        clock_period_ns: Option<f64>,
+        pullup: bool,
+    }
+
+    struct Design {
+        name: String,
+        bindings: Vec<Binding>,
+    }
+
+    const LVCMOS33 : IoStandard = IoStandard { name: "LVCMOS33" };
+    const LVCMOS18 : IoStandard = IoStandard { name: "LVCMOS18" };
+    const LVDS25 : IoStandard = IoStandard { name: "LVDS_25" };
+
+    test binding_construction {
+        const pin = PinLocation { name: "E3", bank: 35 };
+        const sig = SignalReference { port: "clk", index: None };
+        const b = Binding {
+            signal: sig,
+            pin: pin,
+            iostandard: LVCMOS33,
+            is_clock: true,
+            clock_period_ns: Some(83.333),
+            pullup: false,
+        };
+        invariant b.pin.name == "E3";
+        invariant b.signal.port == "clk";
+        invariant b.is_clock == true;
+    }
+
+    test indexed_signal {
+        const sig = SignalReference { port: "led", index: Some(0) };
+        invariant sig.index == Some(0);
+    }
+
+    test design_construction {
+        const clk_pin = PinLocation { name: "E3", bank: 35 };
+        const clk_sig = SignalReference { port: "clk", index: None };
+        const clk_binding = Binding {
+            signal: clk_sig,
+            pin: clk_pin,
+            iostandard: LVCMOS33,
+            is_clock: true,
+            clock_period_ns: Some(83.333),
+            pullup: false,
+        };
+        const d = Design {
+            name: "test_design",
+            bindings: vec![clk_binding],
+        };
+        invariant d.bindings.len() == 1;
+        invariant d.name == "test_design";
+    }
+}
