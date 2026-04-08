@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:df6d77c5f6a71d5efe6597e19e05dd46922eeb64dc9b1a73d07d956877ac3b6d",
   "module": "BrainSummaries",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:05Z",
+  "sealed_at": "2026-04-08T08:09:17Z",
   "spec_hash": "sha256:4378d0031dbabbc9ff51cf47e84b6907b15a69030a648b45ab594c29b434640f",
   "spec_path": "specs/queen/brain_summaries.t27"
 }

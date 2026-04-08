@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8068481a76cfc7fe246f9a4e2d042a0393a551bbcbe7c3e746371380b986dab4",
   "module": "TernaryLayer",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:b0039c0390d43ebfb1a0106f00f822af4c92dc5afaf5adc1ca302127ae93f73e",
   "spec_path": "specs/ml/ternary_layer.t27"
 }

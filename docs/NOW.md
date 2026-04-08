@@ -832,4 +832,16 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 ---
 
+## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
+
+- Fixed `issue-gate.yml` — was failing on push events (L1 TRACEABILITY advisory)
+- Re-sealed 135 specs (timestamp drift after workspace rebuild)
+- Yosys synthesis passes locally for `zerodsp_top` (5 modules + wrapper)
+- Updated `scripts/fpga/Makefile` — all 5 modules, correct UART/SPI interface
+- Installed Yosys 0.63 via homebrew, openFPGALoader for future flashing
+- FPGA board (QMTECH XC7A100T) detected on `/dev/cu.usbserial-140` (UART)
+- Logic analyzer (DreamSourceLab) connected
+
+**Last updated:** 2026-04-08 — CI fix, schema-validation paths, Makefile update · PR #349
+
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
