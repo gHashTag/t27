@@ -3,12 +3,8 @@ name: Seal Coverage Gate
 on:
   pull_request:
     branches: [master]
-    paths:
-      - 'specs/**/*.t27'
-      - '.trinity/seals/**'
-      - 'conformance/**'
-      - 'specs/github/tests/**'
-      - '.github/workflows/phi-loop-ci.yml'
+  push:
+    branches: [master]
 
 jobs:
   seal-coverage:
