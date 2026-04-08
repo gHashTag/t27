@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // specs/github/tests/e2e_full_flow.t27
 // End-to-End Full Flow Test for Ring-072 GitHub SSOT
 // Tests: Auth → Issue → PR → Comment → Sync → Cleanup

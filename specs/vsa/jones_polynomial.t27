@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/vsa/jones_polynomial.t27
 // Jones Polynomial — Link invariant computed from input structure
 // V(L, t) = (-t^(-3/4))^w(L) · ⟨L⟩ where ⟨L⟩ is Kauffman bracket

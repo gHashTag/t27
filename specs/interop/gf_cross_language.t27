@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // GoldenFloat Cross-Language Conformance
 // All languages must produce identical bits for identical inputs.
 // Reference constant: GF32(φ) = 0x3FCF1BBD

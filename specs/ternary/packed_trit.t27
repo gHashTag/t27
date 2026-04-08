@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // Module: Packed Trit Encoding (5 trits per byte)
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
