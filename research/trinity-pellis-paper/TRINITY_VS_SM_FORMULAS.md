@@ -167,7 +167,6 @@ Illustrative **symmetry benchmarks** vs **global fits** (NuFIT-class). Your row 
 | 22–25      | EW + CKM **φ ansätze**                 |
 | 26–30      | Koide, \theta_{12}, mass-ratio ansätze |
 | 31         | Pellis \alpha^{-1} closed form         |
-| 32         | Conjecture **H2:** \sin\theta_{13} = \varphi^{-4} |
 
 
 ---
