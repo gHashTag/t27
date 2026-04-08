@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-The Pellis program has moved from “beautiful coincidences” to a **verifiable catalog**: every claimed φ-formula in the repository either has a path to an executable check (`tri math compare`, `.t27` specs) or carries an explicit **CONJECTURAL** label with a numerical value, experimental reference, and deviation. **Three numerical errors** were found and corrected during audit (two CKM table entries + one NuFIT σ mishandling), making the picture simultaneously more honest and more defensible for peer review.
+The Pellis programme has moved from “beautiful coincidences” to a **verifiable catalogue**: every claimed φ-formula in the repository either has a path to an executable check (`tri math compare`, `.t27` specs) or carries an explicit **CONJECTURAL** label with a numerical value, experimental reference, and deviation. **Three numerical errors** were found and corrected during audit (two CKM table entries + one NuFIT σ mishandling), making the picture simultaneously more honest and more defensible for peer review.
 
 ---
 
@@ -21,28 +21,26 @@ The document audit found and corrected **three numerical errors** that were dist
 
 After corrections the picture is **honest**: some ansätze look better, some harder than before the audit.
 
-**New Conjecture H2** (**sin θ₁₃ = φ⁻⁴**): \(\varphi^{-4} \approx 0.145898\) → \(\arcsin(\varphi^{-4}) \approx 8.39^\circ\). Compared to a reactor-style central value ~8.54° with ±0.15° uncertainty this is ~1σ — **provided** the parametrization and error source are stated explicitly. The table must not conflate **sin θ₁₃** and **sin²2θ₁₃**.
+**New Conjecture H2** (**sin θ₁₃ = φ⁻⁴**): \(\varphi^{-4} \approx 0.145898\) → \(\arcsin(\varphi^{-4}) \approx 8.39^\circ\). Compared to a reactor-style centre ~8.54° with ±0.15° uncertainty this is ~1σ — **provided** the parametrisation and error source are stated explicitly. The table must not conflate **sin θ₁₃** and **sin²2θ₁₃**.
 
 ---
 
-## 1. GitHub integration timeline
+## 1. GitHub Integration Timeline
 
-| Artifact | Status | Summary |
-|----------|--------|---------|
-| [**PR #294**](https://github.com/gHashTag/t27/pull/294) | **Merged** | `.trinity` seals; specs (ternary, Pellis precision, GF competitive); [`benchmarks/language_tests/`](../../benchmarks/language_tests/); [`bootstrap/src/math_compare.rs`](../../bootstrap/src/math_compare.rs) + [`research/trinity-pellis-paper/`](./); merge to `master` with conflicts resolved. |
-| [**PR #299**](https://github.com/gHashTag/t27/pull/299) | **Merged** | P0 Sprint 1: Zig → `.t27` — [`PackedTrit`](../../specs/ternary/packed_trit.t27), [`SacredConstants`](../../specs/sacred/constants.t27), [`HybridArithmetic`](../../specs/ternary/hybrid_arithmetic.t27); see §3. |
-| [**PR #321**](https://github.com/gHashTag/t27/pull/321) | **Merged** | Removed nested `trinity/.git`; [`trinity/README.md`](../../trinity/README.md) tracked as normal files. |
-| [**PR #325**](https://github.com/gHashTag/t27/pull/325) | **Merged** | This report, [`FORMULA_TABLE.md`](./FORMULA_TABLE.md) rows **31–32**, [`TECHNOLOGY_MAP.md`](./TECHNOLOGY_MAP.md), [`TRINITY_VS_SM_FORMULAS.md`](./TRINITY_VS_SM_FORMULAS.md) §13. |
-| [**PR #328**](https://github.com/gHashTag/t27/pull/328) | **Merged** | Revert-merge **[#327](https://github.com/gHashTag/t27/pull/327)** (wrong files), re-apply **only** this report + `TECHNOLOGY_MAP.md`. |
-| [**PR #297**](https://github.com/gHashTag/t27/pull/297) | **Open** | Whitepaper + benchmarks — **blocked:** merge conflicts + **`check-linked-issue`** until PR links a qualifying issue (GitHub **Checks** tab). |
-| [**Issue #295**](https://github.com/gHashTag/t27/issues/295) | **Open** | `tri math compare --weinberg` — [`GH_ISSUE_WEINBERG_CLI_BODY.md`](./GH_ISSUE_WEINBERG_CLI_BODY.md). |
-| [**Issue #296**](https://github.com/gHashTag/t27/issues/296) | **Open** | Hybrid v2 + golden **N = 5, 10, 15, 20, 50, 152** — [`GH_ISSUE_HYBRID_V2_BODY.md`](./GH_ISSUE_HYBRID_V2_BODY.md). |
+| Artefact | Status | Content (brief) |
+|----------|--------|-----------------|
+| [**PR #294**](https://github.com/gHashTag/t27/pull/294) | Merged | Large bundle: seals (`.trinity`), specs (ternary, Pellis precision, GF competitive), language benchmarks, `math_compare` + trinity-pellis docs, merge with `master`, conflict resolution |
+| [**PR #299**](https://github.com/gHashTag/t27/pull/299) | **Merged** | P0 Core Rewrite Sprint 1: Zig → `.t27` specs (`PackedTrit`, `SacredConstants`, `HybridArithmetic`); see §3 |
+| [**PR #297**](https://github.com/gHashTag/t27/pull/297) | Open (not mergeable from bot) | [`docs/WHITEPAPER/gf_paper_v3_imrad_draft.md`](../../docs/WHITEPAPER/gf_paper_v3_imrad_draft.md) + extended [`benchmarks/language_tests/`](../../benchmarks/language_tests/) — **merge blocked:** conflicts + failing `check-linked-issue` gate (verify in GitHub UI) |
+| [**PR #321**](https://github.com/gHashTag/t27/pull/321) | Merged | Removed nested `trinity/.git`; added [`trinity/README.md`](../../trinity/README.md) |
+| [**Issue #295**](https://github.com/gHashTag/t27/issues/295) | Open | Earlier title: `tri math compare --weinberg` — body [`GH_ISSUE_WEINBERG_CLI_BODY.md`](GH_ISSUE_WEINBERG_CLI_BODY.md) |
+| [**Issue #302**](https://github.com/gHashTag/t27/issues/302) | Open | Duplicate track: `feat(cli): tri math compare --weinberg` — **close one of #295 / #302** when implementation lands |
+| [**Issue #296**](https://github.com/gHashTag/t27/issues/296) | Open | Earlier title: hybrid v2 + golden N — body [`GH_ISSUE_HYBRID_V2_BODY.md`](GH_ISSUE_HYBRID_V2_BODY.md) |
+| [**Issue #303**](https://github.com/gHashTag/t27/issues/303) | Open | Duplicate track: `feat(cli): hybrid v2 golden tests N=5..152` — **close one of #296 / #303** when implementation lands |
 
-*[**#302**](https://github.com/gHashTag/t27/issues/302) / [**#303**](https://github.com/gHashTag/t27/issues/303) **closed** as duplicates of **#295** / **#296**.*
+*PR/issue numbers: confirm in the [GitHub UI](https://github.com/gHashTag/t27) before citing in external letters.*
 
-*Confirm numbers in [GitHub](https://github.com/gHashTag/t27) before external citations.*
-
-**Merge policy:** **#294**, **#299**, **#321**, **#325**, **#328** are on `master`. **#297** needs manual fix. No bulk-merge of unrelated Ring PRs.
+**Merge policy note (April 2026):** **PR #299** is already on `master`. **PR #297** could not be merged automatically from this environment (conflicts + gate). Do **not** bulk-merge dozens of unrelated open Ring PRs without review; treat merges as scoped releases.
 
 ---
 
@@ -69,7 +67,7 @@ After corrections the picture is **honest**: some ansätze look better, some har
 
 \[\arcsin(\varphi^{-4}) \approx 8.39^\circ\]
 
-Compared to reactor central value ~8.54° with ±0.15° → **~1σ** (conjecture in the catalog; main long-horizon check: next-generation reactor / JUNO-era fits).
+Compared to reactor centre ~8.54° with ±0.15° → **~1σ** (conjecture registered in catalogue; main long-horizon check: next-generation reactor / JUNO-era fits).
 
 ---
 
@@ -96,7 +94,7 @@ The relation \(\varphi^2 + \varphi^{-2} = 3\) is enforced as a **machine-checkab
 
 ---
 
-## 4. Formula catalog ([`FORMULA_TABLE.md`](FORMULA_TABLE.md))
+## 4. Formula catalogue ([`FORMULA_TABLE.md`](FORMULA_TABLE.md))
 
 **On `master` (this report commit):**
 
@@ -136,8 +134,8 @@ All under `research/trinity-pellis-paper/`.
 ## 7. Open steps (recommendations)
 
 1. **Resolve and merge [PR #297](https://github.com/gHashTag/t27/pull/297)** after fixing conflicts and satisfying **issue-gate** (link a qualifying issue in PR description).
-2. **Implement and close** Weinberg CLI on **[#295](https://github.com/gHashTag/t27/issues/295)** (duplicate **#302** closed).
-3. **Implement and close** hybrid v2 golden tests on **[#296](https://github.com/gHashTag/t27/issues/296)** (duplicate **#303** closed).
+2. **Implement and close** Weinberg CLI: consolidate **[#295](https://github.com/gHashTag/t27/issues/295) / [#302](https://github.com/gHashTag/t27/issues/302)**.
+3. **Implement and close** hybrid v2 golden tests: consolidate **[#296](https://github.com/gHashTag/t27/issues/296) / [#303](https://github.com/gHashTag/t27/issues/303)**.
 4. **Sprint / stash “seven files”** — land as a separate commit when the sprint branch is ready (do not mix with whitepaper PR until conflicts are resolved).
 5. **GMP/MPFR** + `verify_precision.py` expansion — separate PRs, lower priority.
 6. **JUNO-era / reactor fits:** monitor as the long-horizon experimental discriminator for **H2**.
