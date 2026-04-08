@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.4
 # Multi-stage Dockerfile for Unified T27 (Frontend + Backend)
 # Build Context: REPO ROOT
 
@@ -9,11 +8,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copy package files first for better layer caching
 COPY external/opencode/package.json external/opencode/bun.lock ./
 
-# Install dependencies with cache mount (BuildKit)
-RUN --mount=type=cache,target=/root/.cache/bun,sharing=locked bun install --frozen-lockfile
+# Install dependencies
+RUN bun install --frozen-lockfile
 
 # Copy source files
 COPY external/opencode/ ./
