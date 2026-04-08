@@ -491,6 +491,33 @@ enum Commands {
     Strings {
         input: String,
     },
+
+    /// List all symbols (functions, structs, enums, consts) in a spec
+    Symbols {
+        input: String,
+        #[arg(long)]
+        kind: Option<String>,
+    },
+
+    /// Dump full AST as JSON
+    AstDump {
+        input: String,
+    },
+
+    /// Compute SHA256 hash of spec source
+    Hash {
+        input: String,
+    },
+
+    /// Show call depth / stack depth analysis per function
+    Depth {
+        input: String,
+    },
+
+    /// Show which functions are never called (entry point analysis)
+    Orphans {
+        input: String,
+    },
 }
 
 // ============================================================================
@@ -5619,6 +5646,143 @@ fn run_strings(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_symbols(input_path: &str, kind_filter: Option<&str>) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    println!("=== Symbols in {} ===", file_name);
+    println!("{:<30} {:<12} {:>5}", "name", "kind", "line");
+    println!("{}", "-".repeat(50));
+
+    for child in &ast.children {
+        let kind_str = match child.kind {
+            compiler::NodeKind::FnDecl => "fn",
+            compiler::NodeKind::StructDecl => "struct",
+            compiler::NodeKind::EnumDecl => "enum",
+            compiler::NodeKind::ConstDecl => "const",
+            compiler::NodeKind::TestBlock => "test",
+            compiler::NodeKind::InvariantBlock => "invariant",
+            compiler::NodeKind::BenchBlock => "bench",
+            _ => continue,
+        };
+        if let Some(f) = kind_filter {
+            if kind_str != f { continue; }
+        }
+        println!("{:<30} {:<12} {:>5}", child.name, kind_str, child.line);
+    }
+    Ok(())
+}
+
+fn run_ast_dump(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    fn node_to_json(node: &compiler::Node, indent: usize) -> String {
+        let sp = " ".repeat(indent);
+        let kind = format!("{:?}", node.kind);
+        let name = if node.name.is_empty() { String::new() } else { format!(", \"name\": \"{}\"", node.name) };
+        let line = format!(", \"line\": {}", node.line);
+        let etype = if node.extra_type.is_empty() { String::new() } else { format!(", \"type\": \"{}\"", node.extra_type) };
+        let eret = if node.extra_return_type.is_empty() { String::new() } else { format!(", \"return_type\": \"{}\"", node.extra_return_type) };
+        let eop = if node.extra_op.is_empty() { String::new() } else { format!(", \"op\": \"{}\"", node.extra_op) };
+        let params = if node.params.is_empty() { String::new() } else {
+            let ps: Vec<String> = node.params.iter().map(|(n, t)| format!("\"{}: {}\"", n, t)).collect();
+            format!(", \"params\": [{}]", ps.join(", "))
+        };
+        if node.children.is_empty() {
+            format!("{}{{\"kind\": \"{}\"{}{}{}{}{}{}}}", sp, kind, name, line, etype, eret, eop, params)
+        } else {
+            let children: Vec<String> = node.children.iter().map(|c| node_to_json(c, indent + 2)).collect();
+            format!("{}{{\"kind\": \"{}\"{}{}{}{}{}{},\n{}  \"children\": [\n{}\n{}  ]\n{}}}", 
+                sp, kind, name, line, etype, eret, eop, params, sp, children.join(",\n"), sp, sp)
+        }
+    }
+    println!("{}", node_to_json(&ast, 0));
+    Ok(())
+}
+
+fn run_hash(input_path: &str) -> anyhow::Result<()> {
+    use std::io::Read;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    let mut f = std::fs::File::open(input_path)?;
+    let mut buf = Vec::new();
+    f.read_to_end(&mut buf)?;
+    let hash = {
+        use std::fmt::Write;
+        let digest = <sha2::Sha256 as sha2::Digest>::digest(&buf);
+        let mut s = String::with_capacity(64);
+        for byte in digest {
+            write!(&mut s, "{:02x}", byte).unwrap();
+        }
+        s
+    };
+    println!("{}  {}", hash, file_name);
+    Ok(())
+}
+
+fn run_depth(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    println!("=== Call Depth: {} ===", file_name);
+    println!("{:<40} {:>6} {:>10}", "function", "depth", "max_stack");
+    println!("{}", "-".repeat(60));
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            let mut max_d = 0u32;
+            fn measure_depth(node: &compiler::Node, depth: u32, max_d: &mut u32) {
+                if node.kind == compiler::NodeKind::ExprCall || node.kind == compiler::NodeKind::ExprIf || node.kind == compiler::NodeKind::StmtFor || node.kind == compiler::NodeKind::StmtWhile {
+                    if depth + 1 > *max_d { *max_d = depth + 1; }
+                }
+                for c in &node.children {
+                    measure_depth(c, depth + 1, max_d);
+                }
+            }
+            measure_depth(child, 0, &mut max_d);
+            let locals = child.children.iter()
+                .filter(|c| c.kind == compiler::NodeKind::StmtLocal)
+                .count() as u32;
+            println!("{:<40} {:>6} {:>10}", child.name, max_d, max_d + locals);
+        }
+    }
+    Ok(())
+}
+
+fn run_orphans(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    println!("=== Orphan Functions in {} ===", file_name);
+
+    let fn_names: std::collections::HashSet<String> = ast.children.iter()
+        .filter(|c| c.kind == compiler::NodeKind::FnDecl)
+        .map(|c| c.name.clone())
+        .collect();
+
+    let mut called = std::collections::HashSet::new();
+    fn collect_calls(node: &compiler::Node, called: &mut std::collections::HashSet<String>) {
+        if node.kind == compiler::NodeKind::ExprCall {
+            called.insert(node.name.clone());
+        }
+        for c in &node.children {
+            collect_calls(c, called);
+        }
+    }
+    collect_calls(&ast, &mut called);
+
+    let orphans: Vec<&String> = fn_names.iter().filter(|n| !called.contains(*n)).collect();
+    if orphans.is_empty() {
+        println!("(no orphans — all functions are called)");
+    } else {
+        for name in &orphans {
+            println!("  {} (never called)", name);
+        }
+        println!("--- {} orphan(s)", orphans.len());
+    }
+    Ok(())
+}
+
 // ============================================================================
 // Main Entry Point
 // ============================================================================
@@ -5707,6 +5871,11 @@ async fn main() -> anyhow::Result<()> {
         Commands::BenchEndpoints { url, requests } => run_bench_endpoints(&url, requests)?,
         Commands::Complexity { input } => run_complexity(&input)?,
         Commands::Strings { input } => run_strings(&input)?,
+        Commands::Symbols { input, kind } => run_symbols(&input, kind.as_deref())?,
+        Commands::AstDump { input } => run_ast_dump(&input)?,
+        Commands::Hash { input } => run_hash(&input)?,
+        Commands::Depth { input } => run_depth(&input)?,
+        Commands::Orphans { input } => run_orphans(&input)?,
     }
 
     Ok(())
@@ -5796,6 +5965,11 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Complexity { input } => run_complexity(&input)?,
         Commands::Strings { input } => run_strings(&input)?,
+        Commands::Symbols { input, kind } => run_symbols(&input, kind.as_deref())?,
+        Commands::AstDump { input } => run_ast_dump(&input)?,
+        Commands::Hash { input } => run_hash(&input)?,
+        Commands::Depth { input } => run_depth(&input)?,
+        Commands::Orphans { input } => run_orphans(&input)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
