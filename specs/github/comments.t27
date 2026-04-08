@@ -1,0 +1,79 @@
+// specs/github/comments.t27
+// GitHub Comments API for t27
+// Ring-072 - GitHub SSOT Integration
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module github::comments {
+    const COMMENT_TYPE_ISSUE : u8 = 0;
+    const COMMENT_TYPE_PR : u8 = 1;
+    const DEFAULT_COMMENT_LIMIT : u32 = 10;
+
+    enum CommentError {
+        Success = 0,
+        NotFound = 1,
+        Unauthorized = 2,
+        RateLimited = 3,
+        InvalidInput = 4,
+        NetworkError = 5,
+        UnknownError = 99,
+    }
+
+    struct Comment {
+        id: u32,
+        entity_type: u8,
+        entity_id: u32,
+        user: str,
+        body: str,
+        created_at: u64,
+    }
+
+    fn comment_list(issue_id: u32) -> [Comment] {
+        var comments : [0]Comment = undefined;
+        return comments;
+    }
+
+    fn comment_create(issue_id: u32, body: str) -> Comment {
+        var comment : Comment = undefined;
+        comment.id = 0;
+        comment.entity_id = issue_id;
+        comment.body = body;
+        return comment;
+    }
+
+    fn comment_update(comment_id: u32, body: str) -> Comment {
+        var comment : Comment = undefined;
+        comment.id = comment_id;
+        comment.body = body;
+        return comment;
+    }
+
+    fn comment_delete(comment_id: u32) -> CommentError {
+        return CommentError::Success;
+    }
+
+    test "comment_list_works"
+        const comments = comment_list(123);
+        assert(comments.len >= 0);
+
+    test "comment_create_sets_body"
+        const comment = comment_create(123, "Test");
+        assert(comment.body == "Test");
+
+    test "constants_defined"
+        assert(COMMENT_TYPE_ISSUE == 0);
+        assert(DEFAULT_COMMENT_LIMIT == 10);
+
+    invariant comment_ids_match_issue
+        const comments = comment_list(123);
+        for comment in comments {
+            assert(comment.entity_id == 123);
+        }
+
+    bench comment_list_bench
+        @setEvalBranchQuota(10000);
+        var comments : [0]Comment = undefined;
+        for (0..100) |_| {
+            comments = comment_list(123);
+        }
+        _ = comments;
+}

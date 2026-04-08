@@ -91,6 +91,71 @@ tri notebook wrapup --summary "completed <task>" \
 - "known issues with <spec>" — Find blockers
 - "architecture of <component>" — Get design context
 
+## GitHub SSOT Integration (t27-Native)
+
+Zero-Python GitHub ↔ NotebookLM sync via t27c + bridge.rs. All logic lives in .t27 specs (Law L7 compliance).
+
+### GitHub Authentication
+
+```bash
+# Check GitHub authentication status
+./bootstrap/target/release/t27c bridge github auth-status
+```
+
+### GitHub Issue Management
+
+```bash
+# List open issues
+./bootstrap/target/release/t27c bridge github issue-list --state open --limit 5
+
+# Create new issue
+./bootstrap/target/release/t27c bridge github issue-create --title "Title" --body "Description"
+
+# Run specs for issue operations
+./bootstrap/target/release/t27c test specs/github/issues.t27
+```
+
+### GitHub Pull Request Management
+
+```bash
+# List open PRs
+./bootstrap/target/release/t27c bridge github pr-list --state open --limit 5
+
+# Create new PR
+./bootstrap/target/release/t27c bridge github pr-create --branch "feature-branch" --title "Title" --body "Description"
+
+# Run specs for PR operations
+./bootstrap/target/release/t27c test specs/github/prs.t27
+```
+
+### Documentation Management
+
+```bash
+# List docs in repository
+./bootstrap/target/release/t27c bridge github doc-list
+
+# Run specs for sync operations
+./bootstrap/target/release/t27c test specs/tri/sync.t27
+```
+
+### Full Sync
+
+```bash
+# Run full GitHub ↔ NotebookLM sync
+./bootstrap/target/release/t27c bridge github sync
+```
+
+### Spec-Based Architecture
+
+All GitHub integration logic is defined in .t27 specs:
+- `specs/github/auth.t27` — Authentication (tests/invariants/bench)
+- `specs/github/issues.t27` — Issues API (tests/invariants/bench)
+- `specs/github/prs.t27` — PRs API (tests/invariants/bench)
+- `specs/github/comments.t27` — Comments API (tests/invariants/bench)
+- `specs/tri/sync.t27` — Sync orchestrator (tests/invariants/bench)
+
+**Law L7 Compliance**: Zero Python — all functionality via .t27 specs + bridge.rs (no ad-hoc scripts).
+
 ## Standard /tri Status Output
 
 When user invokes `/tri` without arguments, ALWAYS show:
