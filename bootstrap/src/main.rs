@@ -2951,8 +2951,9 @@ module {top} (
 );
     wire sys_clk   = clk;
     wire sys_rst_n = rst_n;
-    reg [26:0] heartbeat_ctr;
 
+    // ---- Heartbeat counter (LED[0] blinks at ~0.9 Hz @ 12 MHz) ----
+    reg [26:0] heartbeat_ctr;
     always @(posedge sys_clk) begin
         if (!sys_rst_n)
             heartbeat_ctr <= 27'd0;
@@ -2960,8 +2961,42 @@ module {top} (
             heartbeat_ctr <= heartbeat_ctr + 1'b1;
     end
 
+    // ---- ZeroDSP_UART instantiation ----
+    wire uart_ready;
+    ZeroDSP_UART u_uart (
+        .clk    (sys_clk),
+        .rst_n  (sys_rst_n),
+        .en     (1'b1),
+        .ready  (uart_ready)
+    );
+
+    // ---- SPI_Master instantiation ----
+    wire spi_ready;
+    SPI_Master u_spi (
+        .clk    (sys_clk),
+        .rst_n  (sys_rst_n),
+        .en     (1'b1),
+        .ready  (spi_ready)
+    );
+
+    // ---- ZeroDSP_TopLevel instantiation ----
+    wire sys_ready;
+    ZeroDSP_TopLevel u_top_level (
+        .clk    (sys_clk),
+        .rst_n  (sys_rst_n),
+        .en     (1'b1),
+        .ready  (sys_ready)
+    );
+
+    // ---- Output assignments ----
     assign led[0]     = heartbeat_ctr[24];
-    assign led[7:1]   = 7'b0;
+    assign led[1]     = uart_ready;
+    assign led[2]     = spi_ready;
+    assign led[3]     = sys_ready;
+    assign led[4]     = 1'b0;
+    assign led[5]     = 1'b0;
+    assign led[6]     = 1'b0;
+    assign led[7]     = 1'b0;
     assign uart_tx    = uart_rx;
     assign mac_done   = 1'b0;
     assign mac_result = {{5'd0, heartbeat_ctr}};
@@ -3006,7 +3041,7 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                "read_verilog {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
                 gen = gen_dir.display(),
                 top = top,
             ),
@@ -3026,7 +3061,7 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                "read_verilog {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
                 gen = gen_dir.display(),
                 top = top,
             ),

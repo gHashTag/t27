@@ -648,9 +648,63 @@ impl Lexer {
                 }
             }
 
+            let type_suffixes: &[&[u8]] = &[
+                b"u8",
+                b"u16",
+                b"u32",
+                b"u64",
+                b"usize",
+                b"i8",
+                b"i16",
+                b"i32",
+                b"i64",
+                b"isize",
+                b"f16",
+                b"f32",
+                b"f64",
+                b"comptime_int",
+            ];
+            for suffix in type_suffixes.iter() {
+                let end = self.pos + suffix.len();
+                if end <= self.source.len() && &self.source[self.pos..end] == *suffix {
+                    let next = if end < self.source.len() {
+                        self.source[end]
+                    } else {
+                        0u8
+                    };
+                    if !next.is_ascii_alphanumeric() && next != b'_' {
+                        self.pos = end;
+                        self.col += suffix.len();
+                    }
+                    break;
+                }
+            }
+
             return Token {
                 kind: TokenKind::Number,
                 lexeme: number,
+                line: start_line,
+                col: start_col,
+            };
+        }
+
+        // Multi-char tokens
+        if ch == b'&' && self.peek() == b'&' {
+            self.advance();
+            self.advance();
+            return Token {
+                kind: TokenKind::Amp,
+                lexeme: "&&".to_string(),
+                line: start_line,
+                col: start_col,
+            };
+        }
+        if ch == b'|' && self.peek() == b'|' {
+            self.advance();
+            self.advance();
+            return Token {
+                kind: TokenKind::Pipe,
+                lexeme: "||".to_string(),
                 line: start_line,
                 col: start_col,
             };
@@ -1867,8 +1921,10 @@ impl Parser {
     /// Parse `or` expressions
     fn parse_expr_or(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_and()?;
-        while self.current.kind == TokenKind::KwOr {
-            self.advance(); // consume 'or'
+        while self.current.kind == TokenKind::KwOr
+            || (self.current.kind == TokenKind::Pipe && self.current.lexeme == "||")
+        {
+            self.advance();
             let right = self.parse_expr_and()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -1883,8 +1939,10 @@ impl Parser {
     /// Parse `and` expressions
     fn parse_expr_and(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_comparison()?;
-        while self.current.kind == TokenKind::KwAnd {
-            self.advance(); // consume 'and'
+        while self.current.kind == TokenKind::KwAnd
+            || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
+        {
+            self.advance();
             let right = self.parse_expr_comparison()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -3868,11 +3926,7 @@ impl VerilogCodegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                let kw = if node.extra_mutable {
-                    "reg"
-                } else {
-                    "// const"
-                };
+                let kw = if node.extra_mutable { "reg" } else { "reg" };
                 let width = Self::type_to_width(&node.extra_type);
                 let signed = Self::type_is_signed(&node.extra_type);
                 let signed_str = if signed { "signed " } else { "" };
@@ -5634,11 +5688,21 @@ fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut consts: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
         if stmt.kind == NodeKind::StmtLocal
+            && !stmt.extra_mutable
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprLiteral
             && is_literal(&stmt.children[0])
         {
-            consts.push((stmt.name.clone(), stmt.children[0].value.clone()));
+            let name = stmt.name.clone();
+            let reassigned = stmts.iter().any(|s| {
+                s.kind == NodeKind::StmtAssign
+                    && s.children.len() >= 1
+                    && s.children[0].kind == NodeKind::ExprIdentifier
+                    && s.children[0].name == name
+            });
+            if !reassigned {
+                consts.push((name, stmt.children[0].value.clone()));
+            }
         }
     }
     if consts.is_empty() {
@@ -5659,7 +5723,10 @@ fn replace_ident_with_literal(node: &mut Node, name: &str, val: &str, stats: &mu
         stats.copies_propagated += 1;
         return;
     }
-    for child in &mut node.children {
+    for (i, child) in node.children.iter_mut().enumerate() {
+        if node.kind == NodeKind::StmtAssign && i == 0 {
+            continue;
+        }
         replace_ident_with_literal(child, name, val, stats);
     }
 }
@@ -5668,7 +5735,10 @@ fn propagate_ident(node: &mut Node, from: &str, to: &str) {
     if node.kind == NodeKind::ExprIdentifier && node.name == *from {
         node.name = to.to_string();
     }
-    for child in &mut node.children {
+    for (i, child) in node.children.iter_mut().enumerate() {
+        if node.kind == NodeKind::StmtAssign && i == 0 {
+            continue;
+        }
         propagate_ident(child, from, to);
     }
 }
