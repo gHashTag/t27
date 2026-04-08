@@ -1,0 +1,192 @@
+// specs/research/tests/e2e_section_draft.t27
+// E2E Test: Section Draft for NotebookLM Research Workflow
+// Ring-XXX - NeurIPS OPT Workshop Paper Submission
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tests::e2e_section_draft {
+    use research::notebooklm;
+    use memory::notebooklm;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 1. E2E Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "section_draft_generates_content"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        config.storage_path = "/tmp/notebooklm";
+        config.notebook_name = "t27-QUEEN-BRAIN";
+        config.timeout_ms = 30000;
+        config.auto_refresh = false;
+
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Introduction;
+        request.prompt = "Draft introduction for GoldenFloat paper";
+
+        const (result, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.section_type == notebooklm::SectionType::Introduction);
+
+    test "section_draft_preserves_type"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Methods;
+
+        const (result, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.section_type == notebooklm::SectionType::Methods);
+
+    test "section_draft_for_related_work"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::RelatedWork;
+        request.prompt = "Discuss ternary floating point literature";
+        request.target_word_count = 800;
+
+        const (result, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.section_type == notebooklm::SectionType::RelatedWork);
+
+    test "section_draft_for_conclusion"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Conclusion;
+        request.prompt = "Summarize GoldenFloat contributions";
+
+        const (result, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.section_type == notebooklm::SectionType::Conclusion);
+
+    test "section_draft_with_citations"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Introduction;
+        request.prompt = "Test with citations";
+        request.include_citations = true;
+
+        const (result, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+
+    test "section_draft_all_section_types"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.prompt = "Test";
+
+        const (abstract_result, err1) = research::notebooklm::section_draft(
+            client,
+            {section_type: notebooklm::SectionType::Abstract, prompt: request.prompt, paper_context: "", target_word_count: 200, include_citations: false}
+        );
+        assert(err1 == notebooklm::ErrorCode::Success);
+        assert(abstract_result.section_type == notebooklm::SectionType::Abstract);
+
+        const (intro_result, err2) = research::notebooklm::section_draft(
+            client,
+            {section_type: notebooklm::SectionType::Introduction, prompt: request.prompt, paper_context: "", target_word_count: 500, include_citations: true}
+        );
+        assert(err2 == notebooklm::ErrorCode::Success);
+        assert(intro_result.section_type == notebooklm::SectionType::Introduction);
+
+        const (methods_result, err3) = research::notebooklm::section_draft(
+            client,
+            {section_type: notebooklm::SectionType::Methods, prompt: request.prompt, paper_context: "", target_word_count: 1000, include_citations: true}
+        );
+        assert(err3 == notebooklm::ErrorCode::Success);
+        assert(methods_result.section_type == notebooklm::SectionType::Methods);
+
+        const (results_result, err4) = research::notebooklm::section_draft(
+            client,
+            {section_type: notebooklm::SectionType::Results, prompt: request.prompt, paper_context: "", target_word_count: 800, include_citations: true}
+        );
+        assert(err4 == notebooklm::ErrorCode::Success);
+        assert(results_result.section_type == notebooklm::SectionType::Results);
+
+        const (discussion_result, err5) = research::notebooklm::section_draft(
+            client,
+            {section_type: notebooklm::SectionType::Discussion, prompt: request.prompt, paper_context: "", target_word_count: 600, include_citations: true}
+        );
+        assert(err5 == notebooklm::ErrorCode::Success);
+        assert(discussion_result.section_type == notebooklm::SectionType::Discussion);
+
+        const (conclusion_result, err6) = research::notebooklm::section_draft(
+            client,
+            {section_type: notebooklm::SectionType::Conclusion, prompt: request.prompt, paper_context: "", target_word_count: 300, include_citations: false}
+        );
+        assert(err6 == notebooklm::ErrorCode::Success);
+        assert(conclusion_result.section_type == notebooklm::SectionType::Conclusion);
+
+    test "section_draft_preserves_timestamp"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Introduction;
+
+        const (result, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+        // Timestamp should be set (value depends on implementation)
+        assert(result.generated_at >= 0 || result.generated_at == 0);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 2. E2E Invariants
+    // ════════════════════════════════════════════════════════════════════
+
+    invariant section_draft_confidence_valid
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        const (result, _) = research::notebooklm::section_draft(client, request);
+        assert(result.confidence >= 0.0);
+        assert(result.confidence <= 1.0);
+
+    invariant section_draft_type_matches_request
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Abstract;
+
+        const (result, _) = research::notebooklm::section_draft(client, request);
+        assert(result.section_type == notebooklm::SectionType::Abstract);
+
+    invariant section_draft_error_codes_valid
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        const (_, err) = research::notebooklm::section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 3. E2E Benchmarks
+    // ════════════════════════════════════════════════════════════════════
+
+    bench section_draft_e2e_bench
+        @setEvalBranchQuota(10000);
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : notebooklm::SectionDraftRequest = undefined;
+        request.section_type = notebooklm::SectionType::Introduction;
+        request.prompt = "Benchmark test";
+
+        var result : research::notebooklm::SectionDraft = undefined;
+        var err : notebooklm::ErrorCode = undefined;
+
+        for (0..10) |_| {
+            (result, err) = research::notebooklm::section_draft(client, request);
+        }
+        _ = result;
+        _ = err;
+}

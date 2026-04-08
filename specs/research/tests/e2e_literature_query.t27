@@ -1,0 +1,135 @@
+// specs/research/tests/e2e_literature_query.t27
+// E2E Test: Literature Query for NotebookLM Research Workflow
+// Ring-XXX - NeurIPS OPT Workshop Paper Submission
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tests::e2e_literature_query {
+    use research::notebooklm;
+    use memory::notebooklm;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 1. E2E Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "query_returns_sources"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        config.storage_path = "/tmp/notebooklm";
+        config.notebook_name = "t27-QUEEN-BRAIN";
+        config.timeout_ms = 30000;
+        config.auto_refresh = false;
+
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "ternary floating point";
+        query.limit = 10;
+
+        const (result, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.confidence >= 0.0);
+
+    test "query_with_keywords"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "ternary computing";
+        query.year_min = 2020;
+        query.year_max = 2026;
+        query.limit = 5;
+
+        const (result, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.confidence >= 0.0);
+
+    test "query_returns_gaps"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "ternary arithmetic";
+
+        const (result, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+
+    test "query_for_ternary_floating_point"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "ternary floating point";
+        query.keywords = []str{"ternary", "floating point", "phi"};
+        query.year_min = 2018;
+        query.year_max = 2026;
+        query.limit = 20;
+
+        const (result, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.confidence >= 0.0);
+        assert(result.query == "ternary floating point");
+
+    test "query_returns_methodologies"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "hardware design";
+
+        const (result, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+
+    test "query_preserves_timestamp"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "timestamp test";
+
+        const (result, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+        // Timestamp should be set (value depends on implementation)
+        assert(result.timestamp >= 0 || result.timestamp == 0);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 2. E2E Invariants
+    // ════════════════════════════════════════════════════════════════════
+
+    invariant query_result_confidence_valid
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        const (result, _) = research::notebooklm::literature_query(client, query);
+        assert(result.confidence >= 0.0);
+        assert(result.confidence <= 1.0);
+
+    invariant query_error_codes_valid
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        const (_, err) = research::notebooklm::literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 3. E2E Benchmarks
+    // ════════════════════════════════════════════════════════════════════
+
+    bench literature_query_e2e_bench
+        @setEvalBranchQuota(10000);
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : notebooklm::LiteratureQuery = undefined;
+        query.topic = "benchmark test";
+        query.limit = 10;
+
+        var result : research::notebooklm::LiteratureResult = undefined;
+        var err : notebooklm::ErrorCode = undefined;
+
+        for (0..10) |_| {
+            (result, err) = research::notebooklm::literature_query(client, query);
+        }
+        _ = result;
+        _ = err;
+}

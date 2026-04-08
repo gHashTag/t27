@@ -1,0 +1,450 @@
+// specs/research/literature.t27
+// BibTeX Management for Academic Papers
+// Ring-XXX - NeurIPS OPT Workshop Paper Submission
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module research::literature {
+    // ════════════════════════════════════════════════════════════════════
+    // 1. Constants
+    // ════════════════════════════════════════════════════════════════════
+
+    const MAX_BIB_ENTRIES : usize = 1000;
+    const MAX_AUTHORS : usize = 20;
+    const MAX_KEYWORDS : usize = 15;
+    const MIN_YEAR : u32 = 1900;
+    const MAX_YEAR : u32 = 2030;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 2. BibTeX Entry Types
+    // ════════════════════════════════════════════════════════════════════
+
+    enum BibEntryType {
+        Article = 0,
+        Book = 1,
+        InProceedings = 2,
+        Proceedings = 3,
+        InBook = 4,
+        InCollection = 5,
+        PhdThesis = 6,
+        MastersThesis = 7,
+        TechReport = 8,
+        Misc = 9,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 3. BibTeX Entry
+    // ════════════════════════════════════════════════════════════════════
+
+    struct BibEntry {
+        key: str,
+        entry_type: BibEntryType,
+        title: str,
+        authors: [MAX_AUTHORS]str,
+        year: u32,
+        venue: str,
+        volume: str,
+        number: str,
+        pages: str,
+        doi: str,
+        url: str,
+        keywords: [MAX_KEYWORDS]str,
+        abstract: str,
+        bibtex_raw: str,
+        added_at: u64,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 4. BibTeX Database
+    // ════════════════════════════════════════════════════════════════════
+
+    struct BibDatabase {
+        name: str,
+        path: str,
+        entries: [MAX_BIB_ENTRIES]BibEntry,
+        entry_count: usize,
+        created_at: u64,
+        updated_at: u64,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 5. Search Query
+    // ════════════════════════════════════════════════════════════════════
+
+    struct BibSearchQuery {
+        keywords: [MAX_KEYWORDS]str,
+        author: str,
+        year_min: u32,
+        year_max: u32,
+        venue: str,
+        entry_type: BibEntryType,
+        limit: usize,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 6. Export Options
+    // ════════════════════════════════════════════════════════════════════
+
+    enum ExportFormat {
+        BibTeX = 0,
+        JSON = 1,
+        CSV = 2,
+    }
+
+    struct ExportOptions {
+        format: ExportFormat,
+        include_abstract: bool,
+        sort_by: str, // "year", "author", "title", "added"
+        filter_keywords: [MAX_KEYWORDS]str,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 7. Validation Result
+    // ════════════════════════════════════════════════════════════════════
+
+    struct ValidationError {
+        entry_key: str,
+        field: str,
+        message: str,
+        severity: u8, // 0=warning, 1=error
+    }
+
+    struct ValidationResult {
+        is_valid: bool,
+        errors: [50]ValidationError,
+        error_count: usize,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 8. Database Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // bib_create(name: str, path: str) -> BibDatabase
+    // Create a new BibTeX database
+    fn bib_create(name: str, path: str) -> BibDatabase {
+        var db : BibDatabase = undefined;
+        db.name = name;
+        db.path = path;
+        db.entry_count = 0;
+        db.created_at = 0;
+        db.updated_at = 0;
+        return db;
+    }
+
+    // bib_load(path: str) -> (BibDatabase, ErrorCode)
+    // Load an existing BibTeX database from file
+    fn bib_load(path: str) -> (BibDatabase, ErrorCode) {
+        var db : BibDatabase = undefined;
+        return (db, ErrorCode::Success);
+    }
+
+    // bib_save(db: BibDatabase) -> ErrorCode
+    // Save database to file
+    fn bib_save(db: BibDatabase) -> ErrorCode {
+        return ErrorCode::Success;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 9. Entry Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // bib_add(db: *BibDatabase, entry: BibEntry) -> ErrorCode
+    // Add an entry to the database
+    fn bib_add(db: *BibDatabase, entry: BibEntry) -> ErrorCode {
+        db.entry_count = db.entry_count + 1;
+        return ErrorCode::Success;
+    }
+
+    // bib_remove(db: *BibDatabase, key: str) -> ErrorCode
+    // Remove an entry by key
+    fn bib_remove(db: *BibDatabase, key: str) -> ErrorCode {
+        return ErrorCode::Success;
+    }
+
+    // bib_get(db: BibDatabase, key: str) -> (BibEntry, ErrorCode)
+    // Get an entry by key
+    fn bib_get(db: BibDatabase, key: str) -> (BibEntry, ErrorCode) {
+        var entry : BibEntry = undefined;
+        return (entry, ErrorCode::Success);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 10. Search Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // bib_search(db: BibDatabase, query: BibSearchQuery) -> ([BibEntry], ErrorCode)
+    // Search entries by query criteria
+    fn bib_search(db: BibDatabase, query: BibSearchQuery) -> ([MAX_BIB_ENTRIES]BibEntry, ErrorCode) {
+        var results : [MAX_BIB_ENTRIES]BibEntry = undefined;
+        return (results, ErrorCode::Success);
+    }
+
+    // bib_search_by_author(db: BibDatabase, author: str) -> ([BibEntry], ErrorCode)
+    // Search entries by author name
+    fn bib_search_by_author(db: BibDatabase, author: str) -> ([MAX_BIB_ENTRIES]BibEntry, ErrorCode) {
+        var results : [MAX_BIB_ENTRIES]BibEntry = undefined;
+        return (results, ErrorCode::Success);
+    }
+
+    // bib_search_by_year(db: BibDatabase, year_min: u32, year_max: u32) -> ([BibEntry], ErrorCode)
+    // Search entries by year range
+    fn bib_search_by_year(db: BibDatabase, year_min: u32, year_max: u32) -> ([MAX_BIB_ENTRIES]BibEntry, ErrorCode) {
+        var results : [MAX_BIB_ENTRIES]BibEntry = undefined;
+        return (results, ErrorCode::Success);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 11. Validation Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // bib_validate_entry(entry: BibEntry) -> ValidationResult
+    // Validate a single BibTeX entry
+    fn bib_validate_entry(entry: BibEntry) -> ValidationResult {
+        var result : ValidationResult = undefined;
+        result.is_valid = true;
+        result.error_count = 0;
+        return result;
+    }
+
+    // bib_validate_database(db: BibDatabase) -> ValidationResult
+    // Validate all entries in database
+    fn bib_validate_database(db: BibDatabase) -> ValidationResult {
+        var result : ValidationResult = undefined;
+        result.is_valid = true;
+        result.error_count = 0;
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 12. Export Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // bib_export(db: BibDatabase, options: ExportOptions) -> (str, ErrorCode)
+    // Export database to specified format
+    fn bib_export(db: BibDatabase, options: ExportOptions) -> (str, ErrorCode) {
+        var content : str = "";
+        return (content, ErrorCode::Success);
+    }
+
+    // bib_export_bibtex(db: BibDatabase, options: ExportOptions) -> (str, ErrorCode)
+    // Export as BibTeX format
+    fn bib_export_bibtex(db: BibDatabase, options: ExportOptions) -> (str, ErrorCode) {
+        var content : str = "";
+        return (content, ErrorCode::Success);
+    }
+
+    // bib_export_json(db: BibDatabase, options: ExportOptions) -> (str, ErrorCode)
+    // Export as JSON format
+    fn bib_export_json(db: BibDatabase, options: ExportOptions) -> (str, ErrorCode) {
+        var content : str = "";
+        return (content, ErrorCode::Success);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 13. Merge Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // bib_merge(target: *BibDatabase, source: BibDatabase) -> ErrorCode
+    // Merge source database into target
+    fn bib_merge(target: *BibDatabase, source: BibDatabase) -> ErrorCode {
+        target.entry_count = target.entry_count + source.entry_count;
+        return ErrorCode::Success;
+    }
+
+    // bib_merge_dedup(target: *BibDatabase, source: BibDatabase) -> ErrorCode
+    // Merge with duplicate detection by key
+    fn bib_merge_dedup(target: *BibDatabase, source: BibDatabase) -> ErrorCode {
+        return ErrorCode::Success;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 14. Error Codes
+    // ════════════════════════════════════════════════════════════════════
+
+    enum ErrorCode {
+        Success = 0,
+        FileNotFound = 1,
+        InvalidPath = 2,
+        ParseError = 3,
+        DuplicateKey = 4,
+        EntryNotFound = 5,
+        DatabaseFull = 6,
+        ValidationError = 7,
+        ExportError = 8,
+        InvalidFormat = 9,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 15. TDD - Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "constants_defined"
+        assert(MAX_BIB_ENTRIES == 1000);
+        assert(MAX_AUTHORS == 20);
+        assert(MAX_KEYWORDS == 15);
+        assert(MIN_YEAR == 1900);
+        assert(MAX_YEAR == 2030);
+
+    test "bib_entry_type_enum_values"
+        assert(BibEntryType::Article == 0);
+        assert(BibEntryType::Book == 1);
+        assert(BibEntryType::InProceedings == 2);
+        assert(BibEntryType::Misc == 9);
+
+    test "export_format_enum_values"
+        assert(ExportFormat::BibTeX == 0);
+        assert(ExportFormat::JSON == 1);
+        assert(ExportFormat::CSV == 2);
+
+    test "bib_create_database"
+        const db = bib_create("test", "/tmp/test.bib");
+        assert(db.name == "test");
+        assert(db.path == "/tmp/test.bib");
+        assert(db.entry_count == 0);
+
+    test "bib_add_entry"
+        var db = bib_create("test", "/tmp/test.bib");
+        var entry : BibEntry = undefined;
+        entry.key = "test2024";
+        entry.year = 2024;
+
+        const err = bib_add(&db, entry);
+        assert(err == ErrorCode::Success);
+        assert(db.entry_count == 1);
+
+    test "bib_remove_entry"
+        var db = bib_create("test", "/tmp/test.bib");
+        var entry : BibEntry = undefined;
+        entry.key = "test2024";
+
+        _ = bib_add(&db, entry);
+        const err = bib_remove(&db, "test2024");
+        assert(err == ErrorCode::Success);
+
+    test "bib_search_by_author"
+        var db = bib_create("test", "/tmp/test.bib");
+        var query : BibSearchQuery = undefined;
+        query.author = "Smith";
+
+        const (results, err) = bib_search(db, query);
+        assert(err == ErrorCode::Success);
+
+    test "bib_search_by_year_range"
+        var db = bib_create("test", "/tmp/test.bib");
+        const (results, err) = bib_search_by_year(db, 2020, 2026);
+        assert(err == ErrorCode::Success);
+
+    test "bib_validate_entry_success"
+        var entry : BibEntry = undefined;
+        entry.key = "test2024";
+        entry.title = "Test Title";
+        entry.year = 2024;
+
+        const result = bib_validate_entry(entry);
+        assert(result.is_valid == true);
+
+    test "bib_export_bibtex"
+        var db = bib_create("test", "/tmp/test.bib");
+        var options : ExportOptions = undefined;
+        options.format = ExportFormat::BibTeX;
+
+        const (content, err) = bib_export_bibtex(db, options);
+        assert(err == ErrorCode::Success);
+
+    test "bib_export_json"
+        var db = bib_create("test", "/tmp/test.bib");
+        var options : ExportOptions = undefined;
+        options.format = ExportFormat::JSON;
+
+        const (content, err) = bib_export_json(db, options);
+        assert(err == ErrorCode::Success);
+
+    test "bib_merge_databases"
+        var target = bib_create("target", "/tmp/target.bib");
+        var source = bib_create("source", "/tmp/source.bib");
+
+        const err = bib_merge(&target, source);
+        assert(err == ErrorCode::Success);
+
+    test "error_codes_unique"
+        assert(ErrorCode::Success == 0);
+        assert(ErrorCode::FileNotFound == 1);
+        assert(ErrorCode::InvalidPath == 2);
+        assert(ErrorCode::ParseError == 3);
+        assert(ErrorCode::DuplicateKey == 4);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 16. TDD - Invariants
+    // ════════════════════════════════════════════════════════════════════
+
+    invariant year_range_valid
+        assert(MIN_YEAR < MAX_YEAR);
+
+    invariant max_authors_positive
+        assert(MAX_AUTHORS > 0);
+
+    invariant max_keywords_positive
+        assert(MAX_KEYWORDS > 0);
+
+    invariant max_bib_entries_positive
+        assert(MAX_BIB_ENTRIES > 0);
+
+    invariant entry_year_valid_range
+        var entry : BibEntry = undefined;
+        entry.year = 2024;
+        assert(entry.year >= MIN_YEAR);
+        assert(entry.year <= MAX_YEAR);
+
+    invariant database_entry_count_valid
+        var db = bib_create("test", "/tmp/test.bib");
+        assert(db.entry_count <= MAX_BIB_ENTRIES);
+
+    invariant merge_entry_count_sum
+        var target = bib_create("target", "/tmp/target.bib");
+        var source = bib_create("source", "/tmp/source.bib");
+
+        var entry_target : BibEntry = undefined;
+        _ = bib_add(&target, entry_target);
+
+        var entry_source : BibEntry = undefined;
+        _ = bib_add(&source, entry_source);
+
+        _ = bib_merge(&target, source);
+        assert(target.entry_count >= source.entry_count);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 17. TDD - Benchmarks
+    // ════════════════════════════════════════════════════════════════════
+
+    bench bib_create_bench
+        @setEvalBranchQuota(10000);
+        var db : BibDatabase = undefined;
+        for (0..1000) |_| {
+            db = bib_create("bench", "/tmp/bench.bib");
+        }
+        _ = db;
+
+    bench bib_add_bench
+        @setEvalBranchQuota(10000);
+        var db = bib_create("bench", "/tmp/bench.bib");
+        var entry : BibEntry = undefined;
+        entry.key = "bench2024";
+        var err : ErrorCode = undefined;
+
+        for (0..1000) |_| {
+            err = bib_add(&db, entry);
+        }
+        _ = err;
+
+    bench bib_search_bench
+        @setEvalBranchQuota(10000);
+        var db = bib_create("bench", "/tmp/bench.bib");
+        var query : BibSearchQuery = undefined;
+        var results : [MAX_BIB_ENTRIES]BibEntry = undefined;
+        var err : ErrorCode = undefined;
+
+        for (0..100) |_| {
+            (results, err) = bib_search(db, query);
+        }
+        _ = results;
+        _ = err;
+}

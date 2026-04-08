@@ -1,0 +1,313 @@
+// specs/research/notebooklm.t27
+// Research Workflow - Literature Review and Paper Generation
+// Ring-XXX - NeurIPS OPT Workshop Paper Submission
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module research::notebooklm {
+    use memory::notebooklm;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 1. Constants
+    // ════════════════════════════════════════════════════════════════════
+
+    const DEFAULT_QUERY_LIMIT : u32 = 20;
+    const MIN_CONFIDENCE_THRESHOLD : f64 = 0.5;
+    const DEFAULT_YEAR_MIN : u32 = 2018;
+    const DEFAULT_YEAR_MAX : u32 = 2026;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 2. Paper Section Types
+    // ════════════════════════════════════════════════════════════════════
+
+    enum SectionType {
+        Abstract = 0,
+        Introduction = 1,
+        RelatedWork = 2,
+        Methods = 3,
+        Results = 4,
+        Discussion = 5,
+        Conclusion = 6,
+        References = 7,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 3. Academic Source Types
+    // ════════════════════════════════════════════════════════════════════
+
+    struct PaperSource {
+        id: str,
+        title: str,
+        authors: str,
+        year: u32,
+        venue: str,
+        url: str,
+        doi: str,
+        bibtex: str,
+        relevance: f64,
+        indexed_at: u64,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 4. Literature Query Types
+    // ════════════════════════════════════════════════════════════════════
+
+    struct LiteratureQuery {
+        topic: str,
+        keywords: [10]str,
+        year_min: u32,
+        year_max: u32,
+        venues: [5]str,
+        limit: u32,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 5. Literature Result Types
+    // ════════════════════════════════════════════════════════════════════
+
+    struct LiteratureResult {
+        sources: [50]PaperSource,
+        gaps: [10]str,
+        methodologies: [10]str,
+        related_work: [10]str,
+        confidence: f64,
+        query: str,
+        timestamp: u64,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 6. Section Draft Types
+    // ════════════════════════════════════════════════════════════════════
+
+    struct SectionDraft {
+        section_type: SectionType,
+        title: str,
+        content: str,
+        word_count: u32,
+        citations: [10]str,
+        confidence: f64,
+        generated_at: u64,
+    }
+
+    struct SectionDraftRequest {
+        section_type: SectionType,
+        prompt: str,
+        paper_context: str,
+        target_word_count: u32,
+        include_citations: bool,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 7. Literature Query Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // literature_query(client, query: LiteratureQuery) -> (LiteratureResult, ErrorCode)
+    // Query NotebookLM for related academic papers and research gaps
+    // Returns sources, gaps, methodologies, and related work summaries
+    fn literature_query(
+        client: notebooklm::NotebookLMClient,
+        query: LiteratureQuery
+    ) -> (LiteratureResult, notebooklm::ErrorCode) {
+        var result : LiteratureResult = undefined;
+        result.confidence = 0.0;
+        result.timestamp = 0;
+        result.query = query.topic;
+        return (result, notebooklm::ErrorCode::Success);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 8. Section Draft Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // section_draft(client, request: SectionDraftRequest) -> (SectionDraft, ErrorCode)
+    // Generate a paper section draft using NotebookLM
+    // Returns content with optional citations
+    fn section_draft(
+        client: notebooklm::NotebookLMClient,
+        request: SectionDraftRequest
+    ) -> (SectionDraft, notebooklm::ErrorCode) {
+        var draft : SectionDraft = undefined;
+        draft.section_type = request.section_type;
+        draft.content = "";
+        draft.word_count = 0;
+        draft.confidence = 0.0;
+        draft.generated_at = 0;
+        return (draft, notebooklm::ErrorCode::Success);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 9. Helper Functions
+    // ════════════════════════════════════════════════════════════════════
+
+    // create_literature_query(topic: str, keywords: [str]) -> LiteratureQuery
+    // Create a literature query with default parameters
+    fn create_literature_query(topic: str, keywords: [3]str) -> LiteratureQuery {
+        var query : LiteratureQuery = undefined;
+        query.topic = topic;
+        query.year_min = DEFAULT_YEAR_MIN;
+        query.year_max = DEFAULT_YEAR_MAX;
+        query.limit = DEFAULT_QUERY_LIMIT;
+        return query;
+    }
+
+    // create_section_request(section_type: SectionType, prompt: str) -> SectionDraftRequest
+    // Create a section draft request with default parameters
+    fn create_section_request(section_type: SectionType, prompt: str) -> SectionDraftRequest {
+        var request : SectionDraftRequest = undefined;
+        request.section_type = section_type;
+        request.prompt = prompt;
+        request.paper_context = "";
+        request.target_word_count = 500;
+        request.include_citations = true;
+        return request;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 10. TDD - Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "constants_defined"
+        assert(DEFAULT_QUERY_LIMIT == 20);
+        assert(MIN_CONFIDENCE_THRESHOLD == 0.5);
+        assert(DEFAULT_YEAR_MIN == 2018);
+        assert(DEFAULT_YEAR_MAX == 2026);
+
+    test "section_type_enum_values"
+        assert(SectionType::Abstract == 0);
+        assert(SectionType::Introduction == 1);
+        assert(SectionType::RelatedWork == 2);
+        assert(SectionType::Methods == 3);
+        assert(SectionType::Results == 4);
+        assert(SectionType::Discussion == 5);
+        assert(SectionType::Conclusion == 6);
+        assert(SectionType::References == 7);
+
+    test "literature_query_returns_result"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : LiteratureQuery = undefined;
+        query.topic = "ternary floating point";
+        query.limit = 10;
+
+        const (result, err) = literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.confidence >= 0.0);
+
+    test "literature_query_preserves_topic"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : LiteratureQuery = undefined;
+        query.topic = "test topic";
+        query.limit = 5;
+
+        const (result, err) = literature_query(client, query);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(result.query == "test topic");
+
+    test "section_draft_returns_draft"
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : SectionDraftRequest = undefined;
+        request.section_type = SectionType::Introduction;
+        request.prompt = "Test prompt";
+
+        const (draft, err) = section_draft(client, request);
+        assert(err == notebooklm::ErrorCode::Success);
+        assert(draft.section_type == SectionType::Introduction);
+
+    test "create_literature_query_defaults"
+        const query = create_literature_query("test topic", []str{"a", "b", "c"});
+        assert(query.topic == "test topic");
+        assert(query.year_min == DEFAULT_YEAR_MIN);
+        assert(query.year_max == DEFAULT_YEAR_MAX);
+        assert(query.limit == DEFAULT_QUERY_LIMIT);
+
+    test "create_section_request_defaults"
+        const request = create_section_request(SectionType::Introduction, "test prompt");
+        assert(request.section_type == SectionType::Introduction);
+        assert(request.prompt == "test prompt");
+        assert(request.target_word_count == 500);
+        assert(request.include_citations == true);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 11. TDD - Invariants
+    // ════════════════════════════════════════════════════════════════════
+
+    invariant confidence_always_valid_range
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : LiteratureQuery = undefined;
+        const (result, _) = literature_query(client, query);
+        assert(result.confidence >= 0.0);
+        assert(result.confidence <= 1.0);
+
+    invariant section_draft_confidence_always_valid
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : SectionDraftRequest = undefined;
+        const (draft, _) = section_draft(client, request);
+        assert(draft.confidence >= 0.0);
+        assert(draft.confidence <= 1.0);
+
+    invariant query_limit_positive
+        var query : LiteratureQuery = undefined;
+        query.limit = DEFAULT_QUERY_LIMIT;
+        assert(query.limit > 0);
+
+    invariant year_range_valid
+        assert(DEFAULT_YEAR_MIN < DEFAULT_YEAR_MAX);
+        assert(DEFAULT_YEAR_MAX <= 2026);
+
+    invariant paper_source_relevance_valid
+        var source : PaperSource = undefined;
+        source.relevance = 0.75;
+        assert(source.relevance >= 0.0);
+        assert(source.relevance <= 1.0);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 12. TDD - Benchmarks
+    // ════════════════════════════════════════════════════════════════════
+
+    bench literature_query_creation_bench
+        @setEvalBranchQuota(10000);
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var query : LiteratureQuery = undefined;
+        var result : LiteratureResult = undefined;
+        var err : notebooklm::ErrorCode = undefined;
+
+        for (0..100) |_| {
+            (result, err) = literature_query(client, query);
+        }
+        _ = result;
+        _ = err;
+
+    bench section_draft_creation_bench
+        @setEvalBranchQuota(10000);
+        var config : notebooklm::NotebookLMConfig = undefined;
+        var client = notebooklm::client_new(config);
+
+        var request : SectionDraftRequest = undefined;
+        var draft : SectionDraft = undefined;
+        var err : notebooklm::ErrorCode = undefined;
+
+        for (0..100) |_| {
+            (draft, err) = section_draft(client, request);
+        }
+        _ = draft;
+        _ = err;
+
+    bench create_literature_query_bench
+        @setEvalBranchQuota(10000);
+        var query : LiteratureQuery = undefined;
+
+        for (0..1000) |_| {
+            query = create_literature_query("test", []str{"a", "b", "c"});
+        }
+        _ = query;
+}

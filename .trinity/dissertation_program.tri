@@ -1,0 +1,189 @@
+// Dissertation Program Workflow
+// Trinity S³AI Doctoral Dissertation — Agent-Executable Task Graph
+// Source of Truth: .trinity, experience/
+// Integration: scripts/tri → t27c
+// Constitution: L1-L8 laws govern all changes
+
+spec dissertation_program {
+    description = "Formalize Trinity S³AI doctoral dissertation into agent-executable workflow";
+    source_of_truth = ".trinity, experience/";
+    version = "1.0.0";
+    strand = "all";
+
+    // ═══════════════════════════════════════════════════════════════
+    // Phase 1: Structure Audit — Validate academic structure
+    // ═══════════════════════════════════════════════════════════════════════
+
+    task structure_audit {
+        description = "Audit academic structure: abstract, RQ flow, theorem flow, limitations, conclusion";
+        input = "Strand I markdown content (strand-i/chapter-*.md)";
+        output = ".trinity/experience/dissertation/strand-i/structure/";
+        tri_command = "tri verdict --dissertation-structure <input>";
+        checks = [
+            "Abstract present and within word limit",
+            "All RQs introduced in introduction",
+            "RQ-theorem mapping consistent",
+            "Theorem flow logically ordered",
+            "Limitations section comprehensive",
+            "Conclusion addresses all RQs"
+        ];
+        deliverable = "structure_report.json";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 2: Proof Verification — Validate formal proofs
+    // ═══════════════════════════════════════════════════════════════════════
+
+    task proof_verification {
+        description = "Verify formal proof steps for Trinity Identity, fixed-point theorem, bit-allocation proposition";
+        input = "Sections 3, 4, proposition proofs (markdown/latex)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/";
+        tri_command = "tri verdict --proof-check <input>";
+        proof_types = [
+            "trinity_identity",
+            "fixed_point_convergence",
+            "golden_float_allocation",
+            "vsa_binding_properties",
+            "vsa_permutation_invariants"
+        ];
+        deliverable = "proof_validation_report.json";
+        flags = [
+            "missing_justification",
+            "logical_gap",
+            "citation_required"
+        ];
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 3: Citation Audit — Validate reference support
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    task citation_audit {
+        description = "Audit references for novelty claims and VSA assertions";
+        input = "Bibliography (bib/TeX) and in-text claims";
+        output = ".trinity/experience/dissertation/strand-i/citations/";
+        tri_command = "tri verdict --citation-audit <input>";
+        checks = [
+            "Every novelty claim has citation",
+            "VSA operations cited to original sources",
+            "Sacred constants reference CODATA",
+            "GoldenFloat formats compare to IEEE 754",
+            "No orphan citations"
+        ];
+        deliverable = "citation_audit_report.json";
+        severity_levels = ["critical", "warning", "info"];
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Phase 4: Verification Code Generation — Create reproducible checks
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    task verification_workflow {
+        description = "Convert Appendix A checks into reproducible tri workflows";
+        input = "Appendix A verification code/snippets";
+        output = ".trinity/experience/dissertation/strand-i/verification/";
+        tri_command = "tri gen specs/dissertation/verification/*.t27 && tri test specs/dissertation/verification/*.t27";
+        specs = [
+            "specs/dissertation/verification/trinity_identity.t27",
+            "specs/dissertation/verification/fixed_point_convergence.t27",
+            "specs/dissertation/verification/vsa_operations.t27"
+        ];
+        deliverable = "verification_results.json";
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Phase 5: Terminology Normalization — Ensure consistent terminology
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    task terminology_normalize {
+        description = "Normalize Trinity S³AI, VSA, HDC, GoldenFloat, TRI-27 terminology across all strands";
+        input = "Full dissertation draft (all strands)";
+        output = ".trinity/experience/dissertation/strand-i/terminology/";
+        tri_command = "tri verdict --terminology <input>";
+        canonical_terms = [
+            "Trinity S³AI" (not "Trinity S3AI" or "Trinity-AI"),
+            "Vector Symbolic Architecture" (not "VSA alone"),
+            "Hyperdimensional Computing" (not "HDC alone"),
+            "GoldenFloat" (not "golden-float" or "Golden Float"),
+            "TRI-27" (not "tri-27" or "Trinity 27"),
+            "Ternary" (not "3-valued" or "three-valued"),
+            "Trit" (not "ternary digit" or "trit-digit")
+        ];
+        deliverable = "terminology_normalization.json";
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════
+    // Phase 6: Cross-Strand Continuity — Map dependencies
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    task continuity_map {
+        description = "Create dependency map from Strand I to Strand II/III";
+        input = "Strand I theorems and definitions";
+        output = ".trinity/experience/dissertation/strand-i/continuity/";
+        tri_command = "tri verdict --continuity <input>";
+        strand_dependencies = [
+            "Trinity Identity → Cognitive structural invariants (I.3 → II.3)",
+            "Fixed-point theory → Learning as convergence (I.4 → II.4)",
+            "VSA operations → Cognitive primitives (I.5 → II.5)",
+            "GoldenFloat → Quantized NNs (I.4.2 → III.3)",
+            "Trit encoding → FPGA storage (I.5.3 → III.2)"
+        ];
+        deliverable = "cross_strand_dependency_map.json";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // Strand Templates — Generate placeholders for future strands
+    // ═════════════════════════════════════════════════════════════════════════════════════
+
+    task strand_templates {
+        description = "Generate placeholder templates for Strand II (Cognitive) and Strand III (Hardware/Implementation)";
+        output = ".trinity/experience/dissertation/strand-ii/, .trinity/experience/dissertation/strand-iii/";
+        tri_command = "tri gen specs/dissertation/strand_*.t27";
+        templates = [
+            "strand-ii/template.md",
+            "strand-iii/template.md"
+        ];
+        deliverable = "strand_templates_generated.json";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // Workflow Dependencies — Task execution order
+    // ═════════════════════════════════════════════════════════════════════════════════════════
+
+    workflow_dependencies = [
+        "structure_audit → proof_verification",
+        "proof_verification → citation_audit",
+        "citation_audit → verification_workflow",
+        "verification_workflow → terminology_normalize",
+        "terminology_normalize → continuity_map",
+        "continuity_map → strand_templates"
+    ];
+
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // Codebase Integration Points — Existing specs to reference
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+
+    integration_points = [
+        "specs/math/constants.t27" -> [TRINITY, PHI, PHI_INV],
+        "specs/physics/sacred_physics.t27" -> [test_framework, CODATA],
+        "specs/numeric/goldenfloat_family.t27" -> [GF4, GF8, GF16, GF32],
+        "specs/numeric/phi_ratio.t27" -> [fixed_point_logic],
+        "specs/vsa/vsa_core.t27" -> [bind, bundle, permute, similarity],
+        "specs/vsa/packed_vsa.t27" -> [trit_encoding, packing]
+    ];
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+    // Constitutional Compliance — TDD, L1 Traceability, L3 Purity
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    compliance_checks = [
+        "TDD: All verification specs contain test/invariant/bench",
+        "L1: Each theorem has Closes #N reference",
+        "L2: Files under gen/ are generated, not edited",
+        "L3: All source files ASCII-only, English identifiers",
+        "L4: Every .t27 spec contains test blocks",
+        "L5: φ² + 1/φ² = 3 verified with tolerance",
+        "L6: FORMAT-SPEC-001.json is numeric SSOT",
+        "L7: No new *.sh on critical path; use tri/t27c"
+    ];
+}

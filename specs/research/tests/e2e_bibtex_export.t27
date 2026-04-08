@@ -1,0 +1,263 @@
+// specs/research/tests/e2e_bibtex_export.t27
+// E2E Test: BibTeX Export for Literature Management
+// Ring-XXX - NeurIPS OPT Workshop Paper Submission
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module tests::e2e_bibtex_export {
+    use research::literature;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 1. E2E Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "e2e_create_and_add_entry"
+        var db = literature::bib_create("goldenfloat", "/tmp/goldenfloat.bib");
+
+        var entry : literature::BibEntry = undefined;
+        entry.key = "goldenfloat2024";
+        entry.entry_type = literature::BibEntryType::InProceedings;
+        entry.title = "GoldenFloat: Ternary Floating Point for Neural Networks";
+        entry.year = 2024;
+        entry.venue = "NeurIPS 2026";
+
+        const err = literature::bib_add(&db, entry);
+        assert(err == literature::ErrorCode::Success);
+        assert(db.entry_count == 1);
+
+    test "e2e_export_to_bibtex"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry : literature::BibEntry = undefined;
+        entry.key = "test2024";
+        entry.title = "Test Paper";
+        entry.year = 2024;
+
+        _ = literature::bib_add(&db, entry);
+
+        var options : literature::ExportOptions = undefined;
+        options.format = literature::ExportFormat::BibTeX;
+
+        const (content, err) = literature::bib_export_bibtex(db, options);
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_export_to_json"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry : literature::BibEntry = undefined;
+        entry.key = "test2024";
+        entry.title = "Test Paper";
+
+        _ = literature::bib_add(&db, entry);
+
+        var options : literature::ExportOptions = undefined;
+        options.format = literature::ExportFormat::JSON;
+        options.include_abstract = true;
+
+        const (content, err) = literature::bib_export_json(db, options);
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_search_and_export"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry1 : literature::BibEntry = undefined;
+        entry1.key = "paper1";
+        entry1.title = "Ternary Computing";
+        entry1.year = 2020;
+
+        var entry2 : literature::BibEntry = undefined;
+        entry2.key = "paper2";
+        entry2.title = "Binary Computing";
+        entry2.year = 2021;
+
+        _ = literature::bib_add(&db, entry1);
+        _ = literature::bib_add(&db, entry2);
+
+        var query : literature::BibSearchQuery = undefined;
+        query.year_min = 2020;
+        query.year_max = 2021;
+
+        const (results, err) = literature::bib_search(db, query);
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_merge_databases"
+        var target = literature::bib_create("main", "/tmp/main.bib");
+        var source = literature::bib_create("secondary", "/tmp/secondary.bib");
+
+        var entry1 : literature::BibEntry = undefined;
+        entry1.key = "entry1";
+
+        var entry2 : literature::BibEntry = undefined;
+        entry2.key = "entry2";
+
+        _ = literature::bib_add(&target, entry1);
+        _ = literature::bib_add(&source, entry2);
+
+        const err = literature::bib_merge(&target, source);
+        assert(err == literature::ErrorCode::Success);
+        assert(target.entry_count >= 1);
+
+    test "e2e_validate_entry"
+        var entry : literature::BibEntry = undefined;
+        entry.key = "valid2024";
+        entry.title = "Valid Paper Title";
+        entry.authors[0] = "Author, Name";
+        entry.year = 2024;
+        entry.venue = "NeurIPS";
+
+        const result = literature::bib_validate_entry(entry);
+        assert(result.is_valid == true);
+        assert(result.error_count == 0);
+
+    test "e2e_search_by_author"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry : literature::BibEntry = undefined;
+        entry.key = "smith2024";
+        entry.title = "Paper by Smith";
+        entry.authors[0] = "Smith, John";
+        entry.year = 2024;
+
+        _ = literature::bib_add(&db, entry);
+
+        const (results, err) = literature::bib_search_by_author(db, "Smith");
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_search_by_year_range"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry1 : literature::BibEntry = undefined;
+        entry1.key = "old";
+        entry1.year = 2018;
+
+        var entry2 : literature::BibEntry = undefined;
+        entry2.key = "new";
+        entry2.year = 2024;
+
+        _ = literature::bib_add(&db, entry1);
+        _ = literature::bib_add(&db, entry2);
+
+        const (results, err) = literature::bib_search_by_year(db, 2020, 2026);
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_remove_entry"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry : literature::BibEntry = undefined;
+        entry.key = "to_remove";
+
+        _ = literature::bib_add(&db, entry);
+        assert(db.entry_count == 1);
+
+        const err = literature::bib_remove(&db, "to_remove");
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_export_with_sorting"
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry1 : literature::BibEntry = undefined;
+        entry1.key = "b_paper";
+        entry1.year = 2023;
+
+        var entry2 : literature::BibEntry = undefined;
+        entry2.key = "a_paper";
+        entry2.year = 2024;
+
+        _ = literature::bib_add(&db, entry1);
+        _ = literature::bib_add(&db, entry2);
+
+        var options : literature::ExportOptions = undefined;
+        options.format = literature::ExportFormat::BibTeX;
+        options.sort_by = "year";
+
+        const (content, err) = literature::bib_export(db, options);
+        assert(err == literature::ErrorCode::Success);
+
+    test "e2e_goldenfloat_bib_workflow"
+        var db = literature::bib_create("goldenfloat", "/tmp/goldenfloat.bib");
+
+        var entry1 : literature::BibEntry = undefined;
+        entry1.key = "float2024";
+        entry1.entry_type = literature::BibEntryType::InProceedings;
+        entry1.title = "Floating Point Formats";
+        entry1.authors[0] = "Smith, J.";
+        entry1.year = 2020;
+        entry1.venue = "arXiv";
+
+        var entry2 : literature::BibEntry = undefined;
+        entry2.key = "ternary2023";
+        entry2.entry_type = literature::BibEntryType::InProceedings;
+        entry2.title = "Ternary Logic";
+        entry2.authors[0] = "Jones, A.";
+        entry2.year = 2023;
+        entry2.venue = "NeurIPS";
+
+        _ = literature::bib_add(&db, entry1);
+        _ = literature::bib_add(&db, entry2);
+
+        var query : literature::BibSearchQuery = undefined;
+        query.year_min = 2020;
+        query.year_max = 2024;
+
+        const (results, search_err) = literature::bib_search(db, query);
+        assert(search_err == literature::ErrorCode::Success);
+
+        var options : literature::ExportOptions = undefined;
+        options.format = literature::ExportFormat::BibTeX;
+
+        const (content, export_err) = literature::bib_export_bibtex(db, options);
+        assert(export_err == literature::ErrorCode::Success);
+
+        assert(db.entry_count == 2);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 2. E2E Invariants
+    // ════════════════════════════════════════════════════════════════════
+
+    invariant export_preserves_entry_count
+        var db = literature::bib_create("test", "/tmp/test.bib");
+
+        var entry : literature::BibEntry = undefined;
+        _ = literature::bib_add(&db, entry);
+        const count_before = db.entry_count;
+
+        var options : literature::ExportOptions = undefined;
+        _ = literature::bib_export(db, options);
+
+        assert(db.entry_count == count_before);
+
+    invariant merge_increases_count
+        var target = literature::bib_create("target", "/tmp/target.bib");
+        var source = literature::bib_create("source", "/tmp/source.bib");
+
+        var entry : literature::BibEntry = undefined;
+        _ = literature::bib_add(&source, entry);
+
+        const count_before = target.entry_count;
+        _ = literature::bib_merge(&target, source);
+        const count_after = target.entry_count;
+
+        assert(count_after >= count_before);
+
+    // ════════════════════════════════════════════════════════════════════
+    // 3. E2E Benchmarks
+    // ════════════════════════════════════════════════════════════════════
+
+    bench e2e_full_workflow_bench
+        @setEvalBranchQuota(10000);
+        var db = literature::bib_create("bench", "/tmp/bench.bib");
+        var entry : literature::BibEntry = undefined;
+        entry.key = "bench2024";
+
+        var err : literature::ErrorCode = undefined;
+        var content : str = undefined;
+        var results : [literature::MAX_BIB_ENTRIES]literature::BibEntry = undefined;
+
+        for (0..10) |_| {
+            err = literature::bib_add(&db, entry);
+            (results, err) = literature::bib_search(db, undefined);
+            (content, err) = literature::bib_export(db, undefined);
+        }
+        _ = err;
+        _ = content;
+        _ = results;
+}

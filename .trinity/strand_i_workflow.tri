@@ -1,0 +1,241 @@
+// Strand I Workflow — Mathematical Foundation
+// Trinity S³AI Doctoral Dissertation, Strand I
+// Focus: Sacred constants, fixed-point theory, VSA, GoldenFloat
+// Source of Truth: .trinity/dissertation_program.tri
+
+spec strand_i_workflow {
+    description = "Strand I specific workflow: Trinity Identity, Fixed-Point Theory, VSA Operations, GoldenFloat Formats";
+    source_of_truth = ".trinity/dissertation_program.tri";
+    version = "1.0.0";
+    strand = "I";
+
+    // ═════════════════════════════════════════════════════════════════
+    // Research Question 1: Trinity Identity Derivation
+    // ═════════════════════════════════════════════════════════════════════════════
+
+    task rq1_trinity_identity {
+        description = "Derive and prove Trinity Identity φ² + 1/φ² = 3";
+        section = "3. Trinity Identity";
+        research_question = "RQ1: Trinity Identity derivation";
+        input = "Mathematical derivation (Section 3.2)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/rq1_trinity_identity.json";
+        tri_command = "tri verdict --proof-check strand-i/chapter-03.md";
+        codebase_mapping = "specs/math/constants.t27";
+        verification_spec = "specs/dissertation/verification/trinity_identity.t27";
+        deliverable = "theorem_3_1_validated.json";
+        checks = [
+            "Algebraic derivation complete",
+            "φ = (1 + √5)/2 proven",
+            "φ² + φ⁻² = 3 shown step-by-step",
+            "IEEE f64 tolerance specified (1e-12)",
+            "Code reference: TRINITY constant"
+        ];
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Research Question 2: φ Fixed-Point to GF Bit Allocation
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    task rq2_fixed_point {
+        description = "Derive fixed-point theorem for φ and apply to GoldenFloat bit allocation";
+        section = "4. Fixed-Point Theory";
+        research_question = "RQ2: φ fixed-point to GF bit allocation";
+        input = "Fixed-point proof (Section 4.2)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/rq2_fixed_point.json";
+        tri_command = "tri verdict --proof-check strand-i/chapter-04.md";
+        codebase_mapping = "specs/numeric/phi_ratio.t27";
+        verification_spec = "specs/dissertation/verification/fixed_point_convergence.t27";
+        deliverable = "theorem_4_1_validated.json";
+        checks = [
+            "Balancing recursion f(x) = (x + 1/x + 1)/2 defined",
+            "Contraction property proven (|f'(x)| < 0.5)",
+            "Banach fixed-point theorem applied",
+            "Convergence rate derived",
+            "Exp/mantissa ≈ 1/φ proposition stated"
+        ];
+    }
+
+    task rq2_goldenfloat_allocation {
+        description = "Prove optimal bit allocation for GoldenFloat formats using φ-ratio";
+        section = "4.2 GoldenFloat Bit Allocation";
+        research_question = "RQ2.1: GF bit allocation optimization";
+        input = "Bit allocation proof (Section 4.3)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/rq2_goldenfloat.json";
+        tri_command = "tri verdict --proof-check strand-i/chapter-04.md";
+        codebase_mapping = "specs/numeric/goldenfloat_family.t27";
+        verification_spec = "specs/numeric/goldenfloat_family.t27";
+        deliverable = "proposition_4_2_validated.json";
+        checks = [
+            "GF4-GF32 formats defined",
+            "Exp/mantissa ratio target: 1/φ ≈ 0.618",
+            "GF16 designated as primary format",
+            "φ_distance computed for each format",
+            "Best format identified (GF12 closest to 1/φ)"
+        ];
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // Research Question 3: VSA Computational Substrate
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+    task rq3_vsa_operations {
+        description = "Define VSA operations and prove properties for cognitive computing";
+        section = "5. Vector Symbolic Architecture";
+        research_question = "RQ3: VSA computational substrate";
+        input = "VSA operations proof (Section 5.2)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/rq3_vsa_operations.json";
+        tri_command = "tri verdict --proof-check strand-i/chapter-05.md";
+        codebase_mapping = "specs/vsa/vsa_core.t27";
+        verification_spec = "specs/vsa/vsa_core.t27";
+        deliverable = "theorem_5_1_validated.json";
+        checks = [
+            "bind(a, bind(a, b)) ≈ b (self-inverse) proven",
+            "bundle commutative and associative",
+            "permute circular shift defined",
+            "unbound = bind(bound, key)",
+            "Complexity: O(dim) for all operations"
+        ];
+    }
+
+    task rq3_vsa_similarity {
+        description = "Define similarity metrics and prove properties";
+        section = "5.2 Similarity Metrics";
+        research_question = "RQ3.1: VSA similarity measures";
+        input = "Similarity proof (Section 5.3)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/rq3_vsa_similarity.json";
+        tri_command = "tri verdict --proof-check strand-i/chapter-05.md";
+        codebase_mapping = "specs/vsa/vsa_core.t27";
+        verification_spec = "specs/vsa/vsa_core.t27";
+        deliverable = "theorem_5_2_validated.json";
+        checks = [
+            "cosine: [-1, 1] range, 1 = identical",
+            "hamming: [0, dim] range, 0 = identical",
+            "dot: normalized by dimension",
+            "Complexity: O(dim) for all metrics",
+            "Thresholds: COSINE_THRESHOLD = 0.7, HAMMING_THRESHOLD = 0.8"
+        ];
+    }
+
+    task rq3_vsa_packed {
+        description = "Define trit encoding and packing for hypervectors";
+        section = "5.3 Trit Encoding and Packing";
+        research_question = "RQ3.2: VSA trit representation";
+        input = "Trit encoding proof (Section 5.4)";
+        output = ".trinity/experience/dissertation/strand-i/proofs/rq3_vsa_packed.json";
+        tri_command = "tri verdict --proof-check strand-i/chapter-05.md";
+        codebase_mapping = "specs/vsa/packed_vsa.t27";
+        verification_spec = "specs/vsa/packed_vsa.t27";
+        deliverable = "proposition_5_1_validated.json";
+        checks = [
+            "Trit values: {-1, 0, 1} defined",
+            "2-bit trit encoding (00=ZERO, 01=NEG, 10=POS, 11=UNUSED)",
+            "Packing efficiency: 4 trits per byte",
+            "Unpacking preserves semantics",
+            "Complexity: O(n/4) for packing, O(n) for unpacking"
+        ];
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════
+    // Integration Tasks — Codebase verification
+    // ═════════════════════════════════════════════════════════════════════════════════════
+
+    task verify_constants_spec {
+        description = "Run TDD tests for sacred constants";
+        input = "specs/math/constants.t27";
+        output = ".trinity/experience/dissertation/strand-i/verification/constants_test_results.json";
+        tri_command = "tri test specs/math/constants.t27";
+        deliverable = "constants_tests_passed.json";
+        expected_tests = [
+            "phi_squared_plus_inverse_squared_equals_3",
+            "phi_inverse_is_phi_minus_one",
+            "phi_multiplicative_persistence",
+            "trinity_constant_accuracy"
+        ];
+    }
+
+    task verify_goldenfloat_spec {
+        description = "Run TDD tests for GoldenFloat family";
+        input = "specs/numeric/goldenfloat_family.t27";
+        output = ".trinity/experience/dissertation/strand-i/verification/goldenfloat_test_results.json";
+        tri_command = "tri test specs/numeric/goldenfloat_family.t27";
+        deliverable = "goldenfloat_tests_passed.json";
+        expected_tests = [
+            "gffamily_get_format_by_name_gf16",
+            "gffamily_get_format_by_bits_8",
+            "gffamily_get_primary_format_is_gf16",
+            "gffamily_family_size_7",
+            "gffamily_verify_primary_is_gf16",
+            "gffamily_phi_distances_within_tolerance",
+            "gffamily_verify_all_valid"
+        ];
+    }
+
+    task verify_vsa_spec {
+        description = "Run TDD tests for VSA core operations";
+        input = "specs/vsa/vsa_core.t27";
+        output = ".trinity/experience/dissertation/strand-i/verification/vsa_test_results.json";
+        tri_command = "tri test specs/vsa/vsa_core.t27";
+        deliverable = "vsa_tests_passed.json";
+        expected_tests = [
+            "vsa_random_vector_dimension",
+            "vsa_random_vector_deterministic",
+            "vsa_bind_self_inverse",
+            "vsa_bind_zero_identity",
+            "vsa_bundle2_consensus",
+            "vsa_bundle3_voting",
+            "vsa_permute_shifts_correctly",
+            "vsa_inverse_permute_reverses",
+            "vsa_cosine_identical",
+            "vsa_cosine_opposite",
+            "vsa_hamming_distance_identical"
+        ];
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════════════════════════
+    // Cross-Strand Continuity — Dependencies from Strand I
+    // ═════════════════════════════════════════════════════════════════════════════════════════════
+
+    task strand_to_strand_ii_continuity {
+        description = "Map Strand I theorems to Strand II (Cognitive Architecture)";
+        input = "Strand I theorems and definitions";
+        output = ".trinity/experience/dissertation/strand-i/continuity/strand_i_to_ii.json";
+        tri_command = "tri verdict --continuity strand-i/program.md";
+        deliverable = "continuity_map_i_to_ii.json";
+        mappings = [
+            "Theorem 3.1 (Trinity Identity) → Cognitive structural invariants (II.3)",
+            "Theorem 4.1 (Fixed-Point) → Learning as attractor dynamics (II.4)",
+            "Proposition 4.2 (GoldenFloat) → Quantized cognitive states (II.3.2)",
+            "Theorem 5.1 (VSA Binding) → Symbolic reasoning primitives (II.5)",
+            "Theorem 5.2 (VSA Similarity) → Cognitive matching metrics (II.5.2)",
+            "Proposition 5.1 (Trit Encoding) → Ternary cognitive representations (II.5.3)"
+        ];
+    }
+
+    task strand_to_strand_iii_continuity {
+        description = "Map Strand I theorems to Strand III (Hardware/Implementation)";
+        input = "Strand I theorems and definitions";
+        output = ".trinity/experience/dissertation/strand-i/continuity/strand_i_to_iii.json";
+        tri_command = "tri verdict --continuity strand-i/program.md";
+        deliverable = "continuity_map_i_to_iii.json";
+        mappings = [
+            "Proposition 4.2 (GoldenFloat GF16) → FPGA GF16/TF3 arithmetic (III.2)",
+            "Proposition 4.2 (GoldenFloat Family) → Quantized neural networks (III.3)",
+            "Proposition 5.1 (Trit Encoding) → FPGA trit storage (III.2.1)",
+            "Theorem 5.1 (VSA Binding) → Parallel binding/unbinding (III.4)",
+            "Theorem 5.2 (VSA Similarity) → FPGA similarity search (III.4.1)",
+            "DEFAULT_DIM = 1024 → FPGA hypervector size (III.4.2)"
+        ];
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // Constitutional Compliance — Strand I specific checks
+    // ═════════════════════════════════════════════════════════════════════════════════════════════
+
+    compliance_strand_i = [
+        "L5: φ² + 1/φ² = 3 verified in trinity_identity.t27 with 1e-12 tolerance",
+        "L4: All .t27 specs contain test blocks (constants, goldenfloat, vsa_core)",
+        "L6: FORMAT-SPEC-001.json referenced for GF16 primary format",
+        "L3: All identifiers in English (no unicode except for φ which is documented)",
+        "TDD: tests exist before implementation"
+    ];
+}
