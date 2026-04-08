@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — PHASE 3 spec completion: shell/, tools/, file/ (3,384 lines) · PR #379
+**Last updated:** 2026-04-08 — Pins IR + XDC emitter for open-source FPGA flow · PR #380
 
 **Document class:** Operational focus document
 
@@ -831,6 +831,15 @@ eW91IHdvcmsgaW4gVVRDLio=
 **Verdict:** READY FOR MERGE — Waiting for CI approval
 
 ---
+
+## Pins IR + XDC Emitter (PR #380)
+
+ - `specs/pins/ir.t27` — IR model (PinLocation, IoStandard, SignalReference, Binding, Design) with 3 tests
+ - `specs/pins/emitter_xdc.t27` — XDC generator with emit_pin, emit_clock, emit_design, emit_design_nextpnr, qmtech_xc7a100t_minimal() preset, 7 tests + 1 invariant
+ - Both specs parse, gen-verilog, and seal successfully
+ - `specs/pins/OWNERS.md` — domain ownership
+
+**Last updated:** 2026-04-08 — Pins IR + XDC emitter for nextpnr-compatible constraints · Issue #377
 
 ## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
 
