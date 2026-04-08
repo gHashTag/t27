@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/test_framework/graph_drift_detection.t27
 // Ring 054 — Graph Drift Detection for Structural Change Detection
 // Monitors structural changes in mathematical and physics specifications over time

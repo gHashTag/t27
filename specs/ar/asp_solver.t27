@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/ar/asp_solver.t27
 // Answer Set Programming with Restraint for CLARA
 // Negation as Failure (NAF) with Kleene K3 semantics

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/ar/explainability.t27
 // XAI Interface for CLARA Explainability (≤10 step explanations)
 // φ² + φ⁻² = 3 | TRINITY

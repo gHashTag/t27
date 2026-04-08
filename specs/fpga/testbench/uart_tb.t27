@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/testbench/uart_tb.t27
 // UART Testbench Specification
 // Tests UART TX/RX functionality, state machines, and timing

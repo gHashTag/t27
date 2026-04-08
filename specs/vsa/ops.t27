@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/vsa/ops.t27
 // Vector Symbolic Architecture Operations
 // Bind, Unbind, Bundle, Similarity for ternary hypervectors

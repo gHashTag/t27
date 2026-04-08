@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/isa/registers.t27
 // TRI27 ISA Register File Specification
 // Register definitions, Coptic encoding, and register file operations

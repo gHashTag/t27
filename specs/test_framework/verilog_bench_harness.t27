@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/test_framework/verilog_bench_harness.t27
 // Ring 053 — Verilog Bench Harness for Hardware-in-the-Loop Testing
 // Integration framework for testing GoldenFloat operations against Verilog RTL

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/isa/ternary_deque.t27
 // Ternary Deque Operations Specification
 // Ring 088 - Double-ended queue operations for ternary data

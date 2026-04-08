@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/ar/datalog_engine.t27
 // Datalog Engine for Horn Clause Execution (AR-003)
 // CLARA Automated Reasoning: Forward chaining with O(n) complexity

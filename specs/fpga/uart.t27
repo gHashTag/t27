@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/uart.t27
 // ZeroDSP FPGA UART Specification
 // UART for debugging and communication

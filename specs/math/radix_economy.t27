@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/math/radix_economy.t27
 // Radix Economy Formal Spec — Information-Theoretic Basis for Base-3 Computing
 // E(b) = ln(b)/b, maximized at b = e ≈ 2.71828
