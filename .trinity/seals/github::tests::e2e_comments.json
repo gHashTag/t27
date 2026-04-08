@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:9b083214bda1c2244cb5ef061900194c06e6b043e5d20b7c65395fc1b817d872",
+  "gen_hash_verilog": "sha256:c480b867537f34295f2201f186d72d26245c94eaf74f621881d7bc61be7cf441",
+  "gen_hash_zig": "sha256:89a689f0af7392f41fa05a0876f2d4e25a1b1446b7f2621c6efc8f616334e0cb",
+  "module": "github::tests::e2e_comments",
+  "ring": 12,
+  "sealed_at": "2026-04-08T05:06:47Z",
+  "spec_hash": "sha256:b5d25c76df1ad7f7bc882017f50b78b7ecd526ae1509356a8e622586bbb0c6e6",
+  "spec_path": "specs/github/tests/e2e_comments.t27"
+}
