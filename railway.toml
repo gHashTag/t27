@@ -1,6 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "bootstrap/Dockerfile"
+buildTimeout = 1200  # 20 minutes (in seconds)
 
 [deploy]
 startCommand = "t27c serve --port 8080"
