@@ -51,34 +51,6 @@ pub enum BridgeCommands {
     /// Research commands for GoldenFloat paper workflow
     #[command(subcommand)]
     Research(ResearchCommands),
-    /// Task notebook management (NotebookLM gate enforcement)
-    #[command(subcommand)]
-    Task(TaskCommands),
-}
-
-/// Task notebook commands for NotebookLM pre-task gate enforcement
-/// Enforces L7 UNITY: every task must have a NotebookLM notebook before pushing code.
-#[derive(Subcommand, Debug)]
-pub enum TaskCommands {
-    /// Initialize task: create NotebookLM notebook + write .notebook_id
-    Start {
-        /// Task title (used for notebook title)
-        #[arg(short, long)]
-        title: String,
-        /// Comma-separated source files/URLs to attach
-        #[arg(short, long, default_value = "")]
-        sources: String,
-    },
-    /// Attach existing notebook to current task
-    Attach {
-        /// Existing notebook ID to attach
-        #[arg(long)]
-        notebook_id: String,
-    },
-    /// Show current task notebook status
-    Status,
-    /// Verify notebook gate requirement is satisfied
-    Verify,
 }
 
 /// Research commands for academic paper workflow
@@ -135,7 +107,6 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
         BridgeCommands::Watch { session_id } => cmd_watch(&root, &session_id),
         BridgeCommands::Handoff => cmd_handoff(&root),
         BridgeCommands::Research(cmd) => handle_research(cmd, &root),
-        BridgeCommands::Task(cmd) => handle_task(cmd, &root),
     }
     Ok(())
 }
