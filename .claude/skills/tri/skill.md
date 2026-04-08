@@ -74,15 +74,16 @@ After completing work, upload wrap-up to NotebookLM:
 
 ```bash
 # Save session context for future agents
-tri notebook wrapup --summary "completed <task>" \
-                 --decisions "used <approach>" \
-                 --files "changed <files>" \
-                 --next "下一步 action"
+tri wrapup --summary "completed <task>" \
+           --decisions "used <approach>" \
+           --files "changed <files>" \
+           --steps "next action"
 ```
 
 **NotebookLM Configuration:**
 - Storage: `~/.notebooklm/storage_state.json`
-- Active Notebook: Set via `notebooklm use <id>` (default: t27-QUEEN-BRAIN)
+- Active Notebook: Auto-detects from `.trinity/state/issue-binding.json`
+- Notebook name: `"t27 #NNN — <issue title>"` (per-issue)
 - Auth: Cookie-based via `notebooklm login` CLI
 
 **Query Patterns:**
@@ -90,6 +91,138 @@ tri notebook wrapup --summary "completed <task>" \
 - "decisions made for <task>" — Retrieve context
 - "known issues with <spec>" — Find blockers
 - "architecture of <component>" — Get design context
+
+## /tri wrapup
+
+Automatic session wrap-up with NotebookLM upload. This is the canonical way to end a session and preserve context for future agents.
+
+### Per-Issue Notebooks
+
+Each session is uploaded to an issue-specific notebook in NotebookLM:
+
+```
+GitHub Issue #NNN → Notebook: "t27 #NNN — <title>"
+```
+
+Example:
+- Issue #343 "Restore phi-loop-ci.yml" → Notebook: `t27 #343 — Restore phi-loop-ci.yml`
+- Issue #350 "NotebookLM Integration" → Notebook: `t27 #350 — NotebookLM Integration`
+
+Each notebook contains all session sources for that issue:
+```
+Source 1: "Session 2026-04-08 17:41 — Initial setup"
+Source 2: "Session 2026-04-08 18:00 — Fixed CI"
+Source 3: "Session 2026-04-08 18:30 — PR merged"
+```
+
+### Usage
+
+```bash
+# Auto-detect issue from .trinity/state/issue-binding.json
+tri wrapup --summary "Completed Phi Loop iterations for Ring-071"
+
+# Specify issue explicitly
+tri wrapup --issue 343 --summary "Fixed CI pipeline"
+
+# Full wrap-up with all details
+tri wrapup --summary "Implemented NotebookLM backend" \
+           --decisions "Used notebooklm-py SDK with cookie auth" \
+           --files "contrib/backend/notebooklm/*.py" \
+           --steps "Run integration tests"
+```
+
+### What It Does
+
+1. **Auto-detects session context**:
+   - `issue_number`: From `.trinity/state/issue-binding.json` or `--issue` flag
+   - `issue_title`: Fetched via `gh issue view` if needed
+   - `session_id`: Git commit hash (short)
+   - `branch`: Current git branch
+
+2. **Finds or creates issue-specific notebook**:
+   - Searches for notebook named `"t27 #NNN — <title>"`
+   - Creates if not found
+   - Each `/tri wrapup` adds a new source to the same notebook
+
+3. **Formats Markdown** with metadata:
+   ```markdown
+   # Session Wrap-up
+   **Session ID:** abc1234
+   **Issue:** #343
+   **Issue Title:** Restore phi-loop-ci.yml
+   **Branch:** feature/xyz
+   **Commit:** abc1234
+   **Date:** 2026-04-08T17:00:00
+
+   ## Summary
+   ...
+
+   ## Key Decisions
+   ...
+
+   ## Files Modified
+   ...
+
+   ## Next Steps
+   ...
+   ```
+
+4. **Uploads to NotebookLM**:
+   - Creates source in issue-specific notebook
+   - Returns `source_id` for verification
+
+### Implementation
+
+- **Spec**: `specs/automation/wrapup-auto.t27`
+- **Backend**: `contrib/backend/notebooklm/wrapup_auto.py`
+- **Invocation**: Python script via venv (L7 compliant - no shell scripts)
+
+### Direct Invocation (for debugging)
+
+```bash
+# With auto-detected issue
+.trinity/notebooklm-venv/bin/python3 \
+    contrib/backend/notebooklm/wrapup_auto.py \
+    --summary "Session summary" \
+    --session-id "$(git rev-parse --short HEAD)"
+
+# With explicit issue
+.trinity/notebooklm-venv/bin/python3 \
+    contrib/backend/notebooklm/wrapup_auto.py \
+    --issue 343 \
+    --summary "Test session" \
+    --session-id "abc123"
+
+# Dry-run (no upload, just preview)
+.trinity/notebooklm-venv/bin/python3 \
+    contrib/backend/notebooklm/wrapup_auto.py \
+    --summary "Test session" \
+    --session-id "test" \
+    --dry-run
+```
+
+### Output
+
+```
+Auto-detected issue: #350 — NotebookLM Integration
+Found existing notebook: t27 #350 — NotebookLM Integration (abc123...)
+Uploaded wrap-up: source_id=def456...
+✅ Uploaded to: t27 #350 — NotebookLM Integration
+```
+
+### Notebook Structure in NotebookLM
+
+Each issue has its own notebook with full session history:
+```
+t27 #343 — Restore phi-loop-ci.yml
+  └─ Source 1: "Session 2026-04-08 17:41 — Initial setup"
+  └─ Source 2: "Session 2026-04-08 18:00 — Fixed CI"
+  └─ Source 3: "Session 2026-04-08 18:30 — PR merged"
+
+t27 #350 — NotebookLM Integration
+  └─ Source 1: "Session 2026-04-08 17:00 — Spec creation"
+  └─ Source 2: "Session 2026-04-08 18:00 — Backend impl"
+```
 
 ## Standard /tri Status Output
 
@@ -279,10 +412,10 @@ tri skill commit
 tri git commit
 
 # Step 4: Upload wrap-up (post-work) — ENABLE future agents
-tri notebook wrapup --summary "completed <task>" \
-                 --decisions "used <approach>" \
-                 --files "changed <files>" \
-                 --next "next action"
+tri wrapup --summary "completed <task>" \
+           --decisions "used <approach>" \
+           --files "changed <files>" \
+           --steps "next action"
 ```
 
 **Example with NotebookLM:**
