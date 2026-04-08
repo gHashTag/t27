@@ -8,14 +8,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy package files first for better layer caching
-COPY external/opencode/package.json external/opencode/bun.lock ./
+# Copy opencode workspace (dockerignore excludes node_modules)
+COPY external/opencode/ ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile
-
-# Copy source files
-COPY external/opencode/ ./
 
 # Build the app
 RUN bun run --cwd packages/app build
