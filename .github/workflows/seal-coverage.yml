@@ -3,6 +3,11 @@ name: SEAL Coverage
 on:
   pull_request:
     branches: [master]
+<<<<<<< HEAD
+=======
+  push:
+    branches: [master]
+>>>>>>> origin/master
 
 jobs:
   coverage:
