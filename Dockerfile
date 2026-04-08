@@ -15,6 +15,7 @@ COPY external/opencode/packages/web/package.json ./
 RUN bun install --frozen-lockfile
 
 # Copy rest of web source
+COPY external/opencode/packages/web/tsconfig.json ./
 COPY external/opencode/packages/web/src ./
 
 # Build the app
