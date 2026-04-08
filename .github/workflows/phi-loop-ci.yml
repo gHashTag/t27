@@ -22,3 +22,14 @@ jobs:
           assert abs(identity - 3.0) < 1e-10, f'L5 FAILED: {identity}'
           print(f'L5 PASSED: phi^2 + phi^-2 = {identity:.15f}')
           "
+      - name: FPGA-Safety lint (L8: no f32/f64 arithmetic in core)
+        run: |
+          VIOLATIONS=$(grep -rn "as f64\|as f32\|: f64\|: f32\|\.powi\|\.powf\|\.sqrt()\|\.abs()" ffi/src/ --include="*.rs" 2>/dev/null || true)
+          FILTERED=$(echo "$VIOLATIONS" | grep -v "to_bits\|from_bits\|FPGA-ALLOWED\|//.*f32\|//.*f64" || true)
+          if [ -n "$FILTERED" ]; then
+            echo "L8 FAILED: found f64/f32 arithmetic in core paths"
+            echo "$FILTERED"
+            exit 1
+          fi
+          echo "L8 PASSED: FPGA-Safety lint"
+CIYAML
