@@ -1,5 +1,5 @@
 # External dependencies not needed for Railway build
-external/opencode/
+external/opencode/node_modules/
 external/kaggle/
 
 # Git and CI
