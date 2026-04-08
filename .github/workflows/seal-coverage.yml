@@ -32,8 +32,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build compiler (t27c)
-        working-directory: bootstrap
-        run: cargo build --release
+        run: cargo build --release -p t27c
 
       - name: 🔒 Seal Coverage Check (PR-scoped, Rust)
         env:
@@ -56,8 +55,8 @@ jobs:
           PR_FILES=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
 
           # Call Rust validator (NO-SHELL law)
-          ./bootstrap/target/release/t27c --repo-root . validate-seals --pr-files "$PR_FILES"
+          ./target/release/t27c --repo-root . validate-seals --pr-files "$PR_FILES"
 
       - name: 🔢 L5 IDENTITY Check (phi-identity)
         run: |
-          ./bootstrap/target/release/t27c --repo-root . validate-phi-identity
+          ./target/release/t27c --repo-root . validate-phi-identity
