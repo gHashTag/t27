@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/testbench/mac_tb.t27
 // MAC Unit Testbench Specification
 // Tests ternary LUT multiplication, MAC operations, and accumulator

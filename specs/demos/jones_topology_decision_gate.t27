@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/demos/jones_topology_decision_gate.t27
 // Decision Gate TH-01..TH-05 for H₁: Structure Similarity Classifier
 // Tests if VSA dot_product + fixed φ constant can classify structures by complexity

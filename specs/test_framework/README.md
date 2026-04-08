@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 # t27 Math/Physics Test Framework - Ring 050
 
 **Status:** ✅ **COMPLETED** - Core test framework implementation  

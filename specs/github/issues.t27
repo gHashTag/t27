@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // specs/github/issues.t27
 module github::issues {
     const ISSUE_STATE_OPEN : str = "open";

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/test_framework/property_test_template.t27
 // Ring 052 — Property-Based Testing Template for GoldenFloat
 // Standardized PBT patterns following T27-MATH-PHYSICS-TEST-FRAMEWORK-SPEC.md
