@@ -39,7 +39,7 @@ jobs:
             --pdf-engine=xelatex \
             --citeproc \
             --bibliography=latex/references.bib \
-            --metadata title="GoldenFloat: A Formally Verified, $\varphi$-Optimal Floating-Point Family"
+            --metadata title="GoldenFloat: A Formally Verified, phi-Optimal Floating-Point Family"
             --metadata author="t27 Project Team"
             --metadata date="April 2026"
 

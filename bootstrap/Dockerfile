@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # Multi-stage Dockerfile for Unified T27 (Frontend + Backend)
 # Build Context: REPO ROOT
 
@@ -7,10 +8,17 @@ FROM oven/bun:latest AS frontend-builder
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
-# Copy the entire opencode workspace
+
+# Copy package files first for better caching
+COPY external/opencode/package.json external/opencode/bun.lock ./
+
+# Install dependencies with cache mount (BuildKit)
+RUN --mount=type=cache,target=/root/.cache/bun,id=bun_cache bun install --frozen-lockfile
+
+# Copy source files
 COPY external/opencode/ ./
-# Install and build the app
-RUN bun install
+
+# Build the app
 RUN bun run --cwd packages/app build
 
 # --- Backend Build Stage ---
