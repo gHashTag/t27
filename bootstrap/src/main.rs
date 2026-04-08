@@ -2988,6 +2988,15 @@ module {top} (
         .ready  (spi_ready)
     );
 
+    // ---- FPGA_Bridge instantiation ----
+    wire bridge_ready;
+    FPGA_Bridge u_bridge (
+        .clk    (sys_clk),
+        .rst_n  (sys_rst_n),
+        .en     (1'b1),
+        .ready  (bridge_ready)
+    );
+
     // ---- ZeroDSP_TopLevel instantiation ----
     wire sys_ready;
     ZeroDSP_TopLevel u_top_level (
@@ -3002,8 +3011,8 @@ module {top} (
     assign led[1]     = mac_ready;
     assign led[2]     = uart_ready;
     assign led[3]     = spi_ready;
-    assign led[4]     = sys_ready;
-    assign led[5]     = 1'b0;
+    assign led[4]     = bridge_ready;
+    assign led[5]     = sys_ready;
     assign led[6]     = 1'b0;
     assign led[7]     = 1'b0;
     assign uart_tx    = uart_rx;
@@ -3050,7 +3059,7 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
                 gen = gen_dir.display(),
                 top = top,
             ),
@@ -3070,7 +3079,7 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
                 gen = gen_dir.display(),
                 top = top,
             ),
