@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:f9762db5ae97ebee5ccd7c8b313db6b9bc1010421f83a7093bf6bf3ea202a238",
+  "gen_hash_rust": "sha256:aa8fc0a9cc86e82253bf08b8600bd0f6b4c094b4106db5827df6158dfb0b2e3f",
+  "gen_hash_verilog": "sha256:98ec35290e9cdb61fc2d43cb9bebed5302067cdea4bea37e0029620462568896",
+  "gen_hash_zig": "sha256:8dea99789c6ebe8b0bf1cdd1cd40f08eaf4296d6d9c7936ec836ac3e6167c36c",
   "module": "tricgen-c",
-  "ring": 38,
-  "spec_path": "compiler/codegen/c/codegen.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-07T18:10:11Z",
   "spec_hash": "sha256:405fdea7d1fb2b058f76601757ce3b28a5c6667fdb68203b311c80d7f4db7407",
-  "gen_hash_zig": "sha256:82206f6e21424df3def9014c6f60cfc100a8d0bd2a81b45efb7794acd52e0c39",
-  "gen_hash_c": "sha256:62e2bd1dba3e17f05f96d47251ad9877af06588580ff40f9ee1766418fcd7f44",
-  "gen_hash_verilog": "sha256:b02bad021e7bcd2bf05e4c99492f59b30131c0df4d9e9cbb4bce2462a88b2290",
-  "conformance_hash": "sha256:fac2bc8aff88a9e2d89463f46a450fc3a7b1405ba836bb5d0421efda055b7072",
-  "tests": {
-    "status": "passed",
-    "count": 29,
-    "invariants": 7,
-    "benchmarks": 3
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T21:30:00Z"
+  "spec_path": "compiler/codegen/c/codegen.t27"
 }

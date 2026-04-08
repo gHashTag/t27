@@ -1,13 +1,11 @@
 {
-  "schema_version": 2,
-  "spec_file": "specs/base/ternary_encoding.t27",
+  "gen_hash_c": "sha256:d1cbfaf54c5ad45f083d29f77b2a7bf05ffe33e966a44820708db4a325419305",
+  "gen_hash_rust": "sha256:4ddbe02d15c7e4925f5e3ad5d90543289794355b43beb5813f5955900b5672a3",
+  "gen_hash_verilog": "sha256:cb830ec4de831a381045ede3a7e227b4a9e795347e55b9dc2924ce5a9ccee2bd",
+  "gen_hash_zig": "sha256:0cd91c013e1c8f73eec86d75a4f5e6cba026f383fa7525cae0a388412e79b041",
+  "module": "TernaryEncoding",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:05Z",
   "spec_hash": "sha256:c6ef070624218e68b472792eedb990e51743256dd413ab9c97286db3e7af66f7",
-  "gen_hash_zig": "sha256:e79cedd3689aebf245d28feaae4ec56dba03ba6138761e3f7a749591deec2144",
-  "gen_hash_verilog": "sha256:bde29dbb8c98fd06ec614226c4b99fe42cde06a081381f46cf946f0a212e1568",
-  "gen_hash_c": "sha256:546759e42a01a9e4a42f2b0afcb8211a9b745cd150aa86778674136a9eef6f52",
-  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "timestamp": "2026-04-07T22:30:00Z",
-  "ring": 65,
-  "verdict": "clean",
-  "notes": "Ternary encoding/decoding spec for data representation"
+  "spec_path": "specs/base/ternary_encoding.t27"
 }

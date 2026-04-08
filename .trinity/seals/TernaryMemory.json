@@ -1,13 +1,11 @@
 {
-  "schema_version": 2,
-  "spec_file": "specs/base/ternary_memory.t27",
+  "gen_hash_c": "sha256:d92dcbc9130ef5e37f1d2c4e9b253a2e51b56b1a6e7775f1c1257ad68f6652ae",
+  "gen_hash_rust": "sha256:e7689d886a14de3879fd4bc8fd2c9bf413e052a475a794c115637cb1e4b8d16d",
+  "gen_hash_verilog": "sha256:0a6383331120ff2437039297f5ee19013c458fcffdd480ba43e0857f6e54bec7",
+  "gen_hash_zig": "sha256:3c590cb990f6ff948ce7ade7caf16d2407b48b4eccd59e10764d70f4b466c79c",
+  "module": "TernaryMemory",
+  "ring": 12,
+  "sealed_at": "2026-04-08T06:22:05Z",
   "spec_hash": "sha256:876fc54495bc13ccc3df3aa10e1f30784a6f68a276901b2289d359b5f34d39da",
-  "gen_hash_zig": "sha256:b23d2a3bebf79a575e44160d6c296472c6e7ec4a6e06336a5e0c0b3b585316ef",
-  "gen_hash_verilog": "sha256:091cdb2dde70fe1d0c943251f197c9f77c32ef1c91fc999d81c2b31dfb6a8442",
-  "gen_hash_c": "sha256:474028e78444616174bd86d7c9a95cef7b2747f79c6e2a53521c1802f6729fc1",
-  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "timestamp": "2026-04-07T23:30:00Z",
-  "ring": 66,
-  "verdict": "clean",
-  "notes": "Ternary memory cell and array operations spec"
+  "spec_path": "specs/base/ternary_memory.t27"
 }

@@ -15,7 +15,7 @@
 // - Karatsuba multiplication O(n^1.585)
 // - Newton-Raphson division for large numbers
 
-module bigint;
+module TernaryBigInt;
 
 // ============================================================================
 // Imports

@@ -34,6 +34,8 @@ module Parsing {
         StmtFor = 14,
         StmtExpr = 15,
         StmtReturn = 16,
+        StmtBreak = 17,
+        StmtContinue = 18,
 
         ExprLiteral = 20,
         ExprIdentifier = 21,
@@ -47,6 +49,7 @@ module Parsing {
         ExprStructLit = 29,
         ExprEnumValue = 30,
         ExprReturn = 31,
+        ExprArrayLiteral = 32,
     }
 
     struct Node {
@@ -714,79 +717,55 @@ module Parsing {
     }
 
     fn parse_array_literal(self: *Parser) -> Node {
-        var text = "[";
+        var node = node_new(NodeKind::ExprArrayLiteral);
         self.advance();
 
-        while (self.current.kind != lexer::TokenKind::RBracket 
-               and self.current.kind != lexer::TokenKind::Eof) {
-            text = text ++ self.current.lexeme;
+        if (self.current.kind == lexer::TokenKind::RBracket) {
             self.advance();
+        } else {
+            var bracket_text = "";
+            while (self.current.kind != lexer::TokenKind::RBracket
+                   and self.current.kind != lexer::TokenKind::Eof) {
+                bracket_text = bracket_text ++ self.current.lexeme;
+                self.advance();
+            }
+            node.extra_size = bracket_text;
+            self.expect(lexer::TokenKind::RBracket);
         }
-        text = text ++ "]";
-        self.expect(lexer::TokenKind::RBracket);
 
         if (self.check(lexer::TokenKind::Ident)) {
-            text = text ++ self.current.lexeme;
+            node.extra_type = self.current.lexeme;
             self.advance();
         }
 
         if (self.check(lexer::TokenKind::LBrace)) {
-            self.collect_array_brace_init(&text);
-        }
-
-        while (self.check(lexer::TokenKind::PlusPlus)) {
-            text = text ++ " ++ ";
             self.advance();
-            if (self.check(lexer::TokenKind::LBracket)) {
-                text = text ++ "[";
-                self.advance();
-                while (self.current.kind != lexer::TokenKind::RBracket 
-                       and self.current.kind != lexer::TokenKind::Eof) {
-                    text = text ++ self.current.lexeme;
+            if (self.current.kind != lexer::TokenKind::RBrace) {
+                var elem = self.parse_expr();
+                add_child(&node, elem);
+                while (self.check(lexer::TokenKind::Comma)) {
                     self.advance();
-                }
-                text = text ++ "]";
-                self.expect(lexer::TokenKind::RBracket);
-                if (self.check(lexer::TokenKind::Ident)) {
-                    text = text ++ self.current.lexeme;
-                    self.advance();
-                }
-                if (self.check(lexer::TokenKind::LBrace)) {
-                    self.collect_array_brace_init(&text);
+                    if (self.current.kind == lexer::TokenKind::RBrace) {
+                        break;
+                    }
+                    elem = self.parse_expr();
+                    add_child(&node, elem);
                 }
             }
+            self.expect(lexer::TokenKind::RBrace);
         }
 
         if (self.check(lexer::TokenKind::Power)) {
-            text = text ++ " ** ";
             self.advance();
-            text = text ++ self.current.lexeme;
-            self.advance();
+            var count = self.parse_expr();
+            var repeat_node = node_new(NodeKind::ExprBinary);
+            repeat_node.extra_op = "**";
+            add_child(&repeat_node, node);
+            add_child(&repeat_node, count);
+            return repeat_node;
         }
 
-        var node = node_new(NodeKind::ExprLiteral);
-        node.value = text;
         return node;
-    }
-
-    fn collect_array_brace_init(self: *Parser, text: *str) -> void {
-        *text = *text ++ "{ ";
-        self.advance();
-        var depth: i32 = 1;
-        while (depth > 0 and self.current.kind != lexer::TokenKind::Eof) {
-            if (self.current.kind == lexer::TokenKind::LBrace) {
-                depth = depth + 1;
-            } else if (self.current.kind == lexer::TokenKind::RBrace) {
-                depth = depth - 1;
-                if (depth == 0) {
-                    break;
-                }
-            }
-            *text = *text ++ self.current.lexeme;
-            self.advance();
-        }
-        *text = *text ++ " }";
-        self.expect(lexer::TokenKind::RBrace);
     }
 
     fn parse_if_expr(self: *Parser) -> Node {
@@ -886,6 +865,22 @@ module Parsing {
 
         if (self.check(lexer::TokenKind::KwFor)) {
             return self.parse_for_stmt();
+        }
+
+        if (self.check(lexer::TokenKind::KwBreak)) {
+            self.advance();
+            if (self.check(lexer::TokenKind::Semicolon)) {
+                self.advance();
+            }
+            return node_new(NodeKind::StmtBreak);
+        }
+
+        if (self.check(lexer::TokenKind::KwContinue)) {
+            self.advance();
+            if (self.check(lexer::TokenKind::Semicolon)) {
+                self.advance();
+            }
+            return node_new(NodeKind::StmtContinue);
         }
 
         const expr = self.parse_expr();
@@ -1590,5 +1585,33 @@ module Parsing {
         assert(3 > 2)
         assert(2 > 1)
         assert(1 > 0)
+    }
+
+    test "break_continue_node_kinds" {
+        assert(NodeKind::StmtBreak == 17)
+        assert(NodeKind::StmtContinue == 18)
+        assert(NodeKind::StmtBreak != NodeKind::StmtContinue)
+    }
+
+    test "error_recovery_skip_to_semicolon" {
+        var p = parser_init("fn foo() { x; }", 16);
+        assert(p.current.kind != lexer::TokenKind::Eof)
+    }
+
+    test "struct_decl_distinct_from_enum" {
+        assert(NodeKind::StructDecl == 6)
+        assert(NodeKind::EnumDecl == 5)
+        assert(NodeKind::StructDecl != NodeKind::EnumDecl)
+    }
+
+    test "all_statement_kinds_unique" {
+        assert(NodeKind::StmtLocal != NodeKind::StmtAssign)
+        assert(NodeKind::StmtAssign != NodeKind::StmtIf)
+        assert(NodeKind::StmtIf != NodeKind::StmtWhile)
+        assert(NodeKind::StmtWhile != NodeKind::StmtFor)
+        assert(NodeKind::StmtFor != NodeKind::StmtExpr)
+        assert(NodeKind::StmtExpr != NodeKind::ExprReturn)
+        assert(NodeKind::ExprReturn != NodeKind::StmtBreak)
+        assert(NodeKind::StmtBreak != NodeKind::StmtContinue)
     }
 }
