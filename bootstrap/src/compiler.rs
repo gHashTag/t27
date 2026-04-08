@@ -648,6 +648,38 @@ impl Lexer {
                 }
             }
 
+            let type_suffixes: &[&[u8]] = &[
+                b"u8",
+                b"u16",
+                b"u32",
+                b"u64",
+                b"usize",
+                b"i8",
+                b"i16",
+                b"i32",
+                b"i64",
+                b"isize",
+                b"f16",
+                b"f32",
+                b"f64",
+                b"comptime_int",
+            ];
+            for suffix in type_suffixes.iter() {
+                let end = self.pos + suffix.len();
+                if end <= self.source.len() && &self.source[self.pos..end] == *suffix {
+                    let next = if end < self.source.len() {
+                        self.source[end]
+                    } else {
+                        0u8
+                    };
+                    if !next.is_ascii_alphanumeric() && next != b'_' {
+                        self.pos = end;
+                        self.col += suffix.len();
+                    }
+                    break;
+                }
+            }
+
             return Token {
                 kind: TokenKind::Number,
                 lexeme: number,
