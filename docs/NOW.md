@@ -842,6 +842,6 @@ eW91IHdvcmsgaW4gVVRDLio=
 - FPGA board (QMTECH XC7A100T) detected on `/dev/cu.usbserial-140` (UART)
 - Logic analyzer (DreamSourceLab) connected
 
-**Last updated:** 2026-04-08 — FPGA optimizer const_propagate fix, &&/|| lexer · PR #364
+**Last updated:** 2026-04-08 — FPGA 4/5 modules in synthesis (MAC fixed!), &&/|| precedence · Issue #367
 
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
