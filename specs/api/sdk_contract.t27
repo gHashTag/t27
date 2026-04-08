@@ -1,0 +1,192 @@
+# TRINITY SDK — High-level API for Developers
+
+## Specification
+
+Simplified interface for hyperdimensional computing applications.
+Exposes real SIMD-accelerated VSA core to C/C++/Python/Swift/Go via FFI bridge.
+
+## Mathematical Foundation
+
+```
+V = n × 3^k × π^m × φ^p × e^q
+```
+
+## Core Components
+
+### Hypervector
+
+```
+pub const Hypervector = struct {
+    data: HybridBigInt,
+    label: ?[]const u8 = null,
+
+    fn init(dim: usize) -> Hypervector
+        Create zero hypervector
+
+    fn random(dim: usize, seed: u64) -> Hypervector
+        Create random hypervector
+
+    fn randomLabeled(dim: usize, seed: u64, label: []const u8) -> Hypervector
+        Create random hypervector with label
+
+    fn fromRaw(raw: HybridBigInt) -> Hypervector
+        Create hypervector from existing HybridBigInt
+}
+```
+
+### VSA Operations
+
+```
+bind(self, other) -> Hypervector
+    Bind two hypervectors (creates association)
+    Properties: self-inverse, preserves similarity
+
+unbind(self, key) -> Hypervector
+    Inverse of bind (bind(A, B), B = A)
+
+bundle(self, other) -> Hypervector
+    Bundle two hypervectors (creates superposition)
+    Similar to both A and B
+
+bundle3(self, b, c) -> Hypervector
+    Bundle three hypervectors (true majority voting)
+
+permute(self, k) -> Hypervector
+    Cyclic shift by k positions (for sequence encoding)
+
+inversePermute(self, k) -> Hypervector
+    Inverse permute
+```
+
+### Similarity Measures
+
+```
+similarity(self, other) -> f64
+    Cosine similarity [-1, 1]
+
+hammingDistance(self, other) -> usize
+    Hamming distance (number of differing trits)
+
+hammingSimilarity(self, other) -> f64
+    Hamming similarity [0, 1]
+
+dotSimilarity(self, other) -> f64
+    Dot product similarity
+```
+
+### Utility
+
+```
+countNonZero(self) -> usize
+    Count non-zero trits (sparsity measure)
+
+density(self) -> f64
+    Ratio of non-zero trits
+
+clone(self) -> Hypervector
+    Deep copy hypervector
+```
+
+### Codebook
+
+```
+pub const Codebook = struct {
+    entries: std.StringHashMap(Hypervector),
+    dimension: usize,
+    seed_counter: u64,
+    allocator: std.mem.Allocator,
+
+    fn init(allocator, dimension) -> Codebook
+
+    fn encode(self, symbol: []const u8) -> !*Hypervector
+        Get or create hypervector for symbol
+
+    fn decode(self, query: Hypervector) -> ?[]const u8
+        Decode hypervector to nearest symbol
+
+    fn decodeWithThreshold(self, query: Hypervector, threshold: f64) -> ?[]const u8
+        Decode with similarity threshold
+
+    fn count(self) -> usize
+        Number of symbols in codebook
+}
+```
+
+### Associative Memory
+
+```
+pub const AssociativeMemory = struct {
+    memory: Hypervector,
+    item_count: usize,
+    dimension: usize,
+
+    fn init(dimension) -> AssociativeMemory
+        Initialize associative memory
+
+    fn store(self, key, value) -> void
+        Store key-value pair (memory = bundle(memory, bind(key, value)))
+
+    fn retrieve(self, key) -> Hypervector
+        Retrieve value by key (memory.unbind(key))
+
+    fn contains(self, key, threshold: f64) -> bool
+        Check if key exists (similarity > threshold)
+
+    fn clear(self) -> void
+        Clear memory
+
+    fn count(self) -> usize
+        Number of stored items
+}
+```
+
+### Sequence Encoder
+
+```
+pub const SequenceEncoder = struct {
+    dimension: usize,
+
+    fn init(dimension) -> SequenceEncoder
+
+    fn encode(self, items: []Hypervector) -> Hypervector
+        Encode sequence: [A, B, C] = A + permute(B, 1) + permute(C, 2)
+
+    fn probe(self, sequence, candidate, position) -> f64
+        Probe sequence for element at position
+
+    fn findPosition(self, sequence, candidate, max_length, threshold) -> ?usize
+        Find position with highest similarity, or null if below threshold
+}
+```
+
+## Tests
+
+```
+test "SDK: Hypervector init" {
+    // Verify zero hypervector initialization
+}
+
+test "SDK: Hypervector random" {
+    // Random hypervector should have non-zero trits
+}
+
+test "SDK: VSA bind self-inverse" {
+    // bind(a, a) should give all +1 for non-zero trits
+}
+
+test "SDK: VSA bundle similarity" {
+    // Bundled vector should be similar to both inputs
+}
+
+test "SDK: Codebook encode/decode roundtrip" {
+    // Symbol should survive encoding/decoding
+}
+
+test "SDK: AssociativeMemory" {
+    // Retrieve should resemble stored value
+}
+
+test "SDK: Sequence encoding" {
+    // Probe should return correct position
+}
+```
