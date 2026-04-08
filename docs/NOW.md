@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — FPGA pipeline restoration, seal collision fix · PR #344, #336
+**Last updated:** 2026-04-08 — PHASE 3 spec completion: shell/, tools/, file/ (3,384 lines) · PR #379
 
 **Document class:** Operational focus document
 
