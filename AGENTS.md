@@ -49,7 +49,7 @@ Use **domain directories**, not “one folder per agent.” Primary contact for 
 
 ## 5. Law Reference
 
-The seven **Invariant Laws (L1–L7)** are defined in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment):
+The seven **Invariant Laws (L1–L8)** are defined in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment):
 
 | Law | Name | Legacy alias | Summary |
 |-----|------|-------------|---------|
@@ -61,7 +61,7 @@ The seven **Invariant Laws (L1–L7)** are defined in [`docs/T27-CONSTITUTION.md
 | **L6** | CEILING | TRINITY-SACRED | `FORMAT-SPEC-001.json` + `gf16.t27` are numeric SSOT |
 | **L7** | UNITY | NO-NEW-SHELL | No new `*.sh` on critical path; use `tri`/`t27c` |
 
-**Law Priority:** L1 > L2 > L3 > L4 > L5 > L6 > L7 (Asimov-style hierarchy)
+**Law Priority:** L1 > L2 > L3 > L4 > L5 > L6 > L7 > L8 (Asimov-style hierarchy)
 
 ---
 
@@ -77,7 +77,7 @@ The seven **Invariant Laws (L1–L7)** are defined in [`docs/T27-CONSTITUTION.md
 
 ## 5. Law Reference
 
-The seven **Invariant Laws (L1–L7)** are defined in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment):
+The seven **Invariant Laws (L1–L8)** are defined in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment):
 
 | Law | Name | Legacy alias | Summary |
 |-----|------|-------------|---------|
@@ -89,5 +89,5 @@ The seven **Invariant Laws (L1–L7)** are defined in [`docs/T27-CONSTITUTION.md
 | **L6** | CEILING | TRINITY-SACRED | `FORMAT-SPEC-001.json` + `gf16.t27` are numeric SSOT |
 | **L7** | UNITY | NO-NEW-SHELL | No new `*.sh` on critical path; use `tri`/`t27c` |
 
-**Law Priority:** L1 > L2 > L3 > L4 > L5 > L6 > L7 (Asimov-style hierarchy)
+**Law Priority:** L1 > L2 > L3 > L4 > L5 > L6 > L7 > L8 (Asimov-style hierarchy)
 
