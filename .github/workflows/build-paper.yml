@@ -30,7 +30,8 @@ jobs:
             texlive-bibtex-extra \
             texlive-xetex \
             biber \
-            pandoc
+            pandoc \
+            texlive-xetex
 
       - name: Build PDF from Markdown
         run: |
