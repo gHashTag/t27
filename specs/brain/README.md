@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 # specs/brain/ — Strand VI (neuroanatomical brain, spec-first)
 
 **Source of truth:** `.t27` specifications only. Zig, C, and Verilog are **generated** via **`tri`** — see `docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md` §4.2.

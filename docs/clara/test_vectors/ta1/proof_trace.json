@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "spec_name": "proof_trace",
+  "spec_file": "specs/ar/proof_trace.t27",
+  "ring": 19,
+  "description": "Bounded Proof Traces with ≤10 step constraint",
+  "generated": "2026-04-08",
+  "phi_identity": "phi² + 1/phi² = 3 | TRINITY",
+
+  "constants": {
+    "MAX_STEPS": 10,
+    "DERIVATION_STEP_MAX": 10
+  },
+
+  "test_cases": [
+    {
+      "name": "valid_trace_max_steps",
+      "description": "Accept trace with exactly MAX_STEPS",
+      "trace": {
+        "steps": [
+          {"premise": ["A"], "rule": "R1", "conclusion": "B"},
+          {"premise": ["B"], "rule": "R2", "conclusion": "C"},
+          {"premise": ["C"], "rule": "R3", "conclusion": "D"},
+          {"premise": ["D"], "rule": "R4", "conclusion": "E"},
+          {"premise": ["E"], "rule": "R5", "conclusion": "F"},
+          {"premise": ["F"], "rule": "R6", "conclusion": "G"},
+          {"premise": ["G"], "rule": "R7", "conclusion": "H"},
+          {"premise": ["H"], "rule": "R8", "conclusion": "I"},
+          {"premise": ["I"], "rule": "R9", "conclusion": "J"},
+          {"premise": ["J"], "rule": "R10", "conclusion": "K"}
+        ],
+        "step_count": 10
+      },
+      "expected_valid": true
+    },
+    {
+      "name": "invalid_trace_exceeds_max",
+      "description": "Reject trace exceeding MAX_STEPS",
+      "trace": {
+        "steps": [
+          {"premise": ["A"], "rule": "R1", "conclusion": "B"},
+          {"premise": ["B"], "rule": "R2", "conclusion": "C"},
+          {"premise": ["C"], "rule": "R3", "conclusion": "D"},
+          {"premise": ["D"], "rule": "R4", "conclusion": "E"},
+          {"premise": ["E"], "rule": "R5", "conclusion": "F"},
+          {"premise": ["F"], "rule": "R6", "conclusion": "G"},
+          {"premise": ["G"], "rule": "R7", "conclusion": "H"},
+          {"premise": ["H"], "rule": "R8", "conclusion": "I"},
+          {"premise": ["I"], "rule": "R9", "conclusion": "J"},
+          {"premise": ["J"], "rule": "R10", "conclusion": "K"},
+          {"premise": ["K"], "rule": "R11", "conclusion": "L"}
+        ],
+        "step_count": 11
+      },
+      "expected_valid": false,
+      "error": "Trace exceeds MAX_STEPS (10)"
+    },
+    {
+      "name": "simple_modus_ponens",
+      "description": "Modus Ponens: A -> B, A, therefore B",
+      "trace": {
+        "steps": [
+          {"premise": ["A_implies_B"], "rule": "modus_ponens_1", "conclusion": "A_implies_B_valid"},
+          {"premise": ["A"], "rule": "modus_ponens_2", "conclusion": "B"}
+        ],
+        "step_count": 2
+      },
+      "expected_valid": true
+    },
+    {
+      "name": "modus_tollens",
+      "description": "Modus Tollens: A -> B, not B, therefore not A",
+      "trace": {
+        "steps": [
+          {"premise": ["A_implies_B"], "rule": "modus_tollens_1", "conclusion": "A_implies_B_valid"},
+          {"premise": ["not_B"], "rule": "modus_tollens_2", "conclusion": "not_A"}
+        ],
+        "step_count": 2
+      },
+      "expected_valid": true
+    },
+    {
+      "name": "hypothetical_syllogism",
+      "description": "Hypothetical Syllogism: A -> B, B -> C, therefore A -> C",
+      "trace": {
+        "steps": [
+          {"premise": ["A_implies_B"], "rule": "hypothetical_syllogism_1", "conclusion": "A_implies_B_valid"},
+          {"premise": ["B_implies_C"], "rule": "hypothetical_syllogism_2", "conclusion": "B_implies_C_valid"},
+          {"premise": ["A_implies_B", "B_implies_C"], "rule": "chain_rule", "conclusion": "A_implies_C"}
+        ],
+        "step_count": 3
+      },
+      "expected_valid": true
+    },
+    {
+      "name": "disjunctive_syllogism",
+      "description": "Disjunctive Syllogism: A or B, not A, therefore B",
+      "trace": {
+        "steps": [
+          {"premise": ["A_or_B"], "rule": "disjunctive_syllogism_1", "conclusion": "A_or_B_valid"},
+          {"premise": ["not_A"], "rule": "disjunctive_syllogism_2", "conclusion": "B"}
+        ],
+        "step_count": 2
+      },
+      "expected_valid": true
+    },
+    {
+      "name": "empty_trace",
+      "description": "Empty trace is valid",
+      "trace": {
+        "steps": [],
+        "step_count": 0
+      },
+      "expected_valid": true
+    },
+    {
+      "name": "single_step_trace",
+      "description": "Single step trace is valid",
+      "trace": {
+        "steps": [
+          {"premise": ["A"], "rule": "R1", "conclusion": "B"}
+        ],
+        "step_count": 1
+      },
+      "expected_valid": true
+    }
+  ],
+
+  "invariants": [
+    {
+      "name": "step_count_bound",
+      "description": "Never exceeds MAX_STEPS",
+      "property": "trace.step_count <= MAX_STEPS"
+    },
+    {
+      "name": "premise_in_trace",
+      "description": "Each step's premises must appear earlier in trace",
+      "property": "For all steps i, premises[i] subset of union of conclusions[0..i-1 and initial_facts"
+    }
+  ],
+
+  "benchmarks": [
+    {
+      "name": "trace_verification_performance",
+      "description": "Measure cycles for 1000 trace verifications",
+      "target_cycles": 5000,
+      "operation_count": 1000
+    },
+    {
+      "name": "max_steps_trace_creation",
+      "description": "Measure cycles for creating 100 max-steps traces",
+      "target_cycles": 10000,
+      "operation_count": 100
+    }
+  ]
+}

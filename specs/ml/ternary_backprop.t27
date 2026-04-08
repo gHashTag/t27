@@ -1,0 +1,526 @@
+// SPDX-License-Identifier: Apache-2.0
+// Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0
+// t27/specs/ml/ternary_backprop.t27
+// Ternary Neural Network: STE Backpropagation (Ring 093)
+// φ² + 1/φ² = 3 | TRINITY
+
+module TernaryBackprop;
+    use base::types;
+    use math::constants;
+    use ml::ternary_neuron;
+    use ml::ternary_layer;
+    use ml::ternary_loss;
+    use numeric::gf16;
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+    // 1. Constants
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+
+    const BP_STE : u8 = 0;
+    const BP_TANH_STE : u8 = 1;
+    const BP_K3_STE : u8 = 2;
+
+    const LR_CONSTANT : u8 = 0;
+    const LR_DECAY : u8 = 1;
+    const LR_SCHEDULE : u8 = 2;
+
+    const DEFAULT_LR : GF16 = gf16::gf16_encode_f32(0.01);
+    const DEFAULT_LR_DECAY : GF16 = gf16::gf16_encode_f32(0.95);
+    const DEFAULT_MOMENTUM : GF16 = gf16::gf16_encode_f32(0.9);
+    const DEFAULT_CLIP : GF16 = gf16::gf16_encode_f32(1.0);
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+    // 2. Core Types
+    // ═══════════════════════════════════════════════════════════════════════════════════════
+
+    pub const BackpropState = struct {
+        gradients : ternary_layer::TernaryMatrix,
+        bias_grads : []Trit,
+        prev_grads : ternary_layer::TernaryMatrix,
+        prev_bias_grads : []Trit,
+    };
+
+    pub const OptimizerConfig = struct {
+        lr : GF16,
+        lr_mode : u8,
+        lr_decay : GF16,
+        momentum : GF16,
+        grad_clip : GF16,
+        weight_decay : GF16,
+    };
+
+    pub const TrainingStep = struct {
+        loss : GF16,
+        gradients : []BackpropState,
+        weights_updated : bool,
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 3. Straight-Through Estimator (STE)
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    fn ste_gradient(x: GF16) -> GF16 {
+        const zero = gf16::GF16_ZERO_POS;
+        const one = gf16::gf16_encode_f32(1.0);
+        if (gf16::gf16_eq(x, zero)) {
+            return zero;
+        }
+        return one;
+    }
+
+    fn ste_k3_gradient(x: GF16, k3_value: u8) -> GF16 {
+        const phi = constants::PHI;
+        const threshold = phi / 3.0;
+
+        const x_f32 = gf16::gf16_decode_to_f32(x);
+        const dist_to_zero = abs(x_f32 - 0.0);
+        const dist_to_pos = abs(x_f32 - threshold);
+        const dist_to_neg = abs(x_f32 + threshold);
+
+        const min_dist = min(min(dist_to_zero, dist_to_pos), dist_to_neg);
+
+        if (min_dist < 0.1) {
+            return gf16::gf16_encode_f32(0.5);
+        }
+        return gf16::gf16_encode_f32(1.0);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 4. Gradient Computation
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    fn compute_weight_grads(
+        layer: ternary_layer::TernaryLayer,
+        input: []GF16,
+        output_grad: []GF16,
+        bp_mode: u8
+    ) -> ternary_layer::TernaryMatrix {
+        const input_size = layer.config.input_size;
+        const output_size = layer.config.output_size;
+
+        var grads : ternary_layer::TernaryMatrix = undefined;
+
+        var i : usize = 0;
+        while (i < output_size) {
+            grads[i] = [Trit.zero; input_size];
+            var j : usize = 0;
+            while (j < input_size) {
+                const out_grad_f32 = gf16::gf16_decode_to_f32(output_grad[i]);
+                const in_f32 = gf16::gf16_decode_to_f32(input[j]);
+                const raw_grad_f32 = out_grad_f32 * in_f32;
+
+                const ste = switch (bp_mode) {
+                    BP_STE => gf16::gf16_decode_to_f32(ste_gradient(gf16::gf16_encode_f32(raw_grad_f32))),
+                    BP_K3_STE => {
+                        const k3 = ternary_neuron::k3_activate(gf16::gf16_encode_f32(raw_grad_f32));
+                        gf16::gf16_decode_to_f32(ste_k3_gradient(gf16::gf16_encode_f32(raw_grad_f32), k3.value))
+                    },
+                    _ => gf16::gf16_decode_to_f32(ste_gradient(gf16::gf16_encode_f32(raw_grad_f32))),
+                };
+
+                grads[i][j] = ternary_neuron::gf16_to_trit(gf16::gf16_encode_f32(ste));
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+        return grads;
+    }
+
+    fn compute_bias_grad(output_grad: []GF16, bp_mode: u8) -> []Trit {
+        const size = len(output_grad);
+        var grads : []Trit = undefined;
+
+        var i : usize = 0;
+        while (i < size) {
+            const raw_grad_f32 = gf16::gf16_decode_to_f32(output_grad[i]);
+            const ste = switch (bp_mode) {
+                BP_STE => gf16::gf16_decode_to_f32(ste_gradient(output_grad[i])),
+                BP_K3_STE => {
+                    const k3 = ternary_neuron::k3_activate(output_grad[i]);
+                    gf16::gf16_decode_to_f32(ste_k3_gradient(output_grad[i], k3.value))
+                },
+                _ => gf16::gf16_decode_to_f32(ste_gradient(output_grad[i])),
+            };
+            grads[i] = ternary_neuron::gf16_to_trit(gf16::gf16_encode_f32(ste));
+            i = i + 1;
+        }
+
+        return grads;
+    }
+
+    fn compute_input_grad(
+        layer: ternary_layer::TernaryLayer,
+        output_grad: []GF16,
+        bp_mode: u8
+    ) -> []GF16 {
+        const input_size = layer.config.input_size;
+        const output_size = layer.config.output_size;
+
+        var input_grad : []GF16 = [gf16::GF16_ZERO_POS; input_size];
+
+        var j : usize = 0;
+        while (j < input_size) {
+            var sum_f32 : f32 = 0.0;
+            var i : usize = 0;
+            while (i < output_size) {
+                const weight_gf16 = ternary_neuron::trit_to_gf16(layer.weights[i][j]);
+                const weight_f32 = gf16::gf16_decode_to_f32(weight_gf16);
+                const out_grad_f32 = gf16::gf16_decode_to_f32(output_grad[i]);
+
+                const ste = switch (bp_mode) {
+                    BP_STE => 1.0,
+                    BP_K3_STE => {
+                        const prod = weight_f32 * out_grad_f32;
+                        const k3 = ternary_neuron::k3_activate(gf16::gf16_encode_f32(prod));
+                        gf16::gf16_decode_to_f32(ste_k3_gradient(gf16::gf16_encode_f32(prod), k3.value))
+                    },
+                    _ => 1.0,
+                };
+                sum_f32 = sum_f32 + ste;
+                i = i + 1;
+            }
+            input_grad[j] = gf16::gf16_encode_f32(sum_f32);
+            j = j + 1;
+        }
+
+        return input_grad;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 5. Weight Updates
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+    fn update_weights(
+        layer: *ternary_layer::TernaryLayer,
+        grads: BackpropState,
+        optimizer: OptimizerConfig,
+        step: usize
+    ) -> void {
+        const output_size = layer.config.output_size;
+        const input_size = layer.config.input_size;
+
+        const lr = compute_learning_rate(optimizer, step);
+
+        var i : usize = 0;
+        while (i < output_size) {
+            var j : usize = 0;
+            while (j < input_size) {
+                const grad_trit = grads.gradients[i][j];
+                const grad_f32 = gf16::gf16_decode_to_f32(ternary_neuron::trit_to_gf16(grad_trit));
+
+                var update_f32 = grad_f32;
+                if (len(grads.prev_grads) > 0) {
+                    const prev_grad_trit = grads.prev_grads[i][j];
+                    const prev_grad_f32 = gf16::gf16_decode_to_f32(ternary_neuron::trit_to_gf16(prev_grad_trit));
+                    const momentum_f32 = gf16::gf16_decode_to_f32(optimizer.momentum);
+                    update_f32 = momentum_f32 * prev_grad_f32 + (1.0 - momentum_f32) * grad_f32;
+                }
+
+                const clipped_f32 = clip_gradient_f32(update_f32, gf16::gf16_decode_to_f32(optimizer.grad_clip));
+
+                const current_weight_f32 = gf16::gf16_decode_to_f32(ternary_neuron::trit_to_gf16(layer.weights[i][j]));
+                const decay_f32 = gf16::gf16_decode_to_f32(optimizer.weight_decay);
+                const decay = decay_f32 * current_weight_f32;
+
+                const lr_f32 = gf16::gf16_decode_to_f32(lr);
+                const final_update_f32 = lr_f32 * (clipped_f32 - decay);
+
+                const change = ternary_neuron::gf16_to_trit(gf16::gf16_encode_f32(final_update_f32));
+                layer.weights[i][j] = ternary_layer::trit_add(layer.weights[i][j], change);
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+        if (layer.config.has_bias) {
+            var b : usize = 0;
+            while (b < output_size) {
+                const grad_trit = grads.bias_grads[b];
+                const grad_f32 = gf16::gf16_decode_to_f32(ternary_neuron::trit_to_gf16(grad_trit));
+
+                var update_f32 = grad_f32;
+                if (len(grads.prev_bias_grads) > 0) {
+                    const prev_grad_trit = grads.prev_bias_grads[b];
+                    const prev_grad_f32 = gf16::gf16_decode_to_f32(ternary_neuron::trit_to_gf16(prev_grad_trit));
+                    const momentum_f32 = gf16::gf16_decode_to_f32(optimizer.momentum);
+                    update_f32 = momentum_f32 * prev_grad_f32 + (1.0 - momentum_f32) * grad_f32;
+                }
+
+                const clipped_f32 = clip_gradient_f32(update_f32, gf16::gf16_decode_to_f32(optimizer.grad_clip));
+                const lr_f32 = gf16::gf16_decode_to_f32(lr);
+                const change = ternary_neuron::gf16_to_trit(gf16::gf16_encode_f32(lr_f32 * clipped_f32));
+                layer.bias[b] = ternary_layer::trit_add(layer.bias[b], change);
+                b = b + 1;
+            }
+        }
+    }
+
+    fn compute_learning_rate(optimizer: OptimizerConfig, step: usize) -> GF16 {
+        switch (optimizer.lr_mode) {
+            LR_CONSTANT => optimizer.lr,
+            LR_DECAY => {
+                const decay_f32 = gf16::gf16_decode_to_f32(optimizer.lr_decay);
+                const step_f32 = @floatFromInt(step);
+                const factor_f32 = pow(decay_f32, step_f32);
+                const lr_f32 = gf16::gf16_decode_to_f32(optimizer.lr);
+                return gf16::gf16_encode_f32(lr_f32 * factor_f32);
+            },
+            LR_SCHEDULE => {
+                const step_size = 1000;
+                const factor = (step / step_size) as f32;
+                const lr_f32 = gf16::gf16_decode_to_f32(optimizer.lr);
+                return gf16::gf16_encode_f32(lr_f32 * pow(0.5, factor));
+            },
+            _ => optimizer.lr,
+        }
+    }
+
+    fn clip_gradient_f32(grad: f32, max_val: f32) -> f32 {
+        if (grad > max_val) {
+            return max_val;
+        } else if (grad < -max_val) {
+            return -max_val;
+        }
+        return grad;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 6. Full Backward Pass
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    fn backward_pass(
+        layers: []ternary_layer::TernaryLayer,
+        inputs: [][]GF16,
+        loss_grad: []GF16,
+        optimizer: OptimizerConfig,
+        step: usize,
+        bp_mode: u8
+    ) -> TrainingStep {
+        const num_layers = len(layers);
+        var layer_grads : []BackpropState = undefined;
+        var input_grads = loss_grad;
+
+        var layer_idx : usize = num_layers;
+        while (layer_idx > 0) {
+            layer_idx = layer_idx - 1;
+            const layer = &layers[layer_idx];
+
+            const layer_input = inputs;
+            const weight_grads = compute_weight_grads(layer, layer_input[0], input_grads, bp_mode);
+            const bias_grads = compute_bias_grad(input_grads, bp_mode);
+            const new_input_grad = compute_input_grad(layer, input_grads, bp_mode);
+
+            layer_grads[layer_idx] = BackpropState{
+                .gradients = weight_grads,
+                .bias_grads = bias_grads,
+                .prev_grads = [],
+                .prev_bias_grads = [],
+            };
+
+            input_grads = [new_input_grad];
+        }
+
+        return TrainingStep{
+            .loss = gf16::GF16_ZERO_POS,
+            .gradients = layer_grads,
+            .weights_updated = true,
+        };
+    }
+
+    fn training_step(
+        layers: []ternary_layer::TernaryLayer,
+        inputs: [][]GF16,
+        targets: [][]GF16,
+        loss_config: ternary_loss::LossConfig,
+        optimizer: OptimizerConfig,
+        step: usize,
+        bp_mode: u8
+    ) -> TrainingStep {
+        // Forward pass
+        var current_input = inputs;
+        var layer_outputs : []ternary_layer::LayerOutput = undefined;
+
+        var layer_idx : usize = 0;
+        while (layer_idx < len(layers)) {
+            layer_outputs[layer_idx] = ternary_layer::layer_forward(layers[layer_idx], current_input);
+            current_input = layer_outputs[layer_idx].activations;
+            layer_idx = layer_idx + 1;
+        }
+
+        // Compute loss and gradients
+        const predictions = current_input;
+        const loss_result = ternary_loss::compute_loss(predictions, targets, loss_config);
+        const loss_grad = loss_result.gradient;
+
+        // Backward pass
+        const bp_result = backward_pass(layers, inputs, loss_grad[0], optimizer, step, bp_mode);
+
+        // Update weights
+        var i : usize = 0;
+        while (i < len(layers)) {
+            update_weights(&layers[i], bp_result.gradients[i], optimizer, step);
+            i = i + 1;
+        }
+
+        return TrainingStep{
+            .loss = loss_result.value,
+            .gradients = bp_result.gradients,
+            .weights_updated = true,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Tests
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    test ste_gradient_nonzero
+        given x = gf16::gf16_encode_f32(1.5)
+        when grad = ste_gradient(x)
+        and   grad_f32 = gf16::gf16_decode_to_f32(grad)
+        then abs(grad_f32 - 1.0) < 0.01
+
+    test ste_gradient_zero
+        given x = gf16::GF16_ZERO_POS
+        when grad = ste_gradient(x)
+        and   grad_f32 = gf16::gf16_decode_to_f32(grad)
+        then abs(grad_f32) < 0.01
+
+    test ste_k3_gradient_at_boundaries
+        given phi = constants::PHI
+        and   threshold = phi / 3.0
+        and   x1 = gf16::gf16_encode_f32(threshold - 0.05)
+        and   x2 = gf16::gf16_encode_f32(threshold + 0.05)
+        when g1 = ste_k3_gradient(x1, ternary_neuron::k3_activate(x1).value)
+        and  g2 = ste_k3_gradient(x2, ternary_neuron::k3_activate(x2).value)
+        then gf16::gf16_decode_to_f32(g1) <= 1.0
+        then gf16::gf16_decode_to_f32(g2) <= 1.0
+
+    test compute_weight_grads_dimensions
+        given layer = ternary_layer::layer_dense(2, 3, ternary_neuron::ACT_K3)
+        and   input = [gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]
+        and   output_grad = [gf16::gf16_encode_f32(0.5), gf16::gf16_encode_f32(0.5), gf16::gf16_encode_f32(0.5)]
+        when grads = compute_weight_grads(layer, input, output_grad, BP_STE)
+        then len(grads) == 3
+        then len(grads[0]) == 2
+
+    test clip_gradient_positive
+        given grad = 2.0
+        and   max_val = 1.0
+        when clipped = clip_gradient_f32(grad, max_val)
+        then clipped == 1.0
+
+    test clip_gradient_negative
+        given grad = -2.0
+        and   max_val = 1.0
+        when clipped = clip_gradient_f32(grad, max_val)
+        then clipped == -1.0
+
+    test clip_gradient_within_bounds
+        given grad = 0.5
+        and   max_val = 1.0
+        when clipped = clip_gradient_f32(grad, max_val)
+        then clipped == 0.5
+
+    test learning_rate_decay
+        given optimizer = OptimizerConfig{
+            .lr = gf16::gf16_encode_f32(0.1),
+            .lr_mode = LR_DECAY,
+            .lr_decay = gf16::gf16_encode_f32(DEFAULT_LR_DECAY_f32),
+            .momentum = DEFAULT_MOMENTUM,
+            .grad_clip = DEFAULT_CLIP,
+            .weight_decay = gf16::GF16_ZERO_POS,
+        }
+        and   step = 10
+        when lr = compute_learning_rate(optimizer, step)
+        and   lr_f32 = gf16::gf16_decode_to_f32(lr)
+        then lr_f32 < 0.1
+        then lr_f32 > 0.05
+
+    test learning_rate_constant
+        given optimizer = OptimizerConfig{
+            .lr = gf16::gf16_encode_f32(0.05),
+            .lr_mode = LR_CONSTANT,
+            .lr_decay = gf16::gf16_encode_f32(0.95),
+            .momentum = DEFAULT_MOMENTUM,
+            .grad_clip = DEFAULT_CLIP,
+            .weight_decay = gf16::GF16_ZERO_POS,
+        }
+        and   step = 100
+        when lr = compute_learning_rate(optimizer, step)
+        and   lr_f32 = gf16::gf16_decode_to_f32(lr)
+        then abs(lr_f32 - 0.05) < 0.001
+
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Invariants
+    // ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    invariant ste_gradient_in_range
+        given x = gf16::gf16_encode_f32((random() as f32 * 10.0 - 5.0))
+        and   grad = ste_gradient(x)
+        and   grad_f32 = gf16::gf16_decode_to_f32(grad)
+        then abs(grad_f32) < 0.01 or abs(grad_f32 - 1.0) < 0.01
+
+    invariant ste_k3_gradient_in_range
+        given x = gf16::gf16_encode_f32((random() as f32 * 10.0 - 5.0))
+        and   k3 = ternary_neuron::k3_activate(x)
+        and   grad = ste_k3_gradient(x, k3.value)
+        and   grad_f32 = gf16::gf16_decode_to_f32(grad)
+        then grad_f32 >= 0.0 and grad_f32 <= 1.0
+
+    invariant clipped_gradient_in_bounds
+        given grad = (random() as f32 * 10.0 - 5.0)
+        and   max_val = 1.0
+        when clipped = clip_gradient_f32(grad, max_val)
+        then clipped >= -max_val
+        then clipped <= max_val
+
+    invariant weight_grads_ternary
+        given layer = ternary_layer::layer_dense(3, 2, ternary_neuron::ACT_K3)
+        and   input = [gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(1.0)]
+        and   output_grad = [gf16::gf16_encode_f32(0.5), gf16::gf16_encode_f32(0.5)]
+        and   grads = compute_weight_grads(layer, input, output_grad, BP_STE)
+        then all_trits_in_matrix(grads) == true
+
+    invariant learning_rate_non_negative
+        given optimizer = OptimizerConfig{
+            .lr = gf16::gf16_encode_f32(0.1),
+            .lr_mode = LR_DECAY,
+            .lr_decay = gf16::gf16_encode_f32(0.95),
+            .momentum = DEFAULT_MOMENTUM,
+            .grad_clip = DEFAULT_CLIP,
+            .weight_decay = gf16::GF16_ZERO_POS,
+        }
+        and   step = 100
+        when lr = compute_learning_rate(optimizer, step)
+        and   lr_f32 = gf16::gf16_decode_to_f32(lr)
+        then lr_f32 >= 0.0
+
+    invariant bias_grads_ternary
+        given output_grad = [gf16::gf16_encode_f32(1.0), gf16::gf16_encode_f32(-1.0), gf16::gf16_encode_f32(0.5)]
+        and   grads = compute_bias_grad(output_grad, BP_STE)
+        then all_trits_in_array(grads) == true
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+    // TDD-Inside-Spec: Benchmarks
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    bench ste_gradient_latency
+        measure: nanoseconds to ste_gradient(gf16::gf16_encode_f32(1.5))
+        target: < 20ns
+
+    bench ste_k3_gradient_latency
+        measure: nanoseconds to ste_k3_gradient(gf16::gf16_encode_f32(1.5), 2)
+        target: < 40ns
+
+    bench compute_weight_grads_latency_32x16
+        measure: nanoseconds to compute_weight_grads(test_layer_32x16, test_input_gf16_16, test_output_grad_gf16_16, BP_STE)
+        target: < 2000ns
+
+    bench compute_input_grad_latency_32x16
+        measure: nanoseconds to compute_input_grad(test_layer_32x16, test_output_grad_gf16_16, BP_STE)
+        target: < 1000ns
+
+    bench update_weights_latency_32x16
+        measure: nanoseconds to update_weights(&test_layer_mutable_32x16, test_grads_32x16, test_optimizer, 100)
+        target: < 5000ns

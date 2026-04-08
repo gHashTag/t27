@@ -333,6 +333,18 @@ spec "triar-composition" {
     status = "done";
 }
 
+// SANDBOX P0 Specs (Session Timeout, Orphan Detection, etc.)
+spec "sandbox.health" {
+    tier = 2;
+    description = "Sandbox health polling: check session health, enforce timeout, detect orphans";
+    path = "specs/sandbox/health.t27";
+    exports = ["check_sandbox_health", "terminate_exceeded_sessions", "cleanup_orphaned_sessions"];
+    deps = ["tritype-base", "sandbox.modules", "sandbox.session_timeout"];
+    competency = "SandboxHealth";
+    status = "done";
+    agent = "S";
+}
+
 // ============================================================================
 // Tier 3: Neural Networks (Attention, HSLM)
 // ============================================================================

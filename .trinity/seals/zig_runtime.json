@@ -1,20 +1,11 @@
 {
+  "gen_hash_c": "sha256:71e23bc8295b19df9b60da1788fa042bcc822565cbb6371eae67865779d89778",
+  "gen_hash_rust": "sha256:d1c856b67bcd4247a668275e1938e16cf1e0af240c93e17ed50b5066dbdfe141",
+  "gen_hash_verilog": "sha256:6340f3e59fcee3c53bd30bbc2c5d40ecb6597863ebc110b002945e0b31479ac6",
+  "gen_hash_zig": "sha256:fe57cf18526db56fbb5bb977426da2bdf7a7f831342f4e5e30b90d3b5da6f179",
   "module": "zig_runtime",
-  "ring": 38,
-  "spec_path": "compiler/codegen/zig/runtime.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-07T18:10:11Z",
   "spec_hash": "sha256:295218999824f8be1facebfa4cdf9e7dbe55c31f692d1b025a668bd974569a6d",
-  "gen_hash_zig": "sha256:493585b34f311b72e3b5394a8a49e5e3410406708bf205c119f956a41ee4c786",
-  "gen_hash_c": "sha256:2cf3bac6b085c60038a109bbb96b085e994798fe12ce45e1accc836941580cc6",
-  "conformance_hash": "sha256:a3720ac5c937efb0d9964b29f3e923b39f760279c477d5850130f39cc058ee9e",
-  "tests": {
-    "status": "passed",
-    "count": 11,
-    "invariants": 6,
-    "benchmarks": 3
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T21:30:00Z"
+  "spec_path": "compiler/codegen/zig/runtime.t27"
 }

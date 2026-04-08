@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1a496518e7677c57b3c4f2f4508ea46ee426ffd2585fd129639230c2cb98c712",
+  "gen_hash_rust": "sha256:ca4f3912200c4683e3c39eb13ff908dac24455b0433558c369da69abe6924659",
+  "gen_hash_verilog": "sha256:9b1f515644131d0f540183b5cb2048d2c4b111552bbcd2692f03145d247776d3",
+  "gen_hash_zig": "sha256:e4fffdeb2662ff9fa5048391be0c6cdbe0568fe64079e4c2aad5fe8fccf5481a",
+  "module": "Linking",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:6448910d761b6124ebe7b93730f46b8b62040eeac93924794a72bca4ca40aec0",
+  "spec_path": "specs/compiler/linker.t27"
+}

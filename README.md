@@ -1,7 +1,12 @@
 # Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language
 
-The canonical source of truth for Trinity S3AI.  
-`.t27` specs in -> Zig, Verilog, C out.
+[![CI](https://img.shields.io/github/actions/workflow/status/gHashTag/t27/ci.yml?branch=master&logo=github&label=CI)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
+[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.19456875.svg)](https://doi.org/10.5281/zenodo.19456875)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
+
+The canonical source of truth for Trinity S3AI.
+`.t27` specs in → Zig, Verilog, C out.
 
 **φ² + 1/φ² = 3 | TRINITY**
 
@@ -235,6 +240,33 @@ phi-structured floating-point formats where `exp/mant ~ 1/phi`:
 | GF24     | 24     | 9     | 14    | 0.025        | Precision      |
 | GF32     | 32     | 12    | 19    | 0.014        | Full precision |
 
+### Multi-Language Installation
+
+GoldenFloat is available as native packages for Python, JavaScript, Rust, and C:
+
+**Python (PyPI):**
+```bash
+pip install golden-float
+```
+
+**JavaScript (npm):**
+```bash
+npm install golden-float
+```
+
+**Rust (crates.io):**
+```toml
+[dependencies]
+golden-float-ffi = "0.1"
+```
+
+**C/C++ (header-only):**
+```c
+#include "golden_float.h"  // Auto-generated from gen/c/numeric/
+```
+
+All implementations share a single Rust core with a C-compatible ABI, guaranteeing **bit-identical results** across languages. See [`docs/MIGRATION.md`](docs/MIGRATION.md) for detailed installation and migration guides.
+
 
 ## Sacred Constants
 
@@ -378,8 +410,10 @@ MIT
 
 ---
 
-**phi^2 + 1/phi^2 = 3 | TRINITY**  
-Maintained by [Dmitrii [Vasilev]](https://github.com/gHashTag) -- 27 agents, 45 specs, 31 sealed rings
+**φ² + 1/φ² = 3 | TRINITY**
 
-**Maintained by**: Trinity Project
-**Status:** Ring 31 Complete (2026-04-04) -- 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+**Maintained by**: [Trinity Project](https://github.com/gHashTag) — [Dmitrii Vasilev](https://github.com/gHashTag)
+
+**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+
+**DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)

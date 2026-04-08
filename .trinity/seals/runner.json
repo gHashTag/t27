@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4bca08027832d1b6cd8430442e0e9b1e25f06c9cd89bfef852dccc311a8d6b81",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:a4c308f685915d7dc9eedca5d88f48c1b7d62374b3f0e850f46e4a536d018df4",
+  "gen_hash_zig": "sha256:50625d55e60a23098f43d0dd640ebf503dce47529becc7a0bd954f0d8fd35eae",
+  "module": "runner",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:f6666787b6a783a35e1989f31f7b02d354a804fc1419b3b3be087cfc4407da13",
+  "spec_path": "specs/test_framework/runner.t27"
+}
