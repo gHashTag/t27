@@ -19,7 +19,10 @@ The table is intentionally sparse at scaffold time; fill rows as each identity i
 | 11 | \|V_us\| | PHYSICAL | CKM modulus | reference |
 | 12 | \|V_cb\| | PHYSICAL | CKM modulus | reference |
 | 13 | \|V_ub\| | PHYSICAL | CKM modulus | reference |
-| 14..152 | *Reserved* | — | Grow with sacred catalog | TBD |
+| 14–30 | *Reserved* | — | Grow with sacred catalog | TBD |
+| 31 | Pellis α⁻¹ (decimal seal) | DERIVED | **50 digits:** `137.03599916476563934505723564140907572836137437744729` — pre-registered checkpoint; replay via [`scripts/print_pellis_seal_decimal.py`](../../scripts/print_pellis_seal_decimal.py) / [`scripts/verify_precision.py`](../../scripts/verify_precision.py); SSOT [`specs/physics/pellis-formulas.t27`](../../specs/physics/pellis-formulas.t27) | sealed |
+| 32 | Conjecture **H2:** sin θ₁₃ = φ⁻⁴ | CONJECTURAL | **φ⁻⁴ ≈ 0.145898**; **arcsin(φ⁻⁴) ≈ 8.39°**; compare to reactor-class θ₁₃ (e.g. ~8.54° ± 0.15° — cite PDG / fit); **~1σ** under explicit convention. **Do not** conflate **sin θ₁₃** with **sin²2θ₁₃**. External check: JUNO-era fits (~2027+). | pattern only |
+| 33..152 | *Reserved* | — | Grow with sacred catalog | TBD |
 
 ## Next steps
 
