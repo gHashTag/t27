@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:7cfd80c972a460a52ee758104d2ad01d027c5979a2816ccc40f51cdfc7ffdb77",
   "module": "ZamolodchikovE8",
   "ring": 12,
-  "sealed_at": "2026-04-06T22:23:30Z",
+  "sealed_at": "2026-04-08T04:33:29Z",
   "spec_hash": "sha256:3eee903032cb99dc6c326f8312e5120d46a017d6cd9bc179fd08316462872dca",
   "spec_path": "specs/math/zamolodchikov_e8.t27"
 }

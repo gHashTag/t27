@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:ed28b05ee17806f8b19eef79e642ce093d11e53e68fb20d2ae97ead6bb48be36",
+  "gen_hash_verilog": "sha256:3d026b3333eaf8f7951dbb3774979e3183654820b11ba318e1721f5819f2403c",
+  "gen_hash_zig": "sha256:3ba9798458a4619c32b427526bede88d02efa2efcc12555e2d77bdb216c27cfb",
+  "module": "SequenceHdc",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:33:29Z",
+  "spec_hash": "sha256:40d8f158ec4540ea8d2359396f24443c51fcaa06bf050f7f40ac59acd92db02a",
+  "spec_path": "specs/vsa/sequence_hdc.t27"
+}

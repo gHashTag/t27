@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:529e07bd7ccd545b120836279f022c508708492c699419802e923919dd1a2aa5",
+  "gen_hash_verilog": "sha256:b62a381acf0675e8ea05faf2aa14e5bd06d99098d3526c019928f436a08222ec",
+  "gen_hash_zig": "sha256:2f91f0d6ff5a223f96754338b1ad52472935239a24227aab997159bd0f9e6f4a",
+  "module": "PellisPrecision",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:33:29Z",
+  "spec_hash": "sha256:ec90447ee62230a09856518857938b41173c69f82dcc42e046a1aa47dc0e30e6",
+  "spec_path": "specs/math/pellis_precision_verify.t27"
+}

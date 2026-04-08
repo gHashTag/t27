@@ -1,13 +1,10 @@
 {
-  "schema_version": 2,
-  "spec_file": "specs/queen/brain_summaries.t27",
-  "spec_hash": "sha256:4378d0031dbabbc9ff51cf47e84b6907b15a69030a648b45ab594c29b434640f",
-  "gen_hash_zig": "sha256:f945771d11e643e2026d5c28f1342ac91e4a247cac566d6ebfe17e2f46b3d352",
-  "gen_hash_verilog": "sha256:c516210e8575204f28525dae99f87b891669bb84b5beb6b7cbdccecf598cc097",
   "gen_hash_c": "sha256:a63e7c67a44e51cf1780c4d69dee28cb2ad0e78afd89c31241a349b49c7a8fbd",
-  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "timestamp": "2026-04-07T18:00:00Z",
-  "ring": 61,
-  "verdict": "clean",
-  "notes": "Brain summaries pipeline spec for Lotus phase automation"
+  "gen_hash_verilog": "sha256:c516210e8575204f28525dae99f87b891669bb84b5beb6b7cbdccecf598cc097",
+  "gen_hash_zig": "sha256:f945771d11e643e2026d5c28f1342ac91e4a247cac566d6ebfe17e2f46b3d352",
+  "module": "BrainSummaries",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:33:30Z",
+  "spec_hash": "sha256:4378d0031dbabbc9ff51cf47e84b6907b15a69030a648b45ab594c29b434640f",
+  "spec_path": "specs/queen/brain_summaries.t27"
 }

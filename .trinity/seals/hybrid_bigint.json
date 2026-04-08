@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:15997f4834e77c4437fbb335b0860ad38a04c02a74ea38fcb535516b461f7682",
   "module": "hybrid_bigint",
   "ring": 12,
-  "sealed_at": "2026-04-07T17:17:17Z",
+  "sealed_at": "2026-04-08T04:33:29Z",
   "spec_hash": "sha256:33398e2b32aa0e7cffe23a8eec8dc2f4473e2c754f219cb50914a556961391c8",
   "spec_path": "specs/ternary/hybrid_bigint.t27"
 }

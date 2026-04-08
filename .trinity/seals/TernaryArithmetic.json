@@ -1,13 +1,10 @@
 {
-  "schema_version": 2,
-  "spec_file": "specs/isa/ternary_arithmetic.t27",
-  "spec_hash": "sha256:2630cd17e8b1ce24a57f207098d599cd50adf7cf9897535fa51e4dcbdee6e0ef",
-  "gen_hash_zig": "sha256:ff92c0e12d740ceed4607ef20f574e1d12e69599c85637be257c62772844884d",
-  "gen_hash_verilog": "sha256:64deacdc676704751f2b6c3e436dca8404f87a63a8457bfd17910031b477bceb",
   "gen_hash_c": "sha256:c52ff987108f05b4a1ba3211bb1c6d96428959fe35b20507b406a29dfdb05473",
-  "test_vector_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "timestamp": "2026-04-07T22:00:00Z",
-  "ring": 64,
-  "verdict": "clean",
-  "notes": "Ternary arithmetic operations spec for balanced ternary"
+  "gen_hash_verilog": "sha256:64deacdc676704751f2b6c3e436dca8404f87a63a8457bfd17910031b477bceb",
+  "gen_hash_zig": "sha256:ff92c0e12d740ceed4607ef20f574e1d12e69599c85637be257c62772844884d",
+  "module": "TernaryArithmetic",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:33:29Z",
+  "spec_hash": "sha256:2630cd17e8b1ce24a57f207098d599cd50adf7cf9897535fa51e4dcbdee6e0ef",
+  "spec_path": "specs/isa/ternary_arithmetic.t27"
 }

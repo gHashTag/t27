@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:55935485295c5b57c3b249429465bc39555a9ac7dd4ad7382e0ea598593a54e7",
+  "gen_hash_verilog": "sha256:8a8f892da7d67010c96cff1b3a9e5ccc566d0716f53b1348302b33e48aa62dbe",
+  "gen_hash_zig": "sha256:8237a0c65b77b4703b16bed9fc6f8cf45e5a2b2b850085322dcc757f61943bc7",
+  "module": "PhiUniversalAttractor",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:33:29Z",
+  "spec_hash": "sha256:360c5789cda6a342b7d7ac85a48e8a4634fe6130b96377fae12ec88b9b077379",
+  "spec_path": "specs/math/phi_universal_attractor.t27"
+}

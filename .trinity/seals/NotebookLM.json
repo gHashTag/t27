@@ -1,9 +1,10 @@
 {
-  "name": "NotebookLM",
-  "status": "PASS",
-  "schema_version": "v1",
-  "seal_count": 1,
-  "timestamp": "2026-04-08T00:30:00Z",
-  "verdict": "CLEAN",
-  "notes": "Ring-071: NotebookLM Phase 2-5 complete integration"
+  "gen_hash_c": "sha256:814cb4394fc5c98b4448fa7b91371ed9e82ece697fa19159926bfabf62915352",
+  "gen_hash_verilog": "sha256:3dc80610403cd8666bd734cdf08b68b0a5dc947dca96a61401529e01068c03f9",
+  "gen_hash_zig": "sha256:d8042779164e9b3e0a1a71d6db186bb40a083d6935b191c07aff2f532121a623",
+  "module": "NotebookLM",
+  "ring": 12,
+  "sealed_at": "2026-04-08T04:33:29Z",
+  "spec_hash": "sha256:a773eec57223621c2efd0dc18645c1fb6d47f64d45d8448a181376e1ad940f3a",
+  "spec_path": "specs/memory/notebooklm.t27"
 }

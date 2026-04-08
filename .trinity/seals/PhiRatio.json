@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:387d81339a48f4de7f591450762c11d20f59d19914e23f46b9ff59d6566d9209",
   "module": "PhiRatio",
   "ring": 12,
-  "sealed_at": "2026-04-06T22:23:30Z",
+  "sealed_at": "2026-04-08T04:33:29Z",
   "spec_hash": "sha256:c9446edec8d2a50aee43922023fc3d34bec36ff05b671678d687939e89e7c5c5",
   "spec_path": "specs/numeric/phi_ratio.t27"
 }
