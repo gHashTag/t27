@@ -132,6 +132,24 @@ module EmitterXDC {
         return out;
     }
 
+    fn arty_a7_minimal() -> XDCOutput {
+        var out = empty_xdc();
+        out = emit_header(out, "Arty A7 minimal (4 LEDs + UART + buttons)");
+
+        out = emit_pin(out, "E3", "LVCMOS33", "clk");
+        out = emit_clock(out, "clk", "sys_clk", 10, 5);
+        out = emit_pin(out, "C12", "LVCMOS33", "rst_n");
+        out = emit_pin(out, "A9", "LVCMOS33", "uart_tx");
+        out = emit_pin(out, "C9", "LVCMOS33", "uart_rx");
+
+        out = emit_pin(out, "R5", "LVCMOS33", "led[0]");
+        out = emit_pin(out, "T5", "LVCMOS33", "led[1]");
+        out = emit_pin(out, "T8", "LVCMOS33", "led[2]");
+        out = emit_pin(out, "T9", "LVCMOS33", "led[3]");
+
+        return out;
+    }
+
     fn line_count(out: XDCOutput) -> usize {
         return out.count;
     }
@@ -225,6 +243,23 @@ module EmitterXDC {
         given out = qmtech_xc7a100t_minimal()
         then line_count(out) == 13
 
+    test arty_a7_line_count
+        given out = arty_a7_minimal()
+        then line_count(out) == 9
+
+    test arty_a7_starts_with_comment
+        given out = arty_a7_minimal()
+        then out.lines[0].is_comment == true
+
+    test arty_a7_has_clk_and_clock
+        given out = arty_a7_minimal()
+        then line_count(out) == 9
+
+    test arty_a7_4_leds
+        given out = arty_a7_minimal()
+        and   n = count_set_property_lines(out)
+        then n == 9
+
     invariant empty_xdc_no_lines
         given out = empty_xdc()
         assert line_count(out) == 0
@@ -244,6 +279,10 @@ module EmitterXDC {
     invariant line_count_never_exceeds_capacity
         given out = qmtech_xc7a100t_minimal()
         assert line_count(out) <= 512
+
+    invariant arty_a7_line_count_positive
+        given out = arty_a7_minimal()
+        assert line_count(out) > 0 and line_count(out) == 9
 
     bench emit_pin_latency
         measure: nanoseconds to emit_pin(empty_xdc(), "E3", "LVCMOS33", "clk")
