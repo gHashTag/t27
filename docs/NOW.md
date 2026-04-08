@@ -846,3 +846,4 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
 Last updated: 2026-04-08
+
