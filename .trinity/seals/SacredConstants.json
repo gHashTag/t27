@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7d927319f88da9cbe60e22f5e779740266d87a64885a6a4b7be500cc907aeeb5",
   "module": "SacredConstants",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:53:42Z",
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:d40a1e7c3e736cac3a8042c7889b9d848717d8989f869f03f9bf446d7f1895be",
   "spec_path": "specs/sacred/constants.t27"
 }

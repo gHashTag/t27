@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:0baf94f803ae1530157b1678fed3e0fb1b5101dfea89528f312a9446a00fecba",
   "module": "DatalogEngine",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:10Z",
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:30f9ede1d2afebc229f303f07941c3154e1dc3342f5a58e7cbd0cc57a000d5d6",
   "spec_path": "specs/ar/datalog_engine.t27"
 }

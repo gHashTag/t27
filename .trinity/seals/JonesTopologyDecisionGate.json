@@ -1,10 +1,11 @@
 {
-  "gen_hash_c": "sha256:86bf7a67059fe95bd9b343b4a3c77032cfc2d4786dc3a1afa4b340bfb97acc77",
-  "gen_hash_verilog": "sha256:d7a2686961e14ccf8a7baf50e15a2b8a1414056ec3a49b853abaf27739846150",
-  "gen_hash_zig": "sha256:94d1c4f5a4f6441eca15ef51a0f662b787cd0735135074b3b5167748ba776e7d",
+  "gen_hash_c": "sha256:524e8ac40265b8816a05d0160a7f1e438f8ba957b150e5685bf2968fd62a6981",
+  "gen_hash_rust": "sha256:a51a279563632b3afea00d60fae5a4f56282173d2694f2e4130a756b58354d0b",
+  "gen_hash_verilog": "sha256:bbeb0b92c02015ee635d0f890038b0b0a31f0d7b7a09e79eca10b1dc63e3dcc3",
+  "gen_hash_zig": "sha256:cbaa1d3a2dc76309d3f9779654cac75e786bb2147e53aed29f4338af678378e0",
   "module": "JonesTopologyDecisionGate",
   "ring": 12,
-  "sealed_at": "2026-04-06T22:23:30Z",
+  "sealed_at": "2026-04-08T06:22:05Z",
   "spec_hash": "sha256:2a95f61f20e49e8ff2e23e9cf45c5b743be9107554c219ddd1379e73f191149e",
   "spec_path": "specs/demos/jones_topology_decision_gate.t27"
 }

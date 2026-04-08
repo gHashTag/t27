@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f5ee7104c354a16c9b79f3d477fa3eb9a01785d3d4af0da1846763b2ca2bc206",
   "module": "Constants",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:10Z",
-  "spec_hash": "sha256:6bf826d00d7993c592564b19bbac3fe1880ef71b1e51df62560cbda0165b888e",
+  "sealed_at": "2026-04-08T06:22:04Z",
+  "spec_hash": "sha256:48a977888e1af08ca36fc675960e52133072e9989bcf933181b2a3bedc585126",
   "spec_path": "specs/math/constants.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4c7fe2c122328e599e40381494433fd72d3d2475684d75745b240ef3cf7240cd",
   "module": "SU2ChernSimons",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:10Z",
+  "sealed_at": "2026-04-08T06:22:04Z",
   "spec_hash": "sha256:908efdb5b89d855e550e2134b20794400c6ee0b12b80bebdc47540384b0a63be",
   "spec_path": "specs/physics/su2_chern_simons.t27"
 }
