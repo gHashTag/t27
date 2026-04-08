@@ -140,9 +140,9 @@ module FPGA_Bridge;
             return false;
         }
 
-        const (ptype, tail1) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-        const (plen, tail2) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail1);
-        bridge.rx_tail = tail2;
+        const ptype = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        const plen = buffer_read(rx_buffer, RX_BUFFER_SIZE, ptype);
+        bridge.rx_tail = plen;
 
         bridge.packet_type = ptype;
         bridge.packet_len = plen;
@@ -198,15 +198,17 @@ module FPGA_Bridge;
     fn bridge_handle_uart_data() -> void {
         var i : usize = 0;
         while (i < bridge.packet_len as usize) {
-            const (data, tail) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-            bridge.rx_tail = tail;
+             const result_read = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+             const data = result_read;
+             bridge.rx_tail = result_read;
 
-            // Echo back via TX
-            if (bridge_tx_space() > 0) {
-                const (ok, new_head) = (true, (bridge.tx_head + 1) % TX_BUFFER_SIZE);
-                tx_buffer[bridge.tx_head] = data;
-                bridge.tx_head = new_head;
-            }
+             // Echo back via TX
+             if (bridge_tx_space() > 0) {
+                 const ok = true;
+                 const new_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+                 tx_buffer[bridge.tx_head] = data;
+                 bridge.tx_head = new_head;
+             }
             i = i + 1;
         }
     }
@@ -218,11 +220,10 @@ module FPGA_Bridge;
             return;
         }
 
-        // Packet format: [CS_SEL][DATA_L][DATA_H] for 16-bit
-        const (cs_sel, tail1) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-        const (data_l, tail2) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail1);
-        const (data_h, tail3) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail2);
-        bridge.rx_tail = tail3;
+        const cs_sel = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        const data_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, cs_sel);
+        const data_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, data_l);
+        bridge.rx_tail = data_h;
 
         const data = (data_h as u32) << 8 | data_l as u32;
         if (spi_transfer(data)) {
@@ -238,9 +239,9 @@ module FPGA_Bridge;
         }
 
         // Packet format: [OP][UNIT][A_L][A_H][B_L][B_H][ACC_L]...]
-        const (op, tail1) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-        const (unit, tail2) = buffer_read(rx_buffer, RX_BUFFER_SIZE, tail1);
-        bridge.rx_tail = tail2;
+        const op = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        const unit = buffer_read(rx_buffer, RX_BUFFER_SIZE, op);
+        bridge.rx_tail = unit;
 
         // TODO: Parse operands and call MAC operation
         // This is a placeholder for MAC command handling
@@ -269,8 +270,8 @@ module FPGA_Bridge;
     // bridge_handle_config() → void
     // Handle configuration packet
     fn bridge_handle_config() -> void {
-        const (cfg_byte, tail) = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-        bridge.rx_tail = tail;
+        const cfg_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = cfg_byte;
 
         // Bit 0: SPI enable
         // Bit 1: MAC enable
