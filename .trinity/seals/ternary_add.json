@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d0b2b63972d7df4f5ec599cbdfe542bbea35b2a72710990e89f9bd1d666b9f2e",
   "module": "ternary_add",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:05Z",
+  "sealed_at": "2026-04-08T08:09:17Z",
   "spec_hash": "sha256:69d67a9601b329f117424a3aa75e79e78689aaf1e378428368bbd4e23cbb2765",
   "spec_path": "specs/base/ternary_add.t27"
 }

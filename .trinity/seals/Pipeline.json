@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:70000356e6b573704747f3abe1a1c26bcaed87deb3dc9564b7757bc41ec11f3a",
   "module": "Pipeline",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:5ce8454a0e2a8cd7d933b7aa625d5ec19b9fcbeee5b25e69e33772bf29878756",
   "spec_path": "specs/compiler/pipeline.t27"
 }

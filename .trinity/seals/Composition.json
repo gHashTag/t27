@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a72b2b79ff8258157134ef6dd394bd84575e395bf7c407a5d0cbfb612fbe4400",
   "module": "Composition",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:2fb9382777d17c70796a78aba5de5f8ab72fb10ada959a72457b0c9e44f50112",
   "spec_path": "specs/ar/composition.t27"
 }

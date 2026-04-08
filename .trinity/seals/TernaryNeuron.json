@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:3982fe2509427c524195664523b7af6120999dc03e2e1474cd0c07e53bf959c7",
   "module": "TernaryNeuron",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:793070d4df76e4bbdb9f25f3f88afd7ab5e1f6fb7c6c3e1692db3d59ee6a48c5",
   "spec_path": "specs/ml/ternary_neuron.t27"
 }
