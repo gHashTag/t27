@@ -1,0 +1,9 @@
+{
+  "notebook_id": "nb-sprint9-neurips-2026",
+  "title": "Sprint 9: NeurIPS 2026 LaTeX Template + Bibliography",
+  "branch": "feature/sprint9-neurips-latex",
+  "created_at": "2026-04-08T20:30:00Z",
+  "sources": [
+    "docs/WHITEPAPER/gf_paper_v3_imrad_draft.md"
+  ]
+}
