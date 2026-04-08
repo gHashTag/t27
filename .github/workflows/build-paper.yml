@@ -48,7 +48,7 @@ jobs:
         run: |
           cd docs/WHITEPAPER/latex
           pdflatex -interaction=nonstopmode main.tex
-          bibtex main
+          bibtex -min-crossrefs=1000 -min-crossref=10 main
           pdflatex -interaction=nonstopmode main.tex
           pdflatex -interaction=nonstopmode main.tex
 
