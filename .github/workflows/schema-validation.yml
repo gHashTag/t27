@@ -3,13 +3,8 @@ name: Schema Validation CI
 on:
   push:
     branches: [master]
-    paths:
-      - 'conformance/*.json'
-      - '.github/workflows/schema-validation.yml'
   pull_request:
-    paths:
-      - 'conformance/*.json'
-      - '.github/workflows/schema-validation.yml'
+    branches: [master]
 
 jobs:
   validate-schemas:

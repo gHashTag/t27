@@ -842,6 +842,6 @@ eW91IHdvcmsgaW4gVVRDLio=
 - FPGA board (QMTECH XC7A100T) detected on `/dev/cu.usbserial-140` (UART)
 - Logic analyzer (DreamSourceLab) connected
 
-**Last updated:** 2026-04-08 — CI fix, Yosys synthesis, Makefile update
+**Last updated:** 2026-04-08 — CI fix, schema-validation paths, Makefile update · PR #349
 
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
