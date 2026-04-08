@@ -1,0 +1,27 @@
+DIGEST bbe10d9ae0e52e2f6807a7312bb833b5
+Fdl_bounds
+R27:31 Stdlib.Reals.Reals <> <> lib
+def 67:75 <> gamma_phi
+R79:79 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R91:93 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R85:88 Stdlib.Reals.R_sqrt <> sqrt def
+def 109:116 <> dl_lower
+R120:120 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R130:132 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R126:127 Stdlib.Reals.Rpower <> ln def
+R133:134 Stdlib.Reals.Rtrigo1 <> PI def
+def 149:156 <> dl_upper
+R160:160 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R170:172 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R166:167 Stdlib.Reals.Rpower <> ln def
+R173:174 Stdlib.Reals.Rtrigo1 <> PI def
+prf 187:212 <> gamma_phi_within_dl_bounds
+R224:226 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
+R236:238 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
+R216:223 dl_bounds <> dl_lower def
+R227:235 dl_bounds <> gamma_phi def
+R227:235 dl_bounds <> gamma_phi def
+R239:246 dl_bounds <> dl_upper def
+R265:272 dl_bounds <> dl_lower def
+R275:282 dl_bounds <> dl_upper def
+R285:293 dl_bounds <> gamma_phi def
