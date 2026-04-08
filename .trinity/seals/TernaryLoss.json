@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:9a6dca871637b6acabf9b960991b31d59680d9e4ced3d215d7c6b6207ddb458b",
   "module": "TernaryLoss",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:33:29Z",
+  "sealed_at": "2026-04-08T04:46:38Z",
   "spec_hash": "sha256:757fb51137a2944bc8ff31d6e015d0974267bab364d0903c107162fba9b05688",
   "spec_path": "specs/ml/ternary_loss.t27"
 }

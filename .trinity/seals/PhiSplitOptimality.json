@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:810ea5b9d0569c0de0af4157debbd1f97d96bfc60dceee96e6eaa329b3ccc4bb",
   "module": "PhiSplitOptimality",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:33:29Z",
+  "sealed_at": "2026-04-08T04:46:38Z",
   "spec_hash": "sha256:0e42278fe6ab0734eeda8c5775d1efaf099ece208eaf90520fd0a9554b742b19",
   "spec_path": "specs/math/phi_split_optimality.t27"
 }

@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:4a3baf8bedace72a2d824e753feff018f0e6a4dab9cbaea6ab7157e5214a8816",
   "module": "MAC_Testbench",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:33:29Z",
+  "sealed_at": "2026-04-08T04:46:38Z",
   "spec_hash": "sha256:3e7706e5e58b49744b70465956a1a932550aaa37215ce9a2050ef64bcab51ec2",
   "spec_path": "specs/fpga/testbench/mac_tb.t27"
 }

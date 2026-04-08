@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:e5a71e63e4ede6bc360cededdbcd05a30196f8a87c1bfaeca43fd59ebaf7ee00",
   "module": "AspSolver",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:33:30Z",
+  "sealed_at": "2026-04-08T04:46:39Z",
   "spec_hash": "sha256:bb946bdf57d38b74c2b7b7c5cdff1023c802ae75d29c5b7f3d94b0dc55d4ba05",
   "spec_path": "specs/ar/asp_solver.t27"
 }

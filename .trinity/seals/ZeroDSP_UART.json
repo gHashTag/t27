@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:5641053c291db18fda1c6fc36c9f4e3d52cef77c8d49e177ae9464f428fe9478",
   "module": "ZeroDSP_UART",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:33:29Z",
+  "sealed_at": "2026-04-08T04:46:38Z",
   "spec_hash": "sha256:be3d8542ad2f96e637ca1299c73dad413d535c1abee63717301b6b5b8d530735",
   "spec_path": "specs/fpga/uart.t27"
 }

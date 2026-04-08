@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:a10b83e707465371000d2e5458e020e8f7a6f70a9b13cfc2c0055d70af497beb",
   "module": "TernaryMLP",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:33:29Z",
+  "sealed_at": "2026-04-08T04:46:38Z",
   "spec_hash": "sha256:5233d0ad2ec97e1c1ab73487dddd7f7333d113caaf4c94476534db8d00b8c3c5",
   "spec_path": "specs/ml/ternary_mlp.t27"
 }
