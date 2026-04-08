@@ -47,7 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: goldenfloat-paper
-          path: |
-            docs/WHITEPAPER/paper_from_md.pdf
-            docs/WHITEPAPER/latex/main.pdf
+          path: docs/WHITEPAPER/
           retention-days: 30
