@@ -24,7 +24,15 @@
 - `specs/tri/sync.t27` — Sync orchestrator + TDD
 - `bootstrap/src/bridge.rs` — Extended with GitHubCommands, gh CLI integration
 
-Total: 11 specs. Commits `bb71939` (P2), `bfdd462` (Ring-072). PRs #322, #331.
+**P2 Sprint 2** — Benchmarks & contracts (from trinity-w1 rewrite):
+- `specs/benchmarks/ternary_vs_binary.t27` — Format comparison benchmark
+- `specs/benchmarks/bench_main.t27` — NN inference benchmark (100→64→10)
+- `specs/benchmarks/bench_nn.t27` — Format comparison detailed spec
+- `specs/api/sdk_contract.t27` — Trinity SDK high-level API
+- `specs/api/c_api_contract.t27` — C API FFI bridge contract
+- `specs/conformance/e2e_scenarios.t27` — E2E full pipeline verification
+
+Total: 18 specs. Commits `bb71939` (P2), `bfdd462` (Ring-072). PRs #322, #323, #326 (OPEN).
 
 **Status:** ACTIVE — replace body on every ring boundary  
 **Queen health:** GREEN / 1.0 (all 17 domains; sealed 2026-04-05T12:00Z) — *verify* `.trinity/state/queen-health.json`  
