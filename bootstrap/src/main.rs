@@ -546,6 +546,14 @@ enum Commands {
         #[arg(long)]
         smoke: bool,
 
+        /// Stop after Yosys synthesis (no P&R or bitstream)
+        #[arg(long)]
+        synth_only: bool,
+
+        /// Minimal design: clk + rst_n + uart + 8 LEDs only (for open-source toolchain)
+        #[arg(long)]
+        minimal: bool,
+
         /// FPGA device identifier (default: xc7a100tcsg324-1)
         #[arg(long, default_value = "xc7a100tcsg324-1")]
         device: String,
@@ -557,6 +565,30 @@ enum Commands {
         /// Use Docker for synthesis tools (default: true if no local Yosys)
         #[arg(long, default_missing_value = "true")]
         docker: Option<bool>,
+
+        /// Path to nextpnr-xilinx binary
+        #[arg(long)]
+        nextpnr: Option<String>,
+
+        /// Path to chipdb binary for nextpnr
+        #[arg(long)]
+        chipdb: Option<String>,
+
+        /// Path to XDC constraints file
+        #[arg(long)]
+        xdc: Option<String>,
+
+        /// Path to prjxray fasm2frames (Python, from prjxray repo)
+        #[arg(long)]
+        fasm2frames: Option<String>,
+
+        /// Path to xc7frames2bit binary
+        #[arg(long)]
+        frames2bit: Option<String>,
+
+        /// Path to prjxray database directory
+        #[arg(long)]
+        prjxray_db: Option<String>,
 
         /// Output directory (default: build/fpga)
         #[arg(short, long, default_value = "build/fpga")]
@@ -2895,9 +2927,17 @@ fn run_validate_phi_identity() -> Result<(), anyhow::Error> {
 fn run_fpga_build(
     repo_root: &Path,
     smoke: bool,
-    _device: &str,
+    synth_only: bool,
+    minimal: bool,
+    device: &str,
     top: &str,
     docker: Option<bool>,
+    nextpnr_path: Option<&str>,
+    chipdb_path: Option<&str>,
+    xdc_path: Option<&str>,
+    fasm2frames_path: Option<&str>,
+    frames2bit_path: Option<&str>,
+    prjxray_db_path: Option<&str>,
     output: &str,
 ) -> anyhow::Result<()> {
     let specs_dir = repo_root.join("specs/fpga");
@@ -2906,6 +2946,8 @@ fn run_fpga_build(
     let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
 
     fs::create_dir_all(&gen_dir).context("create build/fpga/generated")?;
+    let synth_dir = build_dir.join("synth");
+    fs::create_dir_all(&synth_dir).context("create build/fpga/synth")?;
 
     let modules = ["mac", "uart", "spi", "bridge", "top_level"];
 
@@ -2933,7 +2975,44 @@ fn run_fpga_build(
     }
 
     let top_wrapper = gen_dir.join(format!("{}.v", top));
-    let wrapper_source = format!(
+    if minimal {
+        let wrapper_source = format!(
+r#"`timescale 1ns / 1ps
+
+module {top} (
+    input  wire        clk,
+    input  wire        rst_n,
+    input  wire        uart_rx,
+    output wire        uart_tx,
+    output wire [7:0]  led
+);
+    wire sys_clk   = clk;
+    wire sys_rst_n = rst_n;
+
+    reg [26:0] heartbeat_ctr;
+    always @(posedge sys_clk) begin
+        if (!sys_rst_n)
+            heartbeat_ctr <= 27'd0;
+        else
+            heartbeat_ctr <= heartbeat_ctr + 1'b1;
+    end
+
+    assign led[0] = heartbeat_ctr[24];
+    assign led[1] = 1'b0;
+    assign led[2] = 1'b0;
+    assign led[3] = 1'b0;
+    assign led[4] = 1'b0;
+    assign led[5] = 1'b0;
+    assign led[6] = 1'b0;
+    assign led[7] = 1'b0;
+    assign uart_tx = uart_rx;
+endmodule
+"#
+        );
+        fs::write(&top_wrapper, &wrapper_source)?;
+        println!("  OK {}.v (minimal top-level)", top);
+    } else {
+        let wrapper_source = format!(
 r#"`timescale 1ns / 1ps
 
 module {top} (
@@ -3023,9 +3102,10 @@ module {top} (
     assign spi_mosi   = 1'b0;
 endmodule
 "#
-    );
-    fs::write(&top_wrapper, &wrapper_source)?;
-    println!("  OK {}.v (top-level wrapper)", top);
+        );
+        fs::write(&top_wrapper, &wrapper_source)?;
+        println!("  OK {}.v (top-level wrapper)", top);
+    }
 
     println!("Verilog generation: {} modules + wrapper", generated_count);
 
@@ -3043,6 +3123,8 @@ endmodule
             .is_err()
     });
 
+    let synth_json = synth_dir.join("synth.json");
+
     if use_docker {
         if std::process::Command::new("docker")
             .arg("--version")
@@ -3055,13 +3137,18 @@ endmodule
         }
         println!("=== Synthesizing with Yosys (Docker) ===");
         let synth_script = build_dir.join("synth.ys");
-        fs::create_dir_all(build_dir.join("synth"))?;
+        let verilog_files = if minimal {
+            format!("{gen}/{top}.v", gen = gen_dir.display(), top = top)
+        } else {
+            format!("{gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v", gen = gen_dir.display(), top = top)
+        };
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
-                gen = gen_dir.display(),
+                "read_verilog {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
+                files = verilog_files,
                 top = top,
+                json = synth_json.display(),
             ),
         )?;
         let status = std::process::Command::new("docker")
@@ -3071,23 +3158,28 @@ endmodule
         if !status.success() {
             anyhow::bail!("Yosys synthesis failed");
         }
-        println!("Synthesis complete.");
+        println!("Synthesis complete (Docker).");
     } else {
         println!("=== Synthesizing with local Yosys ===");
         let synth_script = build_dir.join("synth.ys");
-        fs::create_dir_all(build_dir.join("synth"))?;
+        let verilog_files = if minimal {
+            format!("{gen}/{top}.v", gen = gen_dir.display(), top = top)
+        } else {
+            format!("{gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v", gen = gen_dir.display(), top = top)
+        };
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
-                gen = gen_dir.display(),
+                "read_verilog {files}\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nwrite_json {json}\nstat\n",
+                files = verilog_files,
                 top = top,
+                json = synth_json.display(),
             ),
         )?;
         let status = std::process::Command::new("yosys")
             .arg("-s")
             .arg(&synth_script)
-            .current_dir(build_dir.join("synth"))
+            .current_dir(&synth_dir)
             .status()
             .context("yosys")?;
         if !status.success() {
@@ -3096,7 +3188,272 @@ endmodule
         println!("Synthesis complete.");
     }
 
-    println!("=== FPGA build finished ===");
+    if !synth_json.exists() {
+        anyhow::bail!("Yosys did not produce synth.json at {}", synth_json.display());
+    }
+    println!("  JSON netlist: {}", synth_json.display());
+
+    if synth_only {
+        println!("=== Stopped after synthesis (--synth-only) ===");
+        return Ok(());
+    }
+
+    // ---- Step: Resolve toolchain paths ----
+    let nextpnr_bin = match nextpnr_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let default = PathBuf::from("build/nextpnr-xilinx/build/nextpnr-xilinx");
+            if repo_root.join(&default).exists() {
+                repo_root.join(&default)
+            } else {
+                anyhow::bail!("nextpnr-xilinx not found. Pass --nextpnr <path> or place at build/nextpnr-xilinx/build/nextpnr-xilinx");
+            }
+        }
+    };
+
+    let chipdb = match chipdb_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let default = PathBuf::from("build/fpga/chipdb/xc7a100tcsg324-1.bin");
+            if repo_root.join(&default).exists() {
+                repo_root.join(&default)
+            } else {
+                anyhow::bail!("Chipdb not found. Pass --chipdb <path> or place at build/fpga/chipdb/{}.bin", device);
+            }
+        }
+    };
+
+    // Generate nextpnr-compatible XDC.
+    // For minimal mode, produce a clean XDC with only valid chipdb pins.
+    // For full mode, preprocess the Vivado XDC for nextpnr compatibility.
+    let xdc = synth_dir.join("nextpnr.xdc");
+    if minimal {
+        let minimal_xdc = r#"# nextpnr-compatible XDC for minimal design (prjxray-verified pins)
+set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
+create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
+set_property -dict { PACKAGE_PIN C14   IOSTANDARD LVCMOS33 } [get_ports rst_n]
+set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports uart_rx]
+set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
+set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports led[0]]
+set_property -dict { PACKAGE_PIN K15   IOSTANDARD LVCMOS33 } [get_ports led[1]]
+set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports led[2]]
+set_property -dict { PACKAGE_PIN N14   IOSTANDARD LVCMOS33 } [get_ports led[3]]
+set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports led[4]]
+set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports led[5]]
+set_property -dict { PACKAGE_PIN T13   IOSTANDARD LVCMOS33 } [get_ports led[6]]
+set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
+"#;
+        fs::write(&xdc, minimal_xdc)?;
+    } else {
+        let xdc_source = match xdc_path {
+            Some(p) => PathBuf::from(p),
+            None => {
+                let default = repo_root.join("specs/fpga/constraints/qmtech_a100t.xdc");
+                if default.exists() {
+                    default
+                } else {
+                    anyhow::bail!("XDC constraints not found. Pass --xdc <path>");
+                }
+            }
+        };
+        let raw = fs::read_to_string(&xdc_source).context("read XDC")?;
+        let mut out = String::new();
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
+                continue;
+            }
+            if trimmed.starts_with("set_false_path") {
+                continue;
+            }
+            if trimmed.contains("[current_design]") {
+                continue;
+            }
+            let l = if trimmed.contains("PULLUP") {
+                trimmed.replace("PULLUP true", "").replace("  ", " ")
+            } else {
+                trimmed.to_string()
+            };
+            let l = l.replace("[get_ports { ", "[get_ports ").replace(" }]", "]");
+            out.push_str(&l);
+            out.push('\n');
+        }
+        fs::write(&xdc, &out)?;
+    }
+
+    let fasm_output = synth_dir.join("design.fasm");
+    let frames_output = synth_dir.join("design.frames");
+    let bit_output = build_dir.join(format!("{}.bit", top));
+
+    // ---- Step 2: nextpnr-xilinx Place & Route ----
+    println!("=== Place & Route (nextpnr-xilinx) ===");
+    println!("  chipdb: {}", chipdb.display());
+    println!("  JSON:   {}", synth_json.display());
+    println!("  XDC:    {}", xdc.display());
+    println!("  FASM:   {}", fasm_output.display());
+
+    let status = std::process::Command::new(&nextpnr_bin)
+        .arg("--chipdb").arg(&chipdb)
+        .arg("--json").arg(&synth_json)
+        .arg("--xdc").arg(&xdc)
+        .arg("--fasm").arg(&fasm_output)
+        .current_dir(&synth_dir)
+        .status()
+        .context("nextpnr-xilinx")?;
+    if !status.success() {
+        anyhow::bail!("nextpnr-xilinx P&R failed");
+    }
+    if !fasm_output.exists() {
+        anyhow::bail!("nextpnr did not produce FASM at {}", fasm_output.display());
+    }
+    println!("P&R complete. FASM: {}", fasm_output.display());
+
+    // ---- Step 3: fasm2frames ----
+    let fasm2frames = match fasm2frames_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let default = repo_root.join("build/fpga/prjxray/utils/fasm2frames.py");
+            if default.exists() {
+                default
+            } else {
+                anyhow::bail!("fasm2frames.py not found. Pass --fasm2frames <path> or clone prjxray to build/fpga/prjxray/");
+            }
+        }
+    };
+
+    let prjxray_db = match prjxray_db_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let default = repo_root.join("build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7");
+            if default.exists() {
+                default
+            } else {
+                anyhow::bail!("prjxray-db not found. Pass --prjxray-db <path>");
+            }
+        }
+    };
+
+    // Ensure prjxray mapping files exist (required by fasm2frames)
+    let mapping_dir = prjxray_db.join("mapping");
+    if !mapping_dir.exists() {
+        fs::create_dir_all(&mapping_dir)?;
+    }
+    let parts_yaml = mapping_dir.join("parts.yaml");
+    if !parts_yaml.exists() {
+        fs::write(&parts_yaml, format!(
+"\"{device}\":
+  device: \"xc7a100t\"
+  package: \"csg324\"
+  speedgrade: \"1\"
+", device = device))?;
+    }
+    let devices_yaml = mapping_dir.join("devices.yaml");
+    if !devices_yaml.exists() {
+        fs::write(&devices_yaml, "\"xc7a100t\":\n  fabric: \"xc7a100t\"\n")?;
+    }
+
+    println!("=== FASM → Frames ===");
+    let status = std::process::Command::new("python3")
+        .arg(&fasm2frames)
+        .arg("--db-root").arg(&prjxray_db)
+        .arg("--part").arg(device)
+        .arg(&fasm_output)
+        .arg(&frames_output)
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .current_dir(&synth_dir)
+        .env("PYTHONPATH", format!(
+            "{}:{}",
+            repo_root.join("build/fpga/venv/lib/python3.13/site-packages").display(),
+            repo_root.join("build/fpga/prjxray").display()
+        ))
+        .status()
+        .context("fasm2frames")?;
+    if !status.success() {
+        anyhow::bail!("fasm2frames failed");
+    }
+    if !frames_output.exists() {
+        anyhow::bail!("fasm2frames did not produce frames at {}", frames_output.display());
+    }
+    println!("Frames: {}", frames_output.display());
+
+    // ---- Step 4: xc7frames2bit ----
+    let xc7frames2bit = match frames2bit_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let default = repo_root.join("build/fpga/prjxray/build/tools/xc7frames2bit");
+            if default.exists() {
+                default
+            } else {
+                anyhow::bail!("xc7frames2bit not found. Pass --frames2bit <path> or build prjxray at build/fpga/prjxray/");
+            }
+        }
+    };
+
+    // Generate YAML part file for xc7frames2bit (needs configuration_ranges format)
+    let part_yaml = synth_dir.join("part.yaml");
+    {
+        let part_json_path = prjxray_db.join(device).join("part.json");
+        let part_json = fs::read_to_string(&part_json_path)
+            .context("read part.json")?;
+        let pj: serde_json::Value = serde_json::from_str(&part_json)?;
+        let idcode = pj["idcode"].as_u64().unwrap_or(0x3631093);
+        let mut yaml = format!("!<xilinx/xc7series/part>\nidcode: 0x{:08x}\nconfiguration_ranges:\n", idcode);
+        let mut offset = 0u32;
+        if let Some(gcr) = pj["global_clock_regions"].as_object() {
+            for (region_name, region) in gcr {
+                let row_half = region_name;
+                if let Some(rows) = region["rows"].as_object() {
+                    for (row_id, row_data) in rows {
+                        if let Some(buses) = row_data["configuration_buses"].as_object() {
+                            for (bus_name, bus_data) in buses {
+                                if let Some(cols) = bus_data["configuration_columns"].as_object() {
+                                    for (col_id, col_data) in cols {
+                                        let fc = col_data["frame_count"].as_u64().unwrap_or(0) as u32;
+                                        yaml.push_str(&format!(
+"  - !<xilinx/xc7series/configuration_frame_range>
+    begin: !<xilinx/xc7series/configuration_frame_address>
+      block_type: {}
+      row_half: {}
+      row: {}
+      column: {}
+      minor: 0
+    end: !<xilinx/xc7series/configuration_frame_address>
+      block_type: {}
+      row_half: {}
+      row: {}
+      column: {}
+      minor: {}
+", bus_name, row_half, row_id, col_id, bus_name, row_half, row_id, col_id, fc));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        fs::write(&part_yaml, &yaml)?;
+    }
+
+    println!("=== Frames → Bitstream ===");
+    let status = std::process::Command::new(&xc7frames2bit)
+        .arg(format!("--part_file={}", part_yaml.display()))
+        .arg(format!("--part_name={}", device))
+        .arg(format!("--frm_file={}", frames_output.display()))
+        .arg(format!("--output_file={}", bit_output.display()))
+        .status()
+        .context("xc7frames2bit")?;
+    if !status.success() {
+        anyhow::bail!("xc7frames2bit failed");
+    }
+    if !bit_output.exists() {
+        anyhow::bail!("xc7frames2bit did not produce bitstream at {}", bit_output.display());
+    }
+
+    let bit_size = fs::metadata(&bit_output)?.len();
+    println!("Bitstream: {} ({} bytes)", bit_output.display(), bit_size);
+    println!("=== FPGA E2E build finished ===");
     Ok(())
 }
 
@@ -6188,9 +6545,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, device, top, docker, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -6298,9 +6655,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, device, top, docker, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
