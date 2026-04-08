@@ -3,7 +3,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T27C="${TRI_T27C:-}"
 if [[ -z "$T27C" ]]; then
-  for p in "$ROOT/bootstrap/target/release/t27c" "$ROOT/bootstrap/target/debug/t27c"; do
+  for p in "$ROOT/target/release/t27c" "$ROOT/target/debug/t27c" "$ROOT/bootstrap/target/release/t27c" "$ROOT/bootstrap/target/debug/t27c"; do
     [[ -x "$p" ]] && T27C="$p" && break
   done
 fi
