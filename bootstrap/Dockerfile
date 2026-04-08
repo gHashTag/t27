@@ -11,14 +11,11 @@ WORKDIR /app
 # Copy package.json
 COPY external/opencode/package.json ./
 
-# Copy bun.lock
-COPY external/opencode/bun.lock ./
-
-# Install dependencies
-RUN bun install --frozen-lockfile
-
-# Copy rest of opencode
+# Copy rest of opencode first (to populate workspace)
 COPY external/opencode/ ./
+
+# Install dependencies (without lockfile to avoid Railway cache issues)
+RUN bun install
 
 # Build the app
 RUN bun run --cwd packages/app build
