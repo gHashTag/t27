@@ -845,3 +845,4 @@ eW91IHdvcmsgaW4gVVRDLio=
 **Last updated:** 2026-04-08 — CI fix, schema-validation paths, Makefile update · PR #349
 
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
+Last updated: 2026-04-08
