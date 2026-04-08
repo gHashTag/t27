@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-08 — FPGA pipeline restoration, seal collision fix · PR #344, #336
+**Last updated:** 2026-04-08 — PHASE 3 spec completion: shell/, tools/, file/ (3,384 lines) · PR #379
 
 **Document class:** Operational focus document
 
@@ -832,4 +832,32 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 ---
 
+## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
+
+- Fixed `issue-gate.yml` — was failing on push events (L1 TRACEABILITY advisory)
+- Re-sealed 135 specs (timestamp drift after workspace rebuild)
+- Yosys synthesis passes locally for `zerodsp_top` (5 modules + wrapper)
+ - Updated `scripts/fpga/Makefile` — all 5 modules, correct UART/SPI interface
+ - Installed Yosys 0.63 via homebrew, openFPGALoader for future flashing
+ - FPGA board (QMTECH XC7A100T) detected on `/dev/cu.usbserial-140` (UART)
+ - Logic analyzer (DreamSourceLab) connected
+
+**Last updated:** 2026-04-08 — ALL 5 FPGA modules in Yosys synthesis (MAC+UART+SPI+Bridge+TopLevel) · Issue #367
+
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
+Last updated: 2026-04-08
+
+## E2E Open-Source FPGA Pipeline (PR #372)
+
+ - **Full E2E bitstream generation with ZERO proprietary tools**
+ - Pipeline: `.t27` specs → `t27c` (Rust compiler) → Verilog → Yosys (synthesis) → nextpnr-xilinx (P&R) → fasm2frames → xc7frames2bit → `.bit`
+ - `t27c fpga-build --docker false --minimal` produces `build/fpga/zerodsp_top.bit` (3.8 MB)
+ - `--minimal` mode: heartbeat LED + UART loopback (clk, rst_n, uart_rx, uart_tx, 8 LEDs)
+ - Max frequency: 276 MHz (PASS at 12 MHz target)
+ - Built nextpnr-xilinx v0.8.2 from source with XC7A100T chipdb
+ - Built prjxray from source (fasm2frames + xc7frames2bit)
+ - Fixed pyo3/numpy version conflict (0.28/0.28)
+ - `--minimal` uses prjxray-verified pins; full mode has 22 missing pins in prjxray-db (tracked)
+ - New CLI flags: `--synth-only`, `--minimal`, `--nextpnr`, `--chipdb`, `--xdc`, `--fasm2frames`, `--frames2bit`, `--prjxray-db`
+
+**Last updated:** 2026-04-08 — E2E FPGA bitstream generation (open-source, zero Vivado) · Issue #367
