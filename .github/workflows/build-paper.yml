@@ -29,6 +29,7 @@ jobs:
             texlive-latex-extra \
             texlive-bibtex-extra \
             biber \
+                                        texlive-xetex \
             pandoc
       - name: Build PDF from Markdown
         run: |
