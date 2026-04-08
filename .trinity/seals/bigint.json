@@ -4,7 +4,7 @@
   "gen_hash_zig": "sha256:8ef5e7b711913c2db0356c29729c755964dac24618ec69b06a00dcc391197db5",
   "module": "BigInt",
   "ring": 12,
-  "sealed_at": "2026-04-08T04:50:12Z",
+  "sealed_at": "2026-04-08T05:04:07Z",
   "spec_hash": "sha256:35b87bd3857ae4b7bc4dfe44c302c2d1aa39cc955b3fdc55e39d43eb3baa8fe1",
   "spec_path": "specs/numeric/bigint.t27"
 }
