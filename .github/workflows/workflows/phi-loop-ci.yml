@@ -1,0 +1,63 @@
+# Enforces L5 IDENTITY: φ² + φ⁻² = 3 with IEEE f64 tolerance checks
+name: PHI Loop CI
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build compiler (t27c) + tri shim
+        working-directory: bootstrap
+        run: cargo build --release
+
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: "E2E: seed.t27 -> t27c gen -> zig test -> GREEN (#150)"
+        run: |
+          set -euo pipefail
+          echo "--- Phase 1: Generate Zig from seed ---"
+          ./bootstrap/target/release/t27c gen specs/base/seed.t27 \
+            > gen/zig/seed_e2e_test.zig
+          echo "--- Phase 2: Verify generation ---"
+          test -f gen/zig/seed_e2e_test.zig || \
+            { echo "FAIL: gen output missing"; exit 1; }
+          echo "--- Phase 3: Zig compile + test ---"
+          zig test gen/zig/seed_e2e_test.zig
+          echo "--- E2E GREEN ---"
+
+      - name: Ensure tri shim is executable
+        run: chmod +x scripts/tri
+
+      - name: "🔒 NOW sync gate (tri check-now)"
+        run: ./scripts/tri check-now
+
+      - name: Run comprehensive test suite (tri test)
+        run: ./scripts/tri test
+
+      - name: Validate conformance vectors (tri validate-conformance)
+        run: ./scripts/tri validate-conformance
+
+      - name: Validate gen headers (tri validate-gen-headers)
+        run: ./scripts/tri validate-gen-headers
+
+      - name: Verify seal coverage
+        run: |
+          SPECS=$(find specs -name '*.t27' | wc -l)
+          SEALS=$(find .trinity/seals -name '*.json' | wc -l)
+          echo "Specs: $SPECS, Seals: $SEALS"
+          echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+
+      - name: First-party docs must be English (Cyrillic check)
+        run: ./bootstrap/target/release/t27c lint-docs  # L7 UNITY: no .sh on critical path

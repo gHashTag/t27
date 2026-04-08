@@ -1,0 +1,52 @@
+name: Brain Seal Refresh
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.trinity/experience/**'
+      - 'scripts/aggregate-experience.sh'
+  workflow_dispatch:
+
+jobs:
+  refresh-brain-seals:
+    runs-on: ubuntu-latest
+    name: Refresh Brain Seals from Experience
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run experience aggregation
+        run: |
+          bash scripts/aggregate-experience.sh .
+
+      - name: Validate brain seals
+        run: |
+          python3 << 'EOF'
+          import json
+          from jsonschema import validate
+
+          # Validate against BRAIN_SEAL_SCHEMA
+          schema = json.load(open('conformance/BRAIN_SEAL_SCHEMA.json'))
+
+          for seal_file in ['.trinity/seals/brain_summary.json', '.trinity/seals/brain_domains.json']:
+              instance = json.load(open(seal_file))
+              validate(instance=instance, schema=schema)
+              print(f"{seal_file}: VALID")
+          EOF
+
+      - name: Upload brain seals
+        uses: actions/upload-artifact@v4
+        with:
+          name: brain-seals
+          path: .trinity/seals/brain_*.json
+
+      - name: Commit brain seals
+        run: |
+          git config --local user.email "t27-bot@trinity.ai"
+          git config --local user.name "T27 Autonomous Agent"
+          git add .trinity/seals/brain_*.json
+          git diff --staged --quiet || echo "No changes to commit"
+          git commit -m "chore: refresh brain seals from experience aggregation" || echo "Nothing to commit"
+          git push

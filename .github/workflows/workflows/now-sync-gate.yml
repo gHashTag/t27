@@ -1,0 +1,54 @@
+name: NOW Sync Gate
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+jobs:
+  check-now-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check docs/NOW.md is updated (pull_request)
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_EVENT_NAME: pull_request
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/ci/now-sync-gate-diff.sh
+
+      - name: Check docs/NOW.md is updated (push)
+        if: github.event_name == 'push'
+        env:
+          GITHUB_EVENT_NAME: push
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: bash scripts/ci/now-sync-gate-diff.sh
+
+      - name: Validate NOW.md date is today or recent
+        run: |
+          set -euo pipefail
+          TODAY=$(date -u +%Y-%m-%d)
+          YESTERDAY=$(date -u -d yesterday +%Y-%m-%d)
+          LINE=$(grep -m1 "Last updated:" docs/NOW.md || true)
+          LAST=""
+          if [ -n "$LINE" ]; then
+            LAST=$(echo "$LINE" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1 || true)
+          fi
+          if [ "$LAST" != "$TODAY" ] && [ "$LAST" != "$YESTERDAY" ]; then
+            echo "::error::NOW.md date ($LAST) is too old. Update to $TODAY (UTC)."
+            exit 1
+          fi
+          echo "✅ NOW.md freshness check passed: $LAST (UTC window: $YESTERDAY .. $TODAY)"
+
+      - name: Check agent sync JSON exists
+        run: |
+          if [ ! -f ".trinity/state/github-sync.json" ]; then
+            echo "::warning::Agent sync file missing: .trinity/state/github-sync.json"
+          else
+            echo "✅ Agent sync file present"
+          fi
