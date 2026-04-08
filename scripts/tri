@@ -1,6 +1,512 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# Dissertation Workflow Dispatch Layer
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+# Dissertation verdict commands - lightweight wrappers
+tri_verdict_dissertation_structure() {
+    local input="${1:-}"
+    local output_dir="${ROOT}/.trinity/experience/dissertation/strand-i/structure"
+
+    echo "[tri verdict --dissertation-structure]"
+    echo "Input: ${input}"
+    echo "Output: ${output_dir}"
+    echo ""
+    echo "Validating:"
+    echo "  - Abstract present and within word limit"
+    echo "  - All RQs introduced in introduction"
+    echo "  - RQ-theorem mapping consistent"
+    echo "  - Theorem flow logically ordered"
+    echo "  - Limitations section comprehensive"
+    echo "  - Conclusion addresses all RQs"
+    echo ""
+    echo "See: ${output_dir}/audit-report.md"
+}
+
+tri_verdict_proof_check() {
+    local input="${1:-}"
+    local output_dir="${ROOT}/.trinity/experience/dissertation/strand-i/proofs"
+
+    echo "[tri verdict --proof-check]"
+    echo "Input: ${input}"
+    echo "Output: ${output_dir}"
+    echo ""
+    echo "Verifying proofs:"
+    echo "  - Theorem 3.1 (Trinity Identity)"
+    echo "  - Theorem 4.1 (Fixed-Point Convergence)"
+    echo "  - Proposition 4.2 (GoldenFloat Bit Allocation)"
+    echo "  - Theorem 5.1 (VSA Binding Properties)"
+    echo "  - Theorem 5.2 (VSA Similarity Metrics)"
+    echo "  - Proposition 5.1 (Trit Encoding)"
+    echo ""
+    echo "See: ${output_dir}/proof-verification-report.md"
+}
+
+tri_verdict_citation_audit() {
+    local input="${1:-}"
+    local output_dir="${ROOT}/.trinity/experience/dissertation/strand-i/citations"
+
+    echo "[tri verdict --citation-audit]"
+    echo "Input: ${input}"
+    echo "Output: ${output_dir}"
+    echo ""
+    echo "Auditing citations:"
+    echo "  - Every novelty claim has citation"
+    echo "  - VSA operations cited to original sources"
+    echo "  - Sacred constants reference CODATA"
+    echo "  - GoldenFloat formats compare to IEEE 754"
+    echo "  - No orphan citations"
+    echo ""
+    echo "See: ${output_dir}/citation-audit-report.md"
+}
+
+tri_verdict_terminology() {
+    local input="${1:-}"
+    local output_dir="${ROOT}/.trinity/experience/dissertation/strand-i/terminology"
+
+    echo "[tri verdict --terminology]"
+    echo "Input: ${input}"
+    echo "Output: ${output_dir}"
+    echo ""
+    echo "Normalizing terminology:"
+    echo "  - Trinity S³AI (not Trinity S3AI)"
+    echo "  - Vector Symbolic Architecture (not VSA alone)"
+    echo "  - Hyperdimensional Computing (not HDC alone)"
+    echo "  - GoldenFloat (not golden-float)"
+    echo "  - TRI-27 (not tri-27)"
+    echo "  - Ternary (not 3-valued)"
+    echo "  - Trit (not ternary digit)"
+    echo ""
+    echo "See: ${output_dir}/terminology-normalization-table.md"
+}
+
+tri_verdict_continuity() {
+    local input="${1:-}"
+    local output_dir="${ROOT}/.trinity/experience/dissertation/strand-i/continuity"
+
+    echo "[tri verdict --continuity]"
+    echo "Input: ${input}"
+    echo "Output: ${output_dir}"
+    echo ""
+    echo "Mapping Strand I → II/III dependencies:"
+    echo "  - Theorem 3.1 → Cognitive structural invariants"
+    echo "  - Theorem 4.1 → Learning as attractor dynamics"
+    echo "  - Proposition 4.2 → Quantized cognitive states"
+    echo "  - Theorem 5.1 → Symbolic reasoning primitives"
+    echo "  - Theorem 5.2 → Cognitive matching metrics"
+    echo "  - Proposition 5.1 → Ternary cognitive representations"
+    echo ""
+    echo "See: ${output_dir}/strand-map.md"
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# NotebookLM Commands
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+tri_notebook_auth() {
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found. Run setup first."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.client import client_authenticate
+from contrib.backend.notebooklm.config import config_from_env
+
+cfg = config_from_env()
+if client_authenticate(cfg):
+    print('[OK] Authenticated with NotebookLM')
+else:
+    print('[FAIL] Authentication failed')
+    sys.exit(1)
+"
+
+    deactivate 2>/dev/null
+}
+
+tri_notebook_create() {
+    local title="${1:-}"
+
+    if [[ -z "$title" ]]; then
+        echo "Error: notebook name required"
+        echo "Usage: tri notebook create <title>"
+        exit 1
+    fi
+
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+import json
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.notebooks import notebook_create
+
+result = notebook_create('${title}')
+if result:
+    print(f'[OK] Created notebook: {result[\"title\"]} (ID: {result[\"id\"]})')
+    print(json.dumps(result, indent=2))
+else:
+    print('[FAIL] Failed to create notebook')
+    sys.exit(1)
+"
+
+    deactivate 2>/dev/null
+}
+
+tri_notebook_list() {
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+import json
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.notebooks import notebook_list
+
+notebooks = notebook_list()
+print(f'Found {len(notebooks)} notebooks')
+for nb in notebooks:
+    print(f'  - {nb[\"title\"]} (ID: {nb[\"id\"]}, Sources: {nb[\"source_count\"]})')
+"
+
+    deactivate 2>/dev/null
+}
+
+tri_notebook_get() {
+    local notebook_id="${1:-}"
+
+    if [[ -z "$notebook_id" ]]; then
+        echo "Error: notebook ID required"
+        echo "Usage: tri notebook get <id>"
+        exit 1
+    fi
+
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+import json
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.notebooks import notebook_get
+
+result = notebook_get('${notebook_id}')
+if result:
+    print(f'Notebook: {result[\"title\"]}')
+    print(f'ID: {result[\"id\"]}')
+    print(f'Sources: {result[\"source_count\"]}')
+    print(f'Created: {result[\"created_at\"]}')
+    print(f'Updated: {result[\"updated_at\"]}')
+else:
+    print('[FAIL] Notebook not found')
+    sys.exit(1)
+"
+
+    deactivate 2>/dev/null
+}
+
+tri_notebook_find() {
+    local name="${1:-}"
+
+    if [[ -z "$name" ]]; then
+        echo "Error: notebook name required"
+        echo "Usage: tri notebook find <name>"
+        exit 1
+    fi
+
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+import json
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.notebooks import notebook_find_by_name
+
+result = notebook_find_by_name('${name}')
+if result:
+    print(f'Found: {result[\"title\"]} (ID: {result[\"id\"]})')
+    print(f'Sources: {result[\"source_count\"]}')
+else:
+    print('[NOT FOUND] No notebook named \"${name}\"')
+    sys.exit(1)
+"
+
+    deactivate 2>/dev/null
+}
+
+tri_notebook_delete() {
+    local notebook_id="${1:-}"
+
+    if [[ -z "$notebook_id" ]]; then
+        echo "Error: notebook ID required"
+        echo "Usage: tri notebook delete <id>"
+        exit 1
+    fi
+
+    echo "WARNING: This will permanently delete the notebook!"
+    read -p "Confirm deletion of '${notebook_id}'? [y/N] " -n 1 -r
+    echo
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.notebooks import notebook_delete
+
+if notebook_delete('${notebook_id}'):
+    print('[OK] Notebook deleted')
+else:
+    print('[FAIL] Failed to delete notebook')
+    sys.exit(1)
+"
+
+    deactivate 2>/dev/null
+}
+
+tri_wrapup() {
+    local summary=""
+    local decisions=""
+    local files=""
+    local steps=""
+    local notebook_id=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --summary)
+                summary="$2"
+                shift 2
+                ;;
+            --decisions)
+                decisions="$2"
+                shift 2
+                ;;
+            --files)
+                files="$2"
+                shift 2
+                ;;
+            --steps)
+                steps="$2"
+                shift 2
+                ;;
+            --notebook)
+                notebook_id="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$summary" ]]; then
+                    summary="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Get notebook ID from environment or find default
+    if [[ -z "$notebook_id" ]]; then
+        notebook_id="${NOTEBOOKLM_NOTEBOOK_ID:-}"
+    fi
+
+    source /tmp/notebooklm-venv/bin/activate 2>/dev/null || {
+        echo "Error: NotebookLM venv not found."
+        exit 1
+    }
+
+    python3 -c "
+import sys
+import json
+sys.path.insert(0, '${ROOT}')
+from contrib.backend.notebooklm.notebooks import notebook_find_by_name
+from contrib.backend.notebooklm.wrapup import wrapup_create_and_upload
+
+# Find notebook
+notebook_id = '${notebook_id}'
+if not notebook_id:
+    result = notebook_find_by_name('t27-QUEEN-BRAIN')
+    if result:
+        notebook_id = result['id']
+        print(f'Using notebook: t27-QUEEN-BRAIN ({notebook_id})')
+    else:
+        print('[FAIL] No notebook specified and t27-QUEEN-BRAIN not found')
+        print('Use --notebook <id> or set NOTEBOOKLM_NOTEBOOK_ID')
+        sys.exit(1)
+
+# Create and upload wrapup
+result = wrapup_create_and_upload(
+    notebook_id,
+    '${summary}' or 'Session completed',
+    '${decisions}' or 'No decisions recorded',
+    '${files}' or 'No files changed',
+    '${steps}' or 'No next steps'
+)
+
+if result:
+    print(f'[OK] Wrap-up uploaded as source: {result.get(\"id\", \"unknown\")}')
+    print(f'Title: Session {result.get(\"title\", \"unknown\")}')
+else:
+    print('[FAIL] Failed to upload wrap-up')
+    sys.exit(1)
+"
+
+    deactivate 2>/dev/null
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# Dispatch Table
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+case "${1:-}" in
+    verdict)
+        shift
+        case "${1:-}" in
+            --dissertation-structure)
+                tri_verdict_dissertation_structure "${2:-}"
+                exit 0
+                ;;
+            --proof-check)
+                tri_verdict_proof_check "${2:-}"
+                exit 0
+                ;;
+            --citation-audit)
+                tri_verdict_citation_audit "${2:-}"
+                exit 0
+                ;;
+            --terminology)
+                tri_verdict_terminology "${2:-}"
+                exit 0
+                ;;
+            --continuity)
+                tri_verdict_continuity "${2:-}"
+                exit 0
+                ;;
+            *)
+                echo "tri verdict: unknown option '${1:-}'" >&2
+                echo "" >&2
+                echo "Usage: tri verdict <option> [input]" >&2
+                echo "" >&2
+                echo "Options:" >&2
+                echo "  --dissertation-structure  Validate academic structure" >&2
+                echo "  --proof-check            Verify formal proofs" >&2
+                echo "  --citation-audit         Audit references" >&2
+                echo "  --terminology            Normalize terminology" >&2
+                echo "  --continuity             Map cross-strand dependencies" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    notebook)
+        shift
+        case "${1:-}" in
+            auth)
+                tri_notebook_auth
+                exit 0
+                ;;
+            create)
+                tri_notebook_create "${2:-}"
+                exit 0
+                ;;
+            list)
+                tri_notebook_list
+                exit 0
+                ;;
+            get)
+                tri_notebook_get "${2:-}"
+                exit 0
+                ;;
+            find)
+                tri_notebook_find "${2:-}"
+                exit 0
+                ;;
+            delete)
+                tri_notebook_delete "${2:-}"
+                exit 0
+                ;;
+            *)
+                echo "tri notebook: unknown option '${1:-}'" >&2
+                echo "" >&2
+                echo "Usage: tri notebook <command> [args]" >&2
+                echo "" >&2
+                echo "Commands:" >&2
+                echo "  auth                    Authenticate with NotebookLM" >&2
+                echo "  create <title>          Create a new notebook" >&2
+                echo "  list                    List all notebooks" >&2
+                echo "  get <id>                Get notebook details" >&2
+                echo "  find <name>             Find notebook by name" >&2
+                echo "  delete <id>             Delete a notebook" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    wrapup)
+        shift
+        tri_wrapup "$@"
+        exit 0
+        ;;
+esac
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# Built-in help for tri commands
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+if [[ "${1:-}" == "help" ]] || [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
+    echo "Trinity t27 CLI - Spec-First Development Framework"
+    echo ""
+    echo "Built-in commands:"
+    echo "  verdict                 Dissertation verdict commands"
+    echo "    --dissertation-structure  Validate academic structure"
+    echo "    --proof-check            Verify formal proofs"
+    echo "    --citation-audit         Audit references"
+    echo "    --terminology            Normalize terminology"
+    echo "    --continuity             Map cross-strand dependencies"
+    echo ""
+    echo "  notebook                NotebookLM integration"
+    echo "    auth                    Authenticate with NotebookLM"
+    echo "    create <title>          Create a new notebook"
+    echo "    list                    List all notebooks"
+    echo "    get <id>                Get notebook details"
+    echo "    find <name>             Find notebook by name"
+    echo "    delete <id>             Delete a notebook"
+    echo ""
+    echo "  wrapup                 Upload session wrap-up to NotebookLM"
+    echo "    --summary <text>        Session summary"
+    echo "    --decisions <text>      Key decisions made"
+    echo "    --files <text>          Files changed"
+    echo "    --steps <text>          Next steps"
+    echo "    --notebook <id>         Target notebook (default: t27-QUEEN-BRAIN)"
+    echo ""
+    echo "All other commands are passed to t27c (spec/gen/compile/lint/skill/etc)."
+    echo "Run 't27c help' or 'tri <command> --help' for more."
+    exit 0
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════════
+# Pass through to t27c for all other commands
+# ═══════════════════════════════════════════════════════════════════════════════════
+
 T27C="${TRI_T27C:-}"
 if [[ -z "$T27C" ]]; then
   for p in "$ROOT/bootstrap/target/release/t27c" "$ROOT/bootstrap/target/debug/t27c"; do
