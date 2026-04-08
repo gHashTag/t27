@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "--- Phase 1: Generate Zig from seed ---"
-          ./bootstrap/target/release/t27c gen specs/base/seed.t27 \
+          ./target/release/t27c gen specs/base/seed.t27 \
             > gen/zig/seed_e2e_test.zig
           echo "--- Phase 2: Verify generation ---"
           test -f gen/zig/seed_e2e_test.zig || \
@@ -60,4 +60,4 @@ jobs:
           echo "phi^2 + 1/phi^2 = 3 | TRINITY"
 
       - name: First-party docs must be English (Cyrillic check)
-        run: ./bootstrap/target/release/t27c lint-docs  # L7 UNITY: no .sh on critical path
+        run: ./target/release/t27c lint-docs  # L7 UNITY: no .sh on critical path
