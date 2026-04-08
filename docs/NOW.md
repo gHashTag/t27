@@ -845,3 +845,4 @@ eW91IHdvcmsgaW4gVVRDLio=
 **Last updated:** 2026-04-08 — ALL 5 FPGA modules in Yosys synthesis (MAC+UART+SPI+Bridge+TopLevel) · Issue #367
 
 *This is a partial update for PR #337. Integrate into full NOW.md after merge.*
+Last updated: 2026-04-08

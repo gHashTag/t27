@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/math/gf_competitive.t27
 // GoldenFloat Competitive Analysis — GF vs Posit vs IEEE 754
 // MATH-COMPETITIVE-001 — Decode latency, parallelism, hardware efficiency
