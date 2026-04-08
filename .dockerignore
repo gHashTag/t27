@@ -1,0 +1,29 @@
+# External dependencies not needed for Railway build
+external/opencode/
+external/kagley/
+
+# Git and CI
+.git/
+.gitignore
+.github/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+target/
+node_modules/
+dist/
+*.log
+
+# Claude Code and project-specific
+.claude/
+.trinity/
