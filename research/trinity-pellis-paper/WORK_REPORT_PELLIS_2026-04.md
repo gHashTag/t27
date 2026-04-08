@@ -31,31 +31,16 @@ After corrections the picture is **honest**: some ansätze look better, some har
 |----------|--------|-----------------|
 | [**PR #294**](https://github.com/gHashTag/t27/pull/294) | Merged | Large bundle: seals (`.trinity`), specs (ternary, Pellis precision, GF competitive), language benchmarks, `math_compare` + trinity-pellis docs, merge with `master`, conflict resolution |
 | [**PR #299**](https://github.com/gHashTag/t27/pull/299) | **Merged** | P0 Core Rewrite Sprint 1: Zig → `.t27` specs (`PackedTrit`, `SacredConstants`, `HybridArithmetic`); see §3 |
-| [**PR #325**](https://github.com/gHashTag/t27/pull/325) | **Merged** | April work report + `FORMULA_TABLE` rows 31–32 (H2) + `TECHNOLOGY_MAP.md` + §13 index update |
 | [**PR #297**](https://github.com/gHashTag/t27/pull/297) | Open (not mergeable from bot) | [`docs/WHITEPAPER/gf_paper_v3_imrad_draft.md`](../../docs/WHITEPAPER/gf_paper_v3_imrad_draft.md) + extended [`benchmarks/language_tests/`](../../benchmarks/language_tests/) — **merge blocked:** conflicts + failing `check-linked-issue` gate (verify in GitHub UI) |
 | [**PR #321**](https://github.com/gHashTag/t27/pull/321) | Merged | Removed nested `trinity/.git`; added [`trinity/README.md`](../../trinity/README.md) |
-| [**Issue #295**](https://github.com/gHashTag/t27/issues/295) | Open | Canonical Weinberg CLI work: `tri math compare --weinberg` — template [`GH_ISSUE_WEINBERG_CLI_BODY.md`](GH_ISSUE_WEINBERG_CLI_BODY.md) |
-| [**Issue #296**](https://github.com/gHashTag/t27/issues/296) | Open | Canonical hybrid v2 work — template [`GH_ISSUE_HYBRID_V2_BODY.md`](GH_ISSUE_HYBRID_V2_BODY.md) |
-
-*PR **#302** / **#303** were closed as duplicates of **#295** / **#296** (April 2026 tracker cleanup).*
+| [**Issue #295**](https://github.com/gHashTag/t27/issues/295) | Open | Earlier title: `tri math compare --weinberg` — body [`GH_ISSUE_WEINBERG_CLI_BODY.md`](GH_ISSUE_WEINBERG_CLI_BODY.md) |
+| [**Issue #302**](https://github.com/gHashTag/t27/issues/302) | Open | Duplicate track: `feat(cli): tri math compare --weinberg` — **close one of #295 / #302** when implementation lands |
+| [**Issue #296**](https://github.com/gHashTag/t27/issues/296) | Open | Earlier title: hybrid v2 + golden N — body [`GH_ISSUE_HYBRID_V2_BODY.md`](GH_ISSUE_HYBRID_V2_BODY.md) |
+| [**Issue #303**](https://github.com/gHashTag/t27/issues/303) | Open | Duplicate track: `feat(cli): hybrid v2 golden tests N=5..152` — **close one of #296 / #303** when implementation lands |
 
 *PR/issue numbers: confirm in the [GitHub UI](https://github.com/gHashTag/t27) before citing in external letters.*
 
-**Merge policy note (April 2026):** **PR #299** and **#325** are on `master`. **PR #297** still needs manual conflict resolution + issue-gate compliance. Do **not** bulk-merge unrelated Ring PRs without review; treat merges as scoped releases.
-
-### 1.1 Хронология интеграции (RU) — «чистая» сводка
-
-| Артефакт | Статус | Содержание (кратко) |
-|----------|--------|----------------------|
-| [PR #294](https://github.com/gHashTag/t27/pull/294) | Объединено | Большой пакет: сертификаты (`.trinity`), спецификации (тройная архитектура, точность Pellis, конкурентоспособность GF), языковые тесты, `math_compare` + документация Trinity–Pellis, слияние с `master`, разрешение конфликтов |
-| [PR #299](https://github.com/gHashTag/t27/pull/299) | Объединено | P0 Core Rewrite Sprint 1: Zig → `.t27` specs (`PackedTrit`, `SacredConstants`, `HybridArithmetic`); см. §3 |
-| [PR #325](https://github.com/gHashTag/t27/pull/325) | Объединено | Отчёт апреля + строки 31–32 в `FORMULA_TABLE` (H2) + `TECHNOLOGY_MAP.md` + индекс §13 |
-| [PR #297](https://github.com/gHashTag/t27/pull/297) | Открыто (не подлежит автослиянию) | `docs/WHITEPAPER/gf_paper_v3_imrad_draft.md` + расширение `benchmarks/language_tests/` — слияние заблокировано: **конфликты** + сбой проверки **`check-linked-issue`** (см. UI GitHub) |
-| [PR #321](https://github.com/gHashTag/t27/pull/321) | Объединено | Удалён вложенный `trinity/.git`; добавлен `trinity/README.md` |
-| [Issue #295](https://github.com/gHashTag/t27/issues/295) | Открыто | Канон: `tri math compare --weinberg` — тело шаблона `GH_ISSUE_WEINBERG_CLI_BODY.md` |
-| [Issue #296](https://github.com/gHashTag/t27/issues/296) | Открыто | Канон: hybrid v2 + golden N — тело шаблона `GH_ISSUE_HYBRID_V2_BODY.md` |
-
-*Ранее открытые **#302** / **#303** закрыты как дубликаты **#295** / **#296**.*
+**Merge policy note (April 2026):** **PR #299** is already on `master`. **PR #297** could not be merged automatically from this environment (conflicts + gate). Do **not** bulk-merge dozens of unrelated open Ring PRs without review; treat merges as scoped releases.
 
 ---
 
@@ -149,8 +134,8 @@ All under `research/trinity-pellis-paper/`.
 ## 7. Open steps (recommendations)
 
 1. **Resolve and merge [PR #297](https://github.com/gHashTag/t27/pull/297)** after fixing conflicts and satisfying **issue-gate** (link a qualifying issue in PR description).
-2. **Implement and close** Weinberg CLI on **[#295](https://github.com/gHashTag/t27/issues/295)** (duplicate **#302** closed).
-3. **Implement and close** hybrid v2 golden tests on **[#296](https://github.com/gHashTag/t27/issues/296)** (duplicate **#303** closed).
+2. **Implement and close** Weinberg CLI: consolidate **[#295](https://github.com/gHashTag/t27/issues/295) / [#302](https://github.com/gHashTag/t27/issues/302)**.
+3. **Implement and close** hybrid v2 golden tests: consolidate **[#296](https://github.com/gHashTag/t27/issues/296) / [#303](https://github.com/gHashTag/t27/issues/303)**.
 4. **Sprint / stash “seven files”** — land as a separate commit when the sprint branch is ready (do not mix with whitepaper PR until conflicts are resolved).
 5. **GMP/MPFR** + `verify_precision.py` expansion — separate PRs, lower priority.
 6. **JUNO-era / reactor fits:** monitor as the long-horizon experimental discriminator for **H2**.
