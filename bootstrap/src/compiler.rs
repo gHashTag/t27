@@ -688,6 +688,28 @@ impl Lexer {
             };
         }
 
+        // Multi-char tokens
+        if ch == b'&' && self.peek() == b'&' {
+            self.advance();
+            self.advance();
+            return Token {
+                kind: TokenKind::Amp,
+                lexeme: "&&".to_string(),
+                line: start_line,
+                col: start_col,
+            };
+        }
+        if ch == b'|' && self.peek() == b'|' {
+            self.advance();
+            self.advance();
+            return Token {
+                kind: TokenKind::Pipe,
+                lexeme: "||".to_string(),
+                line: start_line,
+                col: start_col,
+            };
+        }
+
         // Single char tokens
         let kind = match ch {
             b':' => TokenKind::Colon,
@@ -1899,8 +1921,10 @@ impl Parser {
     /// Parse `or` expressions
     fn parse_expr_or(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_and()?;
-        while self.current.kind == TokenKind::KwOr {
-            self.advance(); // consume 'or'
+        while self.current.kind == TokenKind::KwOr
+            || (self.current.kind == TokenKind::Pipe && self.current.lexeme == "||")
+        {
+            self.advance();
             let right = self.parse_expr_and()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -1915,8 +1939,10 @@ impl Parser {
     /// Parse `and` expressions
     fn parse_expr_and(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_comparison()?;
-        while self.current.kind == TokenKind::KwAnd {
-            self.advance(); // consume 'and'
+        while self.current.kind == TokenKind::KwAnd
+            || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
+        {
+            self.advance();
             let right = self.parse_expr_comparison()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -5662,11 +5688,21 @@ fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut consts: Vec<(String, String)> = Vec::new();
     for stmt in stmts.iter() {
         if stmt.kind == NodeKind::StmtLocal
+            && !stmt.extra_mutable
             && stmt.children.len() == 1
             && stmt.children[0].kind == NodeKind::ExprLiteral
             && is_literal(&stmt.children[0])
         {
-            consts.push((stmt.name.clone(), stmt.children[0].value.clone()));
+            let name = stmt.name.clone();
+            let reassigned = stmts.iter().any(|s| {
+                s.kind == NodeKind::StmtAssign
+                    && s.children.len() >= 1
+                    && s.children[0].kind == NodeKind::ExprIdentifier
+                    && s.children[0].name == name
+            });
+            if !reassigned {
+                consts.push((name, stmt.children[0].value.clone()));
+            }
         }
     }
     if consts.is_empty() {
@@ -5687,7 +5723,10 @@ fn replace_ident_with_literal(node: &mut Node, name: &str, val: &str, stats: &mu
         stats.copies_propagated += 1;
         return;
     }
-    for child in &mut node.children {
+    for (i, child) in node.children.iter_mut().enumerate() {
+        if node.kind == NodeKind::StmtAssign && i == 0 {
+            continue;
+        }
         replace_ident_with_literal(child, name, val, stats);
     }
 }
@@ -5696,7 +5735,10 @@ fn propagate_ident(node: &mut Node, from: &str, to: &str) {
     if node.kind == NodeKind::ExprIdentifier && node.name == *from {
         node.name = to.to_string();
     }
-    for child in &mut node.children {
+    for (i, child) in node.children.iter_mut().enumerate() {
+        if node.kind == NodeKind::StmtAssign && i == 0 {
+            continue;
+        }
         propagate_ident(child, from, to);
     }
 }
