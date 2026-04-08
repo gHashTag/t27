@@ -2961,6 +2961,15 @@ module {top} (
             heartbeat_ctr <= heartbeat_ctr + 1'b1;
     end
 
+    // ---- ZeroDSP_MAC instantiation ----
+    wire mac_ready;
+    ZeroDSP_MAC u_mac (
+        .clk    (sys_clk),
+        .rst_n  (sys_rst_n),
+        .en     (1'b1),
+        .ready  (mac_ready)
+    );
+
     // ---- ZeroDSP_UART instantiation ----
     wire uart_ready;
     ZeroDSP_UART u_uart (
@@ -2990,15 +2999,15 @@ module {top} (
 
     // ---- Output assignments ----
     assign led[0]     = heartbeat_ctr[24];
-    assign led[1]     = uart_ready;
-    assign led[2]     = spi_ready;
-    assign led[3]     = sys_ready;
-    assign led[4]     = 1'b0;
+    assign led[1]     = mac_ready;
+    assign led[2]     = uart_ready;
+    assign led[3]     = spi_ready;
+    assign led[4]     = sys_ready;
     assign led[5]     = 1'b0;
     assign led[6]     = 1'b0;
     assign led[7]     = 1'b0;
     assign uart_tx    = uart_rx;
-    assign mac_done   = 1'b0;
+    assign mac_done   = mac_ready;
     assign mac_result = {{5'd0, heartbeat_ctr}};
     assign spi_cs     = 1'b1;
     assign spi_sck    = 1'b0;
@@ -3041,7 +3050,7 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
                 gen = gen_dir.display(),
                 top = top,
             ),
@@ -3061,7 +3070,7 @@ endmodule
         fs::write(
             &synth_script,
             format!(
-                "read_verilog {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
+                "read_verilog {gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/top_level.v {gen}/{top}.v\nhierarchy -check -top {top}\nproc; opt; fsm; opt; memory; opt\nsynth_xilinx -top {top}\nstat\n",
                 gen = gen_dir.display(),
                 top = top,
             ),
