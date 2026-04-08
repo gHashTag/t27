@@ -8,15 +8,17 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy opencode (now inlined as regular files)
-COPY external/opencode/package.json ./
-COPY external/opencode/ ./
+# Copy Railway fork web package files
+COPY external/opencode/packages/web/package.json ./
 
 # Install dependencies
-RUN bun install
+RUN bun install --frozen-lockfile
+
+# Copy rest of web source
+COPY external/opencode/packages/web/src ./
 
 # Build the app
-RUN bun run --cwd packages/app build
+RUN bun run build
 
 # --- Backend Build Stage ---
 FROM rust:1-slim AS backend-builder
@@ -45,7 +47,7 @@ COPY --from=backend-builder /app/target/release/t27c /usr/local/bin/t27c
 RUN chmod +x /usr/local/bin/t27c
 
 # Copy frontend assets to /app/public (served by t27c)
-COPY --from=frontend-builder /app/packages/app/dist /app/public
+COPY --from=frontend-builder /app/dist /app/public
 
 # Copy additional specs and conformance data
 COPY specs/ /app/specs/
