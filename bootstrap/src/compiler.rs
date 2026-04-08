@@ -6076,6 +6076,55 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
         }
     }
 
+    {
+        let struct_fields: std::collections::HashMap<String, Vec<String>> = ast
+            .children
+            .iter()
+            .filter(|c| c.kind == NodeKind::StructDecl)
+            .map(|c| {
+                (
+                    c.name.clone(),
+                    c.children.iter().map(|f| f.extra_type.clone()).collect(),
+                )
+            })
+            .collect();
+        for (sname, _fields) in &struct_fields {
+            let mut visited = std::collections::HashSet::new();
+            fn has_cycle(
+                name: &str,
+                structs: &std::collections::HashMap<String, Vec<String>>,
+                visited: &mut std::collections::HashSet<String>,
+            ) -> bool {
+                if visited.contains(name) {
+                    return true;
+                }
+                visited.insert(name.to_string());
+                if let Some(fs) = structs.get(name) {
+                    for ft in fs {
+                        let base = ft
+                            .trim()
+                            .trim_end_matches('*')
+                            .trim()
+                            .trim_start_matches("[]")
+                            .trim();
+                        if structs.contains_key(base) && has_cycle(base, structs, visited) {
+                            return true;
+                        }
+                    }
+                }
+                visited.take(name).unwrap();
+                false
+            }
+            if has_cycle(sname, &struct_fields, &mut visited) {
+                result.warnings += 1;
+                result.errors.push(format!(
+                    "warning: recursive struct '{}' detected — consider using a pointer/optional field",
+                    sname
+                ));
+            }
+        }
+    }
+
     for child in &ast.children {
         if child.kind == NodeKind::FnDecl {
             if child.params.len() > 8 {

@@ -466,6 +466,31 @@ enum Commands {
         #[arg(long, default_value = ".")]
         repo_root: String,
     },
+
+    /// Show ASCII visualization of AST
+    Visualize {
+        input: String,
+        #[arg(short, long, default_value_t = 0)]
+        depth: u32,
+    },
+
+    /// Benchmark HTTP server endpoints (requires server running)
+    BenchEndpoints {
+        #[arg(long, default_value = "http://127.0.0.1:3000")]
+        url: String,
+        #[arg(long, default_value_t = 50)]
+        requests: u32,
+    },
+
+    /// Show complexity metrics per function
+    Complexity {
+        input: String,
+    },
+
+    /// Extract all string literals from a spec
+    Strings {
+        input: String,
+    },
 }
 
 // ============================================================================
@@ -5469,6 +5494,131 @@ fn run_doc_all(root: &str, output_dir: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_visualize(input_path: &str, max_depth: u32) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    println!("╔══ {} ══╗", file_name);
+
+    fn print_tree(node: &compiler::Node, prefix: &str, is_last: bool, depth: u32, max_d: u32) {
+        if max_d > 0 && depth > max_d { return; }
+        let connector = if depth == 0 { "" } else if is_last { "╰── " } else { "├── " };
+        let child_prefix = if depth == 0 { "" } else if is_last { "    " } else { "│   " };
+        let label = if node.name.is_empty() {
+            format!("{:?}", node.kind)
+        } else {
+            format!("{:?} \"{}\"", node.kind, node.name)
+        };
+        let extra = if !node.extra_type.is_empty() {
+            format!(" : {}", node.extra_type)
+        } else if !node.extra_return_type.is_empty() {
+            format!(" -> {}", node.extra_return_type)
+        } else {
+            String::new()
+        };
+        println!("{}{}{}{}", prefix, connector, label, extra);
+        let visible: Vec<&compiler::Node> = node.children.iter().collect();
+        for (i, child) in visible.iter().enumerate() {
+            let last = i == visible.len() - 1;
+            print_tree(child, &format!("{}{}", prefix, child_prefix), last, depth + 1, max_d);
+        }
+    }
+    print_tree(&ast, "", true, 0, max_depth);
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn run_bench_endpoints(url: &str, requests: u32) -> anyhow::Result<()> {
+    let endpoints = vec![
+        ("GET", "/api/health"),
+        ("GET", "/api/stats"),
+        ("POST", "/api/compile"),
+        ("POST", "/api/parse"),
+        ("GET", "/api/seals"),
+    ];
+    println!("=== Benchmarking {} ({} req each) ===", url, requests);
+    println!("{:<12} {:<20} {:>8} {:>10} {:>10}", "method", "endpoint", "reqs", "avg_ms", "p99_ms");
+    println!("{}", "-".repeat(65));
+
+    for (method, endpoint) in &endpoints {
+        let full_url = format!("{}{}", url, endpoint);
+        let mut latencies = Vec::new();
+        for _ in 0..requests {
+            let start = std::time::Instant::now();
+            let _ = reqwest::blocking::get(&full_url);
+            latencies.push(start.elapsed().as_secs_f64() * 1000.0);
+        }
+        latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let avg = latencies.iter().sum::<f64>() / latencies.len() as f64;
+        let p99 = latencies[(latencies.len() * 99 / 100).min(latencies.len() - 1)];
+        println!("{:<12} {:<20} {:>8} {:>10.2} {:>10.2}", method, endpoint, requests, avg, p99);
+    }
+    Ok(())
+}
+
+fn run_complexity(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    println!("=== Complexity: {} ===", file_name);
+    println!("{:<40} {:>6} {:>6} {:>6} {:>8}", "function", "stmts", "branch", "loops", "cyclomatic");
+    println!("{}", "-".repeat(70));
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            let mut stmts = 0u32;
+            let mut branches = 0u32;
+            let mut loops = 0u32;
+            fn count_complexity(node: &compiler::Node, stmts: &mut u32, branches: &mut u32, loops: &mut u32) {
+                match node.kind {
+                    compiler::NodeKind::StmtLocal | compiler::NodeKind::StmtAssign => *stmts += 1,
+                    compiler::NodeKind::ExprIf | compiler::NodeKind::StmtIf => *branches += 1,
+                    compiler::NodeKind::ExprSwitch => *branches += 1,
+                    compiler::NodeKind::StmtFor | compiler::NodeKind::StmtWhile => *loops += 1,
+                    _ => {}
+                }
+                for c in &node.children {
+                    count_complexity(c, stmts, branches, loops);
+                }
+            }
+            for body in &child.children {
+                count_complexity(body, &mut stmts, &mut branches, &mut loops);
+            }
+            let cyclomatic = 1 + branches + loops;
+            println!("{:<40} {:>6} {:>6} {:>6} {:>8}", child.name, stmts, branches, loops, cyclomatic);
+        }
+    }
+    Ok(())
+}
+
+fn run_strings(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+    println!("=== String literals in {} ===", file_name);
+
+    fn collect_strings(node: &compiler::Node, results: &mut Vec<(String, u32)>) {
+        if node.kind == compiler::NodeKind::ExprLiteral && node.name.starts_with('"') {
+            results.push((node.name.clone(), node.line));
+        }
+        for c in &node.children {
+            collect_strings(c, results);
+        }
+    }
+
+    let mut strings = Vec::new();
+    collect_strings(&ast, &mut strings);
+    if strings.is_empty() {
+        println!("(none)");
+    } else {
+        for (s, line) in &strings {
+            println!("  L{:>4}: \"{}\"", line, s);
+        }
+        println!("--- {} string literal(s)", strings.len());
+    }
+    Ok(())
+}
+
 // ============================================================================
 // Main Entry Point
 // ============================================================================
@@ -5553,6 +5703,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Summary { repo_root } => run_summary(&repo_root)?,
         Commands::Sort { input } => run_sort(&input)?,
         Commands::UsedBy { symbol, repo_root } => run_used_by(&symbol, &repo_root)?,
+        Commands::Visualize { input, depth } => run_visualize(&input, depth)?,
+        Commands::BenchEndpoints { url, requests } => run_bench_endpoints(&url, requests)?,
+        Commands::Complexity { input } => run_complexity(&input)?,
+        Commands::Strings { input } => run_strings(&input)?,
     }
 
     Ok(())
@@ -5635,6 +5789,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Summary { repo_root } => run_summary(&repo_root)?,
         Commands::Sort { input } => run_sort(&input)?,
         Commands::UsedBy { symbol, repo_root } => run_used_by(&symbol, &repo_root)?,
+        Commands::Visualize { input, depth } => run_visualize(&input, depth)?,
+        Commands::BenchEndpoints { .. } => {
+            eprintln!("Error: 'bench-endpoints' requires 'server' feature");
+            std::process::exit(1);
+        }
+        Commands::Complexity { input } => run_complexity(&input)?,
+        Commands::Strings { input } => run_strings(&input)?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
