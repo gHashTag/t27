@@ -8,13 +8,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy package files first (bun install needs these in working dir)
-COPY external/opencode/package.json external/opencode/bun.lock ./
+# Copy package.json
+COPY external/opencode/package.json ./
+
+# Copy bun.lock
+COPY external/opencode/bun.lock ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile
 
-# Copy rest of source files
+# Copy rest of opencode
 COPY external/opencode/ ./
 
 # Build the app
