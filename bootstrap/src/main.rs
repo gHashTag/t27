@@ -527,6 +527,18 @@ enum Commands {
     #[command(name = "brain-seal-refresh")]
     BrainSealRefresh,
 
+    /// Validate seals for PR-scoped spec files
+    #[command(name = "validate-seals")]
+    ValidateSeals {
+        /// Comma-separated list of PR spec file paths
+        #[arg(long)]
+        pr_files: String,
+    },
+
+    /// Validate L5 phi-identity invariant (phi^2 + phi^-2 = 3)
+    #[command(name = "validate-phi-identity")]
+    ValidatePhiIdentity,
+
     /// FPGA build pipeline: generate Verilog + top-level wrapper from specs/fpga/*.t27
     #[command(name = "fpga-build")]
     FpgaBuild {
@@ -2818,6 +2830,66 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn run_validate_seals(pr_files: &str) -> Result<(), anyhow::Error> {
+    let files: Vec<&str> = pr_files.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    if files.is_empty() {
+        println!("No spec files to validate.");
+        return Ok(());
+    }
+    println!("Validating seals for {} spec files...", files.len());
+    let mut failures = 0;
+    for spec_path in &files {
+        let path = std::path::Path::new(spec_path);
+        if !path.exists() {
+            println!("  SKIP {} (not found)", spec_path);
+            continue;
+        }
+        match compute_seal_hashes(spec_path) {
+            Ok(current) => {
+                let seal_path = std::path::Path::new(".trinity/seals").join(format!("{}.json", current.module));
+                if seal_path.exists() {
+                    let saved_data = std::fs::read_to_string(&seal_path)
+                        .with_context(|| format!("reading seal {}", seal_path.display()))?;
+                    let saved: serde_json::Value = serde_json::from_str(&saved_data)
+                        .with_context(|| format!("parsing seal {}", seal_path.display()))?;
+                    let saved_hash = saved.get("spec_hash").and_then(|v| v.as_str()).unwrap_or("");
+                    if saved_hash == current.spec_hash {
+                        println!("  OK {} (seal match)", spec_path);
+                    } else {
+                        eprintln!("  FAIL {} (seal mismatch)", spec_path);
+                        failures += 1;
+                    }
+                } else {
+                    println!("  SKIP {} (no saved seal at {})", spec_path, seal_path.display());
+                }
+            }
+            Err(e) => {
+                eprintln!("  FAIL {} (compute error: {})", spec_path, e);
+                failures += 1;
+            }
+        }
+    }
+    if failures > 0 {
+        anyhow::bail!("{} seal validation failures", failures);
+    }
+    println!("Seal validation passed for all {} files.", files.len());
+    Ok(())
+}
+
+fn run_validate_phi_identity() -> Result<(), anyhow::Error> {
+    let phi: f64 = (1.0 + 5.0_f64.sqrt()) / 2.0;
+    let phi_sq = phi * phi;
+    let phi_inv_sq = 1.0 / (phi * phi);
+    let identity = phi_sq + phi_inv_sq;
+    let tolerance = 1e-10;
+    if (identity - 3.0).abs() < tolerance {
+        println!("L5 PHI-IDENTITY CHECK PASSED: phi^2 + phi^-2 = {:.15} (delta = {:.2e})", identity, (identity - 3.0).abs());
+        Ok(())
+    } else {
+        anyhow::bail!("L5 PHI-IDENTITY CHECK FAILED: phi^2 + phi^-2 = {:.15} (expected 3.0, delta = {:.2e})", identity, (identity - 3.0).abs())
+    }
 }
 
 fn run_fpga_build(
@@ -6062,19 +6134,25 @@ async fn main() -> anyhow::Result<()> {
         Commands::AstDump { input } => run_ast_dump(&input)?,
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
-        Commands::Orphans { input } => run_orphans(&input)?,
-        Commands::FpgaBuild { smoke, device, top, docker, output } => {
-            let repo_root = std::env::current_dir()?;
-            run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
-        }
-        Commands::CheckClaimTiers => {
-            eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
-        }
-        Commands::BrainSealRefresh => {
-            eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
-        }
-    }
-
+         Commands::Orphans { input } => run_orphans(&input)?,
+         Commands::FpgaBuild { smoke, device, top, docker, output } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
+         }
+         Commands::ValidateSeals { pr_files } => {
+             run_validate_seals(&pr_files)?;
+         }
+         Commands::ValidatePhiIdentity => {
+             run_validate_phi_identity()?;
+         }
+         Commands::CheckClaimTiers => {
+             eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+         }
+         Commands::BrainSealRefresh => {
+             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+         }
+     }
+ 
     Ok(())
 }
 
@@ -6167,16 +6245,22 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-        Commands::FpgaBuild { smoke, device, top, docker, output } => {
-            let repo_root = std::env::current_dir()?;
-            run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
-        }
-        Commands::CheckClaimTiers => {
-            eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
-        }
-        Commands::BrainSealRefresh => {
-            eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
-        }
+         Commands::FpgaBuild { smoke, device, top, docker, output } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_build(&repo_root, smoke, &device, &top, docker, &output)?;
+         }
+         Commands::ValidateSeals { pr_files } => {
+             run_validate_seals(&pr_files)?;
+         }
+         Commands::ValidatePhiIdentity => {
+             run_validate_phi_identity()?;
+         }
+         Commands::CheckClaimTiers => {
+             eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+         }
+         Commands::BrainSealRefresh => {
+             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+         }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
