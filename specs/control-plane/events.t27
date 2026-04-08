@@ -1,0 +1,294 @@
+// specs/control-plane/events.t27
+// Control Plane Events Operations
+// φ² + 1/φ² = 3 | TRINITY
+
+module ControlPlaneEvents {
+    use base::types;
+    use control-plane::schema;
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // publish publishes an event to subscribers
+    fn publish(event: Event) -> Result<void, EventError> {
+        // Implementation: Broadcast event to all subscribers
+    }
+
+    // subscribe subscribes to events for a workspace
+    fn subscribe(workspaceID: WorkspaceID, callback: fn(Event) -> void) -> Result<SubscriptionID, EventError> {
+        // Implementation: Register callback for workspace events
+    }
+
+    // unsubscribe removes a subscription
+    fn unsubscribe(subscriptionID: SubscriptionID) -> Result<void, EventError> {
+        // Implementation: Remove event subscription
+    }
+
+    // broadcast broadcasts an event to all clients
+    fn broadcast(event: Event) -> Result<u32, EventError> {
+        // Implementation: Send to all connected SSE clients
+    }
+
+    // send sends an event to a specific client
+    fn send(clientID: str, event: Event) -> Result<bool, EventError> {
+        // Implementation: Send to specific SSE client
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SSE Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // sse_connect establishes an SSE connection
+    fn sse_connect(workspaceID: WorkspaceID) -> Result<SSEStream, EventError> {
+        // Implementation: Create SSE stream for client
+    }
+
+    // sse_parse parses SSE data from a stream
+    fn sse_parse(data: str) -> Result<[SSEMessage], EventError> {
+        // Implementation: Parse SSE format messages
+    }
+
+    // sse_format formats an event as SSE
+    fn sse_format(event: Event) -> SSEMessage {
+        // Implementation: Convert Event to SSEMessage
+    }
+
+    // sse_validate validates SSE message format
+    fn sse_validate(msg: SSEMessage) -> bool {
+        // Implementation: Check SSE message validity
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Event Queue Operations
+    // ════════════════════════════════════════════════════════════════════
+
+    // enqueue adds an event to the queue for a workspace
+    fn enqueue(workspaceID: WorkspaceID, event: Event) -> Result<void, EventError> {
+        // Implementation: Add to workspace event queue
+    }
+
+    // dequeue retrieves the next event for a workspace
+    fn dequeue(workspaceID: WorkspaceID) -> Result<Event?, EventError> {
+        // Implementation: Get next event from queue
+    }
+
+    // queue_size returns the number of queued events
+    fn queue_size(workspaceID: WorkspaceID) -> Result<u32, EventError> {
+        // Implementation: Return queue length
+    }
+
+    // clear_queue removes all queued events for a workspace
+    fn clear_queue(workspaceID: WorkspaceID) -> Result<u32, EventError> {
+        // Implementation: Remove all events and return count
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Types
+    // ════════════════════════════════════════════════════════════════════
+
+    // SubscriptionID is a branded string representing a subscription
+    struct SubscriptionID(str);
+
+    // SSEStream represents an SSE stream connection
+    struct SSEStream {
+        id: str,                // Stream ID
+        workspaceID: WorkspaceID,
+        connectedAt: u64,       // Connection timestamp
+        channel: str,           // Channel for sending events
+    }
+
+    // EventFilter represents a filter for events
+    struct EventFilter {
+        types: [EventType],      // Event types to receive
+        workspaceID: WorkspaceID?, // Specific workspace
+        since: u64?,            // Only events since timestamp
+    }
+
+    // EventError represents errors in event operations
+    enum EventError {
+        InvalidEvent = 0,
+        NotFound = 1,
+        AlreadySubscribed = 2,
+        NotSubscribed = 3,
+        StreamError = 4,
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "subscription_id_creation" {
+        var id = SubscriptionID("sub-123");
+        assert(id.0 == "sub-123");
+    }
+
+    test "sse_stream_creation" {
+        var stream = SSEStream {
+            id = "stream-1",
+            workspaceID = WorkspaceID("ws-1"),
+            connectedAt = 1234567890,
+            channel = "events",
+        };
+        assert(stream.id == "stream-1");
+        assert(stream.workspaceID.0 == "ws-1");
+        assert(stream.channel == "events");
+    }
+
+    test "event_filter_creation" {
+        var filter = EventFilter {
+            types: [
+                EventType::WorkspaceReady,
+                EventType::WorkspaceSync,
+            ],
+            workspaceID = WorkspaceID("ws-1"),
+            since = 1234567000,
+        };
+        assert(filter.types.len == 2);
+        assert(filter.workspaceID?.0 == "ws-1");
+        assert(filter.since == 1234567000);
+    }
+
+    test "event_filter_minimal" {
+        var filter = EventFilter {
+            types: [],
+            workspaceID = null,
+            since = null,
+        };
+        assert(filter.types.len == 0);
+        assert(filter.workspaceID == null);
+    }
+
+    test "event_error_values" {
+        assert(EventError::InvalidEvent as u32 == 0);
+        assert(EventError::NotFound as u32 == 1);
+        assert(EventError::AlreadySubscribed as u32 == 2);
+        assert(EventError::NotSubscribed as u32 == 3);
+        assert(EventError::StreamError as u32 == 4);
+    }
+
+    test "sse_message_creation_for_event" {
+        var event = Event {
+            type = EventType::Message,
+            workspaceID = WorkspaceID("ws-1"),
+            payload = { "text": "Hello" },
+            timestamp = 1234567890,
+            id = "event-1",
+        };
+        var msg = sse_format(event);
+        assert(msg.event == "message");
+        assert(msg.data != "");
+    }
+
+    test "sse_message_with_retry" {
+        var msg = SSEMessage {
+            id = "msg-1",
+            event = "retry",
+            data: "retry message",
+            retry = 5000,
+        };
+        assert(msg.retry == 5000);
+    }
+
+    test "sse_message_without_id" {
+        var msg = SSEMessage {
+            id = null,
+            event = "ping",
+            data = "keepalive",
+            retry = null,
+        };
+        assert(msg.id == null);
+    }
+
+    test "sse_message_without_event" {
+        var msg = SSEMessage {
+            id = "msg-1",
+            event = null,
+            data = "data",
+            retry = null,
+        };
+        assert(msg.event == null);
+    }
+
+    test "sse_message_creation" {
+        var msg = SSEMessage {
+            id = "msg-1",
+            event = "update",
+            data = "{\"status\":\"ok\"}",
+            retry = 1000,
+        };
+        assert(msg.id == "msg-1");
+        assert(msg.event == "update");
+        assert(msg.data == "{\"status\":\"ok\"}");
+        assert(msg.retry == 1000);
+    }
+
+    test "event_creation_with_workspace" {
+        var event = Event {
+            type = EventType::WorkspaceReady,
+            workspaceID = WorkspaceID("ws-1"),
+            payload = { "name": "Ready" },
+            timestamp = 1234567890,
+            id = "evt-1",
+        };
+        assert(event.type == EventType::WorkspaceReady);
+        assert(event.workspaceID?.0 == "ws-1");
+    }
+
+    test "event_creation_without_workspace" {
+        var event = Event {
+            type = EventType::Message,
+            workspaceID = null,
+            payload = { "broadcast": true },
+            timestamp = 1234567890,
+            id = "evt-1",
+        };
+        assert(event.workspaceID == null);
+    }
+
+    test "event_creation_without_id" {
+        var event = Event {
+            type = EventType::WorkspaceSync,
+            workspaceID = WorkspaceID("ws-1"),
+            payload = {},
+            timestamp = 1234567890,
+            id = null,
+        };
+        assert(event.id == null);
+    }
+
+    test "event_filter_multiple_types" {
+        var filter = EventFilter {
+            types: [
+                EventType::WorkspaceReady,
+                EventType::WorkspaceFailed,
+                EventType::WorkspaceSync,
+                EventType::WorkspaceConnected,
+                EventType::WorkspaceDisconnected,
+                EventType::Message,
+            ],
+            workspaceID = WorkspaceID("ws-1"),
+            since = null,
+        };
+        assert(filter.types.len == 6);
+    }
+
+    test "event_filter_with_since_only" {
+        var filter = EventFilter {
+            types: [],
+            workspaceID = null,
+            since = 1234560000,
+        };
+        assert(filter.since == 1234560000);
+    }
+
+    test "sse_stream_zero_connected_at" {
+        var stream = SSEStream {
+            id = "stream-1",
+            workspaceID = WorkspaceID("ws-1"),
+            connectedAt = 0,
+            channel = "events",
+        };
+        assert(stream.connectedAt == 0);
+    }
+}

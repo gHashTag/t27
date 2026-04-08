@@ -1,0 +1,98 @@
+# Enforces NotebookLM notebook requirement for all PRs
+name: NotebookLM Gate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+  push:
+    branches-ignore: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  check-notebook:
+    name: 🔒 NotebookLM notebook required
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check .notebook_id file exists
+        id: check-file
+        run: |
+          NOTEBOOK_FILE=".trinity/current_task/.notebook_id"
+
+          if [ ! -f "$NOTEBOOK_FILE" ]; then
+            echo "::error file=$NOTEBOOK_FILE::Notebook ID file not found"
+            echo "❌ Notebook gate failed: $NOTEBOOK_FILE does not exist"
+            exit 1
+          fi
+
+          echo "✅ Notebook file exists"
+
+      - name: Check .notebook_id is non-empty
+        id: check-content
+        run: |
+          NOTEBOOK_FILE=".trinity/current_task/.notebook_id"
+          NOTEBOOK_ID=$(cat "$NOTEBOOK_FILE" | tr -d '[:space:]')
+
+          if [ -z "$NOTEBOOK_ID" ]; then
+            echo "::error file=$NOTEBOOK_FILE::Notebook ID file is empty"
+            echo "❌ Notebook gate failed: $NOTEBOOK_FILE is empty"
+            exit 1
+          fi
+
+          if [ ${#NOTEBOOK_ID} -lt 8 ]; then
+            echo "::error file=$NOTEBOOK_FILE::Notebook ID too short (min 8 chars)"
+            echo "❌ Notebook gate failed: ID too short (${#NOTEBOOK_ID} < 8)"
+            exit 1
+          fi
+
+          echo "✅ Notebook ID: $NOTEBOOK_ID"
+          echo "notebook_id=$NOTEBOOK_ID" >> $GITHUB_OUTPUT
+
+      - name: Validate notebook_id format
+        run: |
+          NOTEBOOK_ID="${{ steps.check-content.outputs.notebook_id }}"
+
+          if ! echo "$NOTEBOOK_ID" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+            echo "::error file=.trinity/current_task/.notebook_id::Notebook ID contains invalid characters"
+            echo "❌ Notebook gate failed: invalid characters in ID"
+            exit 1
+          fi
+
+          if echo "$NOTEBOOK_ID" | grep -qE '^(#|//|Run:|TODO)'; then
+            echo "::error file=.trinity/current_task/.notebook_id::Notebook ID is placeholder text"
+            echo "❌ Notebook gate failed: placeholder text detected"
+            exit 1
+          fi
+
+          echo "✅ Notebook ID format valid"
+
+      - name: Check notebook_meta.json (warning only)
+        id: check-meta
+        continue-on-error: true
+        run: |
+          META_FILE=".trinity/current_task/notebook_meta.json"
+
+          if [ ! -f "$META_FILE" ]; then
+            echo "::warning file=$META_FILE::Notebook metadata file not found (optional)"
+            exit 0
+          fi
+
+          if command -v jq &> /dev/null; then
+            echo "✅ Notebook metadata:"
+            jq -r '"  Title: \(.title // \"N/A\")\n  Branch: \(.branch // \"N/A\")\n  Sources: \(.sources | length // 0)"' "$META_FILE"
+          else
+            echo "✅ Notebook metadata file exists"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## 🔒 NotebookLM Gate Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Notebook ID:** \`${{ steps.check-content.outputs.notebook_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** $(git branch --show-current)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All code changes must have an associated NotebookLM notebook for persistent semantic memory." >> $GITHUB_STEP_SUMMARY
