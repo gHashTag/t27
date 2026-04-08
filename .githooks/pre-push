@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# Gate: NotebookLM notebook must be assigned to task before push.
+# Pipeline entry: t27c verify-notebook (Rust).
+# Bypass: SKIP_NOTEBOOK_GATE=1 git push
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Emergency bypass with logging
+if [ "${SKIP_NOTEBOOK_GATE:-}" = "1" ]; then
+    BYPASS_LOG="$ROOT/.trinity/gate_bypasses.log"
+    mkdir -p "$(dirname "$BYPASS_LOG")"
+    BRANCH="$(git branch --show-current)"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) BYPASS by $(git config user.email) on $BRANCH" >> "$BYPASS_LOG"
+    echo "⚠️  NOTEBOOK GATE BYPASSED — logged to .trinity/gate_bypasses.log"
+    exit 0
+fi
+
+NOTEBOOK_ID_FILE="$ROOT/.trinity/current_task/.notebook_id"
+META_FILE="$ROOT/.trinity/current_task/notebook_meta.json"
+
+# Branch mismatch warning
+CURRENT_BRANCH="$(git branch --show-current)"
+if [ -f "$META_FILE" ]; then
+    META_BRANCH=$(python3 -c "import json,sys; d=json.load(open('$META_FILE')); print(d.get('branch',''))" 2>/dev/null || echo "")
+    if [ -n "$META_BRANCH" ] && [ "$META_BRANCH" != "$CURRENT_BRANCH" ]; then
+        echo -e "${YELLOW}⚠️  Warning: notebook was created on '$META_BRANCH', pushing from '$CURRENT_BRANCH'${NC}"
+        echo "   Run: t27c task start --title 'new task for $CURRENT_BRANCH' to create fresh notebook"
+        # Warning only, not blocking — agent may intentionally continue work
+    fi
+fi
+
+# Check if file exists
+if [ ! -f "$NOTEBOOK_ID_FILE" ]; then
+    echo ""
+    echo "❌ NOTEBOOK GATE FAILED"
+    echo ""
+    echo "   No notebook assigned to current task."
+    echo ""
+    echo "   Required: .trinity/current_task/.notebook_id"
+    echo "   Status:  FILE NOT FOUND"
+    echo ""
+    echo "   To create a notebook, run:"
+    echo "   → t27c task start --title \"your task name\""
+    echo ""
+    echo "   Emergency bypass (logged):"
+    echo "   → SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+# Check if file is non-empty
+if [ ! -s "$NOTEBOOK_ID_FILE" ]; then
+    echo ""
+    echo "❌ NOTEBOOK GATE FAILED"
+    echo ""
+    echo "   Notebook ID file exists but is empty."
+    echo ""
+    echo "   Required: .trinity/current_task/.notebook_id"
+    echo "   Status:  FILE EMPTY"
+    echo ""
+    echo "   To create a notebook, run:"
+    echo "   → t27c task start --title \"your task name\""
+    echo ""
+    echo "   Emergency bypass (logged):"
+    echo "   → SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+# Read and validate notebook ID
+NOTEBOOK_ID="$(cat "$NOTEBOOK_ID_FILE" | tr -d '[:space:]')"
+
+# Check minimum length (8 chars)
+if [ ${#NOTEBOOK_ID} -lt 8 ]; then
+    echo ""
+    echo "❌ NOTEBOOK GATE FAILED"
+    echo ""
+    echo "   Notebook ID is too short."
+    echo ""
+    echo "   Required: 8+ alphanumeric characters"
+    echo "   Found:    '$NOTEBOOK_ID' (${#NOTEBOOK_ID} chars)"
+    echo ""
+    echo "   To create a valid notebook, run:"
+    echo "   → t27c task start --title \"your task name\""
+    echo ""
+    echo "   Emergency bypass (logged):"
+    echo "   → SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+# Validate format (alphanumeric)
+if ! echo "$NOTEBOOK_ID" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+    echo ""
+    echo "❌ NOTEBOOK GATE FAILED"
+    echo ""
+    echo "   Notebook ID contains invalid characters."
+    echo ""
+    echo "   Required: alphanumeric, dash, underscore"
+    echo "   Found:    '$NOTEBOOK_ID'"
+    echo ""
+    echo "   Emergency bypass (logged):"
+    echo "   → SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+# Check if it's just a comment/instruction
+if echo "$NOTEBOOK_ID" | grep -qE '^(#|//|Run:|TODO)'; then
+    echo ""
+    echo "❌ NOTEBOOK GATE FAILED"
+    echo ""
+    echo "   Notebook ID file contains placeholder text."
+    echo ""
+    echo "   Found:    '$NOTEBOOK_ID'"
+    echo ""
+    echo "   To create a notebook, run:"
+    echo "   → t27c task start --title \"your task name\""
+    echo ""
+    echo "   Emergency bypass (logged):"
+    echo "   → SKIP_NOTEBOOK_GATE=1 git push"
+    echo ""
+    exit 1
+fi
+
+echo "✅ NotebookLM gate passed — notebook ID: $NOTEBOOK_ID"
+exit 0
