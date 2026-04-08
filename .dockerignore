@@ -1,6 +1,10 @@
 # External dependencies not needed for Railway build
 external/opencode/
+<<<<<<< HEAD
 external/kaggle/
+=======
+external/kagley/
+>>>>>>> f815595 (fix(railway): optimize Docker build, add .dockerignore to exclude 3.1GB opencode)
 
 # Git and CI
 .git/
