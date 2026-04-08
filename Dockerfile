@@ -8,11 +8,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Copy package.json
-COPY external/opencode/package.json ./
+# Add package.json
+ADD external/opencode/package.json ./
 
-# Copy rest of opencode
-COPY external/opencode/ ./
+# Add rest of opencode
+ADD external/opencode/ ./
 
 # Install dependencies
 RUN bun install
