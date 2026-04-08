@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/ar/proof_trace.t27
 // Bounded Proof Traces for CLARA Explainability (≤10 steps)
 // φ² + φ⁻² = 3 | TRINITY

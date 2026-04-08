@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/jit/jit.t27
 // Trinity JIT Compiler
 // Compiles VSA operations to native machine code

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/isa/ternary_control_flow.t27
 // Ternary Control Flow Specification
 // Ring 090 - Control flow operations for ternary architecture

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/math/phi_split_optimality.t27
 // Phi-Split Theorems — Self-Similarity + Optimal Rounding (CORRECTED)
 // MATH-OPTIMALITY-001 — Foundation for GoldenFloat being non-random

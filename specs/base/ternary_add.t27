@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // ternary_add.t27 — Balanced Ternary Addition Formal Spec
 // Ring 043 — Formal carry propagation invariants, closure, range formula
 // phi^2 + 1/phi^2 = 3 | TRINITY
