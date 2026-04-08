@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // specs/github/comments.t27
 module github::comments {
     struct Comment {

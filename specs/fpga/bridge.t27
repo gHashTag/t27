@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/bridge.t27
 // FPGA Communication Bridge Specification
 // Combines UART and SPI for host and peripheral communication

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/fpga/spi.t27
 // SPI Master Specification for FPGA
 // Mode 0: CPOL=0, CPHA=0 (SCK idle low, sample on rising edge)

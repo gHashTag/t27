@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/math/pellis_precision_verify.t27
 // Arbitrary precision verification via GMP/MPFR reference
 // NUMERIC-VERIF-001 — Pre-registered checkpoint for CODATA 2026

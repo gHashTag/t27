@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 # ═══════════════════════════════════════════════════════════════════════════════════════════
 # Digilent Arty A7 Constraints File
 # FPGA: Xilinx Artix-7 XC7A35T or XC7A100T

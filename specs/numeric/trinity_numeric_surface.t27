@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 ; trinity_numeric_surface.t27 — Public numeric interchange policy (GoldenFloat-first)
 ; NUMERIC-STANDARD-001 — integer-backed GF raw words are the portable surface
 ; phi^2 + 1/phi^2 = 3 | TRINITY

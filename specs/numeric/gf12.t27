@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/numeric/gf12.t27
 // GoldenFloat12 — 12-bit φ-structured floating point
 // NUMERIC-STANDARD-001 — Agent 4 (P1)
