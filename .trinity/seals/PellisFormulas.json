@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8622492553c6fa51169df84f611b7c8eab5d6c4f3190b818a324bb149b22062a",
   "module": "PellisFormulas",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:6904df97f592ade113da15b67188ec2e3c863ced3c9fdacee742157739a1b60c",
   "spec_path": "specs/physics/pellis-formulas.t27"
 }

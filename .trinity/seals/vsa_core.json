@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8e9e52f096cd3b3ee01d4fa36145e8907204e5ba0ca3fd5fc4d1045bcb6e3d52",
   "module": "vsa_core",
   "ring": 12,
-  "sealed_at": "2026-04-08T06:22:04Z",
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:1c8a2fbcb52f62bb1b8a59c996f5cff348ec9230a9a671d72326a622f844be34",
   "spec_path": "specs/vsa/vsa_core.t27"
 }
