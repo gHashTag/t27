@@ -5,11 +5,12 @@
 FROM oven/bun:latest AS frontend-builder
 # Install Python and build essentials for node-gyp
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y python3 make g++ git && ln -s /usr/bin/python3 /usr/bin/python
+RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
-# Clone opencode directly (Railway doesn't handle external dirs)
-RUN git clone --depth 1 https://github.com/nicepkg/opencode.git .
+# Copy opencode (now inlined as regular files)
+COPY external/opencode/package.json ./
+COPY external/opencode/ ./
 
 # Install dependencies
 RUN bun install
