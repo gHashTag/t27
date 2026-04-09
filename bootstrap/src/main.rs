@@ -17,6 +17,9 @@ mod suite;
 mod railway;
 mod jwt;
 mod proxy;
+mod formula_eval;
+mod chimera_engine;
+mod sensitivity;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -185,6 +188,18 @@ enum Commands {
         /// API token for NotebookLM
         #[arg(short = 't', long)]
         token: String,
+
+        /// Project number for API
+        #[arg(long)]
+        project: Option<String>,
+
+        /// API location (default: global)
+        #[arg(long)]
+        location: Option<String>,
+
+        /// API region (default: us)
+        #[arg(long)]
+        region: Option<String>,
     },
 
     /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
@@ -611,6 +626,40 @@ enum Commands {
         /// Output directory (default: build/fpga)
         #[arg(short, long, default_value = "build/fpga")]
         output: String,
+    },
+
+    /// FormulaOS: evaluate and search Trinity formulas
+    Formula {
+        #[command(subcommand)]
+        cmd: formula_eval::FormulaCommands,
+    },
+
+    /// Chimera search: find new formulas by combining existing ones
+    Chimera {
+        /// Maximum error percentage
+        #[arg(long, default_value = "1.0")]
+        threshold: f64,
+        /// Limit number of results
+        #[arg(long, default_value = "20")]
+        limit: usize,
+    },
+
+    /// Sensitivity analysis: scan formula response to parameter variations
+    Sensitivity {
+        /// Formula ID to analyze
+        id: String,
+        /// Parameter to vary (phi, pi, e)
+        #[arg(long, default_value = "phi")]
+        param: String,
+        /// Min value
+        #[arg(long)]
+        min: Option<f64>,
+        /// Max value
+        #[arg(long)]
+        max: Option<f64>,
+        /// Number of points
+        #[arg(long, default_value = "30")]
+        n: usize,
     },
 }
 
@@ -3327,6 +3376,63 @@ endmodule
     }
 
     println!("=== FPGA build finished ===");
+    Ok(())
+}
+
+/// Run chimera search for finding new formulas
+fn run_chimera(repo_root: &Path, threshold: f64, limit: usize) -> anyhow::Result<()> {
+    let base_formulas = chimera_engine::base_formula_values();
+    let operators = chimera_engine::default_operators();
+    let targets = chimera_engine::pdg_targets();
+
+    let results = chimera_engine::chimera_search(&base_formulas, &operators, &targets, threshold);
+
+    println!("| Target | Chimera | Value | Δ% | Status |");
+    println!("|--------|---------|-------|-----|--------|");
+    for r in results.iter().take(limit) {
+        println!(
+            "| {} | `{}` | {:.5} | {:.3}% | {} |",
+            r.target_name, r.expr, r.chimera_value, r.error_pct, r.status
+        );
+    }
+    if results.is_empty() {
+        println!("No chimera matches found within {}% threshold", threshold);
+    } else {
+        println!("\nFound {} chimera candidate(s)", results.len());
+    }
+    Ok(())
+}
+
+/// Run sensitivity analysis for a formula
+fn run_sensitivity(
+    repo_root: &Path,
+    formula_id: &str,
+    param_name: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+    n: usize,
+) -> anyhow::Result<()> {
+    let range = match (min, max) {
+        (Some(mn), Some(mx)) => (mn, mx),
+        _ => sensitivity::default_param_range(param_name),
+    };
+
+    let points = sensitivity::sensitivity_scan(formula_id, param_name, range, n);
+
+    println!("| {} | F('{}') | Delta% |", param_name, formula_id);
+    println!("|--------|----------|--------|");
+    let step = if points.len() > 10 { points.len() / 10 } else { 1 };
+    for p in points.iter().step_by(step.max(1)) {
+        println!(
+            "| {:.4} | {:.3} | {:.3}% |",
+            p.param_value, p.formula_value, p.error_pct
+        );
+    }
+
+    if let Some(best) = sensitivity::find_minimum(&points) {
+        println!("\nMinimum at {}={:.6} -> Delta={:.3}%", param_name, best.param_value, best.error_pct);
+    }
+
     Ok(())
 }
 
@@ -6354,7 +6460,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
-        Commands::Audio { notebook, all, bilingual, workers, token } => enrichment::run_audio(notebook, all, bilingual, workers, token)?,
+        Commands::Audio { notebook, all, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, bilingual, workers, token, project, location, region)?;
+        }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -6436,6 +6544,18 @@ async fn main() -> anyhow::Result<()> {
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
          }
+         Commands::Formula { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             formula_eval::run_formula_command(cmd, &repo_root)?;
+         }
+         Commands::Chimera { threshold, limit } => {
+             let repo_root = std::env::current_dir()?;
+             run_chimera(&repo_root, threshold, limit)?;
+         }
+         Commands::Sensitivity { id, param, min, max, n } => {
+             let repo_root = std::env::current_dir()?;
+             run_sensitivity(&repo_root, &id, &param, min, max, n)?;
+         }
      }
  
     Ok(())
@@ -6463,7 +6583,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
-        Commands::Audio { notebook, all, bilingual, workers, token } => enrichment::run_audio(notebook, all, bilingual, workers, token)?,
+        Commands::Audio { notebook, all, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, bilingual, workers, token, project, location, region)?;
+        }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -6547,6 +6669,18 @@ fn main() -> anyhow::Result<()> {
          }
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+         }
+         Commands::Formula { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             formula_eval::run_formula_command(cmd, &repo_root)?;
+         }
+         Commands::Chimera { threshold, limit } => {
+             let repo_root = std::env::current_dir()?;
+             run_chimera(&repo_root, threshold, limit)?;
+         }
+         Commands::Sensitivity { id, param, min, max, n } => {
+             let repo_root = std::env::current_dir()?;
+             run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
