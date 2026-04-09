@@ -1,6 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+// Use same-origin by default (empty string) for production
+// Set VITE_API_URL to a full URL for local development
+const API_URL = import.meta.env.VITE_API_URL || "";
 const PROXY_BASE_URL =
-  import.meta.env.VITE_PROXY_BASE_URL ?? "http://proxy.localhost:3000";
+  import.meta.env.VITE_PROXY_BASE_URL || "";
 const TOKEN_KEY = "railway_admin_token";
 
 type ApiResponse<T> = {
