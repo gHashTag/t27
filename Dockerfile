@@ -15,6 +15,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
 
+# Copy trigger file to force frontend rebuild when changed
+COPY FRONTEND_REBUILD_TRIGGER.txt /tmp/trigger.txt
+RUN cat /tmp/trigger.txt
+
 # Copy entire web package (preserves directory structure)
 COPY external/opencode/packages/web/ ./
 
