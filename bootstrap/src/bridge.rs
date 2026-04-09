@@ -425,12 +425,12 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
         .unwrap_or_else(|| "unknown".to_string());
 
     // Generate a fake notebook ID for now (real implementation needs Python backend)
-    let notebook_id = format!("nb-{}", title.to_lowercase().replace(' ', "-').chars().take(12).collect::<String>());
+    let notebook_id = format!("nb-{}", title.to_lowercase().replace(" ", "-").chars().take(12).collect::<String>());
 
     let meta = NotebookMeta {
         notebook_id: notebook_id.clone(),
         title: title.to_string(),
-        branch,
+        branch: branch.clone(),
         created_at: Utc::now().to_rfc3339(),
         sources: if sources.is_empty() {
             Vec::new()
@@ -457,9 +457,9 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
     }
 
     println!();
-    println!("{}", "[OK] NotebookLM notebook created " .green() .bold());
+    println!("[OK] NotebookLM notebook created");
     println!();
-    println!("   Notebook ID:  {}", notebook_id .cyan());
+    println!("   Notebook ID:  {}", notebook_id);
     println!("   Title:         {}", title);
     println!("   Branch:        {}", branch);
     println!();
