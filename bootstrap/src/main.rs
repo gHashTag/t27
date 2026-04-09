@@ -72,6 +72,9 @@ enum Commands {
         db: Option<String>,
     },
 
+    /// Verify gen-xdc output matches emitter_xdc.t27 spec expectations
+    XdcVerify,
+
     /// Generate C code (.c/.h style) from .t27 file
     GenC {
         /// Input file path
@@ -2308,6 +2311,91 @@ fn run_check_pins(xdc_path: &str, db_path: Option<&str>) -> anyhow::Result<()> {
     if missing > 0 {
         println!("\nThese pins are real I/O pins but not yet in the prjxray-db.");
         println!("Workaround: use --profile minimal for open-source flow (prjxray-verified pins only).");
+    }
+    Ok(())
+}
+
+fn run_xdc_verify() -> anyhow::Result<()> {
+    println!("=== XDC Verification: gen-xdc vs emitter_xdc.t27 spec ===\n");
+
+    struct SpecExpectation {
+        profile: &'static str,
+        expected_lines: usize,
+        expected_pins: usize,
+        expected_clocks: usize,
+        must_have_pins: &'static [&'static str],
+    }
+
+    let specs = [
+        SpecExpectation {
+            profile: "minimal",
+            expected_lines: 13,
+            expected_pins: 12,
+            expected_clocks: 1,
+            must_have_pins: &["clk", "rst_n", "uart_rx", "uart_tx", "led[0]", "led[7]"],
+        },
+        SpecExpectation {
+            profile: "full",
+            expected_lines: 17,
+            expected_pins: 16,
+            expected_clocks: 1,
+            must_have_pins: &["clk", "rst_n", "spi_cs", "spi_sck", "spi_mosi", "spi_miso"],
+        },
+    ];
+
+    let mut all_pass = true;
+    for spec in &specs {
+        println!("Profile: {}", spec.profile);
+        let xdc = xdc_for_profile(spec.profile)?;
+        let lines: Vec<&str> = xdc.lines().filter(|l| !l.is_empty()).collect();
+        let clock_count = lines.iter().filter(|l| l.starts_with("create_clock")).count();
+        let pin_count = lines.iter().filter(|l| l.starts_with("set_property")).count();
+
+        let mut errors = 0u32;
+
+        if lines.len() != spec.expected_lines {
+            println!("  FAIL: line count {} != expected {}", lines.len(), spec.expected_lines);
+            errors += 1;
+        } else {
+            println!("  OK: line count = {}", lines.len());
+        }
+
+        if pin_count != spec.expected_pins {
+            println!("  FAIL: pin count {} != expected {}", pin_count, spec.expected_pins);
+            errors += 1;
+        } else {
+            println!("  OK: pin count = {}", pin_count);
+        }
+
+        if clock_count != spec.expected_clocks {
+            println!("  FAIL: clock count {} != expected {}", clock_count, spec.expected_clocks);
+            errors += 1;
+        } else {
+            println!("  OK: clock count = {}", clock_count);
+        }
+
+        for pin in spec.must_have_pins {
+            let found = xdc.contains(&format!("[get_ports {}]", pin));
+            if !found {
+                println!("  FAIL: missing pin '{}'", pin);
+                errors += 1;
+            } else {
+                println!("  OK: pin '{}' present", pin);
+            }
+        }
+
+        if errors > 0 {
+            all_pass = false;
+            println!("  Result: {} errors\n", errors);
+        } else {
+            println!("  Result: PASS\n");
+        }
+    }
+
+    if all_pass {
+        println!("=== All XDC verification checks PASSED ===");
+    } else {
+        anyhow::bail!("XDC verification failed");
     }
     Ok(())
 }
@@ -7282,6 +7370,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
         Commands::CheckPins { xdc, db } => run_check_pins(&xdc, db.as_deref())?,
+        Commands::XdcVerify => run_xdc_verify()?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
