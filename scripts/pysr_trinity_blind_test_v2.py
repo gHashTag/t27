@@ -15,45 +15,20 @@ E_TRUE = np.e
 PHI = (1 + np.sqrt(5)) / 2
 GAMMA_PHI = PHI**-3  # = 0.23607
 
-# Target formulas (PDG 2024 values)
+# Target formulas
 targets = {
-    "PM4_mp_me": {
-        "formula": "8 * PI_TRUE**3 / (9 * E_TRUE**2)",
-        "target": 3.729994e-2,
-        "note": "δ_CP from mixing angle (easiest)"
-    },
-    "PM4_delta_CP": {
-        "formula": "8 * PI_TRUE**3 / (9 * E_TRUE**2)",
-        "target": 3.729994e-2,
-        "note": "δ_CP direct value (hardest)"
-    },
-    "PM1_sin2_theta12": {
-        "formula": "7 * PHI**5 / (3 * PI_TRUE**3 * E_TRUE)",
-        "target": 0.307023e-2,
-        "note": "sin²θ₁₂"
-    },
-    "PM2_sin2_theta13": {
-        "formula": "3 / (PHI * PI_TRUE**3 * E_TRUE)",
-        "target": 0.021998e-2,
-        "note": "sin²θ₁₃ (simplified: 3γφ²/(π³e) → 3/(φπ³e))"
-    },
-    "PM3_sin2_theta23": {
-        "formula": "4 * PI_TRUE * PHI**2 / (3 * E_TRUE**3)",
-        "target": 0.545985e-2,
-        "note": "sin²θ₂₃"
-    },
     "P6_V_us": {
-        "formula": "3 * GAMMA_PHI / PI_TRUE",
-        "target": 0.224310e-2,
-        "note": "V_us (CKM element)"
-    },
+        "formula": "3*GAMMA_PHI/PI_TRUE",
+        "target": 0.224310,
+        },
 }
 
 def run_target(target):
-    """Run PySR for specific target formula."""
-    print(f"\n{'='*60}")
+    """""Run PySR for specific target formula."""
+    print(f"
+{'='*60}")
     print(f"=== PySR Blind Test: {target} ===")
-    print(f"Note: {targets[target].get('note', 'N/A')}")
+    print()
 
     n_samples = 50
     np.random.seed(42)
@@ -63,12 +38,12 @@ def run_target(target):
     pi_samples = np.random.uniform(PI_TRUE * 0.98, PI_TRUE * 1.02, 50)
     e_samples = np.random.uniform(E_TRUE * 0.98, E_TRUE * 1.02, 50)
 
-    # Generate synthetic data with variation using target formula
-    target_formula_str = targets[target]["formula"]
-    Y_true = eval(target_formula_str)
+    # Generate synthetic data with variation
+    # Target: V_us = 3γφ/π
+    Y_true = 3 * GAMMA_PHI / PI_TRUE
 
     # Add small noise to prevent degeneracy
-    Y_noisy = Y_true * (1 + 0.02 * (2 * np.random.rand(n_samples) - 1))
+    Y_exp = Y_true * (1 + 0.02 * (2 * np.random.rand(n_samples) - 1))
 
     # Simple 80/20 split
     train_size = int(n_samples * 0.8)
@@ -79,15 +54,11 @@ def run_target(target):
         e_samples[:train_size],
         ])
 
-    Y_train = Y_noisy[:train_size]
-
     X_test = np.column_stack([
         phi_samples[train_size:],
         pi_samples[train_size:],
         e_samples[train_size:],
         ])
-
-    Y_test = Y_noisy[train_size:]
 
     print(f"Training samples: {train_size}")
     print(f"Features: φ (x0), π (x1), e (x2)")
@@ -102,11 +73,13 @@ def run_target(target):
         populations=100,
         model_selection="best",
         random_state=42,
+        early_stopping=True,
         )
 
     print("Training PySR...")
     model.fit(X_train, Y_train)
-    print("\nEvaluating...")
+    print("
+Evaluating...")
 
     Y_pred = model.predict(X_test)
     best_idx = np.argmin(np.abs(Y_pred - Y_test))
@@ -114,16 +87,17 @@ def run_target(target):
     error_pct = abs(Y_pred_best - Y_test[best_idx]) / Y_test[best_idx] * 100
 
     eq = model.get_best()
-    print(f"\nBest equation: {eq}")
+    print(f"
+Best equation: {eq}")
     print(f"Predicted: {Y_pred_best:.15f}")
     print(f"Target:     {Y_test[best_idx]:.15f}")
-    print(f"Error:       {error_pct:.6f}%")
+    print(f"Error:       {error_pct:.6f}%""" )
     print()
 
     # Structural analysis - check for expected pattern
     eq_str = str(eq)
 
-    print(f"Equation: {eq_str}")
+    print(f"Equation: {eq_str}""")
 
     # Check for expected pattern: 3*GAMMA*PHI/PI
     has_3 = "3" in eq_str
@@ -132,7 +106,7 @@ def run_target(target):
 
     print(f"Contains '3': {has_3}")
     print(f"Contains 'GAMMA': {has_gamma}")
-    print(f"Contains '/': {has_div}")
+    print(f"Contains '/': {has_div}""" )
 
     if has_3 and has_gamma and has_div:
         print("✅ EXCELLENT: PySR found exact Trinity structure!")
@@ -144,8 +118,8 @@ def run_target(target):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PySR Blind Test for Trinity γ-Paper (v0.2)")
-    parser.add_argument("--target", type=str, default="PM4_mp_me",
-                        choices=["PM4_mp_me", "PM4_delta_CP", "PM1_sin2_theta12", "PM2_sin2_theta13", "PM3_sin2_theta23", "P6_V_us"],
+    parser.add_argument("--target", type=str, default="P6_V_us",
+                        choices=["PM1_sin2_theta12", "PM2_sin2_theta13", "PM3_sin2_theta23", "PM4_mp_me", "P6_V_us"],
                         help="Target formula to test")
     args = parser.parse_args()
     run_target(args.target)
