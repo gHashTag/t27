@@ -48,7 +48,8 @@ const areSessionsEqual = (next: Session[], prev: Session[]) => {
 };
 
 function App() {
-  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  // Direct access: skip authentication - use dummy token
+  const [token, setToken] = useState<string>("direct-access");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -213,52 +214,7 @@ function App() {
 
   return (
     <div className="app">
-      {!hasToken ? (
-        <>
-          <header className="hero">
-            <span className="eyebrow">Railway Session Control</span>
-            <h1>Spin up sandbox services in seconds.</h1>
-            <p>
-              Launch, inspect, and retire Railway service sandboxes without
-              leaving the browser.
-            </p>
-            <div className="hero-card">
-              <div>
-                <h2>Admin access</h2>
-                <p>Sign in to manage ephemeral environments safely.</p>
-              </div>
-              <div className="pill">24h access token</div>
-            </div>
-          </header>
-          <main className="panel">
-            <div className="panel-body">
-              <div className="panel-header">
-                <div>
-                  <h2>Sign in</h2>
-                  <p>Use the admin password to unlock the session console.</p>
-                </div>
-              </div>
-              <form className="form" onSubmit={handleLogin}>
-                <label className="field">
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    placeholder="Admin password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                  />
-                </label>
-                {error ? <div className="alert">{error}</div> : null}
-                <button className="primary" type="submit" disabled={loading}>
-                  {loading ? "Signing in..." : "Sign in"}
-                </button>
-              </form>
-            </div>
-          </main>
-        </>
-      ) : (
-        <main className="panel">
+      <main className="panel">
           <div className="panel-body">
             <div className="panel-header">
               <div>
@@ -389,7 +345,6 @@ function App() {
             </div>
           </div>
         </main>
-      )}
     </div>
   );
 }
