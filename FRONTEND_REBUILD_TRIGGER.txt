@@ -1,1 +1,1 @@
-v6 - trigger frontend rebuild
+v7 - sandbox navigation fix

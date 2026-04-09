@@ -151,8 +151,8 @@ function App() {
     setError(null);
     try {
       const sandboxToken = await createSandboxToken(token, session.id);
-      // Show token in alert instead of opening proxy (production demo)
-      alert(`Session Token: ${sandboxToken.token}\nSession ID: ${session.id}\nStatus: ${session.status}`);
+      const sandboxUrl = getProxyUrl(sandboxToken.token);
+      window.open(sandboxUrl, '_blank');
     } catch (error) {
       if (error instanceof Error) {
         handleApiError(error.message);
