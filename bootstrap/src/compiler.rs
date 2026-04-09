@@ -2686,9 +2686,10 @@ fn t27_type_to_zig(t27_type: &str) -> String {
     let zig_type = match base_type {
         "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
         "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
-        "f32" | "f64" => "gf16.GF16".to_string(),  // L6: CEILING law compliance
+        "f32" => "f32".to_string(),  // Keep f32 for math/VSA/interop
+        "f64" => "f64".to_string(),  // Keep f64 for math/VSA/interop
         "GF16" => "gf16.GF16".to_string(),  // With module prefix
-        "gf16" => "gf16.GF16".to_string(), // Already has module
+        "gf16" => "gf16.GF16".to_string(),  // Already has module
         "bool" => "bool".to_string(),
         "str" => "[]const u8".to_string(),
         "void" => "void".to_string(),
@@ -2980,9 +2981,9 @@ impl Codegen {
         for field in &node.children {
             self.write_indent();
             let ty = if !field.extra_type.is_empty() {
-                &field.extra_type
+                t27_type_to_zig(&field.extra_type)
             } else {
-                "void"
+                "void".to_string()
             };
             self.write_line(&format!("{}: {},", field.name, ty));
         }
@@ -3003,7 +3004,7 @@ impl Codegen {
         let return_type = if node.extra_return_type.is_empty() {
             "void".to_string()
         } else {
-            node.extra_return_type.clone()
+            t27_type_to_zig(&node.extra_return_type)
         };
 
         // Check if this is a method (first param is "self")
@@ -3014,7 +3015,7 @@ impl Codegen {
             if i > 0 {
                 self.write(", ");
             }
-            self.write(&format!("{}: {}", pname, ptype));
+            self.write(&format!("{}: {}", pname, t27_type_to_zig(ptype)));
         }
         self.write(")");
 
@@ -3127,7 +3128,7 @@ impl Codegen {
                 }
                 self.write(&node.name);
                 if !node.extra_type.is_empty() {
-                    self.write(&format!(": {}", node.extra_type));
+                    self.write(&format!(": {}", t27_type_to_zig(&node.extra_type)));
                 }
                 if !node.children.is_empty() {
                     self.write(" = ");
