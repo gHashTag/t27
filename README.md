@@ -12,6 +12,29 @@ The canonical source of truth for Trinity S3AI.
 
 ---
 
+## System Status
+
+| Domain | Component | Status | Details |
+|--------|-----------|--------|---------|
+| Compiler | `t27c parse` | GREEN | 170+ specs parse |
+| Compiler | `t27c gen-verilog` | GREEN | 5/5 FPGA modules synthesize |
+| Compiler | `t27c seal` | GREEN | 170+ seals in `.trinity/seals/` |
+| FPGA | Yosys synthesis | GREEN | 5/5 modules pass synth_xilinx |
+| FPGA | E2E bitstream | GREEN | Yosys→nextpnr→prjxray→.bit (zero Vivado) |
+| FPGA | Board profiles | GREEN | QMTECH XC7A100T (minimal+full), Arty A7 |
+| FPGA | `--profile` flag | GREEN | `--profile minimal|full` in fpga-build |
+| Pins | Pins IR | GREEN | `specs/pins/ir.t27` — conflict detection invariants |
+| Pins | XDC emitter | GREEN | `specs/pins/emitter_xdc.t27` — QMTECH + Arty presets |
+| CI | Issue gate | GREEN | L1 TRACEABILITY enforced |
+| CI | Seal coverage | GREEN | All specs sealed |
+| CI | Schema validation | GREEN | Conformance vectors validated |
+| CI | FPGA smoke | GREEN | Verilog gen in CI |
+| TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
+| TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
+| Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
+
+---
+
 ## What is t27?
 
 t27 is a **spec-first** language for ternary computing. You write `.t27` specifications -- the compiler generates Zig, Verilog, and C backends. No hand-editing generated code. Ever.
