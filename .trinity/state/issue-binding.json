@@ -1,17 +1,6 @@
 {
-  "issue_id": "SEED-47",
-  "issue_number": 47,
-  "source": "github",
-  "url": "https://github.com/gHashTag/t27/issues/SEED-47",
-  "title": "feat(ring-47): TRI CLI REPL core with self-improving RINGS",
-  "state": "in_progress",
-  "linked_skill_id": "ring-47-cli-repl",
-  "linked_session_id": "2026-04-05T12:00:00Z#ring47",
-  "last_synced_at": "2026-04-05T12:00:00Z",
-  "required_commit_message_pattern": "\\[SEED-47\\]",
-  "metadata": {
-    "ring": 47,
-    "layer": "SEED",
-    "specs": ["specs/cli/repl.t27", "specs/cli/ring_executor.t27", "specs/cli/self_improve.t27"]
-  }
+  "issue_id": "SEED-48",
+  "issue_title": "Ring 48: Seal Repair",
+  "skill_id": "ring-48",
+  "bound_at": "2026-04-09T13:21:33Z"
 }

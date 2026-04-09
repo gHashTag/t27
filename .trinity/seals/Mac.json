@@ -1,0 +1,8 @@
+{
+  "module": "mac",
+  "spec_path": "specs/fpga/mac.t27",
+  "spec_hash": "sha256:ed19dd48b4ef299c28b4bde4ef3a718c404a8fc9b820fd92cee4b688b2626f16",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

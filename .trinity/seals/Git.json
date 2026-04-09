@@ -1,0 +1,8 @@
+{
+  "module": "git",
+  "spec_path": "compiler/cli/git.t27",
+  "spec_hash": "sha256:a2ed7ccff916e322f238d01ec8a8ba31e0c24cbcd2bcabf7c36c190f8ad74c2e",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

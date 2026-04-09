@@ -1,0 +1,8 @@
+{
+  "module": "testgen",
+  "spec_path": "compiler/codegen/testgen.t27",
+  "spec_hash": "sha256:f132d76e373fa4780e558e3265e743d5b5847cd92f2f90735cde6c648a7af1fe",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

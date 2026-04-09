@@ -1,0 +1,8 @@
+{
+  "module": "top_level",
+  "spec_path": "specs/fpga/top_level.t27",
+  "spec_hash": "sha256:0919c1d233e1a9795ea4b4faa164cfe310604a14328bc44cbae798b2db06da41",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

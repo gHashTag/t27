@@ -1,0 +1,8 @@
+{
+  "module": "core",
+  "spec_path": "specs/vsa/core.t27",
+  "spec_hash": "sha256:f3b740bcde3cb6ed77335bb0ce26355ddf22d94972f9cde16b83ba6a4400b186",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

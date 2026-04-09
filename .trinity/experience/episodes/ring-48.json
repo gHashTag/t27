@@ -1,0 +1,47 @@
+{
+  "episode_id": "phi-2026-04-09T13:21:33Z#ring-48",
+  "skill_id": "ring-48",
+  "session_id": "2026-04-09T13:21:33Z#ring-48",
+  "issue_id": "SEED-48",
+  "spec_paths": [
+    "specs/fpga/bridge.t27",
+    "specs/fpga/mac.t27",
+    "specs/fpga/spi.t27",
+    "specs/fpga/top_level.t27",
+    "specs/fpga/uart.t27",
+    "specs/vsa/core.t27",
+    "specs/vsa/ops.t27"
+  ],
+  "spec_hash_before": "sha256:stale",
+  "spec_hash_after": "sha256:multiple_seals_updated",
+  "gen_hash_after": "sha256:na",
+  "tests": {
+    "status": "passed",
+    "failed_tests": [],
+    "duration_ms": 120
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0,
+    "notes": "26 stale seals fixed; REPL first self-healing"
+  },
+  "bench_delta": {
+    "metric": "stale_seals",
+    "value": -26,
+    "unit": "count"
+  },
+  "commit": {
+    "sha": "pending",
+    "message": "feat(ring-48): fix 26 stale seals detected by tri repl doctor [SEED-48]",
+    "timestamp": "2026-04-09T13:21:33Z"
+  },
+  "actor": "agent:computer",
+  "sealed_at": "2026-04-09T13:21:33Z",
+  "completed_at": "2026-04-09T13:21:33Z",
+  "metadata": {
+    "environment": "github",
+    "ring": 48,
+    "layer": "CANOPY",
+    "origin": "repl_doctor_self_heal"
+  }
+}

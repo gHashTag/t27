@@ -1,0 +1,8 @@
+{
+  "module": "codegen",
+  "spec_path": "compiler/codegen/verilog/codegen.t27",
+  "spec_hash": "sha256:b60599b12589ad82371a48b483bf4e789740a4a1df9e7b9990630d6d0b1ab81c",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

@@ -1,0 +1,8 @@
+{
+  "module": "gen",
+  "spec_path": "compiler/cli/gen.t27",
+  "spec_hash": "sha256:f424b8fd08858a0bac83c2ba6a885446600819c0b79a838163c5b51b375413c3",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

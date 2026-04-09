@@ -1,0 +1,8 @@
+{
+  "module": "uart",
+  "spec_path": "specs/fpga/uart.t27",
+  "spec_hash": "sha256:be3d8542ad2f96e637ca1299c73dad413d535c1abee63717301b6b5b8d530735",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

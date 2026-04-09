@@ -1,0 +1,8 @@
+{
+  "module": "ast",
+  "spec_path": "compiler/ast.t27",
+  "spec_hash": "sha256:28bfcdf211a0360991fe8d89dc376440d2144b936e030f81e0b5794a1c0eeb00",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

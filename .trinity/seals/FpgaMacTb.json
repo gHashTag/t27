@@ -1,0 +1,8 @@
+{
+  "module": "mac_tb",
+  "spec_path": "specs/fpga/testbench/mac_tb.t27",
+  "spec_hash": "sha256:3e7706e5e58b49744b70465956a1a932550aaa37215ce9a2050ef64bcab51ec2",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

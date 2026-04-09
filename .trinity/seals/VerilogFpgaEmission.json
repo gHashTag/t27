@@ -1,0 +1,8 @@
+{
+  "module": "fpga_emission",
+  "spec_path": "compiler/codegen/verilog/fpga_emission.t27",
+  "spec_hash": "sha256:1d35d642addcc09c4e80f567c93acbb070b0439dbc7cd87377c6059a4e829a0f",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

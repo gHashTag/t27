@@ -1,0 +1,8 @@
+{
+  "module": "runtime",
+  "spec_path": "compiler/codegen/zig/runtime.t27",
+  "spec_hash": "sha256:295218999824f8be1facebfa4cdf9e7dbe55c31f692d1b025a668bd974569a6d",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

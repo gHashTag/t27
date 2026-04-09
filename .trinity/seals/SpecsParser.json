@@ -1,0 +1,8 @@
+{
+  "module": "parser",
+  "spec_path": "specs/compiler/parser.t27",
+  "spec_hash": "sha256:3089a7771880208f9b04b78bb43115e691e6e4f1736371025ba187753a761be4",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

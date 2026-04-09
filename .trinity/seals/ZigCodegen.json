@@ -1,0 +1,8 @@
+{
+  "module": "codegen",
+  "spec_path": "compiler/codegen/zig/codegen.t27",
+  "spec_hash": "sha256:face91b2c4dda278c97006286cdbd18e00e2a2d01e9288eeb0d6520aa47f7fce",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}

@@ -1,0 +1,8 @@
+{
+  "module": "commands",
+  "spec_path": "compiler/runtime/commands.t27",
+  "spec_hash": "sha256:bddd8c89ee156b399270b7ff155003020a0e6229fdcea4c0f5d1126d0671803c",
+  "gen_hash_zig": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "ring": 48,
+  "sealed_at": "2026-04-05T18:22:37Z"
+}
