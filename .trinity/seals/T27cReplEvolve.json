@@ -1,0 +1,8 @@
+{
+  "module": "t27c_repl_evolve",
+  "spec_path": "bootstrap/t27c.py",
+  "spec_hash": "sha256:73797e7f1f6fb40a544effa16a7d76d42e782677b6fc0150fdd7ff7084165a37",
+  "ring": 49,
+  "sealed_at": "2026-04-09T13:24:09Z",
+  "notes": "Ring 49: working evolve/history/status/reload commands"
+}
