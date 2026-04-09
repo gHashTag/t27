@@ -914,7 +914,9 @@ async fn config_get_handler() -> impl IntoResponse {
 
 #[cfg(feature = "server")]
 async fn session_list_handler() -> impl IntoResponse {
-    Json(Vec::<serde_json::Value>::new())
+    Json(serde_json::json!({
+        "data": []
+    }))
 }
 
 #[cfg(feature = "server")]
@@ -930,21 +932,13 @@ async fn session_id_handler(axum::extract::Path(id): axum::extract::Path<String>
         .as_secs();
 
     Json(serde_json::json!({
-        "id": id,
-        "slug": "default-session",
-        "projectID": "t27",
-        "workspaceID": "wrk_default",
-        "directory": "/app",
-        "title": "Welcome to OpenCode",
-        "version": "1.0",
-        "time": {
-            "created": current_time,
-            "updated": current_time
-        },
-        "summary": {
-            "additions": 0,
-            "deletions": 0,
-            "files": 0
+        "data": {
+            "id": id,
+            "name": format!("Session {}", id),
+            "status": "active",
+            "railwayServiceId": format!("srv_{}", id),
+            "createdAt": current_time,
+            "updatedAt": current_time
         }
     }))
 }
@@ -957,21 +951,29 @@ async fn session_create_handler() -> impl IntoResponse {
         .as_secs();
 
     Json(serde_json::json!({
-        "id": "ses_default",
-        "slug": "default-session",
-        "projectID": "t27",
-        "workspaceID": "wrk_default",
-        "directory": "/app",
-        "title": "Welcome to OpenCode",
-        "version": "1.0",
-        "time": {
-            "created": current_time,
-            "updated": current_time
-        },
-        "summary": {
-            "additions": 0,
-            "deletions": 0,
-            "files": 0
+        "data": {
+            "id": "ses_default",
+            "name": "Default Session",
+            "status": "active",
+            "railwayServiceId": "srv_default",
+            "createdAt": current_time,
+            "updatedAt": current_time
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn session_create_sandbox_token_handler() -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "data": {
+            "token": format!("sb_token_{}", current_time),
+            "expiresIn": 86400,
+            "sessionName": "default-session"
         }
     }))
 }
@@ -1930,9 +1932,13 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/config", get(config_get_handler))
         .route("/config/providers", get(config_providers_handler))
         .route("/path", get(path_handler))
+        // Session routes (both singular and plural for compatibility)
         .route("/session", get(session_list_handler).post(session_create_handler))
+        .route("/sessions", get(session_list_handler).post(session_create_handler))
         .route("/session/status", get(session_status_handler))
-        .route("/session/:id", get(session_id_handler))
+        .route("/session/:id", get(session_id_handler).delete(session_id_handler))
+        .route("/sessions/:id", get(session_id_handler).delete(session_id_handler))
+        .route("/sessions/:id/token", post(session_create_sandbox_token_handler))
         .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
         .route("/session/:id/prompt_async", post(prompt_async_handler))
         .route("/session/:id/todo", get(session_todo_handler))
