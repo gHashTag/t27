@@ -5,12 +5,8 @@ import {
   createSession,
   deleteSession,
   fetchSessions,
-  getStoredToken,
   createSandboxToken,
   getProxyUrl,
-  login,
-  clearStoredToken,
-  storeToken,
 } from "./lib/api";
 
 type Session = {
@@ -49,12 +45,10 @@ const areSessionsEqual = (next: Session[], prev: Session[]) => {
 
 function App() {
   // Direct access: skip authentication - use dummy token
-  const [token, setToken] = useState<string>("direct-access");
+  const [token] = useState<string>("direct-access");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [creatingCount, setCreatingCount] = useState(0);
   const [deletingSessionIds, setDeletingSessionIds] = useState<string[]>([]);
   const [launchingSessionId, setLaunchingSessionId] = useState<string | null>(
@@ -64,14 +58,6 @@ function App() {
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
   const isLocalMode = import.meta.env.VITE_LOCAL_MODE === "true";
-
-  const hasToken = Boolean(token);
-
-  const handleLogout = () => {
-    clearStoredToken();
-    setToken(null);
-    setSessions([]);
-  };
 
   const handleApiError = (message: string) => {
     setError(message);
@@ -92,8 +78,7 @@ function App() {
     } catch (error) {
       if (error instanceof Error) {
         if (error.message === "unauthorized") {
-          handleLogout();
-          handleApiError("Session expired. Please sign in again.");
+          handleApiError("Session expired. Please refresh the page.");
           return;
         }
         handleApiError(error.message);
@@ -119,24 +104,6 @@ function App() {
 
     return () => clearInterval(interval);
   }, [refreshSessions, token]);
-
-  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await login(password);
-      storeToken(response.token);
-      setToken(response.token);
-      setPassword("");
-    } catch (error) {
-      if (error instanceof Error) {
-        handleApiError(error.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateSession = async (
     event: FormEvent<HTMLFormElement>,
@@ -240,9 +207,6 @@ function App() {
                 onClick={() => setShowDeleted((prev) => !prev)}
               >
                 {showDeleted ? "Hide deleted" : "Show deleted"}
-              </button>
-              <button className="ghost" onClick={handleLogout}>
-                Sign out
               </button>
             </div>
             </div>
