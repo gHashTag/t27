@@ -79,12 +79,12 @@ module FileOperations {
     // ════════════════════════════════════════════════════════════════════
 
     // list lists contents of a directory
-    fn list(path: str) -> Result([FileNode], FileError> {
+    fn list(path: str) -> Result<[FileNode], FileError> {
         // Implementation: List directory contents
     }
 
     // list_recursive lists directory contents recursively
-    fn list_recursive(path: str, maxDepth: u32) -> Result([FileNode], FileError> {
+    fn list_recursive(path: str, maxDepth: u32) -> Result<[FileNode], FileError> {
         // Implementation: List directory recursively
     }
 
