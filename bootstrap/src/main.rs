@@ -579,9 +579,13 @@ enum Commands {
         #[arg(long)]
         profile: Option<String>,
 
+        /// Board: qmtech-a100t (default) or arty-a7 (auto-configures device, chipdb, XDC)
+        #[arg(long)]
+        board: Option<String>,
+
         /// FPGA device identifier (default: xc7a100tcsg324-1)
-        #[arg(long, default_value = "xc7a100tcsg324-1")]
-        device: String,
+        #[arg(long)]
+        device: Option<String>,
 
         /// Top-level module name (default: zerodsp_top)
         #[arg(long, default_value = "zerodsp_top")]
@@ -2208,6 +2212,23 @@ fn xdc_qmtech_full() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
     (pins, clocks)
 }
 
+fn xdc_arty_a7_minimal() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
+    let pins = vec![
+        PinAssignment { package_pin: "E3",  port: "clk",     iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "C12", port: "rst_n",   iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "C9",  port: "uart_rx", iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "A9",  port: "uart_tx", iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "R5",  port: "led[0]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T5",  port: "led[1]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T8",  port: "led[2]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T9",  port: "led[3]",  iostandard: "LVCMOS33" },
+    ];
+    let clocks = vec![
+        ClockAssignment { port: "clk", name: "sys_clk", period_ns: "10.0", waveform: "{0 5.0}" },
+    ];
+    (pins, clocks)
+}
+
 fn emit_xdc(pins: &[PinAssignment], clocks: &[ClockAssignment]) -> String {
     let mut out = String::new();
     for clock in clocks {
@@ -2233,6 +2254,10 @@ fn xdc_for_profile(profile: &str) -> anyhow::Result<String> {
         }
         "full" | "qmtech_xc7a100t_full" => {
             let (pins, clocks) = xdc_qmtech_full();
+            Ok(emit_xdc(&pins, &clocks))
+        }
+        "arty-a7-minimal" | "arty_a7_minimal" => {
+            let (pins, clocks) = xdc_arty_a7_minimal();
             Ok(emit_xdc(&pins, &clocks))
         }
         _ => {
@@ -2340,6 +2365,13 @@ fn run_xdc_verify() -> anyhow::Result<()> {
             expected_pins: 16,
             expected_clocks: 1,
             must_have_pins: &["clk", "rst_n", "spi_cs", "spi_sck", "spi_mosi", "spi_miso"],
+        },
+        SpecExpectation {
+            profile: "arty-a7-minimal",
+            expected_lines: 9,
+            expected_pins: 8,
+            expected_clocks: 1,
+            must_have_pins: &["clk", "rst_n", "uart_rx", "uart_tx", "led[0]", "led[3]"],
         },
     ];
 
@@ -3260,6 +3292,7 @@ fn run_fpga_build(
     synth_only: bool,
     minimal: bool,
     profile: Option<&str>,
+    board: Option<&str>,
     device: &str,
     top: &str,
     docker: Option<bool>,
@@ -3271,17 +3304,25 @@ fn run_fpga_build(
     prjxray_db_path: Option<&str>,
     output: &str,
 ) -> anyhow::Result<()> {
+    let is_arty_a7 = matches!(board, Some("arty-a7"));
     let effective_minimal = match profile {
-        Some("minimal") => true,
+        Some("minimal") | Some("arty-a7-minimal") => true,
         Some("full") => false,
         Some(other) => {
-            eprintln!("Warning: unknown profile '{}', falling back to minimal. Supported: minimal, full", other);
+            eprintln!("Warning: unknown profile '{}', falling back to minimal. Supported: minimal, full, arty-a7-minimal", other);
             true
         }
         None => minimal,
     };
-    let profile_name = if effective_minimal { "minimal" } else { "full" };
-    println!("=== FPGA Build: profile = {} ===", profile_name);
+    let profile_name = if is_arty_a7 {
+        "arty-a7-minimal"
+    } else if effective_minimal {
+        "minimal"
+    } else {
+        "full"
+    };
+    println!("=== FPGA Build: board = {}, profile = {}, device = {} ===",
+        board.unwrap_or("qmtech-a100t"), profile_name, device);
 
     let specs_dir = repo_root.join("specs/fpga");
     let build_dir = repo_root.join(output);
@@ -3318,7 +3359,39 @@ fn run_fpga_build(
     }
 
     let top_wrapper = gen_dir.join(format!("{}.v", top));
-    if effective_minimal {
+    if is_arty_a7 {
+        let wrapper_source = format!(
+r#"`timescale 1ns / 1ps
+
+module {top} (
+    input  wire        clk,
+    input  wire        rst_n,
+    input  wire        uart_rx,
+    output wire        uart_tx,
+    output wire [3:0]  led
+);
+    wire sys_clk   = clk;
+    wire sys_rst_n = rst_n;
+
+    reg [26:0] heartbeat_ctr;
+    always @(posedge sys_clk) begin
+        if (!sys_rst_n)
+            heartbeat_ctr <= 27'd0;
+        else
+            heartbeat_ctr <= heartbeat_ctr + 1'b1;
+    end
+
+    assign led[0] = heartbeat_ctr[24];
+    assign led[1] = heartbeat_ctr[23];
+    assign led[2] = 1'b0;
+    assign led[3] = 1'b0;
+    assign uart_tx = uart_rx;
+endmodule
+"#
+        );
+        fs::write(&top_wrapper, &wrapper_source)?;
+        println!("  OK {}.v (Arty A7 top-level)", top);
+    } else if effective_minimal {
         let wrapper_source = format!(
 r#"`timescale 1ns / 1ps
 
@@ -3557,11 +3630,11 @@ endmodule
     let chipdb = match chipdb_path {
         Some(p) => PathBuf::from(p),
         None => {
-            let default = PathBuf::from("build/fpga/chipdb/xc7a100tcsg324-1.bin");
+            let default = PathBuf::from(format!("build/fpga/chipdb/{}.bin", device));
             if repo_root.join(&default).exists() {
                 repo_root.join(&default)
             } else {
-                anyhow::bail!("Chipdb not found. Pass --chipdb <path> or place at build/fpga/chipdb/{}.bin", device);
+                anyhow::bail!("Chipdb not found at {}. Pass --chipdb <path> or run chipdb generation.", default.display());
             }
         }
     };
@@ -7325,9 +7398,13 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
+                 Some("arty-a7") => "xc7a100tcsg324-1",
+                 _ => "xc7a100tcsg324-1",
+             });
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -7452,9 +7529,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-        Commands::FpgaBuild { smoke, synth_only, minimal, profile, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+        Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
             let repo_root = std::env::current_dir()?;
-            run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+            let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
+                Some("arty-a7") => "xc7a100tcsg324-1",
+                _ => "xc7a100tcsg324-1",
+            });
+            run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
         }
         Commands::ValidateSeals { pr_files } => {
             run_validate_seals(&pr_files)?;
