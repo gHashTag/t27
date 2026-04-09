@@ -127,10 +127,11 @@ Where:
 
 ## Team
 
-**Lead:** [YOUR NAME] — Principal Investigator
+**Lead:** Dmitrii Vasilev — Principal Investigator
 **Contributors:**
 - [YOUR NAME] — Theory advisor
-- **Claude Opus 4.6** (ULTRA ENGINE v5.1 implementation)
+- **Claude Opus 4.6** (ULTRA ENGINE v5.1 implementation and code generation)
+- [OPTIONAL] [OTHER TEAM MEMBERS]
 
 ## Timeline
 
