@@ -18,9 +18,10 @@
     "conformance": 1.0,
     "documentation": 1.0,
     "compiler_gen": 1.0,
-    "fpga_peripherals": 1.0
+    "fpga_peripherals": 1.0,
+    "cli": 1.0
   },
-  "last_updated": "2026-04-05T12:00:00Z",
+  "last_updated": "2026-04-09T13:24:44Z",
   "thresholds": {
     "critical": 0.5,
     "warning": 0.7

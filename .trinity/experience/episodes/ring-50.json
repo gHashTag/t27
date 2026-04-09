@@ -1,0 +1,39 @@
+{
+  "episode_id": "phi-2026-04-09T13:24:44Z#ring-50",
+  "skill_id": "ring-50",
+  "session_id": "2026-04-09T13:24:44Z#ring-50",
+  "issue_id": "SEED-50",
+  "spec_paths": [
+    "architecture/graph_v2.json"
+  ],
+  "spec_hash_after": "sha256:033aafeaf239b5d563799d317ae9c82c0274a96e656929533803153c5fd95bc3",
+  "tests": {
+    "status": "passed",
+    "failed_tests": [],
+    "duration_ms": 0
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0,
+    "notes": "3 CLI nodes added to graph; queen-health updated with cli domain"
+  },
+  "bench_delta": {
+    "metric": "graph_nodes",
+    "value": 3,
+    "unit": "count"
+  },
+  "commit": {
+    "sha": "pending",
+    "message": "feat(ring-50): add CLI REPL nodes to canonical dependency graph [SEED-50]",
+    "timestamp": "2026-04-09T13:24:44Z"
+  },
+  "actor": "agent:computer",
+  "sealed_at": "2026-04-09T13:24:44Z",
+  "completed_at": "2026-04-09T13:24:44Z",
+  "metadata": {
+    "environment": "github",
+    "ring": 50,
+    "layer": "CANOPY",
+    "origin": "graph_update"
+  }
+}

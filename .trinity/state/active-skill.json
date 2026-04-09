@@ -1,14 +1,14 @@
 {
-  "skill_id": "ring-49",
-  "session_id": "2026-04-09T13:24:09Z#ring-49",
-  "issue_id": "SEED-49",
-  "issue_title": "Ring 49: Working tri repl evolve with auto-fix",
-  "description": "Full implementation of evolve/history/status/reload with real self-improvement",
-  "started_at": "2026-04-09T13:24:09Z",
+  "skill_id": "ring-50",
+  "session_id": "2026-04-09T13:24:44Z#ring-50",
+  "issue_id": "SEED-50",
+  "issue_title": "Ring 50: Add CLI REPL nodes to canonical dependency graph",
+  "description": "3 new nodes: cli/repl, cli/ring_executor, cli/self_improve. 4 edges. CLI domain in queen-health.",
+  "started_at": "2026-04-09T13:24:44Z",
   "started_by": "agent:computer",
   "status": "completed",
   "allowed_paths": [
-    "bootstrap/t27c.py",
+    "architecture/graph_v2.json",
     ".trinity/"
   ]
 }

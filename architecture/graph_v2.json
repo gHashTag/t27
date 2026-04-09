@@ -982,7 +982,13 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["FPGA_Bridge", "Bridge_Unit", "buffer_write", "buffer_read", "bridge_parse_header"],
+      "exports": [
+        "FPGA_Bridge",
+        "Bridge_Unit",
+        "buffer_write",
+        "buffer_read",
+        "bridge_parse_header"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -996,7 +1002,12 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["SPI_Master", "SPI_Master_Unit", "spi_transfer", "spi_tick"],
+      "exports": [
+        "SPI_Master",
+        "SPI_Master_Unit",
+        "spi_transfer",
+        "spi_tick"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1010,7 +1021,13 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["UART_Bridge", "UART_TX_Unit", "UART_RX_Unit", "uart_tx_write", "uart_rx_tick"],
+      "exports": [
+        "UART_Bridge",
+        "UART_TX_Unit",
+        "UART_RX_Unit",
+        "uart_tx_write",
+        "uart_rx_tick"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1024,7 +1041,13 @@
       "strand": "III",
       "tier": 3,
       "kind": "spec",
-      "exports": ["Trinity_FPGA_Top", "Top_State", "top_tick", "top_reset", "led_set"],
+      "exports": [
+        "Trinity_FPGA_Top",
+        "Top_State",
+        "top_tick",
+        "top_reset",
+        "led_set"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1038,7 +1061,10 @@
       "strand": "III",
       "tier": 3,
       "kind": "testbench",
-      "exports": ["MAC_Testbench", "run_tests"],
+      "exports": [
+        "MAC_Testbench",
+        "run_tests"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1052,7 +1078,10 @@
       "strand": "III",
       "tier": 4,
       "kind": "testbench",
-      "exports": ["Top_Level_Testbench", "run_tests"],
+      "exports": [
+        "Top_Level_Testbench",
+        "run_tests"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1066,7 +1095,10 @@
       "strand": "III",
       "tier": 3,
       "kind": "testbench",
-      "exports": ["UART_Testbench", "run_tests"],
+      "exports": [
+        "UART_Testbench",
+        "run_tests"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1080,7 +1112,16 @@
       "strand": "II",
       "tier": 2,
       "kind": "spec",
-      "exports": ["VSACore", "HyperVector", "Codebook", "encode_predicate", "decode_argument", "codebook_lookup", "analogy", "resonator_solve"],
+      "exports": [
+        "VSACore",
+        "HyperVector",
+        "Codebook",
+        "encode_predicate",
+        "decode_argument",
+        "codebook_lookup",
+        "analogy",
+        "resonator_solve"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1094,12 +1135,72 @@
       "strand": "III",
       "tier": 6,
       "kind": "codegen",
-      "exports": ["FpgaCodegen", "emit_fpga_top", "emit_uart_module", "emit_spi_module", "emit_mac_module"],
+      "exports": [
+        "FpgaCodegen",
+        "emit_fpga_top",
+        "emit_uart_module",
+        "emit_spi_module",
+        "emit_mac_module"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
       "last_bench": null,
       "failure_count": 0
+    },
+    {
+      "id": 54,
+      "name": "cli/repl",
+      "path": "t27/specs/cli/repl.t27",
+      "strand": "I",
+      "tier": 5,
+      "kind": "spec",
+      "exports": [
+        "Repl"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0,
+      "ring": 47,
+      "sealed_at": "2026-04-09T13:24:28Z"
+    },
+    {
+      "id": 55,
+      "name": "cli/ring_executor",
+      "path": "t27/specs/cli/ring_executor.t27",
+      "strand": "I",
+      "tier": 5,
+      "kind": "spec",
+      "exports": [
+        "RingExecutor"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0,
+      "ring": 47,
+      "sealed_at": "2026-04-09T13:24:28Z"
+    },
+    {
+      "id": 56,
+      "name": "cli/self_improve",
+      "path": "t27/specs/cli/self_improve.t27",
+      "strand": "I",
+      "tier": 5,
+      "kind": "spec",
+      "exports": [
+        "SelfImprove"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0,
+      "ring": 47,
+      "sealed_at": "2026-04-09T13:24:28Z"
     }
   ],
   "edges": [
@@ -1624,6 +1725,26 @@
       "to": 53,
       "kind": "import",
       "invariant": "verilog-codegen-for-fpga-emission"
+    },
+    {
+      "from": 1,
+      "to": 54,
+      "kind": "depends"
+    },
+    {
+      "from": 54,
+      "to": 55,
+      "kind": "depends"
+    },
+    {
+      "from": 54,
+      "to": 56,
+      "kind": "depends"
+    },
+    {
+      "from": 55,
+      "to": 56,
+      "kind": "depends"
     }
   ],
   "actions": [

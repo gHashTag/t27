@@ -1,0 +1,8 @@
+{
+  "module": "graph_v2",
+  "spec_path": "architecture/graph_v2.json",
+  "spec_hash": "sha256:033aafeaf239b5d563799d317ae9c82c0274a96e656929533803153c5fd95bc3",
+  "ring": 50,
+  "sealed_at": "2026-04-09T13:24:44Z",
+  "notes": "Ring 50: Added cli/repl, cli/ring_executor, cli/self_improve nodes"
+}
