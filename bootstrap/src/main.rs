@@ -181,6 +181,10 @@ enum Commands {
         #[arg(long)]
         all: bool,
 
+        /// Dry run mode (verify only, no API calls)
+        #[arg(long)]
+        dry_run: bool,
+
         /// Number of parallel workers (default: 4)
         #[arg(long, default_value = "4")]
         workers: usize,
@@ -6460,8 +6464,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
-        Commands::Audio { notebook, all, bilingual, workers, token, project, location, region } => {
-            enrichment::run_audio(notebook, all, bilingual, workers, token, project, location, region)?;
+        Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
@@ -6583,8 +6587,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
-        Commands::Audio { notebook, all, bilingual, workers, token, project, location, region } => {
-            enrichment::run_audio(notebook, all, bilingual, workers, token, project, location, region)?;
+        Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
