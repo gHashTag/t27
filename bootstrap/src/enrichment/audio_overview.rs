@@ -88,8 +88,84 @@ pub struct AudioReport {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct NotebookListResponse {
+    #[serde(default)]
+    pub notebooks: Vec<NotebookEntry>,
+    #[serde(default)]
+    pub next_page_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NotebookEntry {
+    #[serde(rename = "name")]
+    pub resource_name: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub sources: Vec<serde_json::Value>,
+}
+
+impl NotebookEntry {
+    pub fn id(&self) -> &str {
+        self.resource_name.rsplit('/').next().unwrap_or(&self.resource_name)
+    }
+
+    pub fn has_sources(&self) -> bool {
+        !self.sources.is_empty()
+    }
+}
+
 // ============================================================================
-// 3. HTTP Client Functions
+// 3. Notebook List API
+// ============================================================================
+
+pub fn list_all_notebooks(
+    base_url: &str,
+    token: &str,
+) -> Result<Vec<NotebookEntry>> {
+    let client = Client::new();
+    let mut all = Vec::new();
+    let mut page_token: Option<String> = None;
+
+    loop {
+        let mut url = format!(
+            "{}/notebooks:listRecentlyViewed?pageSize=500",
+            base_url
+        );
+        if let Some(ref pt) = page_token {
+            url.push_str(&format!("&pageToken={}", pt));
+        }
+
+        let resp = client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send();
+
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                if let Ok(body) = r.json::<NotebookListResponse>() {
+                    all.extend(body.notebooks);
+
+                    match body.next_page_token {
+                        Some(pt) if !pt.is_empty() => page_token = Some(pt),
+                        _ => break,
+                    }
+                }
+            }
+            Ok(_) => break,
+            Err(e) => {
+                eprintln!("{} Failed to list notebooks: {}", "⚠".yellow(), e);
+                break;
+            }
+        }
+    }
+
+    Ok(all)
+}
+
+// ============================================================================
+// 4. HTTP Client Functions
 // ============================================================================
 
 pub fn create_audio_overview(

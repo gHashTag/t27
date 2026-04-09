@@ -1,2 +1,2 @@
-// Trigger rebuild v6 - sandbox navigation fix
-export const REBUILD_TIMESTAMP = "v6-sandbox-navigation-fix";
+// Trigger rebuild v7 - explicit sandbox URL
+export const REBUILD_TIMESTAMP = "v7-explicit-sandbox-url";

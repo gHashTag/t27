@@ -78,10 +78,36 @@ pub fn run_audio(
     _bilingual: bool,
     workers: usize,
     token: String,
+    project: Option<String>,
+    location: Option<String>,
+    region: Option<String>,
 ) -> Result<()> {
+    let region_val = region.unwrap_or_else(|| "us".to_string());
+    let location_val = location.unwrap_or_else(|| "global".to_string());
+    let project_val = project.unwrap_or_else(|| String::new());
+    let base_url = format!(
+        "https://{}-discoveryengine.googleapis.com/v1alpha/projects/{}/locations/{}",
+        region_val,
+        project_val,
+        location_val
+    );
+
     // Convert Option<String> and bool to &[String]
     let notebooks = if all {
-        vec![] // Would need to fetch list of notebooks in real implementation
+        println!("{} Fetching notebook list...", "ℹ".cyan());
+        let all_notebooks = audio_overview::list_all_notebooks(&base_url, &token)?;
+        // Filter to only notebooks with sources
+        let with_sources: Vec<String> = all_notebooks
+            .iter()
+            .filter(|nb| nb.has_sources())
+            .map(|nb| nb.id().to_string())
+            .collect();
+        println!("{} Found {} notebooks with sources (skipping {} without)",
+            "ℹ".cyan(),
+            with_sources.len(),
+            all_notebooks.len() - with_sources.len(),
+        );
+        with_sources
     } else if let Some(nb) = notebook {
         vec![nb]
     } else {
