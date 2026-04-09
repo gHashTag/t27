@@ -75,6 +75,7 @@ pub fn run_enrich(
 pub fn run_audio(
     notebook: Option<String>,
     all: bool,
+    dry_run: bool,
     _bilingual: bool,
     workers: usize,
     token: String,
@@ -113,6 +114,25 @@ pub fn run_audio(
     } else {
         return Err(anyhow::anyhow!("Either --notebook or --all must be specified"));
     };
+
+    // Dry run mode - just list, don't generate
+    if dry_run {
+        println!();
+        println!("{}", "═══════════════════════════════════════".bright_yellow());
+        println!("  {} {}", "🔊".bold(), "Audio Overview Generation".bright_yellow().bold());
+        println!("{}", "═══════════════════════════════════════".bright_yellow());
+        println!();
+        println!("{} DRY RUN MODE — No API calls will be made", "⚠".yellow());
+        println!("{} Scanning notebooks with sources...", "ℹ".cyan());
+        println!();
+        for nb in &notebooks {
+            println!("  {} {}", "→".cyan(), nb);
+        }
+        println!();
+        println!("{} Notebooks with sources: {}", "✓".green(), notebooks.len());
+        println!();
+        return Ok(());
+    }
 
     let _report = audio_overview::generate_all(&notebooks, workers, token);
     Ok(())
