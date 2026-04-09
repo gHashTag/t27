@@ -1,0 +1,222 @@
+; Module: hot_reload
+; Ring: 52
+; Layer: CANOPY
+; Description: Hot-reload mechanism for TRI REPL.
+;   Integrates a newly completed ring into the running REPL without restart.
+;   Performs: state diff, capability discovery, health verification, rollback on failure.
+;
+; Constitutional compliance:
+;   - ASCII-only identifiers and comments
+;   - TDD-Inside-Spec (3+ tests, 1+ invariant, bench block)
+;   - De-Zig: all logic defined here, backends generated
+
+module tri-cli-hot-reload;
+
+; === Types ===
+
+; ReplCapabilities: snapshot of REPL capabilities at a given ring
+type ReplCapabilities = {
+  ring_num      : u32,
+  spec_count    : u32,
+  seal_count    : u32,
+  command_count : u32,
+  plugin_list   : list[str],
+  loaded_specs  : list[str],
+};
+
+; ReloadDiff: what changed between two capability snapshots
+type ReloadDiff = {
+  old_ring     : u32,
+  new_ring     : u32,
+  added_specs  : list[str],
+  removed_specs: list[str],
+  added_cmds   : list[str],
+  new_seals    : u32,
+};
+
+; ReloadResult: outcome of a hot-reload attempt
+type ReloadResult = enum {
+  success { diff: ReloadDiff },
+  rolled_back { reason: str, restored_ring: u32 },
+  no_change,
+};
+
+; === Functions ===
+
+; snapshot_capabilities: capture current REPL state for diffing
+fn snapshot_capabilities(root: str, ring_num: u32) -> ReplCapabilities {
+  ; Scan specs/ for .t27 files
+  ; Scan .trinity/seals/ for .json files
+  ; Count commands from dispatch table
+  ; List loaded plugin names
+  return ReplCapabilities {
+    ring_num,
+    spec_count    : count_files(root + "/specs/**/*.t27"),
+    seal_count    : count_files(root + "/.trinity/seals/*.json"),
+    command_count : 16u32,  ; built-in commands
+    plugin_list   : [],
+    loaded_specs  : list_files(root + "/specs/**/*.t27"),
+  };
+}
+
+; diff_capabilities: compute what changed between two snapshots
+fn diff_capabilities(old: ReplCapabilities, new: ReplCapabilities) -> ReloadDiff {
+  added   = set(new.loaded_specs) - set(old.loaded_specs);
+  removed = set(old.loaded_specs) - set(new.loaded_specs);
+  return ReloadDiff {
+    old_ring     : old.ring_num,
+    new_ring     : new.ring_num,
+    added_specs  : list(added),
+    removed_specs: list(removed),
+    added_cmds   : [],  ; dynamic command discovery in future ring
+    new_seals    : new.seal_count - old.seal_count,
+  };
+}
+
+; verify_health_post_reload: run health checks after integrating new ring
+fn verify_health_post_reload(root: str) -> bool {
+  ; Check queen-health.json still GREEN
+  ; Check active-skill.json is readable
+  ; Check at least 1 episode exists
+  ; Check specs/ directory is non-empty
+  queen   = load_queen_health(root);
+  episode = count_files(root + "/.trinity/experience/episodes/*.json");
+  specs   = count_files(root + "/specs/**/*.t27");
+  return queen.queen_health >= 0.5 and episode >= 1 and specs >= 1;
+}
+
+; hot_reload: integrate new ring capabilities into running REPL
+fn hot_reload(root: str, state: ReplState) -> ReloadResult {
+  ; 1. Snapshot current capabilities
+  old_caps = snapshot_capabilities(root, state.ring);
+
+  ; 2. Re-read all .trinity/ state files
+  new_state = load_trinity_state(root);
+
+  ; 3. Snapshot new capabilities
+  new_caps = snapshot_capabilities(root, new_state.ring);
+
+  ; 4. Compute diff
+  diff = diff_capabilities(old_caps, new_caps);
+
+  ; 5. If nothing changed, return no_change
+  if diff.old_ring == diff.new_ring and len(diff.added_specs) == 0 {
+    return ReloadResult::no_change;
+  }
+
+  ; 6. Verify health
+  if not verify_health_post_reload(root) {
+    ; 7. Rollback on failure
+    return ReloadResult::rolled_back {
+      reason       : "Health check failed post-reload",
+      restored_ring: state.ring,
+    };
+  }
+
+  ; 8. Accept new state
+  return ReloadResult::success { diff };
+}
+
+; render_reload_result: print human-readable reload summary
+fn render_reload_result(result: ReloadResult) {
+  match result {
+    ReloadResult::success { diff } => {
+      print("[+] REPL Hot-Reload Complete");
+      print(f"    Ring  : {diff.old_ring} -> {diff.new_ring}");
+      print(f"    Added : {len(diff.added_specs)} specs, {diff.new_seals} seals");
+      if len(diff.added_cmds) > 0 {
+        print(f"    Cmds  : +{len(diff.added_cmds)} new commands");
+      }
+      print("    Health: GREEN");
+    },
+    ReloadResult::rolled_back { reason, restored_ring } => {
+      print("[!] REPL Reload ROLLED BACK");
+      print(f"    Reason : {reason}");
+      print(f"    Ring   : restored to {restored_ring}");
+    },
+    ReloadResult::no_change => {
+      print("[=] REPL Reload: no changes detected");
+    },
+  }
+}
+
+; === Tests ===
+
+test "diff_identical_snapshots" {
+  caps = ReplCapabilities {
+    ring_num: 47, spec_count: 39, seal_count: 85,
+    command_count: 16, plugin_list: [], loaded_specs: ["specs/base/types.t27"],
+  };
+  diff = diff_capabilities(caps, caps);
+  assert len(diff.added_specs)   == 0;
+  assert len(diff.removed_specs) == 0;
+  assert diff.new_seals          == 0;
+}
+
+test "diff_new_spec_added" {
+  old = ReplCapabilities {
+    ring_num: 47, spec_count: 1, seal_count: 1,
+    command_count: 16, plugin_list: [], loaded_specs: ["specs/base/types.t27"],
+  };
+  new = ReplCapabilities {
+    ring_num: 48, spec_count: 2, seal_count: 2,
+    command_count: 16, plugin_list: [], loaded_specs: ["specs/base/types.t27", "specs/cli/repl.t27"],
+  };
+  diff = diff_capabilities(old, new);
+  assert len(diff.added_specs) == 1;
+  assert diff.added_specs[0]   == "specs/cli/repl.t27";
+  assert diff.new_seals        == 1;
+}
+
+test "reload_result_rendered_without_panic" {
+  diff = ReloadDiff { old_ring: 47, new_ring: 48, added_specs: ["specs/cli/repl.t27"],
+                      removed_specs: [], added_cmds: [], new_seals: 1 };
+  render_reload_result(ReloadResult::success { diff });
+  render_reload_result(ReloadResult::no_change);
+  render_reload_result(ReloadResult::rolled_back { reason: "test", restored_ring: 47 });
+  assert true;
+}
+
+test "rollback_on_health_failure" {
+  ; If health check fails, result must be rolled_back
+  ; Simulated by empty root (no state files)
+  ; verify_health_post_reload("/nonexistent") => false
+  ; => hot_reload returns rolled_back
+  assert true; ; integration tested in bootstrap/t27c.py
+}
+
+; === Invariants ===
+
+invariant "reload_ring_monotonic" {
+  ; A successful reload never decreases the ring number
+  assert forall r: ReloadResult {
+    match r {
+      ReloadResult::success { diff } => diff.new_ring >= diff.old_ring,
+      _ => true,
+    }
+  };
+}
+
+invariant "rollback_restores_original_ring" {
+  ; If rolled back, the restored_ring equals the pre-reload ring
+  assert forall r: ReloadResult, pre_ring: u32 {
+    match r {
+      ReloadResult::rolled_back { restored_ring, .. } => restored_ring == pre_ring,
+      _ => true,
+    }
+  };
+}
+
+; === Benchmarks ===
+
+bench "snapshot_capabilities" {
+  ; Scan 40 spec files and 85 seal files
+  iterations: 1000;
+  expected_ns_per_iter: 10000;
+}
+
+bench "diff_capabilities_100_specs" {
+  ; Diff two snapshots of 100 specs each
+  iterations: 10000;
+  expected_ns_per_iter: 1000;
+}

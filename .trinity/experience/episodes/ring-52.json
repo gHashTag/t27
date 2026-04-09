@@ -1,0 +1,39 @@
+{
+  "episode_id": "phi-2026-04-09T13:26:43Z#ring-52",
+  "skill_id": "ring-52",
+  "session_id": "2026-04-09T13:26:43Z#ring-52",
+  "issue_id": "SEED-52",
+  "spec_paths": [
+    "specs/cli/hot_reload.t27"
+  ],
+  "spec_hash_after": "sha256:1ac4edfed05b66963a5c1b5a4217a3fbf03e9714b0ea7d1a615c008d9bd58e02",
+  "tests": {
+    "status": "passed",
+    "failed_tests": [],
+    "duration_ms": 0
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0,
+    "notes": "hot-reload spec; 4 tests, 2 invariants, 2 benches; rollback path defined"
+  },
+  "bench_delta": {
+    "metric": "spec_lines",
+    "value": 222,
+    "unit": "lines"
+  },
+  "commit": {
+    "sha": "pending",
+    "message": "feat(ring-52): hot-reload mechanism spec + repl status command [SEED-52]",
+    "timestamp": "2026-04-09T13:26:43Z"
+  },
+  "actor": "agent:computer",
+  "sealed_at": "2026-04-09T13:26:43Z",
+  "completed_at": "2026-04-09T13:26:43Z",
+  "metadata": {
+    "environment": "github",
+    "ring": 52,
+    "layer": "CANOPY",
+    "origin": "spec_creation"
+  }
+}

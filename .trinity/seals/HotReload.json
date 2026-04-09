@@ -1,0 +1,7 @@
+{
+  "module": "hot_reload",
+  "spec_path": "specs/cli/hot_reload.t27",
+  "spec_hash": "sha256:1ac4edfed05b66963a5c1b5a4217a3fbf03e9714b0ea7d1a615c008d9bd58e02",
+  "ring": 52,
+  "sealed_at": "2026-04-09T13:26:43Z"
+}

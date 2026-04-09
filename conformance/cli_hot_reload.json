@@ -1,0 +1,44 @@
+{
+  "module": "hot_reload",
+  "domain": "cli",
+  "ring": 52,
+  "generated_by": "tri_ring_52",
+  "vectors": [
+    {
+      "id": "hot_reload_v001",
+      "input": {
+        "old_specs": [],
+        "new_specs": []
+      },
+      "expected": {
+        "result": "no_change"
+      },
+      "notes": "empty -> empty"
+    },
+    {
+      "id": "hot_reload_v002",
+      "input": {
+        "old_ring": 47,
+        "new_ring": 48,
+        "added_specs": [
+          "specs/cli/repl.t27"
+        ]
+      },
+      "expected": {
+        "result": "success",
+        "added_count": 1
+      },
+      "notes": "new spec added"
+    },
+    {
+      "id": "hot_reload_v003",
+      "input": {
+        "health_fails": true
+      },
+      "expected": {
+        "result": "rolled_back"
+      },
+      "notes": "health failure causes rollback"
+    }
+  ]
+}
