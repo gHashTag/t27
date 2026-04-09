@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — FPGA CI regression checks (Verilog hash + synth size) · PR #395
+**Last updated:** 2026-04-09 — check-pins command + prjxray pin coverage audit · PR #397
 
 **Document class:** Operational focus document
 
