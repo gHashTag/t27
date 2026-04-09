@@ -1,0 +1,66 @@
+{
+  "timestamp": "2026-04-09T13:23:57",
+  "catalog_size": 70,
+  "n_mark": 34,
+  "n_exp": 19,
+  "n_total_e8": 53,
+  "fraction_e8": 0.7066666666666667,
+  "random_baseline": 0.7777777777777778,
+  "enrichment": 0.9085714285714286,
+  "p_binom_marks": 0.970760934711956,
+  "p_binom_e8": 0.9436211319205915,
+  "p_permutation": 0.588505,
+  "z_clustering": 0.136169831780018,
+  "n_value_counts": {
+    "4": 15,
+    "9": 2,
+    "8": 17,
+    "5": 10,
+    "2": 9,
+    "1": 8,
+    "7": 7,
+    "3": 2
+  },
+  "mark_domains": {
+    "4": [
+      "EM",
+      "Coupling",
+      "Nuclear",
+      "Cosmo",
+      "Cosmo",
+      "LQG",
+      "DarkMatter",
+      "QCD",
+      "Lepton",
+      "CKM",
+      "Math",
+      "Math",
+      "Nuclear",
+      "Nuclear",
+      "CondMat"
+    ],
+    "5": [
+      "Boson",
+      "Quantum",
+      "Neutrino",
+      "QCD",
+      "Math",
+      "Math",
+      "Math",
+      "CKM",
+      "QCD",
+      "Astro"
+    ],
+    "2": [
+      "EW",
+      "Lepton",
+      "Lepton",
+      "Nuclear",
+      "Nuclear",
+      "Nuclear",
+      "Math",
+      "CKM",
+      "CondMat"
+    ]
+  }
+}
