@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — TRI CLI + MCP server + FPGA CI workflow · PR #378
+**Last updated:** 2026-04-09 — Phase 3 parse bug fix (Result< typo) · PR #392
 
 **Document class:** Operational focus document
 
