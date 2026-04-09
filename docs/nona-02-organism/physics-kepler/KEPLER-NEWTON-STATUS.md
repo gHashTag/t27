@@ -39,3 +39,16 @@ The paper has been rewritten to honestly report both positive and negative resul
 1. Investigate WHY E₈ marks appear in Sacred Formula n-values
 2. Explore the Koide ≈ m₂/m₄ connection more deeply
 3. Test mark-domain mapping with extended formula catalog
+
+---
+## 2026-04-06 MAJOR UPDATE: FULL REANALYSIS ON 70-FORMULA CATALOG
+
+### RETRACTIONS
+1. Mark enrichment p<0.0001 → p=0.28 (full 70-formula catalog). Selection bias.
+2. 10/10 SM at <1% → all algebras achieve this. ~500 compound ratios artifact.
+3. Domain mapping significance → p=0.59 permutation test.
+
+### SURVIVORS
+1. m₂/m₁ = φ exactly (E₈ Toda, unique among ADE)
+2. c=1/2 Rogers dilogarithm (error 7.6e-13)
+3. m₂/m₄ ≈ 2/3 Koide (0.92%, 7=Coxeter exponent, 30=Coxeter number)
