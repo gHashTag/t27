@@ -2,7 +2,7 @@
 # Build Context: REPO ROOT
 
 # Force rebuild on frontend changes
-ARG BUILD_TIMESTAMP=0
+ARG BUILD_TIMESTAMP=5
 
 # --- Frontend Build Stage ---
 FROM oven/bun:latest AS frontend-builder
