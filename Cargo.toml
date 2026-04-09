@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bootstrap", "ffi", "bindings/python", "bindings/javascript"]
+members = ["bootstrap", "ffi", "bindings/python", "bindings/javascript", "cli/tri", "cli/tri-mcp"]
 
 [workspace.package]
 version = "0.1.0"
