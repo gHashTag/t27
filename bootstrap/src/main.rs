@@ -14,6 +14,9 @@ mod bridge;
 mod compiler;
 mod enrichment;
 mod suite;
+mod railway;
+mod jwt;
+mod proxy;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -151,6 +154,33 @@ enum Commands {
         /// Force re-enrichment
         #[arg(long)]
         force: bool,
+
+        /// API token for NotebookLM
+        #[arg(short = 't', long)]
+        token: String,
+
+        /// Language code: ru, en, or both
+        #[arg(short, long, default_value = "both")]
+        lang: String,
+    },
+
+    /// Generate bilingual Audio Overviews
+    Audio {
+        /// Notebook ID
+        #[arg(short, long)]
+        notebook: Option<String>,
+
+        /// Bilingual mode (both languages)
+        #[arg(long)]
+        bilingual: bool,
+
+        /// All notebooks
+        #[arg(long)]
+        all: bool,
+
+        /// Number of parallel workers (default: 4)
+        #[arg(long, default_value = "4")]
+        workers: usize,
 
         /// API token for NotebookLM
         #[arg(short = 't', long)]
@@ -1027,12 +1057,44 @@ async fn session_create_handler(
         .to_string();
 
     let id = format!("ses_{}", current_time);
-    let railway_service_id = format!("srv_{}", current_time);
+    let mut railway_service_id = format!("srv_{}", current_time);
+    let mut status = "active".to_string();
+
+    // CREATE REAL RAILWAY SERVICE (if token available)
+    let railway_token = env::var("RAILWAY_API_TOKEN_0").ok();
+    let base_service_id = env::var("RAILWAY_SERVICE_ID").ok();
+
+    if let (Some(token), Some(base_id)) = (railway_token, base_service_id) {
+        match railway::create_railway_service(&name, &id, &token, &base_id).await {
+            Ok(service_id) => {
+                railway_service_id = service_id.clone();
+                status = "starting".to_string();
+
+                // Set session-specific environment variables
+                let session_vars = vec![
+                    (String::from("SESSION_ID"), id.clone()),
+                    (String::from("SESSION_NAME"), name.clone()),
+                ];
+                let _ = railway::set_service_variables(&service_id, &session_vars, &token).await;
+
+                // Start health polling in background
+                let sessions_clone = state.sessions.clone();
+                let token_clone = token;
+                tokio::spawn(async move {
+                    health_poller(id, service_id, sessions_clone, token_clone).await;
+                });
+            }
+            Err(e) => {
+                eprintln!("Failed to create Railway service: {}", e);
+                // Fallback: in-memory only with mock status
+            }
+        }
+    }
 
     let session = Session {
         id: id.clone(),
         name,
-        status: "active".to_string(),
+        status,
         railway_service_id,
         created_at: current_time,
         updated_at: current_time,
@@ -1046,20 +1108,92 @@ async fn session_create_handler(
     }))
 }
 
+/// Health poller for Railway services
+/// Polls the service health every 5 seconds for up to 2 minutes
+/// Updates session status to "active" when the service is ready
 #[cfg(feature = "server")]
-async fn session_create_sandbox_token_handler() -> impl IntoResponse {
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(std::time::Duration::from_secs(0))
-        .as_secs();
+async fn health_poller(
+    session_id: String,
+    service_id: String,
+    sessions: Arc<RwLock<Vec<Session>>>,
+    railway_token: String,
+) {
+    const MAX_POLLS: u32 = 24; // 24 * 5 seconds = 2 minutes
+    const POLL_INTERVAL: tokio::time::Duration = tokio::time::Duration::from_secs(5);
 
-    Json(serde_json::json!({
-        "data": {
-            "token": format!("sb_token_{}", current_time),
-            "expiresIn": 86400,
-            "sessionName": "default-session"
+    for i in 0..MAX_POLLS {
+        tokio::time::sleep(POLL_INTERVAL).await;
+
+        // Check service health via Railway API
+        match railway::check_service_health(&service_id, &railway_token).await {
+            Ok(true) => {
+                // Service is healthy, update session status
+                let mut sessions_guard = sessions.write().await;
+                if let Some(session) = sessions_guard.iter_mut().find(|s| s.id == session_id) {
+                    session.status = "active".to_string();
+                    session.updated_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or(std::time::Duration::from_secs(0))
+                        .as_secs();
+                    println!("Session {} is now active", session_id);
+                }
+                return;
+            }
+            Ok(false) => {
+                // Service not ready yet, continue polling
+                if i % 4 == 0 {
+                    // Log every 20 seconds
+                    println!("Session {} still starting... ({}/{})", session_id, i + 1, MAX_POLLS);
+                }
+            }
+            Err(e) => {
+                eprintln!("Health check error for session {}: {}", session_id, e);
+            }
         }
-    }))
+    }
+
+    // After max polls, mark as error state
+    let mut sessions_guard = sessions.write().await;
+    if let Some(session) = sessions_guard.iter_mut().find(|s| s.id == session_id) {
+        session.status = "error".to_string();
+        session.updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::from_secs(0))
+            .as_secs();
+        eprintln!("Session {} failed to become active after timeout", session_id);
+    }
+}
+
+#[cfg(feature = "server")]
+async fn session_create_sandbox_token_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    // Find session to get its name
+    let sessions = state.sessions.read().await;
+    let session_name = sessions
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.name.clone())
+        .unwrap_or_else(|| "Untitled Session".to_string());
+    drop(sessions);
+
+    // Generate real JWT token
+    match jwt::create_sandbox_token(&id, Some(24)) {
+        Ok(token) => {
+            Json(serde_json::json!({
+                "data": {
+                    "token": token,
+                    "expiresIn": 86400,
+                    "sessionName": session_name
+                }
+            }))
+        }
+        Err(e) => {
+            eprintln!("Failed to create sandbox token: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into_response()
+        }
+    }
 }
 
 #[cfg(feature = "server")]
@@ -2057,6 +2191,9 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/deadcode", post(deadcode_handler))
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
+        // Sandbox proxy routes
+        .route("/sandbox", any(proxy::sandbox_proxy_handler_any))
+        .route("/sandbox/*path", any(proxy::sandbox_proxy_handler_any))
         .fallback_service(
             ServeDir::new("public")
                 .not_found_service(ServeFile::new("public/index.html"))
@@ -6216,7 +6353,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
-        Commands::Enrich { notebook, all, force, token } => enrichment::run_enrich(notebook, all, force, token)?,
+        Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        Commands::Audio { notebook, all, bilingual, workers, token } => enrichment::run_audio(notebook, all, bilingual, workers, token)?,
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -6324,7 +6462,8 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
-        Commands::Enrich { notebook, all, force, token } => enrichment::run_enrich(notebook, all, force, token)?,
+        Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        Commands::Audio { notebook, all, bilingual, workers, token } => enrichment::run_audio(notebook, all, bilingual, workers, token)?,
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
