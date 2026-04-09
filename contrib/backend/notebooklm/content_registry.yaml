@@ -1,0 +1,182 @@
+# Topic → Content mapping for notebook enrichment
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+topics:
+  ternary:
+    name: "Ternary Computing"
+    description: "Three-state computing systems, balanced ternary, and ternary logic"
+    youtube:
+      - "https://www.youtube.com/watch?v=Ht5A5Q8-1Q4"  # Ternary computing intro
+      - "https://www.youtube.com/watch?v=f2w8EGxKQY0"  # Computerphile on ternary
+    podcasts:
+      - "https://www.youtube.com/watch?v=xOCk5b5z4r8"  # Three-state systems podcast
+    docs:
+      - "https://en.wikipedia.org/wiki/Ternary_computer"
+      - "https://en.wikipedia.org/wiki/Balanced_ternary"
+      - "https://arxiv.org/abs/1702.08559"  # Ternary computing research
+
+  golden_ratio:
+    name: "Golden Ratio & Trinity"
+    description: "The golden ratio (φ), sacred geometry, and mathematical beauty"
+    youtube:
+      - "https://www.youtube.com/watch?v=sj8Sg8qnjOg"  # The Golden Ratio
+      - "https://www.youtube.com/watch?v=A14v7fjvCw4"  # Donald in Mathmagic Land
+    podcasts:
+      - "https://www.youtube.com/watch?v=6m25kL2I2Qc"  # Numberphile on phi
+    docs:
+      - "https://en.wikipedia.org/wiki/Golden_ratio"
+      - "https://mathworld.wolfram.com/GoldenRatio.html"
+      - "https://archive.org/details/goldenmean010385mbp"
+
+  floating_point:
+    name: "Floating Point & IEEE 754"
+    description: "IEEE 754 floating-point arithmetic, precision, and numeric stability"
+    youtube:
+      - "https://www.youtube.com/watch?v=PZRI1IfStY0"  # Floating Point - Computerphile
+      - "https://www.youtube.com/watch?v=8PORfXlV8HE"  # Floating Point Representation
+    podcasts:
+      - "https://www.youtube.com/watch?v=8UxT2qR8yS4"  # IEEE 754 discussion
+    docs:
+      - "https://en.wikipedia.org/wiki/IEEE_754"
+      - "https://en.wikipedia.org/wiki/Floating-point_arithmetic"
+      - "https://ieeexplore.ieee.org/document/4610935"  # IEEE 754 standard
+
+  trinity:
+    name: "Trinity Math & Phi"
+    description: "Trinity S³AI mathematical foundations and φ equations"
+    youtube:
+      - "https://www.youtube.com/watch?v=LpXnK6c7qB4"  # Three body problem
+      - "https://www.youtube.com/watch?v=wO61D9x6lNY"  # Mathematical constants
+    podcasts:
+      - "https://www.youtube.com/watch?v=5oI_5pM0f1o"  # Math podcast on constants
+    docs:
+      - "https://en.wikipedia.org/wiki/Trinity_(mathematics)"
+      - "https://mathworld.wolfram.com/GoldenRatio.html"
+
+  automation:
+    name: "Automation & Orchestration"
+    description: "Build automation, CI/CD, and orchestration systems"
+    youtube:
+      - "https://www.youtube.com/watch?v=kgtDlCZ6IiI"  # Automation fundamentals
+      - "https://www.youtube.com/watch?v=xVv0VY0W2fA"  # CI/CD best practices
+    podcasts:
+      - "https://www.youtube.com/watch?v=1D4q0G8QKpQ"  # DevOps podcast
+    docs:
+      - "https://en.wikipedia.org/wiki/Build_automation"
+      - "https://en.wikipedia.org/wiki/Continuous_integration"
+
+  ai_agents:
+    name: "AI Agents & LLMs"
+    description: "Large language models, agent systems, and AI orchestration"
+    youtube:
+      - "https://www.youtube.com/watch?v=jkrNMKz9pWU"  # Andrej Karpathy on LLMs
+      - "https://www.youtube.com/watch?v=wQHgtu7LJNs"  # AI agents explainer
+    podcasts:
+      - "https://www.youtube.com/watch?v=OSm6lA8B1b8"  # LLM research podcast
+    docs:
+      - "https://arxiv.org/abs/2303.08774"  # GPT-4 technical report
+      - "https://en.wikipedia.org/wiki/Large_language_model"
+
+  neural_networks:
+    name: "Neural Networks"
+    description: "Deep learning, neural architecture, and training"
+    youtube:
+      - "https://www.youtube.com/watch?v=aircAruvnKk"  # Neural Networks - 3Blue1Brown
+      - "https://www.youtube.com/watch?v=Ilg3gGewQ5U"  # Backpropagation
+    podcasts:
+      - "https://www.youtube.com/watch?v=O5xeyoRL95U"  # Deep learning podcast
+    docs:
+      - "https://en.wikipedia.org/wiki/Artificial_neural_network"
+      - "https://arxiv.org/abs/2006.04735"  # Scaling laws
+
+  rust_programming:
+    name: "Rust Programming"
+    description: "Rust language features, memory safety, and performance"
+    youtube:
+      - "https://www.youtube.com/watch?v=zF34dRivLOw"  # Rust in 100 seconds
+      - "https://www.youtube.com/watch?v=O7pIqM7T1Hw"  # Why Rust?
+    podcasts:
+      - "https://www.youtube.com/watch?v=0i0z2r0R9b0"  # Rust podcast
+    docs:
+      - "https://doc.rust-lang.org/book/"
+      - "https://en.wikipedia.org/wiki/Rust_(programming_language)"
+
+  quantum_computing:
+    name: "Quantum Computing"
+    description: "Quantum mechanics, qubits, and quantum algorithms"
+    youtube:
+      - "https://www.youtube.com/watch?v=QuR969uMICM"  # Quantum computing explained
+      - "https://www.youtube.com/watch?v=F_Riqjdh1oM"  # Quantum algorithms
+    podcasts:
+      - "https://www.youtube.com/watch?v=gIaBqL4YnMw"  # Quantum computing podcast
+    docs:
+      - "https://en.wikipedia.org/wiki/Quantum_computing"
+      - "https://arxiv.org/abs/1801.03897"
+
+  data_science:
+    name: "Data Science"
+    description: "Statistics, data analysis, and machine learning pipelines"
+    youtube:
+      - "https://www.youtube.com/watch?v=ua-CiDNIjoA"  # What is data science?
+      - "https://www.youtube.com/watch?v=0W5IYWZ9f9I"  # Data science workflow
+    podcasts:
+      - "https://www.youtube.com/watch?v=2u3JXp3N4aE"  # Data science podcast
+    docs:
+      - "https://en.wikipedia.org/wiki/Data_science"
+      - "https://scikit-learn.org/stable/user_guide.html"
+
+label_mappings:
+  - label: "ring-"
+    topic: ternary
+  - label: "float"
+    topic: floating_point
+  - label: "golden"
+    topic: golden_ratio
+  - label: "phi"
+    topic: trinity
+  - label: "trinity"
+    topic: trinity
+  - label: "automation"
+    topic: automation
+  - label: "orchestrat"
+    topic: automation
+  - label: "agent"
+    topic: ai_agents
+  - label: "llm"
+    topic: ai_agents
+  - label: "neural"
+    topic: neural_networks
+  - label: "deep"
+    topic: neural_networks
+  - label: "rust"
+    topic: rust_programming
+  - label: "quantum"
+    topic: quantum_computing
+  - label: "data"
+    topic: data_science
+  - label: "kaggle"
+    topic: data_science
+  - label: "kernel"
+    topic: data_science
+
+keyword_mappings:
+  - keywords: ["ternary", "trit", "three-state", "3-state", "base-3", "balanced ternary"]
+    topic: ternary
+  - keywords: ["phi", "golden ratio", "golden-ratio", "phi^2", "phi squared"]
+    topic: golden_ratio
+  - keywords: ["float", "floating point", "ieee 754", "precision", "rounding", "overflow"]
+    topic: floating_point
+  - keywords: ["trinity", "trinity math", "phi²", "trinity system"]
+    topic: trinity
+  - keywords: ["automation", "pipeline", "workflow", "ci/cd", "orchestrat"]
+    topic: automation
+  - keywords: ["ai agent", "agent system", "llm", "large language", "gpt", "claude", "gemini"]
+    topic: ai_agents
+  - keywords: ["neural", "deep learning", "backprop", "transformer", "attention"]
+    topic: neural_networks
+  - keywords: ["rust", "cargo", "ownership", "borrowing", "lifetimes"]
+    topic: rust_programming
+  - keywords: ["quantum", "qubit", "superposition", "entanglement", "gate"]
+    topic: quantum_computing
+  - keywords: ["data science", "statistics", "machine learning", "ml", "predictive"]
+    topic: data_science

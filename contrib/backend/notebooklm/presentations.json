@@ -1,0 +1,22 @@
+{
+  "bfeb6df9-7dfb-44be-a5bf-fcff721e159d": {
+    "notebook_title": "Issue #238: Ring 069: Ternary comparison operations",
+    "topic": "ternary",
+    "generated_at": "2026-04-09T08:39:56.624026",
+    "audio_task_id": "",
+    "presentation_task_id": "b0996be8-5241-4aa5-a344-76f08fa29c59",
+    "audio_url": null,
+    "presentation_url": null,
+    "success": false
+  },
+  "48866148-f5e6-476b-8d6e-e3b03ece93a2": {
+    "notebook_title": "Issue #240: Ring 070: Ternary control flow operations",
+    "topic": "ternary",
+    "generated_at": "2026-04-09T08:52:16.330322",
+    "audio_task_id": "",
+    "presentation_task_id": "69712dcf-f987-45d9-a3ee-c273c2b4b1b4",
+    "audio_url": null,
+    "presentation_url": null,
+    "success": false
+  }
+}
