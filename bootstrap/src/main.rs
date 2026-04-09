@@ -554,6 +554,10 @@ enum Commands {
         #[arg(long)]
         minimal: bool,
 
+        /// Board profile: minimal (LED+UART), full (LED+UART+SPI+MAC), or custom XDC path
+        #[arg(long)]
+        profile: Option<String>,
+
         /// FPGA device identifier (default: xc7a100tcsg324-1)
         #[arg(long, default_value = "xc7a100tcsg324-1")]
         device: String,
@@ -2929,6 +2933,7 @@ fn run_fpga_build(
     smoke: bool,
     synth_only: bool,
     minimal: bool,
+    profile: Option<&str>,
     device: &str,
     top: &str,
     docker: Option<bool>,
@@ -2940,6 +2945,18 @@ fn run_fpga_build(
     prjxray_db_path: Option<&str>,
     output: &str,
 ) -> anyhow::Result<()> {
+    let effective_minimal = match profile {
+        Some("minimal") => true,
+        Some("full") => false,
+        Some(other) => {
+            eprintln!("Warning: unknown profile '{}', falling back to minimal. Supported: minimal, full", other);
+            true
+        }
+        None => minimal,
+    };
+    let profile_name = if effective_minimal { "minimal" } else { "full" };
+    println!("=== FPGA Build: profile = {} ===", profile_name);
+
     let specs_dir = repo_root.join("specs/fpga");
     let build_dir = repo_root.join(output);
     let gen_dir = build_dir.join("generated");
@@ -2975,7 +2992,7 @@ fn run_fpga_build(
     }
 
     let top_wrapper = gen_dir.join(format!("{}.v", top));
-    if minimal {
+    if effective_minimal {
         let wrapper_source = format!(
 r#"`timescale 1ns / 1ps
 
@@ -3137,7 +3154,7 @@ endmodule
         }
         println!("=== Synthesizing with Yosys (Docker) ===");
         let synth_script = build_dir.join("synth.ys");
-        let verilog_files = if minimal {
+        let verilog_files = if effective_minimal {
             format!("{gen}/{top}.v", gen = gen_dir.display(), top = top)
         } else {
             format!("{gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v", gen = gen_dir.display(), top = top)
@@ -3162,7 +3179,7 @@ endmodule
     } else {
         println!("=== Synthesizing with local Yosys ===");
         let synth_script = build_dir.join("synth.ys");
-        let verilog_files = if minimal {
+        let verilog_files = if effective_minimal {
             format!("{gen}/{top}.v", gen = gen_dir.display(), top = top)
         } else {
             format!("{gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v", gen = gen_dir.display(), top = top)
@@ -3227,7 +3244,7 @@ endmodule
     // For minimal mode, produce a clean XDC with only valid chipdb pins.
     // For full mode, preprocess the Vivado XDC for nextpnr compatibility.
     let xdc = synth_dir.join("nextpnr.xdc");
-    if minimal {
+    if effective_minimal {
         let minimal_xdc = r#"# nextpnr-compatible XDC for minimal design (prjxray-verified pins)
 set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
 create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
@@ -6545,9 +6562,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, profile, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -6561,9 +6578,14 @@ async fn main() -> anyhow::Result<()> {
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
          }
+         Commands::Serve { .. } => {
+             eprintln!("Error: 'serve' command requires 'server' feature");
+             eprintln!("Build with: cargo build --release --features server");
+             std::process::exit(1);
+         }
      }
  
-    Ok(())
+     Ok(())
 }
 
 #[cfg(not(feature = "server"))]
@@ -6655,22 +6677,22 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
-             let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
-         }
-         Commands::ValidateSeals { pr_files } => {
-             run_validate_seals(&pr_files)?;
-         }
-         Commands::ValidatePhiIdentity => {
-             run_validate_phi_identity()?;
-         }
-         Commands::CheckClaimTiers => {
-             eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
-         }
-         Commands::BrainSealRefresh => {
-             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
-         }
+        Commands::FpgaBuild { smoke, synth_only, minimal, profile, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+            let repo_root = std::env::current_dir()?;
+            run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+        }
+        Commands::ValidateSeals { pr_files } => {
+            run_validate_seals(&pr_files)?;
+        }
+        Commands::ValidatePhiIdentity => {
+            run_validate_phi_identity()?;
+        }
+        Commands::CheckClaimTiers => {
+            eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+        }
+        Commands::BrainSealRefresh => {
+            eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
