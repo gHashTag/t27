@@ -1,0 +1,8 @@
+{
+  "module": "repl_history",
+  "spec_path": "specs/cli/repl_history.t27",
+  "spec_hash": "sha256:868664c41582fc58fa9b7e4af8dad78cff84755914c4d4c2e99278e86827a01e",
+  "ring": 51,
+  "sealed_at": "2026-04-09T13:25:45Z",
+  "notes": "Ring 51: trajectory visualization spec"
+}

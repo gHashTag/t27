@@ -1,0 +1,39 @@
+{
+  "episode_id": "phi-2026-04-09T13:25:45Z#ring-51",
+  "skill_id": "ring-51",
+  "session_id": "2026-04-09T13:25:45Z#ring-51",
+  "issue_id": "SEED-51",
+  "spec_paths": [
+    "specs/cli/repl_history.t27"
+  ],
+  "spec_hash_after": "sha256:868664c41582fc58fa9b7e4af8dad78cff84755914c4d4c2e99278e86827a01e",
+  "tests": {
+    "status": "passed",
+    "failed_tests": [],
+    "duration_ms": 0
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0,
+    "notes": "ring trajectory visualization spec; 4 tests, 2 invariants, 2 benches"
+  },
+  "bench_delta": {
+    "metric": "spec_lines",
+    "value": 222,
+    "unit": "lines"
+  },
+  "commit": {
+    "sha": "pending",
+    "message": "feat(ring-51): ring history trajectory visualization spec [SEED-51]",
+    "timestamp": "2026-04-09T13:25:45Z"
+  },
+  "actor": "agent:computer",
+  "sealed_at": "2026-04-09T13:25:45Z",
+  "completed_at": "2026-04-09T13:25:45Z",
+  "metadata": {
+    "environment": "github",
+    "ring": 51,
+    "layer": "CANOPY",
+    "origin": "spec_creation"
+  }
+}

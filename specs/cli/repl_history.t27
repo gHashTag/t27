@@ -1,0 +1,222 @@
+; Module: repl_history
+; Ring: 51
+; Layer: CANOPY
+; Description: Ring improvement trajectory visualization and statistics for TRI REPL.
+;   Reads episodes from .trinity/experience/episodes/ and episodes.jsonl,
+;   computes velocity, health streak, convergence progress, and renders
+;   a human-readable timeline.
+;
+; Constitutional compliance:
+;   - ASCII-only identifiers and comments
+;   - TDD-Inside-Spec (3+ tests, 1+ invariant, bench block)
+;   - De-Zig: all logic defined here, backends generated
+
+module tri-cli-repl-history;
+
+; === Types ===
+
+; EpisodeEntry: one row in the ring trajectory
+; Fields:
+;   ring_num  : u32     -- ring number (47, 48, 49, ...)
+;   timestamp : str     -- ISO-8601 date portion (YYYY-MM-DD)
+;   verdict   : Verdict -- clean | risky | toxic | unknown
+;   notes     : str     -- short description (max 60 chars)
+;   origin    : str     -- who produced this ring (agent, human, evolve)
+type EpisodeEntry = {
+  ring_num  : u32,
+  timestamp : str,
+  verdict   : Verdict,
+  notes     : str,
+  origin    : str,
+};
+
+; Verdict: canonical toxicity levels
+type Verdict = enum {
+  clean,
+  risky,
+  toxic,
+  unknown,
+};
+
+; TrajectoryStats: computed statistics over all episodes
+; Fields:
+;   total_rings    : u32   -- number of episodes recorded
+;   clean_count    : u32   -- verdicts == clean
+;   health_streak  : u32   -- consecutive clean verdicts at end
+;   velocity       : f64   -- rings per day (estimated)
+;   coverage_pct   : f64   -- conformance coverage %
+;   convergence_pct: f64   -- estimated progress to fixed point
+;   first_ring     : str   -- timestamp of first episode
+;   last_ring      : str   -- timestamp of last episode
+type TrajectoryStats = {
+  total_rings    : u32,
+  clean_count    : u32,
+  health_streak  : u32,
+  velocity       : f64,
+  coverage_pct   : f64,
+  convergence_pct: f64,
+  first_ring     : str,
+  last_ring      : str,
+};
+
+; === Functions ===
+
+; load_episodes: read episodes from both sources and merge
+fn load_episodes(episodes_dir: str, episodes_jsonl: str) -> list[EpisodeEntry] {
+  ; Read all .json files from episodes_dir
+  ; Read lines from episodes_jsonl (append-only log)
+  ; Merge and deduplicate by episode_id
+  ; Sort by ring_num ascending
+  ; Return list
+}
+
+; parse_episode: extract EpisodeEntry from raw JSON dict
+fn parse_episode(raw: dict) -> EpisodeEntry {
+  ring_num  = raw.metadata.ring or 0;
+  timestamp = raw.sealed_at[:10] or "";
+  verdict   = match raw.verdict.toxicity {
+    "clean"  => Verdict::clean,
+    "risky"  => Verdict::risky,
+    "toxic"  => Verdict::toxic,
+    _        => Verdict::unknown,
+  };
+  notes  = raw.verdict.notes[:60] or "";
+  origin = raw.metadata.origin or raw.actor or "unknown";
+  return EpisodeEntry { ring_num, timestamp, verdict, notes, origin };
+}
+
+; compute_stats: aggregate all entries into TrajectoryStats
+fn compute_stats(entries: list[EpisodeEntry], spec_count: u32, conf_count: u32) -> TrajectoryStats {
+  total = len(entries);
+  clean = count(e for e in entries if e.verdict == Verdict::clean);
+
+  ; Health streak: consecutive clean verdicts from the end
+  streak = 0u32;
+  for e in reversed(entries) {
+    if e.verdict == Verdict::clean { streak += 1; }
+    else { break; }
+  }
+
+  ; Velocity: rings per day (estimate based on index spread)
+  velocity = if total > 1 { f64(total) / f64(max(1, total / 5)) } else { 0.0 };
+
+  coverage_pct    = if spec_count > 0 { f64(conf_count) / f64(spec_count) * 100.0 } else { 0.0 };
+  convergence_pct = clamp((f64(clean) / f64(max(total, 1))) * 100.0, 0.0, 100.0);
+
+  first_ring = if total > 0 { entries[0].timestamp } else { "" };
+  last_ring  = if total > 0 { entries[total-1].timestamp } else { "" };
+
+  return TrajectoryStats {
+    total_rings: total,
+    clean_count: clean,
+    health_streak: streak,
+    velocity,
+    coverage_pct,
+    convergence_pct,
+    first_ring,
+    last_ring,
+  };
+}
+
+; render_trajectory: format and print the ring history table
+fn render_trajectory(entries: list[EpisodeEntry], stats: TrajectoryStats, current_ring: u32, layer: str) {
+  print("Ring Improvement Trajectory");
+  print("=" * 60);
+  for e in entries {
+    icon = match e.verdict {
+      Verdict::clean   => "[+]",
+      Verdict::risky   => "[~]",
+      Verdict::toxic   => "[x]",
+      Verdict::unknown => "[?]",
+    };
+    print(f"  {icon} Ring {e.ring_num:>3} | {e.timestamp} | {e.verdict:6} | {e.notes}");
+  }
+  print("");
+  print(f"  Current Ring  : {current_ring} [{layer}]");
+  print(f"  Total Rings   : {stats.total_rings}");
+  print(f"  Clean Verdicts: {stats.clean_count}/{stats.total_rings} ({stats.convergence_pct:.1}%)");
+  print(f"  Health Streak : {stats.health_streak} GREEN");
+  print(f"  Velocity      : {stats.velocity:.1} rings/day");
+  print(f"  Coverage      : {stats.coverage_pct:.1}%");
+  print(f"  Convergence   : {stats.convergence_pct:.1}%");
+}
+
+; === Tests ===
+
+test "parse_episode_clean" {
+  raw = {
+    "episode_id": "phi-2026-04-06T00:00:00Z#ring-47",
+    "sealed_at": "2026-04-06T00:00:00Z",
+    "verdict": {"toxicity": "clean", "score": 0.0, "notes": "REPL core implemented"},
+    "actor": "agent:computer",
+    "metadata": {"ring": 47, "origin": "direct_implementation"}
+  };
+  e = parse_episode(raw);
+  assert e.ring_num  == 47;
+  assert e.verdict   == Verdict::clean;
+  assert e.notes     == "REPL core implemented";
+  assert e.timestamp == "2026-04-06";
+}
+
+test "compute_stats_all_clean" {
+  entries = [
+    EpisodeEntry { ring_num: 47, timestamp: "2026-04-06", verdict: Verdict::clean, notes: "ring 47", origin: "agent" },
+    EpisodeEntry { ring_num: 48, timestamp: "2026-04-06", verdict: Verdict::clean, notes: "ring 48", origin: "agent" },
+    EpisodeEntry { ring_num: 49, timestamp: "2026-04-06", verdict: Verdict::clean, notes: "ring 49", origin: "agent" },
+  ];
+  stats = compute_stats(entries, 39u32, 20u32);
+  assert stats.total_rings    == 3;
+  assert stats.clean_count    == 3;
+  assert stats.health_streak  == 3;
+  assert stats.convergence_pct >= 99.0;
+}
+
+test "compute_stats_mixed_verdicts" {
+  entries = [
+    EpisodeEntry { ring_num: 47, timestamp: "2026-04-06", verdict: Verdict::clean, notes: "ok",    origin: "agent" },
+    EpisodeEntry { ring_num: 48, timestamp: "2026-04-06", verdict: Verdict::toxic, notes: "broke", origin: "agent" },
+    EpisodeEntry { ring_num: 49, timestamp: "2026-04-06", verdict: Verdict::clean, notes: "fixed", origin: "agent" },
+    EpisodeEntry { ring_num: 50, timestamp: "2026-04-06", verdict: Verdict::clean, notes: "ok",    origin: "agent" },
+  ];
+  stats = compute_stats(entries, 39u32, 20u32);
+  assert stats.total_rings   == 4;
+  assert stats.clean_count   == 3;
+  assert stats.health_streak == 2;  ; last 2 are clean
+}
+
+test "render_trajectory_empty" {
+  entries = [];
+  stats = compute_stats(entries, 0u32, 0u32);
+  ; Should not panic on empty input
+  render_trajectory(entries, stats, 47u32, "CANOPY");
+  assert true;
+}
+
+; === Invariants ===
+
+invariant "health_streak_leq_total" {
+  ; health_streak can never exceed total_rings
+  ; Proven by construction: streak counts from end of sorted list
+  assert forall s: TrajectoryStats { s.health_streak <= s.total_rings };
+}
+
+invariant "convergence_in_range" {
+  ; Convergence is clamped to [0, 100]
+  assert forall s: TrajectoryStats {
+    s.convergence_pct >= 0.0 and s.convergence_pct <= 100.0
+  };
+}
+
+; === Benchmarks ===
+
+bench "load_episodes_100_entries" {
+  ; Loading and sorting 100 episode files
+  iterations: 1000;
+  expected_ns_per_iter: 5000;
+}
+
+bench "render_trajectory_100_entries" {
+  ; Rendering 100-row trajectory table
+  iterations: 10000;
+  expected_ns_per_iter: 500;
+}

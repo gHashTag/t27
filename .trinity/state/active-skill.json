@@ -1,14 +1,15 @@
 {
-  "skill_id": "ring-50",
-  "session_id": "2026-04-09T13:24:44Z#ring-50",
-  "issue_id": "SEED-50",
-  "issue_title": "Ring 50: Add CLI REPL nodes to canonical dependency graph",
-  "description": "3 new nodes: cli/repl, cli/ring_executor, cli/self_improve. 4 edges. CLI domain in queen-health.",
-  "started_at": "2026-04-09T13:24:44Z",
+  "skill_id": "ring-51",
+  "session_id": "2026-04-09T13:25:45Z#ring-51",
+  "issue_id": "SEED-51",
+  "issue_title": "Ring 51: Ring history trajectory visualization spec",
+  "description": "specs/cli/repl_history.t27: load_episodes, parse_episode, compute_stats, render_trajectory",
+  "started_at": "2026-04-09T13:25:45Z",
   "started_by": "agent:computer",
   "status": "completed",
   "allowed_paths": [
-    "architecture/graph_v2.json",
+    "specs/cli/repl_history.t27",
+    "conformance/cli_repl_history.json",
     ".trinity/"
   ]
 }

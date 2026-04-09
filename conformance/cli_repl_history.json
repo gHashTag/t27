@@ -1,0 +1,64 @@
+{
+  "module": "repl_history",
+  "domain": "cli",
+  "ring": 51,
+  "generated_by": "tri_ring_51",
+  "vectors": [
+    {
+      "id": "repl_history_v001",
+      "input": {
+        "entries": [],
+        "current_ring": 47
+      },
+      "expected": {
+        "total_rings": 0,
+        "health_streak": 0
+      },
+      "notes": "empty trajectory"
+    },
+    {
+      "id": "repl_history_v002",
+      "input": {
+        "entries": [
+          {
+            "ring_num": 47,
+            "verdict": "clean"
+          }
+        ],
+        "current_ring": 48
+      },
+      "expected": {
+        "total_rings": 1,
+        "health_streak": 1,
+        "clean_count": 1
+      },
+      "notes": "single clean entry"
+    },
+    {
+      "id": "repl_history_v003",
+      "input": {
+        "entries": [
+          {
+            "ring_num": 47,
+            "verdict": "clean"
+          },
+          {
+            "ring_num": 48,
+            "verdict": "toxic"
+          },
+          {
+            "ring_num": 49,
+            "verdict": "clean"
+          }
+        ],
+        "current_ring": 50
+      },
+      "expected": {
+        "total_rings": 3,
+        "health_streak": 1,
+        "clean_count": 2
+      },
+      "notes": "mixed verdicts"
+    }
+  ]
+}
