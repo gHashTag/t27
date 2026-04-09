@@ -2670,6 +2670,96 @@ impl Parser {
 }
 
 // ============================================================================
+// Type Conversion Utilities (L6 CEILING Law)
+// ============================================================================
+
+/// Convert t27 type to Zig type (L6 CEILING law: f32/f64 → gf16.GF16)
+fn t27_type_to_zig(t27_type: &str) -> String {
+    let t = t27_type.trim();
+    // Handle optional types
+    let (base_type, is_optional) = if t.ends_with('?') {
+        (&t[..t.len() - 1], true)
+    } else {
+        (t, false)
+    };
+
+    let zig_type = match base_type {
+        "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
+        "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
+        "f32" | "f64" => "gf16.GF16".to_string(),  // L6: CEILING law compliance
+        "GF16" => "gf16.GF16".to_string(),  // With module prefix
+        "gf16" => "gf16.GF16".to_string(), // Already has module
+        "bool" => "bool".to_string(),
+        "str" => "[]const u8".to_string(),
+        "void" => "void".to_string(),
+        t if t.starts_with("[]") => {
+            let inner = &t[2..];
+            format!("[]const {}", t27_type_to_zig(inner))
+        }
+        t if t.starts_with('[') && t.contains(']') => {
+            // [N]T format - convert to array
+            if let Some(bracket_end) = t.find(']') {
+                let inner = &t[bracket_end + 1..];
+                format!("[{}]{inner}", &t[1..bracket_end], inner = t27_type_to_zig(inner))
+            } else {
+                t.to_string()
+            }
+        }
+        t if t.contains("gf16::") => t.to_string(), // Already fully qualified
+        t => t.to_string(), // Custom type name
+    };
+
+    if is_optional {
+        format!("?{}", zig_type)
+    } else {
+        zig_type
+    }
+}
+
+/// Convert t27 type to Rust type (L6 CEILING law: f32/f64 → gf16::GF16)
+fn t27_type_to_rust(t27_type: &str) -> String {
+    let t = t27_type.trim();
+    // Handle optional types
+    let (base_type, is_optional) = if t.ends_with('?') {
+        (&t[..t.len() - 1], true)
+    } else {
+        (t, false)
+    };
+
+    let rust_type = match base_type {
+        "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
+        "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
+        "f32" | "f64" => "gf16::GF16".to_string(),  // L6: CEILING law compliance
+        "GF16" => "gf16::GF16".to_string(),  // With module prefix
+        "gf16" => "gf16::GF16".to_string(), // Already has module
+        "bool" => "bool".to_string(),
+        "str" => "String".to_string(),
+        "void" => "()".to_string(),
+        t if t.starts_with("[]") => {
+            let inner = &t[2..];
+            format!("Vec<{}>", t27_type_to_rust(inner))
+        }
+        t if t.starts_with('[') && t.contains(']') => {
+            // [N]T format - convert to Vec
+            if let Some(bracket_end) = t.find(']') {
+                let inner = &t[bracket_end + 1..];
+                format!("Vec<{}>", t27_type_to_rust(inner))
+            } else {
+                t.to_string()
+            }
+        }
+        t if t.contains("gf16::") => t.to_string(), // Already fully qualified
+        t => t.to_string(), // Custom type name
+    };
+
+    if is_optional {
+        format!("Option<{}>", rust_type)
+    } else {
+        rust_type
+    }
+}
+
+// ============================================================================
 // Code Generator
 // ============================================================================
 
@@ -2840,7 +2930,7 @@ impl Codegen {
         self.write(&format!("const {}", node.name));
 
         if !node.extra_type.is_empty() {
-            self.write(&format!(": {}", node.extra_type));
+            self.write(&format!(": {}", t27_type_to_zig(node.extra_type.as_str())));
         }
 
         if !node.children.is_empty() {
@@ -6771,7 +6861,7 @@ impl RustCodegen {
             // Struct fields are stored as ExprIdentifier with name and extra_type
             if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
                 let field_name = &child.name;
-                let field_type = Self::t27_type_to_rust(&child.extra_type);
+                let field_type = t27_type_to_zig(&child.extra_type);
                 self.write_line(&format!("pub {}: {},", field_name, field_type));
             }
         }
@@ -6805,7 +6895,7 @@ impl RustCodegen {
         let const_type = if node.extra_type.is_empty() {
             "i32".to_string()
         } else {
-            Self::t27_type_to_rust(node.extra_type.as_str())
+            t27_type_to_zig(node.extra_type.as_str())
         };
         let value = if node.children.is_empty() {
             "()".to_string()
@@ -6824,13 +6914,13 @@ impl RustCodegen {
         let params: Vec<(String, String)> = node.params.clone();
         let params_str = params
             .iter()
-            .map(|(n, t)| format!("{}: {}", n, Self::t27_type_to_rust(t)))
+            .map(|(n, t)| format!("{}: {}", n, t27_type_to_zig(t)))
             .collect::<Vec<_>>()
             .join(", ");
         let ret_type = if node.extra_return_type.is_empty() {
             "()".to_string()
         } else {
-            Self::t27_type_to_rust(node.extra_return_type.as_str())
+            t27_type_to_zig(node.extra_return_type.as_str())
         };
 
         self.write(&format!(
@@ -6866,7 +6956,7 @@ impl RustCodegen {
                         let mutable = child.extra_mutable;
                         let kw = if mutable { "let mut" } else { "let" };
                         let var_name = &child.name;
-                        let typ = Self::t27_type_to_rust(&child.extra_type);
+                        let typ = t27_type_to_zig(&child.extra_type);
                         if child.children.is_empty() {
                             if child.extra_type.is_empty() {
                                 self.write_line(&format!("{} {};", kw, var_name));
@@ -6987,7 +7077,7 @@ impl RustCodegen {
             }
             NodeKind::StmtLocal => {
                 let kw = if stmt.extra_mutable { "let mut" } else { "let" };
-                let typ = Self::t27_type_to_rust(&stmt.extra_type);
+                let typ = t27_type_to_zig(&stmt.extra_type);
                 if stmt.children.is_empty() {
                     if stmt.extra_type.is_empty() {
                         self.write_line(&format!("{} {};", kw, stmt.name));
@@ -7078,46 +7168,6 @@ impl RustCodegen {
                 self.write_line("}");
             }
             _ => {}
-        }
-    }
-
-    fn t27_type_to_rust(t27_type: &str) -> String {
-        let t = t27_type.trim();
-        // Handle optional types
-        let (base_type, is_optional) = if t.ends_with('?') {
-            (&t[..t.len() - 1], true)
-        } else {
-            (t, false)
-        };
-
-        let rust_type = match base_type {
-            "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
-            "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
-            "f32" | "f64" => base_type.to_string(),
-            "GF16" | "gf16" => "u16".to_string(),
-            "bool" => "bool".to_string(),
-            "str" => "String".to_string(),
-            "void" => "()".to_string(),
-            t if t.starts_with("[]") => {
-                let inner = &t[2..];
-                format!("Vec<{}>", Self::t27_type_to_rust(inner))
-            }
-            t if t.starts_with('[') && t.contains(']') => {
-                // [N]T format - convert to Vec
-                if let Some(bracket_end) = t.find(']') {
-                    let inner = &t[bracket_end + 1..];
-                    format!("Vec<{}>", Self::t27_type_to_rust(inner))
-                } else {
-                    t.to_string()
-                }
-            }
-            t => t.to_string(), // Custom type name
-        };
-
-        if is_optional {
-            format!("Option<{}>", rust_type)
-        } else {
-            rust_type
         }
     }
 

@@ -27,3 +27,6 @@ uuid = { version = "1", features = ["v4", "serde"] }
 tower = "0.5"
 ignore = "0.4"
 rusqlite = { version = "0.32", features = ["bundled"] }
+jsonwebtoken = "9"
+serde_urlencoded = "0.7"
+hyper = { version = "1", features = ["full"] }
