@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — gen-xdc command + XDC profile integration · PR #393
+**Last updated:** 2026-04-09 — FPGA CI regression checks (Verilog hash + synth size) · PR #395
 
 **Document class:** Operational focus document
 
