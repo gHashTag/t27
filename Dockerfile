@@ -56,7 +56,8 @@ COPY --from=backend-builder /app/target/release/t27c /usr/local/bin/t27c
 RUN chmod +x /usr/local/bin/t27c
 
 # Copy frontend assets to /app/public (served by t27c)
-# Force rebuild: v3 - in-memory sessions
+# Force rebuild: v6 - trigger file and alert fix
+RUN echo "Frontend build v6" && ls -la /app/dist
 COPY --from=frontend-builder /app/dist /app/public
 
 # Copy additional specs and conformance data
