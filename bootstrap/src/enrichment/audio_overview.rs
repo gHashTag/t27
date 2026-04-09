@@ -55,6 +55,7 @@ pub struct AudioOverviewResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AudioOverview {
     pub status: String,
     pub audio_overview_id: String,
@@ -62,6 +63,7 @@ pub struct AudioOverview {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AudioOverviewStatus {
     pub status: AudioStatus,
     pub audio_overview_id: String,
@@ -161,7 +163,6 @@ pub fn poll_audio_status(
     let url = format!("{}{}", base_url, endpoint);
 
     let client = Client::new();
-    let start = std::time::Instant::now();
     let mut elapsed_ms = 0u64;
 
     loop {
@@ -387,6 +388,11 @@ pub fn generate_all(
     workers: usize,
     token: String,
 ) -> AudioReport {
+    println!("{}", "═════════════════════════════════════════".bright_yellow());
+    println!("  {} {}", "🔊".bold(), "Audio Overview Generation".bright_yellow().bold());
+    println!("{}", "═══════════════════════════════════════════".bright_yellow());
+    println!();
+
     // Get base URL from token (simplified - would extract from project in real implementation)
     let base_url = "https://discoveryengine.googleapis.com";
 
@@ -411,8 +417,8 @@ pub fn generate_all(
 
     // Process notebooks in parallel batches
     let processed: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-    let mutex = Arc::new(Mutex::new(()));
     let report_clone = Arc::clone(&report);
+    let mut handles = Vec::new();
 
     for notebook_id in notebook_ids {
         let nb_id = notebook_id.clone();
@@ -420,11 +426,10 @@ pub fn generate_all(
         let audio_dir_clone = audio_dir.clone();
         let token_clone = token.clone();
         let base_url_clone = base_url.to_string();
-        let mutex_clone = Arc::clone(&mutex);
         let report_inner = Arc::clone(&report_clone);
 
         let handle = thread::spawn(move || {
-            let start = std::time::Instant::now();
+            let _start = std::time::Instant::now();
 
             // Check if notebook has sources (skip if not)
             // Note: In real implementation, load metadata to check for sources
@@ -436,13 +441,13 @@ pub fn generate_all(
                 return;
             }
 
-            let (en_file, ru_file) = match generate_bilingual_audio(
+            let _ = match generate_bilingual_audio(
                 &base_url_clone,
                 &nb_id,
                 "NotebookLM Audio Overview",
                 &token_clone,
             ) {
-                Ok((en, ru)) => (en, ru),
+                Ok(_) => (),
                 Err(e) => {
                     let mut guard = processed.lock().unwrap();
                     if !guard.contains(&nb_id) {
@@ -487,23 +492,52 @@ pub fn generate_all(
             let mut guard = processed.lock().unwrap();
             guard.push(nb_id.clone());
 
-            let elapsed = start.elapsed().as_millis() as u64;
+            let elapsed = _start.elapsed().as_millis() as u64;
             let mut rep = report_inner.lock().unwrap();
             rep.total_duration_secs += elapsed;
             rep.notebooks_success += 1;
         });
+        handles.push(handle);
     }
 
-    // Wait for all workers (simplified)
-    let thread_count = notebook_count.min(workers);
-    for _ in 0..thread_count {
-        thread::sleep(Duration::from_millis(100));
+    // Wait for all workers to complete
+    for handle in handles {
+        let _ = handle.join();
     }
 
     let mut report_final = report.lock().unwrap();
     report_final.notebooks_processed = notebook_count as u32;
     report_final.notebooks_success = processed.lock().unwrap().len() as u32;
-    report_final.notebooks_failed = report_final.notebooks_processed - report_final.notebooks_success;
+    // notebooks_failed is already calculated by threads, don't overwrite
+
+    println!();
+    println!("{} {} / {} processed",
+        "▶".cyan(),
+        report_final.notebooks_success,
+        report_final.notebooks_processed,
+    );
+    println!("{} skipped {} notebooks (no sources)",
+        "ℹ".cyan(),
+        report_final.notebooks_skipped,
+    );
+    println!();
+    if report_final.notebooks_failed > 0 {
+        println!("{} {} failed audio generation",
+            "⚠".yellow(),
+            report_final.notebooks_failed,
+        );
+        for err in &report_final.errors {
+            eprintln!("  {}", err);
+        }
+    }
+    println!();
+    println!("{} {} workers, {:.1}s total",
+        "📊".bold(),
+        workers,
+        report_final.total_duration_secs as f64 / 1000.0,
+    );
+    println!("{}", "═══════════════════════════════════════".bright_yellow());
+    println!();
 
     AudioReport {
         notebooks_processed: report_final.notebooks_processed,
