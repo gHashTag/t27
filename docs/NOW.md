@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — fpga-build --profile flag · PR #387
+**Last updated:** 2026-04-09 — README system status dashboard · PR #391
 
 **Document class:** Operational focus document
 
