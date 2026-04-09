@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — xdc-verify cross-checks gen-xdc vs emitter_xdc.t27 · PR #399
+**Last updated:** 2026-04-09 --board arty-a7 multi-board FPGA bitstream · PR #401
 
 **Document class:** Operational focus document
 
