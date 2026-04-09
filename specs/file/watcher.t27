@@ -43,7 +43,7 @@ module FileWatcher {
     }
 
     // get_watched_paths returns paths being watched
-    fn get_watched_paths(watcherID: WatcherID) -> Result([str], FileError> {
+    fn get_watched_paths(watcherID: WatcherID) -> Result<[str], FileError> {
         // Implementation: Get list of watched paths
     }
 
