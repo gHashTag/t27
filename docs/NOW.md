@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — Board profiles for XC7A100T (minimal + full) · PR #382
+**Last updated:** 2026-04-09 — Pins IR + XDC emitter · PR #385
 
 **Document class:** Operational focus document
 
@@ -832,14 +832,14 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 ---
 
-## Board Profiles (PR #382)
+## Pins IR + XDC Emitter (PR #385)
 
- - `specs/boards/xc7a100t_minimal.t27` — 12 prjxray-verified pins (LED+UART+clock+reset), 25 tests, 14 invariants
- - `specs/boards/xc7a100t_full.t27` — Full QMTECH profile (LED+UART+SPI+MAC debug), prjxray_verified flag per pin
- - `specs/boards/OWNERS.md` — Domain ownership
- - Both specs parse, seal successfully. Minimal profile pins match the working `fpga-build --minimal` XDC
+ - `specs/pins/ir.t27` — IR model: PinLocation, IoStandard, SignalReference, Binding, Design, ClockDef
+ - `specs/pins/emitter_xdc.t27` — XDC generator: emit_pin, emit_clock, emit_header, qmtech_xc7a100t_minimal(), arty_a7_minimal()
+ - Invariants: pin conflict detection, port conflict detection, all-clock-ports-bound check
+ - 21 tests + 7 invariants in ir.t27, 19 tests + 6 invariants in emitter_xdc.t27
 
-**Last updated:** 2026-04-09 — Board profiles: structured pin data for open-source FPGA flow
+**Last updated:** 2026-04-09 — Pins IR + XDC emitter for nextpnr-compatible constraint generation
 
 ## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
 
