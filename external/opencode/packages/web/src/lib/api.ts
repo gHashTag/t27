@@ -119,8 +119,11 @@ export const createSandboxToken = async (
   return result.data;
 };
 
-export const getProxyUrl = (token: string) =>
-  `${PROXY_BASE_URL}/?token=${encodeURIComponent(token)}`;
+export const getProxyUrl = (token: string) => {
+  // In production, use current origin instead of localhost proxy
+  const baseUrl = PROXY_BASE_URL || window.location.origin;
+  return `${baseUrl}/sandbox?token=${encodeURIComponent(token)}`;
+};
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 
