@@ -6,7 +6,6 @@ import {
   deleteSession,
   fetchSessions,
   createSandboxToken,
-  getProxyUrl,
 } from "./lib/api";
 
 type Session = {
