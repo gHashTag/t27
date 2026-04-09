@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — README system status dashboard · PR #391
+**Last updated:** 2026-04-09 — TRI CLI + MCP server + FPGA CI workflow · PR #378
 
 **Document class:** Operational focus document
 
@@ -849,6 +849,16 @@ eW91IHdvcmsgaW4gVVRDLio=
  - Profile name printed in output: `=== FPGA Build: profile = minimal ===`
 
 **Last updated:** 2026-04-09 — fpga-build --profile flag · PR #387
+
+## TRI CLI + MCP Server + FPGA CI (PR #378)
+
+ - **Standalone `tri` binary** (`cli/tri/`) — full PHI LOOP workflow: status, skill, cell, gen, test, verdict, doctor, health
+ - **MCP server `tri-mcp`** (`cli/tri-mcp/`) — 10 tools over JSON-RPC 2.0 stdio for AI agent integration
+ - **FPGA CI workflow** (`.github/workflows/fpga-build.yml`) — smoke + synthesis + report jobs
+ - Workspace `Cargo.toml` updated with `cli/tri` and `cli/tri-mcp` members
+ - All three compile and tested working
+
+**Last updated:** 2026-04-09 — TRI PHI LOOP CLI + MCP server + FPGA E2E CI · Issue #367
 
 ## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
 

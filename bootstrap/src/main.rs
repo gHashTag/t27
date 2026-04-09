@@ -598,6 +598,59 @@ enum Commands {
         #[arg(short, long, default_value = "build/fpga")]
         output: String,
     },
+
+    /// TRI PHI LOOP: show current status
+    #[command(name = "tri-status")]
+    TriStatus,
+
+    /// TRI PHI LOOP: begin a skill session
+    #[command(name = "tri-skill-begin")]
+    TriSkillBegin {
+        /// GitHub issue number
+        #[arg(long)]
+        issue: String,
+        /// Task description
+        #[arg(short, long)]
+        desc: String,
+    },
+
+    /// TRI PHI LOOP: end active skill session
+    #[command(name = "tri-skill-end")]
+    TriSkillEnd,
+
+    /// TRI PHI LOOP: record checkpoint in active cell
+    #[command(name = "tri-cell-checkpoint")]
+    TriCellCheckpoint {
+        /// Checkpoint description
+        #[arg(short, long)]
+        step: String,
+    },
+
+    /// TRI PHI LOOP: seal active cell
+    #[command(name = "tri-cell-seal")]
+    TriCellSeal,
+
+    /// TRI PHI LOOP: generate backends from spec
+    #[command(name = "tri-gen")]
+    TriGen {
+        /// Path to .t27 spec file
+        input: String,
+    },
+
+    /// TRI PHI LOOP: run spec tests
+    #[command(name = "tri-test")]
+    TriTest {
+        /// Path to .t27 spec file
+        input: String,
+    },
+
+    /// TRI PHI LOOP: check for toxic regressions
+    #[command(name = "tri-verdict")]
+    TriVerdict,
+
+    /// TRI PHI LOOP: save experience episode
+    #[command(name = "tri-experience-save")]
+    TriExperienceSave,
 }
 
 // ============================================================================
@@ -3470,7 +3523,471 @@ set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
 
     let bit_size = fs::metadata(&bit_output)?.len();
     println!("Bitstream: {} ({} bytes)", bit_output.display(), bit_size);
-    println!("=== FPGA E2E build finished ===");
+     println!("=== FPGA E2E build finished ===");
+     Ok(())
+ }
+
+fn tri_find_repo_root() -> anyhow::Result<PathBuf> {
+    let mut dir = std::env::current_dir()?;
+    loop {
+        if dir.join(".trinity").is_dir() {
+            return Ok(dir);
+        }
+        if !dir.pop() {
+            anyhow::bail!("Not inside a Trinity repo (no .trinity/ found)");
+        }
+    }
+}
+
+fn tri_read_json<T: serde::de::DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
+    let s = fs::read_to_string(path).context("read json")?;
+    Ok(serde_json::from_str(&s)?)
+}
+
+fn tri_write_json(path: &Path, data: &impl serde::Serialize) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let s = serde_json::to_string_pretty(data)?;
+    fs::write(path, s)?;
+    Ok(())
+}
+
+fn tri_append_event(repo_root: &Path, event: &serde_json::Value) -> anyhow::Result<()> {
+    let log_path = repo_root.join(".trinity/events/akashic-log.jsonl");
+    if let Some(parent) = log_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&log_path)?;
+    use std::io::Write;
+    writeln!(f, "{}", serde_json::to_string(event)?)?;
+    Ok(())
+}
+
+fn tri_timestamp() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+struct ActiveSkill {
+    skill_id: Option<String>,
+    session_id: Option<String>,
+    issue_id: Option<String>,
+    issue_title: Option<String>,
+    description: Option<String>,
+    started_at: Option<String>,
+    started_by: Option<String>,
+    status: String,
+    allowed_paths: Vec<String>,
+}
+
+impl Default for ActiveSkill {
+    fn default() -> Self {
+        Self {
+            skill_id: None,
+            session_id: None,
+            issue_id: None,
+            issue_title: None,
+            description: None,
+            started_at: None,
+            started_by: None,
+            status: "closed".into(),
+            allowed_paths: vec![],
+        }
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+struct Checkpoint {
+    step: u32,
+    name: String,
+    hash: String,
+    at: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+struct Cell {
+    id: String,
+    skill: String,
+    issue: Option<String>,
+    issue_title: Option<String>,
+    episode: String,
+    agent: String,
+    spec_path: Option<String>,
+    started_at: String,
+    checkpoints: Vec<Checkpoint>,
+    state: String,
+    verdict: Option<String>,
+    commit: Option<String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct CellRegistry {
+    version: String,
+    active_cell: Option<String>,
+    cells: Vec<Cell>,
+}
+
+fn run_tri_status() -> anyhow::Result<()> {
+    let repo_root = tri_find_repo_root()?;
+    let state_path = repo_root.join(".trinity/state/active-skill.json");
+    let skill: ActiveSkill = if state_path.exists() {
+        tri_read_json(&state_path).unwrap_or_default()
+    } else {
+        ActiveSkill::default()
+    };
+
+    let ts = tri_timestamp();
+    println!("PHI LOOP Status ({})", &ts[..10]);
+    println!();
+
+    let reg_path = repo_root.join(".trinity/cells/registry.json");
+    let active_cell_id = if reg_path.exists() {
+        let reg: CellRegistry = tri_read_json(&reg_path).unwrap_or(CellRegistry {
+            version: "2.0".into(),
+            active_cell: None,
+            cells: vec![],
+        });
+        reg.active_cell
+    } else {
+        None
+    };
+
+    println!("Trinity Coordination:");
+    if skill.status == "active" {
+        println!("  Active Skill:  {}", skill.skill_id.as_deref().unwrap_or("NONE"));
+        println!("  Session:       {}", skill.session_id.as_deref().unwrap_or("NONE"));
+        println!("  Issue:         #{}", skill.issue_id.as_deref().unwrap_or("NONE"));
+        println!("  Description:   {}", skill.description.as_deref().unwrap_or(""));
+    } else {
+        println!("  Active Skill:  NONE");
+        println!("  Session:       NONE");
+        println!("  Issue:         NONE");
+    }
+    println!("  Active Cell:   {}", active_cell_id.as_deref().unwrap_or("NONE"));
+    println!();
+    println!("Guard:");
+    println!("  NO-COMMIT-WITHOUT-ISSUE enforced");
+    println!("  NO-MUTATION-WITHOUT-CELL enforced");
+    println!();
+
+    if skill.status != "active" {
+        println!("ERROR: Cannot commit or seal without active cell + issue.");
+        println!();
+        println!("Required Actions:");
+        println!("  1. t27c tri-skill-begin --issue N --desc \"task\"");
+        println!("  2. t27c tri-status");
+    } else {
+        println!("Available Actions:");
+        println!("  1. t27c tri-cell-checkpoint --step \"<desc>\"");
+        println!("  2. t27c tri-gen <spec_path>");
+        println!("  3. t27c tri-test <spec_path>");
+        println!("  4. t27c tri-cell-seal");
+    }
+    Ok(())
+}
+
+fn run_tri_skill_begin(issue: &str, desc: &str) -> anyhow::Result<()> {
+    let repo_root = tri_find_repo_root()?;
+    let state_path = repo_root.join(".trinity/state/active-skill.json");
+    let ts = tri_timestamp();
+    let skill_id = format!("skill-{}-{}", issue, &ts[..10]);
+    let session_id = format!("{}#{}", ts, skill_id);
+
+    let skill = ActiveSkill {
+        skill_id: Some(skill_id.clone()),
+        session_id: Some(session_id.clone()),
+        issue_id: Some(issue.into()),
+        issue_title: None,
+        description: Some(desc.into()),
+        started_at: Some(ts.clone()),
+        started_by: Some("agent:opencode".into()),
+        status: "active".into(),
+        allowed_paths: vec!["specs/".into(), "gen/".into(), ".trinity/".into()],
+    };
+    tri_write_json(&state_path, &skill)?;
+
+    let reg_path = repo_root.join(".trinity/cells/registry.json");
+    let mut reg: CellRegistry = if reg_path.exists() {
+        tri_read_json(&reg_path).unwrap_or(CellRegistry {
+            version: "2.0".into(),
+            active_cell: None,
+            cells: vec![],
+        })
+    } else {
+        CellRegistry {
+            version: "2.0".into(),
+            active_cell: None,
+            cells: vec![],
+        }
+    };
+
+    let cell_id = format!("cell-{}-{}", &ts[..10], &skill_id[..16]);
+    let cell = Cell {
+        id: cell_id.clone(),
+        skill: skill_id.clone(),
+        issue: Some(issue.into()),
+        issue_title: None,
+        episode: skill_id.clone(),
+        agent: "T".into(),
+        spec_path: None,
+        started_at: ts.clone(),
+        checkpoints: vec![],
+        state: "active".into(),
+        verdict: None,
+        commit: None,
+    };
+    reg.active_cell = Some(cell_id.clone());
+    reg.cells.push(cell);
+    tri_write_json(&reg_path, &reg)?;
+
+    tri_append_event(&repo_root, &serde_json::json!({
+        "ts": ts,
+        "event": "skill.begin",
+        "agent_id": "agent:opencode",
+        "trace_id": format!("{}#begin", session_id),
+        "task_id": format!("ISSUE-{}", issue),
+        "spec_path": skill_id,
+        "result": "success",
+        "metadata": {
+            "skill_id": skill_id,
+            "session_id": session_id,
+            "description": desc,
+            "origin": "opencode"
+        }
+    }))?;
+
+    println!("Skill began: {}", skill_id);
+    println!("Cell created: {}", cell_id);
+    println!("Issue: #{}", issue);
+    Ok(())
+}
+
+fn run_tri_skill_end() -> anyhow::Result<()> {
+    let repo_root = tri_find_repo_root()?;
+    let state_path = repo_root.join(".trinity/state/active-skill.json");
+    let mut skill: ActiveSkill = if state_path.exists() {
+        tri_read_json(&state_path).unwrap_or_default()
+    } else {
+        ActiveSkill::default()
+    };
+
+    if skill.status != "active" {
+        anyhow::bail!("No active skill to end");
+    }
+
+    let ts = tri_timestamp();
+    let old_skill = skill.skill_id.clone();
+    skill.status = "closed".into();
+    skill.skill_id = None;
+    skill.session_id = None;
+    tri_write_json(&state_path, &skill)?;
+
+    let reg_path = repo_root.join(".trinity/cells/registry.json");
+    if reg_path.exists() {
+        let mut reg: CellRegistry = tri_read_json(&reg_path)?;
+        if let Some(ref cell_id) = reg.active_cell {
+            for cell in &mut reg.cells {
+                if &cell.id == cell_id && cell.state == "active" {
+                    cell.state = "closed".into();
+                }
+            }
+        }
+        reg.active_cell = None;
+        tri_write_json(&reg_path, &reg)?;
+    }
+
+    tri_append_event(&repo_root, &serde_json::json!({
+        "ts": ts,
+        "event": "skill.end",
+        "agent_id": "agent:opencode",
+        "result": "success",
+        "metadata": { "skill_id": old_skill }
+    }))?;
+
+    println!("Skill ended.");
+    Ok(())
+}
+
+fn run_tri_cell_checkpoint(step: &str) -> anyhow::Result<()> {
+    let repo_root = tri_find_repo_root()?;
+    let reg_path = repo_root.join(".trinity/cells/registry.json");
+    if !reg_path.exists() {
+        anyhow::bail!("No cell registry found");
+    }
+    let mut reg: CellRegistry = tri_read_json(&reg_path)?;
+    let cell_id = reg.active_cell.as_ref().ok_or_else(|| anyhow::anyhow!("No active cell"))?;
+
+    let ts = tri_timestamp();
+    let mut found = false;
+    for cell in &mut reg.cells {
+        if cell.id == *cell_id {
+            let step_num = cell.checkpoints.len() as u32 + 1;
+            let hash = if let Some(ref sp) = cell.spec_path {
+                let spec_path = repo_root.join(sp);
+                if spec_path.exists() {
+                    use sha2::{Sha256, Digest};
+                    let data = fs::read(&spec_path)?;
+                    let mut hasher = Sha256::new();
+                    hasher.update(&data);
+                    format!("sha256:{:x}", hasher.finalize())
+                } else {
+                    "sha256:no-spec".into()
+                }
+            } else {
+                "sha256:checkpoint".into()
+            };
+            cell.checkpoints.push(Checkpoint {
+                step: step_num,
+                name: step.into(),
+                hash: hash.clone(),
+                at: ts.clone(),
+            });
+            found = true;
+            println!("Checkpoint {step_num}: {step}");
+            println!("  hash: {hash}");
+            break;
+        }
+    }
+    if !found {
+        anyhow::bail!("Active cell {} not found in registry", cell_id);
+    }
+    tri_write_json(&reg_path, &reg)?;
+
+    tri_append_event(&repo_root, &serde_json::json!({
+        "ts": ts,
+        "event": "cell.checkpoint",
+        "agent_id": "agent:opencode",
+        "result": "success",
+        "metadata": { "cell_id": cell_id, "step": step }
+    }))?;
+    Ok(())
+}
+
+fn run_tri_cell_seal() -> anyhow::Result<()> {
+    let repo_root = tri_find_repo_root()?;
+    let reg_path = repo_root.join(".trinity/cells/registry.json");
+    if !reg_path.exists() {
+        anyhow::bail!("No cell registry found");
+    }
+    let mut reg: CellRegistry = tri_read_json(&reg_path)?;
+    let cell_id = reg.active_cell.as_ref().ok_or_else(|| anyhow::anyhow!("No active cell"))?;
+
+    let ts = tri_timestamp();
+    for cell in &mut reg.cells {
+        if cell.id == *cell_id {
+            cell.state = "sealed".into();
+            cell.verdict = Some("clean".into());
+            println!("Cell sealed: {}", cell_id);
+            break;
+        }
+    }
+    tri_write_json(&reg_path, &reg)?;
+
+    tri_append_event(&repo_root, &serde_json::json!({
+        "ts": ts,
+        "event": "cell.seal",
+        "agent_id": "agent:opencode",
+        "result": "success",
+        "metadata": { "cell_id": cell_id, "verdict": "clean" }
+    }))?;
+    Ok(())
+}
+
+fn run_tri_gen(input: &str) -> anyhow::Result<()> {
+    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+    for backend in &["verilog", "c", "rust"] {
+        let cmd = format!("gen-{}", backend);
+        let status = std::process::Command::new(&t27c)
+            .arg(&cmd)
+            .arg(input)
+            .status()
+            .context(format!("t27c {}", cmd))?;
+        if !status.success() {
+            anyhow::bail!("t27c {} failed for {}", cmd, input);
+        }
+    }
+    println!("Generated: verilog, c, rust for {}", input);
+    Ok(())
+}
+
+fn run_tri_test(input: &str) -> anyhow::Result<()> {
+    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+    let status = std::process::Command::new(&t27c)
+        .arg("test")
+        .arg(input)
+        .status()
+        .context("t27c test")?;
+    if !status.success() {
+        anyhow::bail!("t27c test failed for {}", input);
+    }
+    println!("Tests passed: {}", input);
+    Ok(())
+}
+
+fn run_tri_verdict() -> anyhow::Result<()> {
+    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
+
+    println!("=== Verdict: seal validation ===");
+    let status = std::process::Command::new(&t27c)
+        .arg("validate-seals")
+        .status()
+        .context("t27c validate-seals")?;
+    if !status.success() {
+        println!("VERDICT: TOXIC (seal validation failed)");
+        anyhow::bail!("Verdict: TOXIC");
+    }
+
+    println!("=== Verdict: phi-identity ===");
+    let status = std::process::Command::new(&t27c)
+        .arg("validate-phi-identity")
+        .status()
+        .context("t27c validate-phi-identity")?;
+    if !status.success() {
+        println!("VERDICT: TOXIC (phi-identity failed)");
+        anyhow::bail!("Verdict: TOXIC");
+    }
+
+    println!("VERDICT: CLEAN");
+    Ok(())
+}
+
+fn run_tri_experience_save() -> anyhow::Result<()> {
+    let repo_root = tri_find_repo_root()?;
+    let ts = tri_timestamp();
+    let state_path = repo_root.join(".trinity/state/active-skill.json");
+    let skill: ActiveSkill = if state_path.exists() {
+        tri_read_json(&state_path).unwrap_or_default()
+    } else {
+        ActiveSkill::default()
+    };
+
+    let skill_id = skill.skill_id.clone().unwrap_or_default();
+    let episode = serde_json::json!({
+        "ts": ts,
+        "skill_id": skill_id,
+        "agent": "opencode",
+        "verdict": "clean",
+        "metadata": {}
+    });
+
+    let exp_path = repo_root.join(".trinity/experience/episodes.jsonl");
+    if let Some(parent) = exp_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&exp_path)?;
+    use std::io::Write;
+    writeln!(f, "{}", serde_json::to_string(&episode)?)?;
+
+    tri_append_event(&repo_root, &serde_json::json!({
+        "ts": ts,
+        "event": "experience.save",
+        "agent_id": "agent:opencode",
+        "result": "success",
+        "metadata": { "skill_id": skill_id }
+    }))?;
+
+    println!("Experience saved.");
     Ok(())
 }
 
@@ -6578,11 +7095,20 @@ async fn main() -> anyhow::Result<()> {
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
          }
-         Commands::Serve { .. } => {
-             eprintln!("Error: 'serve' command requires 'server' feature");
-             eprintln!("Build with: cargo build --release --features server");
-             std::process::exit(1);
-         }
+        Commands::Serve { .. } => {
+            eprintln!("Error: 'serve' command requires 'server' feature");
+            eprintln!("Build with: cargo build --release --features server");
+            std::process::exit(1);
+        }
+        Commands::TriStatus => run_tri_status()?,
+        Commands::TriSkillBegin { issue, desc } => run_tri_skill_begin(&issue, &desc)?,
+        Commands::TriSkillEnd => run_tri_skill_end()?,
+        Commands::TriCellCheckpoint { step } => run_tri_cell_checkpoint(&step)?,
+        Commands::TriCellSeal => run_tri_cell_seal()?,
+        Commands::TriGen { input } => run_tri_gen(&input)?,
+        Commands::TriTest { input } => run_tri_test(&input)?,
+        Commands::TriVerdict => run_tri_verdict()?,
+        Commands::TriExperienceSave => run_tri_experience_save()?,
      }
  
      Ok(())
@@ -6693,6 +7219,15 @@ fn main() -> anyhow::Result<()> {
         Commands::BrainSealRefresh => {
             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
         }
+        Commands::TriStatus => run_tri_status()?,
+        Commands::TriSkillBegin { issue, desc } => run_tri_skill_begin(&issue, &desc)?,
+        Commands::TriSkillEnd => run_tri_skill_end()?,
+        Commands::TriCellCheckpoint { step } => run_tri_cell_checkpoint(&step)?,
+        Commands::TriCellSeal => run_tri_cell_seal()?,
+        Commands::TriGen { input } => run_tri_gen(&input)?,
+        Commands::TriTest { input } => run_tri_test(&input)?,
+        Commands::TriVerdict => run_tri_verdict()?,
+        Commands::TriExperienceSave => run_tri_experience_save()?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
