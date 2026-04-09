@@ -59,6 +59,7 @@ function App() {
   const [showDeleted, setShowDeleted] = useState(false);
   const isLocalMode = import.meta.env.VITE_LOCAL_MODE === "true";
 
+  // Session dashboard with direct access (v2 - in-memory storage)
   const handleApiError = (message: string) => {
     setError(message);
   };
