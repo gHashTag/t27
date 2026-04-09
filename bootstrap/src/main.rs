@@ -63,6 +63,15 @@ enum Commands {
         output: Option<String>,
     },
 
+    /// Check XDC pins against prjxray-db
+    CheckPins {
+        /// XDC file to validate
+        xdc: String,
+        /// prjxray-db artix7 directory
+        #[arg(long)]
+        db: Option<String>,
+    },
+
     /// Generate C code (.c/.h style) from .t27 file
     GenC {
         /// Input file path
@@ -2237,6 +2246,68 @@ fn run_gen_xdc(profile: &str, output: Option<&str>) -> anyhow::Result<()> {
             println!("XDC written to {}", path);
         }
         None => print!("{}", xdc),
+    }
+    Ok(())
+}
+
+fn run_check_pins(xdc_path: &str, db_path: Option<&str>) -> anyhow::Result<()> {
+    let repo_root = std::env::current_dir()?;
+    let db_dir = match db_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let candidates = [
+                repo_root.join("build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7"),
+                repo_root.join("build/fpga/prjxray-db/artix7"),
+            ];
+            candidates.into_iter().find(|p| p.exists())
+                .ok_or_else(|| anyhow::anyhow!("prjxray-db not found. Pass --db <path>"))?
+        }
+    };
+
+    let package_pins_csv = db_dir.join("xc7a100tcsg324-1/package_pins.csv");
+    if !package_pins_csv.exists() {
+        anyhow::bail!("package_pins.csv not found at {}", package_pins_csv.display());
+    }
+    let db_content = fs::read_to_string(&package_pins_csv)?;
+    let mut valid_pins: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for line in db_content.lines().skip(1) {
+        if let Some(pin) = line.split(',').next() {
+            valid_pins.insert(pin.to_uppercase());
+        }
+    }
+
+    let xdc_content = fs::read_to_string(xdc_path)?;
+    let mut found = 0u32;
+    let mut missing = 0u32;
+    let mut missing_list: Vec<String> = Vec::new();
+
+    for line in xdc_content.lines() {
+        let trimmed = line.trim();
+        if !trimmed.contains("PACKAGE_PIN") {
+            continue;
+        }
+        if let Some(idx) = trimmed.find("PACKAGE_PIN") {
+            let after = &trimmed[idx + "PACKAGE_PIN".len()..].trim_start();
+            let pin: String = after.chars().take_while(|c| c.is_alphanumeric()).collect();
+            if pin.is_empty() {
+                continue;
+            }
+            found += 1;
+            if !valid_pins.contains(&pin) {
+                missing += 1;
+                missing_list.push(pin.clone());
+                println!("  MISSING: {} (not in prjxray-db)", pin);
+            }
+        }
+    }
+
+    println!("Pin coverage: {}/{} valid ({} missing)", found - missing, found, missing);
+    if !missing_list.is_empty() {
+        println!("Missing pins: {}", missing_list.join(", "));
+    }
+    if missing > 0 {
+        println!("\nThese pins are real I/O pins but not yet in the prjxray-db.");
+        println!("Workaround: use --profile minimal for open-source flow (prjxray-verified pins only).");
     }
     Ok(())
 }
@@ -7210,6 +7281,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
+        Commands::CheckPins { xdc, db } => run_check_pins(&xdc, db.as_deref())?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
