@@ -1,13 +1,13 @@
 {
-  "episode_id": "phi-2026-04-09T13:23:48Z#ring-48",
+  "episode_id": "phi-2026-04-09T13:26:55Z#ring-48",
   "skill_id": "ring-48",
-  "session_id": "2026-04-09T13:23:48Z#ring-48",
+  "session_id": "2026-04-09T13:26:55Z#ring-48",
   "issue_id": "SEED-48",
   "spec_paths": [
-    "specs/fpga/bridge.t27"
+    "specs/fpga/top_level.t27"
   ],
   "spec_hash_before": "sha256:stale",
-  "spec_hash_after": "sha256:7290ac70c96c8464fd7aee139b7f219e71097dd3fd991d85e9f69b217844fa12",
+  "spec_hash_after": "sha256:643082be8cf95f761d5db31d2819e4670797f26a4ea64e4fa7ef305e58af8ba5",
   "gen_hash_after": "sha256:na",
   "tests": {
     "status": "passed",
@@ -17,7 +17,7 @@
   "verdict": {
     "toxicity": "clean",
     "score": 0.0,
-    "notes": "Resealed specs/fpga/bridge.t27 (hash updated)"
+    "notes": "Resealed specs/fpga/top_level.t27 (hash updated)"
   },
   "bench_delta": {
     "metric": "weaknesses_resolved",
@@ -26,12 +26,12 @@
   },
   "commit": {
     "sha": "pending",
-    "message": "feat(ring-48): evolve [Resealed specs/fpga/bridge.t27 (hash updated)] [SEED-48]",
-    "timestamp": "2026-04-09T13:23:48Z"
+    "message": "feat(ring-48): evolve [Resealed specs/fpga/top_level.t27 (hash updated)] [SEED-48]",
+    "timestamp": "2026-04-09T13:26:55Z"
   },
   "actor": "agent:tri_repl_evolve",
-  "sealed_at": "2026-04-09T13:23:48Z",
-  "completed_at": "2026-04-09T13:23:48Z",
+  "sealed_at": "2026-04-09T13:26:55Z",
+  "completed_at": "2026-04-09T13:26:55Z",
   "metadata": {
     "environment": "local",
     "ring": 48,

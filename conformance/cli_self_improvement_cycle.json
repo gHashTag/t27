@@ -1,0 +1,59 @@
+{
+  "module": "self_improvement_cycle",
+  "domain": "cli",
+  "ring": 53,
+  "generated_by": "tri_ring_53",
+  "cycle_proof": {
+    "before_weakness_count": 10,
+    "after_weakness_count": 5,
+    "cycles_run": 5,
+    "convergence_before": "70.0%",
+    "convergence_after": "85.0%",
+    "delta": "+15%",
+    "actions": [
+      "Resealed compiler/codegen/verilog/fpga_emission.t27",
+      "Resealed specs/fpga/testbench/mac_tb.t27",
+      "Resealed specs/fpga/spi.t27",
+      "Resealed specs/fpga/testbench/top_tb.t27",
+      "Resealed specs/fpga/top_level.t27"
+    ]
+  },
+  "vectors": [
+    {
+      "id": "sic_v001",
+      "input": {
+        "initial_weaknesses": 10,
+        "max_iterations": 5
+      },
+      "expected": {
+        "final_weaknesses": 5,
+        "delta_positive": true
+      },
+      "notes": "5 cycles, half resolved"
+    },
+    {
+      "id": "sic_v002",
+      "input": {
+        "initial_weaknesses": 0,
+        "max_iterations": 5
+      },
+      "expected": {
+        "cycles_run": 0,
+        "reached_zero": true
+      },
+      "notes": "already at fixed point"
+    },
+    {
+      "id": "sic_v003",
+      "input": {
+        "initial_weaknesses": 1,
+        "max_iterations": 10
+      },
+      "expected": {
+        "final_weaknesses": 0,
+        "reached_zero": true
+      },
+      "notes": "one fix to fixed point"
+    }
+  ]
+}
