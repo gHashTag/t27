@@ -14,7 +14,8 @@ COPY external/opencode/packages/web/ ./
 # Install dependencies
 RUN bun install --frozen-lockfile
 
-# Build the app
+# Build the app (use same-origin API calls: /auth/login instead of http://localhost:3000)
+ENV VITE_API_URL=
 RUN bun run build
 
 # --- Backend Build Stage ---
