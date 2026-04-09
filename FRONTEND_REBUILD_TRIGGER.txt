@@ -1,1 +1,1 @@
-v7 - sandbox navigation fix
+v8 - explicit sandbox URL

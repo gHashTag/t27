@@ -151,7 +151,8 @@ function App() {
     setError(null);
     try {
       const sandboxToken = await createSandboxToken(token, session.id);
-      const sandboxUrl = getProxyUrl(sandboxToken.token);
+      // Explicit URL construction to avoid env var issues
+      const sandboxUrl = `${window.location.origin}/sandbox?token=${encodeURIComponent(sandboxToken.token)}`;
       window.open(sandboxUrl, '_blank');
     } catch (error) {
       if (error instanceof Error) {

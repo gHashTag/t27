@@ -56,8 +56,8 @@ COPY --from=backend-builder /app/target/release/t27c /usr/local/bin/t27c
 RUN chmod +x /usr/local/bin/t27c
 
 # Copy frontend assets to /app/public (served by t27c)
-# Force rebuild: v7 - sandbox navigation fix
-RUN echo "Frontend build v7" && ls -la /app/dist
+# Force rebuild: v8 - explicit sandbox URL
+RUN echo "Frontend build v8" && ls -la /app/dist
 COPY --from=frontend-builder /app/dist /app/public
 
 # Copy additional specs and conformance data
