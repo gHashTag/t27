@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — Pins IR + XDC emitter · PR #385
+**Last updated:** 2026-04-09 — fpga-build --profile flag · PR #387
 
 **Document class:** Operational focus document
 
@@ -840,6 +840,15 @@ eW91IHdvcmsgaW4gVVRDLio=
  - 21 tests + 7 invariants in ir.t27, 19 tests + 6 invariants in emitter_xdc.t27
 
 **Last updated:** 2026-04-09 — Pins IR + XDC emitter for nextpnr-compatible constraint generation
+
+## FPGA --profile Flag (PR #386)
+
+ - `t27c fpga-build --profile minimal` — LED+UART design (replaces `--minimal`)
+ - `t27c fpga-build --profile full` — full QMTECH design (LED+UART+SPI+MAC)
+ - `--minimal` still works for backward compatibility
+ - Profile name printed in output: `=== FPGA Build: profile = minimal ===`
+
+**Last updated:** 2026-04-09 — fpga-build --profile flag · PR #387
 
 ## 2026-04-08 — CI stabilization, Yosys synthesis verified, Makefile update
 
