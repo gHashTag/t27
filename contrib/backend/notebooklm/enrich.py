@@ -12,11 +12,14 @@ import asyncio
 import json
 import logging
 import re
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Any
+from urllib.parse import urlparse, parse_qs
 
 import yaml
 
@@ -39,6 +42,9 @@ logger = logging.getLogger(__name__)
 REGISTRY_PATH = Path(__file__).parent / "content_registry.yaml"
 # Path to enrichment metadata
 METADATA_PATH = Path(__file__).parent / "enrichment_metadata.json"
+# Transcript extraction constants
+MAX_TRANSCRIPT_SIZE = 10 * 1024 * 1024  # 10MB limit
+YOUTUBE_DOMAINS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
 
 
 @dataclass
@@ -49,6 +55,8 @@ class EnrichmentResult:
     topic: Optional[str] = None
     sources_added: int = 0
     sources_skipped: int = 0
+    transcripts_added: int = 0
+    transcripts_failed: int = 0
     errors: list[str] = field(default_factory=list)
     success: bool = True
 
@@ -186,11 +194,33 @@ class EnrichmentMetadata:
             "enriched_at": datetime.utcnow().isoformat(),
             "topic": None,
             "enriched_sources": [],
+            "enriched_transcripts": [],
         }
         if "enriched_sources" not in meta:
             meta["enriched_sources"] = []
         if url not in meta["enriched_sources"]:
             meta["enriched_sources"].append(url)
+        self.set_notebook_metadata(notebook_id, meta)
+
+    def get_enriched_transcripts(self, notebook_id: str) -> set[str]:
+        """Get set of enriched transcript video URLs for a notebook."""
+        meta = self.get_notebook_metadata(notebook_id)
+        if meta:
+            return set(meta.get("enriched_transcripts", []))
+        return set()
+
+    def add_enriched_transcript(self, notebook_id: str, video_url: str) -> None:
+        """Mark a video transcript as enriched for a notebook."""
+        meta = self.get_notebook_metadata(notebook_id) or {
+            "enriched_at": datetime.utcnow().isoformat(),
+            "topic": None,
+            "enriched_sources": [],
+            "enriched_transcripts": [],
+        }
+        if "enriched_transcripts" not in meta:
+            meta["enriched_transcripts"] = []
+        if video_url not in meta["enriched_transcripts"]:
+            meta["enriched_transcripts"].append(video_url)
         self.set_notebook_metadata(notebook_id, meta)
 
 
@@ -211,13 +241,166 @@ class NotebookEnricher:
             logger.error(f"Failed to list sources: {e}")
             return {}
 
+    def _is_youtube_url(self, url: str) -> bool:
+        """Check if URL is a YouTube URL."""
+        parsed = urlparse(url.strip())
+        hostname = (parsed.hostname or "").lower()
+        return hostname in YOUTUBE_DOMAINS
+
+    def _extract_youtube_video_id(self, url: str) -> Optional[str]:
+        """Extract YouTube video ID from URL (mirrors SDK pattern)."""
+        try:
+            parsed = urlparse(url.strip())
+            hostname = (parsed.hostname or "").lower()
+
+            # youtu.be short URLs
+            if hostname == "youtu.be":
+                return parsed.path.lstrip("/").split("/")[0]
+
+            # youtube.com path-based formats
+            path_segments = parsed.path.lstrip("/").split("/")
+            if len(path_segments) >= 2 and path_segments[0] in ("shorts", "embed", "live", "v"):
+                return path_segments[1]
+
+            # Query param ?v=VIDEO_ID
+            if parsed.query:
+                query_params = parse_qs(parsed.query)
+                if "v" in query_params:
+                    return query_params["v"][0]
+        except Exception:
+            pass
+        return None
+
+    def _srt_to_text(self, srt_content: str) -> str:
+        """Convert SRT subtitle format to plain text."""
+        lines = []
+        in_text_block = False
+
+        for line in srt_content.split("\n"):
+            line = line.strip()
+
+            # Skip timestamps (contain -->)
+            if "-->" in line or re.match(r"^\d+$", line):
+                in_text_block = False
+                continue
+
+            # Skip empty lines and line numbers
+            if not line or (not in_text_block and line.isdigit()):
+                if not line.isdigit():
+                    in_text_block = True
+                continue
+
+            lines.append(line)
+
+        return "\n".join(lines)
+
+    async def _extract_transcript(self, video_url: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+        """Extract YouTube transcript using yt-dlp.
+
+        Returns:
+            (video_title, transcript_content, error_message)
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+
+            # Check if yt-dlp is available
+            try:
+                subprocess.run(
+                    ["yt-dlp", "--version"],
+                    capture_output=True,
+                    check=True,
+                    timeout=10
+                )
+            except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                return None, None, "yt-dlp not found or not working. Install with: brew install yt-dlp"
+
+            # yt-dlp command to download subtitles without video
+            cmd = [
+                "yt-dlp",
+                "--no-update",  # Suppress update warning
+                "--skip-download",
+                "--write-subs",
+                "--write-auto-subs",
+                "--sub-langs", "en",
+                "--sub-format", "srt",
+                "--output", str(temp_dir_path / "%(title)s.%(ext)s"),
+                video_url
+            ]
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            except subprocess.TimeoutExpired:
+                return None, None, f"Transcript extraction timed out for {video_url}"
+
+            if result.returncode != 0:
+                stderr = result.stderr.lower()
+                if "video unavailable" in stderr or "video has been removed" in stderr:
+                    return None, None, f"Video unavailable: {video_url}"
+                elif "video has no subtitles" in stderr or "subtitles" in stderr:
+                    return None, None, f"No subtitles available: {video_url}"
+                else:
+                    return None, None, f"yt-dlp error: {result.stderr.strip()}"
+
+            # Find subtitle file
+            subtitle_files = list(temp_dir_path.glob("*.srt"))
+            if not subtitle_files:
+                return None, None, f"No subtitle files generated: {video_url}"
+
+            subtitle_path = subtitle_files[0]
+
+            try:
+                with open(subtitle_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                transcript = self._srt_to_text(content)
+
+                if not transcript.strip():
+                    return None, None, f"Empty transcript: {video_url}"
+
+                # Check size limit
+                if len(transcript) > MAX_TRANSCRIPT_SIZE:
+                    return None, None, f"Transcript too large ({len(transcript)} bytes): {video_url}"
+
+                title = subtitle_path.stem
+                return title, transcript, None
+            except UnicodeDecodeError:
+                return None, None, f"Failed to decode subtitle (encoding issue): {video_url}"
+            except Exception as e:
+                return None, None, f"Failed to read subtitle: {e}"
+
     async def add_source(self, notebook_id: str, url: str) -> bool:
-        """Add a source to a notebook."""
+        """Add a source to a notebook with YouTube transcript fallback."""
+        # Try direct URL upload first
         try:
             source = await self.client.sources.add_url(notebook_id, url)
             logger.info(f"  Added source: {source.title or url}")
             return True
         except Exception as e:
+            error_msg = str(e).lower()
+
+            # Check if YouTube URL upload failed
+            if self._is_youtube_url(url) and any(
+                pattern in error_msg
+                for pattern in ["youtube", "blocked", "not allowed", "video"]
+            ):
+                logger.info(f"  YouTube URL blocked, trying transcript extraction...")
+                title, transcript, error = await self._extract_transcript(url)
+
+                if error:
+                    logger.warning(f"  Transcript extraction failed: {error}")
+                    return False
+
+                # Upload transcript via add_text
+                try:
+                    formatted_title = f"🎥 {title} (transcript)"
+                    await self.client.sources.add_text(notebook_id, formatted_title, transcript)
+                    logger.info(f"  Added transcript: {formatted_title}")
+                    return True
+                except Exception as te:
+                    logger.warning(f"  Failed to add transcript: {te}")
+                    return False
+
+            # Non-YouTube error
             logger.warning(f"  Failed to add {url}: {e}")
             return False
 
@@ -268,29 +451,50 @@ class NotebookEnricher:
         existing_sources = await self.get_existing_sources(notebook.id)
         existing_urls = {s.url for s in existing_sources.values() if s.url}
 
-        # Get already enriched sources from metadata
+        # Get already enriched sources AND transcripts from metadata
         enriched_urls = self.metadata.get_enriched_sources(notebook.id)
+        enriched_transcripts = self.metadata.get_enriched_transcripts(notebook.id)
 
         # Add sources
         for url in topic.all_sources:
-            # Skip if already added or previously enriched
+            # Skip if already added
             if url in existing_urls:
                 logger.debug(f"  Skipping (already exists): {url}")
                 result.sources_skipped += 1
                 continue
 
-            if not force and url in enriched_urls:
-                logger.debug(f"  Skipping (previously enriched): {url}")
-                result.sources_skipped += 1
-                continue
+            # Special handling for YouTube URLs
+            if self._is_youtube_url(url):
+                # Skip if transcript already added
+                if not force and url in enriched_transcripts:
+                    logger.debug(f"  Skipping (transcript already added): {url}")
+                    result.sources_skipped += 1
+                    continue
 
-            if await self.add_source(notebook.id, url):
-                result.sources_added += 1
-                self.metadata.add_enriched_source(notebook.id, url)
-                # Small delay to avoid rate limiting
-                await asyncio.sleep(0.5)
+                # Try add_source which handles fallback
+                success = await self.add_source(notebook.id, url)
+                if success:
+                    # Track in transcripts metadata
+                    result.transcripts_added += 1
+                    self.metadata.add_enriched_transcript(notebook.id, url)
+                    await asyncio.sleep(0.5)
+                else:
+                    result.transcripts_failed += 1
+                    result.errors.append(f"Failed to add transcript: {url}")
             else:
-                result.errors.append(f"Failed to add: {url}")
+                # Non-YouTube sources
+                # Skip if previously enriched
+                if not force and url in enriched_urls:
+                    logger.debug(f"  Skipping (previously enriched): {url}")
+                    result.sources_skipped += 1
+                    continue
+
+                if await self.add_source(notebook.id, url):
+                    result.sources_added += 1
+                    self.metadata.add_enriched_source(notebook.id, url)
+                    await asyncio.sleep(0.5)
+                else:
+                    result.errors.append(f"Failed to add: {url}")
 
         # Update metadata
         meta = self.metadata.get_notebook_metadata(notebook.id) or {}
@@ -348,6 +552,8 @@ class NotebookEnricher:
         successful = sum(1 for r in results if r.success)
         total_added = sum(r.sources_added for r in results)
         total_skipped = sum(r.sources_skipped for r in results)
+        total_transcripts_added = sum(r.transcripts_added for r in results)
+        total_transcripts_failed = sum(r.transcripts_failed for r in results)
         total_errors = sum(len(r.errors) for r in results)
 
         summary = {
@@ -356,6 +562,8 @@ class NotebookEnricher:
             "failed": total - successful,
             "sources_added": total_added,
             "sources_skipped": total_skipped,
+            "transcripts_added": total_transcripts_added,
+            "transcripts_failed": total_transcripts_failed,
             "total_errors": total_errors,
             "results": [
                 {
@@ -364,6 +572,8 @@ class NotebookEnricher:
                     "topic": r.topic,
                     "sources_added": r.sources_added,
                     "sources_skipped": r.sources_skipped,
+                    "transcripts_added": r.transcripts_added,
+                    "transcripts_failed": r.transcripts_failed,
                     "success": r.success,
                     "errors": r.errors,
                 }
@@ -439,6 +649,10 @@ async def main():
             print(f"Topic: {result.topic or 'None'}")
             print(f"Sources added: {result.sources_added}")
             print(f"Sources skipped: {result.sources_skipped}")
+            if result.transcripts_added > 0:
+                print(f"Transcripts added: {result.transcripts_added}")
+            if result.transcripts_failed > 0:
+                print(f"Transcripts failed: {result.transcripts_failed}")
             if result.errors:
                 print(f"Errors: {len(result.errors)}")
                 for err in result.errors:
@@ -456,6 +670,10 @@ async def main():
             print(f"Failed: {summary['failed']}")
             print(f"Sources added: {summary['sources_added']}")
             print(f"Sources skipped: {summary['sources_skipped']}")
+            if summary.get('transcripts_added', 0) > 0:
+                print(f"Transcripts added: {summary['transcripts_added']}")
+            if summary.get('transcripts_failed', 0) > 0:
+                print(f"Transcripts failed: {summary['transcripts_failed']}")
             print(f"Total errors: {summary['total_errors']}")
             print(f"{'='*60}\n")
 
