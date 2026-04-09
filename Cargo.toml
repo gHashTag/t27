@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["bootstrap", "ffi", "bindings/javascript", "gen/rust", "gen/rust/orphan_detection", "gen/rust/https_enforce"]
-exclude = ["bindings/python"]
+exclude = ["bindings/python", "tools/converter"]
 
 [workspace.package]
 version = "0.1.0"

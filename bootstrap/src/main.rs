@@ -12,6 +12,7 @@
 
 mod bridge;
 mod compiler;
+mod enrichment;
 mod suite;
 
 use anyhow::Context;
@@ -135,6 +136,25 @@ enum Commands {
     Bridge {
         #[command(subcommand)]
         command: bridge::BridgeCommands,
+    },
+
+    /// Enrich notebooks with YouTube transcripts
+    Enrich {
+        /// Notebook ID to enrich
+        #[arg(short, long)]
+        notebook: Option<String>,
+
+        /// Enrich all notebooks
+        #[arg(long)]
+        all: bool,
+
+        /// Force re-enrichment
+        #[arg(long)]
+        force: bool,
+
+        /// API token for NotebookLM
+        #[arg(short = 't', long)]
+        token: String,
     },
 
     /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
@@ -573,7 +593,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Json},
-    routing::{get, post},
+    routing::{get, post, delete},
     Router,
 };
 #[cfg(feature = "server")]
@@ -581,16 +601,30 @@ use tower_http::services::{ServeDir, ServeFile};
 #[cfg(feature = "server")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, RwLock};
 #[cfg(feature = "server")]
 use tokio_stream::wrappers::BroadcastStream;
 #[cfg(feature = "server")]
 use tokio::net::TcpListener;
+#[cfg(feature = "server")]
+use std::sync::Arc;
+
+#[cfg(feature = "server")]
+#[derive(Clone, Serialize, Deserialize)]
+struct Session {
+    id: String,
+    name: String,
+    status: String,
+    railway_service_id: String,
+    created_at: u64,
+    updated_at: u64,
+}
 
 #[cfg(feature = "server")]
 #[derive(Clone)]
 struct AppState {
     tx: broadcast::Sender<serde_json::Value>,
+    sessions: Arc<RwLock<Vec<Session>>>,
 }
 
 #[cfg(feature = "server")]
@@ -913,9 +947,10 @@ async fn config_get_handler() -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn session_list_handler() -> impl IntoResponse {
+async fn session_list_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let sessions = state.sessions.read().await;
     Json(serde_json::json!({
-        "data": []
+        "data": *sessions
     }))
 }
 
@@ -925,40 +960,89 @@ async fn session_status_handler() -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn session_id_handler(axum::extract::Path(id): axum::extract::Path<String>) -> impl IntoResponse {
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(std::time::Duration::from_secs(0))
-        .as_secs();
-
-    Json(serde_json::json!({
-        "data": {
-            "id": id,
-            "name": format!("Session {}", id),
-            "status": "active",
-            "railwayServiceId": format!("srv_{}", id),
-            "createdAt": current_time,
-            "updatedAt": current_time
-        }
-    }))
+async fn session_id_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let sessions = state.sessions.read().await;
+    if let Some(session) = sessions.iter().find(|s| s.id == id) {
+        Json(serde_json::json!({
+            "data": session
+        }))
+    } else {
+        Json(serde_json::json!({
+            "data": {
+                "id": id,
+                "name": format!("Session {}", id),
+                "status": "active",
+                "railway_service_id": format!("srv_{}", id),
+                "created_at": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::from_secs(0))
+                    .as_secs(),
+                "updated_at": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::from_secs(0))
+                    .as_secs()
+            }
+        }))
+    }
 }
 
 #[cfg(feature = "server")]
-async fn session_create_handler() -> impl IntoResponse {
+async fn session_delete_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let mut sessions = state.sessions.write().await;
+    if let Some(pos) = sessions.iter().position(|s| s.id == id) {
+        sessions[pos].status = "deleted".to_string();
+        sessions[pos].updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::from_secs(0))
+            .as_secs();
+        Json(serde_json::json!({
+            "data": sessions[pos].clone()
+        })).into_response()
+    } else {
+        (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": "Session not found"
+        }))).into_response()
+    }
+}
+
+#[cfg(feature = "server")]
+async fn session_create_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
     let current_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or(std::time::Duration::from_secs(0))
         .as_secs();
 
+    let name = payload.get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Untitled Session")
+        .to_string();
+
+    let id = format!("ses_{}", current_time);
+    let railway_service_id = format!("srv_{}", current_time);
+
+    let session = Session {
+        id: id.clone(),
+        name,
+        status: "active".to_string(),
+        railway_service_id,
+        created_at: current_time,
+        updated_at: current_time,
+    };
+
+    // Store session
+    state.sessions.write().await.push(session.clone());
+
     Json(serde_json::json!({
-        "data": {
-            "id": "ses_default",
-            "name": "Default Session",
-            "status": "active",
-            "railwayServiceId": "srv_default",
-            "createdAt": current_time,
-            "updatedAt": current_time
-        }
+        "data": session
     }))
 }
 
@@ -1915,7 +1999,10 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .parse::<u16>()?;
 
     let (tx, _) = broadcast::channel(100);
-    let state = AppState { tx };
+    let state = AppState {
+        tx,
+        sessions: Arc::new(RwLock::new(Vec::new())),
+    };
 
     let app = Router::new()
         .route("/health", get(health_handler))
@@ -1936,8 +2023,8 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/session", get(session_list_handler).post(session_create_handler))
         .route("/sessions", get(session_list_handler).post(session_create_handler))
         .route("/session/status", get(session_status_handler))
-        .route("/session/:id", get(session_id_handler).delete(session_id_handler))
-        .route("/sessions/:id", get(session_id_handler).delete(session_id_handler))
+        .route("/session/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id", get(session_id_handler).delete(session_delete_handler))
         .route("/sessions/:id/token", post(session_create_sandbox_token_handler))
         .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
         .route("/session/:id/prompt_async", post(prompt_async_handler))
@@ -6129,6 +6216,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Enrich { notebook, all, force, token } => enrichment::run_enrich(notebook, all, force, token)?,
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -6236,6 +6324,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Enrich { notebook, all, force, token } => enrichment::run_enrich(notebook, all, force, token)?,
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?

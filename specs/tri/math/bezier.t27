@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/
+// De Casteljau algorithm for stable evaluation | φ² + 1/φ² = 3 | TRINITY
+
+module TriBezier;
+    use base::types;
+    use math::constants;
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Types
+    // ═══════════════════════════════════════════════════════════
+
+    pub const Point = struct {
+        x : "f64",
+        y : "f64",
+    };
+
+    pub const BezierCurve = struct {
+        control : [[]Point",
+        degree : "usize",
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Core Functions
+    // ═══════════════════════════════════════════════════════════
+
+    // evaluate(curve: *const BezierCurve) → void
+    fn evaluate(curve: *const BezierCurve) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // derivative(curve: *const BezierCurve) → void
+    fn derivative(curve: *const BezierCurve) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests (from .tri behaviors)
+    // ═══════════════════════════════════════════════════════════
+
+    test evaluate_basic_case
+        given input = default_input()
+        when result = evaluate(input)
+        then result != undefined
+
+    test derivative_basic_case
+        given input = default_input()
+        when result = derivative(input)
+        then result != undefined
+
