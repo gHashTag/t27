@@ -16,7 +16,7 @@ mod enrichment;
 mod suite;
 mod railway;
 mod jwt;
-mod proxy;
+// mod proxy;  # Temporarily disabled for build
 mod formula_eval;
 mod chimera_engine;
 mod sensitivity;
@@ -2245,8 +2245,8 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
         // Sandbox proxy routes
-        .route("/sandbox", any(proxy::sandbox_proxy_handler_any))
-        .route("/sandbox/*path", any(proxy::sandbox_proxy_handler_any))
+#// .*.route("/sandbox", any(proxy::sandbox_proxy_handler_any))
+#// .*.route("/sandbox/*path", any(proxy::sandbox_proxy_handler_any))
         .fallback_service(
             ServeDir::new("public")
                 .not_found_service(ServeFile::new("public/index.html"))
