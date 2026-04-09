@@ -54,6 +54,15 @@ enum Commands {
         input: String,
     },
 
+    /// Generate XDC constraints from board profile
+    GenXdc {
+        /// Board profile: minimal, full, or path to .t27 board spec
+        profile: String,
+        /// Output file path (stdout if omitted)
+        #[arg(long)]
+        output: Option<String>,
+    },
+
     /// Generate C code (.c/.h style) from .t27 file
     GenC {
         /// Input file path
@@ -2127,6 +2136,111 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+struct PinAssignment {
+    package_pin: &'static str,
+    port: &'static str,
+    iostandard: &'static str,
+}
+
+struct ClockAssignment {
+    port: &'static str,
+    period_ns: &'static str,
+    waveform: &'static str,
+    name: &'static str,
+}
+
+fn xdc_qmtech_minimal() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
+    let pins = vec![
+        PinAssignment { package_pin: "E3",  port: "clk",     iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "C14", port: "rst_n",   iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T14", port: "uart_rx", iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T15", port: "uart_tx", iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "H17", port: "led[0]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "K15", port: "led[1]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "J13", port: "led[2]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "N14", port: "led[3]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "R18", port: "led[4]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "U18", port: "led[5]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T13", port: "led[6]",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T11", port: "led[7]",  iostandard: "LVCMOS33" },
+    ];
+    let clocks = vec![
+        ClockAssignment { port: "clk", name: "sys_clk", period_ns: "83.333", waveform: "{0 41.666}" },
+    ];
+    (pins, clocks)
+}
+
+fn xdc_qmtech_full() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
+    let mut pins = vec![
+        PinAssignment { package_pin: "E3",  port: "clk",       iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "C14", port: "rst_n",     iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T14", port: "uart_rx",   iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T15", port: "uart_tx",   iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "H17", port: "led[0]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "K15", port: "led[1]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "J13", port: "led[2]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "N14", port: "led[3]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "R18", port: "led[4]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "U18", port: "led[5]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T13", port: "led[6]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "T11", port: "led[7]",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "G8",  port: "spi_cs",    iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "G7",  port: "spi_sck",   iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "G5",  port: "spi_mosi",  iostandard: "LVCMOS33" },
+        PinAssignment { package_pin: "G6",  port: "spi_miso",  iostandard: "LVCMOS33" },
+    ];
+    let clocks = vec![
+        ClockAssignment { port: "clk", name: "sys_clk", period_ns: "83.333", waveform: "{0 41.666}" },
+    ];
+    let _ = &mut pins;
+    (pins, clocks)
+}
+
+fn emit_xdc(pins: &[PinAssignment], clocks: &[ClockAssignment]) -> String {
+    let mut out = String::new();
+    for clock in clocks {
+        out.push_str(&format!(
+            "create_clock -add -name {} -period {} -waveform {} [get_ports {}]\n",
+            clock.name, clock.period_ns, clock.waveform, clock.port
+        ));
+    }
+    for pin in pins {
+        out.push_str(&format!(
+            "set_property -dict {{ PACKAGE_PIN {} IOSTANDARD {} }} [get_ports {}]\n",
+            pin.package_pin, pin.iostandard, pin.port
+        ));
+    }
+    out
+}
+
+fn xdc_for_profile(profile: &str) -> anyhow::Result<String> {
+    match profile {
+        "minimal" | "qmtech_xc7a100t_minimal" => {
+            let (pins, clocks) = xdc_qmtech_minimal();
+            Ok(emit_xdc(&pins, &clocks))
+        }
+        "full" | "qmtech_xc7a100t_full" => {
+            let (pins, clocks) = xdc_qmtech_full();
+            Ok(emit_xdc(&pins, &clocks))
+        }
+        _ => {
+            anyhow::bail!("Unknown board profile '{}'. Supported: minimal, full", profile)
+        }
+    }
+}
+
+fn run_gen_xdc(profile: &str, output: Option<&str>) -> anyhow::Result<()> {
+    let xdc = xdc_for_profile(profile)?;
+    match output {
+        Some(path) => {
+            fs::write(path, &xdc)?;
+            println!("XDC written to {}", path);
+        }
+        None => print!("{}", xdc),
+    }
+    Ok(())
+}
+
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -3293,62 +3407,35 @@ endmodule
         }
     };
 
-    // Generate nextpnr-compatible XDC.
-    // For minimal mode, produce a clean XDC with only valid chipdb pins.
-    // For full mode, preprocess the Vivado XDC for nextpnr compatibility.
     let xdc = synth_dir.join("nextpnr.xdc");
-    if effective_minimal {
-        let minimal_xdc = r#"# nextpnr-compatible XDC for minimal design (prjxray-verified pins)
-set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
-create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
-set_property -dict { PACKAGE_PIN C14   IOSTANDARD LVCMOS33 } [get_ports rst_n]
-set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports uart_rx]
-set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
-set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports led[0]]
-set_property -dict { PACKAGE_PIN K15   IOSTANDARD LVCMOS33 } [get_ports led[1]]
-set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports led[2]]
-set_property -dict { PACKAGE_PIN N14   IOSTANDARD LVCMOS33 } [get_ports led[3]]
-set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports led[4]]
-set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports led[5]]
-set_property -dict { PACKAGE_PIN T13   IOSTANDARD LVCMOS33 } [get_ports led[6]]
-set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
-"#;
-        fs::write(&xdc, minimal_xdc)?;
-    } else {
-        let xdc_source = match xdc_path {
-            Some(p) => PathBuf::from(p),
-            None => {
-                let default = repo_root.join("specs/fpga/constraints/qmtech_a100t.xdc");
-                if default.exists() {
-                    default
-                } else {
-                    anyhow::bail!("XDC constraints not found. Pass --xdc <path>");
+    let xdc_content = xdc_for_profile(profile_name)?;
+    fs::write(&xdc, &xdc_content)?;
+    if !effective_minimal {
+        if let Some(xdc_override) = xdc_path {
+            let raw = fs::read_to_string(xdc_override).context("read XDC override")?;
+            let mut out = String::new();
+            for line in raw.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
+                    continue;
                 }
+                if trimmed.starts_with("set_false_path") {
+                    continue;
+                }
+                if trimmed.contains("[current_design]") {
+                    continue;
+                }
+                let l = if trimmed.contains("PULLUP") {
+                    trimmed.replace("PULLUP true", "").replace("  ", " ")
+                } else {
+                    trimmed.to_string()
+                };
+                let l = l.replace("[get_ports { ", "[get_ports ").replace(" }]", "]");
+                out.push_str(&l);
+                out.push('\n');
             }
-        };
-        let raw = fs::read_to_string(&xdc_source).context("read XDC")?;
-        let mut out = String::new();
-        for line in raw.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
-                continue;
-            }
-            if trimmed.starts_with("set_false_path") {
-                continue;
-            }
-            if trimmed.contains("[current_design]") {
-                continue;
-            }
-            let l = if trimmed.contains("PULLUP") {
-                trimmed.replace("PULLUP true", "").replace("  ", " ")
-            } else {
-                trimmed.to_string()
-            };
-            let l = l.replace("[get_ports { ", "[get_ports ").replace(" }]", "]");
-            out.push_str(&l);
-            out.push('\n');
+            fs::write(&xdc, &out)?;
         }
-        fs::write(&xdc, &out)?;
     }
 
     let fasm_output = synth_dir.join("design.fasm");
@@ -7122,6 +7209,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,

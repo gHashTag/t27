@@ -799,7 +799,7 @@ eW91IHdvcmsgaW4gVVRDLio=
 
 # NOW — Rolling integration snapshot
 
-**Last updated:** 2026-04-09 — Phase 3 parse bug fix (Result< typo) · PR #392
+**Last updated:** 2026-04-09 — gen-xdc command + XDC profile integration · PR #393
 
 **Document class:** Operational focus document
 
