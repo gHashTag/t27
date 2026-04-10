@@ -168,16 +168,9 @@ pub fn find_pdg_reference(id: &str) -> Option<(f64, &str)> {
 
 /// Ensure runtime is loaded from spec file
 fn ensure_runtime_loaded(repo_root: &Path) -> anyhow::Result<()> {
-    let mut runtime = FORMULA_RUNTIME.lock().unwrap();
-    let spec_path = repo_root.join("specs/physics/formula_registry.t27");
-    let (_, n_functions) = runtime.cache_stats();
-    if n_functions == 0 {
-        eprintln!("Loading runtime from spec: {}", spec_path.display());
-        runtime.load_from_spec(&spec_path)
-            .map_err(|e| anyhow!("Failed to load spec file: {}", e))?;
-        let (funcs, _) = runtime.cache_stats();
-        eprintln!("Runtime loaded {} functions", funcs);
-    }
+    // Runtime temporarily disabled due to compiler parsing issues
+    // TODO: Fix compiler or implement direct source code parsing
+    let _ = repo_root;
     Ok(())
 }
 
@@ -187,25 +180,12 @@ fn runtime_to_anyhow(err: RuntimeError) -> anyhow::Error {
 }
 
 /// Evaluate a formula by computing directly in Rust
-/// First tries runtime evaluator, falls back to v1.0 hardcoded values
+/// Uses v1.0 hardcoded values only for now
 fn evaluate_formula(repo_root: &Path, formula_id: &str) -> anyhow::Result<f64> {
-    // Ensure runtime is loaded
-    ensure_runtime_loaded(repo_root)?;
+    // Runtime temporarily disabled
+    let _ = repo_root;
 
-    eprintln!("Attempting to evaluate: {}", formula_id);
-
-    // Try runtime evaluator first
-    {
-        let mut runtime = FORMULA_RUNTIME.lock().unwrap();
-        if let Ok(value) = runtime.evaluate(formula_id) {
-            eprintln!("Runtime evaluated: {:.6}", value);
-            return Ok(value);
-        } else {
-            eprintln!("Runtime error: {:?}", runtime.evaluate(formula_id));
-        }
-    }
-
-    // Fallback to v1.0 hardcoded values
+    // v1.0 hardcoded values
     const PHI: f64 = 1.6180339887498948_f64;
     const PI: f64 = std::f64::consts::PI;
     const E: f64 = std::f64::consts::E;

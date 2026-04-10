@@ -1582,21 +1582,9 @@ impl Parser {
         }
 
         // Parse body: real expressions
-        // Handle both brace and brace-less syntax
-        if self.current.kind == TokenKind::LBrace {
-            // Brace-style: { ... }
-            self.advance(); // consume {
-            self.parse_fn_body(&mut decl)?;
-            self.expect(TokenKind::RBrace)?;
-        } else {
-            // Brace-less style: expr; or = expr; -> Type;
-            // For formula_registry.t27, functions are already braced
-            // This else branch handles any brace-less syntax if present
-            return Err(format!(
-                "Expected {{ after function signature, found {:?}",
-                self.current.kind
-            ));
-        }
+        self.expect(TokenKind::LBrace)?;
+        self.parse_fn_body(&mut decl)?;
+        self.expect(TokenKind::RBrace)?;
         Ok(decl)
     }
 
