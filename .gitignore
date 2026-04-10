@@ -1,0 +1,48 @@
+# Build artifacts (DNA)
+# Optional local Trinity CLI binary at repo root only (committed shim: scripts/tri)
+/tri
+zig-cache/
+zig-out/
+gen/
+dist/
+build/
+target/
+
+# Tooling
+node_modules/
+.turbo/
+.npm/
+.yarn/
+bun.lockb
+*.log
+*.log.jsonl
+
+# Secrets (local only; never commit)
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+tmp/
+.artifacts/
+
+# Trinity State (should stay local/deterministic)
+.trinity/claims/
+.trinity/queues/
+#.trinity/events/ # Keeping events might be okay if they are small, but they grow.
+
+# Specific project paths (vendored upstream lives under external/)
+external/opencode/dist/
+external/opencode/node_modules/
+external/opencode/packages/web/
+bootstrap/target/
+bootstrap/.trinity/
+.trinity/experience/

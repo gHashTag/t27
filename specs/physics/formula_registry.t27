@@ -285,6 +285,20 @@ module FormulaRegistry {
         return 3.0 * pow(PHI, 3.0) * pow(PI, -4.0) * pow(E, 2.0);
     }
 
+    // [VERIFIED] sector=lepton cx=5 Δ=0.078%
+    // P15: m_b/m_μ from chimera search
+    fn P15_mb_mmu() -> f64 {
+        return pow(PHI, -2.0) / PI * pow(E, 2.0);
+    }
+    // P16: m_b/m_t from chimera search
+    fn P16_mb_mt() -> f64 {
+        return 4.0 * pow(PHI, -2.0) / PI * pow(E, -3.0);
+    }
+    // P17: Ω_b from chimera search
+    fn P17_Omega_b() -> f64 {
+        return 4.0 * pow(PHI, -2.0) * pow(PI, -3.0);
+    }
+
     // ===== EXACT Identities =====
 
     // [EXACT] L5 Trinity Identity
