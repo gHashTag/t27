@@ -308,7 +308,7 @@ def mixed_tree_search(base_coeffs, base_exps, targets, threshold, max_depth=3):
         ops = ['+', '-', '*', '/']
         values = base_values[:1000]  # Limit for performance
 
-        for tree_size in range(depth):
+        for tree_size in range(1, depth + 1):  # Start from 1, not 0
             for combo in product(values, ops, repeat=tree_size):
                 try:
                     # Build tree: a + b
