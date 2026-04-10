@@ -20,6 +20,7 @@ mod jwt;
 mod formula_eval;
 mod chimera_engine;
 mod sensitivity;
+mod runtime;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -1133,8 +1134,9 @@ async fn session_create_handler(
                 // Start health polling in background
                 let sessions_clone = state.sessions.clone();
                 let token_clone = token;
+                let id_for_poller = id.clone();
                 tokio::spawn(async move {
-                    health_poller(id, service_id, sessions_clone, token_clone).await;
+                    health_poller(id_for_poller, service_id, sessions_clone, token_clone).await;
                 });
             }
             Err(e) => {
@@ -1240,7 +1242,7 @@ async fn session_create_sandbox_token_handler(
                     "expiresIn": 86400,
                     "sessionName": session_name
                 }
-            }))
+            })).into_response()
         }
         Err(e) => {
             eprintln!("Failed to create sandbox token: {}", e);
@@ -2244,9 +2246,8 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/deadcode", post(deadcode_handler))
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
-        // Sandbox proxy routes
-#// .*.route("/sandbox", any(proxy::sandbox_proxy_handler_any))
-#// .*.route("/sandbox/*path", any(proxy::sandbox_proxy_handler_any))
+        // .route("/sandbox", any(proxy::sandbox_proxy_handler_any))
+        // .route("/sandbox/*path", any(proxy::sandbox_proxy_handler_any))
         .fallback_service(
             ServeDir::new("public")
                 .not_found_service(ServeFile::new("public/index.html"))

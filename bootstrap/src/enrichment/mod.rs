@@ -5,7 +5,7 @@
 use anyhow::Result;
 use colored::*;
 
-pub mod youtube_transcript_gen;
+// pub mod youtube_transcript_gen;// TEMPORARY: codegen issue
 pub mod audio_overview;
 
 /// Run enrich command (Python script wrapper)
