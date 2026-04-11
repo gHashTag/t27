@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f1e06f3527cfbf1920dc9c0fc5bda38c3c2bf9b96c7e81e34d37adeb3fc82d9d",
   "module": "lqg_entropy",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:d4efea8bf279d2007f8ba7c9b36388a6e007a46e735fe463f526f23bbd3aa439",
+  "sealed_at": "2026-04-11T08:52:56Z",
+  "spec_hash": "sha256:11055f7681ca0d5588ee71899ff6cfc2d374a4564f01d03669ff54f579d1777d",
   "spec_path": "specs/physics/lqg_entropy.t27"
 }

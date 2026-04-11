@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:91eb27afe9e0e9059ae00439b9fa1ae03d7a2e9f4151376407f45a81d373a375",
   "module": "verilog_codegen",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:11Z",
+  "sealed_at": "2026-04-11T08:52:56Z",
   "spec_hash": "sha256:b60599b12589ad82371a48b483bf4e789740a4a1df9e7b9990630d6d0b1ab81c",
   "spec_path": "compiler/codegen/verilog/codegen.t27"
 }

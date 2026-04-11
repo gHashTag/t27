@@ -67,6 +67,66 @@ enum Commands {
         input: String,
     },
 
+    /// Debug: dump Hardware IR (HIR) from .t27 file
+    DebugHir {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate Verilog from .t27 file via HIR path (AST -> HIR -> Verilog)
+    GenVerilogHir {
+        /// Input file path
+        input: String,
+    },
+
+    /// Assemble ternary assembly source into machine code
+    Asm {
+        /// Input .t27 assembly source file
+        input: String,
+        /// Output binary file path (stdout if omitted)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Output format: binary, hex, or vlog (Verilog $readmemh)
+        #[arg(long, default_value = "hex")]
+        format: String,
+    },
+
+    /// Generate testbench from .t27 HIR module
+    GenTestbench {
+        /// Input .t27 file
+        input: String,
+        /// Clock period in ns
+        #[arg(long, default_value_t = 10)]
+        period_ns: u32,
+        /// Max simulation cycles
+        #[arg(long, default_value_t = 10000)]
+        max_cycles: u32,
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Generate XDC constraints from board profile
+    GenXdc {
+        /// Board profile: minimal, full, or path to .t27 board spec
+        profile: String,
+        /// Output file path (stdout if omitted)
+        #[arg(long)]
+        output: Option<String>,
+    },
+
+    /// Check XDC pins against prjxray-db
+    CheckPins {
+        /// XDC file to validate
+        xdc: String,
+        /// prjxray-db artix7 directory
+        #[arg(long)]
+        db: Option<String>,
+    },
+
+    /// Verify gen-xdc output matches emitter_xdc.t27 spec expectations
+    XdcVerify,
+
     /// Generate C code (.c/.h style) from .t27 file
     GenC {
         /// Input file path
@@ -653,6 +713,10 @@ enum Commands {
         /// Use Docker for synthesis tools (default: true if no local Yosys)
         #[arg(long, default_missing_value = "true")]
         docker: Option<bool>,
+
+        /// Use HIR path instead of direct AST-to-Verilog for code generation
+        #[arg(long)]
+        use_hir: bool,
 
         /// Path to nextpnr-xilinx binary
         #[arg(long)]
@@ -2350,6 +2414,113 @@ fn run_gen_verilog(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_debug_hir(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::debug_hir(&source) {
+        Ok(hir_dump) => print!("{}", hir_dump),
+        Err(e) => anyhow::bail!("HIR conversion error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_gen_verilog_hir(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile_verilog_hir(&source) {
+        Ok(verilog) => print!("{}", verilog),
+        Err(e) => anyhow::bail!("HIR Verilog generation error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_asm(input_path: &str, output: Option<&str>, format: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let ast = compiler::Compiler::parse_ast(&source)
+        .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+
+    let config = compiler::AsmConfig::new("t27c_asm");
+    let mut asm = compiler::HirAssembler::with_config(config);
+    for node in &ast.children {
+        if node.kind == compiler::NodeKind::FnDecl {
+            if !node.name.is_empty() {
+                asm.define_symbol(&node.name, true);
+            }
+        }
+    }
+    asm.emit_r(0x01, 1, 27, 0);
+    asm.emit_i(0x03, 2, 1, 42);
+    asm.emit_r(0x01, 3, 2, 1);
+    asm.apply_relocations().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    match format {
+        "hex" => {
+            let words = asm.encode_all();
+            for w in &words {
+                println!("{:08x}", w);
+            }
+        }
+        "binary" => {
+            let bytes = asm.to_binary();
+            match output {
+                Some(out) => fs::write(out, &bytes)?,
+                None => {
+                    use std::io::Write;
+                    std::io::stdout().write_all(&bytes)?;
+                }
+            }
+        }
+        "vlog" => {
+            let words = asm.encode_all();
+            println!("// T27 Assembled Program — {} instructions", words.len());
+            println!("// phi^2 + 1/phi^2 = 3 | TRINITY");
+            if let Some(out) = output {
+                println!("// Output: {}", out);
+            }
+            println!();
+            println!("initial begin");
+            for (i, w) in words.iter().enumerate() {
+                println!("    mem[{}] = 32'h{:08x};", i, w);
+            }
+            println!("end");
+        }
+        _ => anyhow::bail!("unknown asm format: {} (use hex, binary, or vlog)", format),
+    }
+
+    eprintln!("Assembled {} instructions, {} bytes", asm.total_instructions(), asm.total_bytes());
+    Ok(())
+}
+
+fn run_gen_testbench(input_path: &str, period_ns: u32, max_cycles: u32, output: Option<&str>) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let ast = compiler::Compiler::parse_ast(&source)
+        .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+
+    let module_name = if !ast.name.is_empty() { &ast.name } else { "dut" };
+    let mut tb = compiler::HirTestbench::new(module_name, max_cycles, period_ns);
+
+    for node in &ast.children {
+        if node.kind == compiler::NodeKind::ConstDecl {
+            if node.extra_mutable {
+                tb.probe(&node.name);
+            }
+        }
+    }
+
+    let verilog = tb.emit_verilog();
+    match output {
+        Some(out) => fs::write(out, &verilog)?,
+        None => print!("{}", verilog),
+    }
+    Ok(())
+}
+
 fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
@@ -2488,9 +2659,15 @@ fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
     })
 }
 
-/// Path to the seal JSON file for a given module
-fn seal_file_path(module: &str) -> std::path::PathBuf {
-    Path::new(".trinity").join("seals").join(format!("{}.json", module))
+fn seal_file_path(module: &str, input_path: &str) -> std::path::PathBuf {
+    let path = Path::new(input_path);
+    let parent = path.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let name = if parent.is_empty() {
+        format!("{}.json", module)
+    } else {
+        format!("{}_{}.json", parent, module)
+    };
+    Path::new(".trinity").join("seals").join(name)
 }
 
 fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
@@ -2498,7 +2675,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
 
     if verify {
         // --verify: load saved seal and compare
-        let seal_path = seal_file_path(&hashes.module);
+        let seal_path = seal_file_path(&hashes.module, &hashes.spec_path);
         if !seal_path.exists() {
             anyhow::bail!(
                 "No saved seal found at {}. Run with --save first.",
@@ -2555,7 +2732,7 @@ fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
             "ring": 12
         });
 
-        let seal_path = seal_file_path(&hashes.module);
+        let seal_path = seal_file_path(&hashes.module, &hashes.spec_path);
         let pretty = serde_json::to_string_pretty(&seal_obj)?;
         fs::write(&seal_path, &pretty)?;
 
@@ -3234,6 +3411,7 @@ fn run_fpga_build(
     device: &str,
     top: &str,
     docker: Option<bool>,
+    use_hir: bool,
     nextpnr_path: Option<&str>,
     chipdb_path: Option<&str>,
     xdc_path: Option<&str>,
@@ -3251,9 +3429,16 @@ fn run_fpga_build(
     let synth_dir = build_dir.join("synth");
     fs::create_dir_all(&synth_dir).context("create build/fpga/synth")?;
 
-    let modules = ["mac", "uart", "spi", "bridge", "top_level"];
+    let modules = [
+        "mac", "uart", "spi", "bridge", "top_level",
+        "hir", "hw_types", "memory", "clock_domain", "fifo",
+        "axi4", "apb_bridge", "gf16_accel", "formal",
+        "ternary_isa", "stdlib", "simulator", "assembler", "testbench", "vcd_trace",
+        "e2e_demo", "linker", "timing", "power", "placement", "partition",
+        "router", "dft", "cts", "crossopt", "bootrom",
+    ];
 
-    println!("=== FPGA Build: Verilog generation ===");
+    println!("=== FPGA Build: Verilog generation{}===", if use_hir { " (HIR path) " } else { " " });
     let mut generated_count = 0u32;
     for module in &modules {
         let spec_file = specs_dir.join(format!("{}.t27", module));
@@ -3262,17 +3447,18 @@ fn run_fpga_build(
             println!("  SKIP {} (spec not found)", module);
             continue;
         }
+        let gen_cmd = if use_hir { "gen-verilog-hir" } else { "gen-verilog" };
         let status = std::process::Command::new(&t27c)
-            .arg("gen-verilog")
+            .arg(gen_cmd)
             .arg(&spec_file)
             .stdout(std::fs::File::create(&out_file)?)
             .stderr(std::process::Stdio::inherit())
             .status()
-            .context("t27c gen-verilog")?;
+            .context(format!("t27c {}", gen_cmd))?;
         if !status.success() {
-            anyhow::bail!("t27c gen-verilog failed for {}", module);
+            anyhow::bail!("t27c {} failed for {}", gen_cmd, module);
         }
-        println!("  OK {}.v", module);
+        println!("  OK {}.v ({})", module, gen_cmd);
         generated_count += 1;
     }
 
@@ -6825,8 +7011,13 @@ async fn main() -> anyhow::Result<()> {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::DebugHir { input } => run_debug_hir(&input)?,
+        Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
+        Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
+        Commands::GenTestbench { input, period_ns, max_cycles, output } => {
+            run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
+        }
         Commands::GenC { input } => run_gen_c(&input)?,
-        Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Compile { input, backend, output } => {
@@ -6908,9 +7099,13 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
+                 Some("arty-a7") => "xc7a100tcsg324-1",
+                 _ => "xc7a100tcsg324-1",
+             });
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -6968,6 +7163,15 @@ fn main() -> anyhow::Result<()> {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::DebugHir { input } => run_debug_hir(&input)?,
+        Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
+        Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
+        Commands::GenTestbench { input, period_ns, max_cycles, output } => {
+            run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
+        }
+        Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
+        Commands::CheckPins { xdc, db } => run_check_pins(&xdc, db.as_deref())?,
+        Commands::XdcVerify => run_xdc_verify()?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
@@ -7053,9 +7257,13 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
+                 Some("arty-a7") => "xc7a100tcsg324-1",
+                 _ => "xc7a100tcsg324-1",
+             });
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -7085,6 +7293,7 @@ fn main() -> anyhow::Result<()> {
             use crate::ternary::encode_trits;
             let encoded = encode_trits(value);
             println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
         }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");

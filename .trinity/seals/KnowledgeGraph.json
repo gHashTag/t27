@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e986d2f2fc9862081b2b4644463db6331e66b121c17310c905aa78d8de89893b",
   "module": "KnowledgeGraph",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:8f6202e0dd35bf5cc8974301ca0373974f52e41fba52a7e10fe8436b73fa438a",
+  "sealed_at": "2026-04-11T08:52:55Z",
+  "spec_hash": "sha256:6ff24c8034abee79a6c63dedb39fe1bd331327c3641efc8e797fd784ae0ee9bd",
   "spec_path": "specs/graph/knowledge_graph.t27"
 }

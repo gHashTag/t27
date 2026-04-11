@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d1cb6e3e86ed39115ed97af10abc9bd6e39951384b9c5301ded727afc237a1c5",
   "module": "zig_codegen",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:11Z",
+  "sealed_at": "2026-04-11T08:52:56Z",
   "spec_hash": "sha256:face91b2c4dda278c97006286cdbd18e00e2a2d01e9288eeb0d6520aa47f7fce",
   "spec_path": "compiler/codegen/zig/codegen.t27"
 }
