@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
   "module": "automation::wrapup",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:12:19Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:ac2a7dd606abd2a289cfcf53e1362ad9e1d930066a8feaa18748f131db5971ca",
   "spec_path": "specs/automation/wrapup-auto.t27"
 }

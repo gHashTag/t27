@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:d1816e7559d78043cf2eb51c310a7576801b33bf1c043ea9b8679626cac101d7",
   "gen_hash_rust": "sha256:f56bbaba8db8caecdd9fc5faaf002ea06a3c3ab149606b6103664f55baa7bd7c",
-  "gen_hash_verilog": "sha256:d96a6ffe958ee5c9b91e9bb8e8414d9b25c4e2c27cf08abab344bc59b3324fef",
+  "gen_hash_verilog": "sha256:e49ba107a6882e4e26d3c4821ae6646e421acd0e3da26015be77455718faeaf9",
   "gen_hash_zig": "sha256:e72b8347aca234266f44fab7087a370f820048e635e02d9341d789e09ce94ac6",
   "module": "JitSemantics",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:12:18Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:1057f56a22357e8b4fa94871b1c98d67432d2b69dce7b80c975c2a2f635469e3",
   "spec_path": "specs/vm/jit_semantics.t27"
 }

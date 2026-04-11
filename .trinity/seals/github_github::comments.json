@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:89a689f0af7392f41fa05a0876f2d4e25a1b1446b7f2621c6efc8f616334e0cb",
   "module": "github::comments",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:12:18Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:7ea2370c5b1c69d599af13bb3956130320593d3aa72db524671aa7ac35e35604",
   "spec_path": "specs/github/comments.t27"
 }

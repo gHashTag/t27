@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:fe5463e2e0ad663b786308b8739a948aedcbeadcd9fb5aa256cf8ce09c499c90",
   "gen_hash_rust": "sha256:c660f091954ef89fed4b8b8b32d263f4743b815c1da0bd44e80bf7693db9bbda",
-  "gen_hash_verilog": "sha256:222be8b24d055d26c7b8da36ccf9806d03e7bf25c0f1a668df27a09f3002d02a",
+  "gen_hash_verilog": "sha256:fba637bed5a11b37f98847fa78b6d53b2ad92c893a8861b5843045894b56967d",
   "gen_hash_zig": "sha256:9ca8980ca501c7e6ec4ebee511572e584c93809e648b16de1b127c352e1649bd",
   "module": "brain-unified-state",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:12:18Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:26703224e3fce9bbdcdd15281aa883f704a54855810c53d3db1688f7feb9ddba",
   "spec_path": "specs/brain/unified_state.t27"
 }
