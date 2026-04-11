@@ -19,7 +19,7 @@ def _check_sdk_available() -> bool:
     Complexity: O(1)
     """
     try:
-        import notebooklm
+        from notebooklm.client import NotebookLMClient
         return True
     except ImportError:
         return False
