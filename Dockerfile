@@ -41,6 +41,8 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release --features server
 # Now copy real source
 COPY bootstrap/src ./src
+# Copy generated code (required by ternary module)
+COPY gen/ ./gen/
 # Force cargo to rebuild by updating the mtime of main.rs
 RUN touch src/main.rs
 RUN cargo build --release --features server
