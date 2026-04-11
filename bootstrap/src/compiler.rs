@@ -5572,7 +5572,14 @@ impl Compiler {
         let mut ast = parser.parse()?;
         optimize(&mut ast, &OptConfig::default());
         let mut codegen = RustCodegen::new();
-        codegen.gen_rust(&ast);
+
+        // Algorithm codegen for Neural Runtime
+        // Extract algorithm blocks from .t27 specs (notes: sections)
+        codegen.gen_algorithms(&ast);
+
+        // Generate Rust code for Neural Runtime (nn types)
+        codegen.gen_nn_types(&ast);
+
         Ok(codegen.into_string())
     }
 
