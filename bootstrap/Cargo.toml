@@ -32,3 +32,5 @@ serde_urlencoded = "0.7"
 hyper = { version = "1", features = ["full"] }
 lazy_static = "1.5"
 regex = "1"
+candle-core = "0.10.2"
+candle-nn = "0.10.2"
