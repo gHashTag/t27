@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:97f3f2c251bc8c01d62b4b825e6147f999723f56480477be0e11d1687d63b7ff",
+  "gen_hash_rust": "sha256:8fe785017d56dac826b4a7017b6471eea9648c0bd6c6f28ffc7cf03bd60315ef",
+  "gen_hash_verilog": "sha256:891e07aaa1a35e4e4fde3e0b2172ab669fe38964cbe8adedff116dd66c1ced1c",
+  "gen_hash_zig": "sha256:28537216a76d5655cfef7621ff92691a4810a679c671ae57634234579b17e49e",
+  "module": "GitStatus",
+  "ring": 12,
+  "sealed_at": "2026-04-11T08:52:56Z",
+  "spec_hash": "sha256:a56255eeb15ab34b0d17caf63b58447d0783b70a185941a8408766153d1ba575",
+  "spec_path": "specs/git/status.t27"
+}

@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:3eb85e66963f0dd13d94b6d5b94630208fb32d8a8f5eff4713f78be83d83cd37",
+  "gen_hash_c": "sha256:2fb425eb5791d0e176b85eb8baa5fe2e6b7a16dae46990f9606adf2a5c5d10e2",
   "gen_hash_rust": "sha256:323a423a191d3151e3a5de746a9ec62e722af5041ef880e7da71ceae93aa6d2c",
-  "gen_hash_verilog": "sha256:c2a6cf512d52293a094432672ea5cfb5660364ec73c96838fc78d03deb5dd60d",
-  "gen_hash_zig": "sha256:519ee2c3a00cdee9fb0c832c83dce50a6e1b1e0de483223033f93152b1872436",
+  "gen_hash_verilog": "sha256:8a3a3cc9e71658f33bbd9cdfca4c042847b325b45fbdbe310fdffb629d619329",
+  "gen_hash_zig": "sha256:2dabf264eb72563ae465116d51e0b75a1db33ca0d13fa042f706cdcfff1a7902",
   "module": "TernaryBitwise",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:4788e04f460b679dbf5f23235bc21f74a06be4466c5c9ffac1dc3d29e05d7043",
+  "sealed_at": "2026-04-11T08:52:55Z",
+  "spec_hash": "sha256:ba1839b37f4d2f410b20ad046fa80e343d9ff95865c1ed824871f74cb0d5e76f",
   "spec_path": "specs/isa/ternary_bitwise.t27"
 }

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:300e99705b1401578809b04d10e9fd915ec3ab9a80d2eecb4eb24b9a59312af0",
+  "gen_hash_rust": "sha256:71d1d7fb4843406b7e2a9a17deb1462f41a6370cab4fcc8e15bd7b3d834484d2",
+  "gen_hash_verilog": "sha256:5171e1226f656fc49e69a7c85be5503edba3d49a478d5bba9e9d88da332828a0",
+  "gen_hash_zig": "sha256:90b0863a2594f91ad30a4079ac29b8846b8636dd48c4e32f811198b937bc0708",
+  "module": "PinsParser",
+  "ring": 12,
+  "sealed_at": "2026-04-11T08:52:55Z",
+  "spec_hash": "sha256:d5d906f34640716defff3c0b92ac5c953e5d67885c14242db2bdccfd8e6f78d1",
+  "spec_path": "specs/pins/parser.t27"
+}

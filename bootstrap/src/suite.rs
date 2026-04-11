@@ -140,11 +140,12 @@ pub fn run_comprehensive(repo_root: &Path) -> anyhow::Result<()> {
     println!("repo: {}", repo.display());
     println!();
 
-    let mut specs_compiler: Vec<PathBuf> = collect_t27(&repo.join("specs"))?;
-    let mut comp = collect_t27(&repo.join("compiler"))?;
-    specs_compiler.append(&mut comp);
-    specs_compiler.sort();
-    specs_compiler.dedup();
+    let specs_compiler: Vec<PathBuf> = {
+        let mut v = collect_t27(&repo.join("specs"))?;
+        v.sort();
+        v.dedup();
+        v
+    };
 
     let specs_only = collect_t27(&repo.join("specs"))?;
 

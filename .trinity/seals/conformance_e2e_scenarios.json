@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:53f02ceed89d874c74b97cffba5794cd790aa143ad416cfa59ed82f593edb1fc",
+  "gen_hash_rust": "sha256:8f2bafdb0372c88125bd06a9e3b48a3fcfbe794a0cf2f4aec6acdd4d2700b28b",
+  "gen_hash_verilog": "sha256:77c1c7f618b9f377d3397d4b3a223d3ce443c15bc39edf13d5b8c67e21b30124",
+  "gen_hash_zig": "sha256:60e31afcf32719ebb8868361105837836ea3414d2c608cb13d23ffd879d6a8ec",
+  "module": "e2e_scenarios",
+  "ring": 12,
+  "sealed_at": "2026-04-11T09:12:19Z",
+  "spec_hash": "sha256:0cba1dd14aac303207075aa28d1ad906b44b108ad1fb6f0bb10bad7a4c9f116b",
+  "spec_path": "specs/conformance/e2e_scenarios.t27"
+}

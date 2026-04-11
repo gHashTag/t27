@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:31f4c6ed8c3390e3cd11c0e08be71ca6c3daa8c0b04d23eafea202d271b689d9",
+  "gen_hash_rust": "sha256:bde0a603e2d3c5643d3de76300d9b76026d20b5fa6d39c662f8c9ff69e881df8",
+  "gen_hash_verilog": "sha256:9abefb45417af1b4b2e62a151888e772907e2e8ab57fa7dda75fc3ae15012812",
+  "gen_hash_zig": "sha256:02d3cb94057d6887f2cbeb1c151ff39d9ff34c55cfca1474e76633e8de2dabb7",
+  "module": "StorageLock",
+  "ring": 12,
+  "sealed_at": "2026-04-11T08:52:55Z",
+  "spec_hash": "sha256:5b2fc085c2a125373e585ceb74c7881bebc67e760a3469c84644dbac5257ee32",
+  "spec_path": "specs/storage/lock.t27"
+}

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:abb4a75b3ea934b9d7ab15cec7c346ec6ffe52ad565c61bd4c5ca115d78fcc81",
   "module": "gwt_model",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:ca239ad710d06be79a16cdf95bf003fa5603081330865b00e1c6e6acf941b3e0",
+  "sealed_at": "2026-04-11T08:52:56Z",
+  "spec_hash": "sha256:e64ff2949695a3d32a64332e0e5e2e75ac5cc8e26c5d788facc3b2859a1fdfbd",
   "spec_path": "specs/brain/gwt_model.t27"
 }

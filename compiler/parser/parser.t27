@@ -1160,13 +1160,10 @@ module parser {
 
         return "units";
     }
-}
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// TDD-Inside-Spec: Tests and Invariants for Parser
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ========== TDD-Inside-Spec: Tests and Invariants for Parser ==========
 
-test test_parser_empty_program
+    test test_parser_empty_program
     // Verify: parser handles empty input
     // Setup: parse empty string
     // Expected: program with no errors
@@ -1294,3 +1291,4 @@ bench bench_parse_latency_ns_per_line
     target: < 1000 ns/line
     const source = ".const MAX 100\n.data\nval: .dword 0\n.code\nstart: MOV r0, #MAX\nHALT";
     _ = parser.parse(source, "test.t27");
+}

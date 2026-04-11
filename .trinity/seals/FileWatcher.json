@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:5745fbfef75c5c94b4db3b4b47cc620cbd592397ebb22239e19e51e86ac84c09",
   "module": "FileWatcher",
   "ring": 12,
-  "sealed_at": "2026-04-09T09:09:48Z",
+  "sealed_at": "2026-04-11T08:52:55Z",
   "spec_hash": "sha256:d1a87c87ff24072492c3d539a72af402b46a4acda477954b2485311592d7ddc1",
   "spec_path": "specs/file/watcher.t27"
 }

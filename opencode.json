@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "baseURL": "https://api.z.ai/api/anthropic"
+      }
+    }
+  },
+  "agent": {
+    "model": "zai-coding-plan/glm-5.1"
+  },
+  "rules": [
+    "Read SOUL.md, T27-CONSTITUTION.md, TASK.md, and AGENTS.md before making changes.",
+    "Every .t27 spec must contain test/invariant/bench blocks (TDD mandate, SOUL Article II).",
+    "Commits must reference issues with Closes #N (L1 TRACEABILITY).",
+    "Files under gen/ are generated; edit specs instead (L2 GENERATION).",
+    "Source files must be ASCII-only with English identifiers (L3 PURITY).",
+    "phi^2 + 1/phi^2 = 3 | TRINITY"
+  ]
+}

@@ -120,3 +120,20 @@ Or check health and alert (no rotation):
 
 - **Do not push** your entire `~/.claude` directory: it may include `history.jsonl`, plugin caches, and tracked `settings.json` with secrets.
 - This repo should contain **only** templates and scripts—no `.env` or real tokens.
+
+## OpenCode key rotation
+
+Analogous to the Claude Code rotation above, `rotate-opencode-keys.sh` manages ZAI keys in `~/.local/share/opencode/auth.json`:
+
+```bash
+# Rotate ZAI keys (reads ZAI_KEY_1..N from ~/.claude/.env)
+bash scripts/rotate-opencode-keys.sh
+
+# View current state
+bash scripts/rotate-opencode-keys.sh --status
+
+# Random key selection
+bash scripts/rotate-opencode-keys.sh --random
+```
+
+After rotation, `anthropic` and `zai-coding-plan` providers in `auth.json` point to the active key. All keys are also stored as `zai-1`..`zai-N` for manual provider selection.
