@@ -8,6 +8,13 @@ use std::sync::Mutex;
 use crate::compiler::{Compiler, Node, NodeKind};
 use crate::runtime::{FormulaRuntime, RuntimeError as RuntimeError};
 
+// Simple logger for now
+macro_rules! log_info {
+    ($($arg:tt)*) => {
+        println!("[INFO] $($arg)*");
+    }
+}
+
 lazy_static::lazy_static! {
     static ref FORMULA_RUNTIME: Mutex<FormulaRuntime> = Mutex::new(FormulaRuntime::new());
 }
@@ -168,9 +175,24 @@ pub fn find_pdg_reference(id: &str) -> Option<(f64, &str)> {
 
 /// Ensure runtime is loaded from spec file
 fn ensure_runtime_loaded(repo_root: &Path) -> anyhow::Result<()> {
-    // Runtime temporarily disabled due to compiler parsing issues
-    // TODO: Fix compiler or implement direct source code parsing
-    let _ = repo_root;
+    use std::ops::Deref;
+
+    let mut runtime = FORMULA_RUNTIME.deref().lock().map_err(|e| {
+        anyhow!("Failed to lock runtime: {}", e)
+    })?;
+
+    // Find actual repo root (go up from bootstrap directory)
+    // Simply use the provided repo_root directly
+
+    let spec_path = repo_root.join("specs/physics/formula_registry.t27");
+    let count = runtime.load_from_spec(&spec_path).map_err(|e| {
+        anyhow!("Failed to load formula registry: {}", e)
+    })?;
+
+    if count > 0 {
+        log_info!("Loaded {} formulas from formula_registry.t27", count);
+    }
+
     Ok(())
 }
 
@@ -179,39 +201,39 @@ fn runtime_to_anyhow(err: RuntimeError) -> anyhow::Error {
     anyhow!("{}", err)
 }
 
-/// Evaluate a formula by computing directly in Rust
-/// Uses v1.0 hardcoded values only for now
+/// Evaluate a formula by computing via runtime
 fn evaluate_formula(repo_root: &Path, formula_id: &str) -> anyhow::Result<f64> {
-    // Runtime temporarily disabled
-    let _ = repo_root;
+    ensure_runtime_loaded(repo_root)?;
 
-    // v1.0 hardcoded values
-    const PHI: f64 = 1.6180339887498948_f64;
-    const PI: f64 = std::f64::consts::PI;
-    const E: f64 = std::f64::consts::E;
+    use std::ops::Deref;
 
-    match formula_id {
-        // VERIFIED Formulas
-        "gamma" => Ok(PHI.powi(-3)),
-        "alpha_s" => Ok(1.0 / (PHI.powf(4.0) + PHI)),
-        "delta_CP" => Ok(9.0 * PHI.powi(-2) * 180.0 / PI),
-        "sin2th12" => Ok(7.0 * PHI.powf(5.0) / (3.0 * PI.powf(3.0) * E)),
-        "sin2th23" => Ok(4.0 * PI * PHI.powf(2.0) / (3.0 * E.powf(3.0))),
-        "mH_mZ" => Ok((1.0 / 8.0) * PHI.powf(2.0) * PI.powf(3.0) * E.powf(-2.0)),
-        "V_cb" => Ok((1.0 / 7.0) * PHI.powf(-2.0) * PI.powf(-2.0) * E.powf(2.0)),
+    let mut runtime = FORMULA_RUNTIME.deref().lock().map_err(|e| {
+        anyhow!("Failed to lock runtime: {}", e)
+    })?;
 
-        // CANDIDATE Formulas
-        "sin2th12_alt" => Ok(PHI.powf(2.0) / (PI * E)),
-        "V_us" => Ok(3.0 * PHI.powi(-3) / PI),
+    // Map old names to new names from v2.0 registry
+    let mapped_id = map_formula_id(formula_id);
 
-        // DERIVED Formulas
-        "mp_me" => Ok(6.0 * PI.powf(5.0)),
-        "mu_me" => Ok(8.0 * PHI.powf(2.0) * PI.powf(2.0)),
+    runtime.evaluate(&mapped_id)
+        .map_err(|e| anyhow!("Runtime evaluation error: {}", e))
+}
 
-        // EXACT Identities
-        "trinity" => Ok(PHI.powf(2.0) + 1.0 / PHI.powf(2.0)),
-
-        _ => Err(anyhow!("Unknown formula: {}", formula_id)),
+/// Map v1.0 formula IDs to v2.0 registry names
+fn map_formula_id(id: &str) -> &str {
+    match id {
+        "gamma" => "S1_gamma",
+        "alpha_s" => "alpha_s",
+        "delta_CP" => "delta_cp_pmns",
+        "sin2th12" => "sin2theta12_pmns",
+        "sin2th23" => "sin2theta23_pmns",
+        "mH_mZ" => "higgs_z_ratio",
+        "V_cb" => "v_cb",
+        "sin2th12_alt" => "sin2theta12_chimera",
+        "V_us" => "v_us",
+        "mp_me" => "NP1_mn_mp",
+        "mu_me" => "muon_electron_ratio",
+        "trinity" => "trinity",
+        _ => id,
     }
 }
 
@@ -258,6 +280,8 @@ fn run_eval(repo_root: &Path, id: String) -> anyhow::Result<()> {
         error_pct,
         status: status.clone(),
     };
+
+    let _ = result; // Suppress unused warning
 
     println!("=== Formula: {} ===", id);
     println!("Sector: {}", formula.sector);
@@ -349,7 +373,7 @@ fn run_scan(repo_root: &Path, target_value: f64, threshold: f64) -> anyhow::Resu
 }
 
 /// Run chimera search using enhanced engine
-fn run_chimera_search(repo_root: &Path, max_pow: i32, threshold: f64) -> anyhow::Result<()> {
+fn run_chimera_search(_repo_root: &Path, max_pow: i32, threshold: f64) -> anyhow::Result<()> {
     use crate::chimera_engine::{chimera_search, generate_basis, pdg_targets, default_operators};
 
     println!("========================================");

@@ -21,6 +21,8 @@ mod formula_eval;
 mod chimera_engine;
 mod sensitivity;
 mod runtime;
+// mod runtime_minimal;
+// mod runtime_minimal_test;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -3385,7 +3387,7 @@ endmodule
 }
 
 /// Run chimera search for finding new formulas
-fn run_chimera(repo_root: &Path, threshold: f64, limit: usize) -> anyhow::Result<()> {
+fn run_chimera(_repo_root: &Path, threshold: f64, limit: usize) -> anyhow::Result<()> {
     let base_formulas = chimera_engine::base_formula_values();
     let operators = chimera_engine::default_operators();
     let targets = chimera_engine::pdg_targets();
@@ -3410,7 +3412,7 @@ fn run_chimera(repo_root: &Path, threshold: f64, limit: usize) -> anyhow::Result
 
 /// Run sensitivity analysis for a formula
 fn run_sensitivity(
-    repo_root: &Path,
+    _repo_root: &Path,
     formula_id: &str,
     param_name: &str,
     min: Option<f64>,
