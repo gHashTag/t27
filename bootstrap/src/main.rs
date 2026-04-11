@@ -22,6 +22,7 @@ mod chimera_engine;
 mod sensitivity;
 mod runtime;
 mod neural;
+mod ternary;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -96,6 +97,19 @@ enum Commands {
         #[arg(long)]
         verify: bool,
     },
+    /// Encode integer to ternary
+    TernaryEncode {
+        /// Value to encode (-1, 0, +1)
+        #[arg(short, long)]
+        value: i32,
+    },
+    /// Decode ternary to integer
+    TernaryDecode {
+        /// Ternary value to decode
+        #[arg(short, long)]
+        trits: TernaryEncoding,
+    },
+    /// Compile a .t27 file and write generated code to a file
 
     /// Compile a .t27 file and write generated code to a file
     Compile {
