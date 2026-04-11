@@ -86,14 +86,12 @@ class BarkGenerator:
             self._pipeline = pipeline(
                 "text-to-audio",
                 model=self._model_id,
-                dtype=torch.float32 if self.device == "cpu" else torch.float16,
+                device="cpu",  # Force CPU to avoid MPS channel limit on Mac
+                dtype=torch.float32,
             )
 
-            if self.device != "cpu":
-                self._pipeline = self._pipeline.to(self.device)
-
             self._model_loaded = True
-            logger.info(f"Bark model ({self.model_size}) loaded successfully")
+            logger.info(f"Bark model ({self.model_size}) loaded on CPU")
 
         except ImportError as e:
             logger.error(f"Failed to import transformers: {e}")
