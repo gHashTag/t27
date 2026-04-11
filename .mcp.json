@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "t27-traceability": {
+      "command": "node",
+      "args": [
+        "scripts/mcp-traceability-server.js"
+      ],
+      "env": {
+        "PROJECT_ROOT": "/Users/playra/t27",
+        "ENFORCE_L1": "true"
+      }
+    }
+  }
+}
