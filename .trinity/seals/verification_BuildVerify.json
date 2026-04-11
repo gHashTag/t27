@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:f6eca861dbe8335c425a98c43dcdd7d754d2a81b52db8866a268285872cabaae",
   "gen_hash_rust": "sha256:ca81695a3e85544b89770ebc9b4a9b5767947adee922fb51f8ebb92b064e7b97",
-  "gen_hash_verilog": "sha256:5f8320cd945c2fbb6041908ee5deae47f5b6897cd67df58d2b482264c7bb8eb1",
+  "gen_hash_verilog": "sha256:c69de7558d55e556ea7b7ab835741dbd63e8a9e2bdfa75426dba710d0d47be47",
   "gen_hash_zig": "sha256:40fc2bf0a95ed7250df67a45e060017807cfe1e727306cc747233808576c27d5",
   "module": "BuildVerify",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:49:37Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:0f811ff4cfb6f26cfc81e528d1cb5c644c0a7c78260792f642a8984126cc59eb",
   "spec_path": "specs/fpga/verification/build_verify.t27"
 }

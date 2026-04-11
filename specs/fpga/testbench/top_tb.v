@@ -136,9 +136,14 @@ module Top_Level_Testbench (
     // invariant: tb_sim_cycle_increments
 
     // -------------------------------------------------------
-    // Benchmark placeholders
+    // Benchmark blocks (simulation only)
     // -------------------------------------------------------
-    // bench: tb_full_simulation_time
+    initial begin : tb_full_simulation_time_bench // synthesis translate_off
+        $display("[BENCH] tb_full_simulation_time : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] tb_full_simulation_time : %%0d cycles", _bench_cycles);
+        $display("[BENCH] tb_full_simulation_time : DONE");
+    end // synthesis translate_on
 
 endmodule
 

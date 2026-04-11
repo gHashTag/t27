@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:3aac45dcd3a8c906a7608b51a4f53d8c31b080e40dd3f9eedbad6e5eebb8b82a",
   "gen_hash_rust": "sha256:11ae51d35b564d1f063afe3aa5e2d4744bfb6e82527047be7030ad1eab9f64b5",
-  "gen_hash_verilog": "sha256:08e81e54abea16a3bc562561c21517abe3743171764cd1990d09a7f672003ea8",
+  "gen_hash_verilog": "sha256:422bc4412fe270a59f7b7e647146d9b27cb4a675a1ebf9da214c087d9c7db243",
   "gen_hash_zig": "sha256:e1b634c07dc7c1d3c1d13f89dd07fbdb9e942390adce0e3be46eeec76db7f5ee",
   "module": "PhiSplitOptimality",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:12:18Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:c17f4eba133c5caccd5af0eb50c4ba920920ca361f8cb6cdcb8fcd4ac8a1e535",
   "spec_path": "specs/math/phi_split_optimality.t27"
 }

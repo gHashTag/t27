@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:0a74e110a7d932f3040a21c7d3a60dad60fdb0d2d64dd9e56aa0d7ef7450e7eb",
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
-  "gen_hash_verilog": "sha256:dd3c59a00042d0cf9f5d9e46ee4deb861ac9113433ddd5aa619eed2850498763",
+  "gen_hash_verilog": "sha256:d71c65ffec1fdac8b931518760cddfcf5e4b127be1bef21f8fc4deeb640d5bb6",
   "gen_hash_zig": "sha256:d9579ade59fc82007fa9d057e8360eee65ab264d265169ffaec2d8e7a913fadc",
   "module": "e8_lqg_bridge",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:12:19Z",
+  "sealed_at": "2026-04-11T16:57:39Z",
   "spec_hash": "sha256:1808c4120ee9ecc32b7995853c248d3e57fe16dfeb8e5e97c197ba0160519b2f",
   "spec_path": "specs/physics/e8_lqg_bridge.t27"
 }
