@@ -21,6 +21,7 @@ mod formula_eval;
 mod chimera_engine;
 mod sensitivity;
 mod runtime;
+mod neural;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
