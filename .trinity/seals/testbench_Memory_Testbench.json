@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:0e23eb0adb93d7d3538cfae37db4c3b80bc4c77b7686c00c8b65d9840775971d",
+  "gen_hash_rust": "sha256:c197c7400b96b4dd3e91d32e59d6c3993029d56900e79f01b871f20fb9054f35",
+  "gen_hash_verilog": "sha256:5296389f2647536c719970da3473ec6d2957a7090e7716224506fa8d501541ab",
+  "gen_hash_zig": "sha256:2da82916d7c4871521f07e0b51cc589773dc68097f5ba699bd43c0c951f20907",
+  "module": "Memory_Testbench",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:45:57Z",
+  "spec_hash": "sha256:2d603f5515afaf26e741ea96ddc89c131a83ab75694988fd7bd7e795c6933176",
+  "spec_path": "specs/fpga/testbench/memory_tb.t27"
+}
