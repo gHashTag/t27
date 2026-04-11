@@ -752,6 +752,17 @@ enum Commands {
         #[command(subcommand)]
         cmd: formula_eval::FormulaCommands,
     },
+    /// Check FPGA synthesis readiness for all specs
+    #[command(name = "synth-readiness")]
+    SynthReadiness {
+        /// Directory with FPGA specs (default: specs/fpga)
+        #[arg(long, default_value = "specs/fpga")]
+        specs_dir: String,
+    },
+
+    /// TRI PHI LOOP: show current status
+    #[command(name = "tri-status")]
+    TriStatus,
 
     /// Chimera search: find new formulas by combining existing ones
     Chimera {
@@ -3436,6 +3447,7 @@ fn run_fpga_build(
         "ternary_isa", "stdlib", "simulator", "assembler", "testbench", "vcd_trace",
         "e2e_demo", "linker", "timing", "power", "placement", "partition",
         "router", "dft", "cts", "crossopt", "bootrom",
+        "sv_emit", "firrtl", "cdc", "lint", "coverage",
     ];
 
     println!("=== FPGA Build: Verilog generation{}===", if use_hir { " (HIR path) " } else { " " });
@@ -6997,6 +7009,97 @@ fn run_orphans(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_synth_readiness(specs_dir: &str) -> anyhow::Result<()> {
+    use walkdir::WalkDir;
+    println!("=== FPGA Synthesis Readiness Check ===");
+    println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+    println!();
+
+    let dir = Path::new(specs_dir);
+    if !dir.is_dir() {
+        anyhow::bail!("{} is not a directory", specs_dir);
+    }
+
+    let files: Vec<PathBuf> = WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |x| x == "t27"))
+        .filter(|e| !e.path().to_string_lossy().contains("testbench"))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    let total = files.len();
+    println!("Scanning {} FPGA module specs in {}", total, specs_dir);
+    println!();
+
+    let mut parse_ok = 0u32;
+    let mut typecheck_ok = 0u32;
+    let mut verilog_ok = 0u32;
+    let mut has_tests = 0u32;
+    let mut has_invariants = 0u32;
+    let mut has_benches = 0u32;
+    let mut has_structs = 0u32;
+    let mut has_enums = 0u32;
+    let mut warnings = 0u32;
+
+    for file in &files {
+        let rel = file.to_string_lossy();
+        let source = fs::read_to_string(file)?;
+
+        let ast = match compiler::Compiler::parse_ast(&source) {
+            Ok(a) => { parse_ok += 1; a }
+            Err(e) => { println!("FAIL parse {}: {}", rel, e); continue; }
+        };
+
+        if compiler::Compiler::typecheck(&source).is_ok() {
+            typecheck_ok += 1;
+        }
+
+        if compiler::Compiler::compile_verilog(&source).is_ok() {
+            verilog_ok += 1;
+        }
+
+        let has_t = ast.children.iter().any(|c| c.kind == compiler::NodeKind::TestBlock);
+        let has_i = ast.children.iter().any(|c| c.kind == compiler::NodeKind::InvariantBlock);
+        let has_b = ast.children.iter().any(|c| c.kind == compiler::NodeKind::BenchBlock);
+        let has_s = ast.children.iter().any(|c| c.kind == compiler::NodeKind::StructDecl);
+        let has_e = ast.children.iter().any(|c| c.kind == compiler::NodeKind::EnumDecl);
+
+        if has_t { has_tests += 1; } else { warnings += 1; }
+        if has_i { has_invariants += 1; }
+        if has_b { has_benches += 1; }
+        if has_s { has_structs += 1; }
+        if has_e { has_enums += 1; }
+    }
+
+    println!("--- Results ---");
+    println!("Parse:       {}/{} OK", parse_ok, total);
+    println!("Typecheck:   {}/{} OK", typecheck_ok, total);
+    println!("Verilog gen: {}/{} OK", verilog_ok, total);
+    println!("Has tests:   {}/{}", has_tests, total);
+    println!("Has inv:     {}/{}", has_invariants, total);
+    println!("Has bench:   {}/{}", has_benches, total);
+    println!("Has structs: {}/{}", has_structs, total);
+    println!("Has enums:   {}/{}", has_enums, total);
+    println!();
+
+    let ready_pct = if total > 0 { (verilog_ok * 100) / total as u32 } else { 0 };
+    let test_pct = if total > 0 { (has_tests * 100) / total as u32 } else { 0 };
+
+    println!("Synthesis readiness: {}%", ready_pct);
+    println!("Test coverage:       {}%", test_pct);
+
+    if ready_pct == 100 && test_pct >= 80 {
+        println!("\nREADY FOR SYNTHESIS");
+    } else if ready_pct == 100 {
+        println!("\nALMOST READY — test coverage needs improvement");
+    } else {
+        println!("\nNOT READY — fix parse/verilog errors first");
+    }
+
+    Ok(())
+}
+
 // ============================================================================
 // Main Entry Point
 // ============================================================================
@@ -7106,8 +7209,9 @@ async fn main() -> anyhow::Result<()> {
                  _ => "xc7a100tcsg324-1",
              });
              run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
-         }
-         Commands::ValidateSeals { pr_files } => {
+          }
+         Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
          }
          Commands::ValidatePhiIdentity => {
@@ -7294,6 +7398,9 @@ fn main() -> anyhow::Result<()> {
             let encoded = encode_trits(value);
             println!("Encoded {} as ternary: {:?}", value, encoded);
         }
+        Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+        Commands::ValidateSeals { pr_files } => {
+            run_validate_seals(&pr_files)?;
         }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
