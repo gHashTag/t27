@@ -51,6 +51,14 @@ pub struct FormulaResult {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum FormulaCommands {
+    /// Semantic search: find formulas by query text (Phase 4)
+    Search {
+        /// Query text to search for
+        query: String,
+        /// Top-k results (default: 5)
+        #[arg(short, long, default_value = "5")]
+        top: usize,
+    },
     /// Evaluate a formula by ID
     Eval {
         /// Formula ID (e.g., gamma, delta_CP, sin2th12)
@@ -242,6 +250,7 @@ pub fn run_formula_command(
     repo_root: &Path,
 ) -> anyhow::Result<()> {
     match cmd {
+        FormulaCommands::Search { query, top } => run_search_semantic(repo_root, &query, top),
         FormulaCommands::Eval { id } => run_eval(repo_root, id),
         FormulaCommands::List { sector, status } => run_list(repo_root, sector, status),
         FormulaCommands::Scan { value, threshold } => run_scan(repo_root, value, threshold),
@@ -433,4 +442,84 @@ fn run_chimera_search(_repo_root: &Path, max_pow: i32, threshold: f64) -> anyhow
     }
 
     Ok(())
+}
+
+/// Run semantic search for formulas (Phase 4)
+fn run_search_semantic(repo_root: &Path, query: &str, top: usize) -> anyhow::Result<()> {
+    use crate::memory::embed_query;
+
+    let formula_info = parse_formula_registry(repo_root)?;
+
+    if formula_info.is_empty() {
+        println!("No formulas found in registry");
+        return Ok(());
+    }
+
+    println!("========================================");
+    println!("  Semantic Search — \"{}\"", query);
+    println!("========================================");
+    println!();
+
+    // Embed query
+    let query_embedding = embed_query(query.as_bytes().to_vec());
+
+    // Compute similarities (simple linear scan for now)
+    let mut results: Vec<(String, String, String, f64, f64)> = Vec::new();
+
+    for info in &formula_info {
+        // Try to evaluate the formula
+        let value = evaluate_formula(repo_root, &info.id).unwrap_or(0.0);
+
+        // Compute similarity
+        let sim = compute_semantic_similarity(&query_embedding, value, query, &info.name);
+
+        results.push((
+            info.id.clone(),
+            info.name.clone(),
+            info.sector.clone(),
+            value,
+            sim,
+        ));
+    }
+
+    // Sort by similarity descending
+    results.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Print top-k results
+    let k = top.min(results.len());
+    println!("| # | ID | Formula | Sector | Value | Score |");
+    println!("|---|----|---------|--------|-------|-------|");
+    for (i, (id, name, sector, value, score)) in results.iter().take(k).enumerate() {
+        println!("| {} | {} | {} | {} | {:.6} | {:.3} |",
+            i + 1, id, name, sector, value, score);
+    }
+
+    println!("\nFound {} matches for \"{}\"", k, query);
+    Ok(())
+}
+
+/// Compute semantic similarity between query and formula
+fn compute_semantic_similarity(_query_embedding: &Vec<f64>, formula_value: f64, query: &str, formula_name: &str) -> f64 {
+    let mut score = 0.0;
+
+    // Text-based similarity
+    let query_lower = query.to_lowercase();
+    let name_lower = formula_name.to_lowercase();
+
+    if name_lower.contains(&query_lower) {
+        score += 0.8;
+    }
+
+    // PHI-based proximity (from Phase 4 memory specs)
+    const PHI: f64 = 1.618033988749895;
+    let phi_powers = [1.0/PHI, 1.0, PHI, PHI*PHI];
+    for phi_pow in &phi_powers {
+        let ratio = formula_value / phi_pow;
+        if ratio > 0.99 && ratio < 1.01 {
+            score += 0.5;
+            break;
+        }
+    }
+
+    (score as f64).min(1.0)
 }

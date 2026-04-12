@@ -1,5 +1,29 @@
 # Formula catalog scaffold (target: 152 rows)
 
+**Document version:** 2026-04-12 (master)
+**Status:** Core formula table for joint paper with Stergios Pellis
+**Repository:** https://github.com/gHashTag/t27
+**DOI:** 10.5281/zenodo.19227877
+
+---
+
+## Version History
+
+Historical versions of the FORMULA_TABLE have been archived for reference:
+
+| Version | Date | Description | Archive File |
+|---------|------|-------------|--------------|
+| v0.3 | 2026-04-09 | Initial Pellis integration | `archive/FORMULA_TABLE_v03.md` |
+| v0.5 | 2026-04-09 | 58 formulas across 9 sectors | `archive/FORMULA_TABLE_v05.md` |
+| v0.6 | 2026-04-09 | Additional Pellis formulas | `archive/FORMULA_TABLE_v06.md` |
+| v0.7 | 2026-04-09 | 9 new VERIFIED formulas | `archive/FORMULA_TABLE_v07.md` |
+| v0.8 | 2026-04-10 | 9 new sub-ppm W/Z formulas | `archive/FORMULA_TABLE_v08.md` |
+| v0.9 | 2026-04-10 | 2 new CHIMERA formulas | `archive/FORMULA_TABLE_v09.md` |
+
+For the consolidated joint paper, see [`MASTER_PAPER.md`](MASTER_PAPER.md).
+
+---
+
 **Legend:** EXACT | VERIFIED | CANDIDATE | CONJECTURAL | REFERENCE | DERIVED
 **Trust Tier System:**
 
