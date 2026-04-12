@@ -202,7 +202,7 @@ fn runtime_to_anyhow(err: RuntimeError) -> anyhow::Error {
 }
 
 /// Evaluate a formula by computing via runtime
-fn evaluate_formula(repo_root: &Path, formula_id: &str) -> anyhow::Result<f64> {
+pub fn evaluate_formula(repo_root: &Path, formula_id: &str) -> anyhow::Result<f64> {
     ensure_runtime_loaded(repo_root)?;
 
     use std::ops::Deref;
