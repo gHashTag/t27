@@ -76,6 +76,67 @@ jobs:
           path: build/fpga/generated/
           retention-days: 7
 
+  fpga-lint:
+    needs: fpga-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Synth readiness check (all modules)
+        run: ./target/release/t27c synth-readiness
+
+      - name: Download generated Verilog
+        uses: actions/download-artifact@v4
+        with:
+          name: fpga-verilog
+          path: build/fpga/generated/
+
+      - name: Yosys lint all modules
+        run: |
+          echo "## Yosys Lint Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | read_verilog | hierarchy | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          pass=0
+          fail=0
+          for v in build/fpga/generated/*.v; do
+            name=$(basename "$v" .v)
+            if yosys -p "read_verilog $v; hierarchy -top $name" -q 2>/dev/null; then
+              echo "| $name | OK | OK | PASS |" >> $GITHUB_STEP_SUMMARY
+              pass=$((pass+1))
+            else
+              echo "| $name | FAIL | - | FAIL |" >> $GITHUB_STEP_SUMMARY
+              fail=$((fail+1))
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total=$((pass+fail))
+          echo "**Result:** $pass/$total modules passed Yosys lint" >> $GITHUB_STEP_SUMMARY
+          if [ "$fail" -gt 0 ]; then
+            echo "::warning::$fail/$total modules failed Yosys lint"
+          fi
+
   fpga-synthesis:
     needs: fpga-smoke
     runs-on: ubuntu-latest
@@ -125,6 +186,27 @@ jobs:
             echo "::warning::synth.json suspiciously small ($size < 1000 bytes)"
           fi
 
+      - name: Generate utilization report
+        run: |
+          echo "## FPGA Utilization Report" > build/fpga/report.md
+          echo "" >> build/fpga/report.md
+          echo "| Metric | Value |" >> build/fpga/report.md
+          echo "|--------|-------|" >> build/fpga/report.md
+          if [ -f build/fpga/synth/synth.log ]; then
+            luts=$(grep -oP '\d+(?=\s+cells)' build/fpga/synth/synth.log 2>/dev/null | head -1 || echo "N/A")
+            echo "| LUT estimate | $luts |" >> build/fpga/report.md
+          else
+            echo "| LUT | (see synth.log) |" >> build/fpga/report.md
+          fi
+          synth_json_size=$(wc -c < build/fpga/synth/synth.json | tr -d ' ')
+          echo "| synth.json | ${synth_json_size} bytes |" >> build/fpga/report.md
+          echo "| Board | QMTECH XC7A100T |" >> build/fpga/report.md
+          echo "| Profile | minimal |" >> build/fpga/report.md
+          echo "| Toolchain | Yosys (open-source) |" >> build/fpga/report.md
+          echo "" >> build/fpga/report.md
+          echo "Full utilization data in synth.log artifact." >> build/fpga/report.md
+          cat build/fpga/report.md >> $GITHUB_STEP_SUMMARY
+
       - name: Upload synthesis output
         if: always()
         uses: actions/upload-artifact@v4
@@ -133,6 +215,7 @@ jobs:
           path: |
             build/fpga/generated/
             build/fpga/synth/
+            build/fpga/report.md
           retention-days: 7
 
   fpga-bitstream:
@@ -214,7 +297,7 @@ jobs:
           path: build/fpga/bitstream.bit
           retention-days: 7
           
-      - name: Bitstream metrics
+      - name: Bitstream metrics + flashing guide
         run: |
           echo "## FPGA Bitstream Metrics" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -223,16 +306,35 @@ jobs:
           if [ -f build/fpga/bitstream.bit ]; then
             size=$(wc -c < build/fpga/bitstream.bit | tr -d ' ')
             echo "| Bitstream size | $size bytes |" >> $GITHUB_STEP_SUMMARY
-            echo "| Status | ✅ Generated |" >> $GITHUB_STEP_SUMMARY
+            echo "| Status | Generated |" >> $GITHUB_STEP_SUMMARY
             echo "| Board | QMTECH XC7A100T |" >> $GITHUB_STEP_SUMMARY
             echo "| Profile | minimal |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Status | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Status | Failed |" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
+          cat > build/fpga/FLASHING.md <<'EOF'
+          # Flashing Guide
+          ## QMTECH XC7A100T
+          t27c fpga-flash --board qmtech-a100t --profile minimal
+          ## Arty A7
+          t27c fpga-flash --board arty-a7 --profile minimal
+          ## Verify
+          See docs/fpga/QMTECH_A100T_SMOKE.md for board-level smoke test.
+          EOF
+          sed -i 's/^          //' build/fpga/FLASHING.md
+
+      - name: Upload bitstream + flashing guide
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpga-bitstream-${{ github.sha }}
+          path: |
+            build/fpga/bitstream.bit
+            build/fpga/FLASHING.md
+          retention-days: 7
 
   fpga-report:
-    needs: [fpga-smoke, fpga-synthesis, fpga-bitstream]
+    needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-bitstream]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -243,7 +345,8 @@ jobs:
           echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke (gen-only) | ${{ needs.fpga-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Synthesis (Yosys) | $ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint (all 31 modules) | ${{ needs.fpga-lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Synthesis (Yosys) | ${{ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Bitstream (E2E) | ${{ needs.fpga-bitstream.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Toolchain: Yosys + nextpnr-xilinx + prjxray + t27c (Rust) | Zero Vivado | Profile: minimal" >> $GITHUB_STEP_SUMMARY

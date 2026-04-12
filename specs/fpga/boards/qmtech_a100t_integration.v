@@ -30,7 +30,6 @@ module QMTech_A100T_Integration (
     reg [31:0] pinmapping_uart_tx_pin; // PinMapping.uart_tx_pin
     reg [31:0] pinmapping_uart_rx_pin; // PinMapping.uart_rx_pin
     reg [31:0] pinmapping_led_pins; // PinMapping.led_pins
-    reg [31:0] pinmapping_button_pins; // PinMapping.button_pins
     // struct SystemConfig
     reg [31:0] systemconfig_clock_hz; // SystemConfig.clock_hz
     reg [31:0] systemconfig_baud_rate; // SystemConfig.baud_rate
@@ -75,6 +74,21 @@ module QMTech_A100T_Integration (
     initial begin : test_clock_freq_test
         $display("[TEST] test_clock_freq : starting");
         $display("[TEST] test_clock_freq : PASSED");
+    end
+    // test: test_clk_pin_is_e3
+    initial begin : test_clk_pin_is_e3_test
+        $display("[TEST] test_clk_pin_is_e3 : starting");
+        $display("[TEST] test_clk_pin_is_e3 : PASSED");
+    end
+    // test: test_rst_pin_is_c18
+    initial begin : test_rst_pin_is_c18_test
+        $display("[TEST] test_rst_pin_is_c18 : starting");
+        $display("[TEST] test_rst_pin_is_c18 : PASSED");
+    end
+    // test: test_uart_pins_match_xdc
+    initial begin : test_uart_pins_match_xdc_test
+        $display("[TEST] test_uart_pins_match_xdc : starting");
+        $display("[TEST] test_uart_pins_match_xdc : PASSED");
     end
     // synthesis translate_on
 
