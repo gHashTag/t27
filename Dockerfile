@@ -1,13 +1,13 @@
 # Multi-stage Dockerfile for Unified T27 (Frontend + Backend)
 # Build Context: REPO ROOT
 
-# Force rebuild on frontend changes - v9
-ARG BUILD_TIMESTAMP=9
+# Force rebuild on frontend changes - v11
+ARG BUILD_TIMESTAMP=11
 
 # --- Frontend Build Stage ---
 FROM oven/bun:latest AS frontend-builder
-# Force rebuild on frontend changes - v9
-ARG BUILD_TIMESTAMP=9
+# Force rebuild on frontend changes - v11
+ARG BUILD_TIMESTAMP=11
 RUN echo "Frontend build timestamp: $BUILD_TIMESTAMP"
 
 # Install Python and build essentials for node-gyp
