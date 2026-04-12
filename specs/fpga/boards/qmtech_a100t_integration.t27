@@ -11,13 +11,13 @@ module QMTech_A100T_Integration {
     use fpga::fifo::Fifo;
 
     const BOARD_NAME : str = "qmtech-xc7a100t";
-    const FPGA_PART : str = "xc7a100t";
-    const CLOCK_FREQ_HZ : u32 = 50_000_000;
+    const FPGA_PART : str = "xc7a100tcsg324-1";
+    const CLOCK_FREQ_HZ : u32 = 12_000_000;
     const UART_BAUD : u32 = 115_200;
     const MEMORY_SIZE : u32 = 0x8000;
     const FIFO_DEPTH : u32 = 8;
-    const NUM_LEDS : u32 = 2;
-    const NUM_BUTTONS : u32 = 2;
+    const NUM_LEDS : u32 = 8;
+    const IO_STANDARD : str = "LVCMOS33";
 
     struct PinMapping {
         clk_pin : str;
@@ -25,16 +25,14 @@ module QMTech_A100T_Integration {
         uart_tx_pin : str;
         uart_rx_pin : str;
         led_pins : str;
-        button_pins : str;
     }
 
     const QMTECH_PINS : PinMapping = PinMapping{
-        .clk_pin = "U18",
-        .rst_pin = "D2",
-        .uart_tx_pin = "B11",
-        .uart_rx_pin = "A11",
-        .led_pins = "H5,J5",
-        .button_pins = "G5,F5",
+        .clk_pin = "E3",
+        .rst_pin = "C18",
+        .uart_tx_pin = "T15",
+        .uart_rx_pin = "T14",
+        .led_pins = "H17,K15,J13,N14,R18,U18,T13,T11",
     };
 
     struct SystemConfig {
@@ -45,7 +43,7 @@ module QMTech_A100T_Integration {
     }
 
     const SYS_CONFIG : SystemConfig = SystemConfig{
-        .clock_hz = 50_000_000,
+        .clock_hz = 12_000_000,
         .baud_rate = 115_200,
         .mem_size = 0x8000,
         .fifo_depth = 8,
@@ -58,7 +56,7 @@ module QMTech_A100T_Integration {
     test test_baud_divisor {
         var divisor : u32 = calc_baud_divisor(CLOCK_FREQ_HZ, UART_BAUD);
         invariant divisor > 0;
-        invariant divisor == 27;
+        invariant divisor == 6;
     }
 
     test test_system_config {
@@ -67,11 +65,24 @@ module QMTech_A100T_Integration {
     }
 
     test test_fpga_part {
-        invariant FPGA_PART == "xc7a100t";
+        invariant FPGA_PART == "xc7a100tcsg324-1";
     }
 
     test test_clock_freq {
-        invariant CLOCK_FREQ_HZ == 50_000_000;
+        invariant CLOCK_FREQ_HZ == 12_000_000;
+    }
+
+    test test_clk_pin_is_e3 {
+        invariant QMTECH_PINS.clk_pin == "E3";
+    }
+
+    test test_rst_pin_is_c18 {
+        invariant QMTECH_PINS.rst_pin == "C18";
+    }
+
+    test test_uart_pins_match_xdc {
+        invariant QMTECH_PINS.uart_tx_pin == "T15";
+        invariant QMTECH_PINS.uart_rx_pin == "T14";
     }
 
     invariant clock_positive : CLOCK_FREQ_HZ > 0;
