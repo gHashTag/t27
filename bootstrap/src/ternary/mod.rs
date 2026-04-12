@@ -38,6 +38,34 @@ pub fn decode_trits(trits: TernaryEncoding) -> i32 {
     trits.value()
 }
 
+/// Parse string to TernaryEncoding (CLI helper)
+/// Accepts format like "[-1, 0, 1]" or "[0, 1, -1]"
+pub fn parse_trits(s: &str) -> Option<TernaryEncoding> {
+    // Remove brackets and whitespace
+    let cleaned = s.replace(['[', ']', ' '], "");
+
+    // Parse comma-separated integers
+    let trits: Vec<i32> = cleaned
+        .split(',')
+        .filter_map(|part| part.trim().parse().ok())
+        .collect();
+
+    if trits.len() < 3 || trits.len() > 64 {
+        return None;
+    }
+
+    // Convert to value and create TernaryEncoding
+    let mut value: i32 = 0;
+    let mut power: i32 = 1;
+
+    for trit in &trits {
+        value += *trit * power;
+        power *= 3;
+    }
+
+    Some(TernaryEncoding::new(value))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -48,7 +76,7 @@ mod tests {
         assert_eq!(decode_trits(encoded), 1);
 
         let encoded = encode_trits(5);
-        let expected = [-1, 0, +1, 0, +1, 0];
+        let expected = [-1, 0, 1, 0, 1, 0];
         assert_eq!(decode_trits(encoded), expected[4]);
     }
 }

@@ -7,6 +7,7 @@ import {
   fetchSessions,
   createSandboxToken,
 } from "./lib/api";
+import { ChatApp } from "./components/ChatApp";
 
 type Session = {
   id: string;
@@ -43,6 +44,14 @@ const areSessionsEqual = (next: Session[], prev: Session[]) => {
 };
 
 function App() {
+  // Must be before useState calls - env var
+  const isLocalMode = import.meta.env.VITE_LOCAL_MODE === "true";
+
+  // Tab state for navigation - default to chat in local mode
+  const [activeTab, setActiveTab] = useState<"sessions" | "chat">(
+    isLocalMode ? "chat" : "sessions"
+  );
+
   // Direct access: skip authentication - use dummy token
   const [token] = useState<string>("direct-access");
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -56,7 +65,6 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
-  const isLocalMode = import.meta.env.VITE_LOCAL_MODE === "true";
 
   // Session dashboard with direct access (v2 - in-memory storage)
   const handleApiError = (message: string) => {
@@ -91,19 +99,21 @@ function App() {
   }, [token]);
 
   useEffect(() => {
-    if (token) {
+    // Skip session fetching in local mode - no backend required
+    if (token && !isLocalMode) {
       refreshSessions();
     }
-  }, [refreshSessions, token]);
+  }, [refreshSessions, token, isLocalMode]);
 
   useEffect(() => {
-    if (!token) return;
+    // Skip polling in local mode
+    if (!token || isLocalMode) return;
     const interval = setInterval(() => {
       refreshSessions({ showSyncIndicator: false });
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [refreshSessions, token]);
+  }, [refreshSessions, token, isLocalMode]);
 
   const handleCreateSession = async (
     event: FormEvent<HTMLFormElement>,
@@ -182,7 +192,49 @@ function App() {
 
   return (
     <div className="app">
-      <main className="panel">
+      {/* Tab Navigation */}
+      <nav className="tabs">
+        <button
+          className={`tab ${activeTab === "sessions" ? "active" : ""}`}
+          onClick={() => setActiveTab("sessions")}
+          aria-selected={activeTab === "sessions"}
+          role="tab"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="9" y1="21" x2="9" y2="9" />
+          </svg>
+          Sessions
+        </button>
+        <button
+          className={`tab ${activeTab === "chat" ? "active" : ""}`}
+          onClick={() => setActiveTab("chat")}
+          aria-selected={activeTab === "chat"}
+          role="tab"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          Chat
+        </button>
+      </nav>
+
+      <main className="panel" style={{ display: activeTab === "sessions" ? "block" : "none" }}>
           <div className="panel-body">
             <div className="panel-header">
               <div>
@@ -310,6 +362,11 @@ function App() {
             </div>
           </div>
         </main>
+
+      {/* Chat App */}
+      <div style={{ display: activeTab === "chat" ? "flex" : "none", flexDirection: "column" }}>
+        <ChatApp />
+      </div>
     </div>
   );
 }

@@ -9,12 +9,12 @@ use {
         http::{HeaderMap, HeaderValue, Method, StatusCode, Uri},
         response::{IntoResponse, Response},
     },
-    hyper::{client::HttpConnector, Client as HyperClient},
     std::{
         collections::HashMap,
         sync::Arc,
     },
-    crate::main::AppState,
+    crate::{AppState, Session},
+    http_body_util::{BodyExt, Full},
 };
 
 /// Extract token from query parameters
@@ -51,7 +51,7 @@ fn extract_token_from_header(headers: &HeaderMap) -> Option<String> {
 /// 3. Proxies the request to the container's internal DNS address
 #[cfg(feature = "server")]
 pub async fn sandbox_proxy_handler(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     mut req: Request,
 ) -> impl IntoResponse {
     let method = req.method().clone();
@@ -67,7 +67,7 @@ pub async fn sandbox_proxy_handler(
         match crate::jwt::verify_sandbox_token(&token) {
             Ok(session_id) => {
                 // Find session to get railway_service_id
-                let sessions = state.sessions.read().await;
+                let sessions: tokio::sync::RwLockReadGuard<'_, Vec<Session>> = state.sessions.read().await;
                 if let Some(session) = sessions.iter().find(|s| s.id == session_id) {
                     // Check if session is active
                     if session.status != "active" && session.status != "starting" {
@@ -100,8 +100,7 @@ pub async fn sandbox_proxy_handler(
                     (StatusCode::NOT_FOUND, "Session not found").into_response()
                 }
             }
-            Err(e) => {
-                eprintln!("Token verification failed: {}", e);
+            Err(_) => {
                 (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response()
             }
         }
@@ -118,19 +117,16 @@ async fn proxy_to_container(
     original_headers: HeaderMap,
     original_body: Body,
 ) -> Response {
-    type HttpClient = HyperClient<HttpConnector, Body>;
-    let client = HttpClient::new();
-
     // Read the original body
-    let body_bytes = match hyper::body::to_bytes(original_body).await {
-        Ok(bytes) => bytes,
+    let body_bytes = match original_body.collect().await {
+        Ok(collected) => collected.to_bytes(),
         Err(e) => {
             eprintln!("Failed to read request body: {}", e);
             return (StatusCode::BAD_REQUEST, "Failed to read request body").into_response();
         }
     };
 
-    // Build the request to the container
+    // Build the request to the container using hyper v1
     let mut request_builder = hyper::Request::builder()
         .uri(target_url)
         .method(method.clone());
@@ -152,11 +148,15 @@ async fn proxy_to_container(
         request_builder = request_builder.header("x-forwarded-for", forwarded_for);
     }
 
-    let body = Body::from(body_bytes);
+    let body = Full::new(body_bytes);
 
     match request_builder.body(body) {
         Ok(req) => {
-            match client.request(req).await {
+            // Use hyper v1 client for making the request
+            let connector = hyper_util::client::legacy::connect::HttpConnector::new();
+            let mut builder = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new());
+
+            match builder.build(connector).request(req).await {
                 Ok(mut resp) => {
                     // Build the response
                     let mut response_builder = Response::builder()
@@ -173,15 +173,18 @@ async fn proxy_to_container(
                         }
                     }
 
-                    // Convert hyper body to axum body
-                    match hyper::body::to_bytes(resp.into_body()).await {
-                        Ok(body_bytes) => {
-                            response_builder
-                                .body(Body::from(body_bytes))
-                                .unwrap_or_else(|_| {
+                    // Read response body
+                    match BodyExt::collect(resp.into_body()).await {
+                        Ok(collected) => {
+                            let body_bytes: Bytes = collected.to_bytes();
+                            // Convert Full<Bytes> to axum Body
+                            match response_builder.body(Body::from(body_bytes)) {
+                                Ok(response) => response,
+                                Err(_) => {
                                     (StatusCode::INTERNAL_SERVER_ERROR, "Response build failed")
                                         .into_response()
-                                })
+                                }
+                            }
                         }
                         Err(e) => {
                             eprintln!("Failed to read response body: {}", e);
@@ -205,22 +208,22 @@ async fn proxy_to_container(
 #[cfg(feature = "server")]
 /// Get the proxy URL for a session
 /// Returns a URL like "/sandbox?token=<jwt>" that proxies to the container
-pub fn get_proxy_url(session_id: &str) -> Result<String> {
+pub fn get_proxy_url(session_id: &str) -> anyhow::Result<String> {
     let token = crate::jwt::create_sandbox_token(session_id, Some(24))?;
     Ok(format!("/sandbox?token={}", token))
 }
 
 /// Health check for a Railway container
 #[cfg(feature = "server")]
-pub async fn check_container_health(service_id: &str) -> Result<bool> {
-    type HttpClient = HyperClient<HttpConnector, Body>;
-    let client = HttpClient::new();
+pub async fn check_container_health(service_id: &str) -> anyhow::Result<bool> {
     let url = format!("http://{}.railway.internal:8080/health", service_id);
+    let connector = hyper_util::client::legacy::connect::HttpConnector::new();
+    let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new()).build(connector);
 
     let request = hyper::Request::builder()
         .uri(&url)
         .method(Method::GET)
-        .body(Body::empty())?;
+        .body(Full::new(Bytes::new()))?;
 
     match client.request(request).await {
         Ok(resp) => Ok(resp.status().is_success()),

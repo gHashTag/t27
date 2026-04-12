@@ -1,10 +1,12 @@
 # On a Golden Ratio Approximation to the Strong Coupling Constant
 
-**Authors:** Trinity S³AI Research Group
+**Authors:** Dmitrii Vasilev
 
 **Date:** 2026-04-11
 
 **Keywords:** QCD, strong coupling, golden ratio, SU(3), renormalization group
+
+**arXiv Categories:** hep-ph (primary), math-ph (secondary)
 
 ---
 
