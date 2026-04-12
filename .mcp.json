@@ -9,6 +9,13 @@
         "PROJECT_ROOT": "/Users/playra/t27",
         "ENFORCE_L1": "true"
       }
+    },
+    "gitbutler": {
+      "command": "but",
+      "args": ["mcp"],
+      "env": {
+        "GITBUTLER_REPO": "${workspaceRoot}"
+      }
     }
   }
 }

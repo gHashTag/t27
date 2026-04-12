@@ -1,0 +1,130 @@
+name: L1 TRACEABILITY Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [master, main]
+
+jobs:
+  check-traceability:
+    name: Check L1 TRACEABILITY
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for Closes #N in commits
+        id: check-commits
+        run: |
+          set -e
+
+          # Get the base branch (master or main)
+          BASE_BRANCH="${{ github.event_name == 'pull_request' && github.base_ref || 'master' }}"
+          if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
+            BASE_BRANCH="master"
+          fi
+
+          echo "Checking commits against $BASE_BRANCH..."
+
+          # Get commits in the range
+          COMMITS=$(git log origin/"$BASE_BRANCH"..HEAD --oneline 2>/dev/null || echo "")
+
+          if [ -z "$COMMITS" ]; then
+            echo "No commits to check (likely first push)"
+            exit 0
+          fi
+
+          # Check each commit for Closes #N pattern
+          FAILED=0
+          FAILED_COMMITS=""
+          TOTAL=0
+          PASSED=0
+
+          while IFS= read -r line; do
+            if [ -z "$line" ]; then
+              continue
+            fi
+
+            TOTAL=$((TOTAL + 1))
+
+            # Check for "Closes #N" or "Close #N" or "Fixes #N" or "Fix #N"
+            if ! echo "$line" | grep -qiE "(Closes?|Fixes?)\s*#[0-9]+"; then
+              FAILED=1
+              FAILED_COMMITS="$FAILED_COMMITS  ❌ $line"$'\n'
+            else
+              PASSED=$((PASSED + 1))
+              echo "  ✓ $line"
+            fi
+          done <<< "$COMMITS"
+
+          echo ""
+          echo "Summary: $PASSED/$TOTAL commits pass L1 TRACEABILITY"
+
+          if [ $FAILED -eq 1 ]; then
+            echo ""
+            echo "::error::L1 TRACEABILITY VIOLATION: The following commits are missing issue references:"
+            echo "$FAILED_COMMITS"
+            echo ""
+            echo "L1 TRACEABILITY: No code merged without Closes #N"
+            echo "Please add issue references to your commits."
+            exit 1
+          fi
+
+      - name: Check L2 GENERATION (gen/ edits forbidden)
+        id: check-generation
+        run: |
+          set -e
+
+          # Get the base branch
+          BASE_BRANCH="master"
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            BASE_BRANCH="main"
+          fi
+
+          echo "Checking for gen/ directory edits..."
+
+          # Check if any files in gen/ were modified
+          if git diff --name-only origin/"$BASE_BRANCH"..HEAD | grep -q "^gen/"; then
+            echo "::error::L2 GENERATION VIOLATION: Files under gen/ were modified directly."
+            echo "Edit specs instead and regenerate using './scripts/tri gen'"
+            exit 1
+          fi
+
+          echo "  ✓ No gen/ edits detected"
+
+      - name: Check L3 PURITY (ASCII-only identifiers)
+        id: check-purity
+        run: |
+          set -e
+
+          echo "Checking L3 PURITY (ASCII-only source files)..."
+
+          # Find non-ASCII characters in source files
+          if git diff origin/"$BASE_BRANCH"..HEAD --name-only | xargs grep -P '[^\x00-\x7F]' 2>/dev/null | head -20; then
+            echo ""
+            echo "::warning::L3 PURITY WARNING: Non-ASCII characters detected in source files."
+            echo "L3 PURITY: Source files must be ASCII-only with English identifiers."
+            # Warning only, not blocking
+          else
+            echo "  ✓ All source files are ASCII"
+          fi
+
+  summary:
+    name: L1 Traceability Summary
+    if: always()
+    needs: check-traceability
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print Summary
+        run: |
+          echo "### L1 TRACEABILITY Check Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.check-traceability.result }}" = "success" ]; then
+            echo "✅ All commits comply with L1 TRACEABILITY" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ L1 TRACEABILITY violations detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the failed job logs above." >> $GITHUB_STEP_SUMMARY
+          fi

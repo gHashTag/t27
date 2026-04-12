@@ -30,6 +30,8 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 jsonwebtoken = "9"
 serde_urlencoded = "0.7"
 hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
+http-body-util = "0.1"
 lazy_static = "1.5"
 regex = "1"
 candle-core = "0.10.2"

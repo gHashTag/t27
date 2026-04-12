@@ -16,7 +16,7 @@ mod enrichment;
 mod suite;
 mod railway;
 mod jwt;
-// mod proxy;  # Temporarily disabled for build
+mod proxy;
 mod formula_eval;
 mod chimera_engine;
 mod sensitivity;
@@ -105,9 +105,9 @@ enum Commands {
     },
     /// Decode ternary to integer
     TernaryDecode {
-        /// Ternary value to decode
+        /// Ternary value to decode (e.g., "[-1, 0, 1]")
         #[arg(short, long)]
-        trits: TernaryEncoding,
+        trits: String,
     },
     /// Compile a .t27 file and write generated code to a file
 
@@ -694,7 +694,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Json},
-    routing::{get, post, delete},
+    routing::{get, post, delete, any},
     Router,
 };
 #[cfg(feature = "server")]
@@ -712,20 +712,20 @@ use std::sync::Arc;
 
 #[cfg(feature = "server")]
 #[derive(Clone, Serialize, Deserialize)]
-struct Session {
-    id: String,
-    name: String,
-    status: String,
-    railway_service_id: String,
-    created_at: u64,
-    updated_at: u64,
+pub struct Session {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub railway_service_id: String,
+    pub created_at: u64,
+    pub updated_at: u64,
 }
 
 #[cfg(feature = "server")]
 #[derive(Clone)]
-struct AppState {
-    tx: broadcast::Sender<serde_json::Value>,
-    sessions: Arc<RwLock<Vec<Session>>>,
+pub struct AppState {
+    pub tx: broadcast::Sender<serde_json::Value>,
+    pub sessions: Arc<RwLock<Vec<Session>>>,
 }
 
 #[cfg(feature = "server")]
@@ -2263,8 +2263,8 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/deadcode", post(deadcode_handler))
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
-        // .route("/sandbox", any(proxy::sandbox_proxy_handler_any))
-        // .route("/sandbox/*path", any(proxy::sandbox_proxy_handler_any))
+        .route("/sandbox", any(proxy::sandbox_proxy_handler))
+        .route("/sandbox/*path", any(proxy::sandbox_proxy_handler))
         .fallback_service(
             ServeDir::new("public")
                 .not_found_service(ServeFile::new("public/index.html"))
@@ -6578,6 +6578,25 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
+         Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
+        Commands::TernaryDecode { trits } => {
+            use crate::ternary::{parse_trits, decode_trits};
+            match parse_trits(&trits) {
+                Some(encoding) => {
+                    let decoded = decode_trits(encoding);
+                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                }
+                None => {
+                    eprintln!("Error: Invalid ternary format \"{}\"", trits);
+                    eprintln!("Expected format: [-1, 0, 1] or similar");
+                    std::process::exit(1);
+                }
+            }
+        }
      }
  
     Ok(())
@@ -6704,10 +6723,33 @@ fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
+        Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
             std::process::exit(1);
+        }
+        Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
+        Commands::TernaryDecode { trits } => {
+            use crate::ternary::{parse_trits, decode_trits};
+            match parse_trits(&trits) {
+                Some(encoding) => {
+                    let decoded = decode_trits(encoding);
+                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                }
+                None => {
+                    eprintln!("Error: Invalid ternary format. Use format like \"[-1, 0, 1]\"");
+                    std::process::exit(1);
+                }
+            }
         }
     }
 

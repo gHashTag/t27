@@ -5,6 +5,8 @@
 from .musicgen import MusicGenWrapper
 from .stable_audio import StableAudioGenerator
 from .bark import BarkGenerator
+from .heartmusa import HeartMuLaGenerator
+from .acestep import ACEStepGenerator
 from .prompts import (
     PHONK_PROMPTS,
     TRAP_PROMPTS,
@@ -18,6 +20,8 @@ __all__ = [
     "MusicGenWrapper",
     "StableAudioGenerator",
     "BarkGenerator",
+    "HeartMuLaGenerator",
+    "ACEStepGenerator",
     "PHONK_PROMPTS",
     "TRAP_PROMPTS",
     "HIP_HOP_PROMPTS",
