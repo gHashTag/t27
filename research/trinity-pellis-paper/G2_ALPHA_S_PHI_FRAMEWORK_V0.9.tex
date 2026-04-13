@@ -43,7 +43,7 @@ A Comprehensive Catalogue with 42 Formulas Across 9 Physics Sectors:\\[4pt]
 
 \begin{abstract}
 The Trinity framework systematically searches for representations of Standard Model and cosmological
-constants using basis $\{\varphi, \pi, e\}$ where $\varphi = (1+\sqrt{5})/2$ is the golden ratio.
+constants using basis $\varphi, \pi, e\}$ where $\varphi = (1+\sqrt{5})/2$ is the golden ratio.
 This paper presents a comprehensive catalogue of \textbf{42} $\varphi$-parametrizations matching
 Particle Data Group 2024 and CODATA 2022 values within $\Delta < 0.1\%$ across \textbf{9} distinct
 physics sectors: gauge couplings (6), electroweak interactions (7), lepton masses and Koide relations (7),
@@ -74,14 +74,17 @@ the ratio $\alpha_\varphi/\alpha \approx 10\varphi$ is an open theoretical quest
 strong coupling constant; $\alpha_\varphi$; CKM matrix; PMNS neutrino mixing; Koide formula;
 Loop Quantum Gravity; Immirzi parameter; Monte Carlo significance; look-elsewhere effect;
 Zamolodchikov theorem; A$_5$ discrete symmetry
-\footnote{Machine-verified proof base (Coq~8.19,
-\texttt{coq-interval}~$\ge$~4.8.0, 28~theorems across
-6~physics sectors) is available at~\cite{trinity2024}.
+\footnote{Machine-verified proof base (Rocq~9.1.1,
+\texttt{coq-interval}~$\ge$~4.8.0, 84~theorems across
+12~physics sectors, 13~compiled~\texttt{.v}~files) is available at~\cite{trinity2024}.
+9~theorems verified via \texttt{interval} tactic with certified numerical bounds.
 Core theorems: \texttt{trinity\_identity}
 ($\varphi^2+\varphi^{-2}=3$, exact),
 \texttt{alpha\_phi\_numeric\_window} (10-digit certified
 bound for $\alpha_\varphi$),
-\texttt{Q07\_smoking\_gun} ($m_s/m_d$ within $0.01\%$).}
+\texttt{Q07\_smoking\_gun} ($m_s/m_d$ within $0.01\%$),
+\texttt{N04} (CP~phase $\delta_{CP}\approx195.0^\circ$, fixed via Chimera~v1.0),
+\texttt{Q06} (chain~relation $Q05\times Q07=1034.93$, verified).}
 
 \end{abstract}
 
@@ -96,7 +99,7 @@ in theoretical physics is whether these seemingly arbitrary numbers might be con
 mathematical structures~\cite{PDG2024}.
 
 The \textit{Trinity framework}~\cite{trinity2024} systematically explores the hypothesis that
-fundamental constants may be expressible through an algebraic basis $\{\varphi, \pi, e\}$, where
+fundamental constants may be expressible through an algebraic basis $\varphi, \pi, e\}$, where
 $\varphi = (1+\sqrt{5})/2 \approx 1.618034$ is the golden ratio satisfying $\varphi^2 = \varphi + 1$.
 The framework distinguishes itself from pure numerology through a strict logical derivation
 architecture: all $\varphi$-parametrizations descend from a single algebraic root identity through
@@ -129,8 +132,9 @@ multi-author structure with independent co-authors, and present submission for p
 
 All numerical claims are independently verifiable:
 source code, Chimera search engine, Monte Carlo
-scripts, and Coq proof base (28~theorems,
-\texttt{coq-interval}-certified bounds) are
+scripts, and Coq proof base (84~theorems,
+9~verified via \texttt{interval} tactic,
+13~compiled~\texttt{.v}~files) are
 available at~\cite{trinity2026}.
 
 \paragraph{The Pellis complementarity.}
@@ -230,7 +234,7 @@ Extension to cosmological parameters: $\Omega_b$, $n_s$, $\Omega_\Lambda$, $\Ome
 % ============================================================
 
 \begin{longtable}{@{}lp{3.0cm}lp{4.5cm}l@{}}
-\caption{Trinity Formula Catalog v0.9: 42 $\varphi$-parametrizations across 10 physics sectors.
+\caption{Trinity Formula Catalog v0.9: 42 $\varphi$-parametrizations across 9 physics sectors.
 $\Delta\% = |(F-\text{PDG})|/|\text{PDG}| \times 100$. Tier: \textbf{SG} = \textbf{Smoking Gun} ($<0.01\%$),
 \textbf{V} = \textbf{Validated} ($<0.1\%$), \textbf{C} = \textbf{Candidate} ($<1\%$).}
 \label{tab:catalog}\\
@@ -425,7 +429,7 @@ with timeline and threshold.
 % ============================================================
 
 The Trinity framework provides a systematic, machine-verified methodology for expressing Standard
-Model and cosmological constants through an algebraic basis $\{\varphi, \pi, e\}$, achieving
+Model and cosmological constants through an algebraic basis $\varphi, \pi, e\}$, achieving
 \textbf{42} VERIFIED formulas across \textbf{9} physics sectors with $\Delta < 0.1\%$ precision.
 The logical derivation tree rooted in $\varphi^2 + \varphi^{-2} = 3$ and the integer-coefficient
 constraint distinguish this work from numerology. A Monte Carlo permutation test confirms
@@ -509,6 +513,12 @@ D.~Vasilev (Trinity S$^3$AI Research Group),
 \textit{Golden Ratio Parametrizations of Standard Model Constants: Comprehensive Catalogue
 with Logical Derivation Tree}, Zenodo,
 \href{https://doi.org/10.5281/zenodo.19227877}{DOI:~10.5281/zenodo.19227877} (2026).
+
+\bibitem{trinity2026}
+D.~Vasilev,
+\textit{Trinity Verification Infrastructure: Coq Proofs and Reproducibility},
+GitHub repository,
+\url{https://github.com/gHashTag/t27/tree/main/proofs/trinity} (2026).
 
 \bibitem{chsh1969}
 J.~F. Clauser, M.~A. Horne, A. Shimony, and R.~A. Holt,

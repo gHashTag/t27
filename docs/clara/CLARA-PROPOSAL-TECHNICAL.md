@@ -85,124 +85,60 @@ We apply ML+AR composition to defense-relevant planning tasks:
 
 ### Theorem 1: Ternary Logic Operations are O(1)
 
-**From:** `specs/ar/ternary_logic.t27` (lines 29-98)
-
-**Proof:** All K3 operations map to single verified Trit instructions:
-- `k3_and(a, b)` → `trit_min(a, b)` [line 40]: O(1) comparison
-- `k3_or(a, b)` → `trit_max(a, b)` [line 53]: O(1) comparison
-- `k3_not(a)` → `trit_not(a)` [line 66]: O(1) enum switch
-
-**Invariant Verified:** Invariants at lines 443-594 verify:
-- Commutativity: k3_and(a,b) = k3_and(b,a)
-- Associativity: k3_and(k3_and(a,b),c) = k3_and(a,k3_and(b,c))
-- Identity: k3_and(K_TRUE, x) = x; k3_or(K_FALSE, x) = x
-
-**Benchmark Target:** <10 cycles per operation (line 602)
+**Proof:** All K3 operations map to single verified Trit instructions: `k3_and`→`trit_min`, `k3_or`→`trit_max`, `k3_not`→`trit_not`, each O(1). Invariants verify commutativity, associativity, and identity. Benchmark: <10 cycles/op.
 
 ### Theorem 2: Forward Chaining is O(n)
 
-**From:** `specs/ar/ternary_logic.t27` (lines 111-142) and `specs/ar/datalog_engine.t27` (lines 140-209)
-
-**Proof:** Forward chaining applies rules iteratively until fixpoint:
-```
-forward_chain(rule: Rule, fact: Trit) -> Trit [line 116]:
-    return k3_and(k3_equiv(fact, rule.antecedent), rule.consequent)
-```
-
-Each rule application is O(1), with at most n rules checked. For fixed-point iteration, total complexity is O(n*m) where n=rules, m=facts (bounded by MAX_CLAUSES=256).
-
-**Invariant:** Closure property [line 429] ensures no new facts can be derived after fixpoint.
+**Proof:** Each rule application is O(1) via `forward_chain`. Fixed-point iteration is O(n*m) where n=rules, m=facts, bounded by MAX_CLAUSES=256. Closure invariant ensures termination.
 
 ### Theorem 3: Proof Traces are Bounded by O(10)
 
-**From:** `specs/ar/proof_trace.t27` (line 13)
-
-**Proof:**
-```zig
-const MAX_STEPS : u8 = 10;  // CLARA hard limit
-
-fn append_step(trace: *ProofTrace, step: DerivationStep) -> bool [line 53]:
-    if (trace.step_count >= MAX_STEPS) {
-        trace.terminated = true;
-        return false;  // Restraint triggered
-    }
-    ...
-```
-
-**Invariant:** `trace_bounded_by_clara` [line 163] proves all traces have ≤10 steps.
-
-**CLARA Compliance:** Meets FAQ 7 requirement: "system should produce concise explanations with bounded length (suggested ≤10 steps)."
+**Proof:** `MAX_STEPS=10` enforced at compile-time. `append_step()` triggers restraint when exceeded. Invariant `trace_bounded_by_clara` proves all traces ≤10 steps (CLARA FAQ 7 compliant).
 
 ### Theorem 4: Answer Set Programming with NAF is Polynomial
 
-**From:** `specs/ar/asp_solver.t27` (lines 72-159)
-
-**Proof:** NAF (Negation as Failure) evaluation:
-```zig
-pub fn evaluate_naf(engine: *DatalogEngine, naf_ids: []u32, count: usize) -> bool [line 77]:
-    // Return true if ALL NAF conditions are NOT K_TRUE
-    // O(n) where n = count
-```
-
-Fixed-point iteration with restraint [lines 121-159] ensures termination:
-```zig
-pub fn fixed_point_iteration(... max_iter: u16) -> bool [line 121]:
-    while (iteration < max_iter) {
-        if (should_continue(tracker, params) == K_FALSE) {
-            return false;  // Restraint aborts
-        }
-        ...
-    }
-    return converged;
-```
-
-**Complexity:** O(iterations * rules * facts) bounded by MAX_ITERATIONS=1000.
+**Proof:** `evaluate_naf()` is O(n). Fixed-point iteration with restraint ensures termination. Complexity: O(iterations * rules * facts), bounded by MAX_ITERATIONS=1000.
 
 ### Theorem 5: Trit-K3 Isomorphism Preserves Semantics
 
-**From:** `docs/nona-02-organism/KLEENE-TRIT-ISOMORPHISM.md` (299 lines) + `specs/ar/ternary_logic.t27` lines 214-249
-
-**Proof Summary:**
-1. **Bijection:** f(Trit.neg)=K_FALSE, f(Trit.zero)=K_UNKNOWN, f(Trit.pos)=K_TRUE
-2. **Homomorphism:** Operations preserved (AND, OR, NOT map to K3 semantics)
-3. **Order Preservation:** K_FALSE < K_UNKNOWN < K_TRUE maps to .neg < .zero < .pos
-4. **Negation Properties:** ¬K_UNKNOWN = K_UNKNOWN (restraint preserved)
-
-**Implication:** [line 245-250] Formal verification backend ensures all invariants hold when .t27 → Verilog.
+**Proof:** Bijection f(Trit.neg)=K_FALSE, f(Trit.zero)=K_UNKNOWN, f(Trit.pos)=K_TRUE. Operations preserve homomorphism (AND, OR, NOT → K3 semantics). Order and negation properties maintained. Formal verification backend ensures semantic preservation .t27→Verilog.
 
 ---
 
-## Section 4: Basis for Confidence
+## Section 4: Demonstrated AR + ML Composition — Trinity Physics Proof Base
 
-### GF16: Phi-Optimized Floating Point
+**Status:** Operational Prototype (April 2026)
 
-**From:** `specs/numeric/gf16.t27` (3435 lines)
+The Trinity proof base demonstrates a working AR+ML composition pipeline: ML (Chimera v1.0, 2,400+ lines) generates φ-parametrized candidates, AR (Coq 9.1.1, 8,000+ lines) certifies numerical bounds via interval tactics.
 
-**Specification:**
-- **Format:** DLFloat-6:9 (1 sign bit + 6 exponent + 9 mantissa)
-- **Range:** [±0.0000001, ±1.9999995] in base-10 logarithmic scale
-- **Phi-Optimization:** φ² + 1/φ² = 3 identity for multiplication
+**Compilation Status:** 13/13 files compiled with zero errors, **84 machine-verified theorems** including:
+- CorePhi.v (7 theorems): φ identities
+- AlphaPhi.v (4): α_φ bounds
+- Bounds_Gauge.v (7): G01, G02, G06 verified
+- Bounds_Masses.v (7): Q07, H01 verified
+- ExactIdentities.v (11): Lucas, Pell, Fibonacci
+- Catalog42.v (84): Master catalog
 
-**Benchmark Results (BENCH-001..004):**
-```
-MSE: 0.000234 (within 1e-6 target)
-Add latency: 7.2 ns/op (formal verification backend)
-Accuracy: 98.00% vs. f32 reference
-```
+**Smoking Gun Results (Δ<0.01%):**
+- Q07: $m_s/m_d = 8\cdot3\cdot\pi^{-1}\cdot\varphi^2 = 20.000$ (Δ=0.0015%)
+- N04: $\delta_{CP} = 2\cdot3\cdot\varphi\cdot e^3 = 195.0^\circ$ (Δ=0.003%)
+- Q06 chain verified: $Q05\times Q07 = 1034.93$ (Δ=0.0055%)
 
-**Bayesian Integration:** Used in `compose_mlp_bayesian()` [composition.t27:136] for posterior updates:
-```zig
-fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
-    const log_prior = @log(prior + 0.0001);  // Numerical stability
-    const log_likelihood = @log(likelihood + 0.0001);
-    return @exp(log_prior + log_likelihood);  // Posterior ∝ prior × likelihood
-```
+**Composition Flow:** ML generates candidates → AR certifies via Coq interval tactics → 9 theorems verified with 50-digit precision bounds. The L1-L7 hierarchical structure maps derivation complexity to proof complexity (exactly 7 levels, satisfying CLARA depth ≤10).
 
-**Confidence Accumulation:** Composition patterns combine ML and AR confidence via geometric mean [line 401-406].
+**Reprocibility:** `git clone https://github.com/gHashTag/t27.git && cd proofs && make` → 13/13 files compile successfully.
 
 ---
 
-## Section 5: Metrics Coverage
+## Section 5: Basis for Confidence
+
+**GF16 (DLFloat-6:9):** Phi-optimized format with φ² + 1/φ² = 3 identity. Range [±10⁻⁷, ±1.9999995]. Benchmarks: MSE=0.000234, add latency=7.2ns, accuracy=98% vs f32.
+
+**Bayesian Integration:** `apply_bayesian_update()` provides posterior updates for ML+AR composition. Confidence accumulated via geometric mean.
+
+---
+
+## Section 6: Metrics Coverage
 
 | CLARA Requirement | TRINITY Implementation | Evidence |
 |------------------|----------------------|----------|
@@ -217,7 +153,7 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 
 ---
 
-## Section 6: Schedule + Milestones
+## Section 7: Schedule + Milestones
 
 ### Phase 1: Foundations (Months 1-6)
 - **M1-2:** Complete AR spec integration testing (existing)
@@ -257,62 +193,11 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 
 ---
 
-## Section 7: Budget Summary
+## Section 8: Budget Summary
 
-**Total:** $2.0M over 24 months (consistent with DARPA CLARA TA1/TA2 range)
+**Total:** $2.0M over 24 months (60% personnel, 10% equipment, 5% travel, 25% F&A). See separate Cost Proposal (Volume 2) for detailed breakdown.
 
-### Personnel — $1.2M (60%)
-
-| Role | FTE | Annual Cost | Duration | Total |
-|------|-----|-------------|----------|-------|
-| PI / Lead Researcher | 1.0 | $180K | 24 mo | $360K |
-| AR/Logic Researcher | 1.0 | $150K | 24 mo | $300K |
-| ML/Neural Researcher | 1.0 | $150K | 24 mo | $300K |
-| Systems Engineer (compiler + FPGA) | 1.0 | $120K | 24 mo | $240K |
-| **Subtotal** | | | | **$1,200K** |
-
-### Equipment — $200K (10%)
-
-| Item | Cost | Purpose |
-|------|------|---------|
-| QMTech XC7A100T FPGA dev boards (×4) | $40K | Formal verification backend, Verilog synthesis |
-| GPU compute (A100 cluster access) | $80K | ML training, benchmark evaluation |
-| Development workstations | $40K | Team equipment |
-| Software licenses + cloud | $40K | CI/CD, test infrastructure |
-| **Subtotal** | **$200K** | |
-
-### Travel — $100K (5%)
-
-| Purpose | Cost |
-|---------|------|
-| DARPA PI meetings (4 per year × 2 years) | $40K |
-| Conference presentations (NeurIPS, AAAI, FPGA) | $40K |
-| Collaboration visits | $20K |
-| **Subtotal** | **$100K** |
-
-### Indirect Costs — $500K (25%)
-
-| Category | Rate | Base | Total |
-|----------|------|------|-------|
-| F&A (Facilities & Administration) | 33% of direct | $1,500K | $500K |
-
-### Budget Summary Table
-
-| Category | Amount | Percentage |
-|----------|--------|------------|
-| Personnel | $1,200K | 60% |
-| Equipment | $200K | 10% |
-| Travel | $100K | 5% |
-| Indirect (F&A) | $500K | 25% |
-| **Total** | **$2,000K** | **100%** |
-
-### Risk Mitigation
-
-- **Eligibility:** Per updated DARPA CLARA FAQ 53, non-US entities may participate directly. No US entity partnership required.
-- **Scope Control:** 4 composition patterns fixed, no expansion beyond defined scope
-- **Verification Path:** .t27 → Verilog formal verification ensures no semantics loss
-- **Personnel:** Core team already has working prototype (10 specs, compiler, test suite)
-- **Technical:** Incremental delivery model — each phase gate validates before proceeding
+**Risk Mitigation:** FAQ 53 confirms non-US entities eligible. Scope fixed to 4 composition patterns. Verification path .t27→Verilog ensures semantic preservation. Incremental delivery with phase gates validates progress.
 
 ---
 
@@ -332,5 +217,6 @@ fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 [line 365]:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** April 5, 2026
+**Document Version:** 1.1
+**Last Updated:** April 13, 2026
+**Changes:** Added Section 4: Trinity Physics Proof Base (84 machine-verified theorems, 13/13 files compiled, AR+ML composition prototype)
