@@ -39,9 +39,14 @@ tmp/
 .trinity/queues/
 #.trinity/events/ # Keeping events might be okay if they are small, but they grow.
 
+# Python cache
+__pycache__/
+*.pyc
+
 # Specific project paths (vendored upstream lives under external/)
 external/opencode/dist/
 external/opencode/node_modules/
+external/opencode/packages/web/
 bootstrap/target/
 bootstrap/.trinity/
 .trinity/experience/
