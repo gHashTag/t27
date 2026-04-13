@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# NotebookLM post-merge hook.
+#
+# Triggered after git merge completes successfully.
+# Syncs final merge diff to NotebookLM and updates dashboard.
+#
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "📊 NotebookLM post-merge sync..."
+
+# Extract issue number from branch name (feature/issue-357-xyz -> 357)
+MERGED_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+ISSUE_NUM=$(echo "$MERGED_BRANCH" | grep -oE '(issue-|#)?[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
+
+if [ -n "$ISSUE_NUM" ]; then
+  echo "   Found issue #$ISSUE_NUM in branch: $MERGED_BRANCH"
+
+  # Get merge diff
+  MERGE_COMMIT=$(git rev-parse HEAD)
+  PARENT_COMMIT=$(git rev-parse HEAD^1)
+  DIFF_FILE="/tmp/nb_merge_$ISSUE_NUM.diff"
+
+  if [ -f "$DIFF_FILE" ]; then
+    rm "$DIFF_FILE"
+  fi
+
+  git diff "$PARENT_COMMIT" "$MERGE_COMMIT" > "$DIFF_FILE" 2>/dev/null || true
+
+  # Format diff for NotebookLM
+  if [ -s "$DIFF_FILE" ]; then
+    # Run sync with merge event
+    echo "   Syncing merge diff to NotebookLM..."
+    python3.10 "$ROOT/contrib/backend/notebooklm/sync.py" \
+      --issue "$ISSUE_NUM" \
+      --event merge \
+      --trigger "merged" \
+      >/dev/null 2>&1 || echo "   ⚠️  Sync failed (notebooklm may not be configured)"
+
+    # Clean up
+    rm "$DIFF_FILE"
+  else
+    echo "   ⚠️  No diff generated (fast-forward merge?)"
+  fi
+
+  # Update enrichment metadata for dashboard
+  METADATA_FILE="$ROOT/contrib/backend/notebooklm/enrichment_metadata.json"
+  if [ -f "$METADATA_FILE" ]; then
+    python3.10 -c "
+import json
+from datetime import datetime
+
+with open('$METADATA_FILE', 'r') as f:
+    data = json.load(f)
+
+for nb_id, meta in data.items():
+    title = meta.get('notebook_title', '')
+    if '$ISSUE_NUM' in title:
+        meta['last_merged'] = datetime.utcnow().isoformat()
+        meta['merge_count'] = meta.get('merge_count', 0) + 1
+
+with open('$METADATA_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+" 2>/dev/null || echo "   ⚠️  Could not update metadata"
+
+    echo "   ✅ Metadata updated"
+  fi
+else
+  echo "   ℹ️  No issue number found in branch name"
+  echo "   Branch format should be: issue-<number> or #<number>-topic"
+fi
+
+# Sync activity.md if it was modified
+if git diff --name-only HEAD~1 HEAD | grep -q '^activity.md$'; then
+  echo "   Syncing activity.md to NotebookLM..."
+  python3.10 "$ROOT/contrib/backend/notebooklm/sync.py" \
+    --activity \
+    >/dev/null 2>&1 || echo "   ⚠️  Activity sync failed"
+fi
+
+echo "✅ Post-merge complete"

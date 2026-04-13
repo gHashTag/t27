@@ -1,0 +1,275 @@
+# NotebookLM Auto-Sync Workflow
+#
+# Continuous synchronization between t27 repository and NotebookLM notebooks.
+# Automatically triggered on: issues, PRs, and pushes.
+#
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+name: NotebookLM Auto-Sync
+
+on:
+  issues:
+    types: [opened, edited, labeled, closed]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize, closed]
+  pull_request_review:
+    types: [submitted, edited]
+  push:
+    branches: ['feature/**', 'fix/**', 'ring-*/**', 'issue-*/**']
+
+# Allow manual trigger
+workflow_dispatch:
+  inputs:
+    issue_number:
+      description: 'Issue number to sync'
+      required: true
+      type: number
+    sync_type:
+      description: 'Type of sync'
+      required: false
+      type: choice
+      default: 'push'
+      options:
+        - push
+        - comment
+        - activity
+
+jobs:
+  # Extract issue number from event
+  extract-issue:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.issue.outputs.number }}
+      issue_title: ${{ steps.issue.outputs.title }}
+      event_type: ${{ steps.event.outputs.type }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Extract issue info
+        id: issue
+        run: |
+          ISSUE_NUM=""
+          ISSUE_TITLE=""
+
+          case "${{ github.event_name }}" in
+            issues)
+              ISSUE_NUM="${{ github.event.issue.number }}"
+              ISSUE_TITLE="${{ github.event.issue.title }}"
+              echo "type=issue" >> $GITHUB_OUTPUT
+              ;;
+            issue_comment)
+              ISSUE_NUM="${{ github.event.issue.number }}"
+              ISSUE_TITLE="${{ github.event.issue.title }}"
+              echo "type=comment" >> $GITHUB_OUTPUT
+              ;;
+            pull_request)
+              ISSUE_NUM="${{ github.event.pull_request.number }}"
+              ISSUE_TITLE="${{ github.event.pull_request.title }}"
+              echo "type=pr" >> $GITHUB_OUTPUT
+              ;;
+            pull_request_review)
+              ISSUE_NUM="${{ github.event.pull_request.number }}"
+              ISSUE_TITLE="${{ github.event.pull_request.title }}"
+              echo "type=pr" >> $GITHUB_OUTPUT
+              ;;
+            pull_request_review)
+              # Extract issue number from PR body or branch
+              ISSUE_NUM="${{ github.event.pull_request.number }}"
+              ISSUE_TITLE="${{ github.event.pull_request.title }}"
+              echo "type=pr" >> $GITHUB_OUTPUT
+              ;;
+            push)
+              # Extract from branch name: feature/issue-357 -> 357
+              BRANCH="${{ github.ref_name }}"
+              ISSUE_NUM=$(echo "$BRANCH" | grep -oE '(issue-|#)?[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
+              echo "type=push" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+          echo "number=$ISSUE_NUM" >> $GITHUB_OUTPUT
+          echo "title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+
+      - name: Determine event type
+        id: event_type
+        run: |
+          EVENT_TYPE=""
+
+          case "${{ github.event_name }}" in
+            issues)
+              EVENT_TYPE="issue_${{ github.event.action }}"
+              ;;
+            issue_comment)
+              EVENT_TYPE="comment"
+              ;;
+            pull_request)
+              EVENT_TYPE="pr_${{ github.event.action }}"
+              ;;
+            pull_request_review)
+              EVENT_TYPE="review"
+              ;;
+            push)
+              EVENT_TYPE="push"
+              ;;
+          esac
+
+          echo "type=$EVENT_TYPE" >> $GITHUB_OUTPUT
+
+  # Sync to NotebookLM
+  sync-notebook:
+    needs: extract-issue
+    if: needs.extract-issue.outputs.issue_number != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install notebooklm-py pyyaml
+
+      - name: Run NotebookLM sync
+        env:
+          ISSUE_NUM: ${{ needs.extract-issue.outputs.issue_number }}
+          EVENT_TYPE: ${{ needs.extract-issue.outputs.event_type }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_ACTION: ${{ github.event.action }}
+        run: |
+          cd contrib/backend/notebooklm
+
+          SYNC_ARGS="--issue $ISSUE_NUM"
+
+          # Determine sync type
+          case "$EVENT_TYPE" in
+            issue_opened|issue_edited|pr_opened|pr_synchronize|push)
+              SYNC_ARGS="$SYNC_ARGS --event push"
+              echo "🔄 Syncing push/PR event for issue #$ISSUE_NUM"
+              ;;
+            issue_closed)
+              SYNC_ARGS="$SYNC_ARGS --event merge"
+              echo "✨ Syncing merge (issue closed) for issue #$ISSUE_NUM"
+              ;;
+            comment)
+              SYNC_ARGS="$SYNC_ARGS --event push --trigger comment"
+              echo "💬 Syncing new comment for issue #$ISSUE_NUM"
+              ;;
+            pr_closed)
+              SYNC_ARGS="$SYNC_ARGS --event merge --trigger merged"
+              echo "🔀 Syncing PR merge for #$ISSUE_NUM"
+              ;;
+            *)
+              echo "ℹ️  Event type $EVENT_TYPE - using default sync"
+              SYNC_ARGS="$SYNC_ARGS --event push"
+              ;;
+          esac
+
+          # Run sync
+          python3.10 sync.py $SYNC_ARGS || {
+            echo "⚠️  Sync completed with warnings"
+            exit 0
+          }
+
+      - name: Update sync status as commit
+        if: github.event_name == 'issues' || github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-file@v3
+        with:
+          path: .trinity/notebook_sync_status.json
+          content: |
+            {
+              "last_sync": "${{ github.event.repository.updated_at }}",
+              "last_event": "${{ github.event_name }}",
+              "last_issue": ${{ needs.extract-issue.outputs.issue_number }},
+              "synced_at": "${{ github.event.repository.updated_at }}"
+            }
+          message: "Update NotebookLM sync status [skip ci]"
+
+  # Sync activity.md periodically
+  sync-activity:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check if activity.md changed
+        id: check
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^activity.md$'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        if: steps.check.outputs.changed == 'true'
+        run: pip install notebooklm-py
+
+      - name: Sync activity.md
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          python3.10 contrib/backend/notebooklm/sync.py --activity || true
+
+  # Manual sync workflow_dispatch
+  manual-sync:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install notebooklm-py pyyaml
+
+      - name: Run manual sync
+        env:
+          ISSUE_NUM: ${{ inputs.issue_number }}
+          SYNC_TYPE: ${{ inputs.sync_type }}
+        run: |
+          cd contrib/backend/notebooklm
+
+          SYNC_ARGS="--issue $ISSUE_NUM"
+
+          case "$SYNC_TYPE" in
+            comment)
+              SYNC_ARGS="$SYNC_ARGS --event push --trigger comment"
+              ;;
+            activity)
+              SYNC_ARGS="--activity"
+              ;;
+            *)
+              SYNC_ARGS="$SYNC_ARGS --event push"
+              ;;
+          esac
+
+          python3.10 sync.py $SYNC_ARGS
+
+      - name: Comment on issue (optional)
+        if: inputs.sync_type == 'activity'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.payload.inputs.issue_number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '📊 Activity.md has been synced to NotebookLM'
+            })

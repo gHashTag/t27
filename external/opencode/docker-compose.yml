@@ -1,0 +1,39 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    env_file:
+      - packages/api/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: railway_sessions
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  sandbox-a:
+    build:
+      context: .
+      dockerfile: packages/sandbox/Dockerfile
+    ports:
+      - "8081:8080"
+
+  sandbox-b:
+    build:
+      context: .
+      dockerfile: packages/sandbox/Dockerfile
+    ports:
+      - "8082:8080"
+
+volumes:
+  postgres_data:

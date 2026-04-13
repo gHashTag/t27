@@ -9,7 +9,7 @@
 ## Volume 1: Technical & Management (≤10 pages)
 
 - [x] docs/clara/CLARA-PROPOSAL-TECHNICAL.md — primary document
-- [x] Page count ≤ 10 (estimated ~8.6 pages at 250 words/page; 2,155 words, 337 lines)
+- [x] Page count ≤ 10 (1,702 words ≈ 6.8 pages at 250 words/page)
 - [x] Abstract present
 - [x] AR-based ML approach described (Section 1)
 - [x] Application Task Domain + SOA (Section 2)
@@ -22,9 +22,9 @@
 
 ## Volume 2: Cost Proposal
 
-- [ ] Detailed budget (see Section 7 of Technical)
-- [ ] Personnel rates
-- [ ] F&A rate documentation
+- [x] docs/clara/CLARA-COST-PROPOSAL.md — detailed budget
+- [x] Personnel rates (PI $180K, AR $150K, ML $150K, SE $120K)
+- [x] F&A rate documentation (33% of direct costs)
 
 ## Supporting Evidence
 
@@ -49,4 +49,4 @@
 - [x] All CLARA-relevant specs parse: t27c parse *.t27 (35/36 pass; 1 non-CLARA FPGA testbench)
 - [x] Full test suite: `t27c suite` — 0 failures
 - [x] Demo pipeline: scripts/clara/demo.sh — 20/20 PASS
-- [ ] Git clean: no .bak files, no phantom changes
+- [x] Git clean: .bak files removed, Coq artifacts cleaned

@@ -1,27 +1,24 @@
-DIGEST bbe10d9ae0e52e2f6807a7312bb833b5
+DIGEST e97bde0a74788790b2ea63082ac13fc6
 Fdl_bounds
-R27:31 Stdlib.Reals.Reals <> <> lib
-def 67:75 <> gamma_phi
-R79:79 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
-R91:93 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
-R85:88 Stdlib.Reals.R_sqrt <> sqrt def
-def 109:116 <> dl_lower
-R120:120 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
-R130:132 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
-R126:127 Stdlib.Reals.Rpower <> ln def
-R133:134 Stdlib.Reals.Rtrigo1 <> PI def
-def 149:156 <> dl_upper
-R160:160 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
-R170:172 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
-R166:167 Stdlib.Reals.Rpower <> ln def
-R173:174 Stdlib.Reals.Rtrigo1 <> PI def
-prf 187:212 <> gamma_phi_within_dl_bounds
-R224:226 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
-R236:238 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
-R216:223 dl_bounds <> dl_lower def
-R227:235 dl_bounds <> gamma_phi def
-R227:235 dl_bounds <> gamma_phi def
-R239:246 dl_bounds <> dl_upper def
-R265:272 dl_bounds <> dl_lower def
-R275:282 dl_bounds <> dl_upper def
-R285:293 dl_bounds <> gamma_phi def
+R15:19 Stdlib.Reals.Reals <> <> lib
+def 55:63 <> gamma_phi
+R67:67 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R78:80 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R72:75 Stdlib.Reals.R_sqrt <> sqrt def
+def 95:102 <> dl_lower
+R106:106 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R115:117 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R111:112 Stdlib.Reals.Rpower <> ln def
+R118:119 Stdlib.Reals.Rtrigo1 <> PI def
+def 133:140 <> dl_upper
+R144:144 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R153:155 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R149:150 Stdlib.Reals.Rpower <> ln def
+R156:157 Stdlib.Reals.Rtrigo1 <> PI def
+prf 169:194 <> gamma_phi_within_dl_bounds
+R206:208 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
+R218:220 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'<'_x_'<'_x not
+R198:205 dl_bounds <> dl_lower def
+R209:217 dl_bounds <> gamma_phi def
+R209:217 dl_bounds <> gamma_phi def
+R221:228 dl_bounds <> dl_upper def

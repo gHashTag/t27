@@ -1,3 +1,5 @@
+<!-- Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0 -->
+
 # CLARA TA1/TA2 Technical Narrative
 
 **Submission:** DARPA CLARA (Common Learning Repository for AI)

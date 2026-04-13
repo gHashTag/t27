@@ -1,0 +1,41 @@
+{
+  "roads": [
+    {
+      "id": "road-1",
+      "title": "Wave 8 Sprint 3 — Queen Trinity API Integration",
+      "description": "Connect Queen Trinity Chat to GitButler MCP or Claude API for real AI responses. Implement streaming responses, handle markdown rendering, and add conversation history persistence.",
+      "priority": "high",
+      "status": "pending",
+      "sp": 5,
+      "why": "Queen Trinity Chat currently returns placeholder echo responses. Real AI integration will enable the Orchestrator to provide actual value beyond the UI skeleton."
+    },
+    {
+      "id": "road-2",
+      "title": "Wave 8 Sprint 4 — CI Status Integration",
+      "description": "Add GitHub Actions CI status to RepoFleet cards. Query gh API for workflow status on each project and display passing/failing/running indicators with proper caching (60s).",
+      "priority": "medium",
+      "status": "pending",
+      "sp": 3,
+      "why": "Users need visibility into CI health without leaving GitButler. Current implementation has placeholder CI status."
+    },
+    {
+      "id": "road-3",
+      "title": "Wave 5 — Context Awareness Implementation",
+      "description": "Implement @ring mention support in Queen Trinity Chat and CodegenInput. Automatically include file content when user types @filename. Also add auto-context from unstaged changes. Create .gitbutler/rules.md for project-specific instructions.",
+      "priority": "high",
+      "status": "pending",
+      "sp": 4,
+      "why": "Without context awareness, Claude will hallucinate and users must constantly clarify requirements. This is the highest ROI feature from 2026 best practices."
+    }
+  ],
+  "lastUpdated": "2026-04-13T00:00:00Z",
+  "completedTasks": [
+    "Queen Trinity Chat component with copy button",
+    "Real repository data connection via PROJECTS_SERVICE",
+    "Activity Feed connected to episodes.jsonl",
+    "Ring Map connected to real git branches",
+    "Agent Detection from .claude/sessions/",
+    "AEL v2.0 initialized with subagents, skills, and hooks",
+    "All TypeScript errors fixed (0 errors, 2 warnings)"
+  ]
+}
