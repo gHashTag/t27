@@ -53,4 +53,5 @@ For the consolidated joint paper, see [`MASTER_PAPER.md`](MASTER_PAPER.md).
 | 36 | PM2 (sin²θ₁₃) | CANDIDATE | 3/(φπ³e) | 0.021998 | 1.55% vs 0.02234 (m_s/m_b) | SIMPLIFIED | PDG 2024 | 1.55% | φ, π, e — SIMPLIFIED: 3γφ²/(π³e) → 3/(φπ³e), complexity 4→3, PySR FOUND |
 | 37 | PM3 (sin²θ₂₃) | VERIFIED | 4πφ²/(3e³) | 0.545985 | 0.000000% | Numerical + exhaustive | PDG 2024 | <0.001% | φ, π, e |
 | 38 | PM4 (δ_CP) | CANDIDATE | 8π³/(9e²) | 3.729994 | 9.60% vs 3.403 rad | FOUND | PDG 2024 | 9.60% | π, e — PySR UNIQUE MINIMUM (complexity=3), DOES NOT MATCH δ_CP |
+| 33 | γ = φ⁻³ (GI1) | CANDIDATE | γ_φ = √5−2 ≈ 0.23607 | +0.62% vs γ₁ | CONJECTURAL | — | γ₁ (Meissner 2004) = 0.237533 | Domagala-Lewandowski bounds satisfied | — | — | — | — | — | — | — | — | — | — | — |
 | 39 | P16 (V_cb) | CANDIDATE | γ³π | 0.041330 | 0.31% vs 0.0411 | Numerical + exhaustive | PDG 2024 | 0.31% | γ, π |
