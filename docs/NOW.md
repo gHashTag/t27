@@ -1,6 +1,7 @@
 # Current Work — Trinity t27
 
-**April 14, 2026 — DARPA CLARA PA-25-07-02 Submission Package**
+**Last updated:** 2026-04-14
+**Active:** DARPA CLARA PA-25-07-02 Submission Package
 
 ## Active Work
 
