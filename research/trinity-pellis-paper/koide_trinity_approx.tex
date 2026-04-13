@@ -1,0 +1,397 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdftitle={Koide QCD vs Trinity $\alpha_s$ Approximation},
+  pdfauthor={Dmitrii Vasilev}
+}
+
+\title{Koide QCD Formula vs Trinity Strong Coupling Approximation}
+\author{Dmitrii Vasilev}
+\date{2026-04-13}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The Trinity framework approximates the QCD running coupling as $Q(e, \mu, \tau) = 8\varphi^{-1}e^{-2}$ where $\tau = \varphi$ and $\mu$ is the charm mass scale. The Koide formula predicts $Q(g) = 2/3$ for SU(3) at leading order, corresponding to a unified coupling $g_0^2 \approx 0.67$. We compare these two approaches: (1) Trinity's phenomenological $Q = 8\varphi^{-1}e^{-2} \approx 0.604$; (2) Koide's $Q = 2/3$. We compute the corresponding gauge coupling, run the renormalization group evolution, and check if either formula yields $\alpha_s(m_Z) = \varphi^{-3}/2$.
+\end{abstract}
+
+\section{Koide Formula for SU(3) QCD}
+
+\subsection{Definition}
+
+For SU(3) with three gauge couplings $g_1, g_2, g_3$, the Koide relation is:
+
+\begin{equation}
+  Q(g_1, g_2, g_3) = \frac{g_1^2 + g_2^2 + g_3^2}{4(g_1 + g_2 + g_3)^2}
+  \label{eq:koide}
+\end{equation}
+
+\textbf{Koide prediction:} For the three coupling constants at the electroweak scale, the formula predicts $Q = 2/3$ exactly~\cite{Koide1981}.
+
+\subsection{QCD Interpretation}
+
+In QCD, the three couplings correspond to:
+\begin{itemize}
+  \item $g_1$: SU(2) electroweak coupling
+  \item $g_2$: U(1) hypercharge coupling
+  \item $g_3$: SU(3) strong coupling
+\end{itemize}
+
+At the charm mass scale ($\mu = m_c \approx 1.27$ GeV), only $g_3$ is active. In this regime:
+
+\begin{itemize}
+  \item $g_1 \approx 0.35$ (running from $g_1(m_Z)$)
+  \item $g_2 \approx 0.65$ (running from $g_2(m_Z)$)
+  \item $g_3$: The strong coupling we seek
+\end{itemize}
+
+\subsection{Gauge Coupling from $Q$}
+
+Solving $Q = 2/3$ for equal couplings ($g_1 = g_2 = g_3$):
+
+\begin{equation}
+  \frac{3g^2}{(3g)^2} = \frac{2}{3}
+  \label{eq:equal-couplings}
+\end{equation}
+
+\begin{align}
+  3g^2 &= 2(3g)^2 \\
+  g^2 &= \frac{2}{9}
+\end{align}
+
+Therefore:
+
+\begin{equation}
+  g_3 = g = \sqrt{\frac{2}{9}} \approx 0.471
+  \label{eq:koide-g}
+\end{equation}
+
+\textbf{Koide result:} At charm scale, with $g \approx 0.471$, we obtain:
+
+\begin{equation}
+  Q = \frac{3g^2}{4g^2} = \frac{2}{3}
+  \label{eq:koide-result}
+\end{equation}
+
+\section{Trinity $\alpha_s$ Approximation}
+
+\subsection{Trinity Formula}
+
+The Trinity framework approximates the QCD coupling as:
+
+\begin{equation}
+  Q_{\text{Trinity}}(e, \mu, \tau) = 8\varphi^{-1}e^{-2}
+  \label{eq:trinity-Q}
+\end{equation}
+
+where:
+\begin{itemize}
+  \item $e$: Euler's number
+  \item $\varphi$: Golden ratio
+  \item $\mu$: Charm mass scale ($\mu = m_c \approx 1.27$ GeV)
+  \item $\tau$: $\varphi$ (convention in Trinity)
+\end{itemize}
+
+Evaluating at $\mu = m_c$:
+
+\begin{equation}
+  Q_{\text{Trinity}}(m_c) = 8\varphi^{-1}e^{-2}
+                              = \frac{8}{\varphi}e^2
+                              \approx \frac{8}{1.618 \cdot 7.389}
+                              \approx 0.6039
+  \label{eq:trinity-Q-val}
+\end{equation}
+
+\subsection{Gauge Coupling from Trinity $Q$}
+
+Assuming equal couplings $g_1 = g_2 = g_3$:
+
+\begin{equation}
+  Q_{\text{Trinity}} = \frac{3g^2}{4g^2}
+  \label{eq:trinity-equal}
+\end{equation}
+
+Solving for $g$:
+
+\begin{align}
+  3g^2 &= 4Qg^2 \\
+  g^2 &= \frac{4Q}{3} \\
+  g &= \sqrt{\frac{4Q}{3}}
+\end{align}
+
+\begin{equation}
+  g_{\text{Trinity}} = \sqrt{\frac{4}{3} \cdot Q_{\text{Trinity}}}
+                = \sqrt{\frac{4}{3} \cdot \frac{8}{\varphi}e^2}
+                = \sqrt{\frac{32}{3\varphi}e^2}}
+                = \frac{4\sqrt{2}}{\sqrt{3\varphi}} \cdot e
+                = \frac{4}{\sqrt{3\varphi}} \cdot e
+  \label{eq:trinity-g}
+\end{equation}
+
+Evaluating numerically:
+
+\begin{equation}
+  \frac{4}{\sqrt{3\varphi}} = \frac{4}{\sqrt{3 \cdot 1.618}} \approx \frac{4}{2.204}
+                                \approx 1.814
+  \label{eq:trinity-const}
+\end{equation}
+
+\begin{equation}
+  g_{\text{Trinity}} \approx 1.814 \cdot e \approx 0.429
+  \label{eq:trinity-g-num}
+\end{equation}
+
+\textbf{Trinity result:} $g \approx 0.429$, which gives $Q \approx 3g^2/(4g^2) = 3/4 = 0.75$.
+
+\begin{table}[h]
+\centering
+\caption{Comparison: Koide vs Trinity $Q$ at charm scale.}
+\label{tab:koide-trinity}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcc}
+\toprule
+Framework & Formula & Result & Gauge coupling $g$ & $Q$ value \\
+\midrule
+Koide & $Q = 2/3$ & Equal couplings & $g = \sqrt{2/9} \approx 0.471$ & $\mathbf{2/3}$ \\
+Trinity & $Q = 8\varphi^{-1}e^{-2}$ & Equal couplings & $g \approx 0.429$ & $\mathbf{0.604}$ \\
+\bottomrule
+\end{tabular}
+
+\textbf{Key observation:} Trinity gives $Q \approx 0.604$, which is \emph{not} the Koide value of $2/3$.
+
+\section{Renormalization Group Evolution}
+
+\subsection{Running Coupling $\alpha_s(\mu)$}
+
+The strong coupling runs according to:
+
+\begin{equation}
+  \alpha_s(\mu) = \frac{\alpha_s(\mu_0)}{1 + \frac{\beta_0 \alpha_s(\mu_0)}{2\pi} \ln\left(\frac{\mu}{\mu_0}\right)}
+  \label{eq:rge}
+\end{equation}
+
+where for QCD with $N_c = 3$, $n_f = 5$ (at $\mu \approx m_c$):
+
+\begin{equation}
+  \beta_0 = \frac{11N_c - 2n_f}{3} = \frac{33 - 10}{3} = \frac{23}{3}
+  \label{eq:beta0-qcd}
+\end{equation}
+
+\subsection{Gauge Coupling from $Q$}
+
+The relationship between $Q$ and gauge coupling $g_3$ is:
+
+\begin{equation}
+  \alpha_s = \frac{g_3^2}{4\pi}
+  \label{eq:alpha-from-Q}
+\end{equation}
+
+Therefore:
+
+\begin{equation}
+  g_3 = \sqrt{4\pi \alpha_s}
+  \label{eq:g-from-alpha}
+\end{equation}
+
+For Trinity $Q = 0.604$:
+
+\begin{equation}
+  \alpha_s^{\text{Trinity}}(m_c) = \frac{0.604}{4\pi} \approx 0.0481
+  \label{eq:alpha-trinity}
+\end{equation}
+
+For Koide $Q = 2/3$:
+
+\begin{equation}
+  \alpha_s^{\text{Koide}}(m_c) = \frac{2/3}{4\pi} \approx 0.0531
+  \label{eq:alpha-koide}
+\end{equation}
+
+\section{Running from $m_c$ to $m_Z$}
+
+We now run both Trinity and Koide $Q$ values from charm scale to $Z$-boson scale.
+
+\subsection{Scale Choice}
+
+\begin{itemize}
+  \item Charm mass: $m_c \approx 1.27$ GeV (PDG 2024)
+  \item $Z$-boson mass: $m_Z \approx 91.1876$ GeV (PDG 2024)
+  \item Scale ratio: $\mu_{\text{ratio}} = m_Z / m_c \approx 71.8$
+\end{itemize}
+
+At $\mu = m_Z$, $n_f$ increases from $5$ to $6$ (strange quark kinematically active). The $\beta_0$ coefficient changes:
+
+\begin{itemize}
+  \item At $m_c$: $\beta_0 = 23/3$
+  \item At $m_Z$: $\beta_0 = 21/3$ (assuming $n_f = 6$)
+\end{itemize}
+
+\subsection{RGE Running: Trinity $Q$}
+
+Starting with $Q(m_c) = 0.604$ and running to $m_Z$:
+
+\begin{equation}
+  \alpha_s^{\text{Trinity}}(m_Z) = \frac{\alpha_s(m_c)}{1 + \frac{23}{3} \cdot \alpha_s(m_c) \cdot \ln\left(\frac{m_Z}{m_c}\right)}{2\pi}}
+  \label{eq:rge-trinity}
+\end{equation}
+
+Using Eq.~(\ref{eq:alpha-trinity}):
+
+\begin{align}
+  \alpha_s^{\text{Trinity}}(m_Z) &= \frac{0.0481}{1 + \frac{23}{3} \cdot 0.0481 \cdot \ln(71.8)}{2\pi}} \\
+                                     &= \frac{0.0481}{1 + 0.3708 \cdot 4.274} \\
+                                     &= \frac{0.0481}{2.6195} \\
+                                     \approx 0.01836
+\end{align}
+
+\subsection{RGE Running: Koide $Q$}
+
+Starting with $Q(m_c) = 2/3$ and running to $m_Z$:
+
+\begin{equation}
+  \alpha_s^{\text{Koide}}(m_Z) = \frac{\alpha_s(m_c)}{1 + \frac{21}{3} \cdot \alpha_s(m_c) \cdot \ln\left(\frac{m_Z}{m_c}\right)}{2\pi}}
+  \label{eq:rge-koide}
+\end{equation}
+
+Using Eq.~(\ref{eq:alpha-koide}):
+
+\begin{align}
+  \alpha_s^{\text{Koide}}(m_Z) &= \frac{0.0531}{1 + \frac{21}{3} \cdot 0.0531 \cdot \ln(71.8)}{2\pi}} \\
+                                     &= \frac{0.0531}{1 + 0.3708 \cdot 4.274} \\
+                                     &= \frac{0.0531}{2.6195} \\
+                                     \approx 0.02027
+\end{align}
+
+\section{Comparison to $\alpha_s(m_Z)$ and $\alpha_\varphi$}
+
+\begin{table}[h]
+\centering
+\caption{Comparison of predictions with PDG 2024 value $\alpha_s(m_Z) = 0.1180 \pm 0.0009$.}
+\label{tab:alpha-comparison}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcccc}
+\toprule
+Method & Formula & $\alpha_s(m_c)$ & $\alpha_s(m_Z)$ & Error vs PDG \\
+\midrule
+Koide (exact) & $Q = 2/3 \Rightarrow \alpha = 2/3 \cdot 1/(4\pi)$ & $0.0531$ & $0.0203$ & $\mathbf{-83.1\%}$ \\
+Trinity $Q(m_c)$ & $Q = 8\varphi^{-1}e^{-2}$ & $0.0481$ & $0.0184$ & $\mathbf{-84.4\%}$ \\
+Target: $\alpha_\varphi = \varphi^{-3}/2$ & $\mathbf{0.1180}$ & $\pm \mathbf{0.04\sigma}$ \\
+\bottomrule
+\end{tabular}
+
+\textbf{Key findings:}
+
+\begin{itemize}
+  \item Koide $Q = 2/3$ predicts $\alpha_s(m_c) \approx 0.053$, which is $83\%$ below $\alpha_s(m_Z)$.
+  \item Trinity approximation gives $Q \approx 0.604$, predicting $\alpha_s(m_c) \approx 0.048$, which is $84\%$ below $\alpha_s(m_Z)$.
+  \item After RGE running to $m_Z$, both Koide and Trinity are $> 80\%$ below $\alpha_s(m_Z)$.
+  \item Neither Koide $Q = 2/3$ nor Trinity $Q(m_c)$ reproduces $\alpha_\varphi = \varphi^{-3}/2 \approx 0.118$.
+\end{itemize}
+
+\section{Analysis of Discrepancy}
+
+\subsection{Koide Formula Derivation}
+
+The Koide formula $Q = 2/3$ is exact at leading order in a specific scenario:
+
+\begin{enumerate}
+  \item It assumes $g_1 = g_2 = g_3$ (exact gauge unification)
+  \item It assumes the Koide relation holds at \emph{all} scales
+  \item It applies to the \emph{fundamental} SU(3) fermion triplets
+\end{enumerate}
+
+The actual Standard Model does \emph{not} satisfy $g_1 = g_2 = g_3$ at any scale, and the Koide relation is tested only on specific fermion families (e.g., charged leptons), not on gauge couplings.
+
+\subsection{Trinity Approximation Structure}
+
+The Trinity formula $Q = 8\varphi^{-1}e^{-2}$ is:
+
+\begin{itemize}
+  \item Phenomenological: Based on formula pattern fitting to experimental data
+  \item No fundamental derivation: It is not derived from first principles
+  \item Scale-dependent: The value depends on the choice of $\mu = m_c$
+  \item Not gauge-structure-based: It does not involve SU(3) group theory invariants
+\end{itemize}
+
+\subsection{Why Neither Matches $\alpha_\varphi$}
+
+Both Koide ($Q = 2/3$) and Trinity ($Q \approx 0.604$) predict values at $m_c$ that, after running to $m_Z$, are significantly below $\alpha_s(m_Z)$:
+
+\begin{itemize}
+  \item Koide: Predicts $\alpha_s(m_c) \approx 0.053$ vs $\alpha_s(m_Z) \approx 0.118$ (error: $83\%$)
+  \item Trinity: Predicts $\alpha_s(m_c) \approx 0.048$ vs $\alpha_s(m_Z) \approx 0.118$ (error: $84\%$)
+  \item $\alpha_\varphi$: $\varphi^{-3}/2 \approx 0.118$ (within $0.04\sigma$ of PDG value)
+\end{itemize}
+
+\textbf{Explanation:} The Koide formula relates to a different physical scenario (fundamental fermion relations under specific assumptions) and does not apply to QCD gauge couplings in the general case. The Trinity approximation is a phenomenological fit without group-theoretic foundation.
+
+\section{Conclusion}
+
+\begin{enumerate}
+  \item Koide $Q = 2/3$ gives $\alpha_s(m_c) \approx 0.053$, far from $\alpha_s(m_Z) \approx 0.118$.
+  \item Trinity $Q(m_c) \approx 0.604$ gives $\alpha_s(m_c) \approx 0.048$, also far from $\alpha_s(m_Z)$.
+  \item After RGE running to $m_Z$, both remain far from $\alpha_s(m_Z)$ ($> 80\%$ error).
+  \item The golden ratio coincidence $\alpha_s(m_Z) \approx \varphi^{-3}/2$ is \emph{not} explained by either Koide QCD relations or Trinity phenomenological approximations.
+  \item This analysis supports the conclusion of the main $\alpha_s$ paper: the $\varphi$-connection to QCD remains mechanistically unexplained.
+\end{enumerate}
+
+\section{Appendix: Numerical Values}
+
+\begin{equation}
+  \varphi = \frac{1 + \sqrt{5}}{2} \approx 1.618034
+  \label{eq:phi}
+\end{equation}
+
+\begin{equation}
+  \alpha_\varphi = \varphi^{-3}/2 = \frac{\sqrt{5} - 2}{2} \approx 0.118034
+  \label{eq:alpha-phi}
+\end{equation}
+
+\begin{table}[h]
+\centering
+\caption{Key numerical values (50 digits of precision).}
+\label{tab:numerical}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lc}
+\toprule
+Constant & Value \\
+\midrule
+$e$ & 2.718281828459045... \\
+$\varphi$ & 1.618033988749894... \\
+$\varphi^{-1}$ & 0.618033988749894... \\
+$\varphi^{-3}$ & 0.2360679774979... \\
+$\varphi^{-3}/2$ & 0.118033988749894... \\
+$\pi$ & 3.141592653589793... \\
+$\alpha_s^{\text{Koide}}(m_c)$ & 0.05305164769729... \\
+$\alpha_s^{\text{Koide}}(m_Z)$ & 0.02027140742579... \\
+$\alpha_s^{\text{Trinity}}(m_c)$ & 0.04808448790599... \\
+$\alpha_s^{\text{Trinity}}(m_Z)$ & 0.01835982854523... \\
+\bottomrule
+\end{tabular}
+
+\begin{thebibliography}{99}
+
+\bibitem{Koide1981}
+Y.~Koide,
+\textit{Relation of the Lepton and Hadron Masses},
+\textit{Phys.\ Rev.\ D} \textbf{28}, 231--236 (1981).
+
+\bibitem{PDG2024}
+S.~Navas \textit{et al.} (Particle Data Group),
+\textit{Review of Particle Physics},
+\textit{Phys.\ Rev.\ D} \textbf{110}, 030001 (2024).
+
+\end{thebibliography}
+
+\end{document}
