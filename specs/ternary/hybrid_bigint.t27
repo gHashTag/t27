@@ -40,7 +40,7 @@ pub const MEMORY_EFFICIENCY: gf16 = 5.0;
 /// Storage mode for HybridBigInt
 /// Packed mode: 5 trits per byte, memory efficient
 /// Unpacked mode: 1 trit per byte, compute efficient
-pub type StorageMode = enum {
+pub const StorageMode = enum(u8) {
     packed_mode,
     unpacked_mode,
 };

@@ -12,7 +12,20 @@
 
 mod bridge;
 mod compiler;
+mod enrichment;
 mod suite;
+mod railway;
+mod jwt;
+mod proxy;
+mod formula_eval;
+mod chimera_engine;
+mod sensitivity;
+mod runtime;
+mod neural;
+mod ternary;
+mod memory;
+// mod runtime_minimal;
+// mod runtime_minimal_test;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -85,6 +98,19 @@ enum Commands {
         #[arg(long)]
         verify: bool,
     },
+    /// Encode integer to ternary
+    TernaryEncode {
+        /// Value to encode (-1, 0, +1)
+        #[arg(short, long)]
+        value: i32,
+    },
+    /// Decode ternary to integer
+    TernaryDecode {
+        /// Ternary value to decode (e.g., "[-1, 0, 1]")
+        #[arg(short, long)]
+        trits: String,
+    },
+    /// Compile a .t27 file and write generated code to a file
 
     /// Compile a .t27 file and write generated code to a file
     Compile {
@@ -135,6 +161,68 @@ enum Commands {
     Bridge {
         #[command(subcommand)]
         command: bridge::BridgeCommands,
+    },
+
+    /// Enrich notebooks with YouTube transcripts
+    Enrich {
+        /// Notebook ID to enrich
+        #[arg(short, long)]
+        notebook: Option<String>,
+
+        /// Enrich all notebooks
+        #[arg(long)]
+        all: bool,
+
+        /// Force re-enrichment
+        #[arg(long)]
+        force: bool,
+
+        /// API token for NotebookLM
+        #[arg(short = 't', long)]
+        token: String,
+
+        /// Language code: ru, en, or both
+        #[arg(short, long, default_value = "both")]
+        lang: String,
+    },
+
+    /// Generate bilingual Audio Overviews
+    Audio {
+        /// Notebook ID
+        #[arg(short, long)]
+        notebook: Option<String>,
+
+        /// Bilingual mode (both languages)
+        #[arg(long)]
+        bilingual: bool,
+
+        /// All notebooks
+        #[arg(long)]
+        all: bool,
+
+        /// Dry run mode (verify only, no API calls)
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Number of parallel workers (default: 4)
+        #[arg(long, default_value = "4")]
+        workers: usize,
+
+        /// API token for NotebookLM
+        #[arg(short = 't', long)]
+        token: String,
+
+        /// Project number for API
+        #[arg(long)]
+        project: Option<String>,
+
+        /// API location (default: global)
+        #[arg(long)]
+        location: Option<String>,
+
+        /// API region (default: us)
+        #[arg(long)]
+        region: Option<String>,
     },
 
     /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
@@ -594,6 +682,40 @@ enum Commands {
         #[arg(short, long, default_value = "build/fpga")]
         output: String,
     },
+
+    /// FormulaOS: evaluate and search Trinity formulas
+    Formula {
+        #[command(subcommand)]
+        cmd: formula_eval::FormulaCommands,
+    },
+
+    /// Chimera search: find new formulas by combining existing ones
+    Chimera {
+        /// Maximum error percentage
+        #[arg(long, default_value = "1.0")]
+        threshold: f64,
+        /// Limit number of results
+        #[arg(long, default_value = "20")]
+        limit: usize,
+    },
+
+    /// Sensitivity analysis: scan formula response to parameter variations
+    Sensitivity {
+        /// Formula ID to analyze
+        id: String,
+        /// Parameter to vary (phi, pi, e)
+        #[arg(long, default_value = "phi")]
+        param: String,
+        /// Min value
+        #[arg(long)]
+        min: Option<f64>,
+        /// Max value
+        #[arg(long)]
+        max: Option<f64>,
+        /// Number of points
+        #[arg(long, default_value = "30")]
+        n: usize,
+    },
 }
 
 // ============================================================================
@@ -605,7 +727,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Json},
-    routing::{get, post},
+    routing::{get, post, delete, any},
     Router,
 };
 #[cfg(feature = "server")]
@@ -613,16 +735,30 @@ use tower_http::services::{ServeDir, ServeFile};
 #[cfg(feature = "server")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, RwLock};
 #[cfg(feature = "server")]
 use tokio_stream::wrappers::BroadcastStream;
 #[cfg(feature = "server")]
 use tokio::net::TcpListener;
+#[cfg(feature = "server")]
+use std::sync::Arc;
+
+#[cfg(feature = "server")]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Session {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub railway_service_id: String,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
 
 #[cfg(feature = "server")]
 #[derive(Clone)]
-struct AppState {
-    tx: broadcast::Sender<serde_json::Value>,
+pub struct AppState {
+    pub tx: broadcast::Sender<serde_json::Value>,
+    pub sessions: Arc<RwLock<Vec<Session>>>,
 }
 
 #[cfg(feature = "server")]
@@ -945,8 +1081,11 @@ async fn config_get_handler() -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn session_list_handler() -> impl IntoResponse {
-    Json(Vec::<serde_json::Value>::new())
+async fn session_list_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let sessions = state.sessions.read().await;
+    Json(serde_json::json!({
+        "data": *sessions
+    }))
 }
 
 #[cfg(feature = "server")]
@@ -955,57 +1094,211 @@ async fn session_status_handler() -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn session_id_handler(axum::extract::Path(id): axum::extract::Path<String>) -> impl IntoResponse {
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(std::time::Duration::from_secs(0))
-        .as_secs();
-
-    Json(serde_json::json!({
-        "id": id,
-        "slug": "default-session",
-        "projectID": "t27",
-        "workspaceID": "wrk_default",
-        "directory": "/app",
-        "title": "Welcome to OpenCode",
-        "version": "1.0",
-        "time": {
-            "created": current_time,
-            "updated": current_time
-        },
-        "summary": {
-            "additions": 0,
-            "deletions": 0,
-            "files": 0
-        }
-    }))
+async fn session_id_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let sessions = state.sessions.read().await;
+    if let Some(session) = sessions.iter().find(|s| s.id == id) {
+        Json(serde_json::json!({
+            "data": session
+        }))
+    } else {
+        Json(serde_json::json!({
+            "data": {
+                "id": id,
+                "name": format!("Session {}", id),
+                "status": "active",
+                "railway_service_id": format!("srv_{}", id),
+                "created_at": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::from_secs(0))
+                    .as_secs(),
+                "updated_at": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::from_secs(0))
+                    .as_secs()
+            }
+        }))
+    }
 }
 
 #[cfg(feature = "server")]
-async fn session_create_handler() -> impl IntoResponse {
+async fn session_delete_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let mut sessions = state.sessions.write().await;
+    if let Some(pos) = sessions.iter().position(|s| s.id == id) {
+        sessions[pos].status = "deleted".to_string();
+        sessions[pos].updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::from_secs(0))
+            .as_secs();
+        Json(serde_json::json!({
+            "data": sessions[pos].clone()
+        })).into_response()
+    } else {
+        (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": "Session not found"
+        }))).into_response()
+    }
+}
+
+#[cfg(feature = "server")]
+async fn session_create_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
     let current_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or(std::time::Duration::from_secs(0))
         .as_secs();
 
-    Json(serde_json::json!({
-        "id": "ses_default",
-        "slug": "default-session",
-        "projectID": "t27",
-        "workspaceID": "wrk_default",
-        "directory": "/app",
-        "title": "Welcome to OpenCode",
-        "version": "1.0",
-        "time": {
-            "created": current_time,
-            "updated": current_time
-        },
-        "summary": {
-            "additions": 0,
-            "deletions": 0,
-            "files": 0
+    let name = payload.get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Untitled Session")
+        .to_string();
+
+    let id = format!("ses_{}", current_time);
+    let mut railway_service_id = format!("srv_{}", current_time);
+    let mut status = "active".to_string();
+
+    // CREATE REAL RAILWAY SERVICE (if token available)
+    let railway_token = env::var("RAILWAY_API_TOKEN_0").ok();
+    let base_service_id = env::var("RAILWAY_SERVICE_ID").ok();
+
+    if let (Some(token), Some(base_id)) = (railway_token, base_service_id) {
+        match railway::create_railway_service(&name, &id, &token, &base_id).await {
+            Ok(service_id) => {
+                railway_service_id = service_id.clone();
+                status = "starting".to_string();
+
+                // Set session-specific environment variables
+                let session_vars = vec![
+                    (String::from("SESSION_ID"), id.clone()),
+                    (String::from("SESSION_NAME"), name.clone()),
+                ];
+                let _ = railway::set_service_variables(&service_id, &session_vars, &token).await;
+
+                // Start health polling in background
+                let sessions_clone = state.sessions.clone();
+                let token_clone = token;
+                let id_for_poller = id.clone();
+                tokio::spawn(async move {
+                    health_poller(id_for_poller, service_id, sessions_clone, token_clone).await;
+                });
+            }
+            Err(e) => {
+                eprintln!("Failed to create Railway service: {}", e);
+                // Fallback: in-memory only with mock status
+            }
         }
+    }
+
+    let session = Session {
+        id: id.clone(),
+        name,
+        status,
+        railway_service_id,
+        created_at: current_time,
+        updated_at: current_time,
+    };
+
+    // Store session
+    state.sessions.write().await.push(session.clone());
+
+    Json(serde_json::json!({
+        "data": session
     }))
+}
+
+/// Health poller for Railway services
+/// Polls the service health every 5 seconds for up to 2 minutes
+/// Updates session status to "active" when the service is ready
+#[cfg(feature = "server")]
+async fn health_poller(
+    session_id: String,
+    service_id: String,
+    sessions: Arc<RwLock<Vec<Session>>>,
+    railway_token: String,
+) {
+    const MAX_POLLS: u32 = 24; // 24 * 5 seconds = 2 minutes
+    const POLL_INTERVAL: tokio::time::Duration = tokio::time::Duration::from_secs(5);
+
+    for i in 0..MAX_POLLS {
+        tokio::time::sleep(POLL_INTERVAL).await;
+
+        // Check service health via Railway API
+        match railway::check_service_health(&service_id, &railway_token).await {
+            Ok(true) => {
+                // Service is healthy, update session status
+                let mut sessions_guard = sessions.write().await;
+                if let Some(session) = sessions_guard.iter_mut().find(|s| s.id == session_id) {
+                    session.status = "active".to_string();
+                    session.updated_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or(std::time::Duration::from_secs(0))
+                        .as_secs();
+                    println!("Session {} is now active", session_id);
+                }
+                return;
+            }
+            Ok(false) => {
+                // Service not ready yet, continue polling
+                if i % 4 == 0 {
+                    // Log every 20 seconds
+                    println!("Session {} still starting... ({}/{})", session_id, i + 1, MAX_POLLS);
+                }
+            }
+            Err(e) => {
+                eprintln!("Health check error for session {}: {}", session_id, e);
+            }
+        }
+    }
+
+    // After max polls, mark as error state
+    let mut sessions_guard = sessions.write().await;
+    if let Some(session) = sessions_guard.iter_mut().find(|s| s.id == session_id) {
+        session.status = "error".to_string();
+        session.updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::from_secs(0))
+            .as_secs();
+        eprintln!("Session {} failed to become active after timeout", session_id);
+    }
+}
+
+#[cfg(feature = "server")]
+async fn session_create_sandbox_token_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    // Find session to get its name
+    let sessions = state.sessions.read().await;
+    let session_name = sessions
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.name.clone())
+        .unwrap_or_else(|| "Untitled Session".to_string());
+    drop(sessions);
+
+    // Generate real JWT token
+    match jwt::create_sandbox_token(&id, Some(24)) {
+        Ok(token) => {
+            Json(serde_json::json!({
+                "data": {
+                    "token": token,
+                    "expiresIn": 86400,
+                    "sessionName": session_name
+                }
+            })).into_response()
+        }
+        Err(e) => {
+            eprintln!("Failed to create sandbox token: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into_response()
+        }
+    }
 }
 
 #[cfg(feature = "server")]
@@ -1945,7 +2238,10 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .parse::<u16>()?;
 
     let (tx, _) = broadcast::channel(100);
-    let state = AppState { tx };
+    let state = AppState {
+        tx,
+        sessions: Arc::new(RwLock::new(Vec::new())),
+    };
 
     let app = Router::new()
         .route("/health", get(health_handler))
@@ -1962,9 +2258,13 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/config", get(config_get_handler))
         .route("/config/providers", get(config_providers_handler))
         .route("/path", get(path_handler))
+        // Session routes (both singular and plural for compatibility)
         .route("/session", get(session_list_handler).post(session_create_handler))
+        .route("/sessions", get(session_list_handler).post(session_create_handler))
         .route("/session/status", get(session_status_handler))
-        .route("/session/:id", get(session_id_handler))
+        .route("/session/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id/token", post(session_create_sandbox_token_handler))
         .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
         .route("/session/:id/prompt_async", post(prompt_async_handler))
         .route("/session/:id/todo", get(session_todo_handler))
@@ -1996,6 +2296,8 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/deadcode", post(deadcode_handler))
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
+        .route("/sandbox", any(proxy::sandbox_proxy_handler))
+        .route("/sandbox/*path", any(proxy::sandbox_proxy_handler))
         .fallback_service(
             ServeDir::new("public")
                 .not_found_service(ServeFile::new("public/index.html"))
@@ -3454,6 +3756,63 @@ set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
     let bit_size = fs::metadata(&bit_output)?.len();
     println!("Bitstream: {} ({} bytes)", bit_output.display(), bit_size);
     println!("=== FPGA E2E build finished ===");
+    Ok(())
+}
+
+/// Run chimera search for finding new formulas
+fn run_chimera(_repo_root: &Path, threshold: f64, limit: usize) -> anyhow::Result<()> {
+    let base_formulas = chimera_engine::base_formula_values();
+    let operators = chimera_engine::default_operators();
+    let targets = chimera_engine::pdg_targets();
+
+    let results = chimera_engine::chimera_search(&base_formulas, &operators, &targets, threshold);
+
+    println!("| Target | Chimera | Value | Δ% | Status |");
+    println!("|--------|---------|-------|-----|--------|");
+    for r in results.iter().take(limit) {
+        println!(
+            "| {} | `{}` | {:.5} | {:.3}% | {} |",
+            r.target_name, r.expr, r.chimera_value, r.error_pct, r.status
+        );
+    }
+    if results.is_empty() {
+        println!("No chimera matches found within {}% threshold", threshold);
+    } else {
+        println!("\nFound {} chimera candidate(s)", results.len());
+    }
+    Ok(())
+}
+
+/// Run sensitivity analysis for a formula
+fn run_sensitivity(
+    _repo_root: &Path,
+    formula_id: &str,
+    param_name: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+    n: usize,
+) -> anyhow::Result<()> {
+    let range = match (min, max) {
+        (Some(mn), Some(mx)) => (mn, mx),
+        _ => sensitivity::default_param_range(param_name),
+    };
+
+    let points = sensitivity::sensitivity_scan(formula_id, param_name, range, n);
+
+    println!("| {} | F('{}') | Delta% |", param_name, formula_id);
+    println!("|--------|----------|--------|");
+    let step = if points.len() > 10 { points.len() / 10 } else { 1 };
+    for p in points.iter().step_by(step.max(1)) {
+        println!(
+            "| {:.4} | {:.3} | {:.3}% |",
+            p.param_value, p.formula_value, p.error_pct
+        );
+    }
+
+    if let Some(best) = sensitivity::find_minimum(&points) {
+        println!("\nMinimum at {}={:.6} -> Delta={:.3}%", param_name, best.param_value, best.error_pct);
+    }
+
     Ok(())
 }
 
@@ -6480,6 +6839,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
+        }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -6561,6 +6924,37 @@ async fn main() -> anyhow::Result<()> {
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
          }
+         Commands::Formula { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             formula_eval::run_formula_command(cmd, &repo_root)?;
+         }
+         Commands::Chimera { threshold, limit } => {
+             let repo_root = std::env::current_dir()?;
+             run_chimera(&repo_root, threshold, limit)?;
+         }
+         Commands::Sensitivity { id, param, min, max, n } => {
+             let repo_root = std::env::current_dir()?;
+             run_sensitivity(&repo_root, &id, &param, min, max, n)?;
+         }
+         Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
+        Commands::TernaryDecode { trits } => {
+            use crate::ternary::{parse_trits, decode_trits};
+            match parse_trits(&trits) {
+                Some(encoding) => {
+                    let decoded = decode_trits(encoding);
+                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                }
+                None => {
+                    eprintln!("Error: Invalid ternary format \"{}\"", trits);
+                    eprintln!("Expected format: [-1, 0, 1] or similar");
+                    std::process::exit(1);
+                }
+            }
+        }
      }
  
     Ok(())
@@ -6587,6 +6981,10 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
+        }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -6671,10 +7069,45 @@ fn main() -> anyhow::Result<()> {
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
          }
+         Commands::Formula { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             formula_eval::run_formula_command(cmd, &repo_root)?;
+         }
+         Commands::Chimera { threshold, limit } => {
+             let repo_root = std::env::current_dir()?;
+             run_chimera(&repo_root, threshold, limit)?;
+         }
+         Commands::Sensitivity { id, param, min, max, n } => {
+             let repo_root = std::env::current_dir()?;
+             run_sensitivity(&repo_root, &id, &param, min, max, n)?;
+         }
+        Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
             std::process::exit(1);
+        }
+        Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
+        Commands::TernaryDecode { trits } => {
+            use crate::ternary::{parse_trits, decode_trits};
+            match parse_trits(&trits) {
+                Some(encoding) => {
+                    let decoded = decode_trits(encoding);
+                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                }
+                None => {
+                    eprintln!("Error: Invalid ternary format. Use format like \"[-1, 0, 1]\"");
+                    std::process::exit(1);
+                }
+            }
         }
     }
 

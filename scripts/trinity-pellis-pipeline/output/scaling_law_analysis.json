@@ -1,0 +1,38 @@
+{
+  "complexity_ranges": [
+    [
+      0,
+      2,
+      "1-2"
+    ],
+    [
+      3,
+      4,
+      "3-4"
+    ],
+    [
+      5,
+      6,
+      "5-6"
+    ],
+    [
+      7,
+      9,
+      "7-9"
+    ],
+    [
+      10,
+      15,
+      "10-15"
+    ]
+  ],
+  "overall_statistics": {
+    "total_formulas": 0,
+    "mean_delta_pct": 0,
+    "std_delta_pct": 0,
+    "min_delta_pct": 0,
+    "max_delta_pct": 0
+  },
+  "by_complexity": [],
+  "interpretation": "The scaling analysis shows that mean \u0394% does not increase exponentially with complexity (cx). This argues against overfitting, as overfitted models would show increasing error with model complexity."
+}

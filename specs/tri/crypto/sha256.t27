@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/
+// Merkle-Damgard construction with 64-byte blocks | φ² + 1/φ² = 3 | TRINITY
+
+module TriSha256;
+    use base::types;
+    use math::constants;
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Types
+    // ═══════════════════════════════════════════════════════════
+
+    pub const SHA256 = struct {
+        state : [[8]U32",
+        buffer : [[64]U8",
+        count : "u64",
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Core Functions
+    // ═══════════════════════════════════════════════════════════
+
+    // init() → SHA256
+    fn init() -> SHA256 {
+        // TODO: Implement from .tri spec
+    }
+
+    // update(sha: *SHA256) → void
+    fn update(sha: *SHA256) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // final(sha: *SHA256) → void
+    fn final(sha: *SHA256) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // hash(data: []const u8) → void
+    fn hash(data: []const u8) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests (from .tri behaviors)
+    // ═══════════════════════════════════════════════════════════
+
+    test init_basic_case
+        given input = default_input()
+        when result = init(input)
+        then result != undefined
+
+    test update_basic_case
+        given input = default_input()
+        when result = update(input)
+        then result != undefined
+
+    test final_basic_case
+        given input = default_input()
+        when result = final(input)
+        then result != undefined
+
+    test hash_basic_case
+        given input = default_input()
+        when result = hash(input)
+        then result != undefined
+

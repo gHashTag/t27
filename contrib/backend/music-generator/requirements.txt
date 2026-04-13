@@ -1,0 +1,49 @@
+# T27 Music Generator Requirements
+# CPU-optimized dependencies for AI music generation
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+# Core ML
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+torchaudio>=2.0.0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+numpy>=1.24.0
+
+# Audio effects (Spotify Pedalboard)
+pedalboard>=0.7.0
+
+# Web UI
+gradio>=4.0.0
+
+# Configuration
+pyyaml>=6.0
+
+# Progress bars
+tqdm>=4.65.0
+
+# Pretty console output
+rich>=13.0.0
+
+# AudioCraft (for MusicGen)
+# Note: AudioCraft may require torch-audio-cuda for GPU features
+# CPU mode works with standard torch
+audiocraft>=1.0.0
+
+# Stable Audio (Stability AI)
+diffusers>=0.25.0
+# stable-audio-tools  # Optional: for direct API access
+
+# Model loading utilities
+accelerate>=0.20.0
+
+# Optional: FastAPI for API server
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

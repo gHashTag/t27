@@ -1,0 +1,114 @@
+{
+  "version": "1.0.0",
+  "project": "t27 Trinity S³AI",
+  "description": "GitButler hooks configuration for L1 TRACEABILITY and constitutional law enforcement",
+
+  "hooks": {
+    "pre-commit": {
+      "enabled": true,
+      "script": "scripts/githooks/commit-msg-traceability",
+      "description": "Enforces L1 TRACEABILITY - all commits must reference an issue"
+    },
+    "pre-push": {
+      "enabled": true,
+      "script": "scripts/githooks/l4-testability-check",
+      "description": "Warns about L4 TESTABILITY - .t27 files need test/invariant/bench"
+    }
+  },
+
+  "commitMessage": {
+    "aiGeneration": true,
+    "enforceL1Traceability": true,
+    "requiredFormat": "type(scope): description",
+    "mustInclude": "Closes #N or Fixes #N or Resolves #N",
+    "prompt": "Generate a commit message for t27 Trinity S³AI following these rules:\n1. Format: type(scope): description\n2. Types: feat, fix, docs, refactor, test, chore\n3. MUST include: 'Closes #N' for issue tracking (L1 TRACEABILITY)\n4. Reference relevant Invariant Laws if applicable (L1-L7)\n5. ASCII-only, English identifiers (L3 PURITY)\n6. If modifying .t27 specs, mention the spec file path\n\nExample:\nfeat(compiler): Add algorithm codegen placeholder\n\nThis adds placeholder support for algorithm code generation\nin the compiler frontend, enabling future work on\noptimization passes.\n\nCloses #42\n\nL2 GENERATION: gen/ files are generated from specs"
+  },
+
+  "branchManagement": {
+    "enforceNaming": true,
+    "patterns": {
+      "feature": "^feat/.+$",
+      "fix": "^fix/.+$",
+      "docs": "^docs/.+$",
+      "test": "^test/.+$",
+      "refactor": "^refactor/.+$",
+      "chore": "^chore/.+$",
+      "ring": "^ring-\\d{3}-.+$"
+    },
+    "stackTemplate": {
+      "phiLoop": {
+        "phases": [
+          "ring-NN-issue",
+          "ring-NN-spec",
+          "ring-NN-tdd",
+          "ring-NN-code",
+          "ring-NN-gen",
+          "ring-NN-seal",
+          "ring-NN-verify",
+          "ring-NN-land",
+          "ring-NN-learn"
+        ],
+        "dependencies": "sequential",
+        "description": "PHI LOOP stacked branches for ring development"
+      }
+    }
+  },
+
+  "invariantLaws": {
+    "L1_TRACEABILITY": {
+      "name": "TRACEABILITY",
+      "description": "No code merged without Closes #N",
+      "priority": 1,
+      "enforcement": "blocking"
+    },
+    "L2_GENERATION": {
+      "name": "GENERATION",
+      "description": "Files under gen/ are generated; edit specs instead",
+      "priority": 1,
+      "enforcement": "advisory"
+    },
+    "L3_PURITY": {
+      "name": "PURITY",
+      "description": "Source files must be ASCII-only with English identifiers",
+      "priority": 2,
+      "enforcement": "advisory"
+    },
+    "L4_TESTABILITY": {
+      "name": "TESTABILITY",
+      "description": "Every .t27 spec must contain test/invariant/bench",
+      "priority": 2,
+      "enforcement": "advisory"
+    },
+    "L5_IDENTITY": {
+      "name": "IDENTITY",
+      "description": "φ² = φ + 1; φ² + φ⁻² = 3",
+      "priority": 3,
+      "enforcement": "advisory"
+    },
+    "L6_CEILING": {
+      "name": "CEILING",
+      "description": "FORMAT-SPEC-001.json + gf16.t27 are numeric SSOT",
+      "priority": 3,
+      "enforcement": "advisory"
+    },
+    "L7_UNITY": {
+      "name": "UNITY",
+      "description": "No new *.sh on critical path; use tri/t27c",
+      "priority": 2,
+      "enforcement": "advisory"
+    }
+  },
+
+  "mcpIntegration": {
+    "enabled": true,
+    "server": {
+      "name": "t27-traceability",
+      "command": "node",
+      "args": ["scripts/mcp-traceability-server.js"],
+      "env": {
+        "ENFORCE_L1": "true",
+        "PROJECT_ROOT": "/Users/playra/t27"
+      }
+    }
+  }
+}

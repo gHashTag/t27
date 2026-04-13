@@ -1,0 +1,15 @@
+# Heavy subdirectories inside opencode
+external/opencode/node_modules/
+
+# Build artifacts
+target/
+node_modules/
+dist/
+
+# Git/CI
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
