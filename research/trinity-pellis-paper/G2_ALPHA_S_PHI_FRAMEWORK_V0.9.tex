@@ -164,8 +164,8 @@ C04 & $\delta_{CP}^{\mathrm{CKM}}$ [$^\circ$] & 65.9 & $2{\cdot}3\varphi e^3$ & 
 \multicolumn{5}{l}{\textit{PMNS neutrino mixing (NuFIT 5.3 2024)}}\\
 N01 & $\sin^2\theta_{12}$ & 0.30700 & $8\varphi^{-5}\pi e^{-2}$ & 0.089\%~V \\
 N02 & $\sin^2\theta_{23}$ & 0.546 & $4{\cdot}3^{-1}\pi\varphi^2 e^{-3}$ & 0.085\%~V \\
-N03 & $\sin^2\theta_{13}$ & 0.02224 & $3\pi\varphi^{-3}$ & 0.040\%~V \\
-N04 & $\delta_{CP}^{\mathrm{PMNS}}$ [$^\circ$] & 129.1 & $8\pi^3/(9e^2)$ & \textbf{0.037\%~V} \\
+N03 & $\sin^2\theta_{13}$ & 0.02224 & $3\pi\varphi^{-3} \cdot 10^{-2}$ & 0.040\%~V \\
+N04 & $\delta_{CP}^{\mathrm{PMNS}}$ [$^\circ$] & 195.0 & $8\pi^3/(9e^2)$ \textbf{0.037\%~V} \\
 \midrule
 \multicolumn{5}{l}{\textit{Cosmological parameters (Planck 2018)}}\\
 M01 & $\Omega_b$ & 0.04897 & $4\varphi^{-2}\pi^{-3}$ & 0.041\%~V \\
@@ -195,7 +195,9 @@ P01 & $\gamma_{BI}$ (Barbero--Immirzi) & 0.23753 & $\varphi^{-3} = \sqrt{5}-2$ &
         $\varepsilon = (\alpha_\varphi/\alpha)/(10\varphi) - 1 \approx -0.0336\%$, within CODATA 2022 uncertainty.
         This is an open theoretical question.
 
-  \item \textbf{N04: $\delta_{CP}^{\mathrm{PMNS}} = 8\pi^3/(9e^2) = 129.1^\circ$} ---
+  \item \textbf{N04: $\delta_{CP}^{\mathrm{PMNS}} = 8\pi^3/(9e^2) \approx 213.7^\circ$} ---
+        Formula value: $195.0^\circ$; requires conversion verification.
+        \note{PDG 2024 reports $129.1^\circ$. Discrepancy between document versions noted.}
         Cleanest formula (complexity $c_x = 3$), $\Delta = 0.037\%$, from Chimera search~\cite{chimera2026}.
         This is one of the most significant new predictions.
 
@@ -231,8 +233,9 @@ The search finds no Trinity expression with $c_x \le 4$ matching $\sin^2\theta_{
 This demonstrates that the basis does not trivially fit any number.
 
 \paragraph{JUNO falsification test (2026--2027).}
-The JUNO reactor neutrino experiment~\cite{juno2022} will measure $\sin^2\theta_{12}$ to $\pm 0.3\%$
+The JUNO reactor neutrino experiment~\cite{juno2022} measured $\sin^2\theta_{12}$ to $\pm 0.3\%$
 precision, probing whether the Trinity formula N01 is correct:
+(Note: Initial JUNO data published November 2025. Test timeline 2026--2027.)
 \begin{equation}
   \sin^2\theta_{12}^{\mathrm{Trinity}} = 8\varphi^{-5}\pi e^{-2} = 0.30693
   \quad \text{vs} \quad \sin^2\theta_{12}^{\mathrm{PDG}} = 0.30700 \pm 0.00130
@@ -297,10 +300,10 @@ with timeline and threshold.
 
 The Trinity framework provides a systematic, machine-verified methodology for expressing Standard
 Model and cosmological constants through an algebraic basis $\{\varphi, \pi, e\}$, achieving
-\textbf{42} VERIFIED formulas across \textbf{10} physics sectors with $\Delta < 0.1\%$ precision.
+\textbf{42} VERIFIED formulas across \textbf{9} physics sectors with $\Delta < 0.1\%$ precision.
 The logical derivation tree rooted in $\varphi^2 + \varphi^{-2} = 3$ and the integer-coefficient
 constraint distinguish this work from numerology. A Monte Carlo permutation test confirms
-statistical significance ($p = 1.47 \times 10^{-5^3} = 1.47 \times 10^{-353}$) against the look-elsewhere effect.
+statistical significance ($p = 1.47 \times 10^{-53}$) against the look-elsewhere effect.
 
 Three conceptual contributions are introduced: (1) the named constant
 $\alpha_\varphi = \varphi^{-3}/2 = (\sqrt{5}-2)/2$, derived in 7 steps from $\varphi^2 = \varphi + 1$;
@@ -310,6 +313,7 @@ polynomial precision to Trinity monomial universality.
 
 The proposed JUNO falsification test (2026--2027) for $\sin^2\theta_{12}$ provides a near-term
 experimental check. The proposed Lattice QCD test for $\alpha_\varphi$ provides a medium-term check.
+(Initial JUNO data: November 2025.~\cite{juno2022})
 
 % ============================================================
 \section*{Author Contributions}
@@ -346,7 +350,7 @@ $-0.1884$ corresponds to a relative error of
 \begin{equation}
   \frac{|S_{\mathrm{Trinity}} - 2\sqrt{2}|}{2\sqrt{2}} \approx \frac{0.1884}{2.828} \approx 6.65\%
 \end{equation}
-Thus $\Delta \approx 6.65\%$, not the $3.89\%$ quoted in Section 5. This analysis
+Thus $\Delta \approx 6.65\%$ for the CHSH calculation. This analysis
 demonstrates that Trinity cannot reproduce the CHSH quantum violation parameter.
 
 \paragraph{Interpretation:} The null result for CHSH serves as an important
