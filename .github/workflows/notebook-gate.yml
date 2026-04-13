@@ -11,9 +11,6 @@ on:
     branches:
       - '*'
       - '**/*'
-    # Allow pushes to master without gate (for deployments)
-    branches-ignore:
-      - 'master'
 
 permissions:
   pull-requests: write
