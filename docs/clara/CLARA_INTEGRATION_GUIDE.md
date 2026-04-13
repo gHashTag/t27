@@ -1,3 +1,5 @@
+<!-- Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0 -->
+
 # CLARA Integration Guide — VSA + AR + ML
 
 **Version:** 1.0
