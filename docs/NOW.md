@@ -1,9 +1,16 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-13
-**Active:** DARPA CLARA PA-25-07-02 Submission Package
+**Last updated:** 2026-04-14
+**Active:** CI fixes (PR #409) + DARPA CLARA PA-25-07-02 Submission Package
 
 ## Active Work
+
+**CI Fixes (PR #409)** — Fixing all workflow YAML syntax errors
+- seal-coverage.yml: Remove merge conflict markers
+- notebook-gate.yml: Remove branches-ignore conflict
+- phi-loop-ci.yml: Simplify grep commands
+- build-paper.yml: Fix pandoc command line breaks
+- Add ternary_encoding.rs (was gitignored)
 
 **DARPA CLARA Submission** — Complete submission package for April 17, 2026 deadline
 
