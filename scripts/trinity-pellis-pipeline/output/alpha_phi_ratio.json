@@ -1,0 +1,15 @@
+{
+  "alpha_phi": "0.11803398874989484820458683436563811772030917980576",
+  "alpha_formula": "phi^(-3) / 2",
+  "alpha_codata_2024": "0.0072973525692838009972851054723806635679725607012965",
+  "alpha_uncertainty": "0.00000000015",
+  "alpha_uncertainty_percent": 1.5e-08,
+  "computed_ratio": "16.174905574211456723660080478728044820995772932059",
+  "expected_ratio_10phi": "16.180339887498948482045868343656381177203091798058",
+  "epsilon": "-0.00033585903171850854901207180920672314936593980889663",
+  "epsilon_percent": -0.03358590317185085,
+  "delta_ratio_percent": 0.03358590317185085,
+  "is_excluded": true,
+  "exclusion_criteria": "|epsilon| < alpha_uncertainty",
+  "interpretation": "The deviation \u03b5 = -0.033585903171851% is GREATER than the CODATA uncertainty \u03b4\u03b1/\u03b1 = 0.000000015000000%. Therefore, the \u03b1_\u03c6 conjecture is EXCLUDED by current experimental precision."
+}
