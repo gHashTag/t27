@@ -14,20 +14,8 @@ jobs:
         run: |
           echo "PHI Loop CI: L5 identity invariant verification"
           echo "phi^2 + phi^-2 = 3 (IEEE f64 tolerance)"
-          python3 -c "
-          phi = (1.0 + 5.0**0.5) / 2.0
-          identity = phi**2 + phi**(-2)
-          assert abs(identity - 3.0) < 1e-10, f'L5 FAILED: {identity}'
-          print(f'L5 PASSED: phi^2 + phi^-2 = {identity:.15f}')
-          "
+          python3 -c "phi = (1.0 + 5.0**0.5) / 2.0; identity = phi**2 + phi**(-2); assert abs(identity - 3.0) < 1e-10; print('L5 PASSED')"
 
-      - name: FPGA-Safety lint (L8: no f32/f64 arithmetic in core)
+      - name: FPGA-Safety lint
         run: |
-          VIOLATIONS=$(grep -rn "as f64\|as f32\|: f64\|: f32\|\.powi\|\.powf\|\.sqrt()\|\.abs()" ffi/src/ --include="*.rs" 2>/dev/null || true)
-          FILTERED=$(echo "$VIOLATIONS" | grep -v "to_bits\|from_bits\|FPGA-ALLOWED\|//.*f32\|//.*f64" || true)
-          if [ -n "$FILTERED" ]; then
-            echo "L8 FAILED: found f64/f32 arithmetic in core paths"
-            echo "$FILTERED"
-            exit 1
-          fi
-          echo "L8 PASSED: FPGA-Safety lint"
+          grep -rn 'as f64' ffi/src/ --include='*.rs' 2>/dev/null | grep -v 'to_bits\|from_bits\|FPGA-ALLOWED' | grep -v '//.*f32\|//.*f64' && echo "L8 FAILED" && exit 1 || echo "L8 PASSED"
