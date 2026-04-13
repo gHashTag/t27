@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/
+// []const u8 | φ² + 1/φ² = 3 | TRINITY
+
+module "[]const u8";
+    use base::types;
+    use math::constants;
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Types
+    // ═══════════════════════════════════════════════════════════
+
+    pub const SpecField = struct {
+        field_type : [[]Const u8",
+    };
+
+    pub const SpecType = struct {
+    };
+
+    pub const SpecBehavior = struct {
+        inputs : [[]Const SpecField",
+        output : [[]Const u8",
+        steps : [[]Const [,
+    };
+
+    pub const SpecTemplate = struct {
+        module_name : [[]Const u8",
+        types : [[]Const SpecType",
+        behaviors : [[]Const SpecBehavior",
+    };
+
+    pub const WriteResult = struct {
+        spec_path : [[]Const u8",
+        generated_path : [[]Const u8",
+        compile_ok : "bool",
+        error_msg : [?[]Const u8",
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests (from .tri behaviors)
+    // ═══════════════════════════════════════════════════════════
+

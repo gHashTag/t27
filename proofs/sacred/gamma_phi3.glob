@@ -1,22 +1,14 @@
-DIGEST f2ae48992814099baecf3b43990a8e65
+DIGEST e5a254b2e49181c3d26e861e5071c227
 Fgamma_phi3
-R27:31 Stdlib.Reals.Reals <> <> lib
-def 67:69 <> phi
-R73:73 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
-R79:79 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
-R90:93 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
-R81:83 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
-R84:87 Stdlib.Reals.R_sqrt <> sqrt def
-def 109:117 <> gamma_phi
-R121:121 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
-R127:130 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
-R138:138 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
-R134:136 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
-R131:133 gamma_phi3 <> phi def
-prf 150:175 <> gamma_phi_is_sqrt5_minus_2
-R188:190 Corelib.Init.Logic <> ::type_scope:x_'='_x not
-R179:187 gamma_phi3 <> gamma_phi def
-R197:199 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
-R191:194 Stdlib.Reals.R_sqrt <> sqrt def
-R219:227 gamma_phi3 <> gamma_phi def
-R230:232 gamma_phi3 <> phi def
+R15:19 Stdlib.Reals.Reals <> <> lib
+def 55:57 <> phi
+R61:61 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R66:66 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R77:80 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R68:70 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R71:74 Stdlib.Reals.R_sqrt <> sqrt def
+def 95:103 <> gamma_phi
+R107:107 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R115:118 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R121:121 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R112:114 gamma_phi3 <> phi def

@@ -12,7 +12,20 @@
 
 mod bridge;
 mod compiler;
+mod enrichment;
 mod suite;
+mod railway;
+mod jwt;
+mod proxy;
+mod formula_eval;
+mod chimera_engine;
+mod sensitivity;
+mod runtime;
+mod neural;
+mod ternary;
+mod memory;
+// mod runtime_minimal;
+// mod runtime_minimal_test;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -54,27 +67,6 @@ enum Commands {
         input: String,
     },
 
-    /// Generate XDC constraints from board profile
-    GenXdc {
-        /// Board profile: minimal, full, or path to .t27 board spec
-        profile: String,
-        /// Output file path (stdout if omitted)
-        #[arg(long)]
-        output: Option<String>,
-    },
-
-    /// Check XDC pins against prjxray-db
-    CheckPins {
-        /// XDC file to validate
-        xdc: String,
-        /// prjxray-db artix7 directory
-        #[arg(long)]
-        db: Option<String>,
-    },
-
-    /// Verify gen-xdc output matches emitter_xdc.t27 spec expectations
-    XdcVerify,
-
     /// Generate C code (.c/.h style) from .t27 file
     GenC {
         /// Input file path
@@ -106,6 +98,19 @@ enum Commands {
         #[arg(long)]
         verify: bool,
     },
+    /// Encode integer to ternary
+    TernaryEncode {
+        /// Value to encode (-1, 0, +1)
+        #[arg(short, long)]
+        value: i32,
+    },
+    /// Decode ternary to integer
+    TernaryDecode {
+        /// Ternary value to decode (e.g., "[-1, 0, 1]")
+        #[arg(short, long)]
+        trits: String,
+    },
+    /// Compile a .t27 file and write generated code to a file
 
     /// Compile a .t27 file and write generated code to a file
     Compile {
@@ -156,6 +161,68 @@ enum Commands {
     Bridge {
         #[command(subcommand)]
         command: bridge::BridgeCommands,
+    },
+
+    /// Enrich notebooks with YouTube transcripts
+    Enrich {
+        /// Notebook ID to enrich
+        #[arg(short, long)]
+        notebook: Option<String>,
+
+        /// Enrich all notebooks
+        #[arg(long)]
+        all: bool,
+
+        /// Force re-enrichment
+        #[arg(long)]
+        force: bool,
+
+        /// API token for NotebookLM
+        #[arg(short = 't', long)]
+        token: String,
+
+        /// Language code: ru, en, or both
+        #[arg(short, long, default_value = "both")]
+        lang: String,
+    },
+
+    /// Generate bilingual Audio Overviews
+    Audio {
+        /// Notebook ID
+        #[arg(short, long)]
+        notebook: Option<String>,
+
+        /// Bilingual mode (both languages)
+        #[arg(long)]
+        bilingual: bool,
+
+        /// All notebooks
+        #[arg(long)]
+        all: bool,
+
+        /// Dry run mode (verify only, no API calls)
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Number of parallel workers (default: 4)
+        #[arg(long, default_value = "4")]
+        workers: usize,
+
+        /// API token for NotebookLM
+        #[arg(short = 't', long)]
+        token: String,
+
+        /// Project number for API
+        #[arg(long)]
+        project: Option<String>,
+
+        /// API location (default: global)
+        #[arg(long)]
+        location: Option<String>,
+
+        /// API region (default: us)
+        #[arg(long)]
+        region: Option<String>,
     },
 
     /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
@@ -575,17 +642,9 @@ enum Commands {
         #[arg(long)]
         minimal: bool,
 
-        /// Board profile: minimal (LED+UART), full (LED+UART+SPI+MAC), or custom XDC path
-        #[arg(long)]
-        profile: Option<String>,
-
-        /// Board: qmtech-a100t (default) or arty-a7 (auto-configures device, chipdb, XDC)
-        #[arg(long)]
-        board: Option<String>,
-
         /// FPGA device identifier (default: xc7a100tcsg324-1)
-        #[arg(long)]
-        device: Option<String>,
+        #[arg(long, default_value = "xc7a100tcsg324-1")]
+        device: String,
 
         /// Top-level module name (default: zerodsp_top)
         #[arg(long, default_value = "zerodsp_top")]
@@ -624,58 +683,39 @@ enum Commands {
         output: String,
     },
 
-    /// TRI PHI LOOP: show current status
-    #[command(name = "tri-status")]
-    TriStatus,
+    /// FormulaOS: evaluate and search Trinity formulas
+    Formula {
+        #[command(subcommand)]
+        cmd: formula_eval::FormulaCommands,
+    },
 
-    /// TRI PHI LOOP: begin a skill session
-    #[command(name = "tri-skill-begin")]
-    TriSkillBegin {
-        /// GitHub issue number
+    /// Chimera search: find new formulas by combining existing ones
+    Chimera {
+        /// Maximum error percentage
+        #[arg(long, default_value = "1.0")]
+        threshold: f64,
+        /// Limit number of results
+        #[arg(long, default_value = "20")]
+        limit: usize,
+    },
+
+    /// Sensitivity analysis: scan formula response to parameter variations
+    Sensitivity {
+        /// Formula ID to analyze
+        id: String,
+        /// Parameter to vary (phi, pi, e)
+        #[arg(long, default_value = "phi")]
+        param: String,
+        /// Min value
         #[arg(long)]
-        issue: String,
-        /// Task description
-        #[arg(short, long)]
-        desc: String,
+        min: Option<f64>,
+        /// Max value
+        #[arg(long)]
+        max: Option<f64>,
+        /// Number of points
+        #[arg(long, default_value = "30")]
+        n: usize,
     },
-
-    /// TRI PHI LOOP: end active skill session
-    #[command(name = "tri-skill-end")]
-    TriSkillEnd,
-
-    /// TRI PHI LOOP: record checkpoint in active cell
-    #[command(name = "tri-cell-checkpoint")]
-    TriCellCheckpoint {
-        /// Checkpoint description
-        #[arg(short, long)]
-        step: String,
-    },
-
-    /// TRI PHI LOOP: seal active cell
-    #[command(name = "tri-cell-seal")]
-    TriCellSeal,
-
-    /// TRI PHI LOOP: generate backends from spec
-    #[command(name = "tri-gen")]
-    TriGen {
-        /// Path to .t27 spec file
-        input: String,
-    },
-
-    /// TRI PHI LOOP: run spec tests
-    #[command(name = "tri-test")]
-    TriTest {
-        /// Path to .t27 spec file
-        input: String,
-    },
-
-    /// TRI PHI LOOP: check for toxic regressions
-    #[command(name = "tri-verdict")]
-    TriVerdict,
-
-    /// TRI PHI LOOP: save experience episode
-    #[command(name = "tri-experience-save")]
-    TriExperienceSave,
 }
 
 // ============================================================================
@@ -687,7 +727,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Json},
-    routing::{get, post},
+    routing::{get, post, delete, any},
     Router,
 };
 #[cfg(feature = "server")]
@@ -695,16 +735,30 @@ use tower_http::services::{ServeDir, ServeFile};
 #[cfg(feature = "server")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, RwLock};
 #[cfg(feature = "server")]
 use tokio_stream::wrappers::BroadcastStream;
 #[cfg(feature = "server")]
 use tokio::net::TcpListener;
+#[cfg(feature = "server")]
+use std::sync::Arc;
+
+#[cfg(feature = "server")]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Session {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub railway_service_id: String,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
 
 #[cfg(feature = "server")]
 #[derive(Clone)]
-struct AppState {
-    tx: broadcast::Sender<serde_json::Value>,
+pub struct AppState {
+    pub tx: broadcast::Sender<serde_json::Value>,
+    pub sessions: Arc<RwLock<Vec<Session>>>,
 }
 
 #[cfg(feature = "server")]
@@ -1027,8 +1081,11 @@ async fn config_get_handler() -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn session_list_handler() -> impl IntoResponse {
-    Json(Vec::<serde_json::Value>::new())
+async fn session_list_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let sessions = state.sessions.read().await;
+    Json(serde_json::json!({
+        "data": *sessions
+    }))
 }
 
 #[cfg(feature = "server")]
@@ -1037,57 +1094,211 @@ async fn session_status_handler() -> impl IntoResponse {
 }
 
 #[cfg(feature = "server")]
-async fn session_id_handler(axum::extract::Path(id): axum::extract::Path<String>) -> impl IntoResponse {
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(std::time::Duration::from_secs(0))
-        .as_secs();
-
-    Json(serde_json::json!({
-        "id": id,
-        "slug": "default-session",
-        "projectID": "t27",
-        "workspaceID": "wrk_default",
-        "directory": "/app",
-        "title": "Welcome to OpenCode",
-        "version": "1.0",
-        "time": {
-            "created": current_time,
-            "updated": current_time
-        },
-        "summary": {
-            "additions": 0,
-            "deletions": 0,
-            "files": 0
-        }
-    }))
+async fn session_id_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let sessions = state.sessions.read().await;
+    if let Some(session) = sessions.iter().find(|s| s.id == id) {
+        Json(serde_json::json!({
+            "data": session
+        }))
+    } else {
+        Json(serde_json::json!({
+            "data": {
+                "id": id,
+                "name": format!("Session {}", id),
+                "status": "active",
+                "railway_service_id": format!("srv_{}", id),
+                "created_at": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::from_secs(0))
+                    .as_secs(),
+                "updated_at": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or(std::time::Duration::from_secs(0))
+                    .as_secs()
+            }
+        }))
+    }
 }
 
 #[cfg(feature = "server")]
-async fn session_create_handler() -> impl IntoResponse {
+async fn session_delete_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let mut sessions = state.sessions.write().await;
+    if let Some(pos) = sessions.iter().position(|s| s.id == id) {
+        sessions[pos].status = "deleted".to_string();
+        sessions[pos].updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::from_secs(0))
+            .as_secs();
+        Json(serde_json::json!({
+            "data": sessions[pos].clone()
+        })).into_response()
+    } else {
+        (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": "Session not found"
+        }))).into_response()
+    }
+}
+
+#[cfg(feature = "server")]
+async fn session_create_handler(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
     let current_time = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or(std::time::Duration::from_secs(0))
         .as_secs();
 
-    Json(serde_json::json!({
-        "id": "ses_default",
-        "slug": "default-session",
-        "projectID": "t27",
-        "workspaceID": "wrk_default",
-        "directory": "/app",
-        "title": "Welcome to OpenCode",
-        "version": "1.0",
-        "time": {
-            "created": current_time,
-            "updated": current_time
-        },
-        "summary": {
-            "additions": 0,
-            "deletions": 0,
-            "files": 0
+    let name = payload.get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Untitled Session")
+        .to_string();
+
+    let id = format!("ses_{}", current_time);
+    let mut railway_service_id = format!("srv_{}", current_time);
+    let mut status = "active".to_string();
+
+    // CREATE REAL RAILWAY SERVICE (if token available)
+    let railway_token = env::var("RAILWAY_API_TOKEN_0").ok();
+    let base_service_id = env::var("RAILWAY_SERVICE_ID").ok();
+
+    if let (Some(token), Some(base_id)) = (railway_token, base_service_id) {
+        match railway::create_railway_service(&name, &id, &token, &base_id).await {
+            Ok(service_id) => {
+                railway_service_id = service_id.clone();
+                status = "starting".to_string();
+
+                // Set session-specific environment variables
+                let session_vars = vec![
+                    (String::from("SESSION_ID"), id.clone()),
+                    (String::from("SESSION_NAME"), name.clone()),
+                ];
+                let _ = railway::set_service_variables(&service_id, &session_vars, &token).await;
+
+                // Start health polling in background
+                let sessions_clone = state.sessions.clone();
+                let token_clone = token;
+                let id_for_poller = id.clone();
+                tokio::spawn(async move {
+                    health_poller(id_for_poller, service_id, sessions_clone, token_clone).await;
+                });
+            }
+            Err(e) => {
+                eprintln!("Failed to create Railway service: {}", e);
+                // Fallback: in-memory only with mock status
+            }
         }
+    }
+
+    let session = Session {
+        id: id.clone(),
+        name,
+        status,
+        railway_service_id,
+        created_at: current_time,
+        updated_at: current_time,
+    };
+
+    // Store session
+    state.sessions.write().await.push(session.clone());
+
+    Json(serde_json::json!({
+        "data": session
     }))
+}
+
+/// Health poller for Railway services
+/// Polls the service health every 5 seconds for up to 2 minutes
+/// Updates session status to "active" when the service is ready
+#[cfg(feature = "server")]
+async fn health_poller(
+    session_id: String,
+    service_id: String,
+    sessions: Arc<RwLock<Vec<Session>>>,
+    railway_token: String,
+) {
+    const MAX_POLLS: u32 = 24; // 24 * 5 seconds = 2 minutes
+    const POLL_INTERVAL: tokio::time::Duration = tokio::time::Duration::from_secs(5);
+
+    for i in 0..MAX_POLLS {
+        tokio::time::sleep(POLL_INTERVAL).await;
+
+        // Check service health via Railway API
+        match railway::check_service_health(&service_id, &railway_token).await {
+            Ok(true) => {
+                // Service is healthy, update session status
+                let mut sessions_guard = sessions.write().await;
+                if let Some(session) = sessions_guard.iter_mut().find(|s| s.id == session_id) {
+                    session.status = "active".to_string();
+                    session.updated_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or(std::time::Duration::from_secs(0))
+                        .as_secs();
+                    println!("Session {} is now active", session_id);
+                }
+                return;
+            }
+            Ok(false) => {
+                // Service not ready yet, continue polling
+                if i % 4 == 0 {
+                    // Log every 20 seconds
+                    println!("Session {} still starting... ({}/{})", session_id, i + 1, MAX_POLLS);
+                }
+            }
+            Err(e) => {
+                eprintln!("Health check error for session {}: {}", session_id, e);
+            }
+        }
+    }
+
+    // After max polls, mark as error state
+    let mut sessions_guard = sessions.write().await;
+    if let Some(session) = sessions_guard.iter_mut().find(|s| s.id == session_id) {
+        session.status = "error".to_string();
+        session.updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(std::time::Duration::from_secs(0))
+            .as_secs();
+        eprintln!("Session {} failed to become active after timeout", session_id);
+    }
+}
+
+#[cfg(feature = "server")]
+async fn session_create_sandbox_token_handler(
+    State(state): State<AppState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    // Find session to get its name
+    let sessions = state.sessions.read().await;
+    let session_name = sessions
+        .iter()
+        .find(|s| s.id == id)
+        .map(|s| s.name.clone())
+        .unwrap_or_else(|| "Untitled Session".to_string());
+    drop(sessions);
+
+    // Generate real JWT token
+    match jwt::create_sandbox_token(&id, Some(24)) {
+        Ok(token) => {
+            Json(serde_json::json!({
+                "data": {
+                    "token": token,
+                    "expiresIn": 86400,
+                    "sessionName": session_name
+                }
+            })).into_response()
+        }
+        Err(e) => {
+            eprintln!("Failed to create sandbox token: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into_response()
+        }
+    }
 }
 
 #[cfg(feature = "server")]
@@ -2027,7 +2238,10 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .parse::<u16>()?;
 
     let (tx, _) = broadcast::channel(100);
-    let state = AppState { tx };
+    let state = AppState {
+        tx,
+        sessions: Arc::new(RwLock::new(Vec::new())),
+    };
 
     let app = Router::new()
         .route("/health", get(health_handler))
@@ -2044,9 +2258,13 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/config", get(config_get_handler))
         .route("/config/providers", get(config_providers_handler))
         .route("/path", get(path_handler))
+        // Session routes (both singular and plural for compatibility)
         .route("/session", get(session_list_handler).post(session_create_handler))
+        .route("/sessions", get(session_list_handler).post(session_create_handler))
         .route("/session/status", get(session_status_handler))
-        .route("/session/:id", get(session_id_handler))
+        .route("/session/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id", get(session_id_handler).delete(session_delete_handler))
+        .route("/sessions/:id/token", post(session_create_sandbox_token_handler))
         .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
         .route("/session/:id/prompt_async", post(prompt_async_handler))
         .route("/session/:id/todo", get(session_todo_handler))
@@ -2078,6 +2296,8 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/deadcode", post(deadcode_handler))
         .route("/metrics", post(metrics_handler))
         .route("/coverage", post(coverage_handler))
+        .route("/sandbox", any(proxy::sandbox_proxy_handler))
+        .route("/sandbox/*path", any(proxy::sandbox_proxy_handler))
         .fallback_service(
             ServeDir::new("public")
                 .not_found_service(ServeFile::new("public/index.html"))
@@ -2148,286 +2368,6 @@ fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
     match compiler::Compiler::compile_rust(&source) {
         Ok(rust_code) => print!("{}", rust_code),
         Err(e) => anyhow::bail!("Compile error: {}", e),
-    }
-    Ok(())
-}
-
-struct PinAssignment {
-    package_pin: &'static str,
-    port: &'static str,
-    iostandard: &'static str,
-}
-
-struct ClockAssignment {
-    port: &'static str,
-    period_ns: &'static str,
-    waveform: &'static str,
-    name: &'static str,
-}
-
-fn xdc_qmtech_minimal() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
-    let pins = vec![
-        PinAssignment { package_pin: "E3",  port: "clk",     iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "C14", port: "rst_n",   iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T14", port: "uart_rx", iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T15", port: "uart_tx", iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "H17", port: "led[0]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "K15", port: "led[1]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "J13", port: "led[2]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "N14", port: "led[3]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "R18", port: "led[4]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "U18", port: "led[5]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T13", port: "led[6]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T11", port: "led[7]",  iostandard: "LVCMOS33" },
-    ];
-    let clocks = vec![
-        ClockAssignment { port: "clk", name: "sys_clk", period_ns: "83.333", waveform: "{0 41.666}" },
-    ];
-    (pins, clocks)
-}
-
-fn xdc_qmtech_full() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
-    let mut pins = vec![
-        PinAssignment { package_pin: "E3",  port: "clk",       iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "C14", port: "rst_n",     iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T14", port: "uart_rx",   iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T15", port: "uart_tx",   iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "H17", port: "led[0]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "K15", port: "led[1]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "J13", port: "led[2]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "N14", port: "led[3]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "R18", port: "led[4]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "U18", port: "led[5]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T13", port: "led[6]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T11", port: "led[7]",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "G8",  port: "spi_cs",    iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "G7",  port: "spi_sck",   iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "G5",  port: "spi_mosi",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "G6",  port: "spi_miso",  iostandard: "LVCMOS33" },
-    ];
-    let clocks = vec![
-        ClockAssignment { port: "clk", name: "sys_clk", period_ns: "83.333", waveform: "{0 41.666}" },
-    ];
-    let _ = &mut pins;
-    (pins, clocks)
-}
-
-fn xdc_arty_a7_minimal() -> (Vec<PinAssignment>, Vec<ClockAssignment>) {
-    let pins = vec![
-        PinAssignment { package_pin: "E3",  port: "clk",     iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "C12", port: "rst_n",   iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "C9",  port: "uart_rx", iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "A9",  port: "uart_tx", iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "R5",  port: "led[0]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T5",  port: "led[1]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T8",  port: "led[2]",  iostandard: "LVCMOS33" },
-        PinAssignment { package_pin: "T9",  port: "led[3]",  iostandard: "LVCMOS33" },
-    ];
-    let clocks = vec![
-        ClockAssignment { port: "clk", name: "sys_clk", period_ns: "10.0", waveform: "{0 5.0}" },
-    ];
-    (pins, clocks)
-}
-
-fn emit_xdc(pins: &[PinAssignment], clocks: &[ClockAssignment]) -> String {
-    let mut out = String::new();
-    for clock in clocks {
-        out.push_str(&format!(
-            "create_clock -add -name {} -period {} -waveform {} [get_ports {}]\n",
-            clock.name, clock.period_ns, clock.waveform, clock.port
-        ));
-    }
-    for pin in pins {
-        out.push_str(&format!(
-            "set_property -dict {{ PACKAGE_PIN {} IOSTANDARD {} }} [get_ports {}]\n",
-            pin.package_pin, pin.iostandard, pin.port
-        ));
-    }
-    out
-}
-
-fn xdc_for_profile(profile: &str) -> anyhow::Result<String> {
-    match profile {
-        "minimal" | "qmtech_xc7a100t_minimal" => {
-            let (pins, clocks) = xdc_qmtech_minimal();
-            Ok(emit_xdc(&pins, &clocks))
-        }
-        "full" | "qmtech_xc7a100t_full" => {
-            let (pins, clocks) = xdc_qmtech_full();
-            Ok(emit_xdc(&pins, &clocks))
-        }
-        "arty-a7-minimal" | "arty_a7_minimal" => {
-            let (pins, clocks) = xdc_arty_a7_minimal();
-            Ok(emit_xdc(&pins, &clocks))
-        }
-        _ => {
-            anyhow::bail!("Unknown board profile '{}'. Supported: minimal, full", profile)
-        }
-    }
-}
-
-fn run_gen_xdc(profile: &str, output: Option<&str>) -> anyhow::Result<()> {
-    let xdc = xdc_for_profile(profile)?;
-    match output {
-        Some(path) => {
-            fs::write(path, &xdc)?;
-            println!("XDC written to {}", path);
-        }
-        None => print!("{}", xdc),
-    }
-    Ok(())
-}
-
-fn run_check_pins(xdc_path: &str, db_path: Option<&str>) -> anyhow::Result<()> {
-    let repo_root = std::env::current_dir()?;
-    let db_dir = match db_path {
-        Some(p) => PathBuf::from(p),
-        None => {
-            let candidates = [
-                repo_root.join("build/nextpnr-xilinx/xilinx/external/prjxray-db/artix7"),
-                repo_root.join("build/fpga/prjxray-db/artix7"),
-            ];
-            candidates.into_iter().find(|p| p.exists())
-                .ok_or_else(|| anyhow::anyhow!("prjxray-db not found. Pass --db <path>"))?
-        }
-    };
-
-    let package_pins_csv = db_dir.join("xc7a100tcsg324-1/package_pins.csv");
-    if !package_pins_csv.exists() {
-        anyhow::bail!("package_pins.csv not found at {}", package_pins_csv.display());
-    }
-    let db_content = fs::read_to_string(&package_pins_csv)?;
-    let mut valid_pins: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for line in db_content.lines().skip(1) {
-        if let Some(pin) = line.split(',').next() {
-            valid_pins.insert(pin.to_uppercase());
-        }
-    }
-
-    let xdc_content = fs::read_to_string(xdc_path)?;
-    let mut found = 0u32;
-    let mut missing = 0u32;
-    let mut missing_list: Vec<String> = Vec::new();
-
-    for line in xdc_content.lines() {
-        let trimmed = line.trim();
-        if !trimmed.contains("PACKAGE_PIN") {
-            continue;
-        }
-        if let Some(idx) = trimmed.find("PACKAGE_PIN") {
-            let after = &trimmed[idx + "PACKAGE_PIN".len()..].trim_start();
-            let pin: String = after.chars().take_while(|c| c.is_alphanumeric()).collect();
-            if pin.is_empty() {
-                continue;
-            }
-            found += 1;
-            if !valid_pins.contains(&pin) {
-                missing += 1;
-                missing_list.push(pin.clone());
-                println!("  MISSING: {} (not in prjxray-db)", pin);
-            }
-        }
-    }
-
-    println!("Pin coverage: {}/{} valid ({} missing)", found - missing, found, missing);
-    if !missing_list.is_empty() {
-        println!("Missing pins: {}", missing_list.join(", "));
-    }
-    if missing > 0 {
-        println!("\nThese pins are real I/O pins but not yet in the prjxray-db.");
-        println!("Workaround: use --profile minimal for open-source flow (prjxray-verified pins only).");
-    }
-    Ok(())
-}
-
-fn run_xdc_verify() -> anyhow::Result<()> {
-    println!("=== XDC Verification: gen-xdc vs emitter_xdc.t27 spec ===\n");
-
-    struct SpecExpectation {
-        profile: &'static str,
-        expected_lines: usize,
-        expected_pins: usize,
-        expected_clocks: usize,
-        must_have_pins: &'static [&'static str],
-    }
-
-    let specs = [
-        SpecExpectation {
-            profile: "minimal",
-            expected_lines: 13,
-            expected_pins: 12,
-            expected_clocks: 1,
-            must_have_pins: &["clk", "rst_n", "uart_rx", "uart_tx", "led[0]", "led[7]"],
-        },
-        SpecExpectation {
-            profile: "full",
-            expected_lines: 17,
-            expected_pins: 16,
-            expected_clocks: 1,
-            must_have_pins: &["clk", "rst_n", "spi_cs", "spi_sck", "spi_mosi", "spi_miso"],
-        },
-        SpecExpectation {
-            profile: "arty-a7-minimal",
-            expected_lines: 9,
-            expected_pins: 8,
-            expected_clocks: 1,
-            must_have_pins: &["clk", "rst_n", "uart_rx", "uart_tx", "led[0]", "led[3]"],
-        },
-    ];
-
-    let mut all_pass = true;
-    for spec in &specs {
-        println!("Profile: {}", spec.profile);
-        let xdc = xdc_for_profile(spec.profile)?;
-        let lines: Vec<&str> = xdc.lines().filter(|l| !l.is_empty()).collect();
-        let clock_count = lines.iter().filter(|l| l.starts_with("create_clock")).count();
-        let pin_count = lines.iter().filter(|l| l.starts_with("set_property")).count();
-
-        let mut errors = 0u32;
-
-        if lines.len() != spec.expected_lines {
-            println!("  FAIL: line count {} != expected {}", lines.len(), spec.expected_lines);
-            errors += 1;
-        } else {
-            println!("  OK: line count = {}", lines.len());
-        }
-
-        if pin_count != spec.expected_pins {
-            println!("  FAIL: pin count {} != expected {}", pin_count, spec.expected_pins);
-            errors += 1;
-        } else {
-            println!("  OK: pin count = {}", pin_count);
-        }
-
-        if clock_count != spec.expected_clocks {
-            println!("  FAIL: clock count {} != expected {}", clock_count, spec.expected_clocks);
-            errors += 1;
-        } else {
-            println!("  OK: clock count = {}", clock_count);
-        }
-
-        for pin in spec.must_have_pins {
-            let found = xdc.contains(&format!("[get_ports {}]", pin));
-            if !found {
-                println!("  FAIL: missing pin '{}'", pin);
-                errors += 1;
-            } else {
-                println!("  OK: pin '{}' present", pin);
-            }
-        }
-
-        if errors > 0 {
-            all_pass = false;
-            println!("  Result: {} errors\n", errors);
-        } else {
-            println!("  Result: PASS\n");
-        }
-    }
-
-    if all_pass {
-        println!("=== All XDC verification checks PASSED ===");
-    } else {
-        anyhow::bail!("XDC verification failed");
     }
     Ok(())
 }
@@ -3291,8 +3231,6 @@ fn run_fpga_build(
     smoke: bool,
     synth_only: bool,
     minimal: bool,
-    profile: Option<&str>,
-    board: Option<&str>,
     device: &str,
     top: &str,
     docker: Option<bool>,
@@ -3304,26 +3242,6 @@ fn run_fpga_build(
     prjxray_db_path: Option<&str>,
     output: &str,
 ) -> anyhow::Result<()> {
-    let is_arty_a7 = matches!(board, Some("arty-a7"));
-    let effective_minimal = match profile {
-        Some("minimal") | Some("arty-a7-minimal") => true,
-        Some("full") => false,
-        Some(other) => {
-            eprintln!("Warning: unknown profile '{}', falling back to minimal. Supported: minimal, full, arty-a7-minimal", other);
-            true
-        }
-        None => minimal,
-    };
-    let profile_name = if is_arty_a7 {
-        "arty-a7-minimal"
-    } else if effective_minimal {
-        "minimal"
-    } else {
-        "full"
-    };
-    println!("=== FPGA Build: board = {}, profile = {}, device = {} ===",
-        board.unwrap_or("qmtech-a100t"), profile_name, device);
-
     let specs_dir = repo_root.join("specs/fpga");
     let build_dir = repo_root.join(output);
     let gen_dir = build_dir.join("generated");
@@ -3359,39 +3277,7 @@ fn run_fpga_build(
     }
 
     let top_wrapper = gen_dir.join(format!("{}.v", top));
-    if is_arty_a7 {
-        let wrapper_source = format!(
-r#"`timescale 1ns / 1ps
-
-module {top} (
-    input  wire        clk,
-    input  wire        rst_n,
-    input  wire        uart_rx,
-    output wire        uart_tx,
-    output wire [3:0]  led
-);
-    wire sys_clk   = clk;
-    wire sys_rst_n = rst_n;
-
-    reg [26:0] heartbeat_ctr;
-    always @(posedge sys_clk) begin
-        if (!sys_rst_n)
-            heartbeat_ctr <= 27'd0;
-        else
-            heartbeat_ctr <= heartbeat_ctr + 1'b1;
-    end
-
-    assign led[0] = heartbeat_ctr[24];
-    assign led[1] = heartbeat_ctr[23];
-    assign led[2] = 1'b0;
-    assign led[3] = 1'b0;
-    assign uart_tx = uart_rx;
-endmodule
-"#
-        );
-        fs::write(&top_wrapper, &wrapper_source)?;
-        println!("  OK {}.v (Arty A7 top-level)", top);
-    } else if effective_minimal {
+    if minimal {
         let wrapper_source = format!(
 r#"`timescale 1ns / 1ps
 
@@ -3553,7 +3439,7 @@ endmodule
         }
         println!("=== Synthesizing with Yosys (Docker) ===");
         let synth_script = build_dir.join("synth.ys");
-        let verilog_files = if effective_minimal {
+        let verilog_files = if minimal {
             format!("{gen}/{top}.v", gen = gen_dir.display(), top = top)
         } else {
             format!("{gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v", gen = gen_dir.display(), top = top)
@@ -3578,7 +3464,7 @@ endmodule
     } else {
         println!("=== Synthesizing with local Yosys ===");
         let synth_script = build_dir.join("synth.ys");
-        let verilog_files = if effective_minimal {
+        let verilog_files = if minimal {
             format!("{gen}/{top}.v", gen = gen_dir.display(), top = top)
         } else {
             format!("{gen}/mac.v {gen}/uart.v {gen}/spi.v {gen}/bridge.v {gen}/top_level.v {gen}/{top}.v", gen = gen_dir.display(), top = top)
@@ -3630,44 +3516,71 @@ endmodule
     let chipdb = match chipdb_path {
         Some(p) => PathBuf::from(p),
         None => {
-            let default = PathBuf::from(format!("build/fpga/chipdb/{}.bin", device));
+            let default = PathBuf::from("build/fpga/chipdb/xc7a100tcsg324-1.bin");
             if repo_root.join(&default).exists() {
                 repo_root.join(&default)
             } else {
-                anyhow::bail!("Chipdb not found at {}. Pass --chipdb <path> or run chipdb generation.", default.display());
+                anyhow::bail!("Chipdb not found. Pass --chipdb <path> or place at build/fpga/chipdb/{}.bin", device);
             }
         }
     };
 
+    // Generate nextpnr-compatible XDC.
+    // For minimal mode, produce a clean XDC with only valid chipdb pins.
+    // For full mode, preprocess the Vivado XDC for nextpnr compatibility.
     let xdc = synth_dir.join("nextpnr.xdc");
-    let xdc_content = xdc_for_profile(profile_name)?;
-    fs::write(&xdc, &xdc_content)?;
-    if !effective_minimal {
-        if let Some(xdc_override) = xdc_path {
-            let raw = fs::read_to_string(xdc_override).context("read XDC override")?;
-            let mut out = String::new();
-            for line in raw.lines() {
-                let trimmed = line.trim();
-                if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
-                    continue;
-                }
-                if trimmed.starts_with("set_false_path") {
-                    continue;
-                }
-                if trimmed.contains("[current_design]") {
-                    continue;
-                }
-                let l = if trimmed.contains("PULLUP") {
-                    trimmed.replace("PULLUP true", "").replace("  ", " ")
+    if minimal {
+        let minimal_xdc = r#"# nextpnr-compatible XDC for minimal design (prjxray-verified pins)
+set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
+create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
+set_property -dict { PACKAGE_PIN C14   IOSTANDARD LVCMOS33 } [get_ports rst_n]
+set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports uart_rx]
+set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
+set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports led[0]]
+set_property -dict { PACKAGE_PIN K15   IOSTANDARD LVCMOS33 } [get_ports led[1]]
+set_property -dict { PACKAGE_PIN J13   IOSTANDARD LVCMOS33 } [get_ports led[2]]
+set_property -dict { PACKAGE_PIN N14   IOSTANDARD LVCMOS33 } [get_ports led[3]]
+set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports led[4]]
+set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports led[5]]
+set_property -dict { PACKAGE_PIN T13   IOSTANDARD LVCMOS33 } [get_ports led[6]]
+set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
+"#;
+        fs::write(&xdc, minimal_xdc)?;
+    } else {
+        let xdc_source = match xdc_path {
+            Some(p) => PathBuf::from(p),
+            None => {
+                let default = repo_root.join("specs/fpga/constraints/qmtech_a100t.xdc");
+                if default.exists() {
+                    default
                 } else {
-                    trimmed.to_string()
-                };
-                let l = l.replace("[get_ports { ", "[get_ports ").replace(" }]", "]");
-                out.push_str(&l);
-                out.push('\n');
+                    anyhow::bail!("XDC constraints not found. Pass --xdc <path>");
+                }
             }
-            fs::write(&xdc, &out)?;
+        };
+        let raw = fs::read_to_string(&xdc_source).context("read XDC")?;
+        let mut out = String::new();
+        for line in raw.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
+                continue;
+            }
+            if trimmed.starts_with("set_false_path") {
+                continue;
+            }
+            if trimmed.contains("[current_design]") {
+                continue;
+            }
+            let l = if trimmed.contains("PULLUP") {
+                trimmed.replace("PULLUP true", "").replace("  ", " ")
+            } else {
+                trimmed.to_string()
+            };
+            let l = l.replace("[get_ports { ", "[get_ports ").replace(" }]", "]");
+            out.push_str(&l);
+            out.push('\n');
         }
+        fs::write(&xdc, &out)?;
     }
 
     let fasm_output = synth_dir.join("design.fasm");
@@ -3842,471 +3755,64 @@ endmodule
 
     let bit_size = fs::metadata(&bit_output)?.len();
     println!("Bitstream: {} ({} bytes)", bit_output.display(), bit_size);
-     println!("=== FPGA E2E build finished ===");
-     Ok(())
- }
-
-fn tri_find_repo_root() -> anyhow::Result<PathBuf> {
-    let mut dir = std::env::current_dir()?;
-    loop {
-        if dir.join(".trinity").is_dir() {
-            return Ok(dir);
-        }
-        if !dir.pop() {
-            anyhow::bail!("Not inside a Trinity repo (no .trinity/ found)");
-        }
-    }
-}
-
-fn tri_read_json<T: serde::de::DeserializeOwned>(path: &Path) -> anyhow::Result<T> {
-    let s = fs::read_to_string(path).context("read json")?;
-    Ok(serde_json::from_str(&s)?)
-}
-
-fn tri_write_json(path: &Path, data: &impl serde::Serialize) -> anyhow::Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let s = serde_json::to_string_pretty(data)?;
-    fs::write(path, s)?;
+    println!("=== FPGA E2E build finished ===");
     Ok(())
 }
 
-fn tri_append_event(repo_root: &Path, event: &serde_json::Value) -> anyhow::Result<()> {
-    let log_path = repo_root.join(".trinity/events/akashic-log.jsonl");
-    if let Some(parent) = log_path.parent() {
-        fs::create_dir_all(parent)?;
+/// Run chimera search for finding new formulas
+fn run_chimera(_repo_root: &Path, threshold: f64, limit: usize) -> anyhow::Result<()> {
+    let base_formulas = chimera_engine::base_formula_values();
+    let operators = chimera_engine::default_operators();
+    let targets = chimera_engine::pdg_targets();
+
+    let results = chimera_engine::chimera_search(&base_formulas, &operators, &targets, threshold);
+
+    println!("| Target | Chimera | Value | Δ% | Status |");
+    println!("|--------|---------|-------|-----|--------|");
+    for r in results.iter().take(limit) {
+        println!(
+            "| {} | `{}` | {:.5} | {:.3}% | {} |",
+            r.target_name, r.expr, r.chimera_value, r.error_pct, r.status
+        );
     }
-    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&log_path)?;
-    use std::io::Write;
-    writeln!(f, "{}", serde_json::to_string(event)?)?;
-    Ok(())
-}
-
-fn tri_timestamp() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
-struct ActiveSkill {
-    skill_id: Option<String>,
-    session_id: Option<String>,
-    issue_id: Option<String>,
-    issue_title: Option<String>,
-    description: Option<String>,
-    started_at: Option<String>,
-    started_by: Option<String>,
-    status: String,
-    allowed_paths: Vec<String>,
-}
-
-impl Default for ActiveSkill {
-    fn default() -> Self {
-        Self {
-            skill_id: None,
-            session_id: None,
-            issue_id: None,
-            issue_title: None,
-            description: None,
-            started_at: None,
-            started_by: None,
-            status: "closed".into(),
-            allowed_paths: vec![],
-        }
-    }
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
-struct Checkpoint {
-    step: u32,
-    name: String,
-    hash: String,
-    at: String,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Clone)]
-struct Cell {
-    id: String,
-    skill: String,
-    issue: Option<String>,
-    issue_title: Option<String>,
-    episode: String,
-    agent: String,
-    spec_path: Option<String>,
-    started_at: String,
-    checkpoints: Vec<Checkpoint>,
-    state: String,
-    verdict: Option<String>,
-    commit: Option<String>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct CellRegistry {
-    version: String,
-    active_cell: Option<String>,
-    cells: Vec<Cell>,
-}
-
-fn run_tri_status() -> anyhow::Result<()> {
-    let repo_root = tri_find_repo_root()?;
-    let state_path = repo_root.join(".trinity/state/active-skill.json");
-    let skill: ActiveSkill = if state_path.exists() {
-        tri_read_json(&state_path).unwrap_or_default()
+    if results.is_empty() {
+        println!("No chimera matches found within {}% threshold", threshold);
     } else {
-        ActiveSkill::default()
+        println!("\nFound {} chimera candidate(s)", results.len());
+    }
+    Ok(())
+}
+
+/// Run sensitivity analysis for a formula
+fn run_sensitivity(
+    _repo_root: &Path,
+    formula_id: &str,
+    param_name: &str,
+    min: Option<f64>,
+    max: Option<f64>,
+    n: usize,
+) -> anyhow::Result<()> {
+    let range = match (min, max) {
+        (Some(mn), Some(mx)) => (mn, mx),
+        _ => sensitivity::default_param_range(param_name),
     };
 
-    let ts = tri_timestamp();
-    println!("PHI LOOP Status ({})", &ts[..10]);
-    println!();
+    let points = sensitivity::sensitivity_scan(formula_id, param_name, range, n);
 
-    let reg_path = repo_root.join(".trinity/cells/registry.json");
-    let active_cell_id = if reg_path.exists() {
-        let reg: CellRegistry = tri_read_json(&reg_path).unwrap_or(CellRegistry {
-            version: "2.0".into(),
-            active_cell: None,
-            cells: vec![],
-        });
-        reg.active_cell
-    } else {
-        None
-    };
-
-    println!("Trinity Coordination:");
-    if skill.status == "active" {
-        println!("  Active Skill:  {}", skill.skill_id.as_deref().unwrap_or("NONE"));
-        println!("  Session:       {}", skill.session_id.as_deref().unwrap_or("NONE"));
-        println!("  Issue:         #{}", skill.issue_id.as_deref().unwrap_or("NONE"));
-        println!("  Description:   {}", skill.description.as_deref().unwrap_or(""));
-    } else {
-        println!("  Active Skill:  NONE");
-        println!("  Session:       NONE");
-        println!("  Issue:         NONE");
-    }
-    println!("  Active Cell:   {}", active_cell_id.as_deref().unwrap_or("NONE"));
-    println!();
-    println!("Guard:");
-    println!("  NO-COMMIT-WITHOUT-ISSUE enforced");
-    println!("  NO-MUTATION-WITHOUT-CELL enforced");
-    println!();
-
-    if skill.status != "active" {
-        println!("ERROR: Cannot commit or seal without active cell + issue.");
-        println!();
-        println!("Required Actions:");
-        println!("  1. t27c tri-skill-begin --issue N --desc \"task\"");
-        println!("  2. t27c tri-status");
-    } else {
-        println!("Available Actions:");
-        println!("  1. t27c tri-cell-checkpoint --step \"<desc>\"");
-        println!("  2. t27c tri-gen <spec_path>");
-        println!("  3. t27c tri-test <spec_path>");
-        println!("  4. t27c tri-cell-seal");
-    }
-    Ok(())
-}
-
-fn run_tri_skill_begin(issue: &str, desc: &str) -> anyhow::Result<()> {
-    let repo_root = tri_find_repo_root()?;
-    let state_path = repo_root.join(".trinity/state/active-skill.json");
-    let ts = tri_timestamp();
-    let skill_id = format!("skill-{}-{}", issue, &ts[..10]);
-    let session_id = format!("{}#{}", ts, skill_id);
-
-    let skill = ActiveSkill {
-        skill_id: Some(skill_id.clone()),
-        session_id: Some(session_id.clone()),
-        issue_id: Some(issue.into()),
-        issue_title: None,
-        description: Some(desc.into()),
-        started_at: Some(ts.clone()),
-        started_by: Some("agent:opencode".into()),
-        status: "active".into(),
-        allowed_paths: vec!["specs/".into(), "gen/".into(), ".trinity/".into()],
-    };
-    tri_write_json(&state_path, &skill)?;
-
-    let reg_path = repo_root.join(".trinity/cells/registry.json");
-    let mut reg: CellRegistry = if reg_path.exists() {
-        tri_read_json(&reg_path).unwrap_or(CellRegistry {
-            version: "2.0".into(),
-            active_cell: None,
-            cells: vec![],
-        })
-    } else {
-        CellRegistry {
-            version: "2.0".into(),
-            active_cell: None,
-            cells: vec![],
-        }
-    };
-
-    let cell_id = format!("cell-{}-{}", &ts[..10], &skill_id[..16]);
-    let cell = Cell {
-        id: cell_id.clone(),
-        skill: skill_id.clone(),
-        issue: Some(issue.into()),
-        issue_title: None,
-        episode: skill_id.clone(),
-        agent: "T".into(),
-        spec_path: None,
-        started_at: ts.clone(),
-        checkpoints: vec![],
-        state: "active".into(),
-        verdict: None,
-        commit: None,
-    };
-    reg.active_cell = Some(cell_id.clone());
-    reg.cells.push(cell);
-    tri_write_json(&reg_path, &reg)?;
-
-    tri_append_event(&repo_root, &serde_json::json!({
-        "ts": ts,
-        "event": "skill.begin",
-        "agent_id": "agent:opencode",
-        "trace_id": format!("{}#begin", session_id),
-        "task_id": format!("ISSUE-{}", issue),
-        "spec_path": skill_id,
-        "result": "success",
-        "metadata": {
-            "skill_id": skill_id,
-            "session_id": session_id,
-            "description": desc,
-            "origin": "opencode"
-        }
-    }))?;
-
-    println!("Skill began: {}", skill_id);
-    println!("Cell created: {}", cell_id);
-    println!("Issue: #{}", issue);
-    Ok(())
-}
-
-fn run_tri_skill_end() -> anyhow::Result<()> {
-    let repo_root = tri_find_repo_root()?;
-    let state_path = repo_root.join(".trinity/state/active-skill.json");
-    let mut skill: ActiveSkill = if state_path.exists() {
-        tri_read_json(&state_path).unwrap_or_default()
-    } else {
-        ActiveSkill::default()
-    };
-
-    if skill.status != "active" {
-        anyhow::bail!("No active skill to end");
+    println!("| {} | F('{}') | Delta% |", param_name, formula_id);
+    println!("|--------|----------|--------|");
+    let step = if points.len() > 10 { points.len() / 10 } else { 1 };
+    for p in points.iter().step_by(step.max(1)) {
+        println!(
+            "| {:.4} | {:.3} | {:.3}% |",
+            p.param_value, p.formula_value, p.error_pct
+        );
     }
 
-    let ts = tri_timestamp();
-    let old_skill = skill.skill_id.clone();
-    skill.status = "closed".into();
-    skill.skill_id = None;
-    skill.session_id = None;
-    tri_write_json(&state_path, &skill)?;
-
-    let reg_path = repo_root.join(".trinity/cells/registry.json");
-    if reg_path.exists() {
-        let mut reg: CellRegistry = tri_read_json(&reg_path)?;
-        if let Some(ref cell_id) = reg.active_cell {
-            for cell in &mut reg.cells {
-                if &cell.id == cell_id && cell.state == "active" {
-                    cell.state = "closed".into();
-                }
-            }
-        }
-        reg.active_cell = None;
-        tri_write_json(&reg_path, &reg)?;
+    if let Some(best) = sensitivity::find_minimum(&points) {
+        println!("\nMinimum at {}={:.6} -> Delta={:.3}%", param_name, best.param_value, best.error_pct);
     }
 
-    tri_append_event(&repo_root, &serde_json::json!({
-        "ts": ts,
-        "event": "skill.end",
-        "agent_id": "agent:opencode",
-        "result": "success",
-        "metadata": { "skill_id": old_skill }
-    }))?;
-
-    println!("Skill ended.");
-    Ok(())
-}
-
-fn run_tri_cell_checkpoint(step: &str) -> anyhow::Result<()> {
-    let repo_root = tri_find_repo_root()?;
-    let reg_path = repo_root.join(".trinity/cells/registry.json");
-    if !reg_path.exists() {
-        anyhow::bail!("No cell registry found");
-    }
-    let mut reg: CellRegistry = tri_read_json(&reg_path)?;
-    let cell_id = reg.active_cell.as_ref().ok_or_else(|| anyhow::anyhow!("No active cell"))?;
-
-    let ts = tri_timestamp();
-    let mut found = false;
-    for cell in &mut reg.cells {
-        if cell.id == *cell_id {
-            let step_num = cell.checkpoints.len() as u32 + 1;
-            let hash = if let Some(ref sp) = cell.spec_path {
-                let spec_path = repo_root.join(sp);
-                if spec_path.exists() {
-                    use sha2::{Sha256, Digest};
-                    let data = fs::read(&spec_path)?;
-                    let mut hasher = Sha256::new();
-                    hasher.update(&data);
-                    format!("sha256:{:x}", hasher.finalize())
-                } else {
-                    "sha256:no-spec".into()
-                }
-            } else {
-                "sha256:checkpoint".into()
-            };
-            cell.checkpoints.push(Checkpoint {
-                step: step_num,
-                name: step.into(),
-                hash: hash.clone(),
-                at: ts.clone(),
-            });
-            found = true;
-            println!("Checkpoint {step_num}: {step}");
-            println!("  hash: {hash}");
-            break;
-        }
-    }
-    if !found {
-        anyhow::bail!("Active cell {} not found in registry", cell_id);
-    }
-    tri_write_json(&reg_path, &reg)?;
-
-    tri_append_event(&repo_root, &serde_json::json!({
-        "ts": ts,
-        "event": "cell.checkpoint",
-        "agent_id": "agent:opencode",
-        "result": "success",
-        "metadata": { "cell_id": cell_id, "step": step }
-    }))?;
-    Ok(())
-}
-
-fn run_tri_cell_seal() -> anyhow::Result<()> {
-    let repo_root = tri_find_repo_root()?;
-    let reg_path = repo_root.join(".trinity/cells/registry.json");
-    if !reg_path.exists() {
-        anyhow::bail!("No cell registry found");
-    }
-    let mut reg: CellRegistry = tri_read_json(&reg_path)?;
-    let cell_id = reg.active_cell.as_ref().ok_or_else(|| anyhow::anyhow!("No active cell"))?;
-
-    let ts = tri_timestamp();
-    for cell in &mut reg.cells {
-        if cell.id == *cell_id {
-            cell.state = "sealed".into();
-            cell.verdict = Some("clean".into());
-            println!("Cell sealed: {}", cell_id);
-            break;
-        }
-    }
-    tri_write_json(&reg_path, &reg)?;
-
-    tri_append_event(&repo_root, &serde_json::json!({
-        "ts": ts,
-        "event": "cell.seal",
-        "agent_id": "agent:opencode",
-        "result": "success",
-        "metadata": { "cell_id": cell_id, "verdict": "clean" }
-    }))?;
-    Ok(())
-}
-
-fn run_tri_gen(input: &str) -> anyhow::Result<()> {
-    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
-    for backend in &["verilog", "c", "rust"] {
-        let cmd = format!("gen-{}", backend);
-        let status = std::process::Command::new(&t27c)
-            .arg(&cmd)
-            .arg(input)
-            .status()
-            .context(format!("t27c {}", cmd))?;
-        if !status.success() {
-            anyhow::bail!("t27c {} failed for {}", cmd, input);
-        }
-    }
-    println!("Generated: verilog, c, rust for {}", input);
-    Ok(())
-}
-
-fn run_tri_test(input: &str) -> anyhow::Result<()> {
-    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
-    let status = std::process::Command::new(&t27c)
-        .arg("test")
-        .arg(input)
-        .status()
-        .context("t27c test")?;
-    if !status.success() {
-        anyhow::bail!("t27c test failed for {}", input);
-    }
-    println!("Tests passed: {}", input);
-    Ok(())
-}
-
-fn run_tri_verdict() -> anyhow::Result<()> {
-    let t27c = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("t27c"));
-
-    println!("=== Verdict: seal validation ===");
-    let status = std::process::Command::new(&t27c)
-        .arg("validate-seals")
-        .status()
-        .context("t27c validate-seals")?;
-    if !status.success() {
-        println!("VERDICT: TOXIC (seal validation failed)");
-        anyhow::bail!("Verdict: TOXIC");
-    }
-
-    println!("=== Verdict: phi-identity ===");
-    let status = std::process::Command::new(&t27c)
-        .arg("validate-phi-identity")
-        .status()
-        .context("t27c validate-phi-identity")?;
-    if !status.success() {
-        println!("VERDICT: TOXIC (phi-identity failed)");
-        anyhow::bail!("Verdict: TOXIC");
-    }
-
-    println!("VERDICT: CLEAN");
-    Ok(())
-}
-
-fn run_tri_experience_save() -> anyhow::Result<()> {
-    let repo_root = tri_find_repo_root()?;
-    let ts = tri_timestamp();
-    let state_path = repo_root.join(".trinity/state/active-skill.json");
-    let skill: ActiveSkill = if state_path.exists() {
-        tri_read_json(&state_path).unwrap_or_default()
-    } else {
-        ActiveSkill::default()
-    };
-
-    let skill_id = skill.skill_id.clone().unwrap_or_default();
-    let episode = serde_json::json!({
-        "ts": ts,
-        "skill_id": skill_id,
-        "agent": "opencode",
-        "verdict": "clean",
-        "metadata": {}
-    });
-
-    let exp_path = repo_root.join(".trinity/experience/episodes.jsonl");
-    if let Some(parent) = exp_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&exp_path)?;
-    use std::io::Write;
-    writeln!(f, "{}", serde_json::to_string(&episode)?)?;
-
-    tri_append_event(&repo_root, &serde_json::json!({
-        "ts": ts,
-        "event": "experience.save",
-        "agent_id": "agent:opencode",
-        "result": "success",
-        "metadata": { "skill_id": skill_id }
-    }))?;
-
-    println!("Experience saved.");
     Ok(())
 }
 
@@ -7333,6 +6839,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
+        }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -7398,13 +6908,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -7418,23 +6924,40 @@ async fn main() -> anyhow::Result<()> {
          Commands::BrainSealRefresh => {
              eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
          }
-        Commands::Serve { .. } => {
-            eprintln!("Error: 'serve' command requires 'server' feature");
-            eprintln!("Build with: cargo build --release --features server");
-            std::process::exit(1);
+         Commands::Formula { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             formula_eval::run_formula_command(cmd, &repo_root)?;
+         }
+         Commands::Chimera { threshold, limit } => {
+             let repo_root = std::env::current_dir()?;
+             run_chimera(&repo_root, threshold, limit)?;
+         }
+         Commands::Sensitivity { id, param, min, max, n } => {
+             let repo_root = std::env::current_dir()?;
+             run_sensitivity(&repo_root, &id, &param, min, max, n)?;
+         }
+         Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
         }
-        Commands::TriStatus => run_tri_status()?,
-        Commands::TriSkillBegin { issue, desc } => run_tri_skill_begin(&issue, &desc)?,
-        Commands::TriSkillEnd => run_tri_skill_end()?,
-        Commands::TriCellCheckpoint { step } => run_tri_cell_checkpoint(&step)?,
-        Commands::TriCellSeal => run_tri_cell_seal()?,
-        Commands::TriGen { input } => run_tri_gen(&input)?,
-        Commands::TriTest { input } => run_tri_test(&input)?,
-        Commands::TriVerdict => run_tri_verdict()?,
-        Commands::TriExperienceSave => run_tri_experience_save()?,
+        Commands::TernaryDecode { trits } => {
+            use crate::ternary::{parse_trits, decode_trits};
+            match parse_trits(&trits) {
+                Some(encoding) => {
+                    let decoded = decode_trits(encoding);
+                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                }
+                None => {
+                    eprintln!("Error: Invalid ternary format \"{}\"", trits);
+                    eprintln!("Expected format: [-1, 0, 1] or similar");
+                    std::process::exit(1);
+                }
+            }
+        }
      }
  
-     Ok(())
+    Ok(())
 }
 
 #[cfg(not(feature = "server"))]
@@ -7445,9 +6968,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
-        Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
-        Commands::CheckPins { xdc, db } => run_check_pins(&xdc, db.as_deref())?,
-        Commands::XdcVerify => run_xdc_verify()?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
@@ -7461,6 +6981,10 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
+        Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
+            enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
+        }
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -7529,39 +7053,61 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-        Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
-            let repo_root = std::env::current_dir()?;
-            let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                Some("arty-a7") => "xc7a100tcsg324-1",
-                _ => "xc7a100tcsg324-1",
-            });
-            run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+             let repo_root = std::env::current_dir()?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+         }
+         Commands::ValidateSeals { pr_files } => {
+             run_validate_seals(&pr_files)?;
+         }
+         Commands::ValidatePhiIdentity => {
+             run_validate_phi_identity()?;
+         }
+         Commands::CheckClaimTiers => {
+             eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
+         }
+         Commands::BrainSealRefresh => {
+             eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
+         }
+         Commands::Formula { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             formula_eval::run_formula_command(cmd, &repo_root)?;
+         }
+         Commands::Chimera { threshold, limit } => {
+             let repo_root = std::env::current_dir()?;
+             run_chimera(&repo_root, threshold, limit)?;
+         }
+         Commands::Sensitivity { id, param, min, max, n } => {
+             let repo_root = std::env::current_dir()?;
+             run_sensitivity(&repo_root, &id, &param, min, max, n)?;
+         }
+        Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
         }
-        Commands::ValidateSeals { pr_files } => {
-            run_validate_seals(&pr_files)?;
-        }
-        Commands::ValidatePhiIdentity => {
-            run_validate_phi_identity()?;
-        }
-        Commands::CheckClaimTiers => {
-            eprintln!("Check claim tiers: requires repo_root, use t27c --repo-root . check-claim-tiers");
-        }
-        Commands::BrainSealRefresh => {
-            eprintln!("Brain seal refresh: requires repo_root, use t27c --repo-root . brain-seal-refresh");
-        }
-        Commands::TriStatus => run_tri_status()?,
-        Commands::TriSkillBegin { issue, desc } => run_tri_skill_begin(&issue, &desc)?,
-        Commands::TriSkillEnd => run_tri_skill_end()?,
-        Commands::TriCellCheckpoint { step } => run_tri_cell_checkpoint(&step)?,
-        Commands::TriCellSeal => run_tri_cell_seal()?,
-        Commands::TriGen { input } => run_tri_gen(&input)?,
-        Commands::TriTest { input } => run_tri_test(&input)?,
-        Commands::TriVerdict => run_tri_verdict()?,
-        Commands::TriExperienceSave => run_tri_experience_save()?,
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
             std::process::exit(1);
+        }
+        Commands::TernaryEncode { value } => {
+            use crate::ternary::encode_trits;
+            let encoded = encode_trits(value);
+            println!("Encoded {} as ternary: {:?}", value, encoded);
+        }
+        Commands::TernaryDecode { trits } => {
+            use crate::ternary::{parse_trits, decode_trits};
+            match parse_trits(&trits) {
+                Some(encoding) => {
+                    let decoded = decode_trits(encoding);
+                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                }
+                None => {
+                    eprintln!("Error: Invalid ternary format. Use format like \"[-1, 0, 1]\"");
+                    std::process::exit(1);
+                }
+            }
         }
     }
 

@@ -33,23 +33,13 @@ jobs:
             pandoc
 
       - name: Build PDF from Markdown
-        run: |
-          cd docs/WHITEPAPER
-          pandoc gf_paper_v3_imrad_draft.md \
-            -o paper_from_md.pdf \
-            --pdf-engine=xelatex \
-            --citeproc \
-            --bibliography=latex/references.bib \
-            --metadata title="GoldenFloat: A Formally Verified, Phi-Optimal Floating-Point Family" \
-            --metadata author="t27 Project Team" \
-            --metadata date="April 2026"
+        run: bash -c 'cd docs/WHITEPAPER && pandoc gf_paper_v3_imrad_draft.md -o paper_from_md.pdf --pdf-engine=xelatex --citeproc --bibliography=latex/references.bib --metadata title="GoldenFloat: A Formally Verified, Phi-Optimal Floating-Point Family" --metadata author="t27 Project Team" --metadata date="April 2026"'
 
       - name: Build PDF from LaTeX
-        continue-on-error: true
         run: |
           cd docs/WHITEPAPER/latex
           pdflatex -interaction=nonstopmode main.tex
-          bibtex main
+          bibtex -min-crossrefs=1000 -min-crossref=10 main
           pdflatex -interaction=nonstopmode main.tex
           pdflatex -interaction=nonstopmode main.tex
 
@@ -57,7 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: goldenfloat-paper
-          path: |
-            docs/WHITEPAPER/paper_from_md.pdf
-            docs/WHITEPAPER/latex/main.pdf
+          path: docs/WHITEPAPER/
           retention-days: 30

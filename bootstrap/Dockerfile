@@ -7,10 +7,17 @@ FROM oven/bun:latest AS frontend-builder
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y python3 make g++ && ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /app
-# Copy the entire opencode workspace
-COPY external/opencode/ ./
-# Install and build the app
+
+# Copy package.json from parent dir
+COPY ../external/opencode/package.json ./
+
+# Copy rest of opencode first (to populate workspace)
+COPY ../external/opencode/ ./
+
+# Install dependencies
 RUN bun install
+
+# Build the app
 RUN bun run --cwd packages/app build
 
 # --- Backend Build Stage ---
