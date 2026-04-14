@@ -34,6 +34,7 @@ pub enum BridgeCommands {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     /// Task notebook management (NotebookLM integration)
     #[command(subcommand)]
     Task(TaskCommands),
@@ -51,11 +52,19 @@ pub enum BridgeCommands {
     #[command(subcommand)]
     Nb(NbCommands),
 >>>>>>> Stashed changes
+=======
+    /// Task notebook management (NotebookLM integration)
+    #[command(subcommand)]
+    Task(TaskCommands),
+>>>>>>> Stashed changes
 }
 
 #[derive(Subcommand, Debug)]
 pub enum TaskCommands {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
     /// Initialize task: create NotebookLM notebook + write .notebook_id
     Start {
         /// Task title
@@ -77,6 +86,7 @@ pub enum TaskCommands {
     Verify,
     /// Upload activity.md to notebook
     Upload,
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 =======
 =======
@@ -140,6 +150,8 @@ pub enum NbCommands {
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 }
 
 pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
@@ -188,6 +200,7 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
 =======
         BridgeCommands::Nb(nb_cmd) => handle_nb(&root, nb_cmd)?,
@@ -200,15 +213,23 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
         BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
         BridgeCommands::Nb(nb_cmd) => handle_nb(&root, nb_cmd),
 >>>>>>> Stashed changes
+=======
+        BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
+>>>>>>> Stashed changes
     }
     Ok(())
 }
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 // ─── Task Commands (NotebookLM) ─────────────────────────────────
 =======
 =======
+=======
+// ─── Task Commands (NotebookLM) ─────────────────────────────────
+
+>>>>>>> Stashed changes
 fn handle_task(root: &Path, command: TaskCommands) -> anyhow::Result<()> {
     let task_dir = root.join(".trinity").join("current_task");
     fs::create_dir_all(&task_dir)?;
@@ -382,6 +403,7 @@ fn handle_task(root: &Path, command: TaskCommands) -> anyhow::Result<()> {
 }
 
 fn create_notebook_via_python(title: &str) -> anyhow::Result<String> {
+<<<<<<< Updated upstream
     let output = Command::new("python3.10")
         .args([
             "-c",
@@ -940,6 +962,9 @@ fn create_notebook_via_python(title: &str) -> anyhow::Result<String> {
 =======
     let output = Command::new("python3.10")
 >>>>>>> Stashed changes
+=======
+    let output = Command::new("python3")
+>>>>>>> Stashed changes
         .args([
             "-c",
             &format!(
@@ -950,6 +975,7 @@ async def create_notebook():
     try:
         from notebooklm import NotebookLMClient
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         client = await NotebookLMClient.from_storage()
         notebook = await client.notebooks.create("{}")
         print(notebook.id)
@@ -957,6 +983,11 @@ async def create_notebook():
         async with await NotebookLMClient.from_storage() as client:
             notebook = await client.notebooks.create("{}")
             print(notebook.id)
+>>>>>>> Stashed changes
+=======
+        client = await NotebookLMClient.from_storage()
+        notebook = await client.notebooks.create("{}")
+        print(notebook.id)
 >>>>>>> Stashed changes
     except Exception as e:
         print(f"Error: {{e}}", file=sys.stderr)
@@ -990,9 +1021,13 @@ asyncio.run(create_notebook())
 
 fn verify_notebook_via_python(notebook_id: &str) -> anyhow::Result<bool> {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     let output = Command::new("python3")
 =======
     let output = Command::new("python3.10")
+>>>>>>> Stashed changes
+=======
+    let output = Command::new("python3")
 >>>>>>> Stashed changes
         .args([
             "-c",
@@ -1004,6 +1039,7 @@ async def verify_notebook():
     try:
         from notebooklm import NotebookLMClient
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         client = await NotebookLMClient.from_storage()
         await client.notebooks.get("{}")
         print("OK")
@@ -1011,6 +1047,11 @@ async def verify_notebook():
         async with await NotebookLMClient.from_storage() as client:
             await client.notebooks.get("{}")
             print("OK")
+>>>>>>> Stashed changes
+=======
+        client = await NotebookLMClient.from_storage()
+        await client.notebooks.get("{}")
+        print("OK")
 >>>>>>> Stashed changes
     except Exception:
         sys.exit(1)
@@ -1024,6 +1065,9 @@ asyncio.run(verify_notebook())
 
     Ok(output.status.success())
 }
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 
