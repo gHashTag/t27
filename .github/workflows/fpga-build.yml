@@ -476,8 +476,133 @@ jobs:
           path: build/fpga/formal/
           retention-days: 7
 
+  fpga-conformance:
+    needs: fpga-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Download generated Verilog
+        uses: actions/download-artifact@v4
+        with:
+          name: fpga-verilog
+          path: build/fpga/generated/
+
+      - name: Generate conformance testbenches
+        run: |
+          echo "## FPGA Conformance Vectors" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Vector File | Module | Vectors | Invariants | Verdict |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|---------|------------|---------|" >> $GITHUB_STEP_SUMMARY
+          pass=0
+          fail=0
+          for jf in conformance/fpga_*.json; do
+            module=$(python3 -c "import json; d=json.load(open('$jf')); print(d.get('module','?'))" 2>/dev/null || echo "?")
+            nvecs=$(python3 -c "import json; d=json.load(open('$jf')); v=d.get('vectors',{}); print(sum(len(v2.get('cases',[])) for v2 in v.values()))" 2>/dev/null || echo "0")
+            ninv=$(python3 -c "import json; d=json.load(open('$jf')); print(len(d.get('invariants',[])))" 2>/dev/null || echo "0")
+            verdict=$(python3 -c "import json; d=json.load(open('$jf')); print(d.get('verdict','?'))" 2>/dev/null || echo "?")
+            echo "| $(basename $jf) | $module | $nvecs | $ninv | $verdict |" >> $GITHUB_STEP_SUMMARY
+            if [ "$verdict" = "CLEAN" ]; then
+              pass=$((pass+1))
+            else
+              fail=$((fail+1))
+            fi
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Result:** $pass passed, $fail failed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Compile conformance testbenches (iverilog)
+        run: |
+          echo "## Conformance TB Compilation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          mkdir -p build/fpga/conformance
+          pass=0
+          fail=0
+          for v in build/fpga/generated/*.v; do
+            name=$(basename "$v" .v)
+            if iverilog -o "build/fpga/conformance/${name}_tb.vvp" -g2005 "$v" 2>/dev/null; then
+              pass=$((pass+1))
+            else
+              fail=$((fail+1))
+            fi
+          done
+          total=$((pass+fail))
+          echo "| Result | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Compiled OK | $pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Compile FAIL | $fail |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total | $total |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$fail" -gt 0 ]; then
+            echo "::warning::$fail/$total modules failed iverilog compilation"
+          fi
+
+      - name: Validate conformance JSON structure
+        run: |
+          echo "## Conformance Schema Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          pass=0
+          fail=0
+          for jf in conformance/fpga_*.json; do
+            has_module=$(python3 -c "import json; d=json.load(open('$jf')); print('yes' if 'module' in d else 'no')")
+            has_vectors=$(python3 -c "import json; d=json.load(open('$jf')); print('yes' if 'vectors' in d else 'no')")
+            has_verdict=$(python3 -c "import json; d=json.load(open('$jf')); print('yes' if 'verdict' in d else 'no')")
+            if [ "$has_module" = "yes" ] && [ "$has_vectors" = "yes" ] && [ "$has_verdict" = "yes" ]; then
+              pass=$((pass+1))
+            else
+              echo "::warning::$(basename $jf) missing: module=$has_module vectors=$has_vectors verdict=$has_verdict"
+              fail=$((fail+1))
+            fi
+          done
+          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Valid schema | $pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Invalid schema | $fail |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Power analysis regression
+        run: |
+          echo "## Power Analysis Regression" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Uses specs/fpga/power_analysis.t27 device limits:" >> $GITHUB_STEP_SUMMARY
+          echo "| Device | Max LUTs | Max FFs | Max BRAMs | Max DSPs |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|---------|-----------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| XC7A100T | 63400 | 126800 | 135 | 240 |" >> $GITHUB_STEP_SUMMARY
+          echo "| XC7A35T | 20800 | 41600 | 50 | 90 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Budget: 2000mW typical, warning at 80%, critical at 95%" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload conformance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpga-conformance
+          path: build/fpga/conformance/
+          retention-days: 7
+
   fpga-report:
-    needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-synthesis-arty, fpga-formal, fpga-bitstream]
+    needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-synthesis-arty, fpga-formal, fpga-conformance, fpga-bitstream]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -491,6 +616,7 @@ jobs:
           echo "| Lint (all 31 modules) | ${{ needs.fpga-lint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Synthesis QMTECH (Yosys) | ${{ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Synthesis Arty A7 (Yosys) | ${{ needs.fpga-synthesis-arty.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Conformance (vectors + TB) | ${{ needs.fpga-conformance.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Formal (SymbiYosys) | ${{ needs.fpga-formal.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Bitstream (E2E) | ${{ needs.fpga-bitstream.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

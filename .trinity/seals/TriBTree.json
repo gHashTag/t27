@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:5296ed13acd9ca66b89dcc809d395568b8ae6e74ade63d871e4f35b743de7df9",
-  "gen_hash_rust": "sha256:a5c7fa429a3febfb72fdf42d30fc07e7a20854539cbbb4dfd5047833a53f100a",
-  "gen_hash_verilog": "sha256:bf421f7e8fd68d9e1c113ac863b090c28769404dccf6354dbeff3dc2e33f3535",
-  "gen_hash_zig": "sha256:cebd6cec0c844c5fd4efe97a5e80031469186f293c47e0d26a24f67deac70431",
-  "module": "TriBtree",
+  "gen_hash_c": "sha256:ed90f4bd4bea2e5fd70aa8ed75de9dadac222213fc82bee75feb62c7a4b6accb",
+  "gen_hash_rust": "sha256:308a925b6754db020a43d5243f8947936198e59268b54272ffac9731d58fc44d",
+  "gen_hash_verilog": "sha256:0735e41af53554a49510c8550417bb408a3c4db7d18452fde34e133e65b45a08",
+  "gen_hash_zig": "sha256:6c219a7ff1497bce762a6dda2dc89340efe09d59ca9470513fa24808fd23a201",
+  "module": "TriBTree",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:38:34Z",
-  "spec_hash": "sha256:0539a5ff094636b4c10db13d2246f53c1bf80f62a74e468107969e6f9f28020c",
-  "spec_path": "specs/tri/collections/btree.t27"
+  "sealed_at": "2026-04-14T09:58:02Z",
+  "spec_hash": "sha256:421fe9ec4300007ac244ce16b0b57ef39b3401e494e08082defe73bb797997bc",
+  "spec_path": "specs/tri/trees/b_tree.t27"
 }

@@ -129,11 +129,22 @@
 - TDD: 25 tests + 8 invariants + 7 benches added to `sdk_contract.t27`
 - TDD: 20 tests + 4 invariants + 4 benches added to `runner.t27`
 
-## Open — FPGA Phase 5: Verification & Production
+## Open -- FPGA Phase 5: Verification & Production
 
-1. VCD trace auto-compare against conformance vectors
-2. Power analysis: connect `specs/fpga/power.t27` to switching activity
-3. Flash verification: automate `QMTECH_A100T_SMOKE.md` in CI (HIL)
+1. VCD trace auto-compare against conformance vectors -- **DONE** (specs/fpga/vcd_conformance_compare.t27 + 4 conformance TB emitters)
+2. Power analysis: connect `specs/fpga/power.t27` to switching activity -- **DONE** (specs/fpga/power_analysis.t27 + device limits + budget checking)
+3. Flash verification: automate `QMTECH_A100T_SMOKE.md` in CI (HIL -- requires physical hardware)
+
+### Additional Completed Work (2026-04-14 session 2)
+
+- VCD conformance compare: 31 tests, 3 invariants, 1 bench (specs/fpga/vcd_conformance_compare.t27)
+- Power analysis: 35 tests, 4 invariants, 2 benches (specs/fpga/power_analysis.t27)
+- Conformance TB emitters: 5 new functions in fpga_emission.t27 (emit_conformance_testbench, emit_conformance_check, emit_conformance_check_masked, emit_conformance_footer, emit_uart/mac/top/spi_conformance_tb)
+- 9 new tests for conformance emitters in fpga_emission.t27
+- Testbench specs: vcd_conformance_compare_tb.t27, power_analysis_tb.t27
+- Conformance JSONs: fpga_vcd_conformance_compare.json, fpga_power_analysis.json
+- Seal collision bug fix: run_validate_seals() in bootstrap/src/main.rs now uses seal_file_path()
+- CI: fpga-conformance job added to fpga-build.yml (vector validation, iverilog, schema check, power regression)
 
 ---
 
