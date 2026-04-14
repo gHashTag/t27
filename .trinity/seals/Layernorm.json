@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:68134c55ce4875d2f4e8d044e145f8623ef5282526bcd8cd3bccb7f48cc9a70e",
-  "gen_hash_rust": "sha256:2054b692e488c502837251aa47ecd2930b7e0d2f7b129d3670aea8322a6e1073",
-  "gen_hash_verilog": "sha256:9939130bc9f0ac8c1dcf93469e487be9644f2f6bc0b5402d286deb4cd7171b7b",
-  "gen_hash_zig": "sha256:acb56f2f0ce8f812e6700522e7f6eceda79d9ceb5b24169823e04010f66e0e8e",
-  "module": "LayerNorm",
+  "gen_hash_c": "sha256:512e49d2cff2feacd0f6566aa0495a0904106606bd1767a9ecc9ae7d19b2da24",
+  "gen_hash_rust": "sha256:146ec28c403ebb653d7f371d56e54536102ed43063c3e6e373aeaee4832f3b2e",
+  "gen_hash_verilog": "sha256:ddd5675cccc1db4f5bf65cd2320e496ce0728760a231f6522bfa2d2b78296a4a",
+  "gen_hash_zig": "sha256:d29966b8562b6328b6ab63eaf007c42277db8f7f00a9145a989e432737de9d7b",
+  "module": "Layernorm",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:38:34Z",
-  "spec_hash": "sha256:094222aaee6baf1f769008f2adc84ef15355ff58c9313e44285f16cdda26ae18",
-  "spec_path": "specs/ml/transformer/norm.t27"
+  "sealed_at": "2026-04-14T09:58:02Z",
+  "spec_hash": "sha256:0f726fb3c27cf8e9877344bd5e4e97a04a1c9f3a76e945222f7a7aa87e7eed96",
+  "spec_path": "specs/ml/layers/layernorm_layer.t27"
 }

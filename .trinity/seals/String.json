@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:bc497fa57e92441865e4bce63154bc26de17f4c79fc30fc15d47482a6ea7f71b",
-  "gen_hash_rust": "sha256:a119b357a4e61c786d48fcbeba5d2a990ae84c5b57e00f359030e320b224e5e8",
-  "gen_hash_verilog": "sha256:bed4d8bf960f378aec77c0744ed51f3757d6647f68e7a12c5d1bbb56944c26c4",
-  "gen_hash_zig": "sha256:90e8764e8a70ec599ae8ab0657920f9e6276ee00acff6bd86d1cd828e64ee91f",
+  "gen_hash_c": "sha256:96d6325a12b458e60dda0259e287c30f5f975b77e96374bcd1702d2caf1d50b1",
+  "gen_hash_rust": "sha256:6cb51b1154d772b42b5d746c5cca8673b4b972e9e411cab0b743c8021ffe572d",
+  "gen_hash_verilog": "sha256:0c88c1d8c2784916dc4ff5bcb11b8dbc0859145a588608f222796b7bfa0fde54",
+  "gen_hash_zig": "sha256:68eed1022b6d17587f27883388c903740627ffa33d2cd30d9875425e30185dd6",
   "module": "String",
   "ring": 12,
-  "sealed_at": "2026-04-14T06:40:11Z",
-  "spec_hash": "sha256:ad98ed47c35feba495e6de7e3cf342a608496ed635c62ce32a55a85d4915133a",
-  "spec_path": "specs/sacred/sacred_identity.t27"
+  "sealed_at": "2026-04-14T10:09:23Z",
+  "spec_hash": "sha256:d52cdad185a5148272b37371ef1ffd0063199264cd8b87f706cf713aa86662e9",
+  "spec_path": "specs/sacred/sacred_governance.t27"
 }

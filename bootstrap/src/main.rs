@@ -3370,7 +3370,7 @@ fn run_validate_seals(pr_files: &str) -> Result<(), anyhow::Error> {
         }
         match compute_seal_hashes(spec_path) {
             Ok(current) => {
-                let seal_path = std::path::Path::new(".trinity/seals").join(format!("{}.json", current.module));
+                let seal_path = seal_file_path(&current.module, spec_path);
                 if seal_path.exists() {
                     let saved_data = std::fs::read_to_string(&seal_path)
                         .with_context(|| format!("reading seal {}", seal_path.display()))?;
