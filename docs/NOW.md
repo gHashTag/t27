@@ -91,4 +91,4 @@
 **φ² + 1/φ² = 3 | TRINITY**
 
 
-<!-- PR #461: PSLQ verification documentation -->
+<!-- PR #463: t27c codegen fixes -->
