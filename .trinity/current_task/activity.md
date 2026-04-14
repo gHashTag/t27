@@ -8,3 +8,7 @@
 - **Commit:** fix(clara): mortal fixes v2.0 - critical proposal improvements
 - **Files:** 
 
+## 2026-04-14T16:56:19Z — master
+- **Commit:** feat(tri): GitHub SSOT integration - .t27 Native
+- **Files:** docs/clara/CLARA-PROPOSAL-TECHNICAL.md
+
