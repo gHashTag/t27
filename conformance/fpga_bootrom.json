@@ -1,0 +1,64 @@
+{
+  "constants": {},
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 Boot ROM Specification -- boot sequence stages, init vectors, integrity checksum",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "rom_size_positive",
+      "description": "Boot ROM size must be positive"
+    }
+  ],
+  "module": "BootROM",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/bootrom.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "BootROM Vectors",
+  "vectors": {
+    "creation": {
+      "description": "Boot stage and config construction",
+      "cases": [
+        {
+          "id": "boot_stage_creation",
+          "description": "Boot stage with name, index, size, and entry address"
+        },
+        {
+          "id": "boot_config_creation",
+          "description": "Boot config with ROM size and integrity check"
+        }
+      ]
+    },
+    "validation": {
+      "description": "Boot config validation",
+      "cases": [
+        {
+          "id": "validate_config_ok",
+          "description": "Valid config passes with zero errors"
+        },
+        {
+          "id": "validate_config_empty",
+          "description": "Empty name and zero ROM size triggers errors"
+        }
+      ]
+    },
+    "stage_fitting": {
+      "description": "Boot stage fitting within ROM capacity",
+      "cases": [
+        {
+          "id": "fits_yes",
+          "description": "Stages that fit within ROM capacity"
+        },
+        {
+          "id": "fits_no",
+          "description": "Oversized stages rejected"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

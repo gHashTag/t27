@@ -1,0 +1,64 @@
+{
+  "constants": {},
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 Cross-Module Optimization Specification -- inter-module constant propagation, dead signal elimination, instance merging",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "improvements_non_negative",
+      "description": "Total improvement count is always non-negative"
+    }
+  ],
+  "module": "CrossOpt",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/crossopt.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "CrossOpt Vectors",
+  "vectors": {
+    "pass_creation": {
+      "description": "Cross-optimization pass construction",
+      "cases": [
+        {
+          "id": "pass_zero",
+          "description": "Zero pass has no modules or improvements"
+        },
+        {
+          "id": "pass_result_creation",
+          "description": "Pass result with named optimizations and totals"
+        }
+      ]
+    },
+    "improvement_metrics": {
+      "description": "Improvement density and totals",
+      "cases": [
+        {
+          "id": "improvement_density",
+          "description": "Density is total improvements per module"
+        },
+        {
+          "id": "improvement_density_zero",
+          "description": "Zero pass has zero density"
+        }
+      ]
+    },
+    "report": {
+      "description": "Cross-optimization report aggregation",
+      "cases": [
+        {
+          "id": "report_creation",
+          "description": "Report with multiple passes and positive totals"
+        },
+        {
+          "id": "report_empty",
+          "description": "Empty report has no effective optimizations"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

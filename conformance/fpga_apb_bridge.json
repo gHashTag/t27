@@ -1,0 +1,147 @@
+{
+  "constants": {
+    "APB_ADDR_WIDTH": 32,
+    "APB_DATA_WIDTH": 32,
+    "APB_STRB_WIDTH": 4
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "APB (Advanced Peripheral Bus) Bridge Specification for Trinity T27 FPGA HIR -- register-mapped peripheral bridge for low-bandwidth peripherals",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "addr_width_positive",
+      "description": "APB address width must be positive"
+    },
+    {
+      "id": "data_width_byte_aligned",
+      "description": "APB data width must be byte-aligned (divisible by 8)"
+    },
+    {
+      "id": "strb_matches_data",
+      "description": "Strobe width equals data width divided by 8"
+    },
+    {
+      "id": "num_peripherals_positive",
+      "description": "Number of peripherals must be positive"
+    },
+    {
+      "id": "validate_non_negative",
+      "description": "Validation error count is always non-negative"
+    }
+  ],
+  "module": "ApbBridge",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/apb_bridge.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "ApbBridge Vectors",
+  "vectors": {
+    "bridge_creation": {
+      "description": "APB bridge configuration construction",
+      "cases": [
+        {
+          "id": "apb_bridge_creation",
+          "description": "Standard APB bridge creation with correct defaults"
+        },
+        {
+          "id": "apb_bridge_with_error",
+          "description": "APB bridge with error and protection signals enabled"
+        }
+      ]
+    },
+    "strobe_width": {
+      "description": "Strobe width derivation from data width",
+      "cases": [
+        {
+          "id": "strb_width_32bit",
+          "description": "32-bit data yields 4-byte strobe"
+        },
+        {
+          "id": "strb_width_16bit",
+          "description": "16-bit data yields 2-byte strobe"
+        }
+      ]
+    },
+    "address_bits": {
+      "description": "Address bit calculation for peripheral count",
+      "cases": [
+        {
+          "id": "addr_bits_for_1_peripheral",
+          "description": "Single peripheral needs 0 address bits"
+        },
+        {
+          "id": "addr_bits_for_4_peripherals",
+          "description": "4 peripherals need 2 address bits"
+        },
+        {
+          "id": "addr_bits_for_8_peripherals",
+          "description": "8 peripherals need 3 address bits"
+        }
+      ]
+    },
+    "request_response": {
+      "description": "APB read/write request and response handling",
+      "cases": [
+        {
+          "id": "read_request",
+          "description": "Read request correctly identified as read, not write"
+        },
+        {
+          "id": "write_request",
+          "description": "Write request correctly identified as write, not read"
+        },
+        {
+          "id": "ok_response",
+          "description": "OK response carries data with ready and no error"
+        },
+        {
+          "id": "error_response",
+          "description": "Error response signals slave error"
+        }
+      ]
+    },
+    "validation": {
+      "description": "Config and peripheral map validation",
+      "cases": [
+        {
+          "id": "validate_ok",
+          "description": "Valid configuration passes with zero errors"
+        },
+        {
+          "id": "validate_empty_name",
+          "description": "Empty name triggers validation error"
+        },
+        {
+          "id": "validate_zero_addr",
+          "description": "Zero address width triggers validation error"
+        },
+        {
+          "id": "validate_zero_peripherals",
+          "description": "Zero peripheral count triggers validation error"
+        },
+        {
+          "id": "validate_peripheral_map_ok",
+          "description": "Valid peripheral map passes validation"
+        },
+        {
+          "id": "validate_peripheral_map_no_name",
+          "description": "Peripheral map with empty name fails validation"
+        }
+      ]
+    },
+    "port_count": {
+      "description": "APB port count calculation",
+      "cases": [
+        {
+          "id": "apb_port_count_basic",
+          "description": "Basic port count is positive for valid config"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}
