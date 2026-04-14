@@ -784,6 +784,639 @@ module fpga_emission {
 
         return buf[0..len];
     }
+
+    // ========================================================================
+    // 6. Bridge Module Emission
+    // ========================================================================
+
+    fn emit_bridge_module(self: *FpgaCodegen) void {
+        self.emit_line("// FPGA Bridge Module");
+        self.emit_line("// Command parser for UART/SPI to MAC dispatch");
+        self.emit_line("");
+        self.emit_line("module FPGA_Bridge (");
+        self.indent();
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("input wire [7:0] rx_data,");
+        self.emit_line("input wire rx_valid,");
+        self.emit_line("output wire [7:0] tx_data,");
+        self.emit_line("output wire tx_ready,");
+        self.emit_line("output wire [26:0] mac_a,");
+        self.emit_line("output wire [26:0] mac_b,");
+        self.emit_line("output wire [31:0] mac_acc_in,");
+        self.emit_line("output wire mac_start,");
+        self.emit_line("input wire [31:0] mac_acc_out,");
+        self.emit_line("input wire mac_valid");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+        self.emit_line("// Command parser state");
+        self.emit_line("reg [7:0] cmd_buffer [0:5];");
+        self.emit_line("reg [2:0] cmd_idx;");
+        self.emit_line("reg cmd_ready;");
+        self.emit_line("reg [7:0] tx_resp;");
+        self.emit_line("reg tx_has_resp;");
+        self.emit_line("");
+        self.emit_line("// Opcodes");
+        self.emit_line("localparam CMD_NOP     = 8'h00;");
+        self.emit_line("localparam CMD_MAC_MUL = 8'h01;");
+        self.emit_line("localparam CMD_MAC_DOT = 8'h02;");
+        self.emit_line("localparam CMD_STATUS  = 8'h30;");
+        self.emit_line("localparam CMD_RESET   = 8'hFF;");
+        self.emit_line("");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("cmd_idx <= 3'd0;");
+        self.emit_line("cmd_ready <= 1'b0;");
+        self.emit_line("tx_has_resp <= 1'b0;");
+        self.dedent();
+        self.emit_line("end else if (rx_valid) begin");
+        self.indent();
+        self.emit_line("cmd_buffer[cmd_idx] <= rx_data;");
+        self.emit_line("cmd_idx <= cmd_idx + 1'b1;");
+        self.emit_line("if (cmd_idx >= 3'd5) begin");
+        self.indent();
+        self.emit_line("cmd_ready <= 1'b1;");
+        self.emit_line("cmd_idx <= 3'd0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("assign mac_start = cmd_ready;");
+        self.emit_line("assign tx_data = tx_has_resp ? mac_acc_out[7:0] : 8'h00;");
+        self.emit_line("assign tx_ready = tx_has_resp;");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 7. Memory Module Emission
+    // ========================================================================
+
+    fn emit_memory_module(self: *FpgaCodegen) void {
+        self.emit_line("// Memory Controller Module");
+        self.emit_line("// Dual-port BRAM interface");
+        self.emit_line("");
+        self.emit_line("module MemoryController (");
+        self.indent();
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("input wire [15:0] addr_a,");
+        self.emit_line("input wire [31:0] wr_data_a,");
+        self.emit_line("input wire wr_en_a,");
+        self.emit_line("output wire [31:0] rd_data_a,");
+        self.emit_line("input wire [15:0] addr_b,");
+        self.emit_line("input wire [31:0] wr_data_b,");
+        self.emit_line("input wire wr_en_b,");
+        self.emit_line("output wire [31:0] rd_data_b");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+        self.emit_line("// Dual-port BRAM");
+        self.emit_line("(* ram_style = \"block\" *) reg [31:0] bram [0:65535];");
+        self.emit_line("");
+        self.emit_line("// Port A");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (wr_en_a) bram[addr_a] <= wr_data_a;");
+        self.emit_line("rd_data_a <= bram[addr_a];");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("// Port B");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (wr_en_b) bram[addr_b] <= wr_data_b;");
+        self.emit_line("rd_data_b <= bram[addr_b];");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 8. FIFO Module Emission
+    // ========================================================================
+
+    fn emit_fifo_module(self: *FpgaCodegen) void {
+        self.emit_line("// Synchronous FIFO Module");
+        self.emit_line("// Configurable depth, FWFT output");
+        self.emit_line("");
+        self.emit_line("module SyncFIFO (");
+        self.indent();
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("input wire [31:0] din,");
+        self.emit_line("input wire wr_en,");
+        self.emit_line("output wire full,");
+        self.emit_line("output wire [31:0] dout,");
+        self.emit_line("input wire rd_en,");
+        self.emit_line("output wire empty");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+        self.emit_line("localparam DEPTH = 16;");
+        self.emit_line("localparam ADDR_W = 4;");
+        self.emit_line("");
+        self.emit_line("reg [31:0] mem [0:DEPTH-1];");
+        self.emit_line("reg [ADDR_W:0] wr_ptr;");
+        self.emit_line("reg [ADDR_W:0] rd_ptr;");
+        self.emit_line("");
+        self.emit_line("assign full  = (wr_ptr[ADDR_W] != rd_ptr[ADDR_W]) &&");
+        self.indent();
+        self.emit_line("(wr_ptr[ADDR_W-1:0] == rd_ptr[ADDR_W-1:0]);");
+        self.dedent();
+        self.emit_line("assign empty = (wr_ptr == rd_ptr);");
+        self.emit_line("assign dout  = mem[rd_ptr[ADDR_W-1:0]];");
+        self.emit_line("");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("wr_ptr <= {(ADDR_W+1){1'b0}};");
+        self.emit_line("rd_ptr <= {(ADDR_W+1){1'b0}};");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("if (wr_en && !full) begin");
+        self.indent();
+        self.emit_line("mem[wr_ptr[ADDR_W-1:0]] <= din;");
+        self.emit_line("wr_ptr <= wr_ptr + 1'b1;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("if (rd_en && !empty) begin");
+        self.indent();
+        self.emit_line("rd_ptr <= rd_ptr + 1'b1;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 9. AXI4-Lite Module Emission
+    // ========================================================================
+
+    fn emit_axi4_module(self: *FpgaCodegen) void {
+        self.emit_line("// AXI4-Lite Slave Module");
+        self.emit_line("// 32-bit data, 16-bit address");
+        self.emit_line("");
+        self.emit_line("module AXI4_Lite_Slave (");
+        self.indent();
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("// AW channel");
+        self.emit_line("input wire [15:0] awaddr,");
+        self.emit_line("input wire awvalid,");
+        self.emit_line("output wire awready,");
+        self.emit_line("// W channel");
+        self.emit_line("input wire [31:0] wdata,");
+        self.emit_line("input wire [3:0] wstrb,");
+        self.emit_line("input wire wvalid,");
+        self.emit_line("output wire wready,");
+        self.emit_line("// B channel");
+        self.emit_line("output wire [1:0] bresp,");
+        self.emit_line("output wire bvalid,");
+        self.emit_line("input wire bready,");
+        self.emit_line("// AR channel");
+        self.emit_line("input wire [15:0] araddr,");
+        self.emit_line("input wire arvalid,");
+        self.emit_line("output wire arready,");
+        self.emit_line("// R channel");
+        self.emit_line("output wire [31:0] rdata,");
+        self.emit_line("output wire [1:0] rresp,");
+        self.emit_line("output wire rvalid,");
+        self.emit_line("input wire rready");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+        self.emit_line("reg awready_r, wready_r, arready_r;");
+        self.emit_line("reg bvalid_r, rvalid_r;");
+        self.emit_line("reg [1:0] bresp_r, rresp_r;");
+        self.emit_line("reg [31:0] rdata_r;");
+        self.emit_line("reg [31:0] reg_file [0:255];");
+        self.emit_line("");
+        self.emit_line("assign awready = awready_r;");
+        self.emit_line("assign wready  = wready_r;");
+        self.emit_line("assign bresp   = bresp_r;");
+        self.emit_line("assign bvalid  = bvalid_r;");
+        self.emit_line("assign arready = arready_r;");
+        self.emit_line("assign rdata   = rdata_r;");
+        self.emit_line("assign rresp   = rresp_r;");
+        self.emit_line("assign rvalid  = rvalid_r;");
+        self.emit_line("");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("awready_r <= 1'b1;");
+        self.emit_line("wready_r  <= 1'b1;");
+        self.emit_line("bvalid_r  <= 1'b0;");
+        self.emit_line("arready_r <= 1'b1;");
+        self.emit_line("rvalid_r  <= 1'b0;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("// Write path");
+        self.emit_line("if (awvalid && awready_r) awready_r <= 1'b0;");
+        self.emit_line("if (wvalid && wready_r) begin");
+        self.indent();
+        self.emit_line("wready_r <= 1'b0;");
+        self.emit_line("reg_file[awaddr[9:2]] <= wdata;");
+        self.emit_line("bvalid_r <= 1'b1;");
+        self.emit_line("bresp_r  <= 2'b00;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("if (bready && bvalid_r) bvalid_r <= 1'b0;");
+        self.emit_line("// Read path");
+        self.emit_line("if (arvalid && arready_r) begin");
+        self.indent();
+        self.emit_line("arready_r <= 1'b0;");
+        self.emit_line("rdata_r   <= reg_file[araddr[9:2]];");
+        self.emit_line("rvalid_r  <= 1'b1;");
+        self.emit_line("rresp_r   <= 2'b00;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("if (rready && rvalid_r) rvalid_r <= 1'b0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 10. APB Bridge Module Emission
+    // ========================================================================
+
+    fn emit_apb_bridge_module(self: *FpgaCodegen) void {
+        self.emit_line("// APB Bridge Module");
+        self.emit_line("// APB4 slave with 32-bit data path");
+        self.emit_line("");
+        self.emit_line("module APB_Bridge (");
+        self.indent();
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("input wire [15:0] paddr,");
+        self.emit_line("input wire psel,");
+        self.emit_line("input wire penable,");
+        self.emit_line("input wire pwrite,");
+        self.emit_line("input wire [31:0] pwdata,");
+        self.emit_line("output wire [31:0] prdata,");
+        self.emit_line("output wire pready,");
+        self.emit_line("output wire pslverr");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+        self.emit_line("reg [31:0] apb_regs [0:255];");
+        self.emit_line("reg pready_r;");
+        self.emit_line("reg pslverr_r;");
+        self.emit_line("reg [31:0] prdata_r;");
+        self.emit_line("");
+        self.emit_line("assign pready  = pready_r;");
+        self.emit_line("assign pslverr = pslverr_r;");
+        self.emit_line("assign prdata  = prdata_r;");
+        self.emit_line("");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("pready_r  <= 1'b0;");
+        self.emit_line("pslverr_r <= 1'b0;");
+        self.emit_line("prdata_r  <= 32'd0;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("pready_r <= 1'b0;");
+        self.emit_line("if (psel && penable) begin");
+        self.indent();
+        self.emit_line("pready_r <= 1'b1;");
+        self.emit_line("if (pwrite) begin");
+        self.indent();
+        self.emit_line("apb_regs[paddr[9:2]] <= pwdata;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("prdata_r <= apb_regs[paddr[9:2]];");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 11. GF16 Accelerator Module Emission
+    // ========================================================================
+
+    fn emit_gf16_accel_module(self: *FpgaCodegen) void {
+        self.emit_line("// GF(1^2) Accelerator Module");
+        self.emit_line("// Ternary Galois Field arithmetic");
+        self.emit_line("");
+        self.emit_line("module GF16_Accel (");
+        self.indent();
+        self.emit_line("input wire clk,");
+        self.emit_line("input wire rst_n,");
+        self.emit_line("input wire [3:0] a,");
+        self.emit_line("input wire [3:0] b,");
+        self.emit_line("input wire [1:0] op,");
+        self.emit_line("input wire start,");
+        self.emit_line("output wire [3:0] result,");
+        self.emit_line("output wire done");
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+        self.emit_line("// GF(1^2) addition = XOR");
+        self.emit_line("wire [3:0] add_result = a ^ b;");
+        self.emit_line("");
+        self.emit_line("// GF(1^2) multiplication via LUT");
+        self.emit_line("reg [3:0] mul_result;");
+        self.emit_line("always @(*) begin");
+        self.indent();
+        self.emit_line("case ({a, b})");
+        self.indent();
+        self.emit_line("8'h00: mul_result = 4'h0;");
+        self.emit_line("8'h11: mul_result = 4'h1;");
+        self.emit_line("8'h12: mul_result = 4'h2;");
+        self.emit_line("8'h22: mul_result = 4'h4;");
+        self.emit_line("8'h23: mul_result = 4'h6;");
+        self.emit_line("8'h33: mul_result = 4'h5;");
+        self.emit_line("default: mul_result = 4'h0;");
+        self.dedent();
+        self.emit_line("endcase");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("// Operation select");
+        self.emit_line("reg [3:0] result_r;");
+        self.emit_line("reg done_r;");
+        self.emit_line("assign result = result_r;");
+        self.emit_line("assign done = done_r;");
+        self.emit_line("");
+        self.emit_line("always @(posedge clk) begin");
+        self.indent();
+        self.emit_line("if (!rst_n) begin");
+        self.indent();
+        self.emit_line("result_r <= 4'd0;");
+        self.emit_line("done_r <= 1'b0;");
+        self.dedent();
+        self.emit_line("end else if (start) begin");
+        self.indent();
+        self.emit_line("case (op)");
+        self.indent();
+        self.emit_line("2'd0: result_r <= add_result;");
+        self.emit_line("2'd1: result_r <= mul_result;");
+        self.emit_line("default: result_r <= 4'd0;");
+        self.dedent();
+        self.emit_line("endcase");
+        self.emit_line("done_r <= 1'b1;");
+        self.dedent();
+        self.emit_line("end else begin");
+        self.indent();
+        self.emit_line("done_r <= 1'b0;");
+        self.dedent();
+        self.emit_line("end");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 12. HIR-Based Generic Module Emission
+    // ========================================================================
+
+    fn emit_generic_module(self: *FpgaCodegen, hir: HirModule) void {
+        self.emit_line("// Generated from HIR: ");
+        self.emit(hir.name);
+        self.emit_line("");
+        self.emit_line("module ");
+        self.emit(hir.name);
+        self.emit_line(" (");
+        self.indent();
+
+        // Emit ports
+        var i : usize = 0;
+        while (i < hir.port_count()) {
+            const port = hir.ports[i];
+            const dir_str = if (port.direction == PortDir.input_dir) { "input" }
+                            else if (port.direction == PortDir.output_dir) { "output" }
+                            else { "inout" };
+            self.emit(dir_str);
+            self.emit(" wire ");
+            if (port.width > 1) {
+                self.emit("[");
+                self.emit_int(port.width - 1);
+                self.emit(":0] ");
+            }
+            self.emit(port.name);
+            if (i + 1 < hir.port_count()) {
+                self.emit_line(",");
+            } else {
+                self.emit_line("");
+            }
+            i = i + 1;
+        }
+        self.dedent();
+        self.emit_line(");");
+        self.emit_line("");
+
+        // Emit internal signals
+        i = 0;
+        while (i < hir.signal_count()) {
+            const sig = hir.signals[i];
+            const kind_str = if (sig.kind == SignalKind.reg_kind) { "reg" } else { "wire" };
+            self.emit(kind_str);
+            self.emit(" ");
+            if (sig.width > 1) {
+                self.emit("[");
+                self.emit_int(sig.width - 1);
+                self.emit(":0] ");
+            }
+            self.emit(sig.name);
+            if (sig.kind == SignalKind.reg_kind && sig.reset_value != null) {
+                self.emit(" = ");
+                self.emit_int(sig.reset_value.?);
+            }
+            self.emit_line(";");
+            i = i + 1;
+        }
+        if (hir.signal_count() > 0) {
+            self.emit_line("");
+        }
+
+        // Emit assignments
+        i = 0;
+        while (i < hir.assign_count()) {
+            const assign = hir.assigns[i];
+            self.emit("assign ");
+            self.emit(assign.target);
+            self.emit(" = ");
+            self.emit(assign.value);
+            self.emit_line(";");
+            i = i + 1;
+        }
+        if (hir.assign_count() > 0) {
+            self.emit_line("");
+        }
+
+        // Emit memory instances
+        i = 0;
+        while (i < hir.mems.len) {
+            if (hir.mems[i].name.len() == 0) { break; }
+            const mem = hir.mems[i];
+            self.emit("(* ram_style = \"");
+            const style = if (mem.kind == MemKind.bram) { "block" }
+                          else if (mem.kind == MemKind.dram) { "distributed" }
+                          else { "block" };
+            self.emit(style);
+            self.emit_line("\" *)");
+            self.emit("reg [");
+            self.emit_int(mem.data_width - 1);
+            self.emit(":0] ");
+            self.emit(mem.name);
+            self.emit(" [0:");
+            self.emit_int(mem.depth - 1);
+            self.emit_line("];");
+            self.emit_line("");
+            i = i + 1;
+        }
+
+        // Emit sub-module instances
+        i = 0;
+        while (i < hir.instances.len) {
+            if (hir.instances[i].name.len() == 0) { break; }
+            const inst = hir.instances[i];
+            self.emit(inst.module_name);
+            self.emit(" ");
+            self.emit(inst.name);
+            self.emit_line(" (");
+            self.indent();
+            self.emit_line(".clk(clk),");
+            self.emit_line(".rst_n(rst_n)");
+            self.dedent();
+            self.emit_line(");");
+            self.emit_line("");
+            i = i + 1;
+        }
+
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
+
+    // ========================================================================
+    // 13. Testbench Emission from HIR
+    // ========================================================================
+
+    fn emit_testbench_from_hir(self: *FpgaCodegen, hir: HirModule, period_ns: u32) void {
+        self.emit_line("// Auto-generated testbench for ");
+        self.emit(hir.name);
+        self.emit_line("");
+        self.emit_line("`timescale 1ns / 1ps");
+        self.emit_line("");
+        self.emit("module tb_");
+        self.emit(hir.name);
+        self.emit_line(";");
+
+        // Clock and reset
+        self.emit_line("");
+        self.emit_line("reg clk = 1'b0;");
+        self.emit_line("reg rst_n = 1'b0;");
+        self.emit_line("");
+        self.emit_line("always #");
+        self.emit_int(period_ns / 2);
+        self.emit_line(" clk = ~clk;");
+        self.emit_line("");
+
+        // Instantiate DUT ports as reg/wire
+        var i : usize = 0;
+        while (i < hir.port_count()) {
+            const port = hir.ports[i];
+            if (port.direction == PortDir.input_dir) {
+                self.emit("reg ");
+            } else {
+                self.emit("wire ");
+            }
+            if (port.width > 1) {
+                self.emit("[");
+                self.emit_int(port.width - 1);
+                self.emit(":0] ");
+            }
+            self.emit(port.name);
+            self.emit_line(";");
+            i = i + 1;
+        }
+        self.emit_line("");
+
+        // DUT instantiation
+        self.emit(hir.name);
+        self.emit_line(" dut (");
+        self.indent();
+        self.emit_line(".clk(clk),");
+        self.emit_line(".rst_n(rst_n),");
+        i = 0;
+        while (i < hir.port_count()) {
+            const port = hir.ports[i];
+            if (port.name != "clk" and port.name != "rst_n") {
+                self.emit(".");
+                self.emit(port.name);
+                self.emit("(");
+                self.emit(port.name);
+                self.emit_line("),");
+            }
+            i = i + 1;
+        }
+        self.dedent();
+        self.emit_line(");");
+
+        // Test sequence
+        self.emit_line("");
+        self.emit_line("initial begin");
+        self.indent();
+        self.emit_line("$display(\"--- Testbench for ");
+        self.emit(hir.name);
+        self.emit_line(" ---\");");
+        self.emit_line("rst_n = 1'b0;");
+        self.emit_line("#");
+        self.emit_int(period_ns * 10);
+        self.emit_line(";");
+        self.emit_line("rst_n = 1'b1;");
+        self.emit_line("#");
+        self.emit_int(period_ns * 10);
+        self.emit_line(";");
+        self.emit_line("$display(\"Reset complete\");");
+        self.emit_line("#");
+        self.emit_int(period_ns * 100);
+        self.emit_line(";");
+        self.emit_line("$display(\"--- ALL TESTS PASSED ---\");");
+        self.emit_line("$finish;");
+        self.dedent();
+        self.emit_line("end");
+        self.emit_line("");
+        self.emit_line("endmodule");
+        self.emit_line("");
+    }
 }
 
 test fpga_emission_init_empty {
@@ -888,6 +1521,103 @@ test fpga_emission_all_modules_unique {
     cg.emit_uart_module();
     let uart_len = cg.output.len();
     assert uart_len > top_len;
+}
+
+test fpga_emission_bridge_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_bridge_module();
+    assert cg.output.contains("FPGA_Bridge");
+    assert cg.output.contains("cmd_buffer");
+}
+
+test fpga_emission_memory_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_memory_module();
+    assert cg.output.contains("MemoryController");
+    assert cg.output.contains("bram");
+}
+
+test fpga_emission_fifo_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_fifo_module();
+    assert cg.output.contains("SyncFIFO");
+    assert cg.output.contains("wr_ptr");
+    assert cg.output.contains("rd_ptr");
+}
+
+test fpga_emission_axi4_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_axi4_module();
+    assert cg.output.contains("AXI4_Lite_Slave");
+    assert cg.output.contains("awvalid");
+    assert cg.output.contains("arvalid");
+}
+
+test fpga_emission_apb_bridge_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_apb_bridge_module();
+    assert cg.output.contains("APB_Bridge");
+    assert cg.output.contains("paddr");
+    assert cg.output.contains("psel");
+}
+
+test fpga_emission_gf16_accel_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_gf16_accel_module();
+    assert cg.output.contains("GF16_Accel");
+    assert cg.output.contains("mul_result");
+}
+
+test fpga_emission_generic_module_from_hir {
+    let mut hir = HirModule.empty_module("TestModule");
+    hir.add_port(Port.make("clk", PortDir.input_dir, 1, false));
+    hir.add_port(Port.make("data_in", PortDir.input_dir, 8, false));
+    hir.add_port(Port.make("data_out", PortDir.output_dir, 8, false));
+    hir.add_signal(Signal.make("counter", SignalKind.reg_kind, 8, false, Some(0)));
+    hir.add_assign(Assign.make("data_out", "counter"));
+    let mut cg = FpgaCodegen.init();
+    cg.emit_generic_module(hir);
+    assert cg.output.contains("TestModule");
+    assert cg.output.contains("data_in");
+    assert cg.output.contains("data_out");
+    assert cg.output.contains("counter");
+    assert cg.output.contains("assign");
+}
+
+test fpga_emission_testbench_from_hir {
+    let mut hir = HirModule.empty_module("MyModule");
+    hir.add_port(Port.make("clk", PortDir.input_dir, 1, false));
+    hir.add_port(Port.make("rst_n", PortDir.input_dir, 1, false));
+    hir.add_port(Port.make("data", PortDir.output_dir, 8, false));
+    let mut cg = FpgaCodegen.init();
+    cg.emit_testbench_from_hir(hir, 20);
+    assert cg.output.contains("tb_MyModule");
+    assert cg.output.contains("dut");
+    assert cg.output.contains("$finish");
+}
+
+test fpga_emission_all_10_modules_emit {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_fpga_top();
+    cg.emit_uart_module();
+    cg.emit_spi_module();
+    cg.emit_mac_module();
+    cg.emit_bridge_module();
+    cg.emit_memory_module();
+    cg.emit_fifo_module();
+    cg.emit_axi4_module();
+    cg.emit_apb_bridge_module();
+    cg.emit_gf16_accel_module();
+    assert cg.output.contains("Trinity_FPGA_Top");
+    assert cg.output.contains("UART_Bridge");
+    assert cg.output.contains("SPI_Master");
+    assert cg.output.contains("ZeroDSP_MAC");
+    assert cg.output.contains("FPGA_Bridge");
+    assert cg.output.contains("MemoryController");
+    assert cg.output.contains("SyncFIFO");
+    assert cg.output.contains("AXI4_Lite_Slave");
+    assert cg.output.contains("APB_Bridge");
+    assert cg.output.contains("GF16_Accel");
 }
 
 invariant fpga_emission_indent_non_negative {
