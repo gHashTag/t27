@@ -12,7 +12,11 @@
 
 mod bridge;
 mod compiler;
+<<<<<<< Updated upstream
 mod enrichment;
+=======
+mod notebook;
+>>>>>>> Stashed changes
 mod suite;
 mod railway;
 mod jwt;
@@ -169,6 +173,7 @@ enum Commands {
         command: bridge::BridgeCommands,
     },
 
+<<<<<<< Updated upstream
     /// Enrich notebooks with YouTube transcripts
     Enrich {
         /// Notebook ID to enrich
@@ -229,6 +234,12 @@ enum Commands {
         /// API region (default: us)
         #[arg(long)]
         region: Option<String>,
+=======
+    /// NotebookLM — Manage and enrich notebooks with contextual content
+    Nb {
+        #[command(subcommand)]
+        command: notebook::NbCommands,
+>>>>>>> Stashed changes
     },
 
     /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
@@ -3195,6 +3206,81 @@ fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
         for err in &result.errors {
             println!("  - {}", err);
         }
+<<<<<<< Updated upstream
+=======
+        Commands::GenVerilog { input, out_root } => {
+            suite::check_now_sync(repo_root)?;
+            let full = resolve_repo_path(repo_root, &input);
+            if full.is_dir() {
+                run_gen_dir("verilog", &input, &out_root, repo_root)?;
+            } else {
+                run_gen_verilog_file(&full)?;
+            }
+        }
+        Commands::GenC { input, out_root } => {
+            suite::check_now_sync(repo_root)?;
+            let full = resolve_repo_path(repo_root, &input);
+            if full.is_dir() {
+                run_gen_dir("c", &input, &out_root, repo_root)?;
+            } else {
+                run_gen_c_file(&full)?;
+            }
+        }
+        Commands::GenRust { input } => {
+            let full = resolve_repo_path(repo_root, &input);
+            run_gen_rust_path(&full)?;
+        }
+        Commands::GenDir {
+            backend,
+            input,
+            out_root,
+        } => {
+            suite::check_now_sync(repo_root)?;
+            run_gen_dir(&backend, &input, &out_root, repo_root)?;
+        }
+        Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::SkillSeal { input } => run_seal(&input, true, false)?,
+        Commands::Compile { input, backend, output } => {
+            suite::check_now_sync(repo_root)?;
+            run_compile(&input, &backend, output.as_deref())?
+        }
+        Commands::CompileAll { backend, output, specs_dir } => {
+            suite::check_now_sync(repo_root)?;
+            run_compile_all(&backend, &output, specs_dir.as_deref())?
+        }
+        Commands::CompileProject { backend, output } => {
+            suite::check_now_sync(repo_root)?;
+            run_compile_project(&backend, &output)?
+        }
+        Commands::Stats => run_stats()?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Nb { command } => notebook::run_nb(command, repo_root)?,
+        Commands::Suite => suite::run_comprehensive(repo_root)?,
+        Commands::ValidateConformance => suite::validate_conformance(repo_root)?,
+        Commands::ValidateConformanceV2 => suite::validate_conformance_v2(repo_root)?,
+        Commands::MigrateV2 { dry_run } => suite::migrate_to_v2(repo_root, dry_run)?,
+        Commands::ExpandGf16 { output } => suite::expand_gf16_vectors(repo_root, output.as_deref())?,
+        Commands::GenNmseBenchmark { output } => {
+            suite::generate_nmse_benchmark(repo_root, output.as_deref())?
+        },
+        Commands::ValidateGenHeaders => suite::validate_gen_headers(repo_root)?,
+        Commands::ValidateSeals { pr_files } => suite::validate_seals(repo_root, pr_files.as_deref())?,
+        Commands::CheckNow => suite::check_now_sync(repo_root)?,
+        Commands::LintDocs => tooling::run_lint_docs(repo_root)?,
+        Commands::ValidatePhi => tooling::run_validate_phi()?,
+        Commands::ValidatePhiIdentity => tooling::validate_phi_identity(repo_root)?,
+        Commands::Brain => {
+            eprintln!("tri brain: not implemented in this repository yet.");
+            eprintln!("Planned: status, cycle, map, regions, coherence, connectivity, benchmark, evolve");
+            eprintln!("See docs/nona-01-foundation/TRINITY-BRAIN-NEUROANATOMY-TZ.md");
+            std::process::exit(2);
+        }
+        Commands::ValidateSchema { schema } => tooling::validate_schema(&schema)?,
+        Commands::ValidateInstance { instance, schema } => tooling::validate_instance(&instance, &schema)?,
+        Commands::CheckClaimTiers => tooling::check_claim_tiers(repo_root)?,
+        Commands::BrainSealRefresh => tooling::brain_seal_refresh(repo_root)?,
+>>>>>>> Stashed changes
     }
     Ok(())
 }
