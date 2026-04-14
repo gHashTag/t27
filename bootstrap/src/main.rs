@@ -223,6 +223,12 @@ enum Commands {
         command: bridge::BridgeCommands,
     },
 
+    /// NotebookLM Task Commands (L7 UNITY enforcement)
+    Task {
+        #[command(subcommand)]
+        command: bridge::TaskCommands,
+    },
+
     /// Enrich notebooks with YouTube transcripts
     Enrich {
         /// Notebook ID to enrich
@@ -7133,6 +7139,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Task { command } => bridge::run_task(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
@@ -7289,6 +7296,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Task { command } => bridge::run_task(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
