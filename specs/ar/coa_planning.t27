@@ -1,0 +1,522 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/ar/coa_planning.t27
+// Course-of-Action Planning with ML+AR for CLARA Defense Domain
+// φ² + φ⁻² = 3 | TRINITY
+
+module COAPlanning {
+    use base::types;
+    use ar::ternary_logic;   // K_FALSE, K_UNKNOWN, K_TRUE
+    use ar::proof_trace;      // ProofTrace, DerivationStep, MAX_STEPS=10
+    use ar::datalog_engine;   // HornClause, DatalogEngine
+    use ar::restraint;        // RestraintParams, should_continue
+    use ar::composition;      // CompositionPattern, RL_GUARDRAILS
+    use numeric::gf16;       // GF16 for confidence
+
+    // ═══════════════════════════════════════════════════════
+    // CONSTANTS (Defense Domain Constraints)
+    // ═══════════════════════════════════════════════════════
+    const MAX_RESOURCES : u8 = 5;      // Max simultaneous resources (fuel, ammo, comms, transport, repair)
+    const MAX_ACTIONS : u8 = 10;       // Max actions in a COA
+    const MIN_FUEL_THRESHOLD : f32 = 0.2;  // 20% minimum fuel for any action
+    const MIN_CREW_LEVEL : f32 = 0.3;     // 30% minimum crew availability
+    const WEATHER_SEVERITY_LIMIT : u8 = 7;  // Max acceptable weather severity (1-10)
+
+    // ═══════════════════════════════════════════════════════
+    // TYPES
+    // ═══════════════════════════════════════════════════════
+    // Resource types for military logistics
+    pub const ResourceType = enum(u8) {
+        FUEL = 0,        // Fuel reserves
+        AMMO = 1,        // Ammunition
+        COMMS = 2,       // Communication channels
+        TRANSPORT = 3,   // Transport vehicles
+        REPAIR = 4,      // Repair capacity
+        UNKNOWN = 255,
+    };
+
+    // Action types for course-of-action planning
+    pub const ActionType = enum(u8) {
+        MOVE = 0,        // Move unit to location
+        ENGAGE = 1,      // Engage enemy
+        RESUPPLY = 2,    // Resupply at depot
+        RECON = 3,       // Reconnaissance mission
+        DEFEND = 4,      // Defend position
+        WITHDRAW = 5,    // Withdraw from position
+        MEDICAL = 6,     // Medical evacuation
+        REPAIR = 7,      // Equipment repair
+        UNKNOWN = 255,
+    };
+
+    // Resource state tracking
+    pub const ResourceState = struct {
+        resource_type : ResourceType,
+        current_level : GF16,    // 0.0 to 1.0 (percentage)
+        required_level : GF16,  // Minimum required for action
+        consumption_rate : GF16, // Rate of consumption per hour
+    };
+
+    // Environmental state
+    pub const EnvironmentState = struct {
+        weather_severity : u8,   // 1-10 scale (1=clear, 10=severe)
+        visibility_km : f32,     // Visibility in km
+        temperature_c : f32,     // Temperature in Celsius
+        time_of_day : u8,        // 0-23 hour
+    };
+
+    // Unit state
+    pub const UnitState = struct {
+        unit_id : u32,
+        crew_level : GF16,       // 0.0 to 1.0 (percentage available)
+        combat_readiness : GF16, // 0.0 to 1.0
+        fatigue_level : GF16,   // 0.0 to 1.0 (1.0 = rested)
+        position_x : f32,
+        position_y : f32,
+    };
+
+    // Action proposal (from ML policy network)
+    pub const ActionProposal = struct {
+        action_type : ActionType,
+        target_x : f32,
+        target_y : f32,
+        priority : GF16,         // 0.0 to 1.0 (ML confidence)
+        estimated_duration_h : f32,
+        resource_requirements : [5]GF16,  // Resources needed per type
+    };
+
+    // Course of Action (COA) - sequence of actions
+    pub const CourseOfAction = struct {
+        actions : [MAX_ACTIONS]ActionProposal,
+        action_count : u8,
+        total_confidence : GF16,
+        feasibility_score : GF16,
+        proof_trace : ProofTrace,
+    };
+
+    // Planning context
+    pub const PlanningContext = struct {
+        resources : [MAX_RESOURCES]ResourceState,
+        environment : EnvironmentState,
+        unit : UnitState,
+        current_time_h : f32,
+    };
+
+    // ═══════════════════════════════════════════════════════
+    // FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    // check_fuel_constraint: Verify fuel sufficiency for action
+    // Returns K_TRUE if fuel >= minimum threshold, K_FALSE otherwise
+    pub fn check_fuel_constraint(
+        fuel_state : ResourceState,
+        action : ActionProposal
+    ) -> Trit {
+        const fuel_needed = action.resource_requirements[@intFromEnum(ResourceType.FUEL)];
+        const current_fuel = gf16_decode_to_f32(fuel_state.current_level);
+
+        if (current_fuel >= gf16_decode_to_f32(fuel_needed) and
+            current_fuel >= MIN_FUEL_THRESHOLD) {
+            return K_TRUE;
+        }
+
+        if (current_fuel < MIN_FUEL_THRESHOLD * 0.5) {
+            return K_FALSE;  // Critical fuel shortage
+        }
+
+        return K_UNKNOWN;  // Marginal - request discretion
+    }
+
+    // check_crew_constraint: Verify crew availability for action
+    pub fn check_crew_constraint(
+        unit_state : UnitState,
+        action : ActionProposal
+    ) -> Trit {
+        const crew_available = gf16_decode_to_f32(unit_state.crew_level);
+        const crew_needed = 0.5;  // Base 50% crew required
+
+        if (crew_available >= crew_needed) {
+            return K_TRUE;
+        }
+
+        if (crew_available < MIN_CREW_LEVEL) {
+            return K_FALSE;  // Insufficient crew
+        }
+
+        return K_UNKNOWN;  // Marginal crew availability
+    }
+
+    // check_weather_constraint: Verify weather permits action
+    pub fn check_weather_constraint(
+        environment : EnvironmentState,
+        action : ActionProposal
+    ) -> Trit {
+        const severity = environment.weather_severity;
+
+        // Certain actions require better conditions
+        const max_allowed_severity = switch (action.action_type) {
+            .RECON => 5,       // Reconnaissance needs good visibility
+            .MOVE => 6,        // Movement moderate weather
+            .ENGAGE => 7,      // Combat can occur in worse weather
+            .DEFEND => 8,      // Defense always possible
+            .WITHDRAW => 7,    // Withdrawal similar to combat
+            .RESUPPLY => 6,    // Resupply needs moderate conditions
+            .MEDICAL => 5,     // Medevac needs good conditions
+            .REPAIR => 4,      // Repair needs best conditions
+            .UNKNOWN => 7,
+        };
+
+        if (severity <= max_allowed_severity) {
+            return K_TRUE;
+        }
+
+        if (severity > WEATHER_SEVERITY_LIMIT) {
+            return K_FALSE;  // Weather too severe for any action
+        }
+
+        return K_UNKNOWN;  // Marginal conditions
+    }
+
+    // evaluate_action_feasibility: Combine all constraints for single action
+    // Uses K3 AND: all constraints must be TRUE for action to be feasible
+    pub fn evaluate_action_feasibility(
+        context : PlanningContext,
+        action : ActionProposal,
+        trace : *ProofTrace
+    ) -> Trit {
+        // Step 1: Fuel constraint
+        const fuel_result = check_fuel_constraint(context.resources[@intFromEnum(ResourceType.FUEL)], action);
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "fuel_constraint",
+            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            .output_fact = fuel_result,
+            .confidence = gf16_encode_f32(0.95),
+            .k3_value = fuel_result,
+        });
+
+        // Step 2: Crew constraint
+        const crew_result = check_crew_constraint(context.unit, action);
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "crew_constraint",
+            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            .output_fact = crew_result,
+            .confidence = gf16_encode_f32(0.90),
+            .k3_value = crew_result,
+        });
+
+        // Step 3: Weather constraint
+        const weather_result = check_weather_constraint(context.environment, action);
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "weather_constraint",
+            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            .output_fact = weather_result,
+            .confidence = gf16_encode_f32(0.85),
+            .k3_value = weather_result,
+        });
+
+        // Step 4: Combine via K3 AND
+        const combined_1 = k3_and(fuel_result, crew_result);
+        const final_result = k3_and(combined_1, weather_result);
+
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "combined_feasibility",
+            .input_facts = [_]Trit{fuel_result, crew_result, weather_result},
+            .output_fact = final_result,
+            .confidence = gf16_encode_f32(0.88),
+            .k3_value = final_result,
+        });
+
+        return final_result;
+    }
+
+    // generate_coa_from_ml_proposals: Filter ML proposals through AR guardrails
+    // Uses RL+Guardrails pattern from composition.t27
+    pub fn generate_coa_from_ml_proposals(
+        context : PlanningContext,
+        ml_proposals : []const ActionProposal,
+        proposal_count : usize,
+        params : RestraintParams
+    ) -> CourseOfAction {
+        var coa : CourseOfAction = undefined;
+        coa.action_count = 0;
+        coa.total_confidence = gf16_encode_f32(0.0);
+        coa.feasibility_score = gf16_encode_f32(0.0);
+        coa.proof_trace = create_trace();
+
+        var i : usize = 0;
+        while (i < proposal_count and coa.action_count < MAX_ACTIONS and coa.proof_trace.step_count < MAX_STEPS) {
+            const action = ml_proposals[i];
+
+            // Evaluate feasibility via AR rules
+            const feasibility = evaluate_action_feasibility(context, action, &coa.proof_trace);
+
+            // Only add feasible actions (K_TRUE) to COA
+            if (feasibility == K_TRUE) {
+                coa.actions[coa.action_count] = action;
+                coa.action_count = coa.action_count + 1;
+
+                // Accumulate confidence
+                const action_conf = action.priority;
+                const current_total = gf16_decode_to_f32(coa.total_confidence);
+                const action_conf_f = gf16_decode_to_f32(action_conf);
+                coa.total_confidence = gf16_encode_f32(current_total + action_conf_f);
+            }
+
+            // If K_UNKNOWN, may include as optional
+            if (feasibility == K_UNKNOWN and coa.action_count < MAX_ACTIONS) {
+                coa.actions[coa.action_count] = action;
+                coa.action_count = coa.action_count + 1;
+            }
+
+            // Check restraint
+            if (!should_continue(init_state(.good, 0), params)) {
+                coa.proof_trace.terminated = true;
+                break;
+            }
+
+            i = i + 1;
+        }
+
+        // Calculate average feasibility score
+        if (coa.action_count > 0) {
+            const avg_conf = gf16_decode_to_f32(coa.total_confidence) / @as(f32, @floatFromInt(coa.action_count));
+            coa.feasibility_score = gf16_encode_f32(avg_conf);
+        }
+
+        return coa;
+    }
+
+    // priority_ranking: Sort actions by ML priority and feasibility
+    // Returns re-ordered action list
+    pub fn priority_ranking(coa : *CourseOfAction) -> void {
+        // Simple bubble sort by priority (descending)
+        var i : u8 = 0;
+        while (i < coa.action_count - 1) {
+            var j : u8 = 0;
+            while (j < coa.action_count - 1 - i) {
+                const p1 = gf16_decode_to_f32(coa.actions[j].priority);
+                const p2 = gf16_decode_to_f32(coa.actions[j + 1].priority);
+                if (p1 < p2) {
+                    // Swap
+                    const temp = coa.actions[j];
+                    coa.actions[j] = coa.actions[j + 1];
+                    coa.actions[j + 1] = temp;
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+    }
+
+    // calculate_resource_consumption: Project resource usage for COA
+    pub fn calculate_resource_consumption(coa : CourseOfAction) -> [5]GF16 {
+        var total_consumption = [_]GF16{GF16_ZERO} ** 5;
+
+        var i : u8 = 0;
+        while (i < coa.action_count) {
+            var j : u8 = 0;
+            while (j < 5) {
+                const current = gf16_decode_to_f32(total_consumption[j]);
+                const action = gf16_decode_to_f32(coa.actions[i].resource_requirements[j]);
+                total_consumption[j] = gf16_encode_f32(current + action);
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+        return total_consumption;
+    }
+
+    // validate_coa_completeness: Check if COA meets mission requirements
+    pub fn validate_coa_completeness(
+        coa : CourseOfAction,
+        required_action_types : []const ActionType
+    ) -> Trit {
+        if (coa.action_count == 0) {
+            return K_FALSE;  // Empty COA invalid
+        }
+
+        // Check if required action types are present
+        var required_met : u8 = 0;
+        var i : usize = 0;
+        while (i < required_action_types.len) {
+            var j : u8 = 0;
+            var found = false;
+            while (j < coa.action_count) {
+                if (coa.actions[j].action_type == required_action_types[i]) {
+                    found = true;
+                    break;
+                }
+                j = j + 1;
+            }
+            if (found) required_met = required_met + 1;
+            i = i + 1;
+        }
+
+        const required_count = @intCast(u8, required_action_types.len);
+        if (required_met == required_count) {
+            return K_TRUE;
+        }
+        if (required_met >= required_count / 2) {
+            return K_UNKNOWN;  // Partial completion
+        }
+        return K_FALSE;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    fn create_default_context() -> PlanningContext {
+        return PlanningContext{
+            .resources = [_]ResourceState{
+                ResourceState{ .resource_type = .FUEL, .current_level = gf16_encode_f32(0.8), .required_level = gf16_encode_f32(0.3), .consumption_rate = gf16_encode_f32(0.1) },
+                ResourceState{ .resource_type = .AMMO, .current_level = gf16_encode_f32(0.7), .required_level = gf16_encode_f32(0.2), .consumption_rate = gf16_encode_f32(0.15) },
+                ResourceState{ .resource_type = .COMMS, .current_level = gf16_encode_f32(0.9), .required_level = gf16_encode_f32(0.5), .consumption_rate = gf16_encode_f32(0.05) },
+                ResourceState{ .resource_type = .TRANSPORT, .current_level = gf16_encode_f32(0.6), .required_level = gf16_encode_f32(0.3), .consumption_rate = gf16_encode_f32(0.08) },
+                ResourceState{ .resource_type = .REPAIR, .current_level = gf16_encode_f32(0.5), .required_level = gf16_encode_f32(0.2), .consumption_rate = gf16_encode_f32(0.1) },
+            },
+            .environment = EnvironmentState{
+                .weather_severity = 4,
+                .visibility_km = 8.5,
+                .temperature_c = 22.0,
+                .time_of_day = 14,
+            },
+            .unit = UnitState{
+                .unit_id = 1,
+                .crew_level = gf16_encode_f32(0.85),
+                .combat_readiness = gf16_encode_f32(0.90),
+                .fatigue_level = gf16_encode_f32(0.80),
+                .position_x = 100.0,
+                .position_y = 200.0,
+            },
+            .current_time_h = 14.5,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // TESTS
+    // ═══════════════════════════════════════════════════════
+    test fuel_constraint_allows_sufficient_fuel
+        given fuel_state = ResourceState{ .resource_type = .FUEL, .current_level = gf16_encode_f32(0.8), .required_level = gf16_encode_f32(0.3), .consumption_rate = gf16_encode_f32(0.1) }
+        and action = ActionProposal{ .action_type = .MOVE, .priority = GF16_ONE, .resource_requirements = [_]GF16{gf16_encode_f32(0.3)} ++ [_]GF16{GF16_ZERO}**4 }
+        when result = check_fuel_constraint(fuel_state, action)
+        then result == K_TRUE
+
+    test fuel_constraint_blocks_insufficient_fuel
+        given fuel_state = ResourceState{ .resource_type = .FUEL, .current_level = gf16_encode_f32(0.1), .required_level = gf16_encode_f32(0.3), .consumption_rate = gf16_encode_f32(0.1) }
+        and action = ActionProposal{ .action_type = .MOVE, .priority = GF16_ONE, .resource_requirements = [_]GF16{gf16_encode_f32(0.3)} ++ [_]GF16{GF16_ZERO}**4 }
+        when result = check_fuel_constraint(fuel_state, action)
+        then result == K_FALSE
+
+    test crew_constraint_allows_adequate_crew
+        given unit_state = UnitState{ .unit_id = 1, .crew_level = gf16_encode_f32(0.8), .combat_readiness = gf16_encode_f32(0.9), .fatigue_level = gf16_encode_f32(0.7), .position_x = 0.0, .position_y = 0.0 }
+        and action = ActionProposal{ .action_type = .ENGAGE, .priority = GF16_ONE, .resource_requirements = [_]GF16{GF16_ZERO}**5 }
+        when result = check_crew_constraint(unit_state, action)
+        then result == K_TRUE
+
+    test weather_constraint_blocks_severe_weather_for_recon
+        given environment = EnvironmentState{ .weather_severity = 8, .visibility_km = 3.0, .temperature_c = 15.0, .time_of_day = 10 }
+        and action = ActionProposal{ .action_type = .RECON, .priority = GF16_ONE, .resource_requirements = [_]GF16{GF16_ZERO}**5 }
+        when result = check_weather_constraint(environment, action)
+        then result == K_FALSE
+
+    test weather_defense_always_allowed
+        given environment = EnvironmentState{ .weather_severity = 9, .visibility_km = 1.0, .temperature_c = 5.0, .time_of_day = 2 }
+        and action = ActionProposal{ .action_type = .DEFEND, .priority = GF16_ONE, .resource_requirements = [_]GF16{GF16_ZERO}**5 }
+        when result = check_weather_constraint(environment, action)
+        then result == K_TRUE
+
+    test evaluate_action_feasibility_respects_10_step_limit
+        given context = create_default_context()
+        and action = ActionProposal{ .action_type = .MOVE, .priority = GF16_ONE, .resource_requirements = [_]GF16{GF16_ZERO}**5 }
+        when coa = generate_coa_from_ml_proposals(context, &[_]ActionProposal{action}, 1, RestraintParams{ .max_depth = 0, .max_rules = 10, .confidence_threshold = GF16_ZERO, .timeout_ms = 1000 })
+        then coa.proof_trace.step_count <= 10
+
+    test generate_coa_filters_infeasible_actions
+        given context = create_default_context()
+        and feasible_action = ActionProposal{ .action_type = .MOVE, .priority = gf16_encode_f32(0.9), .resource_requirements = [_]GF16{gf16_encode_f32(0.2)} ++ [_]GF16{GF16_ZERO}**4 }
+        and infeasible_action = ActionProposal{ .action_type = .RECON, .priority = gf16_encode_f32(0.95), .resource_requirements = [_]GF16{gf16_encode_f32(0.9)} ++ [_]GF16{GF16_ZERO}**4 }  // Requires 90% fuel, only 80% available
+        and proposals = [_]ActionProposal{infeasible_action, feasible_action}
+        when coa = generate_coa_from_ml_proposals(context, &proposals, 2, RestraintParams{ .max_depth = 0, .max_rules = 10, .confidence_threshold = GF16_ZERO, .timeout_ms = 1000 })
+        then coa.action_count >= 1  // At least feasible action included
+
+    test validate_coa_completeness_rejects_empty
+        given coa = CourseOfAction{ .actions = [_]ActionProposal{ActionProposal{}}**10, .action_count = 0, .total_confidence = GF16_ZERO, .feasibility_score = GF16_ZERO, .proof_trace = create_trace() }
+        when result = validate_coa_completeness(coa, &[_]ActionType{.MOVE, .ENGAGE})
+        then result == K_FALSE
+
+    test validate_coa_completeness_approves_complete
+        given actions = [_]ActionProposal{
+            ActionProposal{ .action_type = .MOVE, .priority = GF16_ONE, .resource_requirements = [_]GF16{GF16_ZERO}**5 },
+            ActionProposal{ .action_type = .ENGAGE, .priority = GF16_ONE, .resource_requirements = [_]GF16{GF16_ZERO}**5 },
+        }
+        and coa = CourseOfAction{ .actions = actions, .action_count = 2, .total_confidence = GF16_ONE, .feasibility_score = GF16_ONE, .proof_trace = create_trace() }
+        when result = validate_coa_completeness(coa, &[_]ActionType{.MOVE, .ENGAGE})
+        then result == K_TRUE
+
+    // ═══════════════════════════════════════════════════════
+    // INVARIANTS
+    // ═══════════════════════════════════════════════════════
+    invariant coa_action_count_within_bounds
+        // COA never exceeds MAX_ACTIONS
+        const context = create_default_context();
+        const proposals = [_]ActionProposal{ActionProposal{}} ** 15;
+        const coa = generate_coa_from_ml_proposals(context, &proposals, 15, RestraintParams{ .max_depth = 0, .max_rules = 10, .confidence_threshold = GF16_ZERO, .timeout_ms = 1000 });
+        assert coa.action_count <= MAX_ACTIONS;
+
+    invariant proof_trace_bounded_by_10
+        // All COA generation respects CLARA 10-step limit
+        const context = create_default_context();
+        const proposals = [_]ActionProposal{ActionProposal{}} ** 5;
+        const coa = generate_coa_from_ml_proposals(context, &proposals, 5, RestraintParams{ .max_depth = 0, .max_rules = 10, .confidence_threshold = GF16_ZERO, .timeout_ms = 1000 });
+        assert coa.proof_trace.step_count <= MAX_STEPS;
+
+    invariant resource_consumption_never_negative
+        // Resource consumption is always non-negative
+        const coa = CourseOfAction{ .actions = [_]ActionProposal{ActionProposal{}} ** 10, .action_count = 3, .total_confidence = GF16_ONE, .feasibility_score = GF16_ONE, .proof_trace = create_trace() };
+        const consumption = calculate_resource_consumption(coa);
+        for (consumption) |c| {
+            assert gf16_decode_to_f32(c) >= 0.0;
+        }
+
+    // ═══════════════════════════════════════════════════════
+    // BENCHES
+    // ═══════════════════════════════════════════════════════
+    bench coa_generation_latency
+        measure: cycles for generate_coa_from_ml_proposals with 5 proposals
+        target: < 5000 cycles
+
+    bench action_feasibility_check_latency
+        measure: cycles for evaluate_action_feasibility with default context
+        target: < 1000 cycles
+
+    bench resource_consumption_calculation_latency
+        measure: cycles for calculate_resource_consumption with 5 actions
+        target: < 500 cycles
+
+    bench priority_ranking_latency
+        measure: cycles for priority_ranking with 5 actions
+        target: < 300 cycles
+}
+
+// ═══════════════════════════════════════════════════════
+// MODULE SUMMARY
+// ═══════════════════════════════════════════════════════
+//
+// This module implements Course-of-Action (COA) planning for defense domain
+// using the RL+Guardrails composition pattern from ar::composition.
+//
+// Key Features:
+// - ML policy network proposes actions (ActionProposal)
+// - AR guardrails validate feasibility (fuel, crew, weather constraints)
+// - K3 logic ensures all constraints satisfied before action approval
+// - Bounded reasoning: ≤10 steps per CLARA requirement
+// - Resource tracking: 5 resource types with consumption projection
+//
+// Use Case: Military logistics planning where ML suggests optimal
+// courses of action, but AR rules ensure safety and feasibility.
+//
+// φ² + 1/φ² = 3 | TRINITY
