@@ -29,36 +29,40 @@ jobs:
 
           echo "Checking commits against $BASE_BRANCH..."
 
-          # Get commits in the range, excluding merge commits
-          COMMITS=$(git log origin/"$BASE_BRANCH"..HEAD --oneline --no-merges 2>/dev/null || echo "")
+          # Get commit hashes in the range, excluding merge commits
+          COMMIT_HASHES=$(git log origin/"$BASE_BRANCH"..HEAD --format="%H" --no-merges 2>/dev/null || echo "")
 
-          if [ -z "$COMMITS" ]; then
+          if [ -z "$COMMIT_HASHES" ]; then
             echo "No commits to check (likely first push)"
             exit 0
           fi
 
-          # Check each commit for Closes #N pattern
+          # Check each commit for Closes #N pattern (in full message)
           FAILED=0
           FAILED_COMMITS=""
           TOTAL=0
           PASSED=0
 
-          while IFS= read -r line; do
-            if [ -z "$line" ]; then
+          while IFS= read -r hash; do
+            if [ -z "$hash" ]; then
               continue
             fi
 
             TOTAL=$((TOTAL + 1))
 
-            # Check for "Closes #N" or "Close #N" or "Fixes #N" or "Fix #N"
-            if ! echo "$line" | grep -qiE "(Closes?|Fixes?)\s*#[0-9]+"; then
+            # Get the full commit message
+            FULL_MSG=$(git log -1 --format="%B" "$hash")
+            SHORT_MSG=$(git log -1 --format="%h %s" "$hash")
+
+            # Check for "Closes #N" or "Close #N" or "Fixes #N" or "Fix #N" in full message
+            if ! echo "$FULL_MSG" | grep -qiE "(Closes?|Fixes?)\s*#[0-9]+"; then
               FAILED=1
-              FAILED_COMMITS="$FAILED_COMMITS  ❌ $line"$'\n'
+              FAILED_COMMITS="$FAILED_COMMITS  ❌ $SHORT_MSG"$'\n'
             else
               PASSED=$((PASSED + 1))
-              echo "  ✓ $line"
+              echo "  ✓ $SHORT_MSG"
             fi
-          done <<< "$COMMITS"
+          done <<< "$COMMIT_HASHES"
 
           echo ""
           echo "Summary: $PASSED/$TOTAL commits pass L1 TRACEABILITY"
