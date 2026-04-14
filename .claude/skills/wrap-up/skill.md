@@ -21,6 +21,11 @@ The wrap-up will be uploaded to the notebook specified in `.trinity/current_task
 
 If no notebook is configured, this skill will fail with an error.
 
+<<<<<<< Updated upstream
+=======
+## What It Does
+
+>>>>>>> Stashed changes
 ## What It Does
 
 1. Extracts session context from `.trinity/` state files
