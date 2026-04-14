@@ -158,15 +158,15 @@ Illustrative **symmetry benchmarks** vs **global fits** (NuFIT-class). Your row 
 ## 13. Quick index → `FORMULA_TABLE.md` rows
 
 
-| Rows       | Content                                |
-| ---------- | -------------------------------------- |
-| 1–2        | L5 / \varphi algebra                   |
-| 3–5        | Pell block, \alpha^{-1} ref, \varphi^5 |
-| 6–7, 20–21 | Hybrid v1 / v2                         |
-| 7–9, 11–19 | SM references in CLI                   |
-| 22–25      | EW + CKM **φ ansätze**                 |
-| 26–30      | Koide, \theta_{12}, mass-ratio ansätze |
-| 31         | Pellis \alpha^{-1} closed form         |
+| Rows       | Content                                           |
+| ---------- | ------------------------------------------------- |
+| 1–2        | L5 / \varphi algebra                              |
+| 3–5        | Pell block, \alpha^{-1} ref, \varphi^5            |
+| 6–7, 20–21 | Hybrid v1 / v2                                    |
+| 7–9, 11–19 | SM references in CLI                              |
+| 22–25      | EW + CKM **φ ansätze**                            |
+| 26–30      | Koide, \theta_{12}, mass-ratio ansätze            |
+| 31         | Pellis \alpha^{-1} closed form                    |
 | 32         | Conjecture **H2:** \sin\theta_{13} = \varphi^{-4} |
 
 
