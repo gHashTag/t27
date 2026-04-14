@@ -96,13 +96,13 @@ module BuildVerify (
     // test: test_coverage_100
     initial begin : test_coverage_100_test
         $display("[TEST] test_coverage_100 : starting");
-        //         reg [31:0] cov = coverage_percent(47, 47);
+        //         reg [31:0] cov = coverage_percent(62, 62);
         $display("[TEST] test_coverage_100 : PASSED");
     end
     // test: test_coverage_0
     initial begin : test_coverage_0_test
         $display("[TEST] test_coverage_0 : starting");
-        //         reg [31:0] cov = coverage_percent(0, 47);
+        //         reg [31:0] cov = coverage_percent(0, 62);
         $display("[TEST] test_coverage_0 : PASSED");
     end
     // test: test_coverage_50

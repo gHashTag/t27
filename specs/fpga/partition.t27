@@ -237,6 +237,14 @@ module Partition {
     invariant util_bounded
         given n = arty_a7_node("inv")
         assert fpga_util(n, 0) == 0
+
+    bench fpga_util_latency
+        measure: nanoseconds to fpga_util(arty_a7_node("bench"), 15850)
+        target: < 50ns
+
+    bench link_bandwidth_latency
+        measure: nanoseconds to link_bandwidth_mbps(lvds_link(0, 1, 8))
+        target: < 50ns
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY

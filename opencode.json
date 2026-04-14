@@ -7,10 +7,8 @@
       }
     }
   },
-  "agent": {
-    "model": "zai-coding-plan/glm-5.1"
-  },
-  "rules": [
+  "model": "zai-coding-plan/glm-5.1",
+  "instructions": [
     "Read SOUL.md, T27-CONSTITUTION.md, TASK.md, and AGENTS.md before making changes.",
     "Every .t27 spec must contain test/invariant/bench blocks (TDD mandate, SOUL Article II).",
     "Commits must reference issues with Closes #N (L1 TRACEABILITY).",

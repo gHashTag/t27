@@ -171,17 +171,13 @@ module Placement (
     // function: validate_region
     function [31:0] validate_region; // -> u32
         input [31:0] r;
-        begin
-            reg [31:0] errors = 0;
-        end
+        // TODO: implement
     endfunction
 
     // function: validate_hint
     function [31:0] validate_hint; // -> u32
         input [31:0] h;
-        begin
-            reg [31:0] errors = 0;
-        end
+        // TODO: implement
     endfunction
     // -------------------------------------------------------
     // Test assertions (from test blocks)
@@ -264,6 +260,22 @@ module Placement (
     // -------------------------------------------------------
     // invariant: area_non_negative
     // invariant: validate_non_negative
+
+    // -------------------------------------------------------
+    // Benchmark blocks (simulation only)
+    // -------------------------------------------------------
+    initial begin : region_area_latency_bench // synthesis translate_off
+        $display("[BENCH] region_area_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] region_area_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] region_area_latency : DONE");
+    end // synthesis translate_on
+    initial begin : floorplan_construction_bench // synthesis translate_off
+        $display("[BENCH] floorplan_construction : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] floorplan_construction : %%0d cycles", _bench_cycles);
+        $display("[BENCH] floorplan_construction : DONE");
+    end // synthesis translate_on
 
 endmodule
 

@@ -112,6 +112,14 @@ module CrossOpt {
     invariant improvements_non_negative
         given p = pass_zero()
         assert total_improvements(p) >= 0
+
+    bench improvement_density_latency
+        measure: nanoseconds to improvement_density(pass_result("bench", 5, 20, 10, 5))
+        target: < 50ns
+
+    bench total_improvements_latency
+        measure: nanoseconds to total_improvements(pass_result("bench", 10, 50, 25, 10))
+        target: < 50ns
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY

@@ -211,6 +211,14 @@ module CTS {
     invariant skew_non_negative
         given t = clock_tree("inv", 2, 5)
         assert t.max_skew_ps >= 0
+
+    bench buffer_estimation_latency
+        measure: nanoseconds to est_buffers_needed(50)
+        target: < 50ns
+
+    bench tree_level_estimation_latency
+        measure: nanoseconds to est_tree_levels(200)
+        target: < 50ns
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY

@@ -102,6 +102,10 @@ module BootROM {
     invariant rom_size_positive
         given c = boot_config("inv", 4096)
         assert c.rom_size > 0
+
+    bench fits_check_latency
+        measure: nanoseconds to fits(boot_config("bench", 8192), [boot_stage("s1", 0, 4096, 0)], 1)
+        target: < 100ns
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY

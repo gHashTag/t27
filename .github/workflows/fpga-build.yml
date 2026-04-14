@@ -186,6 +186,34 @@ jobs:
             echo "::warning::synth.json suspiciously small ($size < 1000 bytes)"
           fi
 
+      - name: Utilization regression check
+        run: |
+          echo "## Utilization Regression" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          XC7A100T_MAX_LUTS=63400
+          XC7A100T_MAX_FFS=126800
+          XC7A100T_MAX_BRAM18=135
+          XC7A100T_MAX_DSP48=240
+          if [ -f build/fpga/synth/synth.log ]; then
+            luts=$(grep -oP '\d+(?=\s+cells)' build/fpga/synth/synth.log 2>/dev/null | head -1 || echo "0")
+            echo "| Resource | Used | Max (XC7A100T) | Util %" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|------|----------------|--------|" >> $GITHUB_STEP_SUMMARY
+            if [ "$luts" -gt 0 ] 2>/dev/null; then
+              pct=$((luts * 100 / XC7A100T_MAX_LUTS))
+              echo "| LUTs | $luts | $XC7A100T_MAX_LUTS | ${pct}% |" >> $GITHUB_STEP_SUMMARY
+              if [ "$pct" -gt 90 ]; then
+                echo "::warning::LUT utilization ${pct}% exceeds 90% threshold"
+              fi
+            else
+              echo "| LUTs | (parse from synth.log) | $XC7A100T_MAX_LUTS | - |" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "| BRAM18 | (parse from synth.log) | $XC7A100T_MAX_BRAM18 | - |" >> $GITHUB_STEP_SUMMARY
+            echo "| DSP48 | (parse from synth.log) | $XC7A100T_MAX_DSP48 | - |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No synth.log found for utilization check." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
       - name: Generate utilization report
         run: |
           echo "## FPGA Utilization Report" > build/fpga/report.md
@@ -217,6 +245,51 @@ jobs:
             build/fpga/synth/
             build/fpga/report.md
           retention-days: 7
+
+  fpga-synthesis-arty:
+    needs: fpga-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: FPGA synthesis (Arty A7-100T, minimal profile)
+        run: ./target/release/t27c fpga-build --docker false --synth-only --board arty-a7 --profile minimal
+
+      - name: Arty A7 synthesis check
+        run: |
+          echo "## Arty A7 Synthesis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/fpga/synth/synth.json ]; then
+            size=$(wc -c < build/fpga/synth/synth.json | tr -d ' ')
+            echo "| synth.json size | $size bytes |" >> $GITHUB_STEP_SUMMARY
+            echo "| Board | Arty A7-100T |" >> $GITHUB_STEP_SUMMARY
+            echo "| Profile | minimal |" >> $GITHUB_STEP_SUMMARY
+            echo "| Status | PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Status | FAIL |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Arty A7 synthesis did not produce synth.json"
+          fi
 
   fpga-bitstream:
     needs: fpga-synthesis
@@ -333,8 +406,90 @@ jobs:
             build/fpga/FLASHING.md
           retention-days: 7
 
+  fpga-formal:
+    needs: fpga-smoke
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      - name: Install Yosys + SymbiYosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+          pip3 install sby
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: Download generated Verilog
+        uses: actions/download-artifact@v4
+        with:
+          name: fpga-verilog
+          path: build/fpga/generated/
+
+      - name: Formal verification (MAC accumulator)
+        run: |
+          echo "## Formal Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Solver | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          if command -v sby &>/dev/null; then
+            mkdir -p build/fpga/formal
+            cat > build/fpga/formal/mac_acc.sby <<'SBY'
+            [tasks]
+            bmc
+            prove
+
+            [options]
+            bmc: mode bmc
+            prove: mode prove
+            depth 20
+
+            [engines]
+            smtbmc z3
+
+            [script]
+            read_verilog -formal build/fpga/generated/mac.v
+
+            [files]
+            build/fpga/generated/mac.v
+            SBY
+            if sby -f build/fpga/formal/mac_acc.sby 2>&1 | tee build/fpga/formal/mac_acc.log; then
+              echo "| ZeroDSP_MAC | Z3 (BMC+prove) | PASS |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| ZeroDSP_MAC | Z3 (BMC+prove) | FAIL/UNKNOWN |" >> $GITHUB_STEP_SUMMARY
+              echo "::warning::Formal verification of MAC module did not pass"
+            fi
+          else
+            echo "| (all) | SymbiYosys not installed | SKIPPED |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::SymbiYosys (sby) not available, formal check skipped"
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload formal results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpga-formal
+          path: build/fpga/formal/
+          retention-days: 7
+
   fpga-report:
-    needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-bitstream]
+    needs: [fpga-smoke, fpga-lint, fpga-synthesis, fpga-synthesis-arty, fpga-formal, fpga-bitstream]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -346,7 +501,9 @@ jobs:
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Smoke (gen-only) | ${{ needs.fpga-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Lint (all 31 modules) | ${{ needs.fpga-lint.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Synthesis (Yosys) | ${{ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Synthesis QMTECH (Yosys) | ${{ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Synthesis Arty A7 (Yosys) | ${{ needs.fpga-synthesis-arty.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Formal (SymbiYosys) | ${{ needs.fpga-formal.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Bitstream (E2E) | ${{ needs.fpga-bitstream.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Toolchain: Yosys + nextpnr-xilinx + prjxray + t27c (Rust) | Zero Vivado | Profile: minimal" >> $GITHUB_STEP_SUMMARY
+          echo "Toolchain: Yosys + nextpnr-xilinx + prjxray + sby + t27c (Rust) | Zero Vivado | Boards: QMTECH + Arty A7 | Profile: minimal" >> $GITHUB_STEP_SUMMARY

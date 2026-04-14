@@ -103,10 +103,44 @@ module fpga_emission {
         self.emit_line(");");
         self.emit_line("");
 
-        // Instantiate MAC units
-        self.emit_line("// ZeroDSP MAC units (8 parallel)");
-        self.emit_line("// TODO: Instantiate 8 parallel MAC units");
+        // MAC internal wires
+        self.emit_line("// MAC unit wires");
+        self.emit_line("wire [26:0] mac_a_wire;");
+        self.emit_line("wire [26:0] mac_b_wire;");
+        self.emit_line("wire [31:0] mac_acc_wire;");
+        self.emit_line("wire mac_en_wire;");
+        self.emit_line("wire [7:0] mac_unit_sel;");
+        self.emit_line("wire [31:0] mac_result [0:7];");
+        self.emit_line("wire [7:0] mac_ready [0:7];");
         self.emit_line("");
+
+        // Route top-level MAC inputs
+        self.emit_line("// MAC input routing");
+        self.emit_line("assign mac_a_wire = mac_a_in;");
+        self.emit_line("assign mac_b_wire = mac_b_in;");
+        self.emit_line("assign mac_acc_wire = mac_acc_in;");
+        self.emit_line("assign mac_en_wire = |mac_unit_sel;");
+        self.emit_line("");
+
+        // Instantiate 8 parallel MAC units
+        self.emit_line("// ZeroDSP MAC units (8 parallel)");
+        var unit_idx : usize = 0;
+        while (unit_idx < 8) {
+            self.emit_line("ZeroDSP_MAC mac_unit_");
+            self.emit_int(unit_idx);
+            self.emit_line(" (");
+            self.indent();
+            self.emit_line(".clk(clk),");
+            self.emit_line(".rst_n(rst_n),");
+            self.emit_line(".en(mac_en_wire),");
+            self.emit_line(".ready(mac_ready[");
+            self.emit_int(unit_idx);
+            self.emit_line("])");
+            self.dedent();
+            self.emit_line(");");
+            self.emit_line("");
+            unit_idx = unit_idx + 1;
+        }
 
         // LED state mapping
         self.emit_line("// LED output mapping");
@@ -114,9 +148,9 @@ module fpga_emission {
         self.emit_line("");
 
         // MAC output mapping
-        self.emit_line("// MAC output signals");
-        self.emit_line("assign mac_acc_out = 32'd0;");
-        self.emit_line("assign mac_valid_out = 1'b0;");
+        self.emit_line("// MAC output signals — OR-reduce ready flags for valid");
+        self.emit_line("assign mac_acc_out = mac_result[0];");
+        self.emit_line("assign mac_valid_out = &mac_ready[7:0];");
         self.emit_line("");
 
         self.emit_line("endmodule");
@@ -721,10 +755,33 @@ module fpga_emission {
     }
 
     // int_to_str(n: anytype) → []const u8
-    // Convert integer to string (simple implementation)
+    // Convert small non-negative integer to decimal string
+    // Supports range 0..9999 — sufficient for pin/port/module IDs
     fn int_to_str(n: anytype) []const u8 {
-        // Simplified conversion for small integers
-        // TODO: Use proper int to string conversion
-        return "0";  // Placeholder
+        if (n == 0) {
+            return "0";
+        }
+
+        var buf : [5]u8 = [0u8; 5];
+        var val : u32 = n;
+        var len : usize = 0;
+
+        while (val > 0) {
+            const digit = val % 10;
+            buf[len] = (digit as u8) + 48;
+            len = len + 1;
+            val = val / 10;
+        }
+
+        // Reverse in-place
+        var i : usize = 0;
+        while (i < len / 2) {
+            const tmp = buf[i];
+            buf[i] = buf[len - 1 - i];
+            buf[len - 1 - i] = tmp;
+            i = i + 1;
+        }
+
+        return buf[0..len];
     }
 }

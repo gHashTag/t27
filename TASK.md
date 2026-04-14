@@ -30,9 +30,9 @@
 | Field           | Value  |
 | --------------- | ------ |
 | **Epoch**       | 1      |
-| **Lock holder** | `none` |
-| **Lock scope**  | `none` |
-| **Lock until**  | `n/a`  |
+| **Lock holder** | `None` |
+| **Lock scope**  | `None` |
+| **Lock until**  | `None` |
 
 
 ---
@@ -51,6 +51,7 @@
 
 - Enforce **TASK Protocol** in CI via `cargo build`; use **#141** + this file for multi-agent consistency.
 - GitHub queue: [#126](https://github.com/gHashTag/t27/issues/126) (META), [#127–#135](https://github.com/gHashTag/t27/issues) (rings) — see `[docs/NOW.md](docs/NOW.md)`.
+- **FPGA pipeline restoration** — Promoted from deferred status to resolve codegen gaps and flashing.
 
 ---
 
@@ -78,15 +79,49 @@
 
 ---
 
-## Deferred — FPGA pipeline restoration
+## ~~Deferred~~ Completed — FPGA pipeline restoration
 
-*Optional local backlog; promote to a GitHub issue when executing.*
+*Items 1–5 completed via feat/fpga-* and fix/fpga-* branch merges.*
 
-1. Trim long lines in `specs/fpga/mac.t27`; `cargo build --release` in `bootstrap/`; `./scripts/tri parse specs/fpga/mac.t27`.
-2. Verilog gen for MAC; `specs/fpga/uart.t27`, `specs/fpga/top_level.t27`.
-3. `scripts/fpga/build.sh`, `flash.sh`, `Makefile`.
-4. `specs/fpga/constraints/qmtech_a100t.xdc`.
-5. CI: `t27c suite` / workflows as needed.
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 1 | Trim long lines in `specs/fpga/mac.t27` | Done | `feat/fpga-mac-spec` merged |
+| 2 | Verilog gen for MAC, UART, top_level | Done | 31 `.v` files in `specs/fpga/` |
+| 3 | `scripts/fpga/build.sh`, `flash.sh`, `Makefile` | Done | `t27c fpga-build` / `t27c fpga-flash` CLI |
+| 4 | `specs/fpga/constraints/qmtech_a100t.xdc` | Done | Minimal (12 pins) + full (48 pins) profiles |
+| 5 | CI: `t27c suite` / workflows | Done | `.github/workflows/fpga-build.yml` (4-stage E2E) |
+
+---
+
+## Open — FPGA Phase 2+: Critical Fixes
+
+*Promoted from analysis 2026-04-13.*
+
+### Phase 2 — HIR Expansion (2-3 sessions)
+
+1. Add `Mem` HIR node (BRAM/DRAM/ROM) — `specs/fpga/hir.t27:90`
+2. Add `ClockDomain` HIR node — `specs/fpga/hir.t27:91`
+3. Add `BusPort` HIR node (AXI/APB/WB) — `specs/fpga/hir.t27:92`
+4. Add `bench` sections to 7 specs: `placement`, `router`, `partition`, `cts`, `bootrom`, `crossopt`, `hir`
+
+### Phase 3 — prjxray Coverage (external dependency)
+
+1. Track upstream `SymbiFlow/prjxray-db` for Artix-7 Bank 0 SPI pins (G5-G8)
+2. Evaluate MAC debug pins: 32-pin debug output vs UART readback
+3. Switch CI `--profile full` once prjxray-db covers SPI pins
+
+### Phase 4 — Synthesis Quality (1-2 sessions)
+
+1. Add timing constraints to CI synthesis flow
+2. Set LUT/FF/BRAM utilization regression thresholds
+3. Formal verification: connect `specs/fpga/formal.t27` to SymbiYosys (`sby`)
+4. Extend CI with `--board arty-a7` matrix build
+
+### Phase 5 — Verification & Production
+
+1. VCD trace auto-compare against conformance vectors
+2. Power analysis: connect `specs/fpga/power.t27` to switching activity
+3. Flash verification: automate `QMTECH_A100T_SMOKE.md` in CI (HIL)
 
 ---
 

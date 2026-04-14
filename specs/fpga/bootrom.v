@@ -68,9 +68,7 @@ module BootROM (
     // function: validate_config
     function [31:0] validate_config; // -> u32
         input [31:0] cfg;
-        begin
-            reg [31:0] errors = 0;
-        end
+        // TODO: implement
     endfunction
 
     // function: config_end
@@ -86,10 +84,7 @@ module BootROM (
         input [31:0] cfg;
         input [31:0] stages;
         input [31:0] count;
-        begin
-            reg [31:0] total = 0;
-            reg [31:0] i = 0;
-        end
+        // TODO: implement
     endfunction
     // -------------------------------------------------------
     // Test assertions (from test blocks)
@@ -131,6 +126,16 @@ module BootROM (
     // Invariant checks (compile-time assertions)
     // -------------------------------------------------------
     // invariant: rom_size_positive
+
+    // -------------------------------------------------------
+    // Benchmark blocks (simulation only)
+    // -------------------------------------------------------
+    initial begin : fits_check_latency_bench // synthesis translate_off
+        $display("[BENCH] fits_check_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] fits_check_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] fits_check_latency : DONE");
+    end // synthesis translate_on
 
 endmodule
 

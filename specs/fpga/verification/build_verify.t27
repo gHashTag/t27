@@ -6,11 +6,11 @@
 
 module BuildVerify {
     const TOTAL_FPGA_MODULES : u32 = 31;
-    const TOTAL_TESTBENCHES : u32 = 14;
-    const TOTAL_BOARD_CONFIGS : u32 = 2;
-    const TOTAL_SPECS : u32 = 47;
+    const TOTAL_TESTBENCHES : u32 = 28;
+    const TOTAL_BOARD_CONFIGS : u32 = 3;
+    const TOTAL_SPECS : u32 = 62;
     const NUM_BACKENDS : u32 = 4;
-    const VERILOG_FILES : u32 = 47;
+    const VERILOG_FILES : u32 = 62;
 
     struct ModuleReport {
         name : str;
@@ -66,12 +66,12 @@ module BuildVerify {
     }
 
     test test_coverage_100 {
-        var cov : u32 = coverage_percent(47, 47);
+        var cov : u32 = coverage_percent(62, 62);
         invariant cov == 100;
     }
 
     test test_coverage_0 {
-        var cov : u32 = coverage_percent(0, 47);
+        var cov : u32 = coverage_percent(0, 62);
         invariant cov == 0;
     }
 

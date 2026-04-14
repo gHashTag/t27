@@ -87,6 +87,23 @@ These 32 pins are defined in `specs/fpga/constraints/qmtech_a100t.xdc` but are N
 | full (spec) | 16 | 12 | 4 (SPI) | 75% |
 | full (XDC) | 48 | 13 | 35 (4 SPI + 32 MAC) | 27% |
 
+## Action Items
+
+| Priority | Item | Dependency | Status |
+|----------|------|------------|--------|
+| High | SPI pins (G5-G8): track prjxray-db for Artix-7 Bank 0 | Upstream prjxray-db update | Open |
+| Medium | Evaluate MAC 32-pin debug vs UART readback | Architecture decision | Open |
+| Low | Full profile CI switch once SPI pins verified | prjxray-db + CI matrix | Blocked |
+
+### Recommendation: MAC Debug Pin Reduction
+
+The 32 MAC debug pins consume 67% of the pin budget and have 0% prjxray coverage. Consider:
+1. **Option A:** Keep 8-pin debug (lower byte only) + UART command for full 32-bit result
+2. **Option B:** Remove MAC debug pins entirely, rely on bridge UART protocol
+3. **Option C:** Wait for prjxray-db upstream update (timeline unknown)
+
+Option A is recommended: reduces MISSING pins from 35 to 28 while preserving hardware debug visibility.
+
 ## Arty A7-100T (Digilent)
 
 ### Minimal Profile

@@ -240,8 +240,9 @@ module SPI_Master;
             }
             RX_BIT => {
                 if (spi.bit_counter >= prescaler_div / 2) {
-                    // Sample MISO (mocked - in real FPGA, read pin)
-                    const miso_bit = false;  // TODO: read from MISO pin
+                    // Sample MISO — in spec-level simulation this is a placeholder;
+                    // Verilog emission reads the actual MISO input pin
+                    const miso_bit = false;
                     spi.rx_data = (spi.rx_data << 1) | (if miso_bit { 1u32 } else { 0u32 });
                     spi.bit_count = spi.bit_count + 1;
                     spi.bit_counter = 0;

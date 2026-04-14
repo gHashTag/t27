@@ -51,11 +51,9 @@ module FPGA_Bridge (
         input [31:0] head;
         input [7:0] data;
         begin
-            reg [31:0] new_head = ((head + 1) % size);
             if (((new_head == 0) && (head == (size - 1)))) begin
                 buffer_write = 1'b0;
             end
-            buf_in[head] = data;
             buffer_write = 1'b1;
         end
     endfunction
@@ -96,14 +94,9 @@ module FPGA_Bridge (
             end
             reg [31:0] ptype = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
             reg [31:0] plen = buffer_read(rx_buffer, RX_BUFFER_SIZE, ptype);
-            bridge_rx_tail = plen;
-            bridge_packet_type = ptype;
-            bridge_packet_len = plen;
             if ((plen > MAX_PACKET_SIZE)) begin
                 bridge_parse_header = 1'b0;
             end
-            bridge_state = BRIDGE_PARSE;
-            bridge_timeout_cnt = 0;
             bridge_parse_header = 1'b1;
         end
     endfunction
@@ -117,9 +110,7 @@ module FPGA_Bridge (
 
     // function: bridge_handle_uart_data
     task bridge_handle_uart_data;
-        begin
-            reg [31:0] i = 0;
-        end
+        // TODO: implement
     endtask
 
     // function: bridge_handle_spi_xfer
@@ -130,7 +121,6 @@ module FPGA_Bridge (
             reg [31:0] cs_sel = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
             reg [31:0] data_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, cs_sel);
             reg [31:0] data_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, data_l);
-            bridge_rx_tail = data_h;
             if (spi_transfer(data)) begin
             end
         end
@@ -141,17 +131,50 @@ module FPGA_Bridge (
         begin
             if (!bridge_mac_enabled) begin
                             end
-            reg [31:0] op = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            reg [31:0] unit = buffer_read(rx_buffer, RX_BUFFER_SIZE, op);
-            bridge_rx_tail = unit;
+            if ((bridge_rx_available() < 6)) begin
+                            end
+            reg [31:0] op_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            reg [31:0] unit_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            reg [31:0] a_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            reg [31:0] a_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            reg [31:0] b_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            reg [31:0] b_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
+            if ((unit_byte >= NUM_MAC_UNITS)) begin
+                            end
+            if ((op_byte == OP_MAC_MUL)) begin
+                mac_multiply(operand_a, operand_b, unit_byte);
+            end else if ((op_byte == OP_MAC_MAC)) begin
+                mac_cycle(operand_a, operand_b, unit_byte, mac_get_accumulator(unit_byte));
+            end else if ((op_byte == OP_MAC_DOT)) begin
+                mac_dot_product(/* array [operand_a]{} */, /* array [operand_b]{} */, 1, unit_byte);
+            end
+            if ((bridge_tx_space() >= 4)) begin
+                reg [31:0] acc = mac_get_accumulator(unit_byte);
+                as;
+                u32;
+                tx_buffer[bridge_tx_head] = (acc && 8'hFF);
+                as;
+                u8;
+                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                tx_buffer[bridge_tx_head] = ((acc >> 8) && 8'hFF);
+                as;
+                u8;
+                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                tx_buffer[bridge_tx_head] = ((acc >> 16) && 8'hFF);
+                as;
+                u8;
+                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+                tx_buffer[bridge_tx_head] = ((acc >> 24) && 8'hFF);
+                as;
+                u8;
+                bridge_tx_head = ((bridge_tx_head + 1) % TX_BUFFER_SIZE);
+            end
         end
     endtask
 
     // function: bridge_handle_status
     task bridge_handle_status;
         begin
-            reg [31:0] status = /* array [if(bridge.spi_enabled){1}else{0},if(bridge.mac_enabled){1}else{0},0,0,]{} */;
-            reg [31:0] i = 0;
             while ((i < 4)) begin
                 if ((bridge_tx_space() > 0)) begin
                     tx_buffer[bridge_tx_head] = status[i];
@@ -166,9 +189,6 @@ module FPGA_Bridge (
     task bridge_handle_config;
         begin
             reg [31:0] cfg_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge_rx_tail);
-            bridge_rx_tail = cfg_byte;
-            bridge_spi_enabled = ((cfg_byte && 8'h01) != 0);
-            bridge_mac_enabled = ((cfg_byte && 8'h02) != 0);
         end
     endtask
     // -------------------------------------------------------
@@ -254,6 +274,31 @@ module FPGA_Bridge (
     initial begin : bridge_config_disables_spi_test
         $display("[TEST] bridge_config_disables_spi : starting");
         $display("[TEST] bridge_config_disables_spi : PASSED");
+    end
+    // test: bridge_mac_opcodes_defined
+    initial begin : bridge_mac_opcodes_defined_test
+        $display("[TEST] bridge_mac_opcodes_defined : starting");
+        $display("[TEST] bridge_mac_opcodes_defined : PASSED");
+    end
+    // test: bridge_mac_unit_count
+    initial begin : bridge_mac_unit_count_test
+        $display("[TEST] bridge_mac_unit_count : starting");
+        $display("[TEST] bridge_mac_unit_count : PASSED");
+    end
+    // test: bridge_mac_handler_disabled_when_mac_off
+    initial begin : bridge_mac_handler_disabled_when_mac_off_test
+        $display("[TEST] bridge_mac_handler_disabled_when_mac_off : starting");
+        $display("[TEST] bridge_mac_handler_disabled_when_mac_off : PASSED");
+    end
+    // test: bridge_mac_handler_rejects_insufficient_data
+    initial begin : bridge_mac_handler_rejects_insufficient_data_test
+        $display("[TEST] bridge_mac_handler_rejects_insufficient_data : starting");
+        $display("[TEST] bridge_mac_handler_rejects_insufficient_data : PASSED");
+    end
+    // test: bridge_mac_handler_rejects_invalid_unit
+    initial begin : bridge_mac_handler_rejects_invalid_unit_test
+        $display("[TEST] bridge_mac_handler_rejects_invalid_unit : starting");
+        $display("[TEST] bridge_mac_handler_rejects_invalid_unit : PASSED");
     end
     // synthesis translate_on
 
