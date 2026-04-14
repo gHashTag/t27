@@ -1,7 +1,7 @@
 {
-  "notebook_id": "",
-  "title": "",
-  "branch": "",
-  "created_at": "",
-  "sources": []
+  "id": "CLARA_CI_FIXES_20260414",
+  "title": "CI Fixes for Issue #409",
+  "created_at": "2026-04-14",
+  "context": "Fixing all GitHub Actions CI workflow failures",
+  "issue": 409
 }
