@@ -64,3 +64,7 @@
 - **Commit:** feat: CLARA Proposal v1.5 - DARPA PA-25-07-02 Submission Package
 - **Files:** .github/workflows/auto-merge-ready-prs.yml,.github/workflows/pr-dashboard.yml
 
+## 2026-04-14T18:27:52Z — master
+- **Commit:** feat: CLARA Proposal v1.5 - DARPA PA-25-07-02 Submission Package
+- **Files:** docs/clara/README.md,docs/clara/evidence/README.md,docs/clara/examples/README.md,docs/clara/submission/README.md,docs/clara/test_vectors/README.md
+
