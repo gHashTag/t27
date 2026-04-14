@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cba6b2e60659c2d0c2b77ac3afcafceb98aca082e504a74f864f5a4de792a46c",
   "module": "jit",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:55Z",
-  "spec_hash": "sha256:da90f8dbf59c63115a11e0d473a963a568df10e6c88fb06bfa264215c08bfd26",
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:63faa9d8cbe1021e421ac6fed84ad3f027e1ddea2150d66103bcac903f271ecf",
   "spec_path": "specs/jit/jit.t27"
 }

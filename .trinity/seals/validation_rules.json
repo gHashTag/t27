@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b3bc91cdc8f1fbba07ddc2ad5d848e9ff0ef1249ace46e04eee0a040a79598db",
   "module": "validation_rules",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:33678b37e2c94763d2da70fee97c6a0070cb6fac64b6d2dfa12619af3b164e7c",
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:e79416b57589cda7e23932b530fdb1a76aa5a643319e149f7b60df4923899db5",
   "spec_path": "compiler/runtime/validation.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:405233c1e1cf6408522df9674851376329b79c3bb974ea95e19081478d993d79",
   "module": "gamma-conflict",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:0b8463e8a0554acf19263278af0caae2e2982d7783ff3a9498bfbd7e4c21bf6e",
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:c59804dd48e5867ebaef3c9586440a7b9ca8fc05b8e03937d25c9ae2097b8ed6",
   "spec_path": "specs/physics/gamma-conflict.t27"
 }

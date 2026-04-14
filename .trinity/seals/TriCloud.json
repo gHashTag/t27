@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:beeef70b33bf5fa32ef59de2b5b49e5fc36ffa6594628002d793ba971d18f14d",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:60e380adfe9df7befed16f27c85c687e387546226e38a3f416818b189666c4a3",
+  "gen_hash_zig": "sha256:5bd4d942de122bbd5e086f0c677a13207c7e51cca3665e9a00c1751128387ad0",
+  "module": "TriCloud",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:888f09cac9289bcb34d7779dab42458bdcab259b85f0d8d3dca65e634e7cb0f5",
+  "spec_path": "specs/tri/net/cloud.t27"
+}

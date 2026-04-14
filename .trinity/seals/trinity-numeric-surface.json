@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1a4811e6e97da8f41c25da9f9a7bca353290ab6e51ad7e1f0d68fc8b39af6d5a",
   "module": "trinity-numeric-surface",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:55Z",
-  "spec_hash": "sha256:77566dd023604fbac7e5faed2a768ddb4e05c21c50d05569b2bebd5be2c61579",
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:bbbfde52b6adf3ed605dbb0f74c482e48c4868a0f919c68c5a5da614190aec10",
   "spec_path": "specs/numeric/trinity_numeric_surface.t27"
 }

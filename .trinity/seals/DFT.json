@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e0e61c967aac61731b443e4a62246511df2ae6377b22a64937c47a16480c9c2f",
   "module": "DFT",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
+  "sealed_at": "2026-04-14T06:32:50Z",
   "spec_hash": "sha256:52bfcb88b32809c2a79b368329ea005cbc3863734ec277278c15459c967acc4e",
   "spec_path": "specs/fpga/dft.t27"
 }

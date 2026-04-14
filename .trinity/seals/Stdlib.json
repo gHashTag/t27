@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:39a42d3a60617b00f0fd10c1bc3123ad9124957198ce450938eb3d56e6871f39",
   "module": "Stdlib",
   "ring": 12,
-  "sealed_at": "2026-04-11T09:05:21Z",
+  "sealed_at": "2026-04-14T06:38:34Z",
   "spec_hash": "sha256:fb78ae12983cc5b08cc552910a1088eec6c5b078c40053f127f75b516b3a0c8d",
   "spec_path": "specs/compiler/stdlib.t27"
 }
