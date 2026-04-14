@@ -56,3 +56,15 @@
 - **Commit:** feat: CLARA Proposal v1.5 - DARPA PA-25-07-02 Submission Package
 - **Files:** docs/NOW.md
 
+## 2026-04-14T18:54:31Z — feat/clara-docs-organization
+- **Commit:** feat(tri): Add physics verification commands (Closes #XXX)
+- **Files:** docs/NOW.md,docs/clara/README.md,docs/clara/evidence/README.md
+
+## 2026-04-14T18:56:18Z — feat/clara-docs-organization
+- **Commit:** docs(clara): comprehensive documentation organization overhaul
+- **Files:** 
+
+## 2026-04-14T18:57:26Z — feat/clara-docs-organization
+- **Commit:** docs(clara): comprehensive documentation organization overhaul
+- **Files:** docs/NOW.md
+
