@@ -441,41 +441,29 @@ jobs:
           name: fpga-verilog
           path: build/fpga/generated/
 
-      - name: Formal verification (MAC accumulator)
+      - name: Formal verification (MAC + FIFO + UART)
         run: |
           echo "## Formal Verification" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Module | Solver | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Solver | Task | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|------|--------|" >> $GITHUB_STEP_SUMMARY
           if command -v sby &>/dev/null; then
-            mkdir -p build/fpga/formal
-            cat > build/fpga/formal/mac_acc.sby <<'SBY'
-            [tasks]
-            bmc
-            prove
-
-            [options]
-            bmc: mode bmc
-            prove: mode prove
-            depth 20
-
-            [engines]
-            smtbmc z3
-
-            [script]
-            read_verilog -formal build/fpga/generated/mac.v
-
-            [files]
-            build/fpga/generated/mac.v
-            SBY
-            if sby -f build/fpga/formal/mac_acc.sby 2>&1 | tee build/fpga/formal/mac_acc.log; then
-              echo "| ZeroDSP_MAC | Z3 (BMC+prove) | PASS |" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "| ZeroDSP_MAC | Z3 (BMC+prove) | FAIL/UNKNOWN |" >> $GITHUB_STEP_SUMMARY
-              echo "::warning::Formal verification of MAC module did not pass"
-            fi
+            cp -r contrib/formal build/fpga/formal
+            cp specs/fpga/mac.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/mac.v build/fpga/formal/ 2>/dev/null || true
+            cp specs/fpga/fifo.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/fifo.v build/fpga/formal/ 2>/dev/null || true
+            cp specs/fpga/uart.v build/fpga/formal/ 2>/dev/null || cp build/fpga/generated/uart.v build/fpga/formal/ 2>/dev/null || true
+            for sby_file in build/fpga/formal/*.sby; do
+              module_name=$(basename "$sby_file" .sby)
+              echo "Running formal: $module_name"
+              if sby -f "$sby_file" 2>&1 | tee "build/fpga/formal/${module_name}.log"; then
+                echo "| $module_name | Z3 | BMC+prove | PASS |" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "| $module_name | Z3 | BMC+prove | FAIL/UNKNOWN |" >> $GITHUB_STEP_SUMMARY
+                echo "::warning::Formal verification of $module_name did not pass"
+              fi
+            done
           else
-            echo "| (all) | SymbiYosys not installed | SKIPPED |" >> $GITHUB_STEP_SUMMARY
+            echo "| (all) | SymbiYosys not installed | - | SKIPPED |" >> $GITHUB_STEP_SUMMARY
             echo "::warning::SymbiYosys (sby) not available, formal check skipped"
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
