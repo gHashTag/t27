@@ -91,7 +91,8 @@ jobs:
           echo "Checking for gen/ directory edits..."
 
           # Check if any existing files in gen/ were modified (not new additions)
-          MODIFIED_GEN=$(git diff --name-status origin/"$BASE_BRANCH"..HEAD | grep -E "^M\s+gen/" || echo "")
+          # Use --no-renames to avoid false positives from rename detection
+          MODIFIED_GEN=$(git diff --no-renames --name-status origin/"$BASE_BRANCH"..HEAD | grep -E "^M\s+gen/" || echo "")
           if [ -n "$MODIFIED_GEN" ]; then
             echo "::error::L2 GENERATION VIOLATION: The following files under gen/ were modified directly:"
             echo "$MODIFIED_GEN"
