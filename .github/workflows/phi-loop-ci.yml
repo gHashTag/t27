@@ -1,3 +1,4 @@
+# Enforces L5 IDENTITY: φ² + φ⁻² = 3 with IEEE f64 tolerance checks
 name: PHI Loop CI
 
 on:
