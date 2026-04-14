@@ -29,8 +29,8 @@ jobs:
 
           echo "Checking commits against $BASE_BRANCH..."
 
-          # Get commits in the range
-          COMMITS=$(git log origin/"$BASE_BRANCH"..HEAD --oneline 2>/dev/null || echo "")
+          # Get commits in the range, excluding merge commits
+          COMMITS=$(git log origin/"$BASE_BRANCH"..HEAD --oneline --no-merges 2>/dev/null || echo "")
 
           if [ -z "$COMMITS" ]; then
             echo "No commits to check (likely first push)"
