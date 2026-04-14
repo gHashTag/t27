@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/ar/coa_planning.t27
+// Course-of-Action Planning with ML+AR for CLARA Defense Domain
+// φ² + φ⁻² = 3 | TRINITY
+
+module COAPlanning {
+    use base::types;
+    use ar::ternary_logic;
+    use ar::proof_trace;
+    use ar::datalog_engine;
+    use ar::restraint;
+    use ar::composition;
+    use numeric::gf16;
+
+    const MAX_RESOURCES : u8 = 5;
+    const MAX_ACTIONS : u8 = 10;
+    const MIN_FUEL_THRESHOLD : f32 = 0.2;
+    const MIN_CREW_LEVEL : f32 = 0.3;
+    const WEATHER_SEVERITY_LIMIT : u8 = 7;
+
+    pub const ResourceType = enum(u8) {
+        FUEL = 0, AMMO = 1, COMMS = 2, TRANSPORT = 3, REPAIR = 4, UNKNOWN = 255,
+    };
+
+    pub const ActionType = enum(u8) {
+        MOVE = 0, ENGAGE = 1, RESUPPLY = 2, RECON = 3, DEFEND = 4,
+        WITHDRAW = 5, MEDICAL = 6, REPAIR = 7, UNKNOWN = 255,
+    };
+
+    pub const ResourceState = struct {
+        resource_type : ResourceType,
+        current_level : GF16,
+        required_level : GF16,
+        consumption_rate : GF16,
+    };
+
+    pub const EnvironmentState = struct {
+        weather_severity : u8,
+        visibility_km : f32,
+        temperature_c : f32,
+        time_of_day : u8,
+    };
+
+    pub const UnitState = struct {
+        unit_id : u32,
+        crew_level : GF16,
+        combat_readiness : GF16,
+        fatigue_level : GF16,
+        position_x : f32,
+        position_y : f32,
+    };
+
+    pub const ActionProposal = struct {
+        action_type : ActionType,
+        target_x : f32,
+        target_y : f32,
+        priority : GF16,
+        estimated_duration_h : f32,
+        resource_requirements : [5]GF16,
+    };
+
+    pub const CourseOfAction = struct {
+        actions : [MAX_ACTIONS]ActionProposal,
+        action_count : u8,
+        total_confidence : GF16,
+        feasibility_score : GF16,
+        proof_trace : ProofTrace,
+    };
+
+    pub const PlanningContext = struct {
+        resources : [MAX_RESOURCES]ResourceState,
+        environment : EnvironmentState,
+        unit : UnitState,
+        current_time_h : f32,
+    };
+
+    pub fn check_fuel_constraint(
+        fuel_state : ResourceState,
+        action : ActionProposal
+    ) -> Trit {
+        const fuel_needed = action.resource_requirements[@intFromEnum(ResourceType.FUEL)];
+        const current_fuel = gf16_decode_to_f32(fuel_state.current_level);
+
+        if (current_fuel >= gf16_decode_to_f32(fuel_needed) and
+            current_fuel >= MIN_FUEL_THRESHOLD) {
+            return K_TRUE;
+        }
+        if (current_fuel < MIN_FUEL_THRESHOLD * 0.5) {
+            return K_FALSE;
+        }
+        return K_UNKNOWN;
+    }
+
+    pub fn check_crew_constraint(
+        unit_state : UnitState,
+        action : ActionProposal
+    ) -> Trit {
+        const crew_available = gf16_decode_to_f32(unit_state.crew_level);
+        const crew_needed = 0.5;
+
+        if (crew_available >= crew_needed) {
+            return K_TRUE;
+        }
+        if (crew_available < MIN_CREW_LEVEL) {
+            return K_FALSE;
+        }
+        return K_UNKNOWN;
+    }
+
+    pub fn check_weather_constraint(
+        environment : EnvironmentState,
+        action : ActionProposal
+    ) -> Trit {
+        const severity = environment.weather_severity;
+
+        const max_allowed_severity = switch (action.action_type) {
+            .RECON => 5,
+            .MOVE => 6,
+            .ENGAGE => 7,
+            .DEFEND => 8,
+            .WITHDRAW => 7,
+            .RESUPPLY => 6,
+            .MEDICAL => 5,
+            .REPAIR => 4,
+            .UNKNOWN => 7,
+        };
+
+        if (severity <= max_allowed_severity) {
+            return K_TRUE;
+        }
+        if (severity > WEATHER_SEVERITY_LIMIT) {
+            return K_FALSE;
+        }
+        return K_UNKNOWN;
+    }
+
+    pub fn evaluate_action_feasibility(
+        context : PlanningContext,
+        action : ActionProposal,
+        trace : *ProofTrace
+    ) -> Trit {
+        const fuel_result = check_fuel_constraint(context.resources[@intFromEnum(ResourceType.FUEL)], action);
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "fuel_constraint",
+            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            .output_fact = fuel_result,
+            .confidence = gf16_encode_f32(0.95),
+            .k3_value = fuel_result,
+        });
+
+        const crew_result = check_crew_constraint(context.unit, action);
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "crew_constraint",
+            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            .output_fact = crew_result,
+            .confidence = gf16_encode_f32(0.90),
+            .k3_value = crew_result,
+        });
+
+        const weather_result = check_weather_constraint(context.environment, action);
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "weather_constraint",
+            .input_facts = [_]Trit{K_TRUE, K_UNKNOWN, K_UNKNOWN},
+            .output_fact = weather_result,
+            .confidence = gf16_encode_f32(0.85),
+            .k3_value = weather_result,
+        });
+
+        const combined_1 = k3_and(fuel_result, crew_result);
+        const final_result = k3_and(combined_1, weather_result);
+
+        _ = append_step(trace, DerivationStep{
+            .step_number = @as(u8, @intCast(trace.step_count)),
+            .rule_name = "combined_feasibility",
+            .input_facts = [_]Trit{fuel_result, crew_result, weather_result},
+            .output_fact = final_result,
+            .confidence = gf16_encode_f32(0.88),
+            .k3_value = final_result,
+        });
+
+        return final_result;
+    }
+
+    invariant proof_trace_bounded_by_10
+        const context = PlanningContext{
+            .resources = [_]ResourceState{
+                ResourceState{ .resource_type = .FUEL, .current_level = gf16_encode_f32(0.8), .required_level = gf16_encode_f32(0.3), .consumption_rate = gf16_encode_f32(0.1) },
+            } ** 5,
+            .environment = EnvironmentState{ .weather_severity = 4, .visibility_km = 8.5, .temperature_c = 22.0, .time_of_day = 14 },
+            .unit = UnitState{ .unit_id = 1, .crew_level = gf16_encode_f32(0.85), .combat_readiness = gf16_encode_f32(0.90), .fatigue_level = gf16_encode_f32(0.80), .position_x = 100.0, .position_y = 200.0 },
+            .current_time_h = 14.5,
+        };
+        const action = ActionProposal{ .action_type = .MOVE, .target_x = 0.0, .target_y = 0.0, .priority = GF16_ONE, .estimated_duration_h = 1.0, .resource_requirements = [_]GF16{GF16_ZERO} ** 5 };
+        var trace = create_trace();
+        const result = evaluate_action_feasibility(context, action, &trace);
+        assert trace.step_count <= 10;
+}
