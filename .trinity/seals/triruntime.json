@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:95236c15db1e17c52ee0ec210f77254ce98f5c9ab462ee419c0221277fd9c87f",
   "module": "triruntime",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:83969c01bc42ca48ab841ba4e77ce26d08e9b23a0922dcc33dffee3b69cdab74",
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:7e2c85ecf44029720624386e09c05b7493ad34c71df37461b3e2509c88ebcf5b",
   "spec_path": "compiler/runtime/runtime.t27"
 }

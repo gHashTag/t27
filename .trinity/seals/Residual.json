@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:19a3d90eb96b066500c0a78fd922670dcf378de57886525d9325c0dc4c1920d1",
+  "gen_hash_rust": "sha256:325afdd21a69f2b7fa9b03e724c2e748f930f93ea8b5f13082abe250447c2620",
+  "gen_hash_verilog": "sha256:668c3eb022b2365264417e939ffe7607990f0b216959ddd6d6961594c0aa776b",
+  "gen_hash_zig": "sha256:c53ec5b7eb65b22381a81c020e938994246d60069a3c641ace06f1d7777836c6",
+  "module": "Residual",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:c2cd77bcf1104c6158fcb0dc37e0533f063bf3836fedcbe3174681beae8f460b",
+  "spec_path": "specs/ml/layers/residual_connection.t27"
+}

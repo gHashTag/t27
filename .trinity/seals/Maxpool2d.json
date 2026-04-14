@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:0ebac0fab4bd8217afbc7a2ceb5026c9667271b3173e0bf87b5e38aaba5b0d6d",
+  "gen_hash_rust": "sha256:ffebf00d92b69899fda2f18558d5bfdb15877a7386229b54407541c0afc5e4cd",
+  "gen_hash_verilog": "sha256:9b6a306bf8ecafa0a58cbd37f8d940f79360e7c0430d8a381ec65ca2283e5243",
+  "gen_hash_zig": "sha256:c027eb5f9db221e55e295c0d3565318d751da9654bab793baa8c658964c3cd90",
+  "module": "Maxpool2d",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:85737878076cb079490db44c9772b4934fc0daae162b066db29d1685190a2c60",
+  "spec_path": "specs/ml/layers/maxpool2d_layer.t27"
+}

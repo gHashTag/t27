@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:008e8fba352382dd2da825393cce935bff0eb33994e8792a38c17aa85aee5dc6",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:2450ef015ba567044c4d6f4ab9eaf89f821daa0a775e1d5e2c505e8156a21e20",
+  "gen_hash_zig": "sha256:81cae8984db7df2c61b757e33840a3b71d744f1ca85ce39f976c5a9da46c11a0",
+  "module": "TriColors",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:73bb97ab69e0b71c9e8f4f889a00cf720c6ffcdcefde4e2d1efcdbd8c7ef17b7",
+  "spec_path": "specs/tri/utils/colors.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:81dabfdaa24b2d242596eb1e445742d0c12eb43f058fee08da75c76ba1ca15a7",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:3f0afa8c09626c3cdfcf18e7678af55f77872bf1c5bca1eaa2ed71978fe872e0",
+  "gen_hash_zig": "sha256:0a61c523239519adc8052b14e4038186f3bbda353fa7098ee07728b8cae8ab85",
+  "module": "TriMatrix",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:d7cfa970509a60bdda062871dcd0abf5880616d6688656c59706fddc9e92c7fd",
+  "spec_path": "specs/tri/math/matrix.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:834c0835b3e36ba5e437d167a826c1f565dac675c0695690252ef77fda45397d",
+  "gen_hash_rust": "sha256:ce8d715496091f79ce421ddd2575f72115aadad13d9f86331f6e733d8426f5ea",
+  "gen_hash_verilog": "sha256:bd4f0a58c2aa9c80553f01fec2e384a2e9ff3dbeacb78d11cb099586a6343bae",
+  "gen_hash_zig": "sha256:e78808d8aa598b65f0cbbea9867526885c8f7f1b1fe8e2fa096796dc82ded0b1",
+  "module": "TriReedSolomon",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:fc6550b88f43e488b6920e33f140cb90350cae7b7e8b7d557b6aaa2ba8f642ba",
+  "spec_path": "specs/tri/crypto/reed_solomon.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:098e521993e1f7cb133d9875dc9e747bca9f29a6dab26b713c102d490fe0a0be",
+  "gen_hash_rust": "sha256:6c98e64bb2a19aab2bb19f6e7226b4a85bd7d90c2cd5338c977918e922772bfe",
+  "gen_hash_verilog": "sha256:262544c8b7bb8f38e55c97ee076429afe55992a4ebcfeae29ace64f8503505cb",
+  "gen_hash_zig": "sha256:8c839a77c555dc58bcb354ad285dd897d1b53245c10d9fb4a2e95ebca67679aa",
+  "module": "PositionalEnc",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:ab67427b1b6231635c4811115026c4cf04edf9bc820b52e02176879fb05f5602",
+  "spec_path": "specs/ml/transformer/positional_encoding.t27"
+}

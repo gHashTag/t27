@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ce623c0bac4e40490ae4f2f76c047af2f5ca0f64d2558eb3aada294b8c30d846",
+  "gen_hash_rust": "sha256:f9e9041bfeb9721a8f0b941f1fabee61c9a00d57aab39bb3f04e4b5b062f4099",
+  "gen_hash_verilog": "sha256:a24172fd9c6d2a3bbbeed5a1e760cc011b1cb1b632965be1c3efdb4ad041880d",
+  "gen_hash_zig": "sha256:03310d242027d084fe259904ec87fec767ae126657ac73c6541b2386b06757ca",
+  "module": "Integration_Testbench",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:cad3992fa6893a5467a5e01b6a63be0fa42916e661d32aa8a25412c627835b7c",
+  "spec_path": "specs/fpga/testbench/integration_tb.t27"
+}

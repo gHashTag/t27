@@ -5,7 +5,7 @@
   "gen_hash_zig": "none",
   "module": "parser",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:e1e4a17e445f517f512c2ebb058c5d068f4c33f5aefdd07377c21ff2f1c54f8f",
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:b696d9d8aed254b5597d95852bef79591886bcdbb1c3823e7627813af1999507",
   "spec_path": "compiler/parser/parser.t27"
 }

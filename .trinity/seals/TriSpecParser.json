@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4f0e5cce6fe030201d4b3345f344474407ca5fc77ea85f278bc9d00ce96fd1c1",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:e13cee8c5682269f10d3476fd7422527d420598062802250e3654aed9fb322de",
+  "gen_hash_zig": "sha256:3a091dffe08d7b573186bddd1ffe136281d6f025c21e1b416c27e72949332703",
+  "module": "TriSpecParser",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:5bb8cead0f512228a91fc385bd5d660ab111eb1c47c1206476f780835ebdecec",
+  "spec_path": "specs/tri/pipeline/spec_parser.t27"
+}

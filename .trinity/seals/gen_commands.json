@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7ace061f35b97f0490ac4456e50543c0f50ce6af06dffdd5b9c36368a8001573",
   "module": "gen_commands",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:4dd1bf05316f1a0ed952457e8fbbe7e03c51d51b2891c1dfe603db0425b4f2a3",
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:6cca925094b3fa70c0678bc2c5dddc69e6b6ca776fefc4252bf5581b85c99297",
   "spec_path": "compiler/cli/gen.t27"
 }

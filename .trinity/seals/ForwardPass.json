@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:7e8db3ee76b61eb477ed65a6607ce3dc020d4826cf26e77998e79fa89e86b482",
   "module": "ForwardPass",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:f53faab13959683ff6110da18d8125f6c62af2516383c6b77aab8610a5584ebf",
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:3564aa1e78bc5c752222109e753bbfe46f53b96686dc0964328908711856ba98",
   "spec_path": "specs/hslm/forward_pass.t27"
 }

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:49592af8d674d15792005f2aa24c5e6fdc98602d3fb03f8cc89acca25aabeb3b",
+  "gen_hash_rust": "sha256:9ca486762a78888b68be1d7c43311d5f75eb7a44458cc23007d5f929dd14193b",
+  "gen_hash_verilog": "sha256:5a8e3371b54c43e148bd02e309071b64e3138e6d1c469a567a02095ace294683",
+  "gen_hash_zig": "sha256:06d238442e20343544af33cf9fa98e570ddc26959a4a3787db2e35db48e1f99c",
+  "module": "TriSet",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:8f0a689a5d11faccd87687158f9883028c6f3694c6d278958b2772bafc901a2b",
+  "spec_path": "specs/tri/collections/set.t27"
+}

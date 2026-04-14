@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:68134c55ce4875d2f4e8d044e145f8623ef5282526bcd8cd3bccb7f48cc9a70e",
+  "gen_hash_rust": "sha256:2054b692e488c502837251aa47ecd2930b7e0d2f7b129d3670aea8322a6e1073",
+  "gen_hash_verilog": "sha256:9939130bc9f0ac8c1dcf93469e487be9644f2f6bc0b5402d286deb4cd7171b7b",
+  "gen_hash_zig": "sha256:acb56f2f0ce8f812e6700522e7f6eceda79d9ceb5b24169823e04010f66e0e8e",
+  "module": "LayerNorm",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:38:34Z",
+  "spec_hash": "sha256:094222aaee6baf1f769008f2adc84ef15355ff58c9313e44285f16cdda26ae18",
+  "spec_path": "specs/ml/transformer/norm.t27"
+}

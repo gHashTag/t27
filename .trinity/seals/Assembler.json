@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8dc816a9045c15bd45a0b3e94c94277c0967da472435454a7ccfed26231b0476",
   "module": "Assembler",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
+  "sealed_at": "2026-04-14T06:32:50Z",
   "spec_hash": "sha256:554e42402228649a53d22c401e9fdcd96a1d5e1bed47cda8e4c1be30de2c0d00",
   "spec_path": "specs/fpga/assembler.t27"
 }

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e2c468f37af1e794eae1bda586fb27d53e269a73b53e687c50d55373333cc709",
+  "gen_hash_rust": "sha256:7b4109e25f1248a85b43e77498583cacc4126dd47f4e8f76c600cd854ed31d0b",
+  "gen_hash_verilog": "sha256:556f7685a42768aebf1a458d5ce17983aa5327320c67e970310c64729ac3d685",
+  "gen_hash_zig": "sha256:49204766fb43068940f21e1b4d3df5ad3e448cc97072aa4cf4002cfd5cc0fa6a",
+  "module": "Gelu",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:3c34e36a16bc732572de54cd5a41ff1139c2f0d05b28cccb1fe8c1dc29c21e65",
+  "spec_path": "specs/ml/activation/gelu_activation.t27"
+}

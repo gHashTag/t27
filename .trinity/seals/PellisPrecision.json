@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:4eb359c23a68496a82957c7766fb944fa78ed430df1ecdb3597124a57254425d",
   "module": "PellisPrecision",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:55Z",
-  "spec_hash": "sha256:273a7e6b46c4b79c5cb6ddcdb4894b61722fd4aba4ec35a715f6841a93e6c88e",
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:64c53763dffa5d31a162ee601cb717c1694ad4915da511a406f704ba074aa6cb",
   "spec_path": "specs/math/pellis_precision_verify.t27"
 }

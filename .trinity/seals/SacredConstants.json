@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:d4e926a7bbe557ce528941bb120549f99d7390a15a8f756422d4150c1b8b80b0",
-  "gen_hash_rust": "sha256:602a6a09011cd79440622cf155d490bd804aa73a49a5cdcc04770f9c96093512",
-  "gen_hash_verilog": "sha256:3b56a7c94cc416730cb686b7ddbb6fb35e64e2715377939cd7527f7e5bc57218",
-  "gen_hash_zig": "sha256:7d927319f88da9cbe60e22f5e779740266d87a64885a6a4b7be500cc907aeeb5",
+  "gen_hash_c": "sha256:f9ff61b99bef43b05e7b827efdf56343293c08d15f4f5ce3f50dca715fe9b282",
+  "gen_hash_rust": "sha256:3658af36899e9e8f4ab1653016b1d6e63ffe839460ad132b68c899ac2d358432",
+  "gen_hash_verilog": "sha256:ba36e80a41870c42f1c1894542a84f51cc0d6cb4246f3299d59a8e4f6afff4c7",
+  "gen_hash_zig": "sha256:340f5e7c7fa162c6beb5c58aede22622ebd5f4bc36e852a33927672631df293b",
   "module": "SacredConstants",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:55Z",
-  "spec_hash": "sha256:c45cec5cba668fcfe3518f03b32399598b562b37b043bd75c7b9dbfd726665cc",
-  "spec_path": "specs/sacred/constants.t27"
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:7139b2b6b7aa0906259f23ce6843e164cd365035c828ee5bbd2f9db07d305353",
+  "spec_path": "specs/sacred/sacred_constants.t27"
 }

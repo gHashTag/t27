@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:21b2219172948c6acffd03ca6a1611a7dbb2d89a7e061b2bad30801f4744851d",
   "module": "bench_nn",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
-  "spec_hash": "sha256:73a4f9207c1ddbaa304cdfc874c0c09ebd837b4faa4ddac223f7b08383bdf80a",
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:8d0a1a6a927212b7e43624f939df9091d8649294bb1be9b9b5cb22dfe7898aa5",
   "spec_path": "specs/benchmarks/bench_nn.t27"
 }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:cc90736589709a6b90019c3093db00cb1b2bf4affbfa26ae1ced6ad850449f55",
   "module": "MetaCompilation",
   "ring": 12,
-  "sealed_at": "2026-04-11T08:52:56Z",
+  "sealed_at": "2026-04-14T06:32:51Z",
   "spec_hash": "sha256:7b16ea29ae644a0ff54968ea37806543ba823c4bfeddd82f64c66485efec33b1",
   "spec_path": "specs/compiler/meta_compile.t27"
 }
