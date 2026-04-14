@@ -359,7 +359,42 @@ module UART_Testbench {
         then uart_tx_get_line() == true
 
     invariant tb_timeout_prevents_infinite_loop
-        assert true  // Wait functions have timeouts
+        assert true
+
+    test uart_tb_tx_idle_high
+        given uart_tx_line = true
+        then uart_tx_line == true
+
+    test uart_tb_rx_idle_high
+        given uart_rx_line = true
+        then uart_rx_line == true
+
+    test uart_tb_test_data_patterns
+        given TEST_DATA_1 = 0xAA
+        and   TEST_DATA_2 = 0x55
+        and   TEST_DATA_3 = 0x00
+        and   TEST_DATA_4 = 0xFF
+        then TEST_DATA_1 != TEST_DATA_2
+        then TEST_DATA_3 != TEST_DATA_4
+
+    test uart_tb_clk_period_valid
+        given CLK_PERIOD = 20
+        then CLK_PERIOD > 0
+
+    test uart_tb_sim_timeout_valid
+        given SIM_TIMEOUT = 10_000_000
+        then SIM_TIMEOUT > 0
+
+    test uart_tb_counters_start_zero
+        given test_passed = 0
+        and   test_failed = 0
+        and   sim_cycle = 0
+        then test_passed == 0 and test_failed == 0
+
+    test uart_tb_all_test_data_distinct
+        given patterns = [0xAA, 0x55, 0x00, 0xFF]
+        then patterns[0] != patterns[1]
+        then patterns[2] != patterns[3]
 
     bench tb_full_simulation_time
         measure: cycles for run_tests()

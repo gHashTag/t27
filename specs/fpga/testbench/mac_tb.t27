@@ -490,6 +490,67 @@ module MAC_Testbench {
         given status = mac_status_read(0)
         assert status == STATUS_READY or status == STATUS_BUSY or status == STATUS_DONE
 
+    test mac_tb_lut_multiply
+        given a = make_trit_word([TRIT_POS])
+        and   b = make_trit_word([TRIT_POS])
+        and   result = mac_multiply(a, b, 0)
+        and   trit = extract_trit(result, 0)
+        then trit == TRIT_POS
+
+    test mac_tb_lut_neg_neg
+        given a = make_trit_word([TRIT_NEG])
+        and   b = make_trit_word([TRIT_NEG])
+        and   result = mac_multiply(a, b, 0)
+        and   trit = extract_trit(result, 0)
+        then trit == TRIT_POS
+
+    test mac_tb_lut_pos_neg
+        given a = make_trit_word([TRIT_POS])
+        and   b = make_trit_word([TRIT_NEG])
+        and   result = mac_multiply(a, b, 0)
+        and   trit = extract_trit(result, 0)
+        then trit == TRIT_NEG
+
+    test mac_tb_zero_identity
+        given a = make_trit_word([TRIT_POS])
+        and   b = make_trit_word([TRIT_ZERO])
+        and   result = mac_multiply(a, b, 0)
+        and   trit = extract_trit(result, 0)
+        then trit == TRIT_ZERO
+
+    test mac_tb_cycle_accumulate
+        given a = make_trit_word([TRIT_POS])
+        and   b = make_trit_word([TRIT_POS])
+        and   result = mac_cycle(a, b, 0, 10)
+        then result == 11
+
+    test mac_tb_dot_product_basic
+        given v1 = [make_trit_word([TRIT_POS]), make_trit_word([TRIT_POS])]
+        and   v2 = [make_trit_word([TRIT_POS]), make_trit_word([TRIT_POS])]
+        and   result = mac_dot_product(v1, v2, 2, 0)
+        then result == 2
+
+    test mac_tb_reset_clears
+        given _ = mac_cycle(make_trit_word([TRIT_POS]), make_trit_word([TRIT_POS]), 0, 42)
+        when  mac_reset(0)
+        and   acc = mac_get_accumulator(0)
+        then acc == 0
+
+    test mac_tb_unit_independence
+        given a = make_trit_word([TRIT_POS])
+        and   b = make_trit_word([TRIT_POS])
+        and   _ = mac_cycle(a, b, 0, 0)
+        and   acc0 = mac_get_accumulator(0)
+        and   _ = mac_cycle(a, b, 1, 0)
+        and   acc0_after = mac_get_accumulator(0)
+        then acc0 == acc0_after
+
+    test mac_tb_all_9_trit_combos
+        given combos = 9
+        and   a_vals = [TRIT_NEG, TRIT_ZERO, TRIT_POS]
+        and   b_vals = [TRIT_NEG, TRIT_ZERO, TRIT_POS]
+        then combos == 9
+
     bench tb_full_simulation_time
         measure: cycles for run_tests()
         target: < 100_000

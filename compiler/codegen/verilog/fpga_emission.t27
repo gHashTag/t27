@@ -785,3 +785,147 @@ module fpga_emission {
         return buf[0..len];
     }
 }
+
+test fpga_emission_init_empty {
+    let cg = FpgaCodegen.init();
+    assert cg.output.len() == 0;
+    assert cg.indent_level == 0;
+}
+
+test fpga_emission_emit_appends {
+    let mut cg = FpgaCodegen.init();
+    cg.emit("module test;\n");
+    assert cg.output.contains("module test");
+}
+
+test fpga_emission_emit_line_has_newline {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_line("wire a;");
+    assert cg.output.contains("wire a;\n");
+}
+
+test fpga_emission_indent_increases {
+    let mut cg = FpgaCodegen.init();
+    cg.indent();
+    assert cg.indent_level == 1;
+    cg.indent();
+    assert cg.indent_level == 2;
+}
+
+test fpga_emission_dedent_decreases {
+    let mut cg = FpgaCodegen.init();
+    cg.indent();
+    cg.indent();
+    cg.dedent();
+    assert cg.indent_level == 1;
+}
+
+test fpga_emission_dedent_floors_at_zero {
+    let mut cg = FpgaCodegen.init();
+    cg.dedent();
+    assert cg.indent_level == 0;
+}
+
+test fpga_emission_emit_int_positive {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_int(42);
+    assert cg.output.contains("42");
+}
+
+test fpga_emission_emit_int_zero {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_int(0);
+    assert cg.output.contains("0");
+}
+
+test fpga_emission_int_to_str_basic {
+    let result = int_to_str(123);
+    assert result[0] == '1';
+    assert result[1] == '2';
+    assert result[2] == '3';
+}
+
+test fpga_emission_int_to_str_zero {
+    let result = int_to_str(0);
+    assert result[0] == '0';
+    assert result.len() == 1;
+}
+
+test fpga_emission_int_to_str_large {
+    let result = int_to_str(65536);
+    assert result.contains("65536");
+}
+
+test fpga_emission_emit_fpga_top_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_fpga_top();
+    assert cg.output.contains("Trinity_FPGA_Top");
+    assert cg.output.len() > 100;
+}
+
+test fpga_emission_emit_uart_module_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_uart_module();
+    assert cg.output.contains("UART_Bridge");
+}
+
+test fpga_emission_emit_spi_module_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_spi_module();
+    assert cg.output.contains("SPI_Master");
+}
+
+test fpga_emission_emit_mac_module_generates {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_mac_module();
+    assert cg.output.contains("ZeroDSP_MAC");
+}
+
+test fpga_emission_all_modules_unique {
+    let mut cg = FpgaCodegen.init();
+    cg.emit_fpga_top();
+    let top_len = cg.output.len();
+    cg.emit_uart_module();
+    let uart_len = cg.output.len();
+    assert uart_len > top_len;
+}
+
+invariant fpga_emission_indent_non_negative {
+    let cg = FpgaCodegen.init();
+    assert cg.indent_level >= 0;
+}
+
+invariant fpga_emission_output_grows {
+    let mut cg = FpgaCodegen.init();
+    let before = cg.output.len();
+    cg.emit("x");
+    assert cg.output.len() > before;
+}
+
+invariant fpga_emission_dedent_never_negative {
+    let mut cg = FpgaCodegen.init();
+    cg.dedent();
+    cg.dedent();
+    cg.dedent();
+    assert cg.indent_level >= 0;
+}
+
+invariant fpga_emission_int_to_str_no_leading_zeros {
+    let result = int_to_str(42);
+    assert result[0] != '0';
+}
+
+bench fpga_emission_init_latency {
+    measure: nanoseconds to create FpgaCodegen
+    target: < 100ns
+}
+
+bench fpga_emission_emit_line_latency {
+    measure: nanoseconds to emit_line("wire clk;")
+    target: < 500ns
+}
+
+bench fpga_emission_full_top_latency {
+    measure: nanoseconds to emit_fpga_top() + emit_uart_module() + emit_spi_module() + emit_mac_module()
+    target: < 50000ns
+}

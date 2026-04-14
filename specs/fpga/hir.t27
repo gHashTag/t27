@@ -197,7 +197,7 @@ module Hir {
         two_flop = 0,
         async_fifo = 1,
         handshake = 2,
-        gray_code = 2,
+        gray_code = 3,
     }
 
     // === ClockDomain node ===
