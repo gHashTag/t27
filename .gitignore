@@ -50,3 +50,9 @@ external/opencode/packages/web/
 bootstrap/target/
 bootstrap/.trinity/
 .trinity/experience/
+
+# NotebookLM Gate — track essential files, ignore local session data
+!.trinity/current_task/.notebook_id
+!.trinity/current_task/notebook_meta.json
+.trinity/current_task/session_log.jsonl
+.trinity/gate_bypasses.log
