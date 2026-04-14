@@ -152,6 +152,49 @@ module ZeroDSP_TopLevel {
         and   busy = system_busy()
         then busy == false
 
+    test constants_clk_freq
+        then CLK_FREQ_HZ == 100_000_000
+        and SYSTICK_HZ == 1000
+        and NUM_MAC_UNITS == 8
+        and DATA_WIDTH == 32
+
+    test command_constants
+        then CMD_NOP == 0
+        and CMD_MAC_MULT == 1
+        and CMD_MAC_DOT == 2
+        and CMD_UART_SEND == 3
+        and CMD_RESET == 0xFF
+
+    test system_reset_clears_mac_result
+        given set_mac_result(999)
+        and system_reset()
+        then get_mac_result() == 0
+
+    test system_reset_clears_uart_data
+        given set_uart_data(0xFF)
+        and system_reset()
+        then get_uart_data() == 0
+
+    test clear_error_does_not_affect_ready
+        given set_error()
+        and clear_error()
+        then system_error() == false
+        and system_ready() == true
+
+    test start_processing_requires_ready
+        given system_state.mac_ready = false
+        then system_ready() == false
+
+    test set_mac_result_negative
+        given set_mac_result(-42)
+        then get_mac_result() == -42
+
+    test set_uart_data_boundary
+        given set_uart_data(0)
+        then get_uart_data() == 0
+        given set_uart_data(255)
+        then get_uart_data() == 255
+
     invariant system_ready_when_not_processing
         given busy = system_busy()
         and   ready = system_ready()
