@@ -90,3 +90,5 @@
 
 **φ² + 1/φ² = 3 | TRINITY**
 
+
+<!-- PR #460: documentation update -->
