@@ -68,3 +68,7 @@
 - **Commit:** feat: CLARA Proposal v1.5 - DARPA PA-25-07-02 Submission Package
 - **Files:** docs/clara/README.md,docs/clara/evidence/README.md,docs/clara/examples/README.md,docs/clara/submission/README.md,docs/clara/test_vectors/README.md
 
+## 2026-04-14T18:30:02Z — feat/clara-docs-organization
+- **Commit:** docs(clara): organize CLARA documentation structure
+- **Files:** docs/README.md
+
