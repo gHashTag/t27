@@ -60,6 +60,9 @@ for name, value in ALL_FORMULAS.items():
         exact_target = target[0] if isinstance(target, tuple) else target
 <<<<<<< Updated upstream
         exact_tol = tol if tol is not None else mpf("0")
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
         value_mp = value if isinstance(value, mpf) else mpf(value)
@@ -67,6 +70,9 @@ for name, value in ALL_FORMULAS.items():
         diff = abs(diff_mp)
         if diff > mpf("1e-40"):
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
             print(f" FAIL: EXACT identity deviation {diff:.2e}")
             all_pass = False
         elif diff > mpf("1e-45"):
