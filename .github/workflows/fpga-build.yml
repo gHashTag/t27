@@ -49,7 +49,7 @@ jobs:
         run: cargo build --release -p t27c
 
       - name: FPGA smoke test (Verilog generation only)
-        run: ./target/release/t27c fpga-build --smoke --profile minimal
+        run: ./target/release/t27c fpga-build --smoke
 
       - name: Verilog regression check
         run: |
@@ -104,7 +104,7 @@ jobs:
         run: cargo build --release -p t27c
 
       - name: FPGA synthesis (Yosys + JSON netlist)
-        run: ./target/release/t27c fpga-build --docker false --synth-only --profile minimal
+        run: ./target/release/t27c fpga-build --docker false --synth-only
 
       - name: Synthesis regression check
         run: |
