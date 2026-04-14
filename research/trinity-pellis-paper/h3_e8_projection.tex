@@ -1,0 +1,293 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdftitle={H$_3$ → E$_8$ → SU(3) Projection and Golden Ratio},
+  pdfauthor={Dmitrii Vasilev}
+}
+
+\title{H$_3$ → E$_8$ → SU(3) Projection Analysis: Does \varphi$ Appear in SU(3) Casimir Operators?}
+\author{Dmitrii Vasilev}
+\date{2026-04-13}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The Coxeter chain $H_3 \xrightarrow{\text{spinors}} H_4 \xrightarrow{\text{McKay}} E_8$ provides a geometric pathway for the golden ratio $\varphi$ to enter particle physics. The $E_8$ exceptional Lie group contains $\varphi$ as a structural constant through its Coxeter number $h(E_8) = 30$ and through the subgroup chain $H_3 \subset H_4 \subset E_8$. We analyze whether this geometric connection propagates to the SU(3) color gauge group embedded in $E_8$, specifically examining whether $\varphi$ appears in the quadratic Casimir operator $C_2$ or Dynkin index $T$ of the relevant SU(3) representations.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{The Golden Ratio in $E_8$ and $H_3$, $H_4$}
+
+The exceptional group $E_8$ has the following golden-ratio properties~\cite{Baez2002}:
+
+\begin{enumerate}
+  \item \textbf{Coxeter number:} $h(E_8) = 30 = \varphi + \tau$ where $\tau = \varphi$ (since $\tau = (1+\sqrt{5})/2$).
+  \item \textbf{Root system:} $E_8$ has 240 roots in 8-dimensional space with coordinates in $\mathbb{Q}(\sqrt{5})$.
+  \item \textbf{$H_4$ subgroup:} The 120-root $H_4$ icosahedral group (4D) has all roots in $\mathbb{Z}[\varphi]$.
+  \item \textbf{Geometric $\varphi$:} The angle between root vectors in $H_4$ involves $\arccos(\varphi/2) \approx 36^\circ$.
+\end{enumerate}
+
+\subsection{Coxeter Chain Connection}
+
+\begin{equation}
+  H_3 \xrightarrow{\text{double cover}} \tilde{H}_3 \xrightarrow{\text{spinors}} H_4 \xrightarrow{\text{McKay}} E_8
+  \label{eq:coxeter-chain}
+\end{equation}
+
+Where:
+\begin{itemize}
+  \item $H_3$: Icosahedral group in 3D (15 roots)
+  \item $\tilde{H}_3$: Double cover of $H_3$ in 4D
+  \item $H_4$: Icosahedral group in 4D (120 roots)
+  \item $E_8$: Exceptional Lie group of dimension 248
+\end{itemize}
+
+\subsection{The McKay Correspondence}
+
+The McKay correspondence relates finite subgroups of $E_8$ to Dynkin diagrams of Lie groups. A key pathway is:
+
+\begin{equation}
+  H_4 \xrightarrow{\text{McKay}} E_8 \supset SO(3) \times SO(5) \times G_2 \supset \text{SU}(3) \times E_6
+  \label{eq:mckay}
+\end{equation}
+
+Where $\text{SU}(3)$ appears as a maximal subgroup on multiple paths.
+
+\section{$E_8 \to \text{SU}(3)$ Branching Rules}
+
+\subsection{Maximal SU(3) Subgroup in $E_8$}
+
+The $E_8$ root system contains $\text{SU}(3) \times E_6$ as a maximal subgroup. The branching rules are:
+
+\begin{table}[h]
+\centering
+\caption{Branching of selected $E_8$ representations to SU(3) multiplets.}
+\label{tab:e8-su3-branching}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lcc}
+\toprule
+$E_8$ Irrep & Dimension & SU(3) Branching \\
+\midrule
+$\mathbf{248}$ (adjoint) & 248 & $3 + 6 + 15 + 3$ \\
+$\mathbf{248}'$ (fundamental) & 248' & $3 \times 82$ \\
+$248 \oplus 248'$ & 384 & Complex decomposition \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Casimir Invariants of SU(3) Representations}
+
+For SU(3) representations with Dynkin label $(p, q)$, the quadratic Casimir is:
+
+\begin{equation}
+  C_2(p, q) = \frac{p^2 + q^2 + pq + 3p + 3q}{3}
+  \label{eq:su3-c2}
+\end{equation}
+
+Key values:
+
+\begin{table}[h]
+\centering
+\caption{Quadratic Casimir $C_2$ for SU(3) representations.}
+\label{tab:su3-c2}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lccc}
+\toprule
+Name & Dynkin $(p, q)$ & Dimension & $C_2$ \\
+\midrule
+Fundamental (3) & $(1, 0)$ & 3 & $4/3$ \\
+Adjoint (8) & $(1, 1)$ & 8 & $3$ \\
+Decuplet (10) & $(3, 0)$ & 10 & $6$ \\
+27-plet (27) & $(2, 2)$ & 27 & $10$ \\
+\bottomrule
+\end{tabular}
+
+\section{Projection Analysis: Does \varphi$ Propagate?}
+
+\subsection{Geometric $\varphi$ in $E_8$ Root Coordinates}
+
+The $E_8$ root system contains explicit $\varphi$ in its coordinate representation. A representative root pair is:
+
+\begin{equation}
+  \alpha_1 = (\varphi, \varphi, -1/\varphi, \varphi, \dots)
+  \label{eq:e8-phi-root}
+\end{equation}
+
+where the coordinates involve $\varphi = (1+\sqrt{5})/2 \approx 1.618$.
+
+\subsection{Test: Projection to SU(3) Casimir}
+
+The question is whether the quadratic Casimir operator $C_2$ for any SU(3) representation contains $\varphi$.
+
+\textbf{Hypothesis:} If $\alpha_s = \varphi^{-3}/2$ is a group-theoretic invariant, then for some SU(3) representation $\mathbf{R}$ appearing in the $E_8 \to \text{SU}(3)$ branching, we should have:
+
+\begin{equation}
+  \frac{C_2(\mathbf{R}_\text{phys})}{T(\mathbf{R}_\text{phys})} \stackrel{?}{=} \varphi^{-3/2}
+  \label{eq:hypothesis}
+\end{equation}
+
+where $\mathbf{R}_\text{phys}$ is a physical SU(3) representation (adjoint or fundamental) relevant to QCD.
+
+\subsection{Analysis of Specific Branching Cases}
+
+\paragraph{Case 1: Adjoint $\mathbf{8}$ from $\mathbf{248}$}
+
+The adjoint representation $\mathbf{8}$ has $C_2 = 3$ and $T = 8$.
+
+\begin{itemize}
+  \item $\mathbf{R} = \mathbf{8}$: This is the QCD color gauge group.
+  \item Ratio: $C_2/T = 3/8 = 0.375$.
+  \item Comparison to $\varphi^{-3/2} \approx 0.118$: No match.
+  \item Geometric $\varphi$ from Eq.~(\ref{eq:e8-phi-root}) enters through $E_8$ root coordinates but does \emph{not} affect the algebraic Casimir value.
+\end{itemize}
+
+\paragraph{Case 2: Fundamental $\mathbf{3}$ from $\mathbf{248}'$}
+
+The fundamental representation $\mathbf{3}$ has $C_2 = 4/3$ and $T = 1$.
+
+\begin{itemize}
+  \item $\mathbf{R} = \mathbf{3}$: This is a quark flavor triplet representation.
+  \item Ratio: $C_2/T = (4/3)/1 = 4/3 \approx 1.333$.
+  \item Comparison to $\varphi^{-3/2}$: No match.
+\end{itemize}
+
+\paragraph{Case 3: Mixed Representations}
+
+For branched representations involving $\mathbf{3}$ and $\mathbf{8}$:
+
+\begin{itemize}
+  \item $\mathbf{R} = \mathbf{3} \oplus \mathbf{8}$ (total dimension 11): Mixed Casimir involves tensor products.
+  \item The Casimir of a tensor product is not a simple ratio of pure representations.
+  \item No simple $\varphi$-dependence emerges from these mixtures.
+\end{itemize}
+
+\subsection{Geometric vs. Algebraic Transmission}
+
+The geometric $\varphi$ in $E_8$ coordinates is a \emph{spatial} feature of the root system. However, the Casimir operator $C_2$ is an \emph{algebraic} invariant depending only on the Lie algebra structure.
+
+\textbf{Key insight:} The golden ratio in $E_8$ geometry is \emph{coordinate-dependent}---it appears in specific root vector coordinates---while $C_2$ is \emph{coordinate-independent}---it is the same for all isomorphic representations.
+
+% \begin{theorem}[Invariant Independence]
+   The quadratic Casimir $C_2$ of an SU(3) representation is invariant under changes of basis, and therefore cannot depend on the geometric choice of $E_8$ root coordinates.
+\end{theorem}
+  The quadratic Casimir $C_2$ of an SU(3) representation is invariant under changes of basis, and therefore cannot depend on the geometric choice of $E_8$ root coordinates.
+\end{theorem}
+
+\subsection{Fourth-Order Invariant $C_4$}
+
+For completeness, we examine the fourth-order Casimir:
+
+\begin{equation}
+  C_4(p, q) = \frac{2(p^4 + q^4) + 4(p^3q + pq^3) + 6(p^2q^2 + pq^2) + 12(p^3 + q^3) + 36pq + 27(p^2 + q^2)}{27}
+  \label{eq:su3-c4}
+\end{equation}
+
+For fundamental $\mathbf{3}$:
+\begin{equation}
+  C_4(1, 0) = \frac{2(1 + 0) + 4(1 \cdot 0 + 0) + 6(1 \cdot 0^2 + 1 \cdot 0) + 12(1^3 + 0^3) + 36(1 \cdot 0) + 27(1^2 + 0^2)}{27}
+         = \frac{2 + 0 + 0 + 0 + 0 + 12 + 0 + 0 + 27}{27}
+         = \frac{41}{27} \approx 1.518
+\end{equation}
+
+No $\varphi$ dependence emerges. For adjoint $\mathbf{8}$, $C_4$ involves $p=1, q=1$ and evaluates to the same structure.
+
+\subsection{Alternative: Group Volume Ratios}
+
+The volume of a Lie group in root space provides an alternative invariant. For SU(3):
+
+\begin{equation}
+  \text{Vol}(\text{SU}(3)) = \frac{4\pi^{3/2}}{\sqrt{3}} \approx 19.076
+  \label{eq:su3-volume}
+\end{equation}
+
+Comparison:
+\begin{itemize}
+  \item $\varphi^3 \approx 4.236$
+  \item $\text{Vol}/\pi^2 \approx 19.076/\pi^2 \approx 1.934$
+  \item No equality: $\varphi^3 \neq \text{Vol}/\pi^2$
+\end{itemize}
+
+\section{Higher-Dimensional Coxeter Groups}
+
+\subsection{$H_4$ $\to$ SU(3) Embedding Question}
+
+The $H_4$ icosahedral group contains $\text{SU}(3)$ as a subgroup? The maximal subgroups of $H_4$ are:
+
+\begin{itemize}
+  \item $A_4$: Alternating group on 4 elements (order 12)
+  \item $D_4$: Dihedral group of order 24
+  \item $\text{SU}(3)$: \textbf{Not} a subgroup of $H_4$
+\end{itemize}
+
+This is significant: $H_4$'s geometric $\varphi$ does \emph{not} connect to SU(3) because SU(3) is not embedded in $H_4$.
+
+\subsection{Direct $H_3 \to \text{SU}(3)$?}
+
+The 3D icosahedral group $H_3$ has Weyl group $A_5$ as double cover. The $A_5$ subgroup of $E_8$ (via McKay) maps to SU(3) in certain embeddings. However:
+
+\begin{itemize}
+  \item $H_3$ is not a subgroup of $E_8$
+  \item The McKay path goes $H_3 \to \tilde{H}_3 \to H_4 \to E_8 \supset \text{SU}(3)$
+  \item The geometric $\varphi$ appears at $H_4$ level (in $\mathbb{Z}[\varphi]$ root coordinates)
+  \item This $\varphi$ is \emph{lost} when mapping to SU(3) because SU(3) has discrete roots at $60^\circ$ angles, not $36^\circ$
+\end{itemize}
+
+\section{Conclusion}
+
+\subsection{Summary of Findings}
+
+\begin{enumerate}
+  \item \textbf{Geometric $\varphi$ in $E_8$:} The golden ratio appears in $E_8$ root coordinates, but this is a coordinate-dependent feature.
+  \item \textbf{SU(3) invariance:} The quadratic Casimir $C_2$ is coordinate-independent and does not contain $\varphi$ for any SU(3) representation.
+  \item \textbf{No propagation:} The $E_8 \to \text{SU}(3)$ branching does \emph{not} transmit geometric $\varphi$ to SU(3) Casimir operators.
+  \item \textbf{Alternative mechanisms:} Group volume ratios and higher-order invariants $C_4$ also show no $\varphi$ connection.
+  \item \textbf{McKay correspondence:} Provides a structural link between $H_4$ and $E_8$, but SU(3) appears as an independent subgroup, not through a $\varphi$-preserving channel.
+\end{enumerate}
+
+\subsection{Implication for $\alpha_s$}
+
+\textbf{Primary finding:} The geometric pathway $H_3 \xrightarrow{H_4} \xrightarrow{E_8} \xrightarrow{\text{SU}(3)}$ does not provide a mechanism linking $\varphi$ to $\alpha_s = \varphi^{-3}/2$.
+
+\textbf{Explanation:} The golden ratio in $E_8$ is embedded in the root system geometry, while QCD's $\alpha_s$ is determined by SU(3) algebraic invariants. These are distinct mathematical structures, and the $\varphi$ in $E_8$ geometry does not influence SU(3) Casimir values.
+
+This analysis strengthens the conclusion of the main $\alpha_s$ paper: the coincidence $\alpha_s(m_Z) \approx \varphi^{-3}/2$ has no known theoretical foundation in SU(3) group theory or $E_8$ exceptional group geometry.
+
+\section{Alternative: A$_5$ Discrete Symmetry Path}
+
+The null result $\sin^2\theta_{23} - \varphi^{-4} = 0$ from Trinity suggests a different discrete symmetry connection. A$_5$ has Coxeter number $h(A_5) = 5$ (not $\tau$), but its representations involve the same 5th roots of unity that generate $\varphi$.
+
+The A$_5$ $\to \text{SU}(3)$ branching rules are analyzed separately (see \texttt{a5\_su3\_branching.tex}).
+
+\begin{thebibliography}{99}
+
+\bibitem{Baez2002}
+J.~C. Baez,
+\textit{The Octonions},
+\textit{Bull.\ Amer.\ Math.\ Soc.} \textbf{39}, 145--205 (2002).
+\href{https://doi.org/10.1090/S0273-0979-01-00934-X}{DOI:~10.1090/S0273-0979-01-00934-X}
+
+\bibitem{McKay1980}
+J.~McKay,
+\textit{Graphs, Singularities, and Finite Groups},
+\textit{Bull.\ London\ Math.\ Soc.} \textbf{43}, 437--452 (1980).
+
+\bibitem{GrossWilczek1973}
+D.~J.~Gross and F.~Wilczek,
+\textit{Ultraviolet Behavior of Non-Abelian Gauge Theories},
+\textit{Phys.\ Rev.\ Lett.} \textbf{30}, 1343--1346 (1973).
+
+\end{thebibliography}
+
+\end{document}

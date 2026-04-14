@@ -26,6 +26,10 @@ jobs:
           if [ -n "$FOUND" ]; then
             echo "✅ Issue gate passed: $FOUND"
           else
-            echo "::warning::No 'Closes #N' found in PR title/body. L1 TRACEABILITY advisory."
-            echo "✅ Issue gate passed (advisory)"
+            echo "::error::L1 TRACEABILITY violation: No 'Closes #N' found in PR title/body."
+            echo "::error::Constitutional Law L1 requires all code changes to reference an issue."
+            echo "::error::Usage: Include 'Closes #N' in your PR title or body."
+            echo "::error::Example: 'feat(compiler): Add algorithm codegen placeholder\n\nCloses #42'"
+            echo "::error::PR blocked. Please create an issue first, then reference it in your PR."
+            exit 1
           fi

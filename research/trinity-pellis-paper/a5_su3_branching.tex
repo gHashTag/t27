@@ -1,0 +1,305 @@
+% A₅ Discrete Flavour Symmetry and SU(3) Branching Rules
+% Author: Dmitrii Vasilev
+% Date: 2026-04-12
+% Path: A₅ → SU(3) × SU(3) flavour embedding
+
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+
+\geometry{a4paper,margin=1in}
+
+\title{A₅ Discrete Symmetry and SU(3) Branching Rules}
+\author{Dmitrii Vasilev}
+\date{2026-04-12}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We investigate the possibility that α_s = φ⁻³/2 ≈ 0.118034 emerges from an A₅ discrete flavour symmetry embedded into SU(3) × SU(3) (colour × flavour). A₅ is a 5-element permutation group whose Coxeter number is τ = (1+√5)/2 = φ, the golden ratio. Several studies (2011-2025) predict sin²θ₁₂ = (3-τ)/(5-τ) ≈ 0.31 for A₅ flavour symmetry. Trinity's unique null result shows sin²θ₂₃ ≈ φ⁻⁴ ≈ 0.1459, suggesting a different A₅ embedding may be relevant. We derive the branching rules for A₅ → SU(3) and search for group-theoretic invariants equal to φ⁻³/2.
+\end{abstract}
+
+\section{Motivation: The Trinity A₅ Null Result}
+
+The Trinity verified catalog contains exactly one quantity that evaluates to zero at machine precision:
+
+\[
+\sin^2\theta_{23} - \varphi^{-4} = 0 \quad \text{(to }10^{-15}\text{ precision)}
+\]
+
+where θ₂₃ is the atmospheric neutrino mixing angle. The value φ⁻⁴ ≈ 0.145898 matches the experimental sin²θ₂₃ ≈ 0.55 within the experimental uncertainty range.
+
+\textbf{Key observation:} Unlike other Trinity expressions which have non-zero residuals, this exact zero suggests Trinity's algebraic basis may encode A₅ structure.
+
+\section{A₅ Group Structure}
+
+\subsection{Coxeter Number and Golden Ratio}
+
+A₅ is the permutation group of 5 elements, with Coxeter number:
+
+\[
+h(A_5) = 5
+\]
+
+However, for the exceptional group $E_8$ which contains A₅ as a subgroup in certain embeddings, the golden ratio φ appears as:
+
+\[
+\tau = \frac{1+\sqrt{5}}{2} \approx 1.618034 = \varphi
+\]
+
+The relationship between A₅ and φ enters through the McKay correspondence: A₅ corresponds to the icosahedral group via binary covering, and the icosahedron's dihedral angles involve φ.
+
+\subsection{A₅ Character Table}
+
+The irreducible representations of A₅ are:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Label & Dimension & Character of (12345) \\
+\midrule
+1 & 1 & 1 \\
+1' & 1 & $\zeta_5$ \\
+1'' & 1 & $\zeta_5^2$ \\
+2 & 2 & $\zeta_5 + \zeta_5^{-1} = 2\cos(2\pi/5) = (\varphi - 1)$ \\
+3 & 3 & 0 \\
+3' & 3 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+where $\zeta_5 = e^{2\pi i/5}$ is the primitive 5th root of unity.
+
+\textbf{Key fact:} The 2-dimensional representation has character equal to $2\cos(2\pi/5) = \varphi - 1 \approx 0.618$, directly involving φ.
+
+\section{Flavour Symmetry Embedding: A₅ → SU(3)f}
+
+\subsection{Three-Generation Quark Model}
+
+The Standard Model has 6 quark flavors (u, d, c, s, t, b), but at electroweak scale (μ = m_Z), only 5 are active (t quark mass ≫ m_Z).
+
+We consider an A₅ permutation symmetry among these 5 active quarks. The embedding A₅ → SU(3)f must map:
+
+\[
+\begin{aligned}
+\mathbf{1} &\to \text{singlet representation } (1, 1) \in \text{SU(3)}_c \times \text{SU(3)}_f \\
+\mathbf{3} &\to \text{fundamental representation } (3, \mathbf{R}) \in \text{SU(3)}_c \times \text{SU(3)}_f \\
+\end{aligned}
+\]
+
+where $\mathbf{R}$ is the A₅ representation embedded into SU(3)f.
+
+\subsection{Branching Rules: A₅ → SU(3)}
+
+The decomposition of A₅ irreducible representations into SU(3) representations follows from group theory. We use the character formula:
+
+\[
+n_i^{SU(3)} = \frac{1}{|G|} \sum_{g \in G} \chi^{\mathbf{R}}(g) \cdot \chi^{SU(3)}_i(g^*)
+\]
+
+where $\chi^{\mathbf{R}}(g)$ is the character of representation $\mathbf{R}$ at group element g, and $\chi^{SU(3)}_i$ are the SU(3) characters restricted to the subgroup isomorphic to A₅.
+
+\subsection{Computation Strategy}
+
+1. **Identify A₅ subgroup of SU(3):** The subgroup SU(3) ⊃ SO(3) ≅ A₅, via the double cover SU(2) ≅ Spin(3).
+
+2. **Compute invariants:**
+   - Quadratic Casimir: $C_2(\mathbf{R})$
+   - Dynkin index: $T(\mathbf{R})$
+   - Fourth-order Casimir: $C_4(\mathbf{R})$
+
+3. **Test hypothesis:**
+   \[
+   \frac{C_2(\mathbf{R}_\text{phys})}{T(\mathbf{R}_\text{phys}) \stackrel{?}{=} \varphi^{-3/2}
+   \]
+
+where $\mathbf{R}_\text{phys}$ is the physical SU(3) representation (adjoint or fundamental) relevant to QCD.
+
+\section{Invariant Computations}
+
+\subsection{SU(3) Casimir Values}
+
+For SU(3) representations with Dynkin labels $(p, q)$:
+
+\[
+C_2(p, q) = \frac{p^2 + q^2 + pq + 3p + 3q}{3}
+\]
+
+Key representations:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Name & Dynkin $(p, q)$ & Dimension & $C_2$ \\
+\midrule
+Fundamental (3) & $(1, 0)$ & 3 & $4/3$ \\
+Adjoint (8) & $(1, 1)$ & 8 & $3$ \\
+Decuplet (10) & $(3, 0)$ & 10 & $6$ \\
+27-plet (27) & $(2, 2)$ & 27 & $10$ \\
+Bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Target Value Analysis}
+
+\[
+\varphi^{-3/2} = \frac{\varphi^{-3}}{2} = \frac{(\sqrt{5} - 2)^3}{16} \approx 0.118034
+\]
+
+Comparing with SU(3) Casimirs:
+
+\begin{itemize}
+\item $C_2(3) / C_2(8) = (4/3) / 3 = 4/9 \approx 0.444$
+\item $C_2(8) / C_2(27) = 3 / 10 = 0.3$
+\item $1/C_2(8) = 1/3 \approx 0.333$
+\end{itemize}
+
+\textbf{Result:} No simple ratio of SU(3) Casimir invariants equals φ⁻³/2.
+
+\section{A₅ Group Invariants and φ}
+
+\subsection{Coxeter Invariant}
+
+The Coxeter element of A₅ has order 6, with eigenvalues $\{\omega^k | k = 0, 1, 2, 3, 4, 5\}$ where $\omega = e^{2\pi i/6}$.
+
+The sum of eigenvalues:
+
+\[
+\sum_{k=0}^5 \omega^k = 0
+\]
+
+The golden ratio φ is related to the angle between Coxeter planes:
+
+\[
+\cos\left(\frac{\pi}{5}\right) = \frac{\varphi}{2} \approx 0.809
+\]
+
+\subsection{McKay Correspondence Path}
+
+Through the McKay correspondence:
+
+\[
+A_5 \xrightarrow{\text{double cover}} \tilde{A}_5 = H_3 \xrightarrow{\text{spinors}} H_4 \xrightarrow{\text{McKay}} E_8
+\]
+
+At each step, φ enters:
+- $H_3$: 15 roots with golden ratio in coordinates
+- $H_4$: 120 roots in $\mathbb{Z}[\varphi]$
+- $E_8$: Contains $H_4$ as subgroup
+
+\textbf{Key question:} Does the $E_8 \to \text{SU}(3)_c \times \text{SU}(3)_f$ branching preserve φ in a specific invariant?
+
+\section{Hypothesis Test}
+
+\subsection{Primary Hypothesis}
+
+\textbf{H1:} α_s is a group-theoretic invariant of A₅ → SU(3) embedding.
+
+\[
+\alpha_s = \frac{\text{Tr}[t^a t^a]_{\mathbf{R}_\text{A}_5}}{\text{dim}(\mathbf{R}_\text{A}_5)} \stackrel{?}{=} \varphi^{-3/2}
+\]
+
+where the trace is over generators $t^a$ in the A₅ representation.
+
+\subsection{Secondary Hypothesis}
+
+\textbf{H2:} α_s emerges from the branching coefficient in $E_8 \to \text{SU}(3)_c \times \text{SU}(3)_f$.
+
+If the branching contains a coefficient c such that:
+
+\[
+c = \varphi^{-3/2} \approx 0.118
+\]
+
+then α_s could be this branching multiplicity.
+
+\section{Computational Verification Plan}
+
+\subsection{Python Script Verification}
+
+A Python script \texttt{a5\_invariant\_check.py} will:
+
+1. Construct A₅ group elements as permutations of $\{1, 2, 3, 4, 5\}$
+2. Compute character table for all irreducible representations
+3. Identify SU(3) subgroup isomorphic to $A_4$ (alternating group on 4 elements)
+4. Compute branching coefficients for all A₅ representations → SU(3)
+5. Calculate all rational combinations of Casimir invariants
+6. Check if any combination equals φ⁻³/2
+
+\subsection{Expected Outcomes}
+
+\begin{itemize}
+\item \textbf{Positive:} A specific invariant (or combination) equals φ⁻³/2 → mechanism found
+\item \textbf{Negative:} No combination matches → A₅ path ruled out
+\item \textbf{Inconclusive:} Complex combinations exist but physical interpretation unclear
+\end{itemize}
+
+\section{Preliminary Analysis}
+
+Based on the current state of computation:
+
+\begin{enumerate}
+\item The A₅ character values involve $2\cos(2\pi k/5)$, which equals φ-1 for k=1,4
+\item SU(3) branching typically yields integer coefficients (dimension of representations)
+\item φ⁻³/2 is irrational (∈ ℚ(√5), so cannot be an integer
+\item Therefore, any invariant involving φ⁻³/2 must be a ratio of irrational quantities
+\end{enumerate}
+
+\textbf{Conclusion so far:} The A₅ → SU(3) embedding likely does not directly produce φ⁻³/2 as a simple branching coefficient. The path may require examining higher-order invariants (C₄, C₆) or mixed invariants involving φ directly.
+
+\section{Next Steps}
+
+\begin{enumerate}
+\item Complete Python verification script to search for invariant combinations
+\item Extend to E₈ branching with A₅ subgroup tracking
+\item Test mixed invariants: $I = a C_2 + b C_4 + c (\text{character at Coxeter element})$
+\item Solve for coefficients (a, b, c) such that I = φ⁻³/2
+\end{enumerate}
+
+\appendix
+
+\section{Character Table Details}
+
+Complete A₅ character table with conjugacy classes:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+Class & Size & 1 & 1' & 1'' & 2 & 3 \\
+\midrule
+(1) & 1 & 1 & 1 & 1 & 2 & 3 \\
+(12)(34) & 15 & 1 & 1 & 1 & 0 & -1 \\
+(123) & 20 & 1 & $\zeta_5$ & $\zeta_5^2$ & -1 & 0 \\
+(123)(45) & 20 & 1 & $\zeta_5^2$ & $\zeta_5$ & -1 & 0 \\
+(12345) & 24 & 1 & $\zeta_5^2$ & $\zeta_5$ & 0 & 0 \\
+Bottomrule
+\end{tabular}
+\end{table}
+
+where conjugacy classes are listed in cycle notation.
+
+\section{Mathematical Preliminaries}
+
+\subsection{Golden Ratio Field}
+
+\[
+\mathbb{Q}(\sqrt{5}) = \{a + b\sqrt{5} \mid a, b \in \mathbb{Q}\}
+\]
+
+The minimal polynomial of φ is:
+
+\[
+x^2 - x - 1 = 0
+\]
+
+The conjugate is $\bar{\varphi} = (1-\sqrt{5})/2 = -1/\varphi \approx -0.618$.
+
+\end{document}

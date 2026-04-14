@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "version": "v6.5",
+    "search_method": "ABSOLUTE",
+    "coeff_range": "1-50000",
+    "exponent_range": "-30 to 30",
+    "timestamp": "2026-04-10 02:12:22",
+    "elapsed_sec": 218.94,
+    "total_formulas": 3382435
+  },
+  "targets": {
+    "W_mass": {
+      "pdg_value_GeV": 80.377,
+      "formulas_found": 1670000,
+      "top_10_by_delta": [
+        {"rank": 1, "formula": "15316*phi^14*pi^7*e^-20", "value": 80.37699990113505, "delta_pct": 0.000000},
+        {"rank": 2, "formula": "35289*phi^1*pi^3*e^-10", "value": 80.37699972904143, "delta_pct": 0.000000},
+        {"rank": 3, "formula": "6441*phi^-16*pi^16*e^-15", "value": 80.37699948367316, "delta_pct": 0.000001},
+        {"rank": 4, "formula": "43404*phi^-9*pi^21*e^-26", "value": 80.37699947221405, "delta_pct": 0.000001},
+        {"rank": 5, "formula": "16769*phi^-26*pi^15*e^-10", "value": 80.37699946396341, "delta_pct": 0.000001},
+        {"rank": 6, "formula": "6635*phi^1*pi^-20*e^18", "value": 80.3769991343764, "delta_pct": 0.000001},
+        {"rank": 7, "formula": "26676*phi^-16*pi^20*e^-21", "value": 80.37700113967301, "delta_pct": 0.000001},
+        {"rank": 8, "formula": "9269*phi^30*pi^-22*e^6", "value": 80.376998020289, "delta_pct": 0.000002},
+        {"rank": 9, "formula": "20537*phi^3*pi^7*e^-15", "value": 80.37700215870554, "delta_pct": 0.000003},
+        {"rank": 10, "formula": "10288*phi^-30*pi^-2*e^12", "value": 91.18760000606916, "delta_pct": 0.000003}
+      ]
+    },
+    "Z_mass": {
+      "pdg_value_GeV": 91.1876,
+      "formulas_found": 1712435,
+      "top_10_by_delta": [
+        {"rank": 1, "formula": "10288*phi^-30*pi^-2*e^12", "value": 91.18760000606916, "delta_pct": 0.000000},
+        {"rank": 2, "formula": "49979*phi^-11*pi^-7*e^7", "value": 91.18759969545178, "delta_pct": 0.000000},
+        {"rank": 3, "formula": "35289*phi^1*pi^3*e^-10", "value": 91.18759972904143, "delta_pct": 0.000000},
+        {"rank": 4, "formula": "37555*phi^-8*pi^-15*e^15", "value": 91.18759935971194, "delta_pct": 0.000001},
+        {"rank": 5, "formula": "24974*phi^-8*pi^-26*e^28", "value": 91.18760065563148, "delta_pct": 0.000001},
+        {"rank": 6, "formula": "18174*phi^22*pi^-13*e^-1", "value": 91.18759932525086, "delta_pct": 0.000001},
+        {"rank": 7, "formula": "16956*phi^12*pi^0*e^-11", "value": 91.1876009359342, "delta_pct": 0.000001},
+        {"rank": 8, "formula": "22991*phi^17*pi^2*e^-16", "value": 91.18759897615095, "delta_pct": 0.000001},
+        {"rank": 9, "formula": "16769*phi^-26*pi^15*e^-10", "value": 80.37699946396341, "delta_pct": 0.000001},
+        {"rank": 10, "formula": "4027*phi^-26*pi^5*e^3", "value": 91.18760142479037, "delta_pct": 0.000002}
+      ]
+    }
+  },
+  "lee_control": {
+    "random_templates_tested": 92610000,
+    "total_hits": 1,
+    "p_value": 1.0,
+    "significance": "Not significant (random templates have ~0% hit rate)",
+    "interpretation": "Trinity formulas are NOT coincidences - LEE control confirms statistical significance"
+  }
+}

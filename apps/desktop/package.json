@@ -1,0 +1,24 @@
+{
+  "name": "trinity-orchestrator-desktop",
+  "version": "0.1.0",
+  "description": "Trinity Orchestrator Desktop - Chat UI for agents and Queen",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:agent": "npx tsx ../../scripts/agent-say.ts"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "svelte": "^4.0.0",
+    "svelte-check": "^4.0.0",
+    "tslib": "^2.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "eventsource-parser": "^2.0.1"
+  }
+}
