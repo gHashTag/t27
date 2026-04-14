@@ -1,0 +1,61 @@
+name: PR Dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master, main]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get PR status
+        id: pr-status
+        run: |
+          echo "# PR Dashboard" > /tmp/pr_dashboard.md
+          echo "" >> /tmp/pr_dashboard.md
+          echo "Generated at: $(date -u '+%Y-%m-%d %H:%M:%S %Z')" >> /tmp/pr_dashboard.md
+
+          # Get all open PRs
+          gh pr list --state open --limit 50 --json number,title,headRefName,statusCheckRollup,createdAt,updatedAt | \
+            jq -r '.[] | "# \(.number) | [\(.title)](\(.headRefName)) | \(Created: \(.createdAt | split("T")[0])\) | \(Updated: \(.updatedAt | split("T")[0])\) | \(.statusCheckRollup | map(select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED" and .conclusion != null)) | length) failing/\([.statusCheckRollup[] | length]) total\)"' \
+            >> /tmp/pr_dashboard.md
+
+          echo "" >> /tmp/pr_dashboard.md
+
+          # Add summary table
+          echo "## Summary" >> /tmp/pr_dashboard.md
+          echo "" >> /tmp/pr_dashboard.md
+          echo "| Metric | Count |" >> /tmp/pr_dashboard.md
+          echo "| --- | --- |" >> /tmp/pr_dashboard.md
+
+          # Count by status
+          for status in "READY" "MERGED" "FAILED"; do
+            COUNT=$(echo "$PR_DATA" | jq -r "[.[] | select(.statusCheckRollup[] | map(select(.conclusion == \"SUCCESS\") | length) | .statusCheckRollup | all(.conclusion == \"SUCCESS\") or .conclusion == \"SKIPPED\")] | length]")
+            echo "| $status | $COUNT |" >> /tmp/pr_dashboard.md
+          done
+
+      - name: Create GitHub Issue Comment
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment ${{ github.event.repository.updated_at }} --body-file /tmp/pr_dashboard.md || echo "Issue comment skipped"
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment $PR_NUMBER --body-file /tmp/pr_dashboard.md || echo "PR comment skipped"
