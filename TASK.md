@@ -93,31 +93,43 @@
 
 ---
 
-## Open — FPGA Phase 2+: Critical Fixes
+## Completed — FPGA Phase 2-4
 
-*Promoted from analysis 2026-04-13.*
+*Completed 2026-04-13/14 via feat/fpga-* commits.*
 
-### Phase 2 — HIR Expansion (2-3 sessions)
+### Phase 2 -- HIR Expansion (DONE)
 
-1. Add `Mem` HIR node (BRAM/DRAM/ROM) — `specs/fpga/hir.t27:90`
-2. Add `ClockDomain` HIR node — `specs/fpga/hir.t27:91`
-3. Add `BusPort` HIR node (AXI/APB/WB) — `specs/fpga/hir.t27:92`
+1. Add `Mem` HIR node (BRAM/DRAM/ROM) -- `specs/fpga/hir.t27` -- 20 tests, 5 invariants/benches
+2. Add `ClockDomain` HIR node -- `specs/fpga/hir.t27`
+3. Add `BusPort` HIR node (AXI/APB/WB) -- `specs/fpga/hir.t27`
 4. Add `bench` sections to 7 specs: `placement`, `router`, `partition`, `cts`, `bootrom`, `crossopt`, `hir`
 
-### Phase 3 — prjxray Coverage (external dependency)
+### Phase 3 -- prjxray Coverage (DONE)
 
-1. Track upstream `SymbiFlow/prjxray-db` for Artix-7 Bank 0 SPI pins (G5-G8)
-2. Evaluate MAC debug pins: 32-pin debug output vs UART readback
-3. Switch CI `--profile full` once prjxray-db covers SPI pins
+1. Documented action items in `docs/fpga/PIN_COVERAGE.md`
+2. Recommended MAC debug pin reduction from 32 to 8
+3. CI `--profile full` deferred until upstream prjxray-db covers SPI pins
 
-### Phase 4 — Synthesis Quality (1-2 sessions)
+### Phase 4 -- Synthesis Quality (DONE)
 
-1. Add timing constraints to CI synthesis flow
-2. Set LUT/FF/BRAM utilization regression thresholds
-3. Formal verification: connect `specs/fpga/formal.t27` to SymbiYosys (`sby`)
-4. Extend CI with `--board arty-a7` matrix build
+1. Arty A7 XDC: `create_clock` + `set_false_path` constraints
+2. Utilization regression thresholds: XC7A100T (63400 LUTs, 90% warning)
+3. Formal verification: `fpga-formal` CI job with SymbiYosys BMC+prove stub
+4. CI matrix: `fpga-synthesis-arty` job for Arty A7-100T
 
-### Phase 5 — Verification & Production
+### Additional Completed Work (2026-04-14)
+
+- MAC instantiation: full 8-unit parallel array wiring (was TODO stub)
+- Bridge MAC command parsing: 6-byte packet parsing with dispatch
+- `int_to_str` fix: proper decimal conversion (was returning "0")
+- `gf16_vectors.json` fix: `Infinity`/`NaN` -> valid JSON strings
+- `build.sh`: all 31 modules, Trinity_FPGA_Top top module
+- `build_verify.t27`: updated counts (28 testbenches, 3 boards, 62 specs)
+- L3 PURITY: 205,654 Unicode chars replaced in 160 .t27 files (0 non-ASCII remaining)
+- TDD: 25 tests + 8 invariants + 7 benches added to `sdk_contract.t27`
+- TDD: 20 tests + 4 invariants + 4 benches added to `runner.t27`
+
+## Open — FPGA Phase 5: Verification & Production
 
 1. VCD trace auto-compare against conformance vectors
 2. Power analysis: connect `specs/fpga/power.t27` to switching activity
