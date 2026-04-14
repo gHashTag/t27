@@ -9,6 +9,18 @@ author: Trinity S3AI Framework
 
 Upload session summaries to NotebookLM for cross-session memory persistence.
 
+## MANDATORY: Notebook ID Required
+
+**L7 UNITY Requirement:** Wrap-up without `notebook_id` is rejected.
+
+Before using this skill, you MUST have:
+1. Run `t27c bridge task start --title "your task"`
+2. Or run `t27c bridge task attach --notebook_id "..."`
+
+The wrap-up will be uploaded to the notebook specified in `.trinity/current_task/.notebook_id`.
+
+If no notebook is configured, this skill will fail with an error.
+
 ## What It Does
 
 1. Extracts session context from `.trinity/` state files

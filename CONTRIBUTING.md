@@ -70,6 +70,71 @@ If **`gen_hash_*` mismatches** appear for many specs, the compiler output change
 
 First-party Markdown and source comments must follow **English-first** policy (see root **`SOUL.md`** Article I; **`docs/nona-03-manifest/SOUL.md`** Law #1 for expansion; **`architecture/ADR-004-language-policy.md`**).
 
+## Starting a New Task (L7 UNITY Requirement)
+
+**Every push must have an active NotebookLM notebook.** This enforces knowledge persistence and audit trail for all work.
+
+### Mandatory Workflow
+
+```bash
+# Step 1: ALWAYS start a task before beginning work
+t27c bridge task start --title "Your task description"
+
+# This creates:
+# - A new NotebookLM notebook
+# - .trinity/current_task/.notebook_id (tracked in git)
+# - .trinity/current_task/notebook_meta.json
+
+# Step 2: Do your work (edit specs, run tests, commit)
+
+# Step 3: Push (gate will check for notebook)
+git push  # Succeeds only if .notebook_id exists and is valid
+```
+
+### Task Commands
+
+```bash
+# Start a new task with a notebook
+t27c bridge task start --title "Task description" --sources "file1.md,file2.md"
+
+# Attach an existing notebook
+t27c bridge task attach --notebook_id "abc123def456"
+
+# Show current task status
+t27c bridge task status
+
+# Verify notebook is valid
+t27c bridge task verify
+```
+
+### Enforcement Levels
+
+| Level | Mechanism | Location |
+|-------|-----------|----------|
+| Level 1 | Git pre-push hook blocks push | Local (`.githooks/pre-push`) |
+| Level 2 | GitHub Actions blocks PR merge | CI/CD (`.github/workflows/notebook-gate.yml`) |
+| Level 3 | `t27c bridge task start` creates notebook | CLI |
+
+### Emergency Bypass
+
+**NOT RECOMMENDED** — use only in genuine emergencies:
+
+```bash
+SKIP_NOTEBOOK_GATE=1 git push
+# Bypass is logged to .trinity/gate_bypasses.log
+```
+
+### Branch Protection Rule
+
+The following status check should be required:
+- **NotebookLM Gate / 🔒 NotebookLM notebook required**
+
+Configuration:
+- Require branches to be up to date before merging: YES
+- Include administrators: YES
+
+See [`.github/workflows/notebook-gate.yml`](.github/workflows/notebook-gate.yml) for implementation.
+
 ## Security
 
 See **[`SECURITY.md`](SECURITY.md)** for reporting vulnerabilities.
