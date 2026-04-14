@@ -1,0 +1,93 @@
+{
+  "repo": "gHashTag/t27",
+  "last_synced_at": "2026-04-06T12:00:00Z",
+  "epoch_01_milestone": {
+    "title": "EPOCH-01-HARDEN",
+    "number": 1,
+    "url": "https://github.com/gHashTag/t27/milestone/1",
+    "ring_issue_numbers": [127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 142]
+  },
+  "synced_by": "cursor-agent",
+  "meta_issue": {
+    "number": 126,
+    "title": "META: Road to Ring 999 — Full Capability Roadmap",
+    "url": "https://github.com/gHashTag/t27/issues/126",
+    "labels": ["meta", "roadmap"]
+  },
+  "task_anchor_issue": {
+    "number": 141,
+    "title": "TASK: Inter-agent coordination hub (Anchor for TASK.md)",
+    "url": "https://github.com/gHashTag/t27/issues/141",
+    "protocol_doc": "docs/TASK_PROTOCOL.md",
+    "workspace_file": "TASK.md"
+  },
+  "open_ring_issues": [
+    {
+      "number": 127,
+      "ring": 32,
+      "title": "Ring 032: TASK.md + canonical iteration schema (constitution Article TASK-MD)",
+      "url": "https://github.com/gHashTag/t27/issues/127",
+      "labels": ["ring", "harden"]
+    },
+    {
+      "number": 128,
+      "ring": 33,
+      "title": "Ring 033: ISSUE-GATE CI enforcement — block PRs without Closes #N",
+      "url": "https://github.com/gHashTag/t27/issues/128",
+      "labels": ["ring", "harden", "ci"]
+    },
+    {
+      "number": 129,
+      "ring": 34,
+      "title": "Ring 034: GoldenFloat benchmark spec — GF16 vs bfloat16 vs float16 NMSE",
+      "url": "https://github.com/gHashTag/t27/issues/129",
+      "labels": ["ring", "harden", "numeric", "benchmark"]
+    },
+    {
+      "number": 130,
+      "ring": 35,
+      "title": "Ring 035: TECHNOLOGY-TREE.md — formal ring dependency DAG to Ring 999",
+      "url": "https://github.com/gHashTag/t27/issues/130",
+      "labels": ["ring", "harden", "docs"]
+    },
+    {
+      "number": 131,
+      "ring": 36,
+      "title": "Ring 036: Seal coverage CI — block PRs with missing SHA-256 seals",
+      "url": "https://github.com/gHashTag/t27/issues/131",
+      "labels": ["ring", "harden", "ci"]
+    },
+    {
+      "number": 132,
+      "ring": 37,
+      "title": "Ring 037: SOUL.md parser enforcement — reject specs without test/invariant/bench",
+      "url": "https://github.com/gHashTag/t27/issues/132",
+      "labels": ["ring", "harden", "compiler"]
+    },
+    {
+      "number": 133,
+      "ring": 38,
+      "title": "Ring 038: conformance vector schema v2 — add phi_distance and verdict fields",
+      "url": "https://github.com/gHashTag/t27/issues/133",
+      "labels": ["ring", "harden", "conformance"]
+    },
+    {
+      "number": 134,
+      "ring": 39,
+      "title": "Ring 039: CLARA-PREPARATION-PLAN.md — DARPA TA1/TA2 submission checklist",
+      "url": "https://github.com/gHashTag/t27/issues/134",
+      "labels": ["ring", "harden", "clara", "darpa"]
+    },
+    {
+      "number": 135,
+      "ring": 40,
+      "title": "Ring 040: AGENTS_ALPHABET.md — complete all 27 agent definitions",
+      "url": "https://github.com/gHashTag/t27/issues/135",
+      "labels": ["ring", "harden", "docs", "agents"]
+    }
+  ],
+  "notes": [
+    "Milestones on GitHub were unset at sync time; assign EPOCH-01-HARDEN when created.",
+    "Paste-pack in docs/GITHUB_RING_ISSUES_RINGS_32_63.md describes alternate ring titles; live issues 127–135 are authoritative for this batch."
+  ]
+}

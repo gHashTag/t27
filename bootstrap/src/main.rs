@@ -29,7 +29,7 @@ mod memory;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 #[cfg(feature = "server")]
 use std::env;
 use std::fs;
@@ -129,9 +129,9 @@ enum Commands {
         /// Backend: zig, verilog, or c
         #[arg(long, default_value = "zig")]
         backend: String,
-        /// Output directory
-        #[arg(short, long, default_value = "build")]
-        output: String,
+        /// Output directory (default: gen/zig, gen/verilog, or gen/c matching --backend)
+        #[arg(short, long)]
+        output: Option<String>,
         /// Path to directory containing specs/ and compiler/ (auto-detected if omitted)
         #[arg(long)]
         specs_dir: Option<String>,
@@ -142,13 +142,19 @@ enum Commands {
         /// Backend: zig, verilog, or c
         #[arg(long, default_value = "zig")]
         backend: String,
-        /// Output directory
-        #[arg(short, long, default_value = "build")]
-        output: String,
+        /// Output directory (default: gen/zig, gen/verilog, or gen/c matching --backend)
+        #[arg(short, long)]
+        output: Option<String>,
     },
 
     /// Show repository statistics
     Stats,
+
+    /// Print one `stage0/FROZEN_HASH` line (SHA-256 + repo-relative path) for the bootstrap compiler core — Rust-only; no shell
+    FrozenDigest {
+        /// File to hash (default: this crate's `src/compiler.rs`)
+        path: Option<String>,
+    },
 
     /// Start HTTP server on Railway
     Serve {
@@ -2591,6 +2597,16 @@ fn backend_extension(backend: &str) -> &str {
     }
 }
 
+/// Canonical emitted-code root: `gen/zig`, `gen/verilog`, `gen/c` (see docs/ARCHITECTURE.md §5).
+fn default_gen_output_dir(backend: &str) -> String {
+    let sub = match backend {
+        "verilog" => "verilog",
+        "c" => "c",
+        _ => "zig",
+    };
+    format!("gen/{sub}")
+}
+
 fn compile_source(source: &str, backend: &str) -> Result<String, String> {
     match backend {
         "verilog" => compiler::Compiler::compile_verilog(source),
@@ -2991,6 +3007,23 @@ fn count_files_in_dir(dir: &Path, ext: &str) -> u32 {
         }
     }
     count
+}
+
+fn run_frozen_digest(path: Option<String>) -> anyhow::Result<()> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let default_path = manifest_dir.join("src/compiler.rs");
+    let p = path.map(PathBuf::from).unwrap_or(default_path);
+    let bytes = fs::read(&p).with_context(|| format!("frozen-digest: cannot read {}", p.display()))?;
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    let hex = format!("{:x}", hasher.finalize());
+    let root = manifest_dir
+        .parent()
+        .context("frozen-digest: CARGO_MANIFEST_DIR has no parent (expected bootstrap/ under repo root)")?;
+    let rel = p.strip_prefix(root).unwrap_or(&p);
+    let rel_s = rel.to_string_lossy().replace('\\', "/");
+    println!("{hex}  {rel_s}");
+    Ok(())
 }
 
 fn run_stats() -> anyhow::Result<()> {
@@ -6890,10 +6923,15 @@ async fn main() -> anyhow::Result<()> {
             run_compile(&input, &backend, output.as_deref())?
         }
         Commands::CompileAll { backend, output, specs_dir } => {
-            run_compile_all(&backend, &output, specs_dir.as_deref())?
+            let out = output.unwrap_or_else(|| default_gen_output_dir(&backend));
+            run_compile_all(&backend, &out, specs_dir.as_deref())?
         }
-        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::CompileProject { backend, output } => {
+            let out = output.unwrap_or_else(|| default_gen_output_dir(&backend));
+            run_compile_project(&backend, &out)?
+        }
         Commands::Stats => run_stats()?,
+        Commands::FrozenDigest { path } => run_frozen_digest(path)?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
@@ -7033,10 +7071,15 @@ fn main() -> anyhow::Result<()> {
             run_compile(&input, &backend, output.as_deref())?
         }
         Commands::CompileAll { backend, output, specs_dir } => {
-            run_compile_all(&backend, &output, specs_dir.as_deref())?
+            let out = output.unwrap_or_else(|| default_gen_output_dir(&backend));
+            run_compile_all(&backend, &out, specs_dir.as_deref())?
         }
-        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::CompileProject { backend, output } => {
+            let out = output.unwrap_or_else(|| default_gen_output_dir(&backend));
+            run_compile_project(&backend, &out)?
+        }
         Commands::Stats => run_stats()?,
+        Commands::FrozenDigest { path } => run_frozen_digest(path)?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {

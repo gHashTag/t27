@@ -241,6 +241,7 @@ module commands {
     // ═════════════════════════════════════════════════════════════════════
 
     // tri compile-project --output <dir> [--backend zig|c|verilog]
+    // Shell t27c default: gen/zig | gen/c | gen/verilog per backend (docs/ARCHITECTURE.md §5).
     // Generates ALL specs into a coherent project with working inter-file imports.
     //
     // Pass 1: Scan all .t27 files, build module -> file path map

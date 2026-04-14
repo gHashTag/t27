@@ -100,7 +100,7 @@ The error message includes file path, line, column, a snippet, and pointers to *
 
 ### CI: First-party doc language
 
-`scripts/check-first-party-doc-language.sh` fails if Cyrillic appears in first-party Markdown outside `docs/.legacy-non-english-docs` and `external/`.
+**Authoritative:** `cargo build` / `cargo build --release` in **`bootstrap/`** — `build.rs` fails if Cyrillic appears in first-party Markdown (same allowlist: `docs/.legacy-non-english-docs`) and in the other surfaces listed above. **`scripts/check-first-party-doc-language.sh`** (Python) is optional manual hygiene only, not the CI gate.
 
 ## Consequences
 

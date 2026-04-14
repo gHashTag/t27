@@ -14,7 +14,7 @@ ALLOW_FILE = ROOT / "docs" / ".legacy-non-english-docs"
 CYRILLIC = re.compile(r"[А-Яа-яЁё]")
 
 DIRS = ["docs", "specs", "architecture", "clara-bridge", "conformance"]
-ROOT_MD = ["README.md", "AGENTS.md", "CLAUDE.md", "task.md", "SOUL.md"]
+ROOT_MD = ["README.md", "AGENTS.md", "CLAUDE.md", "TASK.md", "SOUL.md"]
 
 
 def load_allowed() -> set[str]:

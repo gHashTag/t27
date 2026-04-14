@@ -42,7 +42,7 @@ Remove the documented split where “verdict” and assurance scenarios run thro
 | **R4** | Mandatory scenario steps write to **`.trinity/experience/`** under an agreed schema when possible | Documented example run with ≥2 steps |
 | **R5** | Precision: either GoldenFloat / `f64` in specs suffices, or **one** language/runtime extension (no new Python on path) | ADR or `docs/` section |
 | **R6** | README, CLARA-bridge, KEPLER docs updated — no conflict with constitution | Review checklist |
-| **R7** | First-party Markdown stays **English** (Cyrillic only on `docs/.legacy-non-english-docs` until translated) | `bash scripts/check-first-party-doc-language.sh` passes in CI |
+| **R7** | First-party Markdown stays **English** (Cyrillic only on `docs/.legacy-non-english-docs` until translated) | `cargo build` in **`bootstrap/`** passes (`build.rs` LANG-EN scan) |
 
 ---
 
