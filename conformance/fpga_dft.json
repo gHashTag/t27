@@ -1,0 +1,127 @@
+{
+  "constants": {
+    "JTAG_BYPASS_CODE": 255,
+    "JTAG_NUM_DR_REGS": 3,
+    "JTAG_STATE_COUNT": 16,
+    "REG_WIDTH_BITS": 32
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 Design-for-Test Specification -- scan chains, BIST controllers, JTAG TAP, test coverage estimation",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "scan_cycles_positive",
+      "description": "Scan chain cycle count is always positive"
+    },
+    {
+      "id": "coverage_bounded",
+      "description": "Total test coverage is bounded at 100%"
+    }
+  ],
+  "module": "DFT",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/dft.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "DFT Vectors",
+  "vectors": {
+    "scan_chain": {
+      "description": "Scan chain construction and metrics",
+      "cases": [
+        {
+          "id": "scan_chain_creation",
+          "description": "Scan chain with registers, bit length, cycles, and bytes"
+        }
+      ]
+    },
+    "bist": {
+      "description": "BIST controller creation and coverage",
+      "cases": [
+        {
+          "id": "memory_bist_creation",
+          "description": "Memory BIST with patterns and cycle count"
+        },
+        {
+          "id": "logic_bist_creation",
+          "description": "Logic BIST with patterns"
+        },
+        {
+          "id": "bist_coverage_full",
+          "description": "100% coverage when patterns equal faults"
+        },
+        {
+          "id": "bist_coverage_partial",
+          "description": "Partial coverage when patterns less than faults"
+        },
+        {
+          "id": "bist_coverage_zero_faults",
+          "description": "100% coverage when zero total faults"
+        }
+      ]
+    },
+    "jtag_tap": {
+      "description": "JTAG TAP controller configuration",
+      "cases": [
+        {
+          "id": "jtag_tap_creation",
+          "description": "JTAG TAP with IR width, DR regs, bypass code, and IDCODE"
+        },
+        {
+          "id": "tap_state_count",
+          "description": "TAP state machine has 16 states"
+        }
+      ]
+    },
+    "test_coverage": {
+      "description": "Test coverage aggregation and acceptability",
+      "cases": [
+        {
+          "id": "test_coverage_creation",
+          "description": "Coverage averaged from scan, BIST, and ATPG"
+        },
+        {
+          "id": "test_coverage_acceptable",
+          "description": "Coverage >= 90% is acceptable"
+        },
+        {
+          "id": "test_coverage_not_acceptable",
+          "description": "Coverage < 90% is not acceptable"
+        }
+      ]
+    },
+    "validation": {
+      "description": "Scan chain, BIST, and TAP validation",
+      "cases": [
+        {
+          "id": "validate_chain_ok",
+          "description": "Valid scan chain passes validation"
+        },
+        {
+          "id": "validate_chain_empty",
+          "description": "Empty scan chain fails validation"
+        },
+        {
+          "id": "validate_bist_ok",
+          "description": "Valid BIST controller passes validation"
+        },
+        {
+          "id": "validate_bist_empty",
+          "description": "Empty BIST controller fails validation"
+        },
+        {
+          "id": "validate_tap_ok",
+          "description": "Valid JTAG TAP passes validation"
+        },
+        {
+          "id": "validate_tap_empty",
+          "description": "Empty JTAG TAP fails validation"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

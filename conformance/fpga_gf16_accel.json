@@ -1,0 +1,216 @@
+{
+  "constants": {
+    "GF16_BITS": 4,
+    "GF16_ELEMENTS": 16,
+    "GF16_FIELD_POLY": 19,
+    "PHI_WIDTH": 64
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "GF(16) Hardware Accelerator Specification for Trinity T27 FPGA HIR -- defines GF16 MAC, FFT, and VSA operations connected to phi-identity",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "GF16 is 4 bits wide",
+      "id": "gf16_is_4_bits"
+    },
+    {
+      "description": "Field polynomial is 19 (0x13 = x^4 + x + 1)",
+      "id": "field_poly_value"
+    },
+    {
+      "description": "phi^2 + phi^-2 = 3 identity holds",
+      "id": "phi_squared_identity"
+    },
+    {
+      "description": "Number of multipliers is positive in basic config",
+      "id": "multipliers_positive"
+    },
+    {
+      "description": "Vector width is positive in full config",
+      "id": "vector_width_positive"
+    },
+    {
+      "description": "DSP48 count equals number of multipliers",
+      "id": "dsp48_equals_multipliers"
+    },
+    {
+      "description": "FFT stages are positive for power-of-2 point counts",
+      "id": "fft_stages_positive_for_power_of_2"
+    },
+    {
+      "description": "Config validation returns non-negative error count",
+      "id": "validate_non_negative"
+    }
+  ],
+  "module": "Gf16Accel",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/gf16_accel.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Gf16Accel Vectors",
+  "vectors": {
+    "config_creation": {
+      "cases": [
+        {
+          "description": "Basic GF16 config has MAC but no FFT/dot/matmul",
+          "id": "basic_config_creation"
+        },
+        {
+          "description": "Full GF16 config has MAC, FFT, dot product, and matmul",
+          "id": "full_config_creation"
+        }
+      ],
+      "description": "GF16 accelerator configuration construction"
+    },
+    "resource_queries": {
+      "cases": [
+        {
+          "description": "Total GF16 bits = num_multipliers * 4 = 32",
+          "id": "total_gf16_bits_basic"
+        },
+        {
+          "description": "MAC unit count equals multipliers when MAC enabled",
+          "id": "mac_unit_count_with_mac"
+        },
+        {
+          "description": "MAC unit count is 0 when MAC disabled",
+          "id": "mac_unit_count_without_mac"
+        },
+        {
+          "description": "DSP48 count equals number of multipliers",
+          "id": "dsp48_count"
+        },
+        {
+          "description": "Basic config with no FFT/matmul has zero BRAM count",
+          "id": "bram_count_basic"
+        },
+        {
+          "description": "Full config with FFT and matmul has positive BRAM count",
+          "id": "bram_count_full"
+        }
+      ],
+      "description": "Resource estimation queries (bits, DSP48, BRAM)"
+    },
+    "mac_unit": {
+      "cases": [
+        {
+          "description": "MAC unit created with correct accumulator width and pipeline stages",
+          "id": "gf16_mac_unit_creation"
+        }
+      ],
+      "description": "GF16 MAC unit construction"
+    },
+    "fft_operations": {
+      "cases": [
+        {
+          "description": "FFT config with 16 points and radix 2",
+          "id": "fft_creation"
+        },
+        {
+          "description": "16-point radix-2 FFT has 4 stages",
+          "id": "fft_stages_16pt_radix2"
+        },
+        {
+          "description": "64-point radix-4 FFT has 3 stages",
+          "id": "fft_stages_64pt_radix4"
+        },
+        {
+          "description": "Twiddle factor count = num_points / 2 = 8",
+          "id": "fft_twiddle_count"
+        }
+      ],
+      "description": "FFT butterfly configuration and stage computation"
+    },
+    "cycle_estimation": {
+      "cases": [
+        {
+          "description": "Matrix multiply cycle count is positive for full config",
+          "id": "matmul_cycles"
+        },
+        {
+          "description": "Dot product cycle count is positive for full config",
+          "id": "dot_product_cycles"
+        }
+      ],
+      "description": "Operation cycle count estimation"
+    },
+    "status": {
+      "cases": [
+        {
+          "description": "Idle status is not busy and result not ready",
+          "id": "idle_status"
+        },
+        {
+          "description": "Busy status has busy=true and correct operation code",
+          "id": "busy_status"
+        }
+      ],
+      "description": "Accelerator status checking"
+    },
+    "phi_identity": {
+      "cases": [
+        {
+          "description": "phi^2 + phi^-2 = 3 identity verification",
+          "id": "phi_identity"
+        },
+        {
+          "description": "phi^2 = phi + 1 identity verification",
+          "id": "phi_squared_identity"
+        }
+      ],
+      "description": "Phi identity checks connecting math to silicon"
+    },
+    "config_validation": {
+      "cases": [
+        {
+          "description": "Valid basic config passes validation",
+          "id": "validate_config_ok"
+        },
+        {
+          "description": "Config with empty name fails validation",
+          "id": "validate_config_empty_name"
+        },
+        {
+          "description": "Config with zero multipliers fails validation",
+          "id": "validate_config_zero_mult"
+        }
+      ],
+      "description": "GF16 config validation"
+    },
+    "mac_validation": {
+      "cases": [
+        {
+          "description": "Valid MAC unit passes validation",
+          "id": "validate_mac_ok"
+        },
+        {
+          "description": "MAC unit with empty name fails validation",
+          "id": "validate_mac_empty_name"
+        }
+      ],
+      "description": "MAC unit validation"
+    },
+    "fft_validation": {
+      "cases": [
+        {
+          "description": "Valid FFT config passes validation",
+          "id": "validate_fft_ok"
+        },
+        {
+          "description": "FFT with empty name fails validation",
+          "id": "validate_fft_empty_name"
+        },
+        {
+          "description": "FFT with zero points fails validation",
+          "id": "validate_fft_zero_points"
+        }
+      ],
+      "description": "FFT configuration validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}
