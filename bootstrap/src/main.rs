@@ -14,7 +14,11 @@ mod bridge;
 mod compiler;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 mod enrichment;
+=======
+mod notebook;
+>>>>>>> Stashed changes
 =======
 mod notebook;
 >>>>>>> Stashed changes
@@ -179,6 +183,7 @@ enum Commands {
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     /// Enrich notebooks with YouTube transcripts
     Enrich {
         /// Notebook ID to enrich
@@ -242,11 +247,16 @@ enum Commands {
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     /// NotebookLM — Manage and enrich notebooks with contextual content
     Nb {
         #[command(subcommand)]
         command: notebook::NbCommands,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
