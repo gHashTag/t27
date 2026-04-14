@@ -1,0 +1,210 @@
+total 8
+drwxr-xr-x@  13 playra  staff   416 Apr  7 22:56 .
+drwxr-xr-x   61 playra  staff  1952 Apr  7 22:51 ..
+drwxr-xr-x@   4 playra  staff   128 Apr  4 06:20 agents
+drwxr-xr-x    3 playra  staff    96 Apr  7 22:56 audit
+drwxr-xr-x@   3 playra  staff    96 Apr  7 00:06 cells
+drwxr-xr-x    5 playra  staff   160 Apr  6 21:35 events
+drwxr-xr-x    6 playra  staff   192 Apr  7 21:30 experience
+drwxr-xr-x    3 playra  staff    96 Apr  4 06:07 policy
+drwxr-xr-x    4 playra  staff   128 Apr  7 19:12 queen-brain
+drwxr-xr-x    6 playra  staff   192 Apr  4 06:07 queue
+-rw-r--r--    1 playra  staff  1017 Apr  4 04:13 repo_policy.json
+drwxr-xr-x@ 114 playra  staff  3648 Apr  7 19:17 seals
+drwxr-xr-x    7 playra  staff   224 Apr  7 04:28 state
+
+.trinity//agents:
+total 64
+drwxr-xr-x@  4 playra  staff    128 Apr  4 06:20 .
+drwxr-xr-x@ 13 playra  staff    416 Apr  7 22:56 ..
+-rw-r--r--@  1 playra  staff  24942 Apr  4 04:13 AGENT_T_SKILL.md
+-rw-r--r--   1 playra  staff   3990 Apr  4 06:20 tri-doctor.jsonl
+
+.trinity//audit:
+total 0
+drwxr-xr-x   3 playra  staff   96 Apr  7 22:56 .
+drwxr-xr-x@ 13 playra  staff  416 Apr  7 22:56 ..
+-rw-r--r--   1 playra  staff    0 Apr  7 22:56 inventory.txt
+
+.trinity//cells:
+total 8
+drwxr-xr-x@  3 playra  staff    96 Apr  7 00:06 .
+drwxr-xr-x@ 13 playra  staff   416 Apr  7 22:56 ..
+-rw-r--r--@  1 playra  staff  2495 Apr  7 00:06 registry.json
+
+.trinity//events:
+total 40
+drwxr-xr-x   5 playra  staff   160 Apr  6 21:35 .
+drwxr-xr-x@ 13 playra  staff   416 Apr  7 22:56 ..
+-rw-r--r--   1 playra  staff  5221 Apr  4 06:07 akashic-log-schema.jsonl
+-rw-r--r--@  1 playra  staff  3373 Apr  6 21:35 akashic-log.jsonl
+-rw-r--r--   1 playra  staff  6799 Apr  4 06:18 loop-handoff-schema.jsonl
+
+.trinity//experience:
+total 144
+drwxr-xr-x   6 playra  staff    192 Apr  7 21:30 .
+drwxr-xr-x@ 13 playra  staff    416 Apr  7 22:56 ..
+-rw-r--r--   1 playra  staff   1275 Apr  7 21:30 2026-04-07_ring-050_sprint-3.5_radix-economy.json
+-rw-r--r--   1 playra  staff   4763 Apr  7 12:05 episodes.jsonl
+-rw-r--r--@  1 playra  staff   3275 Apr  7 17:28 math_compare.jsonl
+-rw-r--r--@  1 playra  staff  53759 Apr  7 17:28 math_compete.jsonl
+
+.trinity//policy:
+total 24
+drwxr-xr-x   3 playra  staff     96 Apr  4 06:07 .
+drwxr-xr-x@ 13 playra  staff    416 Apr  7 22:56 ..
+-rwxr-xr-x   1 playra  staff  11572 Apr  4 06:19 coordination-law.md
+
+.trinity//queen-brain:
+total 0
+drwxr-xr-x   4 playra  staff  128 Apr  7 19:12 .
+drwxr-xr-x@ 13 playra  staff  416 Apr  7 22:56 ..
+drwxr-xr-x   2 playra  staff   64 Apr  7 11:03 state
+drwxr-xr-x@  3 playra  staff   96 Apr  7 19:12 summaries
+
+.trinity//queen-brain/state:
+total 0
+drwxr-xr-x  2 playra  staff   64 Apr  7 11:03 .
+drwxr-xr-x  4 playra  staff  128 Apr  7 19:12 ..
+
+.trinity//queen-brain/summaries:
+total 8
+drwxr-xr-x@ 3 playra  staff   96 Apr  7 19:12 .
+drwxr-xr-x  4 playra  staff  128 Apr  7 19:12 ..
+-rw-r--r--@ 1 playra  staff  682 Apr  7 19:12 example_daily_summary.json
+
+.trinity//queue:
+total 32
+drwxr-xr-x   6 playra  staff  192 Apr  4 06:07 .
+drwxr-xr-x@ 13 playra  staff  416 Apr  7 22:56 ..
+-rw-r--r--   1 playra  staff   60 Apr  4 06:07 active.json
+-rw-r--r--   1 playra  staff   60 Apr  4 06:07 blocked.json
+-rw-r--r--   1 playra  staff   60 Apr  4 06:07 done.json
+-rw-r--r--   1 playra  staff   60 Apr  4 06:07 pending.json
+
+.trinity//seals:
+total 896
+drwxr-xr-x@ 114 playra  staff  3648 Apr  7 19:17 .
+drwxr-xr-x@  13 playra  staff   416 Apr  7 22:56 ..
+-rw-r--r--@   1 playra  staff   501 Apr  7 08:45 AgentRunner.json
+-rw-r--r--@   1 playra  staff   484 Apr  7 08:45 Api.json
+-rw-r--r--@   1 playra  staff   493 Apr  7 04:28 AspSolver.json
+-rw-r--r--@   1 playra  staff   747 Apr  5 10:34 BaseOps.json
+-rw-r--r--@   1 playra  staff   751 Apr  5 10:34 BaseTypes.json
+-rw-r--r--@   1 playra  staff   690 Apr  7 19:12 BrainSummaries.json
+-rw-r--r--@   1 playra  staff   193 Apr  7 19:17 CompetitiveTests.json
+-rw-r--r--@   1 playra  staff   496 Apr  7 08:45 Composition.json
+-rw-r--r--@   1 playra  staff   494 Apr  7 08:45 Constants.json
+-rw-r--r--@   1 playra  staff   501 Apr  7 04:28 DatalogEngine.json
+-rw-r--r--@   1 playra  staff   502 Apr  7 08:45 E8LieAlgebra.json
+-rw-r--r--@   1 playra  staff   502 Apr  7 08:45 Explainability.json
+-rw-r--r--@   1 playra  staff   493 Apr  7 08:45 FPGA_Bridge.json
+-rw-r--r--@   1 playra  staff   703 Apr  7 00:06 FpgaEmission.json
+-rw-r--r--@   1 playra  staff   487 Apr  7 08:45 GF12.json
+-rw-r--r--@   1 playra  staff   679 Apr  5 10:34 GF16.json
+-rw-r--r--@   1 playra  staff   487 Apr  7 08:45 GF20.json
+-rw-r--r--@   1 playra  staff   487 Apr  7 08:45 GF24.json
+-rw-r--r--@   1 playra  staff   487 Apr  7 08:45 GF32.json
+-rw-r--r--@   1 playra  staff   485 Apr  7 08:45 GF4.json
+-rw-r--r--@   1 playra  staff   485 Apr  7 08:45 GF8.json
+-rw-r--r--@   1 playra  staff   514 Apr  7 08:45 GoldenFloatFamily.json
+-rw-r--r--@   1 playra  staff   482 Apr  7 08:45 HSLM.json
+-rw-r--r--@   1 playra  staff   496 Apr  7 08:45 ISARegisters.json
+-rw-r--r--@   1 playra  staff   506 Apr  7 08:45 JonesPolynomial.json
+-rw-r--r--@   1 playra  staff   530 Apr  7 08:45 JonesTopologyDecisionGate.json
+-rw-r--r--@   1 playra  staff   517 Apr  7 08:45 JonesTopologyFilter.json
+-rw-r--r--@   1 playra  staff   505 Apr  7 08:45 MAC_Testbench.json
+-rw-r--r--@   1 playra  staff   493 Apr  7 08:45 Parsing.json
+-rw-r--r--@   1 playra  staff   508 Apr  7 13:30 PellisFormulas.json
+-rw-r--r--@   1 playra  staff   496 Apr  7 08:45 PhiRatio.json
+-rw-r--r--@   1 playra  staff   303 Apr  7 19:17 PhiSplitOptimality.json
+-rw-r--r--@   1 playra  staff   492 Apr  7 08:45 Project.json
+-rw-r--r--@   1 playra  staff   495 Apr  7 04:28 ProofTrace.json
+-rw-r--r--@   1 playra  staff   518 Apr  7 10:47 PropertyTestTemplate.json
+-rw-r--r--@   1 playra  staff   494 Apr  7 08:45 Provider.json
+-rw-r--r--@   1 playra  staff   492 Apr  7 08:45 QueenLotus.json
+-rw-r--r--@   1 playra  staff   501 Apr  7 21:28 RadixEconomy.json
+-rw-r--r--@   1 playra  staff   492 Apr  7 08:45 Restraint.json
+-rw-r--r--@   1 playra  staff   490 Apr  7 08:45 Routes.json
+-rw-r--r--@   1 playra  staff   489 Apr  7 08:45 SPI_Master.json
+-rw-r--r--@   1 playra  staff   509 Apr  7 08:45 SU2ChernSimons.json
+-rw-r--r--@   1 playra  staff   498 Apr  7 08:45 SacredAttention.json
+-rw-r--r--@   1 playra  staff   503 Apr  7 08:45 SacredPhysics.json
+-rw-r--r--@   1 playra  staff   516 Apr  7 08:45 SacredVerification.json
+-rw-r--r--@   1 playra  staff   492 Apr  7 08:45 Session.json
+-rw-r--r--@   1 playra  staff   498 Apr  7 04:28 SimpleTest.json
+-rw-r--r--@   1 playra  staff   745 Apr  5 10:34 TF3.json
+-rw-r--r--@   1 playra  staff   690 Apr  7 19:17 TernaryArithmetic.json
+-rw-r--r--@   1 playra  staff   505 Apr  7 19:17 TernaryBackprop.json
+-rw-r--r--@   1 playra  staff   706 Apr  7 19:17 TernaryBitwise.json
+-rw-r--r--@   1 playra  staff   688 Apr  7 19:17 TernaryEncoding.json
+-rw-r--r--@   1 playra  staff   686 Apr  7 19:15 TernaryGates.json
+-rw-r--r--@   1 playra  staff   499 Apr  7 19:17 TernaryLayer.json
+-rw-r--r--@   1 playra  staff   653 Apr  7 04:28 TernaryLogic.json
+-rw-r--r--@   1 playra  staff   497 Apr  7 19:17 TernaryLoss.json
+-rw-r--r--@   1 playra  staff   495 Apr  7 19:17 TernaryMLP.json
+-rw-r--r--@   1 playra  staff   677 Apr  7 19:17 TernaryMemory.json
+-rw-r--r--@   1 playra  staff   501 Apr  7 19:17 TernaryNeuron.json
+-rw-r--r--@   1 playra  staff   670 Apr  7 19:17 TernaryShift.json
+-rw-r--r--@   1 playra  staff   531 Apr  7 04:28 TestFramework.json
+-rw-r--r--@   1 playra  staff   529 Apr  7 04:28 TestRunner.json
+-rw-r--r--@   1 playra  staff   511 Apr  7 08:45 Top_Level_Testbench.json
+-rw-r--r--@   1 playra  staff   757 Apr  7 00:06 Trinity_FPGA_Top.json
+-rw-r--r--@   1 playra  staff   746 Apr  7 00:06 UART_Bridge.json
+-rw-r--r--@   1 playra  staff   507 Apr  7 08:45 UART_Testbench.json
+-rw-r--r--@   1 playra  staff   486 Apr  7 08:45 VSACore.json
+-rw-r--r--@   1 playra  staff   484 Apr  7 08:45 VSAOps.json
+-rw-r--r--@   1 playra  staff   680 Apr  7 19:14 VSASimilaritySearch.json
+-rw-r--r--@   1 playra  staff   531 Apr  7 04:28 Zamolodchikov4DConjecture.json
+-rw-r--r--@   1 playra  staff   507 Apr  7 08:45 ZamolodchikovE8.json
+-rw-r--r--@   1 playra  staff   490 Apr  7 08:45 ZeroDSP_MAC.json
+-rw-r--r--@   1 playra  staff   501 Apr  7 08:45 ZeroDSP_TopLevel.json
+-rw-r--r--@   1 playra  staff   492 Apr  7 08:45 ZeroDSP_UART.json
+-rw-r--r--@   1 playra  staff   740 Apr  5 10:34 ast.json
+-rw-r--r--@   1 playra  staff   489 Apr  7 04:28 brain-bus.json
+-rw-r--r--@   1 playra  staff   511 Apr  7 04:28 brain-cognitive-loop.json
+-rw-r--r--@   1 playra  staff   503 Apr  7 04:28 brain-phi-timing.json
+-rw-r--r--@   1 playra  staff   509 Apr  7 04:28 brain-unified-state.json
+-rw-r--r--@   1 playra  staff   790 Apr  7 12:31 brain_domains.json
+-rw-r--r--@   1 playra  staff  1133 Apr  7 08:57 brain_pipeline.json
+-rw-r--r--@   1 playra  staff   771 Apr  7 12:31 brain_summary.json
+-rw-r--r--@   1 playra  staff   758 Apr  5 10:34 commands.json
+-rw-r--r--@   1 playra  staff  1236 Apr  7 09:39 experience_example.json
+-rw-r--r--@   1 playra  staff   655 Apr  5 10:34 gen_commands.json
+-rw-r--r--@   1 playra  staff   656 Apr  5 10:34 git_commands.json
+-rw-r--r--@   1 playra  staff   505 Apr  7 08:45 lqg_cs_bridge.json
+-rw-r--r--@   1 playra  staff   501 Apr  7 08:45 lqg_entropy.json
+-rw-r--r--@   1 playra  staff   752 Apr  7 00:10 parser.json
+-rw-r--r--@   1 playra  staff   520 Apr  7 04:28 phi_loop_contract.json
+-rw-r--r--@   1 playra  staff   520 Apr  7 09:39 property_test_template.json
+-rw-r--r--@   1 playra  staff   525 Apr  7 04:28 radix_economy.json
+-rw-r--r--@   1 playra  staff   484 Apr  7 08:45 seed.json
+-rw-r--r--@   1 playra  staff   762 Apr  5 10:34 skill_registry.json
+-rw-r--r--@   1 playra  staff   494 Apr  7 04:28 soul.json
+-rw-r--r--@   1 playra  staff   658 Apr  5 10:34 spec_commands.json
+-rw-r--r--@   1 playra  staff   498 Apr  7 08:45 ternary_add.json
+-rw-r--r--@   1 playra  staff   755 Apr  5 10:34 testgen.json
+-rw-r--r--@   1 playra  staff   760 Apr  5 10:34 tricgen-c.json
+-rw-r--r--@   1 playra  staff   504 Apr  4 23:45 tricompiler-parser.json
+-rw-r--r--@   1 playra  staff   497 Apr  7 08:45 triformat-gf16.json
+-rw-r--r--@   1 playra  staff   495 Apr  7 08:45 triformat-tf3.json
+-rw-r--r--@   1 playra  staff   754 Apr  5 10:34 trilexer.json
+-rw-r--r--@   1 playra  staff   525 Apr  7 04:28 trinity-numeric-surface.json
+-rw-r--r--@   1 playra  staff   759 Apr  5 10:34 triruntime.json
+-rw-r--r--@   1 playra  staff   493 Apr  7 04:28 tritype-base.json
+-rw-r--r--@   1 playra  staff   490 Apr  7 04:28 tritype-ops.json
+-rw-r--r--@   1 playra  staff   768 Apr  5 10:34 validation_rules.json
+-rw-r--r--@   1 playra  staff   957 Apr  7 08:55 verdict_example.json
+-rw-r--r--@   1 playra  staff   772 Apr  7 00:06 verilog_codegen.json
+-rw-r--r--@   1 playra  staff   764 Apr  5 10:34 zig_codegen.json
+-rw-r--r--@   1 playra  staff   667 Apr  5 10:34 zig_runtime.json
+
+.trinity//state:
+total 40
+drwxr-xr-x   7 playra  staff  224 Apr  7 04:28 .
+drwxr-xr-x@ 13 playra  staff  416 Apr  7 22:56 ..
+-rw-r--r--@  1 playra  staff  583 Apr  7 00:06 active-skill.json
+-rw-r--r--@  1 playra  staff  398 Apr  7 00:06 issue-binding.json
+-rw-r--r--   1 playra  staff   80 Apr  4 06:07 ownership-index.json
+-rw-r--r--@  1 playra  staff  181 Apr  7 04:28 queen-health.json
+-rw-r--r--   1 playra  staff  246 Apr  4 06:07 swarm-health.json

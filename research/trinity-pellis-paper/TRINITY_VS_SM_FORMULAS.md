@@ -52,12 +52,12 @@ Side-by-side reference: **what lives in this repo’s Trinity–Pell layer** vs 
 ## 5. Quark mixing (CKM)
 
 
-| Trinity / Pellis (ansatz)                   | Standard Model                                                               | Notes                                                                                              |
-| ------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| |V_{us}| \stackrel{?}{\sim} \varphi^{-3}    | |V_{us}| from **unitary CKM** + PDG (Wolfenstein \lambda \approx 0.225 etc.) | Row 23; **~4.9%** vs central — Cabibbo–Weinberg proximity is SM **numerology**, not derived in SM. |
-| |V_{cb}| \stackrel{?}{\sim} \varphi^{-6.5}  | PDG modulus (~**0.041** class; cite extract)                                   | Row 24; **\varphi^{-6.5} \approx 0.0438**, **δ ~ 6.3%** vs ~0.0412. (*\varphi^{-7} \approx 0.0344* is worse — **~16%** vs central.)          |
-| |V_{ub}| \stackrel{?}{\sim} \varphi^{-11.5} | PDG modulus (~**0.0038** class)                                                | Row 25; **\varphi^{-11.5} \approx 0.00395**, **δ ~ 3.4%** vs ~0.00382. **LHCb / Belle II** refine \|V_{ub}\|, \|V_{cb}\| over time.          |
-| **Full CKM**                                | V_{\rm CKM} unitary, **V V^\dagger = I**                                     | Rows 11–13, 16–19 — **PDG references** in CLI, not φ closures.                                     |
+| Trinity / Pellis (ansatz) | Standard Model                           | Notes                                                          |
+| ------------------------- | ---------------------------------------- | -------------------------------------------------------------- |
+|                           | V_{us}                                   | \stackrel{?}{\sim} \varphi^{-3}                                |
+|                           | V_{cb}                                   | \stackrel{?}{\sim} \varphi^{-6.5}                              |
+|                           | V_{ub}                                   | \stackrel{?}{\sim} \varphi^{-11.5}                             |
+| **Full CKM**              | V_{\rm CKM} unitary, **V V^\dagger = I** | Rows 11–13, 16–19 — **PDG references** in CLI, not φ closures. |
 
 
 **Literature link (φ across sectors):** Rodejohann & Datta discuss golden-ratio–flavored connections between **Cabibbo** and **neutrino** angles ([PRD **76**, 117301 (2007)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.76.117301)) — **not** proof of rows 22–25; context only.
@@ -149,7 +149,7 @@ Illustrative **symmetry benchmarks** vs **global fits** (NuFIT-class). Your row 
 | **Math**                           | \varphi identities, Pell block, Pellis arithmetic **137.035999164766…** | `t27` / `tri`, high-precision replay                                                                                                                                                              | **Theorem-level** in ℝ; **f64** is tol-bounded (see Flocq / `PhiFloat.v`).                |
 | **Pellis vs CODATA**               | Sub-ppb alignment vs **2022** recommended \alpha^{-1}                   | **Passive:** unchanged formula vs **CODATA 2026+** ([CODATA](https://codata.org/initiatives/data-science-and-stewardship/fundamental-physical-constants/)); refresh `FORMULA_TABLE.md` checkpoint | **High** for **pre-registration** story; **low** for “proof of nature” without mechanism. |
 | **\sin^2\theta_W vs \varphi^{-3}** | **~2.1%** gap                                                           | **Active:** P2@MESA (**~0.15%** class), DUNE ND (**~2031–2033**); see `FORMULA_TABLE.md`                                                                                                          | **Medium** — real falsifiers; **2%** ansatz may fail sharply.                             |
-| **CKM φ ansätze**                  | **~5%** level                                                           | LHCb Run 3, Belle II on |V_{ub}|,|V_{cb}|                                                                                                                                                         | **Low** as discriminators — too coarse unless tightened.                                  |
+| **CKM φ ansätze**                  | **~5%** level                                                           | LHCb Run 3, Belle II on                                                                                                                                                                           | V_{ub}                                                                                    |
 | **Mass ratios \varphi^n**          | **~3–5%**                                                               | Lattice + scheme for m_s,m_b; **integer n** freedom                                                                                                                                               | **Low** — easy to cherry-pick n.                                                          |
 
 
@@ -172,4 +172,4 @@ Illustrative **symmetry benchmarks** vs **global fits** (NuFIT-class). Your row 
 
 ---
 
-**Maintenance:** When `FORMULA_TABLE.md` gains new IDs, extend §13. **SSOT** for executable checks remains `**specs/**/*.t27*`* + `tri`, not this Markdown file. `**ALPHA_INV_REFERENCE**` in `pellis-formulas.t27` / CLI tracks **CODATA 2022 central 166** — bump when PDG/CODATA releases the next recommendation and re-seal. For **100+ digit** replay of φ-only rows (incl. Pellis α⁻¹), run `**scripts/verify_precision.py`** (mpmath) or `**scripts/print_pellis_seal_decimal.py**` (stdlib). Zig/GMP plan: `**GMP_MPFR_ROADMAP.md**`.
+**Maintenance:** When `FORMULA_TABLE.md` gains new IDs, extend §13. **SSOT** for executable checks remains `**specs/**/*.t27*`* + `tri`, not this Markdown file. `**ALPHA_INV_REFERENCE`** in `pellis-formulas.t27` / CLI tracks **CODATA 2022 central 166** — bump when PDG/CODATA releases the next recommendation and re-seal. For **100+ digit** replay of φ-only rows (incl. Pellis α⁻¹), run `**scripts/verify_precision.py`** (mpmath) or `**scripts/print_pellis_seal_decimal.py`** (stdlib). Zig/GMP plan: `**GMP_MPFR_ROADMAP.md**`.

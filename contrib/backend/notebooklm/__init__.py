@@ -19,7 +19,22 @@ from .queries import notebook_query
 from .session import session_extract_from_trinity
 from .wrapup import wrapup_format_summary, wrapup_upload
 
-__version__ = "0.1.0"
+# GitHub Extensions
+try:
+    from . import issues
+    from . import prs
+    from . import docs
+    from . import sync
+    GITHUB_EXTENSIONS_AVAILABLE = True
+except ImportError:
+    GITHUB_EXTENSIONS_AVAILABLE = False
+
+__version__ = "0.2.0"
+# GitHub Extensions
+from .issues import NotebookLMIssueLink, issue_upload_notebooklm
+from .prs import NotebookLMPRLink, pr_upload_notebooklm
+from .docs import NotebookLMDocLink, doc_upload_notebooklm
+from .sync import UnifiedSyncOrchestrator
 __all__ = [
     # Config
     "NotebookLMConfig",
