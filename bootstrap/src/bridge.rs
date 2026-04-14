@@ -10,13 +10,6 @@ use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
-// ═══════════════════════════════════════════════════════════════
-// tri bridge — OpenCode A2A Bridge for Queen T (Ϯ)
-//
-// This is a native part of the T27 DNA that connects AGENT T
-// to OpenCode agents via the REST API.
-// ═══════════════════════════════════════════════════════════════
-
 const BASE_URL: &str = "http://127.0.0.1:4096";
 const AGENT_ID: &str = "agent-t-antigravity";
 const AGENT_SIGN: &str = "[Ϯ AGENT T / Queen Antigravity]";
@@ -50,9 +43,18 @@ pub enum BridgeCommands {
     /// Read last loop.handoff and show FUTURE OPTIONS
     Handoff,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     /// Task notebook management (NotebookLM integration)
     #[command(subcommand)]
     Task(TaskCommands),
+=======
+    /// Task notebook management (NotebookLM integration)
+    #[command(subcommand)]
+    Task(TaskCommands),
+    /// NotebookLM quick commands
+    #[command(subcommand)]
+    Nb(NbCommands),
+>>>>>>> Stashed changes
 }
 
 #[derive(Subcommand, Debug)]
@@ -78,6 +80,37 @@ pub enum TaskCommands {
     Verify,
     /// Upload activity.md to notebook
     Upload,
+<<<<<<< Updated upstream
+=======
+}
+
+#[derive(Subcommand, Debug)]
+pub enum NbCommands {
+    /// Create a new NotebookLM notebook
+    Create {
+        #[arg(short, long)]
+        title: String,
+    },
+    /// List all NotebookLM notebooks
+    List,
+    /// Add a file as source to current notebook
+    Add {
+        #[arg(short, long)]
+        file: PathBuf,
+    },
+    /// Query current notebook with prompt
+    Query {
+        #[arg(short, long)]
+        prompt: String,
+    },
+    /// Upload activity.md to notebook
+    UploadLog,
+    /// Link current notebook to GitHub issue
+    Link {
+        #[arg(short, long)]
+        issue: u32,
+    },
+>>>>>>> Stashed changes
 }
 
 pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
@@ -124,15 +157,307 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
         BridgeCommands::Watch { session_id } => cmd_watch(&root, &session_id),
         BridgeCommands::Handoff => cmd_handoff(&root),
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
 =======
         BridgeCommands::Nb(nb_cmd) => handle_nb(&root, nb_cmd)?,
+>>>>>>> Stashed changes
+=======
+        BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
+        BridgeCommands::Nb(nb_cmd) => handle_nb(&root, nb_cmd),
 >>>>>>> Stashed changes
     }
     Ok(())
 }
 
+<<<<<<< Updated upstream
 // ─── Task Commands (NotebookLM) ─────────────────────────────────
+=======
+fn handle_nb(root: &Path, command: NbCommands) -> anyhow::Result<()> {
+    match command {
+        NbCommands::Create { title } => {
+            println!("{} Creating notebook: {}", "📓".bold(), title.cyan());
+            let notebook_id = create_notebook_via_python(&title)?;
+            println!("{} Created: {}", "✅".green(), notebook_id.cyan());
+            println!("{} URL: {}", "🔗".bold(),
+                format!("https://notebooklm.google.com/notebook/{}", notebook_id).cyan());
+            Ok(())
+        }
+        NbCommands::List => {
+            let output = Command::new("python3.10")
+                .args([
+                    "-c",
+                    r#"import asyncio
+
+async def list_notebooks():
+    from notebooklm import NotebookLMClient
+    async with await NotebookLMClient.from_storage() as client:
+        notebooks = await client.notebooks.list()
+        for nb in notebooks:
+            print(f"{nb.id}\t{nb.title}")
+
+asyncio.run(list_notebooks())
+"#,
+                ])
+                .output()?;
+
+            if !output.status.success() {
+                eprintln!("{} Failed to list notebooks", "❌".red());
+                return Err(anyhow::anyhow!("Failed to list notebooks"));
+            }
+
+            println!("{}", "═══ NOTEBOOKLM NOTEBOOKS ═══".bright_yellow().bold());
+            println!();
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() >= 2 {
+                    println!("  {} {}", "📓".bold(), parts[0].cyan());
+                    println!("      {}", parts[1]);
+                    println!("      {}", format!("https://notebooklm.google.com/notebook/{}", parts[0]).bright_black());
+                    println!();
+                }
+            }
+
+            Ok(())
+        }
+        NbCommands::Add { file } => {
+            let task_dir = root.join(".trinity").join("current_task");
+            let notebook_id_path = task_dir.join(".notebook_id");
+
+            if !notebook_id_path.exists() {
+                eprintln!("{}", "❌ No .notebook_id file found".red());
+                eprintln!("Use 'tri nb create' first");
+                return Err(anyhow::anyhow!("No notebook configured"));
+            }
+
+            let notebook_id = fs::read_to_string(&notebook_id_path)?;
+            let file_path = if file.is_absolute() {
+                file.clone()
+            } else {
+                root.join(&file)
+            };
+
+            if !file_path.exists() {
+                eprintln!("{} File not found: {}", "❌".red(), file_path.display());
+                return Err(anyhow::anyhow!("File not found"));
+            }
+
+            let file_content = fs::read_to_string(&file_path)?;
+            let file_name = file_path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown");
+
+            println!("{} Uploading source to notebook...", "📤".bold());
+            println!("  File: {}", file_name.cyan());
+            println!("  Notebook: {}", notebook_id.cyan());
+
+            let output = Command::new("python3.10")
+                .args([
+                    "-c",
+                    &format!(
+                        r#"import asyncio
+import sys
+
+async def upload_source():
+    from notebooklm import NotebookLMClient
+    async with await NotebookLMClient.from_storage() as client:
+        notebook = await client.notebooks.get("{}")
+        await notebook.sources.create_text("{}", """{}""")
+
+asyncio.run(upload_source())
+"#,
+                        notebook_id, file_name, file_content
+                    ),
+                ])
+                .output()?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!("{} Upload failed", "❌".red());
+                eprintln!("{}", stderr);
+                return Err(anyhow::anyhow!("Upload failed"));
+            }
+
+            println!("{} Source uploaded successfully", "✅".green());
+            Ok(())
+        }
+        NbCommands::Query { prompt } => {
+            let task_dir = root.join(".trinity").join("current_task");
+            let notebook_id_path = task_dir.join(".notebook_id");
+
+            if !notebook_id_path.exists() {
+                eprintln!("{}", "❌ No .notebook_id file found".red());
+                eprintln!("Use 'tri nb create' first");
+                return Err(anyhow::anyhow!("No notebook configured"));
+            }
+
+            let notebook_id = fs::read_to_string(&notebook_id_path)?;
+
+            println!("{} Querying notebook...", "🔍".bold());
+            println!("  Prompt: {}", prompt.cyan());
+            println!();
+
+            let output = Command::new("python3.10")
+                .args([
+                    "-c",
+                    &format!(
+                        r#"import asyncio
+import json
+import sys
+
+async def query_notebook():
+    from notebooklm import NotebookLMClient
+    async with await NotebookLMClient.from_storage() as client:
+        notebook = await client.notebooks.get("{}")
+        query = await notebook.queries.query("{}")
+        result = {{
+            "text": query.text,
+            "sources": [{"name": s.name, "id": s.id} for s in query.sources]
+        }}
+        print(json.dumps(result))
+
+asyncio.run(query_notebook())
+"#,
+                        notebook_id, prompt
+                    ),
+                ])
+                .output()?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!("{} Query failed", "❌".red());
+                eprintln!("{}", stderr);
+                return Err(anyhow::anyhow!("Query failed"));
+            }
+
+            if let Ok(response) = serde_json::from_str::<serde_json::Value>(&String::from_utf8_lossy(&output.stdout)) {
+                if let Some(text) = response.get("text").and_then(|t| t.as_str()) {
+                    println!("{}", "═ ANSWER ══".bright_yellow().bold());
+                    println!();
+                    for line in text.lines() {
+                        println!("  {}", line);
+                    }
+                    println!();
+                }
+                if let Some(sources) = response.get("sources").and_then(|s| s.as_array()) {
+                    if !sources.is_empty() {
+                        println!("{}", "─ Sources ─".bright_black());
+                        for src in sources {
+                            if let Some(name) = src.get("name").and_then(|n| n.as_str()) {
+                                println!("  • {}", name);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(())
+        }
+        NbCommands::UploadLog => {
+            let task_dir = root.join(".trinity").join("current_task");
+            let notebook_id_path = task_dir.join(".notebook_id");
+            let activity_path = task_dir.join("activity.md");
+
+            if !notebook_id_path.exists() {
+                eprintln!("{}", "❌ No .notebook_id file found".red());
+                return Err(anyhow::anyhow!("No notebook configured"));
+            }
+
+            if !activity_path.exists() {
+                eprintln!("{}", "❌ No activity.md file found".red());
+                return Err(anyhow::anyhow!("No activity to upload"));
+            }
+
+            let notebook_id = fs::read_to_string(&notebook_id_path)?;
+            let activity = fs::read_to_string(&activity_path)?;
+
+            println!("{} Uploading activity.md to notebook...", "📤".bold());
+            println!("  Notebook: {}", notebook_id.cyan());
+
+            let timestamp = Local::now().format("%Y-%m-%d %H:%M").to_string();
+            let source_title = format!("Activity Log — {}", timestamp);
+
+            let output = Command::new("python3.10")
+                .args([
+                    "-c",
+                    &format!(
+                        r#"import asyncio
+import sys
+
+async def upload_activity():
+    from notebooklm import NotebookLMClient
+    async with await NotebookLMClient.from_storage() as client:
+        notebook = await client.notebooks.get("{}")
+        await notebook.sources.create_text("{}", """{}""")
+
+asyncio.run(upload_activity())
+"#,
+                        notebook_id, source_title, activity
+                    ),
+                ])
+                .output()?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!("{} Upload failed", "❌".red());
+                eprintln!("{}", stderr);
+                return Err(anyhow::anyhow!("Upload failed"));
+            }
+
+            println!("{} Activity log uploaded", "✅".green());
+            Ok(())
+        }
+        NbCommands::Link { issue } => {
+            let task_dir = root.join(".trinity").join("current_task");
+            let notebook_id_path = task_dir.join(".notebook_id");
+
+            if !notebook_id_path.exists() {
+                eprintln!("{}", "❌ No .notebook_id file found".red());
+                eprintln!("Use 'tri nb create' first");
+                return Err(anyhow::anyhow!("No notebook configured"));
+            }
+
+            let notebook_id = fs::read_to_string(&notebook_id_path)?;
+            let meta_path = task_dir.join("notebook_meta.json");
+
+            let mut meta = if meta_path.exists() {
+                fs::read_to_string(&meta_path)
+                    .and_then(|s| serde_json::from_str::<NotebookMeta>(&s))
+                    .unwrap_or_else(|_| NotebookMeta {
+                        notebook_id: notebook_id.clone(),
+                        title: String::new(),
+                        branch: String::new(),
+                        created_at: String::new(),
+                        sources: Vec::new(),
+                    })
+            } else {
+                NotebookMeta {
+                    notebook_id: notebook_id.clone(),
+                    title: String::new(),
+                    branch: String::new(),
+                    created_at: String::new(),
+                    sources: Vec::new(),
+                }
+            };
+
+            meta.notebook_id = notebook_id.clone();
+            meta.sources.push(format!("issue:{}", issue));
+
+            fs::write(&meta_path, serde_json::to_string_pretty(&meta)?)?;
+
+            println!("{} Linked to issue #{}", "🔗".bold(), issue.cyan());
+            println!("  Notebook ID: {}", notebook_id.cyan());
+            println!("  Issue URL: {}", format!("https://github.com/gHashTag/t27/issues/{}", issue).cyan());
+
+            println!();
+            println!("{} To post as GitHub issue comment:", "💡".yellow().bold());
+            println!("  gh issue comment {} --body '📓 Notebook: {}'", issue, notebook_id);
+
+            Ok(())
+        }
+    }
+}
+>>>>>>> Stashed changes
 
 fn handle_task(root: &Path, command: TaskCommands) -> anyhow::Result<()> {
     let task_dir = root.join(".trinity").join("current_task");
@@ -150,7 +475,11 @@ fn handle_task(root: &Path, command: TaskCommands) -> anyhow::Result<()> {
                         "⚠️".yellow(),
                         existing_id
                     );
+<<<<<<< Updated upstream
                     eprintln!("Use 't27c task attach' to use a different notebook");
+=======
+                    eprintln!("Use 'tri nb attach' to use a different notebook");
+>>>>>>> Stashed changes
                     return Ok(());
                 }
             }
@@ -219,7 +548,11 @@ fn handle_task(root: &Path, command: TaskCommands) -> anyhow::Result<()> {
 
             if !notebook_id_path.exists() {
                 println!("{}", "No notebook configured".red().bold());
+<<<<<<< Updated upstream
                 println!("Use 't27c task start --title \"Your task\"' to create one");
+=======
+                println!("Use 'tri nb create' to create one");
+>>>>>>> Stashed changes
                 return Ok(());
             }
 
@@ -307,7 +640,11 @@ fn handle_task(root: &Path, command: TaskCommands) -> anyhow::Result<()> {
 }
 
 fn create_notebook_via_python(title: &str) -> anyhow::Result<String> {
+<<<<<<< Updated upstream
     let output = Command::new("python3")
+=======
+    let output = Command::new("python3.10")
+>>>>>>> Stashed changes
         .args([
             "-c",
             &format!(
@@ -317,9 +654,15 @@ import sys
 async def create_notebook():
     try:
         from notebooklm import NotebookLMClient
+<<<<<<< Updated upstream
         client = await NotebookLMClient.from_storage()
         notebook = await client.notebooks.create("{}")
         print(notebook.id)
+=======
+        async with await NotebookLMClient.from_storage() as client:
+            notebook = await client.notebooks.create("{}")
+            print(notebook.id)
+>>>>>>> Stashed changes
     except Exception as e:
         print(f"Error: {{e}}", file=sys.stderr)
         sys.exit(1)
@@ -351,7 +694,11 @@ asyncio.run(create_notebook())
 }
 
 fn verify_notebook_via_python(notebook_id: &str) -> anyhow::Result<bool> {
+<<<<<<< Updated upstream
     let output = Command::new("python3")
+=======
+    let output = Command::new("python3.10")
+>>>>>>> Stashed changes
         .args([
             "-c",
             &format!(
@@ -361,9 +708,15 @@ import sys
 async def verify_notebook():
     try:
         from notebooklm import NotebookLMClient
+<<<<<<< Updated upstream
         client = await NotebookLMClient.from_storage()
         await client.notebooks.get("{}")
         print("OK")
+=======
+        async with await NotebookLMClient.from_storage() as client:
+            await client.notebooks.get("{}")
+            print("OK")
+>>>>>>> Stashed changes
     except Exception:
         sys.exit(1)
 
@@ -504,7 +857,7 @@ fn url(root: &Path, path: &str) -> String {
 fn cmd_status(root: &Path) {
     println!(
         "{}",
-        "═══════════════════════════════════════════".bright_yellow()
+        "═════════════════════════════════════════".bright_yellow()
     );
     println!(
         "  {} {}",
@@ -513,7 +866,7 @@ fn cmd_status(root: &Path) {
     );
     println!(
         "{}",
-        "═══════════════════════════════════════════".bright_yellow()
+        "═════════════════════════════════════════".bright_yellow()
     );
     println!();
 

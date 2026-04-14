@@ -7,10 +7,16 @@ cd "$ROOT"
 git config core.hooksPath .githooks
 chmod +x .githooks/pre-commit 2>/dev/null || true
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 echo "core.hooksPath=.githooks — pre-commit enforces NOW.md (today's date)."
 =======
+=======
+>>>>>>> Stashed changes
 chmod +x .githooks/pre-push 2>/dev/null || true
 echo "core.hooksPath=.githooks"
 echo "  - pre-commit: enforces docs/NOW.md (today's date)"
 echo "  - pre-push: enforces NotebookLM notebook ID"
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes

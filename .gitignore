@@ -39,9 +39,19 @@ tmp/
 .trinity/queues/
 #.trinity/events/ # Keeping events might be okay if they are small, but they grow.
 
+<<<<<<< Updated upstream
 # Python cache
 __pycache__/
 *.pyc
+=======
+# Keep notebook gate files tracked (L7 UNITY requirement)
+!.trinity/current_task/.notebook_id
+!.trinity/current_task/notebook_meta.json
+
+# But not local session data and bypass logs
+.trinity/current_task/session_log.jsonl
+.trinity/gate_bypasses.log
+>>>>>>> Stashed changes
 
 # Specific project paths (vendored upstream lives under external/)
 external/opencode/dist/

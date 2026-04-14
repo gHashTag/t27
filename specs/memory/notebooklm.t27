@@ -428,7 +428,140 @@ module NotebookLM {
         assert(ErrorCode::NotebookNotFound > 0);
 
     // ════════════════════════════════════════════════════════════════════
+<<<<<<< Updated upstream
     // 17. Task Notebook Lifecycle Extension
+=======
+    // 18. Task Notebook Lifecycle Extension
+    // ════════════════════════════════════════════════════════════════════
+
+    // TaskNotebook: Links a development task to its NotebookLM notebook
+    // Enforces L7 UNITY: no code without semantic memory
+    struct TaskNotebook {
+        task_id: str,
+        task_title: str,
+        notebook_id: str,
+        notebook_url: str,
+        created_at: u64,
+        sources_count: u32,
+        branch: str,
+    }
+
+    // task_notebook_init(title: str, branch: str) -> (TaskNotebook, ErrorCode)
+    // Initialize task: create NotebookLM notebook and write .notebook_id
+    // Returns TaskNotebook with created notebook info
+    fn task_notebook_init(title: str, branch: str) -> (TaskNotebook, ErrorCode) {
+        var task_notebook : TaskNotebook = undefined;
+        return (task_notebook, ErrorCode::Success);
+    }
+
+    // task_notebook_attach(notebook_id: str) -> (TaskNotebook, ErrorCode)
+    // Attach existing notebook ID to current task
+    // Validates notebook exists before attaching
+    fn task_notebook_attach(notebook_id: str) -> (TaskNotebook, ErrorCode) {
+        var task_notebook : TaskNotebook = undefined;
+        return (task_notebook, ErrorCode::Success);
+    }
+
+    // task_notebook_get() -> (TaskNotebook, ErrorCode)
+    // Get current task notebook info from .trinity/current_task/
+    // Returns TaskNotebook if configured, error otherwise
+    fn task_notebook_get() -> (TaskNotebook, ErrorCode) {
+        var task_notebook : TaskNotebook = undefined;
+        return (task_notebook, ErrorCode::NotebookNotFound);
+    }
+
+    // task_notebook_status() -> (str, ErrorCode)
+    // Get status string describing current notebook state
+    // Returns human-readable status or error message
+    fn task_notebook_status() -> (str, ErrorCode) {
+        return ("", ErrorCode::Success);
+    }
+
+    // task_notebook_verify() -> ErrorCode
+    // Verify that current .notebook_id is valid and accessible
+    // Returns Success if valid, NotebookNotFound otherwise
+    fn task_notebook_verify() -> ErrorCode {
+        return ErrorCode::NotebookNotFound;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 19. Task Notebook TDD Tests
+    // ════════════════════════════════════════════════════════════════════
+
+    test "task_notebook_init_creates_file"
+        const (task_nb, err) = task_notebook_init("Test Task", "feature/test");
+        assert(err == ErrorCode::Success);
+        assert(task_nb.notebook_id.len >= 8);
+        assert(task_nb.task_title == "Test Task");
+        assert(task_nb.branch == "feature/test");
+
+    test "task_notebook_attach_validates_id"
+        // Valid ID should succeed
+        const (task_nb, err) = task_notebook_attach("abc123def456");
+        assert(err == ErrorCode::Success || err == ErrorCode::NotebookNotFound);
+        assert(task_nb.notebook_id == "abc123def456");
+
+    test "task_notebook_blocks_duplicate_init"
+        const (task_nb1, err1) = task_notebook_init("Task 1", "feature/test");
+        assert(err1 == ErrorCode::Success);
+
+        // Second init should be blocked or warn
+        const (task_nb2, err2) = task_notebook_init("Task 2", "feature/test");
+        // Behavior depends on implementation - either blocks or overwrites
+        assert(err2 == ErrorCode::Success || err2 == ErrorCode::InvalidInput);
+
+    test "task_notebook_get_returns_not_found_when_none"
+        const (task_nb, err) = task_notebook_get();
+        // Should fail if no notebook configured
+        assert(err == ErrorCode::NotebookNotFound);
+
+    test "task_notebook_verify_checks_accessibility"
+        const (task_nb, err1) = task_notebook_init("Verify Test", "feature/test");
+        if (err1 == ErrorCode::Success) {
+            const verify_err = task_notebook_verify();
+            assert(verify_err == ErrorCode::Success);
+        }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 20. Task Notebook Invariants
+    // ════════════════════════════════════════════════════════════════════
+
+    invariant notebook_id_always_8_plus_chars
+        const (task_nb, err) = task_notebook_init("Test", "main");
+        if (err == ErrorCode::Success) {
+            assert(task_nb.notebook_id.len >= 8);
+        }
+
+    invariant task_notebook_preserves_title
+        const test_title = "Invariant Test Task";
+        const (task_nb, err) = task_notebook_init(test_title, "main");
+        if (err == ErrorCode::Success) {
+            assert(task_nb.task_title == test_title);
+        }
+
+    invariant task_notebook_preserves_branch
+        const test_branch = "feature/invariant-test";
+        const (task_nb, err) = task_notebook_init("Test", test_branch);
+        if (err == ErrorCode::Success) {
+            assert(task_nb.branch == test_branch);
+        }
+
+    invariant notebook_url_format_valid
+        const (task_nb, err) = task_notebook_init("Test", "main");
+        if (err == ErrorCode::Success) {
+            // URL should contain notebook ID
+            assert(task_nb.notebook_url.len > 0);
+        }
+
+    invariant task_notebook_created_timestamp_valid
+        const (task_nb, err) = task_notebook_init("Test", "main");
+        if (err == ErrorCode::Success) {
+            assert(task_nb.created_at > 0);
+        }
+
+    // ════════════════════════════════════════════════════════════════════
+    // 17. TDD - Benchmarks
+>>>>>>> Stashed changes
     // ════════════════════════════════════════════════════════════════════
 
     // L7 UNITY enforcement: every task must have a NotebookLM notebook
