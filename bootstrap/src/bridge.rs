@@ -63,6 +63,34 @@ pub enum BridgeCommands {
     /// Task notebook management (NotebookLM gate enforcement)
     #[command(subcommand)]
     Task(TaskCommands),
+<<<<<<< Updated upstream
+=======
+}
+
+/// Task notebook commands for NotebookLM pre-task gate enforcement
+/// Enforces L7 UNITY: every task must have a NotebookLM notebook before pushing code.
+#[derive(Subcommand, Debug)]
+pub enum TaskCommands {
+    /// Initialize task: create NotebookLM notebook + write .notebook_id
+    Start {
+        /// Task title (used for notebook title)
+        #[arg(short, long)]
+        title: String,
+        /// Comma-separated source files/URLs to attach
+        #[arg(short, long, default_value = "")]
+        sources: String,
+    },
+    /// Attach existing notebook to current task
+    Attach {
+        /// Existing notebook ID to attach
+        #[arg(long)]
+        notebook_id: String,
+    },
+    /// Show current task notebook status
+    Status,
+    /// Verify notebook gate requirement is satisfied
+    Verify,
+>>>>>>> Stashed changes
 }
 
 /// Task notebook commands for NotebookLM pre-task gate enforcement
@@ -252,6 +280,9 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
 =======
         BridgeCommands::Research(cmd) => handle_research(cmd, &root),
         BridgeCommands::Task(cmd) => handle_task(cmd, &root),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     }
     Ok(())
@@ -1643,4 +1674,363 @@ asyncio.run(check())
         }
     }
 >>>>>>> Stashed changes
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Task Commands (NotebookLM Gate Enforcement)
+//
+// Enforces L7 UNITY: every task must have a NotebookLM notebook
+// before pushing code. Tracks .notebook_id in git for CI visibility.
+// ═══════════════════════════════════════════════════════════════
+
+/// Task notebook metadata stored in JSON
+#[derive(Serialize, Deserialize, Debug)]
+struct NotebookMeta {
+    notebook_id: String,
+    title: String,
+    branch: String,
+    created_at: String,
+    sources: Vec<String>,
+}
+
+/// Response from notebook_create Python script
+#[derive(Deserialize, Debug)]
+struct NotebookCreateResponse {
+    notebook_id: String,
+    notebook_url: String,
+    title: String,
+    created_at: String,
+}
+
+const CURRENT_TASK_DIR: &str = ".trinity/current_task";
+const NOTEBOOK_ID_FILE: &str = ".notebook_id";
+const NOTEBOOK_META_FILE: &str = "notebook_meta.json";
+
+/// Handle task commands for NotebookLM gate enforcement
+fn handle_task(cmd: TaskCommands, root: &Path) {
+    let task_dir = root.join(CURRENT_TASK_DIR);
+    let id_file = task_dir.join(NOTEBOOK_ID_FILE);
+    let meta_file = task_dir.join(NOTEBOOK_META_FILE);
+
+    match cmd {
+        TaskCommands::Start { title, sources } => {
+            println!("{}", "═══ TASK INITIALIZATION ═══".bright_yellow().bold());
+            println!();
+
+            // Check if notebook already exists
+            if id_file.exists() {
+                let existing_id = fs::read_to_string(&id_file)
+                    .unwrap_or_else(|_| "(unreadable)".to_string())
+                    .trim()
+                    .to_string();
+
+                if !existing_id.is_empty()
+                    && !existing_id.starts_with('#')
+                    && !existing_id.starts_with("//")
+                {
+                    println!(
+                        "{}",
+                        format!(
+                            "⚠️  Warning: Notebook ID already exists: {}",
+                            existing_id.cyan()
+                        )
+                        .yellow()
+                    );
+                    println!("   Run: t27c task attach --notebook-id <new_id>");
+                    println!("   Or: rm {} and try again", id_file.display());
+                    return;
+                }
+            }
+
+            // Create directory if needed
+            if let Err(e) = fs::create_dir_all(&task_dir) {
+                eprintln!("{} Failed to create {}: {}", "❌".red(), task_dir.display(), e);
+                std::process::exit(1);
+            }
+
+            // Try to create notebook via Python backend
+            let python_result = create_notebook_via_python(&root, &title, &sources);
+
+            match python_result {
+                Ok(response) => {
+                    // Write .notebook_id
+                    if let Err(e) = fs::write(&id_file, &response.notebook_id) {
+                        eprintln!("{} Failed to write {}: {}", "❌".red(), id_file.display(), e);
+                        std::process::exit(1);
+                    }
+
+                    // Write notebook_meta.json
+                    let branch = std::process::Command::new("git")
+                        .args(["branch", "--show-current"])
+                        .output()
+                        .ok()
+                        .and_then(|o| String::from_utf8(o.stdout).ok())
+                        .map(|s| s.trim().to_string())
+                        .unwrap_or_else(|| "unknown".to_string());
+
+                    let meta = NotebookMeta {
+                        notebook_id: response.notebook_id.clone(),
+                        title: response.title.clone(),
+                        branch,
+                        created_at: response.created_at.clone(),
+                        sources: if sources.is_empty() {
+                            Vec::new()
+                        } else {
+                            sources.split(',').map(|s| s.trim().to_string()).collect()
+                        },
+                    };
+
+                    if let Err(e) = fs::write(
+                        &meta_file,
+                        serde_json::to_string_pretty(&meta).unwrap_or_default(),
+                    ) {
+                        eprintln!(
+                            "{} Failed to write {}: {}",
+                            "❌".red(),
+                            meta_file.display(),
+                            e
+                        );
+                    }
+
+                    println!();
+                    println!("{}", "✅ NotebookLM notebook created".green().bold());
+                    println!();
+                    println!("   Notebook ID:  {}", response.notebook_id.cyan());
+                    println!("   Title:         {}", response.title.white());
+                    println!("   URL:           {}", response.notebook_url.underline());
+                    println!("   Branch:        {}", branch.white());
+                    println!();
+                    println!(
+                        "{}",
+                        "📝 Next: Make changes, then run: git push".bright_black()
+                    );
+                }
+                Err(e) => {
+                    eprintln!("{} Failed to create notebook: {}", "❌".red(), e);
+                    println!();
+                    println!("Manual setup required:");
+                    println!("   1. Create notebook in NotebookLM web UI");
+                    println!("   2. Copy notebook ID");
+                    println!("   3. Run: t27c task attach --notebook-id <ID>");
+                }
+            }
+        }
+
+        TaskCommands::Attach { notebook_id } => {
+            println!("{}", "═══ TASK NOTEBOOK ATTACH ═══".bright_yellow().bold());
+            println!();
+
+            // Validate ID format
+            if notebook_id.len() < 8 {
+                eprintln!("{} Notebook ID too short (min 8 chars)", "❌".red());
+                std::process::exit(1);
+            }
+
+            if !notebook_id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+                eprintln!("{} Notebook ID contains invalid characters", "❌".red());
+                std::process::exit(1);
+            }
+
+            // Create directory if needed
+            if let Err(e) = fs::create_dir_all(&task_dir) {
+                eprintln!("{} Failed to create {}: {}", "❌".red(), task_dir.display(), e);
+                std::process::exit(1);
+            }
+
+            // Write .notebook_id
+            if let Err(e) = fs::write(&id_file, &notebook_id) {
+                eprintln!("{} Failed to write {}: {}", "❌".red(), id_file.display(), e);
+                std::process::exit(1);
+            }
+
+            // Update or create meta file
+            let branch = std::process::Command::new("git")
+                .args(["branch", "--show-current"])
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            let meta = if meta_file.exists() {
+                if let Ok(content) = fs::read_to_string(&meta_file) {
+                    serde_json::from_str::<NotebookMeta>(&content).ok()
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let updated_meta = meta.unwrap_or_else(|| NotebookMeta {
+                notebook_id: notebook_id.clone(),
+                title: "Attached notebook".to_string(),
+                branch: branch.clone(),
+                created_at: Utc::now().to_rfc3339(),
+                sources: Vec::new(),
+            });
+
+            if let Err(e) = fs::write(
+                &meta_file,
+                serde_json::to_string_pretty(&updated_meta).unwrap_or_default(),
+            ) {
+                eprintln!("{} Failed to write {}: {}", "❌".red(), meta_file.display(), e);
+            }
+
+            println!();
+            println!("{}", "✅ Notebook attached to current task".green().bold());
+            println!();
+            println!("   Notebook ID:  {}", notebook_id.cyan());
+            println!("   Branch:       {}", branch.white());
+            println!();
+            println!(
+                "{}",
+                "📝 Next: Make changes, then run: git push".bright_black()
+            );
+        }
+
+        TaskCommands::Status => {
+            println!("{}", "═══ TASK NOTEBOOK STATUS ═══".bright_yellow().bold());
+            println!();
+
+            if !id_file.exists() {
+                println!("{}", "⚠️  No notebook assigned to current task".yellow());
+                println!();
+                println!("   Run: t27c task start --title \"your task\"");
+                return;
+            }
+
+            let id = fs::read_to_string(&id_file)
+                .unwrap_or_else(|_| "(unreadable)".to_string())
+                .trim()
+                .to_string();
+
+            if id.is_empty() || id.starts_with('#') || id.starts_with("//") {
+                println!("{}", "⚠️  Notebook ID file contains placeholder".yellow());
+                println!();
+                println!("   File: {}", id_file.display());
+                println!("   Run: t27c task start --title \"your task\"");
+                return;
+            }
+
+            println!("   Notebook ID:  {}", id.cyan());
+            println!("   Status:       {}", "✅ Active".green());
+
+            if meta_file.exists() {
+                if let Ok(content) = fs::read_to_string(&meta_file) {
+                    if let Ok(meta) = serde_json::from_str::<NotebookMeta>(&content) {
+                        println!("   Title:        {}", meta.title.white());
+                        println!("   Branch:       {}", meta.branch.white());
+                        println!("   Created:      {}", meta.created_at.white());
+                        if !meta.sources.is_empty() {
+                            println!("   Sources:      {} total", meta.sources.len());
+                        }
+                    }
+                }
+            }
+            println!();
+            println!("   Files:");
+            println!("     - {}", id_file.display().to_string().bright_black());
+            if meta_file.exists() {
+                println!(
+                    "     - {}",
+                    meta_file.display().to_string().bright_black()
+                );
+            }
+        }
+
+        TaskCommands::Verify => {
+            let id_result = verify_notebook_id(&id_file);
+
+            if id_result.is_err() {
+                std::process::exit(1);
+            }
+
+            println!("{}", "✅ Notebook gate requirement satisfied".green());
+        }
+    }
+}
+
+/// Create a NotebookLM notebook via Python backend
+fn create_notebook_via_python(
+    root: &Path,
+    title: &str,
+    sources: &str,
+) -> anyhow::Result<NotebookCreateResponse> {
+    let python_path = root.join("contrib/backend/notebooklm/notebooks.py");
+
+    if !python_path.exists() {
+        return Err(anyhow::anyhow!("Python backend not found at {}", python_path.display()));
+    }
+
+    // Check Python availability
+    let python_exe = std::env::var("PYTHON3").ok()
+        .or_else(|| std::env::var("PYTHON").ok())
+        .unwrap_or_else(|| "python3".to_string());
+
+    let output = std::process::Command::new(&python_exe)
+        .arg("-c")
+        .arg(format!(
+            "import sys; sys.path.insert(0, '{}'); from notebooks import notebook_create; import json; result = notebook_create('{}'); print(json.dumps(result) if result else '{{}}')",
+            root.join("contrib/backend/notebooklm").display(),
+            title.replace("'", "\\'")
+        ))
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to run Python: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("Python script failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if stdout.trim().is_empty() || stdout.trim() == "{}" {
+        return Err(anyhow::anyhow!("No notebook returned from Python backend"));
+    }
+
+    let response: NotebookCreateResponse = serde_json::from_str(&stdout)
+        .map_err(|e| anyhow::anyhow!("Failed to parse Python response: {}", e))?;
+
+    Ok(response)
+}
+
+/// Verify notebook ID file exists and is valid
+fn verify_notebook_id(id_file: &Path) -> anyhow::Result<()> {
+    if !id_file.exists() {
+        eprintln!(
+            "{} Notebook ID file not found: {}",
+            "❌".red(),
+            id_file.display()
+        );
+        eprintln!("   Run: t27c task start --title \"your task\"");
+        return Err(anyhow::anyhow!("Notebook ID file not found"));
+    }
+
+    let id = fs::read_to_string(id_file)
+        .map_err(|e| anyhow::anyhow!("Failed to read notebook ID: {}", e))?
+        .trim()
+        .to_string();
+
+    if id.is_empty() {
+        eprintln!("{}", "❌ Notebook ID file is empty".red());
+        eprintln!("   Run: t27c task start --title \"your task\"");
+        return Err(anyhow::anyhow!("Notebook ID file is empty"));
+    }
+
+    if id.len() < 8 {
+        eprintln!("{} Notebook ID too short: {} chars", "❌".red(), id.len());
+        return Err(anyhow::anyhow!("Notebook ID too short"));
+    }
+
+    if !id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        eprintln!("{} Notebook ID contains invalid characters", "❌".red());
+        return Err(anyhow::anyhow!("Invalid notebook ID format"));
+    }
+
+    if id.starts_with('#') || id.starts_with("//") || id.starts_with("Run:") {
+        eprintln!("{} Notebook ID is placeholder text", "❌".red());
+        return Err(anyhow::anyhow!("Notebook ID is placeholder"));
+    }
+
+    Ok(())
 }

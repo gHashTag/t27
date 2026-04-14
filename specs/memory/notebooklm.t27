@@ -429,6 +429,7 @@ module NotebookLM {
 
     // ════════════════════════════════════════════════════════════════════
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // 17. Task Notebook Lifecycle Extension
 =======
     // 18. Task Notebook Lifecycle Extension
@@ -564,6 +565,11 @@ module NotebookLM {
 >>>>>>> Stashed changes
     // ════════════════════════════════════════════════════════════════════
 
+=======
+    // 17. Task Notebook Lifecycle Extension
+    // ════════════════════════════════════════════════════════════════════
+
+>>>>>>> Stashed changes
     // L7 UNITY enforcement: every task must have a NotebookLM notebook
     // before pushing code. This enables cross-session semantic memory
     // and prevents "session amnesia" where agents repeat work.

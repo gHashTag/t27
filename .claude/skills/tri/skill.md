@@ -92,6 +92,7 @@ tri wrapup --summary "completed <task>" \
 - "known issues with <spec>" — Find blockers
 - "architecture of <component>" — Get design context
 
+<<<<<<< Updated upstream
 ## MANDATORY WORKFLOW: Start Task Before Pushing
 
 **L7 UNITY Requirement:** Every push to the repository must have an active NotebookLM notebook.
@@ -332,6 +333,83 @@ t27c bridge nb link --issue 370
 ```bash
 # Create notebooks for all open issues
 scripts/bulk-create-notebooks.sh
+>>>>>>> Stashed changes
+=======
+## Task Notebook Management (L7 UNITY Enforcement)
+
+**MANDATORY:** Every task must have a NotebookLM notebook assigned before pushing code.
+
+### Starting a New Task
+
+```bash
+# Initialize task with a new notebook
+t27c task start --title "Implement feature X" --sources "specs/*.t27,README.md"
+
+# This creates:
+# - A NotebookLM notebook with the given title
+# - .trinity/current_task/.notebook_id (tracked in git)
+# - .trinity/current_task/notebook_meta.json
+
+# Then proceed with PHI LOOP work
+tri notebook query "status of feature X"  # Check existing work
+tri spec edit <module>
+# ... rest of PHI LOOP ...
+```
+
+### Attaching Existing Notebook
+
+```bash
+# Use an existing notebook if one already exists for this work
+t27c task attach --notebook-id "existing-notebook-id"
+```
+
+### Checking Task Status
+
+```bash
+# Show current task notebook status
+t27c task status
+
+# Output shows:
+# - Notebook ID and URL
+# - Task title
+# - Branch
+# - Sources count
+```
+
+### Verifying Notebook Gate
+
+```bash
+# Verify notebook gate requirement is satisfied (called by pre-push hook)
+t27c task verify
+```
+
+### Mandatory Workflow Order
+
+1. **Before starting work:** Query NotebookLM to avoid duplication
+   ```bash
+   tri notebook query "status of <task>"
+   ```
+
+2. **Initialize task:** Create notebook if starting new work
+   ```bash
+   t27c task start --title "task description"
+   ```
+
+3. **Execute PHI LOOP:** tri spec edit, tri gen, tri test, etc.
+
+4. **After completing work:** Upload wrap-up
+   ```bash
+   tri notebook wrapup --summary "completed <task>" --decisions "..." --files "..." --next "..."
+   ```
+
+5. **Git push:** Pre-push hook verifies .notebook_id exists
+   ```bash
+   git push  # Blocked if no valid notebook
+   ```
+
+**Emergency Bypass** (logged to `.trinity/gate_bypasses.log`):
+```bash
+SKIP_NOTEBOOK_GATE=1 git push
 >>>>>>> Stashed changes
 ```
 
