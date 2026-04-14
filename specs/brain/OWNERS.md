@@ -15,7 +15,7 @@
 
 ## Outputs
 
-- Generated `gen/{zig,c,verilog}/brain/**` via **`tri`** (`tri gen-zig`, `tri gen-c`, `tri gen-verilog`, `tri compile-project`; in-repo shim: `./scripts/tri`).
+- Generated `gen/{zig,c,verilog}/…` via **`tri`** → **`t27c`** (`gen-dir` for trees, `gen-zig` / `gen-c` / `gen-verilog` for single-file stdout, `compile-project`; shim: `./scripts/tri`).
 - Future `conformance/brain_*.json` vectors.
 
 ## Note

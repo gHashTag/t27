@@ -135,4 +135,4 @@ Tag claims as **EXACT**, **MEASURED**, **APPROXIMATE**, **FALSIFIED**, **CONJECT
 
 ---
 
-*This file is English-first for CI (`scripts/check_first_party_doc_language.py`). For coordination anchors and daily status, see **`docs/NOW.md`** and issue **#141**.*
+*This file is English-first for CI (`t27c lint-docs` via `./scripts/tri lint-docs`). For coordination anchors and daily status, see root **`NOW.md`** and issue **#141**.*

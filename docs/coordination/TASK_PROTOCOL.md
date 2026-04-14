@@ -1,20 +1,20 @@
 # TASK Protocol — inter-agent coordination (t27)
 
-**Status:** Normative (paired with **`TASK.md`** at repo root and **`docs/T27-CONSTITUTION.md`** Article **TASK-MD**).  
-**Protocol version:** 1.0  
+**Status:** Normative (paired with **`NOW.md`** at repository root and **`docs/T27-CONSTITUTION.md`**).  
+**Protocol version:** 1.1  
 **Date:** 2026-04-06  
 
 ---
 
 ## 1. Intent
 
-**TASK** (the file **`TASK.md`**) is the **shared coordination workspace** between coding agents, tooling, and maintainers. It implements patterns common in multi-agent systems:
+**NOW** (the file **`NOW.md`** at the **repo root**) is the **shared coordination + rolling snapshot** surface for coding agents, tooling, and maintainers. It subsumes the former **`TASK.md`** coordination file.
 
-- **Shared state file** — inspectable in git, reviewable in PRs, no hidden broker.
-- **Explicit handoffs** — versioned **epoch**, **lock**, and append-prefer **Handoff log** (treat handoffs like narrow API contracts).
-- **Online anchor** — a **long-lived GitHub issue** (the **Anchor issue**) for comments, links, and real-time alignment when several sessions run in parallel.
+- **Shared state** — inspectable in git, reviewable in PRs.
+- **Explicit handoffs** — refresh **Revision**, narrative **§3–§9**, and append **experience** logs; use **Epoch** / **locks** in comments on the **Anchor issue** when multiple agents overlap (see §4).
+- **Online anchor** — long-lived GitHub **Anchor issue** for comments, PR links, and real-time alignment.
 
-**GitHub Issues** remain the **scheduling and merge SSOT** (`Closes #N`, Issue Gate). **TASK.md** must not contradict closed issues, **`CANON.md`**, or **`FROZEN.md`**.
+**GitHub Issues** remain the **scheduling and merge SSOT** (`Closes #N`, Issue Gate). **`NOW.md`** must not contradict closed issues, **`CANON.md`**, or **`FROZEN.md`**.
 
 ---
 
@@ -22,38 +22,19 @@
 
 | Artifact | Role |
 |----------|------|
-| **`TASK.md`** (root) | Live coordination: anchor link, protocol version, locks, handoff log, work units. |
-| **Anchor issue** | Always-open issue; comment thread for agents/humans; link duplicated in **`TASK.md`**. |
-| **`docs/coordination/TASK_PROTOCOL.md`** | This document — rules, validation, **Verification** checklist. |
+| **`NOW.md`** (repo root) | Rolling snapshot + coordination entrypoint; **Last updated** date enforced by **`./scripts/tri check-now`**. |
+| **Anchor issue** | Live thread for agents/humans; link and updates referenced from **`NOW.md`**. |
+| **`docs/coordination/TASK_PROTOCOL.md`** | This document — rules and **Verification** checklist. |
 | **`.trinity/state/github-sync.json`** | Snapshot of ring/META issues; read before claiming work. |
 
 ---
 
-## 3. Required shape of `TASK.md`
+## 3. Required freshness of `NOW.md`
 
-The following **Markdown headings** are **mandatory** (exact `##` titles so `bootstrap/build.rs` can verify):
+- **`Last updated:`** line MUST include calendar **`YYYY-MM-DD`** matching **today** (local timezone) when running **`./scripts/tri check-now`** before commit/CI.
+- On **non-trivial** completion, update narrative sections so the next agent reads current truth (see **`NOW.md` §1.1**).
 
-1. `## Anchor issue`
-2. `## Protocol`
-3. `## Coordination state`
-4. `## Handoff log`
-5. `## Current focus`
-6. `## Work units`
-7. `## Blocked / dependencies`
-8. `## Verification`
-
-The document **title** MUST be a single H1 line beginning with `# TASK` (recommended: `# TASK — inter-agent coordination`).
-
-**Machine-readable metadata** (must appear in the top section):
-
-- `**TASK Protocol version:**` — semver or `major.minor` matching this doc when protocol changes.
-- `**Last updated:**` — `YYYY-MM-DD` (UTC date of last meaningful edit to **Coordination state** or **Handoff log**).
-
-**Anchor line** — under `## Anchor issue`, a line:
-
-`**Anchor issue:** https://github.com/<owner>/<repo>/issues/<n>`
-
-Use the canonical **Anchor issue** for this repository (maintainers: do not point to ephemeral issues).
+There is **no** separate mandatory `TASK.md` heading scaffold; retired with **`TASK.md`** removal.
 
 ---
 
@@ -61,73 +42,58 @@ Use the canonical **Anchor issue** for this repository (maintainers: do not poin
 
 ### 4.1 Lock (soft)
 
-Before editing sensitive paths, the active agent SHOULD set **Lock holder**, **Lock scope**, and **Lock until** in **Coordination state**. Others MUST NOT override without a **Handoff log** entry and bumping **Epoch**.
+Before editing sensitive paths, the active agent SHOULD post intent on the **Anchor issue** (and optionally note scope in **`NOW.md` Revision**). Others MUST NOT override without a clear handoff comment.
 
 Locks are **social + procedural** (not file locks). Trinity **claims** under `.trinity/` remain governed by **`docs/nona-03-manifest/SOUL.md`** Law **#6**.
 
 ### 4.2 Epoch
 
-**Epoch** is a monotonic integer in **Coordination state**. Bump when:
-
-- transferring ownership of a slice,
-- resolving a conflict between two agent plans,
-- or resetting coordination after a major merge.
+**Epoch** (when tracked) is a monotonic integer or narrative bump in **`NOW.md`** / **Anchor** when transferring ownership or resolving conflicts. Bump when resetting coordination after a major merge.
 
 ### 4.3 Handoff log
 
-Append lines **newest last**. Suggested format:
-
-`YYYY-MM-DDTHH:MMZ | agent_id | intent | outcome | next_step`
-
-Do **not** delete historical lines; if obsolete, prefix with `~~strikethrough~~` and add a correcting line.
+Prefer **Anchor issue** comments + **`.trinity/experience/`** append-only lines. If a long-form handoff is needed, use **`docs/coordination/inter-agent-handoff/`** bundles as **supplements** only.
 
 ### 4.4 Read / write order
 
 1. `github-sync.json` (queue snapshot)  
-2. **`TASK.md`** (locks + handoffs)  
+2. **`NOW.md`** (current snapshot + coordination pointers)  
 3. **Anchor issue** (latest comments)  
 4. Target **GitHub issue** for the code change  
 
 ---
 
-## 5. TASK Validation (automated)
+## 5. Automated checks
 
-**Enforced by:** `cargo build` / `cargo build --release` in **`bootstrap/`** (`build.rs`).
+**`cargo build`** in **`bootstrap/`** scans **`NOW.md`** (among other first-party Markdown) for **Cyrillic** in identifiers/comments per **LANG-EN** / **ADR-004**.
 
-The build **fails** if **`TASK.md`**:
-
-- is missing any **mandatory heading** (§3),
-- has no H1 starting with `# TASK`,
-- lacks `**TASK Protocol version:**`,
-- lacks an **Anchor issue** URL matching `https://github.com/[^/]+/[^/]+/issues/[0-9]+`.
+**`./scripts/tri check-now`** enforces the **`Last updated:`** calendar date against **today**.
 
 ---
 
-## 6. TASK Verification (human + CI)
+## 6. Verification (human + CI)
 
-Before opening or updating a PR that touches **`TASK.md`** or multi-agent-critical paths:
+Before opening or updating a PR that touches **`NOW.md`** or multi-agent-critical paths:
 
-1. Run **`cargo build`** in **`bootstrap/`** (includes §5).  
-2. If **Lock holder** was you, clear or hand off lock in **Coordination state** + **Handoff log**.  
-3. Post a **short comment** on the **Anchor issue** when multiple agents touched the same slice (link PR).  
-4. Code PRs still MUST link **`Closes #N`** to a substantive issue (Issue Gate), not only this anchor.
+1. Run **`./scripts/tri check-now`**.  
+2. Post a **short comment** on the **Anchor issue** when multiple agents touched the same slice (link PR).  
+3. Code PRs MUST link **`Closes #N`** to a substantive issue (Issue Gate), not only the anchor.
 
 ---
 
 ## 7. Amendments
 
-- Bump **Protocol version** here and in **`TASK.md`**.  
-- If rules change governance or SSOT, amend **`docs/T27-CONSTITUTION.md`** Article **TASK-MD** and bump charter version.  
-- Prefer **ADR** for replacing the Anchor pattern entirely.
+- Bump **Protocol version** here when rules change.  
+- If governance SSOT moves, amend **`docs/T27-CONSTITUTION.md`** and bump charter version.  
 
 ---
 
 ## 8. Supplementary handoff bundles (informative)
 
-Optional **portable** markdown bundles (for agents or reviewers when chat transfer is awkward) may live under [`docs/coordination/inter-agent-handoff/`](inter-agent-handoff/README.md). They are **planning supplements** only — **normative** coordination remains **`TASK.md`** + **Anchor issue** + this protocol.
+Optional **portable** markdown under [`docs/coordination/inter-agent-handoff/`](inter-agent-handoff/README.md) are **planning supplements** only — normative coordination remains **`NOW.md`** + **Anchor issue** + this protocol.
 
 ---
 
 ## References (informative)
 
-- Shared state / handoff discipline in multi-agent coding workflows (Fazm, Zylos, industry orchestration notes) — conceptually aligned with explicit handoff envelopes and shared inspectable state.
+- Shared state / handoff discipline in multi-agent coding workflows — aligned with explicit handoff and inspectable state.

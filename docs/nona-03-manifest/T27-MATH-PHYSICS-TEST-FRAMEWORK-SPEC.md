@@ -107,11 +107,19 @@ Examples: homogeneous scaling of kinetic energy (`v → 2v` ⇒ `KE → 4×`); d
 
 | Level | Intent | Target command / owner |
 |-------|--------|----------------------|
+<<<<<<< Updated upstream
 | **L0** | NOW sync | `t27c check-now --repo-root .` |
 | **L1** | Corpus suite | `./bootstrap/target/release/t27c suite --repo-root .` |
 | **L2** | GF4 exhaustive / math PBT | `./bootstrap/target/release/t27c test <spec>` |
 | **L3** | Rust unit / nextest | `cargo nextest` in `bootstrap/` |
 | **L4** | Differential oracle | Hermetic harness vs mpmath |
+=======
+| **L0** | NOW sync | `t27c --repo-root . check-now` *(or `tri check-now`)* |
+| **L1** | Corpus suite | `./bootstrap/target/release/t27c --repo-root . suite` *(present)* |
+| **L2** | GF4 exhaustive / math PBT | `./bootstrap/target/release/t27c test <spec>` *(requires `tri test` / `t27c test`)* |
+| **L3** | Rust unit / nextest | `cargo nextest` or `cargo test` in `bootstrap/` *(optional gate)* |
+| **L4** | Differential oracle | Hermetic Python or Rust harness vs mpmath *(off critical path per SSOT-MATH policy)* |
+>>>>>>> Stashed changes
 | **L5** | Conformance v2 | `t27c validate-conformance` extensions |
 | **L6** | Seal integrity | `seal --verify` with exit-code check |
 | **L7** | Physics gate pipeline | `t27c test specs/physics/gate_pipeline.t27` |
@@ -180,11 +188,53 @@ The framework is **"Golden Chain complete"** only when:
 
 ## 9. Cross-Links
 
+<<<<<<< Updated upstream
 - `docs/NUMERIC-STANDARD-001.md` — GoldenFloat family specification
 - `docs/nona-02-organism/NUMERIC-GF16-DEBT-INVENTORY.md` — Numeric debt inventory (issue #167)
 - `docs/TDD-CONTRACT.md` — TDD contract
 - `docs/SOUL.md` — Constitution
 - `conformance/FORMAT-SPEC-001.json` — Format SSOT
+=======
+The framework is **“Golden Chain complete”** only when:
+
+- [ ] `tri test specs/test_framework/core/runner.t27` exits **0**.  
+- [ ] GF4: **1024** binary-op checks (or agreed Cartesian product) pass.  
+- [ ] GF8+: **10k** PBT trials, **0** property violations (per configured seed policy).  
+- [ ] mpmath differential: **0** divergences above tier tolerance.  
+- [ ] Physics gate pipeline: sequential short-circuit **verified** by tests.  
+- [ ] CODATA block: constants loaded + **claim_tier** set.  
+- [ ] Brain MR: consistency metric meets chartered threshold on fixed **N**.  
+- [ ] Experience logs for rings **050–054** recorded under `.trinity/experience/` (or successor).  
+- [ ] **`RESEARCH_CLAIMS.md`:** **0** unlabeled scientific claims.  
+- [ ] **`NOW.md`** (repo root) updated on each ring seal (NOW sync policy).  
+- [ ] arXiv / publication draft opened (e.g. #136).
+
+---
+
+## 13. Publication mapping (evaluation section)
+
+| Evidence | Example paper row | Claim level |
+|----------|-------------------|-------------|
+| Kani / exhaustive GF4 | “All 1024 GF4 op pairs checked (bounded formal / exhaustive)” | Formal / exhaustive |
+| PBT GF8 10k | “10⁴ random trials: no algebraic violation” | Empirical |
+| mpmath differential | “Max deviation < ε for GF16 corpus” | Numerical |
+| CODATA | “Constants within CODATA 2022 uncertainties” | Empirical |
+| Brain consistency | “92% paraphrase consistency (N=100)” | Empirical |
+| Parser fuzz | “0 panics / 10⁶ mutations” | Robustness |
+| Backend diff | “34 conformance vectors: Zig ≡ C ≡ Verilog” | Equivalence |
+
+---
+
+## 14. References
+
+1. [proptest (Rust)](https://github.com/proptest-rs/proptest)  
+2. PBT survey context — use proptest / Hypothesis docs for methodology.  
+3. [Kani model checker](https://github.com/model-checking/kani)  
+4. [POPL 2026 — Creusot tutorial](https://popl26.sigplan.org/details/POPL-2026-tutorials/6/Creusot-Formal-verification-of-Rust-programs)  
+5. [AeroTherm-style sequential validation (arXiv 2410.01981v1 HTML)](https://arxiv.org/html/2410.01981v1)  
+6. [CODATA / NIST constants](https://physics.nist.gov/cuu/Constants/)  
+7. [mpmath](https://mpmath.org/) — reference arithmetic (use only in allowed harnesses).  
+>>>>>>> Stashed changes
 
 ---
 

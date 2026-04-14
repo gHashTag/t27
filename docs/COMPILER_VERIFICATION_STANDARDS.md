@@ -2,7 +2,7 @@
 
 **Status:** Living research + engineering map. English-only.  
 **Normative for repo vocabulary:** This file is the **deep** reference. Short index: [`COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md`](COMPILER_VERIFICATION_LANDSCAPE_AND_T27_PLAN.md).  
-**Related:** [`T27_KERNEL_FORMAL_COQ.md`](T27_KERNEL_FORMAL_COQ.md), [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md), [`NOW.md`](NOW.md), [`templates/TOOL_QUALIFICATION_SKETCH_DO330.md`](templates/TOOL_QUALIFICATION_SKETCH_DO330.md), [`qualification/TOR.md`](qualification/TOR.md), [`qualification/TVP.md`](qualification/TVP.md).  
+**Related:** [`T27_KERNEL_FORMAL_COQ.md`](T27_KERNEL_FORMAL_COQ.md), [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md), [`NOW.md`](../NOW.md), [`templates/TOOL_QUALIFICATION_SKETCH_DO330.md`](templates/TOOL_QUALIFICATION_SKETCH_DO330.md), [`qualification/TOR.md`](qualification/TOR.md), [`qualification/TVP.md`](qualification/TVP.md).  
 **Russian narrative (impact, allowlisted):** [`COMPILER_VERIFICATION_IMPACT_RU.md`](COMPILER_VERIFICATION_IMPACT_RU.md).
 
 **Disclaimer:** Not legal or certification advice. Use official RTCA, ISO, IEC, IEEE, ECSS, and NIST publications for submissions.
@@ -20,7 +20,7 @@ This document:
 3. Aligns **DO-330-shaped** artifacts with repo paths (`docs/qualification/`, `.trinity/`).  
 4. Decomposes work into **phases and rings** with **acceptance criteria** and **`tri` / `t27c` hooks** (as implemented today or **planned**).
 
-**Architecture constraint (agent workflow):** actionable engineering steps should map to **GitHub issues** (`Closes #N`), prefer **`./scripts/tri`** where wired, log significant seals in **`.trinity/experience/`**, and **refresh `docs/NOW.md`** at handoff (see **NOW §1.1**).
+**Architecture constraint (agent workflow):** actionable engineering steps should map to **GitHub issues** (`Closes #N`), prefer **`./scripts/tri`** where wired, log significant seals in **`.trinity/experience/`**, and **refresh root `NOW.md`** at handoff (see **NOW §1.1**).
 
 ---
 
@@ -234,7 +234,7 @@ Rings and issue numbers are **targets** — open or adjust GitHub issues when ex
 | 1.3 | Determinism (TV-06) | Same commit → same **`gen/`** bytes on pinned toolchain; doc result |
 | 1.4 | **`TDD-MANDATE` enforcement** ([#132](https://github.com/gHashTag/t27/issues/132)) | `t27c parse` rejects specs missing `test`/`invariant`/`bench` when policy enabled |
 
-**CLI reality check:** `t27c gen <file.t27>` writes **Zig to stdout**; **`tri gen-zig <dir>`** writes under **`gen/zig/`**. CI should match the chosen path.
+**CLI reality check:** `t27c gen <file.t27>` writes **Zig to stdout**; batch trees use **`t27c gen-dir --backend zig --out-root gen/zig <dir>`** (or **`./scripts/tri gen-dir …`**). CI should match the chosen path.
 
 ### Phase 2 — Conformance + formal stem (Rings 48–52)
 

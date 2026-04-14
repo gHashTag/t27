@@ -10,13 +10,13 @@ This folder is a **portable package** for a downstream coding or research agent 
 
 | Normative (edit in git)                                         | Role                                                      |
 | --------------------------------------------------------------- | --------------------------------------------------------- |
-| `[TASK.md](../../../TASK.md)`                                      | Live locks, handoff log, anchor link                      |
-| `[docs/coordination/TASK_PROTOCOL.md](../TASK_PROTOCOL.md)`                  | Rules + **TASK Verification**                             |
+| [`NOW.md`](../../../NOW.md)                                      | Rolling snapshot + coordination (repo root)               |
+| [`docs/coordination/TASK_PROTOCOL.md`](../TASK_PROTOCOL.md)                  | Coordination rules + verification checklist                 |
 | [Anchor issue #141](https://github.com/gHashTag/t27/issues/141) | Online thread for parallel work                           |
-| `[docs/T27-CONSTITUTION.md](../../T27-CONSTITUTION.md)`            | Law (**TASK-MD**, **RING-LAW**, **COMPETITION-READY**, …) |
+| [`docs/T27-CONSTITUTION.md`](../../T27-CONSTITUTION.md)            | Law (**LANG-EN**, **DOCS-TREE**, **RING-LAW**, …) |
 
 
-**Do not** treat `SCIENTIFIC_EXCELLENCE_HANDOFF.md` as a second `TASK.md`. For merges: follow **Issue Gate**, `Closes #N`, and `cargo build` in `bootstrap/` (TASK Validation).
+**Do not** treat `SCIENTIFIC_EXCELLENCE_HANDOFF.md` as a second **`NOW.md`**. For merges: follow **Issue Gate**, `Closes #N`, and `cargo build` in `bootstrap/` (Cyrillic / policy scan).
 
 If another channel sent **“Epoch 2 | Lock: target-agent | Create RESEARCH_CLAIMS.md”** — that text is **obsolete**; read `**[ERRATA_PERPLEXITY_HANDOFF.md](ERRATA_PERPLEXITY_HANDOFF.md)`** first.
 
@@ -50,4 +50,4 @@ Already present (do not re-“create” as greenfield): `docs/nona-03-manifest/R
 
 ---
 
-*φ² + 1/φ² = 3 — coordination stays in **TASK.md** + **#141**.*
+*φ² + 1/φ² = 3 — coordination stays in **`NOW.md`** + **#141**.*

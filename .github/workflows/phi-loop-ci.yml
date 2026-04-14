@@ -21,6 +21,7 @@ jobs:
           print(f'L5 PASSED: phi^2 + phi^-2 = {identity:.15f}')
           "
 
+<<<<<<< Updated upstream
       - name: FPGA-Safety lint (L8: no f32/f64 arithmetic in core)
         run: |
           VIOLATIONS=$(grep -rn "as f64\|as f32\|: f64\|: f32\|\.powi\|\.powf\|\.sqrt()\|\.abs()" ffi/src/ --include="*.rs" 2>/dev/null || true)
@@ -31,3 +32,29 @@ jobs:
             exit 1
           fi
           echo "L8 PASSED: FPGA-Safety lint"
+=======
+      - name: Ensure tri shim is executable
+        run: chmod +x scripts/tri
+
+      - name: "🔒 NOW sync gate (tri check-now)"
+        run: ./scripts/tri check-now
+
+      - name: Run comprehensive test suite (tri test)
+        run: ./scripts/tri test
+
+      - name: Validate conformance vectors (tri validate-conformance)
+        run: ./scripts/tri validate-conformance
+
+      - name: Validate gen headers (tri validate-gen-headers)
+        run: ./scripts/tri validate-gen-headers
+
+      - name: Verify seal coverage
+        run: |
+          SPECS=$(find specs -name '*.t27' | wc -l)
+          SEALS=$(find .trinity/seals -name '*.json' | wc -l)
+          echo "Specs: $SPECS, Seals: $SEALS"
+          echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+
+      - name: First-party docs must be English (t27c lint-docs)
+        run: ./scripts/tri lint-docs
+>>>>>>> Stashed changes

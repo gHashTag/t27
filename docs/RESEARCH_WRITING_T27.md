@@ -1,7 +1,7 @@
 # Research writing — T27 skill pack (IMRaD + reproducibility)
 
 **Status:** Process guide for humans/agents. English-only.  
-**Templates:** EXP block inside [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md); ring freeze from [`NOW.md`](NOW.md).
+**Templates:** EXP block inside [`KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md`](KERNEL_AXIOMS_AND_AGENT_EXPERIENCE_PROTOCOL.md); ring freeze from [`NOW.md`](../NOW.md).
 
 ## 1. IMRaD skeleton (mini-paper or section)
 
@@ -24,7 +24,7 @@ Use **parallel structure** inside sections (easier for reviewers and agents).
 
 ## 3. NOW as “structured abstract”
 
-For each material task completion, update **`docs/NOW.md`**:
+For each material task completion, update **`NOW.md`** (repository root):
 
 - **Context** — §1 purpose + current milestone.  
 - **Methods / state** — §3 tables (counts, gaps).  

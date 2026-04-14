@@ -10,7 +10,7 @@
 | DO-330 checklist (fill `[TBD]`) | [`templates/TOOL_QUALIFICATION_SKETCH_DO330.md`](templates/TOOL_QUALIFICATION_SKETCH_DO330.md) |
 | Draft **TOR** / **TVP** | [`qualification/TOR.md`](qualification/TOR.md), [`qualification/TVP.md`](qualification/TVP.md) |
 | Rocq bridge + K1–K4 | [`T27_KERNEL_FORMAL_COQ.md`](T27_KERNEL_FORMAL_COQ.md) |
-| Live gap (E2E CI) | [`NOW.md`](NOW.md) §3.2 |
+| Live gap (E2E CI) | [`NOW.md`](../NOW.md) §3.2 |
 
 ## Engineering checklist (high level)
 

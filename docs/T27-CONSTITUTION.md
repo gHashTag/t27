@@ -28,11 +28,11 @@ The numeric formalism relies on repository standards (**NUMERIC-STANDARD-001**, 
 
 ## Article LANG-EN — English for first-party code and documentation
 
-**Article LANG-EN.** All **first-party** Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`, `SOUL.md`) **MUST** be written in **English**. Source files (`.t27`, `.zig`, etc.) **MUST** use **English** for comments and identifiers, and remain **ASCII-only** per **ADR-004** and root **`SOUL.md`** Article I (expanded detail in **`docs/nona-03-manifest/SOUL.md`** Law #1).
+**Article LANG-EN.** All **first-party** Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `NOW.md`, `SOUL.md`) **MUST** be written in **English**. Source files (`.t27`, `.zig`, etc.) **MUST** use **English** for comments and identifiers, and remain **ASCII-only** per **ADR-004** and root **`SOUL.md`** Article I (expanded detail in **`docs/nona-03-manifest/SOUL.md`** Law #1).
 
 Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-docs`** until translated; **do not expand** that list without Architect approval. Vendored content under **`external/`** is exempt.
 
-**Enforcement:** (1) **`cargo build` / `cargo build --release` in `bootstrap/`** — `build.rs` fails the build with a cited error; (2) **`scripts/check-first-party-doc-language.sh`** in CI (Python checker).
+**Enforcement:** (1) **`cargo build` / `cargo build --release` in `bootstrap/`** — `build.rs` fails the build with a cited error; (2) **`./scripts/tri lint-docs`** in CI (forwards to **`t27c lint-docs`**).
 
 ---
 
@@ -40,7 +40,7 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 
 **Article DOCS-TREE.** First-party Markdown under **`docs/`** **MUST** follow the **three-nona / 27-agent** layout indexed in **`docs/README.md`**. That README is the **authoritative map** of the tree; any **structural** change (new top-level subdirectory under **`docs/`**, or redefinition of what belongs in each nona) **MUST** land together with an update to **`docs/README.md`** and, if policy changes, a bump of this charter.
 
-**1. Root of `docs/` (anchors only).** Aside from **`docs/.legacy-non-english-docs`**, only these files **MAY** reside **directly** in **`docs/`**: **`NOW.md`**, **`T27-CONSTITUTION.md`**, **`OWNERS.md`**, and **`README.md`** (the index). **No** other new **`*.md`** **SHALL** be added at **`docs/*.md`** except by amending this article.
+**1. Root of `docs/` (anchors only).** Aside from **`docs/.legacy-non-english-docs`**, only these files **MAY** reside **directly** in **`docs/`**: **`T27-CONSTITUTION.md`**, **`OWNERS.md`**, and **`README.md`** (the index). The rolling snapshot **`NOW.md`** lives at the **repository root** (not under **`docs/`**). **No** other new **`*.md`** **SHALL** be added at **`docs/*.md`** except by amending this article.
 
 **2. Required buckets.** Every other new first-party **`*.md`** under **`docs/`** **MUST** live under exactly one of:
 
@@ -109,6 +109,7 @@ In conflict scenarios, the higher-priority law prevails.
 
 | Document | Purpose |
 |----------|---------|
+| `NOW.md` (repository root) | Rolling integration snapshot + coordination entrypoint; **`./scripts/tri check-now`** date gate |
 | `docs/README.md` | Index of first-party docs (27-agent / three-nona layout); **normative map for Article DOCS-TREE** |
 | `docs/OWNERS.md` | Primary owner and bucket table for `docs/` |
 | `docs/nona-02-organism/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md` | Technical specification for critical-path migration |

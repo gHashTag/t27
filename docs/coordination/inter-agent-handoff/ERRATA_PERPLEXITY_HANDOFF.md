@@ -2,7 +2,7 @@
 
 Some agents received a handoff titled **“T27 → SCIENTIFIC EXCELLENCE: Inter-Agent Task Handoff”** with **TASK Protocol v1.0 | Epoch 2**, **Lock holder: target-agent**, and a **Mission / EPIC-01** block that tells them to **create** `docs/nona-03-manifest/RESEARCH_CLAIMS.md` from scratch.
 
-**That text is not normative for this repository.** Use **[`TASK.md`](../../../TASK.md)** (current **Coordination state** + **Handoff log**), **[`docs/coordination/TASK_PROTOCOL.md`](../TASK_PROTOCOL.md)**, and **[Anchor #141](https://github.com/gHashTag/t27/issues/141)** as the only binding coordination surface.
+**That text is not normative for this repository.** Use **[`NOW.md`](../../../NOW.md)** (rolling snapshot + coordination), **[`docs/coordination/TASK_PROTOCOL.md`](../TASK_PROTOCOL.md)**, and **[Anchor #141](https://github.com/gHashTag/t27/issues/141)** as the only binding coordination surface.
 
 ---
 
@@ -10,11 +10,11 @@ Some agents received a handoff titled **“T27 → SCIENTIFIC EXCELLENCE: Inter-
 
 | Perplexity handoff | Canonical in this repo |
 |--------------------|-------------------------|
-| Epoch **2** | **[`TASK.md`](../../../TASK.md)** — Epoch **1** unless maintainers bump it after a real handoff |
-| Lock holder **target-agent** / scope **SCIENTIFIC-EXCELLENCE** | **Soft locks** live only in **`TASK.md`**; do not assume a remote agent holds a lock |
+| Epoch **2** | **[`NOW.md`](../../../NOW.md)** / **#141** — follow live **Revision** and anchor comments unless maintainers bump after a real handoff |
+| Lock holder **target-agent** / scope **SCIENTIFIC-EXCELLENCE** | **Soft locks** live in **Anchor #141** + **`NOW.md`** narrative; do not assume a remote agent holds a lock |
 | “Source agent perplexity-research” | Informative only; not stored in git as authority |
 
-**Action for downstream agent:** Read **`TASK.md`** first. If you take a lock, set **Lock holder** / **Lock scope** there and post on **#141**.
+**Action for downstream agent:** Read **`NOW.md`** first. If you take a lock, post on **#141** and reflect scope in **`NOW.md` Revision** / narrative as appropriate.
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Статус:** Пояснение к [`COMPILER_VERIFICATION_STANDARDS.md`](COMPILER_VERIFICATION_STANDARDS.md) для русскоязычных читателей.  
 **Англоязычный SSOT:** нормативный план и TVCP — только в `COMPILER_VERIFICATION_STANDARDS.md`.  
-**Оперативный снимок:** [`NOW.md`](NOW.md).
+**Оперативный снимок:** [`NOW.md`](../NOW.md).
 
 ---
 

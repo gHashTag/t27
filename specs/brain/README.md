@@ -38,16 +38,15 @@ From repository root (after `cd bootstrap && cargo build --release`):
 
 ```bash
 ./scripts/tri gen-zig       specs/brain/unified_state.t27    # stdout
-./scripts/tri gen-zig       specs/brain/                     # → gen/zig/brain/…
+./scripts/tri gen-dir --backend zig --out-root gen/zig specs/brain   # → gen/zig/specs/brain/…
 ./scripts/tri gen-c         specs/brain/unified_state.t27
 ./scripts/tri gen-verilog   specs/brain/unified_state.t27
 ./scripts/tri seal          specs/brain/unified_state.t27 --save
-./scripts/tri skill seal --hash specs/brain/unified_state.t27
-./scripts/tri validate-conformance specs/brain/
+./scripts/tri validate-conformance
 ./scripts/tri test
 ```
 
-Project-wide: `./scripts/tri compile-project --backend zig -o build`.
+Project-wide: `./scripts/tri compile-project --backend zig --output build`.
 
 **Note:** `./scripts/tri` is the committed CLI shim. A root `tri` binary may exist locally and is **gitignored**.
 

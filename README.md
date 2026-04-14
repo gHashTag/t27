@@ -61,10 +61,17 @@ cd ..
 # Parse a spec (canonical CLI: tri → wraps bootstrap t27c)
 ./scripts/tri parse specs/base/types.t27
 
+<<<<<<< Updated upstream
 # Generate Zig (stdout for one file; if the path is a directory, batch → gen/zig/… by default)
 ./scripts/tri gen-zig specs/numeric/gf16.t27
 ./scripts/tri gen-zig specs/numeric
 # Or: ./scripts/tri gen-dir --backend zig --out-root gen/zig <dir>
+=======
+# Generate Zig backend (stdout for a single file)
+./scripts/tri gen-zig specs/numeric/gf16.t27
+# Batch a directory into gen/zig/… (mirrors paths under out-root)
+./scripts/tri gen-dir --backend zig --out-root gen/zig specs/numeric
+>>>>>>> Stashed changes
 
 # Generate Verilog (file or directory → gen/verilog/…)
 ./scripts/tri gen-verilog specs/fpga/mac.t27
@@ -160,9 +167,9 @@ t27/
 ├── contrib/                # Non-core adjacency (API, runners, portable setup) — see OWNERS.md
 ├── external/               # Vendored upstream (e.g. OpenCode submodule) + kaggle tree — see OWNERS.md
 │
+├── NOW.md                  # Rolling snapshot + coordination (sync gates; repo root)
 ├── docs/                   # First-party docs (27-agent / 3-nona layout — see docs/README.md)
 │   ├── README.md           #   Index: agents/, coordination/, nona-01..03/, clara/
-│   ├── NOW.md              #   Rolling snapshot (sync gates)
 │   ├── T27-CONSTITUTION.md #   Charter
 │   └── …                   #   nona-01-foundation/, nona-02-organism/, nona-03-manifest/, etc.
 │
