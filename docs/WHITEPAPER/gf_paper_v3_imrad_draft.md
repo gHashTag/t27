@@ -1,6 +1,6 @@
 # GoldenFloat: A Formally Verified, $\varphi$-Optimal Floating-Point Family for Ternary-Native Mixed-Precision Computing
 
-**Authors:** t27 Project Team
+**Author:** Dmitrii Vasilev (t27 Project Team)
 **Date:** April 2026
 **Target:** NeurIPS 2026 OPT Workshop (Optimization Theory and Methods)
 
@@ -312,6 +312,36 @@ Test: $1/3$ representation (finite in balanced ternary: $0.\overline{1}_3$).
 **Mixed-precision quantization:** Layer-wise bit allocation remains an open research problem. The $\varphi$-guided approach provides a principled baseline (closed-form, $O(L)$ complexity) against which search-based methods ($O(2^K)$) and criterion-based optimization can be compared.
 
 ---
+
+## 6. Cross-Language Availability
+
+GoldenFloat formats are available as native packages for:
+- Python: `pip install golden-float`
+- JavaScript/TypeScript: `npm install golden-float`
+- Rust: `cargo add golden-float`
+- C/C++: via `golden_float.h` header
+
+All implementations share a single Rust core with a C-compatible ABI, guaranteeing bit-identical results across languages. This design follows the Apache Arrow cross-language interoperability model: a single memory layout and computation kernel with multiple language bindings.
+
+### 6.1 NumPy Integration
+
+The Python package includes NumPy dtype plugins for all 7 GoldenFloat formats. This enables:
+
+```python
+import numpy as np
+from golden_float import gf16
+
+arr = np.array([1.0, 1.618, 2.718], dtype=gf16)
+```
+
+NumPy ufuncs support arithmetic operations on GoldenFloat arrays without manual conversion.
+
+### 6.2 WebAssembly Support
+
+JavaScript bindings use WebAssembly for zero-overhead performance. The compiled `.wasm` module provides the same bit-exact results as native bindings, enabling use in:
+- Browser-based ML training dashboards
+- Node.js server-side inference
+- WebGL graphics pipelines using GoldenFloat textures
 
 ## 7. Limitations
 

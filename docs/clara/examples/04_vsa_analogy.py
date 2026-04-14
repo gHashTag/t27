@@ -15,7 +15,7 @@ Key VSA properties demonstrated:
 - bundle3 for consensus voting
 - permute for position-aware encoding
 
-Author: T27 Trinity Ternary Project
+Author: Dmitrii Vasilev (T27 Project)
 SPDX-License-Identifier: Apache-2.0
 """
 

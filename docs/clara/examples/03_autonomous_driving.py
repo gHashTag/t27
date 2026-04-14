@@ -13,7 +13,7 @@ This example demonstrates autonomous driving decision-making with:
 
 Safety-critical system with bounded rationality and explicit safety checks.
 
-Author: T27 Trinity Ternary Project
+Author: Dmitrii Vasilev (T27 Project)
 SPDX-License-Identifier: Apache-2.0
 """
 

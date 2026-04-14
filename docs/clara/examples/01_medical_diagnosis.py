@@ -11,7 +11,7 @@ This example demonstrates a complete medical diagnosis pipeline where:
 3. AR performs bounded reasoning with step limit
 4. XAI generates explainable output
 
-Author: T27 Trinity Ternary Project
+Author: Dmitrii Vasilev (T27 Project)
 License: Apache 2.0
 """
 

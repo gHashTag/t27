@@ -11,7 +11,7 @@ This example demonstrates question answering over legal documents using:
 3. AR reasoning over retrieved context
 4. Bounded step limit for explainability
 
-Author: T27 Trinity Ternary Project
+Author: Dmitrii Vasilev (T27 Project)
 SPDX-License-Identifier: Apache-2.0
 """
 
