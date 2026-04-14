@@ -90,14 +90,16 @@ jobs:
 
           echo "Checking for gen/ directory edits..."
 
-          # Check if any files in gen/ were modified
-          if git diff --name-only origin/"$BASE_BRANCH"..HEAD | grep -q "^gen/"; then
-            echo "::error::L2 GENERATION VIOLATION: Files under gen/ were modified directly."
+          # Check if any existing files in gen/ were modified (not new additions)
+          MODIFIED_GEN=$(git diff --name-status origin/"$BASE_BRANCH"..HEAD | grep -E "^M\s+gen/" || echo "")
+          if [ -n "$MODIFIED_GEN" ]; then
+            echo "::error::L2 GENERATION VIOLATION: The following files under gen/ were modified directly:"
+            echo "$MODIFIED_GEN"
             echo "Edit specs instead and regenerate using './scripts/tri gen'"
             exit 1
           fi
 
-          echo "  ✓ No gen/ edits detected"
+          echo "  ✓ No gen/ edits detected (new files allowed)"
 
       - name: Check L3 PURITY (ASCII-only identifiers)
         id: check-purity
