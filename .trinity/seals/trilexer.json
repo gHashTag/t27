@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d3800cc5ed250afd87ea18aa11776ba1d147f9d89207ee2ecaa172b57c39b182",
   "module": "trilexer",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:11Z",
-  "spec_hash": "sha256:cf665b400e73091057d195296506e68e8c16acff3adc70a1756b58cd88e30afc",
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:4ac60464bbd27dff67d448f27d90e180b69e11b224c84483e249a05e3565c4f1",
   "spec_path": "compiler/parser/lexer.t27"
 }

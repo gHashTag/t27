@@ -10,14 +10,15 @@
 
 # 100 MHz system clock (E3/E19)
 set_property -dict {PACKAGE_PIN E3 IOSTANDARD LVCMOS33} [get_ports clk]
-create_generated_clock -name clk_100MHz -source [get_ports clk] [get_pins */clk]
-
-# ═══════════════════════════════════════════════════════════════════════════════════════════
-# RESET
-# ═══════════════════════════════════════════════════════════════════════════════════════════
+create_clock -add -name sys_clk -period 10.000 -waveform {0 5.000} [get_ports clk]
 
 # Reset button (C12 - active low)
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports rst_n]
+
+# Async input false paths
+set_false_path -from [get_ports rst_n] -to [all_registers]
+set_false_path -from [get_ports uart_rx] -to [all_registers]
+set_false_path -from [get_ports spi_miso] -to [all_registers]
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════
 # LEDS - Status Indicators

@@ -1,0 +1,21 @@
+[tasks]
+bmc
+prove
+
+[options]
+bmc:
+  mode bmc
+  depth 20
+prove:
+  mode prove
+  depth 20
+
+[engines]
+smtbmc z3
+
+[script]
+read_verilog -formal ../../../specs/fpga/mac.v
+prep -top ZeroDSP_MAC
+
+[files]
+../../../specs/fpga/mac.v

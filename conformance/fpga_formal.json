@@ -1,0 +1,143 @@
+{
+  "constants": {
+    "MAX_ASSERTIONS": 64,
+    "MAX_ASSUME_POINTS": 16,
+    "MAX_COVER_POINTS": 32
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Formal Verification Specification for Trinity T27 FPGA HIR -- defines assertion kinds, properties, and coverage points for SVA generation",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Default formal config depth is positive",
+      "id": "depth_positive"
+    },
+    {
+      "description": "Default formal config timeout is positive",
+      "id": "timeout_positive"
+    },
+    {
+      "description": "Assertion validation error count is always non-negative",
+      "id": "validate_non_negative"
+    },
+    {
+      "description": "Config validation error count is always non-negative",
+      "id": "config_validate_non_negative"
+    }
+  ],
+  "module": "Formal",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/formal.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Formal Vectors",
+  "vectors": {
+    "assertion_creation": {
+      "cases": [
+        {
+          "description": "Immediate assert is created with kind=immediate, correct condition",
+          "id": "immediate_assert_creation"
+        },
+        {
+          "description": "Concurrent assert is created with kind=concurrent, has clock",
+          "id": "concurrent_assert_creation"
+        },
+        {
+          "description": "Cover point is created with name and non-empty condition",
+          "id": "cover_point_creation"
+        },
+        {
+          "description": "Assumption is created with name and non-empty condition",
+          "id": "assume_creation"
+        }
+      ],
+      "description": "Assertion, cover point, and assumption creation"
+    },
+    "formal_config": {
+      "cases": [
+        {
+          "description": "Formal config sets name, module, clock, reset, and posedge mode",
+          "id": "formal_config_creation"
+        },
+        {
+          "description": "with_depth overrides the BMC depth",
+          "id": "with_depth"
+        },
+        {
+          "description": "with_timeout overrides the timeout cycles",
+          "id": "with_timeout"
+        }
+      ],
+      "description": "Formal verification configuration"
+    },
+    "assertion_validation": {
+      "cases": [
+        {
+          "description": "Well-formed immediate assertion passes validation",
+          "id": "validate_assertion_ok"
+        },
+        {
+          "description": "Assertion with empty name fails validation",
+          "id": "validate_assertion_empty_name"
+        },
+        {
+          "description": "Assertion with empty condition fails validation",
+          "id": "validate_assertion_empty_condition"
+        },
+        {
+          "description": "Concurrent assertion without clock fails validation",
+          "id": "validate_concurrent_no_clock"
+        }
+      ],
+      "description": "Assertion validation checks"
+    },
+    "cover_validation": {
+      "cases": [
+        {
+          "description": "Well-formed cover point passes validation",
+          "id": "validate_cover_ok"
+        },
+        {
+          "description": "Cover point with empty name fails validation",
+          "id": "validate_cover_empty_name"
+        }
+      ],
+      "description": "Cover point validation"
+    },
+    "assume_validation": {
+      "cases": [
+        {
+          "description": "Well-formed assumption passes validation",
+          "id": "validate_assume_ok"
+        },
+        {
+          "description": "Assumption with empty name and condition fails validation",
+          "id": "validate_assume_empty"
+        }
+      ],
+      "description": "Assumption validation"
+    },
+    "config_validation": {
+      "cases": [
+        {
+          "description": "Well-formed formal config passes validation",
+          "id": "validate_config_ok"
+        },
+        {
+          "description": "Config with empty name fails validation",
+          "id": "validate_config_empty_name"
+        },
+        {
+          "description": "Config with empty clock fails validation",
+          "id": "validate_config_empty_clock"
+        }
+      ],
+      "description": "Formal configuration validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

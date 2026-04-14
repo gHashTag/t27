@@ -1,0 +1,127 @@
+{
+  "constants": {
+    "MAX_MEM_PORTS": 8
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Memory (BRAM/DRAM/ROM) Abstraction for Trinity T27 FPGA HIR -- defines block memory primitives with read/write ports",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "BRAM depth is always positive",
+      "id": "bram_depth_positive"
+    },
+    {
+      "description": "BRAM data width is always positive",
+      "id": "bram_data_width_positive"
+    },
+    {
+      "description": "Address width is positive for non-zero depth",
+      "id": "addr_width_positive_for_nonzero_depth"
+    },
+    {
+      "description": "Total bits is always non-negative",
+      "id": "total_bits_non_negative"
+    },
+    {
+      "description": "Port count stays within MAX_MEM_PORTS bounds",
+      "id": "port_count_within_bounds"
+    },
+    {
+      "description": "BRAM18 count is positive for valid memory",
+      "id": "bram18_count_positive"
+    }
+  ],
+  "module": "Memory",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/memory.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Memory Vectors",
+  "vectors": {
+    "memory_construction": {
+      "cases": [
+        {
+          "description": "Empty memory has no ports",
+          "id": "empty_mem_has_no_ports"
+        },
+        {
+          "description": "BRAM with depth=1024, data_width=32 has addr_width=10",
+          "id": "make_bram_has_depth"
+        },
+        {
+          "description": "BRAM with depth=4 has addr_width=2",
+          "id": "make_bram_small"
+        },
+        {
+          "description": "BRAM with depth=1 has addr_width=1",
+          "id": "make_bram_single"
+        }
+      ],
+      "description": "Memory descriptor construction"
+    },
+    "port_operations": {
+      "cases": [
+        {
+          "description": "Read port increments count, has_read=true, has_write=false",
+          "id": "add_read_port_increments"
+        },
+        {
+          "description": "Write port increments count, has_write=true, has_read=false",
+          "id": "add_write_port_increments"
+        },
+        {
+          "description": "RW port increments count, has_read=true, has_write=true",
+          "id": "add_rw_port"
+        }
+      ],
+      "description": "Memory port addition (read, write, read-write)"
+    },
+    "memory_queries": {
+      "cases": [
+        {
+          "description": "ROM reports is_rom=true, is_bram=false",
+          "id": "is_rom"
+        },
+        {
+          "description": "Total bits = depth * data_width = 32768",
+          "id": "total_bits"
+        },
+        {
+          "description": "Small BRAM (1024x18) fits in 1 BRAM18",
+          "id": "bram18_count_small"
+        },
+        {
+          "description": "Large BRAM (4096x36) needs >= 8 BRAM18s",
+          "id": "bram18_count_large"
+        }
+      ],
+      "description": "Memory property queries and resource estimation"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid BRAM with read port passes validation",
+          "id": "validate_ok"
+        },
+        {
+          "description": "Memory with empty name fails validation",
+          "id": "validate_empty_name"
+        },
+        {
+          "description": "Memory with zero depth fails validation",
+          "id": "validate_zero_depth"
+        },
+        {
+          "description": "ROM with write port fails validation",
+          "id": "rom_with_write_port_invalid"
+        }
+      ],
+      "description": "Memory validation rules"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

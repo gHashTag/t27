@@ -120,7 +120,7 @@ pub fn single_head_attention(
 }
 
 /// Multi-head forward pass with residual connection
-/// Pipeline: position → 3-head attention → bundle3 → FFN → residual
+/// Pipeline: position 0 3-head attention 1 bundle3 2 FFN 3 residual
 pub fn forward_pass_multi_head(
     context: &Context,
     roles: &Roles,
@@ -162,7 +162,7 @@ pub fn summarize_context(context: &Context, dim: usize) -> Hypervector {
 }
 
 /// Direct forward pass: just bind(context_summary, role)
-/// Only 1 bind operation → clean signal
+/// Only 1 bind operation 4 clean signal
 pub fn forward_pass_direct(
     context: &Context,
     role: &Hypervector,

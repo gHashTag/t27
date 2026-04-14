@@ -1,0 +1,180 @@
+{
+  "constants": {},
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Hardware Type System for Trinity T27 FPGA HIR -- defines signal-level types with bit-accurate widths and signedness",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Boolean type width is always 1",
+      "id": "bool_width_is_1"
+    },
+    {
+      "description": "Clock type width is always 1",
+      "id": "clock_width_is_1"
+    },
+    {
+      "description": "GF16 type width is always 16",
+      "id": "gf16_width_is_16"
+    },
+    {
+      "description": "Unsigned type is not signed",
+      "id": "uint_signedness"
+    },
+    {
+      "description": "Signed type reports signed=true",
+      "id": "sint_signedness"
+    },
+    {
+      "description": "Type width is always non-negative",
+      "id": "width_non_negative"
+    },
+    {
+      "description": "Wider types have greater or equal width",
+      "id": "width_monotonic"
+    },
+    {
+      "description": "Vector width equals element width times length",
+      "id": "vector_width_is_product"
+    },
+    {
+      "description": "Types are connectable to themselves (reflexivity)",
+      "id": "connectable_reflexive"
+    }
+  ],
+  "module": "HwTypes",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/hw_types.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "HwTypes Vectors",
+  "vectors": {
+    "scalar_type_width": {
+      "cases": [
+        {
+          "description": "hw_bits(8) has width 8",
+          "id": "bits8_width"
+        },
+        {
+          "description": "hw_uint(3) has width 3",
+          "id": "uint3_width"
+        },
+        {
+          "description": "hw_bool() has width 1",
+          "id": "bool_width"
+        },
+        {
+          "description": "hw_clock() has width 1",
+          "id": "clock_width"
+        },
+        {
+          "description": "hw_reset() has width 1",
+          "id": "reset_width"
+        },
+        {
+          "description": "hw_gf16() has width 16",
+          "id": "gf16_width"
+        }
+      ],
+      "description": "Scalar hardware type width queries"
+    },
+    "vector_type_width": {
+      "cases": [
+        {
+          "description": "Vector of uint8x4 has width 32",
+          "id": "vector_width"
+        },
+        {
+          "description": "Vector of boolx8 has width 8",
+          "id": "vector_of_bools_width"
+        },
+        {
+          "description": "Vector of uint16x2 has width 32",
+          "id": "vector_uint16_2_width"
+        }
+      ],
+      "description": "Vector hardware type width queries"
+    },
+    "signedness": {
+      "cases": [
+        {
+          "description": "Unsigned type is not signed",
+          "id": "uint_not_signed"
+        },
+        {
+          "description": "Signed type reports signed=true",
+          "id": "sint_is_signed"
+        },
+        {
+          "description": "Boolean type is not signed",
+          "id": "bool_not_signed"
+        }
+      ],
+      "description": "Signedness detection"
+    },
+    "clock_like": {
+      "cases": [
+        {
+          "description": "Clock type is clock-like",
+          "id": "clock_is_clock_like"
+        },
+        {
+          "description": "Uint type is not clock-like",
+          "id": "uint_not_clock_like"
+        }
+      ],
+      "description": "Clock-like type detection"
+    },
+    "reset_like": {
+      "cases": [
+        {
+          "description": "Reset type is reset-like",
+          "id": "reset_is_reset_like"
+        },
+        {
+          "description": "Boolean type is not reset-like",
+          "id": "bool_not_reset_like"
+        }
+      ],
+      "description": "Reset-like type detection"
+    },
+    "type_equality": {
+      "cases": [
+        {
+          "description": "Same types are equal",
+          "id": "types_equal_same"
+        },
+        {
+          "description": "Different width types are not equal",
+          "id": "types_equal_diff_width"
+        },
+        {
+          "description": "Different signedness types are not equal",
+          "id": "types_equal_diff_signed"
+        }
+      ],
+      "description": "Structural type equality"
+    },
+    "connectability": {
+      "cases": [
+        {
+          "description": "Same types are connectable",
+          "id": "is_connectable_same"
+        },
+        {
+          "description": "Different width types are not connectable",
+          "id": "is_connectable_diff_width"
+        },
+        {
+          "description": "Clock vs bool mismatch is not connectable",
+          "id": "is_connectable_clock_mismatch"
+        }
+      ],
+      "description": "Connection compatibility checks"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

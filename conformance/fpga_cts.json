@@ -1,0 +1,126 @@
+{
+  "constants": {
+    "BUFG_DELAY_PS": 100,
+    "BUFG_FANOUT": 32,
+    "BUFH_DELAY_PS": 50,
+    "BUFH_FANOUT": 16,
+    "PLL_JITTER_PS": 50,
+    "MAX_SKEW_PS": 100
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 Clock Tree Synthesis Specification -- PLL configuration, clock buffer trees, skew estimation for Artix-7",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "bufg_delay_positive",
+      "description": "BUFG buffer delay is always positive"
+    },
+    {
+      "id": "skew_non_negative",
+      "description": "Clock tree max skew is always non-negative"
+    }
+  ],
+  "module": "CTS",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/cts.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "CTS Vectors",
+  "vectors": {
+    "pll_config": {
+      "description": "PLL configuration and period calculation",
+      "cases": [
+        {
+          "id": "pll_config_creation",
+          "description": "PLL config with input/output MHz and period"
+        }
+      ]
+    },
+    "clock_buffers": {
+      "description": "Clock buffer (BUFG/BUFH) construction and fanout",
+      "cases": [
+        {
+          "id": "bufg_creation",
+          "description": "BUFG buffer with 100ps delay and fanout 32"
+        },
+        {
+          "id": "bufh_creation",
+          "description": "BUFH buffer with 50ps delay and fanout 16"
+        }
+      ]
+    },
+    "clock_tree": {
+      "description": "Clock tree construction, delay, and skew",
+      "cases": [
+        {
+          "id": "clock_tree_creation",
+          "description": "Clock tree with root, levels, buffers, and skew"
+        },
+        {
+          "id": "tree_delay",
+          "description": "Tree delay equals levels times buffer delay"
+        },
+        {
+          "id": "skew_ok_yes",
+          "description": "Skew within allowed limit passes"
+        },
+        {
+          "id": "skew_ok_no",
+          "description": "Skew exceeding limit fails"
+        }
+      ]
+    },
+    "cts_report": {
+      "description": "CTS report pass/fail status",
+      "cases": [
+        {
+          "id": "cts_report_ok",
+          "description": "CTS report with no violations passes"
+        }
+      ]
+    },
+    "estimation": {
+      "description": "Buffer count and tree level estimation",
+      "cases": [
+        {
+          "id": "est_buffers_one",
+          "description": "Few sinks need only 1 buffer"
+        },
+        {
+          "id": "est_buffers_many",
+          "description": "Many sinks need multiple buffers"
+        },
+        {
+          "id": "est_tree_levels_one",
+          "description": "Few sinks need 1 tree level"
+        },
+        {
+          "id": "est_tree_levels_two",
+          "description": "Moderate sinks need 2 tree levels"
+        },
+        {
+          "id": "est_tree_levels_three",
+          "description": "Many sinks need 3 tree levels"
+        }
+      ]
+    },
+    "validation": {
+      "description": "PLL configuration validation",
+      "cases": [
+        {
+          "id": "validate_pll_ok",
+          "description": "Valid PLL config passes validation"
+        },
+        {
+          "id": "validate_pll_empty",
+          "description": "Empty PLL name and zero output fails validation"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

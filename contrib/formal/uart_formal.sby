@@ -1,0 +1,19 @@
+[tasks]
+bmc
+
+[options]
+bmc:
+  mode bmc
+  depth 50
+
+[engines]
+smtbmc z3
+
+[script]
+read_verilog -formal ../../../specs/fpga/uart.v
+read_verilog uart_formal_props.v
+prep -top uart_formal_props
+
+[files]
+../../../specs/fpga/uart.v
+uart_formal_props.v

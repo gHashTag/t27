@@ -1,0 +1,141 @@
+{
+  "constants": {
+    "VCD_VAR_WIRE": 0,
+    "VCD_VAR_REG": 1,
+    "VCD_VAR_INTEGER": 2,
+    "VCD_VAR_PARAMETER": 3,
+    "VCD_SCOPE_MODULE": 0,
+    "VCD_SCOPE_TASK": 1,
+    "VCD_SCOPE_FUNCTION": 2,
+    "DEFAULT_TIMESCALE": "1 ps",
+    "DEFAULT_COMMENT": "T27 Trinity VCD"
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "VCD Trace Emission Specification -- emits Value Change Dump traces from HIR simulation in IEEE 1364-2001 format",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Trace duration is always non-negative",
+      "id": "trace_duration_non_negative"
+    },
+    {
+      "description": "Validation error count is always non-negative",
+      "id": "validate_non_negative"
+    }
+  ],
+  "module": "VcdTrace",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/vcd_trace.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "VcdTrace Vectors",
+  "vectors": {
+    "var_creation": {
+      "cases": [
+        {
+          "description": "Create generic VCD variable with kind, size, name, ident",
+          "id": "vcd_var_creation"
+        },
+        {
+          "description": "Create wire variable (kind=0)",
+          "id": "var_wire_creation"
+        },
+        {
+          "description": "Create reg variable (kind=1)",
+          "id": "var_reg_creation"
+        }
+      ],
+      "description": "VCD variable construction"
+    },
+    "change_creation": {
+      "cases": [
+        {
+          "description": "Create VCD value change entry with timestamp, ident, value",
+          "id": "vcd_change_creation"
+        }
+      ],
+      "description": "VCD change entry construction"
+    },
+    "header_trace": {
+      "cases": [
+        {
+          "description": "Create VCD header with version and timescale",
+          "id": "vcd_header_creation"
+        },
+        {
+          "description": "Create VCD trace with header and zero end time",
+          "id": "vcd_trace_creation"
+        }
+      ],
+      "description": "VCD header and trace construction"
+    },
+    "timestamp_query": {
+      "cases": [
+        {
+          "description": "Count changes at a given timestamp",
+          "id": "changes_at_timestamp"
+        },
+        {
+          "description": "No changes at non-existent timestamp returns zero",
+          "id": "changes_at_timestamp_none"
+        },
+        {
+          "description": "Find earliest change timestamp",
+          "id": "earliest_change"
+        },
+        {
+          "description": "Find latest change timestamp",
+          "id": "latest_change"
+        },
+        {
+          "description": "Trace duration = latest - earliest",
+          "id": "trace_duration"
+        },
+        {
+          "description": "Empty change list has zero duration",
+          "id": "trace_duration_empty"
+        }
+      ],
+      "description": "Timestamp queries on VCD change lists"
+    },
+    "var_validation": {
+      "cases": [
+        {
+          "description": "Valid variable passes validation",
+          "id": "validate_var_ok"
+        },
+        {
+          "description": "Variable with empty name fails validation",
+          "id": "validate_var_empty_name"
+        },
+        {
+          "description": "Variable with empty ident fails validation",
+          "id": "validate_var_empty_ident"
+        }
+      ],
+      "description": "VCD variable validation"
+    },
+    "change_validation": {
+      "cases": [
+        {
+          "description": "Valid change passes validation",
+          "id": "validate_change_ok"
+        },
+        {
+          "description": "Change with empty ident fails validation",
+          "id": "validate_change_empty_ident"
+        },
+        {
+          "description": "Change with zero bit_width fails validation",
+          "id": "validate_change_zero_width"
+        }
+      ],
+      "description": "VCD change validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

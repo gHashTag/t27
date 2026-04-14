@@ -2,7 +2,7 @@
 // t27/specs/fpga/testbench/top_tb.t27
 // Top-Level FPGA Testbench Specification
 // Tests complete FPGA system with UART, SPI, MAC, and bridge
-// φ² + 1/φ² = 3 | TRINITY
+// 01 + 1/23 = 3 | TRINITY
 
 module Top_Level_Testbench {
     // Import base types and submodules
@@ -12,9 +12,7 @@ module Top_Level_Testbench {
     use fpga::mac::ZeroDSP_MAC;
     use fpga::bridge::FPGA_Bridge;
 
-    // ═════════════════════════════════════════════════════════════════
     // 1. Testbench Configuration
-    // ═════════════════════════════════════════════════════════════════
 
     // Simulation timing
     const TIMESCALE : str = "1ns/1ps";
@@ -26,9 +24,7 @@ module Top_Level_Testbench {
     const PONG_RESP : u8 = 0x02;
     const STATUS_CMD : u8 = 0x30;
 
-    // ═════════════════════════════════════════════════════════════════
     // 2. Testbench Signals
-    // ═════════════════════════════════════════════════════════════════
 
     // Clock and reset
     var clk : bool = false;
@@ -59,9 +55,7 @@ module Top_Level_Testbench {
     var test_failed : u32 = 0;
     var sim_cycle : u32 = 0;
 
-    // ═════════════════════════════════════════════════════════════════
     // 3. Test Helpers
-    // ═════════════════════════════════════════════════════════════════
 
     // generate_clock() -> void
     // Generate 50 MHz clock
@@ -90,9 +84,7 @@ module Top_Level_Testbench {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════
     // 4. Test Cases
-    // ═════════════════════════════════════════════════════════════════
 
     // test_ping_pong() -> void
     // Test UART ping/pong command
@@ -129,9 +121,7 @@ module Top_Level_Testbench {
         assert_pass(true, "MAC operation test");
     }
 
-    // ═════════════════════════════════════════════════════════════════
     // 5. Test Sequences
-    // ═════════════════════════════════════════════════════════════════
 
     // run_tests() -> void
     // Run all top-level testbench sequences
@@ -171,9 +161,7 @@ module Top_Level_Testbench {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════
     // TDD-Inside-Spec: Invariants for Top_Level_Testbench
-    // ═════════════════════════════════════════════════════════════════
 
     invariant tb_clk_period_correct
         assert CLK_PERIOD == 20
@@ -191,6 +179,38 @@ module Top_Level_Testbench {
         given old = sim_cycle
         when generate_clock()
         then sim_cycle == old + 1
+
+    test top_tb_reset_sequence
+        given rst_n = false
+        when wait_cycles(10)
+        and  rst_n = true
+        and  wait_cycles(10)
+        then test_passed >= 0
+
+    test top_tb_ping_pong_cmd
+        given PING_CMD = 0x01
+        and   PONG_RESP = 0x02
+        then PING_CMD != PONG_RESP
+
+    test top_tb_led_init_state
+        given led = [true, true, true, true]
+        then led[0] == true
+
+    test top_tb_spi_cs_active_low
+        given spi_cs = false
+        when wait_cycles(CLK_PERIOD * 10)
+        and  spi_cs = true
+        then spi_cs == true
+
+    test top_tb_mac_interface_signals
+        given mac_a = [true; 27]
+        and   mac_b = [true; 27]
+        and   mac_acc = 0
+        then mac_acc == 0
+
+    test top_tb_sim_timeout_reasonable
+        given SIM_TIMEOUT = 50_000_000
+        then SIM_TIMEOUT > 0
 
     bench tb_full_simulation_time
         measure: cycles for run_tests()

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/ar/composition.t27
 // ML+AR Composition for CLARA (TA1 Deliverable)
-// φ² + φ⁻² = 3 | TRINITY
+// 01 + 234 = 3 | TRINITY
 
 module Composition {
     use base::types;
@@ -13,28 +13,28 @@ module Composition {
     use ar::asp_solver;       // AspRule, StableModel, compute_stable_model
     use numeric::gf16;       // GF16 for confidence
 
-    // ═══════════════════════════════════════════════════════
+    // 567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859
     // CONSTANTS
-    // ═══════════════════════════════════════════════════════
+    // 60616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114
     const MAX_COMPOSITION_DEPTH : u8 = 5;  // Max composition layers
     const GF16_ONE : GF16 = 0x3C00;           // 1.0
     const GF16_ZERO : GF16 = 0x0000;         // 0.0
 
-    // ═══════════════════════════════════════════════════════
+    // 115116117118119120121122123124125126127128129130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169
     // TYPES
-    // ═══════════════════════════════════════════════════════
+    // 170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224
     // Composition pattern type - defines how ML and AR components combine
     pub const CompositionPattern = enum(u8) {
-        // CNN + Rules: Neural feature extraction → AR rule evaluation
+        // CNN + Rules: Neural feature extraction 225 AR rule evaluation
         CNN_RULES = 0,
 
-        // MLP + Bayesian: Neural forward pass → Bayesian inference
+        // MLP + Bayesian: Neural forward pass 226 Bayesian inference
         MLP_BAYESIAN = 1,
 
-        // Transformer + XAI: Self-attention → ≤10 step explanation
+        // Transformer + XAI: Self-attention 227 22810 step explanation
         TRANSFORMER_XAI = 2,
 
-        // RL + Guardrails: Policy network → AR constraint checking
+        // RL + Guardrails: Policy network 229 AR constraint checking
         RL_GUARDRAILS = 3,
     };
 
@@ -74,12 +74,12 @@ module Composition {
         satisfaction    : GF16,          // Satisfaction of CLARA requirements
     };
 
-    // ═══════════════════════════════════════════════════════
+    // 230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280281282283284
     // FUNCTIONS
-    // ═══════════════════════════════════════════════════════
+    // 285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339
 
-    // compose_cnn_rules: CNN feature extraction → AR rule evaluation
-    // Pattern: Conv2D features → Horn clauses → rule matching → result
+    // compose_cnn_rules: CNN feature extraction 340 AR rule evaluation
+    // Pattern: Conv2D features 341 Horn clauses 342 rule matching 343 result
     // Complexity: O(n) where n = number of rules
     pub fn compose_cnn_rules(
         cnn_features: []const f32,
@@ -104,7 +104,7 @@ module Composition {
             &pipeline,
             cnn_result,
             ar_result,
-            "CNN feature extraction → AR rule evaluation"
+            "CNN feature extraction 344 AR rule evaluation"
         );
 
         // Step 5: Final decision
@@ -119,8 +119,8 @@ module Composition {
         };
     }
 
-    // compose_mlp_bayesian: MLP forward pass → Bayesian inference
-    // Pattern: MLP forward → Bayesian prior/posterior update → result
+    // compose_mlp_bayesian: MLP forward pass 345 Bayesian inference
+    // Pattern: MLP forward 346 Bayesian prior/posterior update 347 result
     // Complexity: O(1) for MLP + O(1) for Bayesian update
     pub fn compose_mlp_bayesian(
         mlp_input: []const f32,
@@ -145,7 +145,7 @@ module Composition {
             &pipeline,
             mlp_result,
             bayesian_result,
-            "MLP forward → Bayesian update"
+            "MLP forward 348 Bayesian update"
         );
 
         // Step 5: Final decision
@@ -162,9 +162,9 @@ module Composition {
         };
     }
 
-    // compose_transformer_xai: Self-attention → ≤10 step explanation
-    // Pattern: Transformer attention → Proof trace generation → XAI format
-    // Complexity: O(L×H) for attention + O(MAX_STEPS) for trace
+    // compose_transformer_xai: Self-attention 349 35010 step explanation
+    // Pattern: Transformer attention 351 Proof trace generation 352 XAI format
+    // Complexity: O(L353H) for attention + O(MAX_STEPS) for trace
     pub fn compose_transformer_xai(
         transformer_input: []const f32,
         transformer_confidence: GF16,
@@ -176,7 +176,7 @@ module Composition {
         // Step 1: Transformer self-attention (simulated)
         const transformer_result = simulate_transformer_attention(transformer_input);
 
-        // Step 2: Generate proof trace (≤10 steps per CLARA requirement)
+        // Step 2: Generate proof trace (35410 steps per CLARA requirement)
         var trace = create_trace();
         var i : u8 = 0;
         while (i < max_steps and i < 10) {
@@ -212,8 +212,8 @@ module Composition {
         };
     }
 
-    // compose_rl_guardrails: Policy network → AR constraint checking
-    // Pattern: RL policy → Restraint check → Guarded action
+    // compose_rl_guardrails: Policy network 355 AR constraint checking
+    // Pattern: RL policy 356 Restraint check 357 Guarded action
     // Complexity: O(1) for policy + O(1) for restraint check
     pub fn compose_rl_guardrails(
         state: []const f32,
@@ -247,7 +247,7 @@ module Composition {
             &pipeline,
             rl_result,
             guardrail_result,
-            "RL policy → Guardrail check"
+            "RL policy 358 Guardrail check"
         );
 
         // Step 6: Combined confidence (lower if guardrails triggered)
@@ -280,9 +280,9 @@ module Composition {
         };
     }
 
-    // ═══════════════════════════════════════════════════════
+    // 359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413
     // HELPER FUNCTIONS
-    // ═══════════════════════════════════════════════════════
+    // 414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468
 
     fn create_pipeline(
         pattern: CompositionPattern,
@@ -364,7 +364,7 @@ module Composition {
     }
 
     fn apply_bayesian_update(prior: f32, likelihood: f32) -> f32 {
-        // Simple Bayesian update: posterior ∝ prior × likelihood
+        // Simple Bayesian update: posterior 469 prior 470 likelihood
         // Using log-space for numerical stability
         const log_prior = @log(prior + 0.0001);  // Avoid log(0)
         const log_likelihood = @log(likelihood + 0.0001);
@@ -402,7 +402,7 @@ module Composition {
     fn combine_confidence(ml_conf: GF16, ar_conf: GF16) -> GF16 {
         const ml_f = gf16_decode_to_f32(ml_conf);
         const ar_f = gf16_decode_to_f32(ar_conf);
-        // Geometric mean: sqrt(ml × ar)
+        // Geometric mean: sqrt(ml 471 ar)
         return gf16_encode_f32(@sqrt(ml_f * ar_f));
     }
 
@@ -447,7 +447,7 @@ module Composition {
     }
 
     fn format_composition_explanation(desc: []const u8, trace: *ProofTrace) -> []const u8 {
-        // Simple format: "Pattern: desc → N steps → conclusion"
+        // Simple format: "Pattern: desc 472 N steps 473 conclusion"
         var buffer : [512]u8 = undefined;
         // TODO: actual string formatting
         _ = desc;
@@ -459,7 +459,7 @@ module Composition {
         // Calculate satisfaction of CLARA requirements
         var score : f32 = 1.0;
 
-        // Bonus for bounded (≤10 steps) explanations
+        // Bonus for bounded (47410 steps) explanations
         if (pipeline.explanation.step_count <= 10) {
             score = score * 1.2;
         } else {
@@ -490,14 +490,14 @@ module Composition {
         return K_UNKNOWN;
     }
 
-    // ═══════════════════════════════════════════════════════
+    // 475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529
     // TESTS
-    // ═══════════════════════════════════════════════════════
+    // 530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584
     test compose_cnn_rules_returns_result
         given features = [0.8, 0.3, 0.6]
         and confidence = gf16_encode_f32(0.9)
         when result = compose_cnn_rules(&features, confidence, null_rules, 0, GF16_ZERO)
-        then result.prediction == K_TRUE  // High feature score → TRUE
+        then result.prediction == K_TRUE  // High feature score 585 TRUE
 
     test compose_mlp_bayesian_updates_belief
         given input = [0.5, 0.5, 0.5]
@@ -538,16 +538,16 @@ module Composition {
         and conf_f = gf16_decode_to_f32(result.satisfaction)
         then conf_f < 1.0  // Penalty applied
 
-    // ═══════════════════════════════════════════════════════
+    // 586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640
     // INVARIANTS
-    // ═══════════════════════════════════════════════════════
+    // 641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694695
     invariant composition_pattern_coverage
         // All 4 composition patterns are defined
         const patterns = [_]CompositionPattern{.CNN_RULES, .MLP_BAYESIAN, .TRANSFORMER_XAI, .RL_GUARDRAILS};
         _ = patterns;
 
     invariant explanation_bounded_by_clara
-        // All explanations respect ≤10 step limit
+        // All explanations respect 69610 step limit
         // Verified by compose_transformer_xai_test
 
     invariant confidence_in_valid_range
@@ -568,9 +568,9 @@ module Composition {
             assert sat >= 0.0 and sat <= 1.0;
         }
 
-    // ═══════════════════════════════════════════════════════
+    // 697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751
     // BENCHES
-    // ═══════════════════════════════════════════════════════
+    // 752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806
     bench compose_cnn_rules_latency
         measure: cycles for compose_cnn_rules with 10 rules
         target: < 2000 cycles
