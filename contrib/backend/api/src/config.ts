@@ -95,6 +95,7 @@ export const config = {
 
   // Session limits
   maxSessions: Number(process.env.MAX_SESSIONS ?? 100),
+  maxSessionDurationMs: Number(process.env.MAX_SESSION_DURATION_MS ?? 3_600_000), // 1 hour default
 
   // Sandbox pass-through env vars
   githubToken: process.env.GH_TOKEN,

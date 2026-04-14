@@ -1,8 +1,10 @@
 import { eq, inArray } from "drizzle-orm";
 
+import { config } from "../config.js";
 import { db } from "../db/client.js";
 import { sessions } from "../db/schema.js";
 import { resolveSandboxHealthUrl } from "../utils/sandboxTarget.js";
+import { deleteSession } from "./sessions.js";
 
 const HEALTH_TIMEOUT_MS = 3_000;
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -34,6 +36,19 @@ const updateSessionStatus = async (id: string, status: string) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Exported functions
+// ─────────────────────────────────────────────────────────────
+
+export const checkSessionTimeout = async (session: { id: string; createdAt: Date; status: string }): Promise<void> => {
+  const maxDuration = config.maxSessionDurationMs;
+  const elapsed = Date.now() - session.createdAt.getTime();
+
+  if (elapsed > maxDuration && session.status === "active") {
+    await deleteSession(session.id);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
 // Exported poller
 // ─────────────────────────────────────────────────────────────
 
@@ -58,6 +73,8 @@ export const pollSandboxHealth = async (): Promise<void> => {
         if (session.status !== "active") {
           await updateSessionStatus(session.id, "active");
         }
+        // Check session timeout
+        await checkSessionTimeout(session);
         return;
       }
 
