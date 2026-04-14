@@ -92,6 +92,55 @@ tri wrapup --summary "completed <task>" \
 - "known issues with <spec>" — Find blockers
 - "architecture of <component>" — Get design context
 
+## MANDATORY WORKFLOW: Start Task Before Pushing
+
+**L7 UNITY Requirement:** Every push to the repository must have an active NotebookLM notebook.
+
+```bash
+# Step 1: ALWAYS start a task before beginning work
+t27c bridge task start --title "Your task description"
+
+# This creates:
+# - .trinity/current_task/.notebook_id  (tracked in git)
+# - .trinity/current_task/notebook_meta.json
+# - A new NotebookLM notebook linked to your session
+
+# Step 2: Do your work (PHI LOOP, edits, commits, etc.)
+
+# Step 3: Push (gate will check for notebook)
+git push  # Succeeds only if .notebook_id exists and is valid
+```
+
+**Alternative: Attach existing notebook**
+
+```bash
+t27c bridge task attach --notebook_id "abc123def456"
+```
+
+**Check current task status**
+
+```bash
+t27c bridge task status
+```
+
+**Verify notebook is valid**
+
+```bash
+t27c bridge task verify
+```
+
+**Emergency bypass (NOT recommended)**
+
+```bash
+SKIP_NOTEBOOK_GATE=1 git push
+# Bypass is logged to .trinity/gate_bypasses.log
+```
+
+**Branch Protection Rule (to be configured):**
+- Required status check: "NotebookLM Gate / 🔒 NotebookLM notebook required"
+- Require branches to be up to date before merging: YES
+- Include administrators: YES
+
 ## /tri wrapup
 
 Automatic session wrap-up with NotebookLM upload. This is the canonical way to end a session and preserve context for future agents.
