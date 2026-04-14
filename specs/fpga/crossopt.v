@@ -146,6 +146,22 @@ module CrossOpt (
     // -------------------------------------------------------
     // invariant: improvements_non_negative
 
+    // -------------------------------------------------------
+    // Benchmark blocks (simulation only)
+    // -------------------------------------------------------
+    initial begin : improvement_density_latency_bench // synthesis translate_off
+        $display("[BENCH] improvement_density_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] improvement_density_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] improvement_density_latency : DONE");
+    end // synthesis translate_on
+    initial begin : total_improvements_latency_bench // synthesis translate_off
+        $display("[BENCH] total_improvements_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] total_improvements_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] total_improvements_latency : DONE");
+    end // synthesis translate_on
+
 endmodule
 
 `default_nettype wire

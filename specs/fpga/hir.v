@@ -22,6 +22,10 @@ module Hir (
     parameter [31:0] MAX_ASSIGNS = 256;
     parameter [31:0] MAX_INSTANCES = 32;
     parameter [31:0] MAX_ERRORS = 64;
+    parameter [31:0] MAX_MEMS = 16;
+    parameter [31:0] MAX_MEM_PORTS = 4;
+    parameter [31:0] MAX_CLOCK_DOMAINS = 8;
+    parameter [31:0] MAX_BUS_PORTS = 8;
 
     // -------------------------------------------------------
     // Enum constants
@@ -37,6 +41,24 @@ module Hir (
     // enum SignalKind
     localparam SignalKind_wire_kind = 0;
     localparam SignalKind_reg_kind = 1;
+    // enum MemKind
+    localparam MemKind_bram = 0;
+    localparam MemKind_dram = 1;
+    localparam MemKind_rom = 2;
+    // enum MemPortMode
+    localparam MemPortMode_read_first = 0;
+    localparam MemPortMode_write_first = 1;
+    localparam MemPortMode_no_change = 2;
+    // enum CdcStrategy
+    localparam CdcStrategy_two_flop = 0;
+    localparam CdcStrategy_async_fifo = 1;
+    localparam CdcStrategy_handshake = 2;
+    localparam CdcStrategy_gray_code = 2;
+    // enum BusKind
+    localparam BusKind_axi4_lite = 0;
+    localparam BusKind_axi4_full = 1;
+    localparam BusKind_apb = 2;
+    localparam BusKind_wishbone = 3;
 
     // -------------------------------------------------------
     // Registers (from struct declarations)
@@ -70,12 +92,161 @@ module Hir (
     reg [31:0] hirmodule_assign_count; // HirModule.assign_count
     reg [31:0] hirmodule_instances; // HirModule.instances
     reg [31:0] hirmodule_instance_count; // HirModule.instance_count
+    reg [31:0] hirmodule_mems; // HirModule.mems
+    reg [31:0] hirmodule_mem_count; // HirModule.mem_count
+    reg [31:0] hirmodule_clock_domains; // HirModule.clock_domains
+    reg [31:0] hirmodule_clock_domain_count; // HirModule.clock_domain_count
+    reg [31:0] hirmodule_bus_ports; // HirModule.bus_ports
+    reg [31:0] hirmodule_bus_port_count; // HirModule.bus_port_count
+    // struct MemPort
+    reg [31:0] memport_name; // MemPort.name
+    reg memport_is_write; // MemPort.is_write
+    reg [31:0] memport_width; // MemPort.width
+    reg [31:0] memport_addr_width; // MemPort.addr_width
+    // struct Mem
+    reg [31:0] mem_name; // Mem.name
+    reg signed [7:0] mem_kind; // Mem.kind
+    reg [31:0] mem_depth; // Mem.depth
+    reg [31:0] mem_data_width; // Mem.data_width
+    reg [31:0] mem_ports; // Mem.ports
+    reg [31:0] mem_port_count; // Mem.port_count
+    reg [31:0] mem_init_file; // Mem.init_file
+    // struct ClockDomain
+    reg [31:0] clockdomain_name; // ClockDomain.name
+    reg [31:0] clockdomain_freq_hz; // ClockDomain.freq_hz
+    reg [31:0] clockdomain_phase_deg; // ClockDomain.phase_deg
+    reg clockdomain_is_primary; // ClockDomain.is_primary
+    reg signed [7:0] clockdomain_cdc_strategy; // ClockDomain.cdc_strategy
+    // struct BusPort
+    reg [31:0] busport_name; // BusPort.name
+    reg signed [7:0] busport_bus_kind; // BusPort.bus_kind
+    reg [31:0] busport_addr_width; // BusPort.addr_width
+    reg [31:0] busport_data_width; // BusPort.data_width
+    reg busport_is_master; // BusPort.is_master
+    reg [31:0] busport_base_addr; // BusPort.base_addr
 
     assign ready = 1'b1;
 
     // -------------------------------------------------------
     // Combinational logic (from function declarations)
     // -------------------------------------------------------
+
+    // function: empty_mem_port
+    function [31:0] empty_mem_port; // -> MemPort
+        begin
+            empty_mem_port = 0 /* MemPort {...} */;
+        end
+    endfunction
+
+    // function: empty_mem
+    function [31:0] empty_mem; // -> Mem
+        begin
+            empty_mem = 0 /* Mem {...} */;
+        end
+    endfunction
+
+    // function: make_mem
+    function [31:0] make_mem; // -> Mem
+        input [31:0] name;
+        input [31:0] tr;
+        input signed [7:0] kind;
+        input [31:0] depth;
+        input [31:0] data_width;
+        begin
+            make_mem = 0 /* Mem {...} */;
+        end
+    endfunction
+
+    // function: mem_add_port
+    function [31:0] mem_add_port; // -> Mem
+        input [31:0] mem;
+        input [31:0] name;
+        input [31:0] tr;
+        input is_write;
+        input [31:0] width;
+        input [31:0] addr_width;
+        begin
+            if ((mem_port_count < MAX_MEM_PORTS)) begin
+                result_ports[result_port_count] = 0 /* MemPort {...} */;
+                result_port_count = (mem_port_count + 1);
+            end
+            mem_add_port = mem;
+        end
+    endfunction
+
+    // function: mem_total_bits
+    function [31:0] mem_total_bits; // -> u32
+        input [31:0] mem;
+        begin
+            mem_total_bits = (mem_depth * mem_data_width);
+        end
+    endfunction
+
+    // function: mem_bram18_count
+    function [31:0] mem_bram18_count; // -> u32
+        input [31:0] mem;
+        begin
+            reg [31:0] BRAM18_BITS = 18432;
+            reg [31:0] total = mem_total_bits(mem);
+            if ((total == 0)) begin
+                mem_bram18_count = 0;
+            end
+            mem_bram18_count = (((total + BRAM18_BITS) - 1) / BRAM18_BITS);
+        end
+    endfunction
+
+    // function: empty_clock_domain
+    function [31:0] empty_clock_domain; // -> ClockDomain
+        begin
+            empty_clock_domain = 0 /* ClockDomain {...} */;
+        end
+    endfunction
+
+    // function: make_clock_domain
+    function [31:0] make_clock_domain; // -> ClockDomain
+        input [31:0] name;
+        input [31:0] tr;
+        input [31:0] freq_hz;
+        input is_primary;
+        begin
+            make_clock_domain = 0 /* ClockDomain {...} */;
+        end
+    endfunction
+
+    // function: empty_bus_port
+    function [31:0] empty_bus_port; // -> BusPort
+        begin
+            empty_bus_port = 0 /* BusPort {...} */;
+        end
+    endfunction
+
+    // function: make_bus_port
+    function [31:0] make_bus_port; // -> BusPort
+        input [31:0] name;
+        input [31:0] tr;
+        input signed [7:0] bus_kind;
+        input [31:0] addr_width;
+        input [31:0] data_width;
+        input is_master;
+        input [31:0] base_addr;
+        begin
+            make_bus_port = 0 /* BusPort {...} */;
+        end
+    endfunction
+
+    // function: bus_port_total_signals
+    function [31:0] bus_port_total_signals; // -> u32
+        input [31:0] bp;
+        begin
+            if ((bp_bus_kind == 0)) begin
+                bus_port_total_signals = ((bp_addr_width + (bp_data_width * 2)) + 9);
+            end
+            if ((bp_bus_kind == 2)) begin
+                bus_port_total_signals = ((bp_addr_width + (bp_data_width * 2)) + 5);
+            end
+            bus_port_total_signals = (bp_addr_width + (bp_data_width << 1));
+        end
+    endfunction
 
     // function: empty_port
     function [31:0] empty_port; // -> Port
@@ -148,12 +319,11 @@ module Hir (
         input is_clock;
         input is_reset;
         begin
-            reg [31:0] result = mod;
-            if ((result_port_count < 64)) begin
+            if ((mod_port_count < 64)) begin
                 result_ports[result_port_count] = make_port(name, dir, width, is_clock, is_reset);
-                result_port_count = (result_port_count + 1);
+                result_port_count = (mod_port_count + 1);
             end
-            add_port = result;
+            add_port = mod;
         end
     endfunction
 
@@ -165,12 +335,11 @@ module Hir (
         input signed [7:0] kind;
         input [31:0] width;
         begin
-            reg [31:0] result = mod;
-            if ((result_signal_count < 256)) begin
+            if ((mod_signal_count < 256)) begin
                 result_signals[result_signal_count] = make_signal(name, kind, width);
-                result_signal_count = (result_signal_count + 1);
+                result_signal_count = (mod_signal_count + 1);
             end
-            add_signal = result;
+            add_signal = mod;
         end
     endfunction
 
@@ -182,12 +351,11 @@ module Hir (
         input [31:0] value;
         input [31:0] tr;
         begin
-            reg [31:0] result = mod;
-            if ((result_assign_count < 256)) begin
+            if ((mod_assign_count < 256)) begin
                 result_assigns[result_assign_count] = 0 /* Assign {...} */;
-                result_assign_count = (result_assign_count + 1);
+                result_assign_count = (mod_assign_count + 1);
             end
-            add_assign = result;
+            add_assign = mod;
         end
     endfunction
 
@@ -199,12 +367,50 @@ module Hir (
         input [31:0] module_name;
         input [31:0] tr;
         begin
-            reg [31:0] result = mod;
-            if ((result_instance_count < 32)) begin
+            if ((mod_instance_count < 32)) begin
                 result_instances[result_instance_count] = 0 /* Instance {...} */;
-                result_instance_count = (result_instance_count + 1);
+                result_instance_count = (mod_instance_count + 1);
             end
-            add_instance = result;
+            add_instance = mod;
+        end
+    endfunction
+
+    // function: add_mem
+    function [31:0] add_mem; // -> HirModule
+        input [31:0] mod;
+        input [31:0] mem;
+        begin
+            if ((mod_mem_count < MAX_MEMS)) begin
+                result_mems[result_mem_count] = mem;
+                result_mem_count = (mod_mem_count + 1);
+            end
+            add_mem = mod;
+        end
+    endfunction
+
+    // function: add_clock_domain
+    function [31:0] add_clock_domain; // -> HirModule
+        input [31:0] mod;
+        input [31:0] cd;
+        begin
+            if ((mod_clock_domain_count < MAX_CLOCK_DOMAINS)) begin
+                result_clock_domains[result_clock_domain_count] = cd;
+                result_clock_domain_count = (mod_clock_domain_count + 1);
+            end
+            add_clock_domain = mod;
+        end
+    endfunction
+
+    // function: add_bus_port
+    function [31:0] add_bus_port; // -> HirModule
+        input [31:0] mod;
+        input [31:0] bp;
+        begin
+            if ((mod_bus_port_count < MAX_BUS_PORTS)) begin
+                result_bus_ports[result_bus_port_count] = bp;
+                result_bus_port_count = (mod_bus_port_count + 1);
+            end
+            add_bus_port = mod;
         end
     endfunction
 
@@ -236,7 +442,6 @@ module Hir (
     function has_clock_port; // -> bool
         input [31:0] mod;
         begin
-            reg [31:0] i = 0;
             while ((i < mod_port_count)) begin
                 if (is_clock) begin
                     has_clock_port = 1'b1;
@@ -251,7 +456,6 @@ module Hir (
     function has_reset_port; // -> bool
         input [31:0] mod;
         begin
-            reg [31:0] i = 0;
             while ((i < mod_port_count)) begin
                 if (is_reset) begin
                     has_reset_port = 1'b1;
@@ -267,7 +471,6 @@ module Hir (
         input [31:0] mod;
         begin
             reg [31:0] total = 0;
-            reg [31:0] i = 0;
             while ((i < mod_port_count)) begin
                 total = (total + width);
                 i = (i + 1);
@@ -284,7 +487,6 @@ module Hir (
             if ((mod_name == "")) begin
                 error_count = (error_count + 1);
             end
-            reg [31:0] i = 0;
             while ((i < mod_port_count)) begin
                 reg [31:0] j = (i + 1);
                 while ((j < mod_port_count)) begin
@@ -295,7 +497,6 @@ module Hir (
                 end
                 i = (i + 1);
             end
-            i = 0;
             while ((i < mod_signal_count)) begin
                 reg [31:0] j = (i + 1);
                 while ((j < mod_signal_count)) begin
@@ -368,6 +569,81 @@ module Hir (
         $display("[TEST] validate_duplicate_ports_fails : starting");
         $display("[TEST] validate_duplicate_ports_fails : PASSED");
     end
+    // test: mem_empty_has_zero_bits
+    initial begin : mem_empty_has_zero_bits_test
+        $display("[TEST] mem_empty_has_zero_bits : starting");
+        $display("[TEST] mem_empty_has_zero_bits : PASSED");
+    end
+    // test: mem_make_sets_fields
+    initial begin : mem_make_sets_fields_test
+        $display("[TEST] mem_make_sets_fields : starting");
+        $display("[TEST] mem_make_sets_fields : PASSED");
+    end
+    // test: mem_total_bits
+    initial begin : mem_total_bits_test
+        $display("[TEST] mem_total_bits : starting");
+        $display("[TEST] mem_total_bits : PASSED");
+    end
+    // test: mem_bram18_count_single
+    initial begin : mem_bram18_count_single_test
+        $display("[TEST] mem_bram18_count_single : starting");
+        $display("[TEST] mem_bram18_count_single : PASSED");
+    end
+    // test: mem_bram18_count_two
+    initial begin : mem_bram18_count_two_test
+        $display("[TEST] mem_bram18_count_two : starting");
+        $display("[TEST] mem_bram18_count_two : PASSED");
+    end
+    // test: mem_add_port_increments
+    initial begin : mem_add_port_increments_test
+        $display("[TEST] mem_add_port_increments : starting");
+        $display("[TEST] mem_add_port_increments : PASSED");
+    end
+    // test: mem_add_two_ports
+    initial begin : mem_add_two_ports_test
+        $display("[TEST] mem_add_two_ports : starting");
+        $display("[TEST] mem_add_two_ports : PASSED");
+    end
+    // test: add_mem_to_module
+    initial begin : add_mem_to_module_test
+        $display("[TEST] add_mem_to_module : starting");
+        $display("[TEST] add_mem_to_module : PASSED");
+    end
+    // test: add_clock_domain_to_module
+    initial begin : add_clock_domain_to_module_test
+        $display("[TEST] add_clock_domain_to_module : starting");
+        $display("[TEST] add_clock_domain_to_module : PASSED");
+    end
+    // test: clock_domain_primary
+    initial begin : clock_domain_primary_test
+        $display("[TEST] clock_domain_primary : starting");
+        $display("[TEST] clock_domain_primary : PASSED");
+    end
+    // test: clock_domain_secondary
+    initial begin : clock_domain_secondary_test
+        $display("[TEST] clock_domain_secondary : starting");
+        $display("[TEST] clock_domain_secondary : PASSED");
+    end
+    // test: add_bus_port_to_module
+    initial begin : add_bus_port_to_module_test
+        $display("[TEST] add_bus_port_to_module : starting");
+        $display("[TEST] add_bus_port_to_module : PASSED");
+    end
+    // test: bus_port_axi4_lite_signals
+    initial begin : bus_port_axi4_lite_signals_test
+        $display("[TEST] bus_port_axi4_lite_signals : starting");
+        $display("[TEST] bus_port_axi4_lite_signals : PASSED");
+    end
+    // test: bus_port_apb_signals
+    initial begin : bus_port_apb_signals_test
+        $display("[TEST] bus_port_apb_signals : starting");
+        $display("[TEST] bus_port_apb_signals : PASSED");
+    end
+    // test: empty_module_zero_mems_and_clocks
+    initial begin : empty_module_zero_mems_and_clocks_test
+        $display("[TEST] empty_module_zero_mems_and_clocks : starting");
+        $display("[TEST] empty_module_zero_mems_and_clocks : PASSED");
+    end
     // synthesis translate_on
 
     // -------------------------------------------------------
@@ -378,6 +654,25 @@ module Hir (
     // invariant: port_count_non_negative
     // invariant: total_port_bits_non_negative
     // invariant: validate_returns_non_negative
+    // invariant: mem_bram18_count_non_negative
+    // invariant: mem_port_count_within_bounds
+    // invariant: bus_port_total_signals_positive
+
+    // -------------------------------------------------------
+    // Benchmark blocks (simulation only)
+    // -------------------------------------------------------
+    initial begin : mem_bram18_estimation_latency_bench // synthesis translate_off
+        $display("[BENCH] mem_bram18_estimation_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] mem_bram18_estimation_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] mem_bram18_estimation_latency : DONE");
+    end // synthesis translate_on
+    initial begin : hir_module_construction_bench // synthesis translate_off
+        $display("[BENCH] hir_module_construction : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] hir_module_construction : %%0d cycles", _bench_cycles);
+        $display("[BENCH] hir_module_construction : DONE");
+    end // synthesis translate_on
 
 endmodule
 

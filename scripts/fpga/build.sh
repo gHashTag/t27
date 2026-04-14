@@ -67,66 +67,30 @@ gen_verilog() {
     check_t27c
     setup_dirs
 
-    local modules=("mac" "uart" "top_level")
+    local modules=(
+        "mac" "uart" "spi" "top_level" "bridge" "gf16_accel"
+        "hir" "memory" "fifo" "axi4" "apb_bridge" "clock_domain"
+        "hw_types" "ternary_isa" "e2e_demo" "testbench" "vcd_trace"
+        "simulator" "formal" "power" "timing" "placement" "router"
+        "partition" "cts" "dft" "assembler" "linker" "stdlib"
+        "bootrom" "crossopt"
+    )
     
+    local count=0
     for module in "${modules[@]}"; do
         local spec_file="$SPECS_DIR/${module}.t27"
         local out_file="$BUILD_DIR/generated/${module}.v"
         
         if [[ ! -f "$spec_file" ]]; then
-            echo "Warning: $spec_file not found, skipping..."
+            echo "  Warning: $spec_file not found, skipping..."
             continue
         fi
         
-        echo "  Generating ${module}.v..."
         "$T27C" gen-verilog "$spec_file" > "$out_file"
+        count=$((count + 1))
     done
     
-    cat > "$BUILD_DIR/generated/zerodsp_top.v" << 'VERILOG_EOF'
-// ZeroDSP Top Level - Auto-generated wrapper
-// This file combines all generated modules
-// φ² + 1/φ² = 3 | TRINITY
-
-`timescale 1ns / 1ps
-
-module zerodsp_top (
-    input  wire clk,
-    input  wire rst_n,
-    input  wire [7:0] uart_rx,
-    output wire [7:0] uart_tx,
-    output wire mac_done,
-    output wire [31:0] mac_result
-);
-    // System clock and reset
-    wire sys_clk;
-    wire sys_rst_n;
-    
-    assign sys_clk = clk;
-    assign sys_rst_n = rst_n;
-    
-    // UART signals
-    wire uart_tx_ready;
-    wire uart_rx_valid;
-    
-    // MAC signals  
-    wire [7:0] mac_status;
-    
-    // Simple test pattern - increment counter
-    reg [31:0] counter;
-    always @(posedge sys_clk) begin
-        if (!sys_rst_n)
-            counter <= 32'h0;
-        else
-            counter <= counter + 1;
-    end
-    
-    assign uart_tx = uart_rx;  // Loopback for testing
-    assign mac_done = 1'b0;
-    assign mac_result = counter;
-    
-endmodule
-VERILOG_EOF
-    
+    echo "  Generated $count Verilog modules."
     echo "Verilog generation complete."
 }
 
@@ -134,7 +98,7 @@ synthesize() {
     echo "=== Synthesizing with Yosys ==="
     setup_dirs
     
-    local top_file="$BUILD_DIR/generated/zerodsp_top.v"
+    local top_file="$BUILD_DIR/generated/top_level.v"
     if [[ ! -f "$top_file" ]]; then
         echo "Error: $top_file not found. Run 'gen' first."
         exit 1
@@ -145,12 +109,12 @@ synthesize() {
 # Yosys synthesis script for ZeroDSP
 # Generated for Trinity S³AI Framework
 
-read_verilog $top_file
-hierarchy -check -top zerodsp_top
+read_verilog $BUILD_DIR/generated/*.v
+hierarchy -check -top Trinity_FPGA_Top
 
 proc; opt; fsm; opt; memory; opt
 
-synth_xilinx -top zerodsp_top -device xc7a100t
+synth_xilinx -top Trinity_FPGA_Top -device xc7a100t
 
 write_verilog -noattr $BUILD_DIR/synth/zerodsp_synth.v
 stat
@@ -189,9 +153,9 @@ pnr() {
             -v "$PROJECT_ROOT:/project" \
             -w /project \
             "$DOCKER_IMAGE" \
-            bash -c "nextpnr-xilinx --device $device --top zerodsp_top --force --json $BUILD_DIR/pnr/design.json --write $BUILD_DIR/pnr/design.asc $BUILD_DIR/synth/zerodsp_synth.v"
+            bash -c "cd $BUILD_DIR && nextpnr-xilinx --device $device --top Trinity_FPGA_Top --force --json $BUILD_DIR/pnr/design.json --write $BUILD_DIR/pnr/design.asc $BUILD_DIR/synth/zerodsp_synth.v"
     else
-        nextpnr-xilinx --device "$device" --top zerodsp_top --force \
+        nextpnr-xilinx --device "$device" --top Trinity_FPGA_Top --force \
             --json "$BUILD_DIR/pnr/design.json" \
             --write "$BUILD_DIR/pnr/design.asc" \
             "$BUILD_DIR/synth/zerodsp_synth.v"
@@ -215,11 +179,11 @@ bitstream() {
             -v "$PROJECT_ROOT:/project" \
             -w /project \
             "$DOCKER_IMAGE" \
-            bash -c "cd $BUILD_DIR/pnr && fasm2frames design.asc > design.frames && ecppack --input design.asc --bitstream design.bit"
+            bash -c "cd $BUILD_DIR/pnr && fasm2frames --part $device design.fasm > design.frames && xc7frames2bit --part $device --frames design.frames --bit design.bit"
     else
         cd "$BUILD_DIR/pnr"
-        fasm2frames design.asc > design.frames
-        ecppack --input design.asc --bitstream design.bit
+        fasm2frames --part "$device" design.fasm > design.frames
+        xc7frames2bit --part "$device" --frames design.frames --bit design.bit
     fi
     
     echo "Bitstream generation complete: $BUILD_DIR/pnr/design.bit"

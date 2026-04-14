@@ -162,10 +162,10 @@
       "name": "infinity_positive",
       "description": "Positive infinity (max exp, non-zero mant)",
       "verdict": "CLEAN",
-      "input": { "value": Infinity },
+      "input": { "value": "Infinity" },
       "expected": {
         "raw": 31744,
-        "decoded": Infinity,
+        "decoded": "Infinity",
         "tolerance_abs": 0.0
       }
     },
@@ -173,10 +173,10 @@
       "name": "infinity_negative",
       "description": "Negative infinity",
       "verdict": "CLEAN",
-      "input": { "value": -Infinity },
+      "input": { "value": "-Infinity" },
       "expected": {
         "raw": 64512,
-        "decoded": -Infinity,
+        "decoded": "-Infinity",
         "tolerance_abs": 0.0
       }
     },
@@ -184,10 +184,10 @@
       "name": "nan_quiet",
       "description": "Quiet NaN",
       "verdict": "CLEAN",
-      "input": { "value": NaN },
+      "input": { "value": "NaN" },
       "expected": {
         "raw": 32256,
-        "decoded": NaN,
+        "decoded": "NaN",
         "tolerance_abs": 0.0
       }
     },

@@ -51,7 +51,6 @@ module SPI_Master (
             if ((psc > PRESCALER_256)) begin
                 spi_set_prescaler = 1'b0;
             end
-            spi_prescaler = psc;
             spi_set_prescaler = 1'b1;
         end
     endfunction
@@ -78,7 +77,6 @@ module SPI_Master (
             if (((width == 0) || (width > MAX_DATA_WIDTH))) begin
                 spi_set_data_width = 1'b0;
             end
-            spi_data_width = width;
             spi_set_data_width = 1'b1;
         end
     endfunction
@@ -97,12 +95,6 @@ module SPI_Master (
             if (spi_busy) begin
                 spi_transfer = 1'b0;
             end
-            spi_tx_data = data;
-            spi_rx_data = 0;
-            spi_bit_count = 0;
-            spi_bit_counter = 0;
-            spi_state = SPI_CS_ASSERT;
-            spi_busy = 1'b1;
             spi_transfer = 1'b1;
         end
     endfunction
@@ -150,8 +142,6 @@ module SPI_Master (
     // function: spi_transfer_bit
     task spi_transfer_bit;
         begin
-            reg [31:0] prescaler_div = spi_get_prescaler_div();
-            spi_bit_counter = (spi_bit_counter + 1);
             match;
             spi_tx_state;
         end

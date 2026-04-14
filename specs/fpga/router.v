@@ -104,9 +104,7 @@ module Router (
         input [31:0] nets;
         input [31:0] wire;
         input [31:0] fanout;
-        begin
-            reg [31:0] avg = 0;
-        end
+        // TODO: implement
     endfunction
 
     // function: passed
@@ -150,10 +148,7 @@ module Router (
         input [31:0] count;
         input [31:0] fanouts;
         input [31:0] fcount;
-        begin
-            reg [31:0] total = 0;
-            reg [31:0] i = 0;
-        end
+        // TODO: implement
     endfunction
 
     // function: est_congestion
@@ -166,9 +161,7 @@ module Router (
     // function: validate_edge
     function [31:0] validate_edge; // -> u32
         input [31:0] e;
-        begin
-            reg [31:0] errors = 0;
-        end
+        // TODO: implement
     endfunction
     // -------------------------------------------------------
     // Test assertions (from test blocks)
@@ -276,6 +269,22 @@ module Router (
     // -------------------------------------------------------
     // invariant: wire_length_non_negative
     // invariant: congestion_non_negative
+
+    // -------------------------------------------------------
+    // Benchmark blocks (simulation only)
+    // -------------------------------------------------------
+    initial begin : wire_estimation_latency_bench // synthesis translate_off
+        $display("[BENCH] wire_estimation_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] wire_estimation_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] wire_estimation_latency : DONE");
+    end // synthesis translate_on
+    initial begin : congestion_estimation_latency_bench // synthesis translate_off
+        $display("[BENCH] congestion_estimation_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] congestion_estimation_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] congestion_estimation_latency : DONE");
+    end // synthesis translate_on
 
 endmodule
 

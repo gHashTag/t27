@@ -243,6 +243,14 @@ module Router {
     invariant congestion_non_negative
         given c = est_congestion(100, 10)
         assert c >= 0
+
+    bench wire_estimation_latency
+        measure: nanoseconds to est_wire_length(16)
+        target: < 50ns
+
+    bench congestion_estimation_latency
+        measure: nanoseconds to est_congestion(500, 50)
+        target: < 100ns
 }
 
 // phi^2 + 1/phi^2 = 3 | TRINITY

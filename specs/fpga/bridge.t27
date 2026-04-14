@@ -24,6 +24,13 @@ module FPGA_Bridge;
     const MAX_PACKET_SIZE : usize = 128;       // Max bytes per packet
     const PACKET_TIMEOUT : u32 = 10_000;    // 10ms timeout (cycles)
 
+    // MAC operation codes (mirrors fpga::mac::ZeroDSP_MAC)
+    const OP_MAC_MUL : u8 = 0;
+    const OP_MAC_MAC : u8 = 1;
+    const OP_MAC_MACC : u8 = 2;
+    const OP_MAC_DOT : u8 = 3;
+    const NUM_MAC_UNITS : usize = 8;
+
     // ═══════════════════════════════════════════════════════════════
     // 2. Bridge State
     // ═════════════════════════════════════════════════════════════════════════
@@ -233,18 +240,68 @@ module FPGA_Bridge;
 
     // bridge_handle_mac_op() → void
     // Handle MAC operation packet
+    // Packet format: [OP][UNIT][A_L][A_H][B_L][B_H]
+    // OP: MAC opcode (0=mul, 1=mac, 2=macc, 3=dot)
+    // UNIT: MAC unit index (0..7)
+    // A_L,A_H: operand A (low/high byte of 16-bit value)
+    // B_L,B_H: operand B (low/high byte of 16-bit value)
     fn bridge_handle_mac_op() -> void {
         if (!bridge.mac_enabled) {
             return;
         }
 
-        // Packet format: [OP][UNIT][A_L][A_H][B_L][B_H][ACC_L]...]
-        const op = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
-        const unit = buffer_read(rx_buffer, RX_BUFFER_SIZE, op);
-        bridge.rx_tail = unit;
+        if (bridge_rx_available() < 6) {
+            return;
+        }
 
-        // TODO: Parse operands and call MAC operation
-        // This is a placeholder for MAC command handling
+        const op_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = op_byte;
+
+        const unit_byte = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = unit_byte;
+
+        const a_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = a_l;
+
+        const a_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = a_h;
+
+        const b_l = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = b_l;
+
+        const b_h = buffer_read(rx_buffer, RX_BUFFER_SIZE, bridge.rx_tail);
+        bridge.rx_tail = b_h;
+
+        // Validate unit index
+        if (unit_byte >= NUM_MAC_UNITS) {
+            return;
+        }
+
+        // Reconstruct 16-bit operands
+        const operand_a = (a_h as u16) << 8 | a_l as u16;
+        const operand_b = (b_h as u16) << 8 | b_l as u16;
+
+        // Dispatch MAC operation
+        if (op_byte == OP_MAC_MUL) {
+            mac_multiply(operand_a, operand_b, unit_byte);
+        } else if (op_byte == OP_MAC_MAC) {
+            mac_cycle(operand_a, operand_b, unit_byte, mac_get_accumulator(unit_byte));
+        } else if (op_byte == OP_MAC_DOT) {
+            mac_dot_product([operand_a], [operand_b], 1, unit_byte);
+        }
+
+        // Send result back via TX
+        if (bridge_tx_space() >= 4) {
+            const acc = mac_get_accumulator(unit_byte) as u32;
+            tx_buffer[bridge.tx_head] = (acc & 0xFF) as u8;
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+            tx_buffer[bridge.tx_head] = ((acc >> 8) & 0xFF) as u8;
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+            tx_buffer[bridge.tx_head] = ((acc >> 16) & 0xFF) as u8;
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+            tx_buffer[bridge.tx_head] = ((acc >> 24) & 0xFF) as u8;
+            bridge.tx_head = (bridge.tx_head + 1) % TX_BUFFER_SIZE;
+        }
     }
 
     // bridge_handle_status() → void
@@ -351,6 +408,35 @@ module FPGA_Bridge;
     test bridge_config_disables_spi
         given bridge.handle_config(0x00)
         then bridge.spi_enabled == false
+
+    test bridge_mac_opcodes_defined
+        given mul_op = OP_MAC_MUL
+        and   mac_op = OP_MAC_MAC
+        and   macc_op = OP_MAC_MACC
+        and   dot_op = OP_MAC_DOT
+        then mul_op == 0 and mac_op == 1 and macc_op == 2 and dot_op == 3
+
+    test bridge_mac_unit_count
+        given units = NUM_MAC_UNITS
+        then units == 8
+
+    test bridge_mac_handler_disabled_when_mac_off
+        given bridge.mac_enabled = false
+        and   bridge_handle_mac_op()
+        then bridge.state == BRIDGE_IDLE
+
+    test bridge_mac_handler_rejects_insufficient_data
+        given bridge.mac_enabled = true
+        and   bridge_rx_available() == 3
+        and   bridge_handle_mac_op()
+        then bridge.state == BRIDGE_IDLE
+
+    test bridge_mac_handler_rejects_invalid_unit
+        given bridge.mac_enabled = true
+        and   bridge_rx_available() >= 6
+        and   rx_buffer[bridge.rx_tail + 1] == 8
+        and   bridge_handle_mac_op()
+        then mac_get_accumulator(0) == 0
 
     invariant bridge_states_valid
         given state = bridge.state

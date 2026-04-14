@@ -53,10 +53,7 @@ module CTS (
         input [31:0] tr;
         input [31:0] input_mhz;
         input [31:0] output_mhz;
-        begin
-            reg [31:0] m = 1;
-            reg [31:0] d = 1;
-        end
+        // TODO: implement
     endfunction
 
     // function: pll_period_ps
@@ -155,9 +152,7 @@ module CTS (
     // function: validate_pll
     function [31:0] validate_pll; // -> u32
         input [31:0] pll;
-        begin
-            reg [31:0] errors = 0;
-        end
+        // TODO: implement
     endfunction
     // -------------------------------------------------------
     // Test assertions (from test blocks)
@@ -245,6 +240,22 @@ module CTS (
     // -------------------------------------------------------
     // invariant: bufg_delay_positive
     // invariant: skew_non_negative
+
+    // -------------------------------------------------------
+    // Benchmark blocks (simulation only)
+    // -------------------------------------------------------
+    initial begin : buffer_estimation_latency_bench // synthesis translate_off
+        $display("[BENCH] buffer_estimation_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] buffer_estimation_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] buffer_estimation_latency : DONE");
+    end // synthesis translate_on
+    initial begin : tree_level_estimation_latency_bench // synthesis translate_off
+        $display("[BENCH] tree_level_estimation_latency : starting");
+        integer _bench_cycles = 0;
+        $display("[BENCH] tree_level_estimation_latency : %%0d cycles", _bench_cycles);
+        $display("[BENCH] tree_level_estimation_latency : DONE");
+    end // synthesis translate_on
 
 endmodule
 
