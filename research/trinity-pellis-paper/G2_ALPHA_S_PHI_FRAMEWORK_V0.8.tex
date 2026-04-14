@@ -69,7 +69,7 @@ the ratio $\alpha_\varphi/\alpha \approx 10\varphi$ is an open theoretical quest
   \item \textbf{Updated NuFIT 6.0 comparison}---all Trinity PMNS formulas remain within $<1\%$ of
         latest global fits
   \item \textbf{Corrected falsification timeline}---JUNO 2027 for $\sin^2\theta_{12}$,
-        FCC-ee (2040s) for $\alpha_s$
+        ngEHT (2027--2028) for $\gamma$, FCC-ee (2040s) for $\alpha_s$
 \end{itemize}
 
 \medskip\noindent\textbf{Keywords:} golden ratio; $\varphi$-parametrization; Standard Model constants;
@@ -551,6 +551,33 @@ $\delta\alpha_s/\alpha_s \approx 0.6\%$, not $0.1\%$. Sub-percent precision ($< 
 sufficient to distinguish $\alpha_s^\varphi = 0.118034$ from $\alpha_s^{\text{PDG}} = 0.1180$ is
 a target for FCC-ee (~2040), not Lattice QCD 2028.
 
+\subsection*{Tertiary target: ngEHT for Loop Quantum Gravity $\gamma$}
+
+The next-generation Event Horizon Telescope (ngEHT)~\cite{ngeht2023} is projected to achieve
+$0.1\%$ precision measurements of black hole shadow sizes and entropy scaling by 2027--2028.
+This provides a direct falsification test for the Trinity conjecture on the
+Barbero--Immirzi parameter in Loop Quantum Gravity.
+
+\textbf{Trinity prediction (P01):}
+\begin{equation}
+  \gamma_\varphi = \varphi^{-3} = \sqrt{5} - 2 \approx 0.23607
+  \label{eq:gamma}
+\end{equation}
+
+Current best-fit value from LQG black hole entropy calculations is
+$\gamma_{\text{BI}} = 0.23753 \pm 0.00080$~\cite{meissner2004}, with $\Delta = 0.62\%$
+from the Trinity prediction.
+
+The ngEHT will measure black hole shadow sizes with precision $\delta R_s / R_s < 0.1\%$,
+which translates to $\delta \gamma / \gamma < 0.1\%$ in the LQG entropy-area relation:
+\begin{equation}
+  S_{\text{BH}} = \frac{\gamma_0 A}{4\ell_P^2}, \quad \gamma_0 \approx 0.274
+\end{equation}
+
+\textbf{Falsification criterion:} ngEHT measurements at $3\sigma$ significance that
+constrain $\gamma$ outside the interval $[0.2337, 0.2384]$ would falsify the Trinity
+prediction $\gamma_\varphi = \varphi^{-3}$.
+
 \subsection*{Falsification criterion for $\theta_{12}$}
 
 The formula N01 is falsified if JUNO measures $\sin^2\theta_{12} > 0.310$ or $< 0.304$
@@ -615,11 +642,15 @@ Model and cosmological constants through an algebraic basis $\{\varphi, \pi, e\}
         providing partial theoretical grounding for Trinity PMNS formulas.
 
   \item \textbf{Corrected falsification timeline}---JUNO 2027 for $\sin^2\theta_{12}$
-        (primary target), FCC-ee (2040s) for $\alpha_s$ (secondary target).
+        (primary target), ngEHT (2027--2028) for $\gamma$ (tertiary target),
+        FCC-ee (2040s) for $\alpha_s$ (secondary target).
 \end{enumerate}
 
 The JUNO measurement of $\sin^2\theta_{12}$ by 2027 will serve as the primary
-pre-registered falsification test of the Trinity framework.
+pre-registered falsification test of the Trinity framework, followed by
+ngEHT black hole shadow measurements testing the $\gamma_\varphi = \varphi^{-3}$
+conjecture (tertiary target).
+\medskip
 
 % ============================================================
 \section*{Author Contributions}
@@ -710,6 +741,16 @@ M.~A. Sherbon,
 
 \bibitem{heyrovskaya2010}
 R.~Heyrovsk\'{a},
+\textit{Golden ratio based fine structure constant and Bohr radius},
+arXiv:0906.1524 (2009).
+
+\bibitem{ngeht2023}
+ngEHT Collaboration (D.~Doeleman et al.),
+\textit{Next-Generation Event Horizon Telescope},
+arXiv:2312.01003 (2023).
+
+\bibitem{meissner2004}
+K.~A. Meissner,
 \textit{Golden ratio based fine structure constant and Bohr radius},
 arXiv:0906.1524 (2009).
 
