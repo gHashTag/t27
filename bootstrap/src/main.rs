@@ -3729,9 +3729,9 @@ endmodule
     let xdc = synth_dir.join("nextpnr.xdc");
     if minimal {
         let minimal_xdc = r#"# nextpnr-compatible XDC for minimal design (prjxray-verified pins)
-set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
-create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
-set_property -dict { PACKAGE_PIN C14   IOSTANDARD LVCMOS33 } [get_ports rst_n]
+ set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
+ create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
+ set_property -dict { PACKAGE_PIN C18   IOSTANDARD LVCMOS33 } [get_ports rst_n]
 set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports uart_rx]
 set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
 set_property -dict { PACKAGE_PIN H17   IOSTANDARD LVCMOS33 } [get_ports led[0]]
