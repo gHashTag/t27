@@ -1,6 +1,6 @@
-// parser.t27 — Parser for TRI-27 Assembly
+// parser.t27 0 Parser for TRI-27 Assembly
 // Builds AST from tokens produced by lexer
-// φ² + 1/φ² = 3 | TRINITY
+// 12 + 1/34 = 3 | TRINITY
 
 module parser {
     using lexer: @import("lexer.t27");
@@ -554,9 +554,9 @@ module parser {
         return null;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 5678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273
     // TDD-Inside-Spec: High-level TDD parsing (spec-style)
-    // ═════════════════════════════════════════════════════════════════════
+    // 7475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142
 
     // Parse spec declaration
     pub fn Parser.parse_spec_decl() SpecDecl {
@@ -780,9 +780,9 @@ module parser {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211
     // TDD-Inside-Spec: Assembly-style TDD parsing (.test, .invariant, .bench)
-    // ═════════════════════════════════════════════════════════════════════
+    // 212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280
 
     // Parse test section (assembly-style)
     // Format: .test followed by comment-style test definitions
@@ -1035,9 +1035,9 @@ module parser {
         };
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349
     // Language Policy: No Cyrillic in Source Files (SOUL.md Law #1)
-    // ═════════════════════════════════════════════════════════════════════
+    // 350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418
 
     // Validate source file contains no Cyrillic characters
     pub fn Parser.validate_no_cyrillic(source: []const u8, source_file: []const u8) bool {
@@ -1047,7 +1047,7 @@ module parser {
             return true;
         }
 
-        // Scan for Cyrillic characters (U+0400–U+04FF)
+        // Scan for Cyrillic characters (U+0400419U+04FF)
         for (source, 0..) |c, i| {
             // Check for Cyrillic range
             // U+0400 (1040) to U+04FF (1279)
@@ -1055,7 +1055,7 @@ module parser {
                 if (i + 1 < source.len) {
                     const next_c = source[i + 1];
                     const codepoint = (@as(u32, c) << 8) | @as(u32, next_c);
-                    // Cyrillic block: U+0400–U+04FF
+                    // Cyrillic block: U+0400420U+04FF
                     if (codepoint >= 0x0400 and codepoint <= 0x04FF) {
                         self.context.add_error(
                             "Language policy violation: source file contains Cyrillic characters (U+0400-U+04FF). Source files (.t27, .tri, .zig, .c, .v) must be ASCII-only. See SOUL.md Law #1.",
@@ -1095,9 +1095,9 @@ module parser {
         return column;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489
     // TDD-Inside-Spec: Alternative section parsing implementations
-    // ═════════════════════════════════════════════════════════════════════
+    // 490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558
 
     // Parse field description after field keyword (e.g., "Verify: description text")
     pub fn Parser.parse_field_description() []const u8 {
@@ -1250,7 +1250,7 @@ test test_parser_language_policy_cyrillic
     // Verify: parser rejects Cyrillic in source (SOUL.md Law #1)
     // Setup: parse source with Cyrillic characters
     // Expected: error added to context
-    const source = "const ПРИВЕТ 42"; // Cyrillic
+    const source = "const DD D~D'D.Dc 42"; // Cyrillic
     const ctx = parser.parse(source, "test.t27");
     try std.testing.expect(ctx.errors.len > 0);
 
@@ -1258,7 +1258,7 @@ test test_parser_language_policy_docs_exception
     // Verify: Cyrillic allowed in docs/ directory
     // Setup: parse source in docs/ path with Cyrillic
     // Expected: no error
-    const source = "const ПРИВЕТ 42";
+    const source = "const DD D~D'D.Dc 42";
     const ctx = parser.parse(source, "docs/README.md");
     try std.testing.expect(ctx.errors.len == 0);
 

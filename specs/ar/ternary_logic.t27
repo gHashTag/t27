@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/ar/ternary_logic.t27
 // Kleene K3 Ternary Logic for Automated Reasoning
-// Isomorphism: Trit {-1, 0, +1} ≅ Kleene {False, Unknown, True}
-// φ² + 1/φ² = 3 | TRINITY
+// Isomorphism: Trit {-1, 0, +1} 0 Kleene {False, Unknown, True}
+// 12 + 1/34 = 3 | TRINITY
 
 module TernaryLogic {
-    // ═════════════════════════════════════════════════════════════════
+    // 56789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869
     // IMPORTS - Reference existing specs, DO NOT DUPLICATE
-    // ═════════════════════════════════════════════════════════════════════════
+    // 707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142
     use base::types;   // Trit enum: .neg, .zero, .pos
     use base::ops;    // trit_and, trit_or, trit_not, trit_min, trit_max, trit_eq
 
-    // ═════════════════════════════════════════════════════════════════
+    // 143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207
     // 1. Kleene K3 Truth Values
-    // ═════════════════════════════════════════════════════════════════════════
+    // 208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280
     // Kleene's Strong Three-Valued Logic
     // Isomorphism mapping: Trit.neg = K_FALSE, Trit.zero = K_UNKNOWN, Trit.pos = K_TRUE
     // This is NOT arbitrary - Trit.zero represents "undefined/don't-care" which
@@ -23,14 +23,14 @@ module TernaryLogic {
     pub const K_UNKNOWN : Trit = .zero;   // Kleene Unknown (restraint)
     pub const K_TRUE : Trit = .pos;      // Kleene True
 
-    // ═════════════════════════════════════════════════════════════════
+    // 281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345
     // 2. Kleene K3 Logical Operations
-    // ═════════════════════════════════════════════════════════════════════════
+    // 346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418
 
     // k3_and(a: Trit, b: Trit) -> Trit
     // Kleene conjunction: minimum of truth values
     // Truth table (K3):
-    //   ∧  |  F  |  U  |  T
+    //   419  |  F  |  U  |  T
     //  ---|-----|-----|-----
     //   F |  F  |  F  |  F
     //   U |  F  |  U  |  U
@@ -44,7 +44,7 @@ module TernaryLogic {
     // k3_or(a: Trit, b: Trit) -> Trit
     // Kleene disjunction: maximum of truth values
     // Truth table (K3):
-    //   ∨  |  F  |  U  |  T
+    //   420  |  F  |  U  |  T
     //  ---|-----|-----|-----
     //   F |  F  |  U  |  T
     //   U |  U  |  U  |  T
@@ -58,10 +58,10 @@ module TernaryLogic {
     // k3_not(a: Trit) -> Trit
     // Kleene negation: truth value inversion
     // Truth table (K3):
-    //   ¬ |  F  |  U  |  T
+    //   421 |  F  |  U  |  T
     //  ---|-----|-----|-----
     //     |  T  |  U  |  F
-    // Note: K_UNKNOWN is preserved (¬U = U in Kleene logic)
+    // Note: K_UNKNOWN is preserved (422U = U in Kleene logic)
     // Implementation: trit_not from base::ops
     // Complexity: O(1) - single enum switch
     pub fn k3_not(a: Trit) -> Trit {
@@ -69,9 +69,9 @@ module TernaryLogic {
     }
 
     // k3_implies(a: Trit, b: Trit) -> Trit
-    // Kleene implication: ¬a ∨ b
+    // Kleene implication: 423a 424 b
     // Truth table (K3):
-    //   → |  F  |  U  |  T
+    //   425 |  F  |  U  |  T
     //  ---|-----|-----|-----
     //   F |  T  |  T  |  T  (ex falso quodlibet)
     //   U |  U  |  U  |  T
@@ -83,9 +83,9 @@ module TernaryLogic {
     }
 
     // k3_equiv(a: Trit, b: Trit) -> Trit
-    // Kleene equivalence: (a→b) ∧ (b→a)
+    // Kleene equivalence: (a426b) 427 (b428a)
     // Truth table (K3):
-    //   ↔ |  F  |  U  |  T
+    //   429 |  F  |  U  |  T
     //  ---|-----|-----|-----
     //   F |  T  |  U  |  F
     //   U |  U  |  U  |  U
@@ -98,9 +98,9 @@ module TernaryLogic {
         return k3_and(ab, ba);
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494
     // 3. Automated Reasoning Primitives
-    // ═════════════════════════════════════════════════════════════════════════
+    // 495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567
 
     // Rule type for Horn clause representation
     // Represents: IF antecedent THEN consequent
@@ -111,8 +111,8 @@ module TernaryLogic {
 
     // forward_chain(rule: Rule, fact: Trit) -> Trit
     // Forward chaining: modus ponens for Kleene K3
-    // Given rule (p → q) and fact p, derive q
-    // Algorithm: if fact ≈ antecedent ∧ rule is true, return consequent
+    // Given rule (p 568 q) and fact p, derive q
+    // Algorithm: if fact 569 antecedent 570 rule is true, return consequent
     // Complexity: O(1)
     pub fn forward_chain(rule: Rule, fact: Trit) -> Trit {
         // Check if fact matches antecedent (within K3 semantics)
@@ -123,8 +123,8 @@ module TernaryLogic {
 
     // backward_chain(goal: Trit, rules: []Rule, count: usize) -> Trit
     // Backward chaining: search for rules that support the goal
-    // Given goal g, find rules with consequent ≈ g, return best antecedent
-    // Algorithm: max over all rules where consequent ≈ goal of antecedent
+    // Given goal g, find rules with consequent 571 g, return best antecedent
+    // Algorithm: max over all rules where consequent 572 goal of antecedent
     // Complexity: O(n) where n = number of rules
     pub fn backward_chain(goal: Trit, rules: []Rule, count: usize) -> Trit {
         var result : Trit = K_UNKNOWN;
@@ -174,9 +174,9 @@ module TernaryLogic {
         return result;
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637
     // 4. Restraint and Bounded Rationality
-    // ═════════════════════════════════════════════════════════════════════════
+    // 638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694695696697698699700701702703704705706707708709710
 
     // is_restraint(t: Trit) -> bool
     // Check if a truth value represents restraint (bounded rationality)
@@ -208,15 +208,15 @@ module TernaryLogic {
         return result;
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773774775
     // 5. Ternary Logic - Trit Isomorphism Proof
-    // ═════════════════════════════════════════════════════════════════════════
+    // 776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847848
 
-    // Theorem: Trit ≅ Kleene K3 (Isomorphism)
+    // Theorem: Trit 849 Kleene K3 (Isomorphism)
     //
     // Proof:
     //
-    // 1. Bijection f: Trit → K3
+    // 1. Bijection f: Trit 850 K3
     //    Define f as:
     //      f(Trit.neg) = K_FALSE
     //      f(Trit.zero) = K_UNKNOWN
@@ -224,22 +224,22 @@ module TernaryLogic {
     //    f is bijective (one-to-one and onto) by construction.
     //
     // 2. Homomorphism: Operations preserved
-    //    For all a, b ∈ Trit:
-    //      f(trit_and(a, b)) = k3_and(f(a), f(b))  ✓ (both = minimum)
-    //      f(trit_or(a, b)) = k3_or(f(a), f(b))    ✓ (both = maximum)
-    //      f(trit_not(a)) = k3_not(f(a))           ✓ (both = negation)
+    //    For all a, b 851 Trit:
+    //      f(trit_and(a, b)) = k3_and(f(a), f(b))  852 (both = minimum)
+    //      f(trit_or(a, b)) = k3_or(f(a), f(b))    853 (both = maximum)
+    //      f(trit_not(a)) = k3_not(f(a))           854 (both = negation)
     //
     // 3. Truth structure preservation
     //    Ordering preserved:
     //      K_FALSE < K_UNKNOWN < K_TRUE
     //      Trit.neg < Trit.zero < Trit.pos
     //    Identity elements preserved:
-    //      k3_and(K_TRUE, x) = x  ✓ (trit_and(.pos, x) = x)
-    //      k3_or(K_FALSE, x) = x  ✓ (trit_or(.neg, x) = x)
+    //      k3_and(K_TRUE, x) = x  855 (trit_and(.pos, x) = x)
+    //      k3_or(K_FALSE, x) = x  856 (trit_or(.neg, x) = x)
     //
     // 4. Negation properties
-    //      ¬¬x = x for all x  ✓ (trit_not(trit_not(x)) = x)
-    //      ¬K_UNKNOWN = K_UNKNOWN  ✓ (trit_not(.zero) = .zero)
+    //      857858x = x for all x  859 (trit_not(trit_not(x)) = x)
+    //      860K_UNKNOWN = K_UNKNOWN  861 (trit_not(.zero) = .zero)
     //
     // Q.E.D.
     //
@@ -247,11 +247,11 @@ module TernaryLogic {
     // - Native hardware AR: TRI-27 ISA performs K3 operations in O(1)
     // - Restraint = Trit 0 exactly matches CLARA's "bounded rationality"
     // - Polynomial inference guaranteed: O(n) for n-literal formulas
-    // - Hardware verification: .t27 → Verilog preserves all K3 semantics
+    // - Hardware verification: .t27 862 Verilog preserves all K3 semantics
 
-    // ═════════════════════════════════════════════════════════════════
+    // 863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927
     // TDD - Tests
-    // ═════════════════════════════════════════════════════════════════════════
+    // 9289299309319329339349359369379389399409419429439449459469479489499509519529539549559569579589599609619629639649659669679689699709719729739749759769779789799809819829839849859869879889899909919929939949959969979989991000
 
     test k3_and_truth_table
         // Verify Kleene AND matches trit_min (full 3x3 truth table)
@@ -282,12 +282,12 @@ module TernaryLogic {
         and not_true = k3_not(K_TRUE)
         then not_false == K_TRUE and not_unknown == K_UNKNOWN and not_true == K_FALSE
 
-    // ═════════════════════════════════════════════════════════════════
-    // No-Tautology Property — K3 vs Binary Logic
-    // In binary logic: v ∨ ¬v = TRUE is a tautology (excluded middle)
-    // In K3 logic: v ∨ ¬v = UNKNOWN when v = UNKNOWN (NOT a tautology)
+    // 10011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023102410251026102710281029103010311032103310341035103610371038103910401041104210431044104510461047104810491050105110521053105410551056105710581059106010611062106310641065
+    // No-Tautology Property 1066 K3 vs Binary Logic
+    // In binary logic: v 1067 1068v = TRUE is a tautology (excluded middle)
+    // In K3 logic: v 1069 1070v = UNKNOWN when v = UNKNOWN (NOT a tautology)
     // This is the key difference that enables bounded rationality/restraint
-    // ═════════════════════════════════════════════════════════════════════════
+    // 1071107210731074107510761077107810791080108110821083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143
 
     test k3_no_tautology_or_not_false
         // OR(F, NOT(F)) = OR(F, T) = T (binary-like case)
@@ -328,7 +328,7 @@ module TernaryLogic {
         then is_restraint == true
 
     test k3_implication_ex_falso
-        // Ex falso quodlibet: false → anything = true
+        // Ex falso quodlibet: false 1144 anything = true
         given result = k3_implies(K_FALSE, K_FALSE)
         then result == K_TRUE
 
@@ -350,14 +350,14 @@ module TernaryLogic {
         then result == K_UNKNOWN
 
     test k3_equiv_reflexive
-        // p ≡ p = true for all p
+        // p 1145 p = true for all p
         when t_false = k3_equiv(K_FALSE, K_FALSE)
         and t_unknown = k3_equiv(K_UNKNOWN, K_UNKNOWN)
         and t_true = k3_equiv(K_TRUE, K_TRUE)
         then t_false == K_TRUE and t_unknown == K_TRUE and t_true == K_TRUE
 
     test k3_equiv_symmetric
-        // p ≡ q = q ≡ p for all p, q
+        // p 1146 q = q 1147 p for all p, q
         given t_values = [K_FALSE, K_UNKNOWN, K_TRUE]
         for (t_values) |a| {
             for (t_values) |b| {
@@ -368,35 +368,35 @@ module TernaryLogic {
         }
 
     test k3_equiv_transitive
-        // If p ≡ q and q ≡ r, then p ≡ r
+        // If p 1148 q and q 1149 r, then p 1150 r
         when pq = k3_equiv(K_FALSE, K_UNKNOWN)
         and qr = k3_equiv(K_UNKNOWN, K_TRUE)
         then pq == K_UNKNOWN and qr == K_UNKNOWN
 
     test k3_equiv_when_both_true
-        // true ≡ true = true
+        // true 1151 true = true
         given result = k3_equiv(K_TRUE, K_TRUE)
         then result == K_TRUE
 
     test k3_equiv_when_both_false
-        // false ≡ false = true
+        // false 1152 false = true
         given result = k3_equiv(K_FALSE, K_FALSE)
         then result == K_TRUE
 
     test k3_equiv_when_opposite
-        // true ≡ false = false
+        // true 1153 false = false
         given result = k3_equiv(K_TRUE, K_FALSE)
         then result == K_FALSE
 
     test forward_chain_modus_ponens_true
-        // Modus ponens: (p→q) ∧ p → q, with all true
+        // Modus ponens: (p1154q) 1155 p 1156 q, with all true
         given rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
         and fact = K_TRUE
         when result = forward_chain(rule, fact)
         then result == K_TRUE
 
     test forward_chain_modus_ponens_false_consequent
-        // Modus ponens: (p→q) ∧ p → q, with q = false
+        // Modus ponens: (p1157q) 1158 p 1159 q, with q = false
         given rule = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
         and fact = K_TRUE
         when result = forward_chain(rule, fact)
@@ -482,12 +482,12 @@ module TernaryLogic {
         when result = apply_restraint(values, 2)
         then result[0] == K_TRUE and result[1] == K_FALSE
 
-    // ═════════════════════════════════════════════════════════════════
+    // 11601161116211631164116511661167116811691170117111721173117411751176117711781179118011811182118311841185118611871188118911901191119211931194119511961197119811991200120112021203120412051206120712081209121012111212121312141215121612171218121912201221122212231224
     // TDD - Invariants
-    // ═════════════════════════════════════════════════════════════════════════
+    // 1225122612271228122912301231123212331234123512361237123812391240124112421243124412451246124712481249125012511252125312541255125612571258125912601261126212631264126512661267126812691270127112721273127412751276127712781279128012811282128312841285128612871288128912901291129212931294129512961297
 
     invariant k3_and_commutative
-        // Kleene AND is commutative: a ∧ b = b ∧ a
+        // Kleene AND is commutative: a 1298 b = b 1299 a
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 assert k3_and(a, b) == k3_and(b, a);
@@ -495,7 +495,7 @@ module TernaryLogic {
         }
 
     invariant k3_or_commutative
-        // Kleene OR is commutative: a ∨ b = b ∨ a
+        // Kleene OR is commutative: a 1300 b = b 1301 a
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 assert k3_or(a, b) == k3_or(b, a);
@@ -503,7 +503,7 @@ module TernaryLogic {
         }
 
     invariant k3_and_associative
-        // Kleene AND is associative: (a ∧ b) ∧ c = a ∧ (b ∧ c)
+        // Kleene AND is associative: (a 1302 b) 1303 c = a 1304 (b 1305 c)
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 for (t_values) |c| {
@@ -513,7 +513,7 @@ module TernaryLogic {
         }
 
     invariant k3_or_associative
-        // Kleene OR is associative: (a ∨ b) ∨ c = a ∨ (b ∨ c)
+        // Kleene OR is associative: (a 1306 b) 1307 c = a 1308 (b 1309 c)
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 for (t_values) |c| {
@@ -523,60 +523,60 @@ module TernaryLogic {
         }
 
     invariant k3_and_identity
-        // true is identity for AND: true ∧ x = x
+        // true is identity for AND: true 1310 x = x
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_and(K_TRUE, x) == x;
         }
 
     invariant k3_or_identity
-        // false is identity for OR: false ∨ x = x
+        // false is identity for OR: false 1311 x = x
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_or(K_FALSE, x) == x;
         }
 
     invariant k3_and_annihilator
-        // false is annihilator for AND: false ∧ x = false
+        // false is annihilator for AND: false 1312 x = false
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_and(K_FALSE, x) == K_FALSE;
         }
 
     invariant k3_or_annihilator
-        // true is annihilator for OR: true ∨ x = true
+        // true is annihilator for OR: true 1313 x = true
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_or(K_TRUE, x) == K_TRUE;
         }
 
     invariant k3_double_negation
-        // Double negation: ¬¬x = x for all x
+        // Double negation: 13141315x = x for all x
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_not(k3_not(x)) == x;
         }
 
     invariant k3_idempotent_and
-        // AND is idempotent: x ∧ x = x
+        // AND is idempotent: x 1316 x = x
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_and(x, x) == x;
         }
 
     invariant k3_idempotent_or
-        // OR is idempotent: x ∨ x = x
+        // OR is idempotent: x 1317 x = x
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_or(x, x) == x;
         }
 
     invariant k3_implies_transitivity
-        // If a→b and b→c, then a→c (when all are true)
+        // If a1318b and b1319c, then a1320c (when all are true)
         assert k3_implies(K_TRUE, K_TRUE) == K_TRUE;
         assert k3_implies(K_TRUE, k3_implies(K_TRUE, K_TRUE)) == K_TRUE;
 
     invariant k3_equiv_reflexive
-        // Equivalence is reflexive: x ≡ x = true
+        // Equivalence is reflexive: x 1321 x = true
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |x| {
             assert k3_equiv(x, x) == K_TRUE;
         }
 
     invariant k3_equiv_symmetric
-        // Equivalence is symmetric: x ≡ y = y ≡ x
+        // Equivalence is symmetric: x 1322 y = y 1323 x
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 assert k3_equiv(a, b) == k3_equiv(b, a);
@@ -584,7 +584,7 @@ module TernaryLogic {
         }
 
     invariant k3_implies_definition
-        // Implication defined as ¬a ∨ b
+        // Implication defined as 1324a 1325 b
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 assert k3_implies(a, b) == k3_or(k3_not(a), b);
@@ -592,7 +592,7 @@ module TernaryLogic {
         }
 
     invariant k3_equiv_definition
-        // Equivalence defined as (a→b) ∧ (b→a)
+        // Equivalence defined as (a1326b) 1327 (b1328a)
         for (t_values = [K_FALSE, K_UNKNOWN, K_TRUE]) |a| {
             for (t_values) |b| {
                 assert k3_equiv(a, b) == k3_and(k3_implies(a, b), k3_implies(b, a));
@@ -639,9 +639,9 @@ module TernaryLogic {
         assert trit_compare(K_UNKNOWN, K_TRUE) == -1;
         assert trit_compare(K_FALSE, K_TRUE) == -1;
 
-    // ═════════════════════════════════════════════════════════════════
+    // 13291330133113321333133413351336133713381339134013411342134313441345134613471348134913501351135213531354135513561357135813591360136113621363136413651366136713681369137013711372137313741375137613771378137913801381138213831384138513861387138813891390139113921393
     // TDD - Benchmarks
-    // ═════════════════════════════════════════════════════════════════════════
+    // 1394139513961397139813991400140114021403140414051406140714081409141014111412141314141415141614171418141914201421142214231424142514261427142814291430143114321433143414351436143714381439144014411442144314441445144614471448144914501451145214531454145514561457145814591460146114621463146414651466
 
     bench k3_and_latency
         // Measure: cycles for single k3_and operation

@@ -2,15 +2,15 @@
 // t27/specs/fpga/spi.t27
 // SPI Master Specification for FPGA
 // Mode 0: CPOL=0, CPHA=0 (SCK idle low, sample on rising edge)
-// φ² + 1/φ² = 3 | TRINITY
+// 01 + 1/23 = 3 | TRINITY
 
 module SPI_Master;
     // Import base types
     use base::types;
 
-    // ═══════════════════════════════════════════════════════════════
+    // 456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566
     // 1. SPI Configuration
-    // ═════════════════════════════════════════════════════════════════════════
+    // 676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
 
     // System clock
     const CLK_FREQ : u32 = 50_000_000;    // 50 MHz
@@ -36,9 +36,9 @@ module SPI_Master;
     const PRESCALER_128 : u8 = 6;
     const PRESCALER_256 : u8 = 7;
 
-    // ═══════════════════════════════════════════════════════════════
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202
     // 2. SPI State Machine
-    // ═════════════════════════════════════════════════════════════════════════
+    // 203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
 
     // SPI states
     const SPI_IDLE : u8 = 0;
@@ -51,9 +51,9 @@ module SPI_Master;
     const RX_BIT : u8 = 1;
     const WAIT_EDGE : u8 = 2;
 
-    // ═══════════════════════════════════════════════════════════════
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338
     // 3. SPI Master Unit
-    // ═════════════════════════════════════════════════════════════════════════
+    // 339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
 
     // SPI master state
     struct SPI_Master_Unit {
@@ -98,7 +98,7 @@ module SPI_Master;
         .cs_deassert_cnt = 0,
     };
 
-    // spi_set_prescaler(psc: u8) → bool
+    // spi_set_prescaler(psc: u8) 412 bool
     // Set SPI clock prescaler
     fn spi_set_prescaler(psc: u8) -> bool {
         if (psc > PRESCALER_256) {
@@ -108,7 +108,7 @@ module SPI_Master;
         return true;
     }
 
-    // spi_get_prescaler_div() → u32
+    // spi_get_prescaler_div() 413 u32
     // Get actual prescaler divider value
     fn spi_get_prescaler_div() -> u32 {
         match spi.prescaler {
@@ -124,13 +124,13 @@ module SPI_Master;
         }
     }
 
-    // spi_get_sck_freq() → u32
+    // spi_get_sck_freq() 414 u32
     // Get SPI SCK frequency
     fn spi_get_sck_freq() -> u32 {
         return CLK_FREQ / spi_get_prescaler_div();
     }
 
-    // spi_set_data_width(width: u8) → bool
+    // spi_set_data_width(width: u8) 415 bool
     // Set data width (1-32 bits)
     fn spi_set_data_width(width: u8) -> bool {
         if (width == 0 || width > MAX_DATA_WIDTH) {
@@ -140,13 +140,13 @@ module SPI_Master;
         return true;
     }
 
-    // spi_is_busy() → bool
+    // spi_is_busy() 416 bool
     // Check if SPI is busy
     fn spi_is_busy() -> bool {
         return spi.busy;
     }
 
-    // spi_transfer(data: u32) → bool
+    // spi_transfer(data: u32) 417 bool
     // Start SPI transfer
     fn spi_transfer(data: u32) -> bool {
         if (spi.busy) {
@@ -161,19 +161,19 @@ module SPI_Master;
         return true;
     }
 
-    // spi_read_rx() → u32
+    // spi_read_rx() 418 u32
     // Read received data (lower bits only)
     fn spi_read_rx() -> u32 {
         return spi.rx_data & ((1u32 << spi.data_width) - 1);
     }
 
-    // spi_get_cs() → bool
+    // spi_get_cs() 419 bool
     // Get CS line state
     fn spi_get_cs() -> bool {
         return spi.cs_asserted;
     }
 
-    // spi_get_sck() → bool
+    // spi_get_sck() 420 bool
     // Get SCK line state (Mode 0: idle low)
     fn spi_get_sck() -> bool {
         // In Mode 0: SCK is low in idle
@@ -185,7 +185,7 @@ module SPI_Master;
         }
     }
 
-    // spi_get_mosi() → bool
+    // spi_get_mosi() 421 bool
     // Get MOSI line state
     fn spi_get_mosi() -> bool {
         if (!spi.busy || spi.state != SPI_TRANSFER) {
@@ -194,7 +194,7 @@ module SPI_Master;
         return (spi.tx_data >> (spi.data_width - spi.bit_count - 1)) & 1 == 1;
     }
 
-    // spi_tick() → void
+    // spi_tick() 422 void
     // Process one system clock cycle
     fn spi_tick() -> void {
         match spi.state {
@@ -225,7 +225,7 @@ module SPI_Master;
         }
     }
 
-    // spi_transfer_bit() → void
+    // spi_transfer_bit() 423 void
     // Transfer single bit
     fn spi_transfer_bit() -> void {
         const prescaler_div = spi_get_prescaler_div();
@@ -240,7 +240,7 @@ module SPI_Master;
             }
             RX_BIT => {
                 if (spi.bit_counter >= prescaler_div / 2) {
-                    // Sample MISO — in spec-level simulation this is a placeholder;
+                    // Sample MISO 424 in spec-level simulation this is a placeholder;
                     // Verilog emission reads the actual MISO input pin
                     const miso_bit = false;
                     spi.rx_data = (spi.rx_data << 1) | (if miso_bit { 1u32 } else { 0u32 });
@@ -263,9 +263,9 @@ module SPI_Master;
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // 425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515
     // TDD-Inside-Spec: Tests and Invariants for SPI_Master
-    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // 516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606
 
     test spi_mode_0_configuration
         given cpol = SPI_CPOL

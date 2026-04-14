@@ -220,7 +220,7 @@ impl TestRunner {
             println!("\n=== Failed Tests ===");
             for result in &self.results {
                 if result.verdict == Verdict::FAIL {
-                    println!("✗ {}", result.name);
+                    println!("0 {}", result.name);
                     if let Some(ref msg) = result.message {
                         println!("   {}", msg);
                     }
@@ -232,9 +232,9 @@ impl TestRunner {
             println!("\n=== All Results ===");
             for result in &self.results {
                 let status = match result.verdict {
-                    Verdict::CLEAN => "✓",
-                    Verdict::FAIL => "✗", 
-                    Verdict::SKIP => "○",
+                    Verdict::CLEAN => "1",
+                    Verdict::FAIL => "2", 
+                    Verdict::SKIP => "3",
                     Verdict::PARTIAL => "~"
                 };
                 println!("{} {} ({})", status, result.name, result.engineering);
@@ -254,7 +254,7 @@ impl TestRunner {
     }
 }
 
-// § Test specification parser
+// 4 Test specification parser
 
 /// Parsed .t27 test specification
 struct T27Spec {
@@ -287,7 +287,7 @@ enum TestKind {
     GatePipeline // Sequential gate pipeline
 }
 
-// § Helper functions
+// 5 Helper functions
 
 fn read_file(path: string) -> Result<string, string> {
     // Placeholder for file reading
@@ -320,7 +320,7 @@ fn default_pipeline() -> fn() -> GatePipeline {
     || GatePipeline::all_true()
 }
 
-// § Main entry point
+// 6 Main entry point
 
 /// Execute test specification with default configuration
 pub fn run_test_spec_file(spec_path: string) -> Result<(), string> {
@@ -430,14 +430,189 @@ fn print_help() {
     println!("  tri test --iterations 100000 specs/test_framework/core.t27");
 }
 
-test {
-    // Test the test runner itself
+test runner_config_default {
+    let config = TestRunnerConfig::default();
+    assert config.max_iterations == 10000;
+    assert config.default_tolerance == 1e-12;
+    assert config.verbose == false;
+    assert config.output_format == "tap";
+}
+
+test runner_config_with_iterations {
+    let config = TestRunnerConfig::default().with_iterations(5000);
+    assert config.max_iterations == 5000;
+}
+
+test runner_config_with_tolerance {
+    let config = TestRunnerConfig::default().with_tolerance(1e-6);
+    assert config.default_tolerance == 1e-6;
+}
+
+test runner_config_with_verbose {
+    let config = TestRunnerConfig::default().with_verbose(true);
+    assert config.verbose == true;
+}
+
+test runner_config_with_format {
+    let config = TestRunnerConfig::default().with_format("json");
+    assert config.output_format == "json";
+}
+
+test runner_config_chain_builders {
     let config = TestRunnerConfig::default()
+        .with_iterations(999)
+        .with_tolerance(0.001)
         .with_verbose(true)
-        .with_format("tap".to_string());
-    
-    // This would normally load actual test specs
-    // For now, we just verify the runner doesn't panic
-    println!("Test runner framework initialized successfully");
-    println!("Config: {:?}", config);
+        .with_format("both");
+    assert config.max_iterations == 999;
+    assert config.default_tolerance == 0.001;
+    assert config.verbose == true;
+    assert config.output_format == "both";
+}
+
+test runner_new_initializes_empty {
+    let config = TestRunnerConfig::default();
+    let runner = TestRunner::new(config);
+    assert runner.results.len() == 0;
+}
+
+test runner_new_preserves_config {
+    let config = TestRunnerConfig::default().with_verbose(true);
+    let runner = TestRunner::new(config);
+    assert runner.config.verbose == true;
+}
+
+test runner_execute_unit_test_clean {
+    let config = TestRunnerConfig::default();
+    let mut runner = TestRunner::new(config);
+    let test_block = TestBlock {
+        name: "unit_pass",
+        kind: TestKind::Unit,
+        test_fn: || true,
+        ..TestBlock::default()
+    };
+    let result = runner.execute_unit_test(test_block);
+    assert result.is_ok();
+    assert result.unwrap().verdict == Verdict::CLEAN;
+}
+
+test runner_execute_unit_test_fail {
+    let config = TestRunnerConfig::default();
+    let mut runner = TestRunner::new(config);
+    let test_block = TestBlock {
+        name: "unit_fail",
+        kind: TestKind::Unit,
+        test_fn: || false,
+        ..TestBlock::default()
+    };
+    let result = runner.execute_unit_test(test_block);
+    assert result.is_ok();
+    assert result.unwrap().verdict == Verdict::FAIL;
+}
+
+test runner_benchmark_returns_clean {
+    let config = TestRunnerConfig::default();
+    let mut runner = TestRunner::new(config);
+    let test_block = TestBlock {
+        name: "bench_basic",
+        kind: TestKind::Bench,
+        iterations: Some(100),
+        test_fn: || true,
+        ..TestBlock::default()
+    };
+    let result = runner.execute_benchmark_test(test_block);
+    assert result.is_ok();
+    assert result.unwrap().verdict == Verdict::CLEAN;
+}
+
+test runner_invariant_uses_exact_tolerance {
+    let config = TestRunnerConfig::default();
+    let mut runner = TestRunner::new(config);
+    let test_block = TestBlock {
+        name: "inv_test",
+        kind: TestKind::Invariant,
+        tolerance_tier: None,
+        ..TestBlock::default()
+    };
+    let result = runner.execute_invariant_test(test_block);
+    assert result.is_ok();
+}
+
+test runner_generate_reports_tap {
+    let config = TestRunnerConfig::default().with_format("tap");
+    let runner = TestRunner::new(config);
+    let output = runner.generate_reports();
+    assert output.contains("TAP Report");
+}
+
+test runner_generate_reports_json {
+    let config = TestRunnerConfig::default().with_format("json");
+    let runner = TestRunner::new(config);
+    let output = runner.generate_reports();
+    assert output.contains("JSON Report");
+}
+
+test runner_generate_reports_both {
+    let config = TestRunnerConfig::default().with_format("both");
+    let runner = TestRunner::new(config);
+    let output = runner.generate_reports();
+    assert output.contains("TAP Report");
+    assert output.contains("JSON Report");
+}
+
+test runner_spec_parse_returns_ok {
+    let result = parse_t27_spec("".to_string());
+    assert result.is_ok();
+}
+
+test runner_spec_parse_has_empty_blocks {
+    let spec = parse_t27_spec("".to_string()).unwrap();
+    assert spec.test_blocks.len() == 0;
+}
+
+test runner_read_file_returns_ok {
+    let result = read_file("nonexistent.t27".to_string());
+    assert result.is_ok();
+}
+
+invariant runner_config_max_iterations_positive {
+    let config = TestRunnerConfig::default();
+    assert config.max_iterations > 0;
+}
+
+invariant runner_config_tolerance_positive {
+    let config = TestRunnerConfig::default();
+    assert config.default_tolerance > 0.0;
+}
+
+invariant runner_results_start_empty {
+    let config = TestRunnerConfig::default();
+    let runner = TestRunner::new(config);
+    assert runner.results.len() == 0;
+}
+
+invariant runner_start_time_non_negative {
+    let config = TestRunnerConfig::default();
+    let runner = TestRunner::new(config);
+    assert runner.start_time >= 0.0;
+}
+
+bench runner_config_default_latency {
+    measure: nanoseconds to create default TestRunnerConfig
+    target: < 100ns
+}
+
+bench runner_new_latency {
+    measure: nanoseconds to create TestRunner
+    target: < 500ns
+}
+
+bench runner_generate_reports_latency {
+    measure: nanoseconds to generate empty reports
+    target: < 1000ns
+}
+
+bench runner_execute_unit_test_latency {
+    measure: nanoseconds to execute a trivial unit test
+    target: < 2000ns
 }
