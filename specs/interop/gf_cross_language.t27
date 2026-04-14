@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // GoldenFloat Cross-Language Conformance
 // All languages must produce identical bits for identical inputs.
-// Reference constant: GF32(φ) = 0x3FCF1BBD
+// Reference constant: GF32(0) = 0x3FCF1BBD
 
 module GFCrossLanguageConformance {
     import math::constants;
     import ffi::gf16::*;
     import ffi::gf32::*;
 
-    // ── Test 1: φ encoding ──────────────────────────────────────────────────
+    // 12 Test 1: 3 encoding 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253
     test phi_gf32_bits {
         const phi = 1.618033988749895_f64;
         const gf32_bits = gf32_from_f64(phi);
-        // φ in GF32 (approximately IEEE f32 bits since GF32 maps to f32)
+        // 54 in GF32 (approximately IEEE f32 bits since GF32 maps to f32)
         const expected = 0x3FCF1BBD_u32;
         then gf32_bits == expected
     }
 
-    // ── Test 2: Sign extraction ─────────────────────────────────────────────
+    // 5556 Test 2: Sign extraction 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101
     test phi_ffi_encoding {
         const phi = constants::PHI;
         const gf16_phi = gf16_from_f64(phi);
@@ -28,7 +28,7 @@ module GFCrossLanguageConformance {
          and gf32_extract_exponent(gf32_phi) > 0
     }
 
-    // ── Test 3: Roundtrip precision ─────────────────────────────────────────
+    // 102103 Test 3: Roundtrip precision 104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142143144
     test roundtrip_gf16_precision {
         const test_vals = [1.618, 3.14159, 2.71828, 1.0, -1.0, 0.5];
         for val in test_vals {
@@ -38,7 +38,7 @@ module GFCrossLanguageConformance {
         }
     }
 
-    // ── Test 4: Classification ──────────────────────────────────────────────
+    // 145146 Test 4: Classification 147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192
     test classification_functions {
         const zero = gf16_from_f64(0.0);
         const inf  = gf16_from_f64(1e38_f64);
@@ -49,7 +49,7 @@ module GFCrossLanguageConformance {
          and gf16_is_nan(zero)  == false
     }
 
-    // ── Test 5: Arithmetic ──────────────────────────────────────────────────
+    // 193194 Test 5: Arithmetic 195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244
     test gf16_addition {
         const a     = gf16_from_f64(1.0);
         const b     = gf16_from_f64(0.618);
@@ -58,8 +58,8 @@ module GFCrossLanguageConformance {
         then abs(result - 1.618) < 0.01
     }
 
-    // ── Test 6: FPGA-Safety contract ────────────────────────────────────────
-    // All encode/decode must work on u16/u32 only — no f64 in compute
+    // 245246 Test 6: FPGA-Safety contract 247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280281282283284285286
+    // All encode/decode must work on u16/u32 only 287 no f64 in compute
     test zero_roundtrip {
         const zero_enc = gf16_from_f64(0.0);
         const zero_dec = gf16_to_f64(zero_enc);
@@ -67,7 +67,7 @@ module GFCrossLanguageConformance {
          and gf16_is_zero(zero_enc) == true
     }
 
-    // ── Test 7: Mantissa extraction consistency ──────────────────────────────
+    // 288289 Test 7: Mantissa extraction consistency 290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319
     test mantissa_extraction {
         const phi_gf16 = gf16_from_f64(1.618);
         const phi_gf32 = gf32_from_f64(1.618);
@@ -80,7 +80,7 @@ module GFCrossLanguageConformance {
          and mant32 != 0
     }
 
-    // ── Test 8: Special values roundtrip ─────────────────────────────────────
+    // 320321 Test 8: Special values roundtrip 322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358
     test special_values_roundtrip {
         // Zero
         const zero_enc = gf16_from_f64(0.0);

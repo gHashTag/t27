@@ -147,4 +147,4 @@ documentation: {
     final_bitstream: "build/fpga/bitstream.bit"
 }
 
-# φ² + 1/φ² = 3 | TRINITY
+# IA^2 + 1/IA^2 = 3 | TRINITY
