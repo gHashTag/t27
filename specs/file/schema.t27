@@ -293,6 +293,257 @@ module File {
         assert(FileError::DeleteError as u32 == 8);
     }
 
+<<<<<<< Updated upstream
+=======
+    test "file_info_creation" {
+        var info = FileInfo {
+            path = "test.txt",
+            fileType = FileType::File,
+            size = 1024,
+            modified = 1234567890,
+            permissions = 644,
+            isHidden = false,
+            isIgnored = false,
+        };
+        assert(info.path == "test.txt");
+        assert(info.fileType == FileType::File);
+        assert(info.size == 1024);
+    }
+
+    test "file_content_text" {
+        var content = FileContent {
+            type = ContentType::Text,
+            content = "hello world",
+            diff = null,
+            mimeType = "text/plain",
+            encoding = null,
+            lineCount = 1,
+        };
+        assert(content.content == "hello world");
+        assert(content.lineCount == 1);
+    }
+
+    test "file_content_binary" {
+        var content = FileContent {
+            type = ContentType::Binary,
+            content = "",
+            diff = null,
+            mimeType = "application/octet-stream",
+            encoding = null,
+            lineCount = null,
+        };
+        assert(content.type == ContentType::Binary);
+    }
+
+    test "file_content_image" {
+        var content = FileContent {
+            type = ContentType::Image,
+            content = "base64data",
+            diff = null,
+            mimeType = "image/png",
+            encoding = "base64",
+            lineCount = null,
+        };
+        assert(content.type == ContentType::Image);
+        assert(content.encoding == "base64");
+    }
+
+    test "file_node_file" {
+        var node = FileNode {
+            name = "test.txt",
+            path = "test.txt",
+            absolute = "/home/user/test.txt",
+            fileType = FileType::File,
+            ignored = false,
+            children = null,
+        };
+        assert(node.name == "test.txt");
+        assert(node.fileType == FileType::File);
+    }
+
+    test "file_node_directory" {
+        var children = [
+            FileNode {
+                name = "file.txt",
+                path = "dir/file.txt",
+                absolute = "/abs/dir/file.txt",
+                fileType = FileType::File,
+                ignored = false,
+                children = null,
+            },
+        ];
+        var node = FileNode {
+            name = "dir",
+            path = "dir",
+            absolute = "/abs/dir",
+            fileType = FileType::Directory,
+            ignored = false,
+            children = children,
+        };
+        assert(node.fileType == FileType::Directory);
+        assert(node.children?.len == 1);
+    }
+
+    test "file_change_added" {
+        var change = FileChange {
+            path = "new.txt",
+            status = FileStatus::Added,
+            additions = 10,
+            deletions = 0,
+        };
+        assert(change.status == FileStatus::Added);
+        assert(change.additions == 10);
+    }
+
+    test "file_change_modified" {
+        var change = FileChange {
+            path = "modified.txt",
+            status = FileStatus::Modified,
+            additions = 5,
+            deletions = 3,
+        };
+        assert(change.status == FileStatus::Modified);
+    }
+
+    test "ignore_pattern_creation" {
+        var pattern = IgnorePattern {
+            pattern = "*.log",
+            isDir = false,
+        };
+        assert(pattern.pattern == "*.log");
+        assert(!pattern.isDir);
+    }
+
+    test "ignore_pattern_directory" {
+        var pattern = IgnorePattern {
+            pattern = "node_modules",
+            isDir = true,
+        };
+        assert(pattern.isDir);
+    }
+
+    test "ignore_rules_creation" {
+        var patterns = [
+            IgnorePattern {
+                pattern = "*.log",
+                isDir = false,
+            },
+            IgnorePattern {
+                pattern = "node_modules",
+                isDir = true,
+            },
+        ];
+        var rules = IgnoreRules {
+            patterns = patterns,
+            whitelists: ["important.log"],
+        };
+        assert(rules.patterns.len == 2);
+        assert(rules.whitelists.len == 1);
+    }
+
+    test "search_match_creation" {
+        var match = SearchMatch {
+            path = "test.ts",
+            line = 42,
+            content = "const test = 'hello';",
+            start = 12,
+            end = 17,
+        };
+        assert(match.path == "test.ts");
+        assert(match.line == 42);
+    }
+
+    test "search_options_creation" {
+        var options = SearchOptions {
+            query = "test",
+            pattern = "*.ts",
+            caseSensitive = true,
+            maxResults = 100,
+            includeHidden = false,
+            fileType = FileType::File,
+        };
+        assert(options.query == "test");
+        assert(options.caseSensitive);
+    }
+
+    test "watch_event_add" {
+        var event = WatchEvent {
+            path = "new.txt",
+            eventType = WatchEventType::Add,
+            timestamp = 1234567890,
+        };
+        assert(event.eventType == WatchEventType::Add);
+    }
+
+    test "watch_event_change" {
+        var event = WatchEvent {
+            path = "changed.txt",
+            eventType = WatchEventType::Change,
+            timestamp = 1234567890,
+        };
+        assert(event.eventType == WatchEventType::Change);
+    }
+
+    test "watch_event_unlink" {
+        var event = WatchEvent {
+            path = "deleted.txt",
+            eventType = WatchEventType::Unlink,
+            timestamp = 1234567890,
+        };
+        assert(event.eventType == WatchEventType::Unlink);
+    }
+
+    test "watcher_handle_creation" {
+        var handle = WatcherHandle {
+            id = "watch-123",
+            paths: ["/home/project"],
+            active = true,
+        };
+        assert(handle.id == "watch-123");
+        assert(handle.active);
+    }
+
+    test "submatch_creation" {
+        var submatch = Submatch {
+            match = "test",
+            start = 0,
+            end = 4,
+        };
+        assert(submatch.match == "test");
+    }
+
+    test "ripgrep_match_creation" {
+        var submatches = [
+            Submatch {
+                match = "pattern",
+                start = 10,
+                end = 17,
+            },
+        ];
+        var match = RipgrepMatch {
+            path = "file.ts",
+            lineNumber = 5,
+            content = "const pattern = /test/;",
+            submatches = submatches,
+        };
+        assert(match.path == "file.ts");
+        assert(match.submatches.len == 1);
+    }
+
+    test "ripgrep_options_creation" {
+        var globs = ["*.ts", "*.js"];
+        var options = RipgrepOptions {
+            glob = globs,
+            hidden = false,
+            follow = true,
+            maxDepth = 10,
+            limit = 50,
+        };
+        assert(options.glob?.len == 2);
+        assert(options.follow);
+    }
+
+>>>>>>> Stashed changes
     test "constants_values" {
         assert(MAX_FILE_SIZE == 10485760);
         assert(MAX_SEARCH_RESULTS == 1000);
@@ -303,14 +554,31 @@ module File {
         assert(is_text(ContentType::Text));
     }
 
+<<<<<<< Updated upstream
+=======
+    test "is_text_false" {
+        assert(!is_text(ContentType::Binary));
+        assert(!is_text(ContentType::Image));
+    }
+
+>>>>>>> Stashed changes
     test "is_binary_true" {
         assert(is_binary(ContentType::Binary));
     }
 
+<<<<<<< Updated upstream
+=======
+    test "is_binary_false" {
+        assert(!is_binary(ContentType::Text));
+        assert(!is_binary(ContentType::Image));
+    }
+
+>>>>>>> Stashed changes
     test "is_image_true" {
         assert(is_image(ContentType::Image));
     }
 
+<<<<<<< Updated upstream
     test "is_hidden_true" {
         assert(is_hidden(".git"));
         assert(is_hidden("path/.hidden"));
@@ -329,5 +597,124 @@ module File {
     test "get_extension_none" {
         assert(get_extension("README") == "");
         assert(get_extension("path/to/file") == "");
+=======
+    test "is_image_false" {
+        assert(!is_image(ContentType::Text));
+        assert(!is_image(ContentType::Binary));
+    }
+
+    test "is_hidden_dot_file" {
+        assert(is_hidden(".git"));
+        assert(is_hidden(".env"));
+    }
+
+    test "is_hidden_hidden_in_path" {
+        assert(is_hidden("path/.hidden"));
+        assert(is_hidden("dir/.config"));
+    }
+
+    test "is_hidden_not_hidden" {
+        assert(!is_hidden("visible.txt"));
+        assert(!is_hidden("path/visible"));
+    }
+
+    test "is_hidden_special_paths" {
+        assert(!is_hidden("."));
+        assert(!is_hidden(".."));
+    }
+
+    test "get_extension_simple" {
+        assert(get_extension("file.txt") == "txt");
+        assert(get_extension("document.pdf") == "pdf");
+    }
+
+    test "get_extension_multiple_dots" {
+        assert(get_extension("archive.tar.gz") == "gz");
+        assert(get_extension("file.name.with.dots.md") == "md");
+    }
+
+    test "get_extension_no_extension" {
+        assert(get_extension("README") == "");
+        assert(get_extension("Makefile") == "");
+    }
+
+    test "get_extension_path_with_directory" {
+        assert(get_extension("path/to/file.txt") == "txt");
+        assert(get_extension("src/index.ts") == "ts");
+    }
+
+    test "file_info_symlink" {
+        var info = FileInfo {
+            path = "link",
+            fileType = FileType::Symlink,
+            size = 0,
+            modified = 1234567890,
+            permissions = 777,
+            isHidden = false,
+            isIgnored = false,
+        };
+        assert(info.fileType == FileType::Symlink);
+    }
+
+    test "file_info_hidden" {
+        var info = FileInfo {
+            path = ".git",
+            fileType = FileType::Directory,
+            size = 0,
+            modified = 1234567890,
+            permissions = 700,
+            isHidden = true,
+            isIgnored = false,
+        };
+        assert(info.isHidden);
+    }
+
+    test "file_info_ignored" {
+        var info = FileInfo {
+            path = "node_modules",
+            fileType = FileType::Directory,
+            size = 0,
+            modified = 1234567890,
+            permissions = 755,
+            isHidden = false,
+            isIgnored = true,
+        };
+        assert(info.isIgnored);
+    }
+
+    test "file_content_with_diff" {
+        var content = FileContent {
+            type = ContentType::Text,
+            content = "new content",
+            diff = "@@ -1 +1 @@\n-old\n+new",
+            mimeType = "text/plain",
+            encoding = null,
+            lineCount = 1,
+        };
+        assert(content.diff != null);
+    }
+
+    test "search_options_no_pattern" {
+        var options = SearchOptions {
+            query = "test",
+            pattern = null,
+            caseSensitive = false,
+            maxResults = 50,
+            includeHidden = true,
+            fileType = null,
+        };
+        assert(options.pattern == null);
+    }
+
+    test "ripgrep_options_no_glob" {
+        var options = RipgrepOptions {
+            glob = null,
+            hidden = false,
+            follow = false,
+            maxDepth = 5,
+            limit = 100,
+        };
+        assert(options.glob == null);
+>>>>>>> Stashed changes
     }
 }
