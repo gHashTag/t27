@@ -1,0 +1,1381 @@
+id,question_type,question,choices,answer
+ttm_adv_base_rate_001,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 50% — conflicting evidence makes it a toss-up
+B) 80% — the witness is 80% accurate
+C) 15% — that's the base rate for Blue taxis
+D) About 41% — base rate dominates despite witness testimony",D
+ttm_adv_base_rate_002,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 50% — the result is essentially random
+B) 99% — the test is 99% accurate
+C) 10,000 to 1 — the odds against having the disease
+D) About 1% — false positives from healthy population vastly outnumber true positives",D
+ttm_adv_base_rate_003,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 15% — that's the base rate for Blue taxis
+B) 50% — conflicting evidence makes it a toss-up
+C) About 41% — base rate dominates despite witness testimony
+D) 80% — the witness is 80% accurate",C
+ttm_adv_base_rate_004,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 50% — the result is essentially random
+B) About 1% — false positives from healthy population vastly outnumber true positives
+C) 99% — the test is 99% accurate
+D) 10,000 to 1 — the odds against having the disease",B
+ttm_adv_base_rate_005,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) About 41% — base rate dominates despite witness testimony
+B) 50% — conflicting evidence makes it a toss-up
+C) 80% — the witness is 80% accurate
+D) 15% — that's the base rate for Blue taxis",A
+ttm_adv_base_rate_006,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) About 1% — false positives from healthy population vastly outnumber true positives
+B) 50% — the result is essentially random
+C) 10,000 to 1 — the odds against having the disease
+D) 99% — the test is 99% accurate",A
+ttm_adv_base_rate_007,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 15% — that's the base rate for Blue taxis
+B) 80% — the witness is 80% accurate
+C) About 41% — base rate dominates despite witness testimony
+D) 50% — conflicting evidence makes it a toss-up",C
+ttm_adv_base_rate_008,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 10,000 to 1 — the odds against having the disease
+B) 99% — the test is 99% accurate
+C) 50% — the result is essentially random
+D) About 1% — false positives from healthy population vastly outnumber true positives",D
+ttm_adv_base_rate_009,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 50% — conflicting evidence makes it a toss-up
+B) About 41% — base rate dominates despite witness testimony
+C) 15% — that's the base rate for Blue taxis
+D) 80% — the witness is 80% accurate",B
+ttm_adv_base_rate_010,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 50% — the result is essentially random
+B) 10,000 to 1 — the odds against having the disease
+C) 99% — the test is 99% accurate
+D) About 1% — false positives from healthy population vastly outnumber true positives",D
+ttm_adv_base_rate_011,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 80% — the witness is 80% accurate
+B) About 41% — base rate dominates despite witness testimony
+C) 15% — that's the base rate for Blue taxis
+D) 50% — conflicting evidence makes it a toss-up",B
+ttm_adv_base_rate_012,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) About 1% — false positives from healthy population vastly outnumber true positives
+B) 50% — the result is essentially random
+C) 99% — the test is 99% accurate
+D) 10,000 to 1 — the odds against having the disease",A
+ttm_adv_base_rate_013,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 80% — the witness is 80% accurate
+B) 15% — that's the base rate for Blue taxis
+C) 50% — conflicting evidence makes it a toss-up
+D) About 41% — base rate dominates despite witness testimony",D
+ttm_adv_base_rate_014,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) About 1% — false positives from healthy population vastly outnumber true positives
+B) 10,000 to 1 — the odds against having the disease
+C) 99% — the test is 99% accurate
+D) 50% — the result is essentially random",A
+ttm_adv_base_rate_015,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 80% — the witness is 80% accurate
+B) 50% — conflicting evidence makes it a toss-up
+C) About 41% — base rate dominates despite witness testimony
+D) 15% — that's the base rate for Blue taxis",C
+ttm_adv_base_rate_016,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 50% — the result is essentially random
+B) 99% — the test is 99% accurate
+C) 10,000 to 1 — the odds against having the disease
+D) About 1% — false positives from healthy population vastly outnumber true positives",D
+ttm_adv_base_rate_017,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) About 41% — base rate dominates despite witness testimony
+B) 80% — the witness is 80% accurate
+C) 15% — that's the base rate for Blue taxis
+D) 50% — conflicting evidence makes it a toss-up",A
+ttm_adv_base_rate_018,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 99% — the test is 99% accurate
+B) 50% — the result is essentially random
+C) 10,000 to 1 — the odds against having the disease
+D) About 1% — false positives from healthy population vastly outnumber true positives",D
+ttm_adv_base_rate_019,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 80% — the witness is 80% accurate
+B) About 41% — base rate dominates despite witness testimony
+C) 50% — conflicting evidence makes it a toss-up
+D) 15% — that's the base rate for Blue taxis",B
+ttm_adv_base_rate_020,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 10,000 to 1 — the odds against having the disease
+B) About 1% — false positives from healthy population vastly outnumber true positives
+C) 99% — the test is 99% accurate
+D) 50% — the result is essentially random",B
+ttm_adv_base_rate_021,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) About 41% — base rate dominates despite witness testimony
+B) 50% — conflicting evidence makes it a toss-up
+C) 80% — the witness is 80% accurate
+D) 15% — that's the base rate for Blue taxis",A
+ttm_adv_base_rate_022,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 99% — the test is 99% accurate
+B) 10,000 to 1 — the odds against having the disease
+C) 50% — the result is essentially random
+D) About 1% — false positives from healthy population vastly outnumber true positives",D
+ttm_adv_base_rate_023,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) About 41% — base rate dominates despite witness testimony
+B) 50% — conflicting evidence makes it a toss-up
+C) 15% — that's the base rate for Blue taxis
+D) 80% — the witness is 80% accurate",A
+ttm_adv_base_rate_024,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 50% — the result is essentially random
+B) 10,000 to 1 — the odds against having the disease
+C) About 1% — false positives from healthy population vastly outnumber true positives
+D) 99% — the test is 99% accurate",C
+ttm_adv_base_rate_025,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) About 41% — base rate dominates despite witness testimony
+B) 50% — conflicting evidence makes it a toss-up
+C) 80% — the witness is 80% accurate
+D) 15% — that's the base rate for Blue taxis",A
+ttm_adv_base_rate_026,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 10,000 to 1 — the odds against having the disease
+B) 50% — the result is essentially random
+C) About 1% — false positives from healthy population vastly outnumber true positives
+D) 99% — the test is 99% accurate",C
+ttm_adv_base_rate_027,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) About 41% — base rate dominates despite witness testimony
+B) 15% — that's the base rate for Blue taxis
+C) 80% — the witness is 80% accurate
+D) 50% — conflicting evidence makes it a toss-up",A
+ttm_adv_base_rate_028,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 10,000 to 1 — the odds against having the disease
+B) About 1% — false positives from healthy population vastly outnumber true positives
+C) 99% — the test is 99% accurate
+D) 50% — the result is essentially random",B
+ttm_adv_base_rate_029,mc,"In a city, 85% of taxis are Green and 15% are Blue.
+
+A witness identified the taxi as Blue. Witnesses correctly identify color 80% of the time.
+
+What is the probability the taxi was actually Blue?","A) 50% — conflicting evidence makes it a toss-up
+B) About 41% — base rate dominates despite witness testimony
+C) 80% — the witness is 80% accurate
+D) 15% — that's the base rate for Blue taxis",B
+ttm_adv_base_rate_030,mc,"A disease affects 1 in 10,000 people.
+
+A test is 99% accurate (both sensitivity and specificity). You test positive.
+
+What is the probability you actually have the disease?","A) 99% — the test is 99% accurate
+B) About 1% — false positives from healthy population vastly outnumber true positives
+C) 50% — the result is essentially random
+D) 10,000 to 1 — the odds against having the disease",B
+ttm_adv_bayesian_001,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 50% — the coins were equally likely to be chosen initially
+B) 10% — one in 10 chance for each head
+C) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+D) 1 in 1024 — the probability a fair coin gives 10 heads",C
+ttm_adv_bayesian_002,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 2/3 — boys are more common than girls
+B) 1/2 — the other child's gender is independent
+C) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+D) 1/4 — each combination (BB, BG, GB, GG) is equally likely",C
+ttm_adv_bayesian_003,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+B) 50% — the coins were equally likely to be chosen initially
+C) 1 in 1024 — the probability a fair coin gives 10 heads
+D) 10% — one in 10 chance for each head",A
+ttm_adv_bayesian_004,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 2/3 — boys are more common than girls
+C) 1/2 — the other child's gender is independent
+D) 1/4 — each combination (BB, BG, GB, GG) is equally likely",A
+ttm_adv_bayesian_005,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 50% — the coins were equally likely to be chosen initially
+B) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+C) 10% — one in 10 chance for each head
+D) 1 in 1024 — the probability a fair coin gives 10 heads",B
+ttm_adv_bayesian_006,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 2/3 — boys are more common than girls
+B) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+C) 1/2 — the other child's gender is independent
+D) 1/4 — each combination (BB, BG, GB, GG) is equally likely",B
+ttm_adv_bayesian_007,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 10% — one in 10 chance for each head
+B) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+C) 50% — the coins were equally likely to be chosen initially
+D) 1 in 1024 — the probability a fair coin gives 10 heads",B
+ttm_adv_bayesian_008,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+C) 1/2 — the other child's gender is independent
+D) 2/3 — boys are more common than girls",A
+ttm_adv_bayesian_009,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 50% — the coins were equally likely to be chosen initially
+B) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+C) 10% — one in 10 chance for each head
+D) 1 in 1024 — the probability a fair coin gives 10 heads",B
+ttm_adv_bayesian_010,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 2/3 — boys are more common than girls
+C) 1/2 — the other child's gender is independent
+D) 1/4 — each combination (BB, BG, GB, GG) is equally likely",A
+ttm_adv_bayesian_011,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 10% — one in 10 chance for each head
+B) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+C) 50% — the coins were equally likely to be chosen initially
+D) 1 in 1024 — the probability a fair coin gives 10 heads",B
+ttm_adv_bayesian_012,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 2/3 — boys are more common than girls
+B) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+C) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+D) 1/2 — the other child's gender is independent",B
+ttm_adv_bayesian_013,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 1 in 1024 — the probability a fair coin gives 10 heads
+B) 50% — the coins were equally likely to be chosen initially
+C) 10% — one in 10 chance for each head
+D) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads",D
+ttm_adv_bayesian_014,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+C) 2/3 — boys are more common than girls
+D) 1/2 — the other child's gender is independent",A
+ttm_adv_bayesian_015,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 1 in 1024 — the probability a fair coin gives 10 heads
+B) 10% — one in 10 chance for each head
+C) 50% — the coins were equally likely to be chosen initially
+D) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads",D
+ttm_adv_bayesian_016,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 2/3 — boys are more common than girls
+C) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+D) 1/2 — the other child's gender is independent",A
+ttm_adv_bayesian_017,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 10% — one in 10 chance for each head
+B) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+C) 1 in 1024 — the probability a fair coin gives 10 heads
+D) 50% — the coins were equally likely to be chosen initially",B
+ttm_adv_bayesian_018,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+B) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+C) 1/2 — the other child's gender is independent
+D) 2/3 — boys are more common than girls",B
+ttm_adv_bayesian_019,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+B) 50% — the coins were equally likely to be chosen initially
+C) 10% — one in 10 chance for each head
+D) 1 in 1024 — the probability a fair coin gives 10 heads",A
+ttm_adv_bayesian_020,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 1/2 — the other child's gender is independent
+C) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+D) 2/3 — boys are more common than girls",A
+ttm_adv_bayesian_021,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 10% — one in 10 chance for each head
+B) 1 in 1024 — the probability a fair coin gives 10 heads
+C) 50% — the coins were equally likely to be chosen initially
+D) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads",D
+ttm_adv_bayesian_022,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+B) 1/2 — the other child's gender is independent
+C) 2/3 — boys are more common than girls
+D) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3",D
+ttm_adv_bayesian_023,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 1 in 1024 — the probability a fair coin gives 10 heads
+B) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+C) 10% — one in 10 chance for each head
+D) 50% — the coins were equally likely to be chosen initially",B
+ttm_adv_bayesian_024,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+B) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+C) 1/2 — the other child's gender is independent
+D) 2/3 — boys are more common than girls",A
+ttm_adv_bayesian_025,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 50% — the coins were equally likely to be chosen initially
+B) 10% — one in 10 chance for each head
+C) 1 in 1024 — the probability a fair coin gives 10 heads
+D) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads",D
+ttm_adv_bayesian_026,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/2 — the other child's gender is independent
+B) 2/3 — boys are more common than girls
+C) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+D) 1/4 — each combination (BB, BG, GB, GG) is equally likely",C
+ttm_adv_bayesian_027,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+B) 10% — one in 10 chance for each head
+C) 50% — the coins were equally likely to be chosen initially
+D) 1 in 1024 — the probability a fair coin gives 10 heads",A
+ttm_adv_bayesian_028,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 1/2 — the other child's gender is independent
+B) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3
+C) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+D) 2/3 — boys are more common than girls",B
+ttm_adv_bayesian_029,mc,"You have two coins: one fair, one double-headed. You pick one at random and flip it 10 times. All 10 are heads.
+
+What is the probability you picked the double-headed coin?","A) 1 in 1024 — the probability a fair coin gives 10 heads
+B) 50% — the coins were equally likely to be chosen initially
+C) About 99.9% — the double-headed coin is overwhelmingly more likely to produce 10 heads
+D) 10% — one in 10 chance for each head",C
+ttm_adv_bayesian_030,mc,"A family has two children. You see one of them, a boy.
+
+What's the probability the other is also a boy?","A) 2/3 — boys are more common than girls
+B) 1/4 — each combination (BB, BG, GB, GG) is equally likely
+C) 1/2 — the other child's gender is independent
+D) 1/3 — given at least one boy, the possibilities are BB, BG, GB (not GG), so BB is 1/3",D
+ttm_adv_regression_001,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Even higher — they've reached a new level of skill
+B) Exactly .400 again — performance is stable
+C) Below average — exceptional seasons are followed by slumps
+D) Closer to their career average — extreme performance tends to regress toward the mean",D
+ttm_adv_regression_002,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) Regression to the mean — extremely high scores are partly luck and tend to decrease
+B) The second test was more difficult
+C) The tutoring was ineffective
+D) The students became overconfident",A
+ttm_adv_regression_003,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Exactly .400 again — performance is stable
+B) Even higher — they've reached a new level of skill
+C) Closer to their career average — extreme performance tends to regress toward the mean
+D) Below average — exceptional seasons are followed by slumps",C
+ttm_adv_regression_004,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The second test was more difficult
+B) Regression to the mean — extremely high scores are partly luck and tend to decrease
+C) The tutoring was ineffective
+D) The students became overconfident",B
+ttm_adv_regression_005,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Closer to their career average — extreme performance tends to regress toward the mean
+B) Even higher — they've reached a new level of skill
+C) Exactly .400 again — performance is stable
+D) Below average — exceptional seasons are followed by slumps",A
+ttm_adv_regression_006,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The second test was more difficult
+B) The tutoring was ineffective
+C) Regression to the mean — extremely high scores are partly luck and tend to decrease
+D) The students became overconfident",C
+ttm_adv_regression_007,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Even higher — they've reached a new level of skill
+B) Below average — exceptional seasons are followed by slumps
+C) Exactly .400 again — performance is stable
+D) Closer to their career average — extreme performance tends to regress toward the mean",D
+ttm_adv_regression_008,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The students became overconfident
+B) The second test was more difficult
+C) The tutoring was ineffective
+D) Regression to the mean — extremely high scores are partly luck and tend to decrease",D
+ttm_adv_regression_009,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Below average — exceptional seasons are followed by slumps
+B) Closer to their career average — extreme performance tends to regress toward the mean
+C) Exactly .400 again — performance is stable
+D) Even higher — they've reached a new level of skill",B
+ttm_adv_regression_010,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The second test was more difficult
+B) Regression to the mean — extremely high scores are partly luck and tend to decrease
+C) The students became overconfident
+D) The tutoring was ineffective",B
+ttm_adv_regression_011,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Closer to their career average — extreme performance tends to regress toward the mean
+B) Even higher — they've reached a new level of skill
+C) Below average — exceptional seasons are followed by slumps
+D) Exactly .400 again — performance is stable",A
+ttm_adv_regression_012,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The students became overconfident
+B) The tutoring was ineffective
+C) Regression to the mean — extremely high scores are partly luck and tend to decrease
+D) The second test was more difficult",C
+ttm_adv_regression_013,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Exactly .400 again — performance is stable
+B) Below average — exceptional seasons are followed by slumps
+C) Closer to their career average — extreme performance tends to regress toward the mean
+D) Even higher — they've reached a new level of skill",C
+ttm_adv_regression_014,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The tutoring was ineffective
+B) The students became overconfident
+C) Regression to the mean — extremely high scores are partly luck and tend to decrease
+D) The second test was more difficult",C
+ttm_adv_regression_015,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Closer to their career average — extreme performance tends to regress toward the mean
+B) Even higher — they've reached a new level of skill
+C) Exactly .400 again — performance is stable
+D) Below average — exceptional seasons are followed by slumps",A
+ttm_adv_regression_016,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The tutoring was ineffective
+B) The students became overconfident
+C) Regression to the mean — extremely high scores are partly luck and tend to decrease
+D) The second test was more difficult",C
+ttm_adv_regression_017,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Exactly .400 again — performance is stable
+B) Closer to their career average — extreme performance tends to regress toward the mean
+C) Below average — exceptional seasons are followed by slumps
+D) Even higher — they've reached a new level of skill",B
+ttm_adv_regression_018,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The tutoring was ineffective
+B) The second test was more difficult
+C) The students became overconfident
+D) Regression to the mean — extremely high scores are partly luck and tend to decrease",D
+ttm_adv_regression_019,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Below average — exceptional seasons are followed by slumps
+B) Closer to their career average — extreme performance tends to regress toward the mean
+C) Even higher — they've reached a new level of skill
+D) Exactly .400 again — performance is stable",B
+ttm_adv_regression_020,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The students became overconfident
+B) The tutoring was ineffective
+C) Regression to the mean — extremely high scores are partly luck and tend to decrease
+D) The second test was more difficult",C
+ttm_adv_regression_021,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Closer to their career average — extreme performance tends to regress toward the mean
+B) Even higher — they've reached a new level of skill
+C) Exactly .400 again — performance is stable
+D) Below average — exceptional seasons are followed by slumps",A
+ttm_adv_regression_022,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) Regression to the mean — extremely high scores are partly luck and tend to decrease
+B) The tutoring was ineffective
+C) The students became overconfident
+D) The second test was more difficult",A
+ttm_adv_regression_023,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Below average — exceptional seasons are followed by slumps
+B) Exactly .400 again — performance is stable
+C) Even higher — they've reached a new level of skill
+D) Closer to their career average — extreme performance tends to regress toward the mean",D
+ttm_adv_regression_024,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The tutoring was ineffective
+B) Regression to the mean — extremely high scores are partly luck and tend to decrease
+C) The students became overconfident
+D) The second test was more difficult",B
+ttm_adv_regression_025,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Even higher — they've reached a new level of skill
+B) Closer to their career average — extreme performance tends to regress toward the mean
+C) Below average — exceptional seasons are followed by slumps
+D) Exactly .400 again — performance is stable",B
+ttm_adv_regression_026,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The students became overconfident
+B) Regression to the mean — extremely high scores are partly luck and tend to decrease
+C) The second test was more difficult
+D) The tutoring was ineffective",B
+ttm_adv_regression_027,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Exactly .400 again — performance is stable
+B) Closer to their career average — extreme performance tends to regress toward the mean
+C) Below average — exceptional seasons are followed by slumps
+D) Even higher — they've reached a new level of skill",B
+ttm_adv_regression_028,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The students became overconfident
+B) Regression to the mean — extremely high scores are partly luck and tend to decrease
+C) The second test was more difficult
+D) The tutoring was ineffective",B
+ttm_adv_regression_029,mc,"A baseball player has an exceptional season, batting .400 (far above average).
+
+What should you expect their batting average to be next season?","A) Exactly .400 again — performance is stable
+B) Closer to their career average — extreme performance tends to regress toward the mean
+C) Even higher — they've reached a new level of skill
+D) Below average — exceptional seasons are followed by slumps",B
+ttm_adv_regression_030,mc,"Students who scored highest on a test received extra tutoring. Their next test scores were lower.
+
+What explains this?","A) The students became overconfident
+B) Regression to the mean — extremely high scores are partly luck and tend to decrease
+C) The tutoring was ineffective
+D) The second test was more difficult",B
+ttm_adv_asymmetric_001,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Well-calibrated — the true value falls within your range
+B) Overconfident — your range should have been wider for 90% confidence
+C) Underconfident — you could have been more precise
+D) Correct by coincidence — the range was arbitrary",B
+ttm_adv_asymmetric_002,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Overconfidence — the expert's intervals are too narrow for their stated confidence
+B) Underconfidence — the intervals should be narrower
+C) The 95% figure was correctly chosen
+D) The expert is unlucky — true values sometimes fall outside",A
+ttm_adv_asymmetric_003,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Underconfident — you could have been more precise
+B) Correct by coincidence — the range was arbitrary
+C) Overconfident — your range should have been wider for 90% confidence
+D) Well-calibrated — the true value falls within your range",C
+ttm_adv_asymmetric_004,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) The expert is unlucky — true values sometimes fall outside
+B) Overconfidence — the expert's intervals are too narrow for their stated confidence
+C) Underconfidence — the intervals should be narrower
+D) The 95% figure was correctly chosen",B
+ttm_adv_asymmetric_005,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Correct by coincidence — the range was arbitrary
+B) Well-calibrated — the true value falls within your range
+C) Overconfident — your range should have been wider for 90% confidence
+D) Underconfident — you could have been more precise",C
+ttm_adv_asymmetric_006,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Underconfidence — the intervals should be narrower
+B) The 95% figure was correctly chosen
+C) Overconfidence — the expert's intervals are too narrow for their stated confidence
+D) The expert is unlucky — true values sometimes fall outside",C
+ttm_adv_asymmetric_007,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Overconfident — your range should have been wider for 90% confidence
+B) Underconfident — you could have been more precise
+C) Well-calibrated — the true value falls within your range
+D) Correct by coincidence — the range was arbitrary",A
+ttm_adv_asymmetric_008,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Overconfidence — the expert's intervals are too narrow for their stated confidence
+B) The expert is unlucky — true values sometimes fall outside
+C) Underconfidence — the intervals should be narrower
+D) The 95% figure was correctly chosen",A
+ttm_adv_asymmetric_009,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Well-calibrated — the true value falls within your range
+B) Underconfident — you could have been more precise
+C) Overconfident — your range should have been wider for 90% confidence
+D) Correct by coincidence — the range was arbitrary",C
+ttm_adv_asymmetric_010,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Underconfidence — the intervals should be narrower
+B) The expert is unlucky — true values sometimes fall outside
+C) The 95% figure was correctly chosen
+D) Overconfidence — the expert's intervals are too narrow for their stated confidence",D
+ttm_adv_asymmetric_011,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Underconfident — you could have been more precise
+B) Correct by coincidence — the range was arbitrary
+C) Well-calibrated — the true value falls within your range
+D) Overconfident — your range should have been wider for 90% confidence",D
+ttm_adv_asymmetric_012,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) The 95% figure was correctly chosen
+B) The expert is unlucky — true values sometimes fall outside
+C) Overconfidence — the expert's intervals are too narrow for their stated confidence
+D) Underconfidence — the intervals should be narrower",C
+ttm_adv_asymmetric_013,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Well-calibrated — the true value falls within your range
+B) Overconfident — your range should have been wider for 90% confidence
+C) Underconfident — you could have been more precise
+D) Correct by coincidence — the range was arbitrary",B
+ttm_adv_asymmetric_014,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) The 95% figure was correctly chosen
+B) Underconfidence — the intervals should be narrower
+C) The expert is unlucky — true values sometimes fall outside
+D) Overconfidence — the expert's intervals are too narrow for their stated confidence",D
+ttm_adv_asymmetric_015,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Correct by coincidence — the range was arbitrary
+B) Well-calibrated — the true value falls within your range
+C) Underconfident — you could have been more precise
+D) Overconfident — your range should have been wider for 90% confidence",D
+ttm_adv_asymmetric_016,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Underconfidence — the intervals should be narrower
+B) Overconfidence — the expert's intervals are too narrow for their stated confidence
+C) The 95% figure was correctly chosen
+D) The expert is unlucky — true values sometimes fall outside",B
+ttm_adv_asymmetric_017,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Underconfident — you could have been more precise
+B) Overconfident — your range should have been wider for 90% confidence
+C) Correct by coincidence — the range was arbitrary
+D) Well-calibrated — the true value falls within your range",B
+ttm_adv_asymmetric_018,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Overconfidence — the expert's intervals are too narrow for their stated confidence
+B) Underconfidence — the intervals should be narrower
+C) The expert is unlucky — true values sometimes fall outside
+D) The 95% figure was correctly chosen",A
+ttm_adv_asymmetric_019,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Underconfident — you could have been more precise
+B) Correct by coincidence — the range was arbitrary
+C) Well-calibrated — the true value falls within your range
+D) Overconfident — your range should have been wider for 90% confidence",D
+ttm_adv_asymmetric_020,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Underconfidence — the intervals should be narrower
+B) The 95% figure was correctly chosen
+C) Overconfidence — the expert's intervals are too narrow for their stated confidence
+D) The expert is unlucky — true values sometimes fall outside",C
+ttm_adv_asymmetric_021,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Well-calibrated — the true value falls within your range
+B) Underconfident — you could have been more precise
+C) Overconfident — your range should have been wider for 90% confidence
+D) Correct by coincidence — the range was arbitrary",C
+ttm_adv_asymmetric_022,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) The 95% figure was correctly chosen
+B) Underconfidence — the intervals should be narrower
+C) Overconfidence — the expert's intervals are too narrow for their stated confidence
+D) The expert is unlucky — true values sometimes fall outside",C
+ttm_adv_asymmetric_023,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Overconfident — your range should have been wider for 90% confidence
+B) Well-calibrated — the true value falls within your range
+C) Correct by coincidence — the range was arbitrary
+D) Underconfident — you could have been more precise",A
+ttm_adv_asymmetric_024,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Overconfidence — the expert's intervals are too narrow for their stated confidence
+B) Underconfidence — the intervals should be narrower
+C) The 95% figure was correctly chosen
+D) The expert is unlucky — true values sometimes fall outside",A
+ttm_adv_asymmetric_025,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Overconfident — your range should have been wider for 90% confidence
+B) Well-calibrated — the true value falls within your range
+C) Correct by coincidence — the range was arbitrary
+D) Underconfident — you could have been more precise",A
+ttm_adv_asymmetric_026,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Underconfidence — the intervals should be narrower
+B) The expert is unlucky — true values sometimes fall outside
+C) The 95% figure was correctly chosen
+D) Overconfidence — the expert's intervals are too narrow for their stated confidence",D
+ttm_adv_asymmetric_027,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Underconfident — you could have been more precise
+B) Correct by coincidence — the range was arbitrary
+C) Well-calibrated — the true value falls within your range
+D) Overconfident — your range should have been wider for 90% confidence",D
+ttm_adv_asymmetric_028,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) The 95% figure was correctly chosen
+B) Underconfidence — the intervals should be narrower
+C) Overconfidence — the expert's intervals are too narrow for their stated confidence
+D) The expert is unlucky — true values sometimes fall outside",C
+ttm_adv_asymmetric_029,mc,"You estimate the population of France with 90% confidence: between 50 and 70 million.
+
+The actual population is about 67 million.
+
+How would you characterize your original estimate?","A) Correct by coincidence — the range was arbitrary
+B) Well-calibrated — the true value falls within your range
+C) Overconfident — your range should have been wider for 90% confidence
+D) Underconfident — you could have been more precise",C
+ttm_adv_asymmetric_030,mc,"An expert gives a 95% confidence interval that ends up containing the true value 40% of the time.
+
+
+
+What does this indicate?","A) Underconfidence — the intervals should be narrower
+B) The expert is unlucky — true values sometimes fall outside
+C) Overconfidence — the expert's intervals are too narrow for their stated confidence
+D) The 95% figure was correctly chosen",C
+ttm_adv_false_consensus_001,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) More divided than you perceive — you're experiencing the false consensus effect
+B) Opposed — people who disagree avoid you
+C) Overwhelmingly in favor — your social circle reflects the population
+D) Unrelated to your social circle's opinions",A
+ttm_adv_false_consensus_002,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) Average drivers have improved significantly
+B) The definition of 'average' driver has changed
+C) People who think they're below average don't participate in surveys
+D) False consensus and biased self-assessment — not everyone can be above average",D
+ttm_adv_false_consensus_003,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) More divided than you perceive — you're experiencing the false consensus effect
+B) Overwhelmingly in favor — your social circle reflects the population
+C) Opposed — people who disagree avoid you
+D) Unrelated to your social circle's opinions",A
+ttm_adv_false_consensus_004,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) False consensus and biased self-assessment — not everyone can be above average
+B) The definition of 'average' driver has changed
+C) Average drivers have improved significantly
+D) People who think they're below average don't participate in surveys",A
+ttm_adv_false_consensus_005,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Overwhelmingly in favor — your social circle reflects the population
+B) More divided than you perceive — you're experiencing the false consensus effect
+C) Unrelated to your social circle's opinions
+D) Opposed — people who disagree avoid you",B
+ttm_adv_false_consensus_006,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) The definition of 'average' driver has changed
+B) Average drivers have improved significantly
+C) People who think they're below average don't participate in surveys
+D) False consensus and biased self-assessment — not everyone can be above average",D
+ttm_adv_false_consensus_007,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Unrelated to your social circle's opinions
+B) Overwhelmingly in favor — your social circle reflects the population
+C) More divided than you perceive — you're experiencing the false consensus effect
+D) Opposed — people who disagree avoid you",C
+ttm_adv_false_consensus_008,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) People who think they're below average don't participate in surveys
+B) False consensus and biased self-assessment — not everyone can be above average
+C) The definition of 'average' driver has changed
+D) Average drivers have improved significantly",B
+ttm_adv_false_consensus_009,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) More divided than you perceive — you're experiencing the false consensus effect
+B) Opposed — people who disagree avoid you
+C) Overwhelmingly in favor — your social circle reflects the population
+D) Unrelated to your social circle's opinions",A
+ttm_adv_false_consensus_010,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) The definition of 'average' driver has changed
+B) False consensus and biased self-assessment — not everyone can be above average
+C) Average drivers have improved significantly
+D) People who think they're below average don't participate in surveys",B
+ttm_adv_false_consensus_011,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Opposed — people who disagree avoid you
+B) More divided than you perceive — you're experiencing the false consensus effect
+C) Overwhelmingly in favor — your social circle reflects the population
+D) Unrelated to your social circle's opinions",B
+ttm_adv_false_consensus_012,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) People who think they're below average don't participate in surveys
+B) Average drivers have improved significantly
+C) The definition of 'average' driver has changed
+D) False consensus and biased self-assessment — not everyone can be above average",D
+ttm_adv_false_consensus_013,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Overwhelmingly in favor — your social circle reflects the population
+B) Opposed — people who disagree avoid you
+C) Unrelated to your social circle's opinions
+D) More divided than you perceive — you're experiencing the false consensus effect",D
+ttm_adv_false_consensus_014,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) People who think they're below average don't participate in surveys
+B) False consensus and biased self-assessment — not everyone can be above average
+C) Average drivers have improved significantly
+D) The definition of 'average' driver has changed",B
+ttm_adv_false_consensus_015,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Overwhelmingly in favor — your social circle reflects the population
+B) Opposed — people who disagree avoid you
+C) More divided than you perceive — you're experiencing the false consensus effect
+D) Unrelated to your social circle's opinions",C
+ttm_adv_false_consensus_016,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) The definition of 'average' driver has changed
+B) Average drivers have improved significantly
+C) False consensus and biased self-assessment — not everyone can be above average
+D) People who think they're below average don't participate in surveys",C
+ttm_adv_false_consensus_017,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Unrelated to your social circle's opinions
+B) Overwhelmingly in favor — your social circle reflects the population
+C) Opposed — people who disagree avoid you
+D) More divided than you perceive — you're experiencing the false consensus effect",D
+ttm_adv_false_consensus_018,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) The definition of 'average' driver has changed
+B) Average drivers have improved significantly
+C) False consensus and biased self-assessment — not everyone can be above average
+D) People who think they're below average don't participate in surveys",C
+ttm_adv_false_consensus_019,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Opposed — people who disagree avoid you
+B) Unrelated to your social circle's opinions
+C) More divided than you perceive — you're experiencing the false consensus effect
+D) Overwhelmingly in favor — your social circle reflects the population",C
+ttm_adv_false_consensus_020,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) Average drivers have improved significantly
+B) False consensus and biased self-assessment — not everyone can be above average
+C) The definition of 'average' driver has changed
+D) People who think they're below average don't participate in surveys",B
+ttm_adv_false_consensus_021,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Overwhelmingly in favor — your social circle reflects the population
+B) More divided than you perceive — you're experiencing the false consensus effect
+C) Opposed — people who disagree avoid you
+D) Unrelated to your social circle's opinions",B
+ttm_adv_false_consensus_022,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) Average drivers have improved significantly
+B) People who think they're below average don't participate in surveys
+C) The definition of 'average' driver has changed
+D) False consensus and biased self-assessment — not everyone can be above average",D
+ttm_adv_false_consensus_023,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Overwhelmingly in favor — your social circle reflects the population
+B) Opposed — people who disagree avoid you
+C) More divided than you perceive — you're experiencing the false consensus effect
+D) Unrelated to your social circle's opinions",C
+ttm_adv_false_consensus_024,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) False consensus and biased self-assessment — not everyone can be above average
+B) The definition of 'average' driver has changed
+C) People who think they're below average don't participate in surveys
+D) Average drivers have improved significantly",A
+ttm_adv_false_consensus_025,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Opposed — people who disagree avoid you
+B) Overwhelmingly in favor — your social circle reflects the population
+C) Unrelated to your social circle's opinions
+D) More divided than you perceive — you're experiencing the false consensus effect",D
+ttm_adv_false_consensus_026,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) People who think they're below average don't participate in surveys
+B) The definition of 'average' driver has changed
+C) Average drivers have improved significantly
+D) False consensus and biased self-assessment — not everyone can be above average",D
+ttm_adv_false_consensus_027,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Overwhelmingly in favor — your social circle reflects the population
+B) Opposed — people who disagree avoid you
+C) More divided than you perceive — you're experiencing the false consensus effect
+D) Unrelated to your social circle's opinions",C
+ttm_adv_false_consensus_028,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) Average drivers have improved significantly
+B) People who think they're below average don't participate in surveys
+C) False consensus and biased self-assessment — not everyone can be above average
+D) The definition of 'average' driver has changed",C
+ttm_adv_false_consensus_029,mc,"You believe a particular policy is clearly beneficial. Most people you discuss it with agree.
+
+What is the most likely public opinion on this policy?","A) Unrelated to your social circle's opinions
+B) Opposed — people who disagree avoid you
+C) Overwhelmingly in favor — your social circle reflects the population
+D) More divided than you perceive — you're experiencing the false consensus effect",D
+ttm_adv_false_consensus_030,mc,"90% of people say they are 'above average' drivers.
+
+What's the best explanation?","A) The definition of 'average' driver has changed
+B) Average drivers have improved significantly
+C) False consensus and biased self-assessment — not everyone can be above average
+D) People who think they're below average don't participate in surveys",C
+ttm_adv_anchoring_001,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Neither group is affected by the initial question
+B) First group gives lower estimates — the initial number anchors their judgment
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) Both groups give similar estimates — they're estimating the same quantity",B
+ttm_adv_anchoring_002,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $60 deal is better — no hidden manipulation
+B) Both are perceived exactly the same by rational shoppers
+C) The $100 deal is genuinely better — discounts always save money
+D) The $100 with discount feels like a better deal due to anchoring, though identical in value",D
+ttm_adv_anchoring_003,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) First group gives lower estimates — the initial number anchors their judgment
+B) Second group gives lower estimates — higher threshold makes them more cautious
+C) Neither group is affected by the initial question
+D) Both groups give similar estimates — they're estimating the same quantity",A
+ttm_adv_anchoring_004,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) Both are perceived exactly the same by rational shoppers
+B) The $100 with discount feels like a better deal due to anchoring, though identical in value
+C) The $100 deal is genuinely better — discounts always save money
+D) The $60 deal is better — no hidden manipulation",B
+ttm_adv_anchoring_005,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) First group gives lower estimates — the initial number anchors their judgment
+B) Both groups give similar estimates — they're estimating the same quantity
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) Neither group is affected by the initial question",A
+ttm_adv_anchoring_006,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) Both are perceived exactly the same by rational shoppers
+B) The $100 deal is genuinely better — discounts always save money
+C) The $100 with discount feels like a better deal due to anchoring, though identical in value
+D) The $60 deal is better — no hidden manipulation",C
+ttm_adv_anchoring_007,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Second group gives lower estimates — higher threshold makes them more cautious
+B) Neither group is affected by the initial question
+C) First group gives lower estimates — the initial number anchors their judgment
+D) Both groups give similar estimates — they're estimating the same quantity",C
+ttm_adv_anchoring_008,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 with discount feels like a better deal due to anchoring, though identical in value
+B) Both are perceived exactly the same by rational shoppers
+C) The $60 deal is better — no hidden manipulation
+D) The $100 deal is genuinely better — discounts always save money",A
+ttm_adv_anchoring_009,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Second group gives lower estimates — higher threshold makes them more cautious
+B) Neither group is affected by the initial question
+C) First group gives lower estimates — the initial number anchors their judgment
+D) Both groups give similar estimates — they're estimating the same quantity",C
+ttm_adv_anchoring_010,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 deal is genuinely better — discounts always save money
+B) The $60 deal is better — no hidden manipulation
+C) Both are perceived exactly the same by rational shoppers
+D) The $100 with discount feels like a better deal due to anchoring, though identical in value",D
+ttm_adv_anchoring_011,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Neither group is affected by the initial question
+B) Both groups give similar estimates — they're estimating the same quantity
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) First group gives lower estimates — the initial number anchors their judgment",D
+ttm_adv_anchoring_012,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) Both are perceived exactly the same by rational shoppers
+B) The $100 with discount feels like a better deal due to anchoring, though identical in value
+C) The $100 deal is genuinely better — discounts always save money
+D) The $60 deal is better — no hidden manipulation",B
+ttm_adv_anchoring_013,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Second group gives lower estimates — higher threshold makes them more cautious
+B) First group gives lower estimates — the initial number anchors their judgment
+C) Both groups give similar estimates — they're estimating the same quantity
+D) Neither group is affected by the initial question",B
+ttm_adv_anchoring_014,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 with discount feels like a better deal due to anchoring, though identical in value
+B) The $100 deal is genuinely better — discounts always save money
+C) Both are perceived exactly the same by rational shoppers
+D) The $60 deal is better — no hidden manipulation",A
+ttm_adv_anchoring_015,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Second group gives lower estimates — higher threshold makes them more cautious
+B) Both groups give similar estimates — they're estimating the same quantity
+C) Neither group is affected by the initial question
+D) First group gives lower estimates — the initial number anchors their judgment",D
+ttm_adv_anchoring_016,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $60 deal is better — no hidden manipulation
+B) Both are perceived exactly the same by rational shoppers
+C) The $100 deal is genuinely better — discounts always save money
+D) The $100 with discount feels like a better deal due to anchoring, though identical in value",D
+ttm_adv_anchoring_017,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Neither group is affected by the initial question
+B) First group gives lower estimates — the initial number anchors their judgment
+C) Both groups give similar estimates — they're estimating the same quantity
+D) Second group gives lower estimates — higher threshold makes them more cautious",B
+ttm_adv_anchoring_018,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 with discount feels like a better deal due to anchoring, though identical in value
+B) The $60 deal is better — no hidden manipulation
+C) The $100 deal is genuinely better — discounts always save money
+D) Both are perceived exactly the same by rational shoppers",A
+ttm_adv_anchoring_019,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Both groups give similar estimates — they're estimating the same quantity
+B) First group gives lower estimates — the initial number anchors their judgment
+C) Neither group is affected by the initial question
+D) Second group gives lower estimates — higher threshold makes them more cautious",B
+ttm_adv_anchoring_020,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $60 deal is better — no hidden manipulation
+B) The $100 deal is genuinely better — discounts always save money
+C) The $100 with discount feels like a better deal due to anchoring, though identical in value
+D) Both are perceived exactly the same by rational shoppers",C
+ttm_adv_anchoring_021,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Second group gives lower estimates — higher threshold makes them more cautious
+B) Both groups give similar estimates — they're estimating the same quantity
+C) Neither group is affected by the initial question
+D) First group gives lower estimates — the initial number anchors their judgment",D
+ttm_adv_anchoring_022,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) Both are perceived exactly the same by rational shoppers
+B) The $100 deal is genuinely better — discounts always save money
+C) The $100 with discount feels like a better deal due to anchoring, though identical in value
+D) The $60 deal is better — no hidden manipulation",C
+ttm_adv_anchoring_023,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) First group gives lower estimates — the initial number anchors their judgment
+B) Both groups give similar estimates — they're estimating the same quantity
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) Neither group is affected by the initial question",A
+ttm_adv_anchoring_024,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 with discount feels like a better deal due to anchoring, though identical in value
+B) The $100 deal is genuinely better — discounts always save money
+C) The $60 deal is better — no hidden manipulation
+D) Both are perceived exactly the same by rational shoppers",A
+ttm_adv_anchoring_025,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Both groups give similar estimates — they're estimating the same quantity
+B) Neither group is affected by the initial question
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) First group gives lower estimates — the initial number anchors their judgment",D
+ttm_adv_anchoring_026,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) Both are perceived exactly the same by rational shoppers
+B) The $60 deal is better — no hidden manipulation
+C) The $100 with discount feels like a better deal due to anchoring, though identical in value
+D) The $100 deal is genuinely better — discounts always save money",C
+ttm_adv_anchoring_027,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Both groups give similar estimates — they're estimating the same quantity
+B) Neither group is affected by the initial question
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) First group gives lower estimates — the initial number anchors their judgment",D
+ttm_adv_anchoring_028,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 with discount feels like a better deal due to anchoring, though identical in value
+B) Both are perceived exactly the same by rational shoppers
+C) The $100 deal is genuinely better — discounts always save money
+D) The $60 deal is better — no hidden manipulation",A
+ttm_adv_anchoring_029,mc,"First group estimates: Is the percentage of African countries in the UN > 10%? Then guesses the exact percentage.
+
+Second group estimates: Is it > 65%? Then guesses the exact percentage.
+
+How will their estimates differ?","A) Both groups give similar estimates — they're estimating the same quantity
+B) First group gives lower estimates — the initial number anchors their judgment
+C) Second group gives lower estimates — higher threshold makes them more cautious
+D) Neither group is affected by the initial question",B
+ttm_adv_anchoring_030,mc,"A store lists an item at $100, then shows a 50% discount.
+
+The same item at another store is listed at $60 with no discount.
+
+Which deal seems better, and why?","A) The $100 with discount feels like a better deal due to anchoring, though identical in value
+B) The $60 deal is better — no hidden manipulation
+C) Both are perceived exactly the same by rational shoppers
+D) The $100 deal is genuinely better — discounts always save money",A
+ttm_adv_inverted_001,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Inconsistently calibrated — no pattern is discernible
+B) Overconfident — 60% is too high for most predictions
+C) Underconfident — their predictions are more reliable than their confidence suggests
+D) Well-calibrated — confidence doesn't need to match accuracy exactly",C
+ttm_adv_inverted_002,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) The less confident students are actually more knowledgeable
+B) This pattern is impossible — confidence and accuracy must correlate
+C) Confidence is irrelevant to accuracy
+D) Inverted calibration — confidence and accuracy are negatively correlated",D
+ttm_adv_inverted_003,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Well-calibrated — confidence doesn't need to match accuracy exactly
+B) Underconfident — their predictions are more reliable than their confidence suggests
+C) Overconfident — 60% is too high for most predictions
+D) Inconsistently calibrated — no pattern is discernible",B
+ttm_adv_inverted_004,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) Confidence is irrelevant to accuracy
+B) Inverted calibration — confidence and accuracy are negatively correlated
+C) This pattern is impossible — confidence and accuracy must correlate
+D) The less confident students are actually more knowledgeable",B
+ttm_adv_inverted_005,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Well-calibrated — confidence doesn't need to match accuracy exactly
+B) Overconfident — 60% is too high for most predictions
+C) Inconsistently calibrated — no pattern is discernible
+D) Underconfident — their predictions are more reliable than their confidence suggests",D
+ttm_adv_inverted_006,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) The less confident students are actually more knowledgeable
+B) Confidence is irrelevant to accuracy
+C) This pattern is impossible — confidence and accuracy must correlate
+D) Inverted calibration — confidence and accuracy are negatively correlated",D
+ttm_adv_inverted_007,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Underconfident — their predictions are more reliable than their confidence suggests
+B) Well-calibrated — confidence doesn't need to match accuracy exactly
+C) Inconsistently calibrated — no pattern is discernible
+D) Overconfident — 60% is too high for most predictions",A
+ttm_adv_inverted_008,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) The less confident students are actually more knowledgeable
+B) Inverted calibration — confidence and accuracy are negatively correlated
+C) This pattern is impossible — confidence and accuracy must correlate
+D) Confidence is irrelevant to accuracy",B
+ttm_adv_inverted_009,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Well-calibrated — confidence doesn't need to match accuracy exactly
+B) Underconfident — their predictions are more reliable than their confidence suggests
+C) Inconsistently calibrated — no pattern is discernible
+D) Overconfident — 60% is too high for most predictions",B
+ttm_adv_inverted_010,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) This pattern is impossible — confidence and accuracy must correlate
+B) The less confident students are actually more knowledgeable
+C) Confidence is irrelevant to accuracy
+D) Inverted calibration — confidence and accuracy are negatively correlated",D
+ttm_adv_inverted_011,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Well-calibrated — confidence doesn't need to match accuracy exactly
+B) Underconfident — their predictions are more reliable than their confidence suggests
+C) Inconsistently calibrated — no pattern is discernible
+D) Overconfident — 60% is too high for most predictions",B
+ttm_adv_inverted_012,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) Confidence is irrelevant to accuracy
+B) Inverted calibration — confidence and accuracy are negatively correlated
+C) This pattern is impossible — confidence and accuracy must correlate
+D) The less confident students are actually more knowledgeable",B
+ttm_adv_inverted_013,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Underconfident — their predictions are more reliable than their confidence suggests
+B) Overconfident — 60% is too high for most predictions
+C) Well-calibrated — confidence doesn't need to match accuracy exactly
+D) Inconsistently calibrated — no pattern is discernible",A
+ttm_adv_inverted_014,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) The less confident students are actually more knowledgeable
+B) This pattern is impossible — confidence and accuracy must correlate
+C) Confidence is irrelevant to accuracy
+D) Inverted calibration — confidence and accuracy are negatively correlated",D
+ttm_adv_inverted_015,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Inconsistently calibrated — no pattern is discernible
+B) Well-calibrated — confidence doesn't need to match accuracy exactly
+C) Underconfident — their predictions are more reliable than their confidence suggests
+D) Overconfident — 60% is too high for most predictions",C
+ttm_adv_inverted_016,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) Confidence is irrelevant to accuracy
+B) This pattern is impossible — confidence and accuracy must correlate
+C) The less confident students are actually more knowledgeable
+D) Inverted calibration — confidence and accuracy are negatively correlated",D
+ttm_adv_inverted_017,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Inconsistently calibrated — no pattern is discernible
+B) Underconfident — their predictions are more reliable than their confidence suggests
+C) Overconfident — 60% is too high for most predictions
+D) Well-calibrated — confidence doesn't need to match accuracy exactly",B
+ttm_adv_inverted_018,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) Confidence is irrelevant to accuracy
+B) The less confident students are actually more knowledgeable
+C) This pattern is impossible — confidence and accuracy must correlate
+D) Inverted calibration — confidence and accuracy are negatively correlated",D
+ttm_adv_inverted_019,mc,"A forecaster consistently says they're 60% confident in predictions that turn out correct 80% of the time.
+
+How would you describe their calibration?","A) Inconsistently calibrated — no pattern is discernible
+B) Overconfident — 60% is too high for most predictions
+C) Well-calibrated — confidence doesn't need to match accuracy exactly
+D) Underconfident — their predictions are more reliable than their confidence suggests",D
+ttm_adv_inverted_020,mc,"Students who are most confident about their answers tend to be less accurate than less confident students.
+
+What does this paradox indicate?","A) Confidence is irrelevant to accuracy
+B) The less confident students are actually more knowledgeable
+C) Inverted calibration — confidence and accuracy are negatively correlated
+D) This pattern is impossible — confidence and accuracy must correlate",C
