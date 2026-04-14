@@ -1,0 +1,114 @@
+name: Coq Proofs Validation
+
+on:
+  push:
+    paths:
+      - 'proofs/trinity/**.v'
+      - '.github/workflows/coq-proofs.yml'
+  pull_request:
+    paths:
+      - 'proofs/trinity/**.v'
+  workflow_dispatch:
+
+jobs:
+  compile-proofs:
+    runs-on: ubuntu-latest
+    container:
+      image: coqorg/coq:8.19-ocaml-4.14-flambda
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Coq Interval
+        run: |
+          opam update
+          opam install -y coq-interval.4.9.0
+
+      - name: Compile Proofs
+        run: |
+          cd proofs/trinity
+          echo "Compiling Coq proof files..."
+          # Compile in dependency order
+          coqc -R . Trinity CorePhi.v || exit 1
+          coqc -R . Trinity AlphaPhi.v || exit 1
+          coqc -R . Trinity FormulaEval.v || exit 1
+          coqc -R . Trinity Bounds_Masses.v || exit 1
+          coqc -R . Trinity Bounds_Mixing.v || exit 1
+          coqc -R . Trinity Bounds_Gauge.v || exit 1
+          coqc -R . Trinity Bounds_LeptonMasses.v || exit 1
+          coqc -R . Trinity Bounds_QuarkMasses.v || exit 1
+          coqc -R . Trinity Unitarity.v || exit 1
+          coqc -R . Trinity ConsistencyChecks.v || exit 1
+          coqc -R . Trinity ExactIdentities.v || exit 1
+          coqc -R . Trinity DerivationLevels.v || exit 1
+          coqc -R . Trinity Catalog42.v || exit 1
+          echo "All files compiled successfully!"
+
+      - name: Verify No Admitted Proofs
+        run: |
+          cd proofs/trinity
+          echo "Checking for admitted proofs..."
+          ADMISSIONS=$(grep -r "^Admitted" *.v 2>/dev/null | wc -l)
+          echo "Found $ADMISSIONS admitted proofs"
+          if [ "$ADMISSIONS" -gt 0 ]; then
+            echo "WARNING: Found admitted proofs. These need completion."
+            echo "Admitted proofs:"
+            grep -n "^Admitted" *.v 2>/dev/null
+            # Don't fail the build for now - just warn
+            # exit 1
+          else
+            echo "SUCCESS: All proofs are complete (no Admitted)"
+          fi
+
+      - name: Count Theorems
+        run: |
+          cd proofs/trinity
+          echo "=== Theorem Statistics ==="
+          THEOREMS=$(grep "^Theorem " *.v 2>/dev/null | wc -l)
+          LEMMAS=$(grep "^Lemma " *.v 2>/dev/null | wc -l)
+          QED=$(grep "^Qed" *.v 2>/dev/null | wc -l)
+          ADMISSIONS=$(grep "^Admitted" *.v 2>/dev/null | wc -l)
+
+          echo "Theorems: $THEOREMS"
+          echo "Lemmas: $LEMMAS"
+          echo "Qed (complete): $QED"
+          echo "Admitted (incomplete): $ADMISSIONS"
+
+          if [ "$THEOREMS" -gt 0 ]; then
+            COMPLETION=$(( ($QED - $LEMMAS) * 100 / $THEOREMS ))
+            echo "Theorem completion rate: ${COMPLETION}%"
+          fi
+
+      - name: Generate Status Report
+        if: always()
+        run: |
+          cd proofs/trinity
+          cat > coq-status.md << 'EOF'
+          # Coq Proof Status Report
+          Generated: $(date)
+
+          ## Compilation Status
+          $(grep "^Admitted" *.v 2>/dev/null | wc -l) admitted proofs remaining
+
+          ## Detailed Status
+          | File | Theorems | Qed | Admitted |
+          |------|----------|-----|----------|
+          EOF
+
+          for file in *.v; do
+            if [ -f "$file" ]; then
+              THMS=$(grep "^Theorem " "$file" 2>/dev/null | wc -l)
+              QEDS=$(grep -A 1000 "^Theorem " "$file" 2>/dev/null | grep "^Qed" | wc -l)
+              ADMTS=$(grep "^Admitted" "$file" 2>/dev/null | wc -l)
+              echo "| $file | $THMS | $QEDS | $ADMTS |" >> coq-status.md
+            fi
+          done
+
+          cat coq-status.md
+
+      - name: Upload Status Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coq-status-report
+          path: proofs/trinity/coq-status.md

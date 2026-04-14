@@ -1,18 +1,29 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-04-14
-**Active:** DARPA CLARA PA-25-07-02 Phase 1-4 Complete (PR #414) — Defense examples, SOA comparison, literature review, scaling analysis
+**Active:** DARPA CLARA PA-25-07-02 v1.5 Submission (PR #473) — Critical fixes, SOA expanded, empirical evaluation added
 
 ## Active Work
 
-**DARPA CLARA Phase 1-4 Complete** (PR #414) — All deliverables ready for submission
+**DARPA CLARA v1.5 Submission** (PR #473) — Ready for review, deadline April 17, 2026
 - Defense domain examples (COA planning spec with 522 lines)
 - SOA benchmarking comparison (vs DeepProbLog, REASON, Tensor Logic)
 - Literature review (2020-2026 neuro-symbolic AI survey)
 - Scaling analysis (O(n) linear scaling with FPGA resource metrics)
 - Red Team evaluation protocol with robustness targets
 
-**New Files Added:**
+**CLARA v1.5 Improvements (Phase 1+2 Critical Fixes):**
+- 84 Coq theorems repositioned (math core only, not ML+AR)
+- ASP polynomial claim fixed to "Bounded O(1)"
+- MAX_CLAUSES=256 realistic COA example added
+- SOA expanded: 3 → 7 systems (AlphaProof, AlphaGeometry, CLEVRER, OpenAI o1)
+- Section 4.6: Adversarial Robustness (unique Trinity advantage)
+- Section 4.7: Empirical Evaluation (94% accuracy, 96% robustness)
+- Section 6.5: DARPA XAI Alignment
+- Section 7: Certification Roadmap to EAL7
+- Section 8.5: Hardware Verification Methodology
+
+**Previous Files (Phase 1-4):**
 - `specs/ar/coa_planning.t27` — Course-of-Action planning for military logistics
 - `docs/clara/examples/coa-planning.md` — Defense planning example
 - `docs/clara/CLARA-RED-TEAM.md` — Adversarial testing protocol
@@ -26,17 +37,23 @@
 
 ## CLARA Submission Package
 
-### Volume 1: Technical & Management Proposal
+### Volume 1: Technical & Management Proposal v1.5
 - **File:** `docs/clara/CLARA-PROPOSAL-TECHNICAL.md`
-- **Status:** 1,702 words ≈ 6.8 pages (under 10-page limit)
+- **Status:** 2,356 words ≈ 9.4 pages (94% of limit)
 - **Sections:**
   1. AR-Based ML Approach (Trit-K3 isomorphism)
-  2. Application Task Domain + SOA Benchmark
-  3. Polynomial-Time Tractability Proofs (5 theorems)
-  4. Demonstrated AR+ML Composition (84 Coq-verified theorems)
+  2. Application Task Domain + SOA Benchmark (7 systems)
+  3. Polynomial-Time Tractability Proofs (bounded O(1))
+  4. Demonstrated AR+ML Composition (84 Coq theorems, math core)
+  4.6. Adversarial Robustness (unique Trinity advantage)
+  4.7. Empirical Evaluation (94% accuracy, 96% robustness)
   5. Basis for Confidence (GF16 benchmarks)
   6. Metrics Coverage (CLARA requirements mapped)
-  7. Schedule + Milestones (24-month delivery plan)
+  6.5. DARPA XAI Alignment
+  7. Certification Roadmap (Common Criteria EAL7)
+  8. Schedule + Milestones (24-month delivery plan)
+  8.5. Hardware Verification Methodology
+  9. Bibliography (2024-2025 references)
   8. Budget Summary
   9. Bibliography
 
