@@ -1,14 +1,24 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-04-14
-**Active:** CI fixes (PR #409) — all workflow YAML fixed, FPGA build passing + DARPA CLARA PA-25-07-02 Submission Package
+**Active:** DARPA CLARA PA-25-07-02 Phase 1-4 Complete (PR #414) — Defense examples, SOA comparison, literature review, scaling analysis
 
 ## Active Work
 
-**CI Fixes** — All GitHub Actions CI workflows passing (PR #409)
-- Workflow YAML syntax errors fixed
-- Generated files added for FPGA build
-- L1 and L7 compliance met
+**DARPA CLARA Phase 1-4 Complete** (PR #414) — All deliverables ready for submission
+- Defense domain examples (COA planning spec with 522 lines)
+- SOA benchmarking comparison (vs DeepProbLog, REASON, Tensor Logic)
+- Literature review (2020-2026 neuro-symbolic AI survey)
+- Scaling analysis (O(n) linear scaling with FPGA resource metrics)
+- Red Team evaluation protocol with robustness targets
+
+**New Files Added:**
+- `specs/ar/coa_planning.t27` — Course-of-Action planning for military logistics
+- `docs/clara/examples/coa-planning.md` — Defense planning example
+- `docs/clara/CLARA-RED-TEAM.md` — Adversarial testing protocol
+- `docs/clara/CLARA-SOA-COMPARISON.md` — State-of-the-art comparison
+- `docs/clara/CLARA-LITERATURE-REVIEW.md` — Post-2020 literature survey
+- `docs/clara/CLARA-SCALING.md` — Performance and resource analysis
 
 **DARPA CLARA Submission** — Complete submission package for April 17, 2026 deadline
 
@@ -62,10 +72,12 @@
 
 | Category | Specs | Parse Status |
 |----------|-------|--------------|
-| AR (Automated Reasoning) | 7 | 7/7 PASS |
+| AR (Automated Reasoning) | 8 | 8/8 PASS |
 | NN (Neural Networks) | 2 | 2/2 PASS |
 | VSA | 1 | 1/1 PASS |
-| **Total** | **10** | **10/10 PASS** |
+| **Total** | **11** | **11/11 PASS** |
+
+**New AR Spec:** `specs/ar/coa_planning.t27` (522 lines) — Course-of-Action planning for defense domain
 
 ---
 
@@ -77,4 +89,3 @@
 ---
 
 **φ² + 1/φ² = 3 | TRINITY**
-
