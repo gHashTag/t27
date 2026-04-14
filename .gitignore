@@ -52,3 +52,4 @@ external/opencode/packages/web/
 bootstrap/target/
 bootstrap/.trinity/
 .trinity/experience/
+.sudo_pass

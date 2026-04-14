@@ -65,13 +65,23 @@ The seven **Invariant Laws (L1–L8)** are defined in [`docs/T27-CONSTITUTION.md
 
 ---
 
-## 6. Cursor / automation
+## 7. Hardware Flashing (FPGA)
 
-- Rule file: [`.cursor/rules/t27-ssot-math.mdc`](.cursor/rules/t27-ssot-math.mdc) — keep in sync with **SSOT-MATH** and this entry point.
+**Board:** QMTECH XC7A100T (Wukong) — `specs/fpga/constraints/qmtech_a100t.xdc`
 
----
+### JTAG Cable: Xilinx Platform Cable USB II
 
-**φ² + 1/φ² = 3 | TRINITY**
+| Step | Command | Notes |
+|------|---------|-------|
+| 1. Check cable | `~/.jtag_tools/cable_status.py` | PID 0x0013 = needs firmware, 0x0008 = ready |
+| 2. Load firmware | `echo 'Vishnu8087' \| sudo -S /tmp/fxload /tmp/xusb_xp2.hex` | Loads FX2 firmware, cable re-enumerates as PID 0x0008 |
+| 3. Verify | `~/.jtag_tools/cable_status.py` | Should show PID 0x0008 READY |
+| 4. Flash | `openFPGALoader --cable ft2232 --freq 6000000 --bitstream build/fpga/zerodsp_top.bit` | SRAM load |
+| 5. Verify | LED[0] blinks at ~0.36 Hz, UART echo at 115200 baud | See `docs/fpga/QMTECH_A100T_SMOKE.md` |
+
+**Toolchain:** `~/.jtag_tools/` — scripts, firmware, guides.
+**macOS note:** `sudo` required because macOS DEXT grabs FTDI USB devices. Custom `fxload` at `/tmp/fxload`.
+**Firmware:** `xusb_xp2.hex` — FX2LP firmware for Xilinx DLC9G/DLC10 cable. Source: xc3sprog project or Xilinx ISE.
 
 ---
 

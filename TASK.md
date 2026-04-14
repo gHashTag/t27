@@ -133,7 +133,7 @@
 
 1. VCD trace auto-compare against conformance vectors -- **DONE** (specs/fpga/vcd_conformance_compare.t27 + 4 conformance TB emitters)
 2. Power analysis: connect `specs/fpga/power.t27` to switching activity -- **DONE** (specs/fpga/power_analysis.t27 + device limits + budget checking)
-3. Flash verification: automate `QMTECH_A100T_SMOKE.md` in CI (HIL -- requires physical hardware)
+3. Flash verification: automate `QMTECH_A100T_SMOKE.md` in CI (HIL -- requires physical hardware) -- **CLI DONE** (t27c fpga-flash + contrib/hil/smoke_test.sh), awaiting JTAG programmer connection
 
 ### Additional Completed Work (2026-04-14 session 2)
 
