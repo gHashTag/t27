@@ -49,6 +49,7 @@ pub enum BridgeCommands {
     },
     /// Read last loop.handoff and show FUTURE OPTIONS
     Handoff,
+<<<<<<< Updated upstream
     /// Task notebook management (NotebookLM integration)
     #[command(subcommand)]
     Task(TaskCommands),
@@ -82,6 +83,35 @@ pub enum TaskCommands {
 pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
     let root = find_repo_root()
         .ok_or_else(|| anyhow::anyhow!("Could not find repo root (no specs/ directory)"))?;
+=======
+    /// NotebookLM quick commands
+    #[command(subcommand)]
+    Nb(NbCommands),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum NbCommands {
+    /// Populate all notebooks with issue content
+    Populate {
+        /// Populate specific issue number
+        #[arg(long)]
+        issue: Option<u32>,
+        /// Max issues to process
+        #[arg(long, default_value = "100")]
+        limit: u32,
+    },
+    /// List all NotebookLM notebooks
+    List,
+    /// Check notebook sources count
+    Check {
+        /// Notebook ID to check
+        notebook_id: String,
+    },
+}
+
+pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
+    let root = find_repo_root().ok_or_else(|| anyhow::anyhow!("Could not find repo root (no specs/ directory)"))?;
+>>>>>>> Stashed changes
 
     match command {
         BridgeCommands::Status => cmd_status(&root),
@@ -93,7 +123,11 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
         } => cmd_send(&root, &session_id, &message),
         BridgeCommands::Watch { session_id } => cmd_watch(&root, &session_id),
         BridgeCommands::Handoff => cmd_handoff(&root),
+<<<<<<< Updated upstream
         BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
+=======
+        BridgeCommands::Nb(nb_cmd) => handle_nb(&root, nb_cmd)?,
+>>>>>>> Stashed changes
     }
     Ok(())
 }
@@ -652,6 +686,7 @@ fn cmd_handoff(root: &Path) {
     }
 }
 
+<<<<<<< Updated upstream
 // ═══════════════════════════════════════════════════════════════════
 // Task Commands (NotebookLM Gate Enforcement)
 //
@@ -765,4 +800,116 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
     println!("   Title:         {}", title);
     println!("   Branch:        {}", branch);
     println!();
+=======
+fn handle_nb(root: &Path, command: NbCommands) -> anyhow::Result<()> {
+    match command {
+        NbCommands::Populate { issue, limit } => {
+            println!("{} Populating NotebookLM notebooks...", "📓".bold());
+
+            let populate_script = root.join("contrib/backend/notebooklm/populate.py");
+            if !populate_script.exists() {
+                eprintln!("{} populate.py not found at {}", "❌".red(), populate_script.display());
+                return Err(anyhow::anyhow!("populate.py not found"));
+            }
+
+            let mut cmd = Command::new("python3.10");
+            cmd.arg(&populate_script)
+               .arg("--all");
+
+            if let Some(issue_num) = issue {
+                cmd.arg("--issue").arg(issue_num.to_string());
+            }
+
+            let output = cmd.output()
+                .map_err(|e| anyhow::anyhow!("Failed to run populate.py: {}", e))?;
+
+            println!("{}", String::from_utf8_lossy(&output.stdout));
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!("{} populate.py failed: {}", "❌".red(), stderr);
+                return Err(anyhow::anyhow!("populate.py failed"));
+            }
+
+            Ok(())
+        }
+        NbCommands::List => {
+            println!("{} Listing NotebookLM notebooks...", "📓".bold());
+
+            let output = Command::new("python3.10")
+                .args([
+                    "-c",
+                    r#"
+import asyncio
+async def list_notebooks():
+    from notebooklm import NotebookLMClient
+    async with await NotebookLMClient.from_storage() as client:
+        notebooks = await client.notebooks.list()
+        for nb in notebooks:
+            sources = await client.sources.list(nb.id)
+            print(f"{nb.id}\t{nb.title}\t{len(sources)} sources")
+
+asyncio.run(list_notebooks())
+"#,
+                ])
+                .output()
+                .map_err(|e| anyhow::anyhow!("Failed to list notebooks: {}", e))?;
+
+            if !output.status.success() {
+                eprintln!("{} Failed to list notebooks", "❌".red());
+                return Err(anyhow::anyhow!("Failed to list notebooks"));
+            }
+
+            println!("\n{}", "═══ NOTEBOOKS ═══".bright_yellow().bold());
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() >= 3 {
+                    println!("  {} {}", "📓".bold(), parts[1].cyan());
+                    println!("      ID: {}", parts[0].bright_black());
+                    println!("      Sources: {}", parts[2].green());
+                    println!();
+                }
+            }
+
+            Ok(())
+        }
+        NbCommands::Check { notebook_id } => {
+            println!("{} Checking notebook sources...", "🔍".bold());
+            println!("  Notebook ID: {}", notebook_id.cyan());
+
+            let output = Command::new("python3.10")
+                .args([
+                    "-c",
+                    &format!(
+                        r#"
+import asyncio
+async def check():
+    from notebooklm import NotebookLMClient
+    async with await NotebookLMClient.from_storage() as client:
+        nb = await client.notebooks.get("{}")
+        sources = await client.sources.list("{}")
+        print(f"Title: {{nb.title}}")
+        print(f"Sources: {{len(sources)}}")
+        for s in sources:
+            print(f"  - {{s.title}}")
+
+asyncio.run(check())
+"#,
+                        notebook_id, notebook_id
+                    ),
+                ])
+                .output()
+                .map_err(|e| anyhow::anyhow!("Failed to check notebook: {}", e))?;
+
+            if !output.status.success() {
+                eprintln!("{} Failed to check notebook", "❌".red());
+                return Err(anyhow::anyhow!("Failed to check notebook"));
+            }
+
+            println!("{}", String::from_utf8_lossy(&output.stdout));
+
+            Ok(())
+        }
+    }
+>>>>>>> Stashed changes
 }
