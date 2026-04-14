@@ -56,3 +56,15 @@
 - **Commit:** feat: CLARA Proposal v1.5 - DARPA PA-25-07-02 Submission Package
 - **Files:** docs/NOW.md
 
+## 2026-04-14T18:32:45Z — feat/clara-docs-organization
+- **Commit:** docs: Add Trinity Verification Constitution v1.0
+- **Files:** 
+
+## 2026-04-14T18:34:43Z — feat/clara-docs-organization
+- **Commit:** chore: initial commit for docs organization PR
+- **Files:** docs/NOW.md
+
+## 2026-04-14T18:34:47Z — feat/clara-docs-organization
+- **Commit:** chore: update NOW.md for docs(clara) organization PR #476
+- **Files:** .trinity/current_task/activity.md,docs/NOW.md
+
