@@ -11,9 +11,13 @@
 **Active:** CI fixes (PR #409) — all workflow YAML fixed, FPGA build passing + DARPA CLARA PA-25-07-02 Submission Package
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ## Active Work
 =======
 **Last updated:** 2026-04-07 — Tuesday, 07 April 2026 · 00:30 local time (UTC+07) · RFC3339 2026-04-07T00:30:00+07:00
+>>>>>>> Stashed changes
+=======
+**Last updated:** 2026-04-09 — FPGA pipeline restoration, seal collision fix · PR #344, #336
 >>>>>>> Stashed changes
 
 **CI Fixes** — All GitHub Actions CI workflows passing (PR #409)
@@ -58,6 +62,7 @@
 - **Content:** Formal proofs, numerical evidence, spec coverage, explainability evidence
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ### Demo Verification
 - **Script:** `scripts/clara/demo.sh`
 - **Status:** 20/20 tests PASSED
@@ -67,10 +72,27 @@
 ## CLARA Requirements Compliance
 =======
 ### § 1.1  Agent handoff — talk to the next agent / Queen via NOW
+=======
+**Key results:**
+- Pellis α⁻¹ = 137.035999164766… matches CODATA 2022 < 0.01 ppb
+- Conjecture H2 pre-registered: sin θ₁₃ = φ⁻⁴ ≈ 8.39° vs Daya Bay 8.54° ± 0.15° (~1σ)
+- Section 1.1 reserved for Scott Olsen (deadline 2026-04-09)
+
+**Issues opened:**
+- #338 — feat(cli): tri math compare --weinberg
+- #339 — feat(cli): hybrid v2 golden tests N=5..152
+
+**Verdict:** READY FOR MERGE — Waiting for CI approval
+
+---
+
+## 2026-04-09 — CI stabilization, Yosys synthesis verified, Makefile update
+>>>>>>> Stashed changes
 
 **Canonical URL (SSOT for humans + agents):**  
 `https://github.com/gHashTag/t27/blob/master/docs/NOW.md`
 
+<<<<<<< Updated upstream
 When you **complete a non-trivial task** (code, specs, CI, seals, architecture docs), **update `NOW.md` before you stop**:
 
 1. Refresh `**Last updated:`** (calendar `**YYYY-MM-DD**` must match **today** for `./scripts/tri check-now`; keep **local wall time** + **RFC3339 with offset** as in the header template).
@@ -392,4 +414,10 @@ cd bootstrap && cargo build --release
 ---
 
 *Living documentation corpus · `[T27-CONSTITUTION.md](T27-CONSTITUTION.md)` v1.2, Article DOCS-TREE · **Last updated** must include **calendar date** `YYYY-MM-DD` (for `tri check-now`). Prefer **human-readable local wall time** plus optional **RFC3339 with offset** (e.g. `2026-04-06T18:45:00+07:00`) so tools can echo it — do not require UTC `Z` unless you work in UTC.*
+>>>>>>> Stashed changes
+=======
+**Last updated:** 2026-04-09 — ALL 5 FPGA modules in Yosys synthesis (MAC+UART+SPI+Bridge+TopLevel) · Issue #367
+
+*This is a partial update for PR #337. Integrate into full NOW.md after merge.*
+Last updated: 2026-04-09
 >>>>>>> Stashed changes

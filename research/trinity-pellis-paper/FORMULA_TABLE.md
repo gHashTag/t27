@@ -75,7 +75,11 @@ For the consolidated joint paper, see [`MASTER_PAPER.md`](MASTER_PAPER.md).
 | 27 | θ₁₂ (GRa1) | ANSATZ | arctan(1/φ) ≈ 31.72° | 31.35–33.44° (NuFIT) | — | DISFAVORED | — |
 | 31 | Pellis α⁻¹ | CHECKPOINT | 360/φ² - 2/φ³ + (3φ)⁻⁵ | 137.035999164766… | -0.015 ppb | CHECKPOINT | Sub-ppb vs CODATA 2022 |
 | 32 | sin θ₁₃ = φ⁻⁴ (H2) | CONJECTURAL | φ⁻⁴ ≈ 0.145898 | ~0.146 (Daya Bay) | ~1% | CONJECTURAL | ~1σ agreement |
+<<<<<<< Updated upstream
 | 33 | γ = φ⁻³ (GI1) | EXACT | γ_φ = √5 − 2 ≈ 0.23607 | — | 0% | EXACT | L5 identity, DL bounds satisfied |
+=======
+| 33 | γ = φ⁻³ | EXACT | γ_φ = √5 − 2 ≈ 0.23607 | 0.237533 (γ₁) | -0.62% | CANDIDATE | Conjecture GI1, DL bounds satisfied |
+>>>>>>> Stashed changes
 | PM2 | sin²θ₁₃ (Sprint 1C) | SMOKING GUN | 3γφ²/(π³e) | 0.021998 | 0.0220 | 🔥 SMOKING GUN | 0.0076% vs NuFIT 5.0 |
 | PM1 | sin²θ₁₂ (Sprint 1C) | SMOKING GUN | 7φ⁵/(3π³e) | 0.307023 | 0.307 | 0.0075% | 🔥 SMOKING GUN | — |
 | PM3 | sin²θ₂₃ (Sprint 1C) | SMOKING GUN | 4πφ²/(3e³) | 0.545985 | 0.546 | 0.0028% | 🔥 SMOKING GUN | — |

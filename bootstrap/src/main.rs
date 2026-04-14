@@ -13,7 +13,11 @@
 mod bridge;
 mod compiler;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 mod enrichment;
+=======
+mod notebook;
+>>>>>>> Stashed changes
 =======
 mod notebook;
 >>>>>>> Stashed changes
@@ -174,6 +178,7 @@ enum Commands {
     },
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     /// Enrich notebooks with YouTube transcripts
     Enrich {
         /// Notebook ID to enrich
@@ -235,10 +240,15 @@ enum Commands {
         #[arg(long)]
         region: Option<String>,
 =======
+=======
+>>>>>>> Stashed changes
     /// NotebookLM — Manage and enrich notebooks with contextual content
     Nb {
         #[command(subcommand)]
         command: notebook::NbCommands,
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     },
 
@@ -7020,10 +7030,14 @@ async fn main() -> anyhow::Result<()> {
         Commands::FrozenDigest { path } => run_frozen_digest(path)?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+<<<<<<< Updated upstream
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
+=======
+        Commands::Nb { command } => notebook::run_nb(command, &repo_root)?,
+>>>>>>> Stashed changes
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?
@@ -7167,10 +7181,14 @@ fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::FrozenDigest { path } => run_frozen_digest(path)?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
+<<<<<<< Updated upstream
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
         }
+=======
+        Commands::Nb { command } => notebook::run_nb(command, std::path::Path::new("."))?,
+>>>>>>> Stashed changes
         Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
         Commands::ValidateConformance { repo_root } => {
             suite::validate_conformance(&repo_root)?

@@ -12,6 +12,7 @@ fi
   echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
   exit 1
 }
+<<<<<<< Updated upstream
 exec "$T27C" --repo-root "$ROOT" "$@"
 =======
 # Exec shim only: all logic lives in `t27c` (Rust). See SOUL.md Article VIII (NO-PYTHON / NO-SHELL).
@@ -28,4 +29,12 @@ if [[ ! -x "$T27C" ]]; then
   exit 1
 fi
 exec "$T27C" --repo-root "$REPO_ROOT" "$@"
+>>>>>>> Stashed changes
+=======
+# Don't add --repo-root for commands that have their own repo-root option
+if [[ "$1" =~ ^(check-now|typecheck|check)$ ]]; then
+  exec "$T27C" "$@"
+else
+  exec "$T27C" --repo-root "$ROOT" "$@"
+fi
 >>>>>>> Stashed changes
