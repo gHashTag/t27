@@ -5,12 +5,12 @@
 // phi^2 + 1/phi^2 = 3 | TRINITY
 
 module BuildVerify {
-    const TOTAL_FPGA_MODULES : u32 = 31;
-    const TOTAL_TESTBENCHES : u32 = 28;
+    const TOTAL_FPGA_MODULES : u32 = 33;
+    const TOTAL_TESTBENCHES : u32 = 30;
     const TOTAL_BOARD_CONFIGS : u32 = 3;
-    const TOTAL_SPECS : u32 = 62;
+    const TOTAL_SPECS : u32 = 66;
     const NUM_BACKENDS : u32 = 4;
-    const VERILOG_FILES : u32 = 62;
+    const VERILOG_FILES : u32 = 66;
 
     struct ModuleReport {
         name : str;
@@ -46,11 +46,11 @@ module BuildVerify {
     }
 
     test test_testbench_count {
-        invariant TOTAL_TESTBENCHES == 14;
+        invariant TOTAL_TESTBENCHES == 30;
     }
 
     test test_board_count {
-        invariant TOTAL_BOARD_CONFIGS == 2;
+        invariant TOTAL_BOARD_CONFIGS == 3;
     }
 
     test test_total_specs {
@@ -66,12 +66,12 @@ module BuildVerify {
     }
 
     test test_coverage_100 {
-        var cov : u32 = coverage_percent(62, 62);
+        var cov : u32 = coverage_percent(66, 66);
         invariant cov == 100;
     }
 
     test test_coverage_0 {
-        var cov : u32 = coverage_percent(0, 62);
+        var cov : u32 = coverage_percent(0, 66);
         invariant cov == 0;
     }
 
