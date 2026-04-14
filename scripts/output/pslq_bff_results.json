@@ -1,0 +1,48 @@
+[
+  {
+    "relation": "no_relation_found",
+    "coefficients": [],
+    "independent": true,
+    "api_message": "No relation found within coefficient bounds (maxcoeff=12)"
+  },
+  {
+    "relation": "no_relation_found",
+    "coefficients": [],
+    "independent": true,
+    "api_message": "No relation found within coefficient bounds (maxcoeff=12)"
+  },
+  {
+    "relation": "no_relation_found",
+    "coefficients": [],
+    "independent": true,
+    "api_message": "No relation found within coefficient bounds (maxcoeff=12)"
+  },
+  {
+    "relation": "no_relation_found",
+    "coefficients": [],
+    "independent": true,
+    "api_message": "No relation found within coefficient bounds (maxcoeff=12)"
+  },
+  {
+    "relation": "relation_found",
+    "coefficients": [
+      0,
+      0,
+      1,
+      -1
+    ],
+    "independent": false,
+    "api_message": "Found relation with 4 coefficients"
+  },
+  {
+    "relation": "relation_found",
+    "coefficients": [
+      0,
+      0,
+      1,
+      -1
+    ],
+    "independent": false,
+    "api_message": "Found relation with 4 coefficients"
+  }
+]
