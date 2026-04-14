@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d97f5d1b2c13b64d614e02b472397f799534eef31365f7b71f1b3a99cd0ffdd6",
+  "gen_hash_rust": "sha256:86f427ba63fd53a2e337decefe270d6e45908bbd4a639ce0e919d3acacbc703d",
+  "gen_hash_verilog": "sha256:476d1187a6b9d9b30afa9ec186f1d0e65a89e44e075817740a3fafef88361e27",
+  "gen_hash_zig": "sha256:d8278cc93f2dc99969b2c64c665bb6a0464ec28a7ede15852ff9548b59dc98d3",
+  "module": "TernaryBackprop",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:39Z",
+  "spec_hash": "sha256:4958d3b4679fc63be6156f9acd07426907a24616373c21c00fe6d3fc90b4ab5a",
+  "spec_path": "specs/ml/ternary_backprop.t27"
+}

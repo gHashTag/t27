@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8891347ec11aa9832b69710dd9ad2fc5e79676ca6f2ad3e0a7f72b9598badb13",
+  "gen_hash_rust": "sha256:7ae77b026344ee06a757e70d37a8801fa4d4c4b66bccebaa88d4b2bbe924c46d",
+  "gen_hash_verilog": "sha256:be52d9435db0815cab10374e2e55ee89d706766cd979d1adb130875a8434e6c5",
+  "gen_hash_zig": "sha256:ad5515dd917c1348d6d533d252bb8106e959f71feda4633f6bba77fe09b2beeb",
+  "module": "TriRandom",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:1ac48181d58fe5733740c1cb738f315f5abfbd2d36b6c6cdfe2ff44bc5788573",
+  "spec_path": "specs/tri/utils/random.t27"
+}

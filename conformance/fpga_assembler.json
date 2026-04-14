@@ -1,0 +1,153 @@
+{
+  "constants": {
+    "SECTION_TEXT": 0,
+    "SECTION_DATA": 1,
+    "SECTION_BSS": 2,
+    "SECTION_RODATA": 3,
+    "RELOC_ABS32": 0,
+    "RELOC_REL21": 1,
+    "RELOC_GF16_LABEL": 2,
+    "WORD_SIZE": 4,
+    "DATA_BASE": 4096
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 Ternary Assembler Specification -- high-level assembler for the ternary ISA, compiles to machine code with R-type, I-type, and GF16 extended instructions",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "word_size_positive",
+      "description": "Assembler word size must be positive"
+    },
+    {
+      "id": "data_base_above_text",
+      "description": "Data section base address >= text section base"
+    },
+    {
+      "id": "align_never_decreases",
+      "description": "Aligned address is never less than original"
+    },
+    {
+      "id": "validate_non_negative",
+      "description": "Validation error count is always non-negative"
+    }
+  ],
+  "module": "Assembler",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/assembler.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Assembler Vectors",
+  "vectors": {
+    "config_creation": {
+      "description": "Assembler configuration and section construction",
+      "cases": [
+        {
+          "id": "asm_config_creation",
+          "description": "Default asm config with GF16 and ternary extensions"
+        },
+        {
+          "id": "text_section_creation",
+          "description": "Text section at base address 0"
+        },
+        {
+          "id": "data_section_creation",
+          "description": "Data section at base address 4096"
+        }
+      ]
+    },
+    "instruction_creation": {
+      "description": "R-type, I-type, and GF16 instruction construction",
+      "cases": [
+        {
+          "id": "r_instruction_creation",
+          "description": "R-type instruction identified correctly"
+        },
+        {
+          "id": "i_instruction_creation",
+          "description": "I-type instruction identified correctly"
+        },
+        {
+          "id": "gf16_instruction_creation",
+          "description": "GF16 instruction flagged as GF16 and R-type"
+        }
+      ]
+    },
+    "encoding": {
+      "description": "Instruction encoding to machine code",
+      "cases": [
+        {
+          "id": "encode_r_type",
+          "description": "R-type encoding produces non-zero word"
+        },
+        {
+          "id": "encode_i_type",
+          "description": "I-type encoding produces non-zero word"
+        }
+      ]
+    },
+    "addressing": {
+      "description": "Section end, alignment, and instruction count",
+      "cases": [
+        {
+          "id": "section_end",
+          "description": "Section end equals base plus size"
+        },
+        {
+          "id": "align_address_zero",
+          "description": "Unaligned address rounds up to alignment"
+        },
+        {
+          "id": "align_address_already_aligned",
+          "description": "Already-aligned address unchanged"
+        },
+        {
+          "id": "align_address_zero_alignment",
+          "description": "Zero alignment returns address unchanged"
+        },
+        {
+          "id": "instr_count",
+          "description": "Instruction count from byte count and word size"
+        }
+      ]
+    },
+    "symbols_and_relocs": {
+      "description": "Symbol table and relocation entries",
+      "cases": [
+        {
+          "id": "symbol_creation",
+          "description": "Symbol with name, address, and global flag"
+        },
+        {
+          "id": "reloc_creation",
+          "description": "Relocation entry with offset and symbol"
+        }
+      ]
+    },
+    "validation": {
+      "description": "Config and symbol validation",
+      "cases": [
+        {
+          "id": "validate_config_ok",
+          "description": "Valid config passes with zero errors"
+        },
+        {
+          "id": "validate_config_empty_name",
+          "description": "Empty name triggers validation error"
+        },
+        {
+          "id": "validate_symbol_ok",
+          "description": "Valid symbol passes validation"
+        },
+        {
+          "id": "validate_symbol_empty_name",
+          "description": "Symbol with empty name fails validation"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

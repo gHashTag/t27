@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:4eb1db255336281715421f069752431a399b42c8e06722eb62e13ec8e579f9d5",
-  "gen_hash_rust": "sha256:e80d0a4550e3409118792c3c1668f271bac5f0d353c195c89d8a0a70bfc9d6be",
-  "gen_hash_verilog": "sha256:b49e6bad5b495e7f2938827adf8a5450a8576a965055bd87508da9f4deb1a530",
-  "gen_hash_zig": "sha256:e3d0adcb08869e91b51999d8c435208ecaa6ed2ee1ceafc62d62a9e931a410ae",
+  "gen_hash_c": "sha256:075169ed0185b46cc4f1b52295dff9eb3ee0182a8a6645469db54d1b4bbff352",
+  "gen_hash_rust": "sha256:3c75c0ddef5ae402d40aa6f02b597c431b927a64969b763b6f230a1e6a393dcf",
+  "gen_hash_verilog": "sha256:d39ecd7c50bb43f9462793145b8841297149cfb55033161f2d8d08c7b9db6d43",
+  "gen_hash_zig": "sha256:eddd8e57e4b2b5caad5c1a3b074e09d07c728f911d2d683d8ffba01e4593d922",
   "module": "VSAOps",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:0059049df7a9192dea85c77b5613992255e8a98a817c1bc595c820b16703bc15",
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:a4d3b2cb054407b078df6f747e1d3a669e4fa9abd0f3ffad868c5af4ee9b15f5",
   "spec_path": "specs/vsa/ops.t27"
 }

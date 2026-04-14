@@ -1,11 +1,11 @@
 {
   "gen_hash_c": "sha256:4aa6b8b0fe4e0919a528210eeac3fb8d95b76e6147485267c84ac1638bf5b19c",
   "gen_hash_rust": "sha256:58530c37ea4e6a6ee8055c252eb390613e4e61b3a089f0380b1207efc0448457",
-  "gen_hash_verilog": "sha256:055ebabdcc5a157e18c3fd4252882e88d76832293381027b5db0ca2761a6567c",
-  "gen_hash_zig": "sha256:67325d2348bf86c4cc40fcf86bb7dba8cea918437aa002e4b015d1e0ba70f39f",
+  "gen_hash_verilog": "sha256:a7bd58dfd2f5f5176f4222de75a55d4fb08362f3933ffa773d60a62fb025a266",
+  "gen_hash_zig": "sha256:b3bc91cdc8f1fbba07ddc2ad5d848e9ff0ef1249ace46e04eee0a040a79598db",
   "module": "validation_rules",
   "ring": 12,
-  "sealed_at": "2026-04-07T18:10:11Z",
-  "spec_hash": "sha256:33678b37e2c94763d2da70fee97c6a0070cb6fac64b6d2dfa12619af3b164e7c",
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:e79416b57589cda7e23932b530fdb1a76aa5a643319e149f7b60df4923899db5",
   "spec_path": "compiler/runtime/validation.t27"
 }

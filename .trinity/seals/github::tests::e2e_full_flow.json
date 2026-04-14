@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:799ffdaa0e03f38712ad2c466697d1708494a06a9f86c68220b93b39c346a0f7",
   "module": "github::tests::e2e_full_flow",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:594ac3dc9456992d77aedd46c201ed682582e8acfbb989c7ed85198196e192a0",
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:814973e4dc4a668a1c044e70a36afb6798b2e473e1eb1392746066303f7e3c82",
   "spec_path": "specs/github/tests/e2e_full_flow.t27"
 }

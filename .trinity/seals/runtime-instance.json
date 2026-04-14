@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:30ecb581e31a4b50ac15aac5abebb2b1cb83d78f71e94dceba05333f4c327292",
+  "gen_hash_rust": "sha256:fa2f306a568d303bb3a17771ff9b257bf6867b8acae0fd3e3b6346b2d704738d",
+  "gen_hash_verilog": "sha256:3620c625c5083f17566c978bb0218891782fc088171f80bfddf163bc65edafd2",
+  "gen_hash_zig": "sha256:afae326d97ef608a0f1dd038679b51d6b0e29e6b5e8c10bbf71c86781c7fb7ff",
+  "module": "runtime-instance",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:9153036f09697411b9d386df51e52bea48444e1035547b0c602a02efd7c35a2a",
+  "spec_path": "specs/runtime/instance.t27"
+}
