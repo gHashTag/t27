@@ -1,70 +1,78 @@
-# Current Work — Trinity t27 Specifications
+# Current Work — Trinity t27
 
-**Phase 5 FINAL — Server, Sync, Config, Runtime modules completed**
+**Last updated:** 2026-04-14
+**Active:** CI fixes (PR #409) — all workflow YAML fixed, FPGA build passing + DARPA CLARA PA-25-07-02 Submission Package
 
 ## Active Work
 
-**None** — All phase 5 specification tasks are complete
+**CI Fixes** — All GitHub Actions CI workflows passing (PR #409)
+- Workflow YAML syntax errors fixed
+- Generated files added for FPGA build
+- L1 and L7 compliance met
+
+**DARPA CLARA Submission** — Complete submission package for April 17, 2026 deadline
 
 ---
 
-## Phase 5 Modules
+## CLARA Submission Package
 
-### Server Module (specs/server/)
-| File | Description | Lines | Tests | Invariants | Benchmarks |
-|------|-------------|-------|------------|------------|
-| http.t27 | 298 | 12 | 16 | 5 |
-| router.t27 | 311 | 9 | 15 | 5 |
-| sse.t27 | 273 | 9 | 15 | 5 |
-| mdns.t27 | 267 | 8 | 21 | 5 |
-| **Total** | **1149** | **38** | **20** |
+### Volume 1: Technical & Management Proposal
+- **File:** `docs/clara/CLARA-PROPOSAL-TECHNICAL.md`
+- **Status:** 1,702 words ≈ 6.8 pages (under 10-page limit)
+- **Sections:**
+  1. AR-Based ML Approach (Trit-K3 isomorphism)
+  2. Application Task Domain + SOA Benchmark
+  3. Polynomial-Time Tractability Proofs (5 theorems)
+  4. Demonstrated AR+ML Composition (84 Coq-verified theorems)
+  5. Basis for Confidence (GF16 benchmarks)
+  6. Metrics Coverage (CLARA requirements mapped)
+  7. Schedule + Milestones (24-month delivery plan)
+  8. Budget Summary
+  9. Bibliography
 
-### Sync Module (specs/sync/)
-| File | Description | Lines | Tests | Invariants | Benchmarks |
-|------|-------------|-------|------------|------------|
-| schema.t27 | 341 | 16 | 13 | 5 |
-| index.t27 | 354 | 20 | 16 | 5 |
-| **Total** | **695** | **36** | **21** |
+### Volume 2: Cost Proposal
+- **File:** `docs/clara/CLARA-COST-PROPOSAL.md`
+- **Status:** $2,000,000 over 24 months
+- **Breakdown:** Personnel ($1.2M), Equipment ($200K), Travel ($100K), Indirect ($500K)
 
-### Config Module (specs/config/)
-| File | Description | Lines | Tests | Invariants | Benchmarks |
-|------|-------------|-------|------------|------------|
-| schema.t27 | 386 | 14 | 19 | 4 | 0 |
-| load.t27 | 309 | 18 | 12 | 4 | 0 |
-| paths.t27 | 332 | 24 | 13 | 5 | 0 |
-| migrate.t27 | 322 | 15 | 15 | 4 | 0 |
-| **Total** | **1349** | **71** | **61** | **8** |
+### Supporting Evidence
+- **File:** `docs/clara/CLARA-EVIDENCE-PACKAGE.md`
+- **Content:** Formal proofs, numerical evidence, spec coverage, explainability evidence
 
-### Runtime Module (specs/runtime/)
-| File | Description | Lines | Tests | Invariants | Benchmarks |
-|------|-------------|-------|------------|------------|
-| execute.t27 | 372 | 23 | 18 | 4 | 0 |
-| process.t27 | 335 | 7 | 20 | 8 | 0 |
-| instance.t27 | 330 | 18 | 18 | 4 | 0 |
-| **Total** | **1037** | **48** | **50** | **4** |
+### Demo Verification
+- **Script:** `scripts/clara/demo.sh`
+- **Status:** 20/20 tests PASSED
 
 ---
 
-## All 5 Phases Summary
+## CLARA Requirements Compliance
 
-| Phase | Modules | Total Files | Total Lines | Tests | Invariants | Benchmarks |
-|------|-------------|----------|--------------|-----------|
-| 1 | LSP, Provider, Bus | 5 | 14 | 3484 | 33 | 12 | 243 | 0 |
-| 2 | Account | 2 | 14 | 0 | 0 | 0 | 0 | 0 |
-| 3 | Project | 2 | 14 | 0 | 0 | 0 | 0 |
-| 4 | Git | 2 | 14 | 0 | 0 | 0 | 0 |
-| 5 | **Server**, Sync, Config, Runtime | 17 | 4,221 | 128 | 13 | 243 | 0 |
-| **Total** | **51 files** | **15,671 lines** | **243** | **170** | **65** |
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| AR in guts of ML (FAQ 21) | ✅ | K3 logic gates replace ReLU |
+| ≤10 step proof traces | ✅ | MAX_STEPS=10 |
+| Polynomial guarantees | ✅ | Theorems 1-5 |
+| ≥2 AR kinds | ✅ | Logic, ASP, Classical |
+| ≥2 ML kinds | ✅ | Neural, Bayesian, RL |
+| Apache 2.0 | ✅ | All file headers |
 
 ---
 
-## Project Totals (All 5 Phases)
+## Specification Status
 
-**Total Files:** 51 .t27 specification files
-**Total Lines:** ~15,671 lines of specification code
-**Total Tests:** 243 test blocks
-**Total Invariants:** 170 compile-time assertions
-**Total Benchmarks:** 65 performance benchmarks
+| Category | Specs | Parse Status |
+|----------|-------|--------------|
+| AR (Automated Reasoning) | 7 | 7/7 PASS |
+| NN (Neural Networks) | 2 | 2/2 PASS |
+| VSA | 1 | 1/1 PASS |
+| **Total** | **10** | **10/10 PASS** |
+
+---
+
+## Submission Deadline
+
+**April 17, 2026, 16:00 ET**
+**Submission Bundle:** `/tmp/clara-submission/`
 
 ---
 

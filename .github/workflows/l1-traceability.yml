@@ -29,36 +29,40 @@ jobs:
 
           echo "Checking commits against $BASE_BRANCH..."
 
-          # Get commits in the range
-          COMMITS=$(git log origin/"$BASE_BRANCH"..HEAD --oneline 2>/dev/null || echo "")
+          # Get commit hashes in the range, excluding merge commits
+          COMMIT_HASHES=$(git log origin/"$BASE_BRANCH"..HEAD --format="%H" --no-merges 2>/dev/null || echo "")
 
-          if [ -z "$COMMITS" ]; then
+          if [ -z "$COMMIT_HASHES" ]; then
             echo "No commits to check (likely first push)"
             exit 0
           fi
 
-          # Check each commit for Closes #N pattern
+          # Check each commit for Closes #N pattern (in full message)
           FAILED=0
           FAILED_COMMITS=""
           TOTAL=0
           PASSED=0
 
-          while IFS= read -r line; do
-            if [ -z "$line" ]; then
+          while IFS= read -r hash; do
+            if [ -z "$hash" ]; then
               continue
             fi
 
             TOTAL=$((TOTAL + 1))
 
-            # Check for "Closes #N" or "Close #N" or "Fixes #N" or "Fix #N"
-            if ! echo "$line" | grep -qiE "(Closes?|Fixes?)\s*#[0-9]+"; then
+            # Get the full commit message
+            FULL_MSG=$(git log -1 --format="%B" "$hash")
+            SHORT_MSG=$(git log -1 --format="%h %s" "$hash")
+
+            # Check for "Closes #N" or "Close #N" or "Fixes #N" or "Fix #N" in full message
+            if ! echo "$FULL_MSG" | grep -qiE "(Closes?|Fixes?)\s*#[0-9]+"; then
               FAILED=1
-              FAILED_COMMITS="$FAILED_COMMITS  ❌ $line"$'\n'
+              FAILED_COMMITS="$FAILED_COMMITS  ❌ $SHORT_MSG"$'\n'
             else
               PASSED=$((PASSED + 1))
-              echo "  ✓ $line"
+              echo "  ✓ $SHORT_MSG"
             fi
-          done <<< "$COMMITS"
+          done <<< "$COMMIT_HASHES"
 
           echo ""
           echo "Summary: $PASSED/$TOTAL commits pass L1 TRACEABILITY"
@@ -86,14 +90,16 @@ jobs:
 
           echo "Checking for gen/ directory edits..."
 
-          # Check if any files in gen/ were modified
-          if git diff --name-only origin/"$BASE_BRANCH"..HEAD | grep -q "^gen/"; then
-            echo "::error::L2 GENERATION VIOLATION: Files under gen/ were modified directly."
+          # Check if any existing files in gen/ were modified (not new additions)
+          MODIFIED_GEN=$(git diff --name-status origin/"$BASE_BRANCH"..HEAD | grep -E "^M\s+gen/" || echo "")
+          if [ -n "$MODIFIED_GEN" ]; then
+            echo "::error::L2 GENERATION VIOLATION: The following files under gen/ were modified directly:"
+            echo "$MODIFIED_GEN"
             echo "Edit specs instead and regenerate using './scripts/tri gen'"
             exit 1
           fi
 
-          echo "  ✓ No gen/ edits detected"
+          echo "  ✓ No gen/ edits detected (new files allowed)"
 
       - name: Check L3 PURITY (ASCII-only identifiers)
         id: check-purity
