@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:e867c5501bbe8cbec0037747e3460c4c0544c163f3e7afc532d85477cfb6f70a",
-  "gen_hash_rust": "sha256:accf4653b61ed6f4d8919c191f75993f7aa9986dbb2ad5c897984729a5032853",
-  "gen_hash_verilog": "sha256:37d8ae3c9019e760214b6b248c7029657e39a72dff3f72185f316e1098d376e4",
-  "gen_hash_zig": "sha256:1c1ab5d0d1698e276926e583c7c9b7c6ea057bf9bb57c970a23541a754360996",
+  "gen_hash_c": "sha256:2890e16fa5f61ee16c1b370d08f9459d3b5737860ed540b17832c864ab02e2d0",
+  "gen_hash_rust": "sha256:815464896721c6f99e67a066a5f30b6373e59098ad2306924da81654c08f53af",
+  "gen_hash_verilog": "sha256:3a46727697c2b387c29d4f246fc41195bba17fa47f525d2f6bbf8dceeb6079d1",
+  "gen_hash_zig": "sha256:b8a66c6054a86528379db9bd73f02e654add292a58491284f1e76191f5313fcf",
   "module": "BoardMinimalXC7A100T",
   "ring": 12,
-  "sealed_at": "2026-04-08T16:07:11Z",
-  "spec_hash": "sha256:8d93c14b1810c58d972cd99f4b8014c7a040e1a634e7ab27cca4bce1663e2cba",
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:0a5a2fd4d418235a976748b76bf5d503b4a17e6b41e0c721fc696c17fad8d71d",
   "spec_path": "specs/boards/xc7a100t_minimal.t27"
 }

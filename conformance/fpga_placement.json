@@ -1,0 +1,126 @@
+{
+  "constants": {
+    "REGION_KIND_CLOCK": 0,
+    "REGION_KIND_IO_BANK": 1,
+    "REGION_KIND_BRAM_COLUMN": 2,
+    "REGION_KIND_DSP_COLUMN": 3,
+    "REGION_KIND_LOGIC_CLUSTER": 4
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Placement Constraint Generator Specification -- auto-generates placement hints and routing constraints from HIR connectivity",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Region area is always non-negative",
+      "id": "area_non_negative"
+    },
+    {
+      "description": "Validation error count is always non-negative",
+      "id": "validate_non_negative"
+    }
+  ],
+  "module": "Placement",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/placement.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Placement Vectors",
+  "vectors": {
+    "region_creation": {
+      "cases": [
+        {
+          "description": "Create generic region and verify dimensions",
+          "id": "region_creation"
+        },
+        {
+          "description": "Create logic cluster region (kind=4)",
+          "id": "logic_cluster_creation"
+        },
+        {
+          "description": "Create BRAM column region (kind=2, width=1)",
+          "id": "bram_column_creation"
+        },
+        {
+          "description": "Create DSP column region (kind=3)",
+          "id": "dsp_column_creation"
+        }
+      ],
+      "description": "Placement region construction"
+    },
+    "region_geometry": {
+      "cases": [
+        {
+          "description": "Region area = width * height",
+          "id": "region_area"
+        }
+      ],
+      "description": "Region geometry calculations"
+    },
+    "region_overlap": {
+      "cases": [
+        {
+          "description": "Overlapping regions detected correctly",
+          "id": "regions_overlap_yes"
+        },
+        {
+          "description": "Non-overlapping regions detected correctly",
+          "id": "regions_overlap_no"
+        }
+      ],
+      "description": "Region overlap detection"
+    },
+    "hints": {
+      "cases": [
+        {
+          "description": "Create placement hint linking module to region",
+          "id": "hint_creation"
+        }
+      ],
+      "description": "Placement hint construction"
+    },
+    "routing": {
+      "cases": [
+        {
+          "description": "Create route constraint with max delay",
+          "id": "route_constraint_creation"
+        }
+      ],
+      "description": "Routing constraint construction"
+    },
+    "floorplan": {
+      "cases": [
+        {
+          "description": "Create floorplan with name and device",
+          "id": "floorplan_creation"
+        }
+      ],
+      "description": "Floorplan construction"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid region passes validation",
+          "id": "validate_region_ok"
+        },
+        {
+          "description": "Region with bad coordinates fails validation",
+          "id": "validate_region_bad_coords"
+        },
+        {
+          "description": "Valid hint passes validation",
+          "id": "validate_hint_ok"
+        },
+        {
+          "description": "Hint with empty names fails validation",
+          "id": "validate_hint_empty"
+        }
+      ],
+      "description": "Region and hint validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

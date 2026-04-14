@@ -42,6 +42,8 @@ tmp/
 # Python cache
 __pycache__/
 *.pyc
+# Vendored opencode checkout at repo root (not a submodule here)
+opencode/
 
 # Specific project paths (vendored upstream lives under external/)
 external/opencode/dist/

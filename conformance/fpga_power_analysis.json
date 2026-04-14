@@ -1,0 +1,144 @@
+{
+  "constants": {
+    "DEFAULT_TOGGLE_RATE": 12,
+    "TYPICAL_BUDGET_MW": 2000,
+    "XC7A100T_MAX_LUTS": 63400,
+    "XC7A100T_MAX_BRAMS": 135,
+    "XC7A100T_MAX_DSPS": 240,
+    "XC7A100T_MAX_FFS": 126800
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Power Analysis conformance vectors -- utilization, power estimation, budget checking, device limits",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "total_resources >= 0",
+      "id": "total_resources_non_negative"
+    },
+    {
+      "description": "Power estimates >= 0",
+      "id": "power_estimates_non_negative"
+    },
+    {
+      "description": "Utilization percent <= 100 for valid utilization",
+      "id": "percent_within_bounds"
+    },
+    {
+      "description": "Budget pct >= 0",
+      "id": "budget_pct_non_negative"
+    }
+  ],
+  "module": "PowerAnalysis",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/power_analysis.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "PowerAnalysis Vectors",
+  "vectors": {
+    "device_limits": {
+      "cases": [
+        {
+          "device": "xc7a100t",
+          "id": "limits_xc7a100t",
+          "max_brams": 135,
+          "max_dsps": 240,
+          "max_ffs": 126800,
+          "max_ios": 210,
+          "max_luts": 63400
+        },
+        {
+          "device": "xc7a35t",
+          "id": "limits_xc7a35t",
+          "max_brams": 50,
+          "max_dsps": 90,
+          "max_ffs": 41600,
+          "max_ios": 100,
+          "max_luts": 20800
+        }
+      ],
+      "description": "FPGA device resource limits"
+    },
+    "power_budget_check": {
+      "cases": [
+        {
+          "budget_mw": 2000,
+          "critical": false,
+          "id": "budget_1500_in_2000",
+          "power_mw": 1500,
+          "within": true,
+          "warning": false
+        },
+        {
+          "budget_mw": 1000,
+          "critical": false,
+          "id": "budget_850_warning_in_1000",
+          "power_mw": 850,
+          "within": true,
+          "warning": true
+        },
+        {
+          "budget_mw": 1000,
+          "critical": true,
+          "id": "budget_960_critical_in_1000",
+          "power_mw": 960,
+          "within": true,
+          "warning": true
+        },
+        {
+          "budget_mw": 1000,
+          "critical": true,
+          "id": "budget_1500_exceeds_1000",
+          "power_mw": 1500,
+          "within": false,
+          "warning": true
+        }
+      ],
+      "description": "Power budget compliance checks"
+    },
+    "trinity_design_estimate": {
+      "cases": [
+        {
+          "brams": 30,
+          "clock_mhz": 50,
+          "dsps": 50,
+          "ffs": 30000,
+          "id": "trinity_top_power",
+          "ios": 48,
+          "luts": 15000,
+          "toggle_rate": 12
+        }
+      ],
+      "description": "Trinity FPGA top-level power estimate"
+    },
+    "utilization_percent": {
+      "cases": [
+        {
+          "brams": 0,
+          "device": "xc7a100t",
+          "dsps": 0,
+          "expected_pct": 10,
+          "ffs": 0,
+          "id": "lut_10pct_of_a100t",
+          "luts": 6340,
+          "resource": "luts"
+        },
+        {
+          "brams": 13,
+          "device": "xc7a100t",
+          "dsps": 24,
+          "expected_pct": 10,
+          "ffs": 12680,
+          "id": "overall_10pct_of_a100t",
+          "luts": 6340,
+          "resource": "overall"
+        }
+      ],
+      "description": "Utilization percentage calculations"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

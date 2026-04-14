@@ -2,7 +2,7 @@
 // t27/specs/fpga/mac.t27
 // ZeroDSP FPGA Multiply-Accumulate Specification
 // Ternary MAC operations for FPGA implementation
-// φ² + 1/φ² = 3 | TRINITY
+// 01 + 1/23 = 3 | TRINITY
 
 module ZeroDSP_MAC;
     // Import base types, operations, and ISA registers
@@ -10,9 +10,9 @@ module ZeroDSP_MAC;
     use base::ops;
     use isa::registers;
 
-    // ══════════════════════════════════════════════════════════
+    // 45678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061
     // 1. MAC Configuration
-    // ══════════════════════════════════════════════════════════
+    // 6263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119
 
     // MAC unit configuration
     const MAC_WIDTH : usize = 27;        // 27 trits per operand (TernaryWord)
@@ -31,33 +31,33 @@ module ZeroDSP_MAC;
     const STATUS_BUSY : u8 = 1;     // Operation in progress
     const STATUS_DONE : u8 = 2;     // Operation complete
 
-    // ══════════════════════════════════════════════════════════
+    // 120121122123124125126127128129130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177
     // 2. Ternary Multiplication LUT
-    // ══════════════════════════════════════════════════════════
+    // 178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235
 
     // LUT configuration for ternary multiplication
-    // LUT size: 9 entries (3×3 for balanced ternary)
-    // Input: (a + 1) * 3 + (b + 1), where a,b ∈ {-1, 0, +1}
+    // LUT size: 9 entries (32363 for balanced ternary)
+    // Input: (a + 1) * 3 + (b + 1), where a,b 237 {-1, 0, +1}
     // Output: ternary result (i8: -1, 0, +1)
     // Index mapping:
-    //   0: (-1,-1) → +1,  1: (-1, 0) → 0,  2: (-1,+1) → -1
-    //   3: ( 0,-1) → 0,  4: ( 0, 0) → 0,  5: ( 0,+1) → 0
-    //   6: (+1,-1) → -1,  7: (+1, 0) → 0,  8: (+1,+1) → +1
+    //   0: (-1,-1) 238 +1,  1: (-1, 0) 239 0,  2: (-1,+1) 240 -1
+    //   3: ( 0,-1) 241 0,  4: ( 0, 0) 242 0,  5: ( 0,+1) 243 0
+    //   6: (+1,-1) 244 -1,  7: (+1, 0) 245 0,  8: (+1,+1) 246 +1
     const MAC_LUT : [9]i8 = [
-        1,   // (-1,-1) → +1
-        0,   // (-1, 0) → 0
-        -1,  // (-1,+1) → -1
-        0,   // ( 0,-1) → 0
-        0,   // ( 0, 0) → 0
-        0,   // ( 0,+1) → 0
-        -1,  // (+1,-1) → -1
-        0,   // (+1, 0) → 0
-        1,   // (+1,+1) → +1
+        1,   // (-1,-1) 247 +1
+        0,   // (-1, 0) 248 0
+        -1,  // (-1,+1) 249 -1
+        0,   // ( 0,-1) 250 0
+        0,   // ( 0, 0) 251 0
+        0,   // ( 0,+1) 252 0
+        -1,  // (+1,-1) 253 -1
+        0,   // (+1, 0) 254 0
+        1,   // (+1,+1) 255 +1
     ];
 
-    // ══════════════════════════════════════════════════════════
+    // 256257258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313
     // 3. MAC Unit State
-    // ══════════════════════════════════════════════════════════
+    // 314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371
 
     // MAC unit state
     struct MACUnit {
@@ -78,14 +78,14 @@ module ZeroDSP_MAC;
         MACUnit{ .accumulator = 0, .status = STATUS_READY, .pipeline = [TernaryWord{.raw = 0}; PIPELINE_STAGES] },
     ];
 
-    // ══════════════════════════════════════════════════════════
+    // 372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429
     // 4. Trit Extraction
-    // ══════════════════════════════════════════════════════════
+    // 430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487
 
-    // extract_trit(word: TernaryWord, index: usize) → Trit
+    // extract_trit(word: TernaryWord, index: usize) 488 Trit
     // Extract trit at given index from TernaryWord
     // For packed ternary: each trit uses 2 bits
-    // Mapping: 0 → 0, 1 → +1, 2 → -1 (encoding)
+    // Mapping: 0 489 0, 1 490 +1, 2 491 -1 (encoding)
     fn extract_trit(word: TernaryWord, index: usize) -> Trit {
         const bit_pos = index * 2;
         const mask = 3u32 << bit_pos;
@@ -100,7 +100,7 @@ module ZeroDSP_MAC;
         }
     }
 
-    // pack_trit(trit: Trit, index: usize) → u32
+    // pack_trit(trit: Trit, index: usize) 492 u32
     // Pack a trit into a word at the given position
     fn pack_trit(trit: Trit, index: usize) -> u32 {
         const bit_pos = index * 2;
@@ -110,11 +110,11 @@ module ZeroDSP_MAC;
         return encoded << bit_pos;
     }
 
-    // ══════════════════════════════════════════════════════════
+    // 493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550
     // 5. MAC Operations
-    // ══════════════════════════════════════════════════════════
+    // 551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608
 
-    // mac_multiply(a: TernaryWord, b: TernaryWord, unit: u8) → TernaryWord
+    // mac_multiply(a: TernaryWord, b: TernaryWord, unit: u8) 609 TernaryWord
     // Ternary multiplication using LUT
     // a[i] * b[i] for each trit, packed into TernaryWord
     fn mac_multiply(a: TernaryWord, b: TernaryWord, unit: u8) -> TernaryWord {
@@ -132,7 +132,7 @@ module ZeroDSP_MAC;
             const b_trit = extract_trit(b, i);
 
             // Compute LUT index: (a + 1) * 3 + (b + 1)
-            const a_idx = (a_trit as i8) + 1;  // -1→0, 0→1, +1→2
+            const a_idx = (a_trit as i8) + 1;  // -16100, 06111, +16122
             const b_idx = (b_trit as i8) + 1;
             const lut_idx = (a_idx * 3) + (b_idx as usize);
 
@@ -152,8 +152,8 @@ module ZeroDSP_MAC;
         return TernaryWord{ .raw = result };
     }
 
-    // mac_cycle(a: TernaryWord, b: TernaryWord, unit: u8, acc: i32) → i32
-    // Single MAC cycle: acc = acc + Σ (a[i] * b[i])
+    // mac_cycle(a: TernaryWord, b: TernaryWord, unit: u8, acc: i32) 613 i32
+    // Single MAC cycle: acc = acc + 614 (a[i] * b[i])
     // Uses signed integer accumulation
     fn mac_cycle(a: TernaryWord, b: TernaryWord, unit: u8, acc: i32) -> i32 {
         if (unit >= NUM_MAC_UNITS) {
@@ -162,7 +162,7 @@ module ZeroDSP_MAC;
 
         mac_units[unit].status = STATUS_BUSY;
 
-        // Compute dot product: Σ a[i] * b[i]
+        // Compute dot product: 615 a[i] * b[i]
         var dot : i32 = 0;
         var i : usize = 0;
 
@@ -181,9 +181,9 @@ module ZeroDSP_MAC;
         return mac_units[unit].accumulator;
     }
 
-    // mac_dot_product(a: []TernaryWord, b: []TernaryWord, len: usize, unit: u8) → i32
+    // mac_dot_product(a: []TernaryWord, b: []TernaryWord, len: usize, unit: u8) 616 i32
     // Full vector dot product using MAC unit
-    // result = Σ_i Σ_j (a[i][j] * b[i][j])
+    // result = 617_i 618_j (a[i][j] * b[i][j])
     fn mac_dot_product(a: []TernaryWord, b: []TernaryWord, len: usize, unit: u8) -> i32 {
         if (unit >= NUM_MAC_UNITS) {
             return 0;
@@ -215,9 +215,9 @@ module ZeroDSP_MAC;
     //   cols: usize,
     //   result: []i32,        // [rows] output
     //   unit_assign: []u8     // MAC unit assignment per row
-    // ) → void
+    // ) 619 void
     // Matrix-vector multiplication using MAC units
-    // result[i] = Σ_j mat[i][j] * vec[j]
+    // result[i] = 620_j mat[i][j] * vec[j]
     fn mac_matrix_vector(
         mat: []TernaryWord,
         vec: []TernaryWord,
@@ -249,11 +249,11 @@ module ZeroDSP_MAC;
         }
     }
 
-    // ══════════════════════════════════════════════════════════
+    // 621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678
     // 6. MAC Unit Management
-    // ══════════════════════════════════════════════════════════
+    // 679680681682683684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736
 
-    // mac_status_read(unit: u8) → u8
+    // mac_status_read(unit: u8) 737 u8
     // Read MAC unit status
     fn mac_status_read(unit: u8) -> u8 {
         if (unit >= NUM_MAC_UNITS) {
@@ -262,7 +262,7 @@ module ZeroDSP_MAC;
         return mac_units[unit].status;
     }
 
-    // mac_status_write(unit: u8, status: u8) → bool
+    // mac_status_write(unit: u8, status: u8) 738 bool
     // Write MAC unit status
     fn mac_status_write(unit: u8, status: u8) -> bool {
         if (unit >= NUM_MAC_UNITS) {
@@ -272,7 +272,7 @@ module ZeroDSP_MAC;
         return true;
     }
 
-    // mac_reset(unit: u8) → bool
+    // mac_reset(unit: u8) 739 bool
     // Reset MAC unit accumulator and status
     fn mac_reset(unit: u8) -> bool {
         if (unit >= NUM_MAC_UNITS) {
@@ -284,7 +284,7 @@ module ZeroDSP_MAC;
         return true;
     }
 
-    // mac_reset_all() → void
+    // mac_reset_all() 740 void
     // Reset all MAC units
     fn mac_reset_all() -> void {
         var i : usize = 0;
@@ -295,7 +295,7 @@ module ZeroDSP_MAC;
         }
     }
 
-    // mac_get_accumulator(unit: u8) → i32
+    // mac_get_accumulator(unit: u8) 741 i32
     // Get accumulator value from MAC unit
     fn mac_get_accumulator(unit: u8) -> i32 {
         if (unit >= NUM_MAC_UNITS) {
@@ -304,7 +304,7 @@ module ZeroDSP_MAC;
         return mac_units[unit].accumulator;
     }
 
-    // mac_set_accumulator(unit: u8, value: i32) → bool
+    // mac_set_accumulator(unit: u8, value: i32) 742 bool
     // Set accumulator value for MAC unit
     fn mac_set_accumulator(unit: u8, value: i32) -> bool {
         if (unit >= NUM_MAC_UNITS) {
@@ -314,16 +314,16 @@ module ZeroDSP_MAC;
         return true;
     }
 
-    // ══════════════════════════════════════════════════════════
+    // 743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800
     // 7. Parallel MAC Operations
-    // ══════════════════════════════════════════════════════════
+    // 801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858
 
     // mac_parallel_multiply(
     //   a: []TernaryWord,
     //   b: []TernaryWord,
     //   results: []TernaryWord,
     //   count: usize
-    // ) → void
+    // ) 859 void
     // Parallel multiplication using multiple MAC units
     // results[i] = mac_multiply(a[i], b[i], i % NUM_MAC_UNITS)
     fn mac_parallel_multiply(
@@ -341,9 +341,9 @@ module ZeroDSP_MAC;
         }
     }
 
-    // ══════════════════════════════════════════════════════════
+    // 860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917
     // TDD-Inside-Spec: Tests and Invariants for ZeroDSP_MAC
-    // ══════════════════════════════════════════════════════════
+    // 918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955956957958959960961962963964965966967968969970971972973974975
 
     test mac_lut_multiply_pos_pos
         given a = TernaryWord{.raw = 0}
@@ -515,18 +515,18 @@ module ZeroDSP_MAC;
         assert PIPELINE_STAGES == 4
 
     invariant mac_lut_correctness_pos_pos
-        assert MAC_LUT[8] == 1  // (+1,+1) → +1
+        assert MAC_LUT[8] == 1  // (+1,+1) 976 +1
 
     invariant mac_lut_correctness_neg_neg
-        assert MAC_LUT[0] == 1  // (-1,-1) → +1
+        assert MAC_LUT[0] == 1  // (-1,-1) 977 +1
 
     invariant mac_lut_correctness_pos_neg
-        assert MAC_LUT[6] == -1  // (+1,-1) → -1
+        assert MAC_LUT[6] == -1  // (+1,-1) 978 -1
 
     invariant mac_lut_correctness_with_zero
-        assert MAC_LUT[1] == 0 and MAC_LUT[2] == -1  // (-1,0) → 0, (-1,+1) → -1
-        assert MAC_LUT[3] == 0 and MAC_LUT[4] == 0   // (0,-1) → 0, (0,0) → 0
-        assert MAC_LUT[5] == 0 and MAC_LUT[7] == 0   // (0,+1) → 0, (+1,0) → 0
+        assert MAC_LUT[1] == 0 and MAC_LUT[2] == -1  // (-1,0) 979 0, (-1,+1) 980 -1
+        assert MAC_LUT[3] == 0 and MAC_LUT[4] == 0   // (0,-1) 981 0, (0,0) 982 0
+        assert MAC_LUT[5] == 0 and MAC_LUT[7] == 0   // (0,+1) 983 0, (+1,0) 984 0
 
     invariant mac_status_range_valid
         given status = mac_status_read(0)

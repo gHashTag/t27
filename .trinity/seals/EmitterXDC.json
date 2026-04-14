@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:962da5f345f38457657d2807fcb3bd63abf895bdb3ce6d1324b5a7b1fa46d7dc",
   "module": "EmitterXDC",
   "ring": 12,
-  "sealed_at": "2026-04-08T18:54:47Z",
+  "sealed_at": "2026-04-14T06:32:48Z",
   "spec_hash": "sha256:d9954ca190ee3e748ef8df7ce32bd183096f7f97003651aede1ccabe5c1b0e19",
   "spec_path": "specs/pins/emitter_xdc.t27"
 }

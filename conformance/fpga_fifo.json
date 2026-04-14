@@ -1,0 +1,159 @@
+{
+  "constants": {
+    "MAX_FIFO_DEPTH": 65536
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Synchronous and Asynchronous FIFO Stdlib for Trinity T27 FPGA HIR -- defines FIFO configuration with depth, data width, and flags",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Fill count is always non-negative",
+      "id": "fill_count_non_negative"
+    },
+    {
+      "description": "Fill count never exceeds FIFO depth",
+      "id": "fill_count_le_depth"
+    },
+    {
+      "description": "FIFO cannot be simultaneously empty and full",
+      "id": "empty_xor_full"
+    },
+    {
+      "description": "has_space is true iff FIFO is not full",
+      "id": "has_space_iff_not_full"
+    },
+    {
+      "description": "has_data is true iff FIFO is not empty",
+      "id": "has_data_iff_not_empty"
+    },
+    {
+      "description": "BRAM18 count is always positive for valid FIFO",
+      "id": "bram18_positive"
+    }
+  ],
+  "module": "Fifo",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/fifo.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Fifo Vectors",
+  "vectors": {
+    "fifo_kind": {
+      "cases": [
+        {
+          "description": "Sync FIFO reports is_sync=true, is_async=false",
+          "id": "sync_fifo_is_sync"
+        },
+        {
+          "description": "Async FIFO reports is_async=true, is_sync=false",
+          "id": "async_fifo_is_async"
+        }
+      ],
+      "description": "FIFO kind (sync vs async) identification"
+    },
+    "addressing_and_resources": {
+      "cases": [
+        {
+          "description": "Addr width for depth 16 is 4 bits",
+          "id": "addr_width_16"
+        },
+        {
+          "description": "Addr width for depth 256 is 8 bits",
+          "id": "addr_width_256"
+        },
+        {
+          "description": "Total storage bits for depth 16, width 32 = 512",
+          "id": "total_storage_bits"
+        },
+        {
+          "description": "BRAM18 count for small FIFO (512 bits) is 1",
+          "id": "bram18_small"
+        }
+      ],
+      "description": "Address width and BRAM resource estimation"
+    },
+    "initial_state": {
+      "cases": [
+        {
+          "description": "Empty FIFO state is empty, not full, zero fill, no data, has space",
+          "id": "empty_state_is_empty"
+        }
+      ],
+      "description": "Empty FIFO initial state properties"
+    },
+    "push_operations": {
+      "cases": [
+        {
+          "description": "Push increments fill count and clears empty flag",
+          "id": "push_increments_fill"
+        },
+        {
+          "description": "Pushing to capacity sets full flag",
+          "id": "push_to_full"
+        },
+        {
+          "description": "Push on full FIFO is a no-op (fill unchanged)",
+          "id": "push_on_full_noop"
+        }
+      ],
+      "description": "FIFO push behavior"
+    },
+    "pop_operations": {
+      "cases": [
+        {
+          "description": "Pop decrements fill count and sets empty when drained",
+          "id": "pop_decrements_fill"
+        },
+        {
+          "description": "Pop on empty FIFO is a no-op",
+          "id": "pop_on_empty_noop"
+        }
+      ],
+      "description": "FIFO pop behavior"
+    },
+    "push_pop_roundtrip": {
+      "cases": [
+        {
+          "description": "Push twice then pop once yields fill=1 with data and space",
+          "id": "push_pop_roundtrip"
+        }
+      ],
+      "description": "Combined push/pop roundtrip behavior"
+    },
+    "threshold_flags": {
+      "cases": [
+        {
+          "description": "with_almost_empty sets flag and threshold",
+          "id": "with_almost_empty"
+        },
+        {
+          "description": "with_almost_full sets flag and threshold",
+          "id": "with_almost_full"
+        }
+      ],
+      "description": "Almost-empty and almost-full threshold configuration"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid FIFO config passes validation",
+          "id": "validate_ok"
+        },
+        {
+          "description": "Empty name fails validation",
+          "id": "validate_empty_name"
+        },
+        {
+          "description": "Zero depth fails validation",
+          "id": "validate_zero_depth"
+        }
+      ],
+      "description": "FIFO configuration validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

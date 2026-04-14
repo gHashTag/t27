@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:fe03e872d50e7c53c08ed4be14783f7c3aca06bdcdc39eac685caf5c38065c5f",
+  "gen_hash_rust": "sha256:ad53609df281fc8a98f8fe4a1c0d6883fbaaad28970d1dd4e37e56dec4513a07",
+  "gen_hash_verilog": "sha256:7fc4177057017cb61670a8474d320dbcb87c09c53631986dbc855033544fd240",
+  "gen_hash_zig": "sha256:5bca5933369f4f6446c1bc16e07093079972f78b68cc8536f9b729ef52ea5b11",
+  "module": "ProofTrace",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:39Z",
+  "spec_hash": "sha256:347bc803f5334fcc5041a10bb13589e76f1b64694f5ae42e877018e5a8696673",
+  "spec_path": "specs/ar/proof_trace.t27"
+}

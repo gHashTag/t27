@@ -1,0 +1,137 @@
+{
+  "constants": {},
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 Linker Specification -- links assembled object files into executable images for ternary core with section merging and symbol resolution",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Total image size (text+data+bss) is non-negative",
+      "id": "total_size_non_negative"
+    },
+    {
+      "description": "Config validation returns non-negative error count",
+      "id": "validate_non_negative"
+    }
+  ],
+  "module": "Linker",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/linker.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Linker Vectors",
+  "vectors": {
+    "section_creation": {
+      "cases": [
+        {
+          "description": ".text section at vaddr=0, size=128, section_end=128",
+          "id": "link_text_creation"
+        },
+        {
+          "description": ".data section at vaddr=4096",
+          "id": "link_data_creation"
+        },
+        {
+          "description": ".bss section at vaddr=8192 with flags=2",
+          "id": "link_bss_creation"
+        },
+        {
+          "description": "Section aligned on exact boundary returns vaddr unchanged",
+          "id": "section_aligned_exact"
+        }
+      ],
+      "description": "Linker section (.text, .data, .bss) construction"
+    },
+    "symbol_management": {
+      "cases": [
+        {
+          "description": "Global symbol _start at value=0, section=0",
+          "id": "linked_symbol_creation"
+        },
+        {
+          "description": "Local symbol is_local=true, is_global=false",
+          "id": "is_local_test"
+        }
+      ],
+      "description": "Linked symbol creation and binding"
+    },
+    "linker_config": {
+      "cases": [
+        {
+          "description": "Linker config with entry _start, text_base=0, data_base=4096, stack=1024",
+          "id": "linker_config_creation"
+        }
+      ],
+      "description": "Linker configuration"
+    },
+    "link_result": {
+      "cases": [
+        {
+          "description": "Successful link result with text=128, data=256, bss=64, no errors",
+          "id": "link_ok_creation"
+        },
+        {
+          "description": "Failed link result with 3 errors",
+          "id": "link_fail_creation"
+        },
+        {
+          "description": "Total image size = text + data + bss = 448",
+          "id": "total_image_size"
+        }
+      ],
+      "description": "Link result construction and queries"
+    },
+    "address_queries": {
+      "cases": [
+        {
+          "description": "Stack top = data_base + stack_size = 5120",
+          "id": "stack_top"
+        }
+      ],
+      "description": "Address calculation queries"
+    },
+    "config_validation": {
+      "cases": [
+        {
+          "description": "Config with entry point passes validation",
+          "id": "validate_config_ok"
+        },
+        {
+          "description": "Config without entry point fails validation",
+          "id": "validate_config_no_entry"
+        }
+      ],
+      "description": "Linker configuration validation"
+    },
+    "symbol_validation": {
+      "cases": [
+        {
+          "description": "Named symbol passes validation",
+          "id": "validate_symbol_ok"
+        },
+        {
+          "description": "Symbol with empty name fails validation",
+          "id": "validate_symbol_empty"
+        }
+      ],
+      "description": "Symbol validation"
+    },
+    "segments": {
+      "cases": [
+        {
+          "description": "Text segment at vaddr=0, memsz=1024, filesz=1024",
+          "id": "text_segment_creation"
+        },
+        {
+          "description": "Data segment at vaddr=4096, memsz=2048, filesz=1024",
+          "id": "data_segment_creation"
+        }
+      ],
+      "description": "Linker segment construction"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

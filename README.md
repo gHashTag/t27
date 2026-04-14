@@ -29,6 +29,7 @@ The canonical source of truth for Trinity S3AI.
 | CI | Seal coverage | GREEN | All specs sealed |
 | CI | Schema validation | GREEN | Conformance vectors validated |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
+| CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |

@@ -1,0 +1,228 @@
+{
+  "constants": {
+    "NUM_REGISTERS": 27,
+    "TRIT_WIDTH": 27,
+    "WORD_BITS": 64,
+    "INSTR_WIDTH": 32,
+    "TRIT_NEG": -1,
+    "TRIT_ZERO": 0,
+    "TRIT_POS": 1,
+    "OP_CLASS_ALU_TRIT": 0,
+    "OP_CLASS_ALU_GF16": 1,
+    "OP_CLASS_MEMORY": 2,
+    "OP_CLASS_BRANCH": 3,
+    "OP_CLASS_IO": 4,
+    "OP_CLASS_SYSTEM": 5,
+    "OP_CLASS_TERNARY_GATE": 6,
+    "DEFAULT_CLOCK_FREQ_HZ": 100000000,
+    "ARTY_A7_LUT_LIMIT": 33800,
+    "XC7A100T_LUT_LIMIT": 63400
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Ternary ISA Hardware Implementation Specification -- bridges software ISA (27 registers, balanced ternary) to silicon with GF16 arithmetic",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Number of registers must be exactly 27",
+      "id": "num_registers_is_27"
+    },
+    {
+      "description": "phi^2 + 1/phi^2 = 3 identity holds",
+      "id": "phi_identity"
+    },
+    {
+      "description": "Core DSP count is always positive",
+      "id": "core_dsp_positive"
+    },
+    {
+      "description": "Core BRAM count is always positive",
+      "id": "core_bram_positive"
+    },
+    {
+      "description": "Core LUT estimate is always positive",
+      "id": "core_lut_positive"
+    },
+    {
+      "description": "Register file bit count is always positive",
+      "id": "regfile_bits_positive"
+    },
+    {
+      "description": "Core validation error count is non-negative",
+      "id": "validate_non_negative"
+    }
+  ],
+  "module": "TernaryIsa",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/ternary_isa.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "TernaryIsa Vectors",
+  "vectors": {
+    "instr_format": {
+      "cases": [
+        {
+          "description": "R-type format: no immediate bits, total 32 bits",
+          "id": "r_type_format"
+        },
+        {
+          "description": "I-type format: has immediate, no rs2, total 32 bits",
+          "id": "i_type_format"
+        },
+        {
+          "description": "R-type format passes validation",
+          "id": "validate_r_type_format"
+        },
+        {
+          "description": "I-type format passes validation",
+          "id": "validate_i_type_format"
+        }
+      ],
+      "description": "Instruction format construction and classification"
+    },
+    "alu_ops": {
+      "cases": [
+        {
+          "description": "Ternary ALU op is trit-class, not GF16",
+          "id": "ternary_alu_op_creation"
+        },
+        {
+          "description": "GF16 ALU op uses GF16 unit",
+          "id": "gf16_alu_op_creation"
+        },
+        {
+          "description": "Valid ALU op passes validation",
+          "id": "validate_alu_op_ok"
+        },
+        {
+          "description": "ALU op with empty name fails validation",
+          "id": "validate_alu_op_empty_name"
+        }
+      ],
+      "description": "ALU operation construction and classification"
+    },
+    "regfile": {
+      "cases": [
+        {
+          "description": "Ternary register file with 27 regs, 2 read, 1 write ports",
+          "id": "ternary_regfile_creation"
+        },
+        {
+          "description": "Register file total bit count is positive",
+          "id": "regfile_bits"
+        },
+        {
+          "description": "Register file BRAM count is positive",
+          "id": "regfile_bram_count"
+        },
+        {
+          "description": "Valid register file passes validation",
+          "id": "validate_regfile_ok"
+        },
+        {
+          "description": "Register file with empty name fails validation",
+          "id": "validate_regfile_empty_name"
+        }
+      ],
+      "description": "Ternary register file construction and sizing"
+    },
+    "core_config": {
+      "cases": [
+        {
+          "description": "Basic ternary core: 1 ALU, GF16, ternary ALU, 5-stage pipeline",
+          "id": "ternary_core_creation"
+        },
+        {
+          "description": "Full ternary core: 4 ALUs, branch predictor, 7-stage pipeline",
+          "id": "ternary_core_full_creation"
+        }
+      ],
+      "description": "Ternary core configuration construction"
+    },
+    "core_resources": {
+      "cases": [
+        {
+          "description": "Basic core DSP count = num_alus + 4 (GF16)",
+          "id": "core_dsp_count_basic"
+        },
+        {
+          "description": "Full core DSP count = 4 ALUs + 4 (GF16) = 8",
+          "id": "core_dsp_count_full"
+        },
+        {
+          "description": "Core BRAM count is positive",
+          "id": "core_bram_count"
+        },
+        {
+          "description": "Core LUT estimate is positive",
+          "id": "core_lut_estimate"
+        },
+        {
+          "description": "Core Fmax = clock_freq_hz / 1M",
+          "id": "core_fmax"
+        }
+      ],
+      "description": "Core resource estimation"
+    },
+    "fits_check": {
+      "cases": [
+        {
+          "description": "Basic core fits Arty A7 (LUT limit 33800)",
+          "id": "fits_arty_a7_basic"
+        },
+        {
+          "description": "Basic core fits xc7a100t (LUT limit 63400)",
+          "id": "fits_xc7a100t_basic"
+        },
+        {
+          "description": "Full core fits Arty A7",
+          "id": "fits_arty_a7_full"
+        },
+        {
+          "description": "Full core fits xc7a100t",
+          "id": "fits_xc7a100t_full"
+        }
+      ],
+      "description": "FPGA device fit checks"
+    },
+    "pipeline": {
+      "cases": [
+        {
+          "description": "Pipeline stages: IF, ID, EX, MEM, WB",
+          "id": "pipeline_stages"
+        }
+      ],
+      "description": "Pipeline stage construction"
+    },
+    "phi_identity": {
+      "cases": [
+        {
+          "description": "phi^2 + 1/phi^2 = 3 identity check",
+          "id": "phi_squared_identity"
+        }
+      ],
+      "description": "Phi identity verification"
+    },
+    "core_validation": {
+      "cases": [
+        {
+          "description": "Valid core config passes validation",
+          "id": "validate_core_ok"
+        },
+        {
+          "description": "Core with empty name fails validation",
+          "id": "validate_core_empty_name"
+        },
+        {
+          "description": "Core with zero ALUs fails validation",
+          "id": "validate_core_zero_alus"
+        }
+      ],
+      "description": "Core config validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

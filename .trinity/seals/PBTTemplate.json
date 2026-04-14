@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:1d9cb43512cdfb7600984d9fdead3129dd59810c0d5113d46a660e564bcdd4a3",
   "module": "PBTTemplate",
   "ring": 12,
-  "sealed_at": "2026-04-08T08:09:16Z",
-  "spec_hash": "sha256:161168cfa89ee296475ffe71fa43dd0a425002c19ce509f73bd74dacc23b0cf1",
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:4df77a447e28e3e0799495cd1701dcb022b20377a83898032d2f7f7523c5dacc",
   "spec_path": "specs/test_framework/property_test_template.t27"
 }

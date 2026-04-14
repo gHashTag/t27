@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e224937c70e26f80536393d25851024456fa19e0f785c85a4199708e6f8e0357",
+  "gen_hash_rust": "sha256:9c00fdbdda2f0bd3004fdf06f02e0f851a19dfcd45fe5f66b2b8e6a530aee470",
+  "gen_hash_verilog": "sha256:2746a09473397febc2aff5bf1fdebe5d662e0b6bf504f2f37f9994ec567eef87",
+  "gen_hash_zig": "sha256:c9510b7a7a0c9bd0d884c0984a22bb5732f3be6b66ac5a6ac72e0d6619ae4b35",
+  "module": "Bilstm",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:d2e4055108ee38da5e3e5cf5c999c6381ebd57c1d6c1ee7ada868b15cccb77d4",
+  "spec_path": "specs/ml/recurrent/bilstm.t27"
+}

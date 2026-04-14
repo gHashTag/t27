@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:88241436c5ae300496ffe9296fba917c627d68a2f6550317425596cb6e472341",
+  "gen_hash_rust": "sha256:a491e775698262ad8a1e47b1eb005d102581eba3df0f727cdb618673d9814b61",
+  "gen_hash_verilog": "sha256:18c868c55d856720653d6609b94d3a886cdf5aaed9a3f1bd9a383ffbce72911d",
+  "gen_hash_zig": "sha256:94b74454c53db364074272caee136da80af237454d155f2fa0cbf349c7f77def",
+  "module": "CTS",
+  "ring": 12,
+  "sealed_at": "2026-04-13T11:00:45Z",
+  "spec_hash": "sha256:84753bf2bec3f9c744cac4ce527210e87fd55d1843aecc8f533e52e25641cbea",
+  "spec_path": "specs/fpga/cts.t27"
+}

@@ -1,0 +1,109 @@
+{
+  "constants": {},
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Clock Domain Abstraction for Trinity T27 FPGA HIR -- defines clock sources, PLL configs, and cross-domain crossing",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "ext_clock_has_freq",
+      "description": "External clock source must have positive frequency"
+    },
+    {
+      "id": "period_positive_for_valid_freq",
+      "description": "Clock period is positive for valid frequency"
+    },
+    {
+      "id": "half_period_half_of_period",
+      "description": "Half period equals period divided by 2"
+    },
+    {
+      "id": "same_domain_reflexive",
+      "description": "A clock domain is the same as itself"
+    },
+    {
+      "id": "needs_crossing_symmetric",
+      "description": "Crossing need is symmetric between domains"
+    }
+  ],
+  "module": "ClockDomain",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/clock_domain.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "ClockDomain Vectors",
+  "vectors": {
+    "clock_source": {
+      "description": "Clock source identification (external vs PLL)",
+      "cases": [
+        {
+          "id": "ext_clock_is_external",
+          "description": "External clock identified as external, not PLL"
+        },
+        {
+          "id": "pll_clock_is_pll",
+          "description": "PLL clock identified as PLL, not external"
+        }
+      ]
+    },
+    "period_calculation": {
+      "description": "Clock period and half-period calculation",
+      "cases": [
+        {
+          "id": "period_12mhz",
+          "description": "12 MHz clock has ~83ns period"
+        },
+        {
+          "id": "period_100mhz",
+          "description": "100 MHz clock has 10ns period"
+        },
+        {
+          "id": "half_period",
+          "description": "Half period is period divided by 2"
+        }
+      ]
+    },
+    "domain_comparison": {
+      "description": "Same-domain and crossing-need detection",
+      "cases": [
+        {
+          "id": "same_domain_true",
+          "description": "Domain is the same as itself"
+        },
+        {
+          "id": "same_domain_false",
+          "description": "Different domains are not the same"
+        },
+        {
+          "id": "needs_crossing_diff_freq",
+          "description": "Different frequencies require crossing"
+        },
+        {
+          "id": "needs_crossing_same",
+          "description": "Same domain needs no crossing"
+        }
+      ]
+    },
+    "crossing": {
+      "description": "Cross-domain crossing configuration",
+      "cases": [
+        {
+          "id": "crossing_data_bits",
+          "description": "Crossing data width matches config"
+        },
+        {
+          "id": "async_cross_fifo",
+          "description": "FIFO-based async crossing identified"
+        },
+        {
+          "id": "sync_cross_not_async",
+          "description": "Two-flop sync crossing not async"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

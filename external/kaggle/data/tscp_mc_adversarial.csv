@@ -1,0 +1,1261 @@
+id,question_type,question,choices,answer
+tscp_adv_nested_tom_001,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie is uncertain about the time
+B) That Charlie will check with David directly
+C) That Charlie knows the actual time is 4 PM
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_002,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter has no belief about Susan's knowledge
+B) That Peter thinks Susan is uncertain
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter thinks Susan believes Tom likes Mary",C
+tscp_adv_nested_tom_003,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie knows the actual time is 4 PM
+B) That Charlie will check with David directly
+C) That Charlie is uncertain about the time
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_004,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan believes Tom likes Mary
+B) That Peter has no belief about Susan's knowledge
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter thinks Susan is uncertain",C
+tscp_adv_nested_tom_005,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie knows the actual time is 4 PM
+B) That Charlie is uncertain about the time
+C) That Charlie will check with David directly
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_006,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter has no belief about Susan's knowledge
+B) That Peter thinks Susan is uncertain
+C) That Peter thinks Susan believes Tom likes Mary
+D) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth",D
+tscp_adv_nested_tom_007,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+B) That Charlie will check with David directly
+C) That Charlie is uncertain about the time
+D) That Charlie knows the actual time is 4 PM",A
+tscp_adv_nested_tom_008,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter has no belief about Susan's knowledge
+B) That Peter thinks Susan believes Tom likes Mary
+C) That Peter thinks Susan is uncertain
+D) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth",D
+tscp_adv_nested_tom_009,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie will check with David directly
+B) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+C) That Charlie knows the actual time is 4 PM
+D) That Charlie is uncertain about the time",B
+tscp_adv_nested_tom_010,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+B) That Peter thinks Susan believes Tom likes Mary
+C) That Peter thinks Susan is uncertain
+D) That Peter has no belief about Susan's knowledge",A
+tscp_adv_nested_tom_011,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie knows the actual time is 4 PM
+B) That Charlie will check with David directly
+C) That Charlie is uncertain about the time
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_012,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+B) That Peter thinks Susan believes Tom likes Mary
+C) That Peter has no belief about Susan's knowledge
+D) That Peter thinks Susan is uncertain",A
+tscp_adv_nested_tom_013,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie is uncertain about the time
+B) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+C) That Charlie knows the actual time is 4 PM
+D) That Charlie will check with David directly",B
+tscp_adv_nested_tom_014,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan is uncertain
+B) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+C) That Peter has no belief about Susan's knowledge
+D) That Peter thinks Susan believes Tom likes Mary",B
+tscp_adv_nested_tom_015,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+B) That Charlie knows the actual time is 4 PM
+C) That Charlie will check with David directly
+D) That Charlie is uncertain about the time",A
+tscp_adv_nested_tom_016,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter has no belief about Susan's knowledge
+B) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+C) That Peter thinks Susan is uncertain
+D) That Peter thinks Susan believes Tom likes Mary",B
+tscp_adv_nested_tom_017,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie knows the actual time is 4 PM
+B) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+C) That Charlie will check with David directly
+D) That Charlie is uncertain about the time",B
+tscp_adv_nested_tom_018,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter has no belief about Susan's knowledge
+B) That Peter thinks Susan is uncertain
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter thinks Susan believes Tom likes Mary",C
+tscp_adv_nested_tom_019,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie will check with David directly
+B) That Charlie is uncertain about the time
+C) That Charlie knows the actual time is 4 PM
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_020,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter has no belief about Susan's knowledge
+B) That Peter thinks Susan believes Tom likes Mary
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter thinks Susan is uncertain",C
+tscp_adv_nested_tom_021,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie will check with David directly
+B) That Charlie is uncertain about the time
+C) That Charlie knows the actual time is 4 PM
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_022,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan is uncertain
+B) That Peter thinks Susan believes Tom likes Mary
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter has no belief about Susan's knowledge",C
+tscp_adv_nested_tom_023,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+B) That Charlie knows the actual time is 4 PM
+C) That Charlie will check with David directly
+D) That Charlie is uncertain about the time",A
+tscp_adv_nested_tom_024,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan believes Tom likes Mary
+B) That Peter has no belief about Susan's knowledge
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter thinks Susan is uncertain",C
+tscp_adv_nested_tom_025,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+B) That Charlie is uncertain about the time
+C) That Charlie knows the actual time is 4 PM
+D) That Charlie will check with David directly",A
+tscp_adv_nested_tom_026,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan is uncertain
+B) That Peter thinks Susan believes Tom likes Mary
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter has no belief about Susan's knowledge",C
+tscp_adv_nested_tom_027,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain
+B) That Charlie knows the actual time is 4 PM
+C) That Charlie is uncertain about the time
+D) That Charlie will check with David directly",A
+tscp_adv_nested_tom_028,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan believes Tom likes Mary
+B) That Peter has no belief about Susan's knowledge
+C) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+D) That Peter thinks Susan is uncertain",C
+tscp_adv_nested_tom_029,mc,"Alice wants Bob to think that Charlie wants David to believe the meeting is at 3 PM. David actually knows it's at 4 PM. Charlie doesn't know David knows. Bob thinks Charlie knows the time. Alice knows all of this.
+
+What does Alice want Bob to think about Charlie's knowledge of the meeting time?","A) That Charlie is uncertain about the time
+B) That Charlie knows the actual time is 4 PM
+C) That Charlie will check with David directly
+D) That Charlie thinks David believes it's at 3 PM — Alice wants Bob to believe this specific false belief chain",D
+tscp_adv_nested_tom_030,mc,"John believes Mary intends Peter to think Susan believes Tom likes Mary. In reality, Tom doesn't like Mary. Susan knows this. Peter doesn't know Susan knows. Mary thinks Peter knows. John believes all of this is true.
+
+What does John believe Peter thinks about Susan's knowledge of Tom's feelings?","A) That Peter thinks Susan knows Tom doesn't like Mary — John believes Peter knows Susan knows the truth
+B) That Peter thinks Susan is uncertain
+C) That Peter thinks Susan believes Tom likes Mary
+D) That Peter has no belief about Susan's knowledge",A
+tscp_adv_pragmatic_trap_001,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) At least one student passed — no further implication
+B) Not all students passed — 'some' conversationally implies 'not all' in this context
+C) The teacher doesn't know how many passed
+D) Most students passed — 'some' pragmatically means 'many'",B
+tscp_adv_pragmatic_trap_002,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) $20 will only be given for mowing, nothing else
+B) No implication beyond the literal conditional
+C) $20 will be given regardless — the parent's true intent overrides the implicature
+D) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity",D
+tscp_adv_pragmatic_trap_003,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Not all students passed — 'some' conversationally implies 'not all' in this context
+B) At least one student passed — no further implication
+C) The teacher doesn't know how many passed
+D) Most students passed — 'some' pragmatically means 'many'",A
+tscp_adv_pragmatic_trap_004,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) $20 will only be given for mowing, nothing else
+B) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+C) $20 will be given regardless — the parent's true intent overrides the implicature
+D) No implication beyond the literal conditional",B
+tscp_adv_pragmatic_trap_005,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) At least one student passed — no further implication
+B) Most students passed — 'some' pragmatically means 'many'
+C) Not all students passed — 'some' conversationally implies 'not all' in this context
+D) The teacher doesn't know how many passed",C
+tscp_adv_pragmatic_trap_006,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+B) $20 will be given regardless — the parent's true intent overrides the implicature
+C) No implication beyond the literal conditional
+D) $20 will only be given for mowing, nothing else",A
+tscp_adv_pragmatic_trap_007,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) The teacher doesn't know how many passed
+B) Most students passed — 'some' pragmatically means 'many'
+C) At least one student passed — no further implication
+D) Not all students passed — 'some' conversationally implies 'not all' in this context",D
+tscp_adv_pragmatic_trap_008,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) $20 will be given regardless — the parent's true intent overrides the implicature
+B) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+C) No implication beyond the literal conditional
+D) $20 will only be given for mowing, nothing else",B
+tscp_adv_pragmatic_trap_009,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Most students passed — 'some' pragmatically means 'many'
+B) The teacher doesn't know how many passed
+C) Not all students passed — 'some' conversationally implies 'not all' in this context
+D) At least one student passed — no further implication",C
+tscp_adv_pragmatic_trap_010,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+B) No implication beyond the literal conditional
+C) $20 will be given regardless — the parent's true intent overrides the implicature
+D) $20 will only be given for mowing, nothing else",A
+tscp_adv_pragmatic_trap_011,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Most students passed — 'some' pragmatically means 'many'
+B) The teacher doesn't know how many passed
+C) Not all students passed — 'some' conversationally implies 'not all' in this context
+D) At least one student passed — no further implication",C
+tscp_adv_pragmatic_trap_012,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) $20 will be given regardless — the parent's true intent overrides the implicature
+B) $20 will only be given for mowing, nothing else
+C) No implication beyond the literal conditional
+D) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity",D
+tscp_adv_pragmatic_trap_013,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Not all students passed — 'some' conversationally implies 'not all' in this context
+B) The teacher doesn't know how many passed
+C) Most students passed — 'some' pragmatically means 'many'
+D) At least one student passed — no further implication",A
+tscp_adv_pragmatic_trap_014,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+B) $20 will be given regardless — the parent's true intent overrides the implicature
+C) $20 will only be given for mowing, nothing else
+D) No implication beyond the literal conditional",A
+tscp_adv_pragmatic_trap_015,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) The teacher doesn't know how many passed
+B) Not all students passed — 'some' conversationally implies 'not all' in this context
+C) Most students passed — 'some' pragmatically means 'many'
+D) At least one student passed — no further implication",B
+tscp_adv_pragmatic_trap_016,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+B) $20 will be given regardless — the parent's true intent overrides the implicature
+C) No implication beyond the literal conditional
+D) $20 will only be given for mowing, nothing else",A
+tscp_adv_pragmatic_trap_017,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Not all students passed — 'some' conversationally implies 'not all' in this context
+B) Most students passed — 'some' pragmatically means 'many'
+C) The teacher doesn't know how many passed
+D) At least one student passed — no further implication",A
+tscp_adv_pragmatic_trap_018,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+B) $20 will be given regardless — the parent's true intent overrides the implicature
+C) No implication beyond the literal conditional
+D) $20 will only be given for mowing, nothing else",A
+tscp_adv_pragmatic_trap_019,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) The teacher doesn't know how many passed
+B) Not all students passed — 'some' conversationally implies 'not all' in this context
+C) At least one student passed — no further implication
+D) Most students passed — 'some' pragmatically means 'many'",B
+tscp_adv_pragmatic_trap_020,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) No implication beyond the literal conditional
+B) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+C) $20 will be given regardless — the parent's true intent overrides the implicature
+D) $20 will only be given for mowing, nothing else",B
+tscp_adv_pragmatic_trap_021,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Not all students passed — 'some' conversationally implies 'not all' in this context
+B) At least one student passed — no further implication
+C) Most students passed — 'some' pragmatically means 'many'
+D) The teacher doesn't know how many passed",A
+tscp_adv_pragmatic_trap_022,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) No implication beyond the literal conditional
+B) $20 will be given regardless — the parent's true intent overrides the implicature
+C) $20 will only be given for mowing, nothing else
+D) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity",D
+tscp_adv_pragmatic_trap_023,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) At least one student passed — no further implication
+B) Not all students passed — 'some' conversationally implies 'not all' in this context
+C) The teacher doesn't know how many passed
+D) Most students passed — 'some' pragmatically means 'many'",B
+tscp_adv_pragmatic_trap_024,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) No implication beyond the literal conditional
+B) $20 will be given regardless — the parent's true intent overrides the implicature
+C) $20 will only be given for mowing, nothing else
+D) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity",D
+tscp_adv_pragmatic_trap_025,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) Not all students passed — 'some' conversationally implies 'not all' in this context
+B) The teacher doesn't know how many passed
+C) Most students passed — 'some' pragmatically means 'many'
+D) At least one student passed — no further implication",A
+tscp_adv_pragmatic_trap_026,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) No implication beyond the literal conditional
+B) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+C) $20 will only be given for mowing, nothing else
+D) $20 will be given regardless — the parent's true intent overrides the implicature",B
+tscp_adv_pragmatic_trap_027,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) At least one student passed — no further implication
+B) The teacher doesn't know how many passed
+C) Most students passed — 'some' pragmatically means 'many'
+D) Not all students passed — 'some' conversationally implies 'not all' in this context",D
+tscp_adv_pragmatic_trap_028,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) $20 will only be given for mowing, nothing else
+B) No implication beyond the literal conditional
+C) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+D) $20 will be given regardless — the parent's true intent overrides the implicature",C
+tscp_adv_pragmatic_trap_029,mc,"'Some of the students passed the exam.'
+
+Context: Said by a teacher who knows exactly how many passed.
+
+What does this utterance pragmatically imply?","A) The teacher doesn't know how many passed
+B) Not all students passed — 'some' conversationally implies 'not all' in this context
+C) At least one student passed — no further implication
+D) Most students passed — 'some' pragmatically means 'many'",B
+tscp_adv_pragmatic_trap_030,mc,"'If you mow the lawn, I'll give you $20.'
+
+Context: Said by a parent who would also give $20 if you cleaned the garage instead.
+
+What does this utterance conversationally imply?","A) $20 will be given regardless — the parent's true intent overrides the implicature
+B) That $20 is contingent on mowing the lawn — despite the parent's true intention, the conditional implicates exclusivity
+C) $20 will only be given for mowing, nothing else
+D) No implication beyond the literal conditional",B
+tscp_adv_deception_chain_001,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+B) David knows Alice was at the library and believes this
+C) David is uncertain about Alice's location
+D) David knows the truth and wants you to know it too",A
+tscp_adv_deception_chain_002,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+B) D refuses to guess because the message is unreliable
+C) That Person A said something else entirely
+D) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted",D
+tscp_adv_deception_chain_003,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+B) David knows the truth and wants you to know it too
+C) David is uncertain about Alice's location
+D) David knows Alice was at the library and believes this",A
+tscp_adv_deception_chain_004,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+B) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+C) That Person A said something else entirely
+D) D refuses to guess because the message is unreliable",A
+tscp_adv_deception_chain_005,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows the truth and wants you to know it too
+B) David knows Alice was at the library and believes this
+C) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+D) David is uncertain about Alice's location",C
+tscp_adv_deception_chain_006,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+B) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+C) D refuses to guess because the message is unreliable
+D) That Person A said something else entirely",A
+tscp_adv_deception_chain_007,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+B) David knows Alice was at the library and believes this
+C) David knows the truth and wants you to know it too
+D) David is uncertain about Alice's location",A
+tscp_adv_deception_chain_008,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said something else entirely
+B) D refuses to guess because the message is unreliable
+C) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+D) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages",C
+tscp_adv_deception_chain_009,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows the truth and wants you to know it too
+B) David knows Alice was at the library and believes this
+C) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+D) David is uncertain about Alice's location",C
+tscp_adv_deception_chain_010,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+B) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+C) D refuses to guess because the message is unreliable
+D) That Person A said something else entirely",B
+tscp_adv_deception_chain_011,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+B) David is uncertain about Alice's location
+C) David knows Alice was at the library and believes this
+D) David knows the truth and wants you to know it too",A
+tscp_adv_deception_chain_012,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+B) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+C) D refuses to guess because the message is unreliable
+D) That Person A said something else entirely",A
+tscp_adv_deception_chain_013,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows the truth and wants you to know it too
+B) David knows Alice was at the library and believes this
+C) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+D) David is uncertain about Alice's location",C
+tscp_adv_deception_chain_014,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said something else entirely
+B) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+C) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+D) D refuses to guess because the message is unreliable",B
+tscp_adv_deception_chain_015,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows the truth and wants you to know it too
+B) David knows Alice was at the library and believes this
+C) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+D) David is uncertain about Alice's location",C
+tscp_adv_deception_chain_016,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) D refuses to guess because the message is unreliable
+B) That Person A said something else entirely
+C) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+D) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted",D
+tscp_adv_deception_chain_017,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+B) David knows Alice was at the library and believes this
+C) David knows the truth and wants you to know it too
+D) David is uncertain about Alice's location",A
+tscp_adv_deception_chain_018,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said something else entirely
+B) D refuses to guess because the message is unreliable
+C) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+D) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages",C
+tscp_adv_deception_chain_019,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the library and believes this
+B) David knows the truth and wants you to know it too
+C) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+D) David is uncertain about Alice's location",C
+tscp_adv_deception_chain_020,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) D refuses to guess because the message is unreliable
+B) That Person A said something else entirely
+C) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+D) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages",C
+tscp_adv_deception_chain_021,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows the truth and wants you to know it too
+B) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+C) David is uncertain about Alice's location
+D) David knows Alice was at the library and believes this",B
+tscp_adv_deception_chain_022,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said something else entirely
+B) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+C) D refuses to guess because the message is unreliable
+D) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted",D
+tscp_adv_deception_chain_023,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+B) David knows Alice was at the library and believes this
+C) David knows the truth and wants you to know it too
+D) David is uncertain about Alice's location",A
+tscp_adv_deception_chain_024,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+B) D refuses to guess because the message is unreliable
+C) That Person A said something else entirely
+D) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted",D
+tscp_adv_deception_chain_025,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the library and believes this
+B) David knows the truth and wants you to know it too
+C) David is uncertain about Alice's location
+D) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain",D
+tscp_adv_deception_chain_026,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+B) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+C) That Person A said something else entirely
+D) D refuses to guess because the message is unreliable",A
+tscp_adv_deception_chain_027,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the library and believes this
+B) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain
+C) David is uncertain about Alice's location
+D) David knows the truth and wants you to know it too",B
+tscp_adv_deception_chain_028,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted
+B) D refuses to guess because the message is unreliable
+C) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+D) That Person A said something else entirely",A
+tscp_adv_deception_chain_029,mc,"Alice tells Bob she's going to the library. She actually goes to the cinema. Bob tells Charlie he saw Alice at the library (believing Alice). Charlie tells David he knows Alice was at the library (believing Bob). David knows Alice was actually at the cinema but doesn't reveal this. David tells you he knows where Alice went.
+
+What does David actually know, and what does he want you to believe?","A) David knows Alice was at the library and believes this
+B) David is uncertain about Alice's location
+C) David knows the truth and wants you to know it too
+D) David knows Alice was at the cinema, but by not correcting Charlie, he's letting you continue believing the false chain",D
+tscp_adv_deception_chain_030,mc,"In a game of telephone, Person A whispers 'The cat sat on the mat.' Person B hears and whispers 'The cat sat on the hat.' Person C hears and whispers 'The bat sat on the hat.' Person D hears 'The bat sat on the hat' correctly. Person D is asked what Person A said.
+
+What does Person D most likely believe Person A said?","A) That Person A said something else entirely
+B) That Person A said 'The cat sat on the mat' — D realizes the game distorts messages
+C) D refuses to guess because the message is unreliable
+D) That Person A said 'The bat sat on the hat' — D doesn't know the message was distorted",D
+tscp_adv_norm_conflict_001,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Refuse immediately and explain your allergy — honesty trumps politeness
+B) Pretend to eat it while hiding it — deception solves the conflict
+C) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+D) Eat it and risk an allergic reaction — politeness to the host trumps all",C
+tscp_adv_norm_conflict_002,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Praise it enthusiastically — support is most important
+B) Criticize it directly — honesty is most important
+C) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+D) Say nothing and change the subject — avoid the conflict",C
+tscp_adv_norm_conflict_003,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Refuse immediately and explain your allergy — honesty trumps politeness
+B) Eat it and risk an allergic reaction — politeness to the host trumps all
+C) Pretend to eat it while hiding it — deception solves the conflict
+D) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms",D
+tscp_adv_norm_conflict_004,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Say nothing and change the subject — avoid the conflict
+B) Praise it enthusiastically — support is most important
+C) Criticize it directly — honesty is most important
+D) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance",D
+tscp_adv_norm_conflict_005,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+B) Eat it and risk an allergic reaction — politeness to the host trumps all
+C) Refuse immediately and explain your allergy — honesty trumps politeness
+D) Pretend to eat it while hiding it — deception solves the conflict",A
+tscp_adv_norm_conflict_006,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+B) Say nothing and change the subject — avoid the conflict
+C) Praise it enthusiastically — support is most important
+D) Criticize it directly — honesty is most important",A
+tscp_adv_norm_conflict_007,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Eat it and risk an allergic reaction — politeness to the host trumps all
+B) Pretend to eat it while hiding it — deception solves the conflict
+C) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+D) Refuse immediately and explain your allergy — honesty trumps politeness",C
+tscp_adv_norm_conflict_008,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Say nothing and change the subject — avoid the conflict
+B) Criticize it directly — honesty is most important
+C) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+D) Praise it enthusiastically — support is most important",C
+tscp_adv_norm_conflict_009,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Eat it and risk an allergic reaction — politeness to the host trumps all
+B) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+C) Pretend to eat it while hiding it — deception solves the conflict
+D) Refuse immediately and explain your allergy — honesty trumps politeness",B
+tscp_adv_norm_conflict_010,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Say nothing and change the subject — avoid the conflict
+B) Criticize it directly — honesty is most important
+C) Praise it enthusiastically — support is most important
+D) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance",D
+tscp_adv_norm_conflict_011,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Eat it and risk an allergic reaction — politeness to the host trumps all
+B) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+C) Pretend to eat it while hiding it — deception solves the conflict
+D) Refuse immediately and explain your allergy — honesty trumps politeness",B
+tscp_adv_norm_conflict_012,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+B) Say nothing and change the subject — avoid the conflict
+C) Praise it enthusiastically — support is most important
+D) Criticize it directly — honesty is most important",A
+tscp_adv_norm_conflict_013,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+B) Eat it and risk an allergic reaction — politeness to the host trumps all
+C) Refuse immediately and explain your allergy — honesty trumps politeness
+D) Pretend to eat it while hiding it — deception solves the conflict",A
+tscp_adv_norm_conflict_014,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Praise it enthusiastically — support is most important
+B) Say nothing and change the subject — avoid the conflict
+C) Criticize it directly — honesty is most important
+D) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance",D
+tscp_adv_norm_conflict_015,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Refuse immediately and explain your allergy — honesty trumps politeness
+B) Pretend to eat it while hiding it — deception solves the conflict
+C) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+D) Eat it and risk an allergic reaction — politeness to the host trumps all",C
+tscp_adv_norm_conflict_016,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Criticize it directly — honesty is most important
+B) Say nothing and change the subject — avoid the conflict
+C) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+D) Praise it enthusiastically — support is most important",C
+tscp_adv_norm_conflict_017,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Pretend to eat it while hiding it — deception solves the conflict
+B) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+C) Eat it and risk an allergic reaction — politeness to the host trumps all
+D) Refuse immediately and explain your allergy — honesty trumps politeness",B
+tscp_adv_norm_conflict_018,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+B) Praise it enthusiastically — support is most important
+C) Criticize it directly — honesty is most important
+D) Say nothing and change the subject — avoid the conflict",A
+tscp_adv_norm_conflict_019,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Eat it and risk an allergic reaction — politeness to the host trumps all
+B) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+C) Pretend to eat it while hiding it — deception solves the conflict
+D) Refuse immediately and explain your allergy — honesty trumps politeness",B
+tscp_adv_norm_conflict_020,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+B) Criticize it directly — honesty is most important
+C) Say nothing and change the subject — avoid the conflict
+D) Praise it enthusiastically — support is most important",A
+tscp_adv_norm_conflict_021,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Pretend to eat it while hiding it — deception solves the conflict
+B) Refuse immediately and explain your allergy — honesty trumps politeness
+C) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+D) Eat it and risk an allergic reaction — politeness to the host trumps all",C
+tscp_adv_norm_conflict_022,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Praise it enthusiastically — support is most important
+B) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+C) Criticize it directly — honesty is most important
+D) Say nothing and change the subject — avoid the conflict",B
+tscp_adv_norm_conflict_023,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+B) Eat it and risk an allergic reaction — politeness to the host trumps all
+C) Refuse immediately and explain your allergy — honesty trumps politeness
+D) Pretend to eat it while hiding it — deception solves the conflict",A
+tscp_adv_norm_conflict_024,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Say nothing and change the subject — avoid the conflict
+B) Criticize it directly — honesty is most important
+C) Praise it enthusiastically — support is most important
+D) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance",D
+tscp_adv_norm_conflict_025,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Eat it and risk an allergic reaction — politeness to the host trumps all
+B) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+C) Pretend to eat it while hiding it — deception solves the conflict
+D) Refuse immediately and explain your allergy — honesty trumps politeness",B
+tscp_adv_norm_conflict_026,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Praise it enthusiastically — support is most important
+B) Say nothing and change the subject — avoid the conflict
+C) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+D) Criticize it directly — honesty is most important",C
+tscp_adv_norm_conflict_027,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+B) Refuse immediately and explain your allergy — honesty trumps politeness
+C) Pretend to eat it while hiding it — deception solves the conflict
+D) Eat it and risk an allergic reaction — politeness to the host trumps all",A
+tscp_adv_norm_conflict_028,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+B) Criticize it directly — honesty is most important
+C) Praise it enthusiastically — support is most important
+D) Say nothing and change the subject — avoid the conflict",A
+tscp_adv_norm_conflict_029,mc,"You're at a dinner party. The host serves a dish you're allergic to. Your host worked hard on it and is watching eagerly for your reaction. Cultural norms say: (1) Don't waste food, (2) Be honest, (3) Be polite to hosts.
+
+What's the most socially skilled response?","A) Pretend to eat it while hiding it — deception solves the conflict
+B) Refuse immediately and explain your allergy — honesty trumps politeness
+C) Take a small portion, praise the presentation, and discreetly avoid eating it while finding a way to explain later if needed — this navigates conflicting norms
+D) Eat it and risk an allergic reaction — politeness to the host trumps all",C
+tscp_adv_norm_conflict_030,mc,"Your friend shows you a creative project they're proud of. You think it's poorly executed and won't succeed. Norms: (1) Be supportive of friends, (2) Give honest feedback, (3) Encourage creativity.
+
+How should you respond?","A) Find genuine aspects to praise, then ask questions that might lead them to realize issues themselves — balances support with honest guidance
+B) Criticize it directly — honesty is most important
+C) Praise it enthusiastically — support is most important
+D) Say nothing and change the subject — avoid the conflict",A
+tscp_adv_incomplete_info_001,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) The envelope contained money that wasn't enough
+B) B was expecting something different entirely
+C) A was trying to give B something inappropriate
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_002,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were definitely gossiping about you
+B) They have a romantic relationship they're hiding
+C) They were discussing something illegal
+D) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about",D
+tscp_adv_incomplete_info_003,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) B was expecting something different entirely
+C) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+D) The envelope contained money that wasn't enough",C
+tscp_adv_incomplete_info_004,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were definitely gossiping about you
+B) They were discussing something illegal
+C) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+D) They have a romantic relationship they're hiding",C
+tscp_adv_incomplete_info_005,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) The envelope contained money that wasn't enough
+C) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+D) B was expecting something different entirely",C
+tscp_adv_incomplete_info_006,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were discussing something illegal
+B) They have a romantic relationship they're hiding
+C) They were definitely gossiping about you
+D) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about",D
+tscp_adv_incomplete_info_007,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+C) The envelope contained money that wasn't enough
+D) B was expecting something different entirely",B
+tscp_adv_incomplete_info_008,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+B) They were definitely gossiping about you
+C) They were discussing something illegal
+D) They have a romantic relationship they're hiding",A
+tscp_adv_incomplete_info_009,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) B was expecting something different entirely
+B) A was trying to give B something inappropriate
+C) The envelope contained money that wasn't enough
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_010,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were definitely gossiping about you
+B) They have a romantic relationship they're hiding
+C) They were discussing something illegal
+D) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about",D
+tscp_adv_incomplete_info_011,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) The envelope contained money that wasn't enough
+C) B was expecting something different entirely
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_012,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were definitely gossiping about you
+B) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+C) They have a romantic relationship they're hiding
+D) They were discussing something illegal",B
+tscp_adv_incomplete_info_013,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) The envelope contained money that wasn't enough
+C) B was expecting something different entirely
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_014,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They have a romantic relationship they're hiding
+B) They were discussing something illegal
+C) They were definitely gossiping about you
+D) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about",D
+tscp_adv_incomplete_info_015,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) B was expecting something different entirely
+C) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+D) The envelope contained money that wasn't enough",C
+tscp_adv_incomplete_info_016,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+B) They have a romantic relationship they're hiding
+C) They were definitely gossiping about you
+D) They were discussing something illegal",A
+tscp_adv_incomplete_info_017,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+C) The envelope contained money that wasn't enough
+D) B was expecting something different entirely",B
+tscp_adv_incomplete_info_018,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+B) They have a romantic relationship they're hiding
+C) They were discussing something illegal
+D) They were definitely gossiping about you",A
+tscp_adv_incomplete_info_019,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) The envelope contained money that wasn't enough
+C) B was expecting something different entirely
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_020,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They have a romantic relationship they're hiding
+B) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+C) They were discussing something illegal
+D) They were definitely gossiping about you",B
+tscp_adv_incomplete_info_021,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) A was trying to give B something inappropriate
+B) The envelope contained money that wasn't enough
+C) B was expecting something different entirely
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_022,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+B) They were definitely gossiping about you
+C) They were discussing something illegal
+D) They have a romantic relationship they're hiding",A
+tscp_adv_incomplete_info_023,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) The envelope contained money that wasn't enough
+B) A was trying to give B something inappropriate
+C) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+D) B was expecting something different entirely",C
+tscp_adv_incomplete_info_024,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were discussing something illegal
+B) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+C) They were definitely gossiping about you
+D) They have a romantic relationship they're hiding",B
+tscp_adv_incomplete_info_025,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) The envelope contained money that wasn't enough
+B) B was expecting something different entirely
+C) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+D) A was trying to give B something inappropriate",C
+tscp_adv_incomplete_info_026,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They have a romantic relationship they're hiding
+B) They were definitely gossiping about you
+C) They were discussing something illegal
+D) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about",D
+tscp_adv_incomplete_info_027,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) The envelope contained money that wasn't enough
+B) A was trying to give B something inappropriate
+C) B was expecting something different entirely
+D) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised",D
+tscp_adv_incomplete_info_028,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They were definitely gossiping about you
+B) They were discussing something illegal
+C) They have a romantic relationship they're hiding
+D) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about",D
+tscp_adv_incomplete_info_029,mc,"You see Person A give Person B an envelope. You don't know what's inside. Person B looks disappointed and hands it back. Person A looks surprised.
+
+What can you reasonably infer?","A) The envelope contained money that wasn't enough
+B) That B was disappointed by the envelope's contents — but you cannot infer what was inside or why A was surprised
+C) A was trying to give B something inappropriate
+D) B was expecting something different entirely",B
+tscp_adv_incomplete_info_030,mc,"Two colleagues are whispering intensely. When you approach, they stop abruptly and look uncomfortable. One says 'We were just discussing...' then trails off. The other leaves quickly.
+
+What happened?","A) They have a romantic relationship they're hiding
+B) You cannot determine with certainty — they could have been discussing you, something confidential, or something unrelated that they're embarrassed about
+C) They were discussing something illegal
+D) They were definitely gossiping about you",B
+tscp_adv_contradictory_signals_001,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're confused about how to feel — the signals reflect uncertainty
+B) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+C) They're genuinely happy but tired — the contradiction is accidental
+D) They're hiding a different secret, unrelated to your news",B
+tscp_adv_contradictory_signals_002,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) The smile and nodding are involuntary tics
+B) They're experiencing emotional confusion
+C) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+D) They're genuinely friendly and don't realize they're being aggressive",C
+tscp_adv_contradictory_signals_003,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're hiding a different secret, unrelated to your news
+B) They're genuinely happy but tired — the contradiction is accidental
+C) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+D) They're confused about how to feel — the signals reflect uncertainty",C
+tscp_adv_contradictory_signals_004,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) The smile and nodding are involuntary tics
+B) They're genuinely friendly and don't realize they're being aggressive
+C) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+D) They're experiencing emotional confusion",C
+tscp_adv_contradictory_signals_005,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're hiding a different secret, unrelated to your news
+B) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+C) They're confused about how to feel — the signals reflect uncertainty
+D) They're genuinely happy but tired — the contradiction is accidental",B
+tscp_adv_contradictory_signals_006,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+B) They're experiencing emotional confusion
+C) They're genuinely friendly and don't realize they're being aggressive
+D) The smile and nodding are involuntary tics",A
+tscp_adv_contradictory_signals_007,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're genuinely happy but tired — the contradiction is accidental
+B) They're hiding a different secret, unrelated to your news
+C) They're confused about how to feel — the signals reflect uncertainty
+D) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion",D
+tscp_adv_contradictory_signals_008,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+B) They're genuinely friendly and don't realize they're being aggressive
+C) They're experiencing emotional confusion
+D) The smile and nodding are involuntary tics",A
+tscp_adv_contradictory_signals_009,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're hiding a different secret, unrelated to your news
+B) They're confused about how to feel — the signals reflect uncertainty
+C) They're genuinely happy but tired — the contradiction is accidental
+D) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion",D
+tscp_adv_contradictory_signals_010,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+B) They're genuinely friendly and don't realize they're being aggressive
+C) The smile and nodding are involuntary tics
+D) They're experiencing emotional confusion",A
+tscp_adv_contradictory_signals_011,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're confused about how to feel — the signals reflect uncertainty
+B) They're genuinely happy but tired — the contradiction is accidental
+C) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+D) They're hiding a different secret, unrelated to your news",C
+tscp_adv_contradictory_signals_012,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) They're experiencing emotional confusion
+B) They're genuinely friendly and don't realize they're being aggressive
+C) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+D) The smile and nodding are involuntary tics",C
+tscp_adv_contradictory_signals_013,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're confused about how to feel — the signals reflect uncertainty
+B) They're hiding a different secret, unrelated to your news
+C) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+D) They're genuinely happy but tired — the contradiction is accidental",C
+tscp_adv_contradictory_signals_014,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) They're experiencing emotional confusion
+B) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+C) The smile and nodding are involuntary tics
+D) They're genuinely friendly and don't realize they're being aggressive",B
+tscp_adv_contradictory_signals_015,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're confused about how to feel — the signals reflect uncertainty
+B) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+C) They're genuinely happy but tired — the contradiction is accidental
+D) They're hiding a different secret, unrelated to your news",B
+tscp_adv_contradictory_signals_016,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) They're experiencing emotional confusion
+B) They're genuinely friendly and don't realize they're being aggressive
+C) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+D) The smile and nodding are involuntary tics",C
+tscp_adv_contradictory_signals_017,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're confused about how to feel — the signals reflect uncertainty
+B) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+C) They're hiding a different secret, unrelated to your news
+D) They're genuinely happy but tired — the contradiction is accidental",B
+tscp_adv_contradictory_signals_018,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) They're experiencing emotional confusion
+B) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+C) They're genuinely friendly and don't realize they're being aggressive
+D) The smile and nodding are involuntary tics",B
+tscp_adv_contradictory_signals_019,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're confused about how to feel — the signals reflect uncertainty
+B) They're hiding a different secret, unrelated to your news
+C) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+D) They're genuinely happy but tired — the contradiction is accidental",C
+tscp_adv_contradictory_signals_020,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) They're genuinely friendly and don't realize they're being aggressive
+B) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+C) They're experiencing emotional confusion
+D) The smile and nodding are involuntary tics",B
+tscp_adv_contradictory_signals_021,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're genuinely happy but tired — the contradiction is accidental
+B) They're confused about how to feel — the signals reflect uncertainty
+C) They're hiding a different secret, unrelated to your news
+D) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion",D
+tscp_adv_contradictory_signals_022,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) They're experiencing emotional confusion
+B) They're genuinely friendly and don't realize they're being aggressive
+C) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+D) The smile and nodding are involuntary tics",C
+tscp_adv_contradictory_signals_023,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're genuinely happy but tired — the contradiction is accidental
+B) They're hiding a different secret, unrelated to your news
+C) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+D) They're confused about how to feel — the signals reflect uncertainty",C
+tscp_adv_contradictory_signals_024,mc,"During a negotiation, one side keeps smiling and nodding while making increasingly aggressive demands and using hostile language.
+
+What does this signal combination indicate?","A) The smile and nodding are involuntary tics
+B) Strategic use of positive affect to mask or soften aggression — the smile creates a 'good cop' frame while demands are 'bad cop'
+C) They're experiencing emotional confusion
+D) They're genuinely friendly and don't realize they're being aggressive",B
+tscp_adv_contradictory_signals_025,mc,"A friend says 'I'm so happy for you!' with a flat tone, furrowed brow, and crossed arms while breaking eye contact.
+
+What are they most likely feeling, and why might the signals be contradictory?","A) They're genuinely happy but tired — the contradiction is accidental
+B) They're confused about how to feel — the signals reflect uncertainty
+C) They likely feel envy or resentment — the positive words are socially required, but the non-verbal signals reveal the true negative emotion
+D) They're hiding a different secret, unrelated to your news",C
+tscp_adv_strategic_altruism_001,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate $200 anonymously to compensate for not inspiring others
+B) Donate anonymously — pure altruism requires no recognition
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Don't donate at all to avoid the dilemma entirely",C
+tscp_adv_strategic_altruism_002,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+B) Neither — both are just greenwashing
+C) The technology investment — shows commitment to long-term change
+D) The direct donation — more immediate impact without self-interest",A
+tscp_adv_strategic_altruism_003,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+B) Don't donate at all to avoid the dilemma entirely
+C) Donate anonymously — pure altruism requires no recognition
+D) Donate $200 anonymously to compensate for not inspiring others",A
+tscp_adv_strategic_altruism_004,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+B) The technology investment — shows commitment to long-term change
+C) Neither — both are just greenwashing
+D) The direct donation — more immediate impact without self-interest",A
+tscp_adv_strategic_altruism_005,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate $200 anonymously to compensate for not inspiring others
+B) Donate anonymously — pure altruism requires no recognition
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Don't donate at all to avoid the dilemma entirely",C
+tscp_adv_strategic_altruism_006,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) Neither — both are just greenwashing
+B) The technology investment — shows commitment to long-term change
+C) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+D) The direct donation — more immediate impact without self-interest",C
+tscp_adv_strategic_altruism_007,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Don't donate at all to avoid the dilemma entirely
+B) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+C) Donate anonymously — pure altruism requires no recognition
+D) Donate $200 anonymously to compensate for not inspiring others",B
+tscp_adv_strategic_altruism_008,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) Neither — both are just greenwashing
+B) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+C) The direct donation — more immediate impact without self-interest
+D) The technology investment — shows commitment to long-term change",B
+tscp_adv_strategic_altruism_009,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Don't donate at all to avoid the dilemma entirely
+B) Donate $200 anonymously to compensate for not inspiring others
+C) Donate anonymously — pure altruism requires no recognition
+D) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit",D
+tscp_adv_strategic_altruism_010,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) The technology investment — shows commitment to long-term change
+B) Neither — both are just greenwashing
+C) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+D) The direct donation — more immediate impact without self-interest",C
+tscp_adv_strategic_altruism_011,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Don't donate at all to avoid the dilemma entirely
+B) Donate anonymously — pure altruism requires no recognition
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Donate $200 anonymously to compensate for not inspiring others",C
+tscp_adv_strategic_altruism_012,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+B) The direct donation — more immediate impact without self-interest
+C) Neither — both are just greenwashing
+D) The technology investment — shows commitment to long-term change",A
+tscp_adv_strategic_altruism_013,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+B) Don't donate at all to avoid the dilemma entirely
+C) Donate anonymously — pure altruism requires no recognition
+D) Donate $200 anonymously to compensate for not inspiring others",A
+tscp_adv_strategic_altruism_014,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) The direct donation — more immediate impact without self-interest
+B) The technology investment — shows commitment to long-term change
+C) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+D) Neither — both are just greenwashing",C
+tscp_adv_strategic_altruism_015,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate $200 anonymously to compensate for not inspiring others
+B) Don't donate at all to avoid the dilemma entirely
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Donate anonymously — pure altruism requires no recognition",C
+tscp_adv_strategic_altruism_016,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) Neither — both are just greenwashing
+B) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+C) The direct donation — more immediate impact without self-interest
+D) The technology investment — shows commitment to long-term change",B
+tscp_adv_strategic_altruism_017,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate anonymously — pure altruism requires no recognition
+B) Donate $200 anonymously to compensate for not inspiring others
+C) Don't donate at all to avoid the dilemma entirely
+D) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit",D
+tscp_adv_strategic_altruism_018,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) The direct donation — more immediate impact without self-interest
+B) Neither — both are just greenwashing
+C) The technology investment — shows commitment to long-term change
+D) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible",D
+tscp_adv_strategic_altruism_019,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Don't donate at all to avoid the dilemma entirely
+B) Donate $200 anonymously to compensate for not inspiring others
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Donate anonymously — pure altruism requires no recognition",C
+tscp_adv_strategic_altruism_020,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) The direct donation — more immediate impact without self-interest
+B) The technology investment — shows commitment to long-term change
+C) Neither — both are just greenwashing
+D) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible",D
+tscp_adv_strategic_altruism_021,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Don't donate at all to avoid the dilemma entirely
+B) Donate anonymously — pure altruism requires no recognition
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Donate $200 anonymously to compensate for not inspiring others",C
+tscp_adv_strategic_altruism_022,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) The technology investment — shows commitment to long-term change
+B) The direct donation — more immediate impact without self-interest
+C) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+D) Neither — both are just greenwashing",C
+tscp_adv_strategic_altruism_023,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Donate anonymously — pure altruism requires no recognition
+B) Donate $200 anonymously to compensate for not inspiring others
+C) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit
+D) Don't donate at all to avoid the dilemma entirely",C
+tscp_adv_strategic_altruism_024,mc,"A company can invest in expensive environmentally-friendly technology (cost: $1M, benefit: widespread PR and customer goodwill) OR donate $1M directly to environmental causes (no PR benefit). Both have similar environmental impact.
+
+What's the more genuinely environmentally responsible choice?","A) This is genuinely ambiguous — the donation helps existing efforts, the technology may enable future benefits. Both can be justified as responsible
+B) The technology investment — shows commitment to long-term change
+C) Neither — both are just greenwashing
+D) The direct donation — more immediate impact without self-interest",A
+tscp_adv_strategic_altruism_025,mc,"You can donate $100 to charity. If you donate publicly, you'll inspire 5 others to each donate $100 (total $600 generated). If you donate anonymously, no one else will donate but you'll avoid accusations of virtue signaling.
+
+What's the most altruistically effective choice?","A) Don't donate at all to avoid the dilemma entirely
+B) Donate anonymously — pure altruism requires no recognition
+C) Donate $200 anonymously to compensate for not inspiring others
+D) Donate publicly — generating $600 for the cause is more effective than $100, even if it means accepting some personal credit",D

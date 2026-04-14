@@ -1,0 +1,164 @@
+{
+  "constants": {
+    "MASK_ALL": 4294967295,
+    "MAX_EXPECTED_VALUES": 64,
+    "MAX_SIGNAL_REFS": 32
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "VCD Conformance Compare vectors -- batch comparison, masking, value extraction, UART/MAC/SPI/Top mapping",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "total_checks == passed + failed + errors",
+      "id": "result_counts_consistent"
+    },
+    {
+      "description": "extract_value returns non-negative",
+      "id": "extract_value_non_negative"
+    },
+    {
+      "description": "cycle<->timestamp roundtrip identity",
+      "id": "cycle_timestamp_roundtrip"
+    }
+  ],
+  "module": "VcdConformanceCompare",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/vcd_conformance_compare.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "VcdConformanceCompare Vectors",
+  "vectors": {
+    "compare_batch": {
+      "cases": [
+        {
+          "expected_failed": 0,
+          "expected_passed": 3,
+          "id": "compare_batch_all_pass",
+          "vcd_values": [0, 255, 170]
+        },
+        {
+          "expected_failed": 1,
+          "expected_passed": 2,
+          "id": "compare_batch_mixed",
+          "vcd_values": [0, 254, 100]
+        }
+      ],
+      "description": "Batch comparison of VCD values against expected"
+    },
+    "compare_value_masked": {
+      "cases": [
+        {
+          "actual": 131,
+          "expected": 3,
+          "id": "compare_masked_match",
+          "mask": 15,
+          "match": true
+        },
+        {
+          "actual": 132,
+          "expected": 3,
+          "id": "compare_masked_mismatch",
+          "mask": 15,
+          "match": false
+        }
+      ],
+      "description": "Masked value comparison"
+    },
+    "map_mac_cycle": {
+      "cases": [
+        {
+          "a_trits": [1, 1],
+          "b_trits": [1, 1],
+          "expected_acc": 2,
+          "id": "mac_cycle_simple",
+          "initial_acc": 0
+        },
+        {
+          "a_trits": [1],
+          "b_trits": [1],
+          "expected_acc": 6,
+          "id": "mac_cycle_with_initial",
+          "initial_acc": 5
+        }
+      ],
+      "description": "MAC cycle result mapping"
+    },
+    "map_led_output": {
+      "cases": [
+        {
+          "expected": 255,
+          "id": "led_all_on",
+          "mask": 255
+        },
+        {
+          "expected": 0,
+          "id": "led_all_off",
+          "mask": 0
+        },
+        {
+          "expected": 170,
+          "id": "led_pattern_aa",
+          "mask": 170
+        }
+      ],
+      "description": "LED output mapping"
+    },
+    "map_uart_tx": {
+      "cases": [
+        {
+          "data": 85,
+          "expected_bits": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+          "id": "uart_tx_0x55"
+        },
+        {
+          "data": 0,
+          "expected_bits": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          "id": "uart_tx_0x00"
+        }
+      ],
+      "description": "UART TX bit-level mapping"
+    },
+    "parse_timescale": {
+      "cases": [
+        {
+          "expected_ps": 1,
+          "id": "timescale_1ps",
+          "timescale": "1 ps"
+        },
+        {
+          "expected_ps": 1000,
+          "id": "timescale_1ns",
+          "timescale": "1 ns"
+        },
+        {
+          "expected_ps": 10000,
+          "id": "timescale_10ns",
+          "timescale": "10 ns"
+        }
+      ],
+      "description": "Timescale string to picoseconds"
+    },
+    "timestamp_conversion": {
+      "cases": [
+        {
+          "cycle": 5,
+          "expected_ts_ps": 100000,
+          "id": "cycle_to_ts_5_20ns",
+          "period_ns": 20
+        },
+        {
+          "expected_cycle": 5,
+          "id": "ts_to_cycle_100000_20ns",
+          "period_ns": 20,
+          "ts_ps": 100000
+        }
+      ],
+      "description": "Cycle<->timestamp conversions"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

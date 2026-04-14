@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/vsa/jones_polynomial.t27
-// Jones Polynomial — Link invariant computed from input structure
-// V(L, t) = (-t^(-3/4))^w(L) · ⟨L⟩ where ⟨L⟩ is Kauffman bracket
+// Jones Polynomial 0 Link invariant computed from input structure
+// V(L, t) = (-t^(-3/4))^w(L) 1 2L3 where 4L5 is Kauffman bracket
 
 module JonesPolynomial {
     use math::constants;
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 67891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374757677787980
     // 1. Knot/Link Representation
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 81828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169
 
     // Crossing sign: +1 for positive (overcrossing), -1 for negative (undercrossing)
     const CROSSING_POSITIVE : i32 = 1;
     const CROSSING_NEGATIVE : i32 = -1;
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244
     // 2. Writhe Calculation
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333
 
     // Compute writhe w(L) from crossing signs
     // w(L) = sum of crossing signs (positive = +1, negative = -1)
@@ -28,14 +28,14 @@ module JonesPolynomial {
         return w;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // 3. Kauffman Bracket ⟨L⟩
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408
+    // 3. Kauffman Bracket 409L410
+    // 411412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499
 
     // Skein relation for Kauffman bracket:
-    // ⟨L_+⟩ = A⟨L_0⟩ + A^{-1}⟨L_∞⟩
-    // ⟨L_-⟩ = A^{-1}⟨L_0⟩ + A⟨L_∞⟩
-    // ⟨L_0⟩ = (A + A^{-1})⟨L_∞⟩
+    // 500L_+501 = A502L_0503 + A^{-1}504L_505506
+    // 507L_-508 = A^{-1}509L_0510 + A511L_512513
+    // 514L_0515 = (A + A^{-1})516L_517518
     // Where A = t^(-1/4), L_+ = positive crossing, L_- = negative crossing
 
     // A = t^(-1/4) parameter for Kauffman bracket
@@ -44,10 +44,10 @@ module JonesPolynomial {
     }
 
     // Kauffman bracket of unknot (trivial knot)
-    // ⟨O⟩ = 1
+    // 519O520 = 1
     const BRACKET_UNKNOT : f64 = 1.0;
 
-    // Compute Kauffman bracket ⟨L⟩ from crossing signs (input structure)
+    // Compute Kauffman bracket 521L522 from crossing signs (input structure)
     // For small links, use known formulas; for larger, approximate
     fn bracket_from_crossings(crossings: [i32], t: f64) -> f64 {
         let A = bracket_parameter(t);
@@ -70,13 +70,13 @@ module JonesPolynomial {
             // Unknot
             return BRACKET_UNKNOT;
         } else if n == 3 and pos_count == 3 {
-            // Trefoil (all positive): ⟨trefoil⟩ = -A^7 - A^3
+            // Trefoil (all positive): 523trefoil524 = -A^7 - A^3
             return -pow(A, 7.0) - pow(A, 3.0);
         } else if n == 3 and neg_count == 3 {
-            // Negative trefoil: ⟨trefoil⟩ = -A^{-7} - A^{-3}
+            // Negative trefoil: 525trefoil526 = -A^{-7} - A^{-3}
             return -pow(A, -7.0) - pow(A, -3.0);
         } else if n == 4 and pos_count == 2 and neg_count == 2 {
-            // Figure-eight: ⟨figure-eight⟩ = A^8 - A^4 + 1 - A^{-4} + A^{-8}
+            // Figure-eight: 527figure-eight528 = A^8 - A^4 + 1 - A^{-4} + A^{-8}
             return pow(A, 8.0) - pow(A, 4.0) + 1.0 - pow(A, -4.0) + pow(A, -8.0);
         } else {
             // Generic approximation
@@ -85,12 +85,12 @@ module JonesPolynomial {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603
     // 4. Jones Polynomial
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692
 
     // Compute Jones polynomial V(L, t) from link structure (crossing signs)
-    // V(L, t) = (-t^(-3/4))^w(L) · ⟨L⟩
+    // V(L, t) = (-t^(-3/4))^w(L) 693 694L695
     // Input: crossings = array of crossing signs (+1 or -1) representing link L
     // Output: Jones polynomial value at variable t
     fn jones_polynomial_from_structure(crossings: [i32], t: f64) -> f64 {
@@ -101,7 +101,7 @@ module JonesPolynomial {
     }
 
     // Legacy: Compute Jones polynomial V(L, t) from writhe and Kauffman bracket
-    // V(L, t) = (-t^(-3/4))^w(L) · ⟨L⟩
+    // V(L, t) = (-t^(-3/4))^w(L) 696 697L698
     fn jones_polynomial(t: f64, bracket: f64, w: i32) -> f64 {
         let factor = pow(-pow(t, -0.75), w as f64);
         return factor * bracket;
@@ -114,15 +114,15 @@ module JonesPolynomial {
         return jones_polynomial_from_structure(crossings, t);
     }
 
-    // Jones polynomial for trefoil knot with t = φ
-    // Expected: V(trefoil, φ) = φ² + 1
+    // Jones polynomial for trefoil knot with t = 699
+    // Expected: V(trefoil, 700) = 701702 + 1
     fn jones_trefoil_at_phi() -> f64 {
         return jones_trefoil(PHI);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773774775776777
     // 5. Helper Functions
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866
 
     // Power function (reused from constants.t27)
     fn pow(x: f64, n: f64) -> f64 {
@@ -206,9 +206,9 @@ module JonesPolynomial {
         return x == 1.0 / 0.0 or x == -1.0 / 0.0;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941
     // 6. TDD-Inside-Spec: Tests
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 9429439449459469479489499509519529539549559569579589599609619629639649659669679689699709719729739749759769779789799809819829839849859869879889899909919929939949959969979989991000100110021003100410051006100710081009101010111012101310141015101610171018101910201021102210231024102510261027102810291030
 
     test writhe_empty_crossings
         given crossings: [i32] = []
@@ -249,12 +249,12 @@ module JonesPolynomial {
     test jones_trefoil_at_phi_approx
         given result = jones_trefoil_at_phi()
         and expected = PHI * PHI + 1.0
-        // V(trefoil, φ) ≈ φ² + 1
+        // V(trefoil, 1031) 1032 10331034 + 1
         when error = abs(result - expected)
         then error < 0.1  // Allow 10% tolerance for numeric approximation
 
     test jones_trefoil_at_phi_identity
-        // φ² + 1 = φ + φ² (trivial from φ² = φ + 1)
+        // 10351036 + 1 = 1037 + 10381039 (trivial from 10401041 = 1042 + 1)
         given result = jones_trefoil_at_phi()
         and phi_sq_plus_one = PHI * PHI + 1.0
         when error = abs(result - phi_sq_plus_one)
@@ -270,7 +270,7 @@ module JonesPolynomial {
         then abs(result - expected) < 1e-6
 
     test jones_polynomial_from_structure_trefoil_phi
-        // V(trefoil, φ) from crossing signs
+        // V(trefoil, 1043) from crossing signs
         given crossings: [i32] = [1, 1, 1]
         and t = PHI
         when result = jones_polynomial_from_structure(crossings, t)
@@ -285,7 +285,7 @@ module JonesPolynomial {
         then abs(result - 1.0) < 0.01
 
     test jones_polynomial_variable_t
-        // Jones polynomial with variable t (not fixed φ)
+        // Jones polynomial with variable t (not fixed 1044)
         given crossings: [i32] = [1, 1, 1]  // trefoil
         and t1 = 1.5
         and t2 = 2.0
@@ -309,12 +309,12 @@ module JonesPolynomial {
         when result = jones_trefoil(t)
         then !isnan(result) and !isinf(result)
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 104510461047104810491050105110521053105410551056105710581059106010611062106310641065106610671068106910701071107210731074107510761077107810791080108110821083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119
     // 7. Formal Invariants
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 11201121112211231124112511261127112811291130113111321133113411351136113711381139114011411142114311441145114611471148114911501151115211531154115511561157115811591160116111621163116411651166116711681169117011711172117311741175117611771178117911801181118211831184118511861187118811891190119111921193119411951196119711981199120012011202120312041205120612071208
 
     invariant jones_trefoil_phi_relation
-        // V(trefoil, φ) ≈ φ² + 1
+        // V(trefoil, 1209) 1210 12111212 + 1
         assert |jones_trefoil_at_phi() - (PHI * PHI + 1.0)| < 0.1
 
     invariant writhe_additivity
@@ -331,12 +331,12 @@ module JonesPolynomial {
         // Rationale: Jones polynomial is a link invariant (unchanged under Reidemeister moves)
 
     invariant phi_jones_trefoil_identity
-        // For trefoil at t=φ: V = φ² + 1 = φ + φ² (from φ² = φ + 1)
-        assert jones_trefoil_at_phi() ≈ PHI + PHI * PHI within 0.1
+        // For trefoil at t=1213: V = 12141215 + 1 = 1216 + 12171218 (from 12191220 = 1221 + 1)
+        assert jones_trefoil_at_phi() 1222 PHI + PHI * PHI within 0.1
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // 122312241225122612271228122912301231123212331234123512361237123812391240124112421243124412451246124712481249125012511252125312541255125612571258125912601261126212631264126512661267126812691270127112721273127412751276127712781279128012811282128312841285128612871288128912901291129212931294129512961297
     // 8. Benchmarks
-    // ═════════════════════════════════════════════════════════════════════════════════════════
+    // 12981299130013011302130313041305130613071308130913101311131213131314131513161317131813191320132113221323132413251326132713281329133013311332133313341335133613371338133913401341134213431344134513461347134813491350135113521353135413551356135713581359136013611362136313641365136613671368136913701371137213731374137513761377137813791380138113821383138413851386
 
     bench writhe_computation
         measure: cycles to compute writhe for 100 crossings
