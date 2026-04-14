@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:7235c584a0f24a2af31916327fbad2e73bede77b42d14f889cbafa9c3769898b",
+  "gen_hash_rust": "sha256:637c750c0a258d5d4dd5cc92e308e04e11e6d586de4eea9d63984c00536f890d",
+  "gen_hash_verilog": "sha256:cb6224b550dc89410b9fe71d200494286f02a0ffe5e2c201797201bb12267e0a",
+  "gen_hash_zig": "sha256:4f12cf3656a85607e40b6a1075a26f70f4d2099d601d22e6aa1a9a4d10293573",
   "module": "ZeroDSP_MAC",
-  "ring": 28,
-  "spec_path": "specs/fpga/mac.t27",
-  "spec_hash": "sha256:4fc1bfe163420d737cd9497385f7203e4c4476d6f48e152476ea8c1e80dd3927",
-  "gen_hash_zig": "sha256:727a42042b3f68437019baee6e3db5e25c7f4728db3c442a0691b622f0e81a97",
-  "gen_hash_c": "sha256:330d5fe950e67b63b56f3c71a06db67aa95333d0c6ad2768b2aed0c2a2a7309a",
-  "gen_hash_verilog": "sha256:38a13fc2ae7de26022a7e6a832dad4bd0308e4c80ef234d14290c9aa1d3227d8",
-  "conformance_hash": "sha256:545aec06f6e56c493ef5ffaaae8e245a60d8beef1ecf070ad6daefbc3c4ea2eb",
-  "tests": {
-    "status": "passed",
-    "count": 15,
-    "invariants": 8,
-    "benchmarks": 4
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T19:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-08T14:03:49Z",
+  "spec_hash": "sha256:b8a5a3c917d263ff7dc5834c56a209b352a33a5d1adc41a7320dce3502eb8bbd",
+  "spec_path": "specs/fpga/mac.t27"
 }

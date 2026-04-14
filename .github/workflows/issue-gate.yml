@@ -1,3 +1,4 @@
+# Enforces L1 TRACEABILITY: No code merged without Closes #N
 name: Issue Gate
 on:
   pull_request_target:
@@ -12,26 +13,23 @@ jobs:
   check-linked-issue:
     runs-on: ubuntu-latest
     steps:
-      - name: Check for linked issues via GraphQL
+      - name: Check for linked issues in PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          ISSUES=$(gh api graphql \
-            -F owner='${{ github.repository_owner }}' \
-            -F repo='${{ github.event.repository.name }}' \
-            -F pr=${{ github.event.pull_request.number }} \
-            -f query='query($owner:String!,$repo:String!,$pr:Int!){
-              repository(owner:$owner,name:$repo){
-                pullRequest(number:$pr){
-                  closingIssuesReferences(first:10){
-                    nodes{number state}
-                  }
-                }
-              }
-            }' --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[].number' 2>/dev/null)
+          set -euo pipefail
+          FOUND=$(echo "$PR_TITLE
+          $PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
 
-          if [ -z "$ISSUES" ]; then
-            echo "::error::No linked issues found. PR must contain 'Closes #N' in description."
+          if [ -n "$FOUND" ]; then
+            echo "✅ Issue gate passed: $FOUND"
+          else
+            echo "::error::L1 TRACEABILITY violation: No 'Closes #N' found in PR title/body."
+            echo "::error::Constitutional Law L1 requires all code changes to reference an issue."
+            echo "::error::Usage: Include 'Closes #N' in your PR title or body."
+            echo "::error::Example: 'feat(compiler): Add algorithm codegen placeholder\n\nCloses #42'"
+            echo "::error::PR blocked. Please create an issue first, then reference it in your PR."
             exit 1
           fi
-          echo "Linked issues: $ISSUES"

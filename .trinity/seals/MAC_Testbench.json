@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:01fd3e1a29588aa6e82d2206a3feaa0ef90a0e1039a70841692f9fe2467ff54b",
+  "gen_hash_rust": "sha256:fb2495d473da37f2ca8e72e5fa501a958addc7f74d55f926f3c5b95a8cf2969f",
+  "gen_hash_verilog": "sha256:7138272808f09cbd398f2337e3ded300eb1819fc1863437f64c157898b27debb",
+  "gen_hash_zig": "sha256:2788f95082ca07b24f87d93d47533eeff98df6c7bfcf9922763a97bcd51c5e82",
   "module": "MAC_Testbench",
-  "ring": 43,
-  "spec_path": "specs/fpga/testbench/mac_tb.t27",
-  "spec_hash": "sha256:e6f708192a3b4c5d6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c",
-  "gen_hash_zig": "sha256:08192a3b4c5d6e7f80910a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
-  "gen_hash_c": "sha256:2a3b4c5d6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60",
-  "gen_hash_verilog": "sha256:4c5d6e7f80910a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293",
-  "conformance_hash": "sha256:6e7f80910a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f6071829304",
-  "tests": {
-    "status": "passed",
-    "count": 15,
-    "invariants": 11,
-    "benchmarks": 3
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-05T12:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:3e7706e5e58b49744b70465956a1a932550aaa37215ce9a2050ef64bcab51ec2",
+  "spec_path": "specs/fpga/testbench/mac_tb.t27"
 }

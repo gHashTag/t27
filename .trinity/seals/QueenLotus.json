@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:1f21841dc7a5516f3320cb2bcee2a843cf9cc911e909e0371fdfdd10c95b66b8",
+  "gen_hash_rust": "sha256:88ca9babd4162577246221dface96cc3a06b3be23d4934b574173a8507d40238",
+  "gen_hash_verilog": "sha256:1124515ea571ae18ce6ef7d25d4af6f77fae880c3322720929e17c0c3d985253",
+  "gen_hash_zig": "sha256:2c99cf57cd285824c626a1cb820bc7035716f35e5669a67ca9d921ee16ef8cd0",
   "module": "QueenLotus",
-  "ring": 29,
-  "spec_path": "specs/queen/lotus.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:17Z",
   "spec_hash": "sha256:aba0e5052c50fecef28f0a08d3d9f10a5269a0c51e77461ff6e1a2330ff2eab9",
-  "gen_hash_zig": "sha256:1c7ab4160e0b79778688ff915fdd975b6b3a759afe21dcab29adbba5612e2be8",
-  "gen_hash_c": "sha256:8f79a057d40e4bfa6a30120f54f541d526004eff92d1b3ddeb7f7c735129674d",
-  "gen_hash_verilog": "sha256:812950a23c8df26ee5bdefc0f0d2267eaedfe50a548027e10f2c758fa1e33f3a",
-  "conformance_hash": "sha256:c141a1e499a39487a2ca277d55b400799b872e9a7a5929065a78e8ae1fa2fa57",
-  "tests": {
-    "status": "passed",
-    "count": 26,
-    "invariants": 18,
-    "benchmarks": 4
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T19:00:00Z"
+  "spec_path": "specs/queen/lotus.t27"
 }

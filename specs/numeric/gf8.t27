@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/numeric/gf8.t27
 // GoldenFloat8 — 8-bit φ-structured floating point
 // NUMERIC-STANDARD-001 — Agent 3 (P1)
@@ -6,6 +7,10 @@ module GF8 {
     // Import base format family
     use numeric::goldenfloat_family;
     use numeric::phi_ratio;
+
+    // Import test/invariant/bench framework
+    use base::testing;
+    use base::benchmarking;
 
     // ═════════════════════════════════════════════════════════════════
     // 1. Format Definition
@@ -24,8 +29,9 @@ module GF8 {
     // Bias for exponent (2^(3-1) - 1 = 3)
     const EXP_BIAS : u8 = 3;
 
-    // φ-ratio: exp/mant = 3/4 = 0.75 (phi_distance = 0.132)
-    const PHI_DISTANCE : f64 = 0.1319660112501052;
+    // φ-ratio: exp/mant = 3/4 = 0.75
+    // φ-distance: math::constants::PHI_DISTANCE
+    const PHI_DISTANCE : f64 = 0.132;
 
     // ═════════════════════════════════════════════════════════════════
     // 2. GoldenFloat8 Type
@@ -62,6 +68,12 @@ module GF8 {
             raw = (sign << 7) | (exp_clamped << MANT_BITS) | mant
         };
     }
+
+    // Test: gf8_phi_distance invariant
+    test gf8_phi_distance
+        given phi = 1.618033988749894848 // math::sacred_physics::PHI
+        when  gf8_phi = GF8::encode(phi)
+        then  gf8_phi.raw == 0b01000000 // |S|EEE (phi = math::constants::PHI_DISTANCE)
 
     // Decode GF8 to f32
     fn decode(gf: GF8) -> f32 {
@@ -496,4 +508,14 @@ module GF8 {
     bench gf8_decode_latency
         measure: nanoseconds to decode(GF8{raw = 64})
         target: < 50ns
+
+    // Bench: GF8 weight quantization (NN weights from N(0, 0.1))
+    bench gf8_weight_quantize
+        measure: nanoseconds to encode(0.1) and decode(GF8{raw = encode(0.1).raw})
+        target: < 200ns
+
+    // Invariant: GF8 phi_distance
+    invariant gf8_phi_distance
+        assert PHI_DISTANCE == 0.132 within 0.001
+        // Rationale: exp/mant = 3/4 = 0.75, phi_distance = |0.75 - 0.618| = 0.132
 }

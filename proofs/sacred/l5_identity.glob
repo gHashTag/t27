@@ -1,0 +1,9 @@
+DIGEST d8b1b6a14de7e6ac25b233dc6ccfb98e
+Fl5_identity
+R20:30 Stdlib.Reals.Reals <> <> lib
+prf 63:78 <> trinity_identity
+R167:169 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R118:119 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R82:82 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R97:99 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R84:86 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not

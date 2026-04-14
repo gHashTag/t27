@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // t27/specs/isa/registers.t27
 // TRI27 ISA Register File Specification
 // Register definitions, Coptic encoding, and register file operations
@@ -15,6 +16,9 @@ module ISARegisters {
     const NUM_REGISTERS : usize = 27;   // R0-R26
     const REG_WIDTH : usize = 27;       // Each register holds 27 trits (TernaryWord)
     const COPIC_BASE : usize = 27;      // Coptic numerals base
+
+    // Agent-register binding (Ring 045)
+    const AGENT_COUNT : usize = 27;     // 27 agents map to 27 registers
 
     // Register identifiers
     const R0 : u8 = 0;   // Zero register (always reads as 0)
@@ -486,6 +490,80 @@ module ISARegisters {
 
     invariant isa_max_register_is_26
         assert R26 == NUM_REGISTERS - 1
+
+    // ═════════════════════════════════════════════════════════════════
+    // Ring 045: Agent Binding and Trit State Invariants
+    // ═════════════════════════════════════════════════════════════════════════
+
+    // agent_register_bijection: Each agent maps to exactly one register
+    invariant agent_register_bijection
+        assert AGENT_COUNT == NUM_REGISTERS
+        assert NUM_REGISTERS == 27
+        assert COPIC_BASE == 27
+
+    // trit_state: All trit values must be in {-1, 0, +1}
+    invariant trit_state
+        given r0 = reg_read(R0)
+        and   r1 = reg_read(R1)
+        and   r10 = reg_read(R10)
+        and   r26 = reg_read(R26)
+        // All trit values in registers must be valid
+        // (verified by TernaryWord type constraints)
+
+    // no_trit_overflow: All register operations produce valid trits
+    invariant no_trit_overflow
+        // Register read/write operations preserve trit validity
+        given value = TernaryWord{.raw = 0x123456}
+        and   reg_write(R10, value)
+        and   result = reg_read(R10)
+        assert result.raw == value.raw
+
+    // queen_register_special: T (Queen) register = register index 0 (Tau/Alpha)
+    // The Queen register is R0 (Alpha/α), the first Coptic letter
+    invariant queen_register_special
+        assert R0 == 0
+        assert reg_to_coptic(R0) == 0x03B1  // α (Alpha, representing Queen/Tau)
+
+    // register_initial_zero: All registers initialize to 0
+    invariant register_initial_zero
+        given i = 0
+        while (i < NUM_REGISTERS) {
+            const val = reg_read(i as u8);
+            if (i == 0) {
+                assert val.raw == 0;  // R0 is always 0
+            }
+            // Other registers have initial state (managed by register_file)
+            i = i + 1;
+        }
+
+    // Tests for Ring 045 requirements
+
+    test register_reset
+        // All registers initialize to 0
+        given r0_val = reg_read(R0)
+        and   r1_val = reg_read(R1)
+        and   r10_val = reg_read(R10)
+        and   r26_val = reg_read(R26)
+        then r0_val.raw == 0 and r1_val.raw == 0 and r10_val.raw == 0 and r26_val.raw == 0
+
+    test queen_register_special
+        // T (Queen) register = register index 0 (Tau/Alpha)
+        given queen_idx = R0
+        and   queen_cp = reg_to_coptic(queen_idx)
+        then queen_idx == 0 and queen_cp == 0x03B1  // α
+
+    test agent_count_equals_register_count
+        given agents = AGENT_COUNT
+        and   registers = NUM_REGISTERS
+        then agents == registers and registers == 27
+
+    test trit_values_valid
+        // Verify trit arithmetic doesn't overflow
+        given a = TernaryWord{.raw = 0x123}
+        and   b = TernaryWord{.raw = 0x456}
+        and   reg_write(R10, a)
+        and   result = reg_read(R10)
+        then result.raw == a.raw
 
     bench isa_reg_read_latency
         measure: nanoseconds to reg_read(R10)

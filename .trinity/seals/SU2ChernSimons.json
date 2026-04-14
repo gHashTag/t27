@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:00c287b9c7e0a608157d1814b9851fec9600f238010d1df449e4611631985176",
+  "gen_hash_rust": "sha256:5f92598b40bbaae0158c793d1e944646b6b04540c2978b5e7a057bbe24abd467",
+  "gen_hash_verilog": "sha256:e5dc89b28488356ac57e8b9ed202bd2ec897f2dc157b187eeb02677779ccf5ac",
+  "gen_hash_zig": "sha256:4c7fe2c122328e599e40381494433fd72d3d2475684d75745b240ef3cf7240cd",
+  "module": "SU2ChernSimons",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:908efdb5b89d855e550e2134b20794400c6ee0b12b80bebdc47540384b0a63be",
+  "spec_path": "specs/physics/su2_chern_simons.t27"
+}

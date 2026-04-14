@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/
+// Based on cumulative distribution function | φ² + 1/φ² = 3 | TRINITY
+
+module Gelu;
+    use base::types;
+    use math::constants;
+
+    // ═══════════════════════════════════════════════════════════
+    // 1. Constants
+    // ═══════════════════════════════════════════════════════════
+
+    const SQRT_2_OVER_PI : f32 = 0.7978845608;
+    const SQRT_PI_OVER_2 : f32 = 1.2533141373;
+
+    // ═══════════════════════════════════════════════════════════
+    // 2. Types
+    // ═══════════════════════════════════════════════════════════
+
+    pub const GELUConfig = struct {
+        approximate : bool,
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. Core Functions
+    // ═══════════════════════════════════════════════════════════
+
+    // forward(input: []const f32) → void
+    fn forward(input: []const f32) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // backward(grad_output: []const f32) → void
+    fn backward(grad_output: []const f32) -> void {
+        // TODO: Implement from .tri spec
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // TDD: Tests (from .tri behaviors)
+    // ═══════════════════════════════════════════════════════════
+
+    test forward_basic_case
+        given input = default_input()
+        when result = forward(input)
+        then result != undefined
+
+    test backward_basic_case
+        given input = default_input()
+        when result = backward(input)
+        then result != undefined
+

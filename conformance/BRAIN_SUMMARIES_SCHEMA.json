@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gHashTag/t27/conformance/BRAIN_SUMMARIES_SCHEMA.json",
+  "title": "T27 Brain Summaries Schema v1",
+  "description": "Schema for Queen brain summaries generated from episode aggregation",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "summary_type",
+    "id",
+    "start_date",
+    "end_date",
+    "episodes_count",
+    "overall_quality"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version",
+      "const": 1
+    },
+    "summary_type": {
+      "type": "string",
+      "description": "Type of summary",
+      "enum": ["daily", "weekly", "ring", "phase"]
+    },
+    "id": {
+      "type": "integer",
+      "description": "Summary ID",
+      "minimum": 0
+    },
+    "start_date": {
+      "type": "string",
+      "description": "RFC3339 timestamp of summary start",
+      "format": "date-time"
+    },
+    "end_date": {
+      "type": "string",
+      "description": "RFC3339 timestamp of summary end",
+      "format": "date-time"
+    },
+    "episodes_count": {
+      "type": "integer",
+      "description": "Number of episodes in summary",
+      "minimum": 0
+    },
+    "ring_range": {
+      "type": "array",
+      "description": "Ring range [start, end]",
+      "items": {"type": "integer", "minimum": 0},
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "phase_number": {
+      "type": "integer",
+      "description": "Phase number (for phase summaries)",
+      "minimum": 1
+    },
+    "total_cycles": {
+      "type": "integer",
+      "description": "Total Lotus cycles",
+      "minimum": 0
+    },
+    "successful_cycles": {
+      "type": "integer",
+      "description": "Successful cycles",
+      "minimum": 0
+    },
+    "failed_cycles": {
+      "type": "integer",
+      "description": "Failed cycles",
+      "minimum": 0
+    },
+    "average_confidence": {
+      "type": "number",
+      "description": "Average confidence across episodes",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "domain_health": {
+      "type": "number",
+      "description": "Overall domain health score",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "active_domains": {
+      "type": "integer",
+      "description": "Number of active domains",
+      "minimum": 0
+    },
+    "sealed_domains": {
+      "type": "integer",
+      "description": "Number of sealed domains",
+      "minimum": 0
+    },
+    "new_patterns": {
+      "type": "integer",
+      "description": "Number of new patterns learned",
+      "minimum": 0
+    },
+    "updated_patterns": {
+      "type": "integer",
+      "description": "Number of patterns updated",
+      "minimum": 0
+    },
+    "learning_confidence": {
+      "type": "number",
+      "description": "Confidence in learning metrics",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "avg_cycle_time_ms": {
+      "type": "integer",
+      "description": "Average cycle time in milliseconds",
+      "minimum": 0
+    },
+    "max_cycle_time_ms": {
+      "type": "integer",
+      "description": "Maximum cycle time in milliseconds",
+      "minimum": 0
+    },
+    "min_cycle_time_ms": {
+      "type": "integer",
+      "description": "Minimum cycle time in milliseconds",
+      "minimum": 0
+    },
+    "overall_quality": {
+      "type": "string",
+      "description": "Overall quality assessment",
+      "enum": ["GOOD", "UNSTABLE", "BAD", "UNKNOWN"]
+    },
+    "quality_reason": {
+      "type": "string",
+      "description": "Human-readable reason for quality assessment"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "RFC3339 timestamp of summary generation",
+      "format": "date-time"
+    }
+  }
+}

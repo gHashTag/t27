@@ -377,7 +377,7 @@
     {
       "id": 18,
       "name": "docs/NUMERIC-STANDARD-001",
-      "path": "t27/docs/NUMERIC-STANDARD-001.md",
+      "path": "t27/docs/nona-02-organism/NUMERIC-STANDARD-001.md",
       "strand": "IV",
       "tier": 0,
       "kind": "standard",
@@ -404,7 +404,7 @@
     {
       "id": 19,
       "name": "docs/SACRED-PHYSICS-001",
-      "path": "t27/docs/SACRED-PHYSICS-001.md",
+      "path": "t27/docs/nona-02-organism/SACRED-PHYSICS-001.md",
       "strand": "IV",
       "tier": 0,
       "kind": "standard",
@@ -982,7 +982,13 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["FPGA_Bridge", "Bridge_Unit", "buffer_write", "buffer_read", "bridge_parse_header"],
+      "exports": [
+        "FPGA_Bridge",
+        "Bridge_Unit",
+        "buffer_write",
+        "buffer_read",
+        "bridge_parse_header"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -996,7 +1002,12 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["SPI_Master", "SPI_Master_Unit", "spi_transfer", "spi_tick"],
+      "exports": [
+        "SPI_Master",
+        "SPI_Master_Unit",
+        "spi_transfer",
+        "spi_tick"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1010,7 +1021,13 @@
       "strand": "III",
       "tier": 2,
       "kind": "spec",
-      "exports": ["UART_Bridge", "UART_TX_Unit", "UART_RX_Unit", "uart_tx_write", "uart_rx_tick"],
+      "exports": [
+        "UART_Bridge",
+        "UART_TX_Unit",
+        "UART_RX_Unit",
+        "uart_tx_write",
+        "uart_rx_tick"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1024,7 +1041,13 @@
       "strand": "III",
       "tier": 3,
       "kind": "spec",
-      "exports": ["Trinity_FPGA_Top", "Top_State", "top_tick", "top_reset", "led_set"],
+      "exports": [
+        "Trinity_FPGA_Top",
+        "Top_State",
+        "top_tick",
+        "top_reset",
+        "led_set"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1038,7 +1061,10 @@
       "strand": "III",
       "tier": 3,
       "kind": "testbench",
-      "exports": ["MAC_Testbench", "run_tests"],
+      "exports": [
+        "MAC_Testbench",
+        "run_tests"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1052,7 +1078,10 @@
       "strand": "III",
       "tier": 4,
       "kind": "testbench",
-      "exports": ["Top_Level_Testbench", "run_tests"],
+      "exports": [
+        "Top_Level_Testbench",
+        "run_tests"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1066,7 +1095,10 @@
       "strand": "III",
       "tier": 3,
       "kind": "testbench",
-      "exports": ["UART_Testbench", "run_tests"],
+      "exports": [
+        "UART_Testbench",
+        "run_tests"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1080,7 +1112,16 @@
       "strand": "II",
       "tier": 2,
       "kind": "spec",
-      "exports": ["VSACore", "HyperVector", "Codebook", "encode_predicate", "decode_argument", "codebook_lookup", "analogy", "resonator_solve"],
+      "exports": [
+        "VSACore",
+        "HyperVector",
+        "Codebook",
+        "encode_predicate",
+        "decode_argument",
+        "codebook_lookup",
+        "analogy",
+        "resonator_solve"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
@@ -1094,12 +1135,41 @@
       "strand": "III",
       "tier": 6,
       "kind": "codegen",
-      "exports": ["FpgaCodegen", "emit_fpga_top", "emit_uart_module", "emit_spi_module", "emit_mac_module"],
+      "exports": [
+        "FpgaCodegen",
+        "emit_fpga_top",
+        "emit_uart_module",
+        "emit_spi_module",
+        "emit_mac_module"
+      ],
       "bench_suite": [],
       "status": "done",
       "last_verdict": "clean",
       "last_bench": null,
       "failure_count": 0
+    },
+    {
+      "id": 54,
+      "name": "physics/chern-simons",
+      "path": "t27/specs/physics/su2_chern_simons.t27",
+      "strand": "II",
+      "tier": 2,
+      "kind": "spec",
+      "exports": [
+        "ChernSimonsFormalism",
+        "d_tau",
+        "trinity_identity",
+        "cs_level_theorem",
+        "fibonacci_fusion",
+        "modular_s_matrix",
+        "jones_polynomial_connection"
+      ],
+      "bench_suite": [],
+      "status": "done",
+      "last_verdict": "clean",
+      "last_bench": null,
+      "failure_count": 0,
+      "agent": "Phi"
     }
   ],
   "edges": [
@@ -1624,6 +1694,30 @@
       "to": 53,
       "kind": "import",
       "invariant": "verilog-codegen-for-fpga-emission"
+    },
+    {
+      "from": 4,
+      "to": 18,
+      "kind": "import",
+      "invariant": "constants-for-chern-simons"
+    },
+    {
+      "from": 18,
+      "to": 17,
+      "kind": "import",
+      "invariant": "chern-simons-for-sacred-physics"
+    },
+    {
+      "from": 4,
+      "to": 54,
+      "kind": "phi-critical",
+      "invariant": "phi-source-for-chern-simons"
+    },
+    {
+      "from": 54,
+      "to": 17,
+      "kind": "import",
+      "invariant": "chern-simons-grounds-sacred-physics"
     }
   ],
   "actions": [
@@ -1887,6 +1981,7 @@
     "numeric/phi_ratio",
     "numeric/tf3",
     "math/constants",
+    "physics/chern-simons",
     "math/sacred_physics",
     "vsa/ops",
     "isa/registers",
@@ -1944,6 +2039,7 @@
       "numeric/phi_ratio",
       "numeric/tf3",
       "math/constants",
+      "physics/chern-simons",
       "math/sacred_physics",
       "vsa/ops",
       "isa/registers",

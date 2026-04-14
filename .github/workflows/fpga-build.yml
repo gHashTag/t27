@@ -1,0 +1,152 @@
+name: FPGA E2E Build
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'specs/fpga/**'
+      - 'bootstrap/**'
+      - 'cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/fpga-build.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'specs/fpga/**'
+      - 'bootstrap/**'
+      - 'cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/fpga-build.yml'
+  workflow_dispatch:
+
+jobs:
+  fpga-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: FPGA smoke test (Verilog generation only)
+        run: ./target/release/t27c fpga-build --smoke
+
+      - name: Verilog regression check
+        run: |
+          echo "## Verilog hash regression" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Size (bytes) | SHA256 (first 16) |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------------|-------------------|" >> $GITHUB_STEP_SUMMARY
+          for v in build/fpga/generated/*.v; do
+            name=$(basename "$v")
+            size=$(wc -c < "$v" | tr -d ' ')
+            hash=$(shasum -a 256 "$v" | cut -c1-16)
+            echo "| $name | $size | $hash |" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total_size=$(du -sb build/fpga/generated/ | cut -f1)
+          total_files=$(ls build/fpga/generated/*.v | wc -l)
+          echo "**Total:** $total_files files, $total_size bytes" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload generated Verilog
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpga-verilog
+          path: build/fpga/generated/
+          retention-days: 7
+
+  fpga-synthesis:
+    needs: fpga-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fpga-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-fpga-
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+
+      - name: Build t27c
+        run: cargo build --release -p t27c
+
+      - name: FPGA synthesis (Yosys + JSON netlist)
+        run: ./target/release/t27c fpga-build --docker false --synth-only
+
+      - name: Synthesis regression check
+        run: |
+          if [ ! -f build/fpga/synth/synth.json ]; then
+            echo "::error::synth.json not produced"
+            exit 1
+          fi
+          size=$(wc -c < build/fpga/synth/synth.json | tr -d ' ')
+          echo "## Synthesis regression" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| synth.json size | $size bytes |" >> $GITHUB_STEP_SUMMARY
+          hash=$(shasum -a 256 build/fpga/synth/synth.json | cut -c1-16)
+          echo "| synth.json SHA256 | $hash... |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$size" -lt 1000 ]; then
+            echo "::warning::synth.json suspiciously small ($size < 1000 bytes)"
+          fi
+
+      - name: Upload synthesis output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpga-synthesis
+          path: |
+            build/fpga/generated/
+            build/fpga/synth/
+          retention-days: 7
+
+  fpga-report:
+    needs: [fpga-smoke, fpga-synthesis]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## FPGA E2E Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke (gen-only) | ${{ needs.fpga-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Synthesis (Yosys) | ${{ needs.fpga-synthesis.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Toolchain: Yosys (apt) + t27c (Rust) | Zero Vivado | Profile: minimal" >> $GITHUB_STEP_SUMMARY

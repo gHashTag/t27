@@ -1,0 +1,71 @@
+{
+  "schema_version": "2.0",
+  "spec_file": "specs/vsa/jones_polynomial.t27",
+  "spec_hash": "sha256:e090064bae5391a6135c39e8fa87c16074437b0e2628d0f3a5675ca1a382011e",
+  "generated_at": "2026-04-07T01:00:00+07:00",
+  "generator": "t27c",
+  "generator_version": "0.1.0",
+  "seal": "VERIFIED",
+  "verdict": "PASS",
+  "vectors": [
+    {
+      "name": "jones_trefoil_at_phi_approx",
+      "description": "V(trefoil, φ) ≈ φ² + 1 (Jones polynomial identity)",
+      "input": {
+        "knot": "trefoil",
+        "t": "phi"
+      },
+      "expected": {
+        "type": "f64",
+        "value": 3.618034
+      },
+      "tolerance": 0.1
+    },
+    {
+      "name": "writhe_trefoil",
+      "description": "Trefoil writhe = 3 (three positive crossings)",
+      "input": {
+        "crossings": [1, 1, 1]
+      },
+      "expected": {
+        "type": "i32",
+        "value": 3
+      },
+      "tolerance": null
+    },
+    {
+      "name": "writhe_empty",
+      "description": "Writhe of empty crossing list = 0",
+      "input": {
+        "crossings": []
+      },
+      "expected": {
+        "type": "i32",
+        "value": 0
+      },
+      "tolerance": null
+    },
+    {
+      "name": "bracket_unknot",
+      "description": "Kauffman bracket of unknot = 1",
+      "input": {},
+      "expected": {
+        "type": "f64",
+        "value": 1.0
+      },
+      "tolerance": null
+    },
+    {
+      "name": "bracket_parameter_phi",
+      "description": "A = φ^(-1/4) at t = φ",
+      "input": {
+        "t": 1.6180339887498948
+      },
+      "expected": {
+        "type": "f64",
+        "value": 0.8959
+      },
+      "tolerance": 0.001
+    }
+  ]
+}

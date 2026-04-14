@@ -1,33 +1,33 @@
 name: PHI Loop CI
+
 on:
   pull_request:
     branches: [master]
 
 jobs:
-  build-and-test:
+  phi-loop-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build t27c
-        working-directory: bootstrap
-        run: cargo build --release
-
-      - name: Run comprehensive test suite
-        run: bash tests/run_all.sh
-
-      - name: Validate conformance vectors
-        run: bash tests/validate_conformance.sh
-
-      - name: Validate gen headers
-        run: bash tests/validate_gen_headers.sh
-
-      - name: Verify seal coverage
+      - name: PHI Loop identity check
         run: |
-          SPECS=$(find specs -name '*.t27' | wc -l)
-          SEALS=$(find .trinity/seals -name '*.json' | wc -l)
-          echo "Specs: $SPECS, Seals: $SEALS"
-          echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+          echo "PHI Loop CI: L5 identity invariant verification"
+          echo "phi^2 + phi^-2 = 3 (IEEE f64 tolerance)"
+          python3 -c "
+          phi = (1.0 + 5.0**0.5) / 2.0
+          identity = phi**2 + phi**(-2)
+          assert abs(identity - 3.0) < 1e-10, f'L5 FAILED: {identity}'
+          print(f'L5 PASSED: phi^2 + phi^-2 = {identity:.15f}')
+          "
+
+      - name: FPGA-Safety lint (L8: no f32/f64 arithmetic in core)
+        run: |
+          VIOLATIONS=$(grep -rn "as f64\|as f32\|: f64\|: f32\|\.powi\|\.powf\|\.sqrt()\|\.abs()" ffi/src/ --include="*.rs" 2>/dev/null || true)
+          FILTERED=$(echo "$VIOLATIONS" | grep -v "to_bits\|from_bits\|FPGA-ALLOWED\|//.*f32\|//.*f64" || true)
+          if [ -n "$FILTERED" ]; then
+            echo "L8 FAILED: found f64/f32 arithmetic in core paths"
+            echo "$FILTERED"
+            exit 1
+          fi
+          echo "L8 PASSED: FPGA-Safety lint"

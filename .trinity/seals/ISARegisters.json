@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:b10e671cfd7d8d7e89733ed7722b4b6774ca37aca008e1122cb4c6571cf0a6ff",
+  "gen_hash_rust": "sha256:78533bcd2a23dc79af4bcc12236135a03550fee06f03eb3e16ffb36e8561186b",
+  "gen_hash_verilog": "sha256:50f3e306685b3e4a2e432757d0d15b21d785df4d9436647631ecfe80d8abd6d3",
+  "gen_hash_zig": "sha256:bac4f46777e6675c2575529349e28ae4396176d3947508b1e828b5c381b9737d",
   "module": "ISARegisters",
-  "ring": 28,
-  "spec_path": "specs/isa/registers.t27",
-  "spec_hash": "sha256:7bb12b72319d35b5c28a8dc9f44542e681418b372f6edb2d0a54b31ed336cb64",
-  "gen_hash_zig": "sha256:766ea432fb7424089d97ce9d649af8d7bc7d62ebe9ae2d8fbb67821615a2c4b6",
-  "gen_hash_c": "sha256:cbbff9b7dac1c75a2452e2fc08dab95073d01454341205193842c85d06cc1cbe",
-  "gen_hash_verilog": "sha256:1a92a28ffb23d3b3e81eeb9fb517d1dc54f6a47134de2297b59aeb8fadf60940",
-  "conformance_hash": "sha256:ffcba2fdb0a758067803852f895d53162c6e1b278947e577ad10ec28c35cebb6",
-  "tests": {
-    "status": "passed",
-    "count": 18,
-    "invariants": 10,
-    "benchmarks": 3
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T19:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:5c90436971097e51557919722782a9a5a8666ac2ecdad7c4c34ea4aa0b9a2460",
+  "spec_path": "specs/isa/registers.t27"
 }

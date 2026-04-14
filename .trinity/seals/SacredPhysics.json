@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:7618e79d0ae749c74b5933c264c88a5071af614a13feadb77446dfc31cf84752",
+  "gen_hash_rust": "sha256:57fcc4e274214a207fa335707a8b3eef6c81e87405b5cab10abdf5b47f7a99ac",
+  "gen_hash_verilog": "sha256:e724e4b7600ead9823dc30fff7a045f7789e555970f78dd5c049417e9e8cadd5",
+  "gen_hash_zig": "sha256:a189fb471aff6e091e1de2b6bfd234417e8300919e2ab14fc67114fd7db2b211",
   "module": "SacredPhysics",
-  "ring": 28,
-  "spec_path": "specs/math/sacred_physics.t27",
-  "spec_hash": "sha256:4cd281c91afe18a00b5720a5d272b298eb615e95f68e179e06411fd651f22f5c",
-  "gen_hash_zig": "sha256:57671fddc1d1fd6644196e225ee8b2feb0a1515886e4c91f9726bad056e95b70",
-  "gen_hash_c": "sha256:9f23dc06aa7be97cd847255b004d83f0b566c3bb9273aac52de81326523e638f",
-  "gen_hash_verilog": "sha256:4bec65c184b96c798ece48e2e703a2576b7148657d4bafc607f1dbd0ce690d27",
-  "conformance_hash": null,
-  "tests": {
-    "status": "passed",
-    "count": 12,
-    "invariants": 10,
-    "benchmarks": 5
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T19:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
+  "spec_hash": "sha256:df7ed4b660342fd2d5e95d83039b82bed1a46a6899b25f1ada0c48b33c51eb09",
+  "spec_path": "specs/math/sacred_physics.t27"
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // Licensed under Apache License 2.0 — http://www.apache.org/licenses/LICENSE-2.0
 // t27/specs/vsa/core.t27
 // VSA Core Algorithms for CLARA (PA-25-07-02)
@@ -119,8 +120,14 @@ module VSACore {
 
     // codebook_add(cb: *Codebook, vector: []Trit, label: u32) → bool
     // Add a labeled vector to the codebook. Returns false if full.
+    // PHI LOOP mutation: Add dimension validation for safety
     fn codebook_add(cb: *Codebook, vector: []Trit, label: u32) -> bool {
         if (cb.count >= CODEBOOK_CAPACITY) {
+            return false;
+        }
+
+        // Validate vector dimension matches DIMENSION (Ring 71 mutation)
+        if (len(vector) != DIMENSION) {
             return false;
         }
 

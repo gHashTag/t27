@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:1fad0095121ef9082598887b9446f7a4fb9f1c7d81494f12db0092f1adf60320",
+  "gen_hash_rust": "sha256:8faee7dea7758aa91ea95f799e3abd20ebee20a63ee84527c377ceff78f828f3",
+  "gen_hash_verilog": "sha256:1f12d51dc8058be83e1c6a55d1c21bab1f265bb913fc52c7b39a48edec3f4010",
+  "gen_hash_zig": "sha256:ab7b48789c9c572450ed53d92f7634508da4e6a74098f6bdd16a199418798381",
   "module": "Explainability",
-  "ring": 22,
-  "spec_path": "specs/ar/explainability.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:db364b8cbad87d73e5b3146e841c7e8d1ee15e385f8d9a2a95e78b33f4b25c90",
-  "gen_hash_zig": "sha256:693de8d5a884ae2133ea95788c21de051f932ca0c828003e342e2faeabf44687",
-  "gen_hash_c": "sha256:8fb10923c0cec9d8ef1beebc0f777c990fdee14b41ab1254c9eac8d6a6031a30",
-  "gen_hash_verilog": "sha256:76e48be70c03ce61f3bf0a16ba744be07eb56ff89b6532f536c877ed22303116",
-  "tests": {
-    "status": "passed",
-    "count": 10,
-    "invariants": 5,
-    "benchmarks": 3
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T19:00:00Z",
-  "conformance_hash": "sha256:e8223598a885567eb455a4cdb014f491e161659f3692626d91375ad13d43d2c2"
+  "spec_path": "specs/ar/explainability.t27"
 }

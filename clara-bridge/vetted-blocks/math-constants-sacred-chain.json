@@ -1,0 +1,97 @@
+{
+  "catalog_name": "CLARA-Bridge: Phi-Critical Chain",
+  "description": "Vetted logic blocks for the sacred physics composition path",
+  "subgraph": "math/constants → physics/chern-simons → math/sacred_physics",
+  "nodes": [
+    {
+      "name": "math/constants",
+      "node_id": 4,
+      "path": "specs/math/constants.t27",
+      "tier": 1,
+      "kind": "spec",
+      "strand": "I",
+      "exports": [
+        "PHI",
+        "PHI_INV",
+        "TRINITY",
+        "GAMMA_LQG",
+        "PI",
+        "E",
+        "G_MEASURED",
+        "OMEGA_LAMBDA_MEASURED",
+        "LAMBDA_COSMO"
+      ],
+      "sacred_level": "foundation",
+      "test_invariant": "PHI^2 + PHI^-2 = 3 (TRINITY identity)",
+      "toxic_regression": "Breaking this invariant causes regression in all phi-critical downstream blocks (nn/attention, nn/hslm, physics/chern-simons, math/sacred_physics).",
+      "conformance_file": "conformance/math_constants.json",
+      "bench_suite": "sacred_constants"
+    },
+    {
+      "name": "physics/chern-simons",
+      "node_id": 54,
+      "path": "specs/physics/su2_chern_simons.t27",
+      "tier": 2,
+      "kind": "spec",
+      "strand": "II",
+      "imports": ["math::constants", "math::sacred_physics"],
+      "exports": [
+        "ChernSimonsFormalism",
+        "d_tau",
+        "trinity_identity",
+        "cs_level_theorem",
+        "fibonacci_fusion",
+        "modular_s_matrix",
+        "jones_polynomial_connection"
+      ],
+      "sacred_level": "phi-critical",
+      "test_invariant": "|d_τ - φ| < 1e-10 at fixed k=3 (Fibonacci anyon dimension equals golden ratio)",
+      "toxic_regression": "Breaking this invariant causes regression in phi-critical downstream modules (nn/attention, nn/hslm) that rely on sacred physics verification.",
+      "verification_note": "Uses kepler_newton_tests.py --category CS for high-precision (50+ decimal) verification."
+    },
+    {
+      "name": "math/sacred_physics",
+      "node_id": 17,
+      "path": "specs/math/sacred_physics.t27",
+      "tier": 2,
+      "kind": "spec",
+      "strand": "I",
+      "imports": ["math::constants"],
+      "exports": [
+        "SacredPhysics",
+        "verify_sacred_physics",
+        "sacred_gravity",
+        "sacred_dark_energy",
+        "GAMMA_LQG",
+        "C_THRESHOLD"
+      ],
+      "sacred_level": "sacred-core",
+      "test_invariant": "TRINITY = PHI^2 + PHI^-2 = 3.000000 (within 1e-12 tolerance)",
+      "toxic_regression": "Breaking this invariant is critical — this is the final verification node in the sacred physics chain. Affects all phi-critical modules (nn/attention, nn/hslm).",
+      "conformance_file": "conformance/sacred_physics.json",
+      "bench_suite": "sacred_physics",
+      "verification_note": "Verify with conformance/sacred_physics.json or kepler_newton_tests.py --category sacred"
+    }
+  ],
+  "composition_chain": {
+    "path": ["math/constants", "physics/chern-simons", "math/sacred_physics"],
+    "total_tiers": 2,
+    "critical_invariants": [
+      "PHI^2 + PHI^-2 = 3 (TRINITY)",
+      "d_τ = φ at k=3 (Fibonacci anyon)",
+      "φ² + φ⁻² = k (Chern-Simons level theorem)"
+    ],
+    "phi_critical": true,
+    "verification_method": "kepler_newton_tests.py with 50+ decimal precision"
+  },
+  "downstream_phi_critical": [
+    "nn/attention",
+    "nn/hslm"
+  ],
+  "metadata": {
+    "catalog_version": "1.0",
+    "generated_from": "architecture/graph_v2.json",
+    "generated_date": "2026-04-06",
+    "claera_domain": "compositional-assurance"
+  }
+}

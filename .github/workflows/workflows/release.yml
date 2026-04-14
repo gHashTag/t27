@@ -1,0 +1,174 @@
+# Release Pipeline: Publish to PyPI, npm, and crates.io
+# Triggered on GitHub release publication
+
+name: Release Pipeline
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  # ========================================================================
+  # Python: PyPI Publication via Maturin
+  # ========================================================================
+  python:
+    name: Publish Python Package to PyPI
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        target: [x86_64, aarch64]
+        exclude:
+          # Windows aarch64 not supported by GitHub Actions
+          - os: windows-latest
+            target: aarch64
+          # macOS x86_64 not available
+          - os: macos-latest
+            target: x86_64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Maturin
+        run: pip install maturin
+
+      - name: Build wheels
+        run: |
+          cd bindings/python
+          maturin build --release --out ../../target/wheels --strip
+
+      - name: Upload wheels (Ubuntu x86_64)
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels-x86_64
+          path: target/wheels/*.whl
+          retention-days: 7
+
+      - name: Upload wheels (Ubuntu aarch64)
+        if: matrix.os == 'ubuntu-latest' && matrix.target == 'aarch64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels-aarch64
+          path: target/wheels/*.whl
+          retention-days: 7
+
+      - name: Upload wheels (macOS aarch64)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels-macos
+          path: target/wheels/*.whl
+          retention-days: 7
+
+      - name: Upload wheels (Windows x86_64)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheels-windows
+          path: target/wheels/*.whl
+          retention-days: 7
+
+  python-publish:
+    name: Publish to PyPI
+    needs: python
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # IMPORTANT: required for Trusted Publisher (OIDC)
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: python-wheels-*
+          path: target/wheels/
+          merge-multiple: true
+
+      - name: Publish to PyPI (Trusted Publisher OIDC)
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: target/wheels/*
+
+  # ========================================================================
+  # JavaScript: npm Publication via wasm-pack
+  # ========================================================================
+  javascript:
+    name: Build and Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      - name: Build WebAssembly
+        run: |
+          cd bindings/javascript
+          wasm-pack build --target bundler --release
+
+      - name: Update package.json for npm
+        working-directory: bindings/javascript/pkg
+        run: |
+          # Ensure package name is golden-float
+          npm pkg set name=golden-float
+          npm pkg set repository.url=https://github.com/trinity-s3ai/t27
+          npm pkg set author="Trinity S3AI"
+
+      - name: Configure npm for publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > .npmrc
+          echo "scope=@trinity" >> .npmrc
+          echo "registry=https://registry.npmjs.org/" >> .npmrc
+
+      - name: Publish to npm
+        working-directory: bindings/javascript/pkg
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ========================================================================
+  # Rust: crates.io Publication
+  # ========================================================================
+  crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish golden-float-ffi
+        run: |
+          cd ffi
+          cargo publish --token ${{ secrets.CRATES_TOKEN }}
+
+  # ========================================================================
+  # Zenodo: DOI Generation (separate workflow handles this)
+  # ========================================================================
+  # Note: Zenodo publication is handled by zenodo-publish.yml
+  # This is triggered automatically on release publication

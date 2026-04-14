@@ -66,6 +66,6 @@
     "specs/numeric/tf3.t27": {"standard": "NUMERIC-STANDARD-002", "skill": "tri-pipeline"},
     "specs/math/sacred_physics.t27": {"standard": "SACRED-PHYSICS-001", "skill": "tri-sacred"},
     "specs/base/trit.t27": {"standard": "BASE-TYPES-001", "skill": "tri-base"},
-    "docs/SOUL.md": {"standard": "CONSTITUTION", "skill": "tri-constitution"}
+    "docs/nona-03-manifest/SOUL.md": {"standard": "CONSTITUTION", "skill": "tri-constitution"}
   }
 }

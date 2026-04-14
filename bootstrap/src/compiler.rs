@@ -16,6 +16,7 @@ pub enum NodeKind {
     UseDecl,
     ConstDecl,
     EnumDecl,
+    EnumVariant,
     StructDecl,
     FnDecl,
     InvariantBlock,
@@ -33,16 +34,20 @@ pub enum NodeKind {
     ExprIndex,
     ExprIf,
     ExprStructLit,
+    ExprArrayLiteral,
     // Statement nodes for fn bodies
-    StmtLocal,    // const x = expr; or var x: T = expr;
-    StmtAssign,   // x = expr; or x.field = expr;
-    StmtIf,       // if (...) { ... } else if (...) { ... } else { ... }
-    StmtWhile,    // while (cond) { ... }
-    StmtFor,      // for (iter) |capture| { ... }
-    StmtExpr,     // bare expression statement: func(a, b);
+    StmtLocal,  // const x = expr; or var x: T = expr;
+    StmtAssign, // x = expr; or x.field = expr;
+    StmtIf,     // if (...) { ... } else if (...) { ... } else { ... }
+    StmtWhile,  // while (cond) { ... }
+    StmtFor,    // for (iter) |capture| { ... }
+    StmtBreak,
+    StmtContinue,
+    StmtExpr, // bare expression statement: func(a, b);
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Node {
     pub kind: NodeKind,
     pub name: String,
@@ -55,7 +60,8 @@ pub struct Node {
     pub extra_pub: bool,
     pub extra_mutable: bool,
     pub extra_return_type: String,
-    pub params: Vec<(String, String)>, // (name, type) pairs for FnDecl
+    pub params: Vec<(String, String)>,
+    pub line: u32,
     pub children: Vec<Node>,
 }
 
@@ -74,6 +80,7 @@ impl Default for Node {
             extra_mutable: false,
             extra_return_type: String::new(),
             params: Vec::new(),
+            line: 0,
             children: Vec::new(),
         }
     }
@@ -94,10 +101,12 @@ impl Node {
             extra_mutable: false,
             extra_return_type: String::new(),
             params: Vec::new(),
+            line: 0,
             children: Vec::new(),
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_child(mut self, child: Node) -> Self {
         self.children.push(child);
         self
@@ -111,27 +120,83 @@ impl Node {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     // Keywords
-    KwPub, KwConst, KwFn, KwEnum, KwStruct, KwTest, KwInvariant, KwBench,
-    KwModule, KwIf, KwElse, KwFor, KwWhile, KwSwitch, KwReturn, KwVar, KwUsing, KwVoid,
-    KwTrue, KwFalse, KwUse, KwOr, KwAnd, KwTry,
+    KwPub,
+    KwConst,
+    KwFn,
+    KwEnum,
+    KwStruct,
+    KwTest,
+    KwInvariant,
+    KwBench,
+    KwModule,
+    KwIf,
+    KwElse,
+    KwFor,
+    KwWhile,
+    KwSwitch,
+    KwReturn,
+    KwVar,
+    KwUsing,
+    KwVoid,
+    KwTrue,
+    KwFalse,
+    KwUse,
+    KwOr,
+    KwAnd,
+    KwTry,
+    KwBreak,
+    KwContinue,
 
     // Literals
-    Ident, Number, String, CharLiteral,
+    Ident,
+    Number,
+    String,
+    CharLiteral,
 
     // Operators
-    Plus, Minus, Star, Slash, Percent, Amp, Pipe, Caret, Tilde,
-    Lt, Gt, Lte, Gte, Eq, Neq,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Amp,
+    Pipe,
+    Caret,
+    Tilde,
+    Lt,
+    Gt,
+    Lte,
+    Gte,
+    Eq,
+    Neq,
 
     // Delimiters
-    Colon, Comma, Equals, LParen, RParen, LBrace, RBrace,
-    LBracket, RBracket, Dot, Bang,
+    Colon,
+    Comma,
+    Equals,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
+    Dot,
+    Bang,
 
     // Multi-char
-    Arrow, FatArrow, Power, DotDot, PlusPlus,
-    ShiftLeft, ShiftRight, PlusEquals, PlusPercent,
+    Arrow,
+    FatArrow,
+    Power,
+    DotDot,
+    PlusPlus,
+    ShiftLeft,
+    ShiftRight,
+    PlusEquals,
+    PlusPercent,
 
     // Special
-    Semicolon, Eof,
+    Semicolon,
+    Eof,
 }
 
 impl Copy for TokenKind {}
@@ -282,6 +347,8 @@ impl Lexer {
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
+            "break" => TokenKind::KwBreak,
+            "continue" => TokenKind::KwContinue,
             _ => TokenKind::Ident,
         }
     }
@@ -558,8 +625,16 @@ impl Lexer {
             while self.pos < self.source.len() {
                 let c = self.peek();
                 // Don't consume '.' if it's part of a '..' range operator
-                let is_dot_not_range = c == b'.' && (self.pos + 1 >= self.source.len() || self.source[self.pos + 1] != b'.');
-                if c.is_ascii_digit() || is_dot_not_range || c == b'x' || c == b'X' || c == b'b' || c == b'B' || c == b'_' {
+                let is_dot_not_range = c == b'.'
+                    && (self.pos + 1 >= self.source.len() || self.source[self.pos + 1] != b'.');
+                if c.is_ascii_digit()
+                    || is_dot_not_range
+                    || c == b'x'
+                    || c == b'X'
+                    || c == b'b'
+                    || c == b'B'
+                    || c == b'_'
+                {
                     if c == b'x' || c == b'X' {
                         is_hex = true;
                     }
@@ -573,9 +648,63 @@ impl Lexer {
                 }
             }
 
+            let type_suffixes: &[&[u8]] = &[
+                b"u8",
+                b"u16",
+                b"u32",
+                b"u64",
+                b"usize",
+                b"i8",
+                b"i16",
+                b"i32",
+                b"i64",
+                b"isize",
+                b"f16",
+                b"f32",
+                b"f64",
+                b"comptime_int",
+            ];
+            for suffix in type_suffixes.iter() {
+                let end = self.pos + suffix.len();
+                if end <= self.source.len() && &self.source[self.pos..end] == *suffix {
+                    let next = if end < self.source.len() {
+                        self.source[end]
+                    } else {
+                        0u8
+                    };
+                    if !next.is_ascii_alphanumeric() && next != b'_' {
+                        self.pos = end;
+                        self.col += suffix.len();
+                    }
+                    break;
+                }
+            }
+
             return Token {
                 kind: TokenKind::Number,
                 lexeme: number,
+                line: start_line,
+                col: start_col,
+            };
+        }
+
+        // Multi-char tokens
+        if ch == b'&' && self.peek() == b'&' {
+            self.advance();
+            self.advance();
+            return Token {
+                kind: TokenKind::Amp,
+                lexeme: "&&".to_string(),
+                line: start_line,
+                col: start_col,
+            };
+        }
+        if ch == b'|' && self.peek() == b'|' {
+            self.advance();
+            self.advance();
+            return Token {
+                kind: TokenKind::Pipe,
+                lexeme: "||".to_string(),
                 line: start_line,
                 col: start_col,
             };
@@ -622,6 +751,7 @@ impl Lexer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
         loop {
@@ -665,6 +795,7 @@ impl Parser {
         self.current.kind == kind
     }
 
+    #[allow(dead_code)]
     fn check_peek(&self, kind: TokenKind) -> bool {
         self.peek.kind == kind
     }
@@ -742,11 +873,20 @@ impl Parser {
     // a new top-level form, excluding const/var which can appear inside
     // keyword-style test/invariant/bench blocks.
     fn is_top_level_start(&self) -> bool {
-        matches!(self.current.kind,
-            TokenKind::KwPub | TokenKind::KwFn | TokenKind::KwEnum | TokenKind::KwStruct |
-            TokenKind::KwTest | TokenKind::KwInvariant | TokenKind::KwBench |
-            TokenKind::KwUse | TokenKind::KwUsing | TokenKind::KwModule |
-            TokenKind::RBrace | TokenKind::Eof
+        matches!(
+            self.current.kind,
+            TokenKind::KwPub
+                | TokenKind::KwFn
+                | TokenKind::KwEnum
+                | TokenKind::KwStruct
+                | TokenKind::KwTest
+                | TokenKind::KwInvariant
+                | TokenKind::KwBench
+                | TokenKind::KwUse
+                | TokenKind::KwUsing
+                | TokenKind::KwModule
+                | TokenKind::RBrace
+                | TokenKind::Eof
         )
     }
 
@@ -802,7 +942,7 @@ impl Parser {
         // [BUG 4 FIX] Parse optional module declaration
         if self.current.kind == TokenKind::KwModule {
             self.advance(); // consume 'module'
-            // Module name can contain hyphens: e.g. "tritype-base"
+                            // Module name can contain hyphens: e.g. "tritype-base"
             let mut mod_name = String::new();
             if self.current.kind == TokenKind::Ident {
                 mod_name.push_str(&self.current.lexeme);
@@ -811,7 +951,9 @@ impl Parser {
                 while self.current.kind == TokenKind::Minus {
                     mod_name.push('-');
                     self.advance(); // consume -
-                    if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
+                    if self.current.kind == TokenKind::Ident
+                        || self.current.kind == TokenKind::Number
+                    {
                         mod_name.push_str(&self.current.lexeme);
                         self.advance();
                     }
@@ -839,7 +981,7 @@ impl Parser {
             // Parse use/using statements into UseDecl nodes
             if self.current.kind == TokenKind::KwUse || self.current.kind == TokenKind::KwUsing {
                 self.advance(); // consume 'use'/'using'
-                // Collect the full path: e.g. "base::types" or just "datalog_solve"
+                                // Collect the full path: e.g. "base::types" or just "datalog_solve"
                 let mut full_path = String::new();
                 let mut alias_name = String::new();
                 if self.current.kind == TokenKind::Ident {
@@ -851,8 +993,8 @@ impl Parser {
                     if self.current.kind == TokenKind::Colon && self.peek.kind != TokenKind::Colon {
                         alias_name = first_ident.clone();
                         self.advance(); // consume :
-                        // Skip @import("path") or any expression until ;
-                        // The value after : can be @import("...") or any expression
+                                        // Skip @import("path") or any expression until ;
+                                        // The value after : can be @import("...") or any expression
                         if self.current.kind == TokenKind::Ident {
                             // Could be @import(...) or a plain identifier
                             self.advance(); // consume @import or ident
@@ -861,8 +1003,15 @@ impl Parser {
                                 self.advance(); // consume (
                                 let mut paren_depth = 1;
                                 while paren_depth > 0 && self.current.kind != TokenKind::Eof {
-                                    if self.current.kind == TokenKind::LParen { paren_depth += 1; }
-                                    if self.current.kind == TokenKind::RParen { paren_depth -= 1; if paren_depth == 0 { break; } }
+                                    if self.current.kind == TokenKind::LParen {
+                                        paren_depth += 1;
+                                    }
+                                    if self.current.kind == TokenKind::RParen {
+                                        paren_depth -= 1;
+                                        if paren_depth == 0 {
+                                            break;
+                                        }
+                                    }
                                     self.advance();
                                 }
                                 if self.current.kind == TokenKind::RParen {
@@ -893,11 +1042,15 @@ impl Parser {
                 let import_name = if !alias_name.is_empty() {
                     alias_name
                 } else {
-                    full_path.rsplit("::").next().unwrap_or(&full_path).to_string()
+                    full_path
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or(&full_path)
+                        .to_string()
                 };
                 let mut use_node = Node::new(NodeKind::UseDecl);
-                use_node.name = import_name;   // e.g. "types" or alias
-                use_node.value = full_path;     // e.g. "base::types" or alias
+                use_node.name = import_name; // e.g. "types" or alias
+                use_node.value = full_path; // e.g. "base::types" or alias
                 module.children.push(use_node);
                 continue;
             }
@@ -937,7 +1090,10 @@ impl Parser {
                 let col = self.current.col;
                 let lexeme = self.current.lexeme.clone();
                 self.advance();
-                Err(format!("Unexpected top-level token: {} ('{}') at line {}:{}", tok, lexeme, line, col))
+                Err(format!(
+                    "Unexpected top-level token: {} ('{}') at line {}:{}",
+                    tok, lexeme, line, col
+                ))
             }
         }
     }
@@ -953,20 +1109,25 @@ impl Parser {
             decl.name = self.current.lexeme.clone();
             self.advance();
         } else {
-            return Err(format!("Expected identifier after 'const', got {:?}", self.current.kind));
+            return Err(format!(
+                "Expected identifier after 'const', got {:?}",
+                self.current.kind
+            ));
         }
 
         // Optional type annotation `: Type`
         if self.current.kind == TokenKind::Colon {
             self.advance(); // consume :
-            // Type can be complex: u8, i8, []Trit, [N]T, etc.
+                            // Type can be complex: u8, i8, []Trit, [N]T, etc.
             let mut type_str = String::new();
             // Handle [] prefix for slice types
             if self.current.kind == TokenKind::LBracket {
                 type_str.push('[');
                 self.advance();
                 // Might have a size expression
-                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                while self.current.kind != TokenKind::RBracket
+                    && self.current.kind != TokenKind::Eof
+                {
                     type_str.push_str(&self.current.lexeme);
                     self.advance();
                 }
@@ -991,7 +1152,7 @@ impl Parser {
                 // pub const Trit = enum(i8) { ... };
                 decl.kind = NodeKind::EnumDecl;
                 self.advance(); // consume 'enum'
-                // Optional backing type: (i8)
+                                // Optional backing type: (i8)
                 if self.current.kind == TokenKind::LParen {
                     self.advance(); // consume (
                     if self.current.kind == TokenKind::Ident {
@@ -1016,7 +1177,9 @@ impl Parser {
                 // pub const TernaryWord = [WORD_BYTES]u8; or [_]u8{...} ** N
                 // Collect the full expression as value text
                 let mut val_text = String::new();
-                while self.current.kind != TokenKind::Semicolon && self.current.kind != TokenKind::Eof {
+                while self.current.kind != TokenKind::Semicolon
+                    && self.current.kind != TokenKind::Eof
+                {
                     val_text.push_str(&self.current.lexeme);
                     self.advance();
                 }
@@ -1047,7 +1210,9 @@ impl Parser {
                 val_node.name = self.current.lexeme.clone();
                 decl.children.push(val_node);
                 self.advance();
-            } else if self.current.kind == TokenKind::KwTrue || self.current.kind == TokenKind::KwFalse {
+            } else if self.current.kind == TokenKind::KwTrue
+                || self.current.kind == TokenKind::KwFalse
+            {
                 let mut val_node = Node::new(NodeKind::ExprLiteral);
                 val_node.value = self.current.lexeme.clone();
                 decl.children.push(val_node);
@@ -1065,10 +1230,15 @@ impl Parser {
 
             // After reading the first value token, skip any remaining expression
             // tokens (operators, more operands) until semicolon
-            if self.current.kind != TokenKind::Semicolon {
+            // But don't skip past module body closing brace or next declaration
+            if self.current.kind != TokenKind::Semicolon
+                && self.current.kind != TokenKind::RBrace
+                && !self.is_top_level_start()
+                && self.current.kind != TokenKind::Eof
+            {
                 self.skip_to_semicolon()?;
-                return Ok(decl);
             }
+            return Ok(decl);
         }
 
         // Consume trailing semicolon
@@ -1105,7 +1275,7 @@ impl Parser {
                 let mut value_str = String::new();
                 if self.current.kind == TokenKind::Equals {
                     self.advance(); // consume =
-                    // [BUG 10] Handle negative enum values
+                                    // [BUG 10] Handle negative enum values
                     if self.current.kind == TokenKind::Minus {
                         value_str.push('-');
                         self.advance();
@@ -1119,7 +1289,7 @@ impl Parser {
                     }
                 }
 
-                let mut variant = Node::new(NodeKind::ExprLiteral);
+                let mut variant = Node::new(NodeKind::EnumVariant);
                 variant.name = name;
                 variant.value = value_str;
                 decl.children.push(variant);
@@ -1145,8 +1315,9 @@ impl Parser {
                 let mut type_str = String::new();
                 if self.current.kind == TokenKind::Colon {
                     self.advance(); // consume :
-                    // Collect type tokens until comma or closing brace
+                                    // Collect type tokens until comma, semicolon, or closing brace
                     while self.current.kind != TokenKind::Comma
+                        && self.current.kind != TokenKind::Semicolon
                         && self.current.kind != TokenKind::RBrace
                         && self.current.kind != TokenKind::Eof
                     {
@@ -1160,7 +1331,9 @@ impl Parser {
                 field.extra_type = type_str;
                 decl.children.push(field);
 
-                if self.current.kind == TokenKind::Comma {
+                if self.current.kind == TokenKind::Comma
+                    || self.current.kind == TokenKind::Semicolon
+                {
                     self.advance();
                 }
             } else {
@@ -1190,17 +1363,28 @@ impl Parser {
             return ty;
         }
 
-        // Handle slice/array prefix: []Type, [N]Type, []const Type
+        // Handle slice/array prefix: []Type, [N]Type, [[f64; 8]; 8], []const Type
         while self.current.kind == TokenKind::LBracket {
             ty.push('[');
             self.advance(); // consume [
-            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                ty.push_str(&self.current.lexeme);
-                self.advance();
-            }
-            ty.push(']');
-            if self.current.kind == TokenKind::RBracket {
-                self.advance();
+            let mut depth: usize = 1;
+            while depth > 0 && self.current.kind != TokenKind::Eof {
+                match self.current.kind {
+                    TokenKind::LBracket => {
+                        depth += 1;
+                        ty.push('[');
+                        self.advance();
+                    }
+                    TokenKind::RBracket => {
+                        depth -= 1;
+                        ty.push(']');
+                        self.advance();
+                    }
+                    _ => {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                }
             }
         }
 
@@ -1224,10 +1408,26 @@ impl Parser {
             }
         }
 
-        // Main type identifier
+        // Main type identifier with namespace support (lexer::Lexer, base::types)
         if self.current.kind == TokenKind::Ident {
             ty.push_str(&self.current.lexeme);
             self.advance();
+
+            // Handle :: namespace separators
+            while self.current.kind == TokenKind::Colon {
+                // Check for :: (two colons)
+                if self.peek.kind == TokenKind::Colon {
+                    ty.push_str("::");
+                    self.advance(); // consume first :
+                    self.advance(); // consume second :
+                    if self.current.kind == TokenKind::Ident {
+                        ty.push_str(&self.current.lexeme);
+                        self.advance();
+                    }
+                } else {
+                    break;
+                }
+            }
         } else if self.current.kind == TokenKind::KwVoid {
             ty.push_str("void");
             self.advance();
@@ -1239,6 +1439,7 @@ impl Parser {
     fn parse_fn_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::FnDecl);
         decl.extra_pub = is_pub;
+        decl.line = self.current.line as u32;
 
         self.advance(); // consume 'fn'
 
@@ -1320,18 +1521,29 @@ impl Parser {
                 }
             }
         } else if self.current.kind == TokenKind::LBracket {
-            // Handle one or more bracket levels: []Type, [][]const u8, [N]Type
+            // Handle one or more bracket levels: []Type, [][]const u8, [N]Type, [[f64; 8]; 8]
             let mut rt = String::new();
             while self.current.kind == TokenKind::LBracket {
                 rt.push('[');
                 self.advance(); // consume [
-                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                    rt.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                rt.push(']');
-                if self.current.kind == TokenKind::RBracket {
-                    self.advance();
+                let mut depth: usize = 1;
+                while depth > 0 && self.current.kind != TokenKind::Eof {
+                    match self.current.kind {
+                        TokenKind::LBracket => {
+                            depth += 1;
+                            rt.push('[');
+                            self.advance();
+                        }
+                        TokenKind::RBracket => {
+                            depth -= 1;
+                            rt.push(']');
+                            self.advance();
+                        }
+                        _ => {
+                            rt.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    }
                 }
             }
             // Handle 'const' qualifier in return type: []const u8
@@ -1401,9 +1613,17 @@ impl Parser {
                     break;
                 }
                 TokenKind::RBrace if brace_depth == 0 => break,
-                TokenKind::LBrace => { brace_depth += 1; self.advance(); }
-                TokenKind::RBrace => { brace_depth -= 1; self.advance(); }
-                _ => { self.advance(); }
+                TokenKind::LBrace => {
+                    brace_depth += 1;
+                    self.advance();
+                }
+                TokenKind::RBrace => {
+                    brace_depth -= 1;
+                    self.advance();
+                }
+                _ => {
+                    self.advance();
+                }
             }
         }
     }
@@ -1435,6 +1655,24 @@ impl Parser {
             return self.parse_for_stmt();
         }
 
+        // break statement
+        if self.current.kind == TokenKind::KwBreak {
+            self.advance();
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            return Ok(Node::new(NodeKind::StmtBreak));
+        }
+
+        // continue statement
+        if self.current.kind == TokenKind::KwContinue {
+            self.advance();
+            if self.current.kind == TokenKind::Semicolon {
+                self.advance();
+            }
+            return Ok(Node::new(NodeKind::StmtContinue));
+        }
+
         // Expression or assignment
         let expr = self.parse_expr()?;
 
@@ -1446,6 +1684,7 @@ impl Parser {
                 self.advance();
             }
             let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
             assign.children.push(expr);
             assign.children.push(rhs);
             return Ok(assign);
@@ -1459,6 +1698,7 @@ impl Parser {
                 self.advance();
             }
             let mut assign = Node::new(NodeKind::StmtAssign);
+            assign.line = self.current.line as u32;
             assign.extra_op = "+=".to_string();
             assign.children.push(expr);
             assign.children.push(rhs);
@@ -1477,6 +1717,7 @@ impl Parser {
     /// Parse local const/var declaration
     fn parse_local_decl(&mut self) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::StmtLocal);
+        decl.line = self.current.line as u32;
         decl.extra_mutable = self.current.kind == TokenKind::KwVar;
         self.advance(); // consume const/var
 
@@ -1569,7 +1810,8 @@ impl Parser {
                 self.advance(); // consume {
                 let mut else_block = Node::new(NodeKind::Module);
                 else_block.name = "else".to_string();
-                while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+                while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof
+                {
                     match self.parse_body_stmt() {
                         Ok(s) => else_block.children.push(s),
                         Err(_) => self.recover_to_stmt_boundary(),
@@ -1637,7 +1879,9 @@ impl Parser {
                     self.advance();
                 }
                 if self.current.kind == TokenKind::Ident {
-                    for_node.params.push((self.current.lexeme.clone(), String::new()));
+                    for_node
+                        .params
+                        .push((self.current.lexeme.clone(), String::new()));
                     self.advance();
                 } else if self.current.kind == TokenKind::Comma {
                     self.advance();
@@ -1677,8 +1921,10 @@ impl Parser {
     /// Parse `or` expressions
     fn parse_expr_or(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_and()?;
-        while self.current.kind == TokenKind::KwOr {
-            self.advance(); // consume 'or'
+        while self.current.kind == TokenKind::KwOr
+            || (self.current.kind == TokenKind::Pipe && self.current.lexeme == "||")
+        {
+            self.advance();
             let right = self.parse_expr_and()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -1693,8 +1939,10 @@ impl Parser {
     /// Parse `and` expressions
     fn parse_expr_and(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_comparison()?;
-        while self.current.kind == TokenKind::KwAnd {
-            self.advance(); // consume 'and'
+        while self.current.kind == TokenKind::KwAnd
+            || (self.current.kind == TokenKind::Amp && self.current.lexeme == "&&")
+        {
+            self.advance();
             let right = self.parse_expr_comparison()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
@@ -1709,9 +1957,15 @@ impl Parser {
     /// Parse comparison expressions (==, !=, <, >, <=, >=)
     fn parse_expr_comparison(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_bitor()?;
-        while matches!(self.current.kind,
-            TokenKind::Eq | TokenKind::Neq | TokenKind::Lt | TokenKind::Gt |
-            TokenKind::Lte | TokenKind::Gte | TokenKind::DotDot
+        while matches!(
+            self.current.kind,
+            TokenKind::Eq
+                | TokenKind::Neq
+                | TokenKind::Lt
+                | TokenKind::Gt
+                | TokenKind::Lte
+                | TokenKind::Gte
+                | TokenKind::DotDot
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
@@ -1729,7 +1983,7 @@ impl Parser {
     /// Parse bitwise or (|)
     fn parse_expr_bitor(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_bitxor()?;
-        while self.current.kind == TokenKind::Pipe {
+        while self.current.kind == TokenKind::Pipe && self.current.lexeme == "|" {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_bitxor()?;
@@ -1763,7 +2017,7 @@ impl Parser {
     /// Parse bitwise and (&)
     fn parse_expr_bitand(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_shift()?;
-        while self.current.kind == TokenKind::Amp {
+        while self.current.kind == TokenKind::Amp && self.current.lexeme == "&" {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_shift()?;
@@ -1780,7 +2034,10 @@ impl Parser {
     /// Parse shift expressions (<<, >>)
     fn parse_expr_shift(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_additive()?;
-        while matches!(self.current.kind, TokenKind::ShiftLeft | TokenKind::ShiftRight) {
+        while matches!(
+            self.current.kind,
+            TokenKind::ShiftLeft | TokenKind::ShiftRight
+        ) {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_additive()?;
@@ -1797,7 +2054,10 @@ impl Parser {
     /// Parse additive expressions (+, -, +%)
     fn parse_expr_additive(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_multiplicative()?;
-        while matches!(self.current.kind, TokenKind::Plus | TokenKind::Minus | TokenKind::PlusPercent) {
+        while matches!(
+            self.current.kind,
+            TokenKind::Plus | TokenKind::Minus | TokenKind::PlusPercent
+        ) {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_multiplicative()?;
@@ -1814,7 +2074,10 @@ impl Parser {
     /// Parse multiplicative expressions (*, /, %, **)
     fn parse_expr_multiplicative(&mut self) -> Result<Node, String> {
         let mut left = self.parse_expr_unary()?;
-        while matches!(self.current.kind, TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power) {
+        while matches!(
+            self.current.kind,
+            TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power
+        ) {
             let op = self.current.lexeme.clone();
             self.advance();
             let right = self.parse_expr_unary()?;
@@ -1830,7 +2093,10 @@ impl Parser {
 
     /// Parse unary expressions (-x, !x, ~x, &x)
     fn parse_expr_unary(&mut self) -> Result<Node, String> {
-        if matches!(self.current.kind, TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde | TokenKind::Amp) {
+        if matches!(
+            self.current.kind,
+            TokenKind::Minus | TokenKind::Bang | TokenKind::Tilde | TokenKind::Amp
+        ) {
             let op = self.current.lexeme.clone();
             self.advance();
             let operand = self.parse_expr_unary()?;
@@ -1990,21 +2256,40 @@ impl Parser {
                         ..Default::default()
                     })
                 } else {
-                    Err(format!("Expected identifier after '.', got {:?}", self.current.kind))
+                    Err(format!(
+                        "Expected identifier after '.', got {:?}",
+                        self.current.kind
+                    ))
                 }
             }
 
             // Identifier, function call, @builtin call, or struct literal
             TokenKind::Ident => {
-                let name = self.current.lexeme.clone();
+                let mut name = self.current.lexeme.clone();
                 self.advance();
+
+                // Handle namespace-qualified names: lexer::next_token
+                while self.current.kind == TokenKind::Colon {
+                    // Check for :: (two colons)
+                    if self.peek.kind == TokenKind::Colon {
+                        name.push_str("::");
+                        self.advance(); // consume first :
+                        self.advance(); // consume second :
+                        if self.current.kind == TokenKind::Ident {
+                            name.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    } else {
+                        break;
+                    }
+                }
 
                 // Check for struct literal: Name{ .field = expr, ... }
                 if self.current.kind == TokenKind::LBrace {
                     return self.parse_struct_literal(name);
                 }
 
-                // Check for function call: name(args)
+                // Check for function call: name(args) or namespace::func(args)
                 if self.current.kind == TokenKind::LParen {
                     return self.parse_call_args(name);
                 }
@@ -2025,14 +2310,10 @@ impl Parser {
             }
 
             // if expression: if (cond) expr else expr
-            TokenKind::KwIf => {
-                self.parse_if_expr()
-            }
+            TokenKind::KwIf => self.parse_if_expr(),
 
             // switch expression: switch (val) { ... }
-            TokenKind::KwSwitch => {
-                self.parse_switch_expr()
-            }
+            TokenKind::KwSwitch => self.parse_switch_expr(),
 
             // try expression (skip 'try' and parse inner)
             TokenKind::KwTry => {
@@ -2047,14 +2328,12 @@ impl Parser {
             }
 
             // Array literal: [_]Type{ values } or [N]Type{ values }
-            TokenKind::LBracket => {
-                self.parse_array_literal()
-            }
+            TokenKind::LBracket => self.parse_array_literal(),
 
-            _ => {
-                Err(format!("Unexpected token in expression: {:?} ('{}') at line {}:{}",
-                    self.current.kind, self.current.lexeme, self.current.line, self.current.col))
-            }
+            _ => Err(format!(
+                "Unexpected token in expression: {:?} ('{}') at line {}:{}",
+                self.current.kind, self.current.lexeme, self.current.line, self.current.col
+            )),
         }
     }
 
@@ -2126,156 +2405,57 @@ impl Parser {
     }
 
     /// Parse array literal: [_]Type{ values } or [N]Type{ values }
-    /// Collected verbatim as a literal string since Zig passes through
     fn parse_array_literal(&mut self) -> Result<Node, String> {
-        let mut text = String::from("[");
-        self.advance(); // consume [
+        let mut node = Node::new(NodeKind::ExprArrayLiteral);
+        self.advance();
 
-        // Collect everything up to ]
-        while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-            text.push_str(&self.current.lexeme);
+        if self.current.kind == TokenKind::RBracket {
             self.advance();
+        } else {
+            let mut bracket_content = String::new();
+            while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
+                bracket_content.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            node.extra_size = bracket_content.trim().to_string();
+            self.expect(TokenKind::RBracket)?;
         }
-        text.push(']');
-        self.expect(TokenKind::RBracket)?;
 
-        // Collect the type name (e.g. Trit, u8)
         if self.current.kind == TokenKind::Ident {
-            text.push_str(&self.current.lexeme);
+            node.extra_type = self.current.lexeme.clone();
             self.advance();
         }
 
-        // Check for { ... } initializer — collect verbatim with proper spacing
         if self.current.kind == TokenKind::LBrace {
-            self.collect_array_brace_init(&mut text)?;
-        }
-
-        // Handle ++ array concatenation: [_]T{a} ++ [_]T{b} ** N
-        // Collect the entire expression verbatim for Zig pass-through
-        while self.current.kind == TokenKind::PlusPlus {
-            text.push_str(" ++ ");
-            self.advance(); // consume ++
-
-            // Expect another array literal: [_]Type{ ... }
-            if self.current.kind == TokenKind::LBracket {
-                text.push('[');
-                self.advance(); // consume [
-                while self.current.kind != TokenKind::RBracket && self.current.kind != TokenKind::Eof {
-                    text.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-                text.push(']');
-                self.expect(TokenKind::RBracket)?;
-
-                if self.current.kind == TokenKind::Ident {
-                    text.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-
-                if self.current.kind == TokenKind::LBrace {
-                    self.collect_array_brace_init(&mut text)?;
-                }
-            }
-
-            // Handle ** repeat operator after concatenation: ++ [_]T{v} ** (N)
-            if self.current.kind == TokenKind::Power {
-                text.push_str(" ** ");
-                self.advance(); // consume **
-                // Collect the repeat count (could be a parenthesized expression)
-                if self.current.kind == TokenKind::LParen {
-                    text.push('(');
-                    self.advance();
-                    let mut paren_depth = 1;
-                    while paren_depth > 0 && self.current.kind != TokenKind::Eof {
-                        if self.current.kind == TokenKind::LParen { paren_depth += 1; }
-                        if self.current.kind == TokenKind::RParen {
-                            paren_depth -= 1;
-                            if paren_depth == 0 { break; }
-                        }
-                        text.push_str(&self.current.lexeme);
-                        if self.current.kind == TokenKind::Minus || self.current.kind == TokenKind::Plus {
-                            text.push(' ');
-                        }
-                        self.advance();
-                    }
-                    text.push(')');
-                    self.expect(TokenKind::RParen)?;
-                } else {
-                    // Simple number or identifier
-                    text.push_str(&self.current.lexeme);
-                    self.advance();
-                }
-            }
-        }
-
-        // Handle ** repeat operator on standalone array literal: [_]T{v} ** N
-        if self.current.kind == TokenKind::Power {
-            text.push_str(" ** ");
-            self.advance(); // consume **
-            if self.current.kind == TokenKind::LParen {
-                text.push('(');
-                self.advance();
-                let mut paren_depth = 1;
-                while paren_depth > 0 && self.current.kind != TokenKind::Eof {
-                    if self.current.kind == TokenKind::LParen { paren_depth += 1; }
-                    if self.current.kind == TokenKind::RParen {
-                        paren_depth -= 1;
-                        if paren_depth == 0 { break; }
-                    }
-                    text.push_str(&self.current.lexeme);
-                    if self.current.kind == TokenKind::Minus || self.current.kind == TokenKind::Plus {
-                        text.push(' ');
-                    }
-                    self.advance();
-                }
-                text.push(')');
-                self.expect(TokenKind::RParen)?;
-            } else {
-                text.push_str(&self.current.lexeme);
-                self.advance();
-            }
-        }
-
-        Ok(Node {
-            kind: NodeKind::ExprLiteral,
-            value: text,
-            ..Default::default()
-        })
-    }
-
-    /// Collect { ... } brace-delimited array initializer content verbatim
-    fn collect_array_brace_init(&mut self, text: &mut String) -> Result<(), String> {
-        text.push_str("{ ");
-        self.advance(); // consume {
-        let mut depth = 1;
-        while depth > 0 && self.current.kind != TokenKind::Eof {
-            if self.current.kind == TokenKind::LBrace {
-                depth += 1;
-            } else if self.current.kind == TokenKind::RBrace {
-                depth -= 1;
-                if depth == 0 {
-                    break;
-                }
-            }
-            if self.current.kind == TokenKind::Dot {
-                text.push('.');
-                self.advance();
-                continue;
-            }
-            if self.current.kind == TokenKind::Comma {
-                text.push_str(", ");
-                self.advance();
-                continue;
-            }
-            text.push_str(&self.current.lexeme);
             self.advance();
+            if self.current.kind != TokenKind::RBrace {
+                let elem = self.parse_expr()?;
+                node.children.push(elem);
+                while self.current.kind == TokenKind::Comma {
+                    self.advance();
+                    if self.current.kind == TokenKind::RBrace {
+                        break;
+                    }
+                    let elem = self.parse_expr()?;
+                    node.children.push(elem);
+                }
+            }
+            self.expect(TokenKind::RBrace)?;
         }
-        text.push_str(" }");
-        self.expect(TokenKind::RBrace)?;
-        Ok(())
+
+        if self.current.kind == TokenKind::Power {
+            self.advance();
+            let count = self.parse_expr()?;
+            let mut repeat_node = Node::new(NodeKind::ExprBinary);
+            repeat_node.extra_op = "**".to_string();
+            repeat_node.children.push(node);
+            repeat_node.children.push(count);
+            return Ok(repeat_node);
+        }
+
+        Ok(node)
     }
 
-    /// Parse if expression: if (cond) expr else expr
     fn parse_if_expr(&mut self) -> Result<Node, String> {
         self.advance(); // consume 'if'
 
@@ -2339,7 +2519,9 @@ impl Parser {
             } else if self.current.kind == TokenKind::CharLiteral {
                 arm.name = format!("'{}'", self.current.lexeme);
                 self.advance();
-            } else if self.current.kind == TokenKind::Ident || self.current.kind == TokenKind::Number {
+            } else if self.current.kind == TokenKind::Ident
+                || self.current.kind == TokenKind::Number
+            {
                 arm.name = self.current.lexeme.clone();
                 self.advance();
             } else {
@@ -2368,6 +2550,7 @@ impl Parser {
 
     fn parse_enum_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::EnumDecl);
+        decl.line = self.current.line as u32;
         decl.extra_pub = is_pub;
 
         self.advance(); // consume 'enum'
@@ -2386,13 +2569,14 @@ impl Parser {
         }
 
         self.expect(TokenKind::LBrace)?;
-        self.skip_brace_body()?;
+        self.parse_enum_body(&mut decl)?;
         self.expect(TokenKind::RBrace)?;
         Ok(decl)
     }
 
     fn parse_struct_decl(&mut self, is_pub: bool) -> Result<Node, String> {
         let mut decl = Node::new(NodeKind::StructDecl);
+        decl.line = self.current.line as u32;
         decl.extra_pub = is_pub;
 
         self.advance(); // consume 'struct'
@@ -2483,7 +2667,6 @@ impl Parser {
         }
         Ok(block)
     }
-
 }
 
 // ============================================================================
@@ -2535,7 +2718,10 @@ impl Codegen {
         } else {
             "unknown"
         };
-        self.write_line(&format!("// Generated from t27 spec: {} (module name)", module_name));
+        self.write_line(&format!(
+            "// Generated from t27 spec: {} (module name)",
+            module_name
+        ));
         self.write_line("// DO NOT EDIT — generated by t27c");
         self.write_line("// phi^2 + 1/phi^2 = 3 | TRINITY");
         self.write_line("");
@@ -2551,7 +2737,10 @@ impl Codegen {
         let mut has_imports = false;
         for decl in &ast.children {
             if decl.kind == NodeKind::UseDecl {
-                self.write_line(&format!("const {} = @import(\"{}.zig\");", decl.name, decl.name));
+                self.write_line(&format!(
+                    "const {} = @import(\"{}.zig\");",
+                    decl.name, decl.name
+                ));
                 has_imports = true;
             }
         }
@@ -2582,7 +2771,10 @@ impl Codegen {
         } else {
             "unknown"
         };
-        self.write_line(&format!("// Generated from t27 spec: {} (module name)", module_name));
+        self.write_line(&format!(
+            "// Generated from t27 spec: {} (module name)",
+            module_name
+        ));
         self.write_line("// DO NOT EDIT — generated by t27c compile-project");
         self.write_line("// phi^2 + 1/phi^2 = 3 | TRINITY");
         self.write_line("");
@@ -2692,18 +2884,17 @@ impl Codegen {
             self.write("pub ");
         }
 
-        self.write(&format!("const {} = struct {{", node.name));
-        self.write_line("");
-
+        self.write_line(&format!("const {} = struct {{", node.name));
         self.indent();
 
         for field in &node.children {
             self.write_indent();
-            self.write(&format!("{}: ", field.name));
-            if !field.extra_type.is_empty() {
-                self.write(&field.extra_type);
-            }
-            self.write_line(",");
+            let ty = if !field.extra_type.is_empty() {
+                &field.extra_type
+            } else {
+                "void"
+            };
+            self.write_line(&format!("{}: {},", field.name, ty));
         }
 
         self.dedent();
@@ -2715,6 +2906,19 @@ impl Codegen {
             self.write("pub ");
         }
 
+        // T27 method syntax: fn foo(self: *Type, ...) -> ReturnType
+        // Zig syntax: fn foo(self: *Type, ...) ReturnType
+        // For methods, we put return type after ) without arrow
+
+        let return_type = if node.extra_return_type.is_empty() {
+            "void".to_string()
+        } else {
+            node.extra_return_type.clone()
+        };
+
+        // Check if this is a method (first param is "self")
+        let is_method = node.params.iter().any(|(name, _)| name == "self");
+
         self.write(&format!("fn {}(", node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
             if i > 0 {
@@ -2724,8 +2928,12 @@ impl Codegen {
         }
         self.write(")");
 
-        if !node.extra_return_type.is_empty() {
-            self.write(&format!(" {}", node.extra_return_type));
+        // T27 methods: return type after ) without arrow
+        if is_method {
+            self.write(&format!(" {}", return_type));
+        } else if !node.extra_return_type.is_empty() {
+            // Zig uses space for return type, not : or ->
+            self.write(&format!(" {}", return_type));
         }
 
         self.write_line(" {");
@@ -2772,7 +2980,10 @@ impl Codegen {
 
         if node.children.is_empty() {
             self.write_indent();
-            self.write_line(&format!("@compileLog(\"invariant: {} verified\");", node.name));
+            self.write_line(&format!(
+                "@compileLog(\"invariant: {} verified\");",
+                node.name
+            ));
         }
 
         self.dedent();
@@ -2855,6 +3066,12 @@ impl Codegen {
             }
             NodeKind::StmtFor => {
                 self.gen_for_stmt(node);
+            }
+            NodeKind::StmtBreak => {
+                self.write_line("break;");
+            }
+            NodeKind::StmtContinue => {
+                self.write_line("continue;");
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -3033,13 +3250,43 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
-                if node.name == "@compileAssert" {
-                    // @compileAssert is not valid Zig — emit as comptime assert pattern
+                if node.name == "@compileAssert" || node.name == "assert" {
                     if !node.children.is_empty() {
                         self.write("if (!(");
                         self.gen_expr(&node.children[0]);
                         self.write(")) @compileError(\"assertion failed\")");
                     }
+                } else if node.name == "gf16_encode_f32" {
+                    self.write("gf16_encode_f32(");
+                    for (i, arg) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(arg);
+                    }
+                    self.write(")");
+                } else if node.name == "gf16_decode_f32" {
+                    self.write("gf16_decode_f32(");
+                    for (i, arg) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(arg);
+                    }
+                    self.write(")");
+                } else if node.name == "gf16_extract_sign"
+                    || node.name == "gf16_extract_exponent"
+                    || node.name == "gf16_extract_mantissa"
+                {
+                    self.write(&node.name);
+                    self.write("(");
+                    for (i, arg) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_expr(arg);
+                    }
+                    self.write(")");
                 } else {
                     self.write(&node.name);
                     self.write("(");
@@ -3095,7 +3342,9 @@ impl Codegen {
                         self.write_indent();
                         if !case_node.name.is_empty() && case_node.name != "else" {
                             // Don't prefix with '.' if the arm is a numeric literal or negative number
-                            let is_numeric = case_node.name.starts_with(|c: char| c.is_ascii_digit())
+                            let is_numeric = case_node
+                                .name
+                                .starts_with(|c: char| c.is_ascii_digit())
                                 || (case_node.name.starts_with('-') && case_node.name.len() > 1);
                             if is_numeric {
                                 self.write(&case_node.name);
@@ -3130,6 +3379,27 @@ impl Codegen {
                     self.write(" else ");
                     self.gen_expr(&node.children[2]);
                 }
+            }
+            NodeKind::ExprArrayLiteral => {
+                let size = if node.extra_size.is_empty() {
+                    "_".to_string()
+                } else {
+                    node.extra_size.clone()
+                };
+                let typ = if node.extra_type.is_empty() {
+                    ""
+                } else {
+                    &node.extra_type
+                };
+                self.write(&format!("[{}]{}", size, typ));
+                self.write("{");
+                for (i, elem) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_expr(elem);
+                }
+                self.write("}");
             }
             NodeKind::ExprStructLit => {
                 self.write(&node.name);
@@ -3172,7 +3442,8 @@ impl VerilogCodegen {
     }
 
     fn sanitize_identifier(name: &str) -> String {
-        name.replace('-', "_").replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
+        name.replace('-', "_")
+            .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
     }
 
     fn write(&mut self, s: &str) {
@@ -3239,11 +3510,15 @@ impl VerilogCodegen {
         };
 
         // Header
-        self.write_line("// ============================================================================");
+        self.write_line(
+            "// ============================================================================",
+        );
         self.write_line(&format!("// Generated from t27 spec: {}", self.module_name));
         self.write_line("// DO NOT EDIT - generated by t27c gen-verilog");
         self.write_line("// phi^2 + 1/phi^2 = 3 | TRINITY");
-        self.write_line("// ============================================================================");
+        self.write_line(
+            "// ============================================================================",
+        );
         self.write_line("");
         self.write_line("`timescale 1ns / 1ps");
         self.write_line("`default_nettype none");
@@ -3482,11 +3757,15 @@ impl VerilogCodegen {
         for (i, variant) in node.children.iter().enumerate() {
             self.write_indent();
             if !variant.value.is_empty() {
-                self.write_line(&format!("localparam {}_{} = {};",
-                    node.name, variant.name, variant.value));
+                self.write_line(&format!(
+                    "localparam {}_{} = {};",
+                    node.name, variant.name, variant.value
+                ));
             } else {
-                self.write_line(&format!("localparam {}_{} = {};",
-                    node.name, variant.name, i));
+                self.write_line(&format!(
+                    "localparam {}_{} = {};",
+                    node.name, variant.name, i
+                ));
             }
         }
     }
@@ -3516,7 +3795,8 @@ impl VerilogCodegen {
                 String::new()
             };
 
-            self.write_line(&format!("reg {}{}{}_{}; // {}.{}{}",
+            self.write_line(&format!(
+                "reg {}{}{}_{}; // {}.{}{}",
                 signed_str,
                 range_str,
                 node.name.to_lowercase(),
@@ -3560,11 +3840,16 @@ impl VerilogCodegen {
             self.write_line(&format!("task {};", node.name));
         } else {
             self.write_indent();
-            self.write_line(&format!("function {}{}{}; // -> {}",
+            self.write_line(&format!(
+                "function {}{}{}; // -> {}",
                 signed_str,
                 range_str,
                 node.name,
-                if node.extra_return_type.is_empty() { "auto" } else { &node.extra_return_type },
+                if node.extra_return_type.is_empty() {
+                    "auto"
+                } else {
+                    &node.extra_return_type
+                },
             ));
         }
 
@@ -3641,7 +3926,7 @@ impl VerilogCodegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                let kw = if node.extra_mutable { "reg" } else { "// const" };
+                let kw = if node.extra_mutable { "reg" } else { "reg" };
                 let width = Self::type_to_width(&node.extra_type);
                 let signed = Self::type_is_signed(&node.extra_type);
                 let signed_str = if signed { "signed " } else { "" };
@@ -3687,6 +3972,12 @@ impl VerilogCodegen {
             }
             NodeKind::StmtFor => {
                 self.gen_verilog_for_stmt(node);
+            }
+            NodeKind::StmtBreak => {
+                self.write_line("disable fork;");
+            }
+            NodeKind::StmtContinue => {
+                self.write_line("/* continue */;");
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -3914,14 +4205,27 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
-                // Verilog doesn't have field access — flatten to name_field
                 if !node.children.is_empty() {
-                    self.gen_verilog_expr(&node.children[0]);
-                    self.write("_");
+                    let child = &node.children[0];
+                    if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
+                        let base_name = match child.children[0].kind {
+                            NodeKind::ExprIdentifier => child.children[0].name.clone(),
+                            _ => String::new(),
+                        };
+                        let flat_name = format!("{}{}", base_name, node.name);
+                        self.write(&flat_name);
+                    } else if child.kind == NodeKind::ExprIdentifier {
+                        self.write(&child.name);
+                        self.write("_");
+                        self.write(&node.name);
+                    } else {
+                        self.gen_verilog_expr(child);
+                        self.write("_");
+                        self.write(&node.name);
+                    }
                 } else {
-                    // Just the field name
+                    self.write(&node.name);
                 }
-                self.write(&node.name);
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {
@@ -3930,6 +4234,18 @@ impl VerilogCodegen {
                     self.gen_verilog_expr(&node.children[1]);
                     self.write("]");
                 }
+            }
+            NodeKind::ExprArrayLiteral => {
+                self.write(&format!(
+                    "/* array [{}]{}{{",
+                    node.extra_size, node.extra_type
+                ));
+                for elem in &node.children {
+                    self.write(" ");
+                    self.gen_verilog_expr(elem);
+                    self.write(",");
+                }
+                self.write("} */");
             }
             NodeKind::ExprStructLit => {
                 // Verilog has no struct literals — emit as comment + value 0
@@ -3957,8 +4273,9 @@ impl VerilogCodegen {
                                 self.write("(");
                                 self.gen_verilog_expr(&node.children[0]);
                                 self.write(" == ");
-                                let is_numeric = case.name.starts_with(|c: char| c.is_ascii_digit())
-                                    || (case.name.starts_with('-') && case.name.len() > 1);
+                                let is_numeric =
+                                    case.name.starts_with(|c: char| c.is_ascii_digit())
+                                        || (case.name.starts_with('-') && case.name.len() > 1);
                                 if is_numeric {
                                     self.write(&case.name);
                                 } else {
@@ -4075,7 +4392,10 @@ impl CCodegen {
 
     /// Check if a type is a primitive (maps to stdint)
     fn is_primitive(ty: &str) -> bool {
-        matches!(ty, "bool" | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "usize" | "void")
+        matches!(
+            ty,
+            "bool" | "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "usize" | "void"
+        )
     }
 
     pub fn gen_c(&mut self, ast: &Node) {
@@ -4086,12 +4406,16 @@ impl CCodegen {
         };
 
         // Header
-        self.write_line("/* ============================================================================");
+        self.write_line(
+            "/* ============================================================================",
+        );
         self.write_line(&format!("   Generated from t27 spec: {}", self.module_name));
         self.write_line("   DO NOT EDIT - generated by t27c gen-c");
         let mn = self.module_name.clone();
         self.write_line(&format!("   phi^2 + 1/phi^2 = 3 | TRINITY"));
-        self.write_line("   ============================================================================ */");
+        self.write_line(
+            "   ============================================================================ */",
+        );
         self.write_line("");
 
         // Includes
@@ -4244,7 +4568,10 @@ impl CCodegen {
             return true;
         }
         // Custom types: start with uppercase letter
-        name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+        name.chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
     }
 
     fn gen_c_const(&mut self, node: &Node) {
@@ -4306,7 +4633,12 @@ impl CCodegen {
             self.write_indent();
             let prefix = node.name.to_uppercase();
             if !variant.value.is_empty() {
-                self.write(&format!("{}_{} = {}", prefix, variant.name.to_uppercase(), variant.value));
+                self.write(&format!(
+                    "{}_{} = {}",
+                    prefix,
+                    variant.name.to_uppercase(),
+                    variant.value
+                ));
             } else {
                 self.write(&format!("{}_{}", prefix, variant.name.to_uppercase()));
             }
@@ -4343,7 +4675,11 @@ impl CCodegen {
 
     fn gen_c_fn_prototype(&mut self, node: &Node) {
         let ret_type = Self::param_type_to_c(&node.extra_return_type);
-        let ret_type = if ret_type.is_empty() { "void".to_string() } else { ret_type };
+        let ret_type = if ret_type.is_empty() {
+            "void".to_string()
+        } else {
+            ret_type
+        };
 
         self.write(&format!("{} {}(", ret_type, node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
@@ -4361,7 +4697,11 @@ impl CCodegen {
 
     fn gen_c_fn(&mut self, node: &Node) {
         let ret_type = Self::param_type_to_c(&node.extra_return_type);
-        let ret_type = if ret_type.is_empty() { "void".to_string() } else { ret_type };
+        let ret_type = if ret_type.is_empty() {
+            "void".to_string()
+        } else {
+            ret_type
+        };
 
         self.write(&format!("{} {}(", ret_type, node.name));
         for (i, (pname, ptype)) in node.params.iter().enumerate() {
@@ -4417,7 +4757,10 @@ impl CCodegen {
     fn gen_c_invariant(&mut self, node: &Node) {
         self.write_line(&format!("/* invariant: {} */", node.name));
         if node.children.is_empty() {
-            self.write_line(&format!("/* _Static_assert(1, \"invariant: {}\"); */", node.name));
+            self.write_line(&format!(
+                "/* _Static_assert(1, \"invariant: {}\"); */",
+                node.name
+            ));
         } else {
             for stmt in &node.children {
                 // Try to emit as _Static_assert if it's a simple expression
@@ -4536,6 +4879,12 @@ impl CCodegen {
             }
             NodeKind::StmtFor => {
                 self.gen_c_for_stmt(node);
+            }
+            NodeKind::StmtBreak => {
+                self.write_line("break;");
+            }
+            NodeKind::StmtContinue => {
+                self.write_line("continue;");
             }
             NodeKind::StmtExpr => {
                 self.write_indent();
@@ -4743,7 +5092,8 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[0]);
                     }
                     self.write(", \"compile assert\")");
-                } else if fname.starts_with("@setEvalBranchQuota") || fname == "@setEvalBranchQuota" {
+                } else if fname.starts_with("@setEvalBranchQuota") || fname == "@setEvalBranchQuota"
+                {
                     // Zig comptime hint — emit as comment
                     self.write("/* @setEvalBranchQuota(");
                     for (i, arg) in node.children.iter().enumerate() {
@@ -4787,6 +5137,17 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[0]);
                         self.write(")");
                     }
+                } else if fname.starts_with("gf16_") {
+                    // GF16 builtins — emit as function call
+                    self.write(fname);
+                    self.write("(");
+                    for (i, arg) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_c_expr(arg);
+                    }
+                    self.write(")");
                 } else {
                     self.write(fname);
                     self.write("(");
@@ -4883,6 +5244,21 @@ impl CCodegen {
                     self.write("0");
                 }
                 self.write(")");
+            }
+            NodeKind::ExprArrayLiteral => {
+                let typ = if node.extra_type.is_empty() {
+                    "int"
+                } else {
+                    &node.extra_type
+                };
+                self.write(&format!("({}[]){{ ", typ));
+                for (i, elem) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_c_expr(elem);
+                }
+                self.write(" }");
             }
             NodeKind::ExprStructLit => {
                 // C99 compound literal
@@ -5055,14 +5431,13 @@ fn resolve_import_path(
 
 pub struct Compiler;
 
+#[allow(dead_code)]
 impl Compiler {
     pub fn compile(source: &str) -> Result<String, String> {
-        // [BUG 1 FIX] Do NOT call lexer.tokenize() — let Parser use next_token() directly
         let lexer = Lexer::new(source);
-
         let mut parser = Parser::new(lexer);
-        let ast = parser.parse()?;
-
+        let mut ast = parser.parse()?;
+        optimize(&mut ast, &OptConfig::default());
         let mut codegen = Codegen::new();
         codegen.gen_zig(&ast);
         Ok(codegen.into_string())
@@ -5071,8 +5446,8 @@ impl Compiler {
     pub fn compile_verilog(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
-        let ast = parser.parse()?;
-
+        let mut ast = parser.parse()?;
+        optimize(&mut ast, &OptConfig::default());
         let mut codegen = VerilogCodegen::new();
         codegen.gen_verilog(&ast);
         Ok(codegen.into_string())
@@ -5081,10 +5456,20 @@ impl Compiler {
     pub fn compile_c(source: &str) -> Result<String, String> {
         let lexer = Lexer::new(source);
         let mut parser = Parser::new(lexer);
-        let ast = parser.parse()?;
-
+        let mut ast = parser.parse()?;
+        optimize(&mut ast, &OptConfig::default());
         let mut codegen = CCodegen::new();
         codegen.gen_c(&ast);
+        Ok(codegen.into_string())
+    }
+
+    pub fn compile_rust(source: &str) -> Result<String, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let mut ast = parser.parse()?;
+        optimize(&mut ast, &OptConfig::default());
+        let mut codegen = RustCodegen::new();
+        codegen.gen_rust(&ast);
         Ok(codegen.into_string())
     }
 
@@ -5111,5 +5496,1750 @@ impl Compiler {
         let mut codegen = Codegen::new();
         codegen.gen_zig_project(&ast, current_rel_path, module_map);
         Ok(codegen.into_string())
+    }
+
+    pub fn typecheck(source: &str) -> Result<TypeCheckResult, String> {
+        let lexer = Lexer::new(source);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse()?;
+        Ok(typecheck_ast(&ast))
+    }
+}
+
+// ============================================================================
+// AST Optimizer
+// ============================================================================
+
+pub struct OptConfig {
+    pub enable_folding: bool,
+    pub enable_dce: bool,
+    pub opt_level: u32,
+}
+
+impl Default for OptConfig {
+    fn default() -> Self {
+        OptConfig {
+            enable_folding: true,
+            enable_dce: true,
+            opt_level: 1,
+        }
+    }
+}
+
+pub struct OptStats {
+    pub folds: u32,
+    pub dead_removed: u32,
+    pub copies_propagated: u32,
+    pub strengths_reduced: u32,
+    pub cse_eliminated: u32,
+    pub dead_stores: u32,
+    pub loops_unrolled: u32,
+    pub passes: u32,
+}
+
+pub fn optimize(ast: &mut Node, config: &OptConfig) -> OptStats {
+    let mut stats = OptStats {
+        folds: 0,
+        dead_removed: 0,
+        copies_propagated: 0,
+        strengths_reduced: 0,
+        cse_eliminated: 0,
+        dead_stores: 0,
+        loops_unrolled: 0,
+        passes: 0,
+    };
+    if config.opt_level == 0 {
+        return stats;
+    }
+    for _ in 0..config.opt_level {
+        optimize_module(ast, config, &mut stats);
+        stats.passes += 1;
+    }
+    stats
+}
+
+fn optimize_module(node: &mut Node, config: &OptConfig, stats: &mut OptStats) {
+    let mut i = 0;
+    while i < node.children.len() {
+        if node.children[i].kind == NodeKind::FnDecl {
+            optimize_fn_body(&mut node.children[i], config, stats);
+        }
+        i += 1;
+    }
+}
+
+fn optimize_fn_body(fn_node: &mut Node, config: &OptConfig, stats: &mut OptStats) {
+    for child in &mut fn_node.children {
+        if child.kind == NodeKind::Module && child.name == "body" {
+            optimize_stmts(&mut child.children, config, stats);
+        }
+    }
+    optimize_stmts(&mut fn_node.children, config, stats);
+}
+
+fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStats) {
+    if config.enable_dce {
+        let before = stmts.len();
+        stmts.retain(|s| !is_dead_local(s));
+        stats.dead_removed += (before - stmts.len()) as u32;
+    }
+    if config.enable_folding {
+        const_propagate(stmts, stats);
+        for stmt in stmts.iter_mut() {
+            fold_stmt(stmt, stats);
+        }
+    }
+    copy_propagate(stmts, stats);
+    strength_reduce(stmts, stats);
+    common_subexpr_elim(stmts, stats);
+    dead_store_elim(stmts, stats);
+    loop_unroll(stmts, stats);
+}
+
+fn is_dead_local(node: &Node) -> bool {
+    if node.kind == NodeKind::StmtLocal && node.children.is_empty() && !node.extra_type.is_empty() {
+        return true;
+    }
+    false
+}
+
+fn fold_stmt(node: &mut Node, stats: &mut OptStats) {
+    if node.kind == NodeKind::StmtLocal && !node.children.is_empty() {
+        fold_expr(&mut node.children[0], stats);
+    }
+    if node.kind == NodeKind::StmtAssign && node.children.len() >= 2 {
+        fold_expr(&mut node.children[1], stats);
+    }
+    if node.kind == NodeKind::ExprReturn && !node.children.is_empty() {
+        fold_expr(&mut node.children[0], stats);
+    }
+    if node.kind == NodeKind::StmtIf {
+        for child in &mut node.children {
+            if child.kind == NodeKind::Module {
+                for stmt in &mut child.children {
+                    fold_stmt(stmt, stats);
+                }
+            }
+        }
+    }
+}
+
+fn fold_expr(node: &mut Node, stats: &mut OptStats) {
+    if node.kind == NodeKind::ExprBinary && node.children.len() >= 2 {
+        fold_expr(&mut node.children[0], stats);
+        fold_expr(&mut node.children[1], stats);
+        if is_literal(&node.children[0]) && is_literal(&node.children[1]) {
+            if let Some(val) = eval_binary(
+                &node.children[0].value,
+                &node.extra_op,
+                &node.children[1].value,
+            ) {
+                node.kind = NodeKind::ExprLiteral;
+                node.value = val;
+                node.children.clear();
+                stats.folds += 1;
+            }
+        }
+    }
+    if node.kind == NodeKind::ExprUnary && !node.children.is_empty() {
+        fold_expr(&mut node.children[0], stats);
+        if is_literal(&node.children[0]) {
+            if let Some(val) = eval_unary(&node.extra_op, &node.children[0].value) {
+                node.kind = NodeKind::ExprLiteral;
+                node.value = val;
+                node.children.clear();
+                stats.folds += 1;
+            }
+        }
+    }
+}
+
+fn is_literal(node: &Node) -> bool {
+    if node.kind != NodeKind::ExprLiteral {
+        return false;
+    }
+    let v = node.value.trim();
+    if v.starts_with("0x") || v.starts_with("0X") {
+        i64::from_str_radix(&v[2..], 16).is_ok()
+    } else {
+        v.parse::<i64>().is_ok()
+    }
+}
+
+fn parse_int_value(s: &str) -> Option<i64> {
+    let v = s.trim();
+    if v.starts_with("0x") || v.starts_with("0X") {
+        i64::from_str_radix(&v[2..], 16).ok()
+    } else {
+        v.parse().ok()
+    }
+}
+
+fn copy_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut replacements: Vec<(String, String)> = Vec::new();
+    for stmt in stmts.iter() {
+        if stmt.kind == NodeKind::StmtLocal
+            && stmt.children.len() == 1
+            && stmt.children[0].kind == NodeKind::ExprIdentifier
+            && stmt.name != stmt.children[0].name
+        {
+            replacements.push((stmt.name.clone(), stmt.children[0].name.clone()));
+        }
+    }
+    if replacements.is_empty() {
+        return;
+    }
+    for stmt in stmts.iter_mut() {
+        for (from, to) in &replacements {
+            propagate_ident(stmt, from, to);
+        }
+    }
+    stats.copies_propagated += replacements.len() as u32;
+}
+
+fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut consts: Vec<(String, String)> = Vec::new();
+    for stmt in stmts.iter() {
+        if stmt.kind == NodeKind::StmtLocal
+            && !stmt.extra_mutable
+            && stmt.children.len() == 1
+            && stmt.children[0].kind == NodeKind::ExprLiteral
+            && is_literal(&stmt.children[0])
+        {
+            let name = stmt.name.clone();
+            let reassigned = stmts.iter().any(|s| {
+                s.kind == NodeKind::StmtAssign
+                    && s.children.len() >= 1
+                    && s.children[0].kind == NodeKind::ExprIdentifier
+                    && s.children[0].name == name
+            });
+            if !reassigned {
+                consts.push((name, stmt.children[0].value.clone()));
+            }
+        }
+    }
+    if consts.is_empty() {
+        return;
+    }
+    for stmt in stmts.iter_mut() {
+        for (name, val) in &consts {
+            replace_ident_with_literal(stmt, name, val, stats);
+        }
+    }
+}
+
+fn replace_ident_with_literal(node: &mut Node, name: &str, val: &str, stats: &mut OptStats) {
+    if node.kind == NodeKind::ExprIdentifier && node.name == *name {
+        node.kind = NodeKind::ExprLiteral;
+        node.value = val.to_string();
+        node.children.clear();
+        stats.copies_propagated += 1;
+        return;
+    }
+    for (i, child) in node.children.iter_mut().enumerate() {
+        if node.kind == NodeKind::StmtAssign && i == 0 {
+            continue;
+        }
+        replace_ident_with_literal(child, name, val, stats);
+    }
+}
+
+fn propagate_ident(node: &mut Node, from: &str, to: &str) {
+    if node.kind == NodeKind::ExprIdentifier && node.name == *from {
+        node.name = to.to_string();
+    }
+    for (i, child) in node.children.iter_mut().enumerate() {
+        if node.kind == NodeKind::StmtAssign && i == 0 {
+            continue;
+        }
+        propagate_ident(child, from, to);
+    }
+}
+
+fn strength_reduce(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    for stmt in stmts.iter_mut() {
+        if stmt.kind == NodeKind::StmtAssign && stmt.children.len() >= 2 {
+            reduce_expr(&mut stmt.children[1], stats);
+        }
+        if stmt.kind == NodeKind::StmtLocal && !stmt.children.is_empty() {
+            reduce_expr(&mut stmt.children[0], stats);
+        }
+        if stmt.kind == NodeKind::ExprReturn && !stmt.children.is_empty() {
+            reduce_expr(&mut stmt.children[0], stats);
+        }
+    }
+}
+
+fn reduce_expr(node: &mut Node, stats: &mut OptStats) {
+    if node.kind == NodeKind::ExprBinary && node.children.len() >= 2 {
+        reduce_expr(&mut node.children[0], stats);
+        reduce_expr(&mut node.children[1], stats);
+        let is_mul = node.extra_op == "*";
+        let is_div = node.extra_op == "/";
+        if (is_mul || is_div) && is_power_of_two_literal(&node.children[1]) {
+            let shift_val = get_power_of_two(&node.children[1]);
+            node.extra_op = if is_mul {
+                "<<".to_string()
+            } else {
+                ">>".to_string()
+            };
+            node.children[1].value = shift_val.to_string();
+            stats.strengths_reduced += 1;
+        }
+    }
+}
+
+fn is_power_of_two_literal(node: &Node) -> bool {
+    if node.kind != NodeKind::ExprLiteral {
+        return false;
+    }
+    if let Ok(v) = node.value.parse::<i64>() {
+        v > 1 && (v & (v - 1)) == 0
+    } else {
+        false
+    }
+}
+
+fn get_power_of_two(node: &Node) -> u32 {
+    let v: i64 = node.value.parse().unwrap_or(1);
+    (v as u64).trailing_zeros()
+}
+
+fn expr_key(node: &Node) -> Option<String> {
+    if node.kind == NodeKind::ExprBinary && node.children.len() >= 2 {
+        let lk = child_key(&node.children[0]);
+        let rk = child_key(&node.children[1]);
+        Some(format!("{} {} {}", lk, node.extra_op, rk))
+    } else {
+        None
+    }
+}
+
+fn child_key(node: &Node) -> String {
+    match node.kind {
+        NodeKind::ExprLiteral => format!("LIT:{}", node.value),
+        NodeKind::ExprIdentifier => format!("ID:{}", node.name),
+        NodeKind::ExprBinary => expr_key(node).unwrap_or_default(),
+        _ => format!("{:?}", node.kind),
+    }
+}
+
+fn common_subexpr_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut seen: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut counter: u32 = 0;
+    let mut new_stmts: Vec<Node> = Vec::new();
+    for stmt in stmts.iter_mut() {
+        let mut replacements: Vec<(String, String)> = Vec::new();
+        collect_cse_replacements(stmt, &seen, &mut replacements);
+        if !replacements.is_empty() {
+            for (key, _) in &replacements {
+                let var_name = format!("_cse{}", counter);
+                counter += 1;
+                seen.insert(key.clone(), var_name.clone());
+                new_stmts.push(make_cse_local(&var_name, key));
+                stats.cse_eliminated += 1;
+            }
+            apply_cse_replacements(stmt, &seen);
+        }
+        if let Some(key) = stmt_cse_key(stmt) {
+            if !seen.contains_key(&key) {
+                let var_name = format!("_cse{}", counter);
+                counter += 1;
+                seen.insert(key.clone(), var_name);
+            }
+        }
+    }
+    let insert_pos = find_first_non_local(stmts);
+    for (i, local) in new_stmts.into_iter().enumerate() {
+        stmts.insert(insert_pos + i, local);
+    }
+}
+
+fn stmt_cse_key(stmt: &Node) -> Option<String> {
+    let expr = match stmt.kind {
+        NodeKind::StmtLocal if !stmt.children.is_empty() => &stmt.children[0],
+        NodeKind::StmtAssign if stmt.children.len() >= 2 => &stmt.children[1],
+        NodeKind::ExprReturn if !stmt.children.is_empty() => &stmt.children[0],
+        _ => return None,
+    };
+    expr_key(expr)
+}
+
+fn collect_cse_replacements(
+    node: &Node,
+    seen: &std::collections::HashMap<String, String>,
+    replacements: &mut Vec<(String, String)>,
+) {
+    if let Some(key) = expr_key(node) {
+        if seen.contains_key(&key) {
+            replacements.push((key.clone(), seen.get(&key).unwrap().clone()));
+        }
+    }
+    for child in &node.children {
+        collect_cse_replacements(child, seen, replacements);
+    }
+}
+
+fn apply_cse_replacements(node: &mut Node, seen: &std::collections::HashMap<String, String>) {
+    if let Some(key) = expr_key(node) {
+        if let Some(var_name) = seen.get(&key) {
+            node.kind = NodeKind::ExprIdentifier;
+            node.name = var_name.clone();
+            node.extra_op.clear();
+            node.children.clear();
+            return;
+        }
+    }
+    for child in &mut node.children {
+        apply_cse_replacements(child, seen);
+    }
+}
+
+fn make_cse_local(var_name: &str, key: &str) -> Node {
+    let parts: Vec<&str> = key.splitn(3, ' ').collect();
+    let (op_str, left_str, right_str) = if parts.len() == 3 {
+        (parts[1], parts[0], parts[2])
+    } else {
+        return Node::new(NodeKind::StmtLocal);
+    };
+    let mut local = Node::new(NodeKind::StmtLocal);
+    local.name = var_name.to_string();
+    local.extra_mutable = false;
+    let mut bin = Node::new(NodeKind::ExprBinary);
+    bin.extra_op = op_str.to_string();
+    if left_str.starts_with("ID:") {
+        let mut lid = Node::new(NodeKind::ExprIdentifier);
+        lid.name = left_str[3..].to_string();
+        bin.children.push(lid);
+    } else if left_str.starts_with("LIT:") {
+        let mut lit = Node::new(NodeKind::ExprLiteral);
+        lit.value = left_str[4..].to_string();
+        bin.children.push(lit);
+    }
+    if right_str.starts_with("ID:") {
+        let mut rid = Node::new(NodeKind::ExprIdentifier);
+        rid.name = right_str[3..].to_string();
+        bin.children.push(rid);
+    } else if right_str.starts_with("LIT:") {
+        let mut lit = Node::new(NodeKind::ExprLiteral);
+        lit.value = right_str[4..].to_string();
+        bin.children.push(lit);
+    }
+    local.children.push(bin);
+    local
+}
+
+fn find_first_non_local(stmts: &[Node]) -> usize {
+    for (i, s) in stmts.iter().enumerate() {
+        if s.kind != NodeKind::StmtLocal {
+            return i;
+        }
+    }
+    stmts.len()
+}
+
+fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for stmt in stmts.iter() {
+        match stmt.kind {
+            NodeKind::StmtLocal if !stmt.children.is_empty() => {
+                collect_reads(&stmt.children[0], &mut reads);
+            }
+            NodeKind::StmtAssign if stmt.children.len() >= 2 => {
+                collect_reads(&stmt.children[1], &mut reads);
+            }
+            NodeKind::ExprReturn if !stmt.children.is_empty() => {
+                collect_reads(&stmt.children[0], &mut reads);
+            }
+            NodeKind::StmtExpr if !stmt.children.is_empty() => {
+                collect_reads(&stmt.children[0], &mut reads);
+            }
+            _ => {}
+        }
+    }
+    let before = stmts.len();
+    stmts.retain(|s| {
+        if s.kind == NodeKind::StmtLocal && !s.children.is_empty() {
+            if !reads.contains(&s.name) {
+                return false;
+            }
+        }
+        if s.kind == NodeKind::StmtAssign && !s.children.is_empty() {
+            if !reads.contains(&s.name) {
+                return false;
+            }
+        }
+        true
+    });
+    stats.dead_stores += (before - stmts.len()) as u32;
+}
+
+fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
+    let mut insertions: Vec<(usize, Vec<Node>)> = Vec::new();
+    for (i, stmt) in stmts.iter_mut().enumerate() {
+        if stmt.kind == NodeKind::StmtFor && stmt.children.len() >= 3 {
+            let iter_expr = &stmt.children[0];
+            if iter_expr.kind == NodeKind::ExprBinary && iter_expr.extra_op == ".." {
+                if iter_expr.children.len() >= 2 {
+                    let start = parse_int_value(&iter_expr.children[0].value);
+                    let end = parse_int_value(&iter_expr.children[1].value);
+                    if let (Some(s), Some(e)) = (start, end) {
+                        let count = e - s;
+                        if count > 0 && count <= 4 {
+                            let body = &stmt.children[2];
+                            let iter_var = if stmt.children.len() > 1 {
+                                stmt.children[1].name.clone()
+                            } else {
+                                "_i".to_string()
+                            };
+                            let mut unrolled = Vec::new();
+                            for v in s..e {
+                                let mut body_clone = body.clone();
+                                replace_iter_var(&mut body_clone, &iter_var, v);
+                                for child in body_clone.children.drain(..) {
+                                    unrolled.push(child);
+                                }
+                            }
+                            insertions.push((i, unrolled));
+                            stats.loops_unrolled += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (idx, unrolled) in insertions.into_iter().rev() {
+        stmts.remove(idx);
+        for (j, s) in unrolled.into_iter().enumerate() {
+            stmts.insert(idx + j, s);
+        }
+    }
+}
+
+fn replace_iter_var(node: &mut Node, var: &str, val: i64) {
+    if node.kind == NodeKind::ExprIdentifier && node.name == var {
+        node.kind = NodeKind::ExprLiteral;
+        node.value = val.to_string();
+        node.name.clear();
+        return;
+    }
+    for child in &mut node.children {
+        replace_iter_var(child, var, val);
+    }
+}
+
+fn collect_reads(node: &Node, reads: &mut std::collections::HashSet<String>) {
+    if node.kind == NodeKind::ExprIdentifier {
+        reads.insert(node.name.clone());
+    }
+    for child in &node.children {
+        collect_reads(child, reads);
+    }
+}
+
+fn eval_binary(left: &str, op: &str, right: &str) -> Option<String> {
+    let l: i64 = parse_int_value(left)?;
+    let r: i64 = parse_int_value(right)?;
+    let result = match op {
+        "+" => Some(l + r),
+        "-" => Some(l - r),
+        "*" => Some(l * r),
+        "/" if r != 0 => Some(l / r),
+        "%" if r != 0 => Some(l % r),
+        "&" => Some(l & r),
+        "|" => Some(l | r),
+        "^" => Some(l ^ r),
+        "<<" if r >= 0 && r < 64 => Some(l << r),
+        ">>" if r >= 0 && r < 64 => Some(l >> r),
+        _ => None,
+    };
+    result.map(|v| v.to_string())
+}
+
+fn eval_unary(op: &str, operand: &str) -> Option<String> {
+    let v: i64 = parse_int_value(operand)?;
+    match op {
+        "-" => Some((-v).to_string()),
+        "!" => Some((if v == 0 { 1 } else { 0 }).to_string()),
+        "~" => Some((!v).to_string()),
+        _ => None,
+    }
+}
+
+// ============================================================================
+// Type Checker
+// ============================================================================
+
+#[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
+pub enum TypeInfo {
+    Void,
+    Bool,
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    F32,
+    F64,
+    GF16,
+    Str,
+    Array(Box<TypeInfo>),
+    Pointer(Box<TypeInfo>),
+    Optional(Box<TypeInfo>),
+    Custom(String),
+    Unknown,
+    Error,
+}
+
+pub struct TypeCheckResult {
+    pub ok: bool,
+    pub error_count: u32,
+    pub warnings: u32,
+    pub errors: Vec<String>,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+struct SymbolEntry {
+    name: String,
+    type_info: TypeInfo,
+    is_mutable: bool,
+}
+
+struct FnEntry {
+    name: String,
+    return_type: TypeInfo,
+    params: Vec<(String, TypeInfo)>,
+}
+
+pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
+    let mut result = TypeCheckResult {
+        ok: true,
+        error_count: 0,
+        warnings: 0,
+        errors: Vec::new(),
+    };
+    let mut symbols: Vec<SymbolEntry> = Vec::new();
+    let mut fns: Vec<FnEntry> = Vec::new();
+
+    for child in &ast.children {
+        match child.kind {
+            NodeKind::ConstDecl => {
+                let t = resolve_type_str(&child.extra_type);
+                symbols.push(SymbolEntry {
+                    name: child.name.clone(),
+                    type_info: t,
+                    is_mutable: false,
+                });
+            }
+            NodeKind::StructDecl | NodeKind::EnumDecl => {
+                symbols.push(SymbolEntry {
+                    name: child.name.clone(),
+                    type_info: TypeInfo::Custom(child.name.clone()),
+                    is_mutable: false,
+                });
+            }
+            NodeKind::FnDecl => {
+                let ret = resolve_type_str(&child.extra_return_type);
+                let mut params = Vec::new();
+                for (pname, ptype) in &child.params {
+                    params.push((pname.clone(), resolve_type_str(ptype)));
+                }
+                fns.push(FnEntry {
+                    name: child.name.clone(),
+                    return_type: ret,
+                    params,
+                });
+            }
+            _ => {}
+        }
+    }
+
+    {
+        let struct_fields: std::collections::HashMap<String, Vec<String>> = ast
+            .children
+            .iter()
+            .filter(|c| c.kind == NodeKind::StructDecl)
+            .map(|c| {
+                (
+                    c.name.clone(),
+                    c.children.iter().map(|f| f.extra_type.clone()).collect(),
+                )
+            })
+            .collect();
+        for (sname, _fields) in &struct_fields {
+            let mut visited = std::collections::HashSet::new();
+            fn has_cycle(
+                name: &str,
+                structs: &std::collections::HashMap<String, Vec<String>>,
+                visited: &mut std::collections::HashSet<String>,
+            ) -> bool {
+                if visited.contains(name) {
+                    return true;
+                }
+                visited.insert(name.to_string());
+                if let Some(fs) = structs.get(name) {
+                    for ft in fs {
+                        let base = ft
+                            .trim()
+                            .trim_end_matches('*')
+                            .trim()
+                            .trim_start_matches("[]")
+                            .trim();
+                        if structs.contains_key(base) && has_cycle(base, structs, visited) {
+                            return true;
+                        }
+                    }
+                }
+                visited.take(name).unwrap();
+                false
+            }
+            if has_cycle(sname, &struct_fields, &mut visited) {
+                result.warnings += 1;
+                result.errors.push(format!(
+                    "warning: recursive struct '{}' detected — consider using a pointer/optional field",
+                    sname
+                ));
+            }
+        }
+    }
+
+    for child in &ast.children {
+        if child.kind == NodeKind::FnDecl {
+            if child.params.len() > 8 {
+                result.warnings += 1;
+                let line = if child.line > 0 {
+                    format!(":{}", child.line)
+                } else {
+                    String::new()
+                };
+                result.errors.push(format!(
+                    "warning: function '{}' has {} parameters{} — consider refactoring",
+                    child.name,
+                    child.params.len(),
+                    line
+                ));
+            }
+            let mut fn_symbols = symbols.clone();
+            for (pname, ptype) in &child.params {
+                fn_symbols.push(SymbolEntry {
+                    name: pname.clone(),
+                    type_info: resolve_type_str(ptype),
+                    is_mutable: true,
+                });
+            }
+            for body_child in &child.children {
+                check_stmt(body_child, &fn_symbols, &fns, &mut result);
+            }
+
+            let mut found_return = false;
+            for body_child in &child.children {
+                if found_return {
+                    result.warnings += 1;
+                    let line = if body_child.line > 0 {
+                        format!(":{}", body_child.line)
+                    } else {
+                        String::new()
+                    };
+                    result.errors.push(format!(
+                        "warning: unreachable code in function '{}'{}",
+                        child.name, line
+                    ));
+                    break;
+                }
+                if body_child.kind == NodeKind::ExprReturn {
+                    found_return = true;
+                }
+            }
+
+            let mut reads: std::collections::HashSet<String> = std::collections::HashSet::new();
+            fn collect_reads(node: &Node, reads: &mut std::collections::HashSet<String>) {
+                if node.kind == NodeKind::ExprIdentifier {
+                    reads.insert(node.name.clone());
+                }
+                for child in &node.children {
+                    collect_reads(child, reads);
+                }
+            }
+            for body_child in &child.children {
+                collect_reads(body_child, &mut reads);
+            }
+            for body_child in &child.children {
+                if body_child.kind == NodeKind::StmtLocal && !body_child.name.is_empty() {
+                    if !reads.contains(&body_child.name) && !body_child.extra_mutable {
+                        result.warnings += 1;
+                        let line = if body_child.line > 0 {
+                            format!(":{}", body_child.line)
+                        } else {
+                            String::new()
+                        };
+                        result.errors.push(format!(
+                            "warning: unused variable '{}' in function '{}'{}",
+                            body_child.name, child.name, line
+                        ));
+                    }
+                }
+            }
+
+            fn is_tail_call(fn_body: &[Node], fn_name: &str) -> bool {
+                let last = match fn_body.last() {
+                    Some(s) => s,
+                    None => return false,
+                };
+                if last.kind == NodeKind::ExprReturn && !last.children.is_empty() {
+                    if last.children[0].kind == NodeKind::ExprCall
+                        && last.children[0].name == fn_name
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+
+            if is_tail_call(&child.children, &child.name) {
+                let line = if child.line > 0 {
+                    format!(":{}", child.line)
+                } else {
+                    String::new()
+                };
+                result.errors.push(format!(
+                    "info: tail call detected in '{}'{} — candidate for optimization",
+                    child.name, line
+                ));
+            }
+        }
+    }
+
+    let mut enum_variants: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for child in &ast.children {
+        if child.kind == NodeKind::EnumDecl {
+            let variants: Vec<String> = child
+                .children
+                .iter()
+                .filter(|c| c.kind == NodeKind::EnumVariant)
+                .map(|c| format!("{}::{}", child.name, c.name))
+                .collect();
+            enum_variants.insert(child.name.clone(), variants);
+        }
+    }
+
+    let mut used_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
+    fn collect_enum_values(node: &Node, used: &mut std::collections::HashSet<String>) {
+        if node.kind == NodeKind::ExprEnumValue {
+            used.insert(format!("{}::{}", node.name, node.extra_field));
+        }
+        for child in &node.children {
+            collect_enum_values(child, used);
+        }
+    }
+    collect_enum_values(&ast, &mut used_variants);
+
+    for (enum_name, variants) in &enum_variants {
+        let unused: Vec<&String> = variants
+            .iter()
+            .filter(|v| !used_variants.contains(*v))
+            .collect();
+        if !unused.is_empty() && unused.len() < variants.len() {
+            for v in &unused {
+                result.warnings += 1;
+                result.errors.push(format!(
+                    "info: unused enum variant '{}' in enum '{}'",
+                    v, enum_name
+                ));
+            }
+        }
+    }
+
+    if result.error_count > 0 {
+        result.ok = false;
+    }
+    result
+}
+
+fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mut TypeCheckResult) {
+    match node.kind {
+        NodeKind::StmtLocal => {
+            let t = if node.extra_type.is_empty() {
+                if node.children.is_empty() {
+                    TypeInfo::Unknown
+                } else {
+                    infer_expr(&node.children[0], symbols, fns)
+                }
+            } else {
+                resolve_type_str(&node.extra_type)
+            };
+            let mut syms = symbols.to_vec();
+            syms.push(SymbolEntry {
+                name: node.name.clone(),
+                type_info: t,
+                is_mutable: node.extra_mutable,
+            });
+            for child in &node.children {
+                check_expr(child, &syms, fns, result);
+            }
+        }
+        NodeKind::StmtAssign => {
+            if !node.children.is_empty() {
+                if let Some(sym) = symbols.iter().find(|s| {
+                    node.children[0].kind == NodeKind::ExprIdentifier
+                        && s.name == node.children[0].name
+                }) {
+                    if !sym.is_mutable {
+                        let name = &node.children[0].name;
+                        let line = if node.line > 0 {
+                            format!(":{}", node.line)
+                        } else {
+                            String::new()
+                        };
+                        result.warnings += 1;
+                        result.errors.push(format!(
+                            "warning: cannot assign to immutable '{}'{}",
+                            name, line
+                        ));
+                    }
+                }
+                let target_type = infer_expr(&node.children[0], symbols, fns);
+                if node.children.len() > 1 {
+                    let value_type = infer_expr(&node.children[1], symbols, fns);
+                    if !types_compatible(&target_type, &value_type)
+                        && target_type != TypeInfo::Unknown
+                        && value_type != TypeInfo::Unknown
+                    {
+                        result.error_count += 1;
+                        result.errors.push(format!(
+                            "type mismatch at line {}: cannot assign {:?} to {:?}",
+                            if node.line > 0 {
+                                node.line.to_string()
+                            } else {
+                                "?".to_string()
+                            },
+                            value_type,
+                            target_type
+                        ));
+                    }
+                }
+            }
+        }
+        NodeKind::StmtIf | NodeKind::StmtWhile => {
+            for child in &node.children {
+                check_stmt(child, symbols, fns, result);
+            }
+        }
+        NodeKind::StmtFor => {
+            for child in &node.children {
+                check_stmt(child, symbols, fns, result);
+            }
+        }
+        NodeKind::Module => {
+            let syms = symbols.to_vec();
+            for child in &node.children {
+                check_stmt(child, &syms, fns, result);
+            }
+        }
+        NodeKind::ExprReturn => {
+            if !node.children.is_empty() {
+                check_expr(&node.children[0], symbols, fns, result);
+            }
+        }
+        NodeKind::StmtExpr => {
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mut TypeCheckResult) {
+    match node.kind {
+        NodeKind::ExprCall => {
+            if let Some(fn_entry) = fns.iter().find(|f| f.name == node.name) {
+                let call_args: Vec<&Node> = node
+                    .children
+                    .iter()
+                    .filter(|c| c.kind != NodeKind::Module)
+                    .collect();
+                if call_args.len() != fn_entry.params.len() {
+                    result.warnings += 1;
+                    result.errors.push(format!(
+                        "function '{}' expects {} args, got {} at line {}",
+                        node.name,
+                        fn_entry.params.len(),
+                        call_args.len(),
+                        if node.line > 0 {
+                            node.line.to_string()
+                        } else {
+                            "?".to_string()
+                        }
+                    ));
+                } else {
+                    for (i, arg) in call_args.iter().enumerate() {
+                        let arg_type = infer_expr(arg, symbols, fns);
+                        let param_type = &fn_entry.params[i].1;
+                        if !types_compatible(param_type, &arg_type)
+                            && *param_type != TypeInfo::Unknown
+                            && arg_type != TypeInfo::Unknown
+                        {
+                            result.warnings += 1;
+                            result.errors.push(format!(
+                                "arg {} of '{}': expected {:?}, got {:?}",
+                                i, node.name, param_type, arg_type
+                            ));
+                        }
+                    }
+                }
+            }
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        NodeKind::ExprBinary => {
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        NodeKind::ExprUnary => {
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        NodeKind::ExprFieldAccess | NodeKind::ExprIndex => {
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        NodeKind::ExprStructLit => {
+            if let Some(_sym) = symbols.iter().find(|s| {
+                if let TypeInfo::Custom(ref name) = s.type_info {
+                    name == &node.name
+                } else {
+                    false
+                }
+            }) {
+                // We found the struct type — field validation happens at gen time
+            }
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn infer_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry]) -> TypeInfo {
+    match node.kind {
+        NodeKind::ExprLiteral => {
+            if node.value == "true" || node.value == "false" {
+                return TypeInfo::Bool;
+            }
+            if node.value.starts_with('"') {
+                return TypeInfo::Str;
+            }
+            if node.value.parse::<i64>().is_ok() {
+                return TypeInfo::I32;
+            }
+            if node.value.parse::<f64>().is_ok() {
+                return TypeInfo::F64;
+            }
+            TypeInfo::Unknown
+        }
+        NodeKind::ExprIdentifier => symbols
+            .iter()
+            .rev()
+            .find(|s| s.name == node.name)
+            .map(|s| s.type_info.clone())
+            .unwrap_or(TypeInfo::Unknown),
+        NodeKind::ExprCall => fns
+            .iter()
+            .rev()
+            .find(|f| f.name == node.name)
+            .map(|f| f.return_type.clone())
+            .unwrap_or(TypeInfo::Unknown),
+        NodeKind::ExprBinary => {
+            if node.children.len() >= 2 {
+                let lt = infer_expr(&node.children[0], symbols, fns);
+                let rt = infer_expr(&node.children[1], symbols, fns);
+                if node.extra_op == "=="
+                    || node.extra_op == "!="
+                    || node.extra_op == "<"
+                    || node.extra_op == ">"
+                    || node.extra_op == "<="
+                    || node.extra_op == ">="
+                    || node.extra_op == "and"
+                    || node.extra_op == "or"
+                {
+                    return TypeInfo::Bool;
+                }
+                if node.extra_op == "+" && (lt == TypeInfo::Str || rt == TypeInfo::Str) {
+                    return TypeInfo::Str;
+                }
+                promote_types(&lt, &rt)
+            } else {
+                TypeInfo::Unknown
+            }
+        }
+        NodeKind::ExprUnary => {
+            if !node.children.is_empty() {
+                infer_expr(&node.children[0], symbols, fns)
+            } else {
+                TypeInfo::Unknown
+            }
+        }
+        _ => TypeInfo::Unknown,
+    }
+}
+
+fn promote_types(a: &TypeInfo, b: &TypeInfo) -> TypeInfo {
+    if a == b {
+        return a.clone();
+    }
+    if *a == TypeInfo::Unknown || *b == TypeInfo::Unknown {
+        return TypeInfo::Unknown;
+    }
+    let a_rank = type_rank(a);
+    let b_rank = type_rank(b);
+    if a_rank >= b_rank {
+        a.clone()
+    } else {
+        b.clone()
+    }
+}
+
+fn type_rank(t: &TypeInfo) -> u8 {
+    match t {
+        TypeInfo::Bool => 0,
+        TypeInfo::I8 | TypeInfo::U8 => 1,
+        TypeInfo::I16 | TypeInfo::U16 => 2,
+        TypeInfo::I32 | TypeInfo::U32 => 3,
+        TypeInfo::I64 | TypeInfo::U64 => 4,
+        TypeInfo::F32 => 5,
+        TypeInfo::GF16 => 5,
+        TypeInfo::F64 => 6,
+        _ => 0,
+    }
+}
+
+fn types_compatible(target: &TypeInfo, value: &TypeInfo) -> bool {
+    if *target == TypeInfo::Unknown || *value == TypeInfo::Unknown {
+        return true;
+    }
+    if target == value {
+        return true;
+    }
+    if *target == TypeInfo::F32 && *value == TypeInfo::F64 {
+        return true;
+    }
+    if *target == TypeInfo::GF16 && (*value == TypeInfo::F32 || *value == TypeInfo::F64) {
+        return true;
+    }
+    type_rank(target) >= type_rank(value)
+}
+
+fn resolve_type_str(s: &str) -> TypeInfo {
+    let t = s.trim().trim_end_matches('?');
+    let is_opt = s.trim().ends_with('?');
+    let base = match t {
+        "void" => TypeInfo::Void,
+        "bool" => TypeInfo::Bool,
+        "i8" => TypeInfo::I8,
+        "i16" => TypeInfo::I16,
+        "i32" => TypeInfo::I32,
+        "i64" => TypeInfo::I64,
+        "u8" => TypeInfo::U8,
+        "u16" => TypeInfo::U16,
+        "u32" => TypeInfo::U32,
+        "u64" => TypeInfo::U64,
+        "f32" => TypeInfo::F32,
+        "f64" => TypeInfo::F64,
+        "GF16" | "gf16" => TypeInfo::GF16,
+        "str" => TypeInfo::Str,
+        "" => TypeInfo::Unknown,
+        other => TypeInfo::Custom(other.to_string()),
+    };
+    if is_opt {
+        TypeInfo::Optional(Box::new(base))
+    } else {
+        base
+    }
+}
+
+// ============================================================================
+// Rust Code Generator
+// ============================================================================
+
+pub struct RustCodegen {
+    output: String,
+    indent: usize,
+}
+
+#[allow(dead_code)]
+impl RustCodegen {
+    pub fn new() -> Self {
+        RustCodegen {
+            output: String::new(),
+            indent: 0,
+        }
+    }
+
+    pub fn into_string(self) -> String {
+        self.output
+    }
+
+    fn indent_str(&self) -> String {
+        "    ".repeat(self.indent)
+    }
+
+    fn write(&mut self, s: &str) {
+        self.output.push_str(s);
+    }
+
+    fn write_line(&mut self, s: &str) {
+        self.output.push_str(&self.indent_str());
+        self.output.push_str(s);
+        self.output.push('\n');
+    }
+
+    fn blank_line(&mut self) {
+        self.output.push('\n');
+    }
+
+    fn write_indent(&mut self) {
+        self.output.push_str(&self.indent_str());
+    }
+
+    fn indent(&mut self) {
+        self.indent += 1;
+    }
+
+    fn dedent(&mut self) {
+        if self.indent > 0 {
+            self.indent -= 1;
+        }
+    }
+
+    pub fn gen_rust(&mut self, ast: &Node) {
+        // Header
+        self.write_line("// Generated from .t27 spec");
+        self.write_line("// DO NOT EDIT — generated by t27c");
+        self.blank_line();
+
+        // Find module node
+        for child in &ast.children {
+            match child.kind {
+                NodeKind::Module => {
+                    let module_name = &child.name;
+                    self.write_line(&format!("// Module: {}", module_name));
+                    self.blank_line();
+                    self.gen_module(child);
+                }
+                NodeKind::StructDecl => self.gen_struct(child),
+                NodeKind::EnumDecl => self.gen_enum(child),
+                NodeKind::ConstDecl => self.gen_const(child),
+                NodeKind::FnDecl => self.gen_fn(child),
+                _ => {}
+            }
+        }
+    }
+
+    fn gen_module(&mut self, node: &Node) {
+        for child in &node.children {
+            match child.kind {
+                NodeKind::UseDecl => {
+                    // Skip use declarations for now
+                }
+                NodeKind::StructDecl => self.gen_struct(child),
+                NodeKind::EnumDecl => self.gen_enum(child),
+                NodeKind::ConstDecl => self.gen_const(child),
+                NodeKind::FnDecl => self.gen_fn(child),
+                _ => {}
+            }
+        }
+    }
+
+    fn gen_struct(&mut self, node: &Node) {
+        self.write_line(&format!(
+            "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]"
+        ));
+        self.write_line(&format!("pub struct {} {{", node.name));
+        self.indent += 1;
+        for child in &node.children {
+            // Struct fields are stored as ExprIdentifier with name and extra_type
+            if child.kind == NodeKind::ExprIdentifier && !child.name.is_empty() {
+                let field_name = &child.name;
+                let field_type = Self::t27_type_to_rust(&child.extra_type);
+                self.write_line(&format!("pub {}: {},", field_name, field_type));
+            }
+        }
+        self.indent -= 1;
+        self.write_line("}");
+        self.blank_line();
+    }
+
+    fn gen_enum(&mut self, node: &Node) {
+        self.write_line(&format!(
+            "#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]"
+        ));
+        self.write_line(&format!("pub enum {} {{", node.name));
+        self.indent += 1;
+        for child in &node.children {
+            if child.kind == NodeKind::EnumVariant {
+                let variant_name = &child.name;
+                if child.value.is_empty() {
+                    self.write_line(&format!("{},", variant_name));
+                } else {
+                    self.write_line(&format!("{} = {},", variant_name, child.value));
+                }
+            }
+        }
+        self.indent -= 1;
+        self.write_line("}");
+        self.blank_line();
+    }
+
+    fn gen_const(&mut self, node: &Node) {
+        let const_type = if node.extra_type.is_empty() {
+            "i32".to_string()
+        } else {
+            Self::t27_type_to_rust(node.extra_type.as_str())
+        };
+        let value = if node.children.is_empty() {
+            "()".to_string()
+        } else {
+            Self::expr_to_rust(&node.children[0])
+        };
+        self.write_line(&format!(
+            "pub const {}: {} = {};",
+            node.name, const_type, value
+        ));
+        self.blank_line();
+    }
+
+    fn gen_fn(&mut self, node: &Node) {
+        let fn_name = &node.name;
+        let params: Vec<(String, String)> = node.params.clone();
+        let params_str = params
+            .iter()
+            .map(|(n, t)| format!("{}: {}", n, Self::t27_type_to_rust(t)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let ret_type = if node.extra_return_type.is_empty() {
+            "()".to_string()
+        } else {
+            Self::t27_type_to_rust(node.extra_return_type.as_str())
+        };
+
+        self.write(&format!(
+            "pub fn {}({}) -> {} {{",
+            fn_name, params_str, ret_type
+        ));
+
+        // Check if there's a body
+        let has_body = node.children.iter().any(|c| {
+            matches!(c.kind, NodeKind::ExprReturn) || matches!(c.kind, NodeKind::StmtExpr)
+        });
+
+        if has_body {
+            self.output.push('\n');
+            self.indent += 1;
+            for child in &node.children {
+                match child.kind {
+                    NodeKind::ExprReturn => {
+                        let val = if child.children.is_empty() {
+                            "()".to_string()
+                        } else {
+                            Self::expr_to_rust(&child.children[0])
+                        };
+                        self.write_line(&format!("return {};", val));
+                    }
+                    NodeKind::StmtExpr => {
+                        if child.children.len() == 1 {
+                            let expr = Self::expr_to_rust(&child.children[0]);
+                            self.write_line(&format!("{};", expr));
+                        }
+                    }
+                    NodeKind::StmtLocal => {
+                        let mutable = child.extra_mutable;
+                        let kw = if mutable { "let mut" } else { "let" };
+                        let var_name = &child.name;
+                        let typ = Self::t27_type_to_rust(&child.extra_type);
+                        if child.children.is_empty() {
+                            if child.extra_type.is_empty() {
+                                self.write_line(&format!("{} {};", kw, var_name));
+                            } else {
+                                self.write_line(&format!("{} {}: {};", kw, var_name, typ));
+                            }
+                        } else {
+                            let val = Self::expr_to_rust(&child.children[0]);
+                            if child.extra_type.is_empty() {
+                                self.write_line(&format!("{} {} = {};", kw, var_name, val));
+                            } else {
+                                self.write_line(&format!(
+                                    "{} {}: {} = {};",
+                                    kw, var_name, typ, val
+                                ));
+                            }
+                        }
+                    }
+                    NodeKind::StmtAssign => {
+                        let target = if child.children.is_empty() {
+                            child.name.clone()
+                        } else {
+                            Self::expr_to_rust(&child.children[0])
+                        };
+                        if child.children.len() >= 2 {
+                            let val = Self::expr_to_rust(&child.children[1]);
+                            self.write_line(&format!("{} = {};", target, val));
+                        } else {
+                            self.write_line(&format!("{};", target));
+                        }
+                    }
+                    NodeKind::StmtIf => {
+                        self.write_indent();
+                        self.write("if ");
+                        if !child.children.is_empty() {
+                            self.write(&Self::expr_to_rust(&child.children[0]));
+                        }
+                        self.write(" {\n");
+                        self.indent += 1;
+                        if child.children.len() > 1 {
+                            for stmt in &child.children[1].children {
+                                self.gen_rust_stmt(stmt);
+                            }
+                        }
+                        self.indent -= 1;
+                        if child.children.len() > 2 {
+                            self.write_indent();
+                            self.write("} else {\n");
+                            self.indent += 1;
+                            for stmt in &child.children[2].children {
+                                self.gen_rust_stmt(stmt);
+                            }
+                            self.indent -= 1;
+                        }
+                        self.write_line("}");
+                    }
+                    NodeKind::StmtWhile => {
+                        self.write_indent();
+                        self.write("while ");
+                        if !child.children.is_empty() {
+                            self.write(&Self::expr_to_rust(&child.children[0]));
+                        }
+                        self.write(" {\n");
+                        self.indent += 1;
+                        if child.children.len() > 1 {
+                            for stmt in &child.children[1].children {
+                                self.gen_rust_stmt(stmt);
+                            }
+                        }
+                        self.indent -= 1;
+                        self.write_line("}");
+                    }
+                    NodeKind::StmtFor => {
+                        self.write_indent();
+                        self.write("for ");
+                        if child.children.len() > 1 {
+                            self.write(&child.children[1].name);
+                        }
+                        self.write(" in ");
+                        if !child.children.is_empty() {
+                            self.write(&Self::expr_to_rust(&child.children[0]));
+                        }
+                        self.write(" {\n");
+                        self.indent += 1;
+                        if child.children.len() > 2 {
+                            for stmt in &child.children[2].children {
+                                self.gen_rust_stmt(stmt);
+                            }
+                        }
+                        self.indent -= 1;
+                        self.write_line("}");
+                    }
+                    _ => {}
+                }
+            }
+            self.indent -= 1;
+            self.write_line("}");
+        } else {
+            self.write_line(" unimplemented!() }");
+        }
+        self.blank_line();
+    }
+
+    fn gen_rust_stmt(&mut self, stmt: &Node) {
+        match stmt.kind {
+            NodeKind::ExprReturn => {
+                let val = if stmt.children.is_empty() {
+                    "()".to_string()
+                } else {
+                    Self::expr_to_rust(&stmt.children[0])
+                };
+                self.write_line(&format!("return {};", val));
+            }
+            NodeKind::StmtExpr => {
+                if stmt.children.len() == 1 {
+                    self.write_line(&format!("{};", Self::expr_to_rust(&stmt.children[0])));
+                }
+            }
+            NodeKind::StmtLocal => {
+                let kw = if stmt.extra_mutable { "let mut" } else { "let" };
+                let typ = Self::t27_type_to_rust(&stmt.extra_type);
+                if stmt.children.is_empty() {
+                    if stmt.extra_type.is_empty() {
+                        self.write_line(&format!("{} {};", kw, stmt.name));
+                    } else {
+                        self.write_line(&format!("{} {}: {};", kw, stmt.name, typ));
+                    }
+                } else {
+                    let val = Self::expr_to_rust(&stmt.children[0]);
+                    if stmt.extra_type.is_empty() {
+                        self.write_line(&format!("{} {} = {};", kw, stmt.name, val));
+                    } else {
+                        self.write_line(&format!("{} {}: {} = {};", kw, stmt.name, typ, val));
+                    }
+                }
+            }
+            NodeKind::StmtAssign => {
+                if stmt.children.len() >= 2 {
+                    let target = Self::expr_to_rust(&stmt.children[0]);
+                    let val = Self::expr_to_rust(&stmt.children[1]);
+                    self.write_line(&format!("{} = {};", target, val));
+                }
+            }
+            NodeKind::StmtIf => {
+                self.write_indent();
+                self.write("if ");
+                if !stmt.children.is_empty() {
+                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                }
+                self.write(" {\n");
+                self.indent += 1;
+                if stmt.children.len() > 1 {
+                    for s in &stmt.children[1].children {
+                        self.gen_rust_stmt(s);
+                    }
+                }
+                self.indent -= 1;
+                if stmt.children.len() > 2 {
+                    self.write_indent();
+                    self.write("} else {\n");
+                    self.indent += 1;
+                    for s in &stmt.children[2].children {
+                        self.gen_rust_stmt(s);
+                    }
+                    self.indent -= 1;
+                }
+                self.write_line("}");
+            }
+            NodeKind::StmtWhile => {
+                self.write_indent();
+                self.write("while ");
+                if !stmt.children.is_empty() {
+                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                }
+                self.write(" {\n");
+                self.indent += 1;
+                if stmt.children.len() > 1 {
+                    for s in &stmt.children[1].children {
+                        self.gen_rust_stmt(s);
+                    }
+                }
+                self.indent -= 1;
+                self.write_line("}");
+            }
+            NodeKind::StmtBreak => {
+                self.write_line("break;");
+            }
+            NodeKind::StmtContinue => {
+                self.write_line("continue;");
+            }
+            NodeKind::StmtFor => {
+                self.write_indent();
+                self.write("for ");
+                if stmt.children.len() > 1 {
+                    self.write(&stmt.children[1].name);
+                }
+                self.write(" in ");
+                if !stmt.children.is_empty() {
+                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                }
+                self.write(" {\n");
+                self.indent += 1;
+                if stmt.children.len() > 2 {
+                    for s in &stmt.children[2].children {
+                        self.gen_rust_stmt(s);
+                    }
+                }
+                self.indent -= 1;
+                self.write_line("}");
+            }
+            _ => {}
+        }
+    }
+
+    fn t27_type_to_rust(t27_type: &str) -> String {
+        let t = t27_type.trim();
+        // Handle optional types
+        let (base_type, is_optional) = if t.ends_with('?') {
+            (&t[..t.len() - 1], true)
+        } else {
+            (t, false)
+        };
+
+        let rust_type = match base_type {
+            "u8" | "u16" | "u32" | "u64" | "u128" => base_type.to_string(),
+            "i8" | "i16" | "i32" | "i64" | "i128" => base_type.to_string(),
+            "f32" | "f64" => base_type.to_string(),
+            "GF16" | "gf16" => "u16".to_string(),
+            "bool" => "bool".to_string(),
+            "str" => "String".to_string(),
+            "void" => "()".to_string(),
+            t if t.starts_with("[]") => {
+                let inner = &t[2..];
+                format!("Vec<{}>", Self::t27_type_to_rust(inner))
+            }
+            t if t.starts_with('[') && t.contains(']') => {
+                // [N]T format - convert to Vec
+                if let Some(bracket_end) = t.find(']') {
+                    let inner = &t[bracket_end + 1..];
+                    format!("Vec<{}>", Self::t27_type_to_rust(inner))
+                } else {
+                    t.to_string()
+                }
+            }
+            t => t.to_string(), // Custom type name
+        };
+
+        if is_optional {
+            format!("Option<{}>", rust_type)
+        } else {
+            rust_type
+        }
+    }
+
+    fn expr_to_rust(node: &Node) -> String {
+        match node.kind {
+            NodeKind::ExprLiteral => node.value.clone(),
+            NodeKind::ExprIdentifier => node.name.clone(),
+            NodeKind::ExprBinary => {
+                if node.children.len() >= 2 {
+                    let left = Self::expr_to_rust(&node.children[0]);
+                    let right = Self::expr_to_rust(&node.children[1]);
+                    let op = match node.extra_op.as_str() {
+                        "and" => "&&",
+                        "or" => "||",
+                        op => op,
+                    };
+                    format!("({} {} {})", left, op, right)
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprCall => {
+                let args: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|c| Self::expr_to_rust(c))
+                    .collect();
+                format!("{}({})", node.name, args.join(", "))
+            }
+            NodeKind::ExprArrayLiteral => {
+                let elems: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|c| Self::expr_to_rust(c))
+                    .collect();
+                format!("vec![{}]", elems.join(", "))
+            }
+            NodeKind::ExprStructLit => {
+                let fields: Vec<String> = node
+                    .children
+                    .iter()
+                    .map(|c| {
+                        let val = if c.children.is_empty() {
+                            "{}".to_string()
+                        } else {
+                            Self::expr_to_rust(&c.children[0])
+                        };
+                        format!("{}: {}", c.name, val)
+                    })
+                    .collect();
+                format!("{} {{ {} }}", node.name, fields.join(", "))
+            }
+            NodeKind::ExprEnumValue => format!("{}::{}", node.name, node.extra_field),
+            NodeKind::ExprUnary => {
+                if !node.children.is_empty() {
+                    format!(
+                        "{}({})",
+                        node.extra_op,
+                        Self::expr_to_rust(&node.children[0])
+                    )
+                } else {
+                    node.extra_op.clone()
+                }
+            }
+            NodeKind::ExprFieldAccess => {
+                if !node.children.is_empty() {
+                    format!("{}.{}", Self::expr_to_rust(&node.children[0]), node.name)
+                } else {
+                    node.name.clone()
+                }
+            }
+            NodeKind::ExprIndex => {
+                if node.children.len() >= 2 {
+                    format!(
+                        "{}[{}]",
+                        Self::expr_to_rust(&node.children[0]),
+                        Self::expr_to_rust(&node.children[1])
+                    )
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprIf => {
+                let mut s = format!("if {} {{ ", Self::expr_to_rust(&node.children[0]));
+                if node.children.len() > 1 {
+                    s.push_str(&Self::expr_to_rust(&node.children[1]));
+                }
+                s.push_str(" }");
+                if node.children.len() > 2 {
+                    s.push_str(&format!(
+                        " else {{ {} }}",
+                        Self::expr_to_rust(&node.children[2])
+                    ));
+                }
+                s
+            }
+            NodeKind::ExprSwitch => {
+                if node.children.is_empty() {
+                    return "/* switch */".to_string();
+                }
+                let scrutinee = Self::expr_to_rust(&node.children[0]);
+                let mut s = format!("match {} {{\n", scrutinee);
+                for i in 1..node.children.len() {
+                    let arm = &node.children[i];
+                    if arm.kind == NodeKind::Module {
+                        let pattern = if !arm.name.is_empty() {
+                            arm.name.clone()
+                        } else {
+                            "_".to_string()
+                        };
+                        let body = if !arm.children.is_empty() {
+                            Self::expr_to_rust(&arm.children[0])
+                        } else {
+                            "()".to_string()
+                        };
+                        s.push_str(&format!("{} => {},\n", pattern, body));
+                    }
+                }
+                s.push('}');
+                s
+            }
+            _ => "()".to_string(),
+        }
     }
 }

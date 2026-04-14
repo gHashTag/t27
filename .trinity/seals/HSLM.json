@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:bce62451b1a0939b6c3c2fed7e7f3cc3c630fd176e562142fea629bd57d4a555",
+  "gen_hash_rust": "sha256:ef244fbb63ccf510451aaf2d9917381e954c302a6c16587021ede5ae195b154a",
+  "gen_hash_verilog": "sha256:41ce37d47d99d11f7e13b0d3cfb273ed41d8c6ce8467b3d25746132b7b9b1782",
+  "gen_hash_zig": "sha256:4bb3b8d221844e0dfb65cabf42eacfded3b2b1dfe95f930441a17352459ea81f",
   "module": "HSLM",
-  "ring": 29,
-  "spec_path": "specs/nn/hslm.t27",
+  "ring": 12,
+  "sealed_at": "2026-04-08T08:09:16Z",
   "spec_hash": "sha256:b330b7482ef3d92f88d57a40bb97e1a0cd62a62687da483c83558c72d59153d1",
-  "gen_hash_zig": "sha256:63b1a485901d9c2b640772b0efea62d4a484b01b3549be0ee89ba8d949d7584d",
-  "gen_hash_c": "sha256:a40a8de52a76da2357624b299cd963a3b7a7b9f7c698bc6fd74d494e42cba142",
-  "gen_hash_verilog": "sha256:b01b4dda21b8d5463ae5385131052e6aa8a8c5be7491f8fc41a5e4beec2a9a27",
-  "conformance_hash": "sha256:6d5199199068b40575eb64f3ea528a69e35c5842e75bc040a51b2ff5b1a987ad",
-  "tests": {
-    "status": "passed",
-    "count": 23,
-    "invariants": 16,
-    "benchmarks": 5
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-04T19:00:00Z"
+  "spec_path": "specs/nn/hslm.t27"
 }

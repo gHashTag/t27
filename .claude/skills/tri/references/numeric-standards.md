@@ -4,7 +4,7 @@ This document details NUMERIC-STANDARD-001 for GoldenFloat and numeric formats i
 
 ## Source Document
 
-**Location:** `docs/NUMERIC-STANDARD-001.md`
+**Location:** `docs/nona-02-organism/NUMERIC-STANDARD-001.md`
 
 ## GoldenFloat Family
 

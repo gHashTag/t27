@@ -1,0 +1,14 @@
+# Coq Proof Base for Trinity Framework v0.9
+# Build configuration file
+
+# Coq version requirement
+-R . Trinity
+
+# Source files in compilation order
+trinity/CorePhi.v
+trinity/AlphaPhi.v
+trinity/FormulaEval.v
+trinity/Bounds_Gauge.v
+trinity/Bounds_Mixing.v
+trinity/Bounds_Masses.v
+trinity/Catalog42.v

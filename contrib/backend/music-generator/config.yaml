@@ -1,0 +1,116 @@
+# T27 Music Generator Configuration
+# phi^2 + 1/phi^2 = 3 | TRINITY
+
+project:
+  name: "t27-music-generator"
+  version: "1.0.0"
+  description: "AI music generation with voice cloning"
+
+paths:
+  models: "models"
+  outputs: "outputs"
+  temp: "temp"
+
+musicgen:
+  model_size: "small"  # CPU-optimized: small (1.5B), medium (3.3B), large (3.3B)
+  sample_rate: 48000
+  chunk_duration: 30  # seconds
+
+processing:
+  vocal_level_db: -4.0
+  limiter_threshold: -0.3
+  ducking: true
+  ducking_db: -3.0
+
+genres:
+  phonk:
+    prompt_template: "dark drift phonk, aggressive double-time cowbell, heavy 808 bass"
+    bpm: 140
+    key: "minor"
+    default_vocal_style: "aggressive"
+
+  trap:
+    prompt_template: "hard trap, rolling hi-hats, 808 slides, dark atmosphere"
+    bpm: 140
+    key: "minor"
+    default_vocal_style: "aggressive"
+
+  hip_hop:
+    prompt_template: "boom bap hip-hop, dusty drums, soul sample, classic feel"
+    bpm: 90
+    key: "major"
+    default_vocal_style: "smooth"
+
+  drill:
+    prompt_template: "UK drill, sliding 808s, dark melody, fast hi-hats"
+    bpm: 140
+    key: "minor"
+    default_vocal_style: "aggressive"
+
+  lofi:
+    prompt_template: "lofi hip-hop, chill beats, vinyl crackle, nostalgic"
+    bpm: 80
+    key: "major"
+    default_vocal_style: "ethereal"
+
+vocal_styles:
+  aggressive:
+    pitch_variation: 0.8
+    tempo: 1.1
+    breathiness: 0.1
+    distortion: 0.4
+
+  eerie:
+    pitch_variation: 0.4
+    tempo: 0.9
+    breathiness: 0.3
+    distortion: 0.1
+
+  ethereal:
+    pitch_variation: 0.9
+    tempo: 0.85
+    breathiness: 0.5
+    distortion: 0.0
+
+  smooth:
+    pitch_variation: 0.5
+    tempo: 1.0
+    breathiness: 0.2
+    distortion: 0.0
+
+  choppy:
+    pitch_variation: 0.6
+    tempo: 1.2
+    breathiness: 0.1
+    distortion: 0.2
+
+effects:
+  reverb:
+    room_size: 0.5
+    damping: 0.5
+    wet_level: 0.3
+    dry_level: 0.7
+
+  compressor:
+    threshold_db: -20.0
+    ratio: 4.0
+    attack_ms: 5.0
+    release_ms: 50.0
+
+  distortion:
+    drive_db: 15.0
+
+mastering:
+  target_lufs: -14.0
+  stereo_width: 1.0
+  true_peak_limit: -0.3
+
+performance:
+  device: "cpu"  # cpu or cuda
+  batch_size: 1
+  cache_models: true
+  num_workers: 4
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

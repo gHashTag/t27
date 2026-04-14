@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gHashTag/t27/conformance/VERDICT_SCHEMA.json",
+  "title": "T27 Verdict Export Schema v1",
+  "description": "Schema for PHI LOOP verdict outputs consumed by Queen tooling",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "ring_number",
+    "verdict",
+    "timestamp"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Schema version (1 for v1)",
+      "const": 1,
+      "enum": [1]
+    },
+    "ring_number": {
+      "type": "integer",
+      "description": "Ring number (e.g., 051)",
+      "minimum": 0,
+      "maximum": 999
+    },
+    "issue_number": {
+      "type": "integer",
+      "description": "GitHub issue number (L1 TRACEABILITY)",
+      "minimum": 1
+    },
+    "verdict": {
+      "type": "string",
+      "description": "PHI LOOP verdict",
+      "enum": ["CLEAN", "TOXIC", "WEAK_CONFIRM"]
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "RFC3339 timestamp of verdict",
+      "format": "date-time"
+    },
+    "spec_delta": {
+      "type": "string",
+      "description": "Which .t27 spec changed in this iteration"
+    },
+    "hashes": {
+      "type": "object",
+      "description": "Immutable hash set for this PHI LOOP step",
+      "properties": {
+        "spec_hash_before": {
+          "type": "string",
+          "description": "SHA-256 of spec before edit"
+        },
+        "spec_hash_after": {
+          "type": "string",
+          "description": "SHA-256 of spec after edit"
+        },
+        "gen_hash_after": {
+          "type": "string",
+          "description": "SHA-256 of generated output"
+        },
+        "test_vector_hash": {
+          "type": "string",
+          "description": "SHA-256 of test vectors"
+        }
+      },
+      "required": ["spec_hash_before", "spec_hash_after", "gen_hash_after", "test_vector_hash"]
+    },
+    "generated_artifacts": {
+      "type": "array",
+      "description": "List of generated files",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path to generated file"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["zig", "c", "verilog", "json"],
+            "description": "Type of generated artifact"
+          },
+          "hash": {
+            "type": "string",
+            "description": "SHA-256 of generated file"
+          }
+        },
+        "required": ["path", "type"]
+      }
+    },
+    "tests": {
+      "type": "object",
+      "description": "Test execution results",
+      "properties": {
+        "total": {
+          "type": "integer",
+          "description": "Total number of tests",
+          "minimum": 0
+        },
+        "passed": {
+          "type": "integer",
+          "description": "Number of passed tests",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "description": "Number of failed tests",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "description": "Number of skipped tests",
+          "minimum": 0
+        }
+      },
+      "required": ["total", "passed", "failed"]
+    },
+    "next_constraint": {
+      "type": "string",
+      "description": "Single next bottleneck identified in this iteration"
+    },
+    "agent": {
+      "type": "string",
+      "description": "Agent that produced this verdict"
+    },
+    "law_violations": {
+      "type": "array",
+      "description": "L1-L7 law violations if verdict is TOXIC",
+      "items": {
+        "type": "object",
+        "properties": {
+          "law": {
+            "type": "string",
+            "enum": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"],
+            "description": "Violated law"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of violation"
+          }
+        },
+        "required": ["law", "description"]
+      }
+    }
+  }
+}

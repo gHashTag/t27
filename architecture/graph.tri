@@ -40,6 +40,17 @@ spec "doc-sacred-physics" {
     agent = "P";
 }
 
+spec "doc-clara-prep-plan" {
+    tier = 0;
+    description = "CLARA-PREPARATION-PLAN: DARPA TA1/TA2 submission checklist";
+    path = "docs/CLARA-PREPARATION-PLAN.md";
+    exports = ["CLARA_TA1_CHECKLIST", "CLARA_TA2_CHECKLIST", "CLARA_TIMELINE"];
+    deps = ["doc-numeric-standard"];
+    competency = "CLARAPreparation";
+    status = "done";
+    agent = "S";
+}
+
 // ============================================================================
 // Tier 1: Core Arithmetic & Numeric Formats
 // ============================================================================
@@ -244,6 +255,17 @@ spec "trisacred-physics" {
     bench_suite = ["sacred_physics"];
 }
 
+spec "triphysics-chern-simons" {
+    tier = 2;
+    description = "SU(2)₃ Chern-Simons theory: d_τ = φ, k=3, TRINITY identity";
+    path = "specs/physics/su2_chern_simons.t27";
+    exports = ["ChernSimonsFormalism", "d_tau", "trinity_identity", "cs_level_theorem", "fibonacci_fusion", "modular_s_matrix", "jones_polynomial_connection"];
+    deps = ["trisacred-constants"];
+    competency = "ChernSimons";
+    status = "done";
+    bench_suite = ["chern_simons"];
+}
+
 // ============================================================================
 // Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
 // ============================================================================
@@ -309,6 +331,18 @@ spec "triar-composition" {
     deps = ["triar-explainability", "triar-asp", "triformat-gf16"];
     competency = "Composition";
     status = "done";
+}
+
+// SANDBOX P0 Specs (Session Timeout, Orphan Detection, etc.)
+spec "sandbox.health" {
+    tier = 2;
+    description = "Sandbox health polling: check session health, enforce timeout, detect orphans";
+    path = "specs/sandbox/health.t27";
+    exports = ["check_sandbox_health", "terminate_exceeded_sessions", "cleanup_orphaned_sessions"];
+    deps = ["tritype-base", "sandbox.modules", "sandbox.session_timeout"];
+    competency = "SandboxHealth";
+    status = "done";
+    agent = "S";
 }
 
 // ============================================================================
@@ -650,6 +684,8 @@ phi_critical_edges {
     trisacred-constants -> trinhslm;
     trisacred-physics -> triatt-sacred;
     trisacred-physics -> trinhslm;
+    trisacred-constants -> triphysics-chern-simons;
+    triphysics-chern-simons -> trisacred-physics;
     triar-logic -> triar-proof-trace;
     triar-logic -> triar-datalog;
     triar-proof-trace -> triar-explainability;
@@ -716,4 +752,67 @@ kepler_newton_edges {
     trisacred-constants -> math-zamolodchikov-e8;
     // Cross-connection: CS and E8 share phi through cyclotomic Q(sqrt(5))
     physics-su2-chern-simons -> math-zamolodchikov-e8;
+}
+
+// ============================================================================
+// TECHNOLOGY-TREE Phase Nodes (Ring 32–999)
+// Added: 2026-04-07 for Ring 035 (#130)
+// ============================================================================
+
+phase "PHASE-HARDEN" {
+    tier = 0;
+    description = "Phase 1: HARDEN (Rings 32–63) — docs, validation, CI, TASK.md";
+    ring_start = 32;
+    ring_end = 63;
+    status = "in_progress";
+    key_deliverables = ["NOW.md schema", "ISSUE-GATE", "E2E CI", "TECHNOLOGY-TREE"];
+}
+
+phase "PHASE-EXTEND" {
+    tier = 0;
+    description = "Phase 2: EXTEND (Rings 64–127) — RISC-V, WASM, quantum, crypto backends";
+    ring_start = 64;
+    ring_end = 127;
+    status = "planned";
+    key_deliverables = ["RISC-V backend", "WASM backend", "Quantum ops", "Crypto primitives"];
+}
+
+phase "PHASE-OPTIMIZE" {
+    tier = 0;
+    description = "Phase 3: OPTIMIZE (Rings 128–255) — performance, benchmarks, GF peer review";
+    ring_start = 128;
+    ring_end = 255;
+    status = "planned";
+    key_deliverables = ["Profiling", "PGO", "LTO", "GF arXiv papers"];
+}
+
+phase "PHASE-SCALE" {
+    tier = 0;
+    description = "Phase 4: SCALE (Rings 256–511) — multi-agent, DARPA CLARA, swarm";
+    ring_start = 256;
+    ring_end = 511;
+    status = "planned";
+    key_deliverables = ["Swarm orchestration", "CLARA TA1/TA2", "Production hardening"];
+}
+
+phase "PHASE-SUMMIT" {
+    tier = 0;
+    description = "Phase 5: SUMMIT (Rings 512–999) — publications, ecosystem, production";
+    ring_start = 512;
+    ring_end = 999;
+    status = "planned";
+    key_deliverables = ["arXiv papers", "Conference submissions", "Open source release"];
+}
+
+phase_edges {
+    // Phase progression: each phase unlocks the next
+    PHASE-HARDEN -> PHASE-EXTEND;
+    PHASE-EXTEND -> PHASE-OPTIMIZE;
+    PHASE-OPTIMIZE -> PHASE-SCALE;
+    PHASE-SCALE -> PHASE-SUMMIT;
+
+    // Hard critical dependencies between phases
+    PHASE-HARDEN -> PHASE-OPTIMIZE;  // Harden foundations enable optimization
+    PHASE-EXTEND -> PHASE-SCALE;      // Extended backends enable scaling
+    PHASE-OPTIMIZE -> PHASE-SUMMIT;   // Optimized codebase ready for publication
 }

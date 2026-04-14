@@ -1,0 +1,38 @@
+{
+  "created_at": "2026-04-06T15:54:08Z",
+  "f64_phi_sq_eq_phi_plus_one": true,
+  "flocq_layer": "coq/Kernel/PhiFloat.v",
+  "formal_proof": "T27.Kernel.PhiFloat::phi_identity_contract",
+  "formal_reference": "coq/Kernel/Phi.v",
+  "format": "IEEE754-binary64",
+  "format_family": "PhiRatio",
+  "id": "PHI-IDENTITY-K2-F64",
+  "identity_residual_bound_theory": 1.454e-15,
+  "module": "PHI-IDENTITY-K2",
+  "phi_dec": "1.618033988749895",
+  "phi_hex": "0x1.9e3779b97f4a8p+0",
+  "phi_plus_one_hex": "0x1.4f1bbcdcbfa54p+1",
+  "phi_sq_hex": "0x1.4f1bbcdcbfa54p+1",
+  "schema_version": 2,
+  "seal": "sha256:99377061311b1fd1e594f5617ef9e14cef1ac5cc1cf2fcf41bc95c46df2949ec",
+  "standard": "AXIOM-K2",
+  "tolerance_formula": "5 * 2^-53 * phi^2 on R (Phi.v phi_tolerance / PhiFloat PHI_F64_TOLERANCE)",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "validation_script": "scripts/validate_phi_f64.py",
+  "vector_name": "phi_identity Vectors",
+  "vectors": [
+    {
+      "claim": "Rabs(phi*phi - (phi+1)) = 0",
+      "name": "phi_squared_identity_R",
+      "verdict": "PASS"
+    },
+    {
+      "claim": "B2R(b64_mult NE phi phi) = B2R(b64_plus NE phi 1.0) (bit-identical floats)",
+      "name": "phi_identity_f64_residual",
+      "verdict": "PASS"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}
