@@ -99,6 +99,34 @@ module BootROM {
         and s1 = boot_stage("s1", 0, 4096, 0)
         then fits(c, [s1], 1) == false
 
+    test stage_end_nonzero
+        given s = boot_stage("app", 2, 8192, 0x1000)
+        then stage_end(s) == 0x1000 + 8192
+
+    test fits_exact
+        given c = boot_config("exact", 4096)
+        and s1 = boot_stage("s1", 0, 4096, 0)
+        then fits(c, [s1], 1) == true
+
+    test fits_empty_stages
+        given c = boot_config("empty", 4096)
+        then fits(c, [], 0) == true
+
+    test validate_config_zero_size
+        given c = BootConfig{.name = "bad", .rom_base = 0, .rom_size = 0, .has_integrity_check = true, .has_chain_loader = true}
+        then validate_config(c) > 0
+
+    test validate_config_valid_name_size
+        given c = boot_config("valid", 65536)
+        then validate_config(c) == 0
+
+    test boot_stage_indexing
+        given s0 = boot_stage("fsbl", 0, 1024, 0)
+        and s1 = boot_stage("ssbl", 1, 2048, 1024)
+        then s0.index == 0
+        and s1.index == 1
+        and stage_end(s0) == s1.entry_addr
+
     invariant rom_size_positive
         given c = boot_config("inv", 4096)
         assert c.rom_size > 0

@@ -141,6 +141,52 @@ module ZeroDSP_UART {
         and   ready = uart_tx_ready()
         then ready == true
 
+    test uart_configure_changes_baud_divisor
+        given uart_configure(100, false, 1, true)
+        then uart_config.baud_divisor == 100
+
+    test uart_configure_parity_enable
+        given uart_configure(54, true, 2, false)
+        then uart_config.parity_enable == true
+        and uart_config.stop_bits == 2
+        and uart_config.fifo_enable == false
+
+    test uart_bit_period_calc
+        then UART_BIT_PERIOD == UART_CLOCK_HZ / UART_BAUD_RATE
+
+    test uart_constants
+        then UART_FIFO_DEPTH == 16
+        and UART_WIDTH == 8
+        and STATUS_IDLE == 0
+        and STATUS_TX_BUSY == 1
+        and STATUS_RX_BUSY == 2
+        and STATUS_ERROR == 3
+
+    test uart_tx_send_updates_state
+        given result = uart_tx_send(0x42)
+        then result == true
+        and uart_state.tx_data == 0x42
+        and uart_state.tx_valid == true
+        and uart_state.tx_ready == false
+        and uart_state.status == STATUS_TX_BUSY
+
+    test uart_rx_read_clears_valid
+        uart_state.rx_data = 0x99;
+        uart_state.rx_valid = true;
+        given data = uart_rx_read()
+        then data == 0x99
+        and uart_state.rx_valid == false
+
+    test uart_reset_clears_rx_error
+        uart_state.rx_error = true;
+        given uart_reset()
+        then uart_state.rx_error == false
+
+    test uart_reset_clears_bit_counter
+        uart_state.bit_counter = 7;
+        given uart_reset()
+        then uart_state.bit_counter == 0
+
     invariant uart_status_valid
         given status = uart_status()
         assert status == STATUS_IDLE or status == STATUS_TX_BUSY or 

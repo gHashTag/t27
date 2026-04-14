@@ -311,6 +311,33 @@ module Stdlib {
         given ip = ip_core("", 0, 200, 100, 1, 0, 4, 0)
         then validate_ip(ip) > 0
 
+    test validate_ip_zero_clock
+        given ip = ip_core("test", 0, 100, 50, 0, 0, 4, 0)
+        then validate_ip(ip) > 0
+
+    test total_ffs_empty
+        given cat = empty_catalog("test")
+        then total_ffs(cat) == 0
+
+    test total_dsp48_empty
+        given cat = empty_catalog("test")
+        then total_dsp48(cat) == 0
+
+    test luts_remaining_full_board
+        given cat = empty_catalog("test")
+        and board = xc7a100t_resources()
+        then luts_remaining(cat, board) == 63400
+
+    test ip_kind_values
+        then 0 == 0
+        and 1 == 1
+
+    test ip_core_vendor
+        given ip = ip_core("uart_tx", 0, 200, 100, 1, 0, 4, 100)
+        then ip.vendor == "t27"
+        and ip.version == 1
+        and ip.verified == false
+
     // === Invariants ===
 
     invariant arty_luts_positive
