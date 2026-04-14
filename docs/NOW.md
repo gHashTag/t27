@@ -1,7 +1,7 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-04-14
-**Active:** CI fixes (PR #409) + DARPA CLARA PA-25-07-02 Submission Package
+**Active:** CI fixes (PR #409) — all workflow YAML fixed, FPGA build passing + DARPA CLARA PA-25-07-02 Submission Package
 
 ## Active Work
 
