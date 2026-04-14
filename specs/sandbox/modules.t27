@@ -10,9 +10,23 @@
 module sandbox.modules;
 
 use sandbox.session_timeout;
+use sandbox.orphan_detection;
+use sandbox.https_enforce;
 
 // ─────────────────────────────────────────────
 // Session Timeout Module
 // ─────────────────────────────────────────────
 
 pub use session_timeout;
+
+// ─────────────────────────────────────────────
+// Orphan Detection Module
+// ─────────────────────────────────────────────
+
+pub use orphan_detection;
+
+// ─────────────────────────────────────────────
+// HTTPS Enforcement Module
+// ─────────────────────────────────────────────
+
+pub use https_enforce;
