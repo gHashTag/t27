@@ -1,7 +1,21 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-04-14
-**Active:** DARPA CLARA PA-25-07-02 v1.5 Submission (PR #473) — Critical fixes, SOA expanded, empirical evaluation added
+**Active:** DARPA CLARA PA-25-07-02 Documentation Organization (PR #478)
+
+---
+
+## Active Work
+
+**DARPA CLARA Documentation Organization** (PR #478) — Docs structure overhaul for clarity
+- Comprehensive `docs/clara/README.md` index with quick reference tables
+- New `docs/clara/evidence/README.md` for evidence package organization
+- Clear directory structure visualization
+- Quick navigation to all key documents
+
+---
+
+**DARPA CLARA v1.5 Submission** (PR #473) — Ready for review, deadline April 17, 2026
 
 ## Active Work
 
