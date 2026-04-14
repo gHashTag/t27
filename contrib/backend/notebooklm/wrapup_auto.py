@@ -3,11 +3,18 @@
 # Ring-071 - RAG-Backed Semantic Memory
 # phi^2 + 1/phi^2 = 3 | TRINITY
 
-"""Wrap-up automation: read args, find/create notebook, upload markdown."""
+"""Wrap-up automation: read args, find/create issue-specific notebook, upload markdown.
+
+Each GitHub issue gets its own notebook in NotebookLM:
+  Issue #343 "Restore phi-loop-ci.yml" -> Notebook: "t27 #343 — Restore phi-loop-ci.yml"
+
+Each /tri wrapup adds a new source to the issue's notebook, preserving full session history.
+"""
 
 import argparse
 import sys
 import subprocess
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -43,6 +50,10 @@ DEFAULT_NOTEBOOK = "t27-QUEEN-BRAIN"
 VENV_PATH = ".trinity/notebooklm-venv"
 ISSUE_BINDING_PATH = ".trinity/state/issue-binding.json"
 NOTEBOOK_PREFIX = "t27 #"
+<<<<<<< Updated upstream
+=======
+STORAGE_STATE_PATH = Path.home() / ".notebooklm" / "storage_state.json"
+>>>>>>> Stashed changes
 
 
 def get_git_branch() -> str:
@@ -125,51 +136,56 @@ def get_git_commit(short: bool = True) -> str:
         return "unknown"
 
 
-def format_markdown(
-    summary: str,
-    decisions: str,
-    files_modified: list[str],
-    next_steps: str,
-    session_id: str,
-) -> str:
-    """Format wrap-up summary as Markdown for NotebookLM.
-
-    Args:
-        summary: Session summary text
-        decisions: Key decisions made
-        files_modified: Files that were changed
-        next_steps: Next steps to take
-        session_id: Session identifier
+def get_issue_info() -> Optional[tuple[str, str]]:
+    """Get current issue number and title from .trinity/state/issue-binding.json.
 
     Returns:
-        Markdown formatted string
+        Tuple of (issue_number, issue_title) or None if not found
     """
-    lines = [
-        "# Session Wrap-up",
-        "",
-        f"**Session ID:** {session_id}",
-        f"**Branch:** {get_git_branch()}",
-        f"**Commit:** {get_git_commit(short=True)}",
-        f"**Date:** {datetime.now().isoformat()}",
-        "",
-        "## Summary",
-        "",
-        summary,
-        "",
-        "## Key Decisions",
-        "",
-        decisions,
-        "",
-        "## Files Modified",
-        "",
-        *files_modified,
-        "",
-        "## Next Steps",
-        "",
-        next_steps,
-    ]
 
-    return "\n".join(lines)
+    try:
+        with open(ISSUE_BINDING_PATH, "r") as f:
+            binding = json.load(f)
+
+        # Extract issue number from issue_id (handles "INFRA", "350", etc.)
+        issue_id = binding.get("issue_id", "")
+        title = binding.get("title", "")
+
+        # If issue_id is a number, use it directly
+        if issue_id and issue_id.isdigit():
+            return (issue_id, title)
+
+        # If issue_id is a string like "INFRA", try to get from GitHub API
+        if issue_id:
+            try:
+                result = subprocess.run(
+                    ["gh", "issue", "view", issue_id, "--json", "title,number"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                data = json.loads(result.stdout)
+                return (str(data["number"]), data["title"])
+            except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError):
+                pass
+
+        return None
+
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def get_notebook_name_for_issue(issue_number: str, issue_title: str) -> str:
+    """Generate notebook name for an issue.
+
+    Args:
+        issue_number: GitHub issue number
+        issue_title: Issue title
+
+    Returns:
+        Notebook name in format "t27 #NNN — title"
+    """
+    return f"{NOTEBOOK_PREFIX}{issue_number} — {issue_title}"
 
 
 async def find_or_create_notebook(
@@ -229,8 +245,6 @@ async def wrapup_run(
     Returns:
         Dict with notebook_id, source_id, uploaded_at or None if failed
     """
-    import asyncio
-
     # Find or create notebook
     notebook_id = await find_or_create_notebook(client, notebook_title)
     if not notebook_id:
@@ -244,11 +258,11 @@ async def wrapup_run(
 
     # Upload as text source
     try:
-        notebook = await client.notebooks.get(notebook_id)
-        source = await notebook.sources.create_text(title, markdown)
+        source = await client.sources.add_text(notebook_id, markdown, title)
 
         result = {
             "notebook_id": notebook_id,
+            "notebook_name": notebook_title,
             "source_id": source.id,
             "uploaded_at": datetime.now().isoformat(),
         }
@@ -259,6 +273,65 @@ async def wrapup_run(
     except Exception as e:
         print(f"Error uploading source: {e}", file=sys.stderr)
         return None
+
+
+def format_markdown(
+    summary: str,
+    decisions: str,
+    files_modified: list[str],
+    next_steps: str,
+    session_id: str,
+    issue_number: Optional[str] = None,
+    issue_title: Optional[str] = None,
+) -> str:
+    """Format wrap-up summary as Markdown for NotebookLM.
+
+    Args:
+        summary: Session summary text
+        decisions: Key decisions made
+        files_modified: Files that were changed
+        next_steps: Next steps to take
+        session_id: Session identifier
+        issue_number: Optional GitHub issue number
+        issue_title: Optional GitHub issue title
+
+    Returns:
+        Markdown formatted string
+    """
+    lines = [
+        "# Session Wrap-up",
+        "",
+        f"**Session ID:** {session_id}",
+        f"**Branch:** {get_git_branch()}",
+        f"**Commit:** {get_git_commit(short=True)}",
+        f"**Date:** {datetime.now().isoformat()}",
+    ]
+
+    if issue_number:
+        lines.append(f"**Issue:** #{issue_number}")
+        if issue_title:
+            lines.append(f"**Issue Title:** {issue_title}")
+
+    lines.extend([
+        "",
+        "## Summary",
+        "",
+        summary,
+        "",
+        "## Key Decisions",
+        "",
+        decisions,
+        "",
+        "## Files Modified",
+        "",
+        *files_modified,
+        "",
+        "## Next Steps",
+        "",
+        next_steps,
+    ])
+
+    return "\n".join(lines)
 
 
 def main() -> int:
@@ -300,7 +373,10 @@ def main() -> int:
                     text=True,
                     check=True
                 )
+<<<<<<< Updated upstream
                 import json
+=======
+>>>>>>> Stashed changes
                 issue_title = json.loads(result.stdout).get("title", "")
                 notebook_name = get_notebook_name_for_issue(issue_number, issue_title)
             except Exception as e:
@@ -320,6 +396,7 @@ def main() -> int:
     files_modified = [f.strip() for f in args.files.split(",") if f.strip()]
 
     # Format markdown with issue info if available
+<<<<<<< Updated upstream
     markdown_lines = [
         "# Session Wrap-up",
         "",
@@ -354,6 +431,17 @@ def main() -> int:
     ])
 
     markdown = "\n".join(markdown_lines)
+=======
+    markdown = format_markdown(
+        summary=args.summary,
+        decisions=args.decisions,
+        files_modified=files_modified,
+        next_steps=args.steps,
+        session_id=session_id,
+        issue_number=issue_number,
+        issue_title=issue_title,
+    )
+>>>>>>> Stashed changes
 
     if args.dry_run:
         print(f"--- Markdown Preview ---")
@@ -368,6 +456,7 @@ def main() -> int:
 
     async def upload():
         try:
+<<<<<<< Updated upstream
             from notebooklm import NotebookLMClient
             client = await NotebookLMClient.from_storage()
             result = await wrapup_run(
@@ -383,8 +472,37 @@ def main() -> int:
                 print(f"✅ Uploaded to: {notebook_name}")
                 return 0
             return 1
+=======
+            from notebooklm.auth import extract_cookies_from_storage, fetch_tokens
+            from notebooklm import NotebookLMClient, AuthTokens
+
+            # Load storage state and create auth
+            with open(STORAGE_STATE_PATH) as f:
+                storage_state = json.load(f)
+
+            cookies = extract_cookies_from_storage(storage_state)
+            csrf_token, session_id = await fetch_tokens(cookies)
+            auth = AuthTokens(cookies, csrf_token, session_id)
+
+            async with NotebookLMClient(auth) as client:
+                result = await wrapup_run(
+                    client=client,
+                    summary=args.summary,
+                    decisions=args.decisions,
+                    files_modified=files_modified,
+                    next_steps=args.steps,
+                    session_id=session_id,
+                    notebook_title=notebook_name,
+                )
+                if result:
+                    print(f"✅ Uploaded to: {notebook_name}")
+                    return 0
+                return 1
+>>>>>>> Stashed changes
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
             return 1
 
     return asyncio.run(upload())
