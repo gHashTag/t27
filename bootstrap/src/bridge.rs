@@ -37,6 +37,7 @@ pub enum BridgeCommands {
 <<<<<<< Updated upstream
     /// Task notebook management (NotebookLM integration)
     #[command(subcommand)]
+<<<<<<< Updated upstream
     Task(TaskCommands),
 =======
     /// Task notebook management (NotebookLM integration)
@@ -56,6 +57,37 @@ pub enum BridgeCommands {
     /// Task notebook management (NotebookLM integration)
     #[command(subcommand)]
     Task(TaskCommands),
+>>>>>>> Stashed changes
+=======
+    Research(ResearchCommands),
+    /// Task notebook management (NotebookLM gate enforcement)
+    #[command(subcommand)]
+    Task(TaskCommands),
+}
+
+/// Task notebook commands for NotebookLM pre-task gate enforcement
+/// Enforces L7 UNITY: every task must have a NotebookLM notebook before pushing code.
+#[derive(Subcommand, Debug)]
+pub enum TaskCommands {
+    /// Initialize task: create NotebookLM notebook + write .notebook_id
+    Start {
+        /// Task title (used for notebook title)
+        #[arg(short, long)]
+        title: String,
+        /// Comma-separated source files/URLs to attach
+        #[arg(short, long, default_value = "")]
+        sources: String,
+    },
+    /// Attach existing notebook to current task
+    Attach {
+        /// Existing notebook ID to attach
+        #[arg(long)]
+        notebook_id: String,
+    },
+    /// Show current task notebook status
+    Status,
+    /// Verify notebook gate requirement is satisfied
+    Verify,
 >>>>>>> Stashed changes
 }
 
@@ -201,6 +233,7 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
 =======
         BridgeCommands::Nb(nb_cmd) => handle_nb(&root, nb_cmd)?,
@@ -215,6 +248,10 @@ pub fn run_bridge(command: BridgeCommands) -> anyhow::Result<()> {
 >>>>>>> Stashed changes
 =======
         BridgeCommands::Task(task_cmd) => handle_task(&root, task_cmd),
+>>>>>>> Stashed changes
+=======
+        BridgeCommands::Research(cmd) => handle_research(cmd, &root),
+        BridgeCommands::Task(cmd) => handle_task(cmd, &root),
 >>>>>>> Stashed changes
     }
     Ok(())
