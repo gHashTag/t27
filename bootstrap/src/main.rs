@@ -797,6 +797,42 @@ enum Commands {
         #[arg(long, default_value = "30")]
         n: usize,
     },
+
+    /// Flash bitstream to FPGA board via JTAG
+    #[command(name = "fpga-flash")]
+    FpgaFlash {
+        /// Board name: qmtech-a100t, arty-a7-100t, arty-a7-35t
+        #[arg(long)]
+        board: Option<String>,
+
+        /// JTAG cable: ft2232, ft232RL, digilent_hs2, xvc-client
+        #[arg(long)]
+        cable: Option<String>,
+
+        /// XVC server address (for xvc-client cable): host:port
+        #[arg(long)]
+        xvc_addr: Option<String>,
+
+        /// Bitstream file (auto-detected if not specified)
+        #[arg(long)]
+        bitstream: Option<String>,
+
+        /// JTAG frequency in Hz (default: 6000000)
+        #[arg(long, default_value = "6000000")]
+        freq: u32,
+
+        /// Flash to SPI flash (not just SRAM)
+        #[arg(long)]
+        flash: bool,
+
+        /// Verify after writing
+        #[arg(long)]
+        verify: bool,
+
+        /// Reset FPGA after loading
+        #[arg(long)]
+        reset: bool,
+    },
 }
 
 // ============================================================================
@@ -3417,6 +3453,114 @@ fn run_validate_phi_identity() -> Result<(), anyhow::Error> {
         Ok(())
     } else {
         anyhow::bail!("L5 PHI-IDENTITY CHECK FAILED: phi^2 + phi^-2 = {:.15} (expected 3.0, delta = {:.2e})", identity, (identity - 3.0).abs())
+    }
+}
+
+fn run_fpga_flash(
+    board: Option<&str>,
+    cable: Option<&str>,
+    xvc_addr: Option<&str>,
+    bitstream: Option<&str>,
+    freq: u32,
+    flash: bool,
+    verify: bool,
+    _reset: bool,
+) -> anyhow::Result<()> {
+    println!("=== T27 FPGA Flash ===");
+    println!();
+
+    let board_name = board.unwrap_or("qmtech-a100t");
+    let (fpga_part, openfpgaloader_board) = match board_name {
+        "qmtech-a100t" => ("xc7a100tcsg324", "qmtech_xc7a100t"),
+        "arty-a7-100t" => ("xc7a100tcsg324", "arty_a7_100t"),
+        "arty-a7-35t" => ("xc7a35tcsg324", "arty_a7_35t"),
+        "arty-a7" => ("xc7a35tcsg324", "arty_a7_35t"),
+        other => {
+            eprintln!("Warning: unknown board '{}', using generic settings", other);
+            (other, other)
+        }
+    };
+    println!("Board: {} (FPGA: {})", board_name, fpga_part);
+
+    let bitstream_path = match bitstream {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let candidates = vec![
+                PathBuf::from("build/fpga/zerodsp_top.bit"),
+                PathBuf::from("build/fpga/bitstream.bit"),
+            ];
+            let found = candidates.iter().find(|p| p.exists());
+            match found {
+                Some(p) => p.clone(),
+                None => anyhow::bail!("No bitstream found. Run 't27c fpga-build' first or specify --bitstream"),
+            }
+        }
+    };
+
+    if !bitstream_path.exists() {
+        anyhow::bail!("Bitstream not found: {}", bitstream_path.display());
+    }
+    let bit_size = std::fs::metadata(&bitstream_path)?.len();
+    println!("Bitstream: {} ({} bytes)", bitstream_path.display(), bit_size);
+
+    let cable_name = match cable {
+        Some(c) => c.to_string(),
+        None => {
+            if xvc_addr.is_some() {
+                "xvc-client".to_string()
+            } else {
+                println!();
+                println!("No --cable specified. Auto-detecting...");
+                "ft2232".to_string()
+            }
+        }
+    };
+    println!("Cable: {}", cable_name);
+    println!("JTAG freq: {} Hz", freq);
+    println!();
+
+    let mut cmd = std::process::Command::new("openFPGALoader");
+    cmd.arg("--cable").arg(&cable_name);
+    cmd.arg("--freq").arg(freq.to_string());
+
+    if cable_name == "xvc-client" {
+        let addr = xvc_addr.unwrap_or("192.168.4.1:2542");
+        cmd.arg("--addr").arg(addr);
+        println!("XVC server: {}", addr);
+    }
+
+    if verify {
+        cmd.arg("--verify");
+    }
+
+    if flash {
+        println!("Mode: SPI flash write");
+    } else {
+        println!("Mode: SRAM load");
+    }
+
+    cmd.arg("--bitstream").arg(&bitstream_path);
+
+    println!("Running: {:?}", cmd);
+    println!();
+
+    let status = cmd.status()
+        .with_context(|| "openFPGALoader not found. Install with: brew install openfpgaloader")?;
+
+    if status.success() {
+        println!();
+        println!("=== Flash SUCCESS ===");
+        println!("Bitstream loaded to {} ({})", board_name, if flash { "SPI flash" } else { "SRAM" });
+        println!();
+
+        if board_name == "qmtech-a100t" {
+            println!("Smoke test: LED heartbeat should blink at ~1Hz on LED[0]");
+            println!("UART at 115200 baud on /dev/cu.usbserial-*");
+            println!("Expected: heartbeat LED + UART echo");
+        }
+        Ok(())
+    } else {
+        anyhow::bail!("openFPGALoader failed with exit code {:?}", status.code());
     }
 }
 
@@ -7432,6 +7576,9 @@ fn main() -> anyhow::Result<()> {
                     std::process::exit(1);
                 }
             }
+        }
+        Commands::FpgaFlash { board, cable, xvc_addr, bitstream, freq, flash, verify, reset } => {
+            run_fpga_flash(board.as_deref(), cable.as_deref(), xvc_addr.as_deref(), bitstream.as_deref(), *freq, *flash, *verify, *reset)?;
         }
     }
 
