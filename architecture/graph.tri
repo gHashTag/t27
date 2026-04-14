@@ -405,6 +405,65 @@ spec "sandbox.middleware" {
 }
 
 // ============================================================================
+// SANDBOX P0 Specs (Session Timeout, Orphan Detection, HTTPS Enforcement)
+// ============================================================================
+
+spec "sandbox.session_timeout" {
+    tier = 2;
+    description = "Session timeout enforcement: terminate sessions exceeding max duration";
+    path = "specs/sandbox/session_timeout.t27";
+    exports = ["Session", "SessionStatus", "Timestamp", "should_terminate_session", "TimeoutChecker"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "SessionTimeout";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.orphan_detection" {
+    tier = 2;
+    description = "Orphaned session detection: find sessions without Railway resources";
+    path = "specs/sandbox/orphan_detection.t27";
+    exports = ["Session", "SessionStatus", "Timestamp", "is_session_orphaned", "detect_orphaned_sessions", "OrphanDetector"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "OrphanDetection";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.https_enforce" {
+    tier = 2;
+    description = "HTTPS enforcement: redirect HTTP to HTTPS in production";
+    path = "specs/sandbox/https_enforce.t27";
+    exports = ["RequestContext", "should_redirect", "redirect_url", "is_local_hostname", "HttpsEnforcer"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "HttpsEnforcement";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.health" {
+    tier = 2;
+    description = "Sandbox health polling: check session health, enforce timeout, detect orphans";
+    path = "specs/sandbox/health.t27";
+    exports = ["check_sandbox_health", "terminate_exceeded_sessions", "cleanup_orphaned_sessions", "HealthPoller", "HealthCheckResult"];
+    deps = ["tritype-base", "sandbox.modules", "sandbox.session_timeout", "sandbox.orphan_detection"];
+    competency = "SandboxHealth";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.middleware" {
+    tier = 2;
+    description = "Sandbox middleware: HTTPS enforcement, CORS, rate limiting";
+    path = "specs/sandbox/middleware.t27";
+    exports = ["HttpsMiddleware", "CorsMiddleware", "RateLimitMiddleware"];
+    deps = ["sandbox.https_enforce", "sandbox.modules"];
+    competency = "Middleware";
+    status = "planned";
+    agent = "S";
+}
+
+// ============================================================================
 // Tier 3: Neural Networks (Attention, HSLM)
 // ============================================================================
 
