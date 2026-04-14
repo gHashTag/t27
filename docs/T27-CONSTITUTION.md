@@ -1,7 +1,7 @@
 # Trinity S³AI / t27 — Repository constitution
 
 **Status:** Active  
-**Version:** 1.2  
+**Version:** 1.3  
 **Date:** 2026-04-06  
 
 ---
@@ -20,7 +20,12 @@ The Trinity S³AI repository is built around the **t27** specification language 
 
 It is **forbidden** to introduce new **Python** dependencies (or equivalent script bypasses) on the **critical path** of verification, conformance, or “verdict,” except for **explicitly marked legacy** code with a removal date and a tracked migration into `.t27`.
 
-Target backends (**Zig, C, Verilog**) are **compiler output**, not hand-written application languages; hand-written Zig outside the generated pipeline is allowed only in **bootstrap** (compiler implementation) and related build infrastructure.
+**Trinity generation law.** Normative **domain logic** (mathematics, physics, formulas, invariants, and verification behavior that belong to the product spec) has **one** editable source: **`.t27`** specifications and, where the dependency graph uses them, **`.tri`** inputs consumed by the working **`tri` / `t27c gen`** pipeline.
+
+- **Zig** (and other **codegen backends** under **`gen/`** and equivalent generated trees) is **output only**. **Do not** hand-author **`.zig`** (or fork generated backend sources) for logic that **`tri gen`** is meant to emit from specs — **no “convenience” exceptions** for domain code.
+- **Rust** under **`bootstrap/`** (and any other host code) implements the **toolchain** (parse, typecheck, codegen drivers, CLI, orchestration). It **must not** become a **second copy** of the same normative formulas, invariants, or tests that belong in **`specs/**/*.t27`**. Duplication is **technical debt** and must be removed via spec + pipeline under a **tracked issue**.
+
+Target backends (**Zig, C, Verilog**) are **compiler output**, not parallel sources of truth.
 
 The numeric formalism relies on repository standards (**NUMERIC-STANDARD-001**, GoldenFloat, Strand I in `specs/math/sacred_physics.t27` and related specs). Extensions for precision or new numeric primitives are delivered through the **t27 language and compiler**, not external interpreters.
 
@@ -71,7 +76,7 @@ These seven laws are the **constitutional bedrock** of Trinity S³AI / t27. They
 | Law # | Name | Body | Enforcement |
 |-------|------|------|-------------|
 | **L1** | **TRACEABILITY** | No code merged without `Closes #N` — every PR must reference a GitHub issue | `.github/workflows/issue-gate.yml` |
-| **L2** | **GENERATION** | Files under `gen/` are generated; edit the `.t27` spec instead | `./bootstrap/target/release/t27c validate-gen-headers` |
+| **L2** | **GENERATION** | Files under `gen/` are generated; edit `.t27` / `.tri` and **`tri gen`** — see **Trinity generation law** in SSOT-MATH above | `./bootstrap/target/release/t27c validate-gen-headers` |
 | **L3** | **PURITY** | All `.t27` / `.zig` / `.v` / `.c` source — ASCII-only identifiers & comments | `SOUL.md`, `ADR-004`, build.rs language checks |
 | **L4** | **TESTABILITY** | Every `.t27` spec must contain `test` / `invariant` / `bench` | Ring 037 / #132, parser enforcement |
 | **L5** | **IDENTITY** | **K2 core:** φ² = φ + 1 on ℝ; consequence φ² + φ⁻² = 3; IEEE f64 checks use tolerance | `NUMERIC-CORE-PALETTE-REGISTRY.md`, `specs/math/constants.t27` |
@@ -134,3 +139,7 @@ In conflict scenarios, the higher-priority law prevails.
 ## Amendments
 
 Amendments to this constitution are made via pull request with an explicit charter version bump and rationale.
+
+| Version | Summary |
+|---------|---------|
+| **1.3** | **Trinity generation law:** clarify **Zig/backends = output only** (no hand domain Zig where `tri gen` applies); **Rust bootstrap must not duplicate** spec-domain logic — same SSOT discipline as Zig. |

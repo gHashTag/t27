@@ -64,6 +64,13 @@ When operating as the Trinity Agent (Queen), follow this 6-phase loop:
 
 Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the **`tri`** pipeline (`./scripts/tri`).
 
+### Trinity generation law (Zig **and** Rust)
+
+- **No hand-written `.zig` (or hand-edited generated backends)** for **domain logic** that must come from **`.t27` / `.tri` → `tri gen`**. Zig and peers under **`gen/`** are **compiler output**, not a second place to author product math.
+- **No second SSOT in Rust:** **`bootstrap/`** hosts the compiler and CLI; it **must not** duplicate normative formulas, invariants, or tests that belong in **`specs/**/*.t27`**. If code exists there today, treat it as **debt** and migrate behind a tracked issue — same rule as Zig.
+
+Full text: **Article SSOT-MATH** in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md).
+
 ---
 
 ## 2. Engineering workflow
