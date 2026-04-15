@@ -17,3 +17,4 @@
 {"ts":"2026-04-15T16:47:27Z","branch":"ring/32-cloud-orchestration","msg":"docs(meta): Add Ring 32 to Completed Rings table","files":"research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex","notebook":"b83263109fb055dc"}
 {"ts":"2026-04-15T17:22:40Z","branch":"ring/32-cloud-orchestration","msg":"fix(paper): resolve merge conflicts, update Olsen affiliation, integrate Scott's new text","files":"research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex","notebook":"b83263109fb055dc"}
 {"ts":"2026-04-15T17:29:11Z","branch":"ring/32-cloud-orchestration","msg":"feat(paper): elevate prose to iconic status with poetic, rhythmic academic narrative","files":".trinity/current_task/activity.md,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex","notebook":"b83263109fb055dc"}
+{"ts":"2026-04-15T18:49:31Z","branch":"ring/32-cloud-orchestration","msg":"revert: restore English documentation","files":"","notebook":"b83263109fb055dc"}
