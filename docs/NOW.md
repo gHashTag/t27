@@ -123,3 +123,10 @@
 
 
 <!-- PR #465: GitHub SSOT integration -->
+
+## Recent Repository Cleanup
+
+- **PR #488:** Remove trixphi-album musical content (50 files, ~4916 lines)
+- Clean up repository structure, keep clara-bridge components intact
+- Closes #487
+
