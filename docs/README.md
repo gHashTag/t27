@@ -43,9 +43,11 @@ TDD, bootstrap/testing plans, math/physics test framework charter, PHI loop, tec
 | [`nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md`](nona-03-manifest/T27-UNIFIED-AXIOM-THEOREM-FORMAT-SYSTEM.md) | Axioms/theorems/catalog + `FORMAT-SPEC-001` / `axiom_system.json` |
 | [`nona-03-manifest/CLAIM_TIERS.md`](nona-03-manifest/CLAIM_TIERS.md) | Policy: `claim_tier` for math/physics |
 
-## [`clara/`](clara/) — CLARA / DARPA-style pack
+## External Projects
 
-Submission, evidence, composition patterns (often **F** conformance / **X** interop adjacent).
+| Project | Description | Link |
+|---------|-------------|-------|
+| **CLARA DARPA PA-25-07-02** | DARPA CLARA submission package (moved 2026-04-15) | [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara) |
 
 ---
 
