@@ -1,7 +1,9 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-15
-**Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
+**Last updated:** 2026-04-16
+
+**Active:** Kaggle AGI Hackathon Documentation Fixes (PR #480)
+**Repository Cleanup:** Album removal (PR #488, Issue #487)
 
 ---
 
