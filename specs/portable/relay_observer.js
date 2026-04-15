@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-// relay_observer.js 0 WebSocket Relay Observer for BrowserOS A2A Integration
+// relay_observer.js 2.0 Multi-agent WebSocket Relay Observer for BrowserOS A2A Integration
 // Ring 32 — Cloud Orchestration
 // 12 + 1/34 = 3 | TRINITY
-// JavaScript implementation of relay_observer.t27 specification
+// JavaScript implementation of relay_observer.t27 specification with proper CommonJS exports
+
+'use strict';
 
 // ============================================================================
 // Constants - Connection States
@@ -26,10 +28,6 @@ const TYPE_BYTE_TO_NAME = {
     [MESSAGE_TYPE_DATA]: 'data',
     [MESSAGE_TYPE_CONTROL]: 'control'
 };
-
-const TYPE_NAME_TO_BYTE = Object.fromEntries(
-    Object.entries(TYPE_BYTE_TO_NAME).map(([name, value]) => [value, name])
-);
 
 // ============================================================================
 // Types - WebSocket States
@@ -145,30 +143,87 @@ class WebSocketMessage {
 
 class ObserverConfig {
     /**
-     * Create observer configuration
-     * @param {object} options - Configuration options
-     * @param {string} options.serverUrl - WebSocket server URL
-     * @param {string} options.agentName - Agent identifier
-     * @param {number} options.reconnectDelay - Milliseconds between reconnect attempts (default: 3000)
-     * @param {number} options.maxReconnectAttempts - Maximum reconnect attempts (default: 10)
+     * Create observer configuration for multi-agent support
+     * @param {string} serverUrl - WebSocket server URL
+     * @param {Set<string>} agents - Set of agent identifiers
+     * @param {number} reconnectDelay - Milliseconds between reconnect attempts
+     * @param {number} maxReconnectAttempts - Maximum reconnect attempts
      */
-    constructor({
-        serverUrl = 'ws://localhost:3001',
-        agentName = '',
-        reconnectDelay = 3000,
-        maxReconnectAttempts = 10
-    } = {}) {
+    constructor(serverUrl, agents, reconnectDelay, maxReconnectAttempts) {
         this.serverUrl = serverUrl || 'ws://localhost:3001';
-        this.agentName = agentName || '';
-        this.reconnectDelay = reconnectDelay;
-        this.maxReconnectAttempts = maxReconnectAttempts;
+        this.agents = agents || new Set();
+        this.reconnectDelay = reconnectDelay || 3000;
+        this.maxReconnectAttempts = maxReconnectAttempts || 10;
     }
 
     /**
      * Validate configuration
      */
     isValid() {
-        return this.serverUrl.length > 0 && this.agentName.length > 0;
+        return this.serverUrl.length > 0 && this.agents.size > 0;
+    }
+
+    /**
+     * Add agent to observe
+     * @param {string} agentName - Agent identifier
+     */
+    addAgent(agentName) {
+        this.agents.add(agentName);
+        console.log(`[RelayObserver] Agent added: ${agentName}`);
+    }
+
+    /**
+     * Remove agent from observation
+     * @param {string} agentName - Agent identifier
+     */
+    removeAgent(agentName) {
+        this.agents.delete(agentName);
+        console.log(`[RelayObserver] Agent removed: ${agentName}`);
+    }
+
+    /**
+     * Check if agent should be observed
+     * @param {string} agentName - Agent identifier
+     */
+    shouldObserve(agentName) {
+        return this.agents.has(agentName);
+    }
+
+    /**
+     * Get all observed agents
+     */
+    getAgents() {
+        return Array.from(this.agents);
+    }
+
+    /**
+     * Check if message contains any observed agent
+     * @param {string} payload - Message payload to check
+     */
+    hasAnyTargetAgent(payload) {
+        const agents = this.getAgents();
+        for (const agent of agents) {
+            const pattern = new RegExp(`^@${agent}>`);
+            if (pattern.test(payload)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Extract target agent from message
+     * @param {string} payload - Message payload
+     */
+    extractTargetAgent(payload) {
+        const agents = this.getAgents();
+        for (const agent of agents) {
+            const pattern = new RegExp(`^@${agent}>`);
+            if (pattern.test(payload)) {
+                return agent;
+            }
+        }
+        return null;
     }
 
     /**
@@ -177,7 +232,7 @@ class ObserverConfig {
     toJSON() {
         return {
             serverUrl: this.serverUrl,
-            agentName: this.agentName,
+            agents: Array.from(this.agents),
             reconnectDelay: this.reconnectDelay,
             maxReconnectAttempts: this.maxReconnectAttempts
         };
@@ -188,15 +243,15 @@ class ObserverConfig {
 // Classes - Relay Observer
 // ============================================================================
 
-export class RelayObserver {
+class RelayObserver {
     /**
      * Create a new Relay Observer
      * @param {ObserverConfig} config - Observer configuration
      */
     constructor(config) {
-        if (!config.isValid()) {
+        if (!config || !config.isValid()) {
             // Return default config for empty values
-            this.config = new ObserverConfig({});
+            this.config = new ObserverConfig('ws://localhost:3001', new Set(['Agent1', 'Agent2']));
         } else {
             this.config = config;
         }
@@ -209,10 +264,13 @@ export class RelayObserver {
 
         // Auto-reconnect timer
         this.reconnectTimer = null;
+
+        // Track offline messages (sent while disconnected)
+        this.offlineMessages = [];
     }
 
     /**
-     * Initialize the observer
+     * Initialize observer
      */
     init() {
         if (this.state === WebSocketState.CLOSED) {
@@ -235,7 +293,12 @@ export class RelayObserver {
         this.ws.onopen = () => {
             this.state = WebSocketState.READY;
             this.reconnectAttempts = 0;
+
+            // Flush offline messages on reconnect
+            this.flushOfflineMessages();
+
             console.log('[RelayObserver] Connected to', this.config.serverUrl);
+            console.log('[RelayObserver] Observed agents:', this.config.getAgents().join(', '));
             this.processQueue();
         };
 
@@ -309,6 +372,7 @@ export class RelayObserver {
         const eventData = new TextDecoder().decode(data.slice(1));
         console.log('[RelayObserver] Event:', eventData);
 
+        // Broadcast event to all registered handlers
         this.emit('event', { data: eventData });
     }
 
@@ -319,25 +383,21 @@ export class RelayObserver {
     handleDataMessage(data) {
         const payload = new TextDecoder().decode(data.slice(1));
 
-        // Check if this message is for this agent
-        if (this.config.agentName && this.isAgentMessage(payload)) {
-            console.log('[RelayObserver] Data for agent:', payload);
-            this.emit('data', { data: payload });
-            return;
+        // Check if message contains any target agent
+        if (this.config.hasAnyTargetAgent(payload)) {
+            // Extract target agent
+            const targetAgent = this.config.extractTargetAgent(payload);
+
+            if (targetAgent && this.config.shouldObserve(targetAgent)) {
+                console.log('[RelayObserver] Data for agent:', targetAgent, payload);
+                this.emit('data', { targetAgent, data: payload });
+                return;
+            }
         }
 
-        // Forward to all registered handlers
+        // No target agent found - emit to all handlers
+        console.log('[RelayObserver] Data with no target agent:', payload);
         this.emit('data', { data: payload });
-    }
-
-    /**
-     * Check if message is for this agent
-     * @param {string} payload - Message payload
-     */
-    isAgentMessage(payload) {
-        // Format: @AgentName> or @AgentName><
-        const pattern = new RegExp(`^@${this.escapeRegex(this.config.agentName)}>`);
-        return pattern.test(payload);
     }
 
     /**
@@ -455,7 +515,9 @@ export class RelayObserver {
      */
     sendMessage(message) {
         if (this.state !== WebSocketState.READY) {
+            // Queue message while disconnected
             this.messageQueue.push(message);
+            console.log('[RelayObserver] Queued message (offline):', message.toJSON());
             return;
         }
 
@@ -463,7 +525,7 @@ export class RelayObserver {
     }
 
     /**
-     * Send event message
+     * Send event message (broadcast to all agents)
      * @param {string} eventData - Event data string
      */
     sendEvent(eventData) {
@@ -474,9 +536,21 @@ export class RelayObserver {
     /**
      * Send data message
      * @param {string|object} dataPayload - Data payload
+     * @param {string} targetAgent - Optional target agent for routing
      */
-    sendData(dataPayload) {
-        const message = WebSocketMessage.createData(dataPayload);
+    sendData(dataPayload, targetAgent = null) {
+        let payload = dataPayload;
+
+        // Add target agent to data if specified
+        if (targetAgent) {
+            if (typeof dataPayload === 'string') {
+                payload = '@' + targetAgent + '> ' + dataPayload;
+            } else {
+                payload = '@' + targetAgent + '> ' + JSON.stringify(dataPayload);
+            }
+        }
+
+        const message = WebSocketMessage.createData(payload);
         this.sendMessage(message);
     }
 
@@ -487,6 +561,29 @@ export class RelayObserver {
     sendControl(controlData) {
         const message = WebSocketMessage.createControl(controlData);
         this.sendMessage(message);
+    }
+
+    /**
+     * Store message for offline queue (sent while disconnected)
+     * @param {WebSocketMessage} message - Message to store
+     */
+    storeOfflineMessage(message) {
+        this.offlineMessages.push(message);
+        console.log('[RelayObserver] Stored offline message:', message.toJSON());
+    }
+
+    /**
+     * Flush offline messages when reconnecting
+     */
+    flushOfflineMessages() {
+        if (this.offlineMessages.length > 0) {
+            console.log(`[RelayObserver] Flushing ${this.offlineMessages.length} offline messages`);
+            while (this.offlineMessages.length > 0) {
+                const message = this.offlineMessages.shift();
+                this.ws.send(message.data);
+            }
+        }
+        this.offlineMessages = [];
     }
 
     /**
@@ -511,7 +608,30 @@ export class RelayObserver {
     }
 
     /**
-     * Destroy the observer
+     * Get list of observed agents
+     */
+    getAgents() {
+        return this.config.getAgents();
+    }
+
+    /**
+     * Add an agent to observe
+     */
+    addAgentToObserve(agentName) {
+        this.config.addAgent(agentName);
+        console.log(`[RelayObserver] Now observing agent: ${agentName}`);
+    }
+
+    /**
+     * Remove an agent from observation
+     */
+    removeAgentFromObserve(agentName) {
+        this.config.removeAgent(agentName);
+        console.log(`[RelayObserver] Stopped observing agent: ${agentName}`);
+    }
+
+    /**
+     * Destroy observer
      */
     destroy() {
         this.disconnect();
@@ -523,11 +643,17 @@ export class RelayObserver {
 
         this.eventHandlers.clear();
         this.messageQueue = [];
+        this.offlineMessages = [];
     }
 }
 
 // ============================================================================
-// Export
+// CommonJS Exports
 // ============================================================================
 
-export default RelayObserver;
+// Export all classes for CommonJS
+exports.RelayObserver = RelayObserver;
+exports.ObserverConfig = ObserverConfig;
+exports.WebSocketMessage = WebSocketMessage;
+exports.WebSocketState = WebSocketState;
+exports.MessageType = MessageType;
