@@ -1,19 +1,21 @@
 {
-  "skill_id": "ring-18-24-ar-integration",
-  "session_id": "2026-04-04T18:00:00Z#ring18-24",
-  "issue_id": "SEED-18-24",
-  "issue_title": "Rings 18-24: Full AR Domain Integration",
-  "description": "Integrate all 7 AR specs into canonical graph with gen backends, conformance vectors, and seals",
-  "started_at": "2026-04-04T18:00:00Z",
-  "started_by": "agent:claude-code",
+  "skill_id": "kaggle-cognitive-benchmark",
+  "session_id": "2026-04-15T08:08:00Z#kaggle-bench",
+  "issue_id": "KAGGLE-BENCH-001",
+  "issue_title": "Kaggle Cognitive Probes Benchmark + Repo Promotion",
+  "description": "Benchmark 5 cognitive tracks on live models, update Kaggle metadata, create promo artifacts",
+  "started_at": "2026-04-15T08:08:00Z",
+  "started_by": "agent:perplexity-computer",
   "status": "complete",
   "allowed_paths": [
-    "specs/ar/",
-    "gen/",
-    "conformance/",
-    ".trinity/seals/",
+    "specs/benchmarks/trinity_cognitive_probe_runner.t27",
+    "gen/benchmarks/",
+    "scripts/benchmark/",
+    "docs/promo/",
     ".trinity/state/",
     ".trinity/experience/",
-    "architecture/graph_v2.json"
-  ]
+    ".trinity/seals/",
+    "conformance/"
+  ],
+  "completed_at": "2026-04-15T08:12:00Z"
 }

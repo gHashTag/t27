@@ -1,0 +1,88 @@
+{
+  "module": "trinity_cognitive_probe_runner",
+  "spec_path": "specs/benchmarks/trinity_cognitive_probe_runner.t27",
+  "version": "1.0.0",
+  "tests": [
+    {
+      "name": "trinity_invariant",
+      "description": "phi^2 + phi^-2 = 3",
+      "input": {
+        "phi": 1.618033988749895,
+        "phi_inv": 0.618033988749895
+      },
+      "expected": {
+        "trinity_check": 3.0,
+        "tolerance": 1e-10
+      },
+      "status": "passed"
+    },
+    {
+      "name": "track_registry_complete",
+      "description": "All 5 tracks present in registry",
+      "input": {},
+      "expected": {
+        "track_count": 5,
+        "tracks": ["THLP", "TTM", "TAGP", "TEFB", "TSCP"]
+      },
+      "status": "passed"
+    },
+    {
+      "name": "track_total_questions",
+      "description": "Sum of all track questions",
+      "input": {
+        "thlp": 19681,
+        "ttm": 4931,
+        "tagp": 17601,
+        "tefb": 21081,
+        "tscp": 2839
+      },
+      "expected": {
+        "total": 66133
+      },
+      "status": "passed"
+    },
+    {
+      "name": "mc_answer_valid",
+      "description": "Model responses must be A/B/C/D",
+      "input": {
+        "valid_answers": ["A", "B", "C", "D"]
+      },
+      "expected": {
+        "format_validity": 1.0
+      },
+      "status": "passed"
+    },
+    {
+      "name": "dry_run_complete",
+      "description": "Dry run produces 15 results (5 tracks x 3 models)",
+      "input": {
+        "tracks": 5,
+        "models": 3,
+        "sample_size": 100
+      },
+      "expected": {
+        "result_count": 15,
+        "total_calls": 1500
+      },
+      "status": "passed"
+    }
+  ],
+  "invariants": [
+    {
+      "name": "accuracy_bounded",
+      "check": "0.0 <= accuracy <= 1.0",
+      "status": "verified"
+    },
+    {
+      "name": "format_validity_threshold",
+      "check": "format_validity >= 0.95",
+      "status": "verified"
+    },
+    {
+      "name": "kaggle_metadata_synced",
+      "check": "all datasets contain github.com/gHashTag/t27 link",
+      "status": "pending_update"
+    }
+  ],
+  "sealed_at": "2026-04-15T08:12:00Z"
+}

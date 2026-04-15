@@ -1,0 +1,279 @@
+// SPDX-License-Identifier: Apache-2.0
+// Trinity Cognitive Probe Runner -- Kaggle MC Benchmark Spec
+//
+// Benchmarks 5 cognitive tracks on live LLM models.
+// Tracks: THLP, TTM, TAGP, TEFB, TSCP (65,133 MC questions total)
+//
+// Mathematical Foundation:
+//   phi^2 + 1/phi^2 = 3 = TRINITY
+//
+// Source datasets:
+//   kaggle.com/datasets/playra/trinity-cognitive-probes-*-mc
+
+spec trinity_cognitive_probe_runner {
+
+    // --- Constants ---
+
+    const PHI: f64 = 1.618033988749895;
+    const PHI_INV: f64 = 0.618033988749895;
+    const TRINITY: f64 = 3.0;
+    const TRINITY_TOL: f64 = 1e-10;
+
+    // --- Track definitions ---
+
+    enum Track {
+        THLP,   // Hippocampal Learning Probe -- pattern learning, belief update
+        TTM,    // Metacognition Probe -- confidence calibration, error detection
+        TAGP,   // Attentional Gateway Probe -- selective filtering, sustained attention
+        TEFB,   // Executive Function Battery -- planning, working memory, flexibility
+        TSCP,   // Social Cognition Probe -- Theory of Mind, pragmatic inference
+    }
+
+    struct TrackMeta {
+        track: Track,
+        slug: string,
+        csv_name: string,
+        total_questions: u32,
+        brain_zones: [string],
+    }
+
+    const TRACK_REGISTRY: [TrackMeta; 5] = [
+        TrackMeta {
+            track: Track.THLP,
+            slug: "trinity-cognitive-probes-thlp-mc",
+            csv_name: "thlp_mc_new.csv",
+            total_questions: 19681,
+            brain_zones: ["Hippocampus", "Entorhinal Cortex"],
+        },
+        TrackMeta {
+            track: Track.TTM,
+            slug: "trinity-cognitive-probes-tmp-mc",
+            csv_name: "ttm_mc_v5.csv",
+            total_questions: 4931,
+            brain_zones: ["PCC", "dlPFC"],
+        },
+        TrackMeta {
+            track: Track.TAGP,
+            slug: "trinity-cognitive-probes-tagp-mc",
+            csv_name: "tagp_mc.csv",
+            total_questions: 17601,
+            brain_zones: ["Parietal Cortex", "FEF"],
+        },
+        TrackMeta {
+            track: Track.TEFB,
+            slug: "trinity-cognitive-probes-tefb-mc",
+            csv_name: "tefb_mc_new.csv",
+            total_questions: 21081,
+            brain_zones: ["dlPFC", "ACC", "OFC"],
+        },
+        TrackMeta {
+            track: Track.TSCP,
+            slug: "trinity-cognitive-probes-tscp-mc",
+            csv_name: "tscp_mc_v5.csv",
+            total_questions: 2839,
+            brain_zones: ["TPJ", "mPFC"],
+        },
+    ];
+
+    // --- MC Question format ---
+
+    struct MCQuestion {
+        id: string,
+        question_type: string,
+        question: string,
+        choices: string,       // "A) ... | B) ... | C) ... | D) ..."
+        answer: string,        // "A", "B", "C", or "D"
+    }
+
+    struct ModelResponse {
+        model_id: string,
+        question_id: string,
+        predicted: string,     // "A", "B", "C", or "D"
+        latency_ms: f64,
+        raw_response: string,
+        format_valid: bool,    // true if parseable to A/B/C/D
+    }
+
+    // --- Benchmark configuration ---
+
+    struct BenchConfig {
+        sample_size: u32,
+        models: [string],
+        tracks: [Track],
+        timeout_ms: u32,
+        max_retries: u32,
+    }
+
+    const DEFAULT_CONFIG: BenchConfig = BenchConfig {
+        sample_size: 100,
+        models: [
+            "claude-3-5-sonnet-20241022",
+            "gpt-4o-mini-2024-07-18",
+            "llama-3.1-8b-instruct",
+        ],
+        tracks: [Track.THLP, Track.TTM, Track.TAGP, Track.TEFB, Track.TSCP],
+        timeout_ms: 30000,
+        max_retries: 2,
+    };
+
+    // --- Result structures ---
+
+    struct TrackResult {
+        track: Track,
+        model_id: string,
+        total: u32,
+        correct: u32,
+        accuracy: f64,
+        format_valid_count: u32,
+        format_validity: f64,
+        latency_p50_ms: f64,
+        latency_p95_ms: f64,
+        latency_p99_ms: f64,
+    }
+
+    struct BenchmarkSummary {
+        config: BenchConfig,
+        results: [TrackResult],
+        total_calls: u32,
+        total_duration_ms: f64,
+        timestamp: string,
+    }
+
+    // --- Core functions ---
+
+    fn load_track_csv(track: TrackMeta, sample_size: u32) -> [MCQuestion] {
+        // Load CSV from Kaggle dataset, sample random subset
+        // Columns: id, question_type, question, choices, answer
+        // Returns sample_size random questions
+    }
+
+    fn run_probe(question: MCQuestion, model_id: string, timeout_ms: u32) -> ModelResponse {
+        // Send MC question to model via API
+        // Parse response to extract A/B/C/D answer
+        // Measure latency
+    }
+
+    fn compute_accuracy(responses: [ModelResponse], ground_truth: [MCQuestion]) -> f64 {
+        // correct_count / total_count
+    }
+
+    fn compute_percentile(values: [f64], p: f64) -> f64 {
+        // Standard percentile computation
+    }
+
+    fn run_track_benchmark(
+        track: TrackMeta,
+        model_id: string,
+        config: BenchConfig
+    ) -> TrackResult {
+        // 1. Load sample
+        // 2. Run all probes
+        // 3. Compute metrics
+        // 4. Return TrackResult
+    }
+
+    fn run_full_benchmark(config: BenchConfig) -> BenchmarkSummary {
+        // For each track x model: run_track_benchmark
+        // Aggregate results
+        // Return summary
+    }
+
+    // --- Tests ---
+
+    test trinity_invariant {
+        given phi = PHI
+        given phi_inv = PHI_INV
+        when trinity_check = phi * phi + phi_inv * phi_inv
+        then abs(trinity_check - TRINITY) < TRINITY_TOL
+    }
+
+    test track_registry_complete {
+        given registry = TRACK_REGISTRY
+        then registry.len() == 5
+        then registry[0].track == Track.THLP
+        then registry[1].track == Track.TTM
+        then registry[2].track == Track.TAGP
+        then registry[3].track == Track.TEFB
+        then registry[4].track == Track.TSCP
+    }
+
+    test track_total_questions {
+        given registry = TRACK_REGISTRY
+        when total = sum(registry.map(|t| t.total_questions))
+        then total == 66133
+        // 19681 + 4931 + 17601 + 21081 + 2839 = 66133
+    }
+
+    test sample_size_100_per_track {
+        given tracks = [Track.THLP, Track.TTM, Track.TAGP, Track.TEFB, Track.TSCP]
+        given sample_size = 100
+        given models = ["claude-3-5-sonnet-20241022", "gpt-4o-mini-2024-07-18", "llama-3.1-8b-instruct"]
+
+        for track in tracks {
+            when results = run_probe(track, sample_size, models)
+            then results.accuracy >= 0.0
+            then results.accuracy <= 1.0
+            then results.format_validity == 1.0
+        }
+    }
+
+    test mc_answer_valid {
+        given valid_answers = ["A", "B", "C", "D"]
+        given response = ModelResponse {
+            model_id: "test",
+            question_id: "test_001",
+            predicted: "B",
+            latency_ms: 150.0,
+            raw_response: "The answer is B",
+            format_valid: true,
+        }
+        then valid_answers.contains(response.predicted)
+        then response.format_valid == true
+    }
+
+    // --- Invariants ---
+
+    invariant accuracy_bounded {
+        // Accuracy must be between 0 and 1
+        forall result in BenchmarkSummary.results:
+            result.accuracy >= 0.0 && result.accuracy <= 1.0
+    }
+
+    invariant format_validity_perfect {
+        // Format validity should be 1.0 (all responses parseable)
+        forall result in BenchmarkSummary.results:
+            result.format_validity >= 0.95
+    }
+
+    invariant kaggle_metadata_synced {
+        // All 5 datasets must reference github.com/gHashTag/t27
+        forall track in TRACK_REGISTRY:
+            kaggle_dataset(track.slug).description contains "github.com/gHashTag/t27"
+    }
+
+    invariant latency_reasonable {
+        // p95 latency under 10 seconds per question
+        forall result in BenchmarkSummary.results:
+            result.latency_p95_ms < 10000.0
+    }
+
+    // --- Benchmarks ---
+
+    bench inference_latency {
+        measure latency_p50_ms(DEFAULT_CONFIG)
+        expect latency_p50_ms < 2000.0
+        // Target: < 2s median per question
+    }
+
+    bench accuracy_baseline {
+        measure accuracy_per_track(DEFAULT_CONFIG)
+        expect accuracy > 0.25
+        // Baseline: better than random (4 choices = 25%)
+    }
+
+    bench total_throughput {
+        measure total_calls = 5 * 100 * 3  // tracks * samples * models
+        expect total_calls == 1500
+        // 1500 API calls for full benchmark
+    }
+}

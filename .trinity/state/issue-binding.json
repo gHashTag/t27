@@ -1,12 +1,7 @@
 {
-  "issue_id": "INFRA",
-  "source": "github",
-  "url": "https://github.com/gHashTag/trinity/issues/INFRA",
-  "title": "PHI LOOP Infrastructure: Parser Tests",
-  "state": "in_progress",
-  "linked_skill_id": "tri-constitution",
-  "linked_session_id": "2026-04-04T08:30:00Z#tri",
-  "last_synced_at": "2026-04-04T08:25:00Z",
-  "required_commit_message_pattern": "\\[ref: INFRA\\]",
-  "metadata": {}
+  "issue_id": "KAGGLE-BENCH-001",
+  "issue_title": "Kaggle Cognitive Probes Benchmark + Repo Promotion",
+  "spec_path": "specs/benchmarks/trinity_cognitive_probe_runner.t27",
+  "created_at": "2026-04-15T08:08:00Z",
+  "status": "in_progress"
 }

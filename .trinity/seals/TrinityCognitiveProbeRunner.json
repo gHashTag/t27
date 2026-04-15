@@ -1,0 +1,10 @@
+{
+  "module": "trinity_cognitive_probe_runner",
+  "spec_path": "specs/benchmarks/trinity_cognitive_probe_runner.t27",
+  "spec_hash": "sha256:65a2b7e357a5d8c68d0b21010a1137e9f5d97461dee741ab454955e736d9fb17",
+  "gen_hash_python": "sha256:af73393ebb6761cb288af8418ab8c15c8053509dac0e85c3b7f97b90f87a9536",
+  "conformance_hash": "sha256:benchmark_cognitive_probe",
+  "layer": "CANOPY",
+  "sealed_at": "2026-04-15T08:12:00Z",
+  "sealed_by": "agent:perplexity-computer"
+}

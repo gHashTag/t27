@@ -1,23 +1,28 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-15
-**Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
+**Last updated:** 2026-04-16
+
+**Active:** Kaggle Cognitive Probes Benchmark (PR #479, Issue #481)
+**Repository Cleanup:** Album removal (PR #488, Issue #487)
 
 ---
 
 ## Active Work
+
+**Kaggle Cognitive Probes Benchmark** (PR #479) — Benchmark runner + promo for 5 cognitive tracks
+- Spec: `specs/benchmarks/trinity_cognitive_probe_runner.t27` (5 tests, 4 invariants, 3 benchmarks)
+- Python runner: Claude 3.5 Sonnet, GPT-4o mini, Llama 3.1 support
+- 5 tracks on Kaggle: THLP, TTM, TAGP, TEFB, TSCP (66,133 MC questions total)
+- Launch promo doc with brain zone architecture diagram
+- Pending: live benchmark run with API keys, Kaggle description updates
+
+---
 
 **DARPA CLARA Documentation Organization** (PR #478) — Docs structure overhaul for clarity
 - Comprehensive `docs/clara/README.md` index with quick reference tables
 - New `docs/clara/evidence/README.md` for evidence package organization
-- Clear directory structure visualization
-- Quick navigation to all key documents
 
 ---
-
-**DARPA CLARA v1.5 Submission** (PR #473) — Ready for review, deadline April 17, 2026
-
-## Active Work
 
 **DARPA CLARA v1.5 Submission** (PR #473) — Ready for review, deadline April 17, 2026
 - Defense domain examples (COA planning spec with 522 lines)
