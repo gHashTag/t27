@@ -68,3 +68,23 @@
 - **Commit:** docs(clara): comprehensive documentation organization overhaul
 - **Files:** docs/NOW.md
 
+## 2026-04-15T08:29:44Z — feat/clara-docs-organization
+- **Commit:** docs(clara): comprehensive documentation organization overhaul
+- **Files:** .claude/projects/-Users-playra-t27/memory/kaggle_upload.md,external/kaggle/AGI_HACKATHON_WRITEUP.md,external/kaggle/BENCHMARK_MODELS.md,external/kaggle/KAGGLE_FIXES_REPORT.md,external/kaggle/README.md,external/kaggle/READY_TO_COMPETE.md,external/kaggle/REAL_MODEL_BENCHMARKS.md,external/kaggle/STATUS.md,external/kaggle/scripts/browser_control.py,external/kaggle/scripts/fix_kaggle_datasets.py,external/kaggle/scripts/upload_mc_datasets_fixed.py
+
+## 2026-04-15T09:36:52Z — feat/clara-docs-organization
+- **Commit:** chore(kaggle): Remove hackathon files from t27
+- **Files:** external/kaggle/AGI_HACKATHON_WRITEUP.md,external/kaggle/BENCHMARK_MODELS.md,external/kaggle/KAGGLE_FIXES_REPORT.md,external/kaggle/OWNERS.md,external/kaggle/README.md,external/kaggle/READY_TO_COMPETE.md,external/kaggle/REAL_MODEL_BENCHMARKS.md,external/kaggle/STATUS.md,external/kaggle/data/tagp_mc.csv,external/kaggle/data/tefb_mc.csv,external/kaggle/data/tefb_mc_new.csv,external/kaggle/data/thlp_mc.csv,external/kaggle/data/thlp_mc_new.csv,external/kaggle/data/tscp_mc.csv,external/kaggle/data/tscp_mc_adversarial.csv,external/kaggle/data/tscp_mc_new.csv,external/kaggle/data/ttm_mc.csv,external/kaggle/data/ttm_mc_adversarial.csv,external/kaggle/data/ttm_mc_new.csv,external/kaggle/notebooks/tagp-kernel-metadata.json
+
+## 2026-04-15T09:36:58Z — feat/clara-docs-organization
+- **Commit:** chore(kaggle): migrate hackathon assets to agi-hackathon repo
+- **Files:** .trinity/current_task/activity.md,external/kaggle/AGI_HACKATHON_WRITEUP.md,external/kaggle/BENCHMARK_MODELS.md,external/kaggle/KAGGLE_FIXES_REPORT.md,external/kaggle/OWNERS.md,external/kaggle/README.md,external/kaggle/READY_TO_COMPETE.md,external/kaggle/REAL_MODEL_BENCHMARKS.md,external/kaggle/STATUS.md,external/kaggle/data/tagp_mc.csv,external/kaggle/data/tefb_mc.csv,external/kaggle/data/tefb_mc_new.csv,external/kaggle/data/thlp_mc.csv,external/kaggle/data/thlp_mc_new.csv,external/kaggle/data/tscp_mc.csv,external/kaggle/data/tscp_mc_adversarial.csv,external/kaggle/data/tscp_mc_new.csv,external/kaggle/data/ttm_mc.csv,external/kaggle/data/ttm_mc_adversarial.csv,external/kaggle/data/ttm_mc_new.csv
+
+## 2026-04-15T09:37:15Z — feat/clara-docs-organization
+- **Commit:** chore(kaggle): migrate hackathon assets to agi-hackathon repo
+- **Files:** .trinity/current_task/activity.md,external/kaggle/AGI_HACKATHON_WRITEUP.md,external/kaggle/BENCHMARK_MODELS.md,external/kaggle/KAGGLE_FIXES_REPORT.md,external/kaggle/OWNERS.md,external/kaggle/README.md,external/kaggle/READY_TO_COMPETE.md,external/kaggle/REAL_MODEL_BENCHMARKS.md,external/kaggle/STATUS.md,external/kaggle/data/tagp_mc.csv,external/kaggle/data/tefb_mc.csv,external/kaggle/data/tefb_mc_new.csv,external/kaggle/data/thlp_mc.csv,external/kaggle/data/thlp_mc_new.csv,external/kaggle/data/tscp_mc.csv,external/kaggle/data/tscp_mc_adversarial.csv,external/kaggle/data/tscp_mc_new.csv,external/kaggle/data/ttm_mc.csv,external/kaggle/data/ttm_mc_adversarial.csv,external/kaggle/data/ttm_mc_new.csv
+
+## 2026-04-15T09:44:16Z — master
+- **Commit:** feat(chore): migrate CLARA DARPA PA-25-07-02 to separate repository
+- **Files:** .trinity/current_task/activity.md
+
