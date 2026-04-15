@@ -72,3 +72,7 @@
 - **Commit:** docs(clara): comprehensive documentation organization overhaul
 - **Files:** .claude/projects/-Users-playra-t27/memory/kaggle_upload.md,external/kaggle/AGI_HACKATHON_WRITEUP.md,external/kaggle/BENCHMARK_MODELS.md,external/kaggle/KAGGLE_FIXES_REPORT.md,external/kaggle/README.md,external/kaggle/READY_TO_COMPETE.md,external/kaggle/REAL_MODEL_BENCHMARKS.md,external/kaggle/STATUS.md,external/kaggle/scripts/browser_control.py,external/kaggle/scripts/fix_kaggle_datasets.py,external/kaggle/scripts/upload_mc_datasets_fixed.py
 
+## 2026-04-15T09:38:10Z — master
+- **Commit:** chore(kaggle): migrate hackathon assets to agi-hackathon repo
+- **Files:** external/kaggle/AGI_HACKATHON_WRITEUP.md,external/kaggle/BENCHMARK_MODELS.md,external/kaggle/KAGGLE_FIXES_REPORT.md,external/kaggle/OWNERS.md,external/kaggle/README.md,external/kaggle/READY_TO_COMPETE.md,external/kaggle/REAL_MODEL_BENCHMARKS.md,external/kaggle/STATUS.md,external/kaggle/data/tagp_mc.csv,external/kaggle/data/tefb_mc.csv,external/kaggle/data/tefb_mc_new.csv,external/kaggle/data/thlp_mc.csv,external/kaggle/data/thlp_mc_new.csv,external/kaggle/data/tscp_mc.csv,external/kaggle/data/tscp_mc_adversarial.csv,external/kaggle/data/tscp_mc_new.csv,external/kaggle/data/ttm_mc.csv,external/kaggle/data/ttm_mc_adversarial.csv,external/kaggle/data/ttm_mc_new.csv,external/kaggle/notebooks/tagp-kernel-metadata.json
+
