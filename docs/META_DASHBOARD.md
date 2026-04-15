@@ -64,6 +64,7 @@ Phase 4: Crown (Queen)        ████████████  99% 🟢
 | 081 | #262 | Ternary Search | Linear, binary, ternary search, count, find_all | ✅ Done |
 | 082 | #264 | Ternary Pattern | Naive search, KMP, pattern count/replace | ✅ Done |
 
+| 032 | #484 | Cloud Orchestration | Railway deployment, debouncing, task analysis | ✅ Done
 ---
 
 ## Queen Health by Domain
