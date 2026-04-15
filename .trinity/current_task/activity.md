@@ -92,3 +92,27 @@
 - **Commit:** Merge pull request #482: chore(kaggle) migration cleanup
 - **Files:** clara-bridge/README.md
 
+## 2026-04-15T14:15:57Z — feat/queen-self-evolution
+- **Commit:** Update README with scientific strengthening section
+- **Files:** clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:16:19Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA CLARA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:16:39Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:17:03Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:17:48Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:19:15Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/FAQ.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
