@@ -1,0 +1,194 @@
+spec tri_experience_cli
+
+ring: 011
+imports: [gf_family_foundation]
+
+-- ══════════════════════════════════════════════════
+-- TRI EXPERIENCE SAVE CLI — Infinite Memory Key Differentiator
+-- ══════════════════════════════════════════════════════
+-- 5 Unfair Advantages (ASAP+PBT): Experience != Context Window ✓
+-- ════════════════════════════════════════════════════════════════════════════════
+-- 5th Unfair Advantage: Collective intelligence via shared experience/
+-- ════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+types {
+    Experience {
+        skill:     str,
+        payload:   str,
+        timestamp: str,
+        ring:      u32,
+        commit:    str,
+        bench:     { ops_per_sec: f64, target: f64, met: bool }
+    }
+
+    ExperienceStore {
+        path: str,           -- .trinity/experience/
+        entries: [Experience]
+    }
+
+    SkillDiff {
+        skill:      str,
+        old_bench: f64,
+        new_bench: f64,
+        delta_pct: f64,
+        verdict:   str     -- "IMPROVED" | "DEGRADED" | "STABLE"
+    }
+}
+
+-- ════════════════════════════════════════════════════════════════════════════════
+-- MAIN INTERFACE (4 commands)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+functions {
+    experience_save(skill: str, payload: str) -> Experience
+    experience_load(skill: str) -> [Experience]
+    experience_list() -> [Experience]
+    experience_diff(skill: str) -> SkillDiff
+    experience_evolve() -> [SkillDiff]   -- ASHA+PBT: compare all skills
+}
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- EXPERIENCE STORE OPERATIONS
+-- ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+invariant experience_immutable {
+    given e1 Experience, e2 Experience
+    assert e1.timestamp != e2.timestamp  -- each save is unique
+}
+
+invariant experience_monotonic_growth {
+    given e1 Experience, e2 Experience
+    assert e1.timestamp <= e2.timestamp  -- time never decreases
+}
+
+invariant experience_never_deleted {
+    given s ExperienceStore
+    let all = experience_list(s)
+    assert all.len() >= s.entries.len()  -- monotonic growth
+}
+
+invariant diff_consistent {
+    given d SkillDiff
+    assert d.delta_pct == (d.new_bench - d.old_bench) * 100.0 / d.old_bench
+}
+
+invariant verdict_binary {
+    given s SkillDiff
+    assert s.verdict == "IMPROVED" || s.verdict == "DEGRADED" || s.verdict == "STABLE"
+}
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- CORE FUNCTIONS (8 total)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+pub fn experience_save(skill: str, payload: str) -> Experience
+pub fn experience_load(skill: str) -> [Experience]
+pub fn experience_list() -> [Experience]
+pub fn experience_diff(skill: str) -> SkillDiff
+pub fn experience_evolve() -> [SkillDiff]
+
+-- ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- TESTS (8 mandatory)
+-- ════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+test experience_saves_with_timestamp {
+    given spec = tri_experience_cli
+    let timestamp = "2026-04-16T19:53:57Z"
+    let exp = experience_save("ring-010-complete", "first_e2e_pipeline")
+
+    assert exp.timestamp == timestamp
+}
+
+test experience_loads_saved_experience {
+    given spec = tri_experience_cli
+    let saved = experience_save("ring-010-complete", "test_payload")
+    let loaded = experience_load("ring-010-complete")
+
+    assert loaded.skill == saved.skill
+    assert loaded.payload == saved.payload
+}
+
+test experience_list_shows_all_experiences {
+    given spec = tri_experience_cli
+    let _ = experience_save("ring-000-complete", "first")
+    let _ = experience_save("ring-007-complete", "vm_executor")
+    let _ = experience_save("ring-010-complete", "first_e2e")
+
+    let all = experience_list()
+    assert all.len() >= 3
+}
+
+test experience_diff_shows_improvement {
+    given spec = tri_experience_cli
+    let _ = experience_save("ring-010-complete", "ops: 50M", "bench": { "ops_per_sec": 50000000.0, "target": 100000000.0, "met": false })
+    let _ = experience_save("ring-010-complete", "ops: 55M", "bench": { "ops_per_sec": 55000000.0, "target": 100000000.0, "met": true })
+
+    let diff = experience_diff("ring-010-complete")
+
+    assert diff.verdict == "IMPROVED"
+    assert diff.new_bench > diff.old_bench
+}
+
+test experience_diff_shows_degradation {
+    given spec = tri_experience_cli
+    let _ = experience_save("ring-010-complete", "ops: 50M", "bench": { "ops_per_sec": 50000000.0, "target": 100000000.0, "met": false })
+    let _ = experience_save("ring-010-complete", "ops: 45M", "bench": { "ops_per_sec": 45000000.0, "target": 100000000.0, "met": false })
+
+    let diff = experience_diff("ring-010-complete")
+
+    assert diff.verdict == "DEGRADED"
+    assert diff.new_bench < diff.old_bench
+}
+
+test experience_diff_shows_stable {
+    given spec = tri_experience_cli
+    let _ = experience_save("ring-010-complete", "ops: 50M", "bench": { "ops_per_sec": 50000000.0, "target": 100000000.0, "met": false })
+    let _ = experience_save("ring-010-complete", "ops: 50M", "bench": { "ops_per_sec": 50000000.0, "target": 100000000.0, "met": false })
+
+    let diff = experience_diff("ring-010-complete")
+
+    assert diff.verdict == "STABLE"
+    assert diff.new_bench == diff.old_bench
+}
+
+test experience_evolve_compares_all_skills {
+    given spec = tri_experience_cli
+    let _ = experience_save("ring-000-complete", "first")
+    let _ = experience_save("ring-007-complete", "vm_executor")
+    let _ = experience_save("ring-010-complete", "first_e2e")
+    let _ = experience_save("ring-011-complete", "experience_cli")
+
+    let diffs = experience_evolve()
+
+    assert diffs.len() == 4
+}
+
+test experience_file_is_valid_json {
+    given spec = tri_experience_cli
+    -- Ensure .trinity/experience/episodes.jsonl is valid JSON
+    let path = ".trinity/experience/episodes.jsonl"
+    let content = read_file(path)
+    assert is_valid_json(content)
+}
+
+bench experience_save_throughput {
+    measure nanoseconds to experience_save("test", "test_payload")
+    target 10_000  -- 10 saves/sec
+    warmup 3
+    runs 50
+}
+
+bench experience_list_throughput {
+    measure nanoseconds to experience_list()
+    target 1_000_000  -- 1M entries/sec scan
+    warmup 3
+    runs 50
+}
+
+bench experience_evolve_throughput {
+    measure nanoseconds to experience_evolve()
+    target 100_000  -- 100K compares/sec (4 skills)
+    warmup 3
+    runs 50
+}

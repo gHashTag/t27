@@ -1,0 +1,57 @@
+spec phi_identity_e2e
+
+use "00-gf-family-foundation.tri"
+
+-- First real Trinity program to run end-to-end through pipeline
+
+constants {
+    EXPECTED: GF32 = 3.0    -- phi_sq + 1/phi_sq = trinity
+}
+
+functions {
+    main() -> void {
+        -- Load phi_sq and inv_sq
+        phi_sq = PHI * PHI
+        inv_sq = 1.0 / (PHI * PHI)
+
+        -- Compute trinity
+        trinity = phi_sq + inv_sq
+
+        -- Verify result
+        error = abs(trinity - EXPECTED)
+        assert error < 1e-12
+    }
+}
+
+-- Test the whole pipeline
+tests {
+    e2e_full_pipeline {
+        -- This test runs the actual .tri pipeline:
+        -- 1. t27c parse phi_identity_e2e.tri
+        -- 2. t27c codegen phi_identity_e2e.trib
+        -- 3. t27c trib execute phi_identity_e2e.trib
+        -- 4. Verify phi identity result
+
+        expected = EXPECTED  -- 3.0
+        actual = run_trinity_program()
+
+        assert actual == expected
+    }
+
+    verify_phi_sq {
+        phi_sq = PHI * PHI
+        assert phi_sq == 2.6180...
+    }
+
+    verify_inv_sq {
+        inv_sq = 1.0 / (PHI * PHI)
+        assert inv_sq == 0.3819...
+    }
+
+    verify_trinity {
+        phi_sq = PHI * PHI
+        inv_sq = 1.0 / phi_sq
+        trinity = phi_sq + inv_sq
+        assert trinity == 3.0
+    }
+}
