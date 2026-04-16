@@ -224,3 +224,7 @@
 - **Commit:** feat(paper): create dedicated Scott Olsen section, restructure paper
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,bootstrap/Cargo.toml,bootstrap/src/main.rs,bootstrap/src/test_runner.rs,specs/00-gf-family-foundation.tri,specs/03-bootstrap-compiler.minimal.tri
 
+## 2026-04-16T14:23:25Z — master
+- **Commit:** feat(ring-000): Ring-005-006 tri test runner
+- **Files:** research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex,research/trinity-pellis-paper/golden_balance.png
+
