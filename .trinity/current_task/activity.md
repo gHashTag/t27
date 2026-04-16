@@ -212,3 +212,11 @@
 - **Commit:** feat(ring-004): tri codegen spec - .trib bytecode emitter
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/05-tri-test-runner.tri,specs/06-tri-bench-runner.tri
 
+## 2026-04-16T14:04:30Z — master
+- **Commit:** feat(ring-005-006): tri test runner and bench runner specs
+- **Files:** 
+
+## 2026-04-16T14:08:52Z — master
+- **Commit:** feat(ring-000): GF family foundation - GF4/GF8/GF16/GF32/GF64/TF3 phi-native types
+- **Files:** .trinity/current_task/activity.md,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
