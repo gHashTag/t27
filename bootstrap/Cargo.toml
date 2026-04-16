@@ -5,6 +5,10 @@ edition = "2021"
 description = "T27 Bootstrap Compiler for Trinity S³AI Framework"
 license = "MIT"
 
+[[bin]]
+name = "t27c"
+path = "src/main.rs"
+
 [features]
 server = ["axum", "tokio"]
 

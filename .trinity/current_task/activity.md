@@ -220,3 +220,7 @@
 - **Commit:** feat(ring-000): GF family foundation - GF4/GF8/GF16/GF32/GF64/TF3 phi-native types
 - **Files:** .trinity/current_task/activity.md,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
 
+## 2026-04-16T14:22:44Z — master
+- **Commit:** feat(paper): create dedicated Scott Olsen section, restructure paper
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,bootstrap/Cargo.toml,bootstrap/src/main.rs,bootstrap/src/test_runner.rs,specs/00-gf-family-foundation.tri,specs/03-bootstrap-compiler.minimal.tri
+

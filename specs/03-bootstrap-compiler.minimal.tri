@@ -1,0 +1,26 @@
+spec bootstrap_minimal
+
+-- Minimal bootstrap compiler for t27c to parse .tri specs
+-- This spec is TEMPORARY to unblock compilation while bootstrap/src/main.rs is being rewritten
+-- TODO: This will be superseded by real bootstrap/src/main.rs implementing specs/03-tri-bootstrap-compiler.tri
+
+pub struct Token {
+  kind TokenKind,
+  value str,
+  line u32,
+  col   u32,
+}
+
+pub const TokenKind enum(u8) {
+  spec = 0,
+  eof = 255,
+}
+
+pub fn lex(source str) -> Token[]
+
+test lex_spec_keyword {
+  given source = "spec hello"
+  let tokens = lex(source)
+  assert tokens.len() >= 1
+  assert tokens[0].kind == TokenKind.spec
+}
