@@ -1,62 +1,284 @@
-// SPDX-License-Identifier: Apache-2.0
-// Trinity VM Core - Ring 001
-// .t27-MIN Specification
-
-spec vm_core {
-
-    // Types for register-based virtual machine
-    type VMState = struct {
-        registers: [8]u64,
-        pc: u32,
-        flags: u8,
-        halted: bool,
-        cycles: u64
-    }
-
-    // Opcodes for minimal but complete VM
-    type Opcode = enum(u8) {
-        // Control flow
-        HALT = 0x00,
-
-        // Load/Store
-        LOAD_CONST = 0x10,  // Load 32-bit constant
-        STORE = 0x11,           // Store register byte
-
-        // Arithmetic
-        ADD = 0x20,
-        SUB = 0x21,
-        MUL = 0x22,
-        DIV = 0x23,
-
-        // Comparison
-        EQ = 0x30,
-        LT = 0x31,
-        GT = 0x32,
-
-        // Jump
-        JMP = 0x40,
-        JZ = 0x41,
-        JNZ = 0x42,
-
-        // Memory
-        LOAD = 0x50,
-        CALL = 0x60,
-        RET = 0x61
-    }
-
-    // Flag bits in flags register
-    const ZERO: u8 = 0x00;  // Comparison result zero
-    const SIGN: u8 = 0x01;  // Comparison result negative
-
-    // Kleene logic functions
-    fn trit_not(t: Trit) -> Trit;
-
-    // Execute single VM step
-    fn vm_step(vm: VMState, memory: [_]u8{65536}) -> VMState;
-
-    // Run VM until halt
-    fn vm_run(vm: VMState, memory: [_]u8{65536}) -> u64;
-
-    // Benchmark VM execution
-    fn vm_benchmark(program: [_]u8, iterations: u64) -> u64;
-}
+1	spec vm_core
+2	module vm_core {
+3	  version: "1.0.0"
+4	  ring: 001
+5	  imports: [gf_family_foundation]
+6	}
+7
+8	-- SECTION 2: VM Opcode Definitions
+9	types {
+10	  Opcode = enum(u8) {
+11	    PHI_POW    = 0,     -- push phi^n
+12	    GF16_ADD   = 1,     -- GF16 arithmetic
+13	    GF16_MUL   = 2,     -- GF16 arithmetic
+14	    GF16_SUB   = 3,     -- GF16 arithmetic
+15	    TF3_AND    = 4,     -- Kleene K3 AND
+16	    TF3_OR     = 5,     -- Kleene K3 OR
+17	    TF3_NOT    = 6,     -- Kleene K3 NOT
+18	    LOAD_CONST = 7,     -- push constant from pool
+19	    VERIFY     = 8,     -- check invariant
+20	    HALT       = 9,     -- stop execution
+21	  }
+22	}
+23
+24	-- SECTION 3: VM Instruction
+25	types {
+26	  Instruction { opcode: Opcode, operand: u32 }
+27	}
+28
+29	-- SECTION 4: VM State
+30	types {
+31	  -- Stack: GF32 values (f64 representation for precision)
+32	  -- 256 entries to support deep recursion
+33	  VMState = struct {
+34	    stack: [GF32; 256],
+35	    pc: u32,              -- program counter
+36	    flags: u8,            -- zero, overflow, etc.
+37	  }
+38	}
+39
+40	-- SECTION 5: Constants Pool
+41	types {
+42	  -- Global constants for LOAD_CONST
+43	  -- 256 slots for simplicity (index = constant value)
+44	  ConstPool = struct {
+45	    pool: [f64; 256],
+46	    size: u8,
+47	  }
+48	}
+49
+50	-- SECTION 6: Functions
+51	functions {
+52	  -- φ-арифметика: phi_pow(n) using GF32 precision
+53	  phi_pow: fn(n: i32) -> GF32 {
+54	    if n < 0 {
+55	      return GF32 { bits: 0u32 };
+56	    }
+57	    if n == 0 {
+58	      implementation gf32_from_f64(1.0f64)  -- 1.0 in GF32
+59	    }
+60	    let result = GF32 { bits: 1u32 };  -- 1.0
+61	    let i = 0i32;
+62	    while i < n {
+63	      result.bits = result.bits * gf32_from_f64(PHI)  -- multiply by phi
+64	      i = i + 1;
+65	    }
+66	    result
+67	  }
+68
+69
+70	  -- VM execution engine
+71	  vm_execute: fn(bytecode: [u8]) -> VMState {
+72	    let mut state = VMState {
+73	      stack: [GF32; 256],
+74	      pc: 0u32,
+75	      flags: 0u8,
+76	    };
+77	    let mut const_pool = ConstPool {
+78	      pool: [0.0f64; 256],
+79	      size: 0u8,
+80	    };
+81
+82
+83	    while state.pc < bytecode.len() as u32 {
+84	      let opcode = Opcode(bytecode[state.pc as usize]);
+85	      let instr = Instruction { opcode, operand: 0u32 };
+86
+87
+88	      -- PHI_POW: push phi^n
+89	      if opcode == Opcode.PHI_POW {
+90	        let n = instr.operand as i32;
+91	        let result = phi_pow(n);
+92	        state.stack[0] = result;
+93	        state.pc = state.pc + 1u32;
+94	      }
+95
+96
+97	      -- GF16 arithmetic (placeholder)
+98	      if opcode >= Opcode.GF16_ADD && opcode <= Opcode.GF16_SUB {
+99	        -- TODO: implement dispatch
+100	      }
+101
+102
+103	      -- TF3 logical (Kleene K3)
+104	      if opcode >= Opcode.TF3_AND && opcode <= Opcode.TF3_NOT {
+105	        -- TODO: implement dispatch
+106	      }
+107
+108
+109	      -- LOAD_CONST: push constant
+110	      if opcode == Opcode.LOAD_CONST {
+111	        let idx = instr.operand as u8;
+112	        if idx < const_pool.size {
+113	          state.stack[0] = gf32_from_f64(const_pool.pool[idx]);
+114	          state.pc = state.pc + 1u32;
+115	        }
+116	      }
+117
+118
+119	      -- VERIFY: check invariant at runtime
+120	      if opcode == Opcode.VERIFY {
+121	        -- For Ring-001: phi_trinity_identity check
+122	        -- Expected: stack[1] = 1.0 * phi^2 + 1.0/phi^2 = 3.0 (GF32)
+123	        -- TODO: implement exact verification
+124	        state.pc = state.pc + 1u32;
+125	      }
+126
+127
+128
+129	      -- HALT: stop execution
+130	      if opcode == Opcode.HALT {
+131	        break;
+132	      }
+133
+134
+135	      -- Invalid opcode
+136	      {
+137	        -- TODO: error handling
+138	      }
+139	    }
+140	    state
+141	  }
+142
+143
+144	  -- Runtime phi verification
+145	  vm_verify_phi_identity: fn() -> bool {
+146	    -- Check φ² + 1/φ² = 3 at runtime using GF32 precision
+147	    let phi = gf32_to_f64(gf32_from_f64(PHI));
+148	    let phi_sq = phi * phi;
+149	    let lhs = phi_sq + gf32_from_f64(1.0f64) / phi_sq;
+150	    let expected = gf32_from_f64(3.0f64);
+151	    return (lhs - expected).abs() < gf32_from_f64(1e-12f64);  -- GF32 precision: ~1e-12
+152	  }
+153	}
+154	-- SECTION 7: Invariants
+155	invariants {
+156	  -- φ-recurrence law (Fibonacci)
+157	  invariant phi_pow_recurrence {
+158	    given: n: i32
+159	    when: lhs = phi_pow(n + 1), rhs = phi_pow(n) + phi_pow(n - 1)
+160	    then: lhs == rhs
+161	  }
+162
+163	  -- Fibonacci identity verification
+164	  invariant phi_fibonacci_identity {
+165	    given: f: f64
+166	    when: fib_n = phi_pow(n) + phi_pow(n - 1), exp_n = phi.pow(f)
+167	    then: fib_n == exp_n
+168	  }
+169
+170	  -- VM stack bounded invariant
+171	  invariant vm_stack_bounded {
+172	    given: state: VMState
+173	    when: any_bytecode = [HALT]
+174	    then: state.stack.len() <= 256
+175	  }
+176	}
+177	-- SECTION 8: Tests (8 required)
+178	tests {
+179	  -- 1. phi_pow recurrence law
+180	  test phi_pow_recurrence_1 {
+181	    given: n = 1
+182	    when: lhs = phi_pow(n + 1), rhs = phi_pow(n) + phi_pow(n - 1)
+183	    then: lhs == rhs
+184	  }
+185
+186	  test phi_pow_recurrence_10 {
+187	    given: n = 10
+188	    when: lhs = phi_pow(n + 1), rhs = phi_pow(n) + phi_pow(n - 1)
+189	    then: lhs == rhs
+190	  }
+191
+192	  -- 2. phi_pow Fibonacci identity
+193	  test phi_fibonacci_identity_8 {
+194	    given: n = 8
+195	    when: lhs = phi_pow(n) + phi_pow(n - 1), rhs = phi.pow(n)
+196	    then: lhs == rhs
+197	  }
+198
+199	  test phi_fibonacci_identity_21 {
+200	    given: n = 21
+201	    when: lhs = phi_pow(n) + phi_pow(n - 1), rhs = phi.pow(n)
+202	    then: lhs == rhs
+203	  }
+204
+205
+206	  -- 3. vm_verify_phi_identity
+207	  test vm_phi_identity_exact {
+208	    -- phi_trinity_identity: φ² + 1/φ² = 3 using GF32 precision
+209	    -- Expected: stack[1] = 1.0 * phi^2 + 1.0/phi^2 = 3.0 (GF32)
+210	    when: result = vm_verify_phi_identity()
+211	    then: result == true
+212	  }
+213
+214
+215	  -- 4. vm_stack_bounded
+216	  test vm_stack_depth_256 {
+217	    given: empty_bytecode = []
+218	    when: state = vm_execute(empty_bytecode)
+219	    then: state.stack.len() == 0
+220	  }
+221
+222	  test vm_stack_max_depth {
+223	    given: push_256_constants = [LOAD_CONST] x 256 + [HALT]
+224	    when: state = vm_execute(push_256_constants)
+225	    then: state.stack.len() <= 256
+226	  }
+227
+228
+229	  -- 5. phi_pow correctness
+230	  test phi_pow_0_is_1 {
+231	    given: n = 0
+232	    when: result = phi_pow(n)
+233	    then: result == gf32_from_f64(1.0f64)  -- 1.0 in GF32
+234	  }
+235
+236	  test phi_pow_1_is_phi {
+237	    given: n = 1
+238	    when: result = phi_pow(n)
+239	    then: result == gf32_from_f64(1.6180339887498948482f64)  -- phi in GF32
+240	  }
+241
+242
+243	  -- 6. phi_pow_2_is_phi_squared
+244	  given: n = 2
+245	    when: result = phi_pow(n)
+246	    then: result == gf32_from_f64(phi.pow(2))
+247	  }
+248
+249
+250	  -- 7. phi_pow_phi_consistency
+251	  test phi_pow_phi_consistency {
+252	    -- phi_pow(n) should equal phi.pow(n)
+253	    given: n = 10
+254	    when: phi1 = phi_pow(n), phi2 = phi.pow(n)
+255	    then: phi1 == phi2
+256	  }
+257
+258
+259	  -- 8. vm_halts_empty_stack
+260	  test vm_halts_empty_stack {
+261	    given: bytecode = [HALT]
+262	    when: state = vm_execute(bytecode)
+263	    then: state.stack.len() == 0
+264	  }
+265	}
+266	-- SECTION 9: Benchmarks (2 required)
+267	benchmarks {
+268	  -- 1. phi_pow throughput
+269	  bench phi_pow_throughput {
+270	    measure: nanoseconds to phi_pow(10)
+271	    target: 50_000_000  -- 50M ops/sec
+272	    warmup: 3
+273	    runs: 100
+274	  }
+275
+276
+277	  -- 2. vm_execute cycle throughput
+278	  bench vm_execute_cycle_throughput {
+279	    measure: nanoseconds to vm_execute([PHI_POW, 0u32] x 1000)
+280	    target: 1_000_000_000  -- 1G cycles/sec
+281	    warmup: 3
+282	    runs: 100
+283	  }
+284	}

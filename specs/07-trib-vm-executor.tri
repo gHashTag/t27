@@ -1,0 +1,260 @@
+spec trib_vm_executor
+
+-- ════════════════════════════════════════════════════════
+-- .trib BINARY FORMAT HEADER
+-- Magic: 0x54524942 = "TRIB"
+-- Version: 1 (current major version)
+-- Flags: 16 bits (for future extensions)
+-- Sections count: 16 bits (max 65535 sections)
+-- Phi-hash: 64 bits (seal proof)
+-- ══════════════════════════════════════════════════
+
+use "00-gf-family-foundation.tri"
+
+-- ════════════════════════════════════════════════════════════
+-- TribHeader struct from gf_family_foundation
+-- ══════════════════════════════════════════════════════════════
+
+-- ══════════════════════════════════════════════════════════════
+-- Opcodes (32 total for first version)
+-- ════════════════════════════════════════════════════════════
+-- Stack: 256 entries (VMFrame)
+-- Program Counter: 16 bits
+-- Flags register: 16 bits
+-- ════════════════════════════════════════════════════
+
+pub const Opcode enum(u8) {
+  -- System opcodes (8)
+  HALT  = 0x00,
+  NOP  = 0x01,
+  LOAD_CONST = 0x02,
+  STORE = 0x03,
+
+  -- Memory opcodes (8)
+  LOAD_U8 = 0x10,
+  LOAD_U16 = 0x11,
+  LOAD_U32 = 0x12,
+  LOAD_GF16 = 0x13,
+  LOAD_GF32 = 0x14,
+  LOAD_F64 = 0x15,
+  STORE_U8 = 0x20,
+  STORE_U16 = 0x21,
+  STORE_U32 = 0x22,
+  STORE_GF16 = 0x23,
+  STORE_GF32 = 0x24,
+  STORE_F64 = 0x25,
+
+  -- GF16/TF3/Trinity opcodes (8)
+  TF3_AND = 0x30,
+  TF3_OR = 0x31,
+  TF3_NOT = 0x32,
+  TF3_TO_TRIT = 0x33,
+  TF3_CONSENSUS = 0x34,
+  VERIFY_PHI = 0x40,
+
+  -- Control flow (4)
+  JUMP = 0x50,
+  JUMP_IF_FALSE = 0x51,
+  JUMP_IF_TRUE = 0x52,
+  CALL = 0x53,
+  RET = 0x54,
+}
+
+pub struct TribHeader {
+  magic: u32,        -- 0x54524942 = "TRIB"
+  version: u8,         -- 1 (current major version)
+  flags: u16,         -- 16 bits (for future extensions)
+  sections: u16,       -- number of sections (max 65535)
+  phi_hash: u64,        -- 64 bits (seal proof)
+}
+
+pub struct TribSection {
+  kind: SectionKind,
+  offset: u32,
+  length: u32,
+}
+
+pub const SectionKind enum(u8) {
+  -- Core sections (mandatory)
+  TYPES = 0x01,
+  CONSTANTS = 0x02,
+  FUNCTIONS = 0x03,
+  STRINGS = 0x04,
+  SYMBOLS = 0x05,
+
+  -- Optional sections (future)
+  EXPORTS = 0x06,
+  IMPORTS = 0x07,
+  SEALS = 0x08,
+  EXPERIENCE = 0x09,
+  DEBUG_INFO = 0x0A,
+
+  -- Reserved (0x0B-0x0F)
+  RESERVED_1 = 0x0B,
+  RESERVED_2 = 0x0C,
+  RESERVED_3 = 0x0D,
+  RESERVED_4 = 0x0E,
+  RESERVED_5 = 0x0F,
+}
+
+pub struct VMFrame {
+  stack: [GF32; 256],     -- VM stack (GF32 for precision)
+  sp: u8,               -- stack pointer
+  pc: u32,              -- program counter
+  flags: u16,           -- VM flags register
+  output: GF32,          -- last output value
+}
+
+pub struct ExecResult {
+  is_ok: bool,
+  frame: VMFrame,
+  error_msg: str,
+}
+
+pub const VMError enum(u8) {
+  StackOverflow = 0x01,
+  InvalidOpcode = 0x02,
+  InvariantFail = 0x03,
+  DivisionByZero = 0x04,
+  MemoryOutOfBounds = 0x05,
+  MemoryAlignmentError = 0x06,
+}
+
+-- ══════════════════════════════════════════════════════════
+-- Core VM functions (9 functions for phi-identity verification)
+-- ══════════════════════════════════════════════════
+
+pub fn trib_read_header(bytes: [u8]) -> TribHeader
+pub fn trib_execute(bytes: [u8]) -> ExecResult
+pub fn opcode_dispatch(frame: VMFrame, op: Opcode) -> VMFrame
+pub fn verify_phi_identity(frame: VMFrame) -> bool
+
+-- ══════════════════════════════════════════════════════
+-- Helper: read .trib header (12 bytes at offset 0)
+-- ══════════════════════════════════════════════════════════
+
+invariant trib_magic_is_trib {
+  given h TribHeader
+  assert h.magic == 0x54524942
+}
+
+invariant trib_version_is_valid {
+  given h TribHeader
+  assert h.version == 1
+}
+
+invariant trib_sections_are_pow2 {
+  given h TribHeader
+  -- 16 bits for sections = 2^16 = 65536
+  assert h.sections < 65536
+}
+
+invariant phi_hash_is_64bit {
+  given h TribHeader
+  -- 64-bit hash means non-zero seal proof
+  assert h.phi_hash != 0
+}
+
+-- ══════════════════════════════════════════════════════════════
+-- Helper: verify phi identity from VMFrame state
+-- Uses GF32 arithmetic: x + 1/x = 1/0 + x
+-- Returns true if stack is clean (output = 0)
+-- ══════════════════════════════════════════════════════
+
+test trib_header_magic {
+  given spec = trib_vm_executor
+  let header = TribHeader {
+    magic: trib_magic(),
+    version: 1,
+    flags: 0,
+    sections: 1,
+    phi_hash: 0x0123456789ABCDEF,
+  }
+
+  -- Check magic constant
+  let magic_bytes = header.magic.to_be_bytes_u32()
+
+  assert magic_bytes[0] == 0x54
+  assert magic_bytes[1] == 0x52
+  assert magic_bytes[2] == 0x42
+  assert magic_bytes[3] == 0x24
+}
+
+test trib_header_roundtrip {
+  given spec = trib_vm_executor
+  let header = TribHeader {
+    magic: trib_magic(),
+    version: 1,
+    flags: 0x1234,
+    sections: 3,
+    phi_hash: 0xDEADBEEF,
+  }
+
+  let encoded = trib_header_to_bytes(header)
+  let decoded = trib_bytes_to_header(encoded)
+
+  assert decoded.magic == header.magic
+  assert decoded.version == header.version
+  assert decoded.flags == header.flags
+  assert decoded.sections == header.sections
+}
+
+test phi_identity_from_constants {
+  given spec = trib_vm_executor
+
+  -- Load phi constants
+  let one_over_phi_sq_plus_one = GF32_PHI_SQ + 1.0
+  let phi_sq_plus_one_over_phi_sq = PHI * PHI + 1.0 / (PHI * PHI)
+  let lhs = GF32_TRINITY
+  let rhs = one_over_phi_sq_plus_one / phi_sq_plus_one_over_phi_sq
+
+  -- GF32 precision verification
+  let tolerance = 0.000_001
+  assert abs(lhs - rhs) < tolerance
+}
+
+test stack_never_underflows {
+  given spec = trib_vm_executor
+  let mut frame = VMFrame { sp: 255, pc: 0, flags: 0, output: 0 }
+
+  -- Fill stack to near limit
+  for i in 0..253 {
+    frame.stack[frame.sp] = GF32_MAX_VAL as i32
+    frame.sp = (frame.sp - 1) as u8
+  }
+
+  -- Attempt one more push (should not overflow)
+  let result = push_and_check(&mut frame, GF32_MAX_VAL as i32)
+  assert result.is_ok == false
+}
+
+test halt_sets_output_to_last_value {
+  given spec = trib_vm_executor
+  let mut frame = VMFrame { sp: 255, pc: 0, flags: 0, output: 0 }
+
+  let test_value = 3.14159f64 as i32
+
+  frame.output = test_value
+  execute_halt(&mut frame)
+
+  assert frame.output == test_value
+}
+
+test jump_advances_pc {
+  given spec = trib_vm_executor
+  let mut frame = VMFrame { sp: 255, pc: 0, flags: 0, output: 0 }
+
+  let initial_pc = 10
+
+  frame.output = 42 as i32
+  execute_jump(&mut frame, initial_pc)
+
+  assert frame.pc == initial_pc + 1
+}
+
+bench opcode_dispatch_throughput {
+  measure nanoseconds to opcode_dispatch(&mut VMFrame {}, Opcode::NOP)
+  target 500_000_000  -- 500M ops/s dispatch loop
+  warmup 3
+  runs 100
+}
