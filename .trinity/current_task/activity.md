@@ -256,3 +256,11 @@
 - **Commit:** feat(ring-001): VM Core + GF-types foundation
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/state/three-roads.json,bootstrap/src/experience.rs,bootstrap/src/main.rs,bootstrap/src/pipeline.rs,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex,specs/10-tri-trib-pipeline.tri,specs/11-tri-experience-cli.tri,tests/integration/phi_identity_e2e.tri
 
+## 2026-04-16T14:53:49Z — master
+- **Commit:** feat(ring-010): .tri → .trib pipeline — first E2E execution
+- **Files:** 
+
+## 2026-04-16T14:54:30Z — master
+- **Commit:** feat(ring-011): tri experience save CLI — infinite memory for Trinity
+- **Files:** .trinity/current_task/activity.md
+
