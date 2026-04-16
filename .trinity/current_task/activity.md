@@ -96,3 +96,75 @@
 - **Commit:** refactor: remove trixphi-album musical content from repository
 - **Files:** docs/NOW.md
 
+## 2026-04-15T14:15:57Z — feat/queen-self-evolution
+- **Commit:** Update README with scientific strengthening section
+- **Files:** clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:16:19Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA CLARA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:16:39Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:17:03Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:17:48Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:19:15Z — feat/queen-self-evolution
+- **Commit:** Add technical figures for DARPA submission
+- **Files:** .trinity/current_task/activity.md,clara-bridge/submission/FAQ.md,clara-bridge/submission/TECHNICAL-FIGURES.md
+
+## 2026-04-15T14:39:45Z — ring/32-cloud-orchestration
+- **Commit:** Add FAQ and technical figures for DARPA submission
+- **Files:** specs/base/debounce.t27,specs/base/ring_32.t27,specs/cloud/railway_deploy.t27,specs/compiler/mod_structure.t27,specs/queen/task_analysis.t27
+
+## 2026-04-15T15:00:02Z — ring/32-cloud-orchestration
+- **Commit:** feat(base): Add Ring 32 — Cloud Orchestration
+- **Files:** docs/NOW.md
+
+## 2026-04-15T15:08:15Z — ring/32-cloud-orchestration
+- **Commit:** docs(now): Add Ring 32 Cloud Orchestration to active work
+- **Files:** docs/META_DASHBOARD.md
+
+## 2026-04-15T15:09:22Z — ring/32-cloud-orchestration
+- **Commit:** docs(meta): Add Ring 32 to Completed Rings table
+- **Files:** .trinity/current_task/activity.md,docs/META_DASHBOARD.md
+
+## 2026-04-15T16:47:27Z — ring/32-cloud-orchestration
+- **Commit:** docs(meta): Add Ring 32 to Completed Rings table
+- **Files:** research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
+## 2026-04-15T17:22:40Z — ring/32-cloud-orchestration
+- **Commit:** fix(paper): resolve merge conflicts, update Olsen affiliation, integrate Scott's new text
+- **Files:** research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
+## 2026-04-15T17:29:11Z — ring/32-cloud-orchestration
+- **Commit:** feat(paper): elevate prose to iconic status with poetic, rhythmic academic narrative
+- **Files:** .trinity/current_task/activity.md,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
+## 2026-04-15T17:36:26Z — ring/32-cloud-orchestration
+- **Commit:** feat(paper): elevate prose to iconic status with poetic academic narrative
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,clara-bridge/.github/workflows/ci.yml,clara-bridge/CITATION.bib,clara-bridge/LICENSE,clara-bridge/NOTICE,clara-bridge/benchmarks/vsa_performance.py,clara-bridge/docs/clara/BIBLIOGRAPHY.md,clara-bridge/evidence/CLARA-ASP-CONVERGENCE.md,clara-bridge/evidence/CLARA-BENCHMARK-RESULTS.md,clara-bridge/evidence/CLARA-EVIDENCE-PACKAGE.md,clara-bridge/evidence/CLARA-HARDWARE-ANALYSIS.md,clara-bridge/evidence/CLARA-LITERATURE-REVIEW.md,clara-bridge/evidence/CLARA-RED-TEAM.md,clara-bridge/evidence/CLARA-RESONATOR-CONVERGENCE.md,clara-bridge/evidence/CLARA-SCALING.md,clara-bridge/evidence/CLARA-SIMILARITY-THRESHOLD.md,clara-bridge/evidence/CLARA-SOA-COMPARISON.md,clara-bridge/evidence/CLARA-TECHNICAL-NARRATIVE.md,clara-bridge/examples/01_medical_diagnosis.py
+
+## 2026-04-15T18:46:24Z — ring/32-cloud-orchestration
+- **Commit:** Update README with scientific strengthening section
+- **Files:** README.md,docs/README_RU_UPDATE.md,specs/portable/relay_observer.js,specs/portable/relay_observer.t27
+
+## 2026-04-15T18:49:31Z — ring/32-cloud-orchestration
+- **Commit:** revert: restore English documentation
+- **Files:** 
+
+## 2026-04-16T09:42:17Z — ring/32-cloud-orchestration
+- **Commit:** stashing trinity tracking files
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,specs/portable/relay_observer.js
+
+## 2026-04-16T09:42:58Z — ring/32-cloud-orchestration
+- **Commit:** feat(portable): upgrade relay_observer.js to v2.0 with multi-agent support
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,specs/portable/relay_observer.js
+
