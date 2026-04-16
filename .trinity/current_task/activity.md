@@ -208,3 +208,7 @@
 - **Commit:** fix(ring-000): unblock t27c - gf4.c stub added, all specs validated
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/04-tri-codegen.tri
 
+## 2026-04-16T13:59:27Z — master
+- **Commit:** feat(ring-004): tri codegen spec - .trib bytecode emitter
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/05-tri-test-runner.tri,specs/06-tri-bench-runner.tri
+

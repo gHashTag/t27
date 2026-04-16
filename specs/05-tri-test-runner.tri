@@ -1,0 +1,54 @@
+spec tri_test_runner
+
+-- Core types
+pub struct TestResult {
+  name: str,
+  passed: bool,
+  duration: u64,  -- nanoseconds
+  output: str,
+}
+
+pub struct TestSuite {
+  name: str,
+  tests: TestResult[],
+  duration: u64,
+}
+
+-- CLI interface
+pub fn run(spec_file: str) -> TestSuite
+
+-- Output formatting
+pub fn format_plain(suite: TestSuite) -> str
+
+invariant test_result_is_complete {
+  given r TestResult
+  assert r.name.len() > 0
+  assert r.duration >= 0
+}
+
+invariant suite_result_is_complete {
+  given s TestSuite
+  assert s.name.len() > 0
+  assert s.duration >= 0
+  assert s.tests.len() > 0
+}
+
+test run_single_test {
+  given spec = tri_test_runner
+  let suite = run("specs/01-tri-lang-core.tri")
+  assert suite.name == "01-tri-lang-core"
+  assert suite.passed == true
+}
+
+bench runner_throughput {
+  measure nanoseconds to run("specs/01-tri-lang-core.tri")
+  target 10_000_000  -- 10M tests/sec
+  warmup 2
+  runs 50
+}
+
+bench suite_overhead {
+  measure nanoseconds to load("specs/01-tri-lang-core.tri")
+  target 1_000_000  -- 1us overhead
+  runs 100
+}

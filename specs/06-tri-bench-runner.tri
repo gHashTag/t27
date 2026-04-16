@@ -1,0 +1,48 @@
+spec tri_bench_runner
+
+use "05-tri-test-runner.tri"
+
+-- Core types
+pub struct BenchResult {
+  name: str,
+  passed: bool,
+  target: u64,    -- nanoseconds
+  actual: u64,    -- nanoseconds
+  ratio: f64,      -- actual/target (higher is better)
+}
+
+pub struct BenchSuite {
+  name: str,
+  benches: BenchResult[],
+  duration: u64,
+}
+
+-- Core functions
+pub fn run(spec_file: str) -> BenchSuite
+pub fn verdict(suite: BenchSuite) -> str
+
+-- PH LOOP integration
+invariant phi_loop_bench_verdict {
+  given suite BenchSuite
+  let pass_count = suite.benches.len() - failed(suite.benches)
+  let verdict_str = if pass_count == suite.benches.len() {
+    "PASS"
+  } else {
+    format!("FAIL ({}/{})", pass_count, suite.benches.len())
+  }
+  assert verdict_str.len() > 0
+}
+
+test run_single_bench {
+  given spec = tri_bench_runner
+  let suite = run("specs/02-gf16-format.tri")
+  assert suite.name == "02-gf16-format"
+  assert suite.passed == true
+}
+
+bench bench_throughput {
+  measure nanoseconds to run("specs/01-tri-lang-core.tri")
+  target 100_000_000  -- 10M bench ops/sec
+  warmup 3
+  runs 20
+}
