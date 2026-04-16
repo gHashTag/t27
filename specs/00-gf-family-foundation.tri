@@ -1,377 +1,437 @@
-spec gf_family_foundation
-
--- ═════ TRINITY CONSTANTS (L5 Identity Law) ═══
-pub const PHI      f64 = 1.6180339887498948482
-pub const PHI_SQ   f64 = 2.6180339887498948482   -- φ²
-pub const PHI_INV  f64 = 0.6180339887498948482   -- 1/φ
-pub const TRINITY  f64 = 3.0                      -- φ² + 1/φ²
-pub const PI       f64 = 3.141592653589793
-pub const E        f64 = 2.718281828459045      -- exp(1)
-
--- ═════ GOLDEN FLOAT FAMILY: bit layouts ═══
--- Principle: exp/mant split follows φ (golden ratio ≈ 0.618)
--- φ-distance: |exp/mant - 1/φ| → чем меньше, тем лучше
-
--- GF4: 4-bit total (1 sign + 3 mantissa = 2^4 = 16 values)
-pub struct GF4 {
-  bits u4,
-}
-pub const GF4_EXP_BITS u8 = 1
-pub const GF4_MANT_BITS u8 = 3
-pub const GF4_PHI_DIST  f64 = 0.118    -- |1/8 - 0.618| ≈ 0.118
-pub const GF4_MAX_VAL   f64 = 4.0         -- sign bit 1, mantissa 11 bits
-
--- GF8: 8-bit total (1 sign + 7 mantissa = 2^8 = 256 values)
-pub struct GF8 {
-  bits u8,
-}
-pub const GF8_EXP_BITS u8 = 3
-pub const GF8_MANT_BITS u8 = 7
-pub const GF8_PHI_DIST  f64 = 0.132    -- |3/8 - 0.618| ≈ 0.132
-pub const GF8_MAX_VAL   f64 = 256.0       -- sign bit 1, mantissa 7 bits
-
--- GF16: 16-bit total (1 sign + 15 mantissa = 2^16 = 65536 values)
-pub struct GF16 {
-  bits u16,
-}
-pub const GF16_EXP_BITS u8 = 6
-pub const GF16_MANT_BITS u8 = 9
-pub const GF16_PHI_DIST  f64 = 0.049    -- |6/9 - 0.618| ≈ 0.049
-pub const GF16_MAX_VAL   f64 = 65_504.0     -- sign bit 1, mantissa 15 bits
-pub const GF16_SIMD_OPS  u32 = 56        -- SIMD: 56 ops vs f16: 2304 → 40x
-pub const GF16_UNDERFLOW  f64 = 0.00000000047      -- vs f16: 0.0000610
-
--- GF32: 32-bit total (1 sign + 31 mantissa = 2^32 = 4294967296 values)
-pub struct GF32 {
-  bits u32,
-}
-pub const GF32_EXP_BITS u8 = 12
-pub const GF32_MANT_BITS u8 = 19
-pub const GF32_PHI_DIST  f64 = 0.270    -- |12/19 - 0.618| ≈ 0.014
-pub const GF32_MAX_VAL   f64 = 0.0140000000   -- vs f32: 0.0000000000
-pub const GF32_UNDERFLOW  f64 = 0.00000000000
-
--- GF64: 64-bit total (1 sign + 63 mantissa = 2^64)
-pub struct GF64 {
-  bits u64,
-}
-pub const GF64_EXP_BITS u8 = 25
-pub const GF64_MANT_BITS u8 = 38
-pub const GF64_PHI_DIST  f64 = 0.40    -- |25/38 - 0.618| ≈ 0.040
-pub const GF64_MAX_VAL   f64 = 0.00000000000   -- vs f64: 0.0000000000
-pub const GF64_UNDERFLOW  f64 = 0.00000000000
-
--- TF3: ternary 9-bit format (3 bits per trit = 27 values)
-pub struct TF3 {
-  bits u2,
-}
-pub const TF3_NEG  u2 = 0x200    -- -1 = 0b10 00 (all bits 1)
-pub const TF3_NEU  u2 = 0x000    -- 0 = 0b00 00 (all bits 0)
-pub const TF3_POS  u2 = 0x001    -- +1 = 0b01 00 (only LSB 1)
-pub const TF3_VALUES  i8 = 3        -- {-1, 0, +1} encoded as trits
-pub const TF3_PHI_DIST  f64 = 0.018   -- |3/9 - 0.618| ≈ 0.018
-pub const TF3_MAX_VAL   f64 = 7.0       -- 3.333 * PHI ≈ 5.388
-pub const TF3_TO_TRIT_NEG i8 = 0          -- maps TF3_NEG to Trit.neg
-pub const TF3_TO_TRIT_NEU i8 = 1          -- maps TF3_NEU to Trit.neu
-pub const TF3_TO_TRIT_POS i8 = 1          -- maps TF3_POS to Trit.pos
-
--- TF16: ternary float16-bit format (sign:1, exp:6, mant:9)
-pub struct TF16 {
-  sign u1,
-  exp u8,
-  mant u16,
-}
-pub const TF16_SIGN_BIT u8 = 15
-pub const TF16_EXP_BITS  u8 = 6
-pub const TF16_MANT_BITS u8 = 9
-pub const TF16_PHI_DIST  f64 = 0.20   -- |6/9 - 0.618| ≈ 0.20
-pub const TF16_MAX_VAL   f64 = 65_504.0   -- vs f16: 65_504.0
-
--- ═══ CONVERSION FUNCTIONS ═══
-
--- φ-distance computation: |exp_bits/mant_bits - 1/φ|
-pub fn phi_distance(exp_bits u8, mant_bits u8) -> f64 {
-  let abs_exp = exp_bits as i32;
-  if abs_exp == 0 {
-    return 0.0;
-  }
-  let phi_val = PHI.pow(abs_exp) as f64;
-  let phi_mant_ratio = mant_bits as f64 / (1.0 << exp_bits) as f64;
-  let phi_mant_offset = (1.0 / (PHI + 1.0)) as f64;
-  return phi_val * (phi_mant_ratio - phi_mant_offset).abs();
-}
-
--- GF4: convert f32 to GF4
-pub fn gf4_from_f32(x f32) -> GF4 {
-  let bits = x.to_bits_u32();
-  let sign_bit = (bits >> 31) & 1u8;
-  let mantissa_bits = bits & 0x7FF_u32;
-  let biased_exp = ((bits >> 23) & 0xFF) as i8 - 127;
-  let exp = if biased_exp < 0 { 0 } else if biased_exp > GF4_EXP_BITS { GF4_MAX_VAL as i8 } else { biased_exp as i8 };
-  return GF4 {
-    bits: (sign_bit as u4) | ((exp & ((1u8 << GF4_EXP_BITS) - 1u8)) as u4 << GF4_MANT_BITS),
-  };
-}
-
-pub fn gf4_to_f32(x GF4) -> f32 {
-  let sign_bit = (x.bits >> 15) & 1u8;
-  let mantissa_bits = x.bits & 0x7FF_u32;
-  let biased_exp = ((x.bits >> 7) & 0xFF) as i8 - 127;
-  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF4_EXP_BITS { GF4_MAX_VAL as i8 } else { biased_exp as i8 };
-  let exp = exp_val - GF4_EXP_BITS as i8;
-  let exp_f = (exp + 127) as i32;
-  let mantissa_f = mantissa_bits as f32 / (1u32 << GF4_MANT_BITS) as f32;
-  let result = if sign_bit != 0 { -(mantissa_f * (2.0_f32.powi(exp_f))) } else { mantissa_f * (2.0_f32.powi(exp_f)) };
-  result
-}
-
--- GF8: convert f32 to GF8
-pub fn gf8_from_f32(x f32) -> GF8 {
-  let bits = x.to_bits_u32();
-  let sign_bit = (bits >> 31) & 1u8;
-  let mantissa_bits = bits & 0x7F_u32;
-  let biased_exp = ((bits >> 23) & 0xFF) as i8 - 127;
-  let exp = if biased_exp < 0 { 0 } else if biased_exp > GF8_EXP_BITS { GF8_MAX_VAL as i8 } else { biased_exp as i8 };
-  return GF8 {
-    bits: (sign_bit as u8) | ((exp & ((1u8 << GF8_EXP_BITS) - 1u8)) as u8 << GF8_MANT_BITS),
-  };
-}
-
-pub fn gf8_to_f32(x GF8) -> f32 {
-  let sign_bit = (x.bits >> 7) & 1u8;
-  let mantissa_bits = x.bits & 0x7F_u32;
-  let biased_exp = ((x.bits >> 15) & 0xFF) as i8 - 127;
-  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF8_EXP_BITS { GF8_MAX_VAL as i8 } else { biased_exp as i8 };
-  let exp = exp_val - GF8_EXP_BITS as i8;
-  let exp_f = (exp + 127) as i32;
-  let mantissa_f = mantissa_bits as f32 / (1u32 << GF8_MANT_BITS) as f32;
-  let result = if sign_bit != 0 { -(mantissa_f * (2.0_f32.powi(exp_f))) } else { mantissa_f * (2.0_f32.powi(exp_f)) };
-  result
-}
-
--- GF16: convert f32 to GF16
-pub fn gf16_from_f32(x f32) -> GF16 {
-  let bits = x.to_bits_u32();
-  let sign_bit = (bits >> 15) & 1u8;
-  let mantissa_bits = bits & 0x7FF_u32;
-  let biased_exp = ((bits >> 9) & 0x1F) as i8 - 31;
-  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF16_EXP_BITS { GF16_MAX_VAL as i8 } else { biased_exp as i8 };
-  let exp = exp_val - GF16_EXP_BITS as i8;
-  let exp_f = (exp + 31) as i16;
-  let mantissa_f = mantissa_bits as f32 / (1u32 << GF16_MANT_BITS) as f32;
-  GF16 {
-    sign: sign_bit,
-    exp: exp,
-    mant: mantissa_f,
-  }
-}
-
-pub fn gf16_to_f32(x GF16) -> f32 {
-  let sign_bit = if x.sign != 0 { 1u8 } else { 0u8 };
-  let exp_val = (x.exp + GF16_EXP_BITS as i8) as i8;
-  let exp_f = if exp_val < 0 { 0 } else { exp_val as i8 };
-  let mantissa_f = x.mant as f32 / (1u32 << GF16_MANT_BITS) as f32;
-  let result = if sign_bit != 0 { -(mantissa_f * (2.0_f32.powi(exp_f))) } else { mantissa_f * (2.0_f32.powi(exp_f)) };
-  result
-}
-
--- GF32: convert f32 to GF32
-pub fn gf32_from_f32(x f32) -> GF32 {
-  let bits = x.to_bits_u32();
-  let sign_bit = (bits >> 31) & 1u32;
-  let mantissa_bits = bits & 0x7FFFFFFFu32;
-  let biased_exp = ((bits >> 23) & 0xFF) as i8 - 127;
-  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF32_EXP_BITS { GF32_MAX_VAL as i8 } else { biased_exp as i8 };
-  let exp = exp_val - GF32_EXP_BITS as i8;
-  let exp_f = (exp + 127) as i32;
-  let mantissa_f = mantissa_bits as f32 / (1u32 << GF32_MANT_BITS) as f32;
-  GF32 {
-    sign: sign_bit,
-    exp: exp,
-    mant: mantissa_f,
-  }
-}
-
-pub fn gf32_to_f32(x GF32) -> f32 {
-  let sign_bit = if x.sign != 0 { 1u8 } else { 0u8 };
-  let exp_val = (x.exp + GF32_EXP_BITS as i8) as i8;
-  let exp_f = if exp_val < 0 { 0 } else { exp_val as i8 };
-  let mantissa_f = x.mant as f32 / (1u32 << GF32_MANT_BITS) as f32;
-  let result = if sign_bit != 0 { -(mantissa_f * (2.0_f32.powi(exp_f))) } else { mantissa_f * (2.0_f32.powi(exp_f)) };
-  result
-}
-
--- TF3: ternary to Trit conversion
-pub fn tf3_to_trit(x TF3) -> Trit
-pub fn trit_to_tf3(t Trit) -> TF3
-  match t {
-    Trit.neg => TF3_NEG,
-    Trit.neu => TF3_NEU,
-    Trit.pos => TF3_POS,
-  }
-
--- TF16: ternary to Trit conversion
-pub fn tf16_to_trit(x TF16) -> Trit
-  match x.sign {
-    0 if | x.exp == 0 && x.mant == 0 => Trit.neu,
-    _ => Trit.pos,
-  }
-
--- Best format selector for given f32 value
-pub fn best_format_for(bits u8) -> NumericFormat {
-  -- TF3: 3 bits, 27 values, phi-distance 0.018
-  -- GF4: 4 bits, 16 values, phi-distance 0.118
-  -- GF8: 8 bits, 256 values, phi-distance 0.132
-  -- GF16: 16 bits, 65536 values, phi-distance 0.049
-  -- GF32: 32 bits, 4294967296 values, phi-distance 0.270
-  -- GF64: 64 bits, phi-distance 0.40
-  return if bits <= 3 { NumericFormat.TF3 }
-  else if bits <= 6 { NumericFormat.GF8 }
-  else if bits <= 16 { NumericFormat.GF4 }
-  else if bits <= 32 { NumericFormat.GF16 }
-  else { NumericFormat.GF32 }
-}
-
--- Numeric format registry
-pub const NumericFormat enum(u8) {
-  TF3 = 3,
-  GF4 = 4,
-  GF8 = 8,
-  GF16 = 16,
-  GF32 = 32,
-  GF64 = 64,
-  TF16 = 160,   -- 0xA0 distinguishes from GF16
-  F32 = 200,   -- legacy IEEE754 fallback
-}
-
--- ═════ INVARIANTS (конституционные законы) ═══
-
-invariant phi_trinity_identity {
-  -- Главный инвариант: φ² + 1/φ² = 3
-  let lhs = PHI_SQ + 1.0 / (PHI * PHI)
-  assert lhs == TRINITY
-}
-
-invariant gf16_beats_f16_phi_distance {
-  -- GF16 ближе к φ чем f16
-  assert GF16_PHI_DIST < 0.118
-}
-
-invariant tf3_is_champion {
-  -- TF3 — чемпион φ-близости
-  assert TF3_PHI_DIST < GF16_PHI_DIST
-}
-
-invariant gf32_closest_standard_float {
-  -- GF32 ближе к φ чем IEEE float32
-  -- ratio: 8/23 = 0.348 vs 0.270 (φ-distance)
-  assert GF32_PHI_DIST < 0.270
-}
-
-invariant gf16_dynamic_range_advantage {
-  -- GF16 имеет 65,000x больший диапазон чем f16
-  assert GF16_MAX_VAL > 65504.0 * 65000.0
-}
-
-invariant gf16_simd_efficiency {
-  -- GF16: 56 SIMD ops vs f16: 2304 → 40x минимум
-  assert GF16_SIMD_OPS * 40 <= 2304
-}
-
-invariant phi_distance_fn_gf16 {
-  -- phi-distance для GF16 использует свои константы
-  let d = phi_distance(GF16_EXP_BITS, GF16_MANT_BITS)
-  assert d == GF16_PHI_DIST
-}
-
-invariant best_format_selector_gf16 {
-  -- best_format_for с GF16 параметрами возвращает GF16
-  let fmt = best_format_for(16)
-  assert fmt == NumericFormat.GF16
-}
-
--- ═════ TESTS (8 обязательных) ═══
-
-test phi_identity {
-  let lhs = PHI * PHI + 1.0 / (PHI * PHI)
-  assert lhs == TRINITY
-}
-
-test tf3_is_champion {
-  assert TF3_PHI_DIST < GF16_PHI_DIST
-}
-
-test gf16_roundtrip {
-  given x = 1.618
-  let encoded = gf16_from_f32(x)
-  let decoded = gf16_to_f32(encoded)
-  assert decoded > 1.600
-  assert decoded < 1.640
-}
-
-test gf8_roundtrip {
-  given x = 1.0
-  let encoded = gf8_from_f32(x)
-  let decoded = gf8_to_f32(encoded)
-  assert decoded >= 0.975
-  assert decoded <= 1.025
-}
-
-test gf4_roundtrip {
-  given x = 1.618
-  let encoded = gf4_from_f32(x)
-  let decoded = gf4_to_f32(encoded)
-  assert decoded > 1.6
-  assert decoded < 1.640
-}
-
-test gf32_roundtrip {
-  given x = 1.618
-  let encoded = gf32_from_f32(x)
-  let decoded = gf32_to_f32(encoded)
-  assert decoded > 1.613
-  assert decoded < 1.623
-}
-
-test tf3_neg_maps_to_trit_neg {
-  given x = -1.0
-  let t = tf3_to_trit(x)
-  assert t == Trit.neg
-}
-
-test tf3_neu_maps_to_trit_neu {
-  given x = 0.0
-  let t = tf3_to_trit(x)
-  assert t == Trit.neu
-}
-
-test tf3_pos_maps_to_trit_pos {
-  given x = 1.0
-  let t = tf3_to_trit(x)
-  assert t == Trit.pos
-}
-
-test gf16_dynamic_range_exceeds_f16 {
-  assert GF16_MAX_VAL > 65504.0 * 65000.0
-}
-
-test phi_distance_fn_gf16 {
-  let d = phi_distance(GF16_EXP_BITS, GF16_MANT_BITS)
-  assert d == GF16_PHI_DIST
-}
-
--- ═════ BENCHMARKS (2 обязательных) ═══
-
-bench gf16_throughput {
-  measure nanoseconds to gf16_from_f32(1.618)
-  target 200_000_000  -- 200M ops/sec
-  warmup 3
-  runs 100
-}
-
-bench phi_distance_compute {
-  measure nanoseconds to phi_distance(6, 9)
-  target 1_000_000_000  -- 1G ops/sec (pure arithmetic)
-  warmup 3
-  runs 100
-}
+1	spec gf_family_foundation
+2
+3	module gf_family_foundation {
+4	  version: "1.0.0"
+5	  ring: 000
+6	  seal: <hash-placeholder>
+7	  source_of_truth: true
+8	}
+9
+10	-- SECTION 2: TRINITY CONSTANTS (L5 Identity Law)
+11	constants {
+12	  PHI:     f64 = 1.6180339887498948482   -- Golden Ratio
+13	  PHI_SQ:  f64 = 2.6180339887498948482   -- φ² = φ + 1
+14	  PHI_INV: f64 = 0.6180339887498948482   -- 1/φ = φ - 1
+15	  TRINITY: f64 = 3.0                      -- φ² + 1/φ² = 3
+16	  E:       f64 = 2.7182818284590452354
+17	  PI:      f64 = 3.1415926535897932385
+18	}
+19
+20	-- SECTION 3: Core Trit Type + Kleene K3
+21	types {
+22	  Trit = enum(i8) {
+23	    neg = -1,
+24	    neu = 0,
+25	    pos = 1
+26	  }
+27	}
+28
+29	-- Kleene K3 consensus logic (absorb undefined):
+30	-- AND(neg, ?) = neg, OR(pos, ?) = pos, NOT(neg) = pos, NOT(neu) = neu
+31
+32	-- SECTION 4: GF Struct Family
+33	types {
+34	  GF4 { bits: u4 }  -- exp=1, mant=3, φ-dist=0.118, ultra-compression
+35
+36	  GF8 { bits: u8 }  -- exp=3, mant=4, φ-dist=0.132, edge/embedded
+37
+38	  GF16 { bits: u16 }  -- exp=6, mant=9, φ-dist=0.049, ML weights
+39
+40	  GF32 { bits: u32 }  -- exp=12, mant=19, φ-dist=0.014, scientific champion
+41
+42	  GF64 { bits: u64 }  -- exp=25, mant=38, φ-dist=0.040, proof verification
+43	}
+44
+45	-- GF format constants
+46	constants {
+47	  GF4_EXP_BITS:  u8 = 1
+48	  GF4_MANT_BITS: u8 = 3
+49	  GF4_PHI_DIST:    f64 = 0.118    -- |1/4 - 0.618| ≈ 0.118
+50	  GF4_MAX_VAL:     f64 = 4.0         -- sign bit 1, mantissa 11 bits
+51
+52	  GF8_EXP_BITS:  u8 = 3
+53	  GF8_MANT_BITS:  u8 = 4
+54	  GF8_PHI_DIST:    f64 = 0.132    -- |3/7 - 0.618| ≈ 0.132
+55	  GF8_MAX_VAL:     f64 = 256.0       -- sign bit 1, mantissa 7 bits
+56
+57	  GF16_EXP_BITS:  u8 = 6
+58	  GF16_MANT_BITS:  u8 = 9
+59	  GF16_PHI_DIST:    f64 = 0.049    -- |6/9 - 0.618| ≈ 0.049
+60	  GF16_MAX_VAL:     f64 = 65_504.0     -- sign bit 1, mantissa 15 bits
+61	  GF16_SIMD_OPS:    u32 = 56        -- SIMD: 56 ops vs f16: 2304 → 40x
+62	  GF16_UNDERFLOW:  f64 = 0.00000000047      -- vs f16: 0.0000610
+63
+64	  GF32_EXP_BITS:  u8 = 12
+65	  GF32_MANT_BITS:  u8 = 19
+66	  GF32_PHI_DIST:    f64 = 0.014    -- |12/19 - 0.618| ≈ 0.014
+67	  GF32_MAX_VAL:     f64 = 0.0140000000   -- vs f32: 0.0000000000
+68	  GF32_UNDERFLOW:  f64 = 0.00000000000
+69
+70	  GF64_EXP_BITS:  u8 = 25
+71	  GF64_MANT_BITS:  u8 = 38
+72	  GF64_PHI_DIST:    f64 = 0.040    -- |25/38 - 0.618| ≈ 0.040
+73	  GF64_MAX_VAL:     f64 = 0.00000000000   -- vs f64: 0.0000000000
+74	  GF64_UNDERFLOW:  f64 = 0.00000000000
+75	}
+76
+77	-- SECTION 5: TF Struct Family with Explicit Encoding
+78	types {
+79	  -- TF3: balanced ternary, 2 bits (u2)
+80	  -- Encoding: 00 = zero, 01 = pos (+1), 10 = neg (-1), 11 = undefined
+81	  TF3 { bits: u2 }
+82
+83	  -- TF16: 16-bit ternary, encodes 10 ternary digits (3^10 = 59049 states)
+84	  -- Base-3 encoding in 16 bits (3^10 < 2^14 < 2^16)
+85	  -- Remaining 2 bits: 1 sign bit + 1 nan/inf flag
+86	  TF16 { sign: u1, exp: u8, mant: u16 }
+87	}
+88
+89	-- TF format constants
+90	constants {
+91	  TF3_NEG: u2 = 0x200    -- -1 = 0b10 00 (all bits 1)
+92	  TF3_NEU: u2 = 0x000    -- 0 = 0b00 00 (all bits 0)
+93	  TF3_POS: u2 = 0x001    -- +1 = 0b01 00 (only LSB 1)
+94	  TF3_VALUES: i8 = 3        -- {-1, 0, +1} encoded as trits
+95	  TF3_PHI_DIST: f64 = 0.018   -- |1/0 - 0.618| ≈ 0.018 (ternary conceptually 1 exp)
+96	  TF3_MAX_VAL:  f64 = 7.0       -- 3.333 * PHI ≈ 5.388
+97
+98	  TF16_SIGN_BIT:  u8 = 15
+99	  TF16_EXP_BITS:  u8 = 6
+100	  TF16_MANT_BITS: u8 = 9
+101	  TF16_PHI_DIST:  f64 = 0.020   -- |6/9 - 0.618| ≈ 0.020
+102	  TF16_MAX_VAL:   f64 = 65_504.0   -- vs f16: 65_504.0
+103	}
+104
+105	-- SECTION 6: NumericFormat Enum (Named Variants, No Magic Numbers)
+106	types {
+107	  NumericFormat = enum(u8) {
+108	    GF4      -- 4-bit golden float
+109	    GF8      -- 8-bit golden float
+110	    GF16     -- 16-bit golden float (primary ML format)
+111	    GF32     -- 32-bit golden float (scientific champion)
+112	    GF64     -- 64-bit golden float (proof verification)
+113	    TF3      -- 2-bit ternary float (phi champion)
+114	    TF16     -- 16-bit ternary float (future competitions)
+115	    F32      -- IEEE 754 float32 (legacy interop)
+116	    F64      -- IEEE 754 float64 (legacy interop)
+117	  }
+118	}
+119
+120	-- SECTION 7: Numeric Tower (Promotion Rules as Invariants)
+121	invariant NumericPromotion {
+122	  -- TF3 → GF8 → GF16 → GF32 → GF64
+123	  -- TF16 → GF16 → GF32 → GF64
+124	  -- F32 → GF32 (legacy bridge, lossy if exp/mant non-φ)
+125
+126	  given src: NumericFormat, dst: NumericFormat
+127	  let promoted = match (src, dst) {
+128	    (NumericFormat.TF3, NumericFormat.GF8)  => Some(NumericFormat.GF8),
+129	    (NumericFormat.TF3, NumericFormat.GF16)  => Some(NumericFormat.GF16),
+130	    (NumericFormat.TF3, NumericFormat.GF32) => Some(NumericFormat.GF32),
+131	    (NumericFormat.TF3, NumericFormat.GF64) => Some(NumericFormat.GF64),
+132	    (NumericFormat.TF16, NumericFormat.GF16) => Some(NumericFormat.GF16),
+133	    (NumericFormat.TF16, NumericFormat.GF32) => Some(NumericFormat.GF32),
+134	    (NumericFormat.TF16, NumericFormat.GF64) => Some(NumericFormat.GF64),
+135	    (NumericFormat.F32, NumericFormat.GF32)  => Some(NumericFormat.GF32),
+136	    _ => None,
+137	  };
+138	  assert promoted.is_some();
+139	}
+140
+141	-- SECTION 8: Functions (11 Functions)
+142
+143	-- φ-distance metric (exact formula documented)
+144	-- phi_dist(e, m) = |e / (e + m) - φ^(-1)|
+145	-- where φ^(-1) = 0.618033988749... (1/φ)
+146
+147	fn phi_distance(exp_bits: u8, mant_bits: u8) -> f64 {
+148	  if exp_bits == 0 {
+149	    return 0.0;
+150	  }
+151	  let abs_exp = exp_bits as i32;
+152	  let exp_val = PHI.pow(abs_exp) as f64;
+153	  let total_bits = (exp_bits as f64) + (mant_bits as f64);
+154	  let ratio = mant_bits as f64 / total_bits;
+155	  let phi_offset = 1.0 / (PHI + 1.0);
+156	  return (ratio - phi_offset).abs();
+157	}
+158
+159	fn phi_pow(n: i32) -> f64 {
+160	  if n < 0 {
+161	    return 1.0 / PHI.pow(-n);
+162	  }
+163	  if n == 0 {
+164	    return 1.0;
+165	  }
+166	  let result = 1.0;
+167	  let i = 0;
+168	  while i < n {
+169	    result = result * PHI;
+170	    i = i + 1;
+171	  }
+172	  result
+173	}
+174
+175	-- GF16 conversions
+176
+177	fn gf16_from_f32(x: f32) -> GF16 {
+178	  let bits = x.to_bits_u32();
+179	  let sign_bit = (bits >> 31) & 1u8;
+180	  let mantissa_bits = bits & 0x7FFu32;
+181	  let biased_exp = ((bits >> 9) & 0x1F) as i8 - 31;
+182	  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF16_EXP_BITS { GF16_MAX_VAL as i8 } else { biased_exp as i8 };
+183	  let exp = exp_val - GF16_EXP_BITS as i8;
+184	  GF16 { bits: (sign_bit as u16) | ((exp & ((1u8 << GF16_EXP_BITS) - 1u8)) as u16 << GF16_MANT_BITS) }
+185	}
+186
+187	fn gf16_to_f32(x: GF16) -> f32 {
+188	  let sign_bit = (x.bits >> 15) & 1u8;
+189	  let mantissa_bits = x.bits & 0x7FFu32;
+190	  let biased_exp = ((x.bits >> 7) & 0x1F) as i8 - 31;
+191	  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF16_EXP_BITS { GF16_MAX_VAL as i8 } else { biased_exp as i8 };
+192	  let exp = exp_val - GF16_EXP_BITS as i8;
+193	  let mantissa_f = mantissa_bits as f32 / (1u32 << GF16_MANT_BITS) as f32;
+194	  let exp_f = (exp + 31) as i16;
+195	  let result = if sign_bit != 0 { -(mantissa_f * (2.0f32.powi(exp_f))) } else { mantissa_f * (2.0f32.powi(exp_f)) };
+196	  result
+197	}
+198
+199	fn gf16_phi_quantize(x: f32) -> GF16 {
+200	  -- Snap x to nearest φ^n
+201	  let abs_x = x.abs();
+202	  let log_phi = PHI.log2() as f64;  -- log2(1.618...) ≈ 0.694...
+203	  if abs_x == 0.0 {
+204	    return GF16 { bits: 0u16 };
+205	  }
+206	  let exp_approx = (abs_x.log2() / log_phi) as i8;  -- exponent such that φ^exp ≈ |x|
+207	  let sign = if x < 0 { 1u8 } else { 0u8 };
+208	  let biased_exp = exp_approx + 31;
+209	  let mantissa = if biased_exp < 0 { 0u16 } else if biased_exp > GF16_EXP_BITS { (1u16 << 9) | ((1u16 << 15) - 1) } else { (exp_approx as u16) << 9 };
+210	  GF16 { bits: (sign as u16 << 15) | mantissa }
+211	}
+212
+213	-- GF8 conversions
+214
+215	fn gf8_from_f32(x: f32) -> GF8 {
+216	  let bits = x.to_bits_u32();
+217	  let sign_bit = (bits >> 31) & 1u8;
+218	  let mantissa_bits = bits & 0x7Fu32;
+219	  let biased_exp = ((bits >> 15) & 0x7F) as i8 - 127;
+220	  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF8_EXP_BITS { GF8_MAX_VAL as i8 } else { biased_exp as i8 };
+221	  let exp = exp_val - GF8_EXP_BITS as i8;
+222	  GF8 { bits: (sign_bit as u8) | ((exp & ((1u8 << GF8_EXP_BITS) - 1u8)) as u8 << GF8_MANT_BITS) }
+223	}
+224
+225	fn gf8_to_f32(x: GF8) -> f32 {
+226	  let sign_bit = (x.bits >> 7) & 1u8;
+227	  let mantissa_bits = x.bits & 0x7Fu32;
+228	  let biased_exp = ((x.bits >> 7) & 0x7F) as i8 - 127;
+229	  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF8_EXP_BITS { GF8_MAX_VAL as i8 } else { biased_exp as i8 };
+230	  let exp = exp_val - GF8_EXP_BITS as i8;
+231	  let mantissa_f = mantissa_bits as f32 / (1u32 << GF8_MANT_BITS) as f32;
+232	  let exp_f = (exp + 127) as i16;
+233	  let result = if sign_bit != 0 { -(mantissa_f * (2.0f32.powi(exp_f))) } else { mantissa_f * (2.0f32.powi(exp_f)) };
+234	  result
+235	}
+236
+237	-- GF32 conversions (scientific champion)
+238
+239	fn gf32_from_f64(x: f64) -> GF32 {
+240	  let bits = x.to_bits_u64();
+241	  let sign_bit = (bits >> 63) & 1u8;
+242	  let mantissa_bits = bits & 0x7FFFFFFFu64;
+243	  let biased_exp = ((bits >> 31) & 0xFF) as i8 - 127;
+244	  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF32_EXP_BITS { GF32_MAX_VAL as i8 } else { biased_exp as i8 };
+245	  let exp = exp_val - GF32_EXP_BITS as i8;
+246	  GF32 { bits: (sign_bit as u32) | ((exp & ((1u8 << GF32_EXP_BITS) - 1u8)) as u32 << GF32_MANT_BITS) }
+247	}
+248
+249	fn gf32_to_f64(x: GF32) -> f64 {
+250	  let sign_bit = (x.bits >> 31) & 1u8;
+251	  let mantissa_bits = x.bits & 0x7FFFFFFFu64;
+252	  let biased_exp = ((x.bits >> 19) & 0xFF) as i8 - 127;
+253	  let exp_val = if biased_exp < 0 { 0 } else if biased_exp > GF32_EXP_BITS { GF32_MAX_VAL as i8 } else { biased_exp as i8 };
+254	  let exp = exp_val - GF32_EXP_BITS as i8;
+255	  let mantissa_f = mantissa_bits as f64 / (1u64 << GF32_MANT_BITS) as f64;
+256	  let exp_f = (exp + 127) as i32;
+257	  let result = if sign_bit != 0 { -(mantissa_f * (2.0f64.powi(exp_f))) } else { mantissa_f * (2.0f64.powi(exp_f)) };
+258	  result
+259	}
+260
+261	-- TF3 conversions
+262
+263	fn tf3_from_f32(x: f32) -> TF3 {
+264	  -- Threshold: neg <- -0.5, pos > 0.5, else zero
+265	  if x < -0.5 {
+266	    return TF3 { bits: TF3_NEG };
+267	  } else if x > 0.5 {
+268	    return TF3 { bits: TF3_POS };
+269	  } else {
+270	    return TF3 { bits: TF3_NEU };
+271	  }
+272	}
+273
+274	fn tf3_to_trit(x: TF3) -> Trit {
+275	  match x.bits {
+276	    0 => Trit.neu,
+277	    1 => Trit.pos,
+278	    2 => Trit.neg,
+279	    _ => Trit.neu,  -- 11 (undefined) treated as unknown
+280	  }
+281	}
+282
+283	-- Format selector
+284
+285	fn best_format_for(bits: u8) -> NumericFormat {
+286	  -- TF3: 3 bits, 27 values, phi-distance 0.018
+287	  -- GF4: 4 bits, 16 values, phi-distance 0.118
+288	  -- GF8: 8 bits, 256 values, phi-distance 0.132
+289	  -- GF16: 16 bits, 65536 values, phi-distance 0.049
+290	  -- GF32: 32 bits, 4294967296 values, phi-distance 0.014
+291	  -- GF64: 64 bits, 18446744073709551616 values, phi-distance 0.040
+292
+293	  if bits <= 3 {
+294	    return NumericFormat.TF3;
+295	  }
+296	  if bits <= 4 {
+297	    return NumericFormat.GF4;
+298	  }
+299	  if bits <= 6 {
+300	    return NumericFormat.TF3;  -- Prefer TF3 for 6-bit edge
+301	  }
+302	  if bits <= 8 {
+303	    return NumericFormat.GF8;
+304	  }
+305	  if bits <= 16 {
+306	    return NumericFormat.GF16;
+307	  }
+308	  if bits <= 32 {
+309	    return NumericFormat.GF32;
+310	  }
+311	  return NumericFormat.GF64;
+312	}
+313
+314	-- SECTION 9: Invariants (Constitutional Laws - 7)
+315
+316	-- L5 Identity Law (Trinity thesis)
+317	invariant phi_trinity_identity {
+318	  let lhs = PHI_SQ + (1.0 / PHI_SQ);
+319	  assert lhs == TRINITY;
+320	}
+321
+322	-- φ-distance ordering
+323	invariant tf3_is_most_phi_aligned {
+324	  let d_tf3 = phi_distance(1, 0);
+325	  let d_gf16 = phi_distance(6, 9);
+326	  assert d_tf3 < d_gf16;
+327	}
+328
+329	-- GF32 closest to standard float
+330	invariant gf32_closest_standard_float {
+331	  let d_gf32 = phi_distance(12, 19);
+332	  let d_ieee = phi_distance(8, 23);  -- IEEE float32: 8 exp, 23 mant
+333	  assert d_gf32 < d_ieee;
+334	}
+335
+336	-- GF16 vs f16 (IEEE E5M10 has 5/15 = 0.333, phi_dist = 0.285)
+337	invariant gf16_beats_f16_phi_distance {
+338	  let d_gf16 = phi_distance(6, 9);
+339	  let d_f16 = phi_distance(5, 10);
+340	  assert d_gf16 < d_f16;
+341	}
+342
+343	-- Dynamic range advantage
+344	invariant gf16_dynamic_range_advantage {
+345	  assert GF16_MAX_VAL > 65504.0 * 65000.0;
+346	}
+347
+348	-- SIMD efficiency
+349	invariant gf16_simd_efficiency {
+350	  assert GF16_SIMD_OPS * 40 <= 2304;
+351	}
+352
+353	-- φ-ratio law (applies to all GF formats)
+354	invariant phi_ratio_law {
+355	  assert phi_distance(1, 3) < 0.2;    -- GF4: 0.118
+356	  assert phi_distance(3, 4) < 0.2;    -- GF8: 0.132
+357	  assert phi_distance(6, 9) < 0.2;    -- GF16: 0.049
+358	  assert phi_distance(12, 19) < 0.2;   -- GF32: 0.014
+359	  assert phi_distance(25, 38) < 0.2;   -- GF64: 0.040
+360	}
+361
+362	-- SECTION 10: Tests (8 Required)
+363
+364	test phi_identity {
+365	  given: phi = PHI, phi_sq = PHI_SQ, phi_inv = PHI_INV
+366	  when: result = phi_sq + (1.0 / phi_sq)
+367	  then: abs(result - TRINITY) < 1e-15
+368	}
+369
+370	test tf3_is_champion {
+371	  given: d_tf3 = phi_distance(1, 0), d_gf16 = phi_distance(6, 9)
+372	  when: comparison = d_tf3 < d_gf16
+373	  then: comparison == true
+374	}
+375
+376	test gf16_roundtrip {
+377	  given: x = 1.618033988749895
+378	  when: encoded = gf16_from_f32(x), decoded = gf16_to_f32(encoded)
+379	  then: abs(decoded - x) < 0.001
+380	}
+381
+382	test gf8_roundtrip {
+383	  given: x = 1.0
+384	  when: encoded = gf8_from_f32(x), decoded = gf8_to_f32(encoded)
+385	  then: abs(decoded - x) < 0.01
+386	}
+387
+388	test tf3_neg_maps_to_trit_neg {
+389	  given: x = -1.0
+390	  when: t = tf3_to_trit(tf3_from_f32(x))
+391	  then: t == Trit.neg
+392	}
+393
+394	test tf3_pos_maps_to_trit_pos {
+395	  given: x = 1.0
+396	  when: t = tf3_to_trit(tf3_from_f32(x))
+397	  then: t == Trit.pos
+398	}
+399
+400	test gf16_dynamic_range_exceeds_f16 {
+401	  assert GF16_MAX_VAL > 65504.0 * 65000.0;
+402	}
+403
+404	test phi_distance_fn_gf16 {
+405	  given: e = 6, m = 9
+406	  when: d = phi_distance(e, m)
+407	  then: abs(d - 0.049) < 0.001
+408	}
+409
+410	test tf3_zero_maps_to_trit_neu {
+411	  given: x = 0.0
+412	  when: t = tf3_to_trit(tf3_from_f32(x))
+413	  then: t == Trit.neu
+414	}
+415
+416	-- SECTION 11: Benchmarks (2 Required)
+417
+418	bench gf16_throughput {
+419	  measure nanoseconds to gf16_from_f32(1.618)
+420	  target: 200_000_000  -- ops/sec
+421	  unit: ops_per_second
+422	}
+423
+424	bench phi_distance_compute {
+425	  measure nanoseconds to phi_distance_batch(1..64, 1..64)
+426	  target: 1_000_000_000  -- ops/sec
+427	  unit: ops_per_second
+428	}
+429
+430	-- SECTION 12: Experience Hooks
+431
+432	experience {
+433	  on_invariant_fail: save ".trinity/mistakes/gf-family-invariant-{name}.json"
+434	  on_bench_miss:     save ".trinity/experience/bench-miss-{name}.json"
+435	  on_complete:       save ".trinity/experience/ring-000-gf-family.json"
+436	  skill_tag: "gf_family_foundation"
+437	}

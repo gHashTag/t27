@@ -228,3 +228,7 @@
 - **Commit:** feat(ring-000): Ring-005-006 tri test runner
 - **Files:** research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex,research/trinity-pellis-paper/golden_balance.png
 
+## 2026-04-16T14:25:23Z — master
+- **Commit:** feat(paper): add Scott Olsen golden balance figure image
+- **Files:** specs/00-gf-family-foundation.tri
+
