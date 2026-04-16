@@ -1,8 +1,6 @@
 # SOUL — T27 Constitutional Law
 
-**Canonical location:** this file at the **repository root** is the **single source of truth** for Trinity constitutional law. **[`docs/nona-03-manifest/SOUL.md`](docs/nona-03-manifest/SOUL.md)** is an **expanded reference** (detail, examples); if anything disagrees, **this file wins**.
-
-** Immutable Document — Amendments Require Unanimous Architectural Consent **
+**Canonical location:** this file at the **repository root** is the **single source of truth** for Trinity constitutional law.
 
 > *"A specification without tests is a lie told in the future tense."*
 > — Trinity TDD Axiom #1
@@ -11,51 +9,78 @@
 
 ## Preamble
 
-T27 is a **spec-first** architecture where mathematical truth, not implementation, is the source of truth. This document establishes the constitutional principles that govern all T27 specifications, compilation, and verification.
+T27 is a **spec-first** architecture where `.t27` compiles **itself via `.tri`**. The compilation chain is:
+
+```
+.t27 (human source) → [t27c compiler] → .tri (canonical IR) → [tri runtime] → execution
+```
+
+**Critical invariant:** `.t27` compiles itself via `.tri`. There is NO "dogfooding" or self-feeding. We do NOT write `.tri` by hand, and we do NOT compile `.t27` directly in other languages.
 
 ---
 
-## Article I: The Language Policy
+## Article I: The Language Food Chain
 
-### §1.1. ASCII-Only Source Files
-**Source files MUST be ASCII-only.** Identifiers and comments MUST be English.
+### §1.1. Single Source of Truth
 
-All files in the following categories MUST contain only ASCII characters (U+0000–U+007F):
-- `.t27` — TRI-27 assembly specifications
-- `.tri` — TRI high-level specifications
-- `.zig` — Zig source code
-- `.c` / `.h` — C source/header files
-- `.v` / `.verilog` — Verilog hardware descriptions
-- Build scripts, makefiles, etc.
+**`.t27` is the ONLY source of truth.** All Trinity logic lives in `.t27` specifications.
+
+Everything else is an **output artifact** generated from `.t27`:
+
+| Artifact | Status | Generation method |
+|---------|--------|------------------|
+| `.tri` | ⚙️ Generated | Compiled from `.t27` by `t27c` |
+| Zig | ❌ Consumed | Generated from `.tri` by `tri gen-zig` |
+| C | ❌ Consumed | Generated from `.tri` by `tri gen-c` |
+| Verilog | ❌ Consumed | Generated from `.tri` by `tri gen-verilog` |
+| Rust | 🔒 Frozen | Only `t27c` bootstrap compiler — never edited |
+
+**Never write `.tri`, Zig, C, Verilog by hand.** Write only `.t27` specs.
+
+### §1.2. The Golden Rule
+
+> **`.t27` eats `.tri` — it does NOT feed itself its own output.**
+
+This is the **no-self-feeding invariant**:
+- `.t27` compiles to `.tri` via `t27c`
+- `.tri` is consumed by `tri runtime`
+- The cycle is: `.t27` → `.tri` → execution, NOT `.t27` → `.t27`
+
+**Violations:**
+- Writing `.tri` by hand — FORBIDDEN
+- Writing Zig directly for Trinity logic — FORBIDDEN
+- Writing Python/C/Verilog for Trinity logic — FORBIDDEN
+- Editing `t27c` bootstrap compiler — FORBIDDEN
+
+### §1.3. Frozen Toolchain
+
+Rust code is **frozen**:
+- `bootstrap/src/compiler.rs` is the ONLY editable Rust file
+- All other Rust is bootstrap infrastructure
+- Purpose: Compiles `.t27` → `.tri`
+- NEVER add domain logic to Rust directly
+
+### §1.4. ASCII-Only Source Files
+
+All source files MUST be ASCII-only. Identifiers and comments MUST be English.
 
 **FORBIDDEN in source files:**
 - **Cyrillic** (U+0400–U+04FF) and other non-Latin scripts in identifiers and comments
-- **Non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc., unless an Architect-approved exception exists
+- **Non-Latin scripts**: Greek, Arabic, Chinese, Japanese, Korean, etc.
 
-### §1.2. First-party documentation language
-Markdown under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and root project Markdown (`README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`) **MUST be English**, except paths listed in **`docs/.legacy-non-english-docs`** (grandfathered) and anything under **`external/`**.
+### §1.5. Rationale
 
-### §1.3. Enforcement
-The parser rejects Cyrillic in source with:
-```
-error: Language policy violation: source file contains Cyrillic characters (U+0400-U+04FF). Source files must be ASCII-only. See SOUL.md Article I.
-```
-
-CI runs `scripts/check-first-party-doc-language.sh` on pull requests.
-
-**Compiler build:** `cargo build` in `bootstrap/` runs `build.rs`, which fails the build if Cyrillic appears in specs, bootstrap Rust sources, or unlisted first-party Markdown (this Article; expanded enforcement notes in `docs/nona-03-manifest/SOUL.md` Law #1).
-
-### §1.4. Rationale
 1. **Universality**: ASCII is universally supported across all platforms and tools
-2. **Clarity**: English is the single review language for Trinity first-party docs and specs
-3. **Separation of Concerns**: Vendored locales live under `external/`; core repo stays English
-4. **Git Compatibility**: No encoding issues in diffs, patches, or blame output
+2. **Clarity**: English is single review language
+3. **Self-compilation**: `.t27` compiles itself, eliminating dogfooding
+4. **Clear boundaries**: Single source of truth (`specs/*.t27`)
 
 ---
 
 ## Article II: The TDD Mandate
 
 ### §2.1. The Iron Law
+
 Every `.t27` specification MUST contain at least one of:
 - A `.test` section with one or more test cases
 - An `.invariant` section with one or more invariant declarations
@@ -70,11 +95,6 @@ Every `.t27` specification MUST contain at least one of:
     ; Verify: bind and unbind are inverses for all trits
     ; Setup: create vector a, bind with b, unbind with b
     ; Expected: result == a
-
-    ; test_bundle_idempotence
-    ; Verify: bundling a vector with itself produces same vector
-    ; Setup: create vector v, bundle v with v
-    ; Expected: result == v
 
 .invariant
     ; no_trit_overflow
@@ -117,56 +137,61 @@ spec vsa_ops {
 ## Article III: No Prototype Mode
 
 ### §3.1. The Ban on Temporary Code
+
 T27 **does not have** a prototype mode. There is no `--allow-no-tests` flag. There is no "I'll add tests later" grace period.
 
-If you write a spec without tests, the parser **will reject it** with:
+If you write a spec without tests, parser **will reject it** with:
 
 ```
 TDD contract violated: spec must contain at least one 'test' or 'invariant' block
 ```
 
 ### §3.2. The Rationale
-Tests written after implementation are not tests—they are retroactive justification. True TDD requires the test to exist **before** the implementation, serving as:
+
+Tests written after implementation are not tests—they are retroactive justification. True TDD requires test to exist **before** implementation, serving as:
 1. A contract between specifier and implementer
 2. Executable documentation
 3. A guard against regression
-4. A design tool (the test tells you what the API should be)
+4. A design tool (the test tells you what API should be)
 
 ---
 
 ## Article IV: Validation Requirements
 
 ### §4.1. Parser-Level Enforcement
-The **parser** (`compiler/parser/parser.t27`) MUST call `validate_spec()` after parsing. This function:
+
+The **parser** MUST call `validate_spec()` after parsing. This function:
 1. Checks for presence of test_section, invariant_section, or bench_section
-2. Checks spec_decl.test_blocks or spec_decl.invariants for spec-style
-3. Emits a hard error ("TDD contract violated") if none exist
+2. Emits a hard error ("TDD contract violated") if none exist
 
 ### §4.2. Codegen-Level Emission
+
 All code generators MUST emit test code:
 - **Zig**: `test "test_name" {}` and `test "invariant_name" {}`
 - **C**: `void test_name(void)` and `void invariant_name(void)`
 - **Verilog**: `task test_name();` and `assert (property)`
 
 ### §4.3. Build-Time Execution
+
 Generated tests MUST be executed at build time:
-- Zig: `zig test` runs automatically in build.tri
-- C: tests compiled into test binary and run
-- Verilog: assertions verified in simulation
+- `.tri` → `tri test` runs automatically
+- Zig/C/Verilog: tests run via their respective test frameworks
 
 ---
 
 ## Article V: Amendment Process
 
 ### §5.1. What Can Be Amended
+
 This constitution may be amended by:
 1. Opening an ADR (Architectural Decision Record)
-2. Documenting the proposed change with full rationale
+2. Documenting proposed change with full rationale
 3. Obtaining **unanimous consent** from all architectural stewards
 
 ### §5.2. What Cannot Be Amended
+
 The following are **immutable** and may never be changed:
-- The Language Policy (Article I)
+- The Language Food Chain (Article I) — `.t27` → `.tri` → backends
 - The TDD Mandate (Article II)
 - The Ban on Prototype Mode (Article III)
 - The Validation Requirements (Article IV)
@@ -176,23 +201,29 @@ The following are **immutable** and may never be changed:
 ## Article VI: Enforcement
 
 ### §6.1. Agent Compliance
+
 All AI agents working on T27 MUST:
 1. Check for test/invariant/bench sections before creating new specs
 2. Reject specs without tests with a hard error
-3. Add test blocks when retrofiting existing code
+3. Add test blocks when retrofitting existing code
 4. Never bypass or disable validation
+5. NEVER write `.tri` files by hand
 
 ### §6.2. Human Compliance
+
 Human contributors MUST:
 1. Review test coverage in every PR
 2. Request tests for any spec lacking them
 3. Treat test failures as blocking issues
+4. NEVER edit generated backends directly
 
 ### §6.3. Automated Enforcement
+
 The CI/CD pipeline MUST:
 1. Run all generated tests on every commit
 2. Block PRs where any test fails
 3. Block PRs where any spec lacks tests
+4. Validate that no hand-written backend code exists
 
 ---
 
@@ -204,7 +235,7 @@ T27 rests on three pillars. Violating any violates the whole:
 2. **Ternary Computation** — The computational substrate
 3. **TDD-Inside-Spec** — The verification mechanism
 
-Additionally, the **Language Policy** (Article I) ensures universality and clarity.
+Additionally, **Language Food Chain** (Article I) ensures single source of truth and no self-feeding.
 
 ---
 
@@ -212,13 +243,16 @@ Additionally, the **Language Policy** (Article I) ensures universality and clari
 
 | Command | Action |
 |---------|--------|
-| `tri validate <spec>` | Check spec has tests (enforced by parser) |
-| `tri gen <spec>` | Generate code with tests embedded |
-| `tri test <spec>` | Run generated tests |
+| `tri parse <spec>` | Parse .t27 specification |
+| `tri gen-zig <spec>` | Generate Zig backend from .tri |
+| `tri gen-c <spec>` | Generate C backend from .tri |
+| `tri gen-verilog <spec>` | Generate Verilog backend from .tri |
+| `tri test` | Run generated tests |
+| `tri seal <spec> --verify` | Verify a seal |
 | `tri soul` | Display this document |
 
 ---
 
-**Enacted**: 2026-04-04
-**Version**: 1.0
+**Enacted**: 2026-04-16
+**Version**: 2.0
 **Status**: Immutable

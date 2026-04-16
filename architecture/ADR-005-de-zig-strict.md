@@ -1,38 +1,49 @@
 # ADR-005: De-Zig Strict
 
 **Status**: Accepted
-**Date**: 2026-04-04
+**Date**: 2026-04-16
 **Decision Level**: Constitutional (SOUL Law #4)
-**Context**: TDD-Inside-Spec Implementation
+**Context**: T27 Self-Compilation Chain Architecture
 
 ---
 
 ## Context
 
-Trinity follows spec-first philosophy where `.t27/.tri` files are the single source of truth. Zig, C, and Verilog are generated backends only.
+Trinity follows self-compilation philosophy where `.t27` is the single source of truth. The compilation chain is:
 
-Prior to this ADR, there was ambiguity about when Zig could be written directly:
-- Some agents wrote CLI logic directly in `src/**/*.zig`
-- Runtime layer had domain logic in handwritten Zig
-- No clear enforcement mechanism for spec-first workflow
+```
+.t27 (human source) → [t27c compiler] → .tri (canonical IR) → [tri runtime] → execution
+```
 
-This violated the core Trinity principle and created technical debt.
+**Critical invariant:** `.t27` compiles **itself via .tri** — there is NO "dogfooding" or self-feeding. We do NOT write `.tri` by hand, and we do NOT compile `.t27` directly in Rust/Zig/etc.
+
+### The Language Food Chain
+
+| Language | Status | Role |
+|----------|--------|------|
+| `.t27` | ✅ write by hand | Single source of truth |
+| `.tri` | ⚙️ generated | Canonical IR, runtime target |
+| Rust | 🔒 frozen | Only bootstrap toolchain `t27c`, never edited |
+| Zig | ❌ consumed | Generate from `.tri` if needed, never write by hand |
+| Python | ❌ consumed | Forbidden by L4 (except legacy) |
+| C, JS, others | ❌ consumed | Generate from `.tri` if needed |
+
+**Golden rule:** DO NOT dogfood. `.t27` eats `.tri`. We don't feed `.t27` its own output.
 
 ---
 
 ## Decision
 
-### SOUL Law #4: De-Zig Strict
+### SOUL Law #4: Language Food Chain
 
-> **No new Trinity business logic handwritten in Zig.**
->
-> 1. **Source of truth**: All new Trinity logic (CLI, runtime, numeric, physics, graph, agents) is specified only in `.t27` / `.tri`.
-> 2. **Backends only**: Zig, C, Verilog, and Rust exist only as **generated backends** from `.t27` / `.tri` via `tri gen`.
-> 3. **Temporary bootstrap**: New `.zig` files are allowed only as temporary bootstrap (I/O, process startup). Domain logic in Zig is forbidden.
-> 4. **Migration debt**: Any existing handwritten Zig with domain logic must have an explicit migration task into `.t27` / `.tri`. Do not add new debt.
-> 5. **Enforcement**:
->    - `tri lint` fails if new `.zig` files appear without a `generated` marker
->    - `tri git push --strict` blocks push if Zig diffs under `src/` fail checks
+> **Write ONLY .t27 files. t27c compiles .t27 → .tri automatically. .tri is NOT edited by hand — it is output. If Zig/C/other target needed — generate from .tri, don't write by hand.**
+
+> 1. **Single source of truth**: All Trinity logic lives in `.t27` specs only.
+> 2. **Compiler chain**: `t27c` compiles `.t27` → `.tri` automatically. `.tri` is canonical IR.
+> 3. **No manual .tri editing**: `.tri` files are generated artifacts — never edited by hand.
+> 4. **Frozen Rust**: Rust code is ONLY the `t27c` bootstrap compiler. Never edit directly.
+> 5. **Consumed languages**: Zig, Python, C, JS, etc. are generated from `.tri` via `tri gen`. Never write by hand.
+> 6. **No self-feeding**: `.t27` compiles itself via `.tri`. No dogfooding.
 
 ### Allowed Zig Files
 

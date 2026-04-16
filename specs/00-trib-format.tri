@@ -1,0 +1,292 @@
+1	spec trib_format
+2	module trib_format {
+3	  version: "1.0.0"
+4	  ring: 000
+5	  imports: [gf_family_foundation]
+6	}
+7
+8	-- .trib format specification
+9	-- Trinity IR (Intermediate Representation) bytecode format
+10	-- Magic: 0x54524942 = "TRIB"
+11
+12
+13	-- SECTION 2: File Header
+14	constants {
+15	  MAGIC: u32 = 0x54524942        -- "TRIB"
+16	  VERSION: u8 = 1                  -- .trib format version
+17	  HEADER_SIZE: u32 = 16             -- header size in bytes
+18	}
+19
+20	-- SECTION 3: Section Headers
+21	types {
+22	  SectionHeader {
+23	    kind: SectionKind,
+24	    size: u32,           -- size of section (bytes)
+25	    flags: u16,          -- section flags
+26	    offset: u32,         -- offset from header
+27	  }
+28
+29	SectionKind = enum(u8) {
+30	  CONSTANTS  = 0,    -- Global constants
+31	  TYPES       = 1,     -- Type definitions
+32	  FUNCTIONS    = 2,     -- Function declarations
+33	  CODE        = 3,     -- Code bytes
+34	  SYMBOLS     = 4,     -- Symbol table
+35	  CUSTOM       = 5,     -- Custom sections
+36	}
+37
+38	-- SECTION 4: Symbol Table
+39	types {
+40	  Symbol {
+41	    name: str,
+42	    type: u16,
+43	    section: u8,         -- which section contains this symbol
+44	  }
+45
+46	SymbolKind = enum(u8) {
+47	  CONSTANT   = 1,    -- Global constant
+48	  FUNCTION   = 2,    -- Function
+49	  LABEL      = 3,    -- Code label
+50	  TYPE       = 4,    -- Type
+51	  VARIABLE   = 5,    -- Local/global variable
+52	}
+53
+54	-- SECTION 5: Type Definitions
+55	types {
+56	  Type {
+57	    name: str,
+58	    kind: TypeKind,
+59	    params: [TypeParam; _],
+60	    return_type: u8,    -- index into type registry
+61	  }
+62
+63	TypeKind = enum(u8) {
+64	  VOID      = 0,    -- void (no return value)
+65	  I8        = 1,    -- 8-bit signed integer
+66	  I16       = 2,    -- 16-bit signed integer
+67	  I32       = 3,    -- 32-bit signed integer
+68	  I64       = 4,    -- 64-bit signed integer
+69	  U8        = 5,    -- 8-bit unsigned integer
+70	  U16       = 6,    -- 16-bit unsigned integer
+71	  U32       = 7,    -- 32-bit unsigned integer
+72	  U64       = 8,    -- 64-bit unsigned integer
+73	  F32       = 9,    -- 32-bit float
+74	  F64       = 10,   -- 64-bit float
+75	  POINTER    = 11,   -- pointer (memory address)
+76	  ARRAY      = 12,   -- array type
+77	  FUNCTION   = 13,   -- function type
+78	  STRUCT     = 14,   -- struct type
+79	  GF32       = 100,  -- Golden Float 32
+80	  GF16       = 101,  -- Golden Float 16
+81	  TF3        = 102,   -- Ternary Float 3
+82	}
+83
+84	TypeParam {
+85	  name: str,
+86	  kind: TypeParamKind,
+87	}
+88
+89	TypeParamKind = enum(u8) {
+90	  INTEGER_SIZE = 0,   -- bit width for integers (8, 16, 32, 64)
+91	  FLOAT_SIZE    = 1,    -- bit width for floats (32, 64)
+92	  ARRAY_LENGTH = 2,     -- number of elements (for arrays)
+93	  ELEM_TYPE    = 3,     -- element type (for arrays)
+94	  PTR_TO       = 4,     -- pointee type (for pointers)
+95	}
+96
+97	-- SECTION 6: Function Definitions
+98	types {
+99	  Function {
+100	    name: str,
+101	    return_type: u8,    -- index into type registry
+102	    params: [u8; _],      -- parameter type indices
+103	    locals: [u8; _],       -- local variable type indices
+104	    code: [u8; _],        -- function code bytes
+105	  flags: u8,             -- function flags
+106	  symbols: [u16; _],    -- symbol indices used by function
+107	  }
+108
+109	-- SECTION 7: Code Section
+110	types {
+111	  CodeSection {
+112	    instructions: [u8; _],
+113	    relocs: [Relocation; _],
+114	  flags: u8,
+115	  }
+116
+117	Relocation {
+118	  offset: u32,          -- target offset in code
+119	  symbol: u16,           -- symbol index to patch
+120	  kind: u8,             -- relocation kind
+121	}
+122
+123	RelocationKind = enum(u8) {
+124	  ABSOLUTE     = 0,    -- absolute address
+125	  SYMBOL_REL   = 1,    -- symbol-relative address
+126	  SECTION_REL = 2,     -- section-relative address
+127	}
+128
+129	-- SECTION 8: Import Table
+130	types {
+131	  Import {
+132	    module: str,          -- module name to import from
+133	    name: str,             -- function/type/symbol name
+134	    symbol_index: u16,   -- index in export module's symbol table
+135	  flags: u8,             -- import flags
+136	  }
+137	}
+138
+139	-- SECTION 9: Entry Point
+140	types {
+141	  EntryPoint {
+142	    flags: u8,            -- entry point flags
+143	    section: u16,          -- section index for code
+144	    offset: u32,           -- entry offset in code
+145	  }
+146
+147	-- SECTION 10: Custom Sections
+148	types {
+149	  CustomSection {
+150	    kind: u8,
+151	    name: str,
+152	    data: [u8; _],
+153	    flags: u8,
+154	  }
+155	}
+156
+157	-- SECTION 11: Validation
+158	invariants {
+159	  -- File header validation
+160	  invariant magic_number_is_trib {
+161	    given: header = SectionHeader
+162	    when: kind = kind, size = size, flags = flags, offset = offset
+163	    then: header.kind == KIND.MAGIC && header.size == HEADER_SIZE
+164	  }
+165
+166	  -- Section ordering
+167	  invariant sections_ordered_by_offset {
+168	    given: sections = [SectionHeader; _]
+169	    when: ordered = is_sorted(sections, |a, b| a.offset < b.offset)
+170	    then: ordered == true
+171	  }
+172
+173	  -- Symbol table uniqueness
+174	  invariant symbol_names_unique {
+175	    given: symbols = [Symbol; _]
+176	    when: names = extract_names(symbols)
+177	    then: names.len() == names.unique().len()
+178	  }
+179
+180	  -- Entry point validity
+181	  invariant entry_point_within_code {
+182	    given: entry = EntryPoint, code = CodeSection
+183	    when: valid = entry.offset < code.instructions.len() as u32
+184	    then: valid == true
+185	  }
+186
+187	-- SECTION 12: Binary Format
+188	types {
+189	  Header {
+190	    magic: u32,
+191	    version: u8,
+192	    sections: u32,          -- number of sections
+193	    entry: EntryPoint,
+194	    symbols: u16,
+195	    reserved: u32,
+196	  }
+197
+198	-- SECTION 13: Functions
+199	functions {
+200	  -- Read .trib file
+201	  read: fn(path: str) -> Result<Header, ReadError>
+202
+}
+203
+204	-- SECTION 14: Tests (8 required)
+205	tests {
+206	  -- 1. Header magic validation
+207	  test magic_is_trib {
+208	    given: header = SectionHeader { kind: KIND.MAGIC, size: HEADER_SIZE, flags: 0, offset: 0 }
+209	    when: result = magic_is_trib(header)
+210	    then: result == true
+211	  }
+212
+213	  -- 2. Section ordering
+214	  test sections_are_ordered {
+215	    given: sections = [SectionHeader { kind: KIND.CODE, size: 16, flags: 0, offset: 16 }, SectionHeader { kind: KIND.SYMBOLS, size: 8, flags: 0, offset: 32 }]
+216	    when: ordered = is_sorted(sections, |a, b| a.offset < b.offset)
+217	    then: ordered == true
+218	  }
+219
+220	  -- 3. Symbol name uniqueness
+221	  test symbol_names_are_unique {
+222	    given: symbols = [Symbol { name: "phi_pow", type: SYMBOL_KIND.FUNCTION, section: KIND.FUNCTIONS }]
+223	    when: names = extract_names(symbols)
+224	    then: names.len() == names.unique().len()
+225	  }
+226
+227	  -- 4. Entry point validity
+228	  test entry_point_within_code {
+229	    given: entry = EntryPoint { section: KIND.CODE, offset: 32 }, code = CodeSection { instructions: [0x01, 0x02, 0x00] }
+230	    when: valid = entry.offset < 3
+231	    then: valid == true
+232	  }
+233
+234	  -- 5. Read valid .trib file
+235	  test read_simple_trib_file {
+236	    given: path = "examples/simple.trib"
+237	    when: result = read(path)
+238	    then: result.is_ok() && matches_magic(result.ok().magic)
+239	  }
+240
+241	  -- 6. Empty file handling
+242	  test empty_file_returns_error {
+243	    given: path = "examples/empty.trib"
+244	    when: result = read(path)
+245	    then: result.is_err() && result.err().kind == ReadError.NotFound
+246	  }
+247
+248	  -- 7. Symbol table
+249	  test symbol_table_has_main_function {
+250	    given: symbols = [Symbol { name: "main", type: SYMBOL_KIND.FUNCTION, section: KIND.FUNCTIONS }]
+251	    when: has_main(symbols)
+252	    then: result == true
+253	  }
+254
+255	  -- 8. Header version
+256	  test version_is_supported {
+257	    given: header = Header { version: 1 }
+258	    when: result = version_is_supported(header)
+259	    then: result == true
+260	  }
+261	}
+262
+263	-- SECTION 15: Benchmarks (2 required)
+264	benchmarks {
+265	  -- 1. Read performance
+266	  bench trib_read_throughput {
+267	    measure: nanoseconds to read("examples/complex.trib")
+268	    target: 100_000_000  -- 100MB/sec
+269	    warmup: 3
+270	    runs: 100
+271	  }
+272
+273	  -- 2. Write performance
+274	  bench trib_write_throughput {
+275	    measure: nanoseconds to trib_write("examples/output.trib", "simple content")
+276	    target: 50_000_000   -- 50MB/sec
+277	    warmup: 3
+278	    runs: 100
+279	  }
+280	}
+281
+282	-- SECTION 16: Helper functions
+283	functions {
+284	  -- Utility functions
+285	  matches_magic: fn(header: SectionHeader) -> bool
+286	    is_sorted: fn(sections: [SectionHeader], compare: fn) -> bool
+287	  extract_names: fn(symbols: [Symbol]) -> Vec<String>
+288	  has_main: fn(symbols: [Symbol]) -> bool
+289	  version_is_supported: fn(header: Header) -> bool
+290
+}

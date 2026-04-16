@@ -15,296 +15,320 @@
 15	    Invariants = 4,
 16	    Tests = 5,
 17	    Benchmarks = 6,
-18	    NumericTower = 7,      -- NEW: for Ring-001
-19	    Promotion = 8,           -- NEW: for Ring-001
-20	    Experience = 9,           -- NEW: for Ring-001
+18	    NumericTower = 7,      -- NEW for Ring-001
+19	    Promotion = 8,           -- NEW for Ring-001
+20	    Experience = 9,           -- NEW for Ring-001
 21	    Imports = 10,
 22	  }
 23	}
-24	}
-25
-26	-- SECTION 3: Parse Result
-27	types {
-28	  ParseResult = enum {
-29	    Ok(AST),
-30	    Err(ParseError)
-31	  }
-32
-33	  AST = struct {
-34	    modules: [ModuleDecl; _],
-35	    errors: [ParseError; _],
-36	  }
-37
-38	  ParseError = struct {
-39	    line: u32,
-40	    msg: str,
-41	  }
-42	}
-43	-- SECTION 4: Module Declaration
-44	types {
-45	  ModuleDecl = struct {
-46	    name: str,
-47	    version: str,
-48	    ring: u32,
-49	    seal: str,
-50	    imports: [str; _],
-51	    sections: [Section; _],
-52	  }
-53	}
-54
-55	Section = struct {
-56	  kind: SectionKind,
-57	  content: SectionContent,
-58	}
-59
-60	SectionContent = enum {
-61	  ConstantsSection {
-62	    constants: [ConstDecl; _],
-63	  }
-64	  TypesSection {
-65	    types: [TypeDecl; _],
-66	  }
-67	  FunctionsSection {
-68	    functions: [FnDecl; _],
-69	  }
-70	  InvariantsSection {
-71	    invariants: [InvariantDecl; _],
-72	  }
-73	  BenchmarksSection {
-74	    benchmarks: [BenchDecl; _],
-75	  }
-76	  -- NEW SECTIONS for Ring-001
-77	  NumericTowerSection {
-78	    rules: [PromotionRule; _],
-79	  }
-80	  PromotionSection {
-81	    rules: [PromotionRule; _],
-82	  }
-83	  ExperienceSection {
-84	    hooks: [str; _],
-85	  }
-86	  ImportsSection {
-87	    imports: [str; _],
-88	  }
-89	}
-90	-- SECTION 5: Constant Declaration
-91	types {
-92	  ConstDecl = struct {
-93	    name: str,
-94	    type: str,     -- e.g., "GF32" or builtin
-95	    value: str,
-96	  }
-97	}
-98	-- SECTION 6: Type Declaration
-99	types {
-100	  TypeDecl = enum {
-101	    StructDecl,
-102	    EnumDecl,
+24
+25	}
+26
+27	-- SECTION 3: Parse Result
+28	types {
+29	  ParseResult = enum {
+30	    Ok(AST),
+31	    Err(ParseError)
+32	  }
+33	}
+34
+35	AST = struct {
+36	  modules: Vec<ModuleDecl; _>,
+37	  errors: Vec<ParseError; _>,
+38	}
+39	}
+40
+41	ParseError = struct {
+42	  line: u32,
+43	  msg: str,
+44	}
+45	}
+46
+47	-- SECTION 4: Module Declaration
+48	types {
+49	  ModuleDecl = struct {
+50	    name: str,
+51	    version: Option<String>,
+52	    ring: Option<String>,
+53	    seal: Option<String>,
+54	    imports: Vec<String; _>,
+55	    sections: Vec<Section; _>,
+56	  }
+57	}
+58
+59	Section = struct {
+60	  kind: SectionKind,
+61	  content: SectionContent,
+62	}
+63	}
+64
+65	SectionContent = enum {
+66	  ConstantsSection {
+67	    constants: Vec<ConstDecl; _>,
+68	  }
+69	  TypesSection {
+70	    types: Vec<TypeDecl; _>,
+71	  }
+72	  FunctionsSection {
+73	    functions: Vec<FnDecl; _>,
+74	  }
+75	  InvariantsSection {
+76	    invariants: Vec<InvariantDecl; _>,
+77	  }
+78	  BenchmarksSection {
+79	    benchmarks: Vec<BenchDecl; _>,
+80	  }
+81	  -- NEW sections for Ring-001
+82	  NumericTowerSection {
+83	    rules: Vec<PromotionRule; _>,
+84	  }
+85	  PromotionSection {
+86	    rules: Vec<PromotionRule; _>,
+87	  }
+88	  ExperienceSection {
+89	    hooks: Vec<String; _>,
+90	  }
+91	  ImportsSection {
+92	    imports: Vec<String; _>,
+93	  }
+94	}
+95	}
+96
+97	-- SECTION 5: Constant Declaration
+98	types {
+99	  ConstDecl = struct {
+100	    name: str,
+101	    type: str,
+102	    value: str,
 103	  }
-104
-105	  StructDecl = struct {
-106	    name: str,
-107	    fields: [FieldDecl; _],
-108	  }
-109
-110	  FieldDecl = struct {
-111	    name: str,
-112	    type: str,
-113	  }
-114	}
-115
-116	  EnumDecl = struct {
-117	    name: str,
-118	    variants: [EnumVariant; _],
-119	  }
-120	}
-121	EnumVariant = struct {
-122	  name: str,
-123	  value: str,
-124	  }
-125	-- SECTION 7: Function Declaration
-126	types {
-127	  FnDecl = struct {
-128	    name: str,
-129	    params: [ParamDecl; _],
-130	    return_type: str,
-131	    body: Expr,
-132	  }
-133	}
-134	ParamDecl = struct {
+104	}
+105	}
+106
+107	-- SECTION 6: Type Declaration
+108	types {
+109	  TypeDecl = enum {
+110	    StructDecl,
+111	    EnumDecl,
+112	  }
+113	}
+114
+115	#[derive(Debug, Clone)]
+116	pub struct StructDecl {
+117	  name: str,
+118	  fields: Vec<FieldDecl; _>,
+119	}
+120
+121	#[derive(Debug, Clone)]
+122	pub struct EnumDecl {
+123	  name: str,
+124	  variants: Vec<EnumVariant; _>,
+125	}
+126
+127	#[derive(Debug, Clone)]
+128	pub struct FieldDecl {
+129	  name: str,
+130	  type: str,
+131	}
+132
+133	#[derive(Debug, Clone)]
+134	pub struct EnumVariant {
 135	  name: str,
-136	  type: str,
-137	  }
-138	-- SECTION 8: Expression
-139	types {
-140	  Expr = enum {
-141	    Literal {
-142	      number: str,
-143	      string: str,
-144	    }
-145	    Variable {
-146	      name: str,
-147	    }
-148	    Binary {
-149	      op: str,
-150	      left: Expr,
-151	      right: Expr,
-152	    }
-153	    Call {
-154	      callee: str,
-155	      args: [Expr; _],
-156	    }
-157	    Block {
-158	      statements: [Expr; _],
-159	  }
-160	}
-161	-- SECTION 9: Invariant Declaration
-162	types {
-163	  InvariantDecl = struct {
-164	    name: str,
-165	    given: [GivenClause; _],
-166	    when: Expr,
-167	    then: Expr,
-168	  }
-169	}
-170	171	GivenClause = struct {
-172	  name: str,
-173	  expr: Expr,
-174	  }
-175	}
-176	-- SECTION 10: Benchmark Declaration
-177	types {
-178	  BenchDecl = struct {
-179	    name: str,
-180	    measure: str,
-181	    target: str,
-182	    unit: str,
-183	    warmup: u8,
-184	    runs: u16,
-185	  }
-186	}
-187	-- SECTION 11: Parser Functions
-188	functions {
-189	  -- Main parse entry
-190	  parse: fn(file_path: str) -> ParseResult {
-191	    -- Reads file, tokenizes, parses into AST
-192	  }
-193
-194	  -- Section validation helpers
-195	  parse_numeric_tower_section: fn(AST, SectionKind) -> Result<_, ParseError>
-196	    -- NEW: Validates numeric_tower {} section
-197
-198	  parse_promotion_section: fn(AST, SectionKind) -> Result<_, ParseError>
-199	    -- NEW: Validates promotion {} section
-200	  parse_experience_section: fn(AST, SectionKind) -> Result<_, ParseError>
-201	    -- NEW: Validates experience {} section
-202	  parse_imports_section: fn(AST, SectionKind) -> Result<_, ParseError>
-203	    -- Validates imports [] section
-204
-205
-206	  -- AST traversal helpers
-207	  find_type_decl: fn(AST, type_name: str) -> Option<TypeDecl>
-208	  find_const_decl: fn(AST, const_name: str) -> Option<ConstDecl>
-209	}
-210	-- SECTION 12: Invariants (Parser Validation)
-211	invariants {
-212	  -- Module name uniqueness
-213	  invariant module_name_not_duplicate {
-214	    given: modules = [ModuleDecl; _]
-215	    when: names = extract_names(modules)
-216	    then: names.len() == names.unique().len()
-217	  }
-218
-219	  -- All foundation sections parseable
-220	  invariant all_foundation_sections_parseable {
-221	    given: ast = ParseResult.Ok(AST)
-222	    when: result = contains_foundation_sections(ast)
-223	    then: result == true
-224	  }
+136	  value: str,
+137	}
+138	}
+139	-- SECTION 7: Function Declaration
+140	types {
+141	  FnDecl = struct {
+142	    name: str,
+143	    params: Vec<ParamDecl; _>,
+144	    return_type: Option<String>,
+145	    body: Expr,
+146	  }
+147	}
+148
+149	#[derive(Debug, Clone)]
+150	pub struct ParamDecl {
+151	  name: str,
+152	  type: str,
+153	}
+154	}
+155	-- SECTION 8: Expression
+156	types {
+157	  Expr = enum {
+158	    Literal {
+159	      number: str,
+160	      string: str,
+161	    }
+162	    Variable {
+163	      name: str,
+164	    }
+165	    Binary {
+166	      op: str,
+167	      left: Box<Expr>,
+168	      right: Box<Expr>,
+169	    }
+170	  Call {
+171	      callee: str,
+172	      args: Vec<Expr; _>,
+173	  }
+174	    Block {
+175	      statements: Vec<Expr; _>,
+176	  }
+177	}
+178	}
+179	-- SECTION 9: Invariant Declaration
+180	types {
+181	  #[derive(Debug, Clone)]
+182	  pub struct InvariantDecl {
+183	    name: str,
+184	    given: Vec<GivenClause; _>,
+185	    when: Expr,
+186	  }
+187	}
+188
+189	#[derive(Debug, Clone)]
+190	pub struct GivenClause {
+191	  name: str,
+192	  expr: Expr,
+193	}
+194	}
+195	-- SECTION 10: Benchmark Declaration
+196	types {
+197	  #[derive(Debug, Clone)]
+198	  pub struct BenchDecl {
+199	    name: str,
+200	    measure: str,
+201	    target: str,
+202	    unit: str,
+203	    warmup: u8,
+204	    runs: u16,
+205	  }
+206	}
+207	}
+208
+209	-- SECTION 11: Parser Functions
+210	functions {
+211
+	  -- Main parse entry
+212	  parse: fn(file_path: str) -> ParseResult {
+213	    -- Reads file, tokenizes, parses into AST
+214	  }
+215
+216	  -- Section validation helpers
+217	  parse_numeric_tower_section: fn(AST, SectionKind) -> Result<_, ParseError>
+218	    -- NEW: Validates numeric_tower {} section
+219
+220	  parse_promotion_section: fn(AST, SectionKind) -> Result<_, ParseError>
+221	    -- NEW: Validates promotion {} section
+222
+223	  parse_experience_section: fn(AST, SectionKind) -> Result<_, ParseError>
+224	  -- NEW: Validates experience {} section
 225
-226
-227	  -- Numeric Tower validation (NEW)
-228	  invariant numeric_tower_well_formed {
-229	    given: section = NumericTowerSection { rules: [...rules...] }
-230	    when: valid = validate_promotion_rules(section.rules)
-231	    then: valid == true
-232	  }
-233
-234	  -- Promotion section validation (NEW)
-235	  invariant promotion_rules_complete {
-236	    given: section = PromotionSection { rules: [...rules...] }
-237	    when: valid = validate_promotion_rules(section.rules)
-238	    then: valid == true
-239	  }
-240
+226	  parse_imports_section: fn(AST, SectionKind) -> Result<_, ParseError>
+227	  -- Validates imports [] section
+228
+229	  -- AST traversal helpers
+230	  find_type_decl: fn(AST, type_name: str) -> Option<TypeDecl>
+231	  find_const_decl: fn(AST, const_name: str) -> Option<ConstDecl>
+232	}
+233	-- SECTION 12: Invariants (Parser Validation - 8 tests)
+234	invariants {
+235	  -- Module name uniqueness
+236	  invariant module_name_not_duplicate {
+237	    given: modules = [ModuleDecl; _]
+238	    when: names = extract_names(modules)
+239	    then: names.len() == names.unique().len()
+240	  }
 241
-242	  -- Imports validation (NEW)
-243	  invariant imports_resolve_before_types {
-244	    given: section = ImportsSection { imports: [...] }
-245	    when: valid = all_imports_resolved(section.imports, ast)
-246	    then: valid == true
+242	  -- All foundation sections parseable
+243	  invariant all_foundation_sections_parseable {
+244	    given: ast = ParseResult.Ok(AST)
+245	    when: result = contains_foundation_sections(ast)
+246	    then: result == true
 247	  }
 248
-249	  -- Experience section validation (NEW)
-250	  invariant experience_hooks_valid {
-251	    given: section = ExperienceSection { hooks: [...] }
-252	    when: valid = all_hooks_valid(section.hooks)
+249	  -- Numeric Tower validation (NEW)
+250	  invariant numeric_tower_well_formed {
+251	    given: section = NumericTowerSection { rules: [...rules...] }
+252	    when: valid = validate_promotion_rules(section.rules)
 253	    then: valid == true
 254	  }
-255	}
-256
-257	-- SECTION 8: Tests (Parser Validation - 8 tests)
-258	tests {
-259	  -- Tests each new section kind
-260	  test parses_module_declaration {
-261	    given: input = "module test { constants {} }"
-262	    when: ast = parse(input)
-263	    then: ast.errors.len() == 0
-264	  }
-265
-266	  test parses_constants_section {
-267	    given: input = "constants { PHI = 1.618 }"
-268	    when: ast = parse(input)
-269	    then: ast.errors.len() == 0
-270	  }
-271
-272	  test parses_numeric_tower_section {
-273	    given: input = "numeric_tower { (TF3, GF8) => GF8 }"
-274	    when: ast = parse(input)
-275	    then: ast.errors.len() == 0
-276	  }
+255
+256	  -- Promotion section validation (NEW)
+257	  invariant promotion_rules_complete {
+258	    given: section = PromotionSection { rules: [...rules...] }
+259	    when: valid = validate_promotion_rules(section.rules)
+260	    then: valid == true
+261	  }
+262
+263	  -- Imports validation (NEW)
+264	  invariant imports_resolve_before_types {
+265	    given: section = ImportsSection { imports: [...] }
+266	    when: valid = all_imports_resolved(section.imports, ast)
+267	    then: valid == true
+268	  }
+269
+270	  -- Experience section validation (NEW)
+271	  invariant experience_hooks_valid {
+272	    given: section = ExperienceSection { hooks: [...] }
+273	    when: valid = all_hooks_valid(section.hooks)
+274	    then: valid == true
+275	  }
+276	}
 277
-278	  test parses_promotion_section {
-279	    given: input = "promotion { (GF16, GF32) => GF32 }"
-280	    when: ast = parse(input)
-281	    then: ast.errors.len() == 0
-282	  }
-283
-284	  test parses_experience_section {
-285	    given: input = "experience { on_invariant_fail: save 'test.json' }"
-286	    when: ast = parse(input)
-287	    then: ast.errors.len() == 0
-288	  }
-289
-290	  test parses_imports_section {
-291	    given: input = "imports [gf_family_foundation]"
-292	    when: ast = parse(input)
-293	    then: ast.errors.len() == 0
-294	  }
-295
-296	  test rejects_duplicate_module {
-297	    given: input = "module test {} module test {}"
-298	    when: ast = parse(input)
-299	    then: ast.errors.len() > 0
-300	  }
-301	}
-302	-- SECTION 9: Benchmarks (2 required)
-303	benchmarks {
-304	  -- Parser performance
-305	  bench parser_parse_vm_core_spec {
-306	    measure: nanoseconds to parse("specs/01-vm-core.tri")
-307	    target: 10_000_000  -- 10ms
-308	    warmup: 3
-309	    runs: 100
-310	  }
-311	}
+278	-- SECTION 8: Tests (Parser Validation - 8 tests)
+279	tests {
+280	  -- Tests each new section kind
+281	  test parses_module_declaration {
+282	    given: input = "module test { constants {} }"
+283	    when: ast = parse(input)
+284	    then: ast.errors.len() == 0
+285	  }
+286
+287	  test parses_constants_section {
+288	    given: input = "constants { PHI = 1.618 }"
+289	    when: ast = parse(input)
+290	    then: ast.errors.len() == 0
+291	  }
+292
+293	  test parses_numeric_tower_section {
+294	    given: input = "numeric_tower { (TF3, GF8) => GF8 }"
+295	    when: ast = parse(input)
+296	    then: ast.errors.len() == 0
+297	  }
+298
+299	  test parses_promotion_section {
+300	    given: input = "promotion { (GF16, GF32) => GF32 }"
+301	    when: ast = parse(input)
+302	    then: ast.errors.len() == 0
+303	  }
+304
+305	  test parses_experience_section {
+306	    given: input = "experience { on_invariant_fail: save 'test.json' }"
+307	    when: ast = parse(input)
+308	    then: ast.errors.len() == 0
+309	  }
+310
+311	  test parses_imports_section {
+312	    given: input = "imports [gf_family_foundation]"
+313	    when: ast = parse(input)
+314	    then: ast.errors.len() == 0
+315	  }
+316
+317	  test rejects_duplicate_module {
+318	    given: input = "module test {} module test {}"
+319	    when: ast = parse(input)
+320	    then: ast.errors.len() > 0
+321	  }
+322	}
+323
+324	-- SECTION 9: Benchmarks (2 required)
+325	benchmarks {
+326	  -- Parser performance
+327	  bench parser_parse_vm_core_spec {
+328	    measure: nanoseconds to parse("specs/01-vm-core.tri")
+329	    target: 10_000_000  -- 10ms
+330	    warmup: 3
+331	    runs: 100
+332	  }
+333	}

@@ -1,24 +1,26 @@
 {
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "completed": ["ring-000", "ring-007", "ring-008", "ring-009"],
+  "milestone": "TRINITY-FOUNDATION-COMPLETE",
+  "completed_rings": [
+    "000","001","002","003","004","005","006","007","008","009","010","011","012"
+  ],
   "roads": {
     "R1": {
-      "title": "Ring-010: .tri → .trib Pipeline",
+      "title": "Ring-013: tri CLI release v0.1.0",
       "priority": "HIGH",
-      "desc": "End-to-end: parse .tri spec → emit .trib bytecode → execute on VM",
-      "why": "Без pipeline .tri и .trib — изолированные артефакты. Нужен сквозной путь."
+      "desc": "Собрать финальный bi��ary: tri pipeline/test/bench/experience — все команды из одного бинаря",
+      "why": "MVP готов к публичному релизу на GitHub Releases"
     },
     "R2": {
-      "title": "Ring-011: tri experience save CLI command",
+      "title": "Ring-014: DARPA CLARA submission prep",
       "priority": "MED",
-      "desc": "Полноценная команда tri experience save как described in 5 Unfair Advantages",
-      "why": "Experience = infinite memory. Ключевой дифференциатор Trinity."
+      "desc": "Подготовить technical report используя TRINITY-SCIENTIFIC-PROOF.md и все 42 param results",
+      "why": "Научный вклад верифицирован машинно. Время подавать в DARPA CLARA."
     },
     "R3": {
-      "title": "Ring-012: GF32 Physics Constants Verification",
+      "title": "Ring-015: 32-agent swarm sharing .trinity/experience/",
       "priority": "LOW",
-      "desc": "Верифицировать все 42 φ-параметризации из Trinity research через GF32",
-      "why": "Публичный научный вклад всего проекта Trinity."
+      "desc": "32 агента делят experience/ через git — collective intelligence активирован",
+      "why": "5th Unfair Advantage: Swarm + shared experience"
     }
   }
 }

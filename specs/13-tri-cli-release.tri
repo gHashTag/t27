@@ -1,0 +1,68 @@
+spec tri_cli_release
+
+ring: 013
+imports: [tri_trib_pipeline, tri_experience_cli]
+
+types {
+    CLIVersion {
+        major: u8,
+        minor: u8,
+        patch: u8,
+        pre: str,
+    }
+
+    Command {
+        kind: CommandKind,
+        args_count: u8,
+    }
+
+    CommandKind enum(u8) {
+        PIPELINE = 0,
+        TEST = 1,
+        BENCH = 2,
+        PARSE = 3,
+        EXPERIENCE_SAVE = 4,
+        EXPERIENCE_LIST = 5,
+        EXPERIENCE_DIFF = 6,
+        EXPERIENCE_EVOLVE = 7,
+        VERSION = 8,
+        HELP = 9,
+    }
+
+functions {
+    cli_version() -> CLIVersion
+    pipeline_run(source_path: str) -> PipelineResult
+    test_run(source_path: str) -> TestResult
+    bench_run(source_path: str) -> BenchResult
+    experience_save(skill: str, payload: str) -> Experience
+    experience_list() -> Experience[]
+    experience_diff(skill: str, old: f64, new: f64, target: f64) -> SkillDiff
+    experience_evolve() -> [SkillDiff]
+}
+
+invariants {
+    command_valid {
+        given c Command
+        assert c.kind == CommandKind.HELP || c.kind == CommandKind.VERSION
+    }
+}
+
+tests {
+    1. cli_version_returns_v0_1_0
+    2. cli_version_includes_patch
+    3. cli_version_includes_minor
+    4. cli_version_includes_pre
+    5. cli_version_formats_correctly
+    6. cli_displays_help
+    7. cli_requires_minimum_args
+    8. cli_rejects_unknown_commands
+}
+
+benchmarks {
+    cli_dispatch_latency {
+        measure nanoseconds to parse_args_and_dispatch("version")
+        target 1_000  -- 1us for version command
+        warmup 5
+        runs 100
+    }
+}

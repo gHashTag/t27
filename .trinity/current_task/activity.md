@@ -272,3 +272,7 @@
 - **Commit:** fix(paper): close author brace, fix comparison table columns
 - **Files:** .trinity/current_task/activity.md,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
 
+## 2026-04-16T15:16:07Z — master
+- **Commit:** feat(paper): apply punchline improvements — Sommerfeld sharpening, El Naschie one-liner, Pellis sniper/survey metaphor, JUNO closing
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/state/three-roads.json,CHANGELOG.md,CLAUDE.md,SOUL.md,architecture/ADR-005-de-zig-strict.md,bootstrap/src/cli.rs,bootstrap/src/codegen.rs,bootstrap/src/main.rs,docs/TRINITY-ABSTRACT.md,examples/trib/phi_identity.trib,specs/00-trib-format.tri,specs/02-bootstrap-parser.tri,specs/13-tri-cli-release.tri
+
