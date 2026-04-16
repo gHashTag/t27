@@ -188,3 +188,7 @@
 - **Commit:** fix(ring-000): remove raw .c/.o violations from trivm/core
 - **Files:** research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
 
+## 2026-04-16T13:02:08Z — master
+- **Commit:** feat(paper): add golden balance figure placeholder, attribute Olsen contribution
+- **Files:** specs/01-tri-lang-core.tri,specs/02-gf16-format.tri,specs/03-tri-bootstrap-compiler.tri
+

@@ -1,0 +1,145 @@
+spec tri_bootstrap_compiler
+
+pub struct Token {
+  kind TokenKind,
+  value str,
+  line u32,
+  col   u32
+}
+
+pub const TokenKind enum(u8) {
+  spec = 0,
+  pub_ = 1,
+  fn_  = 2,
+  let_ = 3,
+  const_ = 4,
+  return_ = 5,
+  if_ = 6,
+  else_ = 7,
+  while_ = 8,
+  for_ = 9,
+  lparen = 10,
+  rparen = 11,
+  lbrace = 12,
+  rbrace = 13,
+  semicolon = 14,
+  colon = 15,
+  arrow = 16,
+  equals = 17,
+  ident = 18,
+  trit_literal = 19,
+  f32_literal = 20,
+  gf16_literal = 21,
+  tf3_literal = 22,
+  eof = 255
+}
+
+pub fn lex(source str) -> Token[]
+pub fn parse(tokens Token[]) -> AST
+pub fn validate(ast AST) -> ValidationResult
+pub fn emit_trib(ast AST) -> u8[]
+
+-- AST nodes (simplified)
+pub struct AST {
+  nodes Node[],
+  root u32
+}
+
+pub struct Node {
+  kind NodeKind,
+  children u32[],
+  value str
+}
+
+pub const NodeKind enum(u8) {
+  fn_decl = 0,
+  param_decl = 1,
+  return_type = 2,
+  block = 3,
+  call_expr = 4,
+  lit_expr = 5,
+  bin_op = 6,
+  ident_expr = 7
+}
+
+pub struct ValidationResult {
+  is_valid bool,
+  errors Error[]
+}
+
+pub struct Error {
+  message str,
+  line u32,
+  col u32
+}
+
+-- Tests (mandatory 8)
+test lex_spec_keyword {
+  given source = "spec hello"
+  let tokens = lex(source)
+  assert tokens[0].kind == TokenKind.spec
+  assert tokens[1].value == "hello"
+}
+
+test parse_fn_decl {
+  given tokens = [
+    Token { kind: TokenKind.spec, value: "spec", line: 1, col: 1 },
+    Token { kind: TokenKind.fn_, value: "fn", line: 1, col: 6 },
+    Token { kind: TokenKind.ident, value: "main", line: 1, col: 9 },
+    Token { kind: TokenKind.lparen, value: "(", line: 1, col: 13 },
+    Token { kind: TokenKind.rparen, value: ")", line: 1, col: 14 }
+  ]
+  let ast = parse(tokens)
+  assert ast.nodes.len() > 0
+}
+
+test validate_empty_ast {
+  given ast = AST { nodes: [], root: 0 }
+  let result = validate(ast)
+  assert result.is_valid == true
+}
+
+test emit_trib_hello {
+  given ast = minimal_hello_ast()
+  let bytecode = emit_trib(ast)
+  assert bytecode.len() > 0
+}
+
+test lexer_line_tracking {
+  given source = "spec\ntest\nfn(){}"
+  let tokens = lex(source)
+  assert tokens[1].line == 2
+}
+
+test parser_block_nesting {
+  given tokens = function_tokens()
+  let ast = parse(tokens)
+  assert is_nesting_correct(ast)
+}
+
+test validator_no_errors {
+  given ast = valid_ast()
+  let result = validate(ast)
+  assert result.errors.len() == 0
+}
+
+test validator_catches_missing_return {
+  given ast = ast_without_return()
+  let result = validate(ast)
+  assert result.is_valid == false
+}
+
+-- Benchmarks (mandatory 2)
+bench lex_throughput {
+  measure nanoseconds to lex("spec hello pub fn main() -> void {}")
+  target 10_000_000
+  warmup 3
+  runs 100
+}
+
+bench parse_speed {
+  measure nanoseconds to parse(full_spec_tokens())
+  target 50_000_000
+  warmup 3
+  runs 100
+}
