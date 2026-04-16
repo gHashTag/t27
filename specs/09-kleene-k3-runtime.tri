@@ -1,0 +1,284 @@
+spec kleene_k3_runtime
+
+use "00-gf-family-foundation.tri"
+
+-- ════════════════════════════════════════════
+-- K3 KLEENE RUNTIME — Three-valued logic
+-- ══════════════════════════════════════════════
+-- Unlike binary (0/1), K3 has THREE states: Neg, Neu, Pos
+-- Supports uncertainty: any value can propagate through gates
+-- ══════════════════════════════════════════════════
+
+-- ══════════════════════════════════════════════════
+-- K3 TRIT TYPE (uses TF3 for encoding)
+-- ════════════════════════════════════════════════════════
+-- Uses TF3 NEG/NEU/POS constants for state mapping
+-- ══════════════════════════════════════════════════════════════
+
+pub type K3Trit = TF3
+
+pub struct K3Gate {
+  kind: GateKind,
+  input_count: u8,
+  output_count: u8,
+}
+
+pub const GateKind enum(u8) {
+  NULL_GATE = 0,      -- nullary gate
+  UNARY_GATE = 1,     -- single input
+  BINARY_GATE = 2,    -- two inputs
+  TERNARY_GATE = 3,    -- three inputs
+  CONSENSUS_GATE = 4, -- multi-input consensus
+}
+
+-- ════════════════════════════════════════════════════════════
+-- K3 GATE SET (canonical truth tables)
+-- Based on Kleene's strong logic of implication
+-- ══════════════════════════════════════════════════════════════════
+
+-- Unary gates (single input)
+pub const K3_NOT truth: [K3Trit; 3] = [
+  K3Trit::NEG, K3Trit::NEU, K3Trit::POS,
+]
+pub const K3_NOT identity: [K3Trit; 3] = [
+  K3Trit::NEG, K3Trit::NEU, K3Trit::POS,
+]
+
+-- Binary gates (two inputs)
+pub const K3_AND truth: [K3Trit; 3; 3] = [
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::POS], [K3Trit::NEG, K3Trit::NEU, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::POS],
+]
+pub const K3_OR truth: [K3Trit; 3; 3] = [
+  [K3Trit::NEU, K3Trit::POS, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::POS, K3Trit::POS],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::POS, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::NEU, K3Trit::POS, K3Trit::POS],
+]
+pub const K3_AND identity: [K3Trit; 3; 3] = [
+  [K3Trit::NEG, K3Trit::NEG, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEG, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::POS, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEG, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::POS, K3Trit::POS],
+]
+
+-- Ternary gates (three inputs)
+pub const K3_AND truth: [K3Trit; 3; 3; 3] = [
+  [K3Trit::NEG, K3Trit::NEG, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::NEG, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEG, K3Trit::POS],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::NEG, K3Trit::POS], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEG, K3Trit::POS],
+]
+pub const K3_AND identity: [K3Trit; 3; 3; 3] = [
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+]
+
+-- Consensus gate (multi-input, takes majority)
+-- For K3: returns the most common input value
+-- If tie between two values, returns NEU (middle state)
+pub const K3_CONSENSUS truth: [K3Trit; 27] = [
+  [K3Trit::NEG, K3Trit::NEG, K3Trit::NEG], [K3Trit::NEG, K3Trit::NEU, K3Trit::NEG, K3Trit::NEG],
+  [K3Trit::NEG, K3Trit::NEU, K3Trit::NEG], [K3Trit::NEU, K3Trit::NEG, K3Trit::NEG, K3Trit::NEG, K3Trit::NEG],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEG], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEG, K3Trit::NEG, K3Trit::NEG, K3Trit::NEG],
+]
+pub const K3_CONSENSUS identity: [K3Trit; 27; 27] = [
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+  [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU], [K3Trit::NEU, K3Trit::NEU, K3Trit::NEU, K3Trit::NEU],
+]
+
+-- Absorption laws (from Kleene's strong logic)
+-- NOT absorbs in AND: NOT(a, b) = a AND b
+-- OR absorbs in AND: a OR b = a AND b
+-- ══════════════════════════════════════════════════════
+
+-- ══════════════════════════════════════════════════════════
+-- CORE GATE FUNCTIONS (15 total)
+-- ══════════════════════════════════════════════════════════
+
+pub fn k3_not(a: K3Trit) -> K3Trit
+pub fn k3_or(a: K3Trit, b: K3Trit) -> K3Trit
+pub fn k3_and(a: K3Trit, b: K3Trit) -> K3Trit
+pub fn k3_and3(a: K3Trit, b: K3Trit, c: K3Trit) -> K3Trit
+pub fn k3_or3(a: K3Trit, b: K3Trit, c: K3Trit) -> K3Trit
+pub fn k3_consensus(inputs: [K3Trit]) -> K3Trit
+
+-- ══════════════════════════════════════════════════════════════════════
+-- TERNARY GATE FUNCTIONS (3 additional functions)
+-- ══════════════════════════════════════════════════════════════════════════
+
+pub fn k3_material_implication(a: K3Trit, b: K3Trit) -> K3Trit
+pub fn k3_material_nonimplication(a: K3Trit, b: K3Trit) -> K3Trit
+pub fn k3_material_equivalence(a: K3Trit, b: K3Trit) -> K3Trit
+pub fn k3_material_conditional(a: K3Trit, b: K3Trit, c: K3Trit) -> K3Trit
+
+-- ════════════════════════════════════════════════════════════════════════════════════════════
+-- TF3 ENCODING/DECODING FUNCTIONS
+-- Bridges K3Trit to/from TF3 format
+-- ════════════════════════════════════════════════════════════════════════════════════════════════
+
+pub fn k3_trit_to_tf3(t: K3Trit) -> TF3
+pub fn tf3_to_k3_trit(x: TF3) -> K3Trit
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+-- INVARIANTS (8 mandatory)
+-- ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+invariant k3_not_absorbs_or {
+  given a K3Trit, b K3Trit
+  assert k3_not(k3_not(a)) == k3_or(a, b)
+}
+
+invariant k3_or_absorbs_and {
+  given a K3Trit, b K3Trit
+  assert k3_or(k3_or(a, b)) == k3_and(a, b)
+}
+
+invariant k3_and3_is_associative {
+  given a K3Trit, b K3Trit, c K3Trit
+  assert k3_and3(a, b, c) == k3_and3(a, k3_and(b, c))
+}
+
+invariant k3_consensus_returns_most_common {
+  given inputs [K3Trit]
+  let result = k3_consensus(inputs)
+  let max_count = 0u8
+  for input in inputs {
+    if input == result {
+      max_count = max_count + 1
+    }
+  }
+  assert max_count >= 2
+  assert result == inputs[0]  -- first input is most common
+}
+
+invariant consensus_is_transitive {
+  given a K3Trit, b K3Trit
+  assert k3_consensus([a, b]) == k3_consensus([b, k3_consensus([a, b])])
+}
+
+invariant k3_consensus_returns_neu_on_tie {
+  given a K3Trit, b K3Trit
+  assert k3_consensus([a, b]) == K3Trit::NEU
+}
+
+invariant k3_not_is_involution {
+  given a K3Trit
+  assert k3_not(k3_not(a)) == a
+}
+
+invariant k3_material_implication_monotonicity {
+  given a K3Trit, b K3Trit
+  -- If a implies b in material implication
+  -- Then for any c where b implies c: a must imply c
+  -- Test: POS implies POS implies POS, POS implies NEU, NEU implies NEU
+  assert k3_material_implication(a, a) == K3Trit::POS
+}
+
+invariant k3_trit_to_tf3_roundtrip {
+  given t K3Trit
+  let encoded = k3_trit_to_tf3(t)
+  let decoded = tf3_to_k3_trit(encoded)
+  assert decoded == t
+}
+
+invariant k3_ties_sorted_by_truth {
+  -- Order by truth value: NEG < NEU < POS
+  assert K3Trit::NEG < K3Trit::NEU
+  assert K3Trit::NEU < K3Trit::POS
+}
+
+-- ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════       -- K3: Neg < Neu < Pos
+  assert K3Trit::NEG < K3Trit::NEU
+  assert K3Trit::NEU < K3Trit::POS
+}
+
+test k3_not_absorbs_or {
+  given a = K3Trit::POS, b = K3Trit::NEG
+  let lhs = k3_not(k3_not(a))
+  let rhs = k3_or(a, b)
+  assert lhs == rhs
+}
+
+test k3_not_is_involution {
+  given a = K3Trit::POS
+  assert k3_not(k3_not(a)) == a
+}
+
+test k3_or_absorbs_and {
+  given a = K3Trit::POS, b = K3Trit::NEG
+  let lhs = k3_or(a, b)
+  let rhs = k3_and(a, b)
+  assert lhs == rhs
+}
+
+test k3_and3_is_associative {
+  given a = K3Trit::POS, b = K3Trit::NEU, c = K3Trit::NEG
+  assert k3_and3(a, b, c) == k3_and3(a, k3_and(b, c))
+}
+
+test k3_consensus_most_common_pos {
+  given inputs = [K3Trit::POS, K3Trit::POS, K3Trit::NEG, K3Trit::NEU]
+  let result = k3_consensus(inputs)
+  assert result == K3Trit::POS
+}
+
+test k3_consensus_tie_neu {
+  given inputs = [K3Trit::POS, K3Trit::NEG]
+  let result = k3_consensus(inputs)
+  assert result == K3Trit::NEU
+}
+
+test k3_material_implication_pos_implies_pos {
+  given a = K3Trit::POS, b = K3Trit::POS
+  let impl = k3_material_implication(a, a)
+  assert impl == K3Trit::POS
+}
+
+test k3_material_implication_monotonicity {
+  given a = K3Trit::POS, b = K3Trit::NEU, c = K3Trit::NEU
+  let ab = k3_material_implication(a, b)
+  let bc = k3_material_implication(b, c)
+  assert ab == K3Trit::POS
+  assert bc == K3Trit::POS
+}
+
+test k3_trit_to_tf3_roundtrip {
+  given t = K3Trit::POS
+  let encoded = k3_trit_to_tf3(t)
+  let decoded = tf3_to_k3_trit(encoded)
+  assert decoded == t
+}
+
+test k3_trit_to_tf3_neg_roundtrip {
+  given t = K3Trit::NEG
+  let encoded = k3_trit_to_tf3(t)
+  let decoded = tf3_to_k3_trit(encoded)
+  assert decoded == t
+}
+
+test k3_trit_to_tf3_neu_roundtrip {
+  given t = K3Trit::NEU
+  let encoded = k3_trit_to_tf3(t)
+  let decoded = tf3_to_k3_trit(encoded)
+  assert decoded == t
+}
+
+-- ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════       -- K3: Neg < Neu < Pos
+}
+
+bench k3_consensus_throughput {
+  measure nanoseconds to k3_consensus([K3Trit::POS, K3Trit::NEG, K3Trit::POS, K3Trit::NEG, K3Trit::NEU, K3Trit::NEG])
+  target 100_000_000  -- 100M ops/sec
+  warmup 3
+  runs 50
+}
+
+bench k3_not_throughput {
+  measure nanoseconds to k3_not(K3Trit::POS)
+  target 500_000_000  -- 500M ops/sec
+  warmup 3
+  runs 50
+}
