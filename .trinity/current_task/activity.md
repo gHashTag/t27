@@ -264,3 +264,11 @@
 - **Commit:** feat(ring-011): tri experience save CLI — infinite memory for Trinity
 - **Files:** .trinity/current_task/activity.md
 
+## 2026-04-16T14:54:39Z — master
+- **Commit:** feat(ring-012): 42 φ-parametrizations GF32 proof
+- **Files:** 
+
+## 2026-04-16T15:12:10Z — master
+- **Commit:** fix(paper): close author brace, fix comparison table columns
+- **Files:** .trinity/current_task/activity.md,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
