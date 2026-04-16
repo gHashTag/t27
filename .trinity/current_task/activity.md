@@ -168,3 +168,15 @@
 - **Commit:** feat(portable): upgrade relay_observer.js to v2.0 with multi-agent support
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,specs/portable/relay_observer.js
 
+## 2026-04-16T12:48:41Z — master
+- **Commit:** feat(portable): upgrade relay_observer.js to v2.0 with multi-agent support
+- **Files:** .trinity/roads.md,bootstrap/src/lexer.rs,docs/rfc/tri-language-core.md,packages/browseros-agent/CLAUDE.md,packages/browseros-agent/WORKSPACE-BOUNDARY.md,packages/browseros-agent/apps/server/src/agent/portable/relay-observer.ts,specs/01-vm-core.tri,specs/03-bootstrap-lexer.tri,specs/03-simple-parser.tri,specs/04-tri-codegen.tri,specs/04-tri-runtime.tri,trivm/core/gf16.c,trivm/core/phi_arith.h,trivm/core/phi_arith.o,trivm/core/tf3.c,trivm/core/trit_logic.o,trivm/core/vm.o,trivm/core/vm_benchmark
+
+## 2026-04-16T12:50:07Z — master
+- **Commit:** fix(ring-001): constitutional compliance - remove Rust/C violations, .tri source of truth
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,bootstrap/src/lexer.rs,bootstrap/src/main.rs
+
+## 2026-04-16T12:51:26Z — master
+- **Commit:** fix(ring-000): remove constitutional violations (rust, raw-c)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bootstrap/src/lexer.rs,bootstrap/src/main.rs
+
