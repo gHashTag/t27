@@ -192,3 +192,11 @@
 - **Commit:** feat(paper): add golden balance figure placeholder, attribute Olsen contribution
 - **Files:** specs/01-tri-lang-core.tri,specs/02-gf16-format.tri,specs/03-tri-bootstrap-compiler.tri
 
+## 2026-04-16T13:02:34Z — master
+- **Commit:** feat(ring-001): tri VM core spec - Trit, PHI, Kleene invariants
+- **Files:** 
+
+## 2026-04-16T13:02:41Z — master
+- **Commit:** feat(ring-002-003): GF16 format and bootstrap compiler specs
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bootstrap/build.rs,bootstrap/src/main.rs
+
