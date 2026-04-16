@@ -200,3 +200,7 @@
 - **Commit:** feat(ring-002-003): GF16 format and bootstrap compiler specs
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bootstrap/build.rs,bootstrap/src/main.rs
 
+## 2026-04-16T13:56:36Z — master
+- **Commit:** fix(ring-000): restore build.rs and add main.rs for bootstrap
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
