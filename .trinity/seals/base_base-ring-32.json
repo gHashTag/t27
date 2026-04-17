@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1bd1509c54f273f4e03143aed3f38415b7cd589327e3a7f8126905a84073ce1b",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:961913001650bdfa492eeb698e4627d8c39eab4efecc7c0a439c9cb1af65d416",
+  "gen_hash_zig": "sha256:3ca6c16a2818d57ef2a5ace1833652289e6fd1602c956fff02b10e26d614512d",
+  "module": "base-ring-32",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:34:22Z",
+  "spec_hash": "sha256:6bcf3942f1f175d1c3708484d4cb216a6e6ba7492a6ebf7e6320887c7d13a42b",
+  "spec_path": "specs/base/ring_32.t27"
+}

@@ -3,9 +3,9 @@
   "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
   "gen_hash_verilog": "sha256:57879a0b67f4f4bb6f5aff75a64ad10470da429b9eefbbafcce5d7982d47d7a4",
   "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
-  "module": "composition",
+  "module": "ternary_logic",
   "ring": 12,
   "sealed_at": "2026-04-17T13:34:22Z",
-  "spec_hash": "sha256:9680b23bbde4df74a98dacb40b7ecf2a5268714bc05b982fd8d95c2ec046f225",
-  "spec_path": "specs/ar/composition.t27"
+  "spec_hash": "sha256:003820a1908b213b5c065d89ace38ed0ce6d40a4ddbf077c5f3d640f5f66f612",
+  "spec_path": "specs/ar/ternary_logic.t27"
 }
