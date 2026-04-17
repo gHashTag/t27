@@ -7353,13 +7353,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             let effective_device = device.as_str();
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, None, None, effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
           }
          Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
           Commands::ValidateSeals { pr_files } => {
@@ -7407,7 +7404,19 @@ async fn main() -> anyhow::Result<()> {
         }
      }
  
-    Ok(())
+     Ok(())
+}
+
+fn run_gen_xdc(_profile: &str, _output: Option<&str>) -> anyhow::Result<()> {
+    anyhow::bail!("gen-xdc: not yet implemented")
+}
+
+fn run_check_pins(_xdc: &str, _db: Option<&str>) -> anyhow::Result<()> {
+    anyhow::bail!("check-pins: not yet implemented")
+}
+
+fn run_xdc_verify() -> anyhow::Result<()> {
+    anyhow::bail!("xdc-verify: not yet implemented")
 }
 
 #[cfg(not(feature = "server"))]
@@ -7513,14 +7522,11 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
-             let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
-         }
+          Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+              let repo_root = std::env::current_dir()?;
+              let effective_device = device.as_str();
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
          }
@@ -7578,7 +7584,10 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::FpgaFlash { board, cable, xvc_addr, bitstream, freq, flash, verify, reset } => {
-            run_fpga_flash(board.as_deref(), cable.as_deref(), xvc_addr.as_deref(), bitstream.as_deref(), *freq, *flash, *verify, *reset)?;
+            run_fpga_flash(board.as_deref(), cable.as_deref(), xvc_addr.as_deref(), bitstream.as_deref(), freq, flash, verify, reset)?;
+        }
+        Commands::TriStatus => {
+            println!("tri status: not yet implemented");
         }
     }
 

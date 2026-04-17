@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:317b32a022b2271b298429d704b64c5eb67bbb8d4bb8eaaefb0a07485b4a53f2",
+  "gen_hash_rust": "sha256:e0ad104e6232b552c774e787bce6395b4e336f0981d19e2c9c787f8ea62a9945",
+  "gen_hash_verilog": "sha256:d5e07f2c1018920a0c9c1f51614d21df645aa9407c3db67a6320cd36fdba7a52",
+  "gen_hash_zig": "sha256:7304bb80a8304152f8f0183a5d645edcf7f0f69466d32315bb992a575c2a1df8",
+  "module": "TriRadixSort",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:f974b0cfb60955b431778a29cd9993e4e43556be143e385df0df068ab91c5196",
+  "spec_path": "specs/tri/sort/radix_sort.t27"
+}

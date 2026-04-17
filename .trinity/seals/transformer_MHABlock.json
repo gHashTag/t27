@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ddc9c998440b15d4ee49ced162854137e056e3441a360bf6ebc7825227149ff3",
+  "gen_hash_rust": "sha256:87cdb1333c95e1c76fe856aec0de2cddf07ee9d16152e1966053443bc03383e9",
+  "gen_hash_verilog": "sha256:d1b5709f71f4b43ff993819857f402d6563ed342ab58201ceb154c62eff36a3c",
+  "gen_hash_zig": "sha256:80ea9d30144256731aa9100cb51393f1e525d210ee3bb812f01e5dcd15aa3026",
+  "module": "MHABlock",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:53Z",
+  "spec_hash": "sha256:45fd78626ad9ca71910d750669bd10a6f519d3eef067f24338c8b30e2681d067",
+  "spec_path": "specs/ml/transformer/mha_block.t27"
+}

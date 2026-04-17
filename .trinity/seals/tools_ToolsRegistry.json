@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:f92b3a9f763eabc5a9bbc4e92750b42717981320d7ebbeb0b262513cff970b55",
   "module": "ToolsRegistry",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:ad0b455296e2c251b57c2bb0b95d5b6171cb884dd6547b6b994f5962ca011c21",
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:cab8fc66cecde3418ccc54b844c04dab39b69b3e74ed717f4acf50e8b9ae5e6a",
   "spec_path": "specs/tools/registry.t27"
 }

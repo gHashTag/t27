@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:a6f0c28949034b07b5a8b9252f2aa28a7232b4891d845f2b32a1e94c95c13953",
+  "gen_hash_rust": "sha256:e81e2280f8d06cc58d36fc43d4b5f4b1d6860b3de20cf1eeab2227e2d6a2277c",
+  "gen_hash_verilog": "sha256:54b461ca74d21b3b73881abd9a6a38efa379e08bfe4dd45f4dda9e96f4128c13",
+  "gen_hash_zig": "sha256:6bee101d5df9628360d1acf5c2d9f729b396d73f9155d6a017c6c89a531a765b",
+  "module": "TriPipelineParallel",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:6abe8fe5b759fdcd2ddf4d172aab89a26064c793cc33b912369e9897d1c49a31",
+  "spec_path": "specs/tri/pipeline/pipeline_parallel.t27"
+}

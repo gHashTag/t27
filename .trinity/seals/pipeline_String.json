@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9bb9932ffe500b28234419d9148f8a652f88c54a53451a27d680ca270cab9006",
+  "gen_hash_rust": "sha256:9a6b750046c620528c0230ba9cc747762b267744d8d7b74c59393175ea5831cb",
+  "gen_hash_verilog": "sha256:47148b7b22f60bab99d568e199098a50113d304e4fbd04daf4a1216a354ce272",
+  "gen_hash_zig": "sha256:e3b555dbe0361c428c476ebd371951fec613eefa805937da272e74284cc5ca96",
+  "module": "String",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:80b4e2cfda9e06a964846f8f622c9d752c54eb88d4a7d0cb44bd8f287d3d9c41",
+  "spec_path": "specs/tri/pipeline/workflow.t27"
+}

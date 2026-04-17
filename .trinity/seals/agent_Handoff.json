@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:846a8cc214d4659534d1412010caf155d91c8ecc8977c840e4c3e9676f7f29b9",
+  "gen_hash_rust": "sha256:6bd8b6d937824adfbd2654f12c21d3a22a173da97b6c17762e54080c85f371e4",
+  "gen_hash_verilog": "sha256:52d8e6de45d367db3de41fe030f380f0f8fc44b48c19795b8be52325b9af6b77",
+  "gen_hash_zig": "sha256:f68c49a517db5021b0ad2aaa6c4cfb77142faf94e7d503ed087bdd133861c312",
+  "module": "Handoff",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:08f082e9497d687dbc081314395ecc56054ba89a30d0ba1c883f60e710d86a36",
+  "spec_path": "specs/tri/agent/handoff.t27"
+}

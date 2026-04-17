@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d4a9cb8e596aabb6da17d9f70c50572493e7fc56f10ee403086926cf12a17efa",
+  "gen_hash_rust": "sha256:bebd3d0931475b1d1978e499041814fa8082ab381d5159efdb8f7e20ab064930",
+  "gen_hash_verilog": "sha256:eeba57212e1c4f6828cee9a838426a369b9280b1699ccdad310bdc8a274ca496",
+  "gen_hash_zig": "sha256:ac793050a1d56ee4493a3db343329295a85abdc85f6b0a270d3cf96e4daaf32d",
+  "module": "Sigmoid",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:52Z",
+  "spec_hash": "sha256:57354f8525068440df541ffe1bd2e9d059248b1c35fcfc3b1cda4cd0beb8c08a",
+  "spec_path": "specs/ml/activation/sigmoid_activation.t27"
+}

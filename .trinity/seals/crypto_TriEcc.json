@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:15ad590994e373f96fc9d9d8de28ba6d29e8a53d94207572526c47b0427fb59f",
+  "gen_hash_rust": "sha256:dc9598aea69a698242c5f2884363583fe5c27f23039f3e389d7cd053c93317a0",
+  "gen_hash_verilog": "sha256:c5793507ffcad1cbdb5ea75992c3629224911540212801a27811c571a83be747",
+  "gen_hash_zig": "sha256:c0f89eb63e1b19c6beef5328a13df1ba8832fb46083d843ec9cb59c230302c7a",
+  "module": "TriEcc",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:e111bef882601ff39e589072facac4a3d4501cf3f8f3c0edbb089981db7379c4",
+  "spec_path": "specs/tri/crypto/ecc.t27"
+}

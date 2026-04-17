@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e4a7dc892b9ffd4e87775863fc0aa1bd56c281cb5aab2620d69515f501515b9f",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:bbc76462efdc2d52e13f4faa5ffc79a5b725063101a191c5ae2091341b1cacd3",
+  "gen_hash_zig": "sha256:fc023de6e347483ad1fdd691a5cebcd1535105f69c21f7ab1df928e63b1d1053",
+  "module": "WorkflowExecutor",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:cee035ba2a228181599daefcf0c04af10b7f6b3326c6312cc97aa68c19f470fc",
+  "spec_path": "specs/tri/pipeline/workflow_executor.t27"
+}

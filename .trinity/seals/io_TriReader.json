@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:0edfabc1c609ea773367f8faeb0c4bdcbbe8da28b2728952d5854bd4281e4b08",
+  "gen_hash_rust": "sha256:64054fcbbbcbafa4aad17093c2c9b4687e7a2614edd35644772940d34edc6cd1",
+  "gen_hash_verilog": "sha256:43cdc4312398522eccea7b6389637cf7489cc31edde783d7b0fcd9f40a7e7c5b",
+  "gen_hash_zig": "sha256:9311647a750347ed615b87ad82c8cdd55a7588e43e8d86b537a0e35c50ec5037",
+  "module": "TriReader",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:460d9c7fa17cba1b4af999b79952e527562fc6aaa3d8b77e240647d477f854b8",
+  "spec_path": "specs/tri/io/reader.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ee9b4c0463ca06b0af522e19de253bc9410b89994552c6e4cf41f5652b7c86c9",
+  "gen_hash_rust": "sha256:aad3ba0968e7fa29c65f330e30597a80bc824e106b3e65451ba4ad288c7a43e7",
+  "gen_hash_verilog": "sha256:4c6624348e4bfc29ff583d55d02d23c057e5e2c5a9ee25cffa23f4c27b8af760",
+  "gen_hash_zig": "sha256:ab9e3b4ed1387c2094777b73f6ff501ac3ba9342a110a56aa56425943fab1ef0",
+  "module": "TriAutonomousLifecycle",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:3518b9f0a302e6ba36ab0c41a65e331231b6824a51316201991894f58708c92e",
+  "spec_path": "specs/tri/agent/autonomous_lifecycle.t27"
+}

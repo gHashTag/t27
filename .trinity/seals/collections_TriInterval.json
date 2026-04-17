@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3455faeb6aaa23d29500849478fff5a0c1f664e3a358111275850ba5d47bd3ca",
+  "gen_hash_rust": "sha256:f912c65b7ac902b1bfdee3aba4ff1d66bdba50e1315d5596133a86cee1483605",
+  "gen_hash_verilog": "sha256:eb9877c3b38e01206c0dcaf1278fb9836bd12126ed6909d1eeaf09062f6797f5",
+  "gen_hash_zig": "sha256:7f16ea81fd836d49b3f6a860c272e76cc531f650b488c5f7b4ab91f31156f820",
+  "module": "TriInterval",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:b259aff814f1812bbee828b05567a71fdd57c7be838d4a85bd092b7b7c5a9e40",
+  "spec_path": "specs/tri/collections/interval.t27"
+}

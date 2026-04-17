@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:12a59599da8db13277bc3ea06d39d931f0d343435effe0eda6ed4b2b8b421526",
+  "gen_hash_rust": "sha256:c7f9df35b7aa01ff8ad60110facc90e1deecf63d07d46879ef3e607fbe9e596d",
+  "gen_hash_verilog": "sha256:1d138b9a7655f970be156ae6420618b116ca042d6e082504fca55fc38a5611f2",
+  "gen_hash_zig": "sha256:d4320a009b4a1028567ba1195f03988621fe46c2762b31553f7f5aede81ba6af",
+  "module": "TriMergeSort",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:3d3f312ccb3cbfaf519387106ed9dd1453c09e42747b98e8f9efb8492fb14bd2",
+  "spec_path": "specs/tri/sort/merge_sort.t27"
+}

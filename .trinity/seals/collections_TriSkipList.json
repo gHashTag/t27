@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:0963973df90a01c5eb24d4f81c00445ae340b6645bb55f70c48f13cd3f713e3f",
+  "gen_hash_rust": "sha256:d0aaf4b3a63344b2a68ddcd03ff15112fc797468081fea94cef3792176cd2671",
+  "gen_hash_verilog": "sha256:425b63d114a2053fcaa1af321b7c8a5cff5afd1ef0c957b635223ca59ec30f7a",
+  "gen_hash_zig": "sha256:a34eff39ca0061fc27d4883896c0c9487639a4c93ad8237733bdbbc5b0d1ae2f",
+  "module": "TriSkipList",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:3cfdb7e154b5a0ec8d0a825f265b1f5e165af4ae3c19b5c499efc9f5a61a170b",
+  "spec_path": "specs/tri/collections/skip_list.t27"
+}

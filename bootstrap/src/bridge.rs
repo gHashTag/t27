@@ -411,7 +411,12 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
     }
 
     if let Err(e) = fs::create_dir_all(&task_dir) {
-        eprintln!("{} Failed to create {}: {}", "❌".red(), task_dir.display(), e);
+        eprintln!(
+            "{} Failed to create {}: {}",
+            "❌".red(),
+            task_dir.display(),
+            e
+        );
         std::process::exit(1);
     }
 
@@ -425,7 +430,15 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
         .unwrap_or_else(|| "unknown".to_string());
 
     // Generate a fake notebook ID for now (real implementation needs Python backend)
-    let notebook_id = format!("nb-{}", title.to_lowercase().replace(" ", "-").chars().take(12).collect::<String>());
+    let notebook_id = format!(
+        "nb-{}",
+        title
+            .to_lowercase()
+            .replace(" ", "-")
+            .chars()
+            .take(12)
+            .collect::<String>()
+    );
 
     let meta = NotebookMeta {
         notebook_id: notebook_id.clone(),
@@ -440,7 +453,12 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
     };
 
     if let Err(e) = fs::write(&id_file, &notebook_id) {
-        eprintln!("{} Failed to write {}: {}", "❌".red(), id_file.display(), e);
+        eprintln!(
+            "{} Failed to write {}: {}",
+            "❌".red(),
+            id_file.display(),
+            e
+        );
         std::process::exit(1);
     }
 
@@ -463,4 +481,16 @@ fn handle_task_start(root: &Path, title: &str, sources: &str) {
     println!("   Title:         {}", title);
     println!("   Branch:        {}", branch);
     println!();
+}
+
+#[derive(Subcommand, Debug)]
+pub enum TaskCommands {
+    Start,
+    Attach,
+    Status,
+}
+
+pub fn run_task(_command: TaskCommands) -> anyhow::Result<()> {
+    println!("task: not yet implemented");
+    Ok(())
 }

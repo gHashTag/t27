@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:d020ff6e43472b637dc6aa7122b7e36638c67e903b8ecb7f7334ad4f9a656fc5",
   "module": "Api",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:e46541429008eef0e3a73d4b33d40d438a556712791e282630da97bddbb20d19",
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:156139a9aa8390b91847db8b349633a2f6826b6c42938a355c79d549e5e7d833",
   "spec_path": "specs/server/api.t27"
 }

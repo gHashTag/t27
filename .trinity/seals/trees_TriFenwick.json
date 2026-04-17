@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f579a2765e29c4573741293ac4a2c0511c8bbaf885ecebc307cf108c6c157ea8",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:f598b7e0b7a27312ab9ca441d25e839a6b762ee615c36a2d262e7ac830972353",
+  "gen_hash_zig": "sha256:bebe5c7931e9dd231f4b9d006278ff36e2e07a83dfbffac9a5d03fd8270dc861",
+  "module": "TriFenwick",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:689d3e8dfffa09bc98609a75404dcfcb83cecbc18087b05b8a5a94e0bfe77ae0",
+  "spec_path": "specs/tri/trees/fenwick_tree.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c5395d3a1fc030b7df5484de251f67637cc7b11286576695a675a04de0de4c3a",
+  "gen_hash_rust": "sha256:c3a88d2d45ffdbb03b1bb69a94e54761e1f275234083573f39cda23b24a3bffd",
+  "gen_hash_verilog": "sha256:03830ae01739dbe327622d432bb5bf117b13372d10c467f65fdfaca41a1803aa",
+  "gen_hash_zig": "sha256:c4347933c723230bd82c01dcc3cbc2de7f093b6bb4be248469b757040b86f279",
+  "module": "SelfAttention",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:53Z",
+  "spec_hash": "sha256:20563b5638a432017af358e732d4c4b864b29c17d2d521cfe2a807d49d0387a9",
+  "spec_path": "specs/ml/recurrent/self_attention.t27"
+}

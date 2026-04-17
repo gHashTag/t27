@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:cf93cc9407b6ec7ccc457a193f9bb5ba525a80575b22f015cf39bd81fa3e618a",
+  "gen_hash_rust": "sha256:88b202291bfa00c87eec844aed688110b896ae2ec836ba2966ddc3489449e889",
+  "gen_hash_verilog": "sha256:4931aa6c9bde49558edd5295fed935ed5cf2f4972a76c9587052188369960f87",
+  "gen_hash_zig": "sha256:34299c1242a4b31da0f8ace11e2382c8ba9b7531695dd9cbf3e3327fab9d81de",
+  "module": "TriState",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:aa3c58adfab37776f186d26fc60f47aed131db48bb9045875ecae8cbbe62b51c",
+  "spec_path": "specs/tri/collections/state.t27"
+}

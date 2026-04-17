@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b7526cd64b9f78d75a2cdf71e6b53379cbdc74665506ac887aab8e1e1e01ca11",
   "module": "StorageMigrate",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:b98ddfba7485ee8b15edf9072a02ea6f5449ee50733f2fd03b57e33db6a50294",
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:0c9df6b8d11987d2a35866be3131c1144bedbbdb25b3d2f04921005907ddb3d4",
   "spec_path": "specs/storage/migrate.t27"
 }

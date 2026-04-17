@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4bd0a013974b6a22aa0d23af55834557b0710701bcd25eee06a49e303437f8e7",
+  "gen_hash_rust": "sha256:3f0012eca2eea5c79e77e05d0679d8ad691a113d4460aa0e29c4ab83e23ae902",
+  "gen_hash_verilog": "sha256:2b9e243433e9eaa7c66c39c71be35b65c53d6c1235718bcbe3f1637cd443c669",
+  "gen_hash_zig": "sha256:09d752d91384b2a81daf17d399d06ce5be4cd4d3bde37bd52673747b195f7f24",
+  "module": "FacultyBoard",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:17:24Z",
+  "spec_hash": "sha256:9e12c1f5268143af7f4026346e22ae9fcd63218aefbebbfe503316e9e295c32e",
+  "spec_path": "specs/tri/agent/faculty_board.t27"
+}

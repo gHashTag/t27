@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9cd844d53b1e0e8b832a22a8c48998ef5eb0f8615a2764112c91214a358eca29",
+  "gen_hash_rust": "sha256:ef82d6944e9baf4b1357d11c804c793c00e64d1982ef700eaa7264028e0fd59f",
+  "gen_hash_verilog": "sha256:ab4bc6680bc1f4af6412f2e6931212c9ab75271339df7c73e89121802253bf49",
+  "gen_hash_zig": "sha256:f18eb16f00e2a56ddb8663c8fe8a94eebbfc8a7a91eb70f2ea2325426832471e",
+  "module": "TriRtree",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:ff560d230e72de0accc0dfc8ed0cfb464934225c77ed13e6cae4aa0ec303e68e",
+  "spec_path": "specs/tri/trees/rtree.t27"
+}

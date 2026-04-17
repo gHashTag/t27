@@ -2,7 +2,7 @@
 // t27/specs/
 // | | φ² + 1/φ² = 3 | TRINITY
 
-module String;
+module SacredIdentity;
     use base::types;
     use math::constants;
 

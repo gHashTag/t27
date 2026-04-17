@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:6b64e1206fd01a30a54b46e7019065b95866bb83e8493ae6397a0767e0bdaf27",
+  "gen_hash_rust": "sha256:db29214776613a133e671d13692e2a54b01785e002bee3f4893f1096e9f2691d",
+  "gen_hash_verilog": "sha256:af088aec2ca49c6f11797b4a120c3ec412410776421ebbed173dc9c8450cedc7",
+  "gen_hash_zig": "sha256:bb66c4bd7db62f3931c0d3ff82ce44729cb0688106d4928e857f9a600077733f",
+  "module": "TriCrypto",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:6b5d36b7cfc6f68858a34b7d78bfe043b0e9693f8ba3cf4ef4229781f2db521b",
+  "spec_path": "specs/tri/crypto/crypto.t27"
+}

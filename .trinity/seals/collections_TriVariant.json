@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:987be2b254e366dd6f31ff7559c80265813042dd8822d589718bb74fa171dfec",
+  "gen_hash_rust": "sha256:314c0cfba0ef523a9ef381d415b9a3c03373b1c96368df698f1bb01b1707b085",
+  "gen_hash_verilog": "sha256:1b5b20695b3bd535c1393188638080a6fd144a2e38173535b8f8598c06ac38a5",
+  "gen_hash_zig": "sha256:96f055ee91174abd9e4d1e66425f75fcccf2d91d0d32859ad0560bf6d1988dec",
+  "module": "TriVariant",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:1280493ead77ca373c85b07e35b10a460fb7ad6f387b0820d9925ac38d4f1167",
+  "spec_path": "specs/tri/collections/variant.t27"
+}

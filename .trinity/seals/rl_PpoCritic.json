@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3ef25ea35cd1a6c8cdbbd45a5a1372dbc9d7d78d2d259d9de2437adbdc623860",
+  "gen_hash_rust": "sha256:d601c7adb71ac3ac86534e8c38c878124fd201844cd7679c43385b3a137e1eb8",
+  "gen_hash_verilog": "sha256:d848d7558c32811e9dcf5b07907f7cd976bb2fc0d9807eb566d4c880229994a7",
+  "gen_hash_zig": "sha256:db74d5fce28397fb7d2f8c065b6335279133dd42e921ac8596d88ffac8310d1f",
+  "module": "PpoCritic",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:53Z",
+  "spec_hash": "sha256:e49c5c3d9e7ee0cf9e77f56a51c366857c4d7fc78c43923049ce3621222a8f30",
+  "spec_path": "specs/ml/rl/ppo_critic.t27"
+}

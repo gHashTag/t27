@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b200d3ed9bbc8a90387e53c121b38c89c0ffe0257703962f74385f8703c28614",
+  "gen_hash_rust": "sha256:dad33c1c7d5df40b1aa98940a20b021354f9080a1deef7392bb8c7f0f74da430",
+  "gen_hash_verilog": "sha256:4105e957b67fcd666ef20644d87b046ac30d53c0e720131871e3658e8c518b49",
+  "gen_hash_zig": "sha256:04a3ac82676fb755829db267409bd664f9aed1240b78ddbf92f28d2d2667e3d9",
+  "module": "TriRsa",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:90dd4518841232325365928a9d469f316a045dd6aafaf876c329db6b46fc02f5",
+  "spec_path": "specs/tri/crypto/rsa.t27"
+}

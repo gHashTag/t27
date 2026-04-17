@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:32535e10a98a1fd85eef12f3e5f03b849f71074351d213b81c9425f9b1837339",
+  "gen_hash_rust": "sha256:98d9d43eacc382b01de3d3e74c66993702379679e9633b84c46a0e36d63ed0c6",
+  "gen_hash_verilog": "sha256:52902b9eee9d102df64ac3dfa59a3e8ff562cbadddd6f39242d2ca4ee673cc29",
+  "gen_hash_zig": "sha256:b0c83385df95c6121184a1534b4703c93b3ee4ae03d484afd9e1553911d998f4",
+  "module": "TriSha256",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:6433411437aec985707e377addd8284b33da7093824baba08d0ffaf31c3b14d8",
+  "spec_path": "specs/tri/crypto/sha256.t27"
+}

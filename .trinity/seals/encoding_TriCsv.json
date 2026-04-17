@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:5ee97a9059738eab793c0f1b57d7ba80419e46e20763d5b584f4671c236107a5",
+  "gen_hash_rust": "sha256:7711a64591b7b224c8c1dd9c813040c6ae46d9ee0308246a0019d833686ae206",
+  "gen_hash_verilog": "sha256:aee18c40bb436d0e56438ceab97f8219d214c2bb8c5717c2f2330bb7657c784b",
+  "gen_hash_zig": "sha256:bef4a3c41e061281bae86f8a2d567991d660d6673d12faf04d6ada1bcc36aad7",
+  "module": "TriCsv",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:42da022525b9f341740cd36a50413176069c2afb5c31e63f4dcacf06fd6f400f",
+  "spec_path": "specs/tri/encoding/csv.t27"
+}

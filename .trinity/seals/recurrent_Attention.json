@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4ad3f520d6da5683a0c59ca5b5737ce559db051578d0c908170120fb2013aba1",
+  "gen_hash_rust": "sha256:d4def7403cff180a6f8b6e38a902f741b5138af9de2cc59c3c505eec2bdd735b",
+  "gen_hash_verilog": "sha256:2cbc18c82239672af94d193b04b00f24ef919fceff94b47e47f7caa2665ebd76",
+  "gen_hash_zig": "sha256:25dba5ecfc6a180a4f87d809e1388f299c85f3d4ea90430ddab830e56d9b509e",
+  "module": "Attention",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:53Z",
+  "spec_hash": "sha256:b8cf25569fa15fece9aa281586f9998c767d802a8275a83ecee58694e774b64e",
+  "spec_path": "specs/ml/recurrent/attention_mechanism.t27"
+}

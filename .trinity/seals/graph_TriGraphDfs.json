@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:2570315f9e096773f69ad32197722b2af6e0f05508249f0d3ad6ae57cbb7f672",
+  "gen_hash_rust": "sha256:570f802e05f3232e9effc16e72bd72a359579a9dc91248b5d89fc5ba699e399d",
+  "gen_hash_verilog": "sha256:518d7fa5743aeff3c0b9486597915660524d421aab26b2742f021b61be233118",
+  "gen_hash_zig": "sha256:f3802041c9636961389200a89cf60690bad779d649b295f86a199336ff327148",
+  "module": "TriGraphDfs",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:09b5968ba0895ab7842bfce9087e1733c4a0e4cef7d02ba04021aea8e776434e",
+  "spec_path": "specs/tri/graph/graph_dfs.t27"
+}

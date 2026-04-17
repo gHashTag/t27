@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:cf56d5690a36c9f8ae179b6931cce3208b9076633340000892b028bd7995a499",
+  "gen_hash_rust": "sha256:8e1cb72d45a81c049944c6412d9c011649302a394b965737fe0c894d1843f99a",
+  "gen_hash_verilog": "sha256:c96a3fa7b14b7dc2a18051ed94ed88a2613ab833367e423d63ab324e3914effe",
+  "gen_hash_zig": "sha256:c0d2c6f78d8344b7a79a190d71138d3f23a0700a07244398249a9d726e2cc5fd",
+  "module": "TriMaybe",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:54Z",
+  "spec_hash": "sha256:da83784231ce7b0004279a51913a711527f55d8b2150da9a39fb39b307fab17f",
+  "spec_path": "specs/tri/collections/maybe.t27"
+}

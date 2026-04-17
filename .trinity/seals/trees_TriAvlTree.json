@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:14b58dcb706a813f03437ae5bde770352e2ac5ededfff0ab1f91cba4baec7bc6",
+  "gen_hash_rust": "sha256:d06be0ae3804fa59276784245688f57d97c67d71c78b362e8f55fc7935af3646",
+  "gen_hash_verilog": "sha256:86a6b4705562ac09c7e81fea1ad933a684e553627c1225f6718c430cfe1a8b4a",
+  "gen_hash_zig": "sha256:dc35a87d247df3d52b8d73747afd767561d36e1f110ed25de5605c51f31d0004",
+  "module": "TriAvlTree",
+  "ring": 12,
+  "sealed_at": "2026-04-17T13:05:55Z",
+  "spec_hash": "sha256:3d3bc18bcf65a59556cd172cc4e52c02674e3f4cf369a3b648b9e98187bf3a02",
+  "spec_path": "specs/tri/trees/avl_tree.t27"
+}
