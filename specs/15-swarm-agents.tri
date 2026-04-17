@@ -1,46 +1,58 @@
 spec swarm_agents
 
 ring: 015
-imports: [gf_family_foundation, tri_experience_cli]
+imports: [tri_experience_cli, gf_family_foundation]
 
--- ════════════════════════════════════════════════════════
--- 32-AGENT SWARM SHARED EXPERIENCE — 5th Unfair Advantage
 -- ══════════════════════════════════════════════════════════
+-- 32-AGENT SWARM SHARED EXPERIENCE
+-- ════════════════════════════════════════════════════════
+-- 5th Unfair Advantage: Collective Intelligence via Shared Experience
+-- ════════════════════════════════════════════════════════════════════
 
 constants {
-    SWARM_SIZE u8 = 32
-    EXPERIENCE_SHARED_PATH str = ".trinity/experience/"
-    SYNC_INTERVAL_SEC u32 = 300  -- 5 минут
-    CONSENSUS_LOGIC enum = "kleene_k3"  -- K3 consensus across agents
+    SWARM_SIZE: u8 = 32
+    EXPERIENCE_SHARED_PATH: str = ".trinity/experience/"
+    SYNC_INTERVAL_SEC: u32 = 300  -- 5 минут
+    CONSENSUS_LOGIC: str = "kleene_k3"  -- K3 consensus across agents
 }
 
 types {
     AgentID {
-        id u8,
-        name str,
-        specialization PhysSector  -- VM core, GF formats, math, physics, etc.
+        id: u8,
+        name: str,
+        specialization: PhysSector  -- VM core, GF formats, math, physics, etc.
     }
 
     SwarmState {
-        agents [AgentID; 32],
-        shared_exp ExperienceStore,
-        sync_epoch u32,
-        consensus TF3,  -- K3: all agree=pos, split=neu, conflict=neg
-        experience_log [Experience]
+        agents: [AgentID; SWARM_SIZE],
+        shared_exp: ExperienceStore,
+        sync_epoch: u32,
+        consensus: TF3,  -- K3: all agree=pos, split=neu, conflict=neg
     }
 
-    SwarmVerdict enum {
-        Consensus(TF3),
-        Diverged(u8),      -- number of agents in disagreement
-        Evolving           -- ASHA+PBT in progress
+    Experience {
+        skill: str,
+        payload: str,
+        timestamp: str,
+        ring: u32,
+        commit: str,
+        bench: { ops_per_sec: f64, target: f64, met: bool }
+    }
+
+    SwarmVerdict = enum {
+        CONSENSUS_POS,      -- All 32 agents agree (improvement)
+        CONSENSUS_NEG,      -- All 32 agents agree (degradation)
+        CONSENSUS_NEU,      -- Split vote (no majority)
+        DIVERGED: u8,        -- Number of agents in disagreement
+        EVOLVING           -- ASHA+PBT optimization in progress
     }
 }
 
 functions {
-    swarm_sync() -> SwarmState           -- git pull + merge experience
-    swarm_consensus(skill str) -> TF3     -- K3 across 32 agent votes
+    swarm_sync() -> SwarmState              -- git pull + merge experience
+    swarm_consensus(skill: str) -> TF3     -- K3 across 32 agent votes
     swarm_evolve() -> [SkillDiff]        -- ASHA+PBT: compare all skills across sessions
-    agent_contribute(id AgentID, exp Experience) -> SwarmState
+    agent_contribute(id: AgentID, exp: Experience) -> SwarmState
 }
 
 invariants {
@@ -48,29 +60,102 @@ invariants {
         SwarmState.agents.len() == SWARM_SIZE
 
     experience_monotonic:
-        swarm_sync().shared_exp.len() >= swarm_sync().shared_exp.len()
+        swarm_sync().shared_exp.len() >= swarm_sync().shared_exp.len()  -- монотонный рост
 
     consensus_is_kleene:
-        swarm_consensus(_) in {TF3.neg, TF3.neu, TF3.pos}
-
-    verdict_is_binary:
-        given v SwarmVerdict
-        assert v == SwarmVerdict.Consensus(TF3.neg) || v == SwarmVerdict.Consensus(TF3.neu) || v == SwarmVerdict.Consensus(TF3.pos)
+        swarm_consensus(_) in {TF3.neg, TF3.neu, TF3.pos}  -- K3: pos/neg/zero
 }
 
 tests {
-    1. swarm_initializes_32_agents
-    2. swarm_sync_merges_experiences
-    3. consensus_all_agree_returns_pos
-    4. consensus_all_disagree_returns_neu
-    5. consensus_split_returns_neu
-    6. consensus_conflict_returns_neg
-    7. evolve_improves_degraded_skills
-    8. agent_contribute_appends_experience
+    1. swarm_initializes_32_agents {
+        given spec = swarm_agents
+        let state = swarm_sync()
+        assert state.agents.len() == SWARM_SIZE
+        assert state.shared_exp.len() == 0
+        assert state.sync_epoch == 0
+    }
+
+    2. swarm_sync_merges_experiences {
+        given spec = swarm_agents
+        let state_before = swarm_sync()
+        // Мок experience episode
+        let exp = Experience {
+            skill: "ring-000-complete",
+            payload: "test_experience_added",
+            timestamp: "2026-04-16T20:00:00Z",
+            ring: 0,
+            commit: "working",
+            bench: { ops_per_sec: 0.0, target: 0.0, met: false }
+        }
+        let state_after = agent_contribute(0, exp)
+        assert state_after.shared_exp.len() == 1
+        assert state_after.sync_epoch > 0
+    }
+
+    3. consensus_all_agree_returns_pos {
+        given spec = swarm_agents
+        let agents: [AgentID {id: 0, name: "alpha"}, AgentID {id: 1, name: "beta"}]
+        let consensus = swarm_consensus("ring-013-complete")
+        assert consensus == TF3.pos
+    }
+
+    4. consensus_all_disagree_returns_neg {
+        given spec = swarm_agents
+        let agents: [AgentID {id: 0, name: "alpha"}, AgentID {id: 1, name: "beta"}]
+        let consensus = swarm_consensus("ring-013-failed")
+        assert consensus == TF3.neg
+    }
+
+    5. consensus_split_returns_neu {
+        given spec = swarm_agents
+        let agents: [AgentID {id: 0, name: "alpha"}, AgentID {id: 1, name: "beta"}]
+        let consensus = swarm_consensus("ring-013-incomplete")
+        assert consensus == TF3.neu
+    }
+
+    6. consensus_conflict_returns_neg {
+        given spec = swarm_agents
+        let agents: [AgentID {id: 0, name: "alpha", specialization: "vm_core"}, AgentID {id: 1, name: "beta", specialization: "gf_formats"}]
+        let consensus = swarm_consensus("ring-013-vm_vs_gf")
+        assert consensus == TF3.neg
+    }
+
+    7. evolve_improves_degraded_skills {
+        given spec = swarm_agents
+        // Мок evolution: сравнить все skills
+        let diffs = swarm_evolve()
+        let improved = diffs[0].delta_pct > 0
+        assert diffs[0].verdict == "IMPROVED"
+    }
+
+    8. agent_contribute_appends_experience {
+        given spec = swarm_agents
+        let state_before = SwarmState {shared_exp: []}
+        let exp = Experience {
+            skill: "ring-015-complete",
+            payload: "32_agent_swarm_initialized",
+            timestamp: "2026-04-16T20:00:00Z",
+            ring: 15,
+            commit: "working",
+            bench: { ops_per_sec: 0.0, target: 0.0, met: false }
+        }
+        let state_after = agent_contribute(0, exp)
+        assert state_after.shared_exp.len() == 1
+    }
 }
 
 benchmarks {
-    swarm_consensus_throughput: target 1_000_000  -- 1M consensuses/sec
-    experience_merge_throughput: target 10_000      -- 10K merges/sec
-    swarm_evolve_throughput: target 100_000       -- 100K compares/sec
+    swarm_consensus_throughput: measure nanoseconds to swarm_consensus("test") target 1_000_000  -- 1M consensuses/sec
+        warmup 5
+        runs 100
+}
+
+    experience_merge_throughput: measure nanoseconds to agent_contribute(0, mock_exp) target 10_000  -- 10K merges/sec
+        warmup 3
+        runs 50
+}
+
+    swarm_evolve_throughput: measure nanoseconds to swarm_evolve() target 100_000  -- 100K compares/sec
+        warmup 3
+        runs 20
 }
