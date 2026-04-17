@@ -1,0 +1,10 @@
+timestamp: 2026-04-17T20:11:00+07:00
+spec: specs/benchmarks/toy_lm_compression
+binary: bootstrap/src/bin/r005_bench.rs
+model: 3 layers x 27 neurons x 27 weights = 2187 weights
+artifact_size_before: 17496
+artifact_size_after: 4374
+compression_ratio: 4.00
+encoding_baseline: i64 (8 bytes per weight)
+encoding_compressed: GF16 u16 (2 bytes per weight)
+verdict: PASS

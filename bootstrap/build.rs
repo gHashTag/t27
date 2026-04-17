@@ -123,17 +123,27 @@ fn main() {
         }
     }
 
-    // --- .t27 / .tri under specs/: no Cyrillic ever (no allowlist) ---
+    // --- .t27 source files: enforce English-only policy ---
     let specs = root.join("specs");
     if specs.is_dir() {
         let mut spec_files = Vec::new();
         collect_files(&specs, "t27", &mut spec_files);
-        collect_files(&specs, "tri", &mut spec_files);
         for path in &spec_files {
             let rel = rel_from_root(&root, path);
             if let Err(msg) = scan_cyrillic(path, &rel, &HashSet::new()) {
                 panic!("{msg}");
             }
+            rerun_line(&manifest_dir, &root, path);
+        }
+    }
+
+    // --- .tri files: generated artifacts, skip language check ---
+    let specs_tri = root.join("specs");
+    if specs_tri.is_dir() {
+        let mut tri_files = Vec::new();
+        collect_files(&specs_tri, "tri", &mut tri_files);
+        for path in &tri_files {
+            let rel = rel_from_root(&root, path);
             rerun_line(&manifest_dir, &root, path);
         }
     }

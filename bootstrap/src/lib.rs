@@ -1,7 +1,7 @@
 // Minimal working parser for Ring-001
 
 pub mod types {
-    pub use crate::anyhow::{anyhow, Result};
+    pub use anyhow::{anyhow, Result};
 }
 
 pub fn parse(spec_path: &str) -> Result<ParseResult, ParseError> {
