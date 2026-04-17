@@ -1,0 +1,226 @@
+# Trinity VM Wrapper — Zig Runtime Interface
+#
+# This spec defines the interface for calling Zig VM from Trinity runtime.
+# Part of Zig migration (Parity Target 3: Zig Runtime Wrapper).
+#
+# The Zig VM (`bootstrap/vm_zig/`) is kept as reference implementation.
+# Trinity runtime can call Zig VM functions via FFI.
+#
+# Why this matters:
+# - Preserves existing Zig VM investment
+# - Allows runtime selection (zig vs trinity)
+# - Clear FFI boundary with defined contracts
+#
+# See: `specs/vm_core.t27` for runtime semantics
+
+module: trity_vm_wrapper;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.t27
+
+// =============================================================================
+// Runtime Selection Interface
+// =============================================================================
+
+/// Runtime mode selection
+type RuntimeMode = enum(u8) {
+  Trinity = 0,    -- Use Trinity Rust VM (R003)
+  Zig = 1,         -- Use Zig VM (reference implementation)
+  Auto = 2,         -- Auto-select based on availability
+}
+
+/// Runtime configuration
+type RuntimeConfig = struct {
+  mode: RuntimeMode,
+  fallback: bool,    -- Allow fallback to other runtime
+}
+
+// =============================================================================
+// FFI Interface to Zig VM
+// =============================================================================
+
+/// Load .trib file from Zig VM
+ffi load_trib {
+  description: "Load .trib bytecode file"
+  signature: "(bytes: &[u8]) -> Result<TribImage, ZigError>"
+}
+
+/// Execute TribImage in Zig VM
+ffi execute_trib {
+  description: "Execute TribImage in Zig VM"
+  signature: "(image: &TribImage) -> Result<(), ZigError>"
+}
+
+/// Get VM stats from Zig runtime
+ffi vm_stats {
+  description: "Get VM statistics"
+  signature: "() -> VmStats"
+}
+
+/// Get memory usage from Zig VM
+ffi vm_memory {
+  description: "Get memory usage"
+  signature: "() -> MemoryStats"
+}
+
+// =============================================================================
+// Wrapper Operations
+// =============================================================================
+
+/// Load .trib file and prepare for execution
+fn load_trib(file: String, config: RuntimeConfig) -> Result<TribImage, String> {
+  match config.mode {
+    RuntimeMode::Trinity => {
+      // Load via Trinity VM
+      tri_vm_load(file)
+    }
+    RuntimeMode::Zig => {
+      // Load via Zig VM
+      zig_vm_load(file)
+    }
+    RuntimeMode::Auto => {
+      // Try Trinity first, fallback to Zig
+      match tri_vm_load(file) {
+        Ok(image) => Ok(image),
+        Err(e) if config.fallback => zig_vm_load(file),
+        Err(e) => Err(e),
+      }
+    }
+  }
+}
+
+/// Execute TribImage and return result
+fn execute_trib(image: TribImage, config: RuntimeConfig) -> Result<ExecutionResult, String> {
+  match config.mode {
+    RuntimeMode::Trinity => {
+      tri_vm_execute(image)
+    }
+    RuntimeMode::Zig => {
+      zig_vm_execute(image)
+    }
+    RuntimeMode::Auto => {
+      match tri_vm_execute(image) {
+        Ok(result) => Ok(result),
+        Err(e) if config.fallback => zig_vm_execute(image),
+        Err(e) => Err(e),
+      }
+    }
+  }
+}
+
+// =============================================================================
+// Types for Wrapper Results
+// =============================================================================
+
+type TribImage = struct {
+  header: vm_core::TribHeader,
+  constants: Vec<vm_core::ConstantEntry>,
+  code: Vec<vm_core::Instruction>,
+  sections: vm_core::Sections,
+}
+
+type ExecutionResult = struct {
+  ops_performed: u32,
+  cycles: u32,
+  memory_peak: u32,
+  output: String,
+}
+
+// =============================================================================
+// Trinity VM Placeholders (to be implemented in R003)
+// =============================================================================
+
+/// Load .trib via Trinity VM (placeholder)
+fn tri_vm_load(file: String) -> Result<TribImage, String> {
+  // TODO: Implement Trinity VM loader in R003
+  // For now, returns stub
+  Ok(TribImage {
+    header: vm_core::TribHeader { magic: 0, version: 0, code_size: 0, const_pool_size: 0, symbol_table_size: 0 },
+    constants: Vec::new(),
+    code: Vec::new(),
+    sections: vm_core::Sections { const_pool: 0, code: 0, symbol_table: 0 },
+  })
+}
+
+/// Execute TribImage via Trinity VM (placeholder)
+fn tri_vm_execute(image: TribImage) -> Result<ExecutionResult, String> {
+  // TODO: Implement Trinity VM executor in R003
+  // For now, returns stub
+  Ok(ExecutionResult {
+    ops_performed: 0,
+    cycles: 0,
+    memory_peak: 0,
+    output: format!("Executed {} ops (stubs for R003)", image.code.len()),
+  })
+}
+
+/// Load .trib via Zig VM
+fn zig_vm_load(file: String) -> Result<TribImage, String> {
+  // Calls Zig VM via FFI
+  // This will be implemented in Zig migration phase
+  Err("Zig VM loader not yet implemented (see R003)")
+}
+
+/// Execute TribImage via Zig VM
+fn zig_vm_execute(image: TribImage) -> Result<ExecutionResult, String> {
+  // Calls Zig VM via FFI
+  // This will be implemented in Zig migration phase
+  Err("Zig VM executor not yet implemented (see R003)")
+}
+
+// =============================================================================
+// Export Requirements for R003 Implementation
+// =============================================================================
+
+/// Trinity VM R003 MUST implement:
+///
+/// 1. **TribImage loader**:
+///    - Read .trib binary file
+///    - Parse header (26 bytes, exact structure)
+///    - Load constant pool, code section, symbol table
+///    - Validate magic number (0x54524942)
+///    - Validate alignment (8-byte for all sections)
+///
+/// 2. **TribImage executor**:
+///    - Dispatch opcodes (OP_NOP through OP_ENCODER)
+///    - Execute Trit logic ops (K3 Kleene)
+///    - Execute VSA ops (permute, hybrid_add, etc.)
+///    - Memory management (stack 64KB, heap 256KB)
+///    - Control flow (jump, jump_if, halt, toxic)
+///
+/// 3. **FFI interface for Zig fallback**:
+///    - `zig_trib_load(bytes) -> Result<TribImage>`
+///    - `zig_trib_execute(image) -> Result<(), ZigError>`
+///    - Runtime selection via `tri config --runtime {zig|trinity|auto}`
+///
+/// See: `specs/vm_core.t27` for complete VM interface specification.
+
+// =============================================================================
+// Benchmark Targets
+// =============================================================================
+
+/// Benchmark: Trinity VM loader performance
+bench vm_load_performance {
+  description: "TribImage load throughput"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to vm_core::parse_trib_header
+  target: u32 = 10000000  -- 10M images/sec
+}
+
+/// Benchmark: Zig VM loader fallback
+bench zig_vm_load_performance {
+  description: "Zig VM loader fallback performance"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to zig_vm_load
+  target: u32 = 5000000   -- 5M images/sec
+}
+
+/// Benchmark: Runtime mode selection overhead
+bench runtime_selection_overhead {
+  description: "Runtime mode selection dispatch time"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to execute_trib
+  target: u32 = 50000      -- 50K switches/sec
+}

@@ -1,0 +1,47 @@
+module: bench_results;
+
+// Benchmark result container
+//
+// Stores benchmark results for Parameter Golf competitions.
+// Provides validation through typed interface.
+
+use super::bench::{BenchKind, BenchMetrics, BenchmarkProfile, BenchmarkResult, MetricKind, Verdict};
+
+/// Create a baseline result
+pub fn baseline() -> BenchmarkResult {
+    BenchmarkResult {
+        profile_id: super::bench::PROFILE_BASELINE.id.into(),
+        metrics: super::bench::BenchMetrics {
+            kind: super::bench::MetricKind::OpsPerSec,
+            value: 100.0,
+        },
+        verdict: super::bench::Verdict::Ok,
+        experience_ref: super::bench::PROFILE_BASELINE.workload_ref.into(),
+    }
+}
+
+/// Create a tiny LM result
+pub fn tiny_lm() -> BenchmarkResult {
+    BenchmarkResult {
+        profile_id: super::bench::PROFILE_TINY_LM.id.into(),
+        metrics: super::bench::BenchMetrics {
+            kind: super::bench::MetricKind::InferenceOpsPerSec,
+            value: 50.0,
+        },
+        verdict: super::bench::Verdict::Ok,
+        experience_ref: super::bench::PROFILE_TINY_LM.workload_ref.into(),
+    }
+}
+
+/// Create a compression result
+pub fn compression() -> BenchmarkResult {
+    BenchmarkResult {
+        profile_id: super::bench::PROFILE_COMPRESSION.id.into(),
+        metrics: super::bench::BenchMetrics {
+            kind: super::bench::MetricKind::BytesPerSec,
+            value: 5000.0,
+        },
+        verdict: super::bench::Verdict::Ok,
+        experience_ref: super::bench::PROFILE_COMPRESSION.workload_ref.into(),
+    }
+}

@@ -1,0 +1,240 @@
+# Trinity Agent Protocol — Work Completion Enforcement
+#
+# This spec defines protocol for all Trinity agent operations.
+# Part of modular compiler architecture (Ring-Z100 - Agent Protocol).
+#
+# This is a **mandatory law level (L7)** for agent operations.
+# All Trinity agents MUST follow this protocol for tracking work completion.
+#
+# See: `specs/trity_constitution.t27` for Trinity constitution
+
+module: trity_agent_protocol;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.tri
+  - trity_experience from specs/trity_experience.tri
+
+// =============================================================================
+// Law L7: UNITY — Minimal Agent Protocol
+// =============================================================================
+
+/// Any code merge MUST have `Closes #N`
+constinvar law_l7_work_completion {
+  has_closes: bool;
+  comment: "Any agent declaring a task, Ring, or RFC as COMPLETE MUST leave a reproducible trace in code, tests, and experience log."
+}
+
+/// Benchmark / experience records MUST be saved
+constinvar law_l7_artifact_preservation {
+  artifacts_saved: bool;
+  comment: "All benchmark / experience records MUST be saved to Trinity experience database (not just printed to console)"
+}
+
+/// Git commits MUST link to issues
+constinvar law_l7_issue_tracking {
+  links_to_issue: bool;
+  comment: "All work changes MUST link to GitHub issues via `Closes #N` in commit message."
+}
+
+/// Agent operations MUST follow this protocol
+constinvar law_l7_protocol_compliance {
+  follows_protocol: bool;
+  comment: "All agent operations MUST follow Trinity agent protocol defined in this spec."
+}
+
+// =============================================================================
+// Required Artifacts Before Work Completion
+// =============================================================================
+
+/// Code artifacts MUST exist and pass tests
+invariant code_artifacts_exist {
+  given: record = trity_experience::ExperienceRecord;
+  when: record.experience_type == trity_experience::ExperienceType::CodeChange
+  then: assert record.artifacts.len() > 0
+  comment: "Code changes require artifact files (specs, .tri)"
+}
+
+/// Tests MUST be green before considering work complete
+invariant tests_are_green {
+  given: record = trity_experience::ExperienceRecord;
+  when: record.experience_type == trity_experience::ExperienceType::Benchmark
+  then: assert record.value == 1.0;  // 100% pass rate
+  comment: "Benchmark runs must achieve 100% pass rate before considering work complete"
+}
+
+// =============================================================================
+// Agent Operations
+// =============================================================================
+
+/// Agent operation types
+type AgentOp = enum(u8) {
+  /// Edit .tri spec file
+  EditSpec,
+
+  /// Run tests on a spec
+  RunTests,
+
+  /// Run benchmarks on a spec
+  RunBenchmarks,
+
+  /// Save experience record
+  SaveExperience,
+
+  /// Update Trinity ring state
+  UpdateState,
+}
+
+/// Agent operation definition
+type AgentOperation = struct {
+  op: AgentOp,
+  spec: String,      // .tri spec being operated on
+  changes: Vec<String>,  // List of changes made
+  agent_id: String,    // Agent performing operation
+}
+
+// =============================================================================
+// Work Completion Requirements (L7 Compliance)
+// =============================================================================
+
+/// Law L7: Work Completion Requirements
+///
+/// Requirements:
+/// 1. **Issue Tracking** — All work MUST link to GitHub Issue #N
+/// 2. **Artifact Preservation** — All benchmark/experience records MUST be saved
+/// 3. **Green Tests** — All tests must pass before completion
+/// 4. **Protocol Compliance** — All operations MUST follow this agent protocol
+///
+/// Violation:
+/// - Work marked COMPLETE without Closes #N
+/// - Benchmarks/records not saved to experience database
+/// - Tests not green before marking work COMPLETE
+/// - Operations not following agent protocol
+
+// =============================================================================
+// Experience Record Format
+// =============================================================================
+
+/// Experience record (canonical format)
+type ExperienceRecord = trity_experience::ExperienceRecord;
+
+/// Experience types
+type ExperienceType = trity_experience::ExperienceType;
+
+/// Benchmark metrics
+type BenchmarkMetric = trity_experience::BenchmarkMetric;
+
+// =============================================================================
+// Export to trity_experience
+// =============================================================================
+
+/// Export experience types
+export ExperienceRecord, ExperienceType, BenchmarkMetric;
+
+/// Export agent operations
+export AgentOp, AgentOperation;
+
+/// Export work completion invariants
+export law_l7_work_completion;
+export law_l7_artifact_preservation;
+export law_l7_issue_tracking;
+export law_l7_protocol_compliance;
+export code_artifacts_exist;
+export tests_are_green;
+
+/// Export agent operation types
+export AgentOpCategory;
+
+// =============================================================================
+// Protocol Enforcement
+// =============================================================================
+
+/// Protocol enforcement rules
+///
+/// 1. **Issue Tracking** — Required by L7
+/// 2. **Artifact Preservation** — Required by L7
+/// 3. **Green Tests** — Required by L7
+/// 4. **Protocol Compliance** — Required by L7
+///
+/// Violation of any rule → Operation rejected
+
+constinvar protocol_enforcement {
+  requires_issue_tracking: bool = true;
+  requires_artifact_preservation: bool = true;
+  requires_green_tests: bool = true;
+  requires_protocol_compliance: bool = true;
+}
+
+/// Check if operation complies with protocol
+fn is_protocol_compliant(op: &AgentOperation) -> bool {
+  protocol_enforcement.requires_issue_tracking;
+  protocol_enforcement.requires_artifact_preservation;
+  protocol_enforcement.requires_green_tests;
+  protocol_enforcement.requires_protocol_compliance;
+}
+
+// =============================================================================
+// Agent Operation Types (Categories)
+// =============================================================================
+
+/// Agent operation categories
+type AgentOpCategory = enum(u8) {
+  /// Spec editing operations
+  SpecEdit = 0,
+
+  /// Test execution operations
+  TestExecution = 1,
+
+  /// Benchmark execution operations
+  BenchmarkExecution = 2,
+
+  /// Experience recording operations
+  Experience = 3,
+
+  /// State management operations
+  State = 4,
+}
+
+/// Get category for an operation
+pub fn operation_category(op: &AgentOperation) -> AgentOpCategory {
+  match op.op {
+    AgentOp::EditSpec => AgentOpCategory::SpecEdit,
+    AgentOp::RunTests => AgentOpCategory::TestExecution,
+    AgentOp::RunBenchmarks => AgentOpCategory::BenchmarkExecution,
+    AgentOp::SaveExperience => AgentOpCategory::Experience,
+    AgentOp::UpdateState => AgentOpCategory::State,
+  }
+}
+
+// =============================================================================
+// Export Requirements
+// =============================================================================
+
+/// All Trinity agents MUST implement:
+///
+/// 1. **L7 Compliance** — Follow this protocol for all operations
+/// 2. **Work Completion** — Issue tracking + artifact preservation + green tests
+/// 3. **Experience Records** — Save to Trinity experience database
+/// 4. **Operation Categories** — Use proper categories for all operations
+///
+/// See: `specs/trity_constitution.t27` for Trinity constitution
+/// See: `specs/trity_experience.t27` for experience format
+
+export:
+  AgentOp,
+  AgentOperation,
+  AgentOpCategory,
+  law_l7_work_completion,
+  law_l7_artifact_preservation,
+  law_l7_issue_tracking,
+  law_l7_protocol_compliance,
+  code_artifacts_exist,
+  tests_are_green;
+
+/// Export agent operation types
+export operation_category;
+
+/// Export protocol enforcement
+export protocol_enforcement;
+export is_protocol_compliant;

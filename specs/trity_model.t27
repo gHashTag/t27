@@ -1,0 +1,478 @@
+# Trinity Model DSL (Ring-003)
+#
+# Defines model definition language for tiny language models.
+# Part of modular compiler architecture (Ring-003 - Parity Target 3).
+#
+# Follows Trinity architecture: spec-first (.t27) → model → train → compile → execute.
+# See: `specs/trity_compress.t27` for compression backends.
+#
+# Language: English only (L7 compliance - no Cyrillic)
+
+module: trity_model_dsl;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.tri
+  - trity_compress from specs/trity_compress.tri
+  - trity_experience from specs/trity_experience.tri
+
+// =============================================================================
+// Core Primitives (Model Definition)
+// =============================================================================
+
+/// Model definition for tiny language models
+///
+/// ## Components
+/// - **Architecture**: Neural network layers (dense, recurrent, VSA attention)
+/// - **Quantization**: Weight/activation compression schemes
+/// - **Compression**: Post-quantization compression algorithms
+/// - **Training**: Training budget and hyperparameters
+///
+/// ## Supported Architectures
+/// - **Dense**: Standard feedforward networks
+/// - **Recurrent**: LSTM/GRU layers
+/// - **Ternary Native**: Trinity-specific VSA/ternary layers
+/// - **Hybrid**: Mixed architectures
+///
+/// ## Usage
+/// ```tri
+/// model minimal_tiny {
+///   name: "TinyLM-7B"
+///   architecture: Dense {
+///     layers: [Dense { size: 768, activation: RELU }]
+///   }
+///   quantization: QuantScheme::QUANT_INT8
+///   compression: CompressionConfig {
+///     level: CompressionLevel::LEVEL_FAST
+///   }
+///   training: TrainingBudget {
+///     epochs: 10
+///     batch_size: 32
+///   }
+/// }
+/// ```
+type ModelDef {
+  name: String,
+  architecture: ModelArchitecture,
+  quantization: QuantConfig,
+  compression: CompressionConfig,
+  training: TrainingBudget,
+}
+
+/// Model architecture variants
+type ModelArchitecture = record {
+  /// Feedforward networks
+  Feedforward {
+    layers: Vec<Layer>,
+  }
+
+  /// Recurrent networks
+  Recurrent {
+    hidden_size: u32,
+    num_layers: u32,
+    hidden_type: String,
+  }
+
+  /// Ternary/VSA native (Trinity unfair advantage)
+  TernaryNative {
+    trit_layers: Vec<TritLayer>,
+    vsa_ops: Vec<VsaOp>,
+  }
+
+  /// Hybrid architecture (mixed layers)
+  Hybrid {
+    dense_layers: Vec<DenseLayer>,
+    ternary_layers: Vec<TritLayer>,
+  }
+}
+
+/// Layer definition
+type Layer = record {
+  /// Layer type (dense, recurrent, vsa, ternary)
+  layer_type: LayerType,
+
+  /// Layer dimensions
+  input_size: u32,
+  output_size: u32,
+  hidden_size: u32,
+
+  /// Layer parameters
+  params: LayerParams,
+}
+
+/// Layer type classification
+type LayerType = enum(u8) {
+  /// Dense linear layer
+  Dense = 0,
+
+  /// Recurrent layer (LSTM, GRU)
+  Recurrent = 1,
+
+  /// VSA attention layer
+  VsaAttention = 2,
+
+  /// Ternary native layer (Trinity)
+  TernaryNative = 3,
+
+  /// Embedding layer
+  Embedding = 4,
+
+  /// Output layer
+  Output = 5,
+}
+
+/// Layer parameters (weights, biases, etc.)
+type LayerParams = record {
+  /// Weight shape
+  weight_shape: Vec<u32>,
+
+  /// Bias shape (optional)
+  bias_shape: Option<Vec<u32>>,
+
+  /// Activation function
+  activation: Activation,
+
+  /// Normalization
+  normalization: Option<Normalization>,
+}
+
+/// Dense layer definition
+type DenseLayer = record {
+  input_size: u32,
+  output_size: u32,
+  activation: Activation,
+}
+
+/// Recurrent layer definition (LSTM, GRU)
+type RecurrentLayer = record {
+  hidden_size: u32,
+  num_layers: u32,
+  hidden_type: String,
+}
+
+/// Ternary/VSA layer (Trinity native)
+type TritLayer = record {
+  trit_dim: u32,
+  trit_op: TritOp,
+}
+
+/// VSA operation (for TritLayer)
+type TritOp = enum(u8) {
+  /// Ternary permutation
+  Permute,
+
+  /// Ternary dot product
+  DotProd,
+
+  /// Fast hybrid range reduction (HRR)
+  Fhrr,
+}
+
+/// Embedding layer
+type EmbeddingLayer = record {
+  vocab_size: u32,
+  embed_dim: u32,
+}
+
+/// Output layer
+type OutputLayer = record {
+  output_size: u32,
+  activation: Activation,
+}
+
+// =============================================================================
+// Quantization Configuration
+// =============================================================================
+
+/// Quantization scheme
+///
+/// ## Schemes
+/// - **QUANT_INT8**: 8-bit linear quantization
+/// - **QUANT_INT4**: 4-bit linear quantization
+/// - **QUANT_INT2**: 2-bit linear quantization
+/// - **QUANT_TRIT**: Ternary quantization (-1, 0, +1)
+/// - **QUANT_TF3**: Trinity factor quantization
+///
+/// ## Usage
+/// ```tri
+/// quantization: QuantConfig {
+///   scheme: QuantScheme::QUANT_INT8,
+///   calibration: QuantCalibration::PER_CHANNEL
+///   per_channel: false,
+/// }
+/// ```
+type QuantConfig = record {
+  scheme: QuantScheme,
+  calibration: QuantCalibration,
+  per_channel: bool,
+}
+
+/// Quantization scheme enumeration
+type QuantScheme = enum(u8) {
+  /// 8-bit linear quantization
+  Int8 = 0x00,
+
+  /// 4-bit linear quantization
+  Int4 = 0x01,
+
+  /// 2-bit linear quantization
+  Int2 = 0x02,
+
+  /// Ternary quantization (-1, 0, +1)
+  Trit = 0x03,
+
+  /// Trinity factor quantization
+  Tf3 = 0x04,
+}
+
+/// Quantization calibration
+type QuantCalibration = enum(u8) {
+  /// No calibration
+  None = 0,
+
+  /// Per-channel calibration
+  PerChannel = 1,
+
+  /// Min-max calibration
+  MinMax = 2,
+}
+
+/// Quantization result
+type QuantResult = record {
+  /// Quantized values (int8, int4, int2, trits)
+  values: Vec<u8>,
+
+  /// Scale factor (for dequantization)
+  scale: f64,
+
+  /// Zero point
+  zero_point: u8,
+}
+
+// =============================================================================
+// Compression Configuration
+// =============================================================================
+
+/// Compression configuration
+///
+/// ## Compression Schemes
+/// - **COMPRESS_NONE**: No compression
+/// - **COMPRESS_ZSTD**: Zstandard compression
+/// - **COMPRESS_BITPACK**: Trinity bit-packing
+/// - **COMPRESS_TERNARY**: Ternary packing
+///
+/// ## Compression Levels
+/// - **LEVEL_FAST**: Fastest compression
+/// - **LEVEL_BALANCED**: Balanced speed/size
+/// - **LEVEL_MAX**: Maximum compression (slowest)
+///
+/// ## Usage
+/// ```tri
+/// compression: CompressionConfig {
+///   scheme: CompressionScheme::COMPRESS_BITPACK,
+///   level: CompressionLevel::LEVEL_BALANCED,
+/// }
+/// ```
+type CompressionConfig = record {
+  scheme: CompressionScheme,
+  level: CompressionLevel,
+}
+
+/// Compression scheme enumeration
+type CompressionScheme = enum(u8) {
+  /// No compression
+  None = 0x00,
+
+  /// Zstandard compression
+  Zstd = 0x01,
+
+  /// Trinity bit-packing
+  Bitpack = 0x02,
+
+  /// Ternary packing
+  Ternary = 0x03,
+}
+
+/// Compression level enumeration
+type CompressionLevel = enum(u8) {
+  /// Fastest compression
+  Fast = 0x00,
+
+  /// Balanced compression (default)
+  Balanced = 0x01,
+
+  /// Maximum compression
+  Max = 0x02,
+}
+
+/// Compression result
+type CompressionResult = record {
+  /// Compressed data
+  data: Vec<u8>,
+
+  /// Original size
+  original_size: u64,
+
+  /// Compressed size
+  compressed_size: u64,
+
+  /// Compression ratio
+  compression_ratio: f64,
+}
+
+// =============================================================================
+// Training Configuration
+// =============================================================================
+
+/// Training budget
+///
+/// ## Parameters
+/// - **time_s**: Training time in seconds (max 600 for Parameter Golf)
+/// - **gpus**: Number of GPUs (max 8 for 8xH100)
+/// - **gpu_type**: GPU type (H100, A100, V100, T4)
+///
+/// ## Usage
+/// ```tri
+/// training: TrainingBudget {
+///   time_s: 600,
+///   gpus: 8,
+///   gpu_type: "H100",
+/// }
+/// ```
+type TrainingBudget = record {
+  time_s: u32,
+  gpus: u8,
+  gpu_type: String,
+}
+
+/// Training hyperparameters
+type TrainingConfig = record {
+  /// Number of epochs
+  epochs: u16,
+
+  /// Batch size
+  batch_size: u32,
+
+  /// Learning rate
+  learning_rate: f64,
+
+  /// Weight decay
+  weight_decay: f64,
+
+  /// Gradient clipping
+  clip_grad: Option<f64>,
+
+  /// Optimizer
+  optimizer: Optimizer,
+}
+
+/// Optimizer configuration
+type Optimizer = enum(u8) {
+  /// Adam optimizer
+  Adam = 0,
+
+  /// SGD with momentum
+  Sgd = 1,
+
+  /// RMSProp
+  RmsProp = 2,
+
+  /// AdamW
+  AdamW = 3,
+}
+
+/// Training result
+type TrainingResult = record {
+  /// Training time
+  time_s: u32,
+
+  /// Final epoch
+  final_epoch: u16,
+
+  /// Loss curve
+  losses: Vec<f64>,
+
+  /// Model artifacts
+  model_artifact: String,
+}
+
+// =============================================================================
+// Activation Functions
+// =============================================================================
+
+/// Activation function
+///
+/// ## Supported Activations
+/// - **RELU**: Rectified Linear Unit
+/// - **GELU**: Gaussian Error Linear Unit
+/// - **SWISH**: Swish (x * sigmoid(x))
+/// - **TANH**: Hyperbolic tangent
+/// - **SIGMOID**: Sigmoid activation
+///
+/// ## Usage
+/// ```tri
+/// activation: Activation::RELU
+/// ```
+type Activation = enum(u8) {
+  /// Rectified Linear Unit
+  ReLU = 0,
+
+  /// Gaussian Error Linear Unit
+  GELU = 1,
+
+  /// Swish activation
+  Swish = 2,
+
+  /// Hyperbolic tangent
+  TanH = 3,
+
+  /// Sigmoid activation
+  Sigmoid = 4,
+}
+
+/// Layer normalization
+type Normalization = record {
+  /// Epsilon (for numerical stability)
+  epsilon: f64,
+
+  /// Normalization type
+  kind: NormalizationKind,
+}
+
+/// Normalization kind
+type NormalizationKind = enum(u8) {
+  /// Layer normalization
+  LayerNorm = 0,
+
+  /// Batch normalization
+  BatchNorm = 1,
+
+  /// No normalization
+  None = 2,
+}
+
+// =============================================================================
+// Export Requirements
+// =============================================================================
+
+/// Export quantization schemes
+export QuantScheme, QuantConfig, QuantResult, QuantCalibration;
+
+/// Export compression schemes and levels
+export CompressionScheme, CompressionConfig, CompressionResult, CompressionLevel;
+
+/// Export training configuration
+export TrainingBudget, TrainingConfig, TrainingResult, Optimizer;
+
+/// Export activation functions
+export Activation, Normalization, NormalizationKind;
+
+/// Export layer types
+export Layer, LayerType, LayerParams, DenseLayer, RecurrentLayer;
+
+/// Export model architecture
+export ModelDef, ModelArchitecture, Feedforward, Recurrent, TernaryNative, Hybrid;
+
+/// Export model definition
+export ModelDef;

@@ -1,0 +1,264 @@
+# Trinity Benchmark Profiles
+#
+# Defines workload and evaluation criteria for benchmarking.
+# Part of Trinity modular compiler architecture (Ring-003 - Parity Target 1).
+#
+# This spec defines benchmarks in a clear, typed way.
+# All benchmarks must use this spec to define their workloads and metrics.
+#
+# See: `specs/trity_bench_bench_types.t27` for type definitions.
+
+module: trity_bench_bench_profiles;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.tri
+  - trity_experience from specs/trity_experience.tri
+  - trity_compress from specs/trity_compress.tri
+
+// =============================================================================
+// Benchmark Workloads
+// =============================================================================
+
+/// Workload complexity levels
+const WORKLOAD_TINY: Workload = Workload {
+  name: String::from("tiny"),
+  complexity: String::from("minimal"),
+  dataset: String::from("toy_dataset"),
+};
+
+const WORKLOAD_SMALL: Workload = Workload {
+  name: String::from("small"),
+  complexity: String::from("simple"),
+  dataset: String::from("counter_dataset"),
+};
+
+const WORKLOAD_MEDIUM: Workload = Workload {
+  name: String::from("medium"),
+  complexity: String::from("moderate"),
+  dataset: String::from("language_model"),
+};
+
+const WORKLOAD_LARGE: Workload = Workload {
+  name: String::from("large"),
+  complexity: String::from("complex"),
+  dataset: String::from("full_dataset"),
+};
+
+/// Workload definition
+type Workload = record {
+  name: String,
+  complexity: String,
+  dataset: String,
+}
+
+// =============================================================================
+// Built-in Benchmark Profiles
+// =============================================================================
+
+/// VSA Operations Micro Benchmark
+///
+/// Measures VSA operation latency and throughput.
+/// Reference: R003 (VM Core) implementation.
+bench profile_vsa_micro {
+  description: "VSA operations latency measurements"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to vm_core::OP_VSA_BIND
+  target: u32 = 10000000;
+}
+
+/// Trinity Core Pipeline Benchmark
+///
+/// Measures end-to-end pipeline: spec compile -> .trib -> VM execute.
+/// Reference: R003 (VM Core) implementation.
+bench profile_trinity_pipeline {
+  description: "Trinity Core pipeline throughput"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to compiler::Compiler::compile_model
+  target: u32 = 50000;
+}
+
+/// TinyLM Inference Benchmark
+///
+/// Measures tiny model inference latency and throughput.
+/// Reference: R004 (Model DSL) minimal toy_lm.
+bench profile_tiny_lm_inference {
+  description: "TinyLM inference performance"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to vm_executor::execute_trib
+  target: u32 = 1000000;
+}
+
+/// Compression Throughput Benchmark
+///
+/// Measures compression algorithm throughput (encode, pack, decode).
+/// Reference: R005 (Compression Backends) implementation.
+bench profile_compression_throughput {
+  description: "Compression throughput measurement"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to compress::compress::encode
+  target: u32 = 5000000;
+}
+
+// =============================================================================
+// Export Benchmark Profiles
+// =============================================================================
+
+/// Export workload definitions
+export Workload, WORKLOAD_TINY, WORKLOAD_SMALL, WORKLOAD_MEDIUM, WORKLOAD_LARGE;
+
+/// Export built-in benchmark profiles
+export profile_vsa_micro, profile_trinity_pipeline, profile_tiny_lm_inference, profile_compression_throughput;
+
+/// Export profile category (for benchmark runner)
+export Profile = struct {
+  id: String,
+  name: String,
+  description: String,
+  category: compiler::types::BenchmarkKind,
+  target: String,
+  workload: Workload,
+  parameters: Map<String, u32>,
+};
+
+// =============================================================================
+// Benchmark Types (from trity_bench_bench_types.t27)
+// =============================================================================
+
+/// Benchmark kind enumeration
+pub use compiler::types::BenchmarkKind;
+
+/// Benchmark metric enumeration
+pub use compiler::types::MetricKind;
+
+// =============================================================================
+// Profile Creation Helpers
+// =============================================================================
+
+/// Create VSA micro profile
+fn create_vsa_micro() -> Profile {
+  Profile {
+    id: String::from("vsa_micro"),
+    name: String::from("VSA Micro Benchmark"),
+    description: String::from("VSA operations latency measurements"),
+    category: BenchmarkKind::Micro,
+    target: String::from("vm_core"),
+    workload: WORKLOAD_TINY,
+    parameters: Map::from([
+      (String::from("op"), 10000000u32),
+    ]),
+  }
+}
+
+/// Create Trinity pipeline profile
+fn create_trinity_pipeline() -> Profile {
+  Profile {
+    id: String::from("trinity_pipeline"),
+    name: String::from("Trinity Core Pipeline"),
+    description: String::from("End-to-end spec compile to VM execution"),
+    category: BenchmarkKind::Pipeline,
+    target: String::from("compiler"),
+    workload: WORKLOAD_SMALL,
+    parameters: Map::from([
+      (String::from("spec"), 1u32),
+    ]),
+  }
+}
+
+/// Create TinyLM inference profile
+fn create_tiny_lm_inference() -> Profile {
+  Profile {
+    id: String::from("tiny_lm_inference"),
+    name: String::from("TinyLM Inference"),
+    description: String::from("Tiny model inference performance"),
+    category: BenchmarkKind::System,
+    target: String::from("vm_executor"),
+    workload: WORKLOAD_MEDIUM,
+    parameters: Map::from([
+      (String::from("model"), 1u32),
+    ]),
+  }
+}
+
+/// Create compression throughput profile
+fn create_compression_throughput() -> Profile {
+  Profile {
+    id: String::from("compression_throughput"),
+    name: String::from("Compression Throughput"),
+    description: String::from("Compression algorithm throughput"),
+    category: BenchmarkKind::Pipeline,
+    target: String::from("compress"),
+    workload: WORKLOAD_SMALL,
+    parameters: Map::from([
+      (String::from("input_kb"), 1000u32),
+    ]),
+  }
+}
+
+// =============================================================================
+// Built-in Profiles List
+// =============================================================================
+
+/// All built-in benchmark profiles
+///
+/// This list is used by benchmark runner to select
+/// which profile to run for a given benchmark type.
+const BUILTIN_PROFILES: [Profile] = [
+  create_vsa_micro(),
+  create_trinity_pipeline(),
+  create_tiny_lm_inference(),
+  create_compression_throughput(),
+];
+
+/// Get all built-in profiles
+pub fn list_builtin_profiles() -> Vec<Profile> {
+  BUILTIN_PROFILES.to_vec()
+}
+
+/// Get profile by ID
+pub fn get_profile_by_id(id: &str) -> Option<&Profile> {
+  BUILTIN_PROFILES.iter().find(|p| p.id == id)
+}
+
+// =============================================================================
+// Export Requirements
+// =============================================================================
+
+/// All benchmarks MUST use these profiles
+///
+/// ## Requirements
+/// 1. All benchmarks MUST define workload complexity
+/// 2. All benchmarks MUST define evaluation criteria
+/// 3. All benchmarks MUST specify target (component to measure)
+/// 4. All benchmarks MUST specify parameters (iteration count, etc.)
+///
+/// ## Profile Types
+/// - **Micro**: Single operation measurement (op latency)
+/// - **Pipeline**: End-to-end system measurement (compile time, etc.)
+/// - **System**: Full system benchmark (hello world, etc.)
+///
+/// ## Workload Levels
+/// - **TINY**: Minimal complexity, toy dataset
+/// - **SMALL**: Simple operations, counter dataset
+/// - **MEDIUM**: Language models, moderate complexity
+/// - **LARGE**: Full dataset, high complexity
+///
+/// ## Targets
+/// - **vm_core**: Trinity VM core (load, execute, etc.)
+/// - **vm_executor**: TribImage execution
+/// - **compiler**: Trinity compiler (parse, typecheck, lower)
+/// - **compress**: Compression algorithms (encode, pack, decode)
+///
+/// See: `specs/trity_bench_bench_types.t27` for type definitions
+
+export:
+  Workload,
+  WORKLOAD_TINY,
+  WORKLOAD_SMALL,
+  WORKLOAD_MEDIUM,
+  WORKLOAD_LARGE,
+  BUILTIN_PROFILES,
+  Profile,
+  list_builtin_profiles,
+  get_profile_by_id;

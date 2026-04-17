@@ -1,0 +1,320 @@
+// spec trinity_language
+// Trinity Benchmark Profiles (Ring-003)
+//
+// Defines individual benchmark profiles with their workloads and targets.
+// Each profile can be executed by BenchmarkAgent to collect metrics.
+
+module benchmark_profiles {
+    version: "0.3.0"
+    ring: "003"
+    seal: "pending"
+    description: "Benchmark execution profiles for Trinity VM and bytecode backends"
+    imports: ["00-gf-family-foundation", "trity_benchmark_types"]
+
+    // ============================================================================
+    // Benchmark Profile Definitions
+    // ============================================================================
+
+    constants {
+        // Profile ID prefixes
+        PROFILE_PREFIX: String = "prof-"
+
+        // Benchmark target identifiers
+        TARGET_TRITY_VM: String = "trity-vm"
+        TARGET_TRIB_BYTECODE: String = "trib-bytecode"
+        TARGET_ZIG: String = "zig"
+        TARGET_C: String = "c"
+
+        // Workload complexity levels
+        WORKLOAD_TINY: String = "tiny"
+        WORKLOAD_SMALL: String = "small"
+        WORKLOAD_MEDIUM: String = "medium"
+        WORKLOAD_LARGE: String = "large"
+    }
+
+    types {
+        // Re-export from trity_benchmark_types for convenience
+        use trity_benchmark_types::{
+            BenchmarkKind,
+            BenchmarkProfile,
+            BenchmarkResult,
+            Verdict,
+            Metric,
+            MetricValue,
+            MetricValues,
+        };
+    }
+
+    // Micro-benchmark: VSA Operations (B007 ISA)
+    profile vsa_permute {
+        name: String = "VSA Permute Throughput"
+        kind: BenchmarkKind = BenchmarkKind::Micro
+        target: String = constants.TARGET_TRITY_VM
+        description: String = "Measures VSA permute operation throughput (ops/sec)"
+        workload: String = "Sequential permute operations on random trit patterns"
+        metric: Metric = Metric::OpsPerSec
+
+        parameters {
+            iteration_count: u32 = 1000000  // 1M iterations
+            trit_range_min: i8 = -1
+            trit_range_max: i8 = 1
+        }
+
+        thresholds {
+            min_ops_per_sec: u64 = 1000000  // 1M ops/sec minimum
+            target_ops_per_sec: u64 = 5000000  // 500M ops/sec target
+        }
+
+        test {
+            name: String = "permute_throughput_above_threshold"
+            given: iter_count = 1000000
+            when: result.ops_per_sec >= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    // Micro-benchmark: VSA Dot Product (B007 ISA)
+    profile vsa_dot_product {
+        name: String = "VSA Dot Product Throughput"
+        kind: BenchmarkKind = BenchmarkKind::Micro
+        target: String = constants.TARGET_TRITY_VM
+        description: String = "Measures VSA dot product operation throughput (ops/sec)"
+        workload: String = "Sequential dot product operations on random VSA vectors"
+        metric: Metric = Metric::OpsPerSec
+
+        parameters {
+            vector_size: u32 = 256  // 256-element VSA vectors
+            iteration_count: u32 = 1000000  // 1M iterations
+        }
+
+        thresholds {
+            min_ops_per_sec: u64 = 500000  // 500K ops/sec minimum
+            target_ops_per_sec: u64 = 1000000  // 1M ops/sec target
+        }
+
+        test {
+            name: String = "dot_product_throughput_above_threshold"
+            given: iter_count = 1000000
+            when: result.ops_per_sec >= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    // Micro-benchmark: FHRR Fast Hybrid Range Reduction (B007 ISA)
+    profile vsa_fhrr_pop {
+        name: String = "VSA FHRR Pop Throughput"
+        kind: BenchmarkKind = BenchmarkKind::Micro
+        target: String = constants.TARGET_TRITY_VM
+        description: String = "Measures VSA FHRR pop operation throughput (ops/sec)"
+        workload: String = "Sequential FHRR pop operations on random VSA vectors"
+        metric: Metric = Metric::OpsPerSec
+
+        parameters {
+            vector_size: u32 = 256
+            pop_count: u32 = 100  // Number of FHRR pops per iteration
+            iteration_count: u32 = 100000  // 1M iterations
+        }
+
+        thresholds {
+            min_ops_per_sec: u64 = 200000  // 200K ops/sec minimum
+            target_ops_per_sec: u64 = 500000  // 500K ops/sec target
+        }
+
+        test {
+            name: String = "fhrr_pop_throughput_above_threshold"
+            given: iter_count = 1000000
+            when: result.ops_per_sec >= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    // Micro-benchmark: GF16 Multiplication (GoldenFloat)
+    profile gf16_multiply {
+        name: String = "GF16 Multiplication Throughput"
+        kind: BenchmarkKind = BenchmarkKind::Micro
+        target: String = constants.TARGET_TRITY_VM
+        description: String = "Measures GF16 fixed-point multiplication throughput (ops/sec)"
+        workload: String = "Random GF16 multiplication operations"
+        metric: Metric = Metric::OpsPerSec
+
+        parameters {
+            iteration_count: u32 = 1000000  // 1M iterations
+        }
+
+        thresholds {
+            min_ops_per_sec: u64 = 500000  // 500K ops/sec minimum
+            target_ops_per_sec: u64 = 2000000  // 200K ops/sec target
+        }
+
+        test {
+            name: String = "gf16_multiply_throughput_above_threshold"
+            given: iter_count = 1000000
+            when: result.ops_per_sec >= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    // Pipeline benchmark: Compile .tri to .trib bytecode
+    profile compile_speed {
+        name: String = "Compile Speed"
+        kind: BenchmarkKind = BenchmarkKind::Macro
+        target: String = constants.TARGET_TRIB_BYTECODE
+        description: String = "Measures .tri to .trib compilation speed (lines/sec)"
+        workload: String = "Compile sample .tri modules of varying complexity"
+        metric: Metric = Metric::OpsPerSec
+
+        parameters {
+            sample_spec: String = "sample-parser.tr27"
+            spec_lines: u32 = 100  // Sample: 100-line parser spec
+            iteration_count: u32 = 1000  // 1000 compilation iterations
+        }
+
+        thresholds {
+            min_lines_per_sec: u64 = 10000  // 10K lines/sec minimum
+            target_lines_per_sec: u64 = 50000  // 50K lines/sec target
+        }
+
+        test {
+            name: String = "compile_speed_above_threshold"
+            given: iter_count = 1000
+            when: result.lines_per_sec >= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    // Pipeline benchmark: .trib VM instruction execution
+    profile trib_vm_throughput {
+        name: String = "Trib VM Instruction Throughput"
+        kind: BenchmarkKind = BenchmarkKind::Macro
+        target: String = constants.TARGET_TRIB_BYTECODE
+        description: String = "Measures .trib VM instruction throughput (instructions/sec)"
+        workload: String = "Execute standard .trib instruction sequences"
+        metric: Metric = Metric::OpsPerSec
+
+        parameters {
+            instruction_count: u32 = 1000000  // 1M instructions executed
+            repetition_count: u32 = 100  // 100 repetitions
+        }
+
+        thresholds {
+            min_ops_per_sec: u64 = 100000  // 100K instructions/sec minimum
+            target_ops_per_sec: u64 = 1000000  // 100K instructions/sec target
+        }
+
+        test {
+            name: String = "trib_vm_throughput_above_threshold"
+            given: instr_count = 1000000
+            when: result.ops_per_sec >= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    // System benchmark: "Hello, Trinity" end-to-end
+    profile system_hello {
+        name: String = "System Hello World"
+        kind: BenchmarkKind = BenchmarkKind::System
+        target: String = constants.TARGET_TRITY_VM
+        description: String = "Complete Trinity system: parse -> compile -> execute -> print"
+        workload: String = "Parse sample .tri, compile to .trib, execute in VM"
+        metric: Metric = Metric::TimeMs
+
+        parameters {
+            sample_spec: String = "hello_world.tri"
+            repeat_count: u32 = 100  // 100 iterations
+        }
+
+        thresholds {
+            max_time_ms: u64 = 1000  // Max 1 second per iteration
+            target_avg_time_ms: u64 = 500  // Target: 500ms avg
+        }
+
+        test {
+            name: String = "system_hello_within_time_threshold"
+            given: repeat_count = 100
+            when: result.avg_time_ms <= constants.WORKLOAD_MEDIUM
+            then: assert result.verdict == Verdict::Pass
+        }
+    }
+
+    functions {
+        // Execute a single benchmark profile
+        fn run_profile(profile: BenchmarkProfile) -> BenchmarkResult {
+            // Placeholder - will be implemented by BenchmarkAgent
+            BenchmarkResult {
+                profile_id: profile.id,
+                metrics: MetricValues {
+                    values: vec![]
+                },
+                verdict: Verdict::Pass,
+                timestamp: Time::now(),
+            }
+        }
+
+        // Get all available profiles
+        fn list_profiles() -> Vec<BenchmarkProfile> {
+            vec![
+                benchmark_profiles::vsa_permute,
+                benchmark_profiles::vsa_dot_product,
+                benchmark_profiles::vsa_fhrr_pop,
+                benchmark_profiles::gf16_multiply,
+                benchmark_profiles::compile_speed,
+                benchmark_profiles::trib_vm_throughput,
+                benchmark_profiles::system_hello,
+            ]
+        }
+    }
+
+    tests {
+        // Verify all profiles have required fields
+        test profile_id_unique {
+            given: profiles = list_profiles()
+            when: {
+                let ids = profiles.iter().map(|p| p.id).collect::<Vec<String>>();
+                ids.len() == ids.iter().collect::<std::collections::HashSet<String>>().len()
+            }
+            then: assert true
+        }
+
+        // Verify all Micro benchmarks have OpsPerSec metric
+        test micro_benchmarks_have_ops_metric {
+            given: profiles = list_profiles()
+            when: profiles.iter().filter(|p| matches! {p.kind, BenchmarkKind::Micro}).all(|p| p.metric == Metric::OpsPerSec)
+            then: assert true
+        }
+
+        // Verify System benchmarks have TimeMs metric
+        test system_benchmarks_have_time_metric {
+            given: profiles = list_profiles()
+            when: profiles.iter().filter(|p| matches! {p.kind, BenchmarkKind::System}).all(|p| p.metric == Metric::TimeMs)
+            then: assert true
+        }
+    }
+
+    invariants {
+        // All benchmark IDs must start with prof-
+        inv benchmark_id_prefix {
+            given: profile = list_profiles()
+            when: profile.id.starts_with(constants.PROFILE_PREFIX)
+            then: assert true
+        }
+
+        // All benchmarks must have target field
+        inv all_benchmarks_have_target {
+            given: profile = list_profiles()
+            when: profile.target != String::new()
+            then: assert true
+        }
+
+        // All benchmarks must have thresholds defined
+        inv all_benchmarks_have_thresholds {
+            given: profile = list_profiles()
+            when: match profile {
+                benchmark_profiles::vsa_permute => true,
+                benchmark_profiles::vsa_dot_product => true,
+                benchmark_profiles::vsa_fhrr_pop => true,
+                benchmark_profiles::gf16_multiply => true,
+                _ => true,
+            }
+            then: assert true
+        }
+    }

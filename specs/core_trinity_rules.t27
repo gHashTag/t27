@@ -1,0 +1,141 @@
+# Trinity Rules — Single Source of Truth
+
+module: constitution;
+
+import:
+  - compiler/types from specs/compiler/types.tri
+  - compiler/contracts from specs/compiler/contracts.tri
+
+// L1: TRACEABILITY
+rule TRACEABILITY {
+  description: "No code merged without Closes #N";
+  severity: "CRITICAL";
+  check: "git log --oneline -1 | grep -c 'Closes #'";
+  applies_to: [merge, cli, runtime];
+}
+
+// L2: GENERATION
+rule GENERATION {
+  description: "Files under gen/ are generated; edit .t27 specs instead";
+  severity: "CRITICAL";
+  check: "git status | grep -c 'gen/' | head -1";
+  applies_to: [all];
+}
+
+// L3: PURITY
+rule PURITY {
+  description: "All source files must be ASCII-only with English identifiers";
+  severity: "CRITICAL";
+  check: "file .gen/ | grep -c '[^\\x80-\\xFF]'";
+  applies_to: [all];
+}
+
+// L4: TESTABILITY
+rule TESTABILITY {
+  description: "Every .t27 spec must contain test/invariant/bench";
+  severity: "CRITICAL";
+  check: "t27 parse <spec.t27> | grep -c 'test\\|invariant\\|bench'";
+  applies_to: [all];
+}
+
+// L5: IDENTITY
+rule IDENTITY {
+  description: "φ² = φ + 1 on ℝ; φ² + φ⁻² = 3; IEEE f64 checks use tolerance";
+  severity: "CRITICAL";
+  check: "tests/*.tri | grep -c 'phi_ratio\\|phi'";
+  applies_to: [all];
+}
+
+// L6: CEILING
+rule CEILING {
+  description: "FORMAT-SPEC-001.json + gf16.t27 are numeric SSOT";
+  severity: "HIGH";
+  check: "test format_specs/* | head -1";
+  applies_to: [all];
+}
+
+// L7: UNITY
+rule UNITY {
+  description: "No new *.sh on critical path; use tri/t27c only";
+  severity: "HIGH";
+  check: "ls scripts/*.sh";
+  applies_to: [all];
+}
+
+// Ring Registry: Central source of truth for ring status and coordination
+//
+// This file is read by trinity validate --constitution RULES.t27 to enforce
+// rules across all rings. Updates to this file trigger validation.
+
+// Ring Status
+ring_status {
+  id: "R001";
+  name: "Foundational Language";
+  status: "DONE";
+  spec: "specs/core_trinity.t27";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R002";
+  name: "Bootstrap Parser";
+  status: "DONE";
+  spec: "specs/02-bootstrap-parser.t27";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R003";
+  name: "Minimal VM + .trib + Compiler + Agent Façade";
+  status: "PENDING";
+  spec: "specs/03-tri-bootstrap-compiler.ti";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R004";
+  name: "Benchmark Layer + Market Map";
+  status: "DONE";
+  spec: "specs/bench/bench_types.t27";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R005";
+  name: "Model DSL + Compression Backends";
+  status: "PENDING";
+  spec: "specs/trity_model.t27";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R006";
+  name: "Ternary + GF Native Compute + VSA/FHRR";
+  status: "PENDING";
+  spec: "specs/trity_compute.t27";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R007";
+  name: "First Submission";
+  status: "PENDING";
+  spec: "specs/trity_submission.t27";
+  owner: "ring";
+  date: "2026-04-17";
+}
+
+ring_status {
+  id: "R008";
+  name: "Search Swarm";
+  status: "NOT_STARTED";
+  spec: null;
+  owner: "ring";
+  date: null;
+}

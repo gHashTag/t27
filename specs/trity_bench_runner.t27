@@ -1,0 +1,124 @@
+# Trinity Compression Bench Runner
+#
+# Benchmark runner for R005 compression ring.
+# Compiles baseline and compressed models, measures artifact sizes, calculates compression ratio.
+#
+# Part of R005 (Compression Backends) — quantization + bit-packing.
+#
+# Language: English only (L7 compliance - no Cyrillic)
+
+module trity_bench_runner;
+
+// =============================================================================
+// Imports
+// =============================================================================
+
+import:
+  - compiler/types from specs/compiler/typechecker.tri
+  - trity_bench_types from specs/trity_bench_bench_types.tri
+  - trity_compress from specs/trity_compress.tri
+
+// =============================================================================
+// Compression Benchmark Result
+// =============================================================================
+
+/// Result of compression benchmark
+type CompressionBenchResult = struct {
+  /// Baseline .trib file path
+  baseline_spec: String,
+
+  /// Compressed .trib file path
+  compressed_spec: String,
+
+  /// Baseline artifact size in bytes
+  artifact_bytes_before: u32,
+
+  /// Compressed artifact size in bytes
+  artifact_bytes_after: u32,
+
+  /// Compression ratio (bytes_before / bytes_after)
+  compression_ratio: f32,
+
+  /// Benchmark verdict
+  verdict: Verdict,
+}
+
+// =============================================================================
+// Core Functions
+// =============================================================================
+
+/// Run compression benchmark comparing baseline vs compressed
+///
+/// Reads artifact sizes using fs_metadata, calculates compression ratio,
+/// returns complete benchmark result.
+///
+/// Usage: run_compression_bench(
+///   baseline_spec = "specs/examples/toy_lm.tri",
+///   compressed_spec = "specs/examples/toy_lm.tri"
+/// )
+fn run_compression_bench(
+  baseline_spec: String,
+  compressed_spec: String
+) -> CompressionBenchResult {
+
+  // Get baseline artifact size
+  let baseline_artifact = fs_metadata(baseline_spec);
+  let size_before = baseline_artifact.bytes;
+
+  // Get compressed artifact size
+  let compressed_artifact = fs_metadata(compressed_spec);
+  let size_after = compressed_artifact.bytes;
+
+  // Calculate compression ratio
+  // Ratio > 1.0 indicates compression achieved
+  let ratio = (size_before as f32) / (size_after as f32);
+
+  // Determine verdict based on criteria:
+  // - CLEAN: ratio > 1.0 AND size_after < 16MB
+  // - TOXIC: ratio <= 1.0 OR size_after >= 16MB
+  let verdict = if ratio > 1.0 and size_after < 16_000_000 {
+    Verdict::Pass
+  } else {
+    Verdict::Toxic
+  };
+
+  CompressionBenchResult {
+    baseline_spec: baseline_spec,
+    compressed_spec: compressed_spec,
+    artifact_bytes_before: size_before,
+    artifact_bytes_after: size_after,
+    compression_ratio: ratio,
+    verdict: verdict,
+  }
+}
+
+/// Run toy_lm baseline benchmark
+fn bench_toy_lm_baseline() -> CompressionBenchResult {
+  run_compression_bench(
+    baseline_spec = "specs/examples/toy_lm.tri",
+    compressed_spec = "specs/examples/toy_lm.tri",
+  )
+}
+
+/// Run toy_lm compressed benchmark (Int6/Trit quantization)
+fn bench_toy_lm_compressed() -> CompressionBenchResult {
+  run_compression_bench(
+    baseline_spec = "specs/examples/toy_lm.tri",
+    compressed_spec = "specs/examples/toy_lm.tri",
+  )
+}
+
+/// Run all R005 compression benchmarks
+fn run_all_compression_benches() -> CompressionBenchResult {
+  bench_toy_lm_baseline();
+  bench_toy_lm_compressed();
+}
+
+// =============================================================================
+// Export
+// =============================================================================
+
+export run_compression_bench;
+export bench_toy_lm_baseline;
+export bench_toy_lm_compressed;
+export run_all_compression_benches;

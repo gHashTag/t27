@@ -1,0 +1,38 @@
+# Minimal Test for R003 Pipeline Verification
+
+module minimal_test;
+
+# Test specification: verify t27c → test.trib → VM execution path
+spec_type: verification;
+version: "0.1.0";
+
+# Test 1: Verify t27c exists and is executable
+test "verify_t27c_exists" {
+    description: "t27c binary should exist and be executable";
+    type: existence;
+    command: "which t27c";
+    expected: "t27c binary found";
+}
+
+# Test 2: Verify test.trib format is parseable
+test "verify_test_trib_format" {
+    description: "Verify test.trib has valid .tri syntax";
+    type: format_validation;
+    spec: "specs/trity_core_trinity.tri";
+    command: "tri test <spec>";
+    expected: "Valid .tri syntax";
+}
+
+# Test 3: Verify test.trib can be executed
+test "verify_test_trib_execution" {
+    description: "Verify test.trib can be executed by t27c test runner";
+    type: execution;
+    spec: "specs/trity_core_trinity.tri";
+    command: "tri test <spec>";
+    expected: "Test execution successful";
+}
+
+# Expected results
+expected "t27c_present" = "t27c binary should be in PATH";
+expected "valid_syntax" = "test.trib should have valid .tri syntax";
+expected "execution_works" = "test.trib execution should succeed";

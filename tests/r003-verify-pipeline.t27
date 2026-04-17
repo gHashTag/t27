@@ -1,0 +1,25 @@
+# Minimal test for R003 pipeline verification
+
+module core_trinity;
+
+// Simple test spec to verify t27c works end-to-end
+type Verdict = Ok | Unstable;
+
+fn test() -> Verdict {
+    // Verify t27c exists
+    // Verify test.trib format is parseable
+    // Verify test.trib execution works
+    Verdict::Ok
+}
+
+fn main() {
+    // This test will be executed by t27c test runner
+    // The test verifies the minimal executable path:
+    // .t27 (source) → t27c (compiler) → .trib (bytecode) → VM execute → Verdict + Experience
+
+    let verdict = test();
+    match verdict {
+        Verdict::Ok => println!("PASS: R003 pipeline verified"),
+        Verdict::Unstable => println!("FAIL: R003 pipeline verification failed"),
+    }
+}

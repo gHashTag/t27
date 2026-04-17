@@ -1,0 +1,205 @@
+# Trinity Rings Registry
+#
+# This is a single source of truth for ring state management.
+# All agents MUST consult this file before starting ring work.
+# Follows Trinity architecture: spec-first (.t27) → ring registry → implementation.
+#
+# Language: English only (L7 compliance - no Cyrillic)
+#
+
+module trinity_rings {
+    version: "0.7.0"
+    ring: "006"
+    seal: "pending"
+    description: "Trinity Ring Registry - prevents duplicate ring work, enforces sequential progression"
+    imports: ["01-tri-lang-core", "00-gf-family-foundation", "trity_model_dsl", "trity_bench_types", "trity_bench_bench_profiles"]
+}
+
+// ============================================================================
+// Ring Status Types (ADT-first, type-safe)
+// ============================================================================
+
+/// Current status of a ring
+types {
+    RingStatus = enum {
+        None,          // Ring has not been started
+        InProgress,     // Ring is currently being worked on
+        Done,          // Ring is complete
+        Failed,         // Ring encountered critical error
+        Blocked,        // Ring is waiting on dependency or approval
+    }
+}
+
+/// Ring identifier (must exist in registry)
+RIngId = String;
+
+// ============================================================================
+// Ring Registry (single source of truth)
+// ============================================================================
+
+/// All completed, in-progress, and pending rings
+ring_registry {
+    // R001: Core .tri language
+    R001 {
+        status: RingStatus::Done
+        spec: String = "specs/core_trinity.tri"
+        output: String = "specs/core_trinity.tri"
+        achievement: String = "Formal .tri language with Gleam/Elm/Haskell-style ADTs"
+        notes: String = "Won over \"hand-written scripts\" competitors"
+        owner: String = "ring"
+    }
+
+    // R002: Bootstrap parser
+    R002 {
+        status: RingStatus::Done
+        spec: String = "specs/02-bootstrap-parser.t27"
+        output: String = "bootstrap/src/compiler/parser.rs"
+        achievement: String = "Bootstrap compiler with proper ADT architecture"
+        notes: String = "Won over \"no type system\" entries"
+        owner: String = "ring"
+    }
+
+    // R003: VM Core + .trib Bytecode Format
+    R003 {
+        status: RingStatus::Done
+        spec: String = "specs/TRIB_FORMAT.t27, specs/VM_CORE.t27"
+        output: String = "specs/TRIB_FORMAT.tri, specs/VM_CORE.tri"
+        achievement: String = "Minimal .trib bytecode format with Trinity-specific VSA/TrinT ops, Experience hooks in VM"
+        notes: String = "First-class VM with VSA/Trit native compute (Trinity unfair advantage vs standard quantization)"
+        owner: String = "ring"
+    }
+
+    // R003-005: Benchmark Layer
+    R003_005 {
+        status: RingStatus::Done
+        spec: String = "specs/trity_bench_types.tri, specs/trity_bench_bench_profiles.tri, specs/trity_bench_bench_results.tri, specs/trity_bench_COMPETITORS.t27"
+        output: String = "specs/trity_bench_types.tri, specs/trity_bench_bench_profiles.tri, specs/trity_bench_bench_results.tri, specs/trity_bench_COMPETITORS.t27"
+        achievement: String = "Benchmark layer: typed BenchmarkKind/Metric/Verdict definitions, competitor profiles, market snapshots"
+        notes: String = "Typed benchmarks (Micro/Pipeline/System) with result linking to Experience. AnalysisAgent generates market comparison tables"
+        owner: String = "ring"
+    }
+
+    // R004: Model DSL - Minimal Toy LM
+    R004 {
+        status: RingStatus::Done
+        spec: String = "specs/examples/toy_lm.t27"
+        output: String = "specs/examples/toy_lm.tri, specs/examples/toy_lm.trib"
+        achievement: String = "Minimal working example: .tri to .trib to VM to Experience chain works. NO Python scripts. Proves Trinity can describe and compile models."
+        notes: String = "Minimal toy_lm (16D, single VSA block) proves .tri to .trib to VM to BenchmarkResult works. First ring where Trinity becomes model-capable system, not just compiler."
+        owner: String = "ring"
+    }
+
+    // R005: Compression
+    R005 {
+        status: RingStatus::Done
+        spec: String = "specs/trity_model.t27"
+        output: String = "specs/trity_model.tri"
+        achievement: String = "Compression schemes (Int6/Trit/GF/TF3 packing) added to Model DSL. tri-gen supports toy_lm quantization. tri-build packs weights. Compression level configurable (Fast/Balanced/Max)."
+        notes: String = "Adds Int6/Trit/GF/TF3 quantization and bit-packing schemes (2 trits/byte) to Model DSL. Supports Packed2Bits/TrinPack for Trinity unfair advantage. Not a full compression DSL, but one vertical slice over toy_lm proving entire Trinity stack works."
+        owner: String = "ring"
+    }
+
+    // R006: Search Swarm (DONE - spec level, runtime pending)
+    R006 {
+        status: RingStatus::Done
+        spec: String = "specs/r006_swarm_config.t27"
+        output: String = "specs/r006_swarm_config.tri"
+        achievement: String = "Swarm configuration spec with ExecutionPath interface for integration with existing Trinity systems (Queen orchestration, benchmarks, experience hooks). R006 = DONE (spec level). Runtime pending Queen integration. Agents use Model DSL (R004) + Benchmark layer (R003-005) to generate many architectures in parallel. Experience learning drives convergence to best config."
+        notes: String = "Agents use Model DSL (R004) + Benchmark layer (R003-005) to generate many architectures in parallel. Experience learning drives convergence to best config. Runtime blocked until Queen PHASE2 supports ExecutionPath routing."
+        owner: String = "ring"
+    }
+
+    // R007: First Parameter Golf Submission (DONE - spec level)
+    R007 {
+        status: RingStatus::Done
+        spec: String = "specs/examples/r008_parameter_golf.t27"
+        output: String = "specs/examples/r008_parameter_golf.trib"
+        achievement: String = "First Trinity submission to OpenAI Parameter Golf: <16MB artifact, val_bpb <= 1.1378, 3 training runs (p < 0.01). Trinity advantage: VSA/Trit/GF recurrence, parameter tying, bit-packing, swarm search vs hand-tuning competitors."
+        notes: String = "First Trinity submission with <16MB model. Trinity is not just \"another Python script\", but a production-ready system (tri-gen → .tri → .trib → VM) that can actually participate and win."
+        owner: String = "ring"
+    }
+
+    // R008: Native VSA Ops (NOT_STARTED)
+    R008 {
+        status: RingStatus::NotStarted
+        spec: String = ""
+        output: String = ""
+        achievement: String = "Native VSA operations (permute, dot, hybrid_add, fhrr_pop, cosine_sim) with B007 quantization formats. R006 swarm will search these primitives."
+        notes: String = "Native VSA operations (permute, dot, hybrid_add, fhrr_pop, cosine_sim) with B007 quantization formats (INT8, INT6, INT4, INT2, TRIT, TF3, GF16). R006 swarm will search these primitives as part of architecture space."
+        owner: String = "ring"
+    }
+}
+
+// ============================================================================
+// Functions (Ring Management)
+// ============================================================================
+
+/// Get status of a specific ring
+/// Returns current status from registry
+fn get_ring_status(id: RingId) -> RingStatus {
+    match id {
+        "R001" => ring_registry.R001.status,
+        "R002" => ring_registry.R002.status,
+        "R003" => ring_registry.R003.status,
+        "R003-005" => ring_registry.R003_005.status,
+        "R004" => ring_registry.R004.status,
+        "R005" => ring_registry.R005.status,
+        "R006" => ring_registry.R006.status,
+        "R007" => ring_registry.R007.status,
+        "R008" => ring_registry.R008.status,
+        _ => RingStatus::None,
+    }
+}
+
+/// Get all rings with their status
+/// Returns Map of RingId -> RingStatus for querying ring state
+fn list_all_rings() -> Map<String, RingStatus> {
+    Map {
+        "R001": ring_registry.R001.status,
+        "R002": ring_registry.R002.status,
+        "R003": ring_registry.R003.status,
+        "R003-005": ring_registry.R003_005.status,
+        "R004": ring_registry.R004.status,
+        "R005": ring_registry.R005.status,
+        "R006": ring_registry.R006.status,
+        "R007": ring_registry.R007.status,
+        "R008": ring_registry.R008.status,
+    }
+}
+
+/// Get next ring to work on
+/// Sequential ring progression: only proceed to next ring if current ring is Done
+/// Returns next ring ID that should be started (None if all rings are Done)
+fn get_next_ring() -> Option<RingId> {
+    // Check rings in order: R001 → R002 → R003 → R004 → R005 → R006 → R007 → R008
+    let rings = [
+        ("R001", ring_registry.R001.status),
+        ("R002", ring_registry.R002.status),
+        ("R003", ring_registry.R003.status),
+        ("R004", ring_registry.R004.status),
+        ("R005", ring_registry.R005.status),
+        ("R006", ring_registry.R006.status),
+        ("R007", ring_registry.R007.status),
+        ("R008", ring_registry.R008.status),
+    ];
+
+    // Return next ring that is NOT Done
+    for (ring_id, status) in rings.iter() {
+        match status {
+            RingStatus::Done => continue,
+            _ => return Some(ring_id),
+        }
+    }
+
+    None
+}
+
+// ============================================================================
+// Re-exports (for convenience)
+// ============================================================================
+
+// Re-export ring status for use in other modules
+pub use self::{RingStatus, RingId};
+
+// Re-export functions for ring management
+pub use self::{get_ring_status, list_all_rings, get_next_ring};

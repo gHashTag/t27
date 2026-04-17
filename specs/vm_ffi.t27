@@ -1,0 +1,391 @@
+# VM FFI Interface — Zig Runtime Bridge
+#
+# This spec defines the FFI interface between Trinity runtime
+# and reference Zig VM implementation.
+#
+# Part of Zig migration (Parity Target 3: FFI Bridge).
+#
+# Allows Trinity to call Zig VM functions from Rust
+# with runtime selection: `tri config --runtime {zig|trinity|auto}`.
+
+module: vm_ffi;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.tri
+
+// =============================================================================
+// FFI Interface Contracts
+// =============================================================================
+
+/// Zig VM loader FFI contract
+///
+/// Loads .trib binary file and returns TribImage structure.
+///
+/// ```rust
+/// extern "C" {
+///     // Zig VM loader
+///     fn trib_load(bytes: *const u8, len: usize) -> TribImage;
+/// }
+/// ```
+extern zig_trib_load {
+  signature: "fn(*const u8, usize) -> TribImage"
+  library: "vm_zig"
+  description: "Load .trib binary from Zig VM"
+  version: "0.1.0"
+}
+
+/// Zig VM executor FFI contract
+///
+/// Executes TribImage in Zig VM and returns execution result.
+///
+/// ```rust
+/// extern "C" {
+///     // Zig VM executor
+///     fn trib_execute(image: *const TribImage) -> ExecutionResult;
+/// }
+/// ```
+extern zig_trib_execute {
+  signature: "fn(*const TribImage) -> ExecutionResult"
+  library: "vm_zig"
+  description: "Execute TribImage in Zig VM"
+  version: "0.1.0"
+}
+
+/// Zig VM statistics FFI contract
+///
+/// Returns VM statistics (memory usage, stack depth, etc.)
+///
+/// ```rust
+/// extern "C" {
+///     // Zig VM stats
+///     fn trib_stats() -> VmStats;
+/// }
+/// ```
+extern zig_trib_stats {
+  signature: "fn() -> VmStats"
+  library: "vm_zig"
+  description: "Get Zig VM statistics"
+  version: "0.1.0"
+}
+
+/// TribImage structure (matches Zig VM layout)
+///
+/// Must match layout specified in `vm_core.t27`:
+/// - Header: 26 bytes (magic, version, sections)
+/// - Constant pool: loaded from .trib
+/// - Code section: loaded from .trib
+/// - Symbol table: loaded from .trib
+///
+/// See: `specs/vm_core.t27` for canonical format.
+type TribImage = struct {
+  header: vm_core::TribHeader,
+  constants: Vec<vm_core::ConstantEntry>,
+  code: Vec<vm_core::Instruction>,
+  sections: vm_core::Sections,
+}
+
+/// Execution result from Zig VM
+type ExecutionResult = struct {
+  ops_performed: u32,
+  cycles: u32,
+  memory_peak: usize,
+  output: String,
+}
+
+/// VM statistics
+type VmStats = struct {
+  stack_used: usize,
+  heap_used: usize,
+  code_size: usize,
+  symbol_table_size: usize,
+}
+
+// =============================================================================
+// Runtime Selection (Parity Verification)
+// =============================================================================
+
+/// Runtime mode selection
+///
+/// This allows verifying both Trinity and Zig VM implementations
+/// by calling the same TribImage through different runtimes.
+///
+/// ## Modes
+/// - `Trinity`: Rust VM implementation (to be built in R003)
+/// - `Zig`: Reference Zig VM implementation
+/// - `Auto`: Try Trinity first, fallback to Zig
+///
+/// ## Usage in `tri config --runtime <mode>`
+type RuntimeMode = enum(u8) {
+  Trinity = 0,
+  Zig = 1,
+  Auto = 2,
+}
+
+/// Runtime configuration
+type RuntimeConfig = struct {
+  mode: RuntimeMode,
+  fallback_to_zig: bool,
+}
+
+/// Execute TribImage in selected runtime
+///
+/// ## Parameters
+/// - `image`: TribImage to execute
+/// - `config`: Runtime mode selection
+///
+/// ## Returns
+/// - `ExecutionResult`: ops, cycles, memory peak, output
+///
+/// ## Usage
+/// ```rust
+/// use vm_ffi::*;
+///
+/// let config = RuntimeConfig {
+///     mode: RuntimeMode::Auto,
+///     fallback_to_zig: true,
+/// };
+///
+/// match config.mode {
+///     RuntimeMode::Trinity => {
+///         // Use Trinity Rust VM (R003)
+///         trinity_vm_execute(&image)
+///     }
+///     RuntimeMode::Zig => {
+///         // Use reference Zig VM
+///         zig_trib_execute(&image)
+///     }
+///     RuntimeMode::Auto => {
+///         // Try Trinity first, fallback to Zig
+///         match trinity_vm_execute(&image) {
+///             Ok(result) => Ok(result),
+///             Err(_) if config.fallback_to_zig => zig_trib_execute(&image),
+///             Err(e) => Err(e),
+///         }
+///     }
+/// }
+/// ```
+extern fn execute_runtime {
+  signature: "fn(image: TribImage, config: RuntimeConfig) -> Result<ExecutionResult>"
+  library: "bootstrap/src/vm"
+  description: "Execute TribImage in selected runtime"
+  version: "0.1.0"
+}
+
+// =============================================================================
+// Export Requirements
+// =============================================================================
+
+/// Trinity VM runtime (R003) MUST implement:
+///
+/// ## VM Core (from `specs/vm_core.t27`)
+/// - Load .trib binary (magic 0x54524942, header 26 bytes)
+/// - Parse sections (const pool, code, symbol table)
+/// - Validate magic number, version
+/// - Execute opcodes (OP_NOP through OP_ENCODER)
+/// - Implement VSA ops (permute, hybrid_add, etc.)
+/// - Memory management (stack 64KB, heap 256KB)
+/// - Control flow (jump, halt, toxic)
+///
+/// ## Interface Conformance
+/// - Must export: `trib_magic() -> u32`
+/// - Must export: `trib_header_size() -> u32`
+/// - Must export: `op_nop() -> u8`, `op_halt() -> u8`
+/// - Must export: `encode_instruction(inst) -> Vec<u8>`
+///
+/// ## Memory Layout
+/// - Stack: 64KB, grows upward
+/// - Heap: 256KB, growable
+/// - Code section: Read-only, loaded at base address
+/// - Symbol table: Fixed at code section end
+/// - Alignment: 8 bytes for all sections
+///
+/// See: `specs/vm_core.t27` for complete specification.
+///
+/// ## FFI Conformance
+/// - Must implement `trib_load()` FFI to call Zig loader
+/// - Must implement `trib_execute()` FFI to call Zig executor
+/// - Must implement `trib_stats()` FFI to call Zig stats
+/// - Runtime selection via `execute_runtime(image, config)`
+///
+/// ## Error Handling
+/// - Return `ExecutionResult` with clear ops/cycles/memory
+/// - Handle TOXIC verdict (halt with special code)
+///
+/// ## Parity Verification
+/// - Must produce identical results for same TribImage
+/// - Zig VM and Trinity VM outputs compared in parity tests
+
+/// Zig VM (Reference Implementation) Requirements:
+///
+/// ## Interface Conformance
+/// - Must implement `trib_load(bytes)` function
+/// - Must implement `trib_execute(image)` function
+/// - Must implement `trib_stats()` function
+/// - Must follow canonical .trib format (specs/vm_core.t27)
+/// - Must export exact binary format
+///
+/// ## Validation
+/// - Must pass all smoke tests from `tests/zig_smoke/`
+/// - Must produce deterministic results for same input
+///
+/// ## Performance
+/// - Target: 10M .trib files per second (loader)
+/// - Target: 5M ops per second (executor)
+
+/// Trinity VM (Target Implementation) Requirements:
+///
+/// ## Interface
+/// - Must implement `execute_runtime()` function above
+/// - Must implement `trib_load()` for .trib files
+/// - Must implement all VM core opcodes
+/// - Must implement VSA ops (permute, hybrid_add, etc.)
+/// - Must implement memory management (stack, heap)
+///
+/// ## Performance Targets
+/// - Loader: 10M .trib files per second
+/// - Executor: 50M ops per second
+/// - Full Trinity system: <16MB artifact, <10min training
+
+// =============================================================================
+// Benchmark Targets
+// =============================================================================
+
+/// Benchmark: Zig VM loader parity test
+///
+/// ## Purpose
+/// Verify that Zig VM and Trinity VM loaders produce identical TribImage structures.
+///
+/// ## Success Criteria
+/// - Both loaders read same .trib file
+/// - Both validate magic number (0x54524942)
+/// - Both produce identical header (26 bytes)
+/// - Both produce identical constant pool entries
+/// - Both produce identical code section (same size)
+///
+/// ## Test Command
+/// ```bash
+/// # Load same .trib with both runtimes
+/// tri benchmark vm_load_parity --runtime zig
+/// tri benchmark vm_load_parity --runtime trinity
+/// ```
+///
+/// ## Expected Results
+/// - `TribImage.header` must be identical
+/// - `TribImage.constants` must be identical
+/// - No magic number mismatches
+/// - No section size mismatches
+///
+/// ## Files
+/// - Test spec: `tests/zig_smoke/vm_load_parity.tri`
+/// - Reference .trib: `tests/zig_smoke/sample.trib`
+
+bench vm_load_parity {
+  description: "Zig VM loader parity test"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to vm_ffi::trib_load
+  target: u32 = 10000000  -- 10M .trib files/sec
+}
+
+/// Benchmark: Zig VM executor parity test
+///
+/// ## Purpose
+/// Verify that Zig VM and Trinity VM executors produce identical results.
+///
+/// ## Success Criteria
+/// - Same TribImage produces identical ExecutionResult
+/// - Same ops_performed count
+/// - Same cycle count
+/// - Same memory peak
+/// - Identical output strings
+///
+/// ## Test Command
+/// ```bash
+/// # Execute same TribImage with both runtimes
+/// tri benchmark vm_execute_parity --runtime zig
+/// tri benchmark vm_execute_parity --runtime trinity
+/// ```
+///
+/// ## Expected Results
+/// - `ExecutionResult.ops_performed` must be identical
+/// - `ExecutionResult.cycles` must be identical
+/// - `ExecutionResult.memory_peak` must be identical
+/// - Same performance characteristics
+///
+/// ## Files
+/// - Test spec: `tests/zig_smoke/vm_execute_parity.tri`
+/// - Reference .trib: `tests/zig_smoke/sample.trib`
+
+bench vm_execute_parity {
+  description: "Zig VM executor parity test"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to vm_ffi::trib_execute
+  target: u32 = 5000000   -- 5M ops/sec
+}
+
+/// Benchmark: Runtime selection overhead
+///
+/// ## Purpose
+/// Measure runtime selection dispatch overhead.
+///
+/// ## Success Criteria
+/// - Dispatch time < 50ns per call
+/// - No crashes on mode switches
+/// - Fallback logic works correctly
+///
+/// ## Test Command
+/// ```bash
+/// tri benchmark runtime_selection_overhead
+/// ```
+
+bench runtime_selection_overhead {
+  description: "Runtime mode selection dispatch time"
+  category: compiler::types::BenchmarkKind
+  measure: nanoseconds to vm_ffi::execute_runtime
+  target: u32 = 50000      -- 50K dispatches/sec
+}
+
+// =============================================================================
+// Migration Status
+// =============================================================================
+
+/// Zig VM migration tracking
+constinvar zig_migration_status {
+  loader_complete: bool = false,
+  executor_complete: bool = false,
+  stats_complete: bool = false,
+  parity_passing: bool = false,
+}
+
+/// Update migration status
+///
+/// This invariant tracks progress of Zig VM migration.
+/// Called by ring R003 when each component is complete.
+constinvar zig_migration_complete: bool =
+  zig_migration_status.loader_complete &&
+  zig_migration_status.executor_complete &&
+  zig_migration_status.stats_complete &&
+  zig_migration_status.parity_passing;
+
+// =============================================================================
+// Export to Trinity VM (R003)
+// =============================================================================
+
+/// Export FFI contracts for Trinity VM implementation
+export:
+  RuntimeMode,
+  RuntimeConfig,
+  TribImage,
+  ExecutionResult,
+  VmStats,
+  zig_trib_load,
+  zig_trib_execute,
+  zig_trib_stats,
+  execute_runtime;
+
+/// Export benchmarks
+export:
+  vm_load_parity,
+  vm_execute_parity,
+  runtime_selection_overhead;

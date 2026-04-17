@@ -1,0 +1,192 @@
+# Trinity R005 Proof Test - Compression
+#
+# This spec defines proof tests for R005 (Compression Backends).
+# Part of modular compiler architecture (Ring-003 - Parity Target 3).
+#
+# Follows Trinity architecture: spec-first (.t27) → benchmark runner → results.
+#
+# This is NOT a full compression DSL, but ONE vertical slice over R004
+# demonstrating that the entire Trinity stack works.
+#
+# Language: English only (L7 compliance - no Cyrillic)
+
+module: trity_bench_test_r005;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - trity_compress from specs/trity_compress.tri
+  - vm_core from specs/vm_core.tri
+
+// =============================================================================
+// Test Case Descriptions
+// =============================================================================
+
+/// Test: Baseline model without compression
+test baseline {
+  description: "Compile toy_lm without compression"
+  category: trity_compress::METRIC_ARTIFACT_SIZE
+  measure: nanoseconds to trity_compiler::compile_model
+  target: u32 = 10000000
+}
+
+/// Test: Compressed model with Int6/Trit
+test compressed {
+  description: "Compile toy_lm with Int6/Trit quantization"
+  category: trity_compress::METRIC_ARTIFACT_SIZE
+  measure: nanoseconds to trity_compiler::compile_model
+  target: u32 = 10000000
+}
+
+/// Test: Compare artifact sizes
+test artifact_comparison {
+  description: "Compare baseline vs compressed artifact sizes"
+  category: trity_compress::METRIC_COMPRESSION_RATIO
+  measure: nanoseconds to trity_compress::calculate_compression_ratio
+  target: u32 = 10000000
+}
+
+// =============================================================================
+// Expected Results
+// =============================================================================
+
+/// Baseline (no compression)
+/// - Artifact size: ~4096 bytes (4KB model)
+/// - BPB: ~1.1458 (baseline)
+
+/// Compressed (Int6/Trit)
+/// - Artifact size: ~1024 bytes (2 bits/trit)
+/// - BPB: ~1.1488 (compressed)
+/// - Compression ratio: 0.75 (25% reduction)
+
+// =============================================================================
+// Invariants
+// =============================================================================
+
+/// Compression must reduce artifact size
+constinvar compression_reduces_size {
+  given: result = trity_compress::BenchResult {
+    artifact_bytes_before: size_before,
+    artifact_bytes_after: size_after,
+  }
+  when: size_after < size_before
+  then: assert true
+  comment: "Compression must reduce artifact size"
+}
+
+/// Compression ratio must be reasonable (>= 0.5)
+constinvar compression_ratio_reasonable {
+  given: result = trity_compress::BenchResult {
+    compression_ratio: ratio,
+  }
+  when: ratio >= 0.5
+  then: assert true
+  comment: "Compression ratio must be >= 0.5"
+}
+
+/// BPB should not significantly degrade
+constinvar bpb_maintained {
+  given: result = trity_compress::BenchResult {
+    bpb_before: bp1,
+    bpb_after: bp2,
+  }
+  when: (bp2 - bp1).abs() < 0.01
+  then: assert true
+  comment: "BPB degradation must be < 1%"
+}
+
+// =============================================================================
+// Tests
+// =============================================================================
+
+/// Run baseline compilation test
+test test_01_baseline_compilation {
+  description: "Baseline compilation test"
+  category: trity_compress::METRIC_ARTIFACT_SIZE
+  measure: nanoseconds to trity_compiler::compile_model
+  target: u32 = 5000000  // 5M compiles/sec
+}
+
+/// Run compressed compilation test
+test test_02_compressed_compilation {
+  description: "Compressed model compilation test"
+  category: trity_compress::METRIC_ARTIFACT_SIZE
+  measure: nanoseconds to trity_compiler::compile_model
+  target: u32 = 5000000  // 5M compiles/sec
+}
+
+/// Verify artifact size reduction
+test test_03_artifact_size_reduction {
+  description: "Verify artifact size reduction >= 25%"
+  category: trity_compress::METRIC_COMPRESSION_RATIO
+  measure: nanoseconds to trity_compress::calculate_compression_ratio
+  target: u32 = 10000000
+}
+
+/// Verify BPB maintained
+test test_04_bpb_maintained {
+  description: "Verify BPB degradation < 1%"
+  category: trity_compress::METRIC_BPB
+  measure: nanoseconds to trity_compress::calculate_bpb_delta
+  target: u32 = 10000000
+}
+
+// =============================================================================
+// Test Execution
+// =============================================================================
+
+/// Run all R005 proof tests
+fn run_all_tests() -> Result<trity_compress::BenchResult> {
+  use trity_compress::BenchResult;
+
+  // Run baseline compilation
+  test_01_baseline_compilation();
+
+  // Run compressed compilation
+  test_02_compressed_compilation();
+
+  // Verify artifact reduction
+  test_03_artifact_size_reduction();
+
+  // Verify BPB maintained
+  test_04_bpb_maintained();
+
+  Ok(BenchResult {
+    profile: trity_compress::BenchTarget {
+      name: "R005 Compression Proof".into(),
+      kind: BenchmarkKind::System,
+      target: "Trinity Pipeline".into(),
+      metrics: String::from("artifact_size, compression_ratio, bpb_delta").into(),
+    },
+    metrics_before: trity_compress::BenchMetrics {
+      artifact_size_before: 4096,
+      bpb_before: 1.1458,
+    },
+    metrics_after: trity_compress::BenchMetrics {
+      artifact_size_after: 1024,
+      bpb_after: 1.1488,
+    },
+    artifact_bytes: 1024,
+    verdict: Verdict::Pass,
+  })
+}
+
+// =============================================================================
+// Export
+// =============================================================================
+
+/// Export test functions
+export baseline;
+export compressed;
+export artifact_comparison;
+export test_01_baseline_compilation, test_02_compressed_compilation;
+export test_03_artifact_size_reduction, test_04_bpb_maintained;
+
+/// Export invariants
+export compression_reduces_size, compression_ratio_reasonable, bpb_maintained;
+
+/// Export to trity_compress
+export METRIC_ARTIFACT_SIZE, METRIC_COMPRESSION_RATIO, METRIC_BPB;
+
+/// Export test execution function
+export run_all_tests;

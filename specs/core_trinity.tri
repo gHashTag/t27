@@ -1,0 +1,133 @@
+spec core_trinity
+
+-- Core Trinity Language (Ring-001) - Canonical .tri Specification
+-- Language Philosophy:
+--   .tri = spec language (single source of truth)
+--   .trib = target bytecode VM (like .class files)
+--   Compiling .tri -> .trib is only path (no Rust/Zig rewrite)
+
+-- SECTION 1: Module Declaration
+module core_trinity {
+  version: "0.1.0"
+  ring: "001"
+  seal: "pending"
+  description: "Core Trinity language specification - VSA, GF, Kleene primitives"
+  imports: ["vsa_ops"]
+}
+
+-- SECTION 2: Constants (VSA + Math Primitives)
+constants {
+  -- Golden Ratio Constants (L5 Identity Law)
+  PHI: f64 = 1.61803398874989482
+  PHI_SQ: f64 = 2.61803398874989482
+  PHI_INV: f64 = 0.61803398874989482
+  TRINITY: f64 = 3.0
+
+  -- Kleene K3 Constants
+  TRIT_NEG: i8 = -1
+  TRIT_NEU: i8 = 0
+  TRIT_POS: i8 = 1
+  TRIT_UNKNOWN: i8 = 0
+
+  -- VSA Primitive Types (B007)
+  VSA_N: i8 = 1  -- Ternary digit set
+}
+
+-- SECTION 3: Types (VSA + Kleene K3)
+types {
+  -- Kleene K3 Trit Type
+  Trit = enum(i8) {
+    neg = TRIT_NEG,
+    neu = TRIT_NEU,
+    pos = TRIT_POS,
+    unknown = TRIT_UNKNOWN
+  }
+
+  -- VSA Vector Types (B007 primitive wrappers)
+  VSA_N = VSA_N  -- Vector<N> primitive
+}
+
+-- SECTION 4: VSA Operations (B007 as "first-class" ISA)
+-- NOTE: These are operations OF THE .tri LANGUAGE, not of .trib VM
+vsa_ops {
+  -- Ternary Permutation (bitwise reordering)
+  permute(a: VSA_N, b: VSA_N, c: VSA_N, d: VSA_N) -> VSA_N
+
+  -- Ternary Dot Product
+  dot(a: VSA_N, b: VSA_N) -> VSA_N
+
+  -- Hybrid Big Integer
+  hybrid_add(a: VSA_N, b: VSA_N) -> VSA_N
+
+  -- FHRR (Fast Hybrid Range Reduction)
+  fhrr_pop(a: VSA_N, count: u8) -> VSA_N
+
+  -- Cosine Similarity
+  cosine_sim(a: VSA_N, b: VSA_N) -> f64
+}
+
+-- SECTION 5: Tests (mandatory 8)
+test trit_neg_value {
+  given: t = Trit.neg
+  when: t == TRIT_NEG
+  then: assert t == -1
+}
+
+test trit_neu_value {
+  given: t = Trit.neu
+  when: t == TRIT_NEU
+  then: assert t == 0
+}
+
+test trit_pos_value {
+  given: t = Trit.pos
+  when: t == TRIT_POS
+  then: assert t == 1
+}
+
+test permute_is_involution {
+  given: a = VSA_N, b = VSA_N, c = VSA_N, d = VSA_N
+  when: let result = permute(a, b, c, d)
+  then: permute(result, b, c, d) == a
+}
+
+test permute_idempotent {
+  given: a = VSA_N, b = VSA_N, c = VSA_N, d = VSA_N
+  when: permute(permute(a, a, b, c, d), b, c, d) == permute(a, b, c, d)
+}
+
+test dot_product_basic {
+  given: a = VSA_N, b = VSA_N
+  when: let r = dot(a, b)
+  then: assert r.a == a.a && r.b == a.b && r.c == a.c
+}
+
+test hybrid_add_basic {
+  given: a = VSA_N, b = VSA_N
+  when: let r = hybrid_add(a, b)
+  then: assert r.a == a.a + b.a && r.b == a.b && r.c == a.c && r.d == b.d
+}
+
+test fhrr_pop_basic {
+  given: a = VSA_N, count = 1u8
+  when: let r = fhrr_pop(a, count)
+  then: assert r.a == a.a + count && r.c == a.c && r.d == a.d
+}
+
+test cosine_symmetry {
+  given: a = VSA_N, b = VSA_N
+  when: let c1 = cosine_sim(a, b)
+  then: let c2 = cosine_sim(b, a)
+  then: assert c1 == c2
+}
+
+-- SECTION 6: Benchmarks (mandatory 2)
+bench permute_throughput {
+  measure: nanoseconds to permute(a, b, c, d)
+  target: 1000000000  -- 1G ops/sec
+}
+
+bench hybrid_add_throughput {
+  measure: nanoseconds to hybrid_add(a, b)
+  target: 500000000  -- 500M ops/sec
+}

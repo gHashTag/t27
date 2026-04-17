@@ -1,0 +1,184 @@
+// spec trinity_language
+// Trinity Parameter Golf Submission (Ring-007)
+//
+// First Trinity submission to OpenAI Parameter Golf competition.
+// Constraint: <16MB artifact, val_bpb ≤ 1.1378, 3 training runs (p < 0.01).
+// Trinity advantage: VSA/Trit/GF recurrence, parameter tying, bit-packing, swarm search.
+//
+// Submission artifacts:
+// - train_gpt.py (training script)
+// - model.trib (Trinity VM bytecode)
+// - submission.json (metadata for PG)
+// - README.md (submission description)
+
+module r007_parameter_golf {
+    version: "0.1.0"
+    ring: "007"
+    seal: "pending"
+    description: "First Trinity submission to OpenAI Parameter Golf: <16MB artifact, val_bpb ≤ 1.1378, 3 training runs (p < 0.01). Trinity advantage: VSA/Trit/GF recurrence, parameter tying, bit-packing, swarm search."
+    imports: ["01-tri-lang-core", "00-gf-family-foundation", "r006_swarm_config"]
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+constants {
+    // OpenAI Parameter Golf constraints
+    PG_MAX_ARTIFACT_BYTES: u64 = 16_000_000,  // 16 MB hard limit
+    PG_MAX_VAL_BPB: f64 = 1.1378,           // Max bits per character (lower is better)
+    PG_MIN_TRAIN_RUNS: u8 = 3,               // Minimum 3 runs for statistical significance
+    PG_MAX_P_VALUE: f64 = 0.01,             // Maximum p-value for significance
+    PG_VOCAB_SIZE: u32 = 4096,              // TinyLM vocab (from R004)
+    PG_SEQ_LEN: u32 = 256,                 // TinyLM sequence length (from R004)
+    PG_HIDDEN_SIZE: u32 = 32,                // TinyLM hidden size (from R004)
+    PG_HIDDEN_LAYERS: u8 = 1,               // TinyLM layers (from R004)
+
+    // Trinity quantization constants (for compression)
+    TRIT_BYTES_PER_PARAM: f64 = 0.333,  // 1/3 byte per parameter (2 trits)
+    INT8_BYTES_PER_PARAM: f64 = 1.0,          // 1 byte per parameter
+    GF16_BYTES_PER_PARAM: f64 = 2.0,          // 2 bytes per parameter
+}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+types {
+    // Model variant (uses Model DSL from R004)
+    ModelVariant = enum {
+        TinyLm {
+            hidden_size: u32,
+            hidden_layers: u32,
+            embedding_dim: u32,
+            vocab_size: u32,
+            seq_len: u32,
+            is_ternary: bool,
+        }
+    }
+
+    // Submission artifacts
+    Submission = record {
+        model_name: String,             // "Trinity-PG-7B" or similar
+        tri_bytecode: String,         // Path to .trib file
+        artifact_bytes: u32,          // Size in bytes
+        val_bpb: f64,                 // Validation bits per character
+        train_runs: Vec<u32>,        // Training run seeds
+        seed: u32,                   // Random seed used
+        timestamp: String,             // Submission timestamp
+        description: String,             // Human-readable description
+    }
+
+    // Training result
+    TrainingResult = record {
+        train_seed: u32,
+        train_loss: f64,            // Final training loss
+        val_bpb: f64,                 // Validation bpb (on held-out set)
+        val_loss: f64,               // Validation loss (on held-out set)
+        p_value: f64,                 // Statistical significance (p < 0.01)
+    }
+}
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+functions {
+    // Get default TinyLM config (from R004)
+    fn default_tinylm() -> ModelVariant {
+        ModelVariant::TinyLm {
+            hidden_size: PG_HIDDEN_SIZE,
+            hidden_layers: PG_HIDDEN_LAYERS,
+            embedding_dim: PG_VOCAB_SIZE,
+            vocab_size: PG_VOCAB_SIZE,
+            seq_len: PG_SEQ_LEN,
+            is_ternary: false,
+        }
+    }
+
+    // Estimate artifact size for TinyLM
+    fn estimate_artifact_size(layers: u32, hidden: u32, embedding: u32, vocab: u32) -> u64 {
+        // Parameter count (simplified): embedding * vocab + hidden * hidden * vocab
+        let param_count = (embedding * vocab + hidden * hidden * vocab) as u64;
+        // Assume Int8 quantization (1 byte per param)
+        let artifact_bytes = param_count * INT8_BYTES_PER_PARAM;
+        artifact_bytes
+    }
+
+    // Validate artifact against PG constraints
+    fn validate_artifact(artifact_bytes: u64) -> bool {
+        artifact_bytes <= PG_MAX_ARTIFACT_BYTES
+    }
+
+    // Calculate estimated val_bpb (placeholder - will come from actual training)
+    fn estimate_val_bpb(artifact_bytes: u64) -> f64 {
+        // Rough estimate: 8 bits per byte = 1 char
+        // val_bpb = bits / chars
+        let chars = (artifact_bytes * 8.0 / INT8_BYTES_PER_PARAM) as u32;
+        let chars_total = 4096u32 * PG_SEQ_LEN;  // vocab * seq_len
+        chars / chars_total
+    }
+}
+
+// ============================================================================
+// Tests (Constitutional Law L4)
+// ============================================================================
+
+tests {
+    // Test: default TinyLM matches PG constraints
+    test default_tinylm_meets_pg_constraints {
+        given: model = default_tinylm()
+        when: {
+            match model {
+                TinyLm { vocab_size, hidden_size, is_ternary } => {
+                    vocab_size == PG_VOCAB_SIZE &&
+                    hidden_size == PG_HIDDEN_SIZE &&
+                    is_ternary == false
+                },
+                _ => false,
+            }
+        }
+        then: assert true
+    }
+
+    // Test: artifact size estimate is reasonable
+    test artifact_estimate_reasonable {
+        given: config = default_tinylm()
+        let size = estimate_artifact_size(
+            config.hidden_layers,
+            config.embedding_dim,
+            config.vocab_size
+        )
+        when: size < 1_000_000 && size > 1_000
+        then: assert true
+        comment: "Artifact size estimate is between 1KB and 1MB"
+    }
+
+    // Test: validation accepts artifacts within budget
+    test validation_accepts_within_budget {
+        given: size = PG_MAX_ARTIFACT_BYTES
+        when: validate_artifact(size)
+        then: assert true
+        comment: "Validation accepts artifact at 16MB limit"
+    }
+
+    // Test: validation rejects oversized artifacts
+    test validation_rejects_oversized {
+        given: size = PG_MAX_ARTIFACT_BYTES + 1
+        when: !validate_artifact(size)
+        then: assert true
+        comment: "Validation rejects artifact exceeding 16MB"
+    }
+}
+
+// ============================================================================
+// Re-exports
+// ============================================================================
+
+pub use self::{
+    ModelVariant, Submission, TrainingResult,
+    default_tinylm, estimate_artifact_size, validate_artifact, estimate_val_bpb,
+    PG_MAX_ARTIFACT_BYTES, PG_MAX_VAL_BPB, PG_MIN_TRAIN_RUNS, PG_MAX_P_VALUE,
+    PG_VOCAB_SIZE, PG_SEQ_LEN, PG_HIDDEN_SIZE, PG_HIDDEN_LAYERS,
+    TRIT_BYTES_PER_PARAM, INT8_BYTES_PER_PARAM, GF16_BYTES_PER_PARAM,
+};

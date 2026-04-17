@@ -1,0 +1,155 @@
+spec trity_core
+
+-- Trit VM Core (Ring-002) - Minimal specification
+-- Philosophy: VM as execution target with trit-based architecture
+-- Reference: [build-your-own](https://build-your-own.org/compiler/06_vm)
+
+module trity_core {
+  version: "0.2.0"
+  ring: "002"
+  seal: "pending"
+  description: "Trit VM Core - minimal instruction set, stack, memory, and opcodes"
+  imports: ["01-tri-lang-core", "00-gf-family-foundation"]
+}
+
+-- SECTION 1: VSA Operations (B007 as "first-class" ISA)
+vsa_ops {
+  -- Stack Operations
+  push_trit(trit: Trit) -> Void                    -- Push trit onto stack, return Void
+  pop_trit -> Trit                                 -- Pop trit from stack, return Trit
+  pop_trits(count: u8) -> Void                   -- Pop N trits from stack, return Void
+
+  -- Memory Operations
+  load_trit(addr: VSA_N) -> Trit                  -- Load trit from address, return Trit
+  store_trit(addr: VSA_N, value: Trit) -> Void  -- Store trit at address, return Void
+
+  -- Control Flow Operations
+  jump_eq(trit_a: Trit, trit_b: Trit) -> Void  -- Jump if trit_a == trit_b
+  jump_ne(trit_a: Trit, trit_b: Trit) -> Void  -- Jump if trit_a != trit_b
+  jump_always(offset: VSA_N) -> Void                  -- Unconditional jump to offset
+
+  -- Comparison Operations
+  equal_trit(trit_a: Trit, trit_b: Trit) -> Trit         -- Return trit_a == trit_b ? TRIT_POS : TRIT_NEG
+}
+
+-- SECTION 2: Constants (L5 Identity Law + VSA Parameters)
+constants {
+  -- Kleene K3 Trit (L5 foundation)
+  TRIT_NEG: i8 = -1
+  TRIT_NEU: i8 = 0
+  TRIT_POS: i8 = 1
+  TRIT_UNKNOWN: i8 = 0
+
+  -- VSA Parameters
+  VSA_N: i8 = 1  -- Ternary digit set
+
+  -- VM Parameters
+  STACK_SIZE: u8 = 64        -- Stack size in trits
+  MEM_SIZE: VSA_N = 1024      -- Memory size in trits (1KB)
+
+  -- Trit OpCodes (for future .trib format)
+  OP_PUSH_TRIT: u8 = 0x01
+  OP_POP_TRIT: u8 = 0x02
+  OP_LOAD_TRIT: u8 = 0x10
+  OP_STORE_TRIT: u8 = 0x11
+  OP_JUMP_EQ: u8 = 0x20
+  OP_JUMP_NE: u8 = 0x21
+  OP_JUMP_ALWAYS: u8 = 0x22
+  OP_EQUAL_TRIT: u8 = 0x30
+}
+
+-- SECTION 3: Types (Kleene K3 + VSA)
+types {
+  -- Kleene K3 Trit Type (L5)
+  Trit = trit
+
+  -- VSA Primitive Type (B007 primitive wrappers)
+  VSA_N = vsa_n
+
+  -- VSA Address Type
+  VSA_N = vsa_n
+
+  -- Control Flow Types
+  Offset = vsa_n        -- Signed offset for jumps
+  Condition = Trit        -- Trinary condition for conditional jumps
+
+  -- VM Instruction
+  Instruction = enum(u8) {
+    PUSH_TRIT,
+    POP_TRIT,
+    LOAD_TRIT,
+    STORE_TRIT,
+    JUMP_EQ,
+    JUMP_NE,
+    JUMP_ALWAYS,
+    EQUAL_TRIT,
+  HALT,
+  }
+}
+
+-- SECTION 4: VSA Operations (B007 as "first-class" ISA)
+-- These are core VM operations, become language primitives when parsed
+vsa_ops {
+  -- Stack Operations (from B007 paper)
+  push_trit(trit: Trit) -> Void
+  pop_trit -> Trit
+  push_trits(count: u8) -> Void
+
+  -- Memory Operations
+  load_trit(addr: VSA_N) -> Trit
+  store_trit(addr: VSA_N, value: Trit) -> Void
+
+  -- Control Flow Operations
+  jump_eq(trit_a: Trit, trit_b: Trit) -> Void
+  jump_ne(trit_a: Trit, trit_b: Trit) -> Void
+  jump_always(offset: VSA_N) -> Void
+
+  -- Comparison Operations
+  equal_trit(trit_a: Trit, trit_b: Trit) -> Trit
+
+  -- Trit Arithmetic (for future quantum operations)
+  -- not implemented yet, kept for completeness
+}
+
+-- SECTION 5: Tests (Constitutional Laws - Minimum 8)
+test stack_push_pop {
+  given: initial = Trit.neu
+  when: push_trit(initial) && pop_trit() == initial
+  then: assert true
+}
+
+test load_store_trit {
+  given: value = Trit.pos
+  when: store_trit(VSA_N(100), value) == Void
+  then: load_trit(VSA_N(100)) == value
+}
+
+test jump_eq_branch {
+  given: a = Trit.pos
+  given: b = Trit.neg
+  when: jump_eq(a, b) && a == b
+  then: assert true
+}
+
+test equal_trit {
+  given: a = Trit.pos
+  when: equal_trit(a, a) == a
+  then: assert true
+}
+
+test jump_always {
+  given: offset = VSA_N(10)
+  when: jump_always(offset) == Void
+  then: assert true
+}
+
+-- SECTION 6: Benchmarks (Minimum 2)
+bench vm_throughput {
+  measure: nanoseconds to push_trit(Trit.pos) && pop_trit()
+  target: 1000000000  -- 100M ops/sec minimum
+}
+
+bench memory_throughput {
+  measure: nanoseconds to store_trit(VSA_N(100), Trit.pos) && load_trit(VSA_N(100))
+  target: 50000000  -- 50M memory ops/sec minimum
+}

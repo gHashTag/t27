@@ -1,0 +1,52 @@
+module: bench_types
+
+// BenchmarkKind: categories of benchmarks
+const BenchKind: u8 = 0;
+const BenchKind: Micro = 1;
+const BenchKind: Pipeline = 2;
+const BenchKind: System = 3;
+const BenchKind: Artifact = 4;
+
+// MetricKind: what we measure
+const MetricKind: u8 = 0;
+const MetricKind: TimeMs = 1;
+const MetricKind: Bytes = 2;
+const MetricKind: OpsPerSec = 3;
+const MetricKind: Bpb = 4;
+const MetricKind: Accuracy = 5;
+
+// Verdict: test validation outcomes
+const Verdict: Ok: u8 = 0;
+const Verdict: Toxic: u8 = 1;
+const Verdict: Unstable: u8 = 2;
+const Verdict: Regression: u8 = 3;
+
+type BenchmarkProfile = struct {
+    id: string,
+    name: string,
+    kind: BenchKind,
+    target: string,  // e.g., "tri:trib", "vsa_ops"
+    metrics: BenchMetrics,
+    workload_ref: string,  // External benchmark reference
+}
+
+type BenchMetrics = struct {
+    kind: MetricKind,
+    value: float,  // The measured value
+}
+
+type BenchmarkResult = struct {
+    profile_id: string,  // Which benchmark profile was used
+    metrics: BenchMetrics,  // Actual metrics measured
+    verdict: Verdict,  // Test outcome
+    experience_ref: string,  // Link to experience database
+}
+
+// Export all types for compiler integration
+pub type BenchmarkKind = u8;
+pub type MetricKind = u8;
+pub type Verdict = u8;
+
+pub type BenchmarkProfile = BenchmarkProfile;
+pub type BenchMetrics = BenchMetrics;
+pub type BenchmarkResult = BenchmarkResult;

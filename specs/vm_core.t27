@@ -1,0 +1,270 @@
+# VM Core — Canonical Interface
+#
+# This spec defines the canonical VM interface for Trinity.
+# All runtime implementations (Zig, Rust, future) must conform to this interface.
+#
+# Part of Zig migration (Parity Target 1: .trib header/parser/loader)
+
+module: vm_core;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri;
+
+// =============================================================================
+// Section 1: .trib Magic Number
+// =============================================================================
+
+/// Canonical .trib magic number
+///
+/// Must be 0x54524942 across all Trinity implementations.
+const TRIB_MAGIC: u32 = 0x54524942;
+
+// =============================================================================
+// Section 2: .trib Header Format
+// =============================================================================
+
+/// .trib file header (simplified)
+type TribHeader {
+  magic: u32,                    -- TRIB_MAGIC (0x54524942)
+  version: u8,                   -- Bytecode version (v1.0.0 = 1)
+  flags: u8,                    -- Feature flags
+  code_size: u32,               -- Code section size (bytes)
+  const_pool_size: u32,          -- Constant pool size (bytes)
+  symbol_table_size: u32,        -- Symbol table size (bytes)
+}
+
+/// .trib sections
+const SECTION_CONST: u8 = 0x01;  // Constant pool
+const SECTION_CODE: u8 = 0x02;    // Code section
+const SECTION_SYMBOL: u8 = 0x03; // Symbol table
+
+/// Feature flags
+const FLAG_HAS_CONST: u8 = 1 << 0;
+const FLAG_HAS_EXPERIENCE: u8 = 1 << 1;
+const FLAG_HAS_DEBUG_INFO: u8 = 1 << 2;
+const FLAG_HAS_TINY_COMPRESSION: u8 = 1 << 3;
+
+/// Header layout size (26 bytes total)
+const HEADER_SIZE: u32 = 26;
+
+// =============================================================================
+// Section 3: Constant Pool Format
+// =============================================================================
+
+/// Constant entry in const pool
+type ConstantEntry {
+  name: String,                     -- Constant name
+  type: ConstType,                   -- Constant type
+  value: ConstantValue,              -- Constant value
+}
+
+/// Constant types
+const CONST_INT64: u8 = 0x00;
+const CONST_FLOAT64: u8 = 0x01;
+const CONST_TRIT: u8 = 0x02;
+const CONST_STRING: u8 = 0x03;
+const CONST_PHI: u8 = 0x04;
+const CONST_ARRAY: u8 = 0x05;
+
+/// Constant values
+type ConstantValue =
+  | Int64(i64)
+  | Float64(f64)
+  | Trit(i8)            -- -1, 0, +1
+  | Phi(f64)             -- φ constant
+  | String(String)
+  | Array(Vec<ConstantValue>);
+
+// =============================================================================
+// Section 4: Instruction Set
+// =============================================================================
+
+/// Core opcodes (subset of full ISA)
+const OP_NOP: u8 = 0x00;
+const OP_HALT: u8 = 0xFF;
+const OP_LOAD_CONST: u8 = 0x01;
+const OP_LOAD_VAR: u8 = 0x02;
+const OP_STORE_VAR: u8 = 0x03;
+const OP_ADD: u8 = 0x10;
+const OP_SUB: u8 = 0x11;
+const OP_MUL: u8 = 0x12;
+const OP_DIV: u8 = 0x13;
+const OP_AND: u8 = 0x20;
+const OP_OR: u8 = 0x21;
+const OP_XOR: u8 = 0x22;
+
+/// Trit logic ops (K3 Kleene)
+const OP_TRIT_AND: u8 = 0x30;
+const OP_TRIT_OR: u8 = 0x31;
+const OP_TRIT_XOR: u8 = 0x32;
+const OP_TRIT_NEG: u8 = 0x33;
+
+/// VSA ops
+const OP_VSA_BIND: u8 = 0x40;
+const OP_VSA_BUNDLE: u8 = 0x41;
+const OP_VSA_UNBUNDLE: u8 = 0x42;
+
+/// Model ops
+const OP_DENSE: u8 = 0x50;
+const OP_EMBED: u8 = 0x51;
+
+/// Control flow
+const OP_JUMP: u8 = 0x60;
+const OP_JUMP_IF: u8 = 0x61;
+const OP_CALL: u8 = 0x62;
+const OP_RET: u8 = 0x63;
+
+/// Memory ops
+const OP_MALLOC: u8 = 0x70;
+const OP_FREE: u8 = 0x71;
+const OP_MEMCPY: u8 = 0x72;
+
+/// I/O ops
+const OP_READ: u8 = 0x80;
+const OP_WRITE: u8 = 0x81;
+
+/// Encoding
+const OP_ENCODER_ENCODE: u8 = 0x90;
+const OP_ENCODER_DECODE: u8 = 0x91;
+
+// =============================================================================
+// Section 5: Instruction Encoding
+// =============================================================================
+
+/// Instruction encoding (simplified)
+type Instruction = struct {
+  opcode: u8,              -- Opcode byte
+  a: u8,                   -- Operand A
+  b: u8,                   -- Operand B
+  c: u8,                   -- Operand C (optional)
+  d: u8,                   -- Operand D (optional)
+}
+
+/// Encode instruction to bytes
+fn encode_instruction(inst: &Instruction) -> Vec<u8> {
+  let mut bytes = Vec::new();
+  bytes.push(inst.opcode);
+
+  if inst.a != 0 || inst.b != 0 { bytes.push(inst.a); }
+  if inst.b != 0 { bytes.push(inst.b); }
+  if inst.c != 0 { bytes.push(inst.c); }
+  if inst.d != 0 { bytes.push(inst.d); }
+
+  bytes
+}
+
+// =============================================================================
+// Section 6: Parser Interface Contract
+// =============================================================================
+
+/// Parser must implement this interface:
+///
+/// ```t27
+/// fn parse_trib_header(bytes: &[u8]) -> Result<TribHeader>;
+/// fn parse_const_pool(bytes: &[u8], offset: u32) -> Result<Vec<ConstantEntry>>;
+/// fn parse_code_section(bytes: &[u8], offset: u32) -> Result<Vec<Instruction>>;
+/// ```
+///
+/// Implementation must handle:
+/// - Magic number verification (0x54524942)
+/// - Section alignment (8-byte aligned)
+/// - Little-endian encoding
+/// - Symbol table parsing
+
+type ParserContract = interface {
+  parse_trib_header: fn(bytes: &[u8]) -> Result<TribHeader>;
+  parse_const_pool: fn(bytes: &[u8], offset: u32) -> Result<Vec<ConstantEntry>>;
+  parse_code_section: fn(bytes: &[u8], offset: u32) -> Result<Vec<Instruction>>;
+}
+
+// =============================================================================
+// Section 7: Memory Layout Contract
+// =============================================================================
+
+/// Memory layout must follow this contract:
+///
+/// - Stack: 64KB, grows upward
+/// - Heap: 256KB, growable
+/// - Code section: Read-only, loaded at base address
+/// - Symbol table: Fixed at code section end
+/// - Alignment: 8 bytes for all sections
+
+type MemoryLayout = struct {
+  stack_base: u32,             -- Stack start address
+  stack_size: u32,              -- Stack size (64KB)
+  heap_base: u32,              -- Heap start address
+  heap_size: u32,               -- Heap size (256KB)
+  code_base: u32,              -- Code section start address
+  code_size: u32,               -- Code section size
+  symbol_table_offset: u32,   -- Symbol table location
+};
+
+/// Canonical memory constants
+const STACK_SIZE: u32 = 65536;           -- 64KB
+const HEAP_SIZE: u32 = 262144;           -- 256KB
+const ALIGNMENT: u32 = 8;             -- 8-byte alignment
+const PAGE_SIZE: u32 = 4096;           -- 4KB pages
+
+// =============================================================================
+// Section 8: Export Requirements
+// =============================================================================
+
+/// All Trinity runtimes must export these functions:
+///
+/// ```t27
+/// fn trib_magic() -> u32;
+/// fn trib_header_size() -> u32;
+/// fn op_nop() -> u8;
+/// fn op_halt() -> u8;
+/// fn encode_instruction(inst: Instruction) -> Vec<u8>;
+/// ```
+///
+/// Implementations must provide exact encoding as specified above.
+
+type RuntimeContract = interface {
+  trib_magic: fn() -> u32;
+  trib_header_size: fn() -> u32;
+  op_nop: fn() -> u8;
+  op_halt: fn() -> u8;
+  encode_instruction: fn(inst: &Instruction) -> Vec<u8>;
+}
+
+// =============================================================================
+// Export Requirements Summary
+// =============================================================================
+
+/// Export for parity tests
+export:
+  TRIB_MAGIC,
+  TribHeader,
+  Instruction,
+  encode_instruction,
+  STACK_SIZE,
+  HEAP_SIZE,
+  ALIGNMENT,
+  PAGE_SIZE,
+  ParserContract,
+  RuntimeContract;
+
+// =============================================================================
+// Section 9: Compliance
+// =============================================================================
+
+/// All implementations MUST:
+/// - Use exact TRIB_MAGIC (0x54524942)
+/// - Follow header layout (26 bytes)
+/// - Support all opcodes listed above
+/// - Align all sections to 8 bytes
+/// - Use little-endian encoding for multi-byte values
+/// - Provide parser and runtime contracts
+
+constinvar compliance_magic_number {
+  magic == TRIB_MAGIC;
+  comment = "Trib magic must be exactly 0x54524942";
+}
+
+constinvariant compliance_header_layout {
+  HEADER_SIZE == 26;
+  comment = ".trib header must be exactly 26 bytes";
+}

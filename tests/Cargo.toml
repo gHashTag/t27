@@ -9,5 +9,5 @@ path = "parser_test.rs"
 
 [dependencies]
 anyhow = "1"
-t27-bootstrap-parser = { path = "../bootstrap" }
+t27c = { path = "../bootstrap" }
 

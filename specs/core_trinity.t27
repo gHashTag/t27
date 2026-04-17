@@ -1,0 +1,84 @@
+# Trinity Core Rules
+
+module: core_trinity;
+
+// L1: TRACEABILITY
+// No code merged without `Closes #N` or `resolves #N`
+
+// L2: GENERATION
+// Files under `gen/` are generated from `.tri` specs; edit `.t27` source instead
+
+// L3: PURITY
+// All source files must be ASCII-only with English identifiers
+
+// L4: TESTABILITY
+// Every `.tri` spec must contain `test`, `invariant`, or `bench` section
+
+// L5: IDENTITY
+// φ² = φ + 1 on ℝ; φ² + φ⁻² = 3; IEEE f64 checks use tolerance
+
+// L6: CEILING
+// FORMAT-SPEC-001.json + gf16.t27 are numeric SSOT
+
+// L7: UNITY
+// No new `*.sh` on critical path; use `tri`/`t27c` only
+
+import:
+  - compiler/types from specs/compiler/types.tri;
+  - compiler/contracts from specs/compiler/contracts.tri;
+
+// L1: TRACEABILITY
+rule TRACEABILITY {
+  description: "No code merged without `Closes #N`";
+  severity: "CRITICAL";
+  check: "git log --oneline -10 | grep -c 'Closes #\\d'";
+  applies_to: [merge, cli, runtime];
+}
+
+// L2: GENERATION
+rule GENERATION {
+  description: "Files under gen/ are generated from .tri specs";
+  severity: "CRITICAL";
+  check: "file gen/ | head -1";
+  applies_to: [all];
+}
+
+// L3: PURITY
+rule PURITY {
+  description: "All source files ASCII-only with English identifiers";
+  severity: "CRITICAL";
+  check: "file .t27 | grep -c '[^\\x80-\\xFF]'";
+  applies_to: [all];
+}
+
+// L4: TESTABILITY
+rule TESTABILITY {
+  description: "Every .tri spec must contain test/invariant/bench section";
+  severity: "CRITICAL";
+  check: "t27 parse <spec.t27> | grep -c 'test\\|invariant\\|bench'";
+  applies_to: [all];
+}
+
+// L5: IDENTITY
+rule IDENTITY {
+  description: "φ² = φ + 1 on ℝ; φ² + φ⁻² = 3; IEEE f64 checks use tolerance";
+  severity: "CRITICAL";
+  check: "tri test <spec.t27> | grep -c 'phi_ratio\\|phi'";
+  applies_to: [all];
+}
+
+// L6: CEILING
+rule CEILING {
+  description: "FORMAT-SPEC-001.json + gf16.t27 are numeric SSOT";
+  severity: "HIGH";
+  check: "file specs/FORMAT-SPEC-001.json | head -1";
+  applies_to: [all];
+}
+
+// L7: UNITY
+rule UNITY {
+  description: "No new *.sh on critical path; use tri/t27c only";
+  severity: "HIGH";
+  check: "ls scripts/*.sh";
+  applies_to: [all];
+}

@@ -1,0 +1,43 @@
+module: bench;
+
+// Benchmark profiles define workload and evaluation criteria
+type BenchmarkProfile = struct {
+    id: string,
+    name: string,
+    description: string,
+    kind: BenchKind,
+    target: string,
+    metrics: string,
+    workload_ref: string,
+}
+
+// Built-in profiles
+const PROFILE_BASELINE: BenchmarkProfile = BenchmarkProfile {
+    id: "baseline",
+    name: "Baseline VSA ops",
+    description: "Baseline VSA operation latency measurements",
+    kind: BenchKind::Micro,
+    target: "vsa_ops",
+    metrics: "latency_ms,throughput",
+    workload_ref: "https://github.com/openai/parameter-golf",
+};
+
+const PROFILE_TINY_LM: BenchmarkProfile = BenchmarkProfile {
+    id: "tiny_lm",
+    name: "TinyLM inference",
+    description: "Inference latency and throughput for tiny models (≤16MB)",
+    kind: BenchKind::Pipeline,
+    target: "tiny_lm",
+    metrics: "time_ms,inference_ops_per_sec,artifacts_bytes",
+    workload_ref: "https://github.com/openai/parameter-golf/wiki",
+};
+
+const PROFILE_COMPRESSION: BenchmarkProfile = BenchmarkProfile {
+    id: "compression",
+    name: "Compression throughput",
+    description: "End-to-end compression: encode, pack, decode",
+    kind: BenchKind::Pipeline,
+    target: "compression",
+    metrics: "throughput_bytes_per_sec,compression_ratio,artifact_bytes",
+    workload_ref: "https://github.com/openai/parameter-golf/wiki",
+};

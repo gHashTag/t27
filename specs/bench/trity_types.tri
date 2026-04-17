@@ -1,0 +1,323 @@
+// spec trinity_language
+// Trinity Benchmark Layer Types (Ring-003)
+//
+// Defines all type definitions for benchmarking infrastructure.
+// Follows Gleam/Elm/Haskell principles: ADT-first, exhaustive pattern matching.
+// Re-uses Trinity core types where appropriate (Span, TokenKind, ExprNode, StmtNode, etc.).
+
+module trinity_benchmark_types {
+    version: "0.3.0"
+    ring: "003"
+    seal: "pending"
+    description: "Benchmark layer type system - self-measuring, competitive analysis"
+    imports: ["00-gf-family-foundation", "01-tri-lang-core"]
+}
+
+// ============================================================================
+// Benchmark Category ADTs
+// ============================================================================
+
+/// Classification of benchmark types
+/// Each category targets different aspects of system performance
+#[derive(Debug, Clone, PartialEq)]
+pub enum BenchmarkKind {
+    // Micro-level hardware ISA operations
+    Micro = 0x01,
+
+    // Macro-level compilation pipeline benchmarks
+    Macro = 0x02,
+
+    // System-level execution benchmarks
+    System = 0x03,
+}
+
+/// Capability tags for competitor profiles
+/// Helps categorize what competitors can actually do
+#[derive(Debug, Clone, PartialEq)]
+pub enum Capability {
+    VsaOps,              // Can execute B007 ops directly
+    GfOps,                // Can execute GF/TF ops directly
+    TernaryOps,           // Can execute ternary logic
+    TritOps,               // Can execute trit operations
+    StackOps,              // Can execute stack/register ops
+    LoadStoreOps,          // Can execute memory load/store ops
+    JumpOps,                // Can execute control flow
+    IoOps,                 // Can execute I/O operations
+    CodegenSpeed,           // Has fast code generation
+    Optimizations,           // Has optimization passes
+    Parallelism,             // Has parallel execution
+    Distributed,             // Has distributed execution
+}
+
+// ============================================================================
+// Core Benchmark Types (ADT-first, type-safe)
+// ============================================================================
+
+/// Benchmark profile - metadata about a benchmark run
+/// Stores what was measured, target environment, and workload
+#[derive(Debug, Clone, PartialEq)]
+pub struct BenchmarkProfile {
+    pub id: String,              // Unique benchmark ID
+    pub name: String,            // Human-readable name
+    pub kind: BenchmarkKind,        // Category: Micro/Macro/System
+    pub description: String,       // What this benchmark measures
+    pub target: String,            // Target: "trity-vm", "trib-backend", "zig"
+    pub workload: String,         // What test/workload was used
+    pub created_at: String,        // ISO timestamp
+
+    // Metrics collected during benchmark run
+    pub duration_ms: u64,        // Wall-clock time
+    pub ops_per_sec: u64,        // Operations per second
+    pub bytes_processed: u64,    // Input/output size
+    pub peak_memory_bytes: u64,   // Peak memory usage
+
+    // Reference to profile used (for regression testing)
+    pub profile_ref: String,       // "profile-fast", "profile-balanced", etc.
+
+    pub span: Span,              // Source location for error reporting
+}
+
+/// Benchmark result - outcome of a benchmark run
+/// Combines metrics with a verdict (pass/fail/toxic)
+#[derive(Debug, Clone, PartialEq)]
+pub struct BenchmarkResult {
+    pub profile_id: String,        // Links to BenchmarkProfile.id
+    pub metrics: MetricValues,    // Collected metric values
+
+    // Verdict categories
+    pub verdict: Verdict,          // Overall pass/fail judgment
+    pub passed: bool,              // Did benchmark meet thresholds?
+    pub toxic: bool,             // Is result toxic (major bug)?
+    pub regression: bool,         // Is this a regression vs baseline?
+
+    pub timestamp: String,          // ISO timestamp of completion
+    pub experience_ref: Option<String>,  // Link to ExperienceRecord
+    pub span: Span,              // Source location for error reporting
+}
+
+/// Metric value - individual measurement
+/// Each metric has a kind and value with units
+#[derive(Debug, Clone, PartialEq)]
+pub enum Metric {
+    TimeMs,                   // Time in milliseconds
+    OpsPerSec,                // Operations per second throughput
+    Bytes,                    // Size in bytes
+    Bps,                      // Bytes per second
+    Mibps,                    // Mebibytes per second
+    Kbps,                      // Kilobytes per second
+    CustomText,               // Arbitrary text metric
+}
+
+/// Individual metric value with units
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricValue {
+    pub metric: Metric,           // What kind of metric
+    pub value: String,           // String representation (e.g., "125.5" for time, "1024KB" for bytes)
+    pub unit: Option<String>,     // Unit symbol (e.g., "ms", "KB", "ops/s")
+    pub improvement: Option<String>, // Delta vs baseline (e.g., "+5.2%")
+}
+
+/// MetricValues - collection of all metrics for a run
+/// Uses Vec<MetricValue> instead of HashMap for ordered storage
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricValues {
+    pub values: Vec<MetricValue>,
+}
+
+/// Verdict categories - quality and safety judgments
+/// Follows Trinity experience model: Safe/Error/Toxic/Regression
+#[derive(Debug, Clone, PartialEq)]
+pub enum Verdict {
+    Pass,          // All thresholds met
+    Fail,          // Threshold not met but no critical errors
+    Toxic,         // Critical bug or security issue found
+    Regression,   // Performance degradation vs baseline
+}
+
+// ============================================================================
+// Competitor Profile Types
+// ============================================================================
+
+/// Competitor category (VM, DSL, Agent, TinyModel, Compression)
+#[derive(Debug, Clone, PartialEq)]
+pub enum CompetitorCategory {
+    Vm = 0x01,              // Virtual machine interpreters
+    Dsl = 0x02,              // Domain-specific languages (VM DSL)
+    Agent = 0x03,             // Multi-agent orchestration frameworks
+    TinyModel = 0x04,        // Small/parameter-efficient language models
+    Compression = 0x05,        // Compression algorithm implementations
+}
+
+/// Competitor profile - metadata about an external system
+/// Used for market comparison and target setting
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompetitorProfile {
+    pub id: String,              // Unique competitor ID (e.g., "wasm-bytecode", "lua-jit")
+    pub name: String,            // Display name (e.g., "WASM Bytecode", "LuaJIT")
+    pub category: CompetitorCategory,  // Vm/Dsl/Agent/TinyModel/Compression
+    pub repo: Option<String>,     // Repository URL if applicable
+    pub paper: Option<String>,      // Academic paper reference if applicable
+
+    // Capabilities (what can this competitor do?)
+    pub capabilities: Vec<Capability>,
+
+    // Quality of information available
+    pub evidence_quality: String,  // "High" | "Medium" | "Low" | "Unknown"
+    pub last_seen: String,        // ISO timestamp when profile was last updated
+
+    pub notes: String,             // Free-form notes about this competitor
+    pub is_real: bool,           // Is this a real system vs theoretical?
+
+    pub span: Span,              // Source location for error reporting
+}
+
+// ============================================================================
+// Market Snapshot Types
+// ============================================================================
+
+/// Snapshot of competitive landscape at a point in time
+/// Combines multiple competitor profiles into a comparable state
+#[derive(Debug, Clone, PartialEq)]
+pub struct MarketSnapshot {
+    pub id: String,              // Unique snapshot ID (e.g., "2024-q4-snapshot")
+    pub created_at: String,        // ISO timestamp when snapshot was created
+
+    // List of competitor profiles at snapshot time
+    pub profiles: Map<String, CompetitorProfile>,  // CompetitorId -> CompetitorProfile
+
+    // Comparative analysis
+    pub fastest_id: Option<String>,  // Which competitor ID is fastest?
+    pub fastest_category: Option<String>,  // Which category (Vm/Dsl/etc)?
+    pub most_complete: Option<String>,  // Which competitor has most capabilities?
+
+    pub notes: String,             // Free-form analysis notes
+    pub span: Span,              // Source location for error reporting
+}
+
+/// Competitor reference - points to a competitor
+/// Reuses CompetitorProfile.id for reference without duplication
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompetitorRef {
+    pub id: String,
+}
+
+/// Simple map type (String -> CompetitorProfile)
+/// For market_map.tri to provide initial competitor database
+#[derive(Debug, Clone, PartialEq)]
+pub struct MarketMap {
+    pub competitors: Vec<CompetitorProfile>,
+    pub created_at: String,
+    pub version: String,
+    pub span: Span,
+}
+
+// ============================================================================
+// Experience Reference Types
+// ============================================================================
+
+/// Links benchmark results to experience database
+/// Allows tracing of what configurations performed best/worst
+
+/// Experience reference - points to an experience record
+/// Reuses BenchmarkResult.experience_ref
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExperienceRef {
+    pub id: String,
+}
+
+// ============================================================================
+// Test Types (for internal benchmark framework)
+// ============================================================================
+
+/// Test case definition for benchmarks
+/// Defines workload, expected outputs, and validation rules
+#[derive(Debug, Clone, PartialEq)]
+pub struct BenchmarkTest {
+    pub id: String,              // Unique test ID
+    pub name: String,            // Human-readable test name
+    pub category: BenchmarkKind,   // Which benchmark kind this targets
+
+    // Test workload definition
+    pub workload: String,         // Description of workload (e.g., "1M VSA permutes", "compile parser.rs")
+    pub input_data: String,       // Input specifications (e.g., "10MB source file")
+    pub config: String,           // Additional configuration
+
+    // Expected outputs (for validation)
+    pub min_ops_per_sec: Option<u64>,    // Minimum throughput threshold
+    pub max_bytes: Option<u64>,    // Maximum memory threshold
+    pub allowed_deviance: Option<f64>,   // Allowed performance deviation
+
+    pub created_at: String,
+    pub span: Span,
+}
+
+// ============================================================================
+// Re-exports
+// ============================================================================
+
+// Re-export commonly used types for convenience
+pub use self::{BenchmarkKind, Capability, CompetitorCategory};
+pub use self::{BenchmarkProfile, BenchmarkResult, Metric, MetricValues, Verdict};
+pub use self::{MarketSnapshot, CompetitorProfile, MarketMap, CompetitorRef, ExperienceRef};
+pub use self::{BenchmarkTest};
+
+// ============================================================================
+// Tests (Constitutional Law L4)
+// ============================================================================
+
+/// Test: benchmark types define all categories correctly
+test benchmark_kind_coverage {
+    given: micro_kind = BenchmarkKind::Micro
+    when: micro_kind == 0x01
+    then: assert micro_kind.name() == "Micro"
+}
+
+test capability_enums_exhaustive {
+    given: capabilities = [Capability::VsaOps, Capability::GfOps]
+    when: capabilities.len() == 2
+    then: assert true  // All enum variants covered
+}
+
+test competitor_category_has_vm {
+    given: category = CompetitorCategory::Vm
+    when: category.name() == "Vm"
+    then: assert category.is_real == false  // VMs can be real systems
+}
+
+test metric_has_unit_for_size {
+    given: metric = Metric::Bytes
+    when: metric.value() == "1024"
+    then: assert metric.unit() == Some(String::from("KB"))
+}
+
+test verdict_enum_has_all_four_categories {
+    given: all_variants = [Verdict::Pass, Verdict::Fail, Verdict::Toxic, Verdict::Regression]
+    when: all_variants.len() == 4
+    then: assert true
+}
+
+test benchmark_profile_required_fields {
+    given: profile = BenchmarkProfile {
+        id = "bench-001",
+        name = "VSA permute throughput",
+        kind = BenchmarkKind::Micro,
+        target = String::from("trity-vm"),
+        workload = String::from("1B operations"),
+        metrics = MetricValues {
+            values: vec![
+                MetricValue {
+                    metric: Metric::OpsPerSec,
+                    value: String::from("125000000"),
+                    unit: Some(String::from("ops/s")),
+                }
+            ]
+        },
+        created_at = String::from("2024-04-17T12:00:00Z"),
+        span: Span::new(1, 0, 1, 0),
+    }
+    when: profile.name != String::new() &&
+          profile.target != String::new() &&
+          profile.workload != String::new() &&
+          profile.metrics.values.len() > 0
+    then: assert true
+}

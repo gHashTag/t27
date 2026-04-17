@@ -1,0 +1,211 @@
+# Trinity Experience — Tracking Learned Knowledge
+#
+# This spec defines the experience database for Trinity.
+# Part of modular compiler architecture (Ring-Z100 - Agent Protocol).
+#
+# This is a **mandatory law level (L7)** for all agent operations.
+# Every benchmark run MUST save experience records to this database.
+#
+# This provides:
+# - Reproducible trace of all experiments
+# - Linking between benchmark results and ring completion
+# - Machine-readable format for analysis agents
+#
+# See: `specs/trity_agent_protocol.t27` for agent completion protocol
+# See: `specs/rings.t27` for ring status tracking
+
+module: trity_experience;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.ti
+  - trity_compress from specs/trity_compress.ti
+  - trity_bench_bench_types from specs/trity_bench_bench_types.ti
+
+// =============================================================================
+// Experience Record Format
+// =============================================================================
+
+/// Experience record (canonical format)
+///
+/// Stores a single benchmark/experiment result.
+/// All fields are MANDATORY for L7 compliance.
+type ExperienceRecord = struct {
+  /// Unique experience ID (UUID)
+  id: String,
+
+  /// Agent who created this experience
+  agent_id: String,
+
+  /// Task/Ring/RFC being worked on
+  task_id: String,
+
+  /// Experience type (benchmark, training, failure, etc.)
+  experience_type: ExperienceType,
+
+  /// Metric being measured
+  metric: BenchmarkMetric,
+
+  /// Value achieved
+  value: f64,
+
+  /// Artifacts created (files, commits)
+  artifacts: Vec<String>,
+
+  /// Reproducible git commit hash
+  commit_hash: String,
+
+  /// Timestamp (RFC3339)
+  timestamp: String,
+}
+
+/// Experience types (classification)
+type ExperienceType = enum(u8) {
+  /// Benchmark run (measured time/memory/BPB)
+  Benchmark = 0,
+
+  /// Model training run
+  Training = 1,
+
+  /// Code/spec change (with tests passing)
+  CodeChange = 2,
+
+  /// Failure/error recovery
+  Failure = 3,
+}
+
+/// Benchmark metric type
+type BenchmarkMetric = enum(u8) {
+  /// Bits per character (BPB)
+  Bpb = 0,
+
+  /// Time (wall clock)
+  TimeMs = 1,
+
+  /// Memory usage (bytes)
+  MemoryBytes = 2,
+
+  /// Accuracy
+  Accuracy = 3,
+
+  /// Compression ratio
+  CompressionRatio = 4,
+
+  /// Artifact size (bytes)
+  ArtifactSize = 5,
+}
+
+/// Benchmark metric value
+type BenchmarkMetricValue = struct {
+  /// Metric type
+  kind: BenchmarkMetric,
+
+  /// Metric name (e.g., "inference_ops_per_sec")
+  name: String,
+
+  /// Measured value (numeric)
+  value: f64,
+
+  /// Unit symbol (e.g., "ms", "ops/s")
+  unit: Option<String>,
+}
+
+// =============================================================================
+// Experience Queries
+// =============================================================================
+
+/// Query experience records by task ID
+///
+/// Returns all experience records for a given task.
+/// Used to track progress across multiple sessions.
+fn get_experience_by_task(task_id: &str) -> Vec<ExperienceRecord> {
+  // Placeholder: Query experience database
+  // This will be implemented by experience storage layer
+  vec![]
+}
+
+/// Query experience records by agent
+///
+/// Returns all experience records from a specific agent.
+/// Used to analyze agent performance and productivity.
+fn get_experience_by_agent(agent_id: &str) -> Vec<ExperienceRecord> {
+  // Placeholder: Query experience database
+  // This will be implemented by experience storage layer
+  vec![]
+}
+
+/// Query benchmark results by metric type
+///
+/// Returns all benchmark results for a specific metric.
+/// Used for analysis and visualization.
+fn get_benchmarks_by_metric(metric: BenchmarkMetric) -> Vec<ExperienceRecord> {
+  // Placeholder: Query experience database
+  // This will be implemented by experience storage layer
+  vec![]
+}
+
+/// Query experience records for a ring
+///
+/// Returns all experience records for a specific ring.
+/// Used to track ring progress and completion.
+fn get_experience_by_ring(ring_id: &str) -> Vec<ExperienceRecord> {
+  // Placeholder: Query experience database
+  // This will be implemented by experience storage layer
+  vec![]
+}
+
+// =============================================================================
+// Export Requirements
+// =============================================================================
+
+/// All Trinity agents MUST implement:
+///
+/// 1. **Experience Recording** — Every benchmark/experience MUST save to this format
+/// 2. **Machine Readable** — Format must be parseable by analysis agents
+/// 3. **Reproducible** — All artifacts must have git commit hash
+/// 4. **Linked** — Records must link to tasks/rings/issues
+///
+/// See: `specs/trity_agent_protocol.t27` for agent completion protocol
+/// See: `specs/rings.t27` for ring status tracking
+
+export ExperienceRecord, ExperienceType, BenchmarkMetric, BenchmarkMetricValue;
+
+/// Export experience query functions
+export get_experience_by_task;
+export get_experience_by_agent;
+export get_benchmarks_by_metric;
+export get_experience_by_ring;
+
+// =============================================================================
+// Experience Storage
+// =============================================================================
+
+/// Experience storage (to be implemented)
+///
+/// This will store experience records in a persistent database.
+/// Options:
+/// - File-based storage (`.tri` experience database)
+/// - SQLite database
+/// - Redis cache for fast queries
+///
+/// For R001 (Model DSL), file-based storage is sufficient.
+/// For R006 (Search Swarm), Redis cache is needed for high-QPS.
+
+// Placeholder: Experience storage interface
+fn store_experience(record: &ExperienceRecord) -> Result<()> {
+  // Placeholder: Store experience record
+  // This will be implemented by experience storage layer
+  anyhow::Ok(())
+}
+
+/// Load experience records
+fn load_experience(id: &str) -> Result<Option<ExperienceRecord>> {
+  // Placeholder: Load experience record by ID
+  // This will be implemented by experience storage layer
+  anyhow::Ok(None)
+}
+
+/// Export experience storage functions
+export store_experience;
+export load_experience;

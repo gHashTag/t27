@@ -1,0 +1,145 @@
+# VSA Ops — Opcode Set
+#
+# This spec defines all VSA operations for Trinity.
+# Part of Zig migration (Parity Target 2: VSA Ops).
+#
+# Implements quasi-orthogonal vector operations from VSA/FHRR literature.
+
+module: vsa_ops;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.tri
+
+// =============================================================================
+// Core VSA Ops (from FHRR: fourier holographic reduced representations)
+// =============================================================================
+
+/// Bind operation: create holographic vector from values
+op bind {
+  description: "Create VSA vector by binding multiple vectors"
+  args: [vectors: Vec<vm_core::ConstantValue>] -> vm_core::ConstantValue
+  category: VSA
+}
+
+/// Bundle operation: aggregate multiple vectors
+op bundle {
+  description: "Aggregate multiple VSA vectors into one"
+  args: [vectors: Vec<vm_core::ConstantValue>] -> vm_core::ConstantValue
+  category: VSA
+}
+
+/// Unbind operation: extract vectors from bound representation
+op unbind {
+  description: "Extract individual VSA vectors from bound representation"
+  args: [vector: vm_core::ConstantValue] -> vm_core::ConstantValue
+  category: VSA
+}
+
+/// Similarity: cosine similarity between VSA vectors
+op similarity {
+  description: "Compute cosine similarity between VSA vectors"
+  args: [a: vm_core::ConstantValue, b: vm_core::ConstantValue] -> vm_core::ConstantValue
+  category: VSA
+}
+
+/// Distance: Hamming distance between VSA vectors
+op distance {
+  description: "Compute Hamming distance between VSA vectors"
+  args: [a: vm_core::ConstantValue, b: vm_core::ConstantValue] -> vm_core::ConstantValue
+  category: VSA
+}
+
+// =============================================================================
+// VSA Operation Codes (mapped to vm_core opcodes)
+// =============================================================================
+
+const OP_BIND: u8 = vm_core::OP_VSA_BIND;
+const OP_BUNDLE: u8 = vm_core::OP_VSA_BUNDLE;
+const OP_UNBIND: u8 = vm_core::OP_VSA_UNBIND;
+const OP_SIMILARITY: u8 = vm_core::OP_VSA_SIMILARITY;
+const OP_DISTANCE: u8 = vm_core::OP_VSA_DISTANCE;
+
+// =============================================================================
+// Vector Size Constants (from FHRR: supports 64, 128, 256, 512 dimensions)
+// =============================================================================
+
+const VECTOR_SIZE_64: u8 = 0x00;   -- 64-dimensional VSA
+const VECTOR_SIZE_128: u8 = 0x01;  -- 128-dimensional VSA
+const VECTOR_SIZE_256: u8 = 0x02;  -- 256-dimensional VSA
+const VECTOR_SIZE_512: u8 = 0x03;  -- 512-dimensional VSA
+
+// =============================================================================
+// FHRR Hyperparameters (from Fourier Holographic Reduced Representations paper)
+// =============================================================================
+
+const FHRR_DIMENSION: u8 = VECTOR_SIZE_256;  -- Use 256D for Trinity
+
+const FHRR_FREQUENCY: u32 = 100000;      -- 100kHz carrier frequency (for encoding)
+const FHRR_PHASES: u8 = 4;              -- Number of phases for encoding
+const FHRR_BANDS_PER_PHASE: u8 = 16;  -- Frequency bands (log2 frequency encoding)
+
+// =============================================================================
+// Export to vm_core
+// =============================================================================
+
+/// Export opcodes for VSA operations
+export:
+  OP_BIND,
+  OP_BUNDLE,
+  OP_UNBIND,
+  OP_SIMILARITY,
+  OP_DISTANCE,
+  VECTOR_SIZE_64,
+  VECTOR_SIZE_128,
+  VECTOR_SIZE_256,
+  VECTOR_SIZE_512;
+
+/// Export operation definitions
+export:
+  bind,
+  bundle,
+  unbind,
+  similarity,
+  distance;
+
+/// Export FHRR constants
+export:
+  FHRR_DIMENSION,
+  FHRR_FREQUENCY,
+  FHRR_PHASES,
+  FHRR_BANDS_PER_PHASE;
+
+// =============================================================================
+// Benchmark: FHRR Encoding Performance
+// =============================================================================
+
+bench fhrr_encode {
+  description: "Measure FHRR encoding throughput"
+  category: VSA
+  measure: nanoseconds to vm_core::encode_fhrr
+  target: u32 = 10000000;  -- 10M encodes/sec
+}
+
+bench fhrr_decode {
+  description: "Measure FHRR decoding throughput"
+  category: VSA
+  measure: nanoseconds to vm_core::decode_fhrr
+  target: u32 = 5000000;   -- 5M decodes/sec
+}
+
+// =============================================================================
+// Requirements for Trinity VM
+// =============================================================================
+
+/// Trinity VM MUST implement these VSA operations:
+///
+/// 1. `bind` — create VSA vector from constant values
+/// 2. `bundle` — aggregate multiple VSA vectors
+/// 3. `unbind` — extract individual vectors from bound representation
+/// 4. `similarity` — cosine similarity (attention mechanism)
+/// 5. `distance` — Hamming distance for nearest neighbor
+///
+/// All operations must operate on VSA vectors of the size specified
+/// by `VECTOR_SIZE_*` constants above.

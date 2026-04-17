@@ -1,0 +1,439 @@
+// spec trinity_language
+// Trinity Benchmark Results (Ring-003)
+//
+// Defines how benchmark results are stored and linked to experience records.
+// Follows Trinity architecture: spec-first (.tri) → runtime → execution.
+
+module benchmark_results {
+    version: "0.3.0"
+    ring: "003"
+    seal: "pending"
+    description: "Benchmark result storage with experience linking"
+    imports: ["01-tri-lang-core", "trity_benchmark_types"]
+
+    // ============================================================================
+    // Constants
+    // ============================================================================
+
+    constants {
+        // Result storage prefix
+        RESULT_PREFIX: String = "bench-res"
+
+        // Experience record prefix
+        EXP_PREFIX: String = "exp"
+
+        // Verdict categories
+        VERDICT_PASS: String = "Pass"
+        VERDICT_FAIL: String = "Fail"
+        VERDICT_TOXIC: String = "Toxic"
+        VERDICT_REGRESSION: String = "Regression"
+    }
+
+    // ============================================================================
+    // Types (ADT-first)
+    // ============================================================================
+
+    types {
+        // Re-export from trity_benchmark_types
+        use trity_benchmark_types::{
+            BenchmarkResult,
+            BenchmarkProfile,
+            MetricValues,
+            Metric,
+            MetricValue,
+            Verdict,
+        };
+
+        // Benchmark Result with experience link
+        /// Represents a completed benchmark run with metrics and verdict
+        /// Can be linked to an ExperienceRecord for MAS learning
+        StoredBenchmark = record {
+            id: String,
+            profile_ref: String,  // Link to BenchmarkProfile.id
+
+            // Timestamps
+            started_at: Time,    // ISO 8601 format
+            completed_at: Time,
+            duration_ms: u64,     // Wall-clock execution time
+
+            // Metrics (from BenchmarkResult)
+            metrics: MetricValues,
+
+            // Verdict
+            verdict: Verdict,
+
+            // Environment
+            host: String,        // Host machine info
+            target: String,       // Target: "trity-vm", "trib", etc.
+
+            // Experience link
+            experience_ref: Option<String>,  // Link to ExperienceRecord.id
+
+            // Optional metadata
+            commit: String,       // Git commit hash
+            branch: String,       // Git branch name
+            agent_id: String,     // Agent that ran this benchmark
+
+            span: Span,
+        }
+
+        // Result of benchmark execution
+        /// Represents outcome of running a benchmark profile
+        /// Returns either StoredBenchmark or error details
+        BenchmarkExecutionResult = sum {
+            Success(StoredBenchmark),
+
+            // Error types
+            Timeout {
+                profile_id: String,
+                timeout_ms: u64,
+                span: Span,
+            },
+            InvalidWorkload {
+                profile_id: String,
+                reason: String,
+                span: Span,
+            },
+            TargetError {
+                target: String,
+                reason: String,
+                span: Span,
+            },
+        }
+
+        /// Filter criteria for querying benchmark results
+        QueryFilter = record {
+            profile_kind: Option<BenchmarkKind>,  // Filter by Micro/Macro/System
+            target: Option<String>,              // Filter by target
+            verdict: Option<Verdict>,             // Filter by verdict
+            after: Option<Time>,               // Results after this timestamp
+            before: Option<Time>,              // Results before this timestamp
+            limit: u32,                     // Max results to return
+        }
+
+        // Aggregate statistics over multiple benchmark runs
+        BenchmarkAggregates = record {
+            profile_id: String,
+            count: u32,                 // Number of runs
+            avg_duration_ms: f64,       // Average duration
+            min_duration_ms: u64,       // Minimum duration
+            max_duration_ms: u64,       // Maximum duration
+            avg_ops_per_sec: f64,       // Average ops/sec (if applicable)
+            best_ops_per_sec: f64,      // Best ops/sec achieved
+            worst_ops_per_sec: f64,     // Worst ops/sec achieved
+
+            // Verdict distribution
+            pass_count: u32,
+            fail_count: u32,
+            toxic_count: u32,
+            regression_count: u32,
+        }
+
+        // Comparison snapshot
+        ComparisonSnapshot = record {
+            snapshot_id: String,
+            created_at: Time,
+
+            // Which competitor is best for each metric
+            best_time_ms: CompetitorId,
+            best_ops_per_sec: CompetitorId,
+            best_bytes: CompetitorId,
+            best_bps: CompetitorId,
+            best_accuracy: CompetitorId,
+
+            notes: String,
+        }
+    }
+
+    // ============================================================================
+    // Functions
+    // ============================================================================
+
+    functions {
+        // Store a benchmark result
+        /// Saves benchmark execution result to persistent storage
+        /// Returns the ID of the stored result
+        fn store(result: BenchmarkExecutionResult) -> String {
+            todo!()
+        }
+
+        // Retrieve a benchmark result by ID
+        fn get_by_id(id: String) -> Option<StoredBenchmark> {
+            todo!()
+        }
+
+        // Query benchmark results with filters
+        fn query(filter: QueryFilter) -> Vec<StoredBenchmark> {
+            todo!()
+        }
+
+        // Get aggregates for a profile
+        fn get_aggregates(profile_id: String) -> BenchmarkAggregates {
+            todo!()
+        }
+
+        // Get latest comparison snapshot
+        fn get_latest_snapshot() -> Option<ComparisonSnapshot> {
+            todo!()
+        }
+
+        // Create a new comparison snapshot
+        fn create_snapshot() -> ComparisonSnapshot {
+            todo!()
+        }
+
+        // Link benchmark result to experience record
+        /// Associates benchmark run with an experience for MAS learning
+        fn link_experience(result_id: String, experience_id: String) -> Void {
+            todo!()
+        }
+
+        // Calculate aggregates from multiple runs
+        fn calculate_aggregates(results: Vec<StoredBenchmark>) -> BenchmarkAggregates {
+            todo!()
+        }
+    }
+
+    // ============================================================================
+    // Invariants (Constitutional Laws)
+    // ============================================================================
+
+    invariants {
+        // All benchmark results must have valid profile reference
+        inv_benchmark_result_has_profile_ref {
+            given: result = BenchmarkExecutionResult::Success(StoredBenchmark { ... })
+            when: result.benchmark.profile_ref != String::new()
+            then: assert true
+            comment: "Every benchmark result must reference a valid profile"
+        }
+
+        // Verdicts must be one of the four categories
+        inv_verdict_is_valid_category {
+            given: verdict = storedBenchmark.verdict
+            when: {
+                verdict == Verdict::Pass ||
+                verdict == Verdict::Fail ||
+                verdict == Verdict::Toxic ||
+                verdict == Verdict::Regression
+            }
+            then: assert true
+            comment: "Verdict must be one of Pass/Fail/Toxic/Regression"
+        }
+
+        // Metrics must be non-empty for successful runs
+        inv_successful_run_has_metrics {
+            given: result = BenchmarkExecutionResult::Success(StoredBenchmark { ... })
+            when: result.benchmark.verdict == Verdict::Pass
+            then: assert result.benchmark.metrics.values.len() > 0
+            comment: "Successful benchmarks must have at least one metric"
+        }
+
+        // Aggregates must be calculated from at least 2 runs
+        inv_aggregates_require_minimum_runs {
+            given: agg = BenchmarkAggregates { ... }
+            when: agg.count < 2
+            then: assert false
+            comment: "Aggregates require at least 2 benchmark runs"
+        }
+
+        // Experience link must be valid if present
+        inv_experience_link_is_valid {
+            given: result = BenchmarkExecutionResult::Success(StoredBenchmark { ... })
+            when: result.benchmark.experience_ref == Some(String exp)
+                && (exp.starts_with(constants.EXP_PREFIX) || exp.starts_with(constants.RESULT_PREFIX))
+            then: assert true
+            comment: "Experience references must be to valid experience records"
+        }
+
+        // Query filters must be reasonable
+        inv_query_filter_reasonable {
+            given: filter = QueryFilter { limit: 1000 ... }
+            then: assert true
+            comment: "Query limit must be <= 1000"
+        }
+    }
+
+    // ============================================================================
+    // Tests (Constitutional Law L4)
+    // ============================================================================
+
+    tests {
+        // Test storing a benchmark result
+        test store_benchmark_result {
+            given: result = BenchmarkExecutionResult::Success(StoredBenchmark {
+                id: "bench-001",
+                profile_ref: "prof-permute",
+                started_at: Time::now(),
+                completed_at: Time::now(),
+                duration_ms: 1000,
+                metrics: MetricValues {
+                    values: vec![
+                        MetricValue {
+                            metric: Metric::OpsPerSec,
+                            value: String::from("125000"),
+                            unit: Some(String::from("ops/s")),
+                        }
+                    ]
+                },
+                verdict: Verdict::Pass,
+                host: String::from("test-host"),
+                target: String::from("trity-vm"),
+                experience_ref: None,
+                agent_id: String::from("agent-test"),
+                commit: String::from("abc123"),
+                branch: String::from("main"),
+                span: Span::new(1, 0, 1, 0),
+            })
+            when: id = store(result)
+            then: assert id == "bench-001"
+            comment: "Store returns benchmark result ID"
+        }
+
+        // Test querying benchmark results
+        test query_by_profile {
+            given: filter = QueryFilter {
+                profile_kind: Some(BenchmarkKind::Micro),
+                limit: 10,
+            }
+            when: let results = query(filter)
+            then: assert results.len() <= 10
+            comment: "Query respects limit"
+        }
+
+        // Test aggregate calculation
+        test calculate_aggregates {
+            given: results = vec![
+                    StoredBenchmark {
+                        id: "bench-001",
+                        profile_ref: "prof-permute",
+                        duration_ms: 1000,
+                        metrics: MetricValues {
+                            values: vec![
+                                MetricValue {
+                                    metric: Metric::OpsPerSec,
+                                    value: String::from("125000"),
+                                    unit: Some(String::from("ops/s")),
+                                }
+                            ]
+                        },
+                        verdict: Verdict::Pass,
+                        span: Span::new(1, 0, 1, 0),
+                    },
+                    StoredBenchmark {
+                        id: "bench-002",
+                        profile_ref: "prof-permute",
+                        duration_ms: 2000,
+                        metrics: MetricValues {
+                            values: vec![
+                                MetricValue {
+                                    metric: Metric::OpsPerSec,
+                                    value: String::from("250000"),
+                                    unit: Some(String::from("ops/s")),
+                                }
+                            ]
+                        },
+                        verdict: Verdict::Pass,
+                        span: Span::new(1, 0, 1, 0),
+                    },
+                ]
+            when: let agg = calculate_aggregates(results)
+            then: {
+                assert agg.profile_id == "prof-permute"
+                assert agg.count == 2
+                assert agg.avg_duration_ms == 1500.0
+                assert agg.min_duration_ms == 1000
+                assert agg.max_duration_ms == 2000
+                assert agg.best_ops_per_sec == "250000"
+                assert agg.worst_ops_per_sec == "125000"
+                assert agg.pass_count == 2
+            }
+            comment: "Aggregate calculations are correct"
+        }
+
+        // Test verdict categories
+        test verdict_categories {
+            given: verdict = Verdict::Pass
+            when: verdict == Verdict::Pass
+            then: assert true
+            comment: "Verdict::Pass is valid"
+
+            given: verdict = Verdict::Fail
+            when: verdict == Verdict::Fail
+            then: assert true
+            comment: "Verdict::Fail is valid"
+        }
+    }
+
+    // ============================================================================
+    // Benchmarks (minimum 2, Constitutional Law L4)
+    // ============================================================================
+
+    benchmarks {
+        // Run benchmark suite for all defined profiles
+        bench run_full_suite {
+            measure: nanoseconds to run_all_profiles()
+            target: 300000000  // 5 minutes max
+        }
+
+        // Run only micro-benchmarks
+        bench run_micro_suite {
+            measure: nanoseconds to run_micro_profiles()
+            target: 60000000  // 1 minute max
+        }
+    }
+
+    // ============================================================================
+    // Experience Hooks (Phase tracking)
+    // ============================================================================
+
+    experience {
+        // Phase: Execution
+        phase: Execution
+
+        // Phase: Analysis
+        phase: Analysis
+
+        // Phase: Comparison
+        phase: Comparison
+
+        // Log benchmark execution phase
+        on_execution_start {
+            given: profile_id: String, target: String, agent_id: String
+            when: record_experience(
+                level: ExperienceLevel::Trace,
+                phase: phase::Execution,
+                message: "Starting benchmark: " ++ profile_id ++ " on " ++ target,
+                payload: Payload::BenchmarkStart { profile_id, target, agent_id },
+            )
+            then: assert true
+        }
+
+        // Log benchmark completion
+        on_execution_complete {
+            given: result: BenchmarkExecutionResult
+            when: record_experience(
+                level: match result.verdict {
+                    Verdict::Pass => ExperienceLevel::Info,
+                    Verdict::Fail => ExperienceLevel::Warn,
+                    Verdict::Toxic => ExperienceLevel::Error,
+                    Verdict::Regression => ExperienceLevel::Error,
+                },
+                phase: phase::Execution,
+                message: "Benchmark complete: " ++ result.benchmark.id ++ " (" ++ match result.verdict ++ ") in " ++ result.benchmark.duration_ms ++ "ms",
+                payload: Payload::BenchmarkComplete { result_id: result.benchmark.id },
+            )
+            then: assert true
+        }
+
+        // Log analysis phase (aggregates, comparisons)
+        on_analysis_complete {
+            given: snapshot: ComparisonSnapshot
+            when: record_experience(
+                level: ExperienceLevel::Info,
+                phase: phase::Analysis,
+                message: "Market snapshot complete: " ++ snapshot.snapshot_id,
+                payload: Payload::AnalysisComplete { snapshot_id: snapshot.snapshot_id },
+            )
+            then: assert true
+        }
+    }

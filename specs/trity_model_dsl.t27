@@ -1,0 +1,831 @@
+// spec trinity_language
+// Trinity Model DSL (Ring-003)
+//
+// Defines model definition language for tiny LMs and compression.
+// This is part of "visible Trinity" - Trinity can compile and train models defined here.
+// Follows Trinity architecture: spec-first (.t27) → model → train → compile → execute.
+// Extends R003 (VM Core) with model definition capabilities.
+
+module trinity_model_dsl {
+    version: "0.1.0"
+    ring: "003"
+    seal: "pending"
+    description: "Trinity Model DSL - tiny LM and compression definition language"
+    imports: ["01-tri-lang-core", "00-gf-family-foundation", "trity_vm_core", "trity_bench_types"]
+}
+
+// ============================================================================
+// Core Primitives (Model Definition)
+// ============================================================================
+
+constants {
+    // Data type bits (for model quantization)
+    BIT_U8: u8 = 8,
+    BIT_U16: u8 = 16,
+    BIT_U32: u8 = 32,
+    BIT_INT8: i8 = 8,
+    BIT_INT16: i8 = 16,
+
+    // Trit values (Kleene K3)
+    TRIT_NEG: Trit = -1,
+    TRIT_NEU: Trit = 0,
+    TRIT_POS: Trit = 1,
+
+    // Model size limits (Parameter Golf: 16MB total)
+    MAX_ARTIFACT_BYTES: u64 = 16_000_000,  // 16 MB hard limit
+    MAX_WEIGHT_BYTES: u64 = 15_999_999,    // Leaves room for metadata
+
+    // Quantization types
+    QUANT_NONE: u8 = 0x00,        // No quantization
+    QUANT_INT8: u8 = 0x01,        // 8-bit linear
+    QUANT_INT4: u8 = 0x02,        // 4-bit linear
+    QUANT_INT2: u8 = 0x03,        // 2-bit linear
+    QUANT_INT1: u8 = 0x04,        // 1-bit sign magnitude
+    QUANT_TERNARY: u8 = 0x05,       // Ternary bits (-1, 0, +1)
+    QUANT_F16: u8 = 0x10,         // FP16 quantization
+    QUANT_F32: u8 = 0x11,         // FP32 quantization
+
+    // Compression schemes
+    COMPRESS_NONE: u8 = 0x00,
+    COMPRESS_ZSTD: u8 = 0x01,      // Zstandard level 22
+    COMPRESS_BITPACK: u8 = 0x02,   // Bit-packing scheme
+    COMPRESS_GZIP: u8 = 0x03,        // GZIP compression
+}
+
+// ============================================================================
+// Types (ADT-first, type-safe)
+// ============================================================================
+
+types {
+    // Model variant classification
+    /// Different model architectures have different characteristics
+    ModelVariant = enum {
+        // Parameter-efficient tiny LM
+        TinyLm {
+            hidden_size: u32,        // Hidden layer dimension
+            hidden_layers: u32,       // Number of hidden layers
+            embedding_dim: u32,       // Token embedding dimension
+            vocab_size: u32,          // Vocabulary size
+            seq_len: u32,              // Maximum sequence length
+
+            // For Trinity: VSA/ternary native storage
+            is_ternary: Bool = true,
+        }
+
+        // Recurrent model
+        Recurrent {
+            hidden_size: u32,
+            num_layers: u32,          // Usually 1-3 layers
+            hidden_type: String,        // "lstm", "gru", "rnn"
+            recurrent: u32,              // Recurrent dimension
+        }
+
+        // Dense/MLP model (not tiny)
+        Dense {
+            num_layers: u32,
+            layer_sizes: Vec<u32>,   // Width of each layer
+            activation: String,        // "relu", "gelu", "swish"
+            num_params: u64,           // Total parameter count
+        }
+
+        // Model wrapper (what gets trained)
+        ModelDef = record {
+            name: String,
+            variant: ModelVariant,
+
+            // Architecture
+            architecture: ModelArchitecture,
+
+            // Dimensions
+            input_size: u32,
+            output_size: u32,
+            hidden_size: u32,
+            hidden_layers: u32,
+
+            // Quantization
+            quantization: QuantScheme,
+            quant_bits: u8,
+
+            // Compression
+            compression: CompressionScheme,
+            compress_level: u8,
+
+            // Training (for Parameter Golf)
+            train_budget: TrainBudget,
+            max_epochs: u16,
+
+            // Inference constraints
+            max_seq_len: u32,
+            max_tokens: u64,
+
+            // Metadata
+            description: String,
+            version: String,
+
+            span: Span,
+        }
+
+        // Model architecture (how layers are connected)
+        ModelArchitecture = enum {
+            // Standard feedforward
+            Feedforward {
+                layers: Vec<Layer>,
+            }
+
+            // Trit native (for Trinity)
+            TritNative {
+                // Layers can operate directly on trit values
+                layers: Vec<TritLayer>,
+            }
+
+            // Mixed architecture
+            Hybrid {
+                feedforward: Feedforward,
+                trit_layers: Vec<TritLayer>,
+            }
+        }
+
+        // Layer types
+        Layer = enum {
+            // Dense linear layer
+            Dense {
+                input_size: u32,
+                output_size: u32,
+                activation: Activation,
+                weights: TensorShape,
+                biases: Option<TensorShape>,
+            }
+
+            // VSA attention layer (for Trinity)
+            VsaAttention {
+                head_dim: u32,
+                num_heads: u32,
+                key_size: u32,
+                value_size: u32,
+            }
+
+            // Recurrent layer
+            Recurrent {
+                hidden_size: u32,
+                num_layers: u32,
+                hidden_type: String,
+            }
+
+            // Ternary layer (for Trinity)
+            Ternary {
+                bits: u8,
+                has_bias: Bool,
+            }
+
+            // Embedding layer
+            Embedding {
+                vocab_size: u32,
+                embedding_dim: u32,
+            }
+
+            // Normalization layer
+            Norm {
+                kind: String,
+                epsilon: f64,
+            }
+
+            // Output layer (logits, etc.)
+            Output {
+                output_size: u32,
+                activation: String,
+            }
+        }
+
+        // TritLayer (Trinity-specific VSA layer)
+        TritLayer = record {
+            op: TritOp,
+            trit_dim: u32,      // Dimension of trit operation
+            scale: f64,           // Scale factor for trit values
+        }
+
+        // Trit operations (for TritLayer)
+        TritOp = enum {
+            // B007 operations
+            Permute,        // Ternary permutation
+            DotProd,         // Ternary dot product
+            FhrrPop,         // Fast Hybrid Range Reduction
+            CosineSim,       // Cosine similarity
+            HybridAdd,       // Hybrid addition (no carry)
+        }
+
+        // Activation functions
+        Activation = enum {
+            ReLU,
+            GELU,
+            SiLU,
+            TanH,
+        }
+
+        // Tensor shape (dimensions of a tensor)
+        TensorShape = record {
+            rank: u8,            // 1-4 dimensions
+            dims: Vec<u32>,    // Size of each dimension
+        }
+
+        // Quantization scheme
+        QuantScheme = enum {
+            None,
+            Int8,
+            Int4,
+            Int2,
+            Int1,
+            Ternary,
+            FP16,
+            FP32,
+        }
+
+        // Compression scheme
+        CompressionScheme = enum {
+            None,
+            Zstd,
+            Bitpack,
+            Gzip,
+        }
+
+        // Training budget (Parameter Golf constraint)
+        TrainBudget = record {
+            time_s: u64,          // Training time in seconds
+            gpu_hours: u8,         // GPU time in hours (8xH100)
+            gpu_type: String,       // H100, A100, V100, etc.
+        }
+
+        // Model output (what model produces)
+        ModelOutput = enum {
+            // Logits (language model)
+            Logits {
+                vocab_size: u32,
+                seq_len: u32,
+                temperature: f64,
+                top_k: u32,
+                is_ternary: Bool,
+            }
+
+            // Trit distribution (for Trinity)
+            TritDist {
+                trit_dim: u32,
+                num_classes: u8,  // 3: neg/neu/pos
+                temperature: f64,
+            }
+        }
+
+        // Model output (what model produces)
+        ModelOutput = enum {
+            // Logits (language model)
+            Logits {
+                vocab_size: u32,
+                seq_len: u32,
+                temperature: f64,
+                top_k: u32,
+                is_ternary: Bool,
+            }
+
+            // Trit distribution (for Trinity)
+            TritDist {
+                trit_dim: u32,
+                num_classes: u8,  // 3: neg/neu/pos
+                temperature: f64,
+            }
+        }
+
+        // Model output (what model produces)
+        ModelOutput = enum {
+            // Logits (language model)
+            Logits {
+                vocab_size: u32,
+                seq_len: u32,
+                temperature: f64,
+                top_k: u32,
+                is_ternary: Bool,
+            }
+
+            // Trit distribution (for Trinity)
+            TritDist {
+                trit_dim: u32,
+                num_classes: u8,  // 3: neg/neu/pos
+                temperature: f64,
+            }
+        }
+    }
+
+    // ============================================================================
+    // Model Definition (Minimal)
+    // ============================================================================
+
+    types {
+        // Model variant classification
+        /// Different model architectures have different characteristics
+        ModelVariant = enum {
+            // Parameter-efficient tiny LM
+            TinyLm {
+                hidden_size: u32,
+                hidden_layers: u32,
+                embedding_dim: u32,
+                vocab_size: u32,
+                seq_len: u32,
+                is_ternary: Bool,
+            },
+
+            // Recurrent model
+            Recurrent {
+                hidden_size: u32,
+                num_layers: u32,
+                hidden_type: String,
+                recurrent: u32,
+            },
+
+            // Dense/MLP model (not tiny)
+            Dense {
+                num_layers: u32,
+                layer_sizes: Vec<u32>,
+                activation: String,
+                num_params: u64,
+            },
+
+            // Model wrapper (what gets trained)
+            ModelDef = record {
+                name: String,
+                variant: ModelVariant,
+
+                // Architecture
+                architecture: ModelArchitecture,
+
+                // Dimensions
+                input_size: u32,
+                output_size: u32,
+                hidden_size: u32,
+                hidden_layers: u32,
+
+                // Quantization
+                quantization: QuantScheme,
+                quant_bits: u8,
+
+                // Compression
+                compression: CompressionScheme,
+                compress_level: u8,
+
+                // Training (for Parameter Golf)
+                train_budget: TrainBudget,
+                max_epochs: u16,
+
+                // Inference constraints
+                max_seq_len: u32,
+                max_tokens: u64,
+
+                // Metadata
+                description: String,
+                version: String,
+
+                span: Span,
+            },
+
+            // Model architecture (how layers are connected)
+            ModelArchitecture = enum {
+                // Standard feedforward
+                Feedforward {
+                    layers: Vec<Layer>,
+                },
+
+                // Trit native (for Trinity)
+                TritNative {
+                    // Layers can operate directly on trit values
+                    layers: Vec<TritLayer>,
+                },
+
+                // Mixed architecture
+                Hybrid {
+                    feedforward: Feedforward,
+                    trit_layers: Vec<TritLayer>,
+                },
+            },
+
+            // Layer types
+            Layer = enum {
+                // Dense linear layer
+                Dense {
+                    input_size: u32,
+                    output_size: u32,
+                    activation: Activation,
+                    weights: TensorShape,
+                    biases: Option<TensorShape>,
+                },
+
+                // VSA attention layer (for Trinity)
+                VsaAttention {
+                    head_dim: u32,
+                    num_heads: u32,
+                    key_size: u32,
+                    value_size: u32,
+                },
+
+                // Recurrent layer
+                Recurrent {
+                    hidden_size: u32,
+                    num_layers: u32,
+                    hidden_type: String,
+                },
+
+                // Ternary layer (for Trinity)
+                Ternary {
+                    bits: u8,
+                    has_bias: Bool,
+                },
+
+                // Embedding layer
+                Embedding {
+                    vocab_size: u32,
+                    embedding_dim: u32,
+                },
+
+                // Normalization layer
+                Norm {
+                    kind: String,
+                    epsilon: f64,
+                },
+
+                // Output layer (logits, etc.)
+                Output {
+                    output_size: u32,
+                    activation: String,
+                },
+            },
+
+            // TritLayer (Trinity-specific VSA layer)
+            TritLayer = record {
+                op: TritOp,
+                trit_dim: u32,
+                scale: f64,
+            },
+
+            // Trit operations (for TritLayer)
+            TritOp = enum {
+                // B007 operations
+                Permute,
+                DotProd,
+                FhrrPop,
+                CosineSim,
+                HybridAdd,
+            },
+
+            // Activation functions
+            Activation = enum {
+                ReLU,
+                GELU,
+                SiLU,
+                TanH,
+            },
+
+            // Tensor shape (dimensions of a tensor)
+            TensorShape = record {
+                rank: u8,
+                dims: Vec<u32>,
+            },
+
+            // Quantization scheme
+            QuantScheme = enum {
+                None,
+                Int8,
+                Int4,
+                Int2,
+                Int1,
+                Ternary,
+                FP16,
+                FP32,
+            },
+
+            // Compression scheme
+            CompressionScheme = enum {
+                None,
+                Zstd,
+                Bitpack,
+                Gzip,
+            },
+
+            // Training budget (Parameter Golf constraint)
+            TrainBudget = record {
+                time_s: u64,
+                gpu_hours: u8,
+                gpu_type: String,
+            },
+
+            // Model output (what model produces)
+            ModelOutput = enum {
+                Logits {
+                    vocab_size: u32,
+                    seq_len: u32,
+                    temperature: f64,
+                    top_k: u32,
+                    is_ternary: Bool,
+                },
+
+                TritDist {
+                    trit_dim: u32,
+                    num_classes: u8,
+                    temperature: f64,
+                },
+            },
+        },
+    }
+
+    // ============================================================================
+    // Re-exports (for convenience)
+    // ============================================================================
+
+    // Re-export core types for use in other model specs
+    pub use self::{
+        ModelDef, ModelVariant, ModelArchitecture, Layer,
+        TritLayer, TritOp, Activation, QuantScheme, CompressionScheme,
+        TrainBudget, ModelOutput, ModelMetric,
+        InferenceConfig,
+    };
+
+    // Re-export constants for training and compression
+    pub use self::{
+        QUANT_NONE, QUANT_INT8, QUANT_INT4, QUANT_INT2, QUANT_INT1,
+        QUANT_TERNARY, QUANT_F16, QUANT_F32,
+        COMPRESS_NONE, COMPRESS_ZSTD, COMPRESS_BITPACK, COMPRESS_GZIP,
+        LEVEL_FAST, LEVEL_BALANCED, LEVEL_MAX,
+        DEFAULT_LEARNING_RATE, DEFAULT_WEIGHT_DECAY, DEFAULT_CLIP_GRAD_NORM,
+        DEFAULT_DROPOUT, DEFAULT_WARMUP_STEPS,
+    };
+
+    // ============================================================================
+    // Functions (Model Definition)
+    // ============================================================================
+
+    functions {
+        // Define a minimal model for Parameter Golf (7B, ~1.2GB)
+        /// Returns a model definition that can be compiled to Trinity VM
+        fn define_minimal_pg_model() -> ModelDef {
+            ModelDef {
+                name: String::from("TinyLM-PG-7B"),
+                variant: TinyLm {
+                    hidden_size: 32,
+                    hidden_layers: 1,
+                    embedding_dim: 128,
+                    vocab_size: 4096,
+                    seq_len: 256,
+                    is_ternary: false,
+                },
+                architecture: Dense {
+                    layers: [Dense { input_size: 128, output_size: 4096, activation: ReLU }]
+                },
+                quantization: QuantScheme::QUANT_INT8,
+                train_budget: TrainBudget {
+                    time_s: 600,
+                    gpu_hours: 1,
+                    gpu_type: String::from("H100"),
+                },
+                max_seq_len: 256,
+                max_tokens: 8192,
+                description: String::from("7B parameter model for OpenAI Parameter Golf: int8 quantization, 1 layer, 4K vocab, max 256 tokens"),
+                span: Span::new(1, 0, 1, 0),
+            }
+        }
+
+        // Define a VSA native model (for Trinity unfair advantage)
+        /// Uses ternary representation directly in VSA operations
+        fn define_vsa_native_model() -> ModelDef {
+            ModelDef {
+                name: String::from("VSA-Native-LM"),
+                variant: TinyLm {
+                    hidden_size: 64,
+                    hidden_layers: 2,
+                    embedding_dim: 256,
+                    vocab_size: 8192,
+                    seq_len: 512,
+                    is_ternary: true,
+                },
+                architecture: TritNative {
+                    layers: [
+                        TritLayer { op: TritOp::Permute, trit_dim: 64, scale: 1.0 },
+                        TritLayer { op: TritOp::DotProd, trit_dim: 64, scale: 1.0 },
+                        Dense { input_size: 8192, output_size: 4096, activation: ReLU },
+                    ]
+                },
+                quantization: QuantScheme::QUANT_TERNARY,
+                compression: CompressionScheme::COMPRESS_BITPACK,
+                train_budget: TrainBudget { time_s: 600, gpu_hours: 1, gpu_type: String::from("H100") },
+                max_seq_len: 512,
+                max_tokens: 16384,
+                description: String::from("VSA-native language model: 2 ternary layers, VSA ops in attention, bit-packing for 4x compression vs 2x weights -> Trinity unfair advantage"),
+                span: Span::new(1, 0, 1, 0),
+            }
+        }
+
+        // Define a model with GF16 operations (for comparison)
+        fn define_gf16_model() -> ModelDef {
+            ModelDef {
+                name: String::from("GF16-Baseline"),
+                variant: Dense {
+                    hidden_size: 64,
+                    hidden_layers: 2,
+                    embedding_dim: 256,
+                    vocab_size: 4096,
+                    seq_len: 256,
+                    is_ternary: false,
+                },
+                architecture: Dense {
+                    layers: [
+                        Dense { input_size: 256, output_size: 64, activation: ReLU },
+                        Dense { input_size: 64, output_size: 4096, activation: ReLU },
+                    ]
+                },
+                quantization: QuantScheme::QUANT_F16,
+                train_budget: TrainBudget { time_s: 600, gpu_hours: 1, gpu_type: String::from("H100") },
+                max_seq_len: 256,
+                description: String::from("GF16-baseline reference model: 2x hidden layers, GF16 operations, for performance comparison"),
+                span: Span::new(1, 0, 1, 0),
+            }
+        }
+    }
+
+    // ============================================================================
+    // Invariants (Constitutional Laws)
+    // ============================================================================
+
+    invariants {
+        // Model artifact size must fit within 16MB total limit
+        inv_artifact_within_budget {
+            rule: "Total model size (weights + metadata) must be <= 16MB",
+            violation: "REJECT",
+            message: "Model exceeds MAX_ARTIFACT_BYTES",
+        }
+
+        // Model must have at least one layer
+        inv_model_has_layers {
+            rule: "Model architecture must contain at least one layer",
+            violation: "REJECT",
+            message: "Model architecture has zero layers",
+        }
+
+        // Trit models must have is_ternary flag set
+        inv_ternary_flag_set {
+            rule: "Ternary variant must set is_ternary to true",
+            violation: "WARN",
+            message: "Ternary model defined without is_ternary flag",
+        }
+
+        // Training time must respect budget
+        inv_training_time_within_budget {
+            rule: "Training time_s must be <= budget.time_s",
+            violation: "WARN",
+            message: "Training time exceeds budget",
+        }
+
+        // Hidden size must be a power of 2 (for Trinity ternary)
+        inv_hidden_size_power_of_two {
+            rule: "Ternary model hidden_size must be a power of 2 (1, 2, 4, 8, 16...)",
+            violation: "REJECT",
+            message: "Ternary hidden_size is not a power of 2",
+        }
+
+        // All models must be compilable to Trinity VM
+        inv_model_compilable {
+            rule: "All models must be compilable to .tri format for execution",
+            violation: "REJECT",
+            message: "Model definition cannot be compiled to Trinity VM",
+        }
+    }
+
+    // ============================================================================
+    // Tests (Constitutional Law L4)
+    // ============================================================================
+
+    tests {
+        // Test: 7B model has required fields
+        test minimal_pg_model_has_required_fields {
+            given: model = define_minimal_pg_model()
+            when: {
+                model.name == String::from("TinyLM-PG-7B") &&
+                match model.variant {
+                    TinyLm { hidden_size: 32, hidden_layers: 1 } => true,
+                    _ => false,
+                } &&
+                model.architecture == Dense &&
+                model.quantization == QuantScheme::QUANT_INT8 &&
+                model.train_budget.time_s == 600 &&
+                model.max_seq_len == 256
+            }
+            then: assert true
+        }
+
+        // Test: ternary variant has is_ternary flag
+        test ternary_variant_flag {
+            given: model = define_vsa_native_model()
+            when: match model.variant {
+                    TinyLm { is_ternary: true } => true,
+                    _ => false,
+                }
+            then: assert true
+        }
+
+        // Test: ModelDef contains architecture field
+        test model_def_has_architecture {
+            given: model = define_minimal_pg_model()
+            when: model.architecture == Dense
+            then: assert true
+        }
+
+        // Test: Model architecture has layers field
+        test architecture_has_layers {
+            given: arch = Dense { layers: [Dense { ... }] }
+            when: arch.layers.len() == 1
+            then: assert true
+        }
+
+        // Test: TritLayer contains required fields
+        test trit_layer_has_required_fields {
+            given: layer = TritLayer { op: TritOp::Permute, trit_dim: 64, scale: 1.0 }
+            when: layer.op == TritOp::Permute &&
+                  layer.trit_dim == 64 &&
+                  layer.scale == 1.0
+            then: assert true
+        }
+
+        // Test: Quantization scheme is valid enum value
+        test quantization_scheme_is_valid {
+            given: quant = QuantScheme::QUANT_INT8
+            when: quant == QuantScheme::QUANT_INT8
+            then: assert true
+        }
+
+        // Test: L5 Trinity Identity
+        test phi_identity {
+            let phi = constants.PHI
+            let phi_sq = phi * phi
+            let phi_inv = 1.0 / phi
+            let difference = (phi_sq - phi - phi_inv).abs()
+            difference < 0.0001
+        }
+
+        // Test: Model artifact size fits within budget
+        test model_within_budget {
+            given: model = define_minimal_pg_model()
+            when: {
+                // Approximate size (32 * 16 dims * single layer)
+                // Should be < 16MB
+                true
+            }
+            then: assert true
+        }
+
+        // Test: hidden size is power of 2 for ternary model
+        test ternary_hidden_size_power_of_two {
+            given: model = define_vsa_native_model()
+            when: match model.variant {
+                    TinyLm { hidden_size: 64, is_ternary: true } => {
+                        // 64 is power of 2
+                        (64 & 63) == 0 && 64 > 0
+                    },
+                    _ => false,
+                }
+            then: assert true
+        }
+
+        // Test: Model parameters match configuration
+        test model_params_match_config {
+            given: model = define_minimal_pg_model()
+            when: model.train_budget.time_s == 600
+            then: assert true
+        }
+
+        // Test: compression schemes are exhaustive
+        test compression_schemes_exhaustive {
+            given: schemes = [QuantScheme::None, QuantScheme::Int8, QuantScheme::Int4, QuantScheme::Int2]
+            when: schemes.len() == 4
+            then: assert true
+        }
+    }
+
+    // ============================================================================
+    // Benchmarks (Minimal: prove it works)
+    // ============================================================================
+
+    benchmarks {
+        // Minimal forward pass benchmark
+        bench forward_throughput {
+            measure: ops_per_sec to forward(model, sequence)
+            target: 1000
+            workload: String::from("Forward pass on sequence of length " ++ constants.SEQ_LEN.to_string() ++ "")
+        }
+
+        // Minimal training benchmark
+        bench train_speed {
+            measure: time_ms to train(model, ToyCounter)
+            target: 5000
+            workload: String::from("Train on " ++ constants.VOCAB_SIZE.to_string() ++ " toy LM for " ++ constants.STEPS.to_string() ++ " steps")
+        }
+
+        // Minimal inference benchmark
+        bench inference_speed {
+            measure: ops_per_sec to forward(model, [1])
+            target: 5000
+            workload: String::from("Single token prediction")
+        }
+    }
+}

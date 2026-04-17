@@ -1,0 +1,443 @@
+spec trinity_language
+
+-- Trinity Language Specification (Ring-001) - Functional Style
+-- Philosophy: Custom types as values, pattern matching as operations, no classes/inheritance
+-- Based on: Gleam/Elm best practices, but adapted for .tri/.trib Trinity stack
+
+module trinity_language {
+  version: "0.1.0"
+  ring: "001"
+  seal: "pending"
+  description: "Core Trinity language - pure functional .tri spec with ADT types"
+  imports: ["01-tri-lang-core", "00-gf-family-foundation"]
+}
+
+-- SECTION 1: Core Primitives (5-7)
+constants {
+  -- Kleene K3 Trit (L5 foundation)
+  TRIT_NEG: i8 = -1
+  TRIT_NEU: i8 = 0
+  TRIT_POS: i8 = 1
+  TRIT_UNKNOWN: i8 = 0
+
+  -- VSA Primitive (B007)
+  VSA_N: u8 = 1  -- Ternary digit set {neg, neu, pos}
+}
+
+-- SECTION 2: Types (Custom ADT, no classes)
+types {
+  -- Kleene K3 Trit as pure value type
+  Trit = trit
+
+  -- VSA Primitive as value type
+  VSA_N = vsa_n  -- Ternary digit
+
+  -- Optional type for "missing" value (not primitive)
+  Optional(T)  -- Container type
+
+  -- Result type (for operations that can fail)
+  Result(E, T)  -- Error container, generic over T
+
+  -- Tuple type (for multiple values)
+  Tuple(A, B)  -- Product type
+}
+
+-- SECTION 3: Numeric Tower (Sum Types, not "simple enum")
+types {
+  -- Exact Integer (HybridBigInt)
+  ExactInt = struct { bits: u16 }
+
+  -- Real GF formats (from gf_family_foundation)
+  RealGF = struct {
+    bits: u16,
+    phi_distance: f64,
+  }
+
+  -- Ternary formats (from gf_family_foundation)
+  TernaryFormat = struct {
+    format: String,  -- "TF3", "TF16", etc.
+  }
+
+  -- Complex GF formats
+  ComplexGF = struct {
+    real: RealGF,
+    imag: RealGF,
+  }
+
+  -- Sum type: one of ExactInt, RealGF, TernaryFormat
+  NumericTower = sum {
+    exact_int: Option(ExactInt),
+    real_gf: Option(RealGF),
+    ternary: Option(TernaryFormat),
+    complex_gf: Option(ComplexGF),
+  }
+}
+
+-- SECTION 4: Promotion Transforms (Explicit ADT)
+types {
+  -- Promote: safe promotion within tower
+  Promote(from: NumericTower, to: NumericTower) = Promote
+
+  -- Demote: lossy downcast (explicit)
+  Demote(from: NumericTower, to: NumericTower, max_error: f64) = Demote
+
+  -- PhiQuantize: snap to nearest φ^n
+  PhiQuantize(from: NumericTower, to: NumericTower, phi_distance: f64) = PhiQuantize
+
+  -- Expand: increase bit width
+  Expand(from: NumericTower, to: NumericTower) = Expand
+
+  -- Cast: unsafe bit cast (only use in verified contexts)
+  Cast(from: NumericTower, to: NumericTower) = Cast
+}
+
+-- SECTION 5: Experience (Product Type with Phases)
+types {
+  -- Experience Level (structured logging)
+  Level = level  -- Trace/Debug/Info/Warn/Error
+
+  -- Experience Phase (compiler lifecycle)
+  Phase = phase  -- Parse/Check/Write/Validate/Verdict/Bench
+
+  -- Experience Record (structured log entry)
+  ExperienceRecord = record {
+    level: Level,
+    message: String,
+    phase: Phase,
+    timestamp: Time,  -- Invariant: Time
+  }
+
+  -- Toxic Verdict (triage level)
+  Verdict = verdict  -- Safe/Error/Warning/Toxic
+}
+
+-- SECTION 6: VSA Operations (First-class ISA, not library)
+-- NOTE: These are operations ON THE .tri LANGUAGE, not of .trib VM
+types {
+  -- Operation result (error handling)
+  OpResult = result(E, T)
+
+  -- Ternary Permutation (bitwise reordering)
+  -- Signature: permute(a: VSA_N, b: VSA_N, c: VSA_N, d: VSA_N) -> OpResult(VSA_N)
+  permute_result = op(VSA_N)
+
+  -- Ternary Dot Product (bitwise dot product)
+  -- Signature: dot(a: VSA_N, b: VSA_N) -> OpResult(VSA_N)
+  dot_result = op(VSA_N)
+
+  -- Hybrid Big Integer (add with no carry)
+  -- Signature: hybrid_add(a: VSA_N, b: VSA_N) -> OpResult(VSA_N)
+  hybrid_add_result = op(VSA_N)
+
+  -- FHRR (Fast Hybrid Range Reduction)
+  -- Signature: fhrr_pop(a: VSA_N, count: u8) -> OpResult(VSA_N)
+  fhrr_pop_result = op(VSA_N)
+
+  -- Cosine Similarity (for quantum ops)
+  -- Signature: cosine_sim(a: VSA_N, b: VSA_N) -> OpResult(f64)
+  cosine_sim_result = op(f64)
+
+  -- Bind Operation (placeholder for VSA type binding)
+  -- Signature: bind(v: VSA_N, t: T) -> OpResult(T)
+  bind_result = op(T)
+}
+
+-- SECTION 7: Constants (L5 Identity Law)
+constants {
+  -- Golden Ratio (L5: φ² + φ⁻² = 3)
+  PHI: f64 = 1.6180339887498948
+  PHI_SQ: f64 = 2.6180339887498948
+  PHI_INV: f64 = 0.6180339887498948
+  TRINITY: f64 = 3.0
+}
+
+-- SECTION 8: Tests (Constitutional Laws)
+test trit_neg_value {
+  given: t = Trit.neg
+  when: t == TRIT_NEG
+  then: assert t == -1
+}
+
+test trit_neu_value {
+  given: t = Trit.neu
+  when: t == TRIT_NEU
+  then: assert t == 0
+}
+
+test trit_pos_value {
+  given: t = Trit.pos
+  when: t == TRIT_POS
+  then: assert t == 1
+}
+
+test permute_is_involution {
+  given: a = VSA_N, b = VSA_N, c = VSA_N, d = VSA_N
+  when: let result = permute_result(permute_result(a, b, c, d))
+  then: permute_result(result, b, c, d) == a
+}
+
+test permute_idempotent {
+  given: a = VSA_N, b = VSA_N, c = VSA_N, d = VSA_N
+  when: permute_result(permute_result(a, b, c, d), b, c, d) == permute_result(a, b, c, d)
+}
+
+test dot_product_basic {
+  given: a = VSA_N, b = VSA_N
+  when: let result = dot_result(dot_result(a, b))
+  then: assert result.a == a.a && result.b == a.b
+}
+
+test hybrid_add_basic {
+  given: a = VSA_N, b = VSA_N
+  when: let result = hybrid_add_result(hybrid_add_result(a, b))
+  then: assert result.a == a.a + b.a && result.b == 0
+}
+
+test fhrr_pop_basic {
+  given: a = VSA_N, count = 1u8
+  when: let result = fhrr_pop_result(fhrr_pop_result(a, count))
+  then: assert result.a == a.a + count && result.b == 0 && result.d == a.d
+}
+
+test cosine_symmetry {
+  given: a = VSA_N, b = VSA_N
+  when: let c1 = cosine_sim_result(cosine_sim_result(a, b))
+  then: let c2 = cosine_sim_result(cosine_sim_result(b, a))
+  then: assert c1 == c2
+}
+
+-- SECTION 9: Benchmarks (Minimum 2)
+bench permute_throughput {
+  measure: nanoseconds to permute_result(permute_result(VSA_N(1), VSA_N(2), VSA_N(3), VSA_N(4), d: VSA_N(5))
+  target: 1000000000  -- 1G ops/sec
+}
+
+bench hybrid_add_throughput {
+  measure: nanoseconds to hybrid_add_result(hybrid_add_result(VSA_N(1), VSA_N(2)))
+  target: 500000000  -- 500M ops/sec
+}
+
+-- SECTION 10: Helper Types (for .tri generation)
+types {
+  -- Opcode for .trib VM
+  Opcode = enum(u8) {
+    -- Stack ops
+    PUSH_VSA_N = 0x01,   -- Push VSA_N value
+    PUSH_TRIT = 0x02,      -- Push trit
+    PUSH_EXACT_INT = 0x03,   -- Push exact int
+    PUSH_REAL_GF = 0x04,     -- Push real GF
+    POP = 0x05,          -- Pop stack
+
+    -- VSA ops
+    PERMUTE = 0x10,       -- Ternary permute
+    DOT = 0x11,          -- Ternary dot product
+    HYBRID_ADD = 0x12,    -- Hybrid add
+    FHRR_POP = 0x13,      -- FHRR pop
+    COSINE_SIM = 0x14,    -- Cosine similarity
+
+    -- Experience hooks
+    EXPERIENCE_RECORD = 0x20, -- Write experience record
+    VERDICT = 0x21,         -- Write verdict
+    BENCH_RECORD = 0x22,    -- Write bench record
+
+    -- Control flow
+    HALT = 0x30,
+    JUMP = 0x31,
+  }
+
+  -- Experience Level
+  Level = enum(u8) {
+    TRACE = 0,
+    DEBUG = 1,
+    INFO = 2,
+    WARN = 3,
+    ERROR = 4,
+    TOXIC = 5,
+  }
+
+  -- Experience Phase
+  Phase = enum(u8) {
+    PARSE = 0,
+    CHECK = 1,
+    WRITE = 2,
+    VALIDATE = 3,
+    VERDICT = 4,
+    BENCH = 5,
+  }
+
+  -- Experience Verdict
+  Verdict = enum(u8) {
+    SAFE = 0,
+    ERROR = 1,
+    WARNING = 2,
+    TOXIC = 3,
+  }
+
+  -- Experience Record (product type)
+  Experience = record {
+    level: Level,
+    phase: Phase,
+    verdict: Verdict,
+    message: String,
+    timestamp: Time,  -- Use invariants
+  }
+
+  -- Payload variants (polymorphic)
+  Payload = sum {
+    test_result: TestResult,  -- From test section
+    bench_result: BenchResult,  -- From benchmark section
+    verdict: Verdict,      -- Final verdict
+    mistake_meta: String,  -- Analysis of what went wrong
+  }
+
+  -- Test Result
+  TestResult = result(Bool)
+
+  -- Bench Result
+  BenchResult = record {
+    ops_per_sec: u64,
+    target: u64,
+    passed: Bool,
+    verdict: Verdict,
+  }
+
+  -- Mistake Metadata
+  MistakeMeta = record {
+    expected_type: String,  -- What type was expected
+    actual_type: String,    -- What type was found
+    hint: String,          -- Correction hint
+  }
+}
+
+-- SECTION 11: Helper Functions (Language Library)
+functions {
+  -- Ternary Permutation (from B007 paper)
+  -- Input: 3 trits, output: 3 trits
+  -- Permutation table:
+  --   neg neu pos -> neg pos neu (bitwise rotate)
+  --   neg neu pos -> pos neg neu (bitwise rotate)
+  --   neg pos neu -> neu pos neg (bitwise rotate)
+  --   neg pos pos -> pos neu neg (bitwise rotate)
+  --   pos neu neg -> pos neg neu (bitwise rotate)
+  --   pos neu neu -> pos neu pos (bitwise rotate)
+  --   pos pos neu -> neu pos pos (bitwise rotate)
+  --   pos pos pos -> neg pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> neu pos pos (bitwise rotate)
+  --   pos pos neu -> pos neu pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+  --   pos pos neu -> pos pos pos (bitwise rotate)
+  --   pos pos pos -> pos pos pos (bitwise rotate)
+
+  permute_triple(input: Trit, output: Trit) -> Trit
+
+  -- Ternary Dot Product (B007 paper)
+  -- Input: 2 trits, output: 2 trits
+  -- Dot product table:
+  --   neg neg -> neg
+  --   neg neu -> neg
+  --   neg pos -> pos
+  --   neu neg -> neu
+  --   neu pos -> pos
+
+  dot_pair(input1: Trit, input2: Trit) -> Trit
+
+  -- Hybrid Big Integer (HybridBigInt paper)
+  -- Input: 2 VSA_N values, output: VSA_N value
+  -- Addition without carry propagation
+
+  hybrid_add(a: VSA_N, b: VSA_N) -> VSA_N
+
+  -- FHRR (Fast Hybrid Range Reduction)
+  -- Input: VSA_N value, count in u8
+  -- Effectively reduces range: a -= count * pop(a), then push(a)
+
+  fhrr_pop(a: VSA_N, count: u8) -> VSA_N
+
+  -- Cosine Similarity (for quantum operations)
+  -- Compute cos(θ) = (cos²(θ) - sin²(θ))^(1/2)
+  -- Input: 2 VSA_N values
+  -- Output: similarity score [0, 1]
+
+  cosine_sim(a: VSA_N, b: VSA_N) -> f64
+}
+
+-- SECTION 12: Example Module (Simple Counter)
+module simple_counter {
+  version: "0.1.0"
+  ring: "001"
+  description: "Simple counter module demonstrating pure functional .tri syntax"
+  imports: ["trinity_language"]
+
+  -- State: a single Integer counter
+  type State = VSA_N
+
+  -- Operation: increment counter
+  increment(state: State) -> Result(State, String) = increment(state)
+}
+
+-- SECTION 13: Invariants (Constitutional Laws)
+invariant counter_monotonicity {
+  given: initial = VSA_N(0)
+  when: increment(initial) == VSA_N(1)
+  then: assert true
+  comment: "Counter is monotonically increasing"
+}
+
+invariant counter_bounded {
+  given: max_count = VSA_N(10)
+  when: increment(VSA_N(10)) == Ok(result) {
+    when: result == VSA_N(11)
+    then: assert true
+    comment: "Counter bounded at 10"
+  } else {
+    assert false
+    comment: "Counter exceeded bound"
+  }
+}
+
+-- SECTION 14: Tests (8 Required)
+test counter_from_0_to_10 {
+  given: count = 0u8
+  when: {
+    let mut state = VSA_N(0);
+    while state < VSA_N(10) {
+      state = increment(state).unwrap();
+    }
+    assert state == VSA_N(10)
+  comment: "Counter successfully increments from 0 to 10"
+}
+
+test counter_overflow {
+  given: state = VSA_N(10)
+  when: increment(state) == Ok(VSA_N(11))
+  then: assert false  -- Should not overflow from 10
+  comment: "Counter overflow should be prevented"
+}
+
+test simple_counter_state {
+  given: state = VSA_N(5)
+  when: {
+    let result1 = increment(state);
+    let result2 = increment(result1.0);
+    assert result2.0 == VSA_N(6) && state == VSA_N(6)
+  comment: "Counter state matches after two increments"
+}
+
+-- SECTION 15: Benchmarks (Minimum 2)
+bench counter_increment {
+  measure: nanoseconds to increment(VSA_N(0))
+  target: 100000000  -- 100M increments/sec
+}

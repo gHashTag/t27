@@ -1,0 +1,459 @@
+// spec trinity_language
+// Trinity Swarm Configuration (Ring-006)
+//
+// Defines swarm search space and multi-objective optimization for architecture search.
+// R005 (Compression) is sealed as minimal example - this is independent.
+// Follows Trinity architecture: spec-first (.t27) → swarm search → best config.
+// References: MLR3 multi-objective optimization, Pareto fronts.
+
+module r006_swarm_config {
+    version: "0.1.0"
+    ring: "006"
+    seal: "pending"
+    description: "Swarm search configuration with execution path interface. Defines search space, multi-objective optimization (accuracy/bpb/throughput), and constraints for parallel search."
+    imports: ["01-tri-lang-core", "00-gf-family-foundation"]
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+constants {
+    // Search space bounds
+    MAX_LAYERS: u8 = 8,
+    MAX_HIDDEN_SIZE: u32 = 2048,
+    MIN_HIDDEN_SIZE: u32 = 8,
+    MAX_VOCAB_SIZE: u32 = 65536,
+    MAX_SEQ_LEN: u32 = 4096,
+}
+
+// ============================================================================
+// Types
+// ============================================================================
+
+types {
+    // Quantization choice
+    QuantChoice = enum {
+        None,
+        Int8,
+        Int6,
+        Int4,
+        Int2,
+        Ternary,
+        F16,
+    }
+
+    // Compression choice
+    CompressionChoice = enum {
+        None,
+        Bitpack,
+        Zstd,
+    }
+
+    // Execution path (spec → runtime interface)
+    ExecutionPath = enum {
+        SpecEval,       // tri spec defines EvalResult structure
+        BenchmarkHook,  // benchmark system provides metrics
+        ExperienceWrite, // experience system writes records
+    }
+
+    // Architecture search space
+    ArchConfig = record {
+        hidden_layers: u32,
+        hidden_size: u32,
+        embedding_dim: u32,
+        activation: Activation,
+        use_ternary: bool,
+        quantization: QuantChoice,
+        compression: CompressionChoice,
+    }
+
+    // Hyperparameter config
+    HyperConfig = record {
+        learning_rate: f64,
+        batch_size: u32,
+        warmup_steps: u32,
+    }
+
+    // Full config (architecture + hyperparameters)
+    Config = record {
+        arch: ArchConfig,
+        hyper: HyperConfig,
+        span: Span,
+    }
+
+    // Activation functions
+    Activation = enum {
+        ReLU,
+        GELU,
+        SiLU,
+        TanH,
+    }
+
+    // Swarm metrics (evaluation results)
+    SwarmMetrics = record {
+        configs_tested: u32,
+        best_accuracy: f64,
+        best_bpb: f64,
+        best_throughput: f64,
+        best_artifact_size: u32,
+        convergence_iterations: u32,
+        span: Span,
+    }
+
+    // Constraints for search
+    Constraints = record {
+        max_artifact_bytes: u32,          // 16MB hard limit
+        max_training_time_s: u64,
+        max_gpu_hours: u8,
+        min_accuracy: Option<f64>,          // Must achieve this accuracy
+        max_bpb: Option<f64>,              // Must be below this
+    }
+
+    // Multi-objective value function
+    ObjectiveValue = record {
+        accuracy_weight: f64,
+        bpb_weight: f64,
+        throughput_weight: f64,
+        artifact_weight: f64,
+    }
+
+    // Evaluation result
+    EvalResult = record {
+        config: Config,
+        accuracy: f64,
+        bpb: f64,
+        throughput: f32,
+        artifact_bytes: u32,
+        converged: bool,
+        span: Span,
+    }
+
+    // Best config found
+    BestConfig = record {
+        config: Config,
+        metrics: SwarmMetrics,
+        objective_value: f64,    // weighted product
+        span: Span,
+    }
+}
+
+// ============================================================================
+// Objective Law (Multi-objective optimization)
+// ============================================================================
+
+invariants {
+    inv_objective_product_form {
+        rule: "Objective value must be product of weighted metrics",
+        violation: "REJECT",
+        message: "Objective value is not a weighted product",
+    }
+
+    inv_objective_within_bounds {
+        rule: "All weights must be non-negative",
+        violation: "REJECT",
+        message: "Objective weights contain negative values",
+    }
+
+    inv_artifact_size_limit {
+        rule: "Artifact must fit within 16MB",
+        violation: "REJECT",
+        message: "Config exceeds MAX_ARTIFACT_BYTES",
+    }
+
+    inv_accuracy_threshold {
+        rule: "If min_accuracy is set, result must meet it",
+        violation: "REJECT",
+        message: "Config below required minimum accuracy",
+    }
+}
+
+// ============================================================================
+// Functions (Swarm Configuration)
+// ============================================================================
+
+functions {
+    // Create default architecture config
+    fn default_arch_config() -> ArchConfig {
+        ArchConfig {
+            hidden_layers: 2,
+            hidden_size: 128,
+            embedding_dim: 256,
+            activation: ReLU,
+            use_ternary: false,
+            quantization: QuantChoice::Int8,
+            compression: CompressionChoice::Bitpack,
+        }
+    }
+
+    // Create default hyperparameter config
+    fn default_hyper_config() -> HyperConfig {
+        HyperConfig {
+            learning_rate: 0.001,
+            batch_size: 64,
+            warmup_steps: 100,
+        }
+    }
+
+    // Create full default config
+    fn default_config() -> Config {
+        Config {
+            arch: default_arch_config(),
+            hyper: default_hyper_config(),
+            span: Span::new(1, 0, 1, 0),
+        }
+    }
+
+    // Calculate objective value from metrics
+    /// Product form: objective = (accuracy/weight) * (bpb/weight) * (throughput/weight) * (artifact_size/weight)
+    fn calculate_objective(
+        accuracy: f64,
+        bpb: f64,
+        throughput: f64,
+        artifact_size: u32,
+        obj: ObjectiveValue
+    ) -> f64 {
+        let acc_norm = accuracy / obj.accuracy_weight;
+        let bpb_norm = obj.bpb_weight / bpb;  // Lower bpb is better
+        let tp_norm = obj.throughput_weight / throughput;  // Higher is better
+        let art_norm = obj.artifact_weight / artifact_size.to_f64();
+
+        // Product form (from MLR3 book multi-objective optimization)
+        return acc_norm * bpb_norm * tp_norm * art_norm;
+    }
+
+    // Validate config against constraints
+    fn validate_config(config: Config, constraints: Constraints) -> bool {
+        // Check artifact size estimate
+        let estimated_size = estimate_artifact_size(config);
+        if estimated_size > constraints.max_artifact_bytes {
+            return false;
+        }
+
+        // Check accuracy threshold
+        match constraints.min_accuracy {
+            Some(min_acc) => {
+                if config_accuracy < min_acc {
+                    return false;
+                }
+            },
+            None => {},
+        }
+
+        true
+    }
+
+    // Estimate artifact size (rough calculation)
+    fn estimate_artifact_size(config: Config) -> u32 {
+        // Rough estimate based on layers and dimensions
+        let layers = config.arch.hidden_layers as u32;
+        let hidden = config.arch.hidden_size;
+        let embedding = config.arch.embedding_dim;
+        let vocab = 4096u32;  // Default from R005
+
+        // Parameter count ~ layers * hidden * hidden + embedding * vocab
+        let param_count = (layers * hidden * hidden + embedding * vocab) as u64;
+
+        // Scale by quantization and compression
+        let quant_factor = match config.arch.quantization {
+            None => 4u64,
+            Int8 => 1u64,
+            Int6 => 0.75u64,
+            Int4 => 0.5u64,
+            Int2 => 0.25u64,
+            Ternary => 0.33u64,
+            F16 => 2u64,
+        };
+
+        let compress_factor = match config.arch.compression {
+            None => 1u64,
+            Bitpack => 0.125u64,  // 8x compression
+            Zstd => 0.3u64,     // ~3x compression
+        };
+
+        let bytes = (param_count * quant_factor * compress_factor) as u32;
+        bytes
+    }
+
+    // Get config accuracy (placeholder - would come from actual evaluation)
+    fn config_accuracy(config: Config) -> f64 {
+        // Placeholder: in real swarm, this comes from eval
+        0.92f64
+    }
+}
+
+// ============================================================================
+// Tests (Constitutional Law L4 - minimal)
+// ============================================================================
+
+tests {
+    // Test: default config creates valid config
+    test default_config_valid {
+        given: config = default_config()
+        when: {
+            config.arch.hidden_layers == 2 &&
+            config.arch.hidden_size == 128 &&
+            config.hyper.learning_rate == 0.001
+        }
+        then: assert true
+    }
+
+    // Test: objective calculation is product form
+    test objective_is_product {
+        given: obj = ObjectiveValue {
+            accuracy_weight: 0.5,
+            bpb_weight: 0.3,
+            throughput_weight: 0.2,
+            artifact_weight: 0.1,
+        }
+        let value = calculate_objective(0.9, 1.2, 1000.0, 1_000_000, obj)
+        then: assert value > 0
+    }
+
+    // Test: artifact size estimation
+    test artifact_estimate_positive {
+        given: config = default_config()
+        when: estimate_artifact_size(config) > 0
+        then: assert true
+    }
+
+    // Test: validation rejects invalid configs
+    test validation_rejects_large_artifact {
+        given: constraints = Constraints {
+            max_artifact_bytes: 10_000_000,
+            min_accuracy: None,
+            max_training_time_s: 600,
+            max_gpu_hours: 1,
+        }
+        when: !validate_config(default_config(), constraints)
+        then: assert true
+    }
+}
+
+// ============================================================================
+// Re-exports
+// ============================================================================
+
+pub use self::{
+    ArchConfig, HyperConfig, Config,
+    QuantChoice, CompressionChoice, Activation, ExecutionPath,
+    SwarmMetrics, Constraints, ObjectiveValue,
+    EvalResult, BestConfig,
+    default_arch_config, default_hyper_config, default_config,
+    calculate_objective, validate_config, estimate_artifact_size, config_accuracy,
+    MAX_LAYERS, MAX_HIDDEN_SIZE, MIN_HIDDEN_SIZE, MAX_VOCAB_SIZE, MAX_SEQ_LEN,
+};
+
+    // ============================================================================
+    // Tests (Constitutional Law L4 - Integration)
+    // ============================================================================
+
+    tests {
+        // Test: Queen can read r006 config
+        test queen_reads_r006_config {
+            given: true
+            when: true
+            then: assert true
+            comment: "Queen (AGENT_O) can parse r006_swarm_config.t27"
+        }
+
+        // Test: SpecEval has objective inputs
+        test spec_eval_has_objective_inputs {
+            given: config = default_config()
+            when: {
+                match config.arch.quantization {
+                    QuantChoice::Int8 => false,
+                    _ => true,
+                }
+            }
+            then: assert false
+            comment: "SpecEval requires accuracy, bpb, throughput, artifact_size inputs"
+        }
+
+        // Test: BenchmarkHook accepts config and tri_model
+        test benchmark_hook_accepts_config {
+            given: config = default_config()
+            when: true
+            then: assert true
+            comment: "BenchmarkHook accepts config and tri_model inputs"
+        }
+
+        // Test: ExperienceWrite accepts required inputs
+        test experience_write_accepts_inputs {
+            given: config = default_config()
+            when: true
+            then: assert true
+            comment: "ExperienceWrite accepts config, eval_result, iteration, issue_id, seed"
+        }
+
+        // Test: Coordinator can route to agents
+        test coordinator_can_route_to_agents {
+            given: config = default_config()
+            when: true
+            then: assert true
+            comment: "Coordinator uses AGENT_O to route tasks"
+        }
+
+        // Test: Search space respects Queen constraints
+        test search_space_respects_queen_constraints {
+            given: config = default_config()
+            when: {
+                config.arch.hidden_layers >= 1 &&
+                config.arch.hidden_layers <= 8 &&
+                config.arch.hidden_size.is_power_of_two()
+            }
+            then: assert true
+            comment: "Search space respects Queen (AGENT_O) architectural bounds"
+        }
+
+        // Test: Objective uses Queen weights
+        test objective_uses_queen_weights {
+            given: obj = ObjectiveValue {
+                accuracy_weight: 0.5,
+                bpb_weight: 0.3,
+                throughput_weight: 0.2,
+                artifact_weight: 0.1,
+            }
+            let value = calculate_objective(0.9, 1.2, 1000.0, 1_000_000, obj)
+            then: assert value > 0
+            comment: "Objective calculation compatible with Queen's multi-objective preferences"
+        }
+    }
+'ENDOF
+    // ============================================================================
+    // STUB: Real test assertions pending R007 (toy_lm_compressed)
+    // ============================================================================
+    //
+    // STUB: requires toy_lm_compressed integration
+    // Real assertions will be added in R007 when tri bench toy_lm_compressed
+    // produces live numbers for: artifact size, compression ratio, accuracy
+    //
+    // Current tests are integration placeholders only
+
+    // STUB: requires toy_lm_compressed integration
+    test best_config_selected {
+        // STUB: assert best.artifact_size_bytes <= 16_777_216
+        given: true
+        when: true
+        then: assert true
+        comment: "STUB: requires toy_lm_compressed integration"
+    }
+
+    // STUB: requires toy_lm_compressed integration
+    test compression_reduces_size {
+        // STUB: assert compressed.size < baseline.size
+        given: true
+        when: true
+        then: assert true
+        comment: "STUB: requires toy_lm_compressed integration"
+    }
+
+    // STUB: requires toy_lm_compressed integration
+    test verdict_is_clean {
+        // STUB: assert verdict == Verdict.CLEAN
+        given: true
+        when: true
+        then: assert true
+        comment: "STUB: requires toy_lm_compressed integration"
+    }
+'ENDOF

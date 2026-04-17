@@ -1,0 +1,168 @@
+# Trinity Bench Types
+#
+# Defines types for benchmarking Trinity components.
+# Part of modular compiler architecture (Ring-003 - Parity Target 1: .trib header/parser/loader).
+#
+# This spec defines:
+# - Workload complexity (Tiny, Small, Medium, Large)
+# - Benchmark categories (Micro, Pipeline, System)
+# - Metric types (Time, Memory, Accuracy, Compression ratio)
+# - Verdict categories (Pass, Fail, Toxic, Regression)
+
+module: trity_bench_types;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+
+// =============================================================================
+// Workload Complexity Levels
+// =============================================================================
+
+/// Workload complexity classification
+type WorkloadComplexity = enum(u8) {
+  Tiny,        // Minimal (toy counter, 8D vectors)
+  Small,        // Simple (small models, 1K vectors)
+  Medium,       // Moderate (medium models, 2K-4K vectors)
+  Large,        // Complex (large models, 8K+ vectors)
+}
+
+/// Workload specifications
+type Workload = struct {
+  name: String,              // Workload name
+  complexity: WorkloadComplexity,  // Complexity level
+  dataset: String,         // Dataset source
+  iterations: u32,         // Number of iterations
+  parameters: Vec<String>,  // Model parameters
+}
+
+// =============================================================================
+// Benchmark Categories
+// =============================================================================
+
+/// Benchmark classification by type
+type BenchmarkKind = enum(u8) {
+  Micro,        // Single operation (VSA op latency, memory op)
+  Pipeline,      // End-to-end flow (spec compile -> .trib -> VM)
+  System,        // Full system benchmark (hello world, etc.)
+}
+
+/// Benchmark target
+type BenchmarkTarget = enum(u8) {
+  /// Trinity VM core
+  VmCore = 0,
+
+  /// Trinity compiler
+  Compiler = 1,
+
+  /// Full system
+  System = 2,
+}
+
+// =============================================================================
+// Metric Types
+// =============================================================================
+
+/// Metric classification by type
+type MetricKind = enum(u8) {
+  TimeMs,             // Wall clock time (milliseconds)
+  MemoryBytes,        // Memory usage (bytes)
+  OpsPerSec,           // Operations per second (throughput)
+  ArtifactSize,        // File size (bytes)
+  Bpb,                 // Bits per character (compression metric)
+  Accuracy,            // Accuracy (0.0-1.0)
+  CompressionRatio,     // Compression ratio (0.0-1.0)
+}
+
+/// Benchmark metric
+type BenchmarkMetric = struct {
+  kind: MetricKind,
+  name: String,
+  value: String,
+}
+
+// =============================================================================
+// Verdict Categories
+// =============================================================================
+
+/// Benchmark verdict classification
+type Verdict = enum(u8) {
+  Pass,         // All tests passed
+  Fail,         // Tests failed
+  Toxic,        // Critical error found
+  Unstable,      // Non-deterministic behavior
+  Regression,   // Performance degradation
+}
+
+/// Benchmark result verdict
+type BenchVerdict = struct {
+  verdict: Verdict,
+  message: String,
+}
+
+// =============================================================================
+// Benchmark Result
+// =============================================================================
+
+/// Complete benchmark result
+type BenchmarkResult = struct {
+  target: BenchmarkTarget,
+  workload: Workload,
+  metrics: Vec<BenchmarkMetric>,
+  verdict: BenchVerdict,
+  timestamp: String,
+}
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/// Workload complexity levels
+const WORKLOAD_COMPLEXITY_TINY: WorkloadComplexity = WorkloadComplexity::Tiny;
+const WORKLOAD_COMPLEXITY_SMALL: WorkloadComplexity = WorkloadComplexity::Small;
+const WORKLOAD_COMPLEXITY_MEDIUM: WorkloadComplexity = WorkloadComplexity::Medium;
+const WORKLOAD_COMPLEXITY_LARGE: WorkloadComplexity = WorkloadComplexity::Large;
+
+/// Benchmark kinds
+const BENCHMARK_KIND_MICRO: BenchmarkKind = BenchmarkKind::Micro;
+const BENCHMARK_KIND_PIPELINE: BenchmarkKind = BenchmarkKind::Pipeline;
+const BENCHMARK_KIND_SYSTEM: BenchmarkKind = BenchmarkKind::System;
+
+/// Metric kinds
+const METRIC_KIND_TIME_MS: MetricKind = MetricKind::TimeMs;
+const METRIC_KIND_MEMORY_BYTES: MetricKind = MetricKind::MemoryBytes;
+const METRIC_KIND_OPS_PER_SEC: MetricKind = MetricKind::OpsPerSec;
+const METRIC_KIND_ARTIFACT_SIZE: MetricKind = MetricKind::ArtifactSize;
+const METRIC_KIND_BPB: MetricKind = MetricKind::Bpb;
+
+/// Verdict categories
+const VERDICT_PASS: Verdict = Verdict::Pass;
+const VERDICT_FAIL: Verdict = Verdict::Fail;
+const VERDICT_TOXIC: Verdict = Verdict::Toxic;
+const VERDICT_UNSTABLE: Verdict = Verdict::Unstable;
+const VERDICT_REGRESSION: Verdict = Verdict::Regression;
+
+// =============================================================================
+// Export
+// =============================================================================
+
+/// Export workload complexity
+export WorkloadComplexity, Workload;
+
+/// Export benchmark types
+export BenchmarkKind, BenchmarkTarget;
+
+/// Export metric types
+export MetricKind, BenchmarkMetric;
+
+/// Export verdict types
+export Verdict, BenchVerdict;
+
+/// Export result types
+export BenchmarkResult;
+
+/// Export constants
+export WORKLOAD_COMPLEXITY_TINY, WORKLOAD_COMPLEXITY_SMALL, WORKLOAD_COMPLEXITY_MEDIUM, WORKLOAD_COMPLEXITY_LARGE;
+export BENCHMARK_KIND_MICRO, BENCHMARK_KIND_PIPELINE, BENCHMARK_KIND_SYSTEM;
+export METRIC_KIND_TIME_MS, METRIC_KIND_MEMORY_BYTES, METRIC_KIND_OPS_PER_SEC, METRIC_KIND_ARTIFACT_SIZE, METRIC_KIND_BPB;
+export VERDICT_PASS, VERDICT_FAIL, VERDICT_TOXIC, VERDICT_UNSTABLE, VERDICT_REGRESSION;

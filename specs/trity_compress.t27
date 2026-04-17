@@ -1,0 +1,177 @@
+# Compression Benchmarks — toy_lm with Compression
+#
+# Trinity compression benchmark specification.
+# Part of R005 (Compression Backends) — adds compression support to toy_lm.
+#
+# Supports: Int6/Trit quantization, Packed2Bits/Ternary packing, compression levels.
+
+module: trity_compress;
+
+// Import shared types
+import:
+  - compiler/types from specs/compiler/types.tri
+  - vm_core from specs/vm_core.ti
+
+// =============================================================================
+// Benchmark Specification
+// =============================================================================
+
+/// Benchmark target: tiny_lm model with compression
+type BenchTarget {
+  name: String,
+  model_type: String,  // "toy_lm"
+  compression: CompressionConfig,
+  input_spec: String,  // "specs/examples/toy_lm.tri"
+  expected: String,    // "compressed toy_lm with artifact <16MB"
+}
+
+/// Compression configuration
+type CompressionConfig {
+  quant_scheme: QuantScheme,  // Int6, Trit, TF3
+  pack_scheme: PackScheme,    // Packed2Bits, Ternary
+  level: CompressionLevel,    // Fast, Balanced, Max
+}
+
+/// Quantization schemes
+const QUANT_INT6: QuantScheme = QuantScheme { id: 1, name: "int6" };
+const QUANT_TRIT: QuantScheme = QuantScheme { id: 2, name: "trit" };
+const QUANT_TF3: QuantScheme = QuantScheme { id: 3, name: "tf3" };
+
+/// Packing schemes
+const PACK_DENSE: PackScheme = PackScheme { id: 1, name: "dense" };
+const PACK_PACKED2BITS: PackScheme = PackScheme { id: 2, name: "packed2bits" };
+const PACK_TERNARY: PackScheme = PackScheme { id: 3, name: "ternary" };
+
+/// Compression levels
+const LEVEL_FAST: CompressionLevel = CompressionLevel { id: 1, name: "fast" };
+const LEVEL_BALANCED: CompressionLevel = CompressionLevel { id: 2, name: "balanced" };
+const LEVEL_MAX: CompressionLevel = CompressionLevel { id: 3, name: "max" };
+
+/// Metric types
+const METRIC_ARTIFACT_SIZE: MetricKind = MetricKind::ArtifactSize;
+const METRIC_COMPRESSION_RATIO: MetricKind = MetricKind::CompressionRatio;
+const METRIC_BPB: MetricKind = MetricKind::Bpb;
+
+/// Benchmark result
+type BenchResult = struct {
+  profile: String,
+  config: CompressionConfig,
+  metrics_before: BenchMetrics,
+  metrics_after: BenchMetrics,
+  artifact_bytes: u32,
+  verdict: Verdict,
+}
+
+/// Benchmark metrics
+type BenchMetrics {
+  artifact_size_before: u32,
+  artifact_size_after: u32,
+  compression_ratio: f32,  // bytes_before / bytes_after
+  time_compress_ms: u32,
+  bpb_before: f32,
+  bpb_after: f32,
+}
+
+/// Comparison invariants
+invariant compression_reduces_size {
+  given: result = BenchResult {
+    artifact_bytes_before: s1,
+    artifact_bytes_after: s2,
+  }
+  when: s1 < s2
+  then: assert s1 > s2
+  comment: "Compression must reduce artifact size: {s1} → {s2}"
+}
+
+invariant compression_improves_quality {
+  given: result = BenchResult {
+    bpb_before: bp1,
+    bpb_after: bp2,
+    }
+  when: bp2 < bp1
+  then: assert false
+  comment: "Compression must not significantly degrade quality: {bp1} → {bp2}"
+}
+
+invariant artifact_under_limit {
+  given: result = BenchResult {
+    artifact_bytes: s,
+  }
+  when: s > 16_000_000
+  then: assert false
+  comment: "Compressed artifact must fit in 16MB: {s} bytes"
+}
+
+// =============================================================================
+// Benchmark Targets
+// =============================================================================
+
+/// Tiny LM with Int6 quantization
+bench tiny_lm_int6 {
+  target: BenchTarget {
+    name: "toy_lm_int6",
+    model_type: "tiny_lm",
+    compression: CompressionConfig {
+      quant_scheme: QUANT_INT6,
+      pack_scheme: PACK_DENSE,
+      level: LEVEL_FAST,
+    },
+    input_spec: "specs/examples/toy_lm.tri",
+    expected: "compressed toy_lm_int6 with artifact <16MB",
+  };
+}
+
+/// Tiny LM with Trit quantization
+bench tiny_lm_trit {
+  target: BenchTarget {
+    name: "toy_lm_trit",
+    model_type: "tiny_lm",
+    compression: CompressionConfig {
+      quant_scheme: QUANT_TRIT,
+      pack_scheme: PACK_TERNARY,
+      level: LEVEL_BALANCED,
+    },
+    input_spec: "specs/examples/toy_lm.tri",
+    expected: "compressed toy_lm_trit with artifact <16MB",
+  };
+}
+
+/// Tiny LM with TF3 quantization
+bench tiny_lm_tf3 {
+  target: BenchTarget {
+    name: "toy_lm_tf3",
+    model_type: "tiny_lm",
+    compression: CompressionConfig {
+      quant_scheme: QUANT_TF3,
+      pack_scheme: PACK_PACKED2BITS,
+      level: LEVEL_MAX,
+    },
+    input_spec: "specs/examples/toy_lm.tri",
+    expected: "compressed toy_lm_tf3 with artifact <16MB",
+  };
+}
+
+// =============================================================================
+// Export to compiler types
+// =============================================================================
+
+/// Export compression schemes
+export QuantScheme, QUANT_INT6, QUANT_TRIT, QUANT_TF3;
+
+/// Export packing schemes
+export PackScheme, PACK_DENSE, PACK_PACKED2BITS, PACK_TERNARY;
+
+/// Export compression levels
+export CompressionLevel, LEVEL_FAST, LEVEL_BALANCED, LEVEL_MAX;
+
+/// Export benchmark types
+export BenchTarget, CompressionConfig, BenchResult, BenchMetrics;
+
+/// Export metric types
+export METRIC_ARTIFACT_SIZE, METRIC_COMPRESSION_RATIO, METRIC_BPB;
+
+/// Export benchmarks
+export tiny_lm_int6, tiny_lm_trit, tiny_lm_tf3;
+
+/// Export invariants
+export compression_reduces_size, compression_improves_quality, artifact_under_limit;
