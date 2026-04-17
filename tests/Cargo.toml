@@ -1,0 +1,13 @@
+[package]
+name = "parser_test"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "parser_test"
+path = "parser_test.rs"
+
+[dependencies]
+anyhow = "1"
+t27-bootstrap-parser = { path = "../bootstrap" }
+

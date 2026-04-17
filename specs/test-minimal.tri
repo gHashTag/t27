@@ -1,0 +1,26 @@
+spec test_minimal
+
+module test_module {
+  version: "1.0.0"
+  ring: "001"
+}
+
+constants {
+  TEST_CONST: f64 = 1.618
+}
+
+types {
+  TestStruct { field: f64 }
+}
+
+invariants {
+  test_invariant {
+    assert TEST_CONST > 0.0
+  }
+}
+
+tests {
+  test test_case {
+    assert TEST_CONST > 0.0
+  }
+}

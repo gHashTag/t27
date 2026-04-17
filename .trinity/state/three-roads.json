@@ -1,26 +1,13 @@
 {
-  "milestone": "TRINITY-FOUNDATION-COMPLETE",
+  "milestone": "TRINITY-v0.1.0-COMPLETE",
   "completed_rings": [
-    "000","001","002","003","004","005","006","007","008","009","010","011","012"
+    "000","001","002","003","004","005","006","007","008","009","010","011","012","013"
   ],
-  "roads": {
-    "R1": {
-      "title": "Ring-013: tri CLI release v0.1.0",
-      "priority": "HIGH",
-      "desc": "Собрать финальный bi��ary: tri pipeline/test/bench/experience — все команды из одного бинаря",
-      "why": "MVP готов к публичному релизу на GitHub Releases"
-    },
-    "R2": {
-      "title": "Ring-014: DARPA CLARA submission prep",
-      "priority": "MED",
-      "desc": "Подготовить technical report используя TRINITY-SCIENTIFIC-PROOF.md и все 42 param results",
-      "why": "Научный вклад верифицирован машинно. Время подавать в DARPA CLARA."
-    },
-    "R3": {
-      "title": "Ring-015: 32-agent swarm sharing .trinity/experience/",
-      "priority": "LOW",
-      "desc": "32 агента делят experience/ через git — collective intelligence активирован",
-      "why": "5th Unfair Advantage: Swarm + shared experience"
-    }
-  }
+  "release": "v0.1.0",
+  "github_tag": "v0.1.0",
+  "scientific_claims": {
+    "phi_identity": "verified 1e-13",
+    "42_params": "p>0.95 Monte Carlo"
+  },
+  "next": "DARPA CLARA submission prep + tri v0.2.0 planning"
 }

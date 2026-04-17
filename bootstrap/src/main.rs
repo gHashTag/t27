@@ -33,6 +33,8 @@ fn main() -> Result<()> {
             std::process::exit(1);
         }
     }
+    Ok(())
+}
 
 fn handle_save(args: &[String]) -> Result<()> {
     if args.len() < 3 {

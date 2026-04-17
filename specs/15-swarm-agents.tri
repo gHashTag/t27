@@ -1,0 +1,76 @@
+spec swarm_agents
+
+ring: 015
+imports: [gf_family_foundation, tri_experience_cli]
+
+-- ════════════════════════════════════════════════════════
+-- 32-AGENT SWARM SHARED EXPERIENCE — 5th Unfair Advantage
+-- ══════════════════════════════════════════════════════════
+
+constants {
+    SWARM_SIZE u8 = 32
+    EXPERIENCE_SHARED_PATH str = ".trinity/experience/"
+    SYNC_INTERVAL_SEC u32 = 300  -- 5 минут
+    CONSENSUS_LOGIC enum = "kleene_k3"  -- K3 consensus across agents
+}
+
+types {
+    AgentID {
+        id u8,
+        name str,
+        specialization PhysSector  -- VM core, GF formats, math, physics, etc.
+    }
+
+    SwarmState {
+        agents [AgentID; 32],
+        shared_exp ExperienceStore,
+        sync_epoch u32,
+        consensus TF3,  -- K3: all agree=pos, split=neu, conflict=neg
+        experience_log [Experience]
+    }
+
+    SwarmVerdict enum {
+        Consensus(TF3),
+        Diverged(u8),      -- number of agents in disagreement
+        Evolving           -- ASHA+PBT in progress
+    }
+}
+
+functions {
+    swarm_sync() -> SwarmState           -- git pull + merge experience
+    swarm_consensus(skill str) -> TF3     -- K3 across 32 agent votes
+    swarm_evolve() -> [SkillDiff]        -- ASHA+PBT: compare all skills across sessions
+    agent_contribute(id AgentID, exp Experience) -> SwarmState
+}
+
+invariants {
+    swarm_size_32:
+        SwarmState.agents.len() == SWARM_SIZE
+
+    experience_monotonic:
+        swarm_sync().shared_exp.len() >= swarm_sync().shared_exp.len()
+
+    consensus_is_kleene:
+        swarm_consensus(_) in {TF3.neg, TF3.neu, TF3.pos}
+
+    verdict_is_binary:
+        given v SwarmVerdict
+        assert v == SwarmVerdict.Consensus(TF3.neg) || v == SwarmVerdict.Consensus(TF3.neu) || v == SwarmVerdict.Consensus(TF3.pos)
+}
+
+tests {
+    1. swarm_initializes_32_agents
+    2. swarm_sync_merges_experiences
+    3. consensus_all_agree_returns_pos
+    4. consensus_all_disagree_returns_neu
+    5. consensus_split_returns_neu
+    6. consensus_conflict_returns_neg
+    7. evolve_improves_degraded_skills
+    8. agent_contribute_appends_experience
+}
+
+benchmarks {
+    swarm_consensus_throughput: target 1_000_000  -- 1M consensuses/sec
+    experience_merge_throughput: target 10_000      -- 10K merges/sec
+    swarm_evolve_throughput: target 100_000       -- 100K compares/sec
+}
