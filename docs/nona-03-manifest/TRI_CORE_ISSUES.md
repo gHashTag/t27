@@ -13,7 +13,7 @@ The `/tri` CLI currently operates in "detection mode" instead of following const
 ```
 1. Detects SOUL.md changes ✅
 2. Detects gf4.t27 changes ✅
-3. Says "No active claims" ❌ (не читал .trinity/claims!)
+3. Says "No active claims" ❌ (didn't read .trinity/claims!)
 4. Asks what to do instead of following protocol
 ```
 

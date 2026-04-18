@@ -1,9 +1,10 @@
 # OpenCode Usage Workflow
 
-**CRITICAL RULE FOR AI AGENT:** 
-Никогда не запускать `opencode run` в фоне через скрытые терминальные сессии, если нужно выполнить большую автономную задачу, которую проверяет пользователь.
-Вместо этого:
-1. Запускать `opencode web`.
-2. Это открывает локальный интерфейс в браузере (localhost).
-3. Пользователь может наблюдать за логами, цепочкой рассуждений (chain of thought) агента и создаваемыми файлами в полноценном UI.
-4. Выдавать агенту команды так, чтобы процесс отображался в веб-интерфейсе, чтобы пользователь "ничего не делал, а только следил".
+**CRITICAL RULE FOR AI AGENT:**
+NEVER run `opencode run` in the background via hidden terminal sessions when you need to execute a large autonomous task that the user will verify.
+
+Instead:
+1. Run `opencode web`.
+2. This opens a local interface in your browser (localhost).
+3. The user can observe logs, the agent's chain of thought, and created files in a full UI.
+4. Give the agent commands so that the process is displayed in the web interface — the user "does nothing but watches."

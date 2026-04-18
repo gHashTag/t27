@@ -228,3 +228,11 @@
 - **Commit:** docs(meta): add TypeScript test blocks to meta_compile spec
 - **Files:** .trinity/cells/sandbox-010.json,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,4096,Cargo.lock,README.md,bootstrap/build.rs,bootstrap/src/bridge.rs,bun.lock,conformance/memory_system.json,docs/.legacy-non-english-docs,docs/AGENTS_ALPHABET.md,docs/COMPILER_VERIFICATION_IMPACT_RU.md,docs/README_RU_UPDATE.md,docs/agents/AGENTS_ALPHABET.md,docs/retroactive-issues-plan.md,docs/rfc/tri-language-core.md,specs/bootstrap/meta_bootstrap.t27,specs/memory/README.md,specs/memory/native_memory.t27
 
+## 2026-04-18T17:53:40Z — fix/ring-018-mainrs-only
+- **Commit:** fix(lang): narrow LANG-EN scope to specs/ and src/ only (Closes #528)
+- **Files:** 
+
+## 2026-04-18T18:08:05Z — fix/ring-018-mainrs-only
+- **Commit:** feat(compiler): add TypeScript codegen tests to meta_compile.t27 (Closes #525)
+- **Files:** .trinity/current_task/activity.md,docs/nona-01-foundation/SANDBOX-ARCHITECTURE.md,docs/nona-02-organism/opencode_workflow.md,docs/nona-03-manifest/TRI_CORE_ISSUES.md,docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md
+

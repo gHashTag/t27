@@ -1,33 +1,33 @@
-# План: Миграция .t27 спецификаций из trinity-w1
+# Plan: Migration of .t27 Specifications from trinity-w1
 
-## Контекст
+## Context
 
-Целевой репозиторий `/Users/playra/t27` уже содержит значительную часть структуры:
-- ✅ **Сделано**: specs/math/* (constants, sacred_physics), specs/numeric/* (GF4-32, TF3, phi_ratio), compiler/parser, compiler/codegen/zig/verilog, conformance/*, docs/*, architecture/*, .trinity/*
-- ✅ **Миграция завершена**: specs/vsa/ops.t27, specs/isa/registers.t27, specs/nn/attention.t27, specs/nn/hslm.t27, specs/fpga/mac.t27, specs/queen/lotus.t27, compiler/codegen/c/codegen.t27, compiler/runtime/runtime.t27, compiler/parser/lexer.t27
-- 📝 **Все .t27 файлы** теперь в каноническом формате (module/fn/test/invariant/bench)
+The target repository `/Users/playra/t27` already contains significant structure:
+- ✅ **Done**: specs/math/* (constants, sacred_physics), specs/numeric/* (GF4-32, TF3, phi_ratio), compiler/parser, compiler/codegen/zig/verilog, conformance/*, docs/*, architecture/*, .trinity/*
+- ✅ **Migration complete**: specs/vsa/ops.t27, specs/isa/registers.t27, specs/nn/attention.t27, specs/nn/hslm.t27, specs/fpga/mac.t27, specs/queen/lotus.t27, compiler/codegen/c/codegen.t27, compiler/runtime/runtime.t27, compiler/parser/lexer.t27
+- 📝 **All .t27 files** now in canonical format (module/fn/test/invariant/bench)
 
-Исходный репозиторий `/Users/playra/trinity-w1` содержит Zig код который нужно экстрагировать в .t27 спецификации:
+The source repository `/Users/playra/trinity-w1` contains Zig code that needs to be extracted into .t27 specifications:
 - src/tri/math/ - sacred formula, constants
 - src/vsa/ - vector operations
 - src/hslm/ - HSLM attention
 - src/isa/, src/fpga/ - registers, MAC operations
 - src/tri/ - orchestration, cells
 
-## Цель
+## Goal
 
-✅ **Завершено**: Все 9 .t27 спецификаций созданы и стандартизированы в канонический формат. Архитектурная целостность и зависимости в graph_v2.json сохранены.
+✅ **Complete**: All 9 .t27 specifications created and standardized in canonical format. Architectural integrity and dependencies in graph_v2.json preserved.
 
-## План выполнения через tri-cell
+## Execution Plan via tri-cell
 
-### Шаг 1: Сохранить план как документ
+### Step 1: Save plan as document
 
-**Действие**: Сохранить этот план в `t27/docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md`
-Это станет каноническим reference для всех будущих агентов.
+**Action**: Save this plan to `t27/docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md`
+This becomes the canonical reference for all future agents.
 
-### Шаг 2: Создать три-cell для миграции
+### Step 2: Create tri-cell for migration
 
-**Пример протокола**:
+**Example protocol:**
 ```bash
 tri cell begin --issue <N> --episode migrate-trinity-w1-specs
 tri cell checkpoint --step "VSA ops spec skeleton created"
@@ -44,55 +44,55 @@ git commit -m "feat: migrate VSA/NN/FPGA/Queen specs from trinity-w1"
 git push
 ```
 
-### Шаг 3: Исполнение по шагам (в порядке из плана)
+### Step 3: Execute step by step (in order from plan)
 
-**Детальное исполнение**:
+**Detailed execution:**
 
-1. **VSA ops** → `t27/specs/vsa/ops.t27` из `src/vsa/agent/core.zig` и `src/vsa/common.zig`
-   - Функции: bind, unbind, bundle, similarity, trit_cosine
+1. **VSA ops** → `t27/specs/vsa/ops.t27` from `src/vsa/agent/core.zig` and `src/vsa/common.zig`
+   - Functions: bind, unbind, bundle, similarity, trit_cosine
    - use base::types, base::ops
 
-2. **ISA registers** → `t27/specs/isa/registers.t27` из `src/tri27/` или `src/isa/`
-   - Функции: Register, RegisterFile, R0-R26, Coptic encoding
+2. **ISA registers** → `t27/specs/isa/registers.t27` from `src/tri27/` or `src/isa/`
+   - Functions: Register, RegisterFile, R0-R26, Coptic encoding
    - use base::types
 
-3. **NN attention** → `t27/specs/nn/attention.t27` из `src/hslm/attention.zig`
-   - Функции: sacred_attention, d_k^(-φ³) kernel
+3. **NN attention** → `t27/specs/nn/attention.t27` from `src/hslm/attention.zig`
+   - Functions: sacred_attention, d_k^(-φ³) kernel
    - use math::constants, base::types, numeric::gf16
 
-4. **HSLM** → `t27/specs/nn/hslm.t27` из `src/hslm/` и `src/tri/brain/`
-   - Функции: HSLM, forward, backward, phase
+4. **HSLM** → `t27/specs/nn/hslm.t27` from `src/hslm/` and `src/tri/brain/`
+   - Functions: HSLM, forward, backward, phase
    - use nn::attention, math::sacred_physics, numeric::gf16
 
-5. **FPGA MAC** → `t27/specs/fpga/mac.t27` из `src/fpga/`
-   - Функции: ZeroDSP_MAC, LUT, MAC cycle
+5. **FPGA MAC** → `t27/specs/fpga/mac.t27` from `src/fpga/`
+   - Functions: ZeroDSP_MAC, LUT, MAC cycle
    - use base::types, base::ops, isa::registers
 
-6. **Queen Lotus** → `t27/specs/queen/lotus.t27` из `src/tri/queen/` или `src/tri/cell.zig`
-   - Функции: 6-phase orchestrate, phase management, cell infrastructure
+6. **Queen Lotus** → `t27/specs/queen/lotus.t27` from `src/tri/queen/` or `src/tri/cell.zig`
+   - Functions: 6-phase orchestrate, phase management, cell infrastructure
    - use nn::hslm, compiler::runtime
 
-7. **C codegen** → `t27/compiler/codegen/c/codegen.t27` из существующих Zig codegen
-   - Функции: CCodeGen, emit_c, c_ast, c_headers
+7. **C codegen** → `t27/compiler/codegen/c/codegen.t27` from existing Zig codegen
+   - Functions: CCodeGen, emit_c, c_ast, c_headers
    - use compiler::parser, compiler::runtime
 
-8. **Runtime** → `t27/compiler/runtime/runtime.t27` из существующего runtime
-   - Функции: T27Runtime, init, execute, shutdown
+8. **Runtime** → `t27/compiler/runtime/runtime.t27` from existing runtime
+   - Functions: T27Runtime, init, execute, shutdown
    - use base::types
 
-9. **Lexer** → `t27/compiler/parser/lexer.t27` на основе parser.t27
-   - Функции: Lexer, tokenize, Token, TokenType
+9. **Lexer** → `t27/compiler/parser/lexer.t27` based on parser.t27
+   - Functions: Lexer, tokenize, Token, TokenType
    - Dependencies: parser uses lexer
 
-10. **Обновление graph_v2.json**
-    - Добавить 8 новых узлов
-    - Добавить зависимости
-    - Обновить topological_order
+10. **Update graph_v2.json**
+    - Add 8 new nodes
+    - Add dependencies
+    - Update topological_order
 
-## Файлы для создания/модификации
+## Files to Create/Modify
 
-| Файл | Действие | Ключевые элементы | Статус |
-|-------|-----------|------------------|--------|
+| File | Action | Key Elements | Status |
+|-------|-----------|--------------|--------|
 | t27/specs/vsa/ops.t27 | ✅ COMPLETE | bind, unbind, bundle, similarity | Skill 017 (cafc405) |
 | t27/specs/isa/registers.t27 | ✅ COMPLETE | Register, RegisterFile, R0-R26 | Skill 020 (8296d67) |
 | t27/specs/nn/attention.t27 | ✅ COMPLETE | sacred_attention, d_k^(-φ³) kernel | Skill 018 (f0cf12c) |
@@ -105,30 +105,30 @@ git push
 | t27/compiler/codegen/zig/runtime.t27 | ✅ COMPLETE | Zig runtime generation | Skill 033 (0e989f9) |
 | t27/architecture/graph_v2.json | ✅ COMPLETE | new nodes, edges, topological_order | Skill 030 (3ddcffd) |
 
-## Дополнительные стандартизированные файлы (кроме миграции)
+## Additional Standardized Files (besides migration)
 
-| Файл | Действие | Ключевые элементы | Статус |
-|-------|-----------|------------------|--------|
+| File | Action | Key Elements | Status |
+|-------|-----------|--------------|--------|
 | t27/specs/base/types.t27 | ✅ STANDARDIZED | Trit, PackedTrit, TernaryWord | Skill 026 (3173e1a) |
 | t27/specs/base/ops.t27 | ✅ STANDARDIZED | trit_multiply, trit_add, trit_carry | Skill 023 (6919cd5) |
 | t27/specs/numeric/tf3.t27 | ✅ STANDARDIZED | TF3 encode/decode, TF3 type | Skill 024 (d913ba8) |
 | t27/specs/numeric/gf16.t27 | ✅ STANDARDIZED | GF16 encode/decode, phi_round | Skill 025 (c24fd5d) |
 
-## Критерий готовности миграции
+## Migration Readiness Criteria
 
-- [x] Все девять `.t27` файлов созданы и стандартизированы
-- [x] Все файлы в каноническом формате (module/fn/test/invariant/bench)
-- [x] graph_v2.json обновлён (все узлы имеют статус "done")
-- [x] План сохранён как документ в `t27/docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md`
+- [x] All nine `.t27` files created and standardized
+- [x] All files in canonical format (module/fn/test/invariant/bench)
+- [x] graph_v2.json updated (all nodes have status "done")
+- [x] Plan saved as document in `t27/docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md`
 
-## ✅ МИГРАЦИЯ ЗАВЕРШЕНА
+## ✅ MIGRATION COMPLETE
 
-Все задачи из плана миграции выполнены. PHI LOOP сессия завершена с 17 навыками (Skills 017-033).
+All tasks from the migration plan are complete. PHI LOOP session completed with 17 skills (Skills 017-033).
 
-**Стандартизация завершена:**
-- Все 14 .t27 спецификаций в каноническом формате (module/fn/test/invariant/bench)
-- Все архитектурные файлы синхронизированы
-- Assembly-like (.use/.data/.code) синтаксис полностью заменён
+**Standardization complete:**
+- All 14 .t27 specifications in canonical format (module/fn/test/invariant/bench)
+- All architectural files synchronized
+- Assembly-like (.use/.data/.code) syntax fully replaced
 
 ## PHI LOOP Skills Summary
 
@@ -176,13 +176,13 @@ git push
 | 056 | README.md update | 25e040d | ✅ COMPLETE |
 | 057 | verilog SVA patterns | e7a8925 | ✅ COMPLETE |
 
-## Следующие шаги
+## Next Steps
 
-1. ✅ **Обновить graph_v2.json**: Все узлы обновлены, статус "done"
-2. ✅ **Архитектурные файлы**: CANON_DE_ZIGFICATION.md и ADR-001 обновлены
-3. ✅ **Документация**: migration-plan, CLAUDE.md, README.md обновлены
+1. ✅ **Update graph_v2.json**: All nodes updated, status "done"
+2. ✅ **Architectural files**: CANON_DE_ZIGFICATION.md and ADR-001 updated
+3. ✅ **Documentation**: migration-plan, CLAUDE.md, README.md updated
 4. ✅ **Verilog SVA patterns**: SystemVerilog assertion patterns documented
-5. ⏳ **Верификация**: Ожидает bootstrap - `tri gen`, `tri test`, `tri verdict --toxic`
-4. ⏳ **Оптимизация**: Генерация Zig/C/Verilog из канонических .t27 спецификаций
+5. ⏳ **Verification**: Expects bootstrap - `tri gen`, `tri test`, `tri verdict --toxic`
+6. ⏳ **Optimization**: Generate Zig/C/Verilog from canonical .t27 specifications
 
-**Блокер Bootstrap**: tri CLI требует генерации, но для генерации нужен tri CLI. Необходим bootstrap эпизод.
+**Bootstrap Blocker**: tri CLI requires generation, but for generation you need tri CLI. A bootstrap episode is required.
