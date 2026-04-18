@@ -1,7 +1,7 @@
 # Science vs operations — dual-track synthesis (multi-model review)
 
 **Status:** Meta-note — aggregates convergent recommendations. English-only.  
-**Related:** `[KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md](KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md)`, `[RESEARCH_WRITING_T27.md](RESEARCH_WRITING_T27.md)`, `[NOW.md](NOW.md)`.
+**Related:** `[KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md](KERNEL-PLAN-MULTI-MODEL-SYNTHESIS.md)`, `[RESEARCH_WRITING_T27.md](RESEARCH_WRITING_T27.md)`, `[NOW.md](../NOW.md)`.
 
 ---
 

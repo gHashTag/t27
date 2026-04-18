@@ -21,14 +21,14 @@
 ## 3. Outputs
 
 - **Stdout:** Zig / C / Verilog text for single-file **`t27c gen`** invocations.  
-- **Filesystem:** tree under **`gen/`** when using **`tri gen-zig <dir>`** (and analogs for C / Verilog).  
+- **Filesystem:** tree under **`gen/`** when using **`tri gen-dir --backend zig --out-root gen/zig <dir>`** (and analogs for **`c`** / **`verilog`**).  
 - **Exit codes:** **0** success; **non-zero** failure (suite, validation, parse).  
 - **Logs:** CI stdout/stderr; optional future structured log (`[TBD]`).
 
 ## 4. Environment
 
 - **OS:** Linux (CI); macOS (dev) — document any **byte-level** nondeterminism in TVR.  
-- **Paths:** run from **repository root** for **`tri`** subcommands that pass **`--repo-root`**.
+- **Paths:** **`scripts/tri`** injects **`--repo-root`** automatically; when calling **`t27c`** directly, pass **`--repo-root .`** (or place before the subcommand).
 
 ## 5. Forbidden behaviours (process + product)
 

@@ -1,0 +1,33 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "t27",
+  "description": "Spec-first language (.t27) with bootstrap compiler emitting Zig, C, and Verilog; conformance vectors and integrity seals.",
+  "author": {
+    "@type": "Person",
+    "givenName": "Dmitrii",
+    "familyName": "Vasilev",
+    "@id": "https://orcid.org/0009-0008-4294-6159",
+    "affiliation": {
+      "@type": "Organization",
+      "name": "Trinity Project"
+    }
+  },
+  "codeRepository": "https://github.com/gHashTag/t27",
+  "isPartOf": {
+    "@type": "SoftwareSourceCode",
+    "name": "Trinity S³AI",
+    "url": "https://github.com/gHashTag/trinity"
+  },
+  "sameAs": [
+    "https://github.com/gHashTag/trinity",
+    "https://gHashTag.github.io/trinity",
+    "https://www.reddit.com/r/t27ai/",
+    "https://t.me/t27_lang",
+    "https://x.com/t27_lang",
+    "https://orcid.org/0009-0008-4294-6159"
+  ],
+  "license": "https://spdx.org/licenses/MIT.html",
+  "programmingLanguage": ["Rust", "Zig"],
+  "keywords": ["compiler", "specification", "ternary", "GoldenFloat", "Verilog", "conformance"]
+}

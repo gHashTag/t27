@@ -204,3 +204,7 @@
 - **Commit:** feat(compiler): add GF16-native Rust codegen backend to meta_compile spec
 - **Files:** bootstrap/src/main.rs
 
+## 2026-04-18T17:04:04Z — fix/ring-018-bootstrap-recovery-522-clean
+- **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
+- **Files:** .claude/mcp/tri-ssot/manifest.json,.claude/skills/tri/skill.md,.claude/skills/wrap-up/skill.md,.cursor/rules/t27-ssot-math.mdc,.githooks/pre-commit,.github/CODEOWNERS,.github/ISSUE_TEMPLATE/audit_task.md,.github/ISSUE_TEMPLATE/backend_task.md,.github/ISSUE_TEMPLATE/benchmark_task.md,.github/ISSUE_TEMPLATE/bug.md,.github/ISSUE_TEMPLATE/epic.md,.github/ISSUE_TEMPLATE/publication_task.md,.github/ISSUE_TEMPLATE/question.md,.github/ISSUE_TEMPLATE/research_claim.md,.github/ISSUE_TEMPLATE/spec_task.md,.github/ISSUE_TEMPLATE/ux_docs_task.md,.github/PULL_REQUEST_TEMPLATE.md,.github/dependabot.yml,.github/workflows/coq-kernel.yml,.github/workflows/l1-traceability.yml
+

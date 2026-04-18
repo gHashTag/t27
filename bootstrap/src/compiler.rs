@@ -30,6 +30,7 @@ pub enum NodeKind {
     ExprSwitch,
     ExprBinary,
     ExprUnary,
+    ExprCast,
     ExprReturn,
     ExprIndex,
     ExprIf,
@@ -144,6 +145,7 @@ pub enum TokenKind {
     KwOr,
     KwAnd,
     KwTry,
+    KwAs,
     KwBreak,
     KwContinue,
 
@@ -193,6 +195,7 @@ pub enum TokenKind {
     ShiftRight,
     PlusEquals,
     PlusPercent,
+    ColonColon,
 
     // Special
     Semicolon,
@@ -344,6 +347,7 @@ impl Lexer {
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
+            "as" => TokenKind::KwAs,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -577,6 +581,17 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::PlusPercent,
                     lexeme: String::from("+%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b':', b':'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::ColonColon,
+                    lexeme: String::from("::"),
                     line: start_line,
                     col: start_col,
                 };
@@ -2125,12 +2140,41 @@ impl Parser {
         self.parse_expr_postfix()
     }
 
-    /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), call (f(args))
+    /// Parse postfix expressions: field access (.field), namespace (::name), deref (.*), indexing ([i]), call (f(args))
     fn parse_expr_postfix(&mut self) -> Result<Node, String> {
         let mut expr = self.parse_expr_primary()?;
 
         loop {
-            if self.current.kind == TokenKind::Dot {
+            if self.current.kind == TokenKind::KwAs {
+                // Type cast: expr as Type
+                self.advance(); // consume as
+                if self.current.kind == TokenKind::Ident {
+                    let type_name = self.current.lexeme.clone();
+                    self.advance();
+                    let mut cast = Node::new(NodeKind::ExprCast);
+                    cast.extra_type = type_name;
+                    cast.children.push(expr);
+                    expr = cast;
+                } else {
+                    break;
+                }
+            } else if self.current.kind == TokenKind::ColonColon {
+                // Don't handle :: in postfix - let it be parsed as part of identifier
+                break;
+            } else if self.current.kind == TokenKind::Dot {
+                // Namespace/path access: expr::name
+                self.advance(); // consume ::
+                if self.current.kind == TokenKind::Ident {
+                    let field = self.current.lexeme.clone();
+                    self.advance();
+                    let mut fa = Node::new(NodeKind::ExprFieldAccess);
+                    fa.name = field;
+                    fa.children.push(expr);
+                    expr = fa;
+                } else {
+                    break;
+                }
+            } else if self.current.kind == TokenKind::Dot {
                 self.advance(); // consume .
                 if self.current.kind == TokenKind::Star {
                     // Dereference: expr.*
@@ -2290,6 +2334,14 @@ impl Parser {
                         name.push_str("::");
                         self.advance(); // consume first :
                         self.advance(); // consume second :
+                        if self.current.kind == TokenKind::Ident {
+                            name.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    } else if self.current.kind == TokenKind::ColonColon {
+                        // Single :: token
+                        name.push_str("::");
+                        self.advance(); // consume ::
                         if self.current.kind == TokenKind::Ident {
                             name.push_str(&self.current.lexeme);
                             self.advance();
@@ -2754,7 +2806,7 @@ impl Codegen {
             if decl.kind == NodeKind::UseDecl {
                 self.write_line(&format!(
                     "const {} = @import(\"{}.zig\");",
-                    decl.name, decl.name
+                    decl.name, decl.value
                 ));
                 has_imports = true;
             }
@@ -3429,6 +3481,13 @@ impl Codegen {
                     }
                 }
                 self.write(" }");
+            }
+            NodeKind::ExprCast => {
+                // Type cast: (expr as Type)
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write(&format!(" as {}", node.extra_type));
             }
             _ => {}
         }

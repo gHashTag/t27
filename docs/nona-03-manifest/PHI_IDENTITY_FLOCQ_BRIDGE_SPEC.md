@@ -13,7 +13,7 @@
 ## Goals (scope)
 
 1. **Done (Layer A):** `Phi.v` — no `Admitted`; `phi_tolerance := 5 * / IZR(2^53) * φ²` on `R`; algebraic lemmas.
-2. **Done (Ring 47 / Layer C — computational):** `PhiFloat.v` imports Flocq; `phi_f64 : binary64`; `phi_sq_f64` / `phi_plus_one_f64` via `b64_mult` / `b64_plus`; theorem **`phi_identity_contract`** (for this literal, `fl(φ²)` and `fl(φ+1)` are **bit-identical**, so `Rabs` residual is `0` &lt; `phi_tolerance`). Validation: **`scripts/validate_phi_f64.py`**.
+2. **Done (Ring 47 / Layer C — computational):** `PhiFloat.v` imports Flocq; `phi_f64 : binary64`; `phi_sq_f64` / `phi_plus_one_f64` via `b64_mult` / `b64_plus`; theorem **`phi_identity_contract`** (for this literal, `fl(φ²)` and `fl(φ+1)` are **bit-identical**, so `Rabs` residual is `0` &lt; `phi_tolerance`). Validation: **`t27c validate-phi`** (or **`./scripts/tri validate-phi`**).
 3. **Future:** `Bmult_correct` / `Bplus_correct` + relative-error bounds (reusable on other formats); wire `PhiDistance.v` to `B2R`.
 
 ## Non-goals

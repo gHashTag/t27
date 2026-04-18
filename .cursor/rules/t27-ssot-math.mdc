@@ -16,6 +16,11 @@ alwaysApply: true
 - All **mathematics, physics, constants, formulas, and verification tests** live in **`*.t27`** and are run through **`tri` / `t27c`**.
 - Pipeline steps should record experience in **`.trinity/experience/`** (jsonl / project schema) when applicable.
 
+## Trinity generation law (Zig and Rust)
+
+- **No hand-written `.zig`** (and no hand-editing generated backend sources) for **domain logic** that **`tri gen`** is supposed to emit from **`.t27` / `.tri`**. Backends (**Zig, C, Verilog**, `gen/`, etc.) are **output only** — not a parallel place to author product logic.
+- **No duplicate normative logic in Rust:** **`bootstrap/`** is the compiler + CLI host. It **must not** fork formulas, invariants, or tests that belong in **`specs/**/*.t27`**. Existing duplication = **debt**; migrate via spec + pipeline with a **tracked issue**.
+
 ## Prohibitions
 
 - **Do not add** new Python (or other scripting) on the **critical path** (verdict, conformance, assurance scenarios) if the same can be expressed in t27 + tri.

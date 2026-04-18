@@ -37,7 +37,7 @@
     "episode_id": "reference to original episode",
     "verdict": "toxic (only for mistakes)",
     "error_type": "regression | invariant_violation",
-    "blocked_modules": ["nn/attention", "nn/hslm", ...],
+    "blocked_modules": ["nn/attention", "nn/hslm"],
     "explanation": "Changed phi constant broke trinity invariant in downstream",
     "blocked_until": "episode_id:verification-resolution",
     "quarantine_timestamp": "ISO-8601 datetime"

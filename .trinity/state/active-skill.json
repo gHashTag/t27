@@ -1,19 +1,10 @@
 {
-  "skill_id": "ring-18-24-ar-integration",
-  "session_id": "2026-04-04T18:00:00Z#ring18-24",
-  "issue_id": "SEED-18-24",
-  "issue_title": "Rings 18-24: Full AR Domain Integration",
-  "description": "Integrate all 7 AR specs into canonical graph with gen backends, conformance vectors, and seals",
-  "started_at": "2026-04-04T18:00:00Z",
+  "skill_id": "sandbox-010",
+  "session_id": "2026-04-08T00:00:00Z#sandbox-010",
+  "issue_id": "SANDBOX-010",
+  "issue_title": "[SANDBOX-010] [P0, security] Session Timeout Enforcement",
+  "description": "Add configurable max duration enforcement in health polling",
+  "started_at": "2026-04-08T00:00:00Z",
   "started_by": "agent:claude-code",
-  "status": "complete",
-  "allowed_paths": [
-    "specs/ar/",
-    "gen/",
-    "conformance/",
-    ".trinity/seals/",
-    ".trinity/state/",
-    ".trinity/experience/",
-    "architecture/graph_v2.json"
-  ]
+  "status": "active"
 }

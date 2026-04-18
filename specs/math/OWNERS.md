@@ -11,4 +11,4 @@
 
 ## Generates
 
-Target outputs under `gen/` per spec when **`tri gen-zig`** (or other backends) is run for each file.
+Target outputs under `gen/` per spec when **`tri gen-dir`** / **`tri gen-zig`** (per-file stdout) is run per backend policy.

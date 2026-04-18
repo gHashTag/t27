@@ -51,7 +51,7 @@
     "seal": {"pass": 36, "fail": 0}
   },
   "test_suite": {
-    "command": "t27c suite --repo-root .",
+    "command": "t27c --repo-root . suite",
     "result": "ALL TESTS PASSED",
     "parse": "43 passed, 0 failed",
     "gen_zig": "43 passed, 0 failed",

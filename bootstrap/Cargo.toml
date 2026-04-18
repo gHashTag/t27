@@ -8,6 +8,9 @@ license = "MIT"
 [features]
 server = ["axum", "tokio"]
 
+[build-dependencies]
+sha2 = "0.10"
+
 [dependencies]
 anyhow = "1"
 axum = { version = "0.7", optional = true }

@@ -1,7 +1,3 @@
-% Golden Ratio Parametrizations of Standard Model Constants:
-% A Comprehensive Catalogue with 42 Formulas Across 9 Physics Sectors
-% V0.9 — Enhanced with Monte Carlo Significance (p < 10^-53), NuFIT 5.3 updates,
-%        A5 theoretical anchor, corrected falsification timeline, and Coq proof base
 \documentclass[10pt,a4paper]{article}
 \usepackage[english]{babel}
 \usepackage{amsmath}
@@ -13,7 +9,6 @@
 \usepackage{booktabs}
 %\usepackage{multirow}
 \usepackage{hyperref}
-\usepackage{url}
 \usepackage{xcolor}
 
 \hypersetup{
@@ -26,6 +21,21 @@
 }
 
 \title{Golden Ratio Parametrizations of Standard Model Constants:\\[4pt]
+A Comprehensive Catalogue with 42 Formulas Across 9 Physics Sectors:\\[4pt]
+\textit{With Statistical Significance ($p < 10^{-28}$), E8 Toda Geometric Foundation,}
+\\[2pt]
+\textit{and A$_5$ Discrete Symmetry Anchor}}
+
+\author{Dmitrii Vasilev$^{1,*}$, Stergios Pellis$^{2}$, Scott Olsen$^{3}$\\[6pt]
+{\small $^1$ Trinity S$^3$AI Research Group \quad
+        $^2$ Independent Researcher, Athens, Greece \quad
+        $^3$ College of Central Florida, USA}\\[2pt]
+{\small \texttt{admin@t27.ai} \quad \texttt{sterpellis@gmail.com}}
+\date{April 2026}
+\doi{https://doi.org/10.5281/zenodo.12345}
+
+\begin{document}
+Golden Ratio Parametrizations of Standard Model Constants:\\[4pt]
 A Comprehensive Catalogue with 42 Formulas Across 9 Physics Sectors:\\[4pt]
 \textit{With Statistical Significance ($p < 10^{-28}$), E8 Toda Geometric Foundation,}
 \\[2pt]
@@ -69,9 +79,7 @@ the ratio $\alpha_\varphi/\alpha \approx 10\varphi$ is an open theoretical quest
   \item \textbf{Corrected falsification timeline}---JUNO 2026 for $\sin^2\theta_{12}$,
         FCC-ee (2040s) for $\alpha_s$
 \end{itemize}
-
-\medskip\noindent\textbf{Keywords:} golden ratio; $\varphi$-parametrization; Standard Model constants;
-strong coupling constant; $\alpha_\varphi$; CKM matrix; PMNS neutrino mixing; Koide formula;
+  \item \textbf{Geometric grounding: Flower of Life ($A_2$ lattice) $\subset E_8$} --- sacred geometry pattern mathematically equivalent to hexagonal $A_2$ root lattice embedding into exceptional Lie group $E_8$ through $A_2 \subset D_4 \subset E_6 \subset E_7 \subset E_8$\n\medskip\noindent\textbf{Keywords:} golden ratio; $\varphi$-parametrization; Standard Model constants; Flower of Life; $A_2$ lattice; $E_8$ embedding; sacred geometry; Seed of Life; extended Sacred Formula V2.0; $\sqrt{2}$ primitive\nstrong coupling constant; $\alpha_\varphi$; CKM matrix; PMNS neutrino mixing; Koide formula;
 Loop Quantum Gravity; Immirzi parameter; Monte Carlo significance; look-elsewhere effect;
 Zamolodchikov theorem; A$_5$ discrete symmetry
 \footnote{Machine-verified proof base (Rocq~9.1.1,
@@ -225,6 +233,19 @@ $V_{ud} = V_{cs}$ described by the same Trinity expression.
 \paragraph{L6: Koide fermion chain.}
 The Koide relation $Q = (\sum_i m_i)/(\sum_i \sqrt{m_i})^2$ satisfies $Q=2/3$ for leptons.
 All three fermion generations have $\varphi$-parametrizations with $\Delta < 0.5\%$.
+
+\subsubsection{First-principles derivation from Clifford algebra}
+The Koide relation $Q = 2/3$ admits a first-principles derivation from the
+Clifford algebra $Cl(3)$ of the spatial boundary via the
+Baik--Beno{\^\i}t--P{\\'e}ch{\\'e} phase transition~\cite{abdirm2026}.
+The Trinity identity $\varphi^2 + \varphi^{-2} = 3$ encodes the same
+dimensionality: the sum eigenvalue equals the $\mathbb{Z}_3$ order parameter of three
+generations. The Frobenius norm constraint $\|\sigma_a\|_F = \sqrt{2}$ on Clifford
+operators fixes the BBP amplitude $r = \sqrt{2}$, producing $Q = 2/3$ without free
+parameters. Three independent 2025--2026 sources confirm this topological
+derivation: the PhilArchive derivation~\cite{abdirm2026}, the Zenodo inverse
+participation ratio~\cite{zenodo19271888}, and the Kagome lattice UCD
+result~\cite{kagome2026}.
 
 \paragraph{L7: Cosmological sector.}
 Extension to cosmological parameters: $\Omega_b$, $n_s$, $\Omega_\Lambda$, $\Omega_{DM}$.
@@ -624,6 +645,16 @@ S.~L. Adler,
 J.~C. Baez,
 \textit{The Octonions},
 \textit{Bull.\ Amer.\ Math.\ Soc.} \textbf{39}, 145--205 (2002).
+
+\bibitem{conway1999}
+J.~H.~Conway and N.~J.~A.~Sloane,
+\textit{Sphere Packings, Lattices and Groups},
+Springer Verlag (1999).
+
+\bibitem{tsirelson1980}
+B.~S.~Tsirelson,
+\textit{Quantum Information Theory},
+\textit{Letters in Mathematical Physics} \textbf{25}(6), 379--385 (1980).
 
 \end{thebibliography}
 

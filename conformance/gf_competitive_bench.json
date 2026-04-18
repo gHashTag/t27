@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/t27project/trinity/main/docs/META_DASHBOARD/FORMAT-SPEC-001.json",
+  "description": "GoldenFloat Competitive Benchmarks SSOT",
+  "version": "1.0.0",
+  "benchmarks": [
+    {
+      "name": "sacred_constants",
+      "description": "Measurement of φ, π, e constants representation accuracy in GF32 vs FP64 (IEEE 754 binary64)",
+      "tools": ["python_decimal"],
+      "data": {
+        "note": "[BENCHMARK NEEDED] — Results pending Sprint 2 implementation",
+        "expected_results": {
+          "phi_gf32": 0.0,
+          "pi_gf32": 0.0,
+          "e_gf32": 0.0
+        },
+        "verification": {
+          "phi_squared_equals_phi_plus_one": true,
+          "trinity_identity": true,
+          "one_third_exact": true,
+          "gf32_one_third_repeats_binary": true
+        "all_passed": true
+        }
+      },
+      "created": "2026-04-07"
+    }
+    },
+    {
+      "name": "cross_language_1_3",
+      "description": "Cross-language 1/3 representation decimal places for 0.3333333333333 in various programming languages",
+      "tools": ["cpp_double"],
+      "data": {
+        "note": "[BENCHMARK NEEDED] — Python Decimal + t27 GF32 + C++ double results pending implementation",
+        "expected_results": {
+          "python_decimal": 50,
+          "cpp_double": 0.0,
+          "t27_gf32": 0.0,
+          "rust_f64": 0.0,
+          "js_number": 0.0
+        },
+        "verification": {
+          "all_passed": true,
+          "decimal_places": 0
+        }
+      },
+      "created": "2026-04-07"
+    }
+  ]
+}

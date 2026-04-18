@@ -1,6 +1,6 @@
 # Scientific excellence — extended work packages (handoff)
 
-**TASK Protocol:** 1.0 — **normative** coordination remains **[`TASK.md`](../../../TASK.md)** + **[Anchor #141](https://github.com/gHashTag/t27/issues/141)** + [`docs/coordination/TASK_PROTOCOL.md`](../TASK_PROTOCOL.md).  
+**Coordination protocol:** 1.1 — **normative** surface is **[`NOW.md`](../../../NOW.md)** (repo root) + **[Anchor #141](https://github.com/gHashTag/t27/issues/141)** + [`docs/coordination/TASK_PROTOCOL.md`](../TASK_PROTOCOL.md).  
 **Date:** 2026-04-06  
 **Repo:** https://github.com/gHashTag/t27  
 
@@ -83,7 +83,7 @@ See [`PRIORITY_MATRIX.md`](PRIORITY_MATRIX.md). Prefer **GitHub issues** [#127�
 
 Before PR:
 
-1. `cargo build` in `bootstrap/` (includes **TASK Validation** on `TASK.md` shape).
+1. `cargo build` in `bootstrap/` (includes first-party doc scan incl. **`NOW.md`**).
 2. Substantive work: `Closes #N` to a **real** issue (not only #141).
 3. Multi-agent: one-line comment on **#141** with PR link.
 4. Claims: update [`docs/nona-03-manifest/RESEARCH_CLAIMS.md`](../../nona-03-manifest/RESEARCH_CLAIMS.md) when changing certainty.

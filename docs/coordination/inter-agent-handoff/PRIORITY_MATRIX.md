@@ -1,6 +1,6 @@
 # Priority execution matrix (scientific excellence handoff)
 
-**Supplementary** to **[`TASK.md`](../../../TASK.md)** and **EPOCH-01-HARDEN** rings ([#127–#142](https://github.com/gHashTag/t27/milestone/1)).  
+**Supplementary** to **[`NOW.md`](../../../NOW.md)** and **EPOCH-01-HARDEN** rings ([#127–#142](https://github.com/gHashTag/t27/milestone/1)).  
 **Date:** 2026-04-06  
 
 ## P0 — First 1–2 months (credible to reviewers)

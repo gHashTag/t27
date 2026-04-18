@@ -46,7 +46,7 @@ Use the **6-phase cycle** as the **only** approved cleanup / migration ritual fo
 | `clara-bridge/tests/*.py` | Python tests | Replace with shell + `tri` + JSON schema check in Rust, or generated conformance |
 | `bootstrap/t27c.py` | Legacy Python compiler path | Remove after parity with `t27c` binary |
 | `bootstrap/parse_t27.py` | Legacy | Remove |
-| `scripts/check_first_party_doc_language.py` | Python | **Temporary OK** as duplicate of `bootstrap/build.rs` logic; long-term: single Rust `t27c lint-lang` |
+| `t27c lint-docs` / `./scripts/tri lint-docs` | Rust | **SSOT** for first-party Markdown Cyrillic scan (CI + local); aligns with `bootstrap/build.rs` policy |
 
 ### Tier P1 — Research / sidecar (quarantine or move out of default build)
 

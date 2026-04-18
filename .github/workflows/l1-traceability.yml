@@ -83,21 +83,15 @@ jobs:
           set -e
 
           # Get the base branch
-          BASE_BRANCH="${{ github.event_name == 'pull_request' && github.base_ref || 'master' }}"
-
-          # For PR, use the PR head SHA directly instead of HEAD (which is a merge commit)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-            git fetch origin "${{ github.event.pull_request.head.ref }}:$HEAD_SHA" 2>/dev/null || true
-          else
-            HEAD_SHA="HEAD"
+          BASE_BRANCH="master"
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            BASE_BRANCH="main"
           fi
 
           echo "Checking for gen/ directory edits..."
 
           # Check if any existing files in gen/ were modified (not new additions)
-          # Use --no-renames to avoid false positives from rename detection
-          MODIFIED_GEN=$(git diff --no-renames --name-status origin/"$BASE_BRANCH".."$HEAD_SHA" 2>/dev/null | grep -E "^M\s+gen/" || echo "")
+          MODIFIED_GEN=$(git diff --name-status origin/"$BASE_BRANCH"..HEAD | grep -E "^M\s+gen/" || echo "")
           if [ -n "$MODIFIED_GEN" ]; then
             echo "::error::L2 GENERATION VIOLATION: The following files under gen/ were modified directly:"
             echo "$MODIFIED_GEN"

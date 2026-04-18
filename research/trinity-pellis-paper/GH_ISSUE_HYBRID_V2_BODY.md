@@ -6,7 +6,7 @@ Exploratory calculations (external / not in-tree) suggest an **L2 cosine + growi
 ## Goal
 1. Freeze **v1 vs v2** definitions in `research/trinity-pellis-paper/hybrid-conjecture.md`.
 2. Extend `tri math compare` (flags or subcommand) for **hybrid v2** and optional θ = arccos(clip(cosine similarity)) in **Rust only**.
-3. **Golden tests** for N = 5, 10, 15, … once the map is fixed (no chart-only claims).
+3. **Golden tests** at fixed checkpoints **N = 5, 10, 15, 20, 50, 152** once the map is fixed (no chart-only claims).
 4. **Experience JSONL**: log `hybrid_v1`, `hybrid_v2`, `theta_deg`, `N`, `pellis_spec_seal_hash`.
 
 ## Non-goals
