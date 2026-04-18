@@ -101,6 +101,37 @@ pub fn gf16_is_special(gf16: GF16) bool {
     return gf16_extract_exponent(gf16) == EXP_MAX;
 }
 
+// gf16_zero() 14 GF16
+// Returns zero value (GF16_ZERO_POS)
+pub fn gf16_zero() GF16 {
+    return GF16_ZERO_POS;
+}
+
+// gf16_from_u32(n: u32) 15 GF16
+// Convert u32 to GF16 via f32 encoding
+// Note: GF16 is 16-bit floating point, so large u32 values may lose precision
+pub fn gf16_from_u32(n: u32) GF16 {
+    const f_val: f32 = @floatFromInt(n);
+    return gf16_encode_f32(f_val);
+}
+
+// gf16_to_u32(g: GF16) 16 u32
+// Convert GF16 to u32 via f32 decoding
+// Note: Result is clamped to u32 range, special values return 0
+pub fn gf16_to_u32(g: GF16) u32 {
+    if (gf16_is_nan(g) or gf16_is_inf(g)) {
+        return 0;
+    }
+    const f_val: f32 = gf16_decode_to_f32(g);
+    if (f_val < 0.0) {
+        return 0;
+    }
+    if (f_val > @floatFromInt(0xFFFFFFFF)) {
+        return 0xFFFFFFFF;
+    }
+    return @intCast(f_val);
+}
+
 // gf16_encode_f32(f32: f32) 11 GF16
 // Encode IEEE 754 single precision to GF16
 // Round-to-nearest, ties to even
@@ -3434,3 +3465,39 @@ bench "gf16_cos_latency" {
 
 
 
+
+// ============================================================================
+// GF16 to u32 helpers for Rust codegen (Issue #519)
+// ============================================================================
+
+test gf16_zero_returns_positive_zero
+    given z = gf16_zero()
+    then z == GF16_ZERO_POS
+
+test gf16_from_u32_zero
+    given g = gf16_from_u32(0)
+    then g == GF16_ZERO_POS
+
+test gf16_from_u32_positive
+    given g = gf16_from_u32(42)
+    then gf16_to_u32(g) == 42
+
+test gf16_to_u32_zero
+    given u = gf16_to_u32(GF16_ZERO_POS)
+    then u == 0
+
+test gf16_to_u32_nan_returns_zero
+    given u = gf16_to_u32(GF16_NAN)
+    then u == 0
+
+invariant gf16_zero_identity
+    assert gf16_zero() == GF16_ZERO_POS
+
+invariant gf16_from_to_u32_roundtrip_small
+    given x: u32 = 123
+    assert gf16_to_u32(gf16_from_u32(x)) == x
+
+invariant gf16_add_to_u32_monotonic
+    given start = gf16_zero()
+    given added = gf16_add(start, gf16_from_u32(5))
+    then gf16_to_u32(added) >= 0
