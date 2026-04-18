@@ -211,6 +211,127 @@ jq '[select(.event == "agent.verification_update")] | map(.verification) | group
 
 ---
 
+## Skill — tri (t27 Development Helper)
+
+### Overview
+
+The `tri` skill is the primary entry point for all t27 development tasks. It aggregates multiple sub-skills into a unified interface.
+
+| Sub-skill | Description |
+|-----------|-------------|
+| `/tri ci-fix <issue-number>` | Fixes all failing CI checks (Issue Gate, L1 TRACEABILITY, NOW Sync) |
+| `/tri pr-create <branch> <issue> <title>` | Creates properly formatted PR with Closes #N |
+| `/tri now-update "<title>"` | Updates `docs/NOW.md` with current date and work entry |
+| `/tri compile` | Builds t27c bootstrap compiler |
+| `/tri gen-rust <spec>` | Generates Rust code from .t27 specs |
+
+### Quick Start
+
+```bash
+# Show all available commands
+/tri
+
+# Fix CI for an issue
+/tri ci-fix 498
+
+# Create a new PR
+/tri pr-create fix/ring-018-compiler-cleanup 498 "feat: add compile_rust stub"
+
+# Update NOW.md
+/tri now-update "Ring 019 — implement full codegen"
+
+# Build the compiler
+/tri compile
+```
+
+### Project Structure Reference
+
+```
+t27/
+├── specs/              # .t27 SPECIFICATIONS — source of truth
+│   ├── base/          # types, ops, constants
+│   ├── numeric/       # GoldenFloat GF4-GF32, TF3, phi
+│   ├── compiler/      # parser, codegen, CLI
+│   └── ...
+├── gen/               # GENERATED backends — DO NOT EDIT
+│   ├── zig/
+│   ├── c/
+│   └── verilog/
+├── bootstrap/          # Stage-0 compiler (Rust) — FROZEN
+│   ├── src/
+│   │   ├── main.rs
+│   │   ├── compiler.rs      # Flat monolithic compiler
+│   │   └── compiler/        # Modular compiler (preferred)
+│   └── Cargo.toml
+├── docs/              # Documentation
+│   └── NOW.md         # MUST be updated for every PR
+└── .github/workflows/ # CI checks
+```
+
+### Common Workflows
+
+#### 1. New Feature Workflow
+
+```bash
+# 1. Make changes
+vim bootstrap/src/compiler/mod.rs
+
+# 2. Build and test
+/tri compile
+
+# 3. Update NOW.md
+/tri now-update "Ring 019 — implement feature"
+
+# 4. Create issue on GitHub (manual)
+# → Issue #500 created
+
+# 5. Commit
+git add -A
+git commit -m "feat: add new feature"
+Closes #500"
+
+# 6. Create PR
+/tri pr-create fix/ring-019-feature 500 "feat: add new feature"
+```
+
+#### 2. CI Fix Workflow
+
+```bash
+# 1. Check failing checks
+# → See PR #501 has 3 failing checks
+
+# 2. Fix issues
+vim docs/NOW.md
+sed -i '' 's/Last updated: .*$/Last updated: 2026-04-18/' docs/NOW.md
+
+# 3. Update commit message
+git add docs/NOW.md
+git commit --amend --no-edit
+
+# 4. Push
+git push origin feature-branch --force-with-lease
+```
+
+### Ring Progress Table
+
+| Ring | Status | Description |
+|------|--------|-------------|
+| 0-8 | SEED | Base types, numeric ops, sacred physics |
+| 9-11 | SEED | Compiler: parser → codegen → Zig/C/Verilog |
+| 12-14 | SEED | FPGA: MAC unit, Verilog gen, bitstream |
+| 15-17 | SEED | Queen + NN orchestration, AR modules |
+| 18-24 | AR | CLARA AR pipeline (ternary logic, Datalog, etc.) |
+| 25-31 | GEN | Gen backends for all domains |
+| 32+ | ACTIVE | Cloud orchestration, deployment |
+
+### Current Work
+
+**Ring 018** — Implement `.t27 → .trib` codegen pipeline
+- Status: ✅ Build clean, ✅ Compiler modules restored
+- Next: Implement full Rust codegen
+
+---
+
 ## Agent T — Doctor (Reference)
 
 Agent T — Doctor is the existing blocking watchdog for health monitoring and recovery. See `.trinity/agents/tri-doctor.jsonl` for full schema.

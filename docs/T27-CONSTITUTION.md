@@ -62,7 +62,42 @@ Grandfathered non-English paths are listed only in **`docs/.legacy-non-english-d
 **Enforcement:** **Code review** and **Issue Gate**; optional CI path checks may be added later. **OWNERS** for **`docs/`** is **`docs/OWNERS.md`**.
 
 
-## § 2 — Invariant Laws (never change without constitutional amendment)
+## § 2 — Agents (skills and governance)
+
+This section defines all agents, autonomous watchdogs, and user-invocable skills (`/skill-name`) that participate in Trinity S³AI / t27 governance.
+
+### Agent Table
+
+| ID | Type | Tier | Scope | Skills |
+|----|------|------|-------|-------|
+| `tri` | User-invocable skill | 1 | Development workflow | `ci-fix`, `pr-create`, `now-update`, `compile`, `gen-rust` |
+| `agent-scientist` | Autonomous watchdog | 99 | Future prediction | `graph_analysis`, `perplexity_emit` |
+| `tri-doctor` | Reactive watchdog | 1 | Health monitoring | `health_check`, `recovery_action` |
+
+### Skill — tri
+
+**Description:** Primary entry point for all t27 development tasks. Aggregates common workflows into simple commands.
+
+**Sub-skills:**
+- `/tri ci-fix <issue-number>` — Fixes all failing CI checks (Issue Gate, L1 TRACEABILITY, NOW Sync)
+- `/tri pr-create <branch> <issue> <title>` — Creates properly formatted PR
+- `/tri now-update "<title>"` — Updates `docs/NOW.md` with current date
+- `/tri compile` — Builds t27c bootstrap compiler
+- `/tri gen-rust <spec>` — Generates Rust code from .t27 specs
+
+**Quick Start:** `/tri` shows all commands, project structure, ring progress (Rings 0-32+), and current work (Ring 018).
+
+### Agent S — Scientist
+
+*Reference: `docs/agents/AGENTS.md`*
+
+### Agent T — Doctor
+
+*Reference: `docs/agents/tri-doctor.jsonl`*
+
+---
+
+## § 3 — Invariant Laws (never change without constitutional amendment)
 
 These seven laws are the **constitutional bedrock** of Trinity S³AI / t27. They govern behavior, not formats or scientific claims. Amendments require explicit consensus and version bump.
 

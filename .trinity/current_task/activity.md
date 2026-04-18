@@ -304,3 +304,7 @@
 - **Commit:** fix: restore compiler/ modules, remove spurious lib.rs
 - **Files:** bootstrap/src/main.rs,docs/NOW.md
 
+## 2026-04-18T06:22:58Z — fix/ring-018-compiler-cleanup
+- **Commit:** fix: restore compiler/ modules, remove spurious lib.rs
+- **Files:** docs/T27-CONSTITUTION.md,docs/agents/AGENTS.md
+
