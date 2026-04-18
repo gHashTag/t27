@@ -236,3 +236,11 @@
 - **Commit:** feat(compiler): add TypeScript codegen tests to meta_compile.t27 (Closes #525)
 - **Files:** .trinity/current_task/activity.md,docs/nona-01-foundation/SANDBOX-ARCHITECTURE.md,docs/nona-02-organism/opencode_workflow.md,docs/nona-03-manifest/TRI_CORE_ISSUES.md,docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md
 
+## 2026-04-18T18:14:30Z — feat/typescript-codegen-525
+- **Commit:** feat(i18n): translate remaining Russian docs to English (Closes #528)
+- **Files:** 
+
+## 2026-04-18T18:14:38Z — feat/typescript-codegen-525
+- **Commit:** feat(compiler): add TypeScript codegen tests to meta_compile.t27 (Closes #525)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,docs/NOW.md,specs/compiler/meta_compile.zig
+
