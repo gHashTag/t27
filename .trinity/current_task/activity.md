@@ -316,3 +316,7 @@
 - **Commit:** docs(agents): add /tri skill commands and agent constitution section
 - **Files:** .trinity/current_task/activity.md,docs/T27-CONSTITUTION.md,docs/agents/AGENTS.md
 
+## 2026-04-18T10:14:38Z — fix/ring-018-compiler-cleanup
+- **Commit:** docs(agents): add L1 traceability tags for Ring-018
+- **Files:** .github/workflows/issue-gate.yml
+

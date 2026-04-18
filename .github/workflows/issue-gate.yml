@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           FOUND=$(echo "$PR_TITLE
-          $PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
+$PR_BODY" | grep -oiE '(closes|fixes|resolves) #[0-9]+' || true)
 
           if [ -n "$FOUND" ]; then
             echo "✅ Issue gate passed: $FOUND"
