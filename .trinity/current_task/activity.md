@@ -244,3 +244,7 @@
 - **Commit:** fix(build): restore bootstrap compiler build (#522)
 - **Files:** .trinity/current_task/activity.md,README.md,bootstrap/src/bridge.rs,docs/.legacy-non-english-docs,docs/AGENTS_ALPHABET.md
 
+## 2026-04-18T19:18:01Z — dev
+- **Commit:** fix(build): restore bootstrap compiler build
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/COMPILER_VERIFICATION_IMPACT_RU.md,docs/README_RU_UPDATE.md,docs/nona-01-foundation/SANDBOX-ARCHITECTURE.md,docs/nona-02-organism/opencode_workflow.md,docs/nona-03-manifest/TRI_CORE_ISSUES.md,docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md,docs/retroactive-issues-plan.md,docs/rfc/tri-language-core.md,scripts/tri
+
