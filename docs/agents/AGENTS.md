@@ -345,3 +345,6 @@ Agent T — Doctor is the existing blocking watchdog for health monitoring and r
 | Events | `health.anomaly`, `recovery.start`, `recovery.finish`, `claim.reclaim`, `claim.unblock` |
 
 **Key difference**: Agent T blocks and recovers; Agent S predicts and warns.
+
+<!-- L1: RING-018 - add compile_rust stub to compiler -->
+

@@ -168,3 +168,6 @@ In conflict scenarios, the higher-priority law prevails.
 ## Amendments
 
 Amendments to this constitution are made via pull request with an explicit charter version bump and rationale.
+
+<!-- L1: RING-018 - add agent constitution section with /tri skill commands -->
+

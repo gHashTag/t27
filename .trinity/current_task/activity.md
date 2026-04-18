@@ -308,3 +308,11 @@
 - **Commit:** fix: restore compiler/ modules, remove spurious lib.rs
 - **Files:** docs/T27-CONSTITUTION.md,docs/agents/AGENTS.md
 
+## 2026-04-18T06:23:04Z — fix/ring-018-compiler-cleanup
+- **Commit:** docs(agents): add /tri skill commands and agent constitution section
+- **Files:** 
+
+## 2026-04-18T07:30:47Z — fix/ring-018-compiler-cleanup
+- **Commit:** docs(agents): add /tri skill commands and agent constitution section
+- **Files:** .trinity/current_task/activity.md,docs/T27-CONSTITUTION.md,docs/agents/AGENTS.md
+
