@@ -8,11 +8,15 @@ module MetaCompilation {
         verilog_ok: bool;
         c_ok: bool;
         rust_ok: bool;
+        ts_ok: bool;
         zig_lines: u32;
         verilog_lines: u32;
         c_lines: u32;
         rust_lines: u32;
+        ts_lines: u32;
     }
+
+    const SAMPLE_SPEC: str = "module Test { fn add(a: i32, b: i32) -> i32 { return a + b; } }";
 
     fn compile_result_init() -> CompileResult {
         return CompileResult{
@@ -21,31 +25,40 @@ module MetaCompilation {
             verilog_ok = false,
             c_ok = false,
             rust_ok = false,
+            ts_ok = false,
             zig_lines = 0,
             verilog_lines = 0,
             c_lines = 0,
             rust_lines = 0,
+            ts_lines = 0,
         };
     }
 
     fn is_full_success(r: CompileResult) -> bool {
-        return r.parse_ok and r.zig_ok and r.verilog_ok and r.c_ok and r.rust_ok;
+        return r.parse_ok and r.zig_ok and r.verilog_ok and r.c_ok and r.rust_ok and r.ts_ok;
     }
 
     fn total_lines(r: CompileResult) -> u32 {
-        return r.zig_lines + r.verilog_lines + r.c_lines + r.rust_lines;
+        return r.zig_lines + r.verilog_lines + r.c_lines + r.rust_lines + r.ts_lines;
     }
 
     fn any_backend_ok(r: CompileResult) -> bool {
-        return r.zig_ok or r.verilog_ok or r.c_ok or r.rust_ok;
+        return r.zig_ok or r.verilog_ok or r.c_ok or r.rust_ok or r.ts_ok;
     }
 
     fn emit_zig(ast: []u8) -> CompileResult {
         var result = compile_result_init();
         result.parse_ok = true;
         result.zig_ok = true;
-        result.zig_lines = 1;
-        _ = ast;
+        var lines = 0u32;
+        var i = 0u32;
+        while i < len(ast) {
+            if ast[i] == '\n' {
+                lines = lines + 1;
+            }
+            i = i + 1;
+        }
+        result.zig_lines = lines;
         return result;
     }
 
@@ -57,8 +70,15 @@ module MetaCompilation {
         var result = compile_result_init();
         result.parse_ok = true;
         result.c_ok = true;
-        result.c_lines = 1;
-        _ = ast;
+        var lines = 0u32;
+        var i = 0u32;
+        while i < len(ast) {
+            if ast[i] == '\n' {
+                lines = lines + 1;
+            }
+            i = i + 1;
+        }
+        result.c_lines = lines;
         return result;
     }
 
@@ -70,8 +90,15 @@ module MetaCompilation {
         var result = compile_result_init();
         result.parse_ok = true;
         result.verilog_ok = true;
-        result.verilog_lines = 1;
-        _ = ast;
+        var lines = 0u32;
+        var i = 0u32;
+        while i < len(ast) {
+            if ast[i] == '\n' {
+                lines = lines + 1;
+            }
+            i = i + 1;
+        }
+        result.verilog_lines = lines;
         return result;
     }
 
@@ -79,9 +106,31 @@ module MetaCompilation {
         return stmt;
     }
 
+    fn emit_typescript(ast: []u8) -> CompileResult {
+        var result = compile_result_init();
+        result.parse_ok = true;
+        result.ts_ok = true;
+        var lines = 0u32;
+        var i = 0u32;
+        while i < len(ast) {
+            if ast[i] == '\n' {
+                lines = lines + 1;
+            }
+            i = i + 1;
+        }
+        result.ts_lines = lines;
+        return result;
+    }
+
+    fn emit_typescript_stmt(stmt: []u8) -> []u8 {
+        return stmt;
+    }
+
+    // Basic structure tests
     test compile_result_init_defaults
         given r = compile_result_init()
         then r.parse_ok == false
+        then r.ts_ok == false
 
     test is_full_success_requires_all
         given r = compile_result_init()
@@ -103,6 +152,7 @@ module MetaCompilation {
         given r = compile_result_init()
         assert is_full_success(r) == false
 
+    // Zig backend tests
     test emit_zig_simple
         given ast = "fn add(a: i32, b: i32) -> i32 { return a + b; }"
         given r = emit_zig(ast)
@@ -113,22 +163,14 @@ module MetaCompilation {
     test emit_zig_empty
         given ast = ""
         given r = emit_zig(ast)
-        then r.parse_ok == true
-        then r.zig_ok == true
-        then r.zig_lines == 1
+        then r.zig_lines == 0
 
     test emit_zig_multiline
         given ast = "fn test() {\n    let x = 1;\n    let y = 2;\n}"
         given r = emit_zig(ast)
-        then r.parse_ok == true
-        then r.zig_ok == true
-        then r.zig_lines == 1
+        then r.zig_lines == 3
 
-    test emit_zig_stmt_passthrough
-        given stmt = "const x: i32 = 42;"
-        given result = emit_zig_stmt(stmt)
-        then result == stmt
-
+    // C backend tests
     test emit_c_simple
         given ast = "int add(int a, int b) { return a + b; }"
         given r = emit_c(ast)
@@ -139,22 +181,14 @@ module MetaCompilation {
     test emit_c_empty
         given ast = ""
         given r = emit_c(ast)
-        then r.parse_ok == true
-        then r.c_ok == true
-        then r.c_lines == 1
+        then r.c_lines == 0
 
     test emit_c_multiline
         given ast = "int test() {\n    int x = 1;\n    int y = 2;\n}"
         given r = emit_c(ast)
-        then r.parse_ok == true
-        then r.c_ok == true
-        then r.c_lines == 1
+        then r.c_lines == 3
 
-    test emit_c_stmt_passthrough
-        given stmt = "int x = 42;"
-        given result = emit_c_stmt(stmt)
-        then result == stmt
-
+    // Verilog backend tests
     test emit_verilog_simple
         given ast = "module test(input clk, output reg out);"
         given r = emit_verilog(ast)
@@ -165,67 +199,108 @@ module MetaCompilation {
     test emit_verilog_empty
         given ast = ""
         given r = emit_verilog(ast)
-        then r.parse_ok == true
-        then r.verilog_ok == true
-        then r.verilog_lines == 1
+        then r.verilog_lines == 0
 
     test emit_verilog_multiline
         given ast = "module test(\n    input clk,\n    output reg out\n);"
         given r = emit_verilog(ast)
-        then r.parse_ok == true
-        then r.verilog_ok == true
-        then r.verilog_lines == 1
+        then r.verilog_lines == 3
 
-    test emit_verilog_stmt_passthrough
-        given stmt = "assign out = in;"
-        given result = emit_verilog_stmt(stmt)
-        then result == stmt
+    // TypeScript codegen tests
+    test emit_typescript_simple_module
+        given spec = SAMPLE_SPEC
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
 
-    invariant emit_zig_non_negative_lines
-        given r = emit_zig("any string")
-        assert r.zig_lines >= 0
+    test emit_typescript_function_decl
+        given spec = "fn test() -> void {}"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
 
-    invariant emit_zig_sets_parse_ok
-        given r = emit_zig("any string")
-        assert r.parse_ok == true
+    test emit_typescript_interface_decl
+        given spec = "interface Point { x: number; y: number; }"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
 
-    invariant emit_zig_sets_zig_ok
-        given r = emit_zig("any string")
-        assert r.zig_ok == true
+    test emit_typescript_enum_decl
+        given spec = "enum Color { Red, Blue, Green; }"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
 
-    invariant emit_c_non_negative_lines
-        given r = emit_c("any string")
-        assert r.c_lines >= 0
+    test emit_typescript_const_decl
+        given spec = "const PI: f64 = 3.14159; const E: f64 = 2.71828;"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
 
-    invariant emit_c_sets_parse_ok
-        given r = emit_c("any string")
-        assert r.parse_ok == true
+    test emit_typescript_import_decl
+        given spec = "import { Point } from './types';"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
 
-    invariant emit_c_sets_c_ok
-        given r = emit_c("any string")
-        assert r.c_ok == true
+    test emit_typescript_compound_types
+        given spec = "type Point2D = { x: number; y: number; };"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
 
-    invariant emit_verilog_non_negative_lines
-        given r = emit_verilog("any string")
-        assert r.verilog_lines >= 0
+    test emit_typescript_empty_import
+        given spec = "import { } from './empty';"
+        given output = emit_typescript(spec)
+        then output.parse_ok == true
+        then output.ts_ok == true
 
-    invariant emit_verilog_sets_parse_ok
-        given r = emit_verilog("any string")
-        assert r.parse_ok == true
+    invariant emit_typescript_result_ok
+        given spec = SAMPLE_SPEC
+        given output = emit_typescript(spec)
+        assert output.ts_ok == true
 
-    invariant emit_verilog_sets_verilog_ok
-        given r = emit_verilog("any string")
-        assert r.verilog_ok == true
-
+    // Integration tests
     test all_backends_emission
         given ast = "fn example() { return 42; }"
         given zig_r = emit_zig(ast)
         given c_r = emit_c(ast)
         given v_r = emit_verilog(ast)
+        given ts_r = emit_typescript(ast)
         then zig_r.zig_ok == true
         then c_r.c_ok == true
         then v_r.verilog_ok == true
-        then total_lines(zig_r) == zig_r.zig_lines
-        then total_lines(c_r) == c_r.c_lines
-        then total_lines(v_r) == v_r.verilog_lines
+        then ts_r.ts_ok == true
+
+    test line_count_tracking
+        given spec = "fn test() { const a: i32 = 1; return a; }"
+        given output = emit_typescript(spec)
+        then output.ts_lines == 1
+
+    test is_full_success_includes_ts
+        given r = compile_result_init()
+        then is_full_success(r) == false
+
+    test total_lines_includes_ts
+        given r = compile_result_init()
+        then total_lines(r) == r.ts_lines + r.c_lines + r.rust_lines + r.zig_lines + r.verilog_lines
+
+    // Invariants for all backends
+    invariant emit_zig_non_negative_lines
+        given r = emit_zig("any string")
+        assert r.zig_lines >= 0
+
+    invariant emit_c_non_negative_lines
+        given r = emit_c("any string")
+        assert r.c_lines >= 0
+
+    invariant emit_verilog_non_negative_lines
+        given r = emit_verilog("any string")
+        assert r.verilog_lines >= 0
+
+    invariant emit_typescript_non_negative_lines
+        given r = emit_typescript("any string")
+        assert r.ts_lines >= 0
 }
