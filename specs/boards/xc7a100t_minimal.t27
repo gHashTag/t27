@@ -50,7 +50,7 @@ module BoardMinimalXC7A100T {
 
     const PIN_RST_N : PinAssignment = PinAssignment{
         .port_name = "rst_n",
-        .package_pin = "C14",
+        .package_pin = "C18",
         .iostandard = "LVCMOS33",
         .is_clock = false,
         .is_input = true,
@@ -195,7 +195,7 @@ module BoardMinimalXC7A100T {
 
     fn is_prjxray_verified(pin: PinAssignment) -> bool {
         if (pin.package_pin == "E3") { return true; }
-        if (pin.package_pin == "C14") { return true; }
+        if (pin.package_pin == "C18") { return true; }
         if (pin.package_pin == "T14") { return true; }
         if (pin.package_pin == "T15") { return true; }
         if (pin.package_pin == "H17") { return true; }
@@ -272,9 +272,9 @@ module BoardMinimalXC7A100T {
         given pin = PIN_CLK
         then pin.package_pin == "E3" and pin.is_clock == true and pin.is_input == true
 
-    test pin_rst_n_is_c14
+    test pin_rst_n_is_c18
         given pin = PIN_RST_N
-        then pin.package_pin == "C14" and pin.is_input == true and pin.is_clock == false
+        then pin.package_pin == "C18" and pin.is_input == true and pin.is_clock == false
 
     test pin_uart_rx_is_t14
         given pin = PIN_UART_RX

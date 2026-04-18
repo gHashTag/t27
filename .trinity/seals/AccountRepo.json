@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:768d237b5208648bc95318ce67fb1aa3d67a0bd82de6a85fb7ff7cbbaab884d2",
+  "gen_hash_rust": "sha256:efbd8f14870e96cd7a46eb4337be579b8da4d42c00bbfd84be1383757da2f300",
+  "gen_hash_verilog": "sha256:628118626920a63cd99b981a1f04cd6e6f497cb63fd668ec5dcfb1100ff02af4",
+  "gen_hash_zig": "sha256:aac522313adda790d8de4419eb14cee9ff9e4d25df25fe0b96b296a131ddd9d9",
+  "module": "AccountRepo",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:7dfc25b5a06b57876a2c08234da3494488a455afa7da4433ff5d75c59ef460ca",
+  "spec_path": "specs/account/repo.t27"
+}

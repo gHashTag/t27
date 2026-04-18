@@ -1,0 +1,127 @@
+{
+  "constants": {
+    "DEMO_CLOCK_MHZ": 100,
+    "DEMO_MAX_CYCLES": 100000,
+    "GF16_MAC_INSTR_COUNT": 20,
+    "HELLO_INSTR_COUNT": 12
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "T27 End-to-End Demo Specification -- exercises the full toolchain: assembler -> ternary core -> GF16 -> VCD trace",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Kernel size in bytes is always positive for valid kernels",
+      "id": "kernel_size_positive"
+    },
+    {
+      "description": "IPC value is always non-negative",
+      "id": "ipc_non_negative"
+    },
+    {
+      "description": "Simulation time in microseconds is always non-negative",
+      "id": "sim_time_non_negative"
+    }
+  ],
+  "module": "E2eDemo",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/e2e_demo.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "E2eDemo Vectors",
+  "vectors": {
+    "kernel_creation": {
+      "cases": [
+        {
+          "description": "hello_trinity kernel has correct name and instruction breakdown",
+          "id": "hello_kernel_creation"
+        },
+        {
+          "description": "gf16_mac_demo kernel has correct name and GF16 ops",
+          "id": "gf16_mac_kernel_creation"
+        }
+      ],
+      "description": "Kernel struct creation and field verification"
+    },
+    "pipeline_result": {
+      "cases": [
+        {
+          "description": "Successful pipeline result has zero errors and correct fields",
+          "id": "pipe_result_ok"
+        },
+        {
+          "description": "Error pipeline result has errors and zero retired instructions",
+          "id": "pipe_result_error"
+        }
+      ],
+      "description": "Pipeline simulation result construction"
+    },
+    "performance_metrics": {
+      "cases": [
+        {
+          "description": "IPC calculated as (retired * 100 / cycles) = 50",
+          "id": "ipc_calculation"
+        },
+        {
+          "description": "IPC returns 0 when cycles is 0",
+          "id": "ipc_zero_cycles"
+        },
+        {
+          "description": "CPI calculated as (cycles / retired) = 2",
+          "id": "cpi_calculation"
+        },
+        {
+          "description": "CPI returns 0 when no instructions retired",
+          "id": "cpi_zero_retired"
+        },
+        {
+          "description": "GF16 throughput calculated correctly at 100 MHz",
+          "id": "gf16_throughput_calc"
+        },
+        {
+          "description": "Simulation time in microseconds for 100k cycles at 100 MHz",
+          "id": "sim_time_us"
+        },
+        {
+          "description": "Kernel size in bytes (instr_count * 4) = 48",
+          "id": "kernel_size_bytes"
+        }
+      ],
+      "description": "Performance query functions (IPC, CPI, throughput, sim time)"
+    },
+    "pass_fail": {
+      "cases": [
+        {
+          "description": "Result with zero errors and positive retired is passed",
+          "id": "passed_ok"
+        },
+        {
+          "description": "Result with errors is not passed",
+          "id": "passed_with_errors"
+        }
+      ],
+      "description": "Pass/fail determination for pipeline results"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid hello kernel passes validation with zero errors",
+          "id": "validate_hello_kernel"
+        },
+        {
+          "description": "Empty kernel (no name, zero instructions) fails validation",
+          "id": "validate_empty_kernel"
+        },
+        {
+          "description": "Demo config with valid kernel passes validation",
+          "id": "validate_demo_config"
+        }
+      ],
+      "description": "Kernel and config validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

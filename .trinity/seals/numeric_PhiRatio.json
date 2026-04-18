@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:634da843566eff24b13a29ac81fc6bb12d451427e739df9ea2d6d4c9577aafbb",
+  "gen_hash_rust": "sha256:c5f391394de5d1f9198f425f09710672ca012e332b76908e5d58847646227acb",
+  "gen_hash_verilog": "sha256:1e67e807e179ebdbed8399257b5a91a1008ab7f2002413ce4164cb06da3656a7",
+  "gen_hash_zig": "sha256:91a0c52ea9f54f0188efbd3ddb8838aacffb2d0e8de2fa3cbaf69334f7763ef1",
+  "module": "PhiRatio",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:39Z",
+  "spec_hash": "sha256:a5b35d61addd338e3a8d1bf910cb205fd694c12ec76af411e560a225da113b93",
+  "spec_path": "specs/numeric/phi_ratio.t27"
+}

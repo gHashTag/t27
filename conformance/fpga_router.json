@@ -1,0 +1,150 @@
+{
+  "constants": {
+    "EDGE_DATA": 0,
+    "EDGE_CLOCK": 1,
+    "EDGE_RESET": 2,
+    "EDGE_ENABLE": 3,
+    "LOCAL_WIRE_UM": 500,
+    "MEDIUM_WIRE_UM": 2000,
+    "LONG_WIRE_UM": 5000,
+    "HIGH_FANOUT_THRESHOLD": 16,
+    "CONGESTION_THRESHOLD": 80
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "HIR Signal Router Specification -- connectivity graph analysis, fanout estimation, routing congestion prediction",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Wire lengths are ordered: local < medium < long, all positive",
+      "id": "wire_length_non_negative"
+    },
+    {
+      "description": "Congestion score is always non-negative",
+      "id": "congestion_non_negative"
+    }
+  ],
+  "module": "Router",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/router.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Router Vectors",
+  "vectors": {
+    "edge_creation": {
+      "cases": [
+        {
+          "description": "Create data edge with bit width",
+          "id": "data_edge_creation"
+        },
+        {
+          "description": "Create clock edge with width=1",
+          "id": "clock_edge_creation"
+        }
+      ],
+      "description": "Connectivity edge construction"
+    },
+    "fanout_analysis": {
+      "cases": [
+        {
+          "description": "Create fanout info entry",
+          "id": "fanout_creation"
+        },
+        {
+          "description": "Fanout > 16 detected as high fanout",
+          "id": "is_high_fanout_yes"
+        },
+        {
+          "description": "Fanout <= 16 not high fanout",
+          "id": "is_high_fanout_no"
+        },
+        {
+          "description": "Clock signal identified as clock network",
+          "id": "is_clock_network_clk"
+        },
+        {
+          "description": "Data signal not identified as clock network",
+          "id": "is_clock_network_data"
+        }
+      ],
+      "description": "Fanout analysis and classification"
+    },
+    "route_estimate": {
+      "cases": [
+        {
+          "description": "Route estimate with avg wire length and no global buf for fanout <= 32",
+          "id": "route_estimate_creation"
+        },
+        {
+          "description": "High fanout > 32 requires global buffer",
+          "id": "route_estimate_high_fanout"
+        }
+      ],
+      "description": "Route estimate construction"
+    },
+    "wire_estimation": {
+      "cases": [
+        {
+          "description": "Fanout <= 4 uses local wire (500um)",
+          "id": "est_wire_length_local"
+        },
+        {
+          "description": "Fanout 5-16 uses medium wire (2000um)",
+          "id": "est_wire_length_medium"
+        },
+        {
+          "description": "Fanout > 16 uses long wire (5000um)",
+          "id": "est_wire_length_long"
+        },
+        {
+          "description": "Zero fanout has zero wire length",
+          "id": "est_wire_length_zero"
+        }
+      ],
+      "description": "Wire length estimation by fanout"
+    },
+    "congestion": {
+      "cases": [
+        {
+          "description": "Congestion = nets / die_area",
+          "id": "est_congestion"
+        },
+        {
+          "description": "Zero area returns zero congestion",
+          "id": "est_congestion_zero_area"
+        }
+      ],
+      "description": "Routing congestion estimation"
+    },
+    "passed": {
+      "cases": [
+        {
+          "description": "Low congestion score (< 80) passes",
+          "id": "passed_low_congestion"
+        },
+        {
+          "description": "High congestion score (>= 80) fails",
+          "id": "passed_high_congestion"
+        }
+      ],
+      "description": "Route pass/fail verdict"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid edge passes validation",
+          "id": "validate_edge_ok"
+        },
+        {
+          "description": "Edge with empty source/sink fails validation",
+          "id": "validate_edge_empty"
+        }
+      ],
+      "description": "Edge validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

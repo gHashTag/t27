@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:bfaa717ad845fca40d362c0aa78508f49ac064113dfc1b582de34aa5850f2f1a",
+  "gen_hash_rust": "sha256:ec2d5f7389f6d8f9e1d40dd9ad1c54a0a724838c48d6a4609bc03c4552a3d6ad",
+  "gen_hash_verilog": "sha256:25b7961ecd3df2ee4b555b1a6a22ee20e52b108177eda4a565dfc986829f738d",
+  "gen_hash_zig": "sha256:934e59a9c80adda60108f1be15bc0f3c9f0ccf5a63b4949690fc59c12fc7db24",
+  "module": "GI1Analysis",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:48793199ab1d93dd98ca70e4a7041b50c4f26a9ae24d5ccc0cb95f8a50f50d08",
+  "spec_path": "specs/physics/gi1_analysis.t27"
+}

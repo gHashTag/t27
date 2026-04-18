@@ -2,15 +2,15 @@
 // t27/specs/isa/registers.t27
 // TRI27 ISA Register File Specification
 // Register definitions, Coptic encoding, and register file operations
-// φ² + 1/φ² = 3 | TRINITY
+// 01 + 1/23 = 3 | TRINITY
 
 module ISARegisters {
     // Import base types
     use base::types;
 
-    // ═════════════════════════════════════════════════════════════════
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768
     // 1. Register Constants
-    // ═════════════════════════════════════════════════════════════════════════
+    // 69707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141
 
     // Register file configuration (Coptic compatibility: 27 registers)
     const NUM_REGISTERS : usize = 27;   // R0-R26
@@ -57,55 +57,55 @@ module ISARegisters {
     const FLAG_TRAP : u8 = 4;      // Trap flag
     const FLAG_INTERRUPT : u8 = 5; // Interrupt enable
 
-    // ═════════════════════════════════════════════════════════════════
+    // 142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206
     // 2. Coptic Alphabet Encoding
-    // ═════════════════════════════════════════════════════════════════════════
+    // 207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279
 
     // Coptic alphabet encoding (27 letters for 27 registers)
     // Maps register numbers to Coptic Unicode code points
     const COPTIC_ALPHABET : [27]u32 = [
-        0x03B1,  // α = alpha (R0)
-        0x03B2,  // β = bita (R1)
-        0x03B3,  // γ = gamma (R2)
-        0x03B4,  // δ = dalda (R3)
-        0x03B5,  // ε = ei (R4)
-        0x03C6,  // ϕ = sima (R5)
-        0x03B6,  // ζ = zata (R6)
-        0x03B7,  // η = ita (R7)
-        0x03B8,  // θ = thita (R8)
-        0x03B9,  // ι = iota (R9)
-        0x03BA,  // κ = kappa (R10)
-        0x03BB,  // λ = lauda (R11)
-        0x03BC,  // μ = mi (R12)
-        0x03BD,  // ν = ni (R13)
-        0x03BE,  // ξ = ksi (R14)
-        0x03C0,  // π = pi (R15)
-        0x03C1,  // ρ = ro (R16)
-        0x03C3,  // σ = sigma (R17)
-        0x03C4,  // τ = tau (R18)
-        0x03C5,  // υ = upsilon (R19)
-        0x03C6,  // φ = fi (R20)
-        0x03C7,  // χ = khi (R21)
-        0x03C8,  // ψ = psi (R22)
-        0x03C9,  // ω = ou (R23)
-        0x0417,  // ϗ = sampi (R24)
-        0x0418,  // Ϙ = koppa (R25)
-        0x0419,  // ϙ = šhei (R26)
+        0x03B1,  // 280 = alpha (R0)
+        0x03B2,  // 281 = bita (R1)
+        0x03B3,  // 282 = gamma (R2)
+        0x03B4,  // 283 = dalda (R3)
+        0x03B5,  // 284 = ei (R4)
+        0x03C6,  // 285 = sima (R5)
+        0x03B6,  // 286 = zata (R6)
+        0x03B7,  // 287 = ita (R7)
+        0x03B8,  // 288 = thita (R8)
+        0x03B9,  // 289 = iota (R9)
+        0x03BA,  // 290 = kappa (R10)
+        0x03BB,  // 291 = lauda (R11)
+        0x03BC,  // 292 = mi (R12)
+        0x03BD,  // 293 = ni (R13)
+        0x03BE,  // 294 = ksi (R14)
+        0x03C0,  // 295 = pi (R15)
+        0x03C1,  // 296 = ro (R16)
+        0x03C3,  // 297 = sigma (R17)
+        0x03C4,  // 298 = tau (R18)
+        0x03C5,  // 299 = upsilon (R19)
+        0x03C6,  // 300 = fi (R20)
+        0x03C7,  // 301 = khi (R21)
+        0x03C8,  // 302 = psi (R22)
+        0x03C9,  // 303 = ou (R23)
+        0x0417,  // 304 = sampi (R24)
+        0x0418,  // 305 = koppa (R25)
+        0x0419,  // 306 = 307hei (R26)
     ];
 
-    // ═════════════════════════════════════════════════════════════════
+    // 308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372
     // 3. Register File State
-    // ═════════════════════════════════════════════════════════════════════════
+    // 373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445
 
     // Register file: 27 registers, each holding a TernaryWord (27 trits)
     // Stored as u32 for efficiency (27 trits fits in 32 bits)
     var register_file : [NUM_REGISTERS]TernaryWord = [TernaryWord{.raw = 0}; NUM_REGISTERS];
 
-    // ═════════════════════════════════════════════════════════════════
+    // 446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510
     // 4. Register Read/Write
-    // ═════════════════════════════════════════════════════════════════════════
+    // 511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583
 
-    // reg_read(reg: u8) → TernaryWord
+    // reg_read(reg: u8) 584 TernaryWord
     // Read from register file
     // R0 always returns 0 (zero register)
     // Returns error sentinel if register number is invalid
@@ -124,7 +124,7 @@ module ISARegisters {
         return register_file[reg];
     }
 
-    // reg_write(reg: u8, value: TernaryWord) → bool
+    // reg_write(reg: u8, value: TernaryWord) 585 bool
     // Write to register file
     // R0 writes are ignored (zero register is read-only)
     // Returns true if write succeeded, false if invalid register
@@ -143,11 +143,11 @@ module ISARegisters {
         return true;
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650
     // 5. Coptic Encoding Conversion
-    // ═════════════════════════════════════════════════════════════════════════
+    // 651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723
 
-    // reg_to_coptic(reg: u8) → u32
+    // reg_to_coptic(reg: u8) 724 u32
     // Convert register number to Coptic Unicode code point
     // Returns 0 if register number is invalid
     fn reg_to_coptic(reg: u8) -> u32 {
@@ -157,7 +157,7 @@ module ISARegisters {
         return COPTIC_ALPHABET[reg];
     }
 
-    // coptic_to_reg(cp: u32) → u8
+    // coptic_to_reg(cp: u32) 725 u8
     // Convert Coptic Unicode code point to register number
     // Returns 0xFF if not a valid register character
     fn coptic_to_reg(cp: u32) -> u8 {
@@ -173,11 +173,11 @@ module ISARegisters {
         return 0xFF;  // Error sentinel
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790
     // 6. Status Register Operations
-    // ═════════════════════════════════════════════════════════════════════════
+    // 791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863
 
-    // status_read(flag: u8) → bool
+    // status_read(flag: u8) 864 bool
     // Read a specific flag from status register (R20)
     // Returns true if flag is set, false otherwise
     fn status_read(flag: u8) -> bool {
@@ -186,7 +186,7 @@ module ISARegisters {
         return (status_val.raw & mask) != 0;
     }
 
-    // status_write(flag: u8, value: bool) → bool
+    // status_write(flag: u8, value: bool) 865 bool
     // Set or clear a specific flag in status register (R20)
     // Returns true if operation succeeded
     fn status_write(flag: u8, value: bool) -> bool {
@@ -206,11 +206,11 @@ module ISARegisters {
         return reg_write(R20, status_val);
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930
     // 7. Stack Operations (using R17 as stack pointer)
-    // ═════════════════════════════════════════════════════════════════════════
+    // 9319329339349359369379389399409419429439449459469479489499509519529539549559569579589599609619629639649659669679689699709719729739749759769779789799809819829839849859869879889899909919929939949959969979989991000100110021003
 
-    // push_reg(reg: u8) → bool
+    // push_reg(reg: u8) 1004 bool
     // Push register value to stack (using R17 as stack pointer)
     // Stack grows downward (decrement before store)
     // Returns true if push succeeded
@@ -237,7 +237,7 @@ module ISARegisters {
         return true;
     }
 
-    // pop_reg(reg: u8) → bool
+    // pop_reg(reg: u8) 1005 bool
     // Pop value from stack into register (using R17 as stack pointer)
     // Stack grows downward (load then increment)
     // Returns true if pop succeeded
@@ -261,11 +261,11 @@ module ISARegisters {
         return reg_write(reg, value);
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 10061007100810091010101110121013101410151016101710181019102010211022102310241025102610271028102910301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070
     // 8. Context Save/Restore
-    // ═════════════════════════════════════════════════════════════════════════
+    // 1071107210731074107510761077107810791080108110821083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143
 
-    // save_context() → void
+    // save_context() 1144 void
     // Save caller-saved registers (R5-R9) to stack
     // Used by function prologue
     fn save_context() -> void {
@@ -276,7 +276,7 @@ module ISARegisters {
         push_reg(R9);
     }
 
-    // restore_context() → void
+    // restore_context() 1145 void
     // Restore caller-saved registers from stack
     // Used by function epilogue
     fn restore_context() -> void {
@@ -287,9 +287,9 @@ module ISARegisters {
         pop_reg(R5);
     }
 
-    // ═════════════════════════════════════════════════════════════════
+    // 11461147114811491150115111521153115411551156115711581159116011611162116311641165116611671168116911701171117211731174117511761177117811791180118111821183118411851186118711881189119011911192119311941195119611971198119912001201120212031204120512061207120812091210
     // 9. Register Aliases
-    // ═════════════════════════════════════════════════════════════════════════
+    // 1211121212131214121512161217121812191220122112221223122412251226122712281229123012311232123312341235123612371238123912401241124212431244124512461247124812491250125112521253125412551256125712581259126012611262126312641265126612671268126912701271127212731274127512761277127812791280128112821283
 
     // Argument/return registers
     const ARG0 : u8 = R1;
@@ -322,9 +322,9 @@ module ISARegisters {
     const KSP : u8 = R22;  // Kernel stack pointer
     const TP : u8 = R23;   // Thread pointer
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 1284128512861287128812891290129112921293129412951296129712981299130013011302130313041305130613071308130913101311131213131314131513161317131813191320132113221323132413251326132713281329133013311332133313341335133613371338133913401341134213431344134513461347134813491350135113521353135413551356135713581359136013611362136313641365136613671368136913701371137213731374137513761377137813791380138113821383138413851386
     // TDD-Inside-Spec: Tests and Invariants for ISARegisters
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // 1387138813891390139113921393139413951396139713981399140014011402140314041405140614071408140914101411141214131414141514161417141814191420142114221423142414251426142714281429143014311432143314341435143614371438143914401441144214431444144514461447144814491450145114521453145414551456145714581459146014611462146314641465146614671468146914701471147214731474147514761477147814791480148114821483148414851486148714881489
 
     test isa_r0_always_zero
         given word = TernaryWord{.raw = 0x123456}
@@ -364,22 +364,22 @@ module ISARegisters {
 
     test isa_reg_to_coptic_r0
         given cp = reg_to_coptic(R0)
-        then cp == 0x03B1  // α
+        then cp == 0x03B1  // 1490
 
     test isa_reg_to_coptic_r10
         given cp = reg_to_coptic(R10)
-        then cp == 0x03BA  // κ
+        then cp == 0x03BA  // 1491
 
     test isa_reg_to_coptic_r26
         given cp = reg_to_coptic(R26)
-        then cp == 0x0419  // ϙ
+        then cp == 0x0419  // 1492
 
     test isa_coptic_to_reg_alpha
-        given reg = coptic_to_reg(0x03B1)  // α
+        given reg = coptic_to_reg(0x03B1)  // 1493
         then reg == R0
 
     test isa_coptic_to_reg_kappa
-        given reg = coptic_to_reg(0x03BA)  // κ
+        given reg = coptic_to_reg(0x03BA)  // 1494
         then reg == R10
 
     test isa_coptic_to_reg_invalid
@@ -491,9 +491,9 @@ module ISARegisters {
     invariant isa_max_register_is_26
         assert R26 == NUM_REGISTERS - 1
 
-    // ═════════════════════════════════════════════════════════════════
+    // 14951496149714981499150015011502150315041505150615071508150915101511151215131514151515161517151815191520152115221523152415251526152715281529153015311532153315341535153615371538153915401541154215431544154515461547154815491550155115521553155415551556155715581559
     // Ring 045: Agent Binding and Trit State Invariants
-    // ═════════════════════════════════════════════════════════════════════════
+    // 1560156115621563156415651566156715681569157015711572157315741575157615771578157915801581158215831584158515861587158815891590159115921593159415951596159715981599160016011602160316041605160616071608160916101611161216131614161516161617161816191620162116221623162416251626162716281629163016311632
 
     // agent_register_bijection: Each agent maps to exactly one register
     invariant agent_register_bijection
@@ -519,10 +519,10 @@ module ISARegisters {
         assert result.raw == value.raw
 
     // queen_register_special: T (Queen) register = register index 0 (Tau/Alpha)
-    // The Queen register is R0 (Alpha/α), the first Coptic letter
+    // The Queen register is R0 (Alpha/1633), the first Coptic letter
     invariant queen_register_special
         assert R0 == 0
-        assert reg_to_coptic(R0) == 0x03B1  // α (Alpha, representing Queen/Tau)
+        assert reg_to_coptic(R0) == 0x03B1  // 1634 (Alpha, representing Queen/Tau)
 
     // register_initial_zero: All registers initialize to 0
     invariant register_initial_zero
@@ -550,7 +550,7 @@ module ISARegisters {
         // T (Queen) register = register index 0 (Tau/Alpha)
         given queen_idx = R0
         and   queen_cp = reg_to_coptic(queen_idx)
-        then queen_idx == 0 and queen_cp == 0x03B1  // α
+        then queen_idx == 0 and queen_cp == 0x03B1  // 1635
 
     test agent_count_equals_register_count
         given agents = AGENT_COUNT
@@ -578,7 +578,7 @@ module ISARegisters {
         target: < 20ns
 
     bench isa_coptic_to_reg_latency
-        measure: nanoseconds to coptic_to_reg(0x03C0)  // π
+        measure: nanoseconds to coptic_to_reg(0x03C0)  // 1636
         target: < 100ns
 
     bench isa_status_read_latency

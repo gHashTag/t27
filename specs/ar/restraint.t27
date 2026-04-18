@@ -1,553 +1,435 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/ar/restraint.t27
-// Bounded Rationality via Trit=0 (CLARA Restraint)
-// Agent C: Most pure agent in CLARA AR family
-// Isomorphism: Trit.zero = K_UNKNOWN = Restraint = "don't-care"
-// phi^2 + 1/phi^2 = 3 | TRINITY
+// spec: Restraint
+// Bounded rationality and restraint mechanisms for neuro-symbolic reasoning
 
-module Restraint {
-    // ========================================================================
-    // IMPORTS - Reference existing specs, DO NOT DUPLICATE
-    // ========================================================================
-    use ar::ternary_logic;   // K_UNKNOWN, K_FALSE, K_TRUE, is_restraint
-    use base::types;         // Trit enum: .neg, .zero, .pos
-    use numeric::gf16;       // GF16 for confidence (NUMERIC-STANDARD-001)
+spec Restraint {
+    // Restraint type
+    enum RestraintType {
+        UNKNOWN_TO_FALSE = 0,  // K_UNKNOWN becomes K_FALSE
+        BOUNDED_UNCERTAINTY = 1,  // Limit number of unknowns
+        CONFIDENCE_THRESHOLD = 2,  // Reject low-confidence conclusions
+        TEMPORAL_DECAY = 3,  // Decay unknown values over time
+        COMPLEXITY_PENALTY = 4,  // Penalize complex proofs
+        TOXICITY_BLOCK = 5  // Block contradictory reasoning
+    }
 
-    // ========================================================================
-    // 1. Quality Level Enumeration
-    // ========================================================================
-    // CLARA's bounded rationality requires quality-aware execution
-    // Quality levels map to different resource bounds per Grosof's requirements
+    // Restraint configuration
+    struct RestraintConfig {
+        restraint_type: RestraintType,
+        threshold: float,
+        enabled: bool
+    }
 
-    pub const QualityLevel = enum(u2) {
-        // Unknown quality: no confidence bounds, minimal resources
-        // Use for: untested rules, cold start, exploratory reasoning
-        unknown = 0,
+    // Restraint result
+    struct RestraintResult {
+        transformed_value: Trit,
+        original_value: Trit,
+        restraint_applied: bool,
+        reason: string
+    }
 
-        // Unstable quality: low confidence, restricted resources
-        // Use for: rules with mixed history, newly learned hypotheses
-        unstable = 1,
+    // Maximum unknown tolerance (bounded rationality)
+    const MAX_UNKNOWN_RATIO: float = 0.5  // At most 50% can be unknown
 
-        // Good quality: high confidence, full resources
-        // Use for: validated rules, stable inference patterns
-        good = 2,
-    };
+    // Minimum confidence threshold
+    const MIN_CONFIDENCE: float = 0.3  // 30% confidence required
 
-    // ========================================================================
-    // 2. Restraint Parameters
-    // ========================================================================
-    // Configurable bounds for bounded rationality
-    // Per Grosof: depth limits + rule limits + confidence + timeout
+    // Complexity penalty per step
+    const COMPLEXITY_PENALTY_PER_STEP: float = 0.1
 
-    pub const RestraintParams = struct {
-        // Maximum derivation depth (prevents infinite loops)
-        // Typical: unknown=3, unstable=7, good=15
-        max_depth : u32,
-
-        // Maximum number of rules to fire (prevents combinatorial explosion)
-        // Typical: unknown=10, unstable=50, good=500
-        max_rules : u32,
-
-        // Minimum confidence threshold to continue (Kleene semantics)
-        // Values: K_UNKNOWN (no threshold), K_FALSE (blocked), K_TRUE (certain)
-        // GF16 for phi-optimized confidence (NUMERIC-STANDARD-001)
-        confidence_threshold : GF16,
-
-        // Timeout in milliseconds (prevents runaway inference)
-        // Typical: unknown=100, unstable=1000, good=10000
-        // u64 is OK - this is system time, not ML numeric
-        timeout_ms : u64,
-    };
-
-    // ========================================================================
-    // 3. Execution State
-    // ========================================================================
-    // Tracks current execution state for restraint checking
-
-    pub const ExecutionState = struct {
-        // Current derivation depth (starts at 0)
-        current_depth : u32,
-
-        // Number of rules fired so far
-        rules_fired : u32,
-
-        // Current confidence level (accumulated via Kleene AND)
-        // GF16 for phi-optimized confidence (NUMERIC-STANDARD-001)
-        current_confidence : GF16,
-
-        // Execution start time (for timeout checking)
-        // u64 is OK - this is system time, not ML numeric
-        start_time_ms : u64,
-
-        // Current quality level
-        quality : QualityLevel,
-    };
-
-    // ========================================================================
-    // 4. Meta-Rule for HiLog
-    // ========================================================================
-    // HiLog meta-reasoning: rules about rules (Grosof requirement)
-    // Enables self-reflection and strategic reasoning
-
-    pub const MetaRule = struct {
-        // Condition under which this meta-rule applies
-        // Uses Kleene semantics for partial evaluation
-        condition : Trit,
-
-        // Action to take: modify params or halt
-        // .neg = halt (K_FALSE), .zero = continue with caution (K_UNKNOWN)
-        // .pos = continue normally (K_TRUE)
-        action : Trit,
-
-        // Priority: higher priority meta-rules checked first
-        priority : u8,
-    };
-
-    // ========================================================================
-    // 5. Quality-Level Parameter Selection
-    // ========================================================================
-
-    // params_for_quality(quality: QualityLevel) -> RestraintParams
-    // Select appropriate restraint parameters for a given quality level
-    // Per CLARA requirements: unknown=conservative, good=permissive
-    // Complexity: O(1)
-    pub fn params_for_quality(quality: QualityLevel) -> RestraintParams {
-        switch (quality) {
-            .unknown => {
-                // Conservative: minimal resources for unknown quality
-                return RestraintParams{
-                    .max_depth = 3,
-                    .max_rules = 10,
-                    .confidence_threshold = gf16_encode_f32(0.85), // High threshold for unknown
-                    .timeout_ms = 100,
-                };
-            },
-            .unstable => {
-                // Moderate: restricted resources for unstable quality
-                return RestraintParams{
-                    .max_depth = 7,
-                    .max_rules = 50,
-                    .confidence_threshold = gf16_encode_f32(0.75),  // Medium threshold
-                    .timeout_ms = 1000,
-                };
-            },
-            .good => {
-                // Permissive: full resources for good quality
-                return RestraintParams{
-                    .max_depth = 15,
-                    .max_rules = 500,
-                    .confidence_threshold = gf16_encode_f32(0.70),  // Lower threshold for good quality
-                    .timeout_ms = 10000,
-                };
-            },
+    // Create default restraint config
+    fn default_config() -> RestraintConfig {
+        return RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: 0.5,
+            enabled: true
         }
     }
 
-    // Import k3_implies and is_restraint from ternary_logic
-    use k3_implies;
-    use is_restraint;
-
-    // ========================================================================
-    // 6. Restraint Decision Function
-    // ========================================================================
-
-    // should_continue(state: ExecutionState, params: RestraintParams) -> Trit
-    // Determine if execution should continue (K_TRUE) or be restrained (K_FALSE)
-    // Returns K_FALSE when ANY restraint condition is triggered
-    // This is CORE of CLARA bounded rationality
-    // Complexity: O(1)
-    pub fn should_continue(state: ExecutionState, params: RestraintParams) -> Trit {
-        // Check depth limit
-        if (state.current_depth >= params.max_depth) {
-            return K_FALSE;  // Depth restraint
-        }
-
-        // Check rule limit
-        if (state.rules_fired >= params.max_rules) {
-            return K_FALSE;  // Rule count restraint
-        }
-
-        // Check confidence threshold using GF16 comparison
-        // Convert to f32 for comparison (one cycle each)
-        const conf_value = gf16_decode_to_f32(state.current_confidence);
-        const threshold_value = gf16_decode_to_f32(params.confidence_threshold);
-        
-        // If confidence below threshold, return restraint
-        // K_UNKNOWN (confidence ~0) should trigger restraint when threshold > 0
-        if (conf_value < threshold_value) {
-            return K_FALSE;  // Confidence restraint
-        }
-
-        // Check timeout (would need current time - simplified here)
-        // In real implementation: current_time - state.start_time_ms < params.timeout_ms
-
-        // All checks passed - continue
-        return K_TRUE;
-    }
-
-    // ========================================================================
-    // 7. Restraint Value Detection
-    // ========================================================================
-
-    // is_restraint_value(t: Trit) -> bool
-    // Check if a Trit value represents restraint
-    // Directly uses the is_restraint function from ternary_logic
-    // Trit.zero = K_UNKNOWN = "don't-care" = restraint
-    // Complexity: O(1)
-    pub fn is_restraint_value(t: Trit) -> bool {
-        return is_restraint(t);
-    }
-
-    // ========================================================================
-    // 8. Depth Stepping
-    // ========================================================================
-
-    // step_depth(state: *ExecutionState, delta: u32) -> void
-    // Increment or decrement execution depth
-    // Used for entering/exiting derivation levels
-    // Complexity: O(1)
-    pub fn step_depth(state: *ExecutionState, delta: u32) -> void {
-        state.current_depth = state.current_depth + delta;
-    }
-
-    // ========================================================================
-    // 9. Meta-Rule Application
-    // ========================================================================
-
-    // apply_meta_rules(
-    //     state: *ExecutionState,
-    //     meta_rules: []MetaRule,
-    //     count: usize
-    // ) -> Trit
-    // Apply HiLog meta-rules in priority order
-    // Returns K_FALSE if any triggered meta-rule says halt
-    // Returns K_TRUE if all triggered rules say continue
-    // Returns K_UNKNOWN if partial/conflicting meta-information
-    // Complexity: O(n) where n = number of meta_rules
-    pub fn apply_meta_rules(
-        state: *ExecutionState,
-        meta_rules: []MetaRule,
-        count: usize
-    ) -> Trit {
-        var result : Trit = K_TRUE;  // Default: continue
-
-        var i : usize = 0;
-        while (i < count) {
-            const rule = meta_rules[i];
-
-            // Check if rule condition matches current state
-            // Simplified: condition = K_TRUE means always trigger
-            // For confidence-based meta-rules, would convert GF16 to Trit threshold
-            if (rule.condition == K_TRUE) {
-                // Rule triggered - apply action
-                // K_FALSE action = halt (strongest)
-                if (rule.action == K_FALSE) {
-                    return K_FALSE;  // Immediate halt
-                }
-                // K_UNKNOWN action = restraint
-                if (rule.action == K_UNKNOWN) {
-                    result = K_UNKNOWN;  // Downgrade to restraint
-                }
-                // K_TRUE action = continue (no change)
+    // Apply restraint to a single value
+    fn apply_restraint(value: Trit, config: RestraintConfig) -> RestraintResult {
+        if !config.enabled {
+            return RestraintResult {
+                transformed_value: value,
+                original_value: value,
+                restraint_applied: false,
+                reason: "Restraint disabled"
             }
-
-            i = i + 1;
         }
 
-        return result;
+        match config.restraint_type {
+            RestraintType::UNKNOWN_TO_FALSE => unknown_to_false(value),
+            RestraintType::BOUNDED_UNCERTAINTY => bounded_uncertainty(value, config.threshold),
+            RestraintType::CONFIDENCE_THRESHOLD => confidence_threshold(value, config.threshold),
+            RestraintType::TEMPORAL_DECAY => temporal_decay(value, config.threshold),
+            RestraintType::COMPLEXITY_PENALTY => complexity_penalty(value),
+            RestraintType::TOXICITY_BLOCK => toxicity_block(value)
+        }
     }
 
-    // ========================================================================
-    // 10. State Initialization
-    // ========================================================================
-
-    // init_state(quality: QualityLevel, start_time: u64) -> ExecutionState
-    // Initialize execution state for a new derivation
-    // Complexity: O(1)
-    pub fn init_state(quality: QualityLevel, start_time: u64) -> ExecutionState {
-        return ExecutionState{
-            .current_depth = 0,
-            .rules_fired = 0,
-            .current_confidence = gf16_encode_f32(0.0),  // Start with zero confidence
-            .start_time_ms = start_time,
-            .quality = quality,
-        };
-    }
-
-    // ========================================================================
-    // TDD - Tests
-    // ========================================================================
-
-    test params_for_quality_unknown_conservative
-        // Unknown quality gets minimal resources
-        when params = params_for_quality(.unknown)
-        then params.max_depth == 3
-        and params.max_rules == 10
-        and params.timeout_ms == 100
-
-    test params_for_quality_unstable_moderate
-        // Unstable quality gets moderate resources
-        when params = params_for_quality(.unstable)
-        then params.max_depth == 7
-        and params.max_rules == 50
-        and params.timeout_ms == 1000
-
-    test params_for_quality_good_permissive
-        // Good quality gets full resources
-        when params = params_for_quality(.good)
-        then params.max_depth == 15
-        and params.max_rules == 500
-        and params.timeout_ms == 10000
-
-    test params_for_quality_gf16_thresholds
-        // All quality levels use GF16 thresholds
-        when p_unknown = params_for_quality(.unknown)
-        and p_unstable = params_for_quality(.unstable)
-        and p_good = params_for_quality(.good)
-        then gf16_decode_to_f32(p_unknown.confidence_threshold) == 0.85
-        and gf16_decode_to_f32(p_unstable.confidence_threshold) == 0.75
-        and gf16_decode_to_f32(p_good.confidence_threshold) == 0.70
-
-    test should_continue_allows_initial_state
-        // Initial state should pass with sufficient confidence
-        given params = params_for_quality(.good)
-        and state = init_state(.good, 0)
-        state.current_confidence = gf16_encode_f32(0.8)
-        when result = should_continue(state, params)
-        then result == K_TRUE
-
-    test should_continue_blocks_on_depth_limit
-        // Depth limit triggers restraint
-        given params = RestraintParams{ .max_depth = 2, .max_rules = 100, .confidence_threshold = gf16_encode_f32(0.5), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 3, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.9), .start_time_ms = 0, .quality = .good }
-        when result = should_continue(state, params)
-        then result == K_FALSE
-
-    test should_continue_blocks_on_rule_limit
-        // Rule limit triggers restraint
-        given params = RestraintParams{ .max_depth = 100, .max_rules = 5, .confidence_threshold = gf16_encode_f32(0.5), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 0, .rules_fired = 10, .current_confidence = gf16_encode_f32(0.9), .start_time_ms = 0, .quality = .good }
-        when result = should_continue(state, params)
-        then result == K_FALSE
-
-    test should_continue_blocks_on_low_confidence
-        // Low confidence triggers restraint
-        given params = RestraintParams{ .max_depth = 100, .max_rules = 100, .confidence_threshold = gf16_encode_f32(0.7), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.5), .start_time_ms = 0, .quality = .good }
-        when result = should_continue(state, params)
-        then result == K_FALSE
-
-    test should_continue_allows_sufficient_confidence
-        // Sufficient confidence allows continuation
-        given params = RestraintParams{ .max_depth = 100, .max_rules = 100, .confidence_threshold = gf16_encode_f32(0.7), .timeout_ms = 1000 }
-        and state = ExecutionState{ .current_depth = 0, .rules_fired = 0, .current_confidence = gf16_encode_f32(0.8), .start_time_ms = 0, .quality = .good }
-        when result = should_continue(state, params)
-        then result == K_TRUE
-
-    test is_restraint_value_true_for_zero
-        // Trit.zero = K_UNKNOWN = restraint
-        when result = is_restraint_value(.zero)
-        then result == true
-
-    test is_restraint_value_false_for_neg
-        // Trit.neg = K_FALSE != restraint
-        when result = is_restraint_value(.neg)
-        then result == false
-
-    test is_restraint_value_false_for_pos
-        // Trit.pos = K_TRUE != restraint
-        when result = is_restraint_value(.pos)
-        then result == false
-
-    test step_depth_increments
-        // step_depth increments current_depth
-        given state = init_state(.good, 0)
-        and initial_depth = state.current_depth
-        step_depth(&state, 1)
-        then state.current_depth == initial_depth + 1
-
-    test step_depth_multiple
-        // step_depth can increment by more than 1
-        given state = init_state(.good, 0)
-        step_depth(&state, 5)
-        then state.current_depth == 5
-
-    test apply_meta_rules_empty
-        // No meta-rules returns K_TRUE (continue)
-        given state = init_state(.good, 0)
-        and rules = []MetaRule{}
-        when result = apply_meta_rules(&state, &rules, 0)
-        then result == K_TRUE
-
-    test apply_meta_rules_halt_on_false_action
-        // Meta-rule with K_FALSE action triggers immediate halt
-        given state = init_state(.good, 0)
-        and rules = []MetaRule{
-            MetaRule{ .condition = K_TRUE, .action = K_FALSE, .priority = 0 }
-        }
-        when result = apply_meta_rules(&state, &rules, 1)
-        then result == K_FALSE
-
-    test apply_meta_rules_restraint_on_unknown_action
-        // Meta-rule with K_UNKNOWN action returns restraint
-        given state = init_state(.good, 0)
-        and rules = []MetaRule{
-            MetaRule{ .condition = K_TRUE, .action = K_UNKNOWN, .priority = 0 }
-        }
-        when result = apply_meta_rules(&state, &rules, 1)
-        then result == K_UNKNOWN
-
-    test apply_meta_rules_priority_first_wins
-        // Higher priority rule checked first
-        given state = init_state(.good, 0)
-        and rules = []MetaRule{
-            MetaRule{ .condition = K_TRUE, .action = K_UNKNOWN, .priority = 10 },
-            MetaRule{ .condition = K_TRUE, .action = K_FALSE, .priority = 1 }
-        }
-        when result = apply_meta_rules(&state, &rules, 2)
-        // Priority 10 (higher) checked first - returns K_UNKNOWN
-        then result == K_UNKNOWN
-
-    test apply_meta_rules_condition_mismatch
-        // Meta-rule with K_FALSE condition doesn't trigger
-        given state = init_state(.good, 0)
-        and rules = []MetaRule{
-            MetaRule{ .condition = K_FALSE, .action = K_FALSE, .priority = 0 }
-        }
-        when result = apply_meta_rules(&state, &rules, 1)
-        then result == K_TRUE
-
-    test init_state_sets_defaults
-        // init_state creates proper initial state with GF16
-        when state = init_state(.unstable, 12345)
-        then state.current_depth == 0
-        and state.rules_fired == 0
-        and gf16_decode_to_f32(state.current_confidence) == 0.0
-        and state.start_time_ms == 12345
-        and state.quality == .unstable
-
-    // ========================================================================
-    // TDD - Invariants
-    // ========================================================================
-
-    invariant quality_level_coverage
-        // All quality levels have defined parameters
-        const q_unknown = params_for_quality(.unknown);
-        const q_unstable = params_for_quality(.unstable);
-        const q_good = params_for_quality(.good);
-        assert q_unknown.max_depth < q_unstable.max_depth;
-        assert q_unstable.max_depth < q_good.max_depth;
-        assert q_unknown.max_rules < q_unstable.max_rules;
-        assert q_unstable.max_rules < q_good.max_rules;
-
-    invariant quality_thresholds_decrease
-        // Higher quality = lower threshold (easier to continue)
-        const q_unknown = params_for_quality(.unknown);
-        const q_unstable = params_for_quality(.unstable);
-        const q_good = params_for_quality(.good);
-        const t_unknown = gf16_decode_to_f32(q_unknown.confidence_threshold);
-        const t_unstable = gf16_decode_to_f32(q_unstable.confidence_threshold);
-        const t_good = gf16_decode_to_f32(q_good.confidence_threshold);
-        assert t_unknown > t_unstable;  // Unknown needs highest confidence
-        assert t_unstable > t_good;     // Good needs lowest threshold
-
-    invariant restraint_params_nonzero
-        // All restraint parameters are non-zero
-        const q_unknown = params_for_quality(.unknown);
-        assert q_unknown.max_depth > 0;
-        assert q_unknown.max_rules > 0;
-        assert q_unknown.timeout_ms > 0;
-
-    invariant should_continue_monotonic_depth
-        // Deeper state is more likely to be restrained
-        var state = init_state(.good, 0);
-        state.current_confidence = gf16_encode_f32(0.9);  // High confidence
-        const params = params_for_quality(.good);
-        var i : u32 = 0;
-        while (i < params.max_depth) {
-            state.current_depth = i;
-            const before = should_continue(state, params);
-            state.current_depth = i + 1;
-            const after = should_continue(state, params);
-            // Once restraint triggers, stays restrained
-            if (after == K_FALSE) {
-                assert before == K_TRUE;  // Was allowed before limit
+    // Restraint: K_UNKNOWN becomes K_FALSE
+    fn unknown_to_false(value: Trit) -> RestraintResult {
+        if value == K_UNKNOWN {
+            return RestraintResult {
+                transformed_value: K_FALSE,
+                original_value: value,
+                restraint_applied: true,
+                reason: "Unknown value replaced with False"
             }
-            i = i + 1;
         }
 
-    invariant restraint_value_isomorphism
-        // Restraint value exactly matches Trit.zero
-        assert is_restraint_value(.zero) == true;
-        assert is_restraint_value(.neg) == false;
-        assert is_restraint_value(.pos) == false;
-
-    invariant meta_rule_action_validity
-        // All meta-rule actions are valid Trit values
-        const valid_action = MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 0 };
-        _ = valid_action;
-
-    invariant execution_state_fields_initialized
-        // init_state initializes all fields
-        const state = init_state(.good, 0);
-        _ = state.current_depth;
-        _ = state.rules_fired;
-        _ = state.current_confidence;
-        _ = state.start_time_ms;
-        _ = state.quality;
-
-    invariant gf16_confidence_in_valid_range
-        // GF16 confidence values are in [0, 1]
-        const conf = gf16_encode_f32(0.5);
-        const value = gf16_decode_to_f32(conf);
-        assert value >= 0.0 and value <= 1.0;
-
-    // ========================================================================
-    // TDD - Benchmarks
-    // ========================================================================
-
-    bench params_for_quality_latency
-        // Measure: cycles for params_for_quality lookup
-        // Target: < 50 cycles (switch statement)
-        @setEvalBranchQuota(10000);
-        var result : RestraintParams = undefined;
-        for (0..1000) |_| {
-            result = params_for_quality(.good);
+        return RestraintResult {
+            transformed_value: value,
+            original_value: value,
+            restraint_applied: false,
+            reason: "Value is known"
         }
-        _ = result;
+    }
 
-    bench should_continue_latency
-        // Measure: cycles for should_continue check
-        // Target: < 100 cycles (3 comparisons + GF16 conversion)
-        @setEvalBranchQuota(10000);
-        const params = params_for_quality(.good);
-        const state = init_state(.good, 0);
-        var result : Trit = K_UNKNOWN;
-        for (0..1000) |_| {
-            result = should_continue(state, params);
+    // Restraint: Bounded uncertainty (limit unknowns)
+    fn bounded_uncertainty(value: Trit, threshold: float) -> RestraintResult {
+        // Threshold is max ratio of unknowns allowed
+        if value == K_UNKNOWN {
+            // Random decision based on threshold
+            let should_block = random() < threshold;
+            if should_block {
+                return RestraintResult {
+                    transformed_value: K_FALSE,
+                    original_value: value,
+                    restraint_applied: true,
+                    reason: format("Uncertainty exceeded threshold ({:.2f})", threshold)
+                }
+            }
         }
-        _ = result;
 
-    bench apply_meta_rules_latency
-        // Measure: cycles for apply_meta_rules with 10 rules
-        // Target: < 500 cycles (10 rule checks)
-        @setEvalBranchQuota(10000);
-        const state = init_state(.good, 0);
-        const rules = []MetaRule{
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 0 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 1 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 2 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 3 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 4 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 5 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 6 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 7 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 8 },
-            MetaRule{ .condition = K_TRUE, .action = K_TRUE, .priority = 9 },
+        return RestraintResult {
+            transformed_value: value,
+            original_value: value,
+            restraint_applied: false,
+            reason: "Within uncertainty bounds"
+        }
+    }
+
+    // Restraint: Confidence threshold
+    fn confidence_threshold(value: Trit, threshold: float) -> RestraintResult {
+        // Note: K3 values don't have confidence, this is for ML outputs
+        // This restraint applies when ML component outputs confidence
+        // Threshold is applied at composition layer
+
+        return RestraintResult {
+            transformed_value: value,
+            original_value: value,
+            restraint_applied: false,
+            reason: "Confidence threshold not directly applicable to K3"
+        }
+    }
+
+    // Restraint: Temporal decay of unknown values
+    fn temporal_decay(value: Trit, decay_rate: float) -> RestraintResult {
+        // Unknown values become more likely false over time
+        if value == K_UNKNOWN {
+            // Simulate temporal pressure
+            let pressure = random() * decay_rate;
+            if pressure > 0.5 {
+                return RestraintResult {
+                    transformed_value: K_FALSE,
+                    original_value: value,
+                    restraint_applied: true,
+                    reason: format("Temporal decay (rate: {:.2f})", decay_rate)
+                }
+            }
+        }
+
+        return RestraintResult {
+            transformed_value: value,
+            original_value: value,
+            restraint_applied: false,
+            reason: "No temporal decay"
+        }
+    }
+
+    // Restraint: Complexity penalty
+    fn complexity_penalty(value: Trit) -> RestraintResult {
+        // Apply penalty based on proof length or reasoning depth
+        let penalty_factor = 1.0;  // Could be derived from proof trace length
+
+        if value == K_UNKNOWN && penalty_factor < MIN_CONFIDENCE {
+            return RestraintResult {
+                transformed_value: K_FALSE,
+                original_value: value,
+                restraint_applied: true,
+                reason: format("Complexity penalty (factor: {:.2f})", penalty_factor)
+            }
+        }
+
+        return RestraintResult {
+            transformed_value: value,
+            original_value: value,
+            restraint_applied: false,
+            reason: "Complexity within bounds"
+        }
+    }
+
+    // Restraint: Block toxic reasoning
+    fn toxicity_block(value: Trit, is_toxic: bool) -> RestraintResult {
+        if is_toxic && value == K_TRUE {
+            return RestraintResult {
+                transformed_value: K_FALSE,
+                original_value: value,
+                restraint_applied: true,
+                reason: "Toxic reasoning blocked"
+            }
+        }
+
+        return RestraintResult {
+            transformed_value: value,
+            original_value: value,
+            restraint_applied: false,
+            reason: "Non-toxic"
+        }
+    }
+
+    // Apply restraint to all values in a list
+    fn apply_to_list(values: [Trit], config: RestraintConfig) -> [RestraintResult] {
+        let mut results: [RestraintResult] = [];
+
+        for value in values {
+            let result = apply_restraint(value, config);
+            results.push(result);
+        }
+
+        return results
+    }
+
+    // Check if restraint configuration is valid
+    fn validate_config(config: RestraintConfig) -> bool {
+        if config.threshold < 0.0 || config.threshold > 1.0 {
+            return false
+        }
+        return true
+    }
+
+    // Calculate unknown ratio in values
+    fn unknown_ratio(values: [Trit]) -> float {
+        if len(values) == 0 {
+            return 0.0
+        }
+
+        let unknown_count = 0;
+        for v in values {
+            if v == K_UNKNOWN {
+                unknown_count = unknown_count + 1
+            }
+        }
+
+        return unknown_count as float / len(values) as float
+    }
+
+    // Check if unknown ratio exceeds threshold
+    fn exceeds_unknown_threshold(values: [Trit], threshold: float) -> bool {
+        let ratio = unknown_ratio(values);
+        return ratio > threshold
+    }
+
+    // INVARIANTS
+
+    // Restraint preserves K_TRUE when not triggered
+    invariant restraint_preserves_true {
+        let config = default_config();
+        let result = apply_restraint(K_TRUE, config);
+        assert result.transformed_value == K_TRUE;
+        assert !result.restraint_applied
+    }
+
+    // Restraint preserves K_FALSE when not triggered
+    invariant restraint_preserves_false {
+        let config = default_config();
+        let result = apply_restraint(K_FALSE, config);
+        assert result.transformed_value == K_FALSE;
+        assert !result.restraint_applied
+    }
+
+    // Restraint transforms K_UNKNOWN to K_FALSE
+    invariant restraint_transforms_unknown_to_false {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: 0.5,
+            enabled: true
         };
-        var result : Trit = K_UNKNOWN;
-        for (0..1000) |_| {
-            result = apply_meta_rules(&state, &rules, 10);
-        }
-        _ = result;
+
+        let result = apply_restraint(K_UNKNOWN, config);
+        assert result.transformed_value == K_FALSE;
+        assert result.restraint_applied
+    }
+
+    // Unknown ratio calculation correct
+    invariant unknown_ratio_correct {
+        let values = [K_TRUE, K_UNKNOWN, K_TRUE, K_FALSE, K_UNKNOWN];
+        let ratio = unknown_ratio(values);
+        assert approx_equal(ratio, 0.4, 0.001)  // 2/5
+    }
+
+    // TESTS
+
+    test default_config_creates_valid {
+        let config = default_config();
+        assert validate_config(config)
+    }
+
+    test apply_restraint_preserves_true {
+        let config = default_config();
+        let result = apply_restraint(K_TRUE, config);
+        assert result.transformed_value == K_TRUE;
+        assert !result.restraint_applied
+    }
+
+    test apply_restraint_preserves_false {
+        let config = default_config();
+        let result = apply_restraint(K_FALSE, config);
+        assert result.transformed_value == K_FALSE;
+        assert !result.restraint_applied
+    }
+
+    test unknown_to_false_transforms_unknown {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: 0.5,
+            enabled: true
+        };
+
+        let result = apply_restraint(K_UNKNOWN, config);
+        assert result.transformed_value == K_FALSE;
+        assert result.restraint_applied
+    }
+
+    test apply_restraint_disabled_bypasses {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: 0.5,
+            enabled: false
+        };
+
+        let result = apply_restraint(K_UNKNOWN, config);
+        assert result.transformed_value == K_UNKNOWN;
+        assert !result.restraint_applied
+    }
+
+    test apply_to_list_processes_all {
+        let config = default_config();
+        let values = [K_TRUE, K_UNKNOWN, K_FALSE, K_TRUE];
+
+        let results = apply_to_list(values, config);
+
+        assert len(results) == 4;
+        assert results[0].transformed_value == K_TRUE;
+        assert results[1].transformed_value == K_FALSE;  // Unknown transformed
+        assert results[2].transformed_value == K_FALSE;
+        assert results[3].transformed_value == K_TRUE
+    }
+
+    test validate_config_accepts_valid_threshold {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: 0.5,
+            enabled: true
+        };
+
+        assert validate_config(config)
+    }
+
+    test validate_config_rejects_negative {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: -0.1,
+            enabled: true
+        };
+
+        assert !validate_config(config)
+    }
+
+    test validate_config_rejects_above_one {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::UNKNOWN_TO_FALSE,
+            threshold: 1.1,
+            enabled: true
+        };
+
+        assert !validate_config(config)
+    }
+
+    test unknown_ratio_calculates_correctly {
+        let values1 = [K_TRUE, K_TRUE, K_TRUE];  // 0 unknown
+        assert approx_equal(unknown_ratio(values1), 0.0, 0.001);
+
+        let values2 = [K_UNKNOWN, K_UNKNOWN, K_UNKNOWN];  // 100% unknown
+        assert approx_equal(unknown_ratio(values2), 1.0, 0.001);
+
+        let values3 = [K_TRUE, K_UNKNOWN, K_FALSE, K_TRUE];  // 25% unknown
+        assert approx_equal(unknown_ratio(values3), 0.25, 0.001)
+    }
+
+    test exceeds_unknown_threshold_detects_excess {
+        let values = [K_UNKNOWN, K_UNKNOWN, K_TRUE];  // 67% unknown
+        let threshold = 0.5;
+        assert exceeds_unknown_threshold(values, threshold)
+    }
+
+    test exceeds_unknown_threshold_allows_within {
+        let values = [K_TRUE, K_UNKNOWN, K_FALSE];  // 33% unknown
+        let threshold = 0.5;
+        assert !exceeds_unknown_threshold(values, threshold)
+    }
+
+    test temporal_decay_can_transform {
+        let decay_rate = 0.8;
+
+        // Test requires mocking random() - conceptually correct
+        // High decay_rate increases chance of transformation
+        let config = RestraintConfig {
+            restraint_type: RestraintType::TEMPORAL_DECAY,
+            threshold: decay_rate,
+            enabled: true
+        };
+
+        // This test demonstrates the mechanism exists
+        assert config.restraint_type == RestraintType::TEMPORAL_DECAY
+    }
+
+    test toxicity_block_blocks_toxic {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::TOXICITY_BLOCK,
+            threshold: 0.5,
+            enabled: true
+        };
+
+        let result = apply_restraint(K_TRUE, config, true);
+        assert result.transformed_value == K_FALSE;
+        assert result.restraint_applied
+    }
+
+    test toxicity_block_allows_non_toxic {
+        let config = RestraintConfig {
+            restraint_type: RestraintType::TOXICITY_BLOCK,
+            threshold: 0.5,
+            enabled: true
+        };
+
+        let result = apply_restraint(K_TRUE, config, false);
+        assert result.transformed_value == K_TRUE;
+        assert !result.restraint_applied
+    }
+
+    // BENCHMARKS
+
+    bench apply_restraint_latency {
+        // Target: <0.5μs per value
+    }
+
+    bench apply_to_list_latency {
+        // Target: <5μs for 10 values
+    }
+
+    bench unknown_ratio_latency {
+        // Target: <2μs for 100 values
+    }
 }

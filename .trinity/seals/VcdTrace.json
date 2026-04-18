@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:134438a3daf83dad42614980b3ec66e9d2ee08eb9f28d29c36d8bdf4510cb80b",
+  "gen_hash_rust": "sha256:b409b44f4718cc9497c0f86d53b847a69861de3068862c3750f8922dc4d082b5",
+  "gen_hash_verilog": "sha256:a90e1b17380a07135dd6c407b167a50511f9b7d8a8f069571534b2b944c89cdf",
+  "gen_hash_zig": "sha256:823aa8a18d618b73530e5b5d221f10f466d864f283753241ef47e57ca3bd7ec9",
+  "module": "VcdTrace",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:2b44816b9f5f214e367c646d7bc5d4ad38f9aa5fd7e35cb6be985fab5d57c232",
+  "spec_path": "specs/fpga/vcd_trace.t27"
+}

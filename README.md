@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
 
+**Language:** [English](README.md) | [Русский](docs/README_RU.md)
+
 The canonical source of truth for Trinity S3AI.
 `.t27` specs in → Zig, Verilog, C out.
 
@@ -29,6 +31,7 @@ The canonical source of truth for Trinity S3AI.
 | CI | Seal coverage | GREEN | All specs sealed |
 | CI | Schema validation | GREEN | Conformance vectors validated |
 | CI | FPGA smoke | GREEN | Verilog gen in CI |
+| CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |

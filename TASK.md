@@ -30,9 +30,9 @@
 | Field           | Value  |
 | --------------- | ------ |
 | **Epoch**       | 1      |
-| **Lock holder** | `none` |
-| **Lock scope**  | `none` |
-| **Lock until**  | `n/a`  |
+| **Lock holder** | `None` |
+| **Lock scope**  | `None` |
+| **Lock until**  | `None` |
 
 
 ---
@@ -71,6 +71,7 @@
 
 - Enforce **TASK Protocol** in CI via `cargo build`; use **#141** + this file for multi-agent consistency.
 - GitHub queue: [#126](https://github.com/gHashTag/t27/issues/126) (META), [#127–#135](https://github.com/gHashTag/t27/issues) (rings) — see `[docs/NOW.md](docs/NOW.md)`.
+- **FPGA pipeline restoration** — Promoted from deferred status to resolve codegen gaps and flashing.
 
 ---
 
@@ -98,15 +99,72 @@
 
 ---
 
-## Deferred — FPGA pipeline restoration
+## ~~Deferred~~ Completed — FPGA pipeline restoration
 
-*Optional local backlog; promote to a GitHub issue when executing.*
+*Items 1–5 completed via feat/fpga-* and fix/fpga-* branch merges.*
 
-1. Trim long lines in `specs/fpga/mac.t27`; `cargo build --release` in `bootstrap/`; `./scripts/tri parse specs/fpga/mac.t27`.
-2. Verilog gen for MAC; `specs/fpga/uart.t27`, `specs/fpga/top_level.t27`.
-3. `scripts/fpga/build.sh`, `flash.sh`, `Makefile`.
-4. `specs/fpga/constraints/qmtech_a100t.xdc`.
-5. CI: `t27c suite` / workflows as needed.
+| # | Item | Status | Evidence |
+|---|------|--------|----------|
+| 1 | Trim long lines in `specs/fpga/mac.t27` | Done | `feat/fpga-mac-spec` merged |
+| 2 | Verilog gen for MAC, UART, top_level | Done | 31 `.v` files in `specs/fpga/` |
+| 3 | `scripts/fpga/build.sh`, `flash.sh`, `Makefile` | Done | `t27c fpga-build` / `t27c fpga-flash` CLI |
+| 4 | `specs/fpga/constraints/qmtech_a100t.xdc` | Done | Minimal (12 pins) + full (48 pins) profiles |
+| 5 | CI: `t27c suite` / workflows | Done | `.github/workflows/fpga-build.yml` (4-stage E2E) |
+
+---
+
+## Completed — FPGA Phase 2-4
+
+*Completed 2026-04-13/14 via feat/fpga-* commits.*
+
+### Phase 2 -- HIR Expansion (DONE)
+
+1. Add `Mem` HIR node (BRAM/DRAM/ROM) -- `specs/fpga/hir.t27` -- 20 tests, 5 invariants/benches
+2. Add `ClockDomain` HIR node -- `specs/fpga/hir.t27`
+3. Add `BusPort` HIR node (AXI/APB/WB) -- `specs/fpga/hir.t27`
+4. Add `bench` sections to 7 specs: `placement`, `router`, `partition`, `cts`, `bootrom`, `crossopt`, `hir`
+
+### Phase 3 -- prjxray Coverage (DONE)
+
+1. Documented action items in `docs/fpga/PIN_COVERAGE.md`
+2. Recommended MAC debug pin reduction from 32 to 8
+3. CI `--profile full` deferred until upstream prjxray-db covers SPI pins
+
+### Phase 4 -- Synthesis Quality (DONE)
+
+1. Arty A7 XDC: `create_clock` + `set_false_path` constraints
+2. Utilization regression thresholds: XC7A100T (63400 LUTs, 90% warning)
+3. Formal verification: `fpga-formal` CI job with SymbiYosys BMC+prove stub
+4. CI matrix: `fpga-synthesis-arty` job for Arty A7-100T
+
+### Additional Completed Work (2026-04-14)
+
+- MAC instantiation: full 8-unit parallel array wiring (was TODO stub)
+- Bridge MAC command parsing: 6-byte packet parsing with dispatch
+- `int_to_str` fix: proper decimal conversion (was returning "0")
+- `gf16_vectors.json` fix: `Infinity`/`NaN` -> valid JSON strings
+- `build.sh`: all 31 modules, Trinity_FPGA_Top top module
+- `build_verify.t27`: updated counts (28 testbenches, 3 boards, 62 specs)
+- L3 PURITY: 205,654 Unicode chars replaced in 160 .t27 files (0 non-ASCII remaining)
+- TDD: 25 tests + 8 invariants + 7 benches added to `sdk_contract.t27`
+- TDD: 20 tests + 4 invariants + 4 benches added to `runner.t27`
+
+## Open -- FPGA Phase 5: Verification & Production
+
+1. VCD trace auto-compare against conformance vectors -- **DONE** (specs/fpga/vcd_conformance_compare.t27 + 4 conformance TB emitters)
+2. Power analysis: connect `specs/fpga/power.t27` to switching activity -- **DONE** (specs/fpga/power_analysis.t27 + device limits + budget checking)
+3. Flash verification: automate `QMTECH_A100T_SMOKE.md` in CI (HIL -- requires physical hardware)
+
+### Additional Completed Work (2026-04-14 session 2)
+
+- VCD conformance compare: 31 tests, 3 invariants, 1 bench (specs/fpga/vcd_conformance_compare.t27)
+- Power analysis: 35 tests, 4 invariants, 2 benches (specs/fpga/power_analysis.t27)
+- Conformance TB emitters: 5 new functions in fpga_emission.t27 (emit_conformance_testbench, emit_conformance_check, emit_conformance_check_masked, emit_conformance_footer, emit_uart/mac/top/spi_conformance_tb)
+- 9 new tests for conformance emitters in fpga_emission.t27
+- Testbench specs: vcd_conformance_compare_tb.t27, power_analysis_tb.t27
+- Conformance JSONs: fpga_vcd_conformance_compare.json, fpga_power_analysis.json
+- Seal collision bug fix: run_validate_seals() in bootstrap/src/main.rs now uses seal_file_path()
+- CI: fpga-conformance job added to fpga-build.yml (vector validation, iverilog, schema check, power regression)
 
 ---
 

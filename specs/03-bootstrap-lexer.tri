@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: Apache-2.0
+// Bootstrap Lexer - Ring 003
+// .t27-MIN specification for lexical analysis
+
+spec bootstrap_lexer {
+
+    // Types for lexical analysis
+    pub type TokenKind = enum(u8) {
+        // Keywords
+        MODULE = 0x01,
+        SPEC = 0x02,
+        PUB = 0x03,
+        CONST = 0x04,
+        FN = 0x05,
+        STRUCT = 0x06,
+        ENUM = 0x07,
+        TYPE = 0x08,
+        IDENT = 0x09,
+        LITERAL = 0x0A,
+        LPAREN = 0x0B,
+        RPAREN = 0x0C,
+        LBRACE = 0x0D,
+        RBRACE = 0x0E,
+        COMMA = 0x0F,
+        SEMICOLON = 0x10,
+        COLON = 0x11,
+
+        // Operators
+        ASSIGN = 0x20,
+        PLUS = 0x21,
+        MINUS = 0x22,
+        STAR = 0x23,
+        SLASH = 0x24,
+
+        // Literals
+        NUMERIC_LITERAL = 0x0B,
+        STRING_LITERAL = 0x0C,
+
+        // Comments
+        LINE_COMMENT = 0x30,
+        BLOCK_COMMENT = 0x31,
+    }
+
+    // Token structure
+    pub type Token = struct {
+        kind: TokenKind,
+        value: string,
+        line: u32,
+        column: u16,
+    }
+
+    // Core functions (3)
+    pub fn tokenize(source: string) -> []Token;
+    pub fn count_tokens(tokens: []Token) -> u64;
+    pub fn classify_char(ch: u8) -> TokenKind;
+}
+
+// Tests (Article II requirement - every spec must have tests)
+test tokenizer_empty_input {
+    given input = "";
+
+    when tokens = tokenize(input)
+    then tokens.length == 0;
+}
+
+test tokenizer_keywords {
+    given source = "module spec const fn struct enum type ident";
+
+    when result = tokenize(source)
+    then {
+        // Should have 1 MODULE, 1 SPEC, 1 PUB, 1 CONST, 1 FN, 1 STRUCT, 1 ENUM, 1 TYPE, 1 IDENT
+        let module_count = 0;
+        let spec_count = 0;
+        let pub_count = 0;
+        let const_count = 0;
+        let fn_count = 0;
+        let struct_count = 0;
+        let enum_count = 0;
+        let type_count = 0;
+        let ident_count = 0;
+        let literal_count = 0;
+        let total = 0;
+
+        for token in result {
+            if token.kind == TokenKind.MODULE then module_count = module_count + 1;
+            if token.kind == TokenKind.SPEC then spec_count = spec_count + 1;
+            if token.kind == TokenKind.PUB then pub_count = pub_count + 1;
+            if token.kind == TokenKind.CONST then const_count = const_count + 1;
+            if token.kind == TokenKind.FN then fn_count = fn_count + 1;
+            if token.kind == TokenKind.STRUCT then struct_count = struct_count + 1;
+            if token.kind == TokenKind.ENUM then enum_count = enum_count + 1;
+            if token.kind == TokenKind.TYPE then type_count = type_count + 1;
+            if token.kind == TokenKind.IDENT then ident_count = ident_count + 1;
+            if token.kind == TokenKind.LITERAL then literal_count = literal_count + 1;
+            total = total + 1;
+        }
+
+        then module_count == 1
+          && spec_count == 1
+          && pub_count == 1
+          && const_count == 1
+          && fn_count == 1
+          && struct_count == 1
+          && enum_count == 1
+          && type_count == 1
+          && ident_count == 1
+          && literal_count == 1
+          && total == 11;
+    }
+}

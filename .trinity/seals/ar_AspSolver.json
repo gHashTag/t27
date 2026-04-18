@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:ee4d5233a3f9190718e132fb14951f02304eec803a2f004057f48059ca42be6b",
+  "gen_hash_rust": "sha256:de112c3e14b89ab96c3e0b77cd939d9828e9e6f8a87c165f42cd49321032ed4e",
+  "gen_hash_verilog": "sha256:4ebe70456a9e87de8b066dfc1fcd82ed45e478a48a534d119f5eafa38618100a",
+  "gen_hash_zig": "sha256:3c9c540ac9e7a4ebec2b211ae51d01dc98169378ad60069c5b0ea9c1e4e1bc68",
+  "module": "AspSolver",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:39Z",
+  "spec_hash": "sha256:a379cf9cf81cebc5872166179666089ae0a45260f0d659497c54fb537d757e8e",
+  "spec_path": "specs/ar/asp_solver.t27"
+}

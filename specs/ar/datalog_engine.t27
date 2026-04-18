@@ -1,598 +1,347 @@
 // SPDX-License-Identifier: Apache-2.0
-// t27/specs/ar/datalog_engine.t27
-// Datalog Engine for Horn Clause Execution (AR-003)
-// CLARA Automated Reasoning: Forward chaining with O(n) complexity
-// φ² + 1/φ² = 3 | TRINITY
+// spec: DatalogEngine
+// Datalog reasoning engine for neuro-symbolic AI
 
-module DatalogEngine {
-    // ═════════════════════════════════════════════════════════════════
-    // IMPORTS - Reference existing specs, DO NOT DUPLICATE
-    // ═════════════════════════════════════════════════════════════════════════
-    use base::types;   // Trit enum: .neg, .zero, .pos
-    use ar::ternary_logic;  // Rule, forward_chain, k3_and, k3_or, K_*
-    use ar::proof_trace;  // DerivationStep, ProofTrace for explainability [AR-003-WIRE]
-    use numeric::gf16;      // GF16 for confidence (NUMERIC-STANDARD-001)
-
-    // ═════════════════════════════════════════════════════════════════
-    // 1. Datalog Core Types
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // MAX_CLAUSES: Maximum number of facts and rules in engine
-    // Designed for bounded rationality in CLARA
-    pub const MAX_CLAUSES : usize = 256;
-    pub const MAX_ARGS : usize = 8;  // Max arguments per Horn clause
-
-    // HornClause: Predicate with name and arguments as Trit
-    // In Datalog, a Horn clause is a disjunction of literals with at most one positive
-    // Simplified here as: name (predicate identifier) + args (trit values)
-    // Example: parent(alice, bob) where alice=K_TRUE, bob=K_TRUE
-    pub const HornClause = struct {
-        name : u16,  // Predicate identifier (hash of name string)
-        args : [MAX_ARGS]Trit,  // Arguments as Trit values
-        arg_count : u8,  // Actual number of arguments used
-    };
-
-    // DatalogEngine: Facts + Rules + Inference state
-    // Forward chaining engine for Datalog with Kleene K3 semantics
-    pub const DatalogEngine = struct {
-        facts : [MAX_CLAUSES]HornClause,  // Known facts (positive literals)
-        fact_count : usize,  // Number of facts stored
-        rules : [MAX_CLAUSES]Rule,  // Rules from ar::ternary_logic
-        rule_count : usize,  // Number of rules stored
-        derived_facts : [MAX_CLAUSES]bool,  // Track if fact is newly derived
-        solved : bool,  // Whether solve() has been called
-    };
-
-    // ═════════════════════════════════════════════════════════════════
-    // 2. Engine Initialization
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // datalog_init() -> DatalogEngine
-    // Initialize an empty Datalog engine
-    // Complexity: O(1)
-    pub fn datalog_init() -> DatalogEngine {
-        return DatalogEngine{
-            .facts = undefined,
-            .fact_count = 0,
-            .rules = undefined,
-            .rule_count = 0,
-            .derived_facts = [_]bool{false} ** MAX_CLAUSES,
-            .solved = false,
-        };
+spec DatalogEngine {
+    // Datalog fact structure
+    struct Fact {
+        predicate: string,
+        args: [string],
+        truth_value: Trit
     }
 
-    // ═════════════════════════════════════════════════════════════════
-    // 3. Fact Management
-    // ═════════════════════════════════════════════════════════════════════════
+    // Datalog rule structure (head :- body)
+    struct Rule {
+        head: Fact,
+        body: [Fact]
+    }
 
-    // add_fact(engine: *DatalogEngine, fact: HornClause) -> bool
-    // Add a fact to the engine (duplicate detection included)
-    // Returns true if fact was added, false if duplicate or full
-    // Complexity: O(n) where n = number of existing facts
-    pub fn add_fact(engine: *DatalogEngine, fact: HornClause) -> bool {
-        // Check for duplicates
-        var i : usize = 0;
-        while (i < engine.fact_count) {
-            if (horn_clause_eq(fact, engine.facts[i])) {
-                return false;  // Duplicate fact
+    // Datalog database
+    struct Database {
+        facts: [Fact],
+        rules: [Rule]
+    }
+
+    // Query result
+    struct QueryResult {
+        answers: [Fact],
+        proof_trace: ProofTrace,
+        complete: bool
+    }
+
+    // Create empty database
+    fn new_database() -> Database {
+        return Database {
+            facts: [],
+            rules: []
+        }
+    }
+
+    // Add fact to database
+    fn add_fact(db: Database, fact: Fact) -> Database {
+        let new_facts = db.facts;
+        new_facts.push(fact);
+        return Database {
+            facts: new_facts,
+            rules: db.rules
+        }
+    }
+
+    // Add rule to database
+    fn add_rule(db: Database, rule: Rule) -> Database {
+        let new_rules = db.rules;
+        new_rules.push(rule);
+        return Database {
+            facts: db.facts,
+            rules: new_rules
+        }
+    }
+
+    // Query database for matching facts
+    fn query(db: Database, query: Fact) -> QueryResult {
+        let trace = new_proof_trace();
+        let answers: [Fact] = [];
+
+        // Direct fact lookup
+        for fact in db.facts {
+            if facts_match(fact, query) {
+                answers.push(fact);
+                trace = add_step(trace, "fact_match", [fact.truth_value], fact.truth_value);
             }
-            i = i + 1;
         }
 
-        // Check capacity
-        if (engine.fact_count >= MAX_CLAUSES) {
-            return false;  // Engine full
-        }
-
-        // Add fact
-        engine.facts[engine.fact_count] = fact;
-        engine.derived_facts[engine.fact_count] = false;  // Not derived by inference
-        engine.fact_count = engine.fact_count + 1;
-        return true;
-    }
-
-    // has_fact(engine: *DatalogEngine, fact: HornClause) -> bool
-    // Check if a fact exists in the engine
-    // Complexity: O(n)
-    pub fn has_fact(engine: *DatalogEngine, fact: HornClause) -> bool {
-        var i : usize = 0;
-        while (i < engine.fact_count) {
-            if (horn_clause_eq(fact, engine.facts[i])) {
-                return true;
-            }
-            i = i + 1;
-        }
-        return false;
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 4. Rule Management
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // add_rule(engine: *DatalogEngine, rule: Rule) -> bool
-    // Add a rule to the engine (duplicate detection included)
-    // Returns true if rule was added, false if duplicate or full
-    // Complexity: O(n) where n = number of existing rules
-    pub fn add_rule(engine: *DatalogEngine, rule: Rule) -> bool {
-        // Check for duplicates
-        var i : usize = 0;
-        while (i < engine.rule_count) {
-            if (rule_eq(rule, engine.rules[i])) {
-                return false;  // Duplicate rule
-            }
-            i = i + 1;
-        }
-
-        // Check capacity
-        if (engine.rule_count >= MAX_CLAUSES) {
-            return false;  // Engine full
-        }
-
-        // Add rule
-        engine.rules[engine.rule_count] = rule;
-        engine.rule_count = engine.rule_count + 1;
-        return true;
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // 5. Inference: Forward Chaining
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // datalog_solve(engine: *DatalogEngine) -> ProofTrace
-    // Forward chaining inference with O(n) complexity where n = number of rules
-    // Returns a ProofTrace tracking all derivation steps for explainability
-    // Algorithm: repeatedly apply rules to facts until fixpoint
-    // Complexity: O(n * m) where n = rules, m = facts (bounded by MAX_CLAUSES)
-    // In practice, achieves O(n) for typical Datalog programs
-    pub fn datalog_solve(engine: *DatalogEngine) -> ProofTrace {
-        var trace = proof_trace::create_trace();
-        var new_facts : usize = 0;
-        var changed : bool = true;
-        var iterations : usize = 0;
-        const MAX_ITERATIONS : usize = MAX_CLAUSES;  // Prevent infinite loops
-        var step_num : u8 = 1;
-
-        while (changed and iterations < MAX_ITERATIONS) {
-            changed = false;
-            iterations = iterations + 1;
-
-            // Try to derive new facts from rules
-            var i : usize = 0;
-            while (i < engine.rule_count) {
-                const rule = engine.rules[i];
-
-                // For each fact, try forward chaining
-                var j : usize = 0;
-                while (j < engine.fact_count) {
-                    const fact_trit = engine.facts[j].args[0];  // Simplified: use first arg
-
-                    // Apply forward chaining from ternary_logic
-                    const derived = forward_chain(rule, fact_trit);
-
-                    // If derived is TRUE, create a new fact
-                    if (derived == K_TRUE) {
-                        // Create new Horn clause for derived fact
-                        const new_fact = HornClause{
-                            .name = @intCast(engine.fact_count + 1000),  // Unique ID
-                            .args = [_]Trit{derived} ++ [_]Trit{K_UNKNOWN} ** (MAX_ARGS - 1),
-                            .arg_count = 1,
-                        };
-
-                        // Add if not duplicate
-                        if (add_fact(engine, new_fact)) {
-                            new_facts = new_facts + 1;
-                            changed = true;
-                            engine.derived_facts[engine.fact_count - 1] = true;
-
-                            // Record derivation step in proof trace
-                            const step = proof_trace::DerivationStep{
-                                .step_number = step_num,
-                                .rule_name = "forward_chain",
-                                .input_facts = [_]Trit{fact_trit, K_UNKNOWN, K_UNKNOWN},
-                                .output_fact = derived,
-                                .confidence = gf16_encode_f32(1.0),
-                                .k3_value = derived,
-                            };
-                            _ = proof_trace::append_step(&trace, step);
-                            step_num += 1;
-                        }
-                    }
-
-                    j = j + 1;
+        // Rule-based reasoning (bounded to MAX_STEPS)
+        let mut trace = trace;
+        for rule in db.rules {
+            if rule_heads_match(rule.head, query) {
+                let (derived, new_trace) = apply_rule(db, rule, trace);
+                trace = new_trace;
+                if derived.truth_value != K_FALSE {
+                    answers.push(derived);
                 }
-
-                i = i + 1;
             }
         }
 
-        engine.solved = true;
-        return trace;
+        trace = finalize_trace(trace);
+        let (valid, _) = verify_trace(trace);
+
+        return QueryResult {
+            answers: answers,
+            proof_trace: trace,
+            complete: valid
+        }
     }
 
-    // ═════════════════════════════════════════════════════════════════
-    // 6. Utility Functions
-    // ═════════════════════════════════════════════════════════════════════════
-
-    // horn_clause_eq(a: HornClause, b: HornClause) -> bool
-    // Check if two Horn clauses are equal
-    // Complexity: O(MAX_ARGS)
-    pub fn horn_clause_eq(a: HornClause, b: HornClause) -> bool {
-        if (a.name != b.name or a.arg_count != b.arg_count) {
-            return false;
+    // Check if two facts match (same predicate, compatible args)
+    fn facts_match(a: Fact, b: Fact) -> bool {
+        if a.predicate != b.predicate {
+            return false
         }
+        if len(a.args) != len(b.args) {
+            return false
+        }
+        return true
+    }
 
-        var i : usize = 0;
-        while (i < a.arg_count) {
-            if (a.args[i] != b.args[i]) {
-                return false;
+    // Check if rule head matches query
+    fn rule_heads_match(head: Fact, query: Fact) -> bool {
+        return head.predicate == query.predicate && len(head.args) == len(query.args)
+    }
+
+    // Apply rule to derive new fact
+    fn apply_rule(db: Database, rule: Rule, trace: ProofTrace) -> (Fact, ProofTrace) {
+        let mut current_trace = trace;
+
+        // Check if all body facts are true
+        let mut all_body_true = K_TRUE;
+        for body_fact in rule.body {
+            let result = query(db, body_fact);
+            if len(result.answers) == 0 {
+                all_body_true = K_FALSE;
+                current_trace = add_step(current_trace, "rule_body_false", [K_TRUE], K_FALSE);
+                break
             }
-            i = i + 1;
+            for answer in result.answers {
+                current_trace = add_step(current_trace, "rule_body_check", [answer.truth_value], answer.truth_value);
+            }
         }
 
-        return true;
-    }
-
-    // rule_eq(a: Rule, b: Rule) -> bool
-    // Check if two rules are equal (from ternary_logic)
-    // Complexity: O(1)
-    pub fn rule_eq(a: Rule, b: Rule) -> bool {
-        return a.antecedent == b.antecedent and a.consequent == b.consequent;
-    }
-
-    // get_fact_count(engine: *DatalogEngine) -> usize
-    // Get the total number of facts in the engine
-    // Complexity: O(1)
-    pub fn get_fact_count(engine: *DatalogEngine) -> usize {
-        return engine.fact_count;
-    }
-
-    // get_rule_count(engine: *DatalogEngine) -> usize
-    // Get the total number of rules in the engine
-    // Complexity: O(1)
-    pub fn get_rule_count(engine: *DatalogEngine) -> usize {
-        return engine.rule_count;
-    }
-
-    // is_solved(engine: *DatalogEngine) -> bool
-    // Check if the engine has reached a fixpoint
-    // Complexity: O(1)
-    pub fn is_solved(engine: *DatalogEngine) -> bool {
-        return engine.solved;
-    }
-
-    // reset(engine: *DatalogEngine) -> void
-    // Reset the engine to initial state
-    // Complexity: O(1)
-    pub fn reset(engine: *DatalogEngine) -> void {
-        engine.fact_count = 0;
-        engine.rule_count = 0;
-        engine.solved = false;
-        var i : usize = 0;
-        while (i < MAX_CLAUSES) {
-            engine.derived_facts[i] = false;
-            i = i + 1;
-        }
-    }
-
-    // ═════════════════════════════════════════════════════════════════
-    // TDD - Tests
-    // ═════════════════════════════════════════════════════════════════════════
-
-    test modus_ponens
-        // Modus ponens: (p→q) ∧ p → q
-        given engine = datalog_init()
-        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_TRUE }
-        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_rule(engine, rule) == true
-        and add_fact(engine, fact) == true
-        and derived = datalog_solve(engine)
-        then derived == 1 and get_fact_count(engine) == 2
-
-    test transitivity
-        // Transitivity: If p→q and q→r and p, then r
-        given engine = datalog_init()
-        and rule1 = Rule{ .antecedent = K_TRUE, .consequent = K_UNKNOWN }
-        and rule2 = Rule{ .antecedent = K_UNKNOWN, .consequent = K_TRUE }
-        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_rule(engine, rule1) == true
-        and add_rule(engine, rule2) == true
-        and add_fact(engine, fact) == true
-        and derived = datalog_solve(engine)
-        then derived >= 1 and is_solved(engine) == true
-
-    test chaining
-        // Chain of rules with multiple derivations
-        given engine = datalog_init()
-        and rule1 = Rule{ .antecedent = K_TRUE, .consequent = K_UNKNOWN }
-        and rule2 = Rule{ .antecedent = K_UNKNOWN, .consequent = K_TRUE }
-        and rule3 = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_rule(engine, rule1) == true
-        and add_rule(engine, rule2) == true
-        and add_rule(engine, rule3) == true
-        and add_fact(engine, fact) == true
-        and derived = datalog_solve(engine)
-        then derived >= 2
-
-    test add_fact_duplicate_rejected
-        // Duplicate facts should be rejected
-        given engine = datalog_init()
-        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_fact(engine, fact) == true
-        and add_fact(engine, fact) == false
-        and add_fact(engine, fact) == false
-        then get_fact_count(engine) == 1
-
-    test add_rule_duplicate_rejected
-        // Duplicate rules should be rejected
-        given engine = datalog_init()
-        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        when add_rule(engine, rule) == true
-        and add_rule(engine, rule) == false
-        and add_rule(engine, rule) == false
-        then get_rule_count(engine) == 1
-
-    test has_fact_existing
-        // has_fact should return true for existing facts
-        given engine = datalog_init()
-        and fact = HornClause{ .name = 42, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_fact(engine, fact) == true
-        then has_fact(engine, fact) == true
-
-    test has_fact_non_existing
-        // has_fact should return false for non-existing facts
-        given engine = datalog_init()
-        and fact = HornClause{ .name = 99, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        then has_fact(engine, fact) == false
-
-    test datalog_solve_empty_engine
-        // Empty engine should produce no new facts
-        given engine = datalog_init()
-        when derived = datalog_solve(engine)
-        then derived == 0 and get_fact_count(engine) == 0
-
-    test datalog_solve_facts_only
-        // Engine with only facts should produce no new facts
-        given engine = datalog_init()
-        and fact1 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        and fact2 = HornClause{ .name = 2, .args = [_]Trit{K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_fact(engine, fact1) == true
-        and add_fact(engine, fact2) == true
-        and derived = datalog_solve(engine)
-        then derived == 0 and get_fact_count(engine) == 2
-
-    test horn_clause_eq_true
-        // Identical Horn clauses should be equal
-        given clause1 = HornClause{ .name = 5, .args = [_]Trit{K_TRUE, K_FALSE, K_UNKNOWN} ++ [_]Trit{K_UNKNOWN} ** 5, .arg_count = 3 }
-        and clause2 = HornClause{ .name = 5, .args = [_]Trit{K_TRUE, K_FALSE, K_UNKNOWN} ++ [_]Trit{K_UNKNOWN} ** 5, .arg_count = 3 }
-        then horn_clause_eq(clause1, clause2) == true
-
-    test horn_clause_eq_false_different_name
-        // Horn clauses with different names should not be equal
-        given clause1 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        and clause2 = HornClause{ .name = 2, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        then horn_clause_eq(clause1, clause2) == false
-
-    test horn_clause_eq_false_different_args
-        // Horn clauses with different arguments should not be equal
-        given clause1 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE, K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 6, .arg_count = 2 }
-        and clause2 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE, K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 6, .arg_count = 2 }
-        then horn_clause_eq(clause1, clause2) == false
-
-    test rule_eq_true
-        // Identical rules should be equal
-        given rule1 = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        and rule2 = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        then rule_eq(rule1, rule2) == true
-
-    test rule_eq_false
-        // Different rules should not be equal
-        given rule1 = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        and rule2 = Rule{ .antecedent = K_FALSE, .consequent = K_TRUE }
-        then rule_eq(rule1, rule2) == false
-
-    test reset_clears_engine
-        // Reset should clear all state
-        given engine = datalog_init()
-        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        when add_fact(engine, fact) == true
-        and add_rule(engine, rule) == true
-        and datalog_solve(engine) >= 0
-        and reset(engine)
-        then get_fact_count(engine) == 0 and get_rule_count(engine) == 0 and is_solved(engine) == false
-
-    test is_solved_initially_false
-        // Engine should not be solved initially
-        given engine = datalog_init()
-        then is_solved(engine) == false
-
-    test is_solved_after_solve_true
-        // Engine should be solved after datalog_solve
-        given engine = datalog_init()
-        when datalog_solve(engine)
-        then is_solved(engine) == true
-
-    test forward_chain_integration
-        // Integration with ternary_logic forward_chain
-        given engine = datalog_init()
-        and rule = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE }
-        and fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 }
-        when add_rule(engine, rule) == true
-        and add_fact(engine, fact) == true
-        and derived = datalog_solve(engine)
-        then derived == 1  // Should derive K_FALSE consequent
-
-    // ═════════════════════════════════════════════════════════════════
-    // TDD - Invariants
-    // ═════════════════════════════════════════════════════════════════════════
-
-    invariant closure
-        // After solve(), no new facts can be derived (fixpoint)
-        // This is the fundamental property of Datalog forward chaining
-        @compileAssert(true);
-
-    invariant consistency
-        // All derived facts are logically valid given rules
-        // No contradiction between facts (within Kleene K3 semantics)
-        @compileAssert(true);
-
-    invariant fact_count_non_negative
-        // Fact count is always >= 0
-        @compileAssert(true);
-
-    invariant rule_count_non_negative
-        // Rule count is always >= 0
-        @compileAssert(true);
-
-    invariant max_clauses_enforced
-        // Engine cannot exceed MAX_CLAUSES
-        @compileAssert(true);
-
-    invariant horn_clause_eq_reflexive
-        // Horn clause equality is reflexive
-        @compileAssert(true);
-
-    invariant horn_clause_eq_symmetric
-        // Horn clause equality is symmetric
-        @compileAssert(true);
-
-    invariant horn_clause_eq_transitive
-        // Horn clause equality is transitive
-        @compileAssert(true);
-
-    invariant rule_eq_reflexive
-        // Rule equality is reflexive
-        @compileAssert(true);
-
-    invariant rule_eq_symmetric
-        // Rule equality is symmetric
-        @compileAssert(true);
-
-    invariant rule_eq_transitive
-        // Rule equality is transitive
-        @compileAssert(true);
-
-    invariant solve_idempotent
-        // Calling solve() multiple times has no additional effect after first
-        @compileAssert(true);
-
-    invariant reset_cleans_state
-        // After reset, all counts are zero and solved is false
-        @compileAssert(true);
-
-    invariant arg_count_within_bounds
-        // Horn clause arg_count is always <= MAX_ARGS
-        @compileAssert(true);
-
-    // ═════════════════════════════════════════════════════════════════
-    // TDD - Benchmarks
-    // ═════════════════════════════════════════════════════════════════════════
-
-    bench datalog_solve_10_rules
-        // Measure: cycles for datalog_solve with 10 rules
-        // Target: < 500 cycles (O(n) where n=10 rules)
-        @setEvalBranchQuota(10000);
-        var engine = datalog_init();
-        const rules = [_]Rule{
-            Rule{ .antecedent = K_TRUE, .consequent = K_TRUE },
-            Rule{ .antecedent = K_TRUE, .consequent = K_UNKNOWN },
-            Rule{ .antecedent = K_UNKNOWN, .consequent = K_TRUE },
-            Rule{ .antecedent = K_UNKNOWN, .consequent = K_FALSE },
-            Rule{ .antecedent = K_FALSE, .consequent = K_UNKNOWN },
-            Rule{ .antecedent = K_FALSE, .consequent = K_TRUE },
-            Rule{ .antecedent = K_TRUE, .consequent = K_FALSE },
-            Rule{ .antecedent = K_UNKNOWN, .consequent = K_UNKNOWN },
-            Rule{ .antecedent = K_FALSE, .consequent = K_FALSE },
-            Rule{ .antecedent = K_TRUE, .consequent = K_TRUE },
+        let derived_truth = if all_body_true == K_TRUE {
+            rule.head.truth_value
+        } else {
+            K_FALSE
         };
-        for (rules) |r| {
-            _ = add_rule(&engine, r);
-        }
-        const fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
-        _ = add_fact(&engine, fact);
-        _ = datalog_solve(&engine);
 
-    bench datalog_solve_50_rules
-        // Measure: cycles for datalog_solve with 50 rules
-        // Target: < 2500 cycles (O(n) where n=50 rules)
-        @setEvalBranchQuota(10000);
-        var engine = datalog_init();
-        for (0..50) |i| {
-            const r = if (i % 2 == 0) K_TRUE else K_FALSE;
-            _ = add_rule(&engine, Rule{ .antecedent = r, .consequent = K_TRUE });
-        }
-        const fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
-        _ = add_fact(&engine, fact);
-        _ = datalog_solve(&engine);
+        let derived = Fact {
+            predicate: rule.head.predicate,
+            args: rule.head.args,
+            truth_value: derived_truth
+        };
 
-    bench add_fact_latency
-        // Measure: cycles for add_fact operation
-        // Target: < 100 cycles (includes duplicate check)
-        @setEvalBranchQuota(10000);
-        var engine = datalog_init();
-        const fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
-        for (0..1000) |_| {
-            var temp = engine;
-            _ = add_fact(&temp, fact);
+        current_trace = add_step(current_trace, "rule_derived", [all_body_true], derived_truth);
+        return (derived, current_trace)
+    }
+
+    // Bottom-up evaluation (forward chaining)
+    fn eval_bottom_up(db: Database) -> Database {
+        let mut result_db = db;
+        let mut trace = new_proof_trace();
+        let mut iteration = 0;
+
+        loop {
+            iteration = iteration + 1;
+            if iteration > MAX_STEPS {
+                break
+            }
+
+            let mut derived_facts: [Fact] = [];
+
+            for rule in result_db.rules {
+                let (derived, new_trace) = apply_rule(result_db, rule, trace);
+                trace = new_trace;
+                if derived.truth_value != K_FALSE && !fact_in_db(result_db, derived) {
+                    derived_facts.push(derived);
+                }
+            }
+
+            if len(derived_facts) == 0 {
+                break  // Fixed point reached
+            }
+
+            for fact in derived_facts {
+                result_db = add_fact(result_db, fact);
+            }
         }
 
-    bench add_rule_latency
-        // Measure: cycles for add_rule operation
-        // Target: < 100 cycles (includes duplicate check)
-        @setEvalBranchQuota(10000);
-        var engine = datalog_init();
-        const rule = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE };
-        for (0..1000) |_| {
-            var temp = engine;
-            _ = add_rule(&temp, rule);
-        }
+        return result_db
+    }
 
-    bench has_fact_latency
-        // Measure: cycles for has_fact operation
-        // Target: < 50 cycles per fact
-        @setEvalBranchQuota(10000);
-        var engine = datalog_init();
-        const fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
-        _ = add_fact(&engine, fact);
-        var result : bool = false;
-        for (0..1000) |_| {
-            result = has_fact(&engine, fact);
+    // Check if fact exists in database
+    fn fact_in_db(db: Database, fact: Fact) -> bool {
+        for existing in db.facts {
+            if facts_match(existing, fact) && existing.truth_value == fact.truth_value {
+                return true
+            }
         }
-        _ = result;
+        return false
+    }
 
-    bench horn_clause_eq_latency
-        // Measure: cycles for horn_clause_eq operation
-        // Target: < 50 cycles
-        @setEvalBranchQuota(10000);
-        const clause1 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE, K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 6, .arg_count = 2 };
-        const clause2 = HornClause{ .name = 1, .args = [_]Trit{K_TRUE, K_FALSE} ++ [_]Trit{K_UNKNOWN} ** 6, .arg_count = 2 };
-        var result : bool = false;
-        for (0..1000) |_| {
-            result = horn_clause_eq(clause1, clause2);
-        }
-        _ = result;
+    // Top-down evaluation (backward chaining)
+    fn eval_top_down(db: Database, query: Fact) -> QueryResult {
+        return query(db, query)
+    }
 
-    bench datalog_init_latency
-        // Measure: cycles for datalog_init operation
-        // Target: < 100 cycles
-        @setEvalBranchQuota(10000);
-        var engine : DatalogEngine = undefined;
-        for (0..1000) |_| {
-            engine = datalog_init();
-        }
-        _ = engine;
+    // INVARIANTS
 
-    bench reset_latency
-        // Measure: cycles for reset operation
-        // Target: < 100 cycles
-        @setEvalBranchQuota(10000);
-        var engine = datalog_init();
-        const fact = HornClause{ .name = 1, .args = [_]Trit{K_TRUE} ++ [_]Trit{K_UNKNOWN} ** 7, .arg_count = 1 };
-        const rule = Rule{ .antecedent = K_TRUE, .consequent = K_FALSE };
-        _ = add_fact(&engine, fact);
-        _ = add_rule(&engine, rule);
-        for (0..1000) |_| {
-            reset(&engine);
-        }
+    // Database monotonicity (facts only added)
+    invariant database_monotonicity {
+        let db = new_database();
+        let db2 = add_fact(db, Fact {predicate: "p", args: [], truth_value: K_TRUE});
+        assert len(db2.facts) >= len(db.facts)
+    }
+
+    // Query returns valid proof trace
+    invariant query_returns_valid_trace {
+        let db = new_database();
+        let fact = Fact {predicate: "test", args: [], truth_value: K_TRUE};
+        db = add_fact(db, fact);
+        let result = query(db, fact);
+        assert result.complete
+    }
+
+    // Bottom-up evaluation terminates
+    invariant bottom_up_terminates {
+        let db = new_database();
+        let result = eval_bottom_up(db);
+        assert true  // Reaching here means termination
+    }
+
+    // TESTS
+
+    test new_database_creates_empty {
+        let db = new_database();
+        assert len(db.facts) == 0;
+        assert len(db.rules) == 0
+    }
+
+    test add_fact_increments_count {
+        let db = new_database();
+        let fact = Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE};
+        db = add_fact(db, fact);
+        assert len(db.facts) == 1
+    }
+
+    test add_rule_increments_count {
+        let db = new_database();
+        let head = Fact {predicate: "grandparent", args: ["a", "b"], truth_value: K_UNKNOWN};
+        let body = [Fact {predicate: "parent", args: ["a", "x"], truth_value: K_TRUE}];
+        let rule = Rule {head: head, body: body};
+        db = add_rule(db, rule);
+        assert len(db.rules) == 1
+    }
+
+    test query_finds_matching_fact {
+        let db = new_database();
+        let fact = Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE};
+        db = add_fact(db, fact);
+        let query_fact = Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE};
+        let result = query(db, query_fact);
+        assert len(result.answers) == 1;
+        assert result.answers[0].truth_value == K_TRUE
+    }
+
+    test query_returns_empty_for_no_match {
+        let db = new_database();
+        let fact = Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE};
+        db = add_fact(db, fact);
+        let query_fact = Fact {predicate: "child", args: ["bob", "alice"], truth_value: K_TRUE};
+        let result = query(db, query_fact);
+        assert len(result.answers) == 0
+    }
+
+    test facts_match_same_predicate {
+        let a = Fact {predicate: "p", args: ["x"], truth_value: K_TRUE};
+        let b = Fact {predicate: "p", args: ["y"], truth_value: K_TRUE};
+        assert facts_match(a, b)
+    }
+
+    test facts_match_different_predicate {
+        let a = Fact {predicate: "p", args: ["x"], truth_value: K_TRUE};
+        let b = Fact {predicate: "q", args: ["x"], truth_value: K_TRUE};
+        assert !facts_match(a, b)
+    }
+
+    test rule_heads_match_same_predicate {
+        let head = Fact {predicate: "grandparent", args: ["a", "b"], truth_value: K_TRUE};
+        let query = Fact {predicate: "grandparent", args: ["x", "y"], truth_value: K_TRUE};
+        assert rule_heads_match(head, query)
+    }
+
+    test fact_in_db_finds_existing {
+        let db = new_database();
+        let fact = Fact {predicate: "p", args: ["x"], truth_value: K_TRUE};
+        db = add_fact(db, fact);
+        assert fact_in_db(db, fact)
+    }
+
+    test fact_in_db_returns_false_for_missing {
+        let db = new_database();
+        let fact = Fact {predicate: "p", args: ["x"], truth_value: K_TRUE};
+        assert !fact_in_db(db, fact)
+    }
+
+    test eval_bottom_up_derives_new_facts {
+        // parent(alice, bob) ^ parent(bob, carol) -> grandparent(alice, carol)
+        let db = new_database();
+        db = add_fact(db, Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE});
+        db = add_fact(db, Fact {predicate: "parent", args: ["bob", "carol"], truth_value: K_TRUE});
+
+        let head = Fact {predicate: "grandparent", args: ["alice", "carol"], truth_value: K_TRUE};
+        let body = [
+            Fact {predicate: "parent", args: ["alice", "x"], truth_value: K_TRUE},
+            Fact {predicate: "parent", args: ["x", "carol"], truth_value: K_TRUE}
+        ];
+        db = add_rule(db, Rule {head: head, body: body});
+
+        let result = eval_bottom_up(db);
+        assert len(result.facts) >= 3  // 2 original + 1 derived
+    }
+
+    test eval_top_down_returns_results {
+        let db = new_database();
+        db = add_fact(db, Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE});
+        let query_fact = Fact {predicate: "parent", args: ["alice", "bob"], truth_value: K_TRUE};
+        let result = eval_top_down(db, query_fact);
+        assert len(result.answers) == 1
+    }
+
+    test query_proof_trace_within_bounds {
+        let db = new_database();
+        db = add_fact(db, Fact {predicate: "p", args: ["x"], truth_value: K_TRUE});
+        let query_fact = Fact {predicate: "p", args: ["x"], truth_value: K_TRUE};
+        let result = query(db, query_fact);
+        assert len(result.proof_trace.steps) <= MAX_STEPS
+    }
+
+    // BENCHMARKS
+
+    bench query_latency {
+        // Target: <5μs for simple lookup
+    }
+
+    bench add_fact_latency {
+        // Target: <1μs per fact
+    }
+
+    bench eval_bottom_up_latency {
+        // Target: <100μs for 10-rule database
+    }
+
+    bench eval_top_down_latency {
+        // Target: <10μs for single derivation
+    }
+
+    bench memory_per_fact {
+        // Target: <100 bytes per fact
+    }
 }

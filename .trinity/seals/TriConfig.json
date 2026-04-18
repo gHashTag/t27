@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:18083fcacab6cad468b96d9fcf89263715942f39df8bb74df387bccbb494cc4c",
+  "gen_hash_rust": "sha256:2af43ad9b830a9cdc83b71465a8fd866b5411645b9a279713f8e67582e09586f",
+  "gen_hash_verilog": "sha256:f4faf68879c738aca59b4868a77e966040937e0df01ab465b199d65a512f6873",
+  "gen_hash_zig": "sha256:d3ef978abb4117365a64b7fb143134d133c1acb43be423bdac4c9298f2ddf413",
+  "module": "TriConfig",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:dc150177756a134e07c6c39f8ba1bf44c2c594ba355268b8e146098180ab05a3",
+  "spec_path": "specs/tri/utils/config.t27"
+}
