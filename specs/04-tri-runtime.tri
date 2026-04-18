@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: Apache-2.0
+// Trinity Runtime Types - Ring 005
+// Minimal .tri runtime type system
+
+spec tri_runtime {
+
+    // Primitive types (L3: built-in)
+    pub type Void = struct {};
+    pub type Trit = enum(i8) {   // Ternary logic: -1, 0, +1
+        neg = 0xFF,          // All bits set = -1
+        neu = 0x00,          // All bits clear = 0
+        pos = 0x01           // LSB = 1, rest = 0 = +1
+    }
+
+    pub type Bool = Trit;  // Boolean derived from Trit
+
+    pub type F64 = struct {};  // 64-bit φ-optimized float
+
+    pub type String = struct {};  // UTF-8 string
+
+    // Pointer types (L3: minimal pointer support)
+    pub type Ptr = struct {
+        elem: Type,    // Element type
+        mut: bool,    // Mutable
+    }
+
+    // Array types (L3: fixed-size arrays)
+    pub type Slice = struct {
+        elem: Type,    // Element type
+        len: u32,         // Slice length
+    }
+
+    pub type Array = struct {
+        elem: Type,    // Element type
+        len: u32,         // Array length
+    }
+
+    pub type Tuple = struct {
+        elems: [Type], // Element types
+        len: u32,         // Number of elements
+    }
+
+    // Struct types (L3: named collections)
+    pub type Field = struct {
+        name: String,    // Field name
+        ty: Type,      // Field type
+        offset: u32,   // Byte offset from struct start
+    }
+
+    pub type Struct = struct {
+        name: String,    // Struct name
+        fields: []Field, // Field definitions
+        size: u32,        // Total size in bytes
+        align: u32,       // Alignment requirement
+    }
+
+    pub type Enum = struct {
+        name: String,    // Enum name
+        variants: []String, // Variant names
+        size: u32,         // Size per variant
+    }
+
+    // Function types (L3: with parameters)
+    pub type Fn = struct {
+        name: String,    // Function name
+        params: []Field, // Parameter types
+        ret: Type,      // Return type
+        is_variadic: bool,  // Variable arguments
+        cc: String,     // Calling convention
+    }
+
+    // Test function (Article II: every spec must have tests)
+    test runtime_alignment {
+        // Void aligns to 1 byte
+        given t1 = ty_void();
+
+        // Trit (1 byte)
+        given t2 = ty_trit();
+        given t3 = ty_bool();
+        given t4 = ty_f64();
+
+        when t1.size == 1 && t1.is_const == true
+             && t2.size == 1 && t2.is_const == true
+             && t3.size == 1 && t3.is_const == true
+             && t4.size == 8 && t4.is_const == true
+        then "Void:1, Trit:1, Bool:1, F64:8";
+    }
+}

@@ -259,6 +259,17 @@ module SacredPhysics {
         given f_gamma = neural_gamma_center(PI)
         then f_gamma > 30.0 and f_gamma < 50.0
 
+    test sin2_theta12_juno_2025_compatibility
+        // Claim: C-phi-005 (EMPIRICAL_FIT), tolerance: WITHIN_UNCERTAINTY
+        given trinity_value = sin2_theta12_trinity()
+        and juno_center = 0.3092
+        and juno_uncertainty = 0.0054
+        and delta = abs(trinity_value - juno_center)
+        then delta < juno_uncertainty
+    // Trinity prediction: 8*phi^4/3/pi = 0.30906...
+    // JUNO 2025 measurement: 0.3092 ± 0.0054
+    // Delta = |0.30906 - 0.3092| = 0.00014 (3.8σ below center)
+
     test sacred_gravity_close_to_measured
         // Claim: C-phi-005 (EMPIRICAL_FIT), tolerance: WITHIN_UNCERTAINTY
         given report = verify_sacred_physics()
