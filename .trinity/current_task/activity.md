@@ -296,3 +296,11 @@
 - **Commit:** chore: English localization + compiler/VM infrastructure + new specs
 - **Files:** bootstrap/build.rs,bootstrap/src/bin/r005_bench.rs,bootstrap/src/lib.rs,docs/.legacy-non-english-docs,experience/r005-compression.trinity
 
+## 2026-04-18T03:42:45Z — master
+- **Commit:** R005: compression benchmark 17496b->4374b ratio 4.00 | Closes #493
+- **Files:** bootstrap/src/lib.rs,bootstrap/src/main.rs
+
+## 2026-04-18T04:19:00Z — fix/ring-018-compiler-cleanup
+- **Commit:** fix: restore compiler/ modules, remove spurious lib.rs
+- **Files:** bootstrap/src/main.rs,docs/NOW.md
+

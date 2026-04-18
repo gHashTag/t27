@@ -1,6 +1,6 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-18
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
@@ -8,7 +8,7 @@
 ## Active Work
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-18
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
@@ -157,3 +157,8 @@
 - Clean up repository structure, keep clara-bridge components intact
 - Closes #487
 
+
+## 2026-04-18 — fix/ring-018-compiler-cleanup
+- Restored compiler/ modules, removed spurious lib.rs
+- Build: 0 errors
+- PR #497, Closes #498
