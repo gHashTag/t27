@@ -208,3 +208,11 @@
 - **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
 - **Files:** .claude/mcp/tri-ssot/manifest.json,.claude/skills/tri/skill.md,.claude/skills/wrap-up/skill.md,.cursor/rules/t27-ssot-math.mdc,.githooks/pre-commit,.github/CODEOWNERS,.github/ISSUE_TEMPLATE/audit_task.md,.github/ISSUE_TEMPLATE/backend_task.md,.github/ISSUE_TEMPLATE/benchmark_task.md,.github/ISSUE_TEMPLATE/bug.md,.github/ISSUE_TEMPLATE/epic.md,.github/ISSUE_TEMPLATE/publication_task.md,.github/ISSUE_TEMPLATE/question.md,.github/ISSUE_TEMPLATE/research_claim.md,.github/ISSUE_TEMPLATE/spec_task.md,.github/ISSUE_TEMPLATE/ux_docs_task.md,.github/PULL_REQUEST_TEMPLATE.md,.github/dependabot.yml,.github/workflows/coq-kernel.yml,.github/workflows/l1-traceability.yml
 
+## 2026-04-18T18:16:29Z — dev
+- **Commit:** chore(tracking): sync .trinity/ state (Closes #0)
+- **Files:** 
+
+## 2026-04-18T18:16:41Z — dev
+- **Commit:** chore: update .trinity tracking for TypeScript codegen (#525)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
