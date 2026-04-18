@@ -232,3 +232,7 @@
 - **Commit:** fix: regenerate Cargo.lock (remove merge conflict markers)
 - **Files:** .trinity/current_task/activity.md,Cargo.lock
 
+## 2026-04-18T18:44:07Z — fix/add-emit-rust-to-dev
+- **Commit:** fix: restore working build and update language policy
+- **Files:** specs/compiler/meta_compile.t27
+
