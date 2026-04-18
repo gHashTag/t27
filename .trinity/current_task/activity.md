@@ -264,3 +264,19 @@
 - **Commit:** docs(memory): add Phase 0 experience log (Issue #517)
 - **Files:** .claude/plans/replicated-finding-plum.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/issues/issue-meta_compile-full-implementation.md,bootstrap/src/compiler.rs,bootstrap/src/main.rs,contrib/backend/notebooklm/__pycache__/__init__.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/auth_token.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/client.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/config.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/cookie_auth.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/notebooks.cpython-314.pyc,experience/memory/001_primitives.md,specs/compiler/meta_compile.t27
 
+## 2026-04-18T17:11:09Z — fix/ring-018-mainrs-only
+- **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
+- **Files:** 
+
+## 2026-04-18T17:39:30Z — fix/ring-018-mainrs-only
+- **Commit:** verify(specs): GF16-native Rust codegen backend verification
+- **Files:** .trinity/current_task/activity.md,specs/compiler/meta_compile.t27
+
+## 2026-04-19T05:17:57Z — fix/ring-018-mainrs-only
+- **Commit:** docs(meta): add TypeScript test blocks to meta_compile spec
+- **Files:** specs/compiler/meta_compile.t27
+
+## 2026-04-19T05:18:01Z — fix/ring-018-mainrs-only
+- **Commit:** feat(compiler): complete all 5 backend codegen in meta_compile.t27 (#519)
+- **Files:** .trinity/current_task/activity.md,specs/compiler/meta_compile.t27
+

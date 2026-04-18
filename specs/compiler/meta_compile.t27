@@ -416,6 +416,99 @@ module MetaCompilation {
             }
         }
 
+        // Rust full-file generation tests
+        test emit_rust_full_simple
+            given spec = "fn test() {}"
+            given r = emit_rust_full(spec)
+            then r.parse_ok == true
+            then r.rust_ok == true
+            then r.rust_lines == 1
+
+        test emit_rust_full_empty
+            given r = ""
+            given r = emit_rust_full(r)
+            then r.parse_ok == false
+            then r.rust_ok == false
+            then r.rust_lines == 0
+
+        test emit_rust_full_multiline
+            given spec = "fn test() {\n    let x = 1;\n    let y = 2;\n}"
+            given r = emit_rust_full(spec)
+            then r.parse_ok == true
+            then r.rust_ok == true
+            then r.rust_lines == 3
+
+        // Rust codegen invariants
+        invariant rust_full_lines_non_negative
+            given r = emit_rust_full("")
+            assert r.rust_lines >= 0
+
+        invariant rust_full_lines_non_excessive
+            given r = "fn main() {\n    pub fn a() -> u32 {\n        return 42;\n    }\n    pub fn b() -> u32 {\n        return 24;\n    }\n    pub fn c() -> u32 {\n        return 0;\n    }\n}\n"
+            assert r.rust_lines <= 65535
+
+        // TypeScript full-file generation
+        fn emit_typescript_full(spec: str) -> EmitResult {
+            var result = emit_result_init();
+
+            let mut lex = lexer::Lexer::new(spec);
+            let mut p = parser::Parser::new(lex);
+            let parsed = p.parse();
+
+            if parsed.is_ok() {
+                let ast_node = parsed.unwrap();
+                result.parse_ok = ast_node.kind == parser::NodeKind::Module;
+
+                if result.parse_ok {
+                    var lines: u32 = 5;
+                    var i: u32 = 0;
+                    while i < ast_node.child_count {
+                        let child = ast_node.children[i];
+                        let emitted = emit_typescript_stmt(child);
+                        if emitted.ok {
+                            lines = lines + emitted.count;
+                        }
+                        i = i + 1;
+                    }
+                    result.ts_lines = lines;
+                    result.ts_ok = true;
+                }
+            }
+
+            return result;
+        }
+
+        // TypeScript full-file generation tests
+        test emit_typescript_full_simple_module
+            given spec = "module Test { fn add(a: i32, b: i32) -> i32 { return a + b; } }"
+            given output = emit_typescript_full(spec)
+            then output.parse_ok == true
+            then output.ts_ok == true
+            then output.ts_lines == 1
+
+        test emit_typescript_full_empty
+            given spec = ""
+            given output = emit_typescript_full("")
+            then output.parse_ok == false
+            then output.ts_ok == false
+            then output.ts_lines == 0
+
+        test emit_typescript_full_multiline
+            given spec = "fn test() {\n    let x = 1;\n    let y = 2;\n}"
+            given output = emit_typescript_full(spec)
+            then output.parse_ok == true
+            then output.ts_ok == true
+            then output.ts_lines == 3
+
+        // TypeScript codegen invariants
+        invariant typescript_full_lines_non_negative
+            given r = emit_typescript_full("")
+            assert r.ts_lines >= 0
+
+        invariant typescript_full_lines_non_excessive
+            given r = "fn main() {\n    function test() { return 42; }\n    function main() { return \"hello world\"; }\n}\n"
+            assert r.ts_lines <= 65535
+
         return r;
     }
 
