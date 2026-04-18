@@ -224,3 +224,7 @@
 - **Commit:** chore: sync .trinity tracking from TypeScript codegen work
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
 
+## 2026-04-18T18:32:05Z — feat/codegen-backends-all-530
+- **Commit:** chore(now): update NOW.md to 2026-04-19 state
+- **Files:** specs/compiler/meta_compile.t27
+
