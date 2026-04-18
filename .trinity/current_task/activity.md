@@ -320,3 +320,7 @@
 - **Commit:** docs(agents): add L1 traceability tags for Ring-018
 - **Files:** .github/workflows/issue-gate.yml
 
+## 2026-04-18T11:02:16Z — fix/ring-018-compiler-cleanup
+- **Commit:** fix(workflows): fix L1 traceability check — grep 0 vs pattern match
+- **Files:** .github/workflows/l1-traceability.yml
+
