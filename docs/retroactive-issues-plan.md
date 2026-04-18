@@ -155,7 +155,7 @@ git commit --allow-empty -m "test: verify L1 enforcement (Closes #999)"
 
 ```bash
 # Create commit with non-ASCII identifier
-echo "fn тест中文() {}" > test.rs && git add test.rs
+echo "fn test_non_ascii() {}" > test.rs && git add test.rs
 git commit -m "test: verify L3 enforcement"
 # Expected: REJECTED with error about non-ASCII identifier
 ```

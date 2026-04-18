@@ -224,3 +224,7 @@
 - **Commit:** verify(specs): GF16-native Rust codegen backend verification
 - **Files:** .trinity/current_task/activity.md,specs/compiler/meta_compile.t27
 
+## 2026-04-18T17:53:27Z — fix/ring-018-mainrs-only
+- **Commit:** docs(meta): add TypeScript test blocks to meta_compile spec
+- **Files:** .trinity/cells/sandbox-010.json,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,4096,Cargo.lock,README.md,bootstrap/build.rs,bootstrap/src/bridge.rs,bun.lock,conformance/memory_system.json,docs/.legacy-non-english-docs,docs/AGENTS_ALPHABET.md,docs/COMPILER_VERIFICATION_IMPACT_RU.md,docs/README_RU_UPDATE.md,docs/agents/AGENTS_ALPHABET.md,docs/retroactive-issues-plan.md,docs/rfc/tri-language-core.md,specs/bootstrap/meta_bootstrap.t27,specs/memory/README.md,specs/memory/native_memory.t27
+

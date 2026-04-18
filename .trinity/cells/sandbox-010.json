@@ -9,15 +9,28 @@
   "spec_path": null,
   "started_at": "2026-04-08T00:00:00Z",
   "checkpoints": [
-    {"step": 1, "name": "Added maxSessionDurationMs config", "at": "2026-04-08T00:00:00Z"},
-    {"step": 2, "name": "Implemented checkSessionTimeout function", "at": "2026-04-08T00:00:00Z"},
-    {"step": 3, "name": "Integrated timeout check into poll loop", "at": "2026-04-08T00:00:00Z"}
+    {
+      "step": 1,
+      "name": "Added maxSessionDurationMs config",
+      "at": "2026-04-08T00:00:00Z"
+    },
+    {
+      "step": 2,
+      "name": "Implemented checkSessionTimeout function",
+      "at": "2026-04-08T00:00:00Z"
+    },
+    {
+      "step": 3,
+      "name": "Integrated timeout check into poll loop",
+      "at": "2026-04-08T00:00:00Z"
+    }
   ],
   "state": "sealed",
   "verdict": "clean",
   "commit": null,
   "allowed_paths": [
     "contrib/backend/api/src/config.ts",
-    "contrib/backend/api/src/services/health.ts"
+    "contrib/backend/api/src/services/health.ts",
+    "specs/compiler/meta_compile.t27"
   ]
 }

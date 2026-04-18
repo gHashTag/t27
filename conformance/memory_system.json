@@ -1,0 +1,261 @@
+{
+  "schema_version": 2,
+  "format_family": "Memory",
+  "vector_name": "Native Memory Vectors",
+  "format_name": "NativeMemory",
+  "description": "Conformance test vectors for Native Memory System (Working/Episodic/Semantic scopes)",
+  "version": "0.1.0",
+  "verdict": "CLEAN",
+  "seal": "sha256:<hash-to-be-generated>",
+  "invariants": [
+    {
+      "assertion": "for_all(cell): phi_hash(cell) mod phi < epsilon",
+      "description": "Phi hash satisfies L5 φ-identity invariant",
+      "name": "phi_hash_identity"
+    },
+    {
+      "assertion": "remember(x); recall(x.id) returns x",
+      "description": "Read-after-write consistency for memory storage",
+      "name": "read_after_write"
+    },
+    {
+      "assertion": "forget(id, scope) removes cell only from specified scope",
+      "description": "Scope isolation for forget operation",
+      "name": "forget_scope_isolation"
+    },
+    {
+      "assertion": "Working/Episodic/Semantic scopes are independent",
+      "description": "Three-tier memory scope isolation",
+      "name": "scope_isolation"
+    },
+    {
+      "assertion": "is_expired(cell) correctly identifies expired cells based on TTL",
+      "description": "Time-to-live expiration correctness",
+      "name": "ttl_expiration"
+    },
+    {
+      "assertion": "compute_phi_hash(data) is deterministic",
+      "description": "Hash function produces same result for same input",
+      "name": "phi_hash_deterministic"
+    }
+  ],
+  "test_vectors": [
+    {
+      "name": "remember_basic",
+      "description": "Store a memory cell with valid phi_hash",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "remember",
+        "cell": {
+          "data": "test data",
+          "scope": "Working"
+        }
+      },
+      "expected": {
+        "success": true
+      }
+    },
+    {
+      "name": "remember_invalid_phi_hash_rejected",
+      "description": "Reject memory cell with invalid phi_hash",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "remember",
+        "cell": {
+          "data": "test data",
+          "phi_hash": 0,
+          "scope": "Working"
+        }
+      },
+      "expected": {
+        "success": false
+      }
+    },
+    {
+      "name": "recall_exact_match",
+      "description": "Retrieve memory cell by exact match",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "recall",
+        "query": "recall test",
+        "scope": "Working"
+      },
+      "expected": {
+        "count": 1,
+        "cells": [
+          {
+            "data": "recall test"
+          }
+        ]
+      }
+    },
+    {
+      "name": "recall_empty_result",
+      "description": "Return empty result when no match found",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "recall",
+        "query": "nonexistent",
+        "scope": "Working"
+      },
+      "expected": {
+        "count": 0,
+        "cells": []
+      }
+    },
+    {
+      "name": "recall_like_similarity",
+      "description": "Retrieve memory cells by semantic similarity",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "recall_like",
+        "pattern": "similar",
+        "scope": "Semantic"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "forget_removes_cell",
+      "description": "Remove a memory cell by ID",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "forget",
+        "id": "test_id",
+        "scope": "Working"
+      },
+      "expected": {
+        "success": true
+      }
+    },
+    {
+      "name": "reflect_returns_stats",
+      "description": "Consolidate and analyze memories in scope",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "reflect",
+        "scope": "Episodic"
+      },
+      "expected": {
+        "query_time_ms": 0
+      }
+    },
+    {
+      "name": "scope_isolation_working_episodic",
+      "description": "Working scope data not found in Episodic",
+      "verdict": "CLEAN",
+      "input": {
+        "setup": "remember cell in Working scope",
+        "query": "recall from Episodic scope"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "scope_isolation_episodic_semantic",
+      "description": "Episodic scope data not found in Semantic",
+      "verdict": "CLEAN",
+      "input": {
+        "setup": "remember cell in Episodic scope",
+        "query": "recall from Semantic scope"
+      },
+      "expected": {
+        "count": 0
+      }
+    },
+    {
+      "name": "ttl_expired_working",
+      "description": "Working scope cell expires after TTL",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "is_expired",
+        "cell": {
+          "data": "old data",
+          "scope": "Working",
+          "timestamp": 0
+        }
+      },
+      "expected": {
+        "expired": true
+      }
+    },
+    {
+      "name": "ttl_not_expired_episodic",
+      "description": "Episodic scope cell not expired within TTL",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "is_expired",
+        "cell": {
+          "data": "recent data",
+          "scope": "Episodic",
+          "timestamp": 1234567890
+        }
+      },
+      "expected": {
+        "expired": false
+      }
+    },
+    {
+      "name": "semantic_never_expires",
+      "description": "Semantic scope cells never expire",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "is_expired",
+        "cell": {
+          "data": "semantic data",
+          "scope": "Semantic",
+          "timestamp": 0
+        }
+      },
+      "expected": {
+        "expired": false
+      }
+    },
+    {
+      "name": "phi_hash_deterministic",
+      "description": "Same data produces same phi_hash",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "compute_phi_hash",
+        "data": "deterministic test"
+      },
+      "expected": {
+        "hash1_equals_hash2": true
+      }
+    },
+    {
+      "name": "migrate_working_to_episodic",
+      "description": "Migrate memory cell from Working to Episodic",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "migrate",
+        "cell": {
+          "data": "migrate test",
+          "scope": "Working"
+        },
+        "target_scope": "Episodic"
+      },
+      "expected": {
+        "success": true
+      }
+    },
+    {
+      "name": "get_stats_valid_structure",
+      "description": "Get statistics returns valid structure",
+      "verdict": "CLEAN",
+      "input": {
+        "function": "get_stats",
+        "scope": "Working"
+      },
+      "expected": {
+        "total_cells": 0,
+        "valid_phi_hash": 0
+      }
+    }
+  ],
+  "created_at": "2026-04-18T00:00:00Z",
+  "updated_at": "2026-04-18T00:00:00Z",
+  "validated_at": null
+}

@@ -1,0 +1,119 @@
+# Bootstrap Compiler Meta Specification
+
+module trinity_bootstrap::meta_bootstrap;
+
+import compiler::parser;
+
+/**
+ * Ring Status Types (ADT-first, type-safe)
+ */
+ring_status {
+    None,          // Ring has not been started
+    InProgress,     // Ring is currently being worked on
+    Done,          // Ring is complete
+    Failed,         // Ring encountered critical error
+    Blocked,        // Ring is waiting on dependency or approval
+}
+
+/**
+ * Ring identifier (must exist in registry)
+ */
+type RingId = String;
+
+/**
+ * Ring status from registry
+ */
+type RingStatus = ring_status::RingStatus;
+
+/**
+ * Bootstrap compiler bootstrap result
+ */
+bootstrap_result {
+    ok: bool,
+    message: String,
+    ring_status: RingStatus,
+}
+
+/**
+ * Parse RINGS.t27 and extract ring identifier
+ */
+fn parse_rings() -> Result<HashMap<RingId, RingStatus>> {
+    // Read RINGS.t27 specification
+    let spec = compiler::parser::parse_file(
+        include_str!("specs/RINGS.t27"),
+        file_path: &"RINGS.t27"|,
+    )?;
+
+    // Extract ring status from spec
+    let ring_status = match spec.get("ring_status").as_str() {
+        "None" => ring_status::None,
+        "InProgress" => ring_status::InProgress,
+        "Done" => ring_status::Done,
+        "Failed" => ring_status::Failed,
+        "Blocked" => ring_status::Blocked,
+        _ => return Err(anyhow::anyhow!("Unknown ring status: {status}")),
+    };
+
+    // Create result map
+    let mut rings = HashMap::new();
+
+    // Parse each ring entry
+    for ring in spec.get_array("rings").unwrap() {
+        // Get ring ID
+        let ring_id = ring.get("ring_id").as_str().ok_or_else(|_| Err(anyhow::anyhow!("Missing ring_id")))?;
+
+        // Get ring status
+        let status = parse_ring_status(&ring.get("status"))?;
+
+        // Add to result map
+        rings.insert(ring_id, status);
+    }
+
+    Ok(rings)
+}
+
+/**
+ * Get ring status for a specific ring
+ */
+fn get_ring_status(ring_id: &str, rings: &HashMap<RingId, RingStatus>) -> RingStatus {
+    match rings.get(ring_id) {
+        Some(s) => s.clone(),
+        None => ring_status::None,
+    }
+}
+
+/**
+ * Check if a specific ring is in InProgress status
+ */
+fn is_ring_in_progress(ring_id: &str, rings: &HashMap<RingId, RingStatus>) -> bool {
+    match rings.get(ring_id) {
+        Some(ring_status::InProgress) => true,
+        _ => false,
+    }
+}
+
+/**
+ * Set ring status to InProgress
+ */
+fn set_ring_in_progress(ring_id: &str, rings: &mut HashMap<RingId, RingStatus>) {
+    rings.insert(ring_id, ring_status::InProgress);
+}
+
+/**
+ * Mark ring as Done
+ */
+fn set_ring_done(ring_id: &str, rings: &mut HashMap<RingId, RingStatus>) {
+    rings.insert(ring_id, ring_status::Done);
+}
+
+/**
+ * Get all rings that are not Done or Blocked
+ */
+fn get_pending_rings(rings: &HashMap<RingId, RingStatus>) -> Vec<RingId> {
+    rings.iter()
+        .filter(|(id, status)| {
+            status != ring_status::Done && status != ring_status::Blocked
+        })
+        .map(|(id, _)| id.clone())
+        .collect()
+}
