@@ -216,3 +216,11 @@
 - **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
 - **Files:** .trinity/current_task/activity.md
 
+## 2026-04-18T17:11:09Z — fix/ring-018-mainrs-only
+- **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
+- **Files:** 
+
+## 2026-04-18T17:39:30Z — fix/ring-018-mainrs-only
+- **Commit:** verify(specs): GF16-native Rust codegen backend verification
+- **Files:** .trinity/current_task/activity.md,specs/compiler/meta_compile.t27
+

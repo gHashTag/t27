@@ -9,10 +9,12 @@ module MetaCompilation {
         verilog_ok: bool;
         c_ok: bool;
         rust_ok: bool;
+        ts_ok: bool;
         zig_lines: u32;
         verilog_lines: u32;
         c_lines: u32;
         rust_lines: u32;
+        ts_lines: u32;
     }
 
     const SAMPLE_SPEC: str = "module Test { fn add(a: i32, b: i32) -> i32 { return a + b; } }";
@@ -24,23 +26,25 @@ module MetaCompilation {
             verilog_ok = false,
             c_ok = false,
             rust_ok = false,
+            ts_ok = false,
             zig_lines = 0,
             verilog_lines = 0,
             c_lines = 0,
             rust_lines = 0,
+            ts_lines = 0,
         };
     }
 
     fn is_full_success(r: CompileResult) -> bool {
-        return r.parse_ok and r.zig_ok and r.verilog_ok and r.c_ok and r.rust_ok;
+        return r.parse_ok and r.zig_ok and r.verilog_ok and r.c_ok and r.rust_ok and r.ts_ok;
     }
 
     fn total_lines(r: CompileResult) -> u32 {
-        return r.zig_lines + r.verilog_lines + r.c_lines + r.rust_lines;
+        return r.zig_lines + r.verilog_lines + r.c_lines + r.rust_lines + r.ts_lines;
     }
 
     fn any_backend_ok(r: CompileResult) -> bool {
-        return r.zig_ok or r.verilog_ok or r.c_ok or r.rust_ok;
+        return r.zig_ok or r.verilog_ok or r.c_ok or r.rust_ok or r.ts_ok;
     }
 
     test compile_result_init_defaults
@@ -66,4 +70,124 @@ module MetaCompilation {
     invariant init_not_full_success
         given r = compile_result_init()
         assert is_full_success(r) == false
+
+    // ============================================================================
+    // TypeScript Codegen (emit_typescript)
+    // ============================================================================
+
+    test emit_typescript_simple_module
+        given r = compile_result_init()
+        given spec = SAMPLE_SPEC
+        given output = emit_typescript(spec)
+        then output.contains("module Test")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+        and is_full_success(r) == false
+
+    test emit_typescript_function_decl
+        given r = compile_result_init()
+        given spec = "fn test() -> void {}"
+        given output = emit_typescript(spec)
+        then output.contains("function test()")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+
+    test emit_typescript_interface_decl
+        given r = compile_result_init()
+        given spec = "interface Point { x: number; y: number; }"
+        given output = emit_typescript(spec)
+        then output.contains("interface Point")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+
+    test emit_typescript_enum_decl
+        given r = compile_result_init()
+        given spec = "enum Color { Red, Blue, Green; }"
+        given output = emit_typescript(spec)
+        then output.contains("enum Color")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+
+    test emit_typescript_const_decl
+        given r = compile_result_init()
+        given spec = "const PI: f64 = 3.14159; const E: f64 = 2.71828;"
+        given output = emit_typescript(spec)
+        then output.contains("const PI")
+        and output.contains("const E")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+
+    test emit_typescript_import_decl
+        given r = compile_result_init()
+        given spec = "import { Point } from './types';"
+        given output = emit_typescript(spec)
+        then output.contains("import")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+
+    test emit_typescript_compound_types
+        given r = compile_result_init()
+        given spec = "type Point2D = { x: number; y: number; };"
+        given output = emit_typescript(spec)
+        then output.contains("type Point2D")
+        then output.parse_ok == true
+        then output.ts_ok == true
+        then output.ts_lines > 0
+        then r.ts_ok == true
+
+    test emit_typescript_empty_import
+        given r = compile_result_init()
+        given spec = "import { } from './empty';"
+        given output = emit_typescript(spec)
+        then output.contains("import { }")
+        then output.parse_ok == true
+        then output.ts_ok == true
+
+    invariant emit_typescript_result_ok
+        given r = compile_result_init()
+        given spec = SAMPLE_SPEC
+        given output = emit_typescript(spec)
+        assert output.ts_ok == true
+
+    // Test GF16 count → TypeScript
+    test gf16_count_to_ts
+        given r = compile_result_init()
+        given spec = SAMPLE_SPEC
+        given output = emit_typescript(spec)
+        then output.contains("4 // GF16 fields")
+        and output.contains("1 // total") == false
+        then output.ts_lines == 4
+        and r.ts_ok == true
+
+    // Test line count tracking
+    test line_count_tracking
+        given r = compile_result_init()
+        given spec = "fn test() { const a: i32 = 1; return a; }"
+        given output = emit_typescript(spec)
+        then total_lines(r) == output.ts_lines
+        and r.ts_ok == true
+
+    // Test full success with TypeScript
+    test is_full_success_includes_ts
+        given r = compile_result_init()
+        given spec = SAMPLE_SPEC
+        then is_full_success(r) == true
+
+    // Invariant: total_lines includes ts_lines
+    test total_lines_includes_ts
+        given r = compile_result_init()
+        given r = compile_result_init()
+        then total_lines(r) == r.ts_lines + r.c_lines + r.rust_lines + r.zig_lines + r.verilog_lines
 }
