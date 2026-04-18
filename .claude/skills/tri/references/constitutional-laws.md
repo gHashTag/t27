@@ -5,7 +5,7 @@ This document summarizes the constitutional laws that govern all t27 development
 ## Core Documents
 
 ### SOUL.md
-**Location:** `docs/SOUL.md`
+**Location:** `docs/nona-03-manifest/SOUL.md`
 
 The supreme constitution of Trinity S³AI Framework. Contains:
 

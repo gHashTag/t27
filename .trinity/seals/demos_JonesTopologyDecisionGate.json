@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c75b8c3328a6912caf6ed6b9d0ed3352da18d0d7edfcad35a2652d119144446a",
+  "gen_hash_rust": "sha256:88ac82af3197c6c3ff6da924854cf63d5ddf7e3e2581698328862333da338270",
+  "gen_hash_verilog": "sha256:c17f90b2b213a78a5ddc99013c9d48d10e239388e2a56c955926f55653ea3330",
+  "gen_hash_zig": "sha256:e344bb6406dca539a1e010c0249880c03614db19b2e8f240de0e6661a9a4aab9",
+  "module": "JonesTopologyDecisionGate",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:40Z",
+  "spec_hash": "sha256:12fd87a68d187972253a58cf5d38fc6b92fefe35957386eb3b1e4e586d97dbdd",
+  "spec_path": "specs/demos/jones_topology_decision_gate.t27"
+}

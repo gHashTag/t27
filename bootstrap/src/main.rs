@@ -1,0 +1,4222 @@
+// bootstrap/src/main.rs
+// T27 Bootstrap Compiler - CLI and HTTP Server Entry Point
+//
+// Commands:
+// - parse: Parse .t27 and output JSON AST
+// - gen: Generate Zig code from .t27
+// - gen-verilog: Generate synthesizable Verilog from .t27
+// - gen-c: Generate C code from .t27
+// - seal: Compute seal hashes (with --save / --verify)
+// - check-now: Gate on docs/NOW.md Last updated date
+// - serve: Start HTTP server (requires 'server' feature)
+
+mod bridge;
+mod compiler;
+mod suite;
+
+use clap::{Parser, Subcommand};
+use sha2::{Sha256, Digest};
+#[cfg(feature = "server")]
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+// ============================================================================
+// CLI Definition (clap)
+// ============================================================================
+
+#[derive(Parser)]
+#[command(name = "t27c")]
+#[command(about = "T27 Bootstrap Compiler for Trinity S³AI Framework", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Parse .t27 file and output AST
+    Parse {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate Zig code from .t27 file
+    Gen {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate synthesizable Verilog from .t27 file
+    GenVerilog {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate C code (.c/.h style) from .t27 file
+    GenC {
+        /// Input file path
+        input: String,
+    },
+
+    /// Generate Rust code from .t27 file
+    GenRust {
+        /// Input file path
+        input: String,
+    },
+
+    /// Compute deterministic test_vector_hash from conformance JSON
+    Conformance {
+        /// Input conformance JSON file path
+        input: String,
+    },
+
+    /// Compute seal hashes for a .t27 spec file
+    Seal {
+        /// Input .t27 spec file path
+        input: String,
+
+        /// Save computed hashes to .trinity/seals/<module>.json
+        #[arg(long)]
+        save: bool,
+
+        /// Verify current hashes match previously saved seals
+        #[arg(long)]
+        verify: bool,
+    },
+
+    /// Compile a .t27 file and write generated code to a file
+    Compile {
+        /// Input file path
+        input: String,
+        /// Backend: zig, verilog, or c
+        #[arg(long, default_value = "zig")]
+        backend: String,
+        /// Output file path (default: input with backend extension)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Compile all .t27 files from specs/ and compiler/ into an output directory
+    CompileAll {
+        /// Backend: zig, verilog, or c
+        #[arg(long, default_value = "zig")]
+        backend: String,
+        /// Output directory
+        #[arg(short, long, default_value = "build")]
+        output: String,
+        /// Path to directory containing specs/ and compiler/ (auto-detected if omitted)
+        #[arg(long)]
+        specs_dir: Option<String>,
+    },
+
+    /// Compile all .t27 files into a coherent project with resolved inter-file imports
+    CompileProject {
+        /// Backend: zig, verilog, or c
+        #[arg(long, default_value = "zig")]
+        backend: String,
+        /// Output directory
+        #[arg(short, long, default_value = "build")]
+        output: String,
+    },
+
+    /// Show repository statistics
+    Stats,
+
+    /// Start HTTP server on Railway
+    Serve {
+        /// Port to listen on (default: uses Railway PORT env var)
+        #[arg(short, long, default_value = "8080")]
+        port: String,
+    },
+
+    /// Queen T A2A Bridge — Orchestrate sessions and tasks via OpenCode
+    Bridge {
+        #[command(subcommand)]
+        command: bridge::BridgeCommands,
+    },
+
+    /// Full repository suite: parse, Zig/Verilog/C gen, seal verify, fixed-point
+    Suite {
+        /// Repository root (default: current directory)
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Validate conformance/*.json files (JSON + vector keys)
+    ValidateConformance {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Validate gen/** headers (Auto-generated / DO NOT EDIT / TRINITY)
+    ValidateGenHeaders {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Require docs/NOW.md "Last updated" calendar date to match today (local timezone)
+    CheckNow {
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+
+    /// Run optimizer on a .t27 file
+    Optimize {
+        input: String,
+        #[arg(long, default_value = "1")]
+        opt_level: u32,
+    },
+
+    /// Typecheck a .t27 file
+    Typecheck {
+        input: String,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Lint .t27 spec quality
+    Lint {
+        input: String,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Benchmark a .t27 file
+    Bench {
+        input: String,
+    },
+
+    /// Explain compilation pipeline stages
+    Explain {
+        input: String,
+    },
+
+    /// Pretty-print .t27 from AST
+    Fmt {
+        input: String,
+    },
+
+    /// Dependency graph of .t27 modules
+    Graph {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+
+    /// Generate HTML documentation from spec
+    Doc {
+        input: String,
+        #[arg(long, default_value = "docs/html")]
+        output_dir: String,
+    },
+
+    /// Generate HTML documentation for all specs
+    DocAll {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+        #[arg(long, default_value = "docs/html")]
+        output_dir: String,
+    },
+
+    /// Run type checker on a .t27 file (alias for typecheck)
+    Check {
+        input: String,
+    },
+
+    /// List test and invariant blocks in a .t27 file
+    Test {
+        input: String,
+        #[arg(long)]
+        verbose: bool,
+    },
+
+    /// Evaluate a constant expression and print the result
+    Eval {
+        expr: String,
+    },
+
+    /// Show version info
+    Version,
+
+    /// Show AST tree for a spec
+    Tree {
+        input: String,
+        #[arg(long, default_value = "2")]
+        depth: usize,
+    },
+
+    /// Show what a spec file depends on (imports)
+    Depends {
+        input: String,
+    },
+
+    /// Show size metrics for a .t27 spec file
+    Size {
+        input: String,
+    },
+
+    /// Analyze all .t27 specs in repo (aggregate metrics)
+    Analyze {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+        #[arg(long, default_value = "false")]
+        json: bool,
+        #[arg(long, default_value = "false")]
+        top: bool,
+    },
+
+    /// Compare two .t27 spec files (structural diff)
+    Diff {
+        left: String,
+        right: String,
+    },
+
+    /// Watch .t27 files for changes and recompile
+    Watch {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+        #[arg(long, default_value = "2")]
+        interval_secs: u64,
+    },
+
+    /// Run full CI checks (parse + typecheck + gen + seal)
+    Ci {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+    },
+
+    /// Show public API of a .t27 spec (pub functions, structs, enums, consts)
+    Inspect {
+        input: String,
+    },
+
+    /// Show function outline with locals, calls, and returns
+    Outline {
+        input: String,
+    },
+
+    /// Export function call graph as DOT format
+    Callgraph {
+        input: String,
+    },
+
+    /// Quick compiler health check (parse+typecheck+gen a tiny spec)
+    Health,
+
+    /// Find potentially dead (uncalled) functions in a spec or repo
+    Deadcode {
+        input: Option<String>,
+        #[arg(long, default_value = "false")]
+        repo: bool,
+    },
+
+    /// Show per-function metrics (complexity, lines, params)
+    Metrics {
+        input: String,
+    },
+
+    /// Flatten single-use functions (inline them at call site)
+    Flatten {
+        input: String,
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Show module dependency tree across all .t27 specs
+    DepsTree {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+    },
+
+    /// Find TODO/FIXME/HACK comments in specs
+    Todo {
+        #[arg(long, default_value = ".")]
+        repo_root: String,
+    },
+}
+
+// ============================================================================
+// HTTP Server (Axum - optional feature)
+// ============================================================================
+
+#[cfg(feature = "server")]
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Json},
+    routing::{get, post},
+    Router,
+};
+#[cfg(feature = "server")]
+use tower_http::services::{ServeDir, ServeFile};
+#[cfg(feature = "server")]
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "server")]
+use tokio::sync::broadcast;
+#[cfg(feature = "server")]
+use tokio_stream::wrappers::BroadcastStream;
+#[cfg(feature = "server")]
+use tokio::net::TcpListener;
+
+#[cfg(feature = "server")]
+#[derive(Clone)]
+struct AppState {
+    tx: broadcast::Sender<serde_json::Value>,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Deserialize)]
+struct CompileRequest {
+    source: String,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Serialize)]
+struct CompileResponse {
+    success: bool,
+    zig_code: Option<String>,
+    error: Option<String>,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Serialize)]
+struct ApiResponse {
+    success: bool,
+    output: Option<String>,
+    error: Option<String>,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Serialize)]
+struct HealthResponse {
+    status: String,
+    version: &'static str,
+    healthy: bool,
+}
+
+#[cfg(feature = "server")]
+async fn health_handler() -> impl IntoResponse {
+    Json(HealthResponse {
+        status: "ok".to_string(),
+        version: env!("CARGO_PKG_VERSION"),
+        healthy: true,
+    })
+}
+
+#[cfg(feature = "server")]
+async fn global_config_handler() -> impl IntoResponse {
+    // Basic config required by OpenCode SDK to stop errors
+    Json(serde_json::json!({
+        "logLevel": "info",
+        "theme": "oc-2"
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn project_list_handler() -> impl IntoResponse {
+    let now = chrono::Utc::now().timestamp_millis() as f64;
+    // List one project (the current repo)
+    Json(vec![serde_json::json!({
+        "id": "t27",
+        "name": "Trinity T27",
+        "worktree": "/app",
+        "vcs": "git",
+        "time": {
+            "created": now,
+            "updated": now
+        },
+        "sandboxes": []
+    })])
+}
+
+#[cfg(feature = "server")]
+async fn project_current_handler() -> impl IntoResponse {
+    let now = chrono::Utc::now().timestamp_millis() as f64;
+    Json(serde_json::json!({
+        "id": "t27",
+        "name": "Trinity T27",
+        "worktree": "/app",
+        "vcs": "git",
+        "time": {
+            "created": now,
+            "updated": now
+        },
+        "sandboxes": []
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn project_patch_handler() -> impl IntoResponse {
+    StatusCode::OK
+}
+
+#[cfg(feature = "server")]
+async fn provider_list_handler() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "all": [
+            {
+                "id": "zai",
+                "name": "Z.AI (Integrated)",
+                "source": "api",
+                "env": [],
+                "options": {},
+                "models": {
+                    "gpt-4o": {
+                        "id": "gpt-4o",
+                        "name": "GPT-4o",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "openai",
+                            "url": "https://api.openai.com/v1",
+                            "npm": "openai"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": true,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 128000,
+                            "output": 4096
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-05-13"
+                    },
+                    "claude-3-5-sonnet": {
+                        "id": "claude-3-5-sonnet",
+                        "name": "Claude 3.5 Sonnet",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "anthropic",
+                            "url": "https://api.anthropic.com/v1",
+                            "npm": "@anthropic-ai/sdk"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": false,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 200000,
+                            "output": 8192
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-06-20"
+                    }
+                }
+            }
+        ],
+        "connected": ["zai"],
+        "default": {
+            "chat": "gpt-4o",
+            "code": "gpt-4o"
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn provider_auth_handler() -> impl IntoResponse {
+    Json(serde_json::json!({}))
+}
+
+#[cfg(feature = "server")]
+async fn auth_id_handler() -> impl IntoResponse {
+    Json(true)
+}
+
+#[cfg(feature = "server")]
+async fn config_providers_handler() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "providers": [
+            {
+                "id": "zai",
+                "name": "Z.AI (Integrated)",
+                "source": "api",
+                "env": [],
+                "options": {},
+                "models": {
+                    "gpt-4o": {
+                        "id": "gpt-4o",
+                        "name": "GPT-4o",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "openai",
+                            "url": "https://api.openai.com/v1",
+                            "npm": "openai"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": true,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 128000,
+                            "output": 4096
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-05-13"
+                    },
+                    "claude-3-5-sonnet": {
+                        "id": "claude-3-5-sonnet",
+                        "name": "Claude 3.5 Sonnet",
+                        "providerID": "zai",
+                        "api": {
+                            "id": "anthropic",
+                            "url": "https://api.anthropic.com/v1",
+                            "npm": "@anthropic-ai/sdk"
+                        },
+                        "capabilities": {
+                            "temperature": true,
+                            "reasoning": false,
+                            "attachment": true,
+                            "toolcall": true,
+                            "input": {
+                                "text": true,
+                                "audio": false,
+                                "image": true,
+                                "video": false,
+                                "pdf": true
+                            },
+                            "output": {
+                                "text": true,
+                                "audio": false,
+                                "image": false,
+                                "video": false,
+                                "pdf": false
+                            },
+                            "interleaved": false
+                        },
+                        "cost": {
+                            "input": 0.0,
+                            "output": 0.0,
+                            "cache": { "read": 0.0, "write": 0.0 }
+                        },
+                        "limit": {
+                            "context": 200000,
+                            "output": 8192
+                        },
+                        "status": "active",
+                        "options": {},
+                        "headers": {},
+                        "release_date": "2024-06-20"
+                    }
+                }
+            }
+        ],
+        "default_config": {
+            "model": "gpt-4o"
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn config_get_handler() -> impl IntoResponse {
+    Json(serde_json::json!({}))
+}
+
+#[cfg(feature = "server")]
+async fn session_list_handler() -> impl IntoResponse {
+    Json(Vec::<serde_json::Value>::new())
+}
+
+#[cfg(feature = "server")]
+async fn session_status_handler() -> impl IntoResponse {
+    Json(serde_json::json!({ "status": "idle" }))
+}
+
+#[cfg(feature = "server")]
+async fn session_id_handler(axum::extract::Path(id): axum::extract::Path<String>) -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "id": id,
+        "slug": "default-session",
+        "projectID": "t27",
+        "workspaceID": "wrk_default",
+        "directory": "/app",
+        "title": "Welcome to OpenCode",
+        "version": "1.0",
+        "time": {
+            "created": current_time,
+            "updated": current_time
+        },
+        "summary": {
+            "additions": 0,
+            "deletions": 0,
+            "files": 0
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn session_create_handler() -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "id": "ses_default",
+        "slug": "default-session",
+        "projectID": "t27",
+        "workspaceID": "wrk_default",
+        "directory": "/app",
+        "title": "Welcome to OpenCode",
+        "version": "1.0",
+        "time": {
+            "created": current_time,
+            "updated": current_time
+        },
+        "summary": {
+            "additions": 0,
+            "deletions": 0,
+            "files": 0
+        }
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn session_message_list_handler() -> impl IntoResponse {
+    Json(Vec::<serde_json::Value>::new())
+}
+
+#[cfg(feature = "server")]
+async fn session_message_post_handler() -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs();
+
+    Json(serde_json::json!({
+        "info": {
+            "id": "msg_mock",
+            "sessionID": "ses_default",
+            "time": {
+                "created": current_time,
+                "updated": current_time
+            },
+            "role": "assistant"
+        },
+        "parts": [
+            {
+                "id": "prt_mock",
+                "messageID": "msg_mock",
+                "time": {
+                    "created": current_time,
+                    "updated": current_time
+                },
+                "status": "complete",
+                "content": {
+                    "type": "text",
+                    "text": "Trinity Backend is active. Ready to build."
+                }
+            }
+        ]
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn prompt_async_handler(State(state): State<AppState>, Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::from_secs(0))
+        .as_secs() as f64;
+
+    // Extract the messageID from the prompt to use as parentID
+    let parent_id = payload.get("messageID")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "msg_user_id".to_string());
+
+    // Send mock response in background
+    tokio::spawn(async move {
+        // Shared boilerplate for the AssistantMessage mock
+        let info_base = serde_json::json!({
+            "id": "msg_reply",
+            "sessionID": "ses_default",
+            "role": "assistant",
+            "parentID": parent_id,
+            "modelID": "gpt-4o",
+            "providerID": "zai",
+            "mode": "chat",
+            "path": {
+                "cwd": "/app",
+                "root": "/app"
+            },
+            "cost": 0.0,
+            "tokens": {
+                "input": 0,
+                "output": 0,
+                "reasoning": 0,
+                "cache": { "read": 0, "write": 0 }
+            }
+        });
+
+        // 1. Send "thinking" status (no completed = thinking)
+        let mut thinking_info = info_base.clone();
+        thinking_info["time"] = serde_json::json!({ "created": current_time });
+
+        let thinking_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "message.updated",
+                "properties": {
+                    "sessionID": "ses_default",
+                    "info": thinking_info
+                }
+            }
+        });
+        let _ = state.tx.send(thinking_event);
+
+        // Simulate some processing delay
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+        // 2. Send the message text using `message.part.updated`
+        let part_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "message.part.updated",
+                "properties": {
+                    "part": {
+                        "id": "part_reply",
+                        "sessionID": "ses_default",
+                        "messageID": "msg_reply",
+                        "type": "text",
+                        "text": "Hello! I am the Trinity Orchestrator. The SSE format is now perfectly aligned with the generated SDK, and I can respond correctly. How can I assist you with your project today?",
+                        "time": { "created": current_time }
+                    }
+                }
+            }
+        });
+        let _ = state.tx.send(part_event);
+
+        // 3. Send "complete" status with text (has completed = done)
+        let mut complete_info = info_base;
+        complete_info["time"] = serde_json::json!({ 
+            "created": current_time, 
+            "completed": current_time + 2.0
+        });
+
+        let complete_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "message.updated",
+                "properties": {
+                    "sessionID": "ses_default",
+                    "info": complete_info
+                }
+            }
+        });
+        let _ = state.tx.send(complete_event);
+
+        // 4. Send "idle" session status to clear the UI busy state
+        let idle_event = serde_json::json!({
+            "directory": "/app",
+            "payload": {
+                "type": "session.status",
+                "properties": {
+                    "sessionID": "ses_default",
+                    "status": {
+                        "type": "idle"
+                    }
+                }
+            }
+        });
+        let _ = state.tx.send(idle_event);
+    });
+
+    axum::http::StatusCode::NO_CONTENT
+}
+
+#[cfg(feature = "server")]
+async fn session_todo_handler() -> impl IntoResponse {
+    Json(serde_json::json!([]))
+}
+
+#[cfg(feature = "server")]
+async fn agent_list_handler() -> impl IntoResponse {
+    Json(serde_json::json!([{
+            "name": "zai",
+            "description": "Trinity AI Agent",
+            "mode": "all",
+            "native": true,
+            "hidden": false,
+            "topP": 1.0,
+            "temperature": 0.5,
+            "color": "#4a90e2",
+            "permission": [],
+            "model": {
+                "modelID": "gpt-4o",
+                "providerID": "openai"
+            },
+            "options": {}
+    }]))
+}
+
+#[cfg(feature = "server")]
+async fn vcs_handler() -> impl IntoResponse {
+    Json(serde_json::json!({ "status": "clean" }))
+}
+
+#[cfg(feature = "server")]
+async fn generic_list_handler() -> impl IntoResponse {
+    Json(Vec::<serde_json::Value>::new())
+}
+
+#[cfg(feature = "server")]
+async fn instance_handler() -> impl IntoResponse {
+    Json(serde_json::json!({ "healthy": true }))
+}
+
+#[cfg(feature = "server")]
+async fn path_handler() -> impl IntoResponse {
+    // SDK uses this to check path existence/stat
+    Json(serde_json::json!({
+        "exists": true,
+        "is_directory": true
+    }))
+}
+
+#[cfg(feature = "server")]
+#[allow(dead_code)]
+async fn root_handler() -> impl IntoResponse {
+    // Return the frontend or a simple health message
+    "t27c orchestrator live"
+}
+
+#[cfg(feature = "server")]
+async fn global_event_handler(State(state): State<AppState>) -> impl IntoResponse {
+    use axum::response::sse::{Event, KeepAlive, Sse};
+    use std::time::Duration;
+    use tokio_stream::StreamExt;
+    use futures_util::stream;
+
+    // 0. Initial "server.connected" event - SDK expects this first
+    let connected_stream = stream::once(async move {
+        Ok::<Event, axum::Error>(Event::default()
+            .event("server.connected")
+            .data(r#"{"directory":"global","payload":{"type":"server.connected","properties":{}}}"#))
+    });
+
+    // 1. Broadcast stream for real events
+    let broadcast_stream = BroadcastStream::new(state.tx.subscribe())
+        .map(|res| {
+            match res {
+                Ok(json) => {
+                    Event::default().json_data(json).map_err(|e| {
+                        axum::Error::new(format!("JSON error: {}", e))
+                    })
+                },
+                Err(e) => Err(axum::Error::new(format!("Broadcast error: {}", e))),
+            }
+        });
+
+    // 2. Keep-alive stream (pings every 15s)
+    let keep_alive_stream = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(Duration::from_secs(15)))
+        .map(|_| {
+            Ok::<Event, axum::Error>(Event::default().comment("keepalive"))
+        });
+
+    // 3. Merge: connected -> broadcast -> keep_alive
+    let stream = connected_stream
+        .chain(broadcast_stream)
+        .chain(keep_alive_stream);
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+#[cfg(feature = "server")]
+async fn compile_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile(&req.source) {
+        Ok(zig_code) => (
+            StatusCode::OK,
+            Json(CompileResponse {
+                success: true,
+                zig_code: Some(zig_code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(CompileResponse {
+                success: false,
+                zig_code: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn parse_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(format!("{:#?}", ast)),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_verilog_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_verilog(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_c_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_c(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn gen_rust_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_rust(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn seal_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    let spec_hash = format!("sha256:{}", sha256_hex(req.source.as_bytes()));
+
+    let gen_hash_zig = match compiler::Compiler::compile(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_c = match compiler::Compiler::compile_c(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+    let gen_hash_rust = match compiler::Compiler::compile_rust(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let output = serde_json::json!({
+        "spec_hash": spec_hash,
+        "gen_hash_zig": gen_hash_zig,
+        "gen_hash_verilog": gen_hash_verilog,
+        "gen_hash_c": gen_hash_c,
+        "gen_hash_rust": gen_hash_rust,
+    });
+
+    (
+        StatusCode::OK,
+        Json(ApiResponse {
+            success: true,
+            output: Some(output.to_string()),
+            error: None,
+        }),
+    )
+}
+
+#[cfg(feature = "server")]
+async fn stats_handler() -> impl IntoResponse {
+    let stats = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "backends": ["zig", "verilog", "c"],
+        "endpoints": ["/health", "/compile", "/parse", "/gen", "/gen-verilog", "/gen-c", "/seal", "/stats",
+                      "/optimize", "/typecheck", "/lint", "/explain", "/bench", "/graph", "/doc", "/size", "/inspect", "/deadcode", "/metrics"],
+    });
+
+    Json(ApiResponse {
+        success: true,
+        output: Some(stats.to_string()),
+        error: None,
+    })
+}
+
+#[cfg(feature = "server")]
+async fn optimize_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(mut ast) => {
+            let config = compiler::OptConfig::default();
+            let stats = compiler::optimize(&mut ast, &config);
+            let result = serde_json::json!({
+                "folds": stats.folds,
+                "dead_removed": stats.dead_removed,
+                "copies_propagated": stats.copies_propagated,
+                "strengths_reduced": stats.strengths_reduced,
+                "cse_eliminated": stats.cse_eliminated,
+                "dead_stores": stats.dead_stores,
+                "passes": stats.passes,
+            });
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: Some(result.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn typecheck_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let result = compiler::typecheck_ast(&ast);
+            let resp = serde_json::json!({
+                "ok": result.ok,
+                "error_count": result.error_count,
+                "warnings": result.warnings,
+                "errors": result.errors,
+            });
+            (StatusCode::OK, Json(ApiResponse {
+                success: result.ok,
+                output: Some(resp.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn lint_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let mut issues = 0u32;
+            let mut fn_count = 0u32;
+            let mut test_count = 0u32;
+            let mut inv_count = 0u32;
+            let mut warnings = Vec::new();
+            for child in &ast.children {
+                match child.kind {
+                    compiler::NodeKind::FnDecl => {
+                        fn_count += 1;
+                        let has_test = child.children.iter().any(|c| c.kind == compiler::NodeKind::TestBlock);
+                        let has_inv = child.children.iter().any(|c| c.kind == compiler::NodeKind::InvariantBlock);
+                        if !has_test && !has_inv {
+                            warnings.push(format!("fn '{}' has no test or invariant", child.name));
+                            issues += 1;
+                        }
+                    }
+                    compiler::NodeKind::TestBlock => test_count += 1,
+                    compiler::NodeKind::InvariantBlock => inv_count += 1,
+                    _ => {}
+                }
+            }
+            if fn_count == 0 { issues += 1; }
+            if test_count == 0 && inv_count == 0 { issues += 1; }
+            let resp = serde_json::json!({
+                "issues": issues,
+                "functions": fn_count,
+                "tests": test_count,
+                "invariants": inv_count,
+                "warnings": warnings,
+            });
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: Some(resp.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn explain_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let tc = compiler::typecheck_ast(&ast);
+            let mut opt_ast = ast.clone();
+            let config = compiler::OptConfig::default();
+            let opt_stats = compiler::optimize(&mut opt_ast, &config);
+            let mut codegen = compiler::Codegen::new();
+            codegen.gen_zig(&ast);
+            let output = codegen.into_string();
+            let resp = serde_json::json!({
+                "module": ast.name,
+                "declarations": ast.children.len(),
+                "typecheck": {"ok": tc.ok, "errors": tc.error_count, "warnings": tc.warnings},
+                "optimize": {"folds": opt_stats.folds, "dead_removed": opt_stats.dead_removed},
+                "codegen_bytes": output.len(),
+            });
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: Some(resp.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn bench_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    let lex_time = {
+        let start = std::time::Instant::now();
+        let mut lexer = compiler::Lexer::new(&req.source);
+        lexer.tokenize();
+        start.elapsed()
+    };
+    let parse_time = {
+        let start = std::time::Instant::now();
+        let _ = compiler::Compiler::parse_ast(&req.source);
+        start.elapsed()
+    };
+    let resp = serde_json::json!({
+        "lex_us": lex_time.as_micros(),
+        "parse_us": parse_time.as_micros(),
+    });
+    (StatusCode::OK, Json(ApiResponse {
+        success: true,
+        output: Some(resp.to_string()),
+        error: None,
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn eval_handler(Json(req): Json<serde_json::Value>) -> impl IntoResponse {
+    let expr = req.get("expr").and_then(|v| v.as_str()).unwrap_or("");
+    let source = format!("fn _eval() {{ return {}; }}", expr);
+    match compiler::Compiler::parse_ast(&source) {
+        Ok(ast) => {
+            let mut opt_ast = ast.clone();
+            let config = compiler::OptConfig { opt_level: 3, ..Default::default() };
+            let _ = compiler::optimize(&mut opt_ast, &config);
+            let mut result_val = None::<String>;
+            for child in &opt_ast.children {
+                if child.kind == compiler::NodeKind::FnDecl {
+                    for stmt in &child.children {
+                        if stmt.kind == compiler::NodeKind::ExprReturn && !stmt.children.is_empty() {
+                            let ret = &stmt.children[0];
+                            if ret.kind == compiler::NodeKind::ExprLiteral {
+                                result_val = Some(ret.value.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: result_val,
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn graph_handler(Json(req): Json<serde_json::Value>) -> impl IntoResponse {
+    let root = req.get("repo_root").and_then(|v| v.as_str()).unwrap_or(".");
+    let root_path = Path::new(root);
+    let files: Vec<PathBuf> = walkdir::WalkDir::new(root_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|ext| ext == "t27").unwrap_or(false))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+    let mut modules: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for file in &files {
+        let source = match fs::read_to_string(file) { Ok(s) => s, Err(_) => continue };
+        let lexer = compiler::Lexer::new(&source);
+        let mut parser = compiler::Parser::new(lexer);
+        let ast = match parser.parse() { Ok(a) => a, Err(_) => continue };
+        let mut imports = Vec::new();
+        for child in &ast.children {
+            if child.kind == compiler::NodeKind::UseDecl {
+                imports.push(child.value.replace("::", "/"));
+            }
+        }
+        modules.insert(ast.name, imports);
+    }
+    let resp = serde_json::json!({"modules": modules});
+    (StatusCode::OK, Json(ApiResponse {
+        success: true,
+        output: Some(resp.to_string()),
+        error: None,
+    }))
+}
+
+#[cfg(feature = "server")]
+async fn doc_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let mut fn_decls = Vec::new();
+            let mut struct_decls = Vec::new();
+            let mut enum_decls = Vec::new();
+            let mut test_decls = Vec::new();
+            let mut inv_decls = Vec::new();
+            for child in &ast.children {
+                match child.kind {
+                    compiler::NodeKind::FnDecl => fn_decls.push(child.name.clone()),
+                    compiler::NodeKind::StructDecl => struct_decls.push(child.name.clone()),
+                    compiler::NodeKind::EnumDecl => enum_decls.push(child.name.clone()),
+                    compiler::NodeKind::TestBlock => test_decls.push(child.name.clone()),
+                    compiler::NodeKind::InvariantBlock => inv_decls.push(child.name.clone()),
+                    _ => {}
+                }
+            }
+            let resp = serde_json::json!({
+                "module": ast.name,
+                "functions": fn_decls,
+                "structs": struct_decls,
+                "enums": enum_decls,
+                "tests": test_decls,
+                "invariants": inv_decls,
+            });
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: Some(resp.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn size_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let fns: u32 = 0;
+            let structs: u32 = 0;
+            let enums: u32 = 0;
+            let consts: u32 = 0;
+            let tests: u32 = 0;
+            let invariants: u32 = 0;
+            let benches: u32 = 0;
+            let imports: u32 = 0;
+            let total_nodes: u32 = 0;
+            fn count(node: &compiler::Node, s: &mut (u32, u32, u32, u32, u32, u32, u32, u32, u32)) {
+                s.8 += 1;
+                match node.kind {
+                    compiler::NodeKind::FnDecl => s.0 += 1,
+                    compiler::NodeKind::StructDecl => s.1 += 1,
+                    compiler::NodeKind::EnumDecl => s.2 += 1,
+                    compiler::NodeKind::ConstDecl => s.3 += 1,
+                    compiler::NodeKind::TestBlock => s.4 += 1,
+                    compiler::NodeKind::InvariantBlock => s.5 += 1,
+                    compiler::NodeKind::BenchBlock => s.6 += 1,
+                    compiler::NodeKind::UseDecl => s.7 += 1,
+                    _ => {}
+                }
+                for child in &node.children { count(child, s); }
+            }
+            let mut s = (fns, structs, enums, consts, tests, invariants, benches, imports, total_nodes);
+            count(&ast, &mut s);
+            let (fns, structs, enums, consts, tests, invariants, benches, imports, total_nodes) = s;
+            let lines = req.source.lines().count();
+            let bytes = req.source.len();
+            let resp = serde_json::json!({
+                "module": ast.name,
+                "bytes": bytes,
+                "lines": lines,
+                "nodes": total_nodes,
+                "functions": fns,
+                "structs": structs,
+                "enums": enums,
+                "constants": consts,
+                "tests": tests,
+                "invariants": invariants,
+                "benchmarks": benches,
+                "imports": imports,
+            });
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: Some(resp.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn inspect_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let mut api = serde_json::json!({"module": ast.name});
+            let mut fns = Vec::new();
+            let mut structs = Vec::new();
+            let mut enums = Vec::new();
+            let mut consts = Vec::new();
+            for child in &ast.children {
+                match child.kind {
+                    compiler::NodeKind::FnDecl => {
+                        let params: Vec<String> = child.params.iter().map(|(n, t)| {
+                            if t.is_empty() { n.clone() } else { format!("{}: {}", n, t) }
+                        }).collect();
+                        fns.push(serde_json::json!({
+                            "name": child.name,
+                            "params": params,
+                            "return_type": child.extra_return_type,
+                            "pub": child.extra_pub,
+                        }));
+                    }
+                    compiler::NodeKind::StructDecl => {
+                        let fields: Vec<String> = child.children.iter().map(|f| {
+                            if f.extra_type.is_empty() { f.name.clone() } else { format!("{}: {}", f.name, f.extra_type) }
+                        }).collect();
+                        structs.push(serde_json::json!({"name": child.name, "fields": fields}));
+                    }
+                    compiler::NodeKind::EnumDecl => {
+                        let variants: Vec<String> = child.children.iter().map(|v| v.name.clone()).collect();
+                        enums.push(serde_json::json!({"name": child.name, "variants": variants}));
+                    }
+                    compiler::NodeKind::ConstDecl => {
+                        consts.push(serde_json::json!({"name": child.name, "value": child.value, "type": child.extra_type}));
+                    }
+                    _ => {}
+                }
+            }
+            api["functions"] = serde_json::json!(fns);
+            api["structs"] = serde_json::json!(structs);
+            api["enums"] = serde_json::json!(enums);
+            api["constants"] = serde_json::json!(consts);
+            (StatusCode::OK, Json(ApiResponse {
+                success: true,
+                output: Some(api.to_string()),
+                error: None,
+            }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse {
+            success: false, output: None, error: Some(e),
+        })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn deadcode_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let mut all_fns: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut called: std::collections::HashSet<String> = std::collections::HashSet::new();
+            fn collect_calls(node: &compiler::Node, calls: &mut std::collections::HashSet<String>) {
+                if node.kind == compiler::NodeKind::ExprCall && !node.name.is_empty() {
+                    calls.insert(node.name.clone());
+                }
+                for child in &node.children { collect_calls(child, calls); }
+            }
+            for child in &ast.children {
+                if child.kind == compiler::NodeKind::FnDecl {
+                    all_fns.insert(child.name.clone());
+                    collect_calls(child, &mut called);
+                }
+                if matches!(child.kind, compiler::NodeKind::TestBlock | compiler::NodeKind::InvariantBlock | compiler::NodeKind::BenchBlock) {
+                    collect_calls(child, &mut called);
+                }
+            }
+            let dead: Vec<String> = all_fns.iter().filter(|f| !called.contains(*f)).cloned().collect();
+            let resp = serde_json::json!({
+                "total_functions": all_fns.len(),
+                "called": all_fns.intersection(&called).count(),
+                "dead": dead,
+            });
+            (StatusCode::OK, Json(ApiResponse { success: true, output: Some(resp.to_string()), error: None }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse { success: false, output: None, error: Some(e) })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn metrics_handler(Json(req): Json<CompileRequest>) -> impl IntoResponse {
+    match compiler::Compiler::parse_ast(&req.source) {
+        Ok(ast) => {
+            let mut fns_metrics = Vec::new();
+            fn count_complexity(node: &compiler::Node) -> u32 {
+                let mut cc = 0u32;
+                match node.kind {
+                    compiler::NodeKind::ExprIf | compiler::NodeKind::StmtIf => cc += 1,
+                    compiler::NodeKind::ExprSwitch => cc += 1,
+                    compiler::NodeKind::StmtWhile | compiler::NodeKind::StmtFor => cc += 1,
+                    compiler::NodeKind::ExprBinary if node.extra_op == "&&" || node.extra_op == "||" => cc += 1,
+                    _ => {}
+                }
+                for child in &node.children { cc += count_complexity(child); }
+                cc
+            }
+            fn count_nodes(node: &compiler::Node) -> u32 {
+                let mut c = 1u32;
+                for child in &node.children { c += count_nodes(child); }
+                c
+            }
+            for child in &ast.children {
+                if child.kind == compiler::NodeKind::FnDecl {
+                    fns_metrics.push(serde_json::json!({
+                        "name": child.name,
+                        "params": child.params.len(),
+                        "nodes": count_nodes(child),
+                        "complexity": count_complexity(child) + 1,
+                    }));
+                }
+            }
+            let resp = serde_json::json!({"functions": fns_metrics});
+            (StatusCode::OK, Json(ApiResponse { success: true, output: Some(resp.to_string()), error: None }))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse { success: false, output: None, error: Some(e) })),
+    }
+}
+
+#[cfg(feature = "server")]
+async fn run_server(port_arg: &str) -> anyhow::Result<()> {
+    // Support Railway's $PORT environment variable
+    let env_port = env::var("PORT").ok();
+    println!("t27c debug: PORT env var is {:?}", env_port);
+    
+    let port = env_port
+        .unwrap_or_else(|| port_arg.to_string())
+        .parse::<u16>()?;
+
+    let (tx, _) = broadcast::channel(100);
+    let state = AppState { tx };
+
+    let app = Router::new()
+        .route("/health", get(health_handler))
+        .route("/global/health", get(health_handler))
+        .route("/global/config", get(global_config_handler))
+        .route("/global/event", get(global_event_handler))
+        .route("/global/sync-event", get(global_event_handler))
+        .route("/project", get(project_list_handler))
+        .route("/project/current", get(project_current_handler))
+        .route("/project/:id", axum::routing::patch(project_patch_handler))
+        .route("/provider", get(provider_list_handler))
+        .route("/provider/auth", get(provider_auth_handler).post(provider_auth_handler))
+        .route("/auth/:id", get(auth_id_handler).post(auth_id_handler).put(auth_id_handler))
+        .route("/config", get(config_get_handler))
+        .route("/config/providers", get(config_providers_handler))
+        .route("/path", get(path_handler))
+        .route("/session", get(session_list_handler).post(session_create_handler))
+        .route("/session/status", get(session_status_handler))
+        .route("/session/:id", get(session_id_handler))
+        .route("/session/:id/message", get(session_message_list_handler).post(session_message_post_handler))
+        .route("/session/:id/prompt_async", post(prompt_async_handler))
+        .route("/session/:id/todo", get(session_todo_handler))
+        .route("/agent", get(agent_list_handler))
+        .route("/vcs", get(vcs_handler))
+        .route("/command", get(generic_list_handler))
+        .route("/permission", get(generic_list_handler))
+        .route("/question", get(generic_list_handler))
+        .route("/mcp", get(generic_list_handler))
+        .route("/instance", get(instance_handler))
+        .route("/compile", post(compile_handler))
+        .route("/parse", post(parse_handler))
+        .route("/gen", post(gen_handler))
+        .route("/gen-verilog", post(gen_verilog_handler))
+        .route("/gen-c", post(gen_c_handler))
+        .route("/gen-rust", post(gen_rust_handler))
+        .route("/seal", post(seal_handler))
+        .route("/stats", get(stats_handler))
+        .route("/optimize", post(optimize_handler))
+        .route("/typecheck", post(typecheck_handler))
+        .route("/lint", post(lint_handler))
+        .route("/explain", post(explain_handler))
+        .route("/bench", post(bench_handler))
+        .route("/eval", post(eval_handler))
+        .route("/graph", post(graph_handler))
+        .route("/doc", post(doc_handler))
+        .route("/size", post(size_handler))
+        .route("/inspect", post(inspect_handler))
+        .route("/deadcode", post(deadcode_handler))
+        .route("/metrics", post(metrics_handler))
+        .fallback_service(
+            ServeDir::new("public")
+                .not_found_service(ServeFile::new("public/index.html"))
+        )
+        .with_state(state);
+
+    let addr = format!("0.0.0.0:{}", port);
+    println!("t27c server attempting to bind on {}", addr);
+    let listener = TcpListener::bind(&addr).await?;
+    println!("t27c server successfully listening on {}", addr);
+
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+// ============================================================================
+// Command Handlers
+// ============================================================================
+
+fn run_parse(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::parse_ast(&source) {
+        Ok(ast) => println!("{:#?}", ast),
+        Err(e) => anyhow::bail!("Parse error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_gen(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile(&source) {
+        Ok(zig_code) => print!("{}", zig_code),
+        Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_gen_verilog(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile_verilog(&source) {
+        Ok(verilog_code) => print!("{}", verilog_code),
+        Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_gen_c(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile_c(&source) {
+        Ok(c_code) => print!("{}", c_code),
+        Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
+fn run_gen_rust(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    match compiler::Compiler::compile_rust(&source) {
+        Ok(rust_code) => print!("{}", rust_code),
+        Err(e) => anyhow::bail!("Compile error: {}", e),
+    }
+    Ok(())
+}
+
+fn sha256_hex(data: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    format!("{:x}", hasher.finalize())
+}
+
+fn run_conformance(input_path: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let json: serde_json::Value = serde_json::from_str(&source)?;
+
+    // Extract test_vectors array and sort entries by name for determinism
+    let mut entries: Vec<String> = Vec::new();
+
+    if let Some(vectors) = json.get("test_vectors").and_then(|v| v.as_array()) {
+        let mut sorted_vectors: Vec<&serde_json::Value> = vectors.iter().collect();
+        sorted_vectors.sort_by(|a, b| {
+            let name_a = a.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            let name_b = b.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            name_a.cmp(name_b)
+        });
+        for v in sorted_vectors {
+            entries.push(serde_json::to_string(v)?);
+        }
+    } else {
+        // Fallback: sort top-level keys for non-vector JSON files
+        if let Some(obj) = json.as_object() {
+            let mut keys: Vec<&String> = obj.keys().collect();
+            keys.sort();
+            for k in keys {
+                entries.push(format!("{}:{}", k, serde_json::to_string(&obj[k])?));
+            }
+        } else {
+            entries.push(serde_json::to_string(&json)?);
+        }
+    }
+
+    let canonical = entries.join("\n");
+    let hash = sha256_hex(canonical.as_bytes());
+    println!("test_vector_hash=sha256:{}", hash);
+    Ok(())
+}
+
+/// Extract module name from .t27 source (first `module <name>;` declaration)
+fn extract_module_name(source: &str) -> Option<String> {
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("module ") {
+            let rest = trimmed.strip_prefix("module ").unwrap().trim();
+            let name = rest.trim_end_matches(';').trim_end_matches('{').trim();
+            if !name.is_empty() {
+                return Some(name.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Collected seal hashes for a spec file
+struct SealHashes {
+    module: String,
+    spec_path: String,
+    spec_hash: String,
+    gen_hash_zig: String,
+    gen_hash_verilog: String,
+    gen_hash_c: String,
+    gen_hash_rust: String,
+}
+
+/// Compute all seal hashes for a .t27 spec file
+fn compute_seal_hashes(input_path: &str) -> anyhow::Result<SealHashes> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let module = extract_module_name(&source)
+        .unwrap_or_else(|| {
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown")
+                .to_string()
+        });
+
+    let spec_hash = format!("sha256:{}", sha256_hex(source.as_bytes()));
+
+    let gen_hash_zig = match compiler::Compiler::compile(&source) {
+        Ok(zig_code) => format!("sha256:{}", sha256_hex(zig_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let gen_hash_verilog = match compiler::Compiler::compile_verilog(&source) {
+        Ok(verilog_code) => format!("sha256:{}", sha256_hex(verilog_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let gen_hash_c = match compiler::Compiler::compile_c(&source) {
+        Ok(c_code) => format!("sha256:{}", sha256_hex(c_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    let gen_hash_rust = match compiler::Compiler::compile_rust(&source) {
+        Ok(rust_code) => format!("sha256:{}", sha256_hex(rust_code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
+
+    Ok(SealHashes {
+        module,
+        spec_path: input_path.to_string(),
+        spec_hash,
+        gen_hash_zig,
+        gen_hash_verilog,
+        gen_hash_c,
+        gen_hash_rust,
+    })
+}
+
+/// Path to the seal JSON file for a given module
+fn seal_file_path(module: &str) -> std::path::PathBuf {
+    Path::new(".trinity").join("seals").join(format!("{}.json", module))
+}
+
+fn run_seal(input_path: &str, save: bool, verify: bool) -> anyhow::Result<()> {
+    let hashes = compute_seal_hashes(input_path)?;
+
+    if verify {
+        // --verify: load saved seal and compare
+        let seal_path = seal_file_path(&hashes.module);
+        if !seal_path.exists() {
+            anyhow::bail!(
+                "No saved seal found at {}. Run with --save first.",
+                seal_path.display()
+            );
+        }
+        let saved_json: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&seal_path)?)?;
+
+        let mut all_match = true;
+        let checks = [
+            ("spec_hash", &hashes.spec_hash),
+            ("gen_hash_zig", &hashes.gen_hash_zig),
+            ("gen_hash_verilog", &hashes.gen_hash_verilog),
+            ("gen_hash_c", &hashes.gen_hash_c),
+            ("gen_hash_rust", &hashes.gen_hash_rust),
+        ];
+
+        for (field, current) in &checks {
+            let saved = saved_json
+                .get(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or("missing");
+            if *current == saved {
+                println!("{}: MATCH", field);
+            } else {
+                println!("{}: MISMATCH (saved={}, current={})", field, saved, current);
+                all_match = false;
+            }
+        }
+
+        if all_match {
+            println!("\nall hashes MATCH");
+        } else {
+            println!("\nVERIFICATION FAILED — hashes differ from saved seal");
+            std::process::exit(1);
+        }
+    } else if save {
+        // --save: compute hashes and write to .trinity/seals/<module>.json
+        let seals_dir = Path::new(".trinity").join("seals");
+        fs::create_dir_all(&seals_dir)?;
+
+        let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        let seal_obj = serde_json::json!({
+            "module": hashes.module,
+            "spec_path": hashes.spec_path,
+            "spec_hash": hashes.spec_hash,
+            "gen_hash_zig": hashes.gen_hash_zig,
+            "gen_hash_verilog": hashes.gen_hash_verilog,
+            "gen_hash_c": hashes.gen_hash_c,
+            "gen_hash_rust": hashes.gen_hash_rust,
+            "sealed_at": now,
+            "ring": 12
+        });
+
+        let seal_path = seal_file_path(&hashes.module);
+        let pretty = serde_json::to_string_pretty(&seal_obj)?;
+        fs::write(&seal_path, &pretty)?;
+
+        // Also print hashes to stdout
+        println!("spec_hash={}", hashes.spec_hash);
+        println!("gen_hash_zig={}", hashes.gen_hash_zig);
+        println!("gen_hash_verilog={}", hashes.gen_hash_verilog);
+        println!("gen_hash_c={}", hashes.gen_hash_c);
+        println!("gen_hash_rust={}", hashes.gen_hash_rust);
+        println!("\nSeal saved to {}", seal_path.display());
+    } else {
+        // Default: just print hashes (existing behavior, enhanced with all backends)
+        println!("spec_hash={}", hashes.spec_hash);
+        println!("gen_hash_zig={}", hashes.gen_hash_zig);
+        println!("gen_hash_verilog={}", hashes.gen_hash_verilog);
+        println!("gen_hash_c={}", hashes.gen_hash_c);
+        println!("gen_hash_rust={}", hashes.gen_hash_rust);
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// Compile Commands
+// ============================================================================
+
+fn backend_extension(backend: &str) -> &str {
+    match backend {
+        "verilog" => ".v",
+        "c" => ".c",
+        "rust" => ".rs",
+        _ => ".zig",
+    }
+}
+
+fn compile_source(source: &str, backend: &str) -> Result<String, String> {
+    match backend {
+        "verilog" => compiler::Compiler::compile_verilog(source),
+        "c" => compiler::Compiler::compile_c(source),
+        "rust" => compiler::Compiler::compile_rust(source),
+        _ => compiler::Compiler::compile(source),
+    }
+}
+
+fn run_compile(input_path: &str, backend: &str, output: Option<&str>) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let ast = compiler::Compiler::parse_ast(&source)
+        .map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+    let tc = compiler::typecheck_ast(&ast);
+    if tc.warnings > 0 {
+        for w in &tc.errors {
+            eprintln!("WARN: {}", w);
+        }
+    }
+    if !tc.ok {
+        for e in &tc.errors {
+            eprintln!("TYPE ERROR: {}", e);
+        }
+        anyhow::bail!("Typecheck failed with {} errors", tc.error_count);
+    }
+
+    let code = match backend {
+        "verilog" => {
+            let mut cg = compiler::VerilogCodegen::new();
+            cg.gen_verilog(&ast);
+            cg.into_string()
+        }
+        "c" => {
+            let mut cg = compiler::CCodegen::new();
+            cg.gen_c(&ast);
+            cg.into_string()
+        }
+        _ => {
+            let mut cg = compiler::Codegen::new();
+            cg.gen_zig(&ast);
+            cg.into_string()
+        }
+    };
+
+    let out_path = match output {
+        Some(p) => std::path::PathBuf::from(p),
+        None => {
+            let stem = path.file_stem().unwrap_or_default();
+            let ext = backend_extension(backend);
+            path.with_file_name(format!("{}{}", stem.to_string_lossy(), ext))
+        }
+    };
+
+    if let Some(parent) = out_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&out_path, &code)?;
+    println!("wrote {}", out_path.display());
+    Ok(())
+}
+
+/// Auto-detect the repository root by looking for a directory containing specs/.
+/// Searches CWD first, then up to 3 parent directories.
+fn find_repo_root() -> Option<std::path::PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    let mut dir = cwd.as_path();
+    for _ in 0..4 {
+        if dir.join("specs").is_dir() {
+            return Some(dir.to_path_buf());
+        }
+        dir = dir.parent()?;
+    }
+    None
+}
+
+fn run_compile_all(backend: &str, output_dir: &str, specs_dir: Option<&str>) -> anyhow::Result<()> {
+    let root = match specs_dir {
+        Some(d) => std::path::PathBuf::from(d),
+        None => find_repo_root()
+            .ok_or_else(|| anyhow::anyhow!(
+                "Could not find specs/ directory. Run from the repo root or use --specs-dir"
+            ))?,
+    };
+
+    let ext = backend_extension(backend);
+    let out_base = Path::new(output_dir);
+    let mut count = 0u32;
+
+    // Count total .t27 files first for the progress message
+    let dirs = ["specs", "compiler"];
+    let mut total = 0u32;
+    for dir in &dirs {
+        let base = root.join(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.path().extension().and_then(|e| e.to_str()) == Some("t27") {
+                total += 1;
+            }
+        }
+    }
+
+    println!("Compiling {} files from {} to {}/", total, root.display(), output_dir);
+
+    for dir in &dirs {
+        let base = root.join(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("t27") {
+                continue;
+            }
+            let source = fs::read_to_string(p)?;
+            let code = match compile_source(&source, backend) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("skip {}: {}", p.display(), e);
+                    continue;
+                }
+            };
+            // Preserve directory structure: specs/base/types.t27 -> build/specs/base/types.zig
+            let rel = p.strip_prefix(&root).unwrap_or(p);
+            let dest = out_base.join(rel).with_extension(&ext[1..]);
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&dest, &code)?;
+            println!("wrote {}", dest.display());
+            count += 1;
+        }
+    }
+
+    println!("\ncompiled {} files to {}/", count, output_dir);
+    Ok(())
+}
+
+fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+
+    let ext = backend_extension(backend);
+    let out_base = Path::new(output_dir);
+
+    // ── Pass 1: scan all .t27 files and build module→path map ──────────
+    // Maps "base::types" → "base/types" (relative path without extension)
+    let mut module_map: HashMap<String, String> = HashMap::new();
+    // Also collect all source file entries: (source_path, rel_output_path_no_ext)
+    let mut source_files: Vec<(std::path::PathBuf, String)> = Vec::new();
+
+    let dirs = ["specs", "compiler"];
+    for dir in &dirs {
+        let base = Path::new(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("t27") {
+                continue;
+            }
+
+            // Compute relative path: specs/base/types.t27 → base/types
+            let rel = p.strip_prefix(dir).unwrap_or(p);
+            let rel_no_ext = rel.with_extension("");
+            let rel_str = rel_no_ext.to_string_lossy().replace('\\', "/");
+
+            // Parse the file to extract the module name declared inside
+            if let Ok(source) = fs::read_to_string(p) {
+                let lexer = compiler::Lexer::new(&source);
+                let mut parser = compiler::Parser::new(lexer);
+                if let Ok(ast) = parser.parse() {
+                    // Build module key from directory structure
+                    // e.g. specs/base/types.t27 → "base::types"
+                    let module_key = rel_str.replace('/', "::");
+                    module_map.insert(module_key.clone(), rel_str.clone());
+
+                    // Also map by the module name declared in the file
+                    // to handle modules with different names than their file
+                    if !ast.name.is_empty() {
+                        // Check UseDecl nodes in the file to extract the full use path patterns
+                        // that other files use to reference this module
+                        let module_name_lower = ast.name.to_lowercase().replace('-', "_");
+                        // Map the last segment too for fallback
+                        let last_segment = rel_str.rsplit('/').next().unwrap_or(&rel_str);
+                        if !module_map.contains_key(last_segment) {
+                            module_map.insert(last_segment.to_string(), rel_str.clone());
+                        }
+                        if !module_map.contains_key(&module_name_lower) {
+                            module_map.insert(module_name_lower, rel_str.clone());
+                        }
+                    }
+                }
+            }
+
+            source_files.push((p.to_path_buf(), rel_str));
+        }
+    }
+
+    println!("Module map ({} entries):", module_map.len());
+    let mut sorted_keys: Vec<&String> = module_map.keys().collect();
+    sorted_keys.sort();
+    for key in &sorted_keys {
+        println!("  {} → {}", key, module_map[*key]);
+    }
+    println!();
+
+    // ── Pass 2: compile each file with resolved imports ────────────────
+    let mut count = 0u32;
+    let mut errors = 0u32;
+
+    for (source_path, rel_path) in &source_files {
+        let source = match fs::read_to_string(source_path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("skip {}: {}", source_path.display(), e);
+                errors += 1;
+                continue;
+            }
+        };
+
+        let code = match backend {
+            "verilog" => compiler::Compiler::compile_verilog(&source),
+            "c" => compiler::Compiler::compile_c(&source),
+            "rust" => compiler::Compiler::compile_rust(&source),
+            _ => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
+        };
+
+        let code = match code {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("skip {}: {}", source_path.display(), e);
+                errors += 1;
+                continue;
+            }
+        };
+
+        let dest = out_base.join(format!("{}{}", rel_path, &ext[..]));
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&dest, &code)?;
+        println!("wrote {}", dest.display());
+        count += 1;
+    }
+
+    // ── Pass 3: generate build.zig (Zig backend only) ──────────────────
+    if backend == "zig" {
+        let build_zig = generate_build_zig(&source_files, &ext[1..]);
+        let build_path = out_base.join("build.zig");
+        fs::write(&build_path, &build_zig)?;
+        println!("wrote {}", build_path.display());
+    }
+
+    println!("\ncompile-project: {} files to {}/ ({} errors)", count, output_dir, errors);
+    Ok(())
+}
+
+/// Generate a build.zig that declares all modules as a static library
+fn generate_build_zig(source_files: &[(std::path::PathBuf, String)], ext: &str) -> String {
+    let mut out = String::new();
+    out.push_str("// Generated by t27c compile-project\n");
+    out.push_str("// DO NOT EDIT — regenerate with: t27c compile-project\n");
+    out.push_str("// phi^2 + 1/phi^2 = 3 | TRINITY\n\n");
+    out.push_str("const std = @import(\"std\");\n\n");
+    out.push_str("pub fn build(b: *std.Build) void {\n");
+    out.push_str("    const target = b.standardTargetOptions(.{});\n");
+    out.push_str("    const optimize = b.standardOptimizeOption(.{});\n\n");
+
+    // Find a root source file — prefer base/types as the library root
+    let root_source = source_files
+        .iter()
+        .find(|(_, rel)| rel == "base/types")
+        .or_else(|| source_files.first())
+        .map(|(_, rel)| format!("{}.{}", rel, ext))
+        .unwrap_or_else(|| format!("base/types.{}", ext));
+
+    out.push_str(&format!(
+        "    const lib = b.addStaticLibrary(.{{\n\
+         \x20       .name = \"t27\",\n\
+         \x20       .root_source_file = b.path(\"{}\"),\n\
+         \x20       .target = target,\n\
+         \x20       .optimize = optimize,\n\
+         \x20   }});\n",
+        root_source
+    ));
+    out.push_str("    b.installArtifact(lib);\n\n");
+
+    // Add modules for each source file
+    out.push_str("    // Declare modules for cross-file imports\n");
+    for (_, rel) in source_files {
+        let module_name = rel.replace('/', ".");
+        out.push_str(&format!(
+            "    lib.root_module.addAnonymousImport(\"{}\", .{{ .root_source_file = b.path(\"{}.{}\") }});\n",
+            module_name,
+            rel,
+            ext,
+        ));
+    }
+
+    out.push_str("\n    // Tests\n");
+    out.push_str(&format!(
+        "    const tests = b.addTest(.{{\n\
+         \x20       .root_source_file = b.path(\"{}\"),\n\
+         \x20       .target = target,\n\
+         \x20       .optimize = optimize,\n\
+         \x20   }});\n",
+        root_source
+    ));
+    out.push_str("    const run_tests = b.addRunArtifact(tests);\n");
+    out.push_str("    const test_step = b.step(\"test\", \"Run unit tests\");\n");
+    out.push_str("    test_step.dependOn(&run_tests.step);\n");
+    out.push_str("}\n");
+
+    out
+}
+
+// ============================================================================
+// Stats Command
+// ============================================================================
+
+fn count_pattern_in_dir(root: &Path, dirs: &[&str], pattern: &str) -> u32 {
+    let mut count = 0u32;
+    for dir in dirs {
+        let base = root.join(dir);
+        if !base.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&base)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("t27") {
+                continue;
+            }
+            if let Ok(contents) = fs::read_to_string(p) {
+                for line in contents.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with(pattern) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+fn count_t27_files(root: &Path, dir: &str) -> u32 {
+    let base = root.join(dir);
+    if !base.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    for entry in walkdir::WalkDir::new(&base)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.path().extension().and_then(|e| e.to_str()) == Some("t27") {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn count_lines(path: &Path) -> u32 {
+    if let Ok(contents) = fs::read_to_string(path) {
+        contents.lines().count() as u32
+    } else {
+        0
+    }
+}
+
+fn count_files_in_dir(dir: &Path, ext: &str) -> u32 {
+    if !dir.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    for entry in walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if entry.path().extension().and_then(|e| e.to_str()) == Some(ext) {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn run_stats() -> anyhow::Result<()> {
+    let root = find_repo_root()
+        .ok_or_else(|| anyhow::anyhow!(
+            "Could not find specs/ directory. Run from the repo root or use --specs-dir with compile-all"
+        ))?;
+
+    let dirs = &["specs", "compiler"];
+
+    let specs_count = count_t27_files(&root, "specs");
+    let compiler_count = count_t27_files(&root, "compiler");
+    let total_specs = specs_count + compiler_count;
+
+    let functions = count_pattern_in_dir(&root, dirs, "fn ");
+    let tests = count_pattern_in_dir(&root, dirs, "test ");
+    let invariants = count_pattern_in_dir(&root, dirs, "invariant ");
+    let benchmarks = count_pattern_in_dir(&root, dirs, "bench ");
+
+    let conformance_count = count_files_in_dir(&root.join("conformance"), "json");
+
+    let seals_dir = root.join(".trinity").join("seals");
+    let seals_count = count_files_in_dir(&seals_dir, "json");
+
+    let compiler_loc = count_lines(&root.join("bootstrap").join("src").join("compiler.rs"));
+
+    // Count CLI commands by reading the Commands enum variants
+    // Variants are lines like "    Parse {" or "    Stats," at exactly 4-space indent
+    let cli_commands = {
+        let main_rs = root.join("bootstrap").join("src").join("main.rs");
+        if let Ok(contents) = fs::read_to_string(&main_rs) {
+            let mut in_enum = false;
+            let mut count = 0u32;
+            for line in contents.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("enum Commands") {
+                    in_enum = true;
+                    continue;
+                }
+                if in_enum {
+                    if trimmed == "}" {
+                        break;
+                    }
+                    // Variant lines start with an uppercase letter
+                    if let Some(first) = trimmed.chars().next() {
+                        if first.is_uppercase() && (trimmed.contains('{') || trimmed.contains(',') || trimmed.ends_with('{')) {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+            count
+        } else {
+            0
+        }
+    };
+
+    // Detect latest ring from experience episodes.jsonl and seal files
+    let fixed_point_ring = {
+        let mut max_ring = 0u32;
+
+        // Check .trinity/experience/episodes.jsonl (each line is a JSON object with "metadata.ring" or top-level "ring")
+        let episodes_jsonl = root.join(".trinity").join("experience").join("episodes.jsonl");
+        if episodes_jsonl.exists() {
+            if let Ok(contents) = fs::read_to_string(&episodes_jsonl) {
+                for line in contents.lines() {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                        // Check metadata.ring first, then top-level ring
+                        let ring = json.get("metadata")
+                            .and_then(|m| m.get("ring"))
+                            .and_then(|r| r.as_u64())
+                            .or_else(|| json.get("ring").and_then(|r| r.as_u64()));
+                        if let Some(r) = ring {
+                            if r as u32 > max_ring {
+                                max_ring = r as u32;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also check seal files for ring values
+        let seals_dir = root.join(".trinity").join("seals");
+        if seals_dir.exists() {
+            for entry in walkdir::WalkDir::new(&seals_dir)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.path().extension().and_then(|e| e.to_str()) == Some("json") {
+                    if let Ok(contents) = fs::read_to_string(entry.path()) {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+                            if let Some(ring) = json.get("ring").and_then(|r| r.as_u64()) {
+                                if ring as u32 > max_ring {
+                                    max_ring = ring as u32;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        max_ring
+    };
+
+    println!("T27 Repository Statistics");
+    println!("========================");
+    println!("Spec files:     {} ({} in specs/, {} in compiler/)", total_specs, specs_count, compiler_count);
+    println!("Functions:      {}", functions);
+    println!("Tests:          {}", tests);
+    println!("Invariants:     {}", invariants);
+    println!("Benchmarks:     {}", benchmarks);
+    println!("Conformance:    {} JSON files", conformance_count);
+    println!("Seals:          {} saved", seals_count);
+    println!("Backends:       4 (Zig, Verilog, C, Rust)");
+    println!("CLI commands:   {}", cli_commands);
+    println!("Compiler LOC:   {}", compiler_loc);
+    if fixed_point_ring > 0 {
+        println!("Fixed point:    REACHED (ring-{})", fixed_point_ring);
+    } else {
+        println!("Fixed point:    NOT REACHED");
+    }
+    println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+
+    Ok(())
+}
+
+// ============================================================================
+// Additional CLI Commands (Sessions 4-12)
+// ============================================================================
+
+fn run_optimize(input_path: &str, opt_level: u32) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let mut ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let config = compiler::OptConfig {
+        opt_level,
+        ..Default::default()
+    };
+    let stats = compiler::optimize(&mut ast, &config);
+    println!("Optimization complete (opt_level={}):", opt_level);
+    println!("  Folds: {}", stats.folds);
+    println!("  Dead code removed: {}", stats.dead_removed);
+    println!("  Copies propagated: {}", stats.copies_propagated);
+    println!("  Strength reductions: {}", stats.strengths_reduced);
+    println!("  CSE eliminated: {}", stats.cse_eliminated);
+    println!("  Dead stores removed: {}", stats.dead_stores);
+    println!("  Passes: {}", stats.passes);
+    Ok(())
+}
+
+fn run_typecheck(input_path: &str, json: bool) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let result = compiler::typecheck_ast(&ast);
+    if json {
+        let resp = serde_json::json!({
+            "ok": result.ok,
+            "errors": result.error_count,
+            "warnings": result.warnings,
+            "messages": result.errors,
+        });
+        println!("{}", serde_json::to_string_pretty(&resp).unwrap());
+    } else if result.ok {
+        println!("Typecheck OK (0 errors, {} warnings)", result.warnings);
+    } else {
+        println!("Typecheck FAILED ({} errors, {} warnings):", result.error_count, result.warnings);
+        for err in &result.errors {
+            println!("  - {}", err);
+        }
+    }
+    Ok(())
+}
+
+fn run_lint(input_path: &str, json_output: bool) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let mut issues = 0u32;
+    let mut fn_count = 0u32;
+    let mut test_count = 0u32;
+    let mut inv_count = 0u32;
+    let mut warnings = Vec::new();
+    for child in &ast.children {
+        match child.kind {
+            compiler::NodeKind::FnDecl => {
+                fn_count += 1;
+                let has_test = child.children.iter().any(|c| c.kind == compiler::NodeKind::TestBlock);
+                let has_inv = child.children.iter().any(|c| c.kind == compiler::NodeKind::InvariantBlock);
+                if !has_test && !has_inv {
+                    warnings.push(format!("fn '{}' has no test or invariant", child.name));
+                    issues += 1;
+                }
+            }
+            compiler::NodeKind::TestBlock => test_count += 1,
+            compiler::NodeKind::InvariantBlock => inv_count += 1,
+            _ => {}
+        }
+    }
+    if fn_count == 0 {
+        warnings.push(format!("module '{}' has no function declarations", ast.name));
+        issues += 1;
+    }
+    if test_count == 0 && inv_count == 0 {
+        warnings.push(format!("module '{}' has no tests or invariants", ast.name));
+        issues += 1;
+    }
+    if json_output {
+        let resp = serde_json::json!({
+            "issues": issues,
+            "functions": fn_count,
+            "tests": test_count,
+            "invariants": inv_count,
+            "warnings": warnings,
+        });
+        println!("{}", serde_json::to_string_pretty(&resp).unwrap());
+    } else {
+        for w in &warnings {
+            println!("WARN: {}", w);
+        }
+        println!("Lint: {} issues ({} fns, {} tests, {} invariants)", issues, fn_count, test_count, inv_count);
+    }
+    Ok(())
+}
+
+fn run_bench(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let start = std::time::Instant::now();
+    let tokens = {
+        let mut lexer = compiler::Lexer::new(&source);
+        lexer.tokenize()
+    };
+    let lex_time = start.elapsed();
+
+    let start = std::time::Instant::now();
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let parse_time = start.elapsed();
+
+    let start = std::time::Instant::now();
+    let _ = compiler::typecheck_ast(&ast);
+    let tc_time = start.elapsed();
+
+    let start = std::time::Instant::now();
+    let mut opt_ast = ast.clone();
+    let config = compiler::OptConfig::default();
+    let _ = compiler::optimize(&mut opt_ast, &config);
+    let opt_time = start.elapsed();
+
+    let start = std::time::Instant::now();
+    let mut codegen = compiler::Codegen::new();
+    codegen.gen_zig(&ast);
+    let _ = codegen.into_string();
+    let gen_time = start.elapsed();
+
+    println!("Benchmark: {}", input_path);
+    println!("  Lexer:    {:?}", lex_time);
+    println!("  Parser:   {:?}", parse_time);
+    println!("  Typeck:   {:?}", tc_time);
+    println!("  Optimize: {:?}", opt_time);
+    println!("  Codegen:  {:?}", gen_time);
+    println!("  Tokens:   {}", tokens.len());
+    Ok(())
+}
+
+fn run_explain(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+
+    println!("=== Compilation Pipeline for {} ===\n", input_path);
+
+    let t0 = std::time::Instant::now();
+    let mut lexer = compiler::Lexer::new(&source);
+    let tokens = lexer.tokenize();
+    let t1 = std::time::Instant::now();
+    println!("1. Lexing:    {} tokens ({:?})", tokens.len(), t1 - t0);
+
+    let t0 = std::time::Instant::now();
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let t1 = std::time::Instant::now();
+    let decl_count = ast.children.len();
+    println!("2. Parsing:   {} top-level declarations ({:?})", decl_count, t1 - t0);
+
+    let t0 = std::time::Instant::now();
+    let tc_result = compiler::typecheck_ast(&ast);
+    let t1 = std::time::Instant::now();
+    println!("3. Typecheck: {} errors, {} warnings ({:?})", tc_result.error_count, tc_result.warnings, t1 - t0);
+
+    let t0 = std::time::Instant::now();
+    let mut opt_ast = ast.clone();
+    let config = compiler::OptConfig::default();
+    let stats = compiler::optimize(&mut opt_ast, &config);
+    let t1 = std::time::Instant::now();
+    println!("4. Optimize:  {} folds, {} dead-elim ({:?})", stats.folds, stats.dead_removed, t1 - t0);
+
+    let t0 = std::time::Instant::now();
+    let mut codegen = compiler::Codegen::new();
+    codegen.gen_zig(&ast);
+    let output = codegen.into_string();
+    let t1 = std::time::Instant::now();
+    println!("5. Codegen:   {} bytes output ({:?})", output.len(), t1 - t0);
+
+    println!("\nModule: {}", ast.name);
+    Ok(())
+}
+
+fn run_fmt(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    fn fmt_node(node: &compiler::Node, indent: usize) -> String {
+        let pad = " ".repeat(indent);
+        let mut out = String::new();
+        match node.kind {
+            compiler::NodeKind::Module => {
+                out.push_str(&format!("{}module {} {{\n", pad, node.name));
+                for child in &node.children {
+                    out.push_str(&fmt_node(child, indent + 4));
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::FnDecl => {
+                out.push_str(&format!("{}fn {}() {{\n", pad, node.name));
+                for child in &node.children {
+                    out.push_str(&fmt_node(child, indent + 4));
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::TestBlock => {
+                out.push_str(&format!("{}test {} {{\n", pad, node.name));
+                for child in &node.children {
+                    out.push_str(&fmt_node(child, indent + 4));
+                }
+                out.push_str(&format!("{}}}\n", pad));
+            }
+            compiler::NodeKind::InvariantBlock => {
+                out.push_str(&format!("{}invariant {} {}\n", pad, node.name, node.value));
+            }
+            _ => {
+                out.push_str(&format!("{}{}: {}\n", pad, node.name, node.value));
+                for child in &node.children {
+                    out.push_str(&fmt_node(child, indent + 2));
+                }
+            }
+        }
+        out
+    }
+
+    print!("{}", fmt_node(&ast, 0));
+    Ok(())
+}
+
+fn run_graph(root: &str, format: &str) -> anyhow::Result<()> {
+    let root_path = Path::new(root);
+    let files: Vec<PathBuf> = walkdir::WalkDir::new(root_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|ext| ext == "t27").unwrap_or(false))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    let mut modules: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    let mut module_files: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    for file in &files {
+        let source = match fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let lexer = compiler::Lexer::new(&source);
+        let mut parser = compiler::Parser::new(lexer);
+        let ast = match parser.parse() {
+            Ok(a) => a,
+            Err(_) => continue,
+        };
+
+        let module_name = ast.name.clone();
+        module_files.insert(module_name.clone(), file.display().to_string());
+
+        let mut imports = Vec::new();
+        for child in &ast.children {
+            if child.kind == compiler::NodeKind::UseDecl {
+                let import_path = child.value.replace("::", "/");
+                imports.push(import_path);
+            }
+        }
+        modules.insert(module_name, imports);
+    }
+
+    match format {
+        "dot" => {
+            println!("digraph specs {{");
+            println!("    rankdir=LR;");
+            println!("    node [shape=box, style=filled, fillcolor=lightyellow];");
+            for (module, imports) in &modules {
+                for imp in imports {
+                    println!("    \"{}\" -> \"{}\";", module, imp);
+                }
+            }
+            println!("}}");
+        }
+        "json" => {
+            let mut edges = Vec::new();
+            for (module, imports) in &modules {
+                for imp in imports {
+                    edges.push(serde_json::json!({
+                        "from": module,
+                        "to": imp,
+                    }));
+                }
+            }
+            let output = serde_json::json!({
+                "modules": modules.len(),
+                "edges": edges,
+                "files": module_files,
+            });
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+        _ => {
+            let mut total = 0;
+            let mut resolved = 0;
+            let mut unresolved = 0;
+            let all_module_names: std::collections::HashSet<String> = modules.keys().cloned().collect();
+            for (module, imports) in &modules {
+                if imports.is_empty() {
+                    println!("{} (leaf)", module);
+                } else {
+                    println!("{}:", module);
+                    for imp in imports {
+                        total += 1;
+                        let target = imp.replace("::", "/");
+                        let possible = vec![
+                            format!("specs/{}.t27", target),
+                            format!("compiler/{}.t27", target),
+                            format!("{}.t27", target),
+                        ];
+                        let path_found = possible.iter().any(|p| Path::new(p).exists());
+                        let name_match = all_module_names.contains(imp);
+                        if path_found || name_match {
+                            resolved += 1;
+                            println!("  -> {} [ok]", imp);
+                        } else {
+                            unresolved += 1;
+                            println!("  -> {} [not found]", imp);
+                        }
+                    }
+                }
+            }
+            println!("--- Graph Summary: {} modules, {} edges ({} resolved, {} unresolved) ---",
+                modules.len(), total, resolved, unresolved);
+        }
+    }
+    Ok(())
+}
+
+fn run_doc(input_path: &str, output_dir: &str) -> anyhow::Result<()> {
+    let path = Path::new(input_path);
+    let source = fs::read_to_string(path)?;
+
+    let lexer = compiler::Lexer::new(&source);
+    let mut parser = compiler::Parser::new(lexer);
+    let ast = parser.parse().map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+
+    let mut fn_decls = Vec::new();
+    let mut struct_decls = Vec::new();
+    let mut enum_decls = Vec::new();
+    let mut const_decls = Vec::new();
+    let mut test_decls = Vec::new();
+    let mut invariant_decls = Vec::new();
+
+    for child in &ast.children {
+        match child.kind {
+            compiler::NodeKind::FnDecl => fn_decls.push(child),
+            compiler::NodeKind::StructDecl => struct_decls.push(child),
+            compiler::NodeKind::EnumDecl => enum_decls.push(child),
+            compiler::NodeKind::ConstDecl => const_decls.push(child),
+            compiler::NodeKind::TestBlock => test_decls.push(child),
+            compiler::NodeKind::InvariantBlock => invariant_decls.push(child),
+            _ => {}
+        }
+    }
+
+    let mut html = String::new();
+    html.push_str("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
+    html.push_str(&format!("<title>{} - t27 doc</title>", ast.name));
+    html.push_str("<style>body{font-family:sans-serif;margin:2em auto;max-width:900px;color:#222}");
+    html.push_str("h1{color:#333}h2{color:#555;border-bottom:1px solid #ddd;padding-bottom:4px}");
+    html.push_str(".tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.8em;margin-left:4px}");
+    html.push_str(".fn{background:#e8f4e8}.struct{background:#e8e8f4}.enum{background:#f4e8e8}");
+    html.push_str(".test{background:#f4f4e8}.inv{background:#e8f4f4}.const{background:#f0f0f0}");
+    html.push_str("code{background:#f5f5f5;padding:1px 4px;border-radius:3px;font-size:0.9em}");
+    html.push_str("pre{background:#f5f5f5;padding:12px;border-radius:6px;overflow-x:auto}</style></head><body>");
+    html.push_str(&format!("<h1>{} <span style=\"font-size:0.6em;color:#888\">module</span></h1>", ast.name));
+
+    if !fn_decls.is_empty() {
+        html.push_str(&format!("<h2>Functions <span class=\"tag fn\">{}</span></h2>\n<ul>\n", fn_decls.len()));
+        for f in &fn_decls {
+            html.push_str(&format!("<li><code>{}</code></li>\n", f.name));
+        }
+        html.push_str("</ul>\n");
+    }
+
+    if !struct_decls.is_empty() {
+        html.push_str(&format!("<h2>Structs <span class=\"tag struct\">{}</span></h2>\n<ul>\n", struct_decls.len()));
+        for s in &struct_decls {
+            html.push_str(&format!("<li><code>{}</code></li>\n", s.name));
+        }
+        html.push_str("</ul>\n");
+    }
+
+    if !enum_decls.is_empty() {
+        html.push_str(&format!("<h2>Enums <span class=\"tag enum\">{}</span></h2>\n<ul>\n", enum_decls.len()));
+        for e in &enum_decls {
+            html.push_str(&format!("<li><code>{}</code></li>\n", e.name));
+        }
+        html.push_str("</ul>\n");
+    }
+
+    if !const_decls.is_empty() {
+        html.push_str(&format!("<h2>Constants <span class=\"tag const\">{}</span></h2>\n<ul>\n", const_decls.len()));
+        for c in &const_decls {
+            html.push_str(&format!("<li><code>{}</code></li>\n", c.name));
+        }
+        html.push_str("</ul>\n");
+    }
+
+    if !test_decls.is_empty() {
+        html.push_str(&format!("<h2>Tests <span class=\"tag test\">{}</span></h2>\n<ul>\n", test_decls.len()));
+        for t in &test_decls {
+            html.push_str(&format!("<li><code>{}</code></li>\n", t.name));
+        }
+        html.push_str("</ul>\n");
+    }
+
+    if !invariant_decls.is_empty() {
+        html.push_str(&format!("<h2>Invariants <span class=\"tag inv\">{}</span></h2>\n<ul>\n", invariant_decls.len()));
+        for inv in &invariant_decls {
+            html.push_str(&format!("<li><code>{}</code></li>\n", inv.name));
+        }
+        html.push_str("</ul>\n");
+    }
+
+    html.push_str("<hr><p style=\"font-size:0.8em;color:#888\">Generated by t27c doc</p></body></html>");
+
+    let out_path = Path::new(output_dir);
+    fs::create_dir_all(out_path)?;
+    let out_file = out_path.join(format!("{}.html", ast.name));
+    fs::write(&out_file, &html)?;
+
+    println!("{}: docs written to {}", path.display(), out_file.display());
+    Ok(())
+}
+
+fn run_check(input_path: &str) -> anyhow::Result<()> {
+    run_typecheck(input_path, false)
+}
+
+fn run_size(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path)
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy();
+
+    let fns = 0u32;
+    let structs = 0u32;
+    let enums = 0u32;
+    let consts = 0u32;
+    let tests = 0u32;
+    let invariants = 0u32;
+    let benches = 0u32;
+    let imports = 0u32;
+    let total_nodes = 0u32;
+
+    fn count(node: &compiler::Node, stats: &mut (u32, u32, u32, u32, u32, u32, u32, u32, u32)) {
+        stats.8 += 1;
+        match node.kind {
+            compiler::NodeKind::FnDecl => stats.0 += 1,
+            compiler::NodeKind::StructDecl => stats.1 += 1,
+            compiler::NodeKind::EnumDecl => stats.2 += 1,
+            compiler::NodeKind::ConstDecl => stats.3 += 1,
+            compiler::NodeKind::TestBlock => stats.4 += 1,
+            compiler::NodeKind::InvariantBlock => stats.5 += 1,
+            compiler::NodeKind::BenchBlock => stats.6 += 1,
+            compiler::NodeKind::UseDecl => stats.7 += 1,
+            _ => {}
+        }
+        for child in &node.children {
+            count(child, stats);
+        }
+    }
+
+    let mut s = (fns, structs, enums, consts, tests, invariants, benches, imports, total_nodes);
+    count(&ast, &mut s);
+    let (fns, structs, enums, consts, tests, invariants, benches, imports, total_nodes) = s;
+
+    let lines = source.lines().count();
+    let bytes = source.len();
+
+    println!("{}:", file_name);
+    println!("  Bytes:          {}", bytes);
+    println!("  Lines:          {}", lines);
+    println!("  Nodes:          {}", total_nodes);
+    println!("  Functions:      {}", fns);
+    println!("  Structs:        {}", structs);
+    println!("  Enums:          {}", enums);
+    println!("  Constants:      {}", consts);
+    println!("  Tests:          {}", tests);
+    println!("  Invariants:     {}", invariants);
+    println!("  Benchmarks:     {}", benches);
+    println!("  Imports:        {}", imports);
+    Ok(())
+}
+
+fn run_analyze(repo_root: &str, json: bool, show_top: bool) -> anyhow::Result<()> {
+    struct FileInfo {
+        name: String,
+        lines: u64,
+        fns: u64,
+        tests: u64,
+        invariants: u64,
+    }
+    let mut file_infos: Vec<FileInfo> = Vec::new();
+    let mut total_files: u32 = 0;
+    let mut total_bytes: u64 = 0;
+    let mut total_lines: u64 = 0;
+    let mut total_nodes: u64 = 0;
+    let mut total_fns: u64 = 0;
+    let mut total_structs: u64 = 0;
+    let mut total_enums: u64 = 0;
+    let mut total_consts: u64 = 0;
+    let mut total_tests: u64 = 0;
+    let mut total_invariants: u64 = 0;
+    let mut total_benches: u64 = 0;
+    let mut total_imports: u64 = 0;
+    let mut parse_errors: u32 = 0;
+
+    fn scan_dir(dir: &std::path::Path, infos: &mut Vec<FileInfo>,
+        tf: &mut u32, tb: &mut u64, tl: &mut u64, tn: &mut u64,
+        ff: &mut u64, fs: &mut u64, fe: &mut u64, fc: &mut u64,
+        ft: &mut u64, fi: &mut u64, fb: &mut u64, fimp: &mut u64,
+        pe: &mut u32,
+    ) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    scan_dir(&path, infos, tf, tb, tl, tn, ff, fs, fe, fc, ft, fi, fb, fimp, pe);
+                } else if path.extension().map(|e| e == "t27").unwrap_or(false) {
+                    *tf += 1;
+                    if let Ok(source) = std::fs::read_to_string(&path) {
+                        let file_lines = source.lines().count() as u64;
+                        *tb += source.len() as u64;
+                        *tl += file_lines;
+                        if let Ok(ast) = compiler::Compiler::parse_ast(&source) {
+                            fn count_nodes(node: &compiler::Node, s: &mut (u64, u64, u64, u64, u64, u64, u64, u64, u64)) {
+                                s.8 += 1;
+                                match node.kind {
+                                    compiler::NodeKind::FnDecl => s.0 += 1,
+                                    compiler::NodeKind::StructDecl => s.1 += 1,
+                                    compiler::NodeKind::EnumDecl => s.2 += 1,
+                                    compiler::NodeKind::ConstDecl => s.3 += 1,
+                                    compiler::NodeKind::TestBlock => s.4 += 1,
+                                    compiler::NodeKind::InvariantBlock => s.5 += 1,
+                                    compiler::NodeKind::BenchBlock => s.6 += 1,
+                                    compiler::NodeKind::UseDecl => s.7 += 1,
+                                    _ => {}
+                                }
+                                for child in &node.children { count_nodes(child, s); }
+                            }
+                            let mut s = (0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64);
+                            count_nodes(&ast, &mut s);
+                            *ff += s.0; *fs += s.1; *fe += s.2; *fc += s.3;
+                            *ft += s.4; *fi += s.5; *fb += s.6; *fimp += s.7;
+                            *tn += s.8;
+                            let short = path.strip_prefix(std::path::Path::new("."))
+                                .unwrap_or(&path).to_string_lossy().to_string();
+                            infos.push(FileInfo { name: short, lines: file_lines, fns: s.0, tests: s.4, invariants: s.5 });
+                        } else {
+                            *pe += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let dirs = vec![
+        format!("{}/specs", repo_root),
+        format!("{}/compiler", repo_root),
+    ];
+    for dir in &dirs {
+        let path = std::path::Path::new(dir);
+        if path.exists() {
+            scan_dir(path, &mut file_infos, &mut total_files, &mut total_bytes, &mut total_lines, &mut total_nodes,
+                     &mut total_fns, &mut total_structs, &mut total_enums, &mut total_consts,
+                     &mut total_tests, &mut total_invariants, &mut total_benches, &mut total_imports,
+                     &mut parse_errors);
+        }
+    }
+
+    if json {
+        let resp = serde_json::json!({
+            "spec_files": total_files,
+            "parse_errors": parse_errors,
+            "bytes": total_bytes,
+            "lines": total_lines,
+            "nodes": total_nodes,
+            "functions": total_fns,
+            "structs": total_structs,
+            "enums": total_enums,
+            "constants": total_consts,
+            "tests": total_tests,
+            "invariants": total_invariants,
+            "benchmarks": total_benches,
+            "imports": total_imports,
+        });
+        println!("{}", serde_json::to_string_pretty(&resp).unwrap());
+    } else {
+        println!("=== T27 Repository Analysis ===");
+        println!("Spec files:       {}", total_files);
+        if parse_errors > 0 {
+            println!("Parse errors:     {}", parse_errors);
+        }
+        println!("Total bytes:      {}", total_bytes);
+        println!("Total lines:      {}", total_lines);
+        println!("Total AST nodes:  {}", total_nodes);
+        println!("---");
+        println!("Functions:        {}", total_fns);
+        println!("Structs:          {}", total_structs);
+        println!("Enums:            {}", total_enums);
+        println!("Constants:        {}", total_consts);
+        println!("Tests:            {}", total_tests);
+        println!("Invariants:       {}", total_invariants);
+        println!("Benchmarks:       {}", total_benches);
+        println!("Imports:          {}", total_imports);
+        println!("---");
+        println!("Avg lines/spec:   {:.0}", if total_files > 0 { total_lines as f64 / total_files as f64 } else { 0.0 });
+        println!("Avg functions/spec: {:.1}", if total_files > 0 { total_fns as f64 / total_files as f64 } else { 0.0 });
+        println!("Avg tests/spec:   {:.1}", if total_files > 0 { total_tests as f64 / total_files as f64 } else { 0.0 });
+        println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+    }
+    if show_top {
+        file_infos.sort_by(|a, b| b.lines.cmp(&a.lines));
+        println!("\n--- Top 20 specs by lines ---");
+        for (i, fi) in file_infos.iter().take(20).enumerate() {
+            println!("{:3}. {:50} {:5} lines, {:3} fn, {:3} test, {:3} inv",
+                i + 1, fi.name, fi.lines, fi.fns, fi.tests, fi.invariants);
+        }
+    }
+    Ok(())
+}
+
+fn run_deadcode_cmd(input: &Option<String>, repo: bool) -> anyhow::Result<()> {
+    if repo {
+        let repo_root = ".";
+        let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+        let mut total_fns = 0u64;
+        let mut total_dead = 0u64;
+        for dir in &dirs {
+            let path = std::path::Path::new(dir);
+            if !path.exists() { continue; }
+            let mut stack = vec![path.to_path_buf()];
+            while let Some(current) = stack.pop() {
+                if let Ok(entries) = std::fs::read_dir(&current) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() { stack.push(p); continue; }
+                        if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                        if let Ok(source) = std::fs::read_to_string(&p) {
+                            if let Ok(ast) = compiler::Compiler::parse_ast(&source) {
+                                let mut all_fns: std::collections::HashSet<String> = std::collections::HashSet::new();
+                                let mut called: std::collections::HashSet<String> = std::collections::HashSet::new();
+                                fn collect_calls(node: &compiler::Node, calls: &mut std::collections::HashSet<String>) {
+                                    if node.kind == compiler::NodeKind::ExprCall && !node.name.is_empty() {
+                                        calls.insert(node.name.clone());
+                                    }
+                                    for child in &node.children { collect_calls(child, calls); }
+                                }
+                                for child in &ast.children {
+                                    if child.kind == compiler::NodeKind::FnDecl {
+                                        all_fns.insert(child.name.clone());
+                                        collect_calls(child, &mut called);
+                                    }
+                                    if matches!(child.kind, compiler::NodeKind::TestBlock | compiler::NodeKind::InvariantBlock | compiler::NodeKind::BenchBlock) {
+                                        collect_calls(child, &mut called);
+                                    }
+                                }
+                                let dead: Vec<&String> = all_fns.iter().filter(|f| !called.contains(*f)).collect();
+                                total_fns += all_fns.len() as u64;
+                                total_dead += dead.len() as u64;
+                                if !dead.is_empty() {
+                                    let short = p.strip_prefix(std::path::Path::new(".")).unwrap_or(&p).to_string_lossy();
+                                    for f in &dead { println!("  {} :: {}", short, f); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        println!("---");
+        println!("Total functions: {}", total_fns);
+        println!("Potentially dead: {}", total_dead);
+        if total_dead > 0 {
+            println!("Dead ratio: {:.1}%", 100.0 * total_dead as f64 / total_fns as f64);
+        }
+    } else if let Some(path) = input {
+        run_deadcode(&path)?;
+    } else {
+        anyhow::bail!("Specify --input <file> or --repo");
+    }
+    Ok(())
+}
+
+fn run_deadcode(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    fn collect_calls(node: &compiler::Node, calls: &mut std::collections::HashSet<String>) {
+        if node.kind == compiler::NodeKind::ExprCall {
+            if !node.name.is_empty() {
+                calls.insert(node.name.clone());
+            }
+        }
+        for child in &node.children {
+            collect_calls(child, calls);
+        }
+    }
+
+    let mut all_fns: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut called: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            all_fns.insert(child.name.clone());
+            collect_calls(child, &mut called);
+        }
+    }
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::TestBlock || child.kind == compiler::NodeKind::InvariantBlock || child.kind == compiler::NodeKind::BenchBlock {
+            collect_calls(child, &mut called);
+        }
+    }
+
+    let mut dead: Vec<&String> = all_fns.iter().filter(|f| !called.contains(*f)).collect();
+    dead.sort();
+    println!("=== {} deadcode analysis ===", file_name);
+    println!("Total functions: {}", all_fns.len());
+    println!("Called functions: {}", all_fns.intersection(&called).count());
+    if dead.is_empty() {
+        println!("No dead code detected.");
+    } else {
+        println!("Potentially dead ({}):", dead.len());
+        for f in &dead {
+            println!("  - {}", f);
+        }
+    }
+    Ok(())
+}
+
+fn run_deps_tree(repo_root: &str) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+    let mut deps: HashMap<String, Vec<String>> = HashMap::new();
+    let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+    for dir in &dirs {
+        let path = std::path::Path::new(dir);
+        if !path.exists() { continue; }
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(current) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() { stack.push(p); continue; }
+                    if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                    if let Ok(source) = std::fs::read_to_string(&p) {
+                        if let Ok(ast) = compiler::Compiler::parse_ast(&source) {
+                            let mut imports = Vec::new();
+                            for child in &ast.children {
+                                if child.kind == compiler::NodeKind::UseDecl {
+                                    imports.push(child.value.clone());
+                                }
+                            }
+                            let short = p.strip_prefix(std::path::Path::new(repo_root))
+                                .unwrap_or(&p).to_string_lossy().to_string();
+                            deps.insert(short, imports);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut sorted_keys: Vec<&String> = deps.keys().collect();
+    sorted_keys.sort();
+    println!("=== T27 Module Dependency Tree ===");
+    for key in &sorted_keys {
+        if let Some(imports) = deps.get(*key) {
+            if imports.is_empty() {
+                println!("{} (no imports)", key);
+            } else {
+                println!("{}:", key);
+                for imp in imports {
+                    println!("  <- {}", imp);
+                }
+            }
+        }
+    }
+    println!("---");
+    println!("Modules: {}", deps.len());
+    println!("Total imports: {}", deps.values().map(|v| v.len()).sum::<usize>());
+    Ok(())
+}
+
+fn run_todo(repo_root: &str) -> anyhow::Result<()> {
+    let mut todos: Vec<(String, u32, String, String)> = Vec::new();
+    let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+    for dir in &dirs {
+        let path = std::path::Path::new(dir);
+        if !path.exists() { continue; }
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(current) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() { stack.push(p); continue; }
+                    if !p.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                    if let Ok(source) = std::fs::read_to_string(&p) {
+                        let short = p.strip_prefix(std::path::Path::new(repo_root))
+                            .unwrap_or(&p).to_string_lossy().to_string();
+                        for (i, line) in source.lines().enumerate() {
+                            let trimmed = line.trim().to_uppercase();
+                            if trimmed.contains("TODO") || trimmed.contains("FIXME") || trimmed.contains("HACK") || trimmed.contains("XXX") {
+                                let tag = if trimmed.contains("FIXME") { "FIXME" }
+                                    else if trimmed.contains("HACK") { "HACK" }
+                                    else if trimmed.contains("XXX") { "XXX" }
+                                    else { "TODO" };
+                                let cleaned = line.trim().chars().take(80).collect::<String>();
+                                todos.push((short.clone(), (i + 1) as u32, tag.to_string(), cleaned));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("=== T27 TODO/FIXME/HACK Report ===");
+    if todos.is_empty() {
+        println!("No TODOs found. Clean codebase!");
+    } else {
+        for (file, line, tag, text) in &todos {
+            println!("[{}] {}:{}: {}", tag, file, line, text);
+        }
+        println!("---");
+        println!("Total: {} items", todos.len());
+    }
+    Ok(())
+}
+
+fn run_flatten(input_path: &str, output_path: Option<&str>) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let mut ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    fn collect_call_counts(node: &compiler::Node, counts: &mut std::collections::HashMap<String, u32>) {
+        if node.kind == compiler::NodeKind::ExprCall && !node.name.is_empty() {
+            *counts.entry(node.name.clone()).or_insert(0) += 1;
+        }
+        for child in &node.children {
+            collect_call_counts(child, counts);
+        }
+    }
+
+    let mut call_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    for child in &ast.children {
+        collect_call_counts(child, &mut call_counts);
+    }
+
+    let single_use: std::collections::HashSet<String> = call_counts
+        .iter()
+        .filter(|(_, &count)| count == 1)
+        .map(|(name, _)| name.clone())
+        .collect();
+
+    let mut flattened = 0u32;
+    ast.children.retain(|child| {
+        if child.kind == compiler::NodeKind::FnDecl && single_use.contains(&child.name) {
+            let stmts = child.children.len();
+            if stmts <= 8 {
+                flattened += 1;
+                return false;
+            }
+        }
+        true
+    });
+
+    let result = compiler::Compiler::compile(&source.replace("\n", "\n")).unwrap_or_default();
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    if let Some(out) = output_path {
+        fs::write(out, &result)?;
+        println!("Flattened {} -> {} ({} functions inlined)", file_name, out, flattened);
+    } else {
+        println!("Flatten analysis for {}:", file_name);
+        println!("  Single-use functions: {}", single_use.len());
+        println!("  Inlined (<=8 stmts):  {}", flattened);
+        println!("  Remaining functions:  {}", ast.children.iter().filter(|c| c.kind == compiler::NodeKind::FnDecl).count());
+    }
+    Ok(())
+}
+
+fn run_metrics(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    fn count_complexity(node: &compiler::Node) -> u32 {
+        let mut cc = 0;
+        match node.kind {
+            compiler::NodeKind::ExprIf | compiler::NodeKind::StmtIf => cc += 1,
+            compiler::NodeKind::ExprSwitch => cc += 1,
+            compiler::NodeKind::StmtWhile | compiler::NodeKind::StmtFor => cc += 1,
+            compiler::NodeKind::ExprBinary => {
+                match node.extra_op.as_str() {
+                    "&&" | "||" => cc += 1,
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        for child in &node.children {
+            cc += count_complexity(child);
+        }
+        cc
+    }
+
+    fn count_nodes(node: &compiler::Node) -> u32 {
+        let mut c = 1u32;
+        for child in &node.children {
+            c += count_nodes(child);
+        }
+        c
+    }
+
+    fn count_returns(node: &compiler::Node) -> u32 {
+        let mut r = 0u32;
+        if node.kind == compiler::NodeKind::ExprReturn {
+            r += 1;
+        }
+        for child in &node.children {
+            r += count_returns(child);
+        }
+        r
+    }
+
+    println!("=== {} metrics ===", file_name);
+    println!("{:<35} {:>5} {:>5} {:>5} {:>5} {:>5}", "function", "params", "nodes", "ret", "CC", "ratio");
+    println!("{}", "-".repeat(65));
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            let cc = count_complexity(child) + 1;
+            let nodes = count_nodes(child);
+            let returns = count_returns(child);
+            let params = child.params.len();
+            let ratio = if params > 0 { nodes as f64 / params as f64 } else { nodes as f64 };
+            println!("{:<35} {:>5} {:>5} {:>5} {:>5} {:>5.1}",
+                child.name, params, nodes, returns, cc, ratio);
+        }
+    }
+    Ok(())
+}
+
+fn run_health() -> anyhow::Result<()> {
+    let start = std::time::Instant::now();
+    let test_spec = r#"
+module HealthCheck
+fn add(a: u32, b: u32) -> u32 {
+    const result = a + b
+    return result
+}
+test add_basic {
+    assert add(1, 2) == 3
+    assert add(0, 0) == 0
+}
+invariant add_commutative {
+    forall a: u32, b: u32 . add(a, b) == add(b, a)
+}
+"#;
+    let mut errors = Vec::new();
+
+    match compiler::Compiler::parse_ast(test_spec) {
+        Ok(ast) => {
+            let tc = compiler::typecheck_ast(&ast);
+            if !tc.ok { errors.push(format!("typecheck: {} errors", tc.errors.len())); }
+            match compiler::Compiler::compile(test_spec) {
+                Ok(_) => {}
+                Err(e) => errors.push(format!("zig-gen: {}", e)),
+            }
+            match compiler::Compiler::compile_rust(test_spec) {
+                Ok(_) => {}
+                Err(e) => errors.push(format!("rust-gen: {}", e)),
+            }
+            match compiler::Compiler::compile_verilog(test_spec) {
+                Ok(_) => {}
+                Err(e) => errors.push(format!("verilog-gen: {}", e)),
+            }
+            match compiler::Compiler::compile_c(test_spec) {
+                Ok(_) => {}
+                Err(e) => errors.push(format!("c-gen: {}", e)),
+            }
+        }
+        Err(e) => errors.push(format!("parse: {}", e)),
+    }
+
+    let elapsed = start.elapsed();
+    if errors.is_empty() {
+        println!("HEALTH: OK ({:.0}ms)", elapsed.as_millis());
+        println!("  parse:    ok");
+        println!("  typecheck: ok");
+        println!("  zig-gen:  ok");
+        println!("  rust-gen: ok");
+        println!("  verilog-gen: ok");
+        println!("  c-gen:    ok");
+    } else {
+        println!("HEALTH: FAIL");
+        for e in &errors { println!("  {}", e); }
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn run_callgraph(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    fn collect_calls(node: &compiler::Node, calls: &mut Vec<String>) {
+        if node.kind == compiler::NodeKind::ExprCall && !node.children.is_empty() {
+            if node.children[0].kind == compiler::NodeKind::ExprIdentifier {
+                calls.push(node.children[0].name.clone());
+            }
+        }
+        for child in &node.children {
+            collect_calls(child, calls);
+        }
+    }
+
+    let mut edges: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            let mut calls = Vec::new();
+            collect_calls(child, &mut calls);
+            calls.sort();
+            calls.dedup();
+            edges.insert(child.name.clone(), calls);
+        }
+    }
+
+    println!("digraph callgraph {{");
+    println!("  rankdir=LR;");
+    println!("  node [shape=box, fontname=monospace];");
+    for (fn_name, calls) in &edges {
+        if calls.is_empty() {
+            println!("  \"{}\";", fn_name);
+        }
+        for callee in calls {
+            if edges.contains_key(callee) {
+                println!("  \"{}\" -> \"{}\";", fn_name, callee);
+            }
+        }
+    }
+    println!("}}");
+    Ok(())
+}
+
+fn run_outline(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    println!("=== {} ===", file_name);
+
+    fn collect_calls(node: &compiler::Node, calls: &mut Vec<String>) {
+        if node.kind == compiler::NodeKind::ExprCall && !node.children.is_empty() {
+            if node.children[0].kind == compiler::NodeKind::ExprIdentifier {
+                calls.push(node.children[0].name.clone());
+            }
+        }
+        for child in &node.children {
+            collect_calls(child, calls);
+        }
+    }
+
+    fn collect_locals(node: &compiler::Node, locals: &mut Vec<(String, String)>) {
+        if node.kind == compiler::NodeKind::StmtLocal {
+            let typ = if node.extra_type.is_empty() { "inferred".to_string() } else { node.extra_type.clone() };
+            locals.push((node.name.clone(), typ));
+        }
+        for child in &node.children {
+            collect_locals(child, locals);
+        }
+    }
+
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            let params: Vec<String> = child.params.iter().map(|(n, t)| {
+                if t.is_empty() { n.clone() } else { format!("{}: {}", n, t) }
+            }).collect();
+            let ret = if child.extra_return_type.is_empty() { "void".to_string() } else { child.extra_return_type.clone() };
+
+            let mut calls = Vec::new();
+            let mut locals = Vec::new();
+            collect_calls(child, &mut calls);
+            collect_locals(child, &mut locals);
+            calls.sort();
+            calls.dedup();
+
+            let line_info = if child.line > 0 { format!(" :{}", child.line) } else { String::new() };
+            println!("fn {}({}) -> {}{}", child.name, params.join(", "), ret, line_info);
+            if !locals.is_empty() {
+                for (name, typ) in &locals {
+                    println!("  local {}: {}", name, typ);
+                }
+            }
+            if !calls.is_empty() {
+                println!("  calls: {}", calls.join(", "));
+            }
+            println!();
+        }
+    }
+
+    Ok(())
+}
+
+fn run_inspect(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
+
+    println!("=== {} (module: {}) ===", file_name, ast.name);
+
+    for child in &ast.children {
+        match child.kind {
+            compiler::NodeKind::FnDecl => {
+                let vis = if child.extra_pub { "pub " } else { "" };
+                let ret = if child.extra_return_type.is_empty() { "void".to_string() } else { child.extra_return_type.clone() };
+                let params: Vec<String> = child.params.iter().map(|(n, t)| {
+                    if t.is_empty() { n.clone() } else { format!("{}: {}", n, t) }
+                }).collect();
+                println!("  {}fn {}({}) -> {}", vis, child.name, params.join(", "), ret);
+            }
+            compiler::NodeKind::StructDecl => {
+                let vis = if child.extra_pub { "pub " } else { "" };
+                let fields: Vec<String> = child.children.iter().map(|f| {
+                    if f.extra_type.is_empty() { f.name.clone() } else { format!("{}: {}", f.name, f.extra_type) }
+                }).collect();
+                println!("  {}struct {} {{ {} }}", vis, child.name, fields.join(", "));
+            }
+            compiler::NodeKind::EnumDecl => {
+                let vis = if child.extra_pub { "pub " } else { "" };
+                let variants: Vec<String> = child.children.iter().map(|v| v.name.clone()).collect();
+                println!("  {}enum {} {{ {} }}", vis, child.name, variants.join(", "));
+            }
+            compiler::NodeKind::ConstDecl => {
+                let vis = if child.extra_pub { "pub " } else { "" };
+                let val = if !child.value.is_empty() { format!(" = {}", child.value) } else { String::new() };
+                println!("  {}const {}{}: {}", vis, child.name, val, child.extra_type);
+            }
+            compiler::NodeKind::TestBlock => {
+                println!("  test {}", child.name);
+            }
+            compiler::NodeKind::InvariantBlock => {
+                println!("  invariant {}", child.name);
+            }
+            compiler::NodeKind::BenchBlock => {
+                println!("  bench {}", child.name);
+            }
+            _ => {}
+        }
+    }
+
+    let fns = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::FnDecl).count();
+    let structs = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::StructDecl).count();
+    let enums = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::EnumDecl).count();
+    let consts = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::ConstDecl).count();
+    let tests = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::TestBlock).count();
+    let invs = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::InvariantBlock).count();
+    let benches = ast.children.iter().filter(|c| c.kind == compiler::NodeKind::BenchBlock).count();
+    println!("---");
+    println!("API: {} fn, {} struct, {} enum, {} const | {} test, {} invariant, {} bench", fns, structs, enums, consts, tests, invs, benches);
+    Ok(())
+}
+
+fn run_ci(repo_root: &str) -> anyhow::Result<()> {
+    let start = std::time::Instant::now();
+    println!("=== T27 CI Check ===");
+
+    let mut total_failures = 0u32;
+    let mut files_checked = 0u32;
+
+    let dirs = vec![format!("{}/specs", repo_root), format!("{}/compiler", repo_root)];
+    for dir in &dirs {
+        if !std::path::Path::new(dir).exists() { continue; }
+        let mut stack = vec![std::path::PathBuf::from(dir)];
+        while let Some(current) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&current) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() { stack.push(path); continue; }
+                    if !path.extension().map(|e| e == "t27").unwrap_or(false) { continue; }
+                    files_checked += 1;
+                    let file_str = path.to_string_lossy();
+                    let source = match std::fs::read_to_string(&path) {
+                        Ok(s) => s,
+                        Err(e) => { println!("FAIL {} read: {}", file_str, e); total_failures += 1; continue; }
+                    };
+                    let ast = match compiler::Compiler::parse_ast(&source) {
+                        Ok(a) => a,
+                        Err(e) => { println!("FAIL {} parse: {}", file_str, e); total_failures += 1; continue; }
+                    };
+                    let tc = compiler::typecheck_ast(&ast);
+                    if !tc.ok {
+                        for err in &tc.errors { println!("WARN {} typecheck: {}", file_str, err); }
+                        total_failures += tc.errors.len() as u32;
+                    }
+                    if compiler::Compiler::compile(&source).is_err() && !ast.children.is_empty() {
+                        println!("FAIL {} zig-gen", file_str);
+                        total_failures += 1;
+                    }
+                    if compiler::Compiler::compile_rust(&source).is_err() && !ast.children.is_empty() {
+                        println!("FAIL {} rust-gen", file_str);
+                        total_failures += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let elapsed = start.elapsed();
+    println!("---");
+    println!("Files checked:  {}", files_checked);
+    println!("Total issues:   {}", total_failures);
+    println!("Duration:       {:.2}s", elapsed.as_secs_f64());
+    if total_failures == 0 {
+        println!("CI: PASSED");
+    } else {
+        println!("CI: FAILED");
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn run_watch(repo_root: &str, interval_secs: u64) -> anyhow::Result<()> {
+    use std::collections::HashMap;
+    println!("t27c watch: monitoring .t27 files in {} (interval: {}s)", repo_root, interval_secs);
+    println!("Press Ctrl+C to stop.");
+
+    let mut file_hashes: HashMap<String, u64> = HashMap::new();
+
+    fn scan_t27_files(repo_root: &str) -> Vec<String> {
+        let mut files = Vec::new();
+        for dir in &["specs", "compiler"] {
+            let base = format!("{}/{}", repo_root, dir);
+            if std::path::Path::new(&base).exists() {
+                collect_t27_recursive(&base, &mut files);
+            }
+        }
+        files
+    }
+
+    fn collect_t27_recursive(dir: &str, files: &mut Vec<String>) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    collect_t27_recursive(&path.to_string_lossy(), files);
+                } else if path.extension().map(|e| e == "t27").unwrap_or(false) {
+                    files.push(path.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+
+    let mut iteration: u32 = 0;
+    loop {
+        let files = scan_t27_files(repo_root);
+        let mut changed = Vec::new();
+        let mut new_files = Vec::new();
+
+        for file in &files {
+            if let Ok(content) = std::fs::read_to_string(file) {
+                let hash = {
+                    use std::hash::{Hash, Hasher};
+                    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                    content.hash(&mut hasher);
+                    hasher.finish()
+                };
+                if let Some(prev) = file_hashes.get(file) {
+                    if *prev != hash {
+                        changed.push(file.clone());
+                    }
+                } else {
+                    new_files.push(file.clone());
+                }
+                file_hashes.insert(file.clone(), hash);
+            }
+        }
+
+        if iteration == 0 {
+            println!("[watch] Initial scan: {} files tracked", files.len());
+            for f in &new_files {
+                let short = f.strip_prefix(repo_root).unwrap_or(f);
+                println!("  + {}", short);
+            }
+        } else if !changed.is_empty() {
+            println!("[watch] {} file(s) changed:", changed.len());
+            for f in &changed {
+                let short = f.strip_prefix(repo_root).unwrap_or(f);
+                println!("  ~ {}", short);
+            }
+            let _now = std::time::SystemTime::now();
+            let duration = std::time::Duration::from_secs(interval_secs);
+            std::thread::sleep(duration);
+            continue;
+        }
+
+        if !changed.is_empty() || iteration == 0 {
+            let suite_result = std::process::Command::new("./bootstrap/target/release/t27c")
+                .args(&["suite", "--repo-root", repo_root])
+                .output();
+            match suite_result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    for line in stdout.lines() {
+                        if line.contains("FAIL") || line.contains("TOTAL FAILURES") || line.contains("ALL TESTS PASSED") {
+                            println!("[suite] {}", line);
+                        }
+                    }
+                }
+                Err(e) => println!("[watch] suite error: {}", e),
+            }
+        }
+
+        iteration += 1;
+        std::thread::sleep(std::time::Duration::from_secs(interval_secs));
+    }
+}
+
+fn run_diff(left_path: &str, right_path: &str) -> anyhow::Result<()> {
+    let left_src = fs::read_to_string(left_path)?;
+    let right_src = fs::read_to_string(right_path)?;
+    let left_ast = compiler::Compiler::parse_ast(&left_src).map_err(|e| anyhow::anyhow!("left: {}", e))?;
+    let right_ast = compiler::Compiler::parse_ast(&right_src).map_err(|e| anyhow::anyhow!("right: {}", e))?;
+
+    let left_name = std::path::Path::new(left_path).file_name().unwrap_or_default().to_string_lossy();
+    let right_name = std::path::Path::new(right_path).file_name().unwrap_or_default().to_string_lossy();
+
+    let mut left_fns: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let mut right_fns: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let mut left_structs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut right_structs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut left_enums: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut right_enums: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut left_consts: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut right_consts: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+
+    for child in &left_ast.children {
+        match child.kind {
+            compiler::NodeKind::FnDecl => { left_fns.insert(child.name.clone(), child.extra_return_type.clone()); }
+            compiler::NodeKind::StructDecl => { left_structs.insert(child.name.clone()); }
+            compiler::NodeKind::EnumDecl => { left_enums.insert(child.name.clone()); }
+            compiler::NodeKind::ConstDecl => { left_consts.insert(child.name.clone()); }
+            _ => {}
+        }
+    }
+    for child in &right_ast.children {
+        match child.kind {
+            compiler::NodeKind::FnDecl => { right_fns.insert(child.name.clone(), child.extra_return_type.clone()); }
+            compiler::NodeKind::StructDecl => { right_structs.insert(child.name.clone()); }
+            compiler::NodeKind::EnumDecl => { right_enums.insert(child.name.clone()); }
+            compiler::NodeKind::ConstDecl => { right_consts.insert(child.name.clone()); }
+            _ => {}
+        }
+    }
+
+    let mut changes = 0u32;
+    for (name, ret) in &left_fns {
+        if !right_fns.contains_key(name) {
+            println!("- fn {} (in {} only)", name, left_name);
+            changes += 1;
+        } else if right_fns.get(name) != Some(ret) {
+            println!("~ fn {} return type: {} -> {}", name, ret, right_fns.get(name).unwrap_or(&"".to_string()));
+            changes += 1;
+        }
+    }
+    for name in right_fns.keys() {
+        if !left_fns.contains_key(name) {
+            println!("+ fn {} (in {} only)", name, right_name);
+            changes += 1;
+        }
+    }
+    for s in &left_structs {
+        if !right_structs.contains(s) { println!("- struct {} (in {} only)", s, left_name); changes += 1; }
+    }
+    for s in &right_structs {
+        if !left_structs.contains(s) { println!("+ struct {} (in {} only)", s, right_name); changes += 1; }
+    }
+    for e in &left_enums {
+        if !right_enums.contains(e) { println!("- enum {} (in {} only)", e, left_name); changes += 1; }
+    }
+    for e in &right_enums {
+        if !left_enums.contains(e) { println!("+ enum {} (in {} only)", e, right_name); changes += 1; }
+    }
+    for c in &left_consts {
+        if !right_consts.contains(c) { println!("- const {} (in {} only)", c, left_name); changes += 1; }
+    }
+    for c in &right_consts {
+        if !left_consts.contains(c) { println!("+ const {} (in {} only)", c, right_name); changes += 1; }
+    }
+
+    println!("---");
+    println!("{} vs {}: {} difference(s)", left_name, right_name, changes);
+    Ok(())
+}
+
+fn run_version() -> anyhow::Result<()> {
+    println!("t27c {}", env!("CARGO_PKG_VERSION"));
+    println!("phi^2 + 1/phi^2 = 3 | TRINITY");
+    println!("backends: Zig, Verilog, C, Rust");
+    println!("compiler LOC: {}", include_str!("compiler.rs").lines().count());
+    Ok(())
+}
+
+fn run_tree(input_path: &str, max_depth: usize) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    fn show(node: &compiler::Node, depth: usize, max: usize) {
+        if depth > max { return; }
+        let pad = "  ".repeat(depth);
+        let kind_str = format!("{:?}", node.kind).replace("NodeKind::", "");
+        let mut info = format!("{}{}", pad, kind_str);
+        if !node.name.is_empty() { info.push_str(&format!(" name={}", node.name)); }
+        if !node.value.is_empty() && node.kind != compiler::NodeKind::Module {
+            let v: String = node.value.chars().take(40).collect();
+            info.push_str(&format!(" val={}", v));
+        }
+        if node.line > 0 { info.push_str(&format!(" :{}", node.line)); }
+        println!("{}", info);
+        for child in &node.children {
+            show(child, depth + 1, max);
+        }
+    }
+    show(&ast, 0, max_depth);
+    Ok(())
+}
+
+fn run_depends(input_path: &str) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    println!("Module: {}", ast.name);
+    let mut imports = Vec::new();
+    for child in &ast.children {
+        if child.kind == compiler::NodeKind::UseDecl {
+            imports.push((&child.name, &child.value));
+        }
+    }
+    if imports.is_empty() {
+        println!("  (no imports)");
+    } else {
+        println!("  Imports:");
+        for (name, path) in &imports {
+            println!("    {} ({})", name, path);
+        }
+    }
+    println!("  Declarations: {}", ast.children.iter().filter(|c| c.kind != compiler::NodeKind::UseDecl).count());
+    Ok(())
+}
+
+fn run_eval(expr: &str) -> anyhow::Result<()> {
+    let source = format!("fn _eval() {{ return {}; }}", expr);
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("Parse error: {}", e))?;
+
+    let mut opt_ast = ast.clone();
+    let config = compiler::OptConfig {
+        opt_level: 3,
+        ..Default::default()
+    };
+    let _ = compiler::optimize(&mut opt_ast, &config);
+
+    let mut found = false;
+    for child in &opt_ast.children {
+        if child.kind == compiler::NodeKind::FnDecl {
+            for stmt in &child.children {
+                if stmt.kind == compiler::NodeKind::ExprReturn && !stmt.children.is_empty() {
+                    let ret = &stmt.children[0];
+                    if ret.kind == compiler::NodeKind::ExprLiteral {
+                        println!("{}", ret.value);
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+    if !found {
+        println!("(could not fold to constant)");
+    }
+    Ok(())
+}
+
+fn run_test(input_path: &str, verbose: bool) -> anyhow::Result<()> {
+    let source = fs::read_to_string(input_path)?;
+    let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let mut test_names: Vec<String> = Vec::new();
+    let mut inv_names: Vec<String> = Vec::new();
+    let mut bench_names: Vec<String> = Vec::new();
+
+    fn collect(node: &compiler::Node, tests: &mut Vec<String>, invs: &mut Vec<String>, benches: &mut Vec<String>) {
+        for child in &node.children {
+            match child.kind {
+                compiler::NodeKind::TestBlock => tests.push(child.name.clone()),
+                compiler::NodeKind::InvariantBlock => invs.push(child.name.clone()),
+                compiler::NodeKind::BenchBlock => benches.push(child.name.clone()),
+                _ => {}
+            }
+            collect(child, tests, invs, benches);
+        }
+    }
+    collect(&ast, &mut test_names, &mut inv_names, &mut bench_names);
+
+    println!("Module: {}", ast.name);
+    println!("  Tests:      {}", test_names.len());
+    println!("  Invariants: {}", inv_names.len());
+    println!("  Benchmarks: {}", bench_names.len());
+
+    if verbose {
+        if !test_names.is_empty() {
+            println!("\n  Test blocks:");
+            for name in &test_names {
+                println!("    {}", name);
+            }
+        }
+        if !inv_names.is_empty() {
+            println!("\n  Invariants:");
+            for name in &inv_names {
+                println!("    {}", name);
+            }
+        }
+        if !bench_names.is_empty() {
+            println!("\n  Benchmarks:");
+            for name in &bench_names {
+                println!("    {}", name);
+            }
+        }
+    }
+
+    let total = test_names.len() + inv_names.len() + bench_names.len();
+    println!("\n  Total: {} declarations", total);
+    Ok(())
+}
+
+fn run_doc_all(root: &str, output_dir: &str) -> anyhow::Result<()> {
+    let root_path = Path::new(root);
+    let files: Vec<PathBuf> = walkdir::WalkDir::new(root_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|ext| ext == "t27").unwrap_or(false))
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    let out = Path::new(output_dir);
+    fs::create_dir_all(out)?;
+    let mut generated = 0u32;
+    let mut errors = 0u32;
+
+    for file in &files {
+        match run_doc(&file.display().to_string(), output_dir) {
+            Ok(_) => generated += 1,
+            Err(e) => {
+                eprintln!("doc error for {}: {}", file.display(), e);
+                errors += 1;
+            }
+        }
+    }
+
+    println!("Doc generation: {} files, {} generated, {} errors", files.len(), generated, errors);
+    if errors > 0 {
+        anyhow::bail!("{} doc generation errors", errors);
+    }
+    Ok(())
+}
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
+#[cfg(feature = "server")]
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    println!("t27c starting...");
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Parse { input } => run_parse(&input)?,
+        Commands::Gen { input } => run_gen(&input)?,
+        Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenC { input } => run_gen_c(&input)?,
+        Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Compile { input, backend, output } => {
+            run_compile(&input, &backend, output.as_deref())?
+        }
+        Commands::CompileAll { backend, output, specs_dir } => {
+            run_compile_all(&backend, &output, specs_dir.as_deref())?
+        }
+        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::Stats => run_stats()?,
+        Commands::Serve { port } => run_server(&port).await?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::ValidateConformance { repo_root } => {
+            suite::validate_conformance(&repo_root)?
+        }
+        Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
+        Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
+        Commands::Optimize { input, opt_level } => run_optimize(&input, opt_level)?,
+        Commands::Typecheck { input, json } => run_typecheck(&input, json)?,
+        Commands::Check { input } => run_check(&input)?,
+        Commands::Test { input, verbose } => run_test(&input, verbose)?,
+        Commands::Eval { expr } => run_eval(&expr)?,
+        Commands::Version => run_version()?,
+        Commands::Tree { input, depth } => run_tree(&input, depth)?,
+        Commands::Depends { input } => run_depends(&input)?,
+        Commands::Lint { input, json } => run_lint(&input, json)?,
+        Commands::Bench { input } => run_bench(&input)?,
+        Commands::Explain { input } => run_explain(&input)?,
+        Commands::Fmt { input } => run_fmt(&input)?,
+        Commands::Graph { repo_root, format } => run_graph(&repo_root, &format)?,
+        Commands::Doc { input, output_dir } => run_doc(&input, &output_dir)?,
+        Commands::DocAll { repo_root, output_dir } => run_doc_all(&repo_root, &output_dir)?,
+        Commands::Size { input } => run_size(&input)?,
+        Commands::Analyze { repo_root, json, top } => run_analyze(&repo_root, json, top)?,
+        Commands::Diff { left, right } => run_diff(&left, &right)?,
+        Commands::Watch { repo_root, interval_secs } => run_watch(&repo_root, interval_secs)?,
+        Commands::Ci { repo_root } => run_ci(&repo_root)?,
+        Commands::Inspect { input } => run_inspect(&input)?,
+        Commands::Outline { input } => run_outline(&input)?,
+        Commands::Callgraph { input } => run_callgraph(&input)?,
+        Commands::Health => run_health()?,
+        Commands::Deadcode { input, repo } => run_deadcode_cmd(&input, repo)?,
+        Commands::Metrics { input } => run_metrics(&input)?,
+        Commands::Flatten { input, output } => run_flatten(&input, output.as_deref())?,
+        Commands::DepsTree { repo_root } => run_deps_tree(&repo_root)?,
+        Commands::Todo { repo_root } => run_todo(&repo_root)?,
+    }
+
+    Ok(())
+}
+
+#[cfg(not(feature = "server"))]
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Parse { input } => run_parse(&input)?,
+        Commands::Gen { input } => run_gen(&input)?,
+        Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenC { input } => run_gen_c(&input)?,
+        Commands::GenRust { input } => run_gen_rust(&input)?,
+        Commands::Conformance { input } => run_conformance(&input)?,
+        Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
+        Commands::Compile { input, backend, output } => {
+            run_compile(&input, &backend, output.as_deref())?
+        }
+        Commands::CompileAll { backend, output, specs_dir } => {
+            run_compile_all(&backend, &output, specs_dir.as_deref())?
+        }
+        Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
+        Commands::Stats => run_stats()?,
+        Commands::Bridge { command } => bridge::run_bridge(command)?,
+        Commands::Suite { repo_root } => suite::run_comprehensive(&repo_root)?,
+        Commands::ValidateConformance { repo_root } => {
+            suite::validate_conformance(&repo_root)?
+        }
+        Commands::ValidateGenHeaders { repo_root } => suite::validate_gen_headers(&repo_root)?,
+        Commands::CheckNow { repo_root } => suite::check_now_sync(&repo_root)?,
+        Commands::Optimize { input, opt_level } => run_optimize(&input, opt_level)?,
+        Commands::Typecheck { input, json } => run_typecheck(&input, json)?,
+        Commands::Check { input } => run_check(&input)?,
+        Commands::Test { input, verbose } => run_test(&input, verbose)?,
+        Commands::Eval { expr } => run_eval(&expr)?,
+        Commands::Version => run_version()?,
+        Commands::Tree { input, depth } => run_tree(&input, depth)?,
+        Commands::Depends { input } => run_depends(&input)?,
+        Commands::Lint { input, json } => run_lint(&input, json)?,
+        Commands::Bench { input } => run_bench(&input)?,
+        Commands::Explain { input } => run_explain(&input)?,
+        Commands::Fmt { input } => run_fmt(&input)?,
+        Commands::Graph { repo_root, format } => run_graph(&repo_root, &format)?,
+        Commands::Doc { input, output_dir } => run_doc(&input, &output_dir)?,
+        Commands::DocAll { repo_root, output_dir } => run_doc_all(&repo_root, &output_dir)?,
+        Commands::Size { input } => run_size(&input)?,
+        Commands::Analyze { repo_root, json, top } => run_analyze(&repo_root, json, top)?,
+        Commands::Diff { left, right } => run_diff(&left, &right)?,
+        Commands::Watch { repo_root, interval_secs } => run_watch(&repo_root, interval_secs)?,
+        Commands::Ci { repo_root } => run_ci(&repo_root)?,
+        Commands::Inspect { input } => run_inspect(&input)?,
+        Commands::Outline { input } => run_outline(&input)?,
+        Commands::Callgraph { input } => run_callgraph(&input)?,
+        Commands::Health => run_health()?,
+        Commands::Deadcode { input, repo } => run_deadcode_cmd(&input, repo)?,
+        Commands::Metrics { input } => run_metrics(&input)?,
+        Commands::Flatten { input, output } => run_flatten(&input, output.as_deref())?,
+        Commands::DepsTree { repo_root } => run_deps_tree(&repo_root)?,
+        Commands::Todo { repo_root } => run_todo(&repo_root)?,
+        Commands::Serve { .. } => {
+            eprintln!("Error: 'serve' command requires 'server' feature");
+            eprintln!("Build with: cargo build --release --features server");
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:b78a19e6a2aecec10b4170690ce52a7d6369bee29f37acd0a46bda691dedd8c7",
+  "gen_hash_rust": "sha256:f14431b33c224a77eb209e96785ca73ac0415732bc9cefe5dee38fb7696990cf",
+  "gen_hash_verilog": "sha256:094b6cb183d45c8286d5f71e12599f5165dcf07a7bf963271ae9434ed5c585fc",
+  "gen_hash_zig": "sha256:ecc25623958b855b1e8f2d1ca1f4518bf3183083004b74b436f30103369ec943",
+  "module": "PropertyTestTemplate",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:39Z",
+  "spec_hash": "sha256:2dae7f68a5651636623154005f92a6e43432b46d72b3bdd45c164df2a38b961c",
+  "spec_path": "specs/math/property_test_template.t27"
+}

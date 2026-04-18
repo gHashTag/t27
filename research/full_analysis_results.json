@@ -1,0 +1,24 @@
+{
+  "working_formulas": 28,
+  "mark_match": 8,
+  "exp_match": 8,
+  "total_e8": 16,
+  "pct_e8": 57.14285714285714,
+  "exp_sum_e8_count": 7,
+  "domain_mapping": {
+    "2": [
+      "mp/me [particle]",
+      "sin2_thetaW [electroweak]",
+      "MW_GeV [electroweak]"
+    ],
+    "4": [
+      "alpha_s [QCD]",
+      "sin2_theta23 [neutrino]"
+    ],
+    "5": [
+      "T_CMB [cosmology]",
+      "MH_GeV [Higgs]",
+      "Z_boson_MeV [electroweak]"
+    ]
+  }
+}

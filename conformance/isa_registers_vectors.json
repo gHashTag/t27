@@ -1,0 +1,399 @@
+{
+  "constants": {
+    "COPIC_BASE": 27,
+    "FLAG_CARRY": 2,
+    "FLAG_INTERRUPT": 5,
+    "FLAG_NEG": 1,
+    "FLAG_OVERFLOW": 3,
+    "FLAG_TRAP": 4,
+    "FLAG_ZERO": 0,
+    "NUM_REGISTERS": 27,
+    "R0": 0,
+    "R10": 10,
+    "R17": 17,
+    "R20": 20,
+    "R26": 26,
+    "REG_WIDTH": 27
+  },
+  "coptic_alphabet": {
+    "description": "27 Coptic Unicode code points for 27 registers",
+    "mapping": [
+      {
+        "codepoint": "0x03B1",
+        "name": "alpha",
+        "reg": 0
+      },
+      {
+        "codepoint": "0x03B2",
+        "name": "bita",
+        "reg": 1
+      },
+      {
+        "codepoint": "0x03B3",
+        "name": "gamma",
+        "reg": 2
+      },
+      {
+        "codepoint": "0x03B4",
+        "name": "dalda",
+        "reg": 3
+      },
+      {
+        "codepoint": "0x03B5",
+        "name": "ei",
+        "reg": 4
+      },
+      {
+        "codepoint": "0x03C6",
+        "name": "sima",
+        "reg": 5
+      },
+      {
+        "codepoint": "0x03B6",
+        "name": "zata",
+        "reg": 6
+      },
+      {
+        "codepoint": "0x03B7",
+        "name": "ita",
+        "reg": 7
+      },
+      {
+        "codepoint": "0x03B8",
+        "name": "thita",
+        "reg": 8
+      },
+      {
+        "codepoint": "0x03B9",
+        "name": "iota",
+        "reg": 9
+      },
+      {
+        "codepoint": "0x03BA",
+        "name": "kappa",
+        "reg": 10
+      },
+      {
+        "codepoint": "0x03BB",
+        "name": "lauda",
+        "reg": 11
+      },
+      {
+        "codepoint": "0x03BC",
+        "name": "mi",
+        "reg": 12
+      },
+      {
+        "codepoint": "0x03BD",
+        "name": "ni",
+        "reg": 13
+      },
+      {
+        "codepoint": "0x03BE",
+        "name": "ksi",
+        "reg": 14
+      },
+      {
+        "codepoint": "0x03C0",
+        "name": "pi",
+        "reg": 15
+      },
+      {
+        "codepoint": "0x03C1",
+        "name": "ro",
+        "reg": 16
+      },
+      {
+        "codepoint": "0x03C3",
+        "name": "sigma",
+        "reg": 17
+      },
+      {
+        "codepoint": "0x03C4",
+        "name": "tau",
+        "reg": 18
+      },
+      {
+        "codepoint": "0x03C5",
+        "name": "upsilon",
+        "reg": 19
+      },
+      {
+        "codepoint": "0x03C6",
+        "name": "fi",
+        "reg": 20
+      },
+      {
+        "codepoint": "0x03C7",
+        "name": "khi",
+        "reg": 21
+      },
+      {
+        "codepoint": "0x03C8",
+        "name": "psi",
+        "reg": 22
+      },
+      {
+        "codepoint": "0x03C9",
+        "name": "ou",
+        "reg": 23
+      },
+      {
+        "codepoint": "0x0417",
+        "name": "sampi",
+        "reg": 24
+      },
+      {
+        "codepoint": "0x0418",
+        "name": "koppa",
+        "reg": 25
+      },
+      {
+        "codepoint": "0x0419",
+        "name": "shei",
+        "reg": 26
+      }
+    ]
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "TRI27 ISA register file conformance vectors -- 27 registers, Coptic encoding, status flags",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T19:00:00Z",
+  "invariants": [
+    {
+      "description": "NUM_REGISTERS == 27",
+      "id": "isa_num_registers_constant",
+      "value": 27
+    },
+    {
+      "description": "REG_WIDTH == 27",
+      "id": "isa_reg_width_is_27",
+      "value": 27
+    },
+    {
+      "description": "COPIC_BASE == 27",
+      "id": "isa_coptic_base_constant",
+      "value": 27
+    },
+    {
+      "description": "COPTIC_ALPHABET.len() == NUM_REGISTERS",
+      "id": "isa_coptic_alphabet_size_matches_registers"
+    },
+    {
+      "description": "R0 always reads as 0",
+      "id": "isa_r0_readonly_zero"
+    },
+    {
+      "description": "Writing to R0 has no effect",
+      "id": "isa_r0_write_no_op"
+    },
+    {
+      "description": "coptic_to_reg(reg_to_coptic(r)) == r for valid r",
+      "id": "isa_coptic_to_reg_is_inverse_of_reg_to_coptic",
+      "test_registers": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        26
+      ]
+    },
+    {
+      "description": "FLAG_ZERO..FLAG_INTERRUPT all <= 5",
+      "id": "isa_status_flags_in_range"
+    },
+    {
+      "description": "All register aliases map to correct register numbers",
+      "id": "isa_register_aliases_correct"
+    },
+    {
+      "description": "R0==0, R10==10, R20==20, R26==26",
+      "id": "isa_register_indices_valid"
+    },
+    {
+      "description": "R26 == NUM_REGISTERS - 1",
+      "id": "isa_max_register_is_26"
+    }
+  ],
+  "module": "ISARegisters",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:079797bdf061e769d6b4949dc0df19e6f1ae9a97a34be7f0eb762477ae7d08cf",
+  "spec_path": "specs/isa/registers.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "isa_registers Vectors",
+  "vectors": {
+    "coptic_encoding": {
+      "cases": [
+        {
+          "expected_codepoint": "0x03B1",
+          "id": "isa_reg_to_coptic_r0",
+          "reg": 0
+        },
+        {
+          "expected_codepoint": "0x03BA",
+          "id": "isa_reg_to_coptic_r10",
+          "reg": 10
+        },
+        {
+          "expected_codepoint": "0x0419",
+          "id": "isa_reg_to_coptic_r26",
+          "reg": 26
+        },
+        {
+          "codepoint": "0x03B1",
+          "expected_reg": 0,
+          "id": "isa_coptic_to_reg_alpha"
+        },
+        {
+          "codepoint": "0x03BA",
+          "expected_reg": 10,
+          "id": "isa_coptic_to_reg_kappa"
+        },
+        {
+          "codepoint": "0x0041",
+          "expected_reg": 255,
+          "id": "isa_coptic_to_reg_invalid",
+          "note": "0xFF error sentinel"
+        }
+      ],
+      "description": "Coptic register name encoding"
+    },
+    "coptic_roundtrip": {
+      "cases": [
+        {
+          "expected_codepoint": "0x03B1",
+          "id": "isa_coptic_roundtrip_r0",
+          "reg": 0
+        },
+        {
+          "expected_codepoint": "0x03C0",
+          "id": "isa_coptic_roundtrip_r15",
+          "reg": 15
+        }
+      ],
+      "description": "reg_to_coptic -> coptic_to_reg -> reg_to_coptic is identity"
+    },
+    "reg_read_write": {
+      "cases": [
+        {
+          "action": "write_then_read",
+          "expected_read": "0x00000000",
+          "id": "isa_r0_always_zero",
+          "note": "R0 always reads as zero",
+          "reg": 0,
+          "write_value": "0x123456"
+        },
+        {
+          "action": "write",
+          "expected_read_after": "0x00000000",
+          "expected_success": false,
+          "id": "isa_r0_write_ignored",
+          "reg": 0,
+          "write_value": "0xDEADBEEF"
+        },
+        {
+          "action": "write",
+          "expected_success": true,
+          "id": "isa_valid_register_write_succeeds",
+          "reg": 10,
+          "write_value": "0xABCDEF"
+        },
+        {
+          "action": "write_then_read",
+          "expected_read": "0x123456",
+          "id": "isa_valid_register_write_read_roundtrip",
+          "reg": 10,
+          "write_value": "0x123456"
+        },
+        {
+          "action": "write",
+          "expected_success": false,
+          "id": "isa_invalid_register_write_fails",
+          "reg": 27,
+          "write_value": "0x123456"
+        },
+        {
+          "action": "read",
+          "expected_read": "0x00000000",
+          "id": "isa_invalid_register_read_returns_zero",
+          "reg": 27
+        }
+      ],
+      "description": "Register read/write operations"
+    },
+    "register_aliases": {
+      "cases": [
+        {
+          "ARG0": 1,
+          "ARG1": 2,
+          "ARG2": 3,
+          "ARG3": 4,
+          "EH": 21,
+          "FP": 16,
+          "KSP": 22,
+          "LR": 18,
+          "PC": 19,
+          "SAVED0": 10,
+          "SAVED1": 11,
+          "SAVED2": 12,
+          "SAVED3": 13,
+          "SP": 17,
+          "STATUS": 20,
+          "TMP0": 5,
+          "TMP1": 6,
+          "TMP2": 7,
+          "TMP3": 8,
+          "TMP4": 9,
+          "TP": 23,
+          "id": "isa_register_aliases_match"
+        }
+      ],
+      "description": "Register alias verification"
+    },
+    "status_flags": {
+      "cases": [
+        {
+          "expected": false,
+          "flag": 0,
+          "id": "isa_status_read_initial_false"
+        },
+        {
+          "expected_read": true,
+          "flag": 0,
+          "id": "isa_status_write_set",
+          "set_value": true
+        },
+        {
+          "expected_read": false,
+          "flag": 0,
+          "id": "isa_status_write_clear",
+          "operations": [
+            "set_true",
+            "set_false"
+          ]
+        },
+        {
+          "expected_flag_0": true,
+          "expected_flag_1": true,
+          "flags_set": [
+            0,
+            1
+          ],
+          "id": "isa_status_flags_independent"
+        },
+        {
+          "expected_success": false,
+          "flag": 10,
+          "id": "isa_status_invalid_flag",
+          "set_value": true
+        }
+      ],
+      "description": "Status register (R20) flag operations"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

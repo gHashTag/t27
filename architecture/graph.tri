@@ -40,6 +40,17 @@ spec "doc-sacred-physics" {
     agent = "P";
 }
 
+spec "doc-clara-prep-plan" {
+    tier = 0;
+    description = "CLARA-PREPARATION-PLAN: DARPA TA1/TA2 submission checklist";
+    path = "docs/CLARA-PREPARATION-PLAN.md";
+    exports = ["CLARA_TA1_CHECKLIST", "CLARA_TA2_CHECKLIST", "CLARA_TIMELINE"];
+    deps = ["doc-numeric-standard"];
+    competency = "CLARAPreparation";
+    status = "done";
+    agent = "S";
+}
+
 // ============================================================================
 // Tier 1: Core Arithmetic & Numeric Formats
 // ============================================================================
@@ -74,6 +85,78 @@ spec "triformat-tf3" {
     competency = "TernaryFormat";
     status = "done";
     bench_suite = ["tf_family"];
+}
+
+spec "triformat-gf4" {
+    tier = 1;
+    description = "GoldenFloat4: 4-bit micro float for extreme quantization";
+    path = "specs/numeric/gf4.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-gf8" {
+    tier = 1;
+    description = "GoldenFloat8: 8-bit float for inference weights";
+    path = "specs/numeric/gf8.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-gf12" {
+    tier = 1;
+    description = "GoldenFloat12: 12-bit float for activations";
+    path = "specs/numeric/gf12.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-gf20" {
+    tier = 1;
+    description = "GoldenFloat20: 20-bit float for gradients";
+    path = "specs/numeric/gf20.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-gf24" {
+    tier = 1;
+    description = "GoldenFloat24: 24-bit float for accumulation";
+    path = "specs/numeric/gf24.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-gf32" {
+    tier = 1;
+    description = "GoldenFloat32: 32-bit float for full precision";
+    path = "specs/numeric/gf32.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-goldenfloat-family" {
+    tier = 1;
+    description = "GoldenFloat family definition: unified API across GF4-GF32";
+    path = "specs/numeric/goldenfloat_family.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "FloatEncoding";
+    status = "done";
+}
+
+spec "triformat-phi-ratio" {
+    tier = 1;
+    description = "Phi ratio numeric format";
+    path = "specs/numeric/phi_ratio.t27";
+    deps = ["tritype-base", "trisacred-constants"];
+    competency = "FloatEncoding";
+    status = "done";
 }
 
 spec "trisacred-constants" {
@@ -121,6 +204,46 @@ spec "trifpga-mac" {
     status = "done";
 }
 
+spec "trifpga-uart" {
+    tier = 2;
+    description = "UART bridge: 8-N-1 protocol at 115200 baud, 50MHz clock";
+    path = "specs/fpga/uart.t27";
+    exports = ["UART_Bridge", "uart_tx_write", "uart_tx_ready", "uart_rx_sync", "uart_rx_read_data", "UART_TX_Unit", "UART_RX_Unit", "CMD_PING", "CMD_PONG"];
+    deps = ["tritype-base"];
+    competency = "UARTProtocol";
+    status = "done";
+}
+
+spec "trifpga-spi" {
+    tier = 2;
+    description = "SPI master: Mode 0 (CPOL=0, CPHA=0), 2-256x prescaler";
+    path = "specs/fpga/spi.t27";
+    exports = ["SPI_Master", "spi_set_prescaler", "spi_transfer", "spi_read_rx", "SPI_Master_Unit", "SPI_CS_ASSERT", "spi_sck_freq"];
+    deps = ["tritype-base"];
+    competency = "SPIProtocol";
+    status = "done";
+}
+
+spec "trifpga-bridge" {
+    tier = 2;
+    description = "FPGA communication bridge: UART+SPI+MAC packet routing";
+    path = "specs/fpga/bridge.t27";
+    exports = ["FPGA_Bridge", "bridge_rx_available", "bridge_tx_space", "bridge_parse_header", "bridge_handle_uart_data", "bridge_handle_spi_xfer", "bridge_handle_mac_op"];
+    deps = ["tritype-base", "trifpga-uart", "trifpga-spi", "trifpga-mac"];
+    competency = "BridgeLogic";
+    status = "done";
+}
+
+spec "trifpga-top" {
+    tier = 2;
+    description = "Top-level FPGA wrapper: combines MAC, UART, SPI, bridge for XC7A100T";
+    path = "specs/fpga/top_level.t27";
+    exports = ["Trinity_FPGA_Top", "top_reset", "top_heartbeat", "led_set", "led_get", "top_tick", "TARGET_DEVICE", "CLK_FREQ"];
+    deps = ["tritype-base", "trifpga-uart", "trifpga-spi", "trifpga-mac", "trifpga-bridge"];
+    competency = "TopLevelDesign";
+    status = "done";
+}
+
 spec "trisacred-physics" {
     tier = 2;
     description = "Sacred physics verification: TRINITY, G, ΩΛ, tpresent, γ";
@@ -130,6 +253,214 @@ spec "trisacred-physics" {
     competency = "SacredPhysics";
     status = "done";
     bench_suite = ["sacred_physics"];
+}
+
+spec "triphysics-chern-simons" {
+    tier = 2;
+    description = "SU(2)₃ Chern-Simons theory: d_τ = φ, k=3, TRINITY identity";
+    path = "specs/physics/su2_chern_simons.t27";
+    exports = ["ChernSimonsFormalism", "d_tau", "trinity_identity", "cs_level_theorem", "fibonacci_fusion", "modular_s_matrix", "jones_polynomial_connection"];
+    deps = ["trisacred-constants"];
+    competency = "ChernSimons";
+    status = "done";
+    bench_suite = ["chern_simons"];
+}
+
+// ============================================================================
+// Tier 2.5: CLARA AR Module (Argumentation & Reasoning)
+// ============================================================================
+
+spec "triar-logic" {
+    tier = 2;
+    description = "AR-001: Ternary logic for argumentation";
+    path = "specs/ar/ternary_logic.t27";
+    deps = ["tritype-base", "tritype-numeric"];
+    competency = "TernaryLogic";
+    status = "done";
+}
+
+spec "triar-proof-trace" {
+    tier = 2;
+    description = "AR-002: Proof trace recording and verification";
+    path = "specs/ar/proof_trace.t27";
+    deps = ["triar-logic", "triformat-gf16"];
+    competency = "ProofTrace";
+    status = "done";
+}
+
+spec "triar-datalog" {
+    tier = 2;
+    description = "AR-003: Datalog engine for rule evaluation";
+    path = "specs/ar/datalog_engine.t27";
+    deps = ["triar-logic", "triar-proof-trace", "triformat-gf16"];
+    competency = "DatalogEngine";
+    status = "done";
+}
+
+spec "triar-restraint" {
+    tier = 2;
+    description = "AR-004: Restraint constraints for argumentation";
+    path = "specs/ar/restraint.t27";
+    deps = ["triar-proof-trace", "triformat-gf16"];
+    competency = "Restraint";
+    status = "done";
+}
+
+spec "triar-explainability" {
+    tier = 2;
+    description = "AR-005: Explainability for proof traces";
+    path = "specs/ar/explainability.t27";
+    deps = ["triar-proof-trace", "triar-datalog", "triformat-gf16"];
+    competency = "Explainability";
+    status = "done";
+}
+
+spec "triar-asp" {
+    tier = 2;
+    description = "AR-006: Answer Set Programming solver";
+    path = "specs/ar/asp_solver.t27";
+    deps = ["triar-datalog", "triar-restraint", "triformat-gf16"];
+    competency = "ASPSolver";
+    status = "done";
+}
+
+spec "triar-composition" {
+    tier = 2;
+    description = "AR-007: Argument composition and synthesis";
+    path = "specs/ar/composition.t27";
+    deps = ["triar-explainability", "triar-asp", "triformat-gf16"];
+    competency = "Composition";
+    status = "done";
+}
+
+// SANDBOX P0 Specs (Session Timeout, Orphan Detection, etc.)
+spec "sandbox.health" {
+    tier = 2;
+    description = "Sandbox health polling: check session health, enforce timeout, detect orphans";
+    path = "specs/sandbox/health.t27";
+    exports = ["check_sandbox_health", "terminate_exceeded_sessions", "cleanup_orphaned_sessions"];
+    deps = ["tritype-base", "sandbox.modules", "sandbox.session_timeout"];
+    competency = "SandboxHealth";
+    status = "done";
+    agent = "S";
+}
+
+// ============================================================================
+// SANDBOX P0 Specs (Session Timeout, Orphan Detection, HTTPS Enforcement)
+// ============================================================================
+
+spec "sandbox.session_timeout" {
+    tier = 2;
+    description = "Session timeout enforcement: terminate sessions exceeding max duration";
+    path = "specs/sandbox/session_timeout.t27";
+    exports = ["Session", "SessionStatus", "Timestamp", "should_terminate_session", "TimeoutChecker"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "SessionTimeout";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.orphan_detection" {
+    tier = 2;
+    description = "Orphaned session detection: find sessions without Railway resources";
+    path = "specs/sandbox/orphan_detection.t27";
+    exports = ["Session", "SessionStatus", "Timestamp", "is_session_orphaned", "detect_orphaned_sessions", "OrphanDetector"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "OrphanDetection";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.https_enforce" {
+    tier = 2;
+    description = "HTTPS enforcement: redirect HTTP to HTTPS in production";
+    path = "specs/sandbox/https_enforce.t27";
+    exports = ["RequestContext", "should_redirect", "redirect_url", "is_local_hostname", "HttpsEnforcer"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "HttpsEnforcement";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.health" {
+    tier = 2;
+    description = "Sandbox health polling: check session health, enforce timeout, detect orphans";
+    path = "specs/sandbox/health.t27";
+    exports = ["check_sandbox_health", "terminate_exceeded_sessions", "cleanup_orphaned_sessions", "HealthPoller", "HealthCheckResult"];
+    deps = ["tritype-base", "sandbox.modules", "sandbox.session_timeout", "sandbox.orphan_detection"];
+    competency = "SandboxHealth";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.middleware" {
+    tier = 2;
+    description = "Sandbox middleware: HTTPS enforcement, CORS, rate limiting";
+    path = "specs/sandbox/middleware.t27";
+    exports = ["HttpsMiddleware", "CorsMiddleware", "RateLimitMiddleware"];
+    deps = ["sandbox.https_enforce", "sandbox.modules"];
+    competency = "Middleware";
+    status = "planned";
+    agent = "S";
+}
+
+// ============================================================================
+// SANDBOX P0 Specs (Session Timeout, Orphan Detection, HTTPS Enforcement)
+// ============================================================================
+
+spec "sandbox.session_timeout" {
+    tier = 2;
+    description = "Session timeout enforcement: terminate sessions exceeding max duration";
+    path = "specs/sandbox/session_timeout.t27";
+    exports = ["Session", "SessionStatus", "Timestamp", "should_terminate_session", "TimeoutChecker"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "SessionTimeout";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.orphan_detection" {
+    tier = 2;
+    description = "Orphaned session detection: find sessions without Railway resources";
+    path = "specs/sandbox/orphan_detection.t27";
+    exports = ["Session", "SessionStatus", "Timestamp", "is_session_orphaned", "detect_orphaned_sessions", "OrphanDetector"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "OrphanDetection";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.https_enforce" {
+    tier = 2;
+    description = "HTTPS enforcement: redirect HTTP to HTTPS in production";
+    path = "specs/sandbox/https_enforce.t27";
+    exports = ["RequestContext", "should_redirect", "redirect_url", "is_local_hostname", "HttpsEnforcer"];
+    deps = ["tritype-base", "sandbox.modules"];
+    competency = "HttpsEnforcement";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.health" {
+    tier = 2;
+    description = "Sandbox health polling: check session health, enforce timeout, detect orphans";
+    path = "specs/sandbox/health.t27";
+    exports = ["check_sandbox_health", "terminate_exceeded_sessions", "cleanup_orphaned_sessions", "HealthPoller", "HealthCheckResult"];
+    deps = ["tritype-base", "sandbox.modules", "sandbox.session_timeout", "sandbox.orphan_detection"];
+    competency = "SandboxHealth";
+    status = "done";
+    agent = "S";
+}
+
+spec "sandbox.middleware" {
+    tier = 2;
+    description = "Sandbox middleware: HTTPS enforcement, CORS, rate limiting";
+    path = "specs/sandbox/middleware.t27";
+    exports = ["HttpsMiddleware", "CorsMiddleware", "RateLimitMiddleware"];
+    deps = ["sandbox.https_enforce", "sandbox.modules"];
+    competency = "Middleware";
+    status = "planned";
+    agent = "S";
 }
 
 // ============================================================================
@@ -248,12 +579,112 @@ spec "triruntime" {
     kind = "runtime";
 }
 
+spec "triruntime-commands" {
+    tier = 7;
+    description = "Runtime CLI commands";
+    path = "compiler/runtime/commands.t27";
+    deps = ["triruntime"];
+    competency = "RuntimeCommands";
+    status = "done";
+    kind = "runtime";
+}
+
+spec "triruntime-validation" {
+    tier = 7;
+    description = "Runtime validation and constraint checking";
+    path = "compiler/runtime/validation.t27";
+    deps = ["triruntime"];
+    competency = "RuntimeValidation";
+    status = "done";
+    kind = "runtime";
+}
+
+spec "trilang-ast" {
+    tier = 5;
+    description = "Abstract syntax tree definition for T27";
+    path = "compiler/ast.t27";
+    deps = ["tritype-base"];
+    competency = "AST";
+    status = "done";
+    kind = "compiler";
+}
+
+spec "trilang-cli-gen" {
+    tier = 7;
+    description = "CLI gen command: code generation from specs";
+    path = "compiler/cli/gen.t27";
+    deps = ["trilang-parser"];
+    competency = "CLI";
+    status = "done";
+    kind = "compiler";
+}
+
+spec "trilang-cli-git" {
+    tier = 7;
+    description = "CLI git command: git operations for T27";
+    path = "compiler/cli/git.t27";
+    deps = [];
+    competency = "CLI";
+    status = "done";
+    kind = "compiler";
+}
+
+spec "trilang-cli-spec" {
+    tier = 7;
+    description = "CLI spec command: spec operations";
+    path = "compiler/cli/spec.t27";
+    deps = ["trilang-parser"];
+    competency = "CLI";
+    status = "done";
+    kind = "compiler";
+}
+
+spec "trilang-codegen-testgen" {
+    tier = 6;
+    description = "Test generation from specs";
+    path = "compiler/codegen/testgen.t27";
+    deps = ["trilang-parser"];
+    competency = "TestGen";
+    status = "done";
+    kind = "codegen";
+}
+
+spec "trilang-codegen-zig-runtime" {
+    tier = 6;
+    description = "Zig runtime code generation";
+    path = "compiler/codegen/zig/runtime.t27";
+    deps = ["trilang-codegen-zig"];
+    competency = "ZigCodegen";
+    status = "done";
+    kind = "codegen";
+}
+
+spec "trilang-skill-registry" {
+    tier = 7;
+    description = "Skill registry for compiler plugins";
+    path = "compiler/skill/registry.t27";
+    deps = [];
+    competency = "SkillRegistry";
+    status = "done";
+    kind = "compiler";
+}
+
+spec "trilang-spec-parser" {
+    tier = 5;
+    description = "Spec-level parser for T27 language";
+    path = "specs/compiler/parser.t27";
+    deps = ["trilang-lexer"];
+    competency = "Parsing";
+    status = "done";
+    kind = "compiler";
+}
+
 // ============================================================================
 // Metadata and Invariants
 // ============================================================================
 
 metadata {
-    version = "2.2";
+    version = "2.3";
     created = "2026-04-04";
     last_updated = "2026-04-04";
     phi_invariant = "phi^2 + phi^-2 = 3";
@@ -287,6 +718,44 @@ edges {
     // Constants → Sacred Physics
     trisacred-constants -> trisacred-physics;
 
+    // ═══════════════════════════════════════════════════════
+    // AR Module Edges (CLARA TA1 Deliverable)
+    // ═══════════════════════════════════════════════════════
+    // Base + numeric → Ternary Logic (AR-001)
+    tritype-base -> triar-logic;
+    tritype-numeric -> triar-logic;
+
+    // Ternary Logic + GF16 → Proof Trace (AR-002)
+    triar-logic -> triar-proof-trace;
+    triformat-gf16 -> triar-proof-trace;
+
+    // Ternary Logic + Proof Trace → Datalog (AR-003)
+    triar-logic -> triar-datalog;
+    triar-proof-trace -> triar-datalog;
+    triformat-gf16 -> triar-datalog;
+
+    // Proof Trace + GF16 → Restraint (AR-004)
+    triar-proof-trace -> triar-restraint;
+    triformat-gf16 -> triar-restraint;
+
+    // Proof Trace + Datalog → Explainability (AR-005)
+    triar-proof-trace -> triar-explainability;
+    triar-datalog -> triar-explainability;
+    triformat-gf16 -> triar-explainability;
+
+    // Datalog + Restraint → ASP Solver (AR-006)
+    triar-datalog -> triar-asp;
+    triar-restraint -> triar-asp;
+    triformat-gf16 -> triar-asp;
+
+    // Explainability + ASP → Composition (AR-007)
+    triar-explainability -> triar-composition;
+    triar-asp -> triar-composition;
+    triformat-gf16 -> triar-composition;
+
+    // ═══════════════════════════════════════════════════════
+    // Neural Network Edges
+    // ═══════════════════════════════════════════════════════
     // Base + numeric + constants + VSA → Attention
     tritype-base -> triatt-sacred;
     triformat-gf16 -> triatt-sacred;
@@ -331,12 +800,137 @@ edges {
 phi_critical_edges {
     trisacred-constants -> triatt-sacred;
     trisacred-constants -> trinhslm;
-    trisacred-physics -> triatt-sacredred;
+    trisacred-physics -> triatt-sacred;
     trisacred-physics -> trinhslm;
+    trisacred-constants -> triphysics-chern-simons;
+    triphysics-chern-simons -> trisacred-physics;
+    triar-logic -> triar-proof-trace;
+    triar-logic -> triar-datalog;
+    triar-proof-trace -> triar-explainability;
+    triar-proof-trace -> triar-restraint;
+    triar-datalog -> triar-asp;
+    triar-explainability -> triar-composition;
+    triar-asp -> triar-composition;
+    triformat-gf16 -> triar-proof-trace;
+    triformat-gf16 -> triar-datalog;
+    triformat-gf16 -> triar-restraint;
+    triformat-gf16 -> triar-explainability;
+    triformat-gf16 -> triar-asp;
+    triformat-gf16 -> triar-composition;
 }
 
 sacred_core_edges {
     trisacred-constants -> trisacred-physics;
     trisacred-physics -> triatt-sacred;
     trisacred-physics -> trinhslm;
+}
+
+// ============================================================================
+// PROJECT KEPLER->NEWTON: Physics Foundation Specs
+// Added: 2026-04-05 by Dmitrii Vasilev
+// ============================================================================
+
+spec "physics-su2-chern-simons" {
+    tier = 2;
+    description = "SU(2)_3 Chern-Simons TQFT: Fibonacci anyons, d_tau = phi";
+    path = "specs/physics/su2_chern_simons.t27";
+    exports = ["CS_LEVEL", "quantum_dimension_tau", "fibonacci_fusion_matrix", "modular_s_matrix", "jones_quantum_integer", "trinity_equals_cs_level"];
+    deps = ["trisacred-constants"];
+    competency = "ChernSimonsTQFT";
+    status = "done";
+    agent = "P";
+}
+
+spec "math-e8-lie-algebra" {
+    tier = 2;
+    description = "E8 Lie algebra: 240 roots, Cartan matrix, E9 eigenvalues with phi^2";
+    path = "specs/math/e8_lie_algebra.t27";
+    exports = ["E8_RANK", "E8_DIM", "E8_MARKS", "E8_EXPONENTS", "e8_cartan_matrix", "e9_eigenvalues", "trinity_from_e9_spectrum", "pf_eigenvector_normalized"];
+    deps = ["trisacred-constants"];
+    competency = "E8LieAlgebra";
+    status = "done";
+    agent = "P";
+}
+
+spec "math-zamolodchikov-e8" {
+    tier = 2;
+    description = "Zamolodchikov E8 mass spectrum: m2/m1 = phi from Lagrangian";
+    path = "specs/math/zamolodchikov_e8.t27";
+    exports = ["mass_ratio", "mass_spectrum", "golden_ratio_m2_m1", "decompose_n_as_mark"];
+    deps = ["trisacred-constants", "math-e8-lie-algebra"];
+    competency = "ZamolodchikovSpectrum";
+    status = "done";
+    agent = "P";
+}
+
+kepler_newton_edges {
+    trisacred-constants -> physics-su2-chern-simons;
+    trisacred-constants -> math-e8-lie-algebra;
+    math-e8-lie-algebra -> math-zamolodchikov-e8;
+    trisacred-constants -> math-zamolodchikov-e8;
+    // Cross-connection: CS and E8 share phi through cyclotomic Q(sqrt(5))
+    physics-su2-chern-simons -> math-zamolodchikov-e8;
+}
+
+// ============================================================================
+// TECHNOLOGY-TREE Phase Nodes (Ring 32–999)
+// Added: 2026-04-07 for Ring 035 (#130)
+// ============================================================================
+
+phase "PHASE-HARDEN" {
+    tier = 0;
+    description = "Phase 1: HARDEN (Rings 32–63) — docs, validation, CI, TASK.md";
+    ring_start = 32;
+    ring_end = 63;
+    status = "in_progress";
+    key_deliverables = ["NOW.md schema", "ISSUE-GATE", "E2E CI", "TECHNOLOGY-TREE"];
+}
+
+phase "PHASE-EXTEND" {
+    tier = 0;
+    description = "Phase 2: EXTEND (Rings 64–127) — RISC-V, WASM, quantum, crypto backends";
+    ring_start = 64;
+    ring_end = 127;
+    status = "planned";
+    key_deliverables = ["RISC-V backend", "WASM backend", "Quantum ops", "Crypto primitives"];
+}
+
+phase "PHASE-OPTIMIZE" {
+    tier = 0;
+    description = "Phase 3: OPTIMIZE (Rings 128–255) — performance, benchmarks, GF peer review";
+    ring_start = 128;
+    ring_end = 255;
+    status = "planned";
+    key_deliverables = ["Profiling", "PGO", "LTO", "GF arXiv papers"];
+}
+
+phase "PHASE-SCALE" {
+    tier = 0;
+    description = "Phase 4: SCALE (Rings 256–511) — multi-agent, DARPA CLARA, swarm";
+    ring_start = 256;
+    ring_end = 511;
+    status = "planned";
+    key_deliverables = ["Swarm orchestration", "CLARA TA1/TA2", "Production hardening"];
+}
+
+phase "PHASE-SUMMIT" {
+    tier = 0;
+    description = "Phase 5: SUMMIT (Rings 512–999) — publications, ecosystem, production";
+    ring_start = 512;
+    ring_end = 999;
+    status = "planned";
+    key_deliverables = ["arXiv papers", "Conference submissions", "Open source release"];
+}
+
+phase_edges {
+    // Phase progression: each phase unlocks the next
+    PHASE-HARDEN -> PHASE-EXTEND;
+    PHASE-EXTEND -> PHASE-OPTIMIZE;
+    PHASE-OPTIMIZE -> PHASE-SCALE;
+    PHASE-SCALE -> PHASE-SUMMIT;
+
+    // Hard critical dependencies between phases
+    PHASE-HARDEN -> PHASE-OPTIMIZE;  // Harden foundations enable optimization
+    PHASE-EXTEND -> PHASE-SCALE;      // Extended backends enable scaling
+    PHASE-OPTIMIZE -> PHASE-SUMMIT;   // Optimized codebase ready for publication
 }

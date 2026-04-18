@@ -1,0 +1,581 @@
+{
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T19:00:00Z",
+  "invariants": [
+    {
+      "condition": "NUM_LAYERS == 6",
+      "name": "hslm_num_layers_constant"
+    },
+    {
+      "condition": "NUM_HEADS == 3",
+      "name": "hslm_num_heads_constant"
+    },
+    {
+      "condition": "HEAD_DIM == 81",
+      "name": "hslm_head_dim_constant"
+    },
+    {
+      "condition": "EMBED_DIM == 243",
+      "name": "hslm_embed_dim_constant"
+    },
+    {
+      "condition": "FF_DIM == 972",
+      "name": "hslm_ff_dim_constant"
+    },
+    {
+      "condition": "CONTEXT_LEN == 81",
+      "name": "hslm_context_len_constant"
+    },
+    {
+      "condition": "VSA_DIM == 1024",
+      "name": "hslm_vsa_dim_constant"
+    },
+    {
+      "condition": "EMBED_DIM == NUM_HEADS * HEAD_DIM",
+      "name": "hslm_embedding_dimensional_consistency"
+    },
+    {
+      "condition": "FF_DIM == 4 * EMBED_DIM",
+      "name": "hslm_ffn_expansion_ratio"
+    },
+    {
+      "condition": "w_q.len == EMBED_DIM * EMBED_DIM && w_k.len == EMBED_DIM * EMBED_DIM && w_v.len == EMBED_DIM * EMBED_DIM && w_o.len == EMBED_DIM * EMBED_DIM",
+      "name": "hslm_layer_weights_size"
+    },
+    {
+      "condition": "w1.len == EMBED_DIM * FF_DIM && w2.len == FF_DIM * EMBED_DIM",
+      "name": "hslm_ffn_weights_size"
+    },
+    {
+      "condition": "norm1_gamma.len == EMBED_DIM && norm2_gamma.len == EMBED_DIM",
+      "name": "hslm_rms_norm_gamma_size"
+    },
+    {
+      "condition": "ternary_matmul output length == out_dim",
+      "name": "hslm_ternary_matmul_output_dim"
+    },
+    {
+      "condition": "gelu(0) <= gelu(1) <= gelu(2) <= gelu(3)",
+      "name": "hslm_gelu_monotonic_positive"
+    },
+    {
+      "condition": "abs(gelu'(x+eps) - gelu'(x)) < threshold for small eps",
+      "name": "hslm_gelu_smooth"
+    },
+    {
+      "condition": "get_hslm_mode() >= 1 && get_hslm_mode() <= 3",
+      "name": "hslm_mode_in_valid_range"
+    }
+  ],
+  "module": "HSLM",
+  "ring": 29,
+  "schema_version": 2,
+  "seal": "sha256:9059f997327a6bd0c833501de9b4dee0e3a88fa0333040363b1755001ed12f9a",
+  "spec_path": "specs/nn/hslm.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "nn_hslm Vectors",
+  "vectors": [
+    {
+      "description": "NUM_LAYERS must equal 6",
+      "expected": {
+        "NUM_LAYERS": 6
+      },
+      "input": {},
+      "name": "hslm_num_layers_is_six",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "NUM_HEADS must equal 3 (TRINITY)",
+      "expected": {
+        "NUM_HEADS": 3
+      },
+      "input": {},
+      "name": "hslm_num_heads_is_trinity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "HEAD_DIM must equal 81 = 3^4",
+      "expected": {
+        "HEAD_DIM": 81
+      },
+      "input": {},
+      "name": "hslm_head_dim_is_three_pow_four",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "EMBED_DIM = NUM_HEADS * HEAD_DIM = 243",
+      "expected": {
+        "EMBED_DIM": 243,
+        "computed": 243
+      },
+      "input": {},
+      "name": "hslm_embed_dim_is_heads_times_head_dim",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "FF_DIM = 4 * EMBED_DIM = 972",
+      "expected": {
+        "FF_DIM": 972,
+        "computed": 972
+      },
+      "input": {},
+      "name": "hslm_ff_dim_is_four_times_embed_dim",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "CONTEXT_LEN must equal 81",
+      "expected": {
+        "CONTEXT_LEN": 81
+      },
+      "input": {},
+      "name": "hslm_context_len_is_eighty_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "VSA_DIM must equal 1024",
+      "expected": {
+        "VSA_DIM": 1024
+      },
+      "input": {},
+      "name": "hslm_vsa_dim_is_1024",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "PHASE_NORM, PHASE_ATTN, PHASE_FFN, PHASE_RESIDUAL are distinct",
+      "expected": {
+        "PHASE_ATTN": 1,
+        "PHASE_FFN": 2,
+        "PHASE_NORM": 0,
+        "PHASE_RESIDUAL": 3,
+        "all_unique": true
+      },
+      "input": {},
+      "name": "hslm_phase_constants_are_unique",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "ACT_RELU, ACT_GELU, ACT_SWISH, ACT_TERNARY are distinct",
+      "expected": {
+        "ACT_GELU": 1,
+        "ACT_RELU": 0,
+        "ACT_SWISH": 2,
+        "ACT_TERNARY": 3,
+        "all_unique": true
+      },
+      "input": {},
+      "name": "hslm_activation_constants_are_unique",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "PHASE_FORWARD, PHASE_BACKWARD, PHASE_UPDATE are distinct",
+      "expected": {
+        "PHASE_BACKWARD": 1,
+        "PHASE_FORWARD": 0,
+        "PHASE_UPDATE": 2,
+        "all_unique": true
+      },
+      "input": {},
+      "name": "hslm_training_phase_constants_are_unique",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "hslm_phase(PHASE_FORWARD) sets mode to 1",
+      "expected": {
+        "mode": 1
+      },
+      "input": {
+        "phase": 0
+      },
+      "name": "hslm_phase_forward_sets_mode_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "hslm_phase(PHASE_BACKWARD) sets mode to 2",
+      "expected": {
+        "mode": 2
+      },
+      "input": {
+        "phase": 1
+      },
+      "name": "hslm_phase_backward_sets_mode_two",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "hslm_phase(PHASE_UPDATE) sets mode to 3",
+      "expected": {
+        "mode": 3
+      },
+      "input": {
+        "phase": 2
+      },
+      "name": "hslm_phase_update_sets_mode_three",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "RMSNorm preserves input dimension",
+      "expected": {
+        "output_length": 5
+      },
+      "input": {
+        "gamma": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "x": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ]
+      },
+      "name": "hslm_rms_norm_preserves_shape",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "RMSNorm of zero input returns zero (with eps)",
+      "expected": {
+        "output": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "input": {
+        "gamma": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "x": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "name": "hslm_rms_norm_zero_input_returns_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Identity ternary matrix preserves input",
+      "expected": {
+        "output": [
+          1.0,
+          2.0,
+          3.0
+        ]
+      },
+      "input": {
+        "in_dim": 3,
+        "input": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "out_dim": 3,
+        "weights_trit": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "name": "hslm_ternary_matmul_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "All-negative ternary matrix negates and sums",
+      "expected": {
+        "output": [
+          -6.0,
+          -6.0,
+          -6.0
+        ]
+      },
+      "input": {
+        "in_dim": 3,
+        "input": [
+          1.0,
+          2.0,
+          3.0
+        ],
+        "out_dim": 3,
+        "weights_trit": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ]
+      },
+      "name": "hslm_ternary_matmul_negation",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "GELU preserves input dimension",
+      "expected": {
+        "output_length": 4
+      },
+      "input": {
+        "x": [
+          1.0,
+          2.0,
+          -1.0,
+          0.0
+        ]
+      },
+      "name": "hslm_gelu_activation_preserves_shape",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "GELU of positive input is positive",
+      "expected": {
+        "sign": "positive"
+      },
+      "input": {
+        "x": [
+          1.0
+        ]
+      },
+      "name": "hslm_gelu_activation_positive_is_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "GELU(0) ~ 0",
+      "expected": {
+        "tolerance_abs": 0.0001,
+        "value": 0.0
+      },
+      "input": {
+        "x": [
+          0.0
+        ]
+      },
+      "name": "hslm_gelu_activation_zero_is_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "GELU(-1) is negative",
+      "expected": {
+        "sign": "negative"
+      },
+      "input": {
+        "x": [
+          -1.0
+        ]
+      },
+      "name": "hslm_gelu_activation_negative_is_negative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "FFN intermediate buffer has FF_DIM elements",
+      "expected": {
+        "ffn_intermediate_length": 972
+      },
+      "input": {},
+      "name": "hslm_ffn_forward_intermediate_dimension",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "zero_weight_gradients creates structure with NUM_LAYERS layers",
+      "expected": {
+        "num_layers": 6
+      },
+      "input": {},
+      "name": "hslm_zero_weight_gradients_initializes_all",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_num_layers_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_num_heads_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_head_dim_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_embed_dim_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_ff_dim_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_context_len_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_vsa_dim_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_embedding_dimensional_consistency",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_ffn_expansion_ratio",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_layer_weights_size",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_ffn_weights_size",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_rms_norm_gamma_size",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_ternary_matmul_output_dim",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_gelu_monotonic_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_gelu_smooth",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hslm_mode_in_valid_range",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

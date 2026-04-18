@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:8656eb086a3ff18ed93b7fc804662c8820b2776e0cb1f59c80b2b7c2e8acf5a5",
+  "gen_hash_rust": "sha256:9d445415a8e660f5425c4065e3ebd956d2d3a029a03398e6133ad264070dd357",
+  "gen_hash_verilog": "sha256:e4cc052ddaecd4b144be682b217bf41991906ac9a5182e675f5dac3b7df8bde0",
+  "gen_hash_zig": "sha256:f5ee7104c354a16c9b79f3d477fa3eb9a01785d3d4af0da1846763b2ca2bc206",
+  "module": "Constants",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:240bf4ced1259db2a1ed7a2944ae452bbae611d5de017c65f85012502183f44d",
+  "spec_path": "specs/math/constants.t27"
+}

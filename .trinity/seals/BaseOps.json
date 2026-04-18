@@ -1,0 +1,21 @@
+{
+  "module": "BaseOps",
+  "ring": 25,
+  "spec_path": "specs/base/ops.t27",
+  "spec_hash": "sha256:8d209238bf26663c1d154a3faa07ee0a66cdd17159350dd03948cf6b25dff82f",
+  "gen_hash_zig": "sha256:a86b0e8ee7b5e0cee25011a1cb04708d5cd6f5ab0003334863f47ea64657f4ed",
+  "gen_hash_c": "sha256:1f40effd10b19cbe3fb62d3bdc6f40f4a73b05ea3766ff8ae3f3b4a29f3992c8",
+  "gen_hash_verilog": "sha256:1f24ac18075b2e30766ba8b7e5484e748ba46e348b38ac9216fe7fa87ed97593",
+  "conformance_hash": "sha256:17080caa082ebe4e3ef135cb73b47ac65882654eb29e702ede681241f035066a",
+  "tests": {
+    "status": "passed",
+    "count": 25,
+    "invariants": 15,
+    "benchmarks": 4
+  },
+  "verdict": {
+    "toxicity": "clean",
+    "score": 0.0
+  },
+  "sealed_at": "2026-04-04T19:00:00Z"
+}

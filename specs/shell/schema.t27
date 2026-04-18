@@ -1,0 +1,405 @@
+// specs/shell/schema.t27
+// Shell Types Specification
+// 01 + 1/23 = 3 | TRINITY
+
+module Shell {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071
+    // Shell Types
+    // 72737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
+
+    // ShellType represents the type of shell
+    enum ShellType {
+        Bash = 0,
+        Zsh = 1,
+        Fish = 2,
+        Dash = 3,
+        Sh = 4,
+        Pwsh = 5,
+        PowerShell = 6,
+        Cmd = 7,
+        Unknown = 8,
+    }
+
+    // Platform represents the operating system platform
+    enum Platform {
+        Darwin = 0,
+        Linux = 1,
+        Windows = 2,
+    }
+
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207
+    // Process Types
+    // 208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
+
+    // ProcessStatus represents the status of a process
+    enum ProcessStatus {
+        Running = 0,
+        Exited = 1,
+        Signaled = 2,
+        Stopped = 3,
+    }
+
+    // ProcessInfo represents information about a process
+    struct ProcessInfo {
+        pid: u32,               // Process ID
+        command: str,           // Command that started the process
+        status: ProcessStatus,   // Current status
+        exitCode: i32?,         // Exit code if exited
+        signal: u32?,           // Signal that terminated process
+        startTime: u64,         // When the process started
+        endTime: u64?,          // When the process ended
+    }
+
+    // ProcessOptions represents options for spawning a process
+    struct ProcessOptions {
+        cwd: str?,              // Working directory
+        env: [str: str]?,       // Environment variables
+        timeout: u64?,          // Timeout in milliseconds
+        stdin: str?,            // Input to send to stdin
+        captureOutput: bool,    // Whether to capture stdout/stderr
+        abort: bool?,           // Whether abort signal should terminate
+    }
+
+    // ProcessResult represents the result of a process
+    struct ProcessResult {
+        exitCode: i32,          // Exit code
+        stdout: str,            // Standard output
+        stderr: str,            // Standard error
+        success: bool,          // Whether the process succeeded
+        timedOut: bool,         // Whether the process timed out
+        duration: u64,          // Duration in milliseconds
+    }
+
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343
+    // Shell Properties
+    // 344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
+
+    // ShellProperties represents properties of a shell
+    struct ShellProperties {
+        path: str,              // Full path to the shell
+        name: str,              // Shell name
+        shellType: ShellType,   // Type of shell
+        isLogin: bool,          // Whether it's a login shell
+        isPosix: bool,          // Whether it's POSIX compliant
+        isBlacklisted: bool,    // Whether it's blacklisted
+    }
+
+    // 412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479
+    // Environment Types
+    // 480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547
+
+    // EnvVar represents an environment variable
+    struct EnvVar {
+        name: str,              // Variable name
+        value: str,             // Variable value
+    }
+
+    // 548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615
+    // Constants
+    // 616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683
+
+    const SIGKILL_TIMEOUT_MS: u32 = 200;
+    const SHELL_ENV_VAR: str = "SHELL";
+
+    // 684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751
+    // Error Types
+    // 752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819
+
+    // ShellError represents errors in shell operations
+    enum ShellError {
+        NotFound = 0,
+        PermissionDenied = 1,
+        Timeout = 2,
+        Signal = 3,
+        InvalidCommand = 4,
+        ProcessError = 5,
+        EnvironmentError = 6,
+    }
+
+    // 820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887
+    // Helper Functions
+    // 888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955
+
+    // is_posix checks if a shell type is POSIX compliant
+    fn is_posix(shellType: ShellType) -> bool {
+        return shellType == ShellType::Bash
+            || shellType == ShellType::Zsh
+            || shellType == ShellType::Dash
+            || shellType == ShellType::Sh;
+    }
+
+    // is_login checks if a shell type is typically a login shell
+    fn is_login(shellType: ShellType) -> bool {
+        return shellType == ShellType::Bash
+            || shellType == ShellType::Zsh
+            || shellType == ShellType::Fish
+            || shellType == ShellType::Dash
+            || shellType == ShellType::Sh;
+    }
+
+    // is_blacklisted checks if a shell is blacklisted
+    fn is_blacklisted(shellType: ShellType) -> bool {
+        return shellType == ShellType::Fish || shellType == ShellType::Nu;
+    }
+
+    // is_success checks if a process result indicates success
+    fn is_success(result: ProcessResult) -> bool {
+        return result.exitCode == 0 && !result.timedOut;
+    }
+
+    // 956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999100010011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023
+    // Tests
+    // 10241025102610271028102910301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082108310841085108610871088108910901091
+
+    test "shell_type_values" {
+        assert(ShellType::Bash as u32 == 0);
+        assert(ShellType::Zsh as u32 == 1);
+        assert(ShellType::Fish as u32 == 2);
+        assert(ShellType::Dash as u32 == 3);
+        assert(ShellType::Sh as u32 == 4);
+        assert(ShellType::Pwsh as u32 == 5);
+        assert(ShellType::PowerShell as u32 == 6);
+        assert(ShellType::Cmd as u32 == 7);
+        assert(ShellType::Unknown as u32 == 8);
+    }
+
+    test "platform_values" {
+        assert(Platform::Darwin as u32 == 0);
+        assert(Platform::Linux as u32 == 1);
+        assert(Platform::Windows as u32 == 2);
+    }
+
+    test "process_status_values" {
+        assert(ProcessStatus::Running as u32 == 0);
+        assert(ProcessStatus::Exited as u32 == 1);
+        assert(ProcessStatus::Signaled as u32 == 2);
+        assert(ProcessStatus::Stopped as u32 == 3);
+    }
+
+    test "shell_error_values" {
+        assert(ShellError::NotFound as u32 == 0);
+        assert(ShellError::PermissionDenied as u32 == 1);
+        assert(ShellError::Timeout as u32 == 2);
+        assert(ShellError::Signal as u32 == 3);
+        assert(ShellError::InvalidCommand as u32 == 4);
+        assert(ShellError::ProcessError as u32 == 5);
+        assert(ShellError::EnvironmentError as u32 == 6);
+    }
+
+    test "process_info_creation" {
+        var info = ProcessInfo {
+            pid = 12345,
+            command = "ls -la",
+            status = ProcessStatus::Running,
+            exitCode = null,
+            signal = null,
+            startTime = 1234567890,
+            endTime = null,
+        };
+        assert(info.pid == 12345);
+        assert(info.command == "ls -la");
+        assert(info.status == ProcessStatus::Running);
+    }
+
+    test "process_info_exited" {
+        var info = ProcessInfo {
+            pid = 12345,
+            command = "ls -la",
+            status = ProcessStatus::Exited,
+            exitCode = 0,
+            signal = null,
+            startTime = 1234567890,
+            endTime = 1234567900,
+        };
+        assert(info.status == ProcessStatus::Exited);
+        assert(info.exitCode == 0);
+        assert(info.endTime == 1234567900);
+    }
+
+    test "process_options_default" {
+        var opts = ProcessOptions {
+            cwd = null,
+            env = null,
+            timeout = null,
+            stdin = null,
+            captureOutput = true,
+            abort = null,
+        };
+        assert(opts.captureOutput);
+        assert(opts.cwd == null);
+    }
+
+    test "process_options_full" {
+        var env: [str: str] = { "PATH": "/usr/bin", "HOME": "/home/user" };
+        var opts = ProcessOptions {
+            cwd = "/tmp",
+            env = env,
+            timeout = 5000,
+            stdin = "input",
+            captureOutput = false,
+            abort = true,
+        };
+        assert(opts.cwd == "/tmp");
+        assert(opts.timeout == 5000);
+        assert(opts.stdin == "input");
+    }
+
+    test "process_result_success" {
+        var result = ProcessResult {
+            exitCode = 0,
+            stdout = "output",
+            stderr = "",
+            success = true,
+            timedOut = false,
+            duration = 100,
+        };
+        assert(result.success);
+        assert(!result.timedOut);
+        assert(result.exitCode == 0);
+    }
+
+    test "process_result_failure" {
+        var result = ProcessResult {
+            exitCode = 1,
+            stdout = "",
+            stderr = "error",
+            success = false,
+            timedOut = false,
+            duration = 50,
+        };
+        assert(!result.success);
+        assert(result.exitCode == 1);
+    }
+
+    test "process_result_timeout" {
+        var result = ProcessResult {
+            exitCode = 124,
+            stdout = "",
+            stderr = "timeout",
+            success = false,
+            timedOut = true,
+            duration = 5000,
+        };
+        assert(result.timedOut);
+        assert(result.exitCode == 124);
+    }
+
+    test "shell_properties_bash" {
+        var props = ShellProperties {
+            path = "/bin/bash",
+            name = "bash",
+            shellType = ShellType::Bash,
+            isLogin = true,
+            isPosix = true,
+            isBlacklisted = false,
+        };
+        assert(props.shellType == ShellType::Bash);
+        assert(props.isPosix);
+        assert(props.isLogin);
+        assert(!props.isBlacklisted);
+    }
+
+    test "shell_properties_fish" {
+        var props = ShellProperties {
+            path = "/usr/local/bin/fish",
+            name = "fish",
+            shellType = ShellType::Fish,
+            isLogin = true,
+            isPosix = false,
+            isBlacklisted = true,
+        };
+        assert(props.shellType == ShellType::Fish);
+        assert(!props.isPosix);
+        assert(props.isBlacklisted);
+    }
+
+    test "env_var_creation" {
+        var envVar = EnvVar {
+            name = "PATH",
+            value = "/usr/bin:/bin",
+        };
+        assert(envVar.name == "PATH");
+        assert(envVar.value == "/usr/bin:/bin");
+    }
+
+    test "constants_values" {
+        assert(SIGKILL_TIMEOUT_MS == 200);
+        assert(SHELL_ENV_VAR == "SHELL");
+    }
+
+    test "is_posix_true" {
+        assert(is_posix(ShellType::Bash));
+        assert(is_posix(ShellType::Zsh));
+        assert(is_posix(ShellType::Dash));
+        assert(is_posix(ShellType::Sh));
+    }
+
+    test "is_posix_false" {
+        assert(!is_posix(ShellType::Fish));
+        assert(!is_posix(ShellType::Pwsh));
+        assert(!is_posix(ShellType::PowerShell));
+        assert(!is_posix(ShellType::Cmd));
+    }
+
+    test "is_login_true" {
+        assert(is_login(ShellType::Bash));
+        assert(is_login(ShellType::Zsh));
+        assert(is_login(ShellType::Fish));
+        assert(is_login(ShellType::Dash));
+        assert(is_login(ShellType::Sh));
+    }
+
+    test "is_login_false" {
+        assert(!is_login(ShellType::Pwsh));
+        assert(!is_login(ShellType::PowerShell));
+        assert(!is_login(ShellType::Cmd));
+    }
+
+    test "is_blacklisted_true" {
+        assert(is_blacklisted(ShellType::Fish));
+    }
+
+    test "is_blacklisted_false" {
+        assert(!is_blacklisted(ShellType::Bash));
+        assert(!is_blacklisted(ShellType::Zsh));
+        assert(!is_blacklisted(ShellType::Sh));
+    }
+
+    test "is_success_true" {
+        var result = ProcessResult {
+            exitCode = 0,
+            stdout = "",
+            stderr = "",
+            success = true,
+            timedOut = false,
+            duration = 10,
+        };
+        assert(is_success(result));
+    }
+
+    test "is_success_false_exit_code" {
+        var result = ProcessResult {
+            exitCode = 1,
+            stdout = "",
+            stderr = "",
+            success = false,
+            timedOut = false,
+            duration = 10,
+        };
+        assert(!is_success(result));
+    }
+
+    test "is_success_false_timeout" {
+        var result = ProcessResult {
+            exitCode = 0,
+            stdout = "",
+            stderr = "",
+            success = false,
+            timedOut = true,
+            duration = 5000,
+        };
+        assert(!is_success(result));
+    }
+}

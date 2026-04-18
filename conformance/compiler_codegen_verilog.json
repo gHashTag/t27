@@ -1,0 +1,249 @@
+{
+  "benchmarks": [
+    {
+      "name": "verilog_module_generation_latency",
+      "target": "< 10ms"
+    },
+    {
+      "name": "width_calculation_latency",
+      "target": "< 1us"
+    },
+    {
+      "name": "verilog_testbench_generation_latency",
+      "target": "< 15ms"
+    }
+  ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:10:00Z",
+  "invariants": [
+    {
+      "assert": "All width calculations return values > 0",
+      "name": "width_calculation_positive"
+    },
+    {
+      "assert": "Default widths are 1, 2, 4, 8, 16, or 32",
+      "name": "default_widths_power_of_two_or_one"
+    },
+    {
+      "assert": "VerilogCodegenOptions provides sensible defaults",
+      "name": "verilog_options_has_defaults"
+    },
+    {
+      "assert": "Generated module header ends with semicolon",
+      "name": "module_header_ends_with_semicolon"
+    },
+    {
+      "assert": "Trit type maps to 2-bit wire width",
+      "name": "trit_width_is_two_bits"
+    },
+    {
+      "assert": "Bool type maps to 1-bit wire width",
+      "name": "bool_width_is_one_bit"
+    }
+  ],
+  "module": "VerilogCodeGen",
+  "ring": 37,
+  "schema_version": 2,
+  "seal": "sha256:94ffbf974d669c22f5b6f6527b826cd24a4829316d444aaa45e85798d6b1dadb",
+  "spec_path": "compiler/codegen/verilog/codegen.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_codegen_verilog Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected_type": "string",
+          "inputs": {
+            "field": "module_prefix"
+          }
+        },
+        {
+          "expected_type": "u8",
+          "inputs": {
+            "field": "default_width"
+          }
+        },
+        {
+          "expected_type": "bool",
+          "inputs": {
+            "field": "use_system_verilog"
+          }
+        }
+      ],
+      "function": "VerilogCodegenOptions",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_width": 8,
+          "inputs": {
+            "t27_type": "i8"
+          }
+        },
+        {
+          "expected_width": 8,
+          "inputs": {
+            "t27_type": "u8"
+          }
+        },
+        {
+          "expected_width": 16,
+          "inputs": {
+            "t27_type": "i16"
+          }
+        },
+        {
+          "expected_width": 16,
+          "inputs": {
+            "t27_type": "u16"
+          }
+        },
+        {
+          "expected_width": 32,
+          "inputs": {
+            "t27_type": "i32"
+          }
+        },
+        {
+          "expected_width": 1,
+          "inputs": {
+            "t27_type": "bool"
+          }
+        },
+        {
+          "expected_width": 2,
+          "inputs": {
+            "t27_type": "trit"
+          }
+        }
+      ],
+      "function": "width_calculation",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_default": 8,
+          "inputs": {
+            "signal": "data_bus"
+          }
+        },
+        {
+          "expected_default": 16,
+          "inputs": {
+            "signal": "address_bus"
+          }
+        },
+        {
+          "expected_default": 1,
+          "inputs": {
+            "signal": "control"
+          }
+        },
+        {
+          "expected_default": 8,
+          "inputs": {
+            "signal": "register"
+          }
+        }
+      ],
+      "function": "default_widths",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_contains": "module alu",
+          "inputs": {
+            "name": "alu",
+            "ports": [
+              "a",
+              "b",
+              "out"
+            ]
+          }
+        },
+        {
+          "expected_contains": "module reg_file",
+          "inputs": {
+            "name": "reg_file",
+            "ports": []
+          }
+        }
+      ],
+      "function": "generate_module_header",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_width_calculation_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_default_widths_power_of_two_or_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_verilog_options_has_defaults",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_module_header_ends_with_semicolon",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_trit_width_is_two_bits",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_bool_width_is_one_bit",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

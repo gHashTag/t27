@@ -1,108 +1,154 @@
-# CLAUDE.md
+# CLAUDE.md — Instructions for Claude Code and autonomous agents (t27)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Use this file **together with** `[AGENTS.md](AGENTS.md)`. Repo-specific law always overrides generic tooling defaults.
 
-## Project Overview
+---
 
-`t27` is the canonical specification repository for the Trinity S³AI Framework. This is a **spec-first** project where `.tri` and `.t27` files are the sole source of truth for all mathematical, numerical, and formal logic. Zig code is a generated backend, not a language to author in.
+## Autonomous Execution Loop (AEL v2.0)
 
-**Core Principle: De-Zigfication** — AI agents must see `.tri` context and write `.tri` files, never Zig directly (see `architecture/CANON_DE_ZIGFICATION.md` and `architecture/ADR-001-de-zigfication.md`).
-
-## Agent Protocol
-
-When working in this repository, **always**:
-
-1. **Check source**: Is there an existing `.tri` spec for this logic?
-2. **Use existing spec**: If yes, edit the `.tri` file (not create new code)
-3. **Create new spec**: If no spec exists, create `.tri` first, then consider generation
-4. **Never write Zig directly**: For new math/formal logic, always start with `.tri`
-
-**Zig is ONLY permitted for**:
-- Bootstrap/runtime layer
-- Generated code from `.tri` specifications
-- Legacy compatibility shim in `backend/zig/legacy/`
-- Hardware bridge (FPGA, bindings)
-
-## T27 Language Basics
-
-`.t27` files use a specification syntax similar to Zig but focused on formal definitions:
-
-```t27
-// Types
-pub const Trit: type = enum(u2) {
-    neg = 0b10,  // -1
-    zero = 0b00, // 0
-    pos = 0b01,  // +1
-};
-
-// Functions
-pub fn tritAdd(a: Trit, b: Trit, carry: *Trit) Trit {
-    const sum = @as(u2, @intFromEnum(Trit, a)) +% @as(u2, @intFromEnum(Trit, b));
-    carry.* = @as(Trit, @intFromEnum(Trit, sum > 1));
-    return @as(Trit, @intFromEnum(Trit, sum));
-}
-
-// Imports
-using base: @import("types.zig");
-```
-
-## Architecture Structure
-
-The codebase is organized by **tiers** (0-4) with clear dependency boundaries. `architecture/graph.tri` is the single source of truth for module relationships.
-
-### Tiers
-
-- **Tier 0**: Base types (`tritype-base`) — `Trit`, `PackedTrit`, `TernaryWord`
-- **Tier 1**: Core arithmetic (`tritype-numeric`), numeric formats (`triformat-gf16`, `triformat-tf3`), sacred math (`trisacred-constants`, `trisacred-gamma`)
-- **Tier 2**: VSA primitives (`trivsa-ops`), ISA (`triisa-registers`), attention (`triatt-sacred`), HSLM (`trinhslm`), FPGA MAC (`trifpga-mac`)
-- **Tier 3**: Orchestrator (`triquenn`)
-- **Tier 4**: Language tooling (`trilang-cli`)
-
-### Directory Layout
+When operating as the Trinity Agent (Queen), follow this 6-phase loop:
 
 ```
-t27/
-├── specs/           # All .tri/.t27 specifications (source of truth)
-│   └── base/       # Tier 0 base types and ops
-├── architecture/     # Design documents and module graph
-│   ├── graph.tri   # Module dependency graph (canonical)
-│   └── ADR-*.md    # Architecture decision records
-└── backend/        # Generated code (Zig, Verilog, C) — DO NOT EDIT
+┌─────────────────────────────────────────────────────────────┐
+│  OBSERVE → PLAN → DELEGATE → VERIFY → SYNTHESIZE → LEARN   │
+│         ↓       ↓        ↓        ↓         ↓         ↓    │
+│  [E]     [T]     [C/V]    [V]      [L]      [L]           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Module Dependencies
+### Phase 1: OBSERVE
+- Call Experience Agent (E) for context
+- Read `.trinity/current-issue.md` for issue details
+- Check ring and phase state from branch name
+- Gather relevant files and context
 
-When creating or modifying specs, check `architecture/graph.tri` for the `deps` array:
-- Lower tier specs must not depend on higher tiers
-- Modules only declare dependencies they actually use
-- Circular dependencies are prohibited
+### Phase 2: PLAN
+- Break down task into subtasks
+- Identify required skills: `/phi-loop`, `/tri-pipeline`, `/experience-save`
+- Determine which agents to delegate to
+- Estimate complexity and dependencies
 
-## Core Types
+### Phase 3: DELEGATE
+- Delegate implementation to Creator Agent (C)
+- Delegate validation to Verifier Agent (V)
+- Coordinate parallel execution where possible
+- Monitor agent progress
 
-- **Trit**: Ternary digit with values `-1`, `0`, `+1`
-- **PackedTrit**: 2 trits per byte (compact representation)
-- **TernaryWord**: 24 trits (3 bytes, fits in `u32`)
+### Phase 4: VERIFY
+- Review agent outputs
+- Run conformance tests via `/tri-pipeline`
+- Check L1-L7 law compliance
+- Ensure quality standards
 
-## Migration Status
+### Phase 5: SYNTHESIZE
+- Combine agent results
+- Resolve conflicts
+- Create cohesive solution
+- Prepare for integration
 
-- [x] `t27` canonical structure defined
-- [x] `trinity/trinity-libs/tri-core` is source of truth
-- [x] Migration of `trinity/trinity-libs/tri-math` to `.tri` specs (specs/math/*)
-- [x] Migration of `trinity/trinity-libs/tri-formats` to `.tri` specs (specs/numeric/*)
-- [x] All 20+ .t27 specs in canonical format (module/fn/test/invariant/bench)
-- [x] Compiler stack standardized (parser, codegen zig/verilog/c, testgen, runtime, CLI)
-- [x] Architecture files synchronized (graph.tri, graph_v2.json, ADR-001, CANON_DE_ZIGFICATION)
-- [x] All TODOs expanded with implementation guidance
-- [ ] `tri dev scan` enforces `.tri` context (pending bootstrap)
-- [ ] All agents trained to check `.tri` context before writing code
+### Phase 6: LEARN
+- Call Learner Agent (L) for pattern extraction
+- Update `.trinity/experience.md` via `/experience-save`
+- Save ring-specific learnings
+- Improve future execution
 
-**PHI LOOP Skills 001-054 Completed:**
-- 54 skills registered with hash seals, committed and pushed
-- All spec files standardized to canonical .t27 format
-- Bootstrap blocker: tri CLI not yet built (gen/test/verdict pending)
+---
 
-## References
+## 1. Mandatory read order for this repository
 
-- Tri Language (B005): https://doi.org/10.5281/zenodo.19227879
-- Trinity repo: https://github.com/gHashTag/trinity
-- Seed repo: https://github.com/gHashTag/zig-golden-float
+1. `[AGENTS.md](AGENTS.md)` — entry point and constitutional stack.
+2. `[SOUL.md](SOUL.md)` — canonical law (TDD, language, validation).
+3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**, **DOCS-TREE**.
+4. `[NOW.md](NOW.md)` and `[docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
+5. Nearest `[OWNERS.md](OWNERS.md)` for the directories you edit.
+
+Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the **`tri`** pipeline (`./scripts/tri`).
+
+### Trinity generation law (Zig **and** Rust)
+
+- **No hand-written `.zig` (or hand-edited generated backends)** for **domain logic** that must come from **`.t27` / `.tri` → `tri gen`**. Zig and peers under **`gen/`** are **compiler output**, not a second place to author product math.
+- **No second SSOT in Rust:** **`bootstrap/`** hosts the compiler and CLI; it **must not** duplicate normative formulas, invariants, or tests that belong in **`specs/**/*.t27`**. If code exists there today, treat it as **debt** and migrate behind a tracked issue — same rule as Zig.
+
+Full text: **Article SSOT-MATH** in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md).
+
+---
+
+## 2. Engineering workflow
+
+- **Bootstrap compiler:** `cd bootstrap && cargo build --release` (runs `build.rs` language checks).
+- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./bootstrap/target/release/t27c --repo-root . suite` (Rust runner; no shell test harness under `tests/`).
+- **Generated code:** under `gen/` — do not hand-edit for routine fixes; change specs and regenerate.
+- **Pull requests:** follow project Issue Gate and linking policy; **do not approve** PRs unless explicitly authorized.
+
+---
+
+## 3. PHI LOOP Execution
+
+Follow the 9-phase PHI LOOP for ring-based development:
+
+1. **Issue** - Define problem or requirement
+2. **Spec** - Write .t27 specification
+3. **TDD** - Write tests in spec before implementation
+4. **Code/Impl** - Implement according to spec
+5. **Gen** - Run `tri gen` to generate code from spec
+6. **Seal** - Verify generated code and seal hash
+7. **Verify** - Run `tri test` or conformance checks
+8. **Land** - Merge changes to main branch
+9. **Learn** - Capture learnings and update knowledge base
+
+### Phase Completion Marker
+
+When a phase is complete, include in your output:
+```
+Phase complete: [phase name]
+→ Phase [next phase number]: [next phase name]
+```
+
+This triggers automatic branch creation for the next phase.
+
+---
+
+## 4. Autonomous subagent behavior (when spawned unattended)
+
+- Finish the assigned task without waiting for clarification unless the repo's own rules require human input.
+- If blocked after reasonable retries, stop and report what failed (logs, commands, file paths).
+- Prefer small, reviewable diffs; match existing style and naming in touched files.
+- **Output persistence:** when the parent workflow requires it, write the full final report to `/tmp/claude_code_output.md` (analysis, commands, diffs summary).
+
+---
+
+## 5. Skills and tooling
+
+### Available Skills
+
+- `/phi-loop` - Execute 9-phase PHI LOOP
+- `/tri-pipeline` - Execute tri commands (gen, test, verify, seal)
+- `/experience-save` - Save learnings to persistent memory
+
+Load these skills when their functionality matches the task.
+
+---
+
+## 6. Security and secrets
+
+- Never commit secrets. See `[SECURITY.md](SECURITY.md)`. Root `.env` patterns are gitignored; use `.env.example` patterns only in docs.
+
+---
+
+## The 7 Invariant Laws
+
+| Law | Name | Description |
+|------|------|-------------|
+| L1 | TRACEABILITY | No code merged without `Closes #N` |
+| L2 | GENERATION | Files under `gen/` are generated; edit specs instead |
+| L3 | PURITY | Source files must be ASCII-only with English identifiers |
+| L4 | TESTABILITY | Every `.t27` spec must contain `test`/`invariant`/`bench` |
+| L5 | IDENTITY | φ² = φ + 1; φ² + φ⁻² = 3; IEEE f64 checks use tolerance |
+| L6 | CEILING | `FORMAT-SPEC-001.json` + `gf16.t27` are numeric SSOT |
+| L7 | UNITY | No new `*.sh` on critical path; use `tri`/`t27c` |
+
+See [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md#2--invariant-laws-never-change-without-constitutional-amendment) for full details.
+
+---
+
+**Repository:** Trinity S³AI — **t27** (spec-first ternary / TRI-27). **φ² + 1/φ² = 3 | TRINITY**

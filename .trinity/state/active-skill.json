@@ -1,11 +1,10 @@
 {
-  "skill_id": null,
-  "session_id": null,
-  "issue_id": null,
-  "description": null,
-  "started_at": null,
-  "started_by": null,
-  "status": "closed",
-  "allowed_paths": [],
-  "metadata": {}
+  "skill_id": "sandbox-010",
+  "session_id": "2026-04-08T00:00:00Z#sandbox-010",
+  "issue_id": "SANDBOX-010",
+  "issue_title": "[SANDBOX-010] [P0, security] Session Timeout Enforcement",
+  "description": "Add configurable max duration enforcement in health polling",
+  "started_at": "2026-04-08T00:00:00Z",
+  "started_by": "agent:claude-code",
+  "status": "active"
 }

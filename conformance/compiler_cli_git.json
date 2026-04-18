@@ -1,0 +1,267 @@
+{
+  "benchmarks": [
+    {
+      "name": "git_commit_latency",
+      "target": "< 500ms"
+    },
+    {
+      "name": "git_push_latency",
+      "target": "< 1000ms"
+    },
+    {
+      "name": "git_status_latency",
+      "target": "< 100ms"
+    }
+  ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:00:00Z",
+  "invariants": [
+    {
+      "assert": "Successful commit returns 0",
+      "name": "git_commit_returns_zero_on_success"
+    },
+    {
+      "assert": "Failed commit returns non-zero",
+      "name": "git_commit_returns_nonzero_on_failure"
+    },
+    {
+      "assert": "Successful push returns 0",
+      "name": "git_push_returns_zero_on_success"
+    },
+    {
+      "assert": "Failed push returns non-zero",
+      "name": "git_push_returns_nonzero_on_failure"
+    },
+    {
+      "assert": "Recovery skill min 3 checkpoints",
+      "name": "recovery_requires_3_checkpoints"
+    },
+    {
+      "assert": "Hotfix skill min 1 checkpoint",
+      "name": "hotfix_requires_1_checkpoint"
+    },
+    {
+      "assert": "Strict mode checks remote URL",
+      "name": "strict_mode_validates_remote"
+    },
+    {
+      "assert": "Summary always returns a string",
+      "name": "summarize_status_never_null"
+    },
+    {
+      "assert": "Checkpoint count >= 0",
+      "name": "count_checkpoints_never_negative"
+    }
+  ],
+  "module": "GitCommands",
+  "ring": 36,
+  "schema_version": 2,
+  "seal": "sha256:86dc60d0230cbd79afff56315bb489bee41f9affccdb2e917612e7de4c1464e1",
+  "spec_path": "compiler/cli/git.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_cli_git Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "registry_exists": false
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "skill_has_issue": false
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "verdict": "TOXIC"
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "issue": "123",
+            "verdict": "NOT_TOXIC"
+          }
+        }
+      ],
+      "function": "git_commit",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "skill_sealed": false
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "verdict": "TOXIC"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "checkpoints": 2,
+            "kind": "recovery"
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "checkpoints": 3,
+            "kind": "recovery"
+          }
+        }
+      ],
+      "function": "git_push",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": "no changes",
+          "inputs": {
+            "status": "nothing to commit"
+          }
+        },
+        {
+          "expected": "modified: file.t27",
+          "inputs": {
+            "status": "modified: file.t27"
+          }
+        }
+      ],
+      "function": "summarize_status",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 2,
+          "inputs": {
+            "artifacts": "checkpoint1, checkpoint2"
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "artifacts": "spec, docs"
+          }
+        }
+      ],
+      "function": "count_checkpoints",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_git_commit_returns_zero_on_success",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_git_commit_returns_nonzero_on_failure",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_git_push_returns_zero_on_success",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_git_push_returns_nonzero_on_failure",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_recovery_requires_3_checkpoints",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hotfix_requires_1_checkpoint",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_strict_mode_validates_remote",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_summarize_status_never_null",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_count_checkpoints_never_negative",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

@@ -1,0 +1,17 @@
+name: "AR Task"
+description: "CLARA Argumentation & Reasoning task"
+title: "[AR-NNN]: "
+labels: ["clara-ar", "phi-loop"]
+body:
+  - type: input
+    id: ar-number
+    attributes:
+      label: AR Number
+    validations:
+      required: true
+  - type: textarea
+    id: spec-path
+    attributes:
+      label: Spec Path
+    validations:
+      required: true

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "none",
+  "gen_hash_rust": "none",
+  "gen_hash_verilog": "none",
+  "gen_hash_zig": "none",
+  "module": "parser",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:33:09Z",
+  "spec_hash": "sha256:b696d9d8aed254b5597d95852bef79591886bcdbb1c3823e7627813af1999507",
+  "spec_path": "compiler/parser/parser.t27"
+}

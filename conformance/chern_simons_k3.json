@@ -1,0 +1,293 @@
+{
+  "constants": {
+    "CS_LEVEL": {
+      "critical": true,
+      "description": "SU(2) Chern-Simons level k",
+      "value": 3
+    },
+    "CYCLOTOMIC_INDEX": {
+      "critical": true,
+      "description": "k+2 = 5, source of Q(sqrt(5)) and phi",
+      "value": 5
+    }
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "SU(2)_3 Chern-Simons Conformance Vectors — KEPLER-NEWTON Direction F",
+  "format_family": "Conformance",
+  "identities": [
+    {
+      "critical": true,
+      "formula": "phi^2 + phi^{-2} = k = 3",
+      "name": "TRINITY = CS Level",
+      "tolerance_abs": 1e-15
+    },
+    {
+      "critical": true,
+      "formula": "phi = 2*cos(pi/5) = 2*cos(36 degrees)",
+      "name": "phi = 2*cos(pi/5)"
+    },
+    {
+      "critical": true,
+      "formula": "Perron-Frobenius eigenvalue of [[0,1],[1,1]] = phi",
+      "name": "d_tau = phi"
+    }
+  ],
+  "references": [
+    "Kitaev, Annals of Physics 321 (2006) 2-111",
+    "Nayak et al., Rev. Mod. Phys. 80 (2008) 1083",
+    "Witten, Commun. Math. Phys. 121 (1989) 351"
+  ],
+  "schema_version": 2,
+  "seal": "sha256:39f044a71599f8631bf40615eec4843829b2690c582da6ce999dc51b9923b552",
+  "source_module": "physics::su2_chern_simons",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "chern_simons_k3 Vectors",
+  "vectors": [
+    {
+      "description": "Quantum dimension from tau x tau = 1 + tau. Perron-Frobenius eigenvalue of [[0,1],[1,1]]",
+      "name": "Fibonacci Fusion Rule: d_tau = phi",
+      "test_cases": [
+        {
+          "expected": {
+            "characteristic_residual": 0.0,
+            "d_tau": 1.618033988749895
+          },
+          "input": {},
+          "theorem": "lambda^2 - lambda - 1 = 0, positive root = phi",
+          "tolerance": {
+            "max_abs_error": 1e-15
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "d_j = sin((2j+1)*pi/5) / sin(pi/5) for j = 0, 1/2, 1, 3/2",
+      "name": "S-Matrix Quantum Dimensions at k=3",
+      "test_cases": [
+        {
+          "expected": {
+            "d_j": 1.0
+          },
+          "input": {
+            "j": 0.0,
+            "k": 3
+          },
+          "tolerance": {
+            "max_abs_error": 1e-12
+          }
+        },
+        {
+          "expected": {
+            "d_j": 1.618033988749895
+          },
+          "input": {
+            "j": 0.5,
+            "k": 3
+          },
+          "note": "d_{1/2} = phi",
+          "tolerance": {
+            "max_abs_error": 1e-12
+          }
+        },
+        {
+          "expected": {
+            "d_j": 1.618033988749895
+          },
+          "input": {
+            "j": 1.0,
+            "k": 3
+          },
+          "note": "d_1 = phi (same as d_{1/2} at k=3)",
+          "tolerance": {
+            "max_abs_error": 1e-12
+          }
+        },
+        {
+          "expected": {
+            "d_j": 1.0
+          },
+          "input": {
+            "j": 1.5,
+            "k": 3
+          },
+          "tolerance": {
+            "max_abs_error": 1e-12
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "[2]_5 = sin(2*pi/5) / sin(pi/5) = 2*cos(pi/5) = phi",
+      "name": "Jones Quantum Integer [2]_5 = phi",
+      "test_cases": [
+        {
+          "expected": {
+            "value": 1.618033988749895
+          },
+          "input": {
+            "k": 3,
+            "n": 2
+          },
+          "tolerance": {
+            "max_abs_error": 1e-12
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "phi^2 + phi^{-2} = 3 = k. The algebraic identity equals the CS level.",
+      "name": "TRINITY = CS Level",
+      "test_cases": [
+        {
+          "critical": true,
+          "expected": {
+            "cs_level": 3,
+            "match": true,
+            "trinity_value": 3.0
+          },
+          "input": {},
+          "tolerance": {
+            "max_abs_error": 1e-15
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "D^2 = 1 + phi^2 = 2 + phi",
+      "name": "Total Quantum Dimension",
+      "test_cases": [
+        {
+          "expected": {
+            "D_squared": 3.6180339887498945
+          },
+          "input": {},
+          "tolerance": {
+            "max_abs_error": 1e-14
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Hilbert space of n Fibonacci anyons has dimension F_n",
+      "name": "Fibonacci Hilbert Space Dimensions",
+      "test_cases": [
+        {
+          "expected": {
+            "dim": 2
+          },
+          "input": {
+            "n": 2
+          }
+        },
+        {
+          "expected": {
+            "dim": 3
+          },
+          "input": {
+            "n": 3
+          }
+        },
+        {
+          "expected": {
+            "dim": 5
+          },
+          "input": {
+            "n": 4
+          }
+        },
+        {
+          "expected": {
+            "dim": 8
+          },
+          "input": {
+            "n": 5
+          }
+        },
+        {
+          "expected": {
+            "dim": 13
+          },
+          "input": {
+            "n": 6
+          }
+        },
+        {
+          "expected": {
+            "dim": 21
+          },
+          "input": {
+            "n": 7
+          }
+        },
+        {
+          "expected": {
+            "dim": 89
+          },
+          "input": {
+            "n": 10
+          }
+        },
+        {
+          "expected": {
+            "dim": 233
+          },
+          "input": {
+            "n": 12
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Full 4x4 S-matrix computed from Kac-Peterson formula",
+      "name": "Modular S-Matrix at k=3",
+      "test_cases": [
+        {
+          "expected": {
+            "S_matrix": [
+              [
+                0.3717480345,
+                0.601500955,
+                0.601500955,
+                0.3717480345
+              ],
+              [
+                0.601500955,
+                0.3717480345,
+                -0.3717480345,
+                -0.601500955
+              ],
+              [
+                0.601500955,
+                -0.3717480345,
+                -0.3717480345,
+                0.601500955
+              ],
+              [
+                0.3717480345,
+                -0.601500955,
+                0.601500955,
+                -0.3717480345
+              ]
+            ]
+          },
+          "input": {
+            "k": 3
+          },
+          "tolerance": {
+            "max_abs_error": 1e-8
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "1.0"
+}

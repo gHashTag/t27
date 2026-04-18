@@ -1,8 +1,10 @@
 # AGENTS.md — Trinity 27-Agent Alphabet
 
-**Version**: 2.0
+**Version**: 2.1
 **Date**: 2026-04-04
-**Status**: Active
+**Status**: Active — Canon-verified (Issue #50)
+
+> **Governance (English):** Ring epochs, agent domains, and “agreement before execution” — **`docs/T27-CONSTITUTION.md`** Articles **RING-LAW**, **AGENT-DOMAIN**, **BRAIN-MAP**, **COMPETITION-READY**; **`docs/SOUL.md`** Constitutional Laws **#9–#11**; root **`SOUL.md`** Articles **VIII–X**; EPOCH-01 — **`docs/EPOCH_01_HARDEN_PLAN.md`**. Pedagogical brain map SSOT — **`docs/AGENT_BRAIN_MAP.md`**.
 
 > *27 agents = 27 registers = 27 letters = TRINITY³*
 

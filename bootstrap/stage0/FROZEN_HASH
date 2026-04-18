@@ -1,0 +1,2 @@
+# t27 — frozen bootstrap compiler core (see FROZEN.md, CANON.md M5)
+af208c1bcd8361092fe6303313c94729c67a71e0eb24de1b9ba7c3d992d8e215  bootstrap/src/compiler.rs

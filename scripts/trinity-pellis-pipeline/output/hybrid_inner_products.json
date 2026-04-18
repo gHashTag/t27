@@ -1,0 +1,58 @@
+[
+  {
+    "constant": "alpha_inv",
+    "name": "\\alpha^{-1}",
+    "description": "Inverse fine-structure constant",
+    "trinity_monomial": "360 \\cdot \\phi^{-2} \\cdot \\pi^{3}",
+    "trinity_value": "4263.6037778248586875851506508836786472537059038504",
+    "pellis_value": "2.6270469249421686264156505785649642348289489746094",
+    "trinity_norm": "4263.6037778248586875851506508836786472537059038504",
+    "pellis_norm": "2.6270469249421686264156505785649642348289489746094",
+    "inner_product": "1.0",
+    "cosine_similarity": 1.0,
+    "pellis_polynomial": "360\u03c6\u207b\u00b2 - 2\u03c6\u207b\u00b3 + (3\u03c6)\u207b\u2075",
+    "pellis_poly_value": "137.06568474295476666553622455352009667328794690672",
+    "pellis_inner_product": "1.0",
+    "pellis_cosine_similarity": 1.0
+  },
+  {
+    "constant": "mu_ratio",
+    "name": "\\mu_m / m_e",
+    "description": "Muon-electron mass ratio",
+    "trinity_monomial": "17 \\cdot \\pi^{2} \\cdot e^{5}",
+    "trinity_value": "24901.245860392209258142044534601594129589415686937",
+    "pellis_value": "206.7682829999999967185431160032749176025390625",
+    "trinity_norm": "24901.245860392209258142044534601594129589415686937",
+    "pellis_norm": "206.7682829999999967185431160032749176025390625",
+    "inner_product": "1.0",
+    "cosine_similarity": 1.0,
+    "pellis_polynomial": "17 + 2\u03c6\u207b\u00b9 + 5\u03c6",
+    "pellis_poly_value": "26.32623792124926393743210784055946682404216425864",
+    "pellis_inner_product": "1.0",
+    "pellis_cosine_similarity": 1.0
+  },
+  {
+    "constant": "omega_lambda",
+    "name": "\\Omega_\\Lambda",
+    "description": "Dark energy density parameter",
+    "trinity_monomial": "1",
+    "trinity_value": "1",
+    "pellis_value": "0.68500000000000005329070518200751394033432006835938",
+    "trinity_norm": "1.0",
+    "pellis_norm": "0.68500000000000005329070518200751394033432006835938",
+    "inner_product": "1.0",
+    "cosine_similarity": 1.0
+  },
+  {
+    "constant": "alpha_s",
+    "name": "\\alpha_s",
+    "description": "Strong interaction coupling",
+    "trinity_monomial": "4 \\cdot \\phi^{-2} \\cdot \\pi^{-2} \\cdot e^{2}",
+    "trinity_value": "1.1438627812479631444195305378843887580052196442986",
+    "pellis_value": "0.11809999999999999664712646563202724792063236236572",
+    "trinity_norm": "1.1438627812479631444195305378843887580052196442986",
+    "pellis_norm": "0.11809999999999999664712646563202724792063236236572",
+    "inner_product": "1.0",
+    "cosine_similarity": 1.0
+  }
+]

@@ -1,0 +1,403 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/isa/ternary_bitwise.t27
+// Ternary Bitwise Operations Specification
+// Ring 068 - Bitwise AND, OR, XOR for ternary data
+// Defines bitwise operations on ternary word representations
+// 01 + 1/23 = 3 | TRINITY
+
+module TernaryBitwise {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556
+    // 1. Bitwise Constants
+    // 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129
+
+    // Trit values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Word size
+    const WORD_SIZE : usize = 27;
+
+    // 130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182
+    // 2. Tritwise AND
+    // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
+
+    // tritwise_and(a: []i32, b: []i32, result: []i32, len: usize) 256 void
+    // Tritwise AND operation (acts as MIN in balanced ternary)
+    fn tritwise_and(a: []i32, b: []i32, result: []i32, len: usize) 257 void {
+        var i : usize = 0;
+        while (i < len) {
+            // AND is essentially MIN for balanced ternary
+            if (a[i] < b[i]) {
+                result[i] = a[i];
+            } else {
+                result[i] = b[i];
+            }
+            i = i + 1;
+        }
+    }
+
+    // 258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310
+    // 3. Tritwise OR
+    // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
+
+    // tritwise_or(a: []i32, b: []i32, result: []i32, len: usize) 384 void
+    // Tritwise OR operation (acts as MAX in balanced ternary)
+    fn tritwise_or(a: []i32, b: []i32, result: []i32, len: usize) 385 void {
+        var i : usize = 0;
+        while (i < len) {
+            // OR is essentially MAX for balanced ternary
+            if (a[i] > b[i]) {
+                result[i] = a[i];
+            } else {
+                result[i] = b[i];
+            }
+            i = i + 1;
+        }
+    }
+
+    // 386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438
+    // 4. Tritwise XOR
+    // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
+
+    // tritwise_xor(a: []i32, b: []i32, result: []i32, len: usize) 512 void
+    // Tritwise XOR (exclusive OR) operation
+    // Returns TRIT_ZERO if inputs are same, otherwise indicates difference
+    fn tritwise_xor(a: []i32, b: []i32, result: []i32, len: usize) 513 void {
+        var i : usize = 0;
+        while (i < len) {
+            if (a[i] == b[i]) {
+                result[i] = TRIT_ZERO;
+            } else if (a[i] == TRIT_ZERO) {
+                result[i] = b[i];
+            } else if (b[i] == TRIT_ZERO) {
+                result[i] = a[i];
+            } else {
+                // Both are non-zero and different
+                result[i] = TRIT_ZERO;
+            }
+            i = i + 1;
+        }
+    }
+
+    // 514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566
+    // 5. Tritwise NOT
+    // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
+
+    // tritwise_not(word: []i32, result: []i32, len: usize) 640 void
+    // Tritwise NOT (inversion) operation
+    fn tritwise_not(word: []i32, result: []i32, len: usize) 641 void {
+        var i : usize = 0;
+        while (i < len) {
+            result[i] = -word[i];
+            i = i + 1;
+        }
+    }
+
+    // 642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694
+    // 6. Tritwise NAND
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
+
+    // tritwise_nand(a: []i32, b: []i32, result: []i32, len: usize) 768 void
+    // Tritwise NAND (NOT AND) operation
+    fn tritwise_nand(a: []i32, b: []i32, result: []i32, len: usize) 769 void {
+        var temp : [WORD_SIZE]i32 = undefined;
+        tritwise_and(a, b, temp, len);
+        tritwise_not(temp, result, len);
+    }
+
+    // 770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822
+    // 7. Tritwise NOR
+    // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+
+    // tritwise_nor(a: []i32, b: []i32, result: []i32, len: usize) 896 void
+    // Tritwise NOR (NOT OR) operation
+    fn tritwise_nor(a: []i32, b: []i32, result: []i32, len: usize) 897 void {
+        var temp : [WORD_SIZE]i32 = undefined;
+        tritwise_or(a, b, temp, len);
+        tritwise_not(temp, result, len);
+    }
+
+    // 898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950
+    // 8. Tritwise XNOR
+    // 951952953954955956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999100010011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023
+
+    // tritwise_xnor(a: []i32, b: []i32, result: []i32, len: usize) 1024 void
+    // Tritwise XNOR (exclusive NOR) - equality test
+    fn tritwise_xnor(a: []i32, b: []i32, result: []i32, len: usize) 1025 void {
+        var i : usize = 0;
+        while (i < len) {
+            if (a[i] == b[i]) {
+                result[i] = TRIT_POS;
+            } else {
+                result[i] = TRIT_NEG;
+            }
+            i = i + 1;
+        }
+    }
+
+    // 10261027102810291030103110321033103410351036103710381039104010411042104310441045104610471048104910501051105210531054105510561057105810591060106110621063106410651066106710681069107010711072107310741075107610771078
+    // 9. Mask Operations
+    // 1079108010811082108310841085108610871088108910901091109210931094109510961097109810991100110111021103110411051106110711081109111011111112111311141115111611171118111911201121112211231124112511261127112811291130113111321133113411351136113711381139114011411142114311441145114611471148114911501151
+
+    // tritwise_mask(word: []i32, mask: []i32, result: []i32, len: usize) 1152 void
+    // Apply mask: keep trits where mask is POS, zero elsewhere
+    fn tritwise_mask(word: []i32, mask: []i32, result: []i32, len: usize) 1153 void {
+        var i : usize = 0;
+        while (i < len) {
+            if (mask[i] == TRIT_POS) {
+                result[i] = word[i];
+            } else {
+                result[i] = TRIT_ZERO;
+            }
+            i = i + 1;
+        }
+    }
+
+    // tritwise_merge(a: []i32, b: []i32, mask: []i32, result: []i32, len: usize) 1154 void
+    // Merge based on mask: take from a where mask is POS, from b otherwise
+    fn tritwise_merge(a: []i32, b: []i32, mask: []i32, result: []i32, len: usize) 1155 void {
+        var i : usize = 0;
+        while (i < len) {
+            if (mask[i] == TRIT_POS) {
+                result[i] = a[i];
+            } else {
+                result[i] = b[i];
+            }
+            i = i + 1;
+        }
+    }
+
+    // 11561157115811591160116111621163116411651166116711681169117011711172117311741175117611771178117911801181118211831184118511861187118811891190119111921193119411951196119711981199120012011202120312041205120612071208
+    // 10. TDD - Tests
+    // 1209121012111212121312141215121612171218121912201221122212231224122512261227122812291230123112321233123412351236123712381239124012411242124312441245124612471248124912501251125212531254125512561257125812591260126112621263126412651266126712681269127012711272127312741275127612771278127912801281
+
+    test tritwise_and_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_ZERO};
+        var result : [3]i32 = undefined;
+
+        tritwise_and(&a, &b, &result, 3);
+        assert result[0] == TRIT_POS
+        assert result[1] == TRIT_ZERO
+        assert result[2] == TRIT_NEG
+
+    test tritwise_or_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_ZERO, TRIT_POS, TRIT_ZERO};
+        var result : [3]i32 = undefined;
+
+        tritwise_or(&a, &b, &result, 3);
+        assert result[0] == TRIT_POS
+        assert result[1] == TRIT_POS
+        assert result[2] == TRIT_ZERO
+
+    test tritwise_xor_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_NEG};
+        var result : [3]i32 = undefined;
+
+        tritwise_xor(&a, &b, &result, 3);
+        assert result[0] == TRIT_ZERO
+        assert result[1] == TRIT_POS
+        assert result[2] == TRIT_ZERO
+
+    test tritwise_not_basic
+        var word : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var result : [3]i32 = undefined;
+
+        tritwise_not(&word, &result, 3);
+        assert result[0] == TRIT_NEG
+        assert result[1] == TRIT_ZERO
+        assert result[2] == TRIT_POS
+
+    test tritwise_nand_basic
+        var a : [2]i32 = [_]i32{TRIT_POS, TRIT_POS};
+        var b : [2]i32 = [_]i32{TRIT_POS, TRIT_POS};
+        var result : [2]i32 = undefined;
+
+        tritwise_nand(&a, &b, &result, 2);
+        // AND of POS, POS = POS, NOT POS = NEG
+        assert result[0] == TRIT_NEG
+        assert result[1] == TRIT_NEG
+
+    test tritwise_nor_basic
+        var a : [2]i32 = [_]i32{TRIT_NEG, TRIT_NEG};
+        var b : [2]i32 = [_]i32{TRIT_NEG, TRIT_NEG};
+        var result : [2]i32 = undefined;
+
+        tritwise_nor(&a, &b, &result, 2);
+        // OR of NEG, NEG = NEG, NOT NEG = POS
+        assert result[0] == TRIT_POS
+        assert result[1] == TRIT_POS
+
+    test tritwise_xnor_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_POS};
+        var result : [3]i32 = undefined;
+
+        tritwise_xnor(&a, &b, &result, 3);
+        assert result[0] == TRIT_POS  // Same
+        assert result[1] == TRIT_POS  // Same
+        assert result[2] == TRIT_NEG  // Different
+
+    test tritwise_mask_basic
+        var word : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var mask : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_ZERO};
+        var result : [3]i32 = undefined;
+
+        tritwise_mask(&word, &mask, &result, 3);
+        assert result[0] == TRIT_POS
+        assert result[1] == TRIT_ZERO
+        assert result[2] == TRIT_ZERO
+
+    test tritwise_merge_basic
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_POS};
+        var mask : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_POS};
+        var result : [3]i32 = undefined;
+
+        tritwise_merge(&a, &b, &mask, &result, 3);
+        assert result[0] == TRIT_POS
+        assert result[1] == TRIT_POS
+        assert result[2] == TRIT_POS
+
+    // 12821283128412851286128712881289129012911292129312941295129612971298129913001301130213031304130513061307130813091310131113121313131413151316131713181319132013211322132313241325132613271328132913301331133213331334
+    // 11. TDD - Invariants
+    // 1335133613371338133913401341134213431344134513461347134813491350135113521353135413551356135713581359136013611362136313641365136613671368136913701371137213731374137513761377137813791380138113821383138413851386138713881389139013911392139313941395139613971398139914001401140214031404140514061407
+
+    invariant tritwise_and_commutative
+        // Tritwise AND is commutative
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var result1 : [3]i32 = undefined;
+        var result2 : [3]i32 = undefined;
+
+        tritwise_and(&a, &b, &result1, 3);
+        tritwise_and(&b, &a, &result2, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            assert result1[i] == result2[i]
+            i = i + 1;
+        }
+
+    invariant tritwise_or_commutative
+        // Tritwise OR is commutative
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var b : [3]i32 = [_]i32{TRIT_NEG, TRIT_POS, TRIT_ZERO};
+        var result1 : [3]i32 = undefined;
+        var result2 : [3]i32 = undefined;
+
+        tritwise_or(&a, &b, &result1, 3);
+        tritwise_or(&b, &a, &result2, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            assert result1[i] == result2[i]
+            i = i + 1;
+        }
+
+    invariant tritwise_not_double_inversion
+        // Double NOT returns original
+        var word : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var temp : [3]i32 = undefined;
+        var result : [3]i32 = undefined;
+
+        tritwise_not(&word, &temp, 3);
+        tritwise_not(&temp, &result, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            assert result[i] == word[i]
+            i = i + 1;
+        }
+
+    invariant tritwise_and_absorbing
+        // AND with TRIT_NEG absorbs to TRIT_NEG
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var neg : [3]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG};
+        var result : [3]i32 = undefined;
+
+        tritwise_and(&a, &neg, &result, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            assert result[i] == TRIT_NEG
+            i = i + 1;
+        }
+
+    invariant tritwise_or_absorbing
+        // OR with TRIT_POS absorbs to TRIT_POS
+        var a : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        var pos : [3]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_POS};
+        var result : [3]i32 = undefined;
+
+        tritwise_or(&a, &pos, &result, 3);
+
+        var i : usize = 0;
+        while (i < 3) {
+            assert result[i] == TRIT_POS
+            i = i + 1;
+        }
+
+    // 14081409141014111412141314141415141614171418141914201421142214231424142514261427142814291430143114321433143414351436143714381439144014411442144314441445144614471448144914501451145214531454145514561457145814591460
+    // 12. TDD - Benchmarks
+    // 1461146214631464146514661467146814691470147114721473147414751476147714781479148014811482148314841485148614871488148914901491149214931494149514961497149814991500150115021503150415051506150715081509151015111512151315141515151615171518151915201521152215231524152515261527152815291530153115321533
+
+    bench tritwise_and_performance
+        // Measure: cycles to compute 1000 tritwise AND operations
+        // Target: < 3000 cycles
+        var a : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var b : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            tritwise_and(&a, &b, &result, 27);
+        }
+
+    bench tritwise_or_performance
+        // Measure: cycles to compute 1000 tritwise OR operations
+        // Target: < 3000 cycles
+        var a : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var b : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            tritwise_or(&a, &b, &result, 27);
+        }
+
+    bench tritwise_xor_performance
+        // Measure: cycles to compute 1000 tritwise XOR operations
+        // Target: < 4000 cycles
+        var a : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var b : [27]i32 = [_]i32{TRIT_ZERO} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            tritwise_xor(&a, &b, &result, 27);
+        }
+
+    bench tritwise_not_performance
+        // Measure: cycles to compute 1000 tritwise NOT operations
+        // Target: < 1000 cycles
+        var word : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            tritwise_not(&word, &result, 27);
+        }
+
+    bench tritwise_mask_performance
+        // Measure: cycles to compute 1000 mask operations
+        // Target: < 2000 cycles
+        var word : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var mask : [27]i32 = [_]i32{TRIT_POS} ** 27;
+        var result : [27]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..1000) |_| {
+            tritwise_mask(&word, &mask, &result, 27);
+        }
+}

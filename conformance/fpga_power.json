@@ -1,0 +1,139 @@
+{
+  "constants": {
+    "LUT_POWER_UW_PER_MHZ": 10,
+    "FF_POWER_UW_PER_MHZ": 5,
+    "BRAM_POWER_UW_PER_MHZ": 50,
+    "DSP_POWER_UW_PER_MHZ": 100,
+    "IO_POWER_UW_PER_MHZ": 20,
+    "STATIC_BASE_MW": 50,
+    "STATIC_PER_RESOURCE_UW": 100,
+    "DEFAULT_VOLTAGE_MV": 1000,
+    "DEFAULT_TOGGLE_RATE": 12
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Power Estimation Specification -- estimates dynamic and static power consumption for FPGA designs using Artix-7 power model",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Total power is always non-negative",
+      "id": "power_non_negative"
+    },
+    {
+      "description": "Static base power is always positive",
+      "id": "static_base_positive"
+    }
+  ],
+  "module": "Power",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/power.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Power Vectors",
+  "vectors": {
+    "domain_creation": {
+      "cases": [
+        {
+          "description": "Create power domain with default voltage and toggle rate",
+          "id": "power_domain_creation"
+        }
+      ],
+      "description": "Power domain construction"
+    },
+    "estimate_creation": {
+      "cases": [
+        {
+          "description": "Zero power estimate has all fields zero",
+          "id": "zero_power"
+        },
+        {
+          "description": "Power estimate total = dynamic + static",
+          "id": "power_estimate_creation"
+        }
+      ],
+      "description": "Power estimate construction"
+    },
+    "dynamic_estimation": {
+      "cases": [
+        {
+          "description": "LUT dynamic power estimation produces positive result",
+          "id": "est_lut_dynamic"
+        },
+        {
+          "description": "FF dynamic power estimation produces positive result",
+          "id": "est_ff_dynamic"
+        },
+        {
+          "description": "BRAM dynamic power = brams * 50 * mhz / 1000",
+          "id": "est_bram_dynamic"
+        },
+        {
+          "description": "DSP dynamic power = dsps * 100 * mhz / 1000",
+          "id": "est_dsp_dynamic"
+        }
+      ],
+      "description": "Dynamic power estimation per resource type"
+    },
+    "static_estimation": {
+      "cases": [
+        {
+          "description": "Static power with resources exceeds base",
+          "id": "est_static"
+        },
+        {
+          "description": "Static power with zero resources equals base",
+          "id": "est_static_base"
+        }
+      ],
+      "description": "Static power estimation"
+    },
+    "resource_calc": {
+      "cases": [
+        {
+          "description": "Total resources = luts + ffs + brams + dsps",
+          "id": "total_resources_calc"
+        }
+      ],
+      "description": "Resource count calculation"
+    },
+    "total_power": {
+      "cases": [
+        {
+          "description": "Full power estimation for Artix-7 design produces valid results",
+          "id": "est_total_power_arty"
+        }
+      ],
+      "description": "Full power estimation integration"
+    },
+    "power_constants": {
+      "cases": [
+        {
+          "description": "Verify all power model constants match specification",
+          "id": "power_constants"
+        }
+      ],
+      "description": "Power model constant verification"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid power domain passes validation",
+          "id": "validate_domain_ok"
+        },
+        {
+          "description": "Domain with empty name fails validation",
+          "id": "validate_domain_empty"
+        },
+        {
+          "description": "Domain with zero clock fails validation",
+          "id": "validate_domain_zero_clock"
+        }
+      ],
+      "description": "Power domain validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

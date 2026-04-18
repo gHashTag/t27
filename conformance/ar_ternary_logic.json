@@ -1,0 +1,209 @@
+{
+  "$schema": "./SCHEMA_V2.json",
+  "schema_version": 2,
+  "format_family": "AR",
+  "format_name": "K3TruthTable",
+  "format_bits": 2,
+  "vector_name": "K3 Truth Table Vectors",
+  "version": "1.1.0",
+  "description": "Exhaustive 27-entry verification of Kleene K3 ternary logic operations: AND (9), OR (9), NOT (3), no-tautology (3), isomorphism (3)",
+  "verdict": "CLEAN",
+  "seal": "sha256:PENDING_COMPUTE_ON_COMMIT",
+  "phi_distance": null,
+  "sacred_ok": null,
+  "is_primary": true,
+  "test_vectors": [
+    {
+      "name": "and_false_false",
+      "description": "K3 AND: F ∧ F = F",
+      "verdict": "CLEAN",
+      "input": {"a": -1, "b": -1},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "and_false_unknown",
+      "description": "K3 AND: F ∧ U = F",
+      "verdict": "CLEAN",
+      "input": {"a": -1, "b": 0},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "and_false_true",
+      "description": "K3 AND: F ∧ T = F",
+      "verdict": "CLEAN",
+      "input": {"a": -1, "b": 1},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "and_unknown_false",
+      "description": "K3 AND: U ∧ F = F",
+      "verdict": "CLEAN",
+      "input": {"a": 0, "b": -1},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "and_unknown_unknown",
+      "description": "K3 AND: U ∧ U = U",
+      "verdict": "CLEAN",
+      "input": {"a": 0, "b": 0},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "and_unknown_true",
+      "description": "K3 AND: U ∧ T = U",
+      "verdict": "CLEAN",
+      "input": {"a": 0, "b": 1},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "and_true_false",
+      "description": "K3 AND: T ∧ F = F",
+      "verdict": "CLEAN",
+      "input": {"a": 1, "b": -1},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "and_true_unknown",
+      "description": "K3 AND: T ∧ U = U",
+      "verdict": "CLEAN",
+      "input": {"a": 1, "b": 0},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "and_true_true",
+      "description": "K3 AND: T ∧ T = T",
+      "verdict": "CLEAN",
+      "input": {"a": 1, "b": 1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "or_false_false",
+      "description": "K3 OR: F ∨ F = F",
+      "verdict": "CLEAN",
+      "input": {"a": -1, "b": -1},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "or_false_unknown",
+      "description": "K3 OR: F ∨ U = U",
+      "verdict": "CLEAN",
+      "input": {"a": -1, "b": 0},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "or_false_true",
+      "description": "K3 OR: F ∨ T = T",
+      "verdict": "CLEAN",
+      "input": {"a": -1, "b": 1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "or_unknown_false",
+      "description": "K3 OR: U ∨ F = U",
+      "verdict": "CLEAN",
+      "input": {"a": 0, "b": -1},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "or_unknown_unknown",
+      "description": "K3 OR: U ∨ U = U",
+      "verdict": "CLEAN",
+      "input": {"a": 0, "b": 0},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "or_unknown_true",
+      "description": "K3 OR: U ∨ T = T",
+      "verdict": "CLEAN",
+      "input": {"a": 0, "b": 1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "or_true_false",
+      "description": "K3 OR: T ∨ F = T",
+      "verdict": "CLEAN",
+      "input": {"a": 1, "b": -1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "or_true_unknown",
+      "description": "K3 OR: T ∨ U = T",
+      "verdict": "CLEAN",
+      "input": {"a": 1, "b": 0},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "or_true_true",
+      "description": "K3 OR: T ∨ T = T",
+      "verdict": "CLEAN",
+      "input": {"a": 1, "b": 1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "not_false",
+      "description": "K3 NOT: ¬F = T",
+      "verdict": "CLEAN",
+      "input": {"a": -1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "not_unknown",
+      "description": "K3 NOT: ¬U = U (Kleene property)",
+      "verdict": "CLEAN",
+      "input": {"a": 0},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "not_true",
+      "description": "K3 NOT: ¬T = F",
+      "verdict": "CLEAN",
+      "input": {"a": 1},
+      "expected": {"value": -1}
+    },
+    {
+      "name": "no_tautology_or_not_false",
+      "description": "No-tautology: OR(F, NOT(F)) = T (binary-like case)",
+      "verdict": "CLEAN",
+      "input": {"a": -1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "no_tautology_or_not_true",
+      "description": "No-tautology: OR(T, NOT(T)) = T (binary-like case)",
+      "verdict": "CLEAN",
+      "input": {"a": 1},
+      "expected": {"value": 1}
+    },
+    {
+      "name": "no_tautology_or_not_unknown_k3_violation",
+      "description": "No-tautology: OR(U, NOT(U)) = U != T (K3 violation of binary tautology)",
+      "verdict": "CLEAN",
+      "input": {"a": 0},
+      "expected": {"value": 0}
+    },
+    {
+      "name": "isomorphism_bijection_neg_to_false",
+      "description": "Isomorphism: Trit.neg maps to K_FALSE",
+      "verdict": "CLEAN",
+      "input": {"trit": -1},
+      "expected": {"value": "K_FALSE"}
+    },
+    {
+      "name": "isomorphism_bijection_zero_to_unknown",
+      "description": "Isomorphism: Trit.zero maps to K_UNKNOWN",
+      "verdict": "CLEAN",
+      "input": {"trit": 0},
+      "expected": {"value": "K_UNKNOWN"}
+    },
+    {
+      "name": "isomorphism_bijection_pos_to_true",
+      "description": "Isomorphism: Trit.pos maps to K_TRUE",
+      "verdict": "CLEAN",
+      "input": {"trit": 1},
+      "expected": {"value": "K_TRUE"}
+    }
+  ],
+  "created_at": "2026-04-07T01:00:00Z",
+  "updated_at": "2026-04-07T18:00:00Z",
+  "validated_at": "2026-04-07T18:00:00Z"
+}

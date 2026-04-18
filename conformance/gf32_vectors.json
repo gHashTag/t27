@@ -1,0 +1,509 @@
+{
+  "benchmark_metrics": {
+    "comparison_vs_ieee_fp32": {
+      "gf32_phi_distance": 0.01354,
+      "ieee_exp_bits": 8,
+      "ieee_mant_bits": 23,
+      "ieee_phi_distance": 0.27,
+      "phi_advantage": "19.9x closer to sacred ratio"
+    },
+    "decode_latency_target_ns": 250,
+    "encode_latency_target_ns": 300,
+    "exp_latency_target_ns": 500,
+    "floor_latency_target_ns": 50,
+    "ln_latency_target_ns": 300,
+    "memory_savings_vs_fp32": 0.0,
+    "pow_integer_latency_target_ns": 500,
+    "use_cases": [
+      "near_ieee754_precision",
+      "wider_dynamic_range",
+      "phi_optimized_layout",
+      "scientific_computing",
+      "financial_calculations"
+    ]
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "GoldenFloat32 Conformance Vectors -- NUMERIC-STANDARD-001",
+  "format_bits": 32,
+  "format_family": "GF32",
+  "format_name": "GF32",
+  "format_spec": {
+    "bits": 32,
+    "exp_bias": 2047,
+    "exp_bits": 12,
+    "exp_mant_ratio": 0.6315789473684211,
+    "mant_bits": 19,
+    "memory_ratio_vs_fp32": 1.0,
+    "sign_bits": 1
+  },
+  "generated_at": "2026-04-04T19:00:00Z",
+  "invariants": [
+    {
+      "assertion": "BITS == 32",
+      "name": "gf32_bits_constant"
+    },
+    {
+      "assertion": "SIGN_BITS == 1",
+      "name": "gf32_sign_bits_is_one"
+    },
+    {
+      "assertion": "EXP_BITS == 12",
+      "name": "gf32_exp_bits_is_twelve"
+    },
+    {
+      "assertion": "MANT_BITS == 19",
+      "name": "gf32_mant_bits_is_nineteen"
+    },
+    {
+      "assertion": "max_value() >= min_positive()",
+      "name": "gf32_max_ge_min_positive"
+    },
+    {
+      "assertion": "PHI_DISTANCE < 0.015",
+      "name": "gf32_phi_distance_near_optimal"
+    },
+    {
+      "assertion": "EXP_BIAS > 0",
+      "name": "gf32_exp_bias_positive"
+    },
+    {
+      "assertion": "EXP_BITS > 8",
+      "name": "gf32_exp_wider_than_ieee"
+    },
+    {
+      "assertion": "MANT_BITS < 23",
+      "name": "gf32_mant_narrower_than_ieee"
+    },
+    {
+      "assertion": "pow(x, 0.0) == 1.0 for all positive x",
+      "name": "gf32_pow_zero_exponent_identity"
+    },
+    {
+      "assertion": "pow(x, 1.0) == x for all valid x",
+      "name": "gf32_pow_one_exponent_identity"
+    },
+    {
+      "assertion": "abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0",
+      "name": "gf32_ln_exp_inversion"
+    },
+    {
+      "assertion": "floor(x) is integer for all f32 x",
+      "name": "gf32_floor_returns_integer"
+    },
+    {
+      "assertion": "floor(2.5) <= floor(3.5)",
+      "name": "gf32_floor_monotonic"
+    }
+  ],
+  "is_primary": false,
+  "module": "GF32",
+  "phi_distance": 0.01354495894042812,
+  "ring": 27,
+  "sacred_ok": true,
+  "schema_version": 2,
+  "seal": "sha256:82fbc99214151dd05105b81789e7fa5856da74c80fa24aa1ee0ef18b5084d738",
+  "spec_path": "specs/numeric/gf32.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "gf32 Vectors",
+  "vectors": [
+    {
+      "expected": {
+        "decoded": 0.0,
+        "tolerance_abs": 0.0
+      },
+      "inputs": {
+        "raw": 0
+      },
+      "test_name": "gf32_decode_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "decoded": 0.0,
+        "raw": 0,
+        "tolerance_abs": 0.0
+      },
+      "inputs": {
+        "value": 0.0
+      },
+      "test_name": "gf32_encode_zero_roundtrip",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "total": 32
+      },
+      "inputs": {
+        "exp_bits": 12,
+        "mant_bits": 19,
+        "sign_bits": 1
+      },
+      "test_name": "gf32_bits_sum_correct",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "max_value_positive": true
+      },
+      "inputs": {},
+      "test_name": "gf32_max_value_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "min_positive_gt_zero": true
+      },
+      "inputs": {},
+      "test_name": "gf32_min_positive_greater_than_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "epsilon": 1.9073486328125e-6,
+        "positive": true
+      },
+      "inputs": {},
+      "test_name": "gf32_epsilon_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "less_than": 0.015
+      },
+      "inputs": {
+        "phi_distance": 0.01354495894042812
+      },
+      "test_name": "gf32_phi_distance_near_optimal",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "target": 1.0,
+        "tolerance_abs": 0.0
+      },
+      "inputs": {
+        "ratio": 1.0
+      },
+      "test_name": "gf32_memory_ratio_equals_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "valid": true
+      },
+      "inputs": {},
+      "test_name": "gf32_validate_format_success",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "decoded": 1.0,
+        "exp_biased": 2047,
+        "mant": 0,
+        "tolerance_abs": 1.9073486328125e-6
+      },
+      "inputs": {
+        "value": 1.0
+      },
+      "test_name": "gf32_one_point_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "decoded": 1.618034,
+        "sacred_ok": true,
+        "tolerance_abs": 0.00001
+      },
+      "inputs": {
+        "value": 1.61803398875
+      },
+      "test_name": "gf32_phi_golden_ratio",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "advantage_factor": 19.9,
+        "gf32_exp_wider": true,
+        "gf32_phi_closer": true
+      },
+      "inputs": {
+        "ieee_exp_bits": 8,
+        "ieee_mant_bits": 23,
+        "ieee_phi_distance": 0.27
+      },
+      "test_name": "gf32_ieee_comparison",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 1.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "base": 2.0,
+        "exponent": 0.0
+      },
+      "test_name": "gf32_pow_zero_exponent_returns_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 32.0,
+        "tolerance_abs": 0.00001
+      },
+      "inputs": {
+        "base": 2.0,
+        "exponent": 5.0
+      },
+      "test_name": "gf32_pow_positive_integer_exponent",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 0.125,
+        "tolerance_abs": 0.00001
+      },
+      "inputs": {
+        "base": 2.0,
+        "exponent": -3.0
+      },
+      "test_name": "gf32_pow_negative_integer_exponent",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 2.0,
+        "tolerance_abs": 0.0001
+      },
+      "inputs": {
+        "base": 4.0,
+        "exponent": 0.5
+      },
+      "test_name": "gf32_pow_fractional_exponent",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 0.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": 1.0
+      },
+      "test_name": "gf32_ln_approx_of_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 1.0,
+        "tolerance_abs": 0.01
+      },
+      "inputs": {
+        "x": 2.718281828459045
+      },
+      "test_name": "gf32_ln_approx_of_e",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 1.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": 0.0
+      },
+      "test_name": "gf32_exp_approx_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 2.718281828459045,
+        "tolerance_abs": 0.01
+      },
+      "inputs": {
+        "x": 1.0
+      },
+      "test_name": "gf32_exp_approx_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": 3.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": 3.7
+      },
+      "test_name": "gf32_floor_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "expected": {
+        "result": -4.0,
+        "tolerance_abs": 1e-6
+      },
+      "inputs": {
+        "x": -3.2
+      },
+      "test_name": "gf32_floor_negative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: BITS == 32",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "BITS == 32"
+      },
+      "name": "inv_gf32_bits_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: SIGN_BITS == 1",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "SIGN_BITS == 1"
+      },
+      "name": "inv_gf32_sign_bits_is_one",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: EXP_BITS == 12",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "EXP_BITS == 12"
+      },
+      "name": "inv_gf32_exp_bits_is_twelve",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: MANT_BITS == 19",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "MANT_BITS == 19"
+      },
+      "name": "inv_gf32_mant_bits_is_nineteen",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: max_value() >= min_positive()",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "max_value() >= min_positive()"
+      },
+      "name": "inv_gf32_max_ge_min_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: PHI_DISTANCE < 0.015",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "PHI_DISTANCE < 0.015"
+      },
+      "name": "inv_gf32_phi_distance_near_optimal",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: EXP_BIAS > 0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "EXP_BIAS > 0"
+      },
+      "name": "inv_gf32_exp_bias_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: EXP_BITS > 8",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "EXP_BITS > 8"
+      },
+      "name": "inv_gf32_exp_wider_than_ieee",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: MANT_BITS < 23",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "MANT_BITS < 23"
+      },
+      "name": "inv_gf32_mant_narrower_than_ieee",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: pow(x, 0.0) == 1.0 for all positive x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "pow(x, 0.0) == 1.0 for all positive x"
+      },
+      "name": "inv_gf32_pow_zero_exponent_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: pow(x, 1.0) == x for all valid x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "pow(x, 1.0) == x for all valid x"
+      },
+      "name": "inv_gf32_pow_one_exponent_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(exp_approx(ln_approx(x)) - x) < 0.01 for x=2.0"
+      },
+      "name": "inv_gf32_ln_exp_inversion",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: floor(x) is integer for all f32 x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "floor(x) is integer for all f32 x"
+      },
+      "name": "inv_gf32_floor_returns_integer",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: floor(2.5) <= floor(3.5)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "floor(2.5) <= floor(3.5)"
+      },
+      "name": "inv_gf32_floor_monotonic",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "1.0"
+}

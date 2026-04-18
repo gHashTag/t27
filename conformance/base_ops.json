@@ -1,0 +1,1143 @@
+{
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T19:00:00Z",
+  "invariants": [
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_subtract(a,b) == trit_add_table(a, trit_negate(b))",
+      "description": "trit_subtract(a, b) == trit_add_table(a, trit_negate(b))",
+      "name": "trit_subtract_add_negation_identity"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_sign(a) == a",
+      "description": "trit_sign(a) == intFromEnum(a) for all a",
+      "name": "trit_sign_matches_enum_value"
+    },
+    {
+      "assertion": "for_all(a,min,max): min<=max => min<=clamp(a,min,max)<=max",
+      "description": "min_val <= max_val implies trit_clamp(a, min_val, max_val) is monotonic",
+      "name": "trit_clamp_preserves_order"
+    },
+    {
+      "assertion": "for_all(a,min,max): clamp(clamp(a,min,max),min,max) == clamp(a,min,max)",
+      "description": "trit_clamp(trit_clamp(a, min, max), min, max) == trit_clamp(a, min, max)",
+      "name": "trit_clamp_idempotent"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_equal(a,a) == true",
+      "description": "trit_equal(a, a) == true for all a",
+      "name": "trit_equal_reflexive"
+    },
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_equal(a,b) == trit_equal(b,a)",
+      "description": "trit_equal(a, b) == trit_equal(b, a)",
+      "name": "trit_equal_symmetric"
+    },
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_multiply_table(a,b) == trit_multiply_table(b,a)",
+      "description": "trit_multiply_table(a, b) == trit_multiply_table(b, a)",
+      "name": "trit_multiply_table_commutative"
+    },
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_add_table(a,b) == trit_add_table(b,a)",
+      "description": "trit_add_table(a, b) == trit_add_table(b, a)",
+      "name": "trit_add_table_commutative"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_add_table(a,0) == a",
+      "description": "trit_add_table(a, 0) == a for all trit values",
+      "name": "trit_add_table_identity_zero"
+    },
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_carry_table(a,b) == trit_carry_table(b,a)",
+      "description": "trit_carry_table(a, b) == trit_carry_table(b, a)",
+      "name": "trit_carry_table_commutative"
+    },
+    {
+      "assertion": "for_all(a,b,c in {-1,0,1}): trit_add_with_carry(a,b,c).result in {-1,0,1}",
+      "description": "trit_add_with_carry result is always in {-1, 0, +1}",
+      "name": "trit_add_with_carry_result_in_range"
+    },
+    {
+      "assertion": "for_all(a,b,c in {-1,0,1}): trit_add_with_carry(a,b,c).carry_out in {-1,0,1}",
+      "description": "trit_add_with_carry carry_out is always in {-1, 0, +1}",
+      "name": "trit_add_with_carry_carry_in_range"
+    },
+    {
+      "assertion": "for_all(a,b,c): compare(a,b)<0 && compare(b,c)<0 => compare(a,c)<0",
+      "description": "trit_compare is transitive: if a<b and b<c then a<c",
+      "name": "trit_compare_total_ordering"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_negate(trit_negate(a)) == a",
+      "description": "trit_negate(trit_negate(a)) == a for all a",
+      "name": "trit_negate_double_identity"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_abs(a) in {0,1}",
+      "description": "trit_abs(a) is always in {0, +1}",
+      "name": "trit_abs_result_non_negative"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_min(a,a) == a",
+      "description": "trit_min(a, a) == a for all a",
+      "name": "trit_min_idempotent"
+    },
+    {
+      "assertion": "for_all(a in {-1,0,1}): trit_max(a,a) == a",
+      "description": "trit_max(a, a) == a for all a",
+      "name": "trit_max_idempotent"
+    },
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_min(a,b) == trit_max(b,a)",
+      "description": "trit_min(a, b) == trit_max(b, a) for all a, b",
+      "name": "trit_min_max_antisymmetric"
+    },
+    {
+      "assertion": "for_all(x in {-1,1}): trit_power(x,0) == 1",
+      "description": "trit_power(x, 0) == .pos for x != 0",
+      "name": "trit_power_zero_exponent_returns_unit"
+    },
+    {
+      "assertion": "trit_to_bool(trit_from_bool(true))==true && trit_to_bool(trit_from_bool(false))==false",
+      "description": "trit_to_bool(trit_from_bool(b)) == b for all boolean b",
+      "name": "trit_from_bool_to_bool_roundtrip"
+    },
+    {
+      "assertion": "for_all(a,b in {-1,0,1}): trit_abs_diff(a,b) == trit_abs_diff(b,a)",
+      "description": "trit_abs_diff(a, b) == trit_abs_diff(b, a)",
+      "name": "trit_abs_diff_commutative"
+    }
+  ],
+  "module": "tritype-ops",
+  "ring": 25,
+  "schema_version": 2,
+  "seal": "sha256:ec928f3fb66d26489a2a26f38b683e77ebeb3f183251261e8ef2aa521ec56c1e",
+  "spec_path": "specs/base/ops.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "base_ops Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_multiply_table",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_add_table",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_carry_table",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": {
+            "carry_out": 0,
+            "result": 0
+          },
+          "inputs": {
+            "a": 1,
+            "b": -1,
+            "carry_in": 0
+          }
+        },
+        {
+          "expected": {
+            "carry_out": 1,
+            "result": -1
+          },
+          "inputs": {
+            "a": 1,
+            "b": 1,
+            "carry_in": 0
+          }
+        },
+        {
+          "expected": {
+            "carry_out": -1,
+            "result": 1
+          },
+          "inputs": {
+            "a": -1,
+            "b": -1,
+            "carry_in": 0
+          }
+        },
+        {
+          "expected": {
+            "carry_out": 1,
+            "result": 0
+          },
+          "inputs": {
+            "a": 1,
+            "b": 1,
+            "carry_in": 1
+          }
+        },
+        {
+          "expected": {
+            "carry_out": -1,
+            "result": 0
+          },
+          "inputs": {
+            "a": -1,
+            "b": -1,
+            "carry_in": -1
+          }
+        }
+      ],
+      "function": "trit_add_with_carry",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        }
+      ],
+      "function": "trit_compare",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_negate",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_abs",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        }
+      ],
+      "function": "trit_min",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        }
+      ],
+      "function": "trit_max",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        }
+      ],
+      "function": "trit_subtract",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_sign",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "max_val": 1,
+            "min_val": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "max_val": 0,
+            "min_val": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "max_val": 1,
+            "min_val": -1
+          }
+        }
+      ],
+      "function": "trit_clamp",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_is_negative",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": false,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_is_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": false,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_is_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_equal",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "n": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "n": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "n": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "n": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "n": 2
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "n": 3
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "n": 3
+          }
+        }
+      ],
+      "function": "trit_power",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_abs_diff",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0
+          }
+        }
+      ],
+      "function": "trit_reverse",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_subtract(a,b) == trit_add_table(a, trit_negate(b))",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_subtract(a,b) == trit_add_table(a, trit_negate(b))"
+      },
+      "name": "inv_trit_subtract_add_negation_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_sign(a) == a",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_sign(a) == a"
+      },
+      "name": "inv_trit_sign_matches_enum_value",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,min,max): min<=max => min<=clamp(a,min,max)<=max",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,min,max): min<=max => min<=clamp(a,min,max)<=max"
+      },
+      "name": "inv_trit_clamp_preserves_order",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,min,max): clamp(clamp(a,min,max),min,max) == clamp(a,min,max)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,min,max): clamp(clamp(a,min,max),min,max) == clamp(a,min,max)"
+      },
+      "name": "inv_trit_clamp_idempotent",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_equal(a,a) == true",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_equal(a,a) == true"
+      },
+      "name": "inv_trit_equal_reflexive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_equal(a,b) == trit_equal(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_equal(a,b) == trit_equal(b,a)"
+      },
+      "name": "inv_trit_equal_symmetric",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_multiply_table(a,b) == trit_multiply_table(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_multiply_table(a,b) == trit_multiply_table(b,a)"
+      },
+      "name": "inv_trit_multiply_table_commutative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_add_table(a,b) == trit_add_table(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_add_table(a,b) == trit_add_table(b,a)"
+      },
+      "name": "inv_trit_add_table_commutative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_add_table(a,0) == a",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_add_table(a,0) == a"
+      },
+      "name": "inv_trit_add_table_identity_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_carry_table(a,b) == trit_carry_table(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_carry_table(a,b) == trit_carry_table(b,a)"
+      },
+      "name": "inv_trit_carry_table_commutative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b,c in {-1,0,1}): trit_add_with_carry(a,b,c).result in {-1,0,1}",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b,c in {-1,0,1}): trit_add_with_carry(a,b,c).result in {-1,0,1}"
+      },
+      "name": "inv_trit_add_with_carry_result_in_range",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b,c in {-1,0,1}): trit_add_with_carry(a,b,c).carry_out in {-1,0,1}",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b,c in {-1,0,1}): trit_add_with_carry(a,b,c).carry_out in {-1,0,1}"
+      },
+      "name": "inv_trit_add_with_carry_carry_in_range",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b,c): compare(a,b)<0 && compare(b,c)<0 => compare(a,c)<0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b,c): compare(a,b)<0 && compare(b,c)<0 => compare(a,c)<0"
+      },
+      "name": "inv_trit_compare_total_ordering",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_negate(trit_negate(a)) == a",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_negate(trit_negate(a)) == a"
+      },
+      "name": "inv_trit_negate_double_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_abs(a) in {0,1}",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_abs(a) in {0,1}"
+      },
+      "name": "inv_trit_abs_result_non_negative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_min(a,a) == a",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_min(a,a) == a"
+      },
+      "name": "inv_trit_min_idempotent",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a in {-1,0,1}): trit_max(a,a) == a",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a in {-1,0,1}): trit_max(a,a) == a"
+      },
+      "name": "inv_trit_max_idempotent",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_min(a,b) == trit_max(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_min(a,b) == trit_max(b,a)"
+      },
+      "name": "inv_trit_min_max_antisymmetric",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x in {-1,1}): trit_power(x,0) == 1",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x in {-1,1}): trit_power(x,0) == 1"
+      },
+      "name": "inv_trit_power_zero_exponent_returns_unit",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: trit_to_bool(trit_from_bool(true))==true && trit_to_bool(trit_from_bool(false))==false",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "trit_to_bool(trit_from_bool(true))==true && trit_to_bool(trit_from_bool(false))==false"
+      },
+      "name": "inv_trit_from_bool_to_bool_roundtrip",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_abs_diff(a,b) == trit_abs_diff(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_abs_diff(a,b) == trit_abs_diff(b,a)"
+      },
+      "name": "inv_trit_abs_diff_commutative",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

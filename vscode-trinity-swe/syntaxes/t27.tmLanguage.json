@@ -1,0 +1,35 @@
+{
+  "name": "T27",
+  "scopeName": "source.t27",
+  "patterns": [
+    {
+      "name": "comment.line.semicolon.t27",
+      "match": ";.*"
+    },
+    {
+      "name": "comment.line.double-slash.t27",
+      "match": "//.*"
+    },
+    {
+      "name": "string.quoted.double.t27",
+      "begin": "\"",
+      "end": "\""
+    },
+    {
+      "name": "keyword.control.t27",
+      "match": "\\b(if|else|switch|for|return|try|catch)\\b"
+    },
+    {
+      "name": "keyword.declaration.t27",
+      "match": "\\b(module|pub|const|var|fn|struct|enum|test|invariant|bench)\\b"
+    },
+    {
+      "name": "constant.numeric.t27",
+      "match": "\\b[0-9]+\\.?[0-9]*\\b"
+    },
+    {
+      "name": "keyword.operator.t27",
+      "match": "="
+    }
+  ]
+}

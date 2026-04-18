@@ -1,0 +1,194 @@
+{
+  "benchmarks": [
+    {
+      "name": "registry_parse_latency",
+      "target": "< 5ms"
+    },
+    {
+      "name": "skill_lookup_latency",
+      "target": "< 1ms"
+    }
+  ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:20:00Z",
+  "invariants": [
+    {
+      "assert": "REGISTRY_PATH == .trinity/skills/registry.json",
+      "name": "registry_path_is_fixed"
+    },
+    {
+      "assert": "Active < Sealed < Paused < Blocked < Completed",
+      "name": "skill_status_sequential"
+    },
+    {
+      "assert": "NotToxic or Toxic only",
+      "name": "skill_verdict_binary"
+    },
+    {
+      "assert": "Recovery kind needs min 3 checkpoints",
+      "name": "recovery_requires_3_checkpoints"
+    },
+    {
+      "assert": "Hotfix kind needs min 1 checkpoint",
+      "name": "hotfix_requires_1_checkpoint"
+    }
+  ],
+  "module": "SkillRegistry",
+  "ring": 38,
+  "schema_version": 2,
+  "seal": "sha256:3337bddba2a959d3927ed2a4468d33a07031ad41621ffe1f58d9f3fb64997bdc",
+  "spec_path": "compiler/skill/registry.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_skill_registry Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "Active"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "Sealed"
+          }
+        },
+        {
+          "expected": 2,
+          "inputs": {
+            "variant": "Paused"
+          }
+        },
+        {
+          "expected": 3,
+          "inputs": {
+            "variant": "Blocked"
+          }
+        },
+        {
+          "expected": 4,
+          "inputs": {
+            "variant": "Completed"
+          }
+        }
+      ],
+      "function": "SkillStatus",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "Feature"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "Bugfix"
+          }
+        },
+        {
+          "expected": 2,
+          "inputs": {
+            "variant": "Hotfix"
+          }
+        },
+        {
+          "expected": 3,
+          "inputs": {
+            "variant": "Recovery"
+          }
+        },
+        {
+          "expected": 4,
+          "inputs": {
+            "variant": "Refactor"
+          }
+        }
+      ],
+      "function": "SkillKind",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "NotToxic"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "Toxic"
+          }
+        }
+      ],
+      "function": "SkillVerdict",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_registry_path_is_fixed",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_skill_status_sequential",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_skill_verdict_binary",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_recovery_requires_3_checkpoints",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_hotfix_requires_1_checkpoint",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

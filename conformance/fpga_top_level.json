@@ -1,0 +1,102 @@
+{
+  "constants": {
+    "CLK_FREQ": 50000000,
+    "MAC_DATA_WIDTH": 27,
+    "TARGET_DEVICE": "xc7a100t"
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "Trinity FPGA Top Level conformance vectors -- LED control, reset, heartbeat",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-05T12:00:00Z",
+  "invariants": [
+    {
+      "description": "CLK_FREQ == 50000000 (50 MHz)",
+      "id": "top_clk_frequency_constant",
+      "value": 50000000
+    },
+    {
+      "description": "TARGET_DEVICE == xc7a100t (Artix-7)",
+      "id": "top_device_target_constant",
+      "value": "xc7a100t"
+    },
+    {
+      "description": "LED output width == 8 bits",
+      "id": "top_led_count_constant",
+      "value": 8
+    }
+  ],
+  "module": "Trinity_FPGA_Top",
+  "ring": 43,
+  "schema_version": 2,
+  "seal": "sha256:78d369404b7912e6eb6ef27ca9efe2b6c61fe40a861e2d386c571934ec1b08a6",
+  "spec_path": "specs/fpga/top_level.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "fpga_top_level Vectors",
+  "vectors": {
+    "led_set": {
+      "cases": [
+        {
+          "expected_output": 255,
+          "id": "top_led_set_all_on",
+          "led_mask": 255,
+          "note": "All 8 LEDs on"
+        },
+        {
+          "expected_output": 0,
+          "id": "top_led_set_all_off",
+          "led_mask": 0,
+          "note": "All LEDs off"
+        },
+        {
+          "expected_output": 170,
+          "id": "top_led_set_pattern",
+          "led_mask": 170,
+          "note": "Alternating LED pattern 0xAA"
+        }
+      ],
+      "description": "LED control output"
+    },
+    "top_heartbeat": {
+      "cases": [
+        {
+          "clk_freq": 50000000,
+          "expected_period_ms": 1000,
+          "expected_toggle_cycles": 25000000,
+          "id": "top_heartbeat_period",
+          "note": "Heartbeat toggles every 0.5s for 1Hz blink"
+        },
+        {
+          "after_toggle": 1,
+          "id": "top_heartbeat_initial_state",
+          "initial_led": 0,
+          "note": "Heartbeat LED starts off, toggles to on"
+        }
+      ],
+      "description": "Heartbeat LED toggle"
+    },
+    "top_reset": {
+      "cases": [
+        {
+          "expected_mac_reset": true,
+          "expected_spi_reset": true,
+          "expected_uart_reset": true,
+          "id": "top_reset_assert",
+          "note": "Active-low reset asserts all subsystem resets",
+          "reset_n": 0
+        },
+        {
+          "expected_mac_reset": false,
+          "expected_spi_reset": false,
+          "expected_uart_reset": false,
+          "id": "top_reset_deassert",
+          "note": "Reset deasserted releases all subsystems",
+          "reset_n": 1
+        }
+      ],
+      "description": "Reset subsystems"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

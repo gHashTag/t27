@@ -1,0 +1,10 @@
+{
+  "gen_hash_c": "sha256:e52fab78e43bf6547b6947891135049974333cf389a0ecae574399abcbb9b6b2",
+  "gen_hash_verilog": "sha256:378187a31fd387639e0ecf90a450b12762970f1ee1662994cb92634f7d075ab0",
+  "gen_hash_zig": "sha256:122554a0e3b1cdd5a18e00fc3fe6e055dcf2911f9299b31d564ec1fa0c3647ed",
+  "module": "SOUL",
+  "ring": 12,
+  "sealed_at": "2026-04-06T18:30:12Z",
+  "spec_hash": "sha256:a0b5b6c0092d3159040640c9f2d11fb4e440287d6b11d4f24b97192cdb0f8b8a",
+  "spec_path": "docs/nona-03-manifest/SOUL.md"
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gHashTag/t27/schemas/numeric-format-v1.json",
+  "title": "GoldenFloat format family descriptor (FORMAT-SPEC-001)",
+  "type": "object",
+  "required": ["format_family", "version", "canonical_reference", "formats", "value_formula"],
+  "additionalProperties": true,
+  "properties": {
+    "format_family": { "type": "string", "const": "GoldenFloat" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+    "canonical_reference": {
+      "type": "string",
+      "description": "Human-readable pointer (e.g. THM-009, specs/numeric/phi_ratio.t27, NUMERIC-STANDARD-001)"
+    },
+    "formats": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["bits", "sign", "exp", "mant", "bias"],
+        "properties": {
+          "bits": { "type": "integer", "minimum": 4, "maximum": 64 },
+          "sign": { "type": "integer", "enum": [1] },
+          "exp": { "type": "integer", "minimum": 1 },
+          "mant": { "type": "integer", "minimum": 1 },
+          "bias": { "type": "integer" },
+          "phi_dist": { "type": "number", "description": "|exp/mant - 1/phi|" },
+          "primary": { "type": "boolean" }
+        }
+      }
+    },
+    "value_formula": { "type": "string" },
+    "sacred_constants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["value"],
+        "properties": {
+          "value": { "type": "number" },
+          "tolerance": { "type": "number" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: Apache-2.0
+// Simple .tri Parser - Ring 003
+// ASCII-only .tri spec parser with minimal requirements
+
+spec simple_parser {
+
+    // Token types (Article II: every spec must have tests)
+    test token_kind {
+        // Keywords
+        let keywords = ["module", "pub", "const", "type", "struct", "enum", "fn", "return", "let", "if", "else", "for", "while", "test", "invariant", "bench"];
+
+        given token: string;
+        when token in keywords then TokenKind::KEYWORD;
+    }
+
+    test identifier {
+        // Must start with letter or underscore
+        // ASCII-only (L3 purity law)
+        given ident: string;
+
+        when ident.len() < 1 then TokenKind::ERROR;
+        when ident[0] matches "[a-zA-Z_]" then TokenKind::IDENT;
+        when ident matches keywords then TokenKind::ERROR;
+    }
+
+    test numeric_literal {
+        // 0-9 with optional + and .
+        given lit: string;
+
+        when matches r"[0-9]+(\.[0-9]*)*" then TokenKind::NUMERIC_LITERAL;
+    }
+
+    test string_literal {
+        // "..." or '...'
+        given lit: string;
+
+        when lit.len() >= 2
+        then TokenKind::STRING_LITERAL;
+    }
+
+    // Structural symbols
+    type Delimiter = enum {
+        LBRACE = 0x01,   // {
+        RBRACE = 0x02,    // }
+        COMMA = 0x03,      // ,
+        SEMICOLON = 0x04,  // ;
+        COLON = 0x05,       // :
+        DOT = 0x06,          // .
+    }
+
+    // Functions (3 min)
+    pub fn parse(source: string) -> ParseResult;
+
+    // Parse result structure
+    pub type ParseResult = struct {
+        success: bool,
+        tokens: []Token,
+        errors: []string,
+    }
+
+    // Minimal test (Article II compliance)
+    test parse_empty_module {
+        given source = "module test {}";
+
+        when parsed = parse(source)
+        then parsed.success == true
+             && parsed.tokens.length == 3
+             && parsed.tokens[0].kind == TokenKind::KEYWORD
+             && parsed.tokens[0].value == "module"
+             && parsed.tokens[1].kind == TokenKind::IDENT
+             && parsed.tokens[2].value == "test"
+             && parsed.tokens[3].kind == TokenKind::LBRACE;
+        then true;
+    }
+
+    test parse_with_struct {
+        given source = "pub struct Point { x: f64; }";
+
+        when parsed = parse(source)
+        then parsed.success == true
+             && parsed.tokens.length == 5
+             && parsed.tokens[0].kind == TokenKind::PUB
+             && parsed.tokens[1].kind == TokenKind::STRUCT
+             && parsed.tokens[2].value == "Point"
+             && parsed.tokens[3].value == TokenKind::IDENT
+             && parsed.tokens[4].kind == TokenKind::LBRACE
+             && parsed.tokens[5].value == "}"
+        then true;
+    }
+}

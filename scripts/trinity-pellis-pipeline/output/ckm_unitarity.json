@@ -1,0 +1,47 @@
+{
+  "ckm_elements": {
+    "V_ud": {
+      "name": "V_ud",
+      "description": "CKM element u\u2192d",
+      "formula": "7\u03c6\u207b\u2075\u03c0\u00b3e\u207b\u00b3",
+      "computed_value": "0.97437472763844367987476387312095599132838976848301",
+      "experimental_value": "0.97448999999999996735056129182339645922183990478516",
+      "delta_pct": 0.011828993787138656,
+      "squared": 0.9494061098604913
+    },
+    "V_us": {
+      "name": "V_us",
+      "description": "CKM element u\u2192s",
+      "formula": "3/\u03c0",
+      "computed_value": "0.95492965855137201461330258023508617220675787444274",
+      "experimental_value": "0.22431000000000000937916411203332245349884033203125",
+      "delta_pct": 325.7187189832696,
+      "squared": 0.91189065278104
+    },
+    "V_ub": {
+      "name": "V_ub",
+      "description": "CKM element u\u2192b",
+      "formula": "Experimental (no Trinity formula)",
+      "computed_value": "1",
+      "experimental_value": "0.0036900000000000001375288771754412664449773728847504",
+      "delta_pct": 27000.271002710026,
+      "squared": 1.0
+    },
+    "V_cb": {
+      "name": "V_cb",
+      "description": "CKM element c\u2192b",
+      "formula": "\u03b3\u00b3\u03c0 (with \u03b3=0.23606797749978969640917366873127623544061835961153)",
+      "computed_value": "0.04132959128020562207792036986210199143821900388842",
+      "experimental_value": "0.041099999999999997646327187794668134301900863647461",
+      "delta_pct": 0.5586162535416653,
+      "squared": 0.0017081351153888486
+    }
+  },
+  "unitarity": {
+    "sum": "2.86300489775692",
+    "deviation": "1.86300489775692",
+    "deviation_pct": 186.300489775692,
+    "is_unitary": false
+  },
+  "interpretation": "The unitarity deviation is 186.300489775692000%. Significant deviation from unity observed."
+}

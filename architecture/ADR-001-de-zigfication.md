@@ -1,4 +1,4 @@
-# ADR-001: De-Zigфикация — Tri as Source of Truth
+# ADR-001: De-Zigfication — Tri as Source of Truth
 
 **Status:** Accepted
 **Date:** 2026-04-04
@@ -56,7 +56,7 @@ Trinity S³AI Framework (DOI: 10.5281/zenodo.19227879) is implemented as ~50,000
 
 ### Negative
 
-- ⚠️ **50,000 LOC Migration** — Existing Zig code must be preserved in `backend/zig/legacy/`
+- ⚠️ **50,000 LOC Migration** — Existing Zig code must be preserved in `contrib/backend/zig/legacy/`
 - ⚠️ **Dual Maintenance** — Both `.tri` specs AND legacy Zig need care during transition
 - ⚠️ **Agent Re-training** — Agents must learn to check `.tri` context before writing Zig
 - ⚠️ **Build Complexity** — `tri gen` pipeline requires tri-gen → Zig compiler integration

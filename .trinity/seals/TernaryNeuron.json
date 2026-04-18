@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:26e461ab53328256f6cddaa5e93a81b9354dae3903710ae28f5af89902627691",
+  "gen_hash_rust": "sha256:aed35194eb882ce46f15a60d5d10da11b8bb295636040f9edc567bdd311e26ca",
+  "gen_hash_verilog": "sha256:81eee60c55275e69496e269cede160db2df0c20f9d6f7218b27f540168d4e2f2",
+  "gen_hash_zig": "sha256:f8c80c5fb6ee2f2d3de5633479dcde299ee043366192e0b51343e6ca9c76b7dd",
+  "module": "TernaryNeuron",
+  "ring": 12,
+  "sealed_at": "2026-04-11T08:52:55Z",
+  "spec_hash": "sha256:912380050d48b6834cce1782ac970ed88ae9fa6938bf7713012e2e7cadbbfcab",
+  "spec_path": "specs/ml/ternary_neuron.t27"
+}

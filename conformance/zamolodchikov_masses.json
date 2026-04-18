@@ -1,0 +1,183 @@
+{
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "Zamolodchikov E8 Mass Spectrum Conformance Vectors — KEPLER-NEWTON",
+  "format_family": "Conformance",
+  "references": [
+    "Zamolodchikov, Int. J. Mod. Phys. A4 (1989) 4235",
+    "Coldea et al., Science 327 (2010) 177",
+    "Koca & Koca, arXiv:1204.4567 (2012)"
+  ],
+  "schema_version": 2,
+  "seal": "sha256:783897a1cb8ded36aba7366256efdc39ef6e6e6e28fd2b6101b0c86f539a69f3",
+  "source_module": "math::zamolodchikov_e8",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "zamolodchikov_masses Vectors",
+  "vectors": [
+    {
+      "description": "8 particle masses from E8 affine Toda field theory, normalized to m1=1",
+      "name": "E8 Mass Spectrum (Exact Ratios)",
+      "test_cases": [
+        {
+          "expected": {
+            "m1": 1.0,
+            "m2": 1.6180339887,
+            "m3": 1.9890437907,
+            "m4": 2.4048671724,
+            "m5": 2.9562952015,
+            "m6": 3.2183404585,
+            "m7": 3.8911568233,
+            "m8": 4.7833861168
+          },
+          "input": {},
+          "tolerance": {
+            "max_abs_error": 1e-8
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Four pairs of masses differ by factor phi (exact, from H4 subgroup)",
+      "name": "Golden Ratio Mass Relations",
+      "test_cases": [
+        {
+          "critical": true,
+          "expected": {
+            "all_equal_phi": true,
+            "m2_over_m1": 1.618033988749895,
+            "m6_over_m3": 1.618033988749895,
+            "m7_over_m4": 1.618033988749895,
+            "m8_over_m5": 1.618033988749895
+          },
+          "input": {},
+          "tolerance": {
+            "max_abs_error": 1e-10
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "CoNb2O6 near quantum critical point: m2/m1 -> phi",
+      "name": "Experimental Confirmation (Coldea 2010)",
+      "test_cases": [
+        {
+          "expected": {
+            "agreement": "within experimental resolution",
+            "observed_ratio": 1.618,
+            "predicted_ratio": 1.6180339887
+          },
+          "input": {
+            "material": "CoNb2O6",
+            "reference": "Science 327 (2010) 177"
+          },
+          "note": "First experimental observation of E8 symmetry in condensed matter"
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "n = E8_mark * 3^j hypothesis (2.7x enrichment over random)",
+      "name": "Sacred Formula n-value E8 Mark Decomposition",
+      "test_cases": [
+        {
+          "expected": {
+            "is_mark": true,
+            "mark": 2,
+            "power_of_3": 1
+          },
+          "input": {
+            "n": 6
+          }
+        },
+        {
+          "expected": {
+            "is_mark": true,
+            "mark": 4,
+            "power_of_3": 0
+          },
+          "input": {
+            "n": 4
+          }
+        },
+        {
+          "expected": {
+            "is_mark": true,
+            "mark": 2,
+            "power_of_3": 0
+          },
+          "input": {
+            "n": 2
+          }
+        },
+        {
+          "expected": {
+            "is_mark": true,
+            "mark": 2,
+            "power_of_3": 4
+          },
+          "input": {
+            "n": 162
+          }
+        },
+        {
+          "expected": {
+            "is_mark": true,
+            "mark": 5,
+            "power_of_3": 3
+          },
+          "input": {
+            "n": 135
+          }
+        },
+        {
+          "expected": {
+            "is_exponent": true,
+            "is_mark": false,
+            "mark": 7,
+            "power_of_3": 0
+          },
+          "input": {
+            "n": 7
+          }
+        },
+        {
+          "expected": {
+            "is_exponent": false,
+            "is_mark": false
+          },
+          "input": {
+            "n": 199
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Same 8 numbers in different Dynkin ordering",
+      "name": "PF Eigenvector = Zamolodchikov Masses",
+      "test_cases": [
+        {
+          "expected": {
+            "mapping_note": "PF[i] = m_{mapping[i]} for all i",
+            "pf_to_zam_mapping": [
+              1,
+              3,
+              5,
+              7,
+              8,
+              6,
+              2,
+              4
+            ]
+          },
+          "input": {}
+        }
+      ],
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "1.0"
+}

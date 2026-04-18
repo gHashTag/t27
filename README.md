@@ -1,115 +1,441 @@
-# TRI-27 Assembly (t27)
+# Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language
 
-**TRI-27 Assembly** — A low-level hardware specification language as the canonical source of truth for Trinity Project.
+[![CI](https://img.shields.io/github/actions/workflow/status/gHashTag/t27/ci.yml?branch=master&logo=github&label=CI)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
+[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.19456875.svg)](https://doi.org/10.5281/zenodo.19456875)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
 
-> "Hardware-first, φ-structured, multi-target codegen"
+**Language:** [English](README.md) | [Русский](docs/README_RU.md)
 
-## Overview
+The canonical source of truth for Trinity S3AI.
+`.t27` specs in → Zig, Verilog, C out.
 
-t27 is TRI-27 Assembly — a minimal assembly language for ternary computing with 27 Coptic registers. It serves as the **single source of truth** from which Zig, Verilog, C, and other target languages are generated.
+**φ² + 1/φ² = 3 | TRINITY**
 
-## Key Features
+---
 
-- **27 Coptic Registers**: r0-r25 (general purpose), r26 (zero)
-- **Ternary Operations**: All operations on trits {-1, 0, +1}
-- **Sacred Physics**: φ² + φ⁻² = 3, γ = φ⁻³, G, Ω_Λ built-in
-- **GoldenFloat Family**: GF4-GF32 with φ-structured formats
-- **Multi-Target**: Generate Zig, Verilog, C from .t27 specs
+## System Status
+
+| Domain | Component | Status | Details |
+|--------|-----------|--------|---------|
+| Compiler | `t27c parse` | GREEN | 170+ specs parse |
+| Compiler | `t27c gen-verilog` | GREEN | 5/5 FPGA modules synthesize |
+| Compiler | `t27c seal` | GREEN | 170+ seals in `.trinity/seals/` |
+| FPGA | Yosys synthesis | GREEN | 5/5 modules pass synth_xilinx |
+| FPGA | E2E bitstream | GREEN | Yosys→nextpnr→prjxray→.bit (zero Vivado) |
+| FPGA | Board profiles | GREEN | QMTECH XC7A100T (minimal+full), Arty A7 |
+| FPGA | `--profile` flag | GREEN | `--profile minimal|full` in fpga-build |
+| Pins | Pins IR | GREEN | `specs/pins/ir.t27` — conflict detection invariants |
+| Pins | XDC emitter | GREEN | `specs/pins/emitter_xdc.t27` — QMTECH + Arty presets |
+| CI | Issue gate | GREEN | L1 TRACEABILITY enforced |
+| CI | Seal coverage | GREEN | All specs sealed |
+| CI | Schema validation | GREEN | Conformance vectors validated |
+| CI | FPGA smoke | GREEN | Verilog gen in CI |
+| CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
+| TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
+| TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
+| Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
+
+---
+
+## What is t27?
+
+t27 is a **spec-first** language for ternary computing. You write `.t27` specifications -- the compiler generates Zig, Verilog, and C backends. No hand-editing generated code. Ever.
+
+The language is built around three pillars:
+
+- **27 Coptic registers** -- a ternary ISA with trits `{-1, 0, +1}`
+- **GoldenFloat family** -- phi-structured floating-point formats (GF4-GF32) where `exp/mant ~ 1/phi`
+- **Sacred physics** -- fundamental constants derived from `phi^2 + 1/phi^2 = 3`
+
+t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neuroanatomical AI framework targeting FPGA acceleration and DARPA CLARA compliance.
+
+## Quick Start
+
+```bash
+# Clone
+git clone https://github.com/gHashTag/t27.git
+cd t27
+
+# Build the bootstrap compiler (Rust); use ./scripts/tri as the CLI entry (wraps t27c)
+cd bootstrap && cargo build --release
+cd ..
+
+# Parse a spec (canonical CLI: tri → wraps bootstrap t27c)
+./scripts/tri parse specs/base/types.t27
+
+<<<<<<< Updated upstream
+# Generate Zig (stdout for one file; if the path is a directory, batch → gen/zig/… by default)
+./scripts/tri gen-zig specs/numeric/gf16.t27
+./scripts/tri gen-zig specs/numeric
+# Or: ./scripts/tri gen-dir --backend zig --out-root gen/zig <dir>
+=======
+# Generate Zig backend (stdout for a single file)
+./scripts/tri gen-zig specs/numeric/gf16.t27
+# Batch a directory into gen/zig/… (mirrors paths under out-root)
+./scripts/tri gen-dir --backend zig --out-root gen/zig specs/numeric
+>>>>>>> Stashed changes
+
+# Generate Verilog (file or directory → gen/verilog/…)
+./scripts/tri gen-verilog specs/fpga/mac.t27
+
+# Generate C (file or directory → gen/c/…)
+./scripts/tri gen-c specs/base/ops.t27
+
+# Verify a seal
+./scripts/tri seal specs/numeric/gf16.t27 --verify
+
+# Run all tests (Rust suite: parse / gen / seal / fixed-point)
+./scripts/tri test
+
+# Validate conformance vectors (JSON under conformance/)
+./scripts/tri validate-conformance
+
+# Validate generated file headers under gen/
+./scripts/tri validate-gen-headers
+
+# NOW.md date gate (also runs inside t27c before gen / gen-dir / compile*)
+./scripts/tri check-now
+```
 
 ## Architecture
 
+The project is organized into 5 strands that evolved ring-by-ring:
+
+```
+STRAND I   - Base         : types, ops, constants          (Rings 0-8)
+STRAND II  - Numeric+VSA  : GF4-GF32, TF3, phi, VSA ops   (Rings 9-11)
+STRAND III - Compiler+FPGA: parser, MAC, ISA registers      (Rings 12-14)
+STRAND IV  - Queen+NN     : Lotus orchestration, HSLM, attention (Rings 14-17)
+STRAND V   - AR (CLARA)   : ternary logic, proof traces, Datalog, restraint, XAI, ASP, composition (Rings 18-24)
+```
+
+Gen backends (Zig, C, Verilog) and conformance vectors were generated across Rings 25-31.
+
+### Agent experience (design)
+
+Multi-agent memory, Queen wisdom, and planned **`tri`** subcommands for experience / insights are outlined in **[`docs/TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md`](docs/TRINITY-EXPERIENCE-EXCHANGE-ARCHITECTURE.md)**. **Today’s supported pipeline** is the Quick Start block above (`tri test`, `tri check-now`, validators, codegen).
+
+### Directory Structure
+
 ```
 t27/
-├── specs/              # .t27 specifications (SOURCE OF TRUTH)
-│   ├── base/           # Base types and operations
-│   ├── numeric/        # Number formats (GoldenFloat, TF3)
-│   └── math/           # Sacred constants and physics
+├── specs/                  # .t27 SPECIFICATIONS -- source of truth
+│   ├── base/               #   types, ops (2 specs)
+│   ├── numeric/            #   GoldenFloat GF4-GF32, TF3, phi_ratio (10 specs)
+│   ├── math/               #   sacred_physics, constants (2 specs)
+│   ├── ar/                 #   CLARA AR pipeline -- logic, proof, datalog (7 specs)
+│   ├── nn/                 #   HSLM, attention kernels (2 specs)
+│   ├── isa/                #   27 Coptic registers (1 spec)
+│   ├── fpga/               #   MAC unit for XC7A100T (1 spec)
+│   ├── vsa/                #   Vector Symbolic Architecture (1 spec)
+│   ├── queen/              #   Lotus orchestration (1 spec)
+│   └── compiler/           #   Parser self-spec (1 spec)
 │
-├── compiler/           # T27 Compiler
-│   ├── parser/         # .t27 → AST (lexer, parser)
-│   ├── codegen/        # AST → Target code
-│   │   ├── zig/       # .t27 → Zig 0.15
-│   │   ├── verilog/   # .t27 → Verilog (XC7A100T)
-│   │   └── c/         # .t27 → C (clang/gcc)
-│   └── runtime/        # Bootstrap runtime
+├── compiler/               # Compiler .t27 specs (15 specs)
+│   ├── parser/             #   lexer.t27, parser.t27
+│   ├── codegen/            #   zig/, verilog/, c/, testgen
+│   ├── cli/                #   gen, git, spec commands
+│   ├── runtime/            #   commands, validation
+│   └── skill/              #   PHI LOOP skill registry
 │
-└── conformance/        # Language-agnostic test vectors
+├── gen/                    # GENERATED backends -- DO NOT EDIT
+│   ├── zig/                #   Zig backend (28 modules)
+│   ├── c/                  #   C backend (28 .c + 28 .h)
+│   └── verilog/            #   Verilog backend (28 modules)
+│
+├── conformance/            # Language-agnostic test vectors (34 JSON)
+│   ├── gf*_vectors.json    #   GoldenFloat arithmetic vectors
+│   ├── ar_*.json           #   CLARA AR conformance vectors
+│   ├── nn_*.json           #   Neural architecture vectors
+│   └── sacred_physics*.json#   phi, gamma, G, Omega_Lambda conformance
+│
+├── bootstrap/              # Stage-0 compiler (Rust) -- FROZEN
+│   └── src/compiler.rs     #   SHA-256 sealed in bootstrap/stage0/FROZEN_HASH
+│
+├── architecture/           # Dependency graph + ADRs
+│   ├── graph.tri           #   Canonical dependency DAG
+│   ├── graph_v2.json       #   Machine-readable graph (20 nodes)
+│   └── ADR-*.md            #   Architecture Decision Records
+│
+├── .trinity/               # Agent state (Akashic Chronicle)
+│   ├── events/             #   Append-only event journal
+│   ├── experience/         #   PHI LOOP episodes (38 episodes)
+│   ├── seals/              #   48 SHA-256 integrity seals
+│   ├── state/              #   queen-health.json, graph sync
+│   ├── claims/             #   Agent ownership claims
+│   ├── queue/              #   Task queue
+│   └── policy/             #   Coordination law
+│
+├── contrib/                # Non-core adjacency (API, runners, portable setup) — see OWNERS.md
+├── external/               # Vendored upstream (e.g. OpenCode submodule) + kaggle tree — see OWNERS.md
+│
+├── NOW.md                  # Rolling snapshot + coordination (sync gates; repo root)
+├── docs/                   # First-party docs (27-agent / 3-nona layout — see docs/README.md)
+│   ├── README.md           #   Index: agents/, coordination/, nona-01..03/, clara/
+│   ├── T27-CONSTITUTION.md #   Charter
+│   └── …                   #   nona-01-foundation/, nona-02-organism/, nona-03-manifest/, etc.
+│
+└── tests/                  # Ring verification + validation scripts
+    ├── comprehensive_suite.t27 # Suite contract (see t27c suite)
+    └── *.t27             #   Spec tests only — no shell runners
 ```
+
+**Domain ownership:** each major directory may include an `**OWNERS.md`** (Primary agent, dependencies, outputs). Start at `[OWNERS.md](OWNERS.md)` in the repo root; see also `[docs/agents/AGENTS_ALPHABET.md](docs/agents/AGENTS_ALPHABET.md)`.
+
+## CLARA Automated Reasoning
+
+The AR domain (Rings 18-24) implements a full DARPA CLARA-compliant reasoning pipeline in ternary logic:
+
+
+| Module             | Spec                          | Description                                                                                                 |
+| ------------------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Ternary Logic**  | `specs/ar/ternary_logic.t27`  | Kleene K3 logic: `{T, U, F}` isomorphic to trits `{+1, 0, -1}`. 27 truth table entries, verified K3 axioms. |
+| **Proof Traces**   | `specs/ar/proof_trace.t27`    | Bounded proof traces with a hard 10-step limit. Each step carries a GF16 confidence score.                  |
+| **Datalog Engine** | `specs/ar/datalog_engine.t27` | Forward-chaining Datalog with O(n) complexity. Stratified negation via K3 unknown.                          |
+| **Restraint**      | `specs/ar/restraint.t27`      | Bounded rationality: resource limits on inference (max steps, max memory, timeout).                         |
+| **Explainability** | `specs/ar/explainability.t27` | CLARA-compliant XAI: explanations <= 10 steps, each with GF16 confidence.                                   |
+| **ASP Solver**     | `specs/ar/asp_solver.t27`     | Answer Set Programming with Negation-as-Failure under K3 semantics.                                         |
+| **Composition**    | `specs/ar/composition.t27`    | ML+AR composition patterns: CNN+Rules, MLP+Bayesian, Transformer+XAI, RL+Guardrails.                        |
+
+
+All 7 AR modules have gen backends (Zig, C, Verilog) and conformance vectors.
+
+## Conformance Testing
+
+Every domain has language-agnostic conformance vectors in `conformance/*.json`. These JSON files contain test inputs, expected outputs, and tolerances that any backend must satisfy.
+
+**34 conformance vectors** cover:
+
+- GoldenFloat arithmetic (GF4 through GF32)
+- Sacred physics constants (phi, gamma, G, Omega_Lambda)
+- Base types and operations
+- CLARA AR pipeline (all 7 modules)
+- Neural architecture (attention, HSLM)
+- Domain modules (VSA ops, ISA registers, FPGA MAC, Queen Lotus)
+
+Validation: `./scripts/tri validate-conformance`
+
+## SEED-RINGS Progress
+
+The compiler grows ring-by-ring. Each ring adds exactly one capability, sealed with SHA-256 hashes.
+
+
+| Ring | Capability                                         | Layer  | Status      |
+| ---- | -------------------------------------------------- | ------ | ----------- |
+| 0    | Frozen stage-0 + first green parse                 | SEED   | Sealed      |
+| 1    | Lex all 28 specs without errors                    | SEED   | Sealed      |
+| 2    | Type declarations -> Zig codegen                   | SEED   | Sealed      |
+| 3    | fn signatures -> Zig                               | SEED   | Sealed      |
+| 4    | module + use -> Zig imports                        | SEED   | Sealed      |
+| 5    | fn body expressions -> Zig                         | ROOT   | Sealed      |
+| 6    | test blocks -> Zig test blocks                     | ROOT   | Sealed      |
+| 7    | invariant + bench -> Zig                           | ROOT   | Sealed      |
+| 8    | Conformance vectors -> test_vector_hash            | ROOT   | Sealed      |
+| 9    | Full Zig backend                                   | TRUNK  | Sealed      |
+| 10   | Verilog backend                                    | TRUNK  | Sealed      |
+| 11   | C backend                                          | TRUNK  | Sealed      |
+| 12   | seal --save / --verify                             | TRUNK  | Sealed      |
+| 13   | AR pipeline -- all 7 specs                         | BRANCH | Sealed      |
+| 14   | Queen + NN specs gen and seal                      | BRANCH | Sealed      |
+| 15   | Full test suite -- all 43 specs                    | BRANCH | Sealed      |
+| 16   | Self-hosting: stage(N) == stage(N-1)               | CANOPY | Sealed      |
+| 17   | Self-hosting verified (fixed point)                | CANOPY | Sealed      |
+| 18   | AR ternary logic (K3 isomorphism)                  | AR     | Sealed      |
+| 19   | Bounded proof traces                               | AR     | Sealed      |
+| 20   | Datalog engine (forward chaining)                  | AR     | Sealed      |
+| 21   | Restraint (bounded rationality)                    | AR     | Sealed      |
+| 22   | Explainability (CLARA XAI)                         | AR     | Sealed      |
+| 23   | ASP solver (NAF + K3)                              | AR     | Sealed      |
+| 24   | ML+AR composition (4 patterns)                     | AR     | Sealed      |
+| 25   | Gen backends: base/types, base/ops, math/constants | GEN    | Sealed      |
+| 26   | Gen backends: numeric core (GF4-GF16, TF3, phi)    | GEN    | Sealed      |
+| 27   | Gen backends: extended numerics (GF20-GF32)        | GEN    | Sealed      |
+| 28   | Gen backends: VSA, ISA, FPGA, sacred physics       | GEN    | Sealed      |
+| 29   | Gen backends: NN attention, HSLM, Queen Lotus      | GEN    | Sealed      |
+| 30   | Conformance vectors: AR gap coverage               | GEN    | Sealed      |
+| 31   | Compiler/parser gen + graph sync + queen health    | GEN    | Sealed      |
+| 32+  | Hardening: docs, validation, CI                    | HARDEN | In Progress |
+
+
+## GoldenFloat Family
+
+phi-structured floating-point formats where `exp/mant ~ 1/phi`:
+
+
+| Format   | Bits   | Exp   | Mant  | phi-distance | Use Case       |
+| -------- | ------ | ----- | ----- | ------------ | -------------- |
+| GF4      | 4      | 1     | 2     | 0.118        | Binary masks   |
+| GF8      | 8      | 3     | 4     | 0.132        | Weights        |
+| GF12     | 12     | 4     | 7     | 0.047        | Attention      |
+| **GF16** | **16** | **6** | **9** | **0.049**    | **Primary**    |
+| GF20     | 20     | 7     | 12    | 0.035        | Training       |
+| GF24     | 24     | 9     | 14    | 0.025        | Precision      |
+| GF32     | 32     | 12    | 19    | 0.014        | Full precision |
+
+### Multi-Language Installation
+
+GoldenFloat is available as native packages for Python, JavaScript, Rust, and C:
+
+**Python (PyPI):**
+```bash
+pip install golden-float
+```
+
+**JavaScript (npm):**
+```bash
+npm install golden-float
+```
+
+**Rust (crates.io):**
+```toml
+[dependencies]
+golden-float-ffi = "0.1"
+```
+
+**C/C++ (header-only):**
+```c
+#include "golden_float.h"  // Auto-generated from gen/c/numeric/
+```
+
+All implementations share a single Rust core with a C-compatible ABI, guaranteeing **bit-identical results** across languages. See [`docs/MIGRATION.md`](docs/MIGRATION.md) for detailed installation and migration guides.
+
 
 ## Sacred Constants
 
 ```t27
-const PHI = 1.618033988749895           ; Golden ratio
-const PHI_INV = 0.618033988749895        ; φ⁻¹ (consciousness threshold)
-const TRINITY = 3.0                     ; φ² + φ⁻² = 3
-const GAMMA_LQG = 0.2360679775           ; γ = φ⁻³ (Barbero-Immirzi)
-const G_MEASURED = 6.67430e-11           ; Gravitational constant
-const OMEGA_LAMBDA_MEASURED = 0.685     ; Dark energy (Planck)
+pub const PHI: GF16         = 1.618033988749895;   // Golden ratio
+pub const PHI_INV: GF16     = 0.618033988749895;   // phi^-1
+pub const TRINITY: GF16     = 3.0;                  // phi^2 + phi^-2 = 3
+pub const GAMMA_LQG: GF16   = 0.2360679775;         // phi^-3 (Barbero-Immirzi)
+pub const G_MEASURED: GF32   = 6.67430e-11;          // Gravitational constant
+pub const OMEGA_LAMBDA: GF32 = 0.685;                // Dark energy density
 ```
 
-## GoldenFloat Family
+## 27-Agent System
 
-φ-structured floating point formats targeting exp/mant ≈ 1/φ:
+Trinity runs 27 autonomous agents -- one per Coptic register:
 
-| Format | Bits | exp/mant | phi_distance | Use Case |
-|--------|------|----------|--------------|----------|
-| GF4    | 4    | 0.500    | 0.118        | Binary masks |
-| GF8    | 8    | 0.750    | 0.132        | Weights |
-| GF12   | 12   | 0.571    | 0.047        | Attention |
-| **GF16** | 16   | 0.667    | 0.049        | **PRIMARY** |
-| GF20   | 20   | 0.583    | 0.035        | Training |
-| GF24   | 24   | 0.643    | 0.025        | Precision |
-| GF32   | 32   | 0.632    | 0.014        | Full precision |
 
-## Example .t27 Program
+| Agent         | Domain                             | Key Files                           |
+| ------------- | ---------------------------------- | ----------------------------------- |
+| **T** (Queen) | Orchestration, 6-phase Lotus cycle | `specs/queen/lotus.t27`             |
+| **A**         | Architecture, SOUL.md, ADRs        | `architecture/`                     |
+| **B**         | Build, CI/CD, Railway              | `bootstrap/`                        |
+| **C**         | Compiler core, parser, AST         | `compiler/parser/`                  |
+| **D**         | De-Zigfication migration           | `specs/` -> generated backends      |
+| **F**         | Formal conformance vectors         | `conformance/*.json`                |
+| **G**         | Graph topology, ARCH_BENCH         | `architecture/graph.tri`            |
+| **H**         | HSLM neural architecture           | `specs/nn/`                         |
+| **I**         | ISA, 27 Coptic registers           | `specs/isa/registers.t27`           |
+| **K**         | FPGA/MAC kernel                    | `specs/fpga/mac.t27`                |
+| **N**         | GoldenFloat numeric                | `specs/numeric/`                    |
+| **P**         | Sacred physics constants           | `specs/math/`                       |
+| **V**         | Verdict, toxicity scoring          | `conformance/`, `.trinity/verdict/` |
+| **27th**      | Security, AAIF compliance          | `.trinity/policy/`                  |
 
-```t27
-; Hello World in TRI-27 Assembly
 
-.const HELLO_MSG 0x48656C6C6F
+Full list: [docs/agents/AGENTS_ALPHABET.md](docs/agents/AGENTS_ALPHABET.md)
 
-.data
-    .dword 0    ; Buffer
+## Constitutional Laws
 
-.code
-    MOV r0, #HELLO_MSG    ; Load message address
-    MOV r1, #5            ; Length
-    ADD r2, r0, r1        ; Calculate end
-    HALT                  ; Done
+8 immutable laws govern all mutations. Violations produce **TOXIC** verdicts.
+
+
+| LAW | Name                 | Rule                                                                         |
+| --- | -------------------- | ---------------------------------------------------------------------------- |
+| 1   | **De-Zigfication**   | `.t27` specs are the only source of truth. Zig/C/Verilog = generated output. |
+| 2   | **PHI LOOP**         | Every mutation follows a 9-step workflow with 4 SHA-256 hashes.              |
+| 3   | **SEED-RINGS**       | Language grows ring-by-ring. One ring = one capability.                      |
+| 4   | **ISSUE-GATE**       | No byte enters `master` without an Issue, a PR, and `Closes #N`.             |
+| 5   | **SOUL.md**          | Every `.t27` spec must contain `test {}`, `invariant {}`, or `bench {}`.     |
+| 6   | **NUMERIC-STANDARD** | GoldenFloat defined in specs + conformance JSON. Never in backend code.      |
+| 7   | **SACRED-PHYSICS**   | Sacred constants live in `specs/math/` with hard tolerances.                 |
+| 8   | **GRAPH TOPOLOGY**   | Evolution follows `architecture/graph.tri`. No circular deps.                |
+
+
+Details: [SOUL.md](SOUL.md) | [SEED-RINGS](docs/nona-01-foundation/SEED-RINGS.md) | [NUMERIC-STANDARD-001](docs/nona-02-organism/NUMERIC-STANDARD-001.md) | [SACRED-PHYSICS-001](docs/nona-02-organism/SACRED-PHYSICS-001.md)
+
+## PHI LOOP Workflow
+
+Every change follows this exact 9-step cycle:
+
+```
+tri skill begin <task> --issue <N>    <- bind to GitHub Issue
+tri spec edit <module>                <- edit ONE .t27 spec
+tri skill seal --hash                 <- record 4 SHA-256 hashes
+tri gen                               <- generate Zig/Verilog/C
+tri test                              <- run tests
+tri verdict --toxic                   <- TOXIC? -> rollback. CLEAN? -> proceed
+tri experience save                   <- append episode to Akashic journal
+tri skill commit                      <- verify hashes + issue binding
+tri git commit                        <- push with "Closes #N"
 ```
 
-## Opcodes
+## Contributing
 
-| Opcode | Description |
-|--------|-------------|
-| MOV    | Move immediate or register |
-| JZ     | Jump if zero |
-| JNZ    | Jump if not zero |
-| JMP    | Unconditional jump |
-| MUL    | Multiply |
-| ADD    | Add |
-| SUB    | Subtract |
-| BIND   | VSA bind operation |
-| BUNDLE | VSA bundle operation |
-| HALT   | Halt execution |
-
-## Documentation
-
-- [CANON_DE_ZIGFICATION.md](architecture/CANON_DE_ZIGFICATION.md) — De-Zig canonical law
-- [ADR-001: De-Zigфикация](architecture/ADR-001-de-zigfication.md) — Architecture decision record
-- [SOUL.md](docs/SOUL.md) — Trinity constitutional laws
-- [NUMERIC-STANDARD-001.md](docs/NUMERIC-STANDARD-001.md) — GoldenFloat family specification
-- [SACRED-PHYSICS-001.md](docs/SACRED-PHYSICS-001.md) — Sacred physics constants
-- [Migration Plan](docs/migration-plan-vsa-nn-fpga-queen.md) — Migration status and PHI LOOP skills
+1. Open a [GitHub Issue](https://github.com/gHashTag/t27/issues) first -- **no issue = no work** (LAW 4)
+2. Create a branch: `ring/<N>-<name>`, `ar/<AR-NNN>-<name>`, `fix/<name>`, or `task/<name>`
+3. Edit `.t27` specs only -- never hand-edit generated Zig/Verilog/C (LAW 1)
+4. Every spec must have `test {}`, `invariant {}`, or `bench {}` blocks (LAW 5)
+5. Commit message: `feat(ring-N): description [SEED-N]` with `Closes #N`
+6. Open a PR targeting `master`
 
 ## PHI LOOP Status
 
-**Total Skills:** 55
-- 20+ .t27 specs standardized to canonical format
-- Complete compiler stack (parser, codegen zig/verilog/c, testgen, runtime, CLI)
-- All TODOs expanded with implementation guidance
-- Architecture files synchronized (graph.tri, graph_v2.json)
-- **Bootstrap Blocker:** tri CLI not yet built — gen/test/verdict steps pending
+- **31 rings sealed** (SEED-0 through SEED-17, AR 18-24, GEN 25-31)
+- **45 .t27 spec files** (28 specs/ + 15 compiler/ + 2 sandbox)
+- **112 generated files** across 3 backends (Zig, C, Verilog)
+- **34 conformance vectors** covering all domains
+- **48 integrity seals** in .trinity/seals/
+- **6 CLI commands**: parse, gen, gen-zig, gen-verilog, gen-c, seal
+- **5 architecture strands**: Base -> Numeric -> Compiler+FPGA -> Queen+NN -> AR
+- **Deterministic fixed point** reached at Ring 17 (CANOPY)
+- **CLARA AR module**: 7 specs (ternary logic -> composition)
+- **Queen health**: GREEN 1.0 across 15 domains
+- CI enforced: Issue Gate + PHI Loop CI on all PRs
+
+## CI Enforcement
+
+All PRs to `master` must:
+
+1. Link to an issue via `Closes #N`
+2. Pass PHI Loop CI (build, parse, gen, seal verify)
+3. Pass conformance validation
+4. Pass gen header validation
+5. Pass seal coverage check
+
+See [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) for details.
+
+## Documentation
+
+**Full map (27 agents / three nonas):** [docs/README.md](docs/README.md)
+
+### Governance
+
+- [SOUL.md](SOUL.md) -- Constitutional law
+- [SEED-RINGS](docs/nona-01-foundation/SEED-RINGS.md) -- Incremental compiler bootstrap
+- [NUMERIC-STANDARD-001](docs/nona-02-organism/NUMERIC-STANDARD-001.md) -- GoldenFloat specification
+- [SACRED-PHYSICS-001](docs/nona-02-organism/SACRED-PHYSICS-001.md) -- Sacred physics constants
+- [PHI LOOP Contract](docs/nona-03-manifest/PHI_LOOP_CONTRACT.md) -- Workflow contract
+- [TDD Contract](docs/nona-03-manifest/TDD-CONTRACT.md) -- Test-driven development policy
+
+### Architecture
+
+- [ADR-001: De-Zigfication](architecture/ADR-001-de-zigfication.md)
+- [ADR-003: TDD Inside Spec](architecture/ADR-003-tdd-inside-spec.md)
+- [ADR-004: Language Policy](architecture/ADR-004-language-policy.md)
+- [ADR-005: De-Zig Strict](architecture/ADR-005-de-zig-strict.md)
+- [CANON DE-ZIGFICATION](architecture/CANON_DE_ZIGFICATION.md)
+- [TECHNOLOGY-TREE](docs/nona-03-manifest/TECHNOLOGY-TREE.md) -- Evolution roadmap
+
+### Agents & Operations
+
+- [27-Agent Alphabet](docs/agents/AGENTS_ALPHABET.md) -- All 27 agents
+- [CLARA Preparation Plan](docs/clara/CLARA-PREPARATION-PLAN.md) -- DARPA compliance
+- [Kleene Trit Isomorphism](docs/nona-02-organism/KLEENE-TRIT-ISOMORPHISM.md)
+- [TRI Syntax vNext](docs/nona-02-organism/TRI_SYNTAX_VNEXT.md)
+- [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) -- Issue gate enforcement law
 
 ## License
 
@@ -117,5 +443,10 @@ MIT
 
 ---
 
-**Maintained by**: Trinity Project
-**Status:** Migration Complete (2026-04-04) — 55 PHI LOOP skills committed
+**φ² + 1/φ² = 3 | TRINITY**
+
+**Maintained by**: [Trinity Project](https://github.com/gHashTag) — [Dmitrii Vasilev](https://github.com/gHashTag)
+
+**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+
+**DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)

@@ -1,0 +1,162 @@
+{
+  "constants": {
+    "CLK_PERIOD": 20,
+    "SIM_TIMEOUT": 10000000
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "MAC Testbench conformance vectors -- LUT multiplication, MAC cycle, dot product verification",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-05T12:00:00Z",
+  "invariants": [
+    {
+      "description": "CLK_PERIOD == 20 ns (50 MHz)",
+      "id": "tb_clk_period_correct",
+      "value": 20
+    },
+    {
+      "description": "Trit values are in {-1, 0, +1}",
+      "id": "tb_trit_values_defined"
+    }
+  ],
+  "module": "MAC_Testbench",
+  "ring": 43,
+  "schema_version": 2,
+  "seal": "sha256:cfb113e0f1c749f0305a00c36c64f8af25698f1e778941c06a4164f8ecdd0716",
+  "spec_path": "specs/fpga/testbench/mac_tb.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "fpga_testbench_mac_tb Vectors",
+  "vectors": {
+    "mac_cycle": {
+      "cases": [
+        {
+          "a_trits": [
+            1,
+            1,
+            -1
+          ],
+          "b_trits": [
+            1,
+            1,
+            1
+          ],
+          "expected_acc": 1,
+          "id": "tb_mac_cycle_zero_acc",
+          "initial_acc": 0,
+          "note": "1+1+(-1) = 1"
+        },
+        {
+          "a_trits": [
+            1,
+            -1
+          ],
+          "b_trits": [
+            1,
+            -1
+          ],
+          "expected_acc": 12,
+          "id": "tb_mac_cycle_with_acc",
+          "initial_acc": 10,
+          "note": "10 + (1+1) = 12"
+        }
+      ],
+      "description": "Single MAC accumulate cycle"
+    },
+    "mac_dot_product": {
+      "cases": [
+        {
+          "a": [
+            1,
+            1,
+            1
+          ],
+          "b": [
+            1,
+            1,
+            1
+          ],
+          "expected": 3,
+          "id": "tb_mac_dot_product_identity",
+          "note": "All +1 dot product = length"
+        },
+        {
+          "a": [
+            1,
+            -1,
+            1,
+            -1
+          ],
+          "b": [
+            -1,
+            1,
+            -1,
+            1
+          ],
+          "expected": -4,
+          "id": "tb_mac_dot_product_orthogonal",
+          "note": "Fully anti-correlated"
+        },
+        {
+          "a": [
+            1,
+            0,
+            -1,
+            1
+          ],
+          "b": [
+            1,
+            1,
+            1,
+            -1
+          ],
+          "expected": -1,
+          "id": "tb_mac_dot_product_mixed",
+          "note": "1+0+(-1)+(-1) = -1"
+        }
+      ],
+      "description": "Full dot product computation"
+    },
+    "mac_lut_multiply": {
+      "cases": [
+        {
+          "a": 1,
+          "b": 1,
+          "expected": 1,
+          "id": "tb_mac_lut_pos_pos",
+          "note": "(+1)*(+1) = +1"
+        },
+        {
+          "a": -1,
+          "b": -1,
+          "expected": 1,
+          "id": "tb_mac_lut_neg_neg",
+          "note": "(-1)*(-1) = +1"
+        },
+        {
+          "a": 1,
+          "b": -1,
+          "expected": -1,
+          "id": "tb_mac_lut_pos_neg",
+          "note": "(+1)*(-1) = -1"
+        },
+        {
+          "a": 0,
+          "b": 1,
+          "expected": 0,
+          "id": "tb_mac_lut_zero",
+          "note": "(0)*(+1) = 0"
+        },
+        {
+          "a": 0,
+          "b": 0,
+          "expected": 0,
+          "id": "tb_mac_lut_zero_zero",
+          "note": "(0)*(0) = 0"
+        }
+      ],
+      "description": "LUT-based ternary multiplication testbench vectors"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

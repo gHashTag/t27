@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Gate: NOW.md must be updated today before any commit.
+# Plus: NotebookLM continuous sync integration.
+# Pipeline entry: ./scripts/tri check-now → t27c check-now (Rust; see tests/OWNERS.md).
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# ===== NOW.md Gate =====
+bash "$ROOT/scripts/tri" check-now
+
+if ! git diff --cached --name-only | grep -q '^NOW.md$'; then
+  if git diff --name-only | grep -q '^NOW.md$'; then
+    echo ""
+    echo "⚠️  WARNING: NOW.md is modified but NOT staged."
+    echo "   Run: git add NOW.md"
+    echo "   Or: stage and commit NOW.md together with your changes."
+    echo ""
+  fi
+fi
+
+echo "✅ NOW.md gate passed"
+
+# ===== NotebookLM Continuous Sync =====
+# Track commits for periodic activity.md sync
+
+COMMITS_FILE="$ROOT/.trinity/notebook_commit_count"
+SYNC_INTERVAL=3  # Sync every 3 commits
+
+# Initialize commit counter
+if [ ! -f "$COMMITS_FILE" ]; then
+  mkdir -p "$(dirname "$COMMITS_FILE")"
+  echo "0" > "$COMMITS_FILE"
+fi
+
+# Increment counter
+COMMIT_COUNT=$(cat "$COMMITS_FILE")
+COMMIT_COUNT=$((COMMIT_COUNT + 1))
+echo "$COMMIT_COUNT" > "$COMMITS_FILE"
+
+# Check for .t27 file changes
+SPEC_CHANGED=0
+if git diff --cached --name-only | grep -q '\.t27$'; then
+  SPEC_CHANGED=1
+fi
+
+# Extract issue number from branch name for targeted sync
+BRANCH_NAME=$(git branch --show-current)
+ISSUE_NUM=$(echo "$BRANCH_NAME" | grep -oE '(issue-|#)?[0-9]+' | head -1 | tr -d 'issue-#' || echo "")
+
+# Run sync on interval or spec change
+if [ $((COMMIT_COUNT % SYNC_INTERVAL)) -eq 0 ] || [ "$SPEC_CHANGED" -eq 1 ]; then
+  echo "📊 NotebookLM sync: uploading activity.md..."
+
+  # Run async in background to not block commit
+  (
+    if [ -n "$ISSUE_NUM" ]; then
+      python3.10 "$ROOT/contrib/backend/notebooklm/sync.py" \
+        --issue "$ISSUE_NUM" --event push >/dev/null 2>&1 || true
+    fi
+    python3.10 "$ROOT/contrib/backend/notebooklm/sync.py" \
+      --activity >/dev/null 2>&1 || true
+  ) &
+
+  echo "   Background sync started (commit #$COMMIT_COUNT)"
+fi
+
+if [ "$SPEC_CHANGED" -eq 1 ]; then
+  echo "   ⚠️  .t27 files changed — notebook sources will update"
+fi
+
+echo "✅ Pre-commit complete — proceed"

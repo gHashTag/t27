@@ -1,0 +1,348 @@
+{
+  "benchmarks": [
+    {
+      "name": "ccodegen_simple_fn_latency",
+      "target": "< 5ms"
+    },
+    {
+      "name": "ccodegen_enum_generation_latency",
+      "target": "< 2ms"
+    },
+    {
+      "name": "cmapping_lookup_latency",
+      "target": "< 1us"
+    }
+  ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:10:00Z",
+  "invariants": [
+    {
+      "assert": "All NodeType variants have unique ordinal values",
+      "name": "node_type_enum_unique"
+    },
+    {
+      "assert": "Every BinOp variant maps to a valid C operator string",
+      "name": "binop_maps_to_c_operator"
+    },
+    {
+      "assert": "Every UnOp variant maps to a valid C unary operator string",
+      "name": "unop_maps_to_c_operator"
+    },
+    {
+      "assert": "CMapping has entries for all t27 base types",
+      "name": "cmapping_covers_all_base_types"
+    },
+    {
+      "assert": "indent() increases depth by exactly 1",
+      "name": "indent_increments_depth"
+    },
+    {
+      "assert": "dedent() never decreases depth below 0",
+      "name": "dedent_floors_at_zero"
+    },
+    {
+      "assert": "Generated output is syntactically valid C code",
+      "name": "ccodegen_output_valid_c"
+    }
+  ],
+  "module": "CCodeGen",
+  "ring": 37,
+  "schema_version": 2,
+  "seal": "sha256:4523fdf08be69ae06b51931501f26a515452c39dda382ef613e089001f868eda",
+  "spec_path": "compiler/codegen/c/codegen.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_codegen_c Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": 0,
+          "inputs": {
+            "variant": "Literal"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "variant": "Identifier"
+          }
+        },
+        {
+          "expected": 2,
+          "inputs": {
+            "variant": "BinaryExpr"
+          }
+        },
+        {
+          "expected": 3,
+          "inputs": {
+            "variant": "UnaryExpr"
+          }
+        },
+        {
+          "expected": 4,
+          "inputs": {
+            "variant": "FunctionCall"
+          }
+        },
+        {
+          "expected": 5,
+          "inputs": {
+            "variant": "Assignment"
+          }
+        }
+      ],
+      "function": "NodeType",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": "+",
+          "inputs": {
+            "variant": "Add"
+          }
+        },
+        {
+          "expected": "-",
+          "inputs": {
+            "variant": "Sub"
+          }
+        },
+        {
+          "expected": "*",
+          "inputs": {
+            "variant": "Mul"
+          }
+        },
+        {
+          "expected": "/",
+          "inputs": {
+            "variant": "Div"
+          }
+        },
+        {
+          "expected": "%",
+          "inputs": {
+            "variant": "Mod"
+          }
+        },
+        {
+          "expected": "&",
+          "inputs": {
+            "variant": "BitAnd"
+          }
+        },
+        {
+          "expected": "|",
+          "inputs": {
+            "variant": "BitOr"
+          }
+        },
+        {
+          "expected": "^",
+          "inputs": {
+            "variant": "BitXor"
+          }
+        }
+      ],
+      "function": "BinOp",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": "-",
+          "inputs": {
+            "variant": "Negate"
+          }
+        },
+        {
+          "expected": "~",
+          "inputs": {
+            "variant": "BitNot"
+          }
+        },
+        {
+          "expected": "!",
+          "inputs": {
+            "variant": "LogicalNot"
+          }
+        }
+      ],
+      "function": "UnOp",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": "int8_t",
+          "inputs": {
+            "t27_type": "i8"
+          }
+        },
+        {
+          "expected": "uint8_t",
+          "inputs": {
+            "t27_type": "u8"
+          }
+        },
+        {
+          "expected": "int16_t",
+          "inputs": {
+            "t27_type": "i16"
+          }
+        },
+        {
+          "expected": "uint16_t",
+          "inputs": {
+            "t27_type": "u16"
+          }
+        },
+        {
+          "expected": "int32_t",
+          "inputs": {
+            "t27_type": "i32"
+          }
+        },
+        {
+          "expected": "bool",
+          "inputs": {
+            "t27_type": "bool"
+          }
+        },
+        {
+          "expected": "void",
+          "inputs": {
+            "t27_type": "void"
+          }
+        }
+      ],
+      "function": "CMapping",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_depth": 1,
+          "inputs": {
+            "initial_depth": 0
+          }
+        },
+        {
+          "expected_depth": 3,
+          "inputs": {
+            "initial_depth": 2
+          }
+        }
+      ],
+      "function": "CCodeGen.indent",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_depth": 0,
+          "inputs": {
+            "initial_depth": 1
+          }
+        },
+        {
+          "expected_depth": 2,
+          "inputs": {
+            "initial_depth": 3
+          }
+        },
+        {
+          "expected_depth": 0,
+          "inputs": {
+            "initial_depth": 0
+          }
+        }
+      ],
+      "function": "CCodeGen.dedent",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_node_type_enum_unique",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_binop_maps_to_c_operator",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_unop_maps_to_c_operator",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_cmapping_covers_all_base_types",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_indent_increments_depth",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_dedent_floors_at_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_ccodegen_output_valid_c",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

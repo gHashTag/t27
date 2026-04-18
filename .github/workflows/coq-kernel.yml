@@ -1,0 +1,65 @@
+name: Coq kernel
+on:
+  push:
+    paths:
+      - 'coq/**'
+      - '.github/workflows/coq-kernel.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'coq/**'
+      - '.github/workflows/coq-kernel.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: coqorg/coq:8.19-ocaml-4.14-flambda
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (t27c validate-phi)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build t27c
+        working-directory: bootstrap
+        run: cargo build --release
+
+      - name: Install Flocq (opam)
+        run: |
+          opam update -y
+          opam install -y coq-flocq
+
+      - name: Build coq/ (T27 + Flocq)
+        run: |
+          eval $(opam env)
+          cd coq
+          coq_makefile -f _CoqProject -o CoqMakefile
+          make -f CoqMakefile -j$(nproc)
+
+      - name: coqchk PhiFloat (consistency)
+        run: |
+          eval $(opam env)
+          cd coq
+          coqchk -silent -R . T27 T27.Kernel.PhiFloat
+
+<<<<<<< Updated upstream
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build t27c and validate phi f64 parameters
+        run: |
+          cd bootstrap && cargo build --release
+          ./target/release/t27c validate-phi
+=======
+      - name: Validate phi f64 parameters (t27c validate-phi)
+        run: ./bootstrap/target/release/t27c --repo-root . validate-phi
+>>>>>>> Stashed changes
+
+      - name: Verify Kernel PHI layer has no Admitted
+        run: |
+          if grep -n 'Admitted' coq/Kernel/Phi.v coq/Kernel/PhiFloat.v 2>/dev/null; then
+            echo "ERROR: Admitted remains in Phi / PhiFloat" >&2
+            exit 1
+          fi
+          echo "OK: no Admitted in Phi.v or PhiFloat.v"

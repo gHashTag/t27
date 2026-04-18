@@ -1,0 +1,493 @@
+{
+  "bfeb6df9-7dfb-44be-a5bf-fcff721e159d": {
+    "enriched_at": "2026-04-08T17:41:27.245365",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #238: Ring 069: Ternary comparison operations",
+    "last_enriched": "2026-04-08T17:42:59.297635"
+  },
+  "48866148-f5e6-476b-8d6e-e3b03ece93a2": {
+    "enriched_at": "2026-04-08T17:43:08.006819",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #240: Ring 070: Ternary control flow operations",
+    "last_enriched": "2026-04-08T17:43:19.849670"
+  },
+  "bb8adb38-7beb-4b2d-b9df-f9ab6b5e89cc": {
+    "enriched_at": "2026-04-08T17:43:29.218382",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #242: Ring 071: Ternary floating-point operations",
+    "last_enriched": "2026-04-08T17:43:41.316153"
+  },
+  "40121060-788a-475e-abd5-08b638dfd0bb": {
+    "enriched_at": "2026-04-08T17:43:50.477138",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #244: Ring 072: Ternary string operations",
+    "last_enriched": "2026-04-08T17:44:01.558949"
+  },
+  "3f0197cf-fbb9-409a-a5a3-044a32302ed8": {
+    "enriched_at": "2026-04-08T17:44:10.703592",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #246: Ring 073: Ternary matrix operations",
+    "last_enriched": "2026-04-08T17:44:22.661995"
+  },
+  "f0a6c5da-9a47-4c8f-a38f-f9d198ac68ac": {
+    "enriched_at": "2026-04-08T17:44:31.971055",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #248: Ring 074: Ternary vector operations",
+    "last_enriched": "2026-04-08T17:44:44.422850"
+  },
+  "802270b1-f97c-4b7a-9635-a517a82428d4": {
+    "enriched_at": "2026-04-08T17:44:53.261777",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #250: Ring 075: Ternary stack operations",
+    "last_enriched": "2026-04-08T17:45:05.764376"
+  },
+  "61369ad0-3f26-4ecb-8737-d371d3c2e167": {
+    "enriched_at": "2026-04-08T17:45:14.758289",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #252: Ring 076: Ternary queue operations",
+    "last_enriched": "2026-04-08T17:45:26.873829"
+  },
+  "9d101c89-ab26-42f8-99e4-c5bd064984a4": {
+    "enriched_at": "2026-04-08T17:45:36.395575",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #254: Ring 077: Ternary hash operations",
+    "last_enriched": "2026-04-08T17:45:48.689124"
+  },
+  "49db7108-fe1e-4c65-ab5a-bc7bdc5f71a2": {
+    "enriched_at": "2026-04-08T17:45:57.198599",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #256: Ring 078: Ternary cryptographic operations",
+    "last_enriched": "2026-04-08T17:46:09.415831"
+  },
+  "a3121828-a35b-4cf1-bd50-beaab5168949": {
+    "enriched_at": "2026-04-08T17:46:18.162534",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #258: Ring 079: Ternary compression operations",
+    "last_enriched": "2026-04-08T17:46:29.356982"
+  },
+  "73165dc9-a0fa-4889-af70-be7cd13bfad2": {
+    "enriched_at": "2026-04-08T17:46:38.341405",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #260: Ring 080: Ternary sorting operations",
+    "last_enriched": "2026-04-08T17:46:50.932008"
+  },
+  "a73e89e7-0835-4d04-bd3a-d6ebc55c3ba9": {
+    "enriched_at": "2026-04-08T17:46:59.998251",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #262: Ring 081: Ternary search operations",
+    "last_enriched": "2026-04-08T17:47:11.855709"
+  },
+  "6efe7624-2b6b-47ef-9070-6cc3a4cdc7ff": {
+    "enriched_at": "2026-04-08T17:47:21.265291",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #264: Ring 082: Ternary pattern matching",
+    "last_enriched": "2026-04-08T17:47:32.420799"
+  },
+  "7106919b-19ab-4bd8-bbdd-7cba8a0dac50": {
+    "enriched_at": "2026-04-08T17:47:41.036921",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #267: Ring 083: Ternary graph operations",
+    "last_enriched": "2026-04-08T17:47:52.832662"
+  },
+  "b6d90b23-5444-4c3a-9498-57d52e48cdae": {
+    "enriched_at": "2026-04-08T17:48:01.812242",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #269: Ring 084: Ternary tree operations",
+    "last_enriched": "2026-04-08T17:48:12.961061"
+  },
+  "48c3908e-d344-46ab-97b7-3ef757902c46": {
+    "enriched_at": "2026-04-08T17:48:23.283768",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #271: Ring 085: Ternary set operations",
+    "last_enriched": "2026-04-08T17:48:34.640895"
+  },
+  "81221928-e599-496e-bfde-cf99286c1e90": {
+    "enriched_at": "2026-04-08T17:48:43.326114",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #273: Ring 086: Ternary priority queue",
+    "last_enriched": "2026-04-08T17:48:55.633020"
+  },
+  "949bc6fb-6968-4aff-a2c0-2d247908ff5c": {
+    "enriched_at": "2026-04-08T17:49:04.158922",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #275: Ring 087: Ternary hash table",
+    "last_enriched": "2026-04-08T17:49:15.656643"
+  },
+  "859f5642-3690-427e-b1d5-eb84e6c3f8e4": {
+    "enriched_at": "2026-04-08T17:49:24.511905",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "Issue #278: Ring 088: Ternary deque",
+    "last_enriched": "2026-04-08T17:49:36.980287"
+  },
+  "f9779b68-a109-46f6-9dc9-8615bdd3a0c3": {
+    "enriched_at": "2026-04-08T17:49:41.324708",
+    "topic": "trinity",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=wO61D9x6lNY",
+      "https://en.wikipedia.org/wiki/Trinity_(mathematics)",
+      "https://mathworld.wolfram.com/GoldenRatio.html"
+    ],
+    "topic_name": "Trinity Math & Phi",
+    "notebook_title": "Issue #287: feat(math): hybrid v2 \u2014 L2 cosine, dimension N, reproducible convergence (Trinity \u00d7 Pellis)",
+    "last_enriched": "2026-04-08T17:49:54.084066"
+  },
+  "12c21d87-ce57-44ef-91ab-5d6b9eeccca7": {
+    "enriched_at": "2026-04-08T17:49:58.985648",
+    "topic": "trinity",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=wO61D9x6lNY",
+      "https://en.wikipedia.org/wiki/Trinity_(mathematics)",
+      "https://mathworld.wolfram.com/GoldenRatio.html"
+    ],
+    "topic_name": "Trinity Math & Phi",
+    "notebook_title": "Issue #288: Agent Task: Study constitutional files and record experience entry per Trinity architecture",
+    "last_enriched": "2026-04-08T17:50:11.643963"
+  },
+  "eb84480f-ebea-469d-bda3-be882e728806": {
+    "enriched_at": "2026-04-08T17:50:14.884533",
+    "topic": "floating_point",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=PZRI1IfStY0",
+      "https://en.wikipedia.org/wiki/IEEE_754",
+      "https://en.wikipedia.org/wiki/Floating-point_arithmetic"
+    ],
+    "topic_name": "Floating Point & IEEE 754",
+    "notebook_title": "Issue #289: GF Competitive Analysis: GMP integration, verify_precision.py, gf_competitive.t27 spec, and whitepaper scaffold",
+    "last_enriched": "2026-04-08T17:50:37.579755"
+  },
+  "875e11ac-ad90-4c37-b5cc-64d241663ed0": {
+    "enriched_at": "2026-04-08T17:50:43.294340",
+    "topic": "rust_programming",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=zF34dRivLOw",
+      "https://doc.rust-lang.org/book/",
+      "https://en.wikipedia.org/wiki/Rust_(programming_language)"
+    ],
+    "topic_name": "Rust Programming",
+    "notebook_title": "Issue #296: feat(tri): hybrid v2 Rust + golden checkpoints (N=5,10,15,20,50,152)",
+    "last_enriched": "2026-04-08T17:50:59.446551"
+  },
+  "5d879587-7389-4075-ac6b-3c0715544b06": {
+    "enriched_at": "2026-04-08T17:51:02.566133",
+    "topic": "golden_ratio",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=sj8Sg8qnjOg",
+      "https://en.wikipedia.org/wiki/Golden_ratio",
+      "https://mathworld.wolfram.com/GoldenRatio.html",
+      "https://archive.org/details/goldenmean010385mbp"
+    ],
+    "topic_name": "Golden Ratio & Trinity",
+    "notebook_title": "Issue #319: Ring 051: Phi-Split Optimality Theorem \u2014 exp/mant = 1/\u03c6",
+    "last_enriched": "2026-04-08T17:51:28.790235"
+  },
+  "7fa891ce-2cba-4265-ab71-9568bebd803f": {
+    "enriched_at": "2026-04-08T17:51:32.284288",
+    "topic": "quantum_computing",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=QuR969uMICM",
+      "https://en.wikipedia.org/wiki/Quantum_computing",
+      "https://arxiv.org/abs/1801.03897"
+    ],
+    "topic_name": "Quantum Computing",
+    "notebook_title": "Issue #332: feat(ring-073): pre-commit gate \u2014 block push without CI checks",
+    "last_enriched": "2026-04-08T17:51:49.702007"
+  },
+  "a31f1898-788b-4654-8102-f50fa80abaaf": {
+    "enriched_at": "2026-04-08T17:51:52.717045",
+    "topic": "golden_ratio",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=sj8Sg8qnjOg",
+      "https://en.wikipedia.org/wiki/Golden_ratio",
+      "https://mathworld.wolfram.com/GoldenRatio.html",
+      "https://archive.org/details/goldenmean010385mbp"
+    ],
+    "topic_name": "Golden Ratio & Trinity",
+    "notebook_title": "Issue #333: [CI] Fix PHI Loop CI: t27c gen-zig produces invalid Zig code",
+    "last_enriched": "2026-04-08T17:52:19.208757"
+  },
+  "353b3ffc-5d28-4ffd-a1c8-81975ac7e820": {
+    "enriched_at": "2026-04-08T17:52:24.170192",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Agent Prompting with Claude: Best Practices and Evaluation",
+    "last_enriched": "2026-04-08T17:52:43.016906"
+  },
+  "a30a94a0-e11e-4160-a63a-eabc80f31784": {
+    "enriched_at": "2026-04-08T17:52:51.537317",
+    "topic": "automation",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Build_automation",
+      "https://en.wikipedia.org/wiki/Continuous_integration"
+    ],
+    "topic_name": "Automation & Orchestration",
+    "notebook_title": "Auto-Gemini: Task-to-Project AI Coding Automation",
+    "last_enriched": "2026-04-08T17:52:58.660295"
+  },
+  "cb7f0551-1437-46b2-8186-495b23353e27": {
+    "enriched_at": "2026-04-08T17:53:04.394994",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Building AI Armies with Claude Code's Sub-Agents",
+    "last_enriched": "2026-04-08T17:53:23.598924"
+  },
+  "65cad62a-64a3-4057-aaff-1ac2bb963714": {
+    "enriched_at": "2026-04-08T17:53:28.480781",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Code LLM CLI: The Ultimate AI Coding Agent",
+    "last_enriched": "2026-04-08T17:53:46.101066"
+  },
+  "72c7dbf4-7c44-4934-9cc1-2fe30f5865f0": {
+    "enriched_at": "2026-04-08T17:53:55.153698",
+    "topic": "automation",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Build_automation",
+      "https://en.wikipedia.org/wiki/Continuous_integration"
+    ],
+    "topic_name": "Automation & Orchestration",
+    "notebook_title": "Building Headless Automation with Claude Code and GitHub Actions",
+    "last_enriched": "2026-04-08T17:54:01.442668"
+  },
+  "2bfade04-367d-41b7-b8a6-b7d6e43295e4": {
+    "enriched_at": "2026-04-08T17:54:06.654399",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Building AI Agents with Vercel's AI SDK 5",
+    "last_enriched": "2026-04-08T17:54:25.260196"
+  },
+  "ab4e3346-ebf5-4d82-8f6e-c40958e869b2": {
+    "enriched_at": "2026-04-08T17:54:30.524252",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Mastering Claude Code's Plan Mode for Senior Engineers",
+    "last_enriched": "2026-04-08T17:54:50.145323"
+  },
+  "f757d821-0e0f-4f58-966c-86b2f8afceb5": {
+    "enriched_at": "2026-04-08T17:54:59.668637",
+    "topic": "automation",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Build_automation",
+      "https://en.wikipedia.org/wiki/Continuous_integration"
+    ],
+    "topic_name": "Automation & Orchestration",
+    "notebook_title": "From Automation Builder to AI Transformation Partner",
+    "last_enriched": "2026-04-08T17:55:06.418094"
+  },
+  "f7904289-c547-4c04-9188-f056cfea97b2": {
+    "enriched_at": "2026-04-08T17:55:11.835761",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Autonomous AI Agents LaunchPad Pitch Deck",
+    "last_enriched": "2026-04-08T17:55:29.978408"
+  },
+  "c7ee458c-6b8b-488e-b69d-5b41e2560f4b": {
+    "enriched_at": "2026-04-08T17:55:38.817156",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "The Golden Key: Ternary Logic and the Golden Ratio Identity",
+    "last_enriched": "2026-04-08T17:55:50.438823"
+  },
+  "7f999af2-e3bf-45c1-8cf5-2d473af6186e": {
+    "enriched_at": "2026-04-08T17:55:55.751730",
+    "topic": "ai_agents",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=jkrNMKz9pWU",
+      "https://arxiv.org/abs/2303.08774",
+      "https://en.wikipedia.org/wiki/Large_language_model"
+    ],
+    "topic_name": "AI Agents & LLMs",
+    "notebook_title": "Autonomous Engineering: Building Secure Mac Mini AI Agents",
+    "last_enriched": "2026-04-08T17:56:13.933027"
+  },
+  "989041b7-d17e-4dfb-ba10-c7ad03a1e0b4": {
+    "enriched_at": "2026-04-08T17:56:19.299402",
+    "topic": "trinity",
+    "enriched_sources": [
+      "https://www.youtube.com/watch?v=wO61D9x6lNY",
+      "https://en.wikipedia.org/wiki/Trinity_(mathematics)",
+      "https://mathworld.wolfram.com/GoldenRatio.html"
+    ],
+    "topic_name": "Trinity Math & Phi",
+    "notebook_title": "Trinity Cognitive Probes: Neuroscience-Grounded Benchmarks for AGI Evaluation",
+    "last_enriched": "2026-04-08T17:56:31.374512"
+  },
+  "ca0bdb41-dd9a-4777-a27b-f503f73856a8": {
+    "enriched_at": "2026-04-08T17:56:39.769794",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "TRI-27 Assembly: Canonical Ternary Language Specification",
+    "last_enriched": "2026-04-08T17:56:51.620994"
+  },
+  "7a20946a-f5c0-46ab-b8bf-9b9848e08aac": {
+    "enriched_at": "2026-04-08T17:57:00.785352",
+    "topic": "ternary",
+    "enriched_sources": [
+      "https://en.wikipedia.org/wiki/Ternary_computer",
+      "https://en.wikipedia.org/wiki/Balanced_ternary",
+      "https://arxiv.org/abs/1702.08559"
+    ],
+    "topic_name": "Ternary Computing",
+    "notebook_title": "GoldenFloat: Mathematical Proof and Competitive Analysis for Ternary Floats",
+    "last_enriched": "2026-04-08T17:57:12.728799"
+  }
+}

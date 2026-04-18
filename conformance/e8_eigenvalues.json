@@ -1,0 +1,225 @@
+{
+  "constants": {
+    "E8_COXETER": {
+      "critical": true,
+      "value": 30
+    },
+    "E8_DIM": {
+      "critical": true,
+      "value": 248
+    },
+    "E8_NUM_ROOTS": {
+      "critical": true,
+      "value": 240
+    },
+    "E8_RANK": {
+      "critical": true,
+      "value": 8
+    }
+  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "E8/E9 Lie Algebra Conformance Vectors — KEPLER-NEWTON Direction A",
+  "format_family": "Conformance",
+  "references": [
+    "Aschheim, Minkowski Institute Press (2017)",
+    "Dechant, Proc. Roy. Soc. A 472 (2016)",
+    "Humphreys, Introduction to Lie Algebras"
+  ],
+  "schema_version": 2,
+  "seal": "sha256:998808488f874f881bb8e5dfe44bdcd716f110ad95d95199603eae305f8267e7",
+  "source_module": "math::e8_lie_algebra",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "e8_eigenvalues Vectors",
+  "vectors": [
+    {
+      "description": "The 9x9 affine E8 Cartan matrix has exactly 4 phi-related eigenvalues",
+      "name": "E9 Cartan Matrix Eigenvalues (Aschheim Theorem)",
+      "test_cases": [
+        {
+          "expected": {
+            "eigenvalues_sorted": [
+              0.0,
+              0.381966011250105,
+              1.0,
+              1.381966011250105,
+              2.0,
+              2.618033988749895,
+              3.0,
+              3.618033988749895,
+              4.0
+            ],
+            "phi_inv_squared": 0.381966011250105,
+            "phi_related_count": 4,
+            "phi_squared": 2.618033988749895,
+            "trinity_from_spectrum": 3.0
+          },
+          "input": {},
+          "tolerance": {
+            "max_abs_error": 1e-12
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "A * delta = 0 where delta = [1,2,3,4,5,6,4,2,3]",
+      "name": "E9 Null Vector",
+      "test_cases": [
+        {
+          "expected": {
+            "delta_sum": 30,
+            "product": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "input": {
+            "delta": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              4,
+              2,
+              3
+            ]
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "P(x) = x(x-1)(x-2)(x-3)(x-4)(x^2-3x+1)(x^2-5x+5)",
+      "name": "E9 Characteristic Polynomial Factorization",
+      "test_cases": [
+        {
+          "expected": {
+            "quadratic_1_coeffs": [
+              1,
+              -3,
+              1
+            ],
+            "quadratic_1_discriminant": 5,
+            "quadratic_1_roots": [
+              2.618033988749895,
+              0.381966011250105
+            ],
+            "quadratic_2_coeffs": [
+              1,
+              -5,
+              5
+            ],
+            "quadratic_2_discriminant": 5,
+            "quadratic_2_roots": [
+              3.618033988749895,
+              1.381966011250105
+            ]
+          },
+          "input": {},
+          "note": "Both discriminants equal 5 via McKay correspondence (icosahedral group)"
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "theta = 2a1 + 3a2 + 4a3 + 5a4 + 6a5 + 4a6 + 2a7 + 3a8",
+      "name": "E8 Marks (Highest Root Coefficients)",
+      "test_cases": [
+        {
+          "expected": {
+            "marks": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              4,
+              2,
+              3
+            ],
+            "marks_product": 17280,
+            "marks_set": [
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            "marks_sum": 29
+          },
+          "input": {}
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Degrees of basic polynomial invariants minus 1",
+      "name": "E8 Exponents",
+      "test_cases": [
+        {
+          "expected": {
+            "exponents": [
+              1,
+              7,
+              11,
+              13,
+              17,
+              19,
+              23,
+              29
+            ],
+            "exponents_sum": 120,
+            "h4_subset": [
+              1,
+              11,
+              19,
+              29
+            ]
+          },
+          "input": {},
+          "note": "H4 exponents are a subset (shared Coxeter number h=30)"
+        }
+      ],
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "PF eigenvector of 2I-C (adjacency) normalized to v[0]=1. Contains phi at index 6.",
+      "name": "Perron-Frobenius Eigenvector",
+      "test_cases": [
+        {
+          "expected": {
+            "pf_vector": [
+              1.0,
+              1.989044,
+              2.956295,
+              3.891157,
+              4.783386,
+              3.21834,
+              1.618034,
+              2.404867
+            ],
+            "phi_index": 6,
+            "phi_value": 1.618033988749895
+          },
+          "input": {},
+          "tolerance": {
+            "max_abs_error": 0.0001
+          }
+        }
+      ],
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "1.0"
+}

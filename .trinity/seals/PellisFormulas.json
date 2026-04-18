@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9c9b59dcae038a2f26d869bf2bfe679b5db001ef04b82b05e1051a4226fa6f10",
+  "gen_hash_rust": "sha256:75dee1cfbaf75fff65cd2747d65191bc6d0b9b266b4590607fd69906f3b350df",
+  "gen_hash_verilog": "sha256:17e3e0504c6922a888d91adcb1a53cadde199fd05b3309a956c73a35c2481b65",
+  "gen_hash_zig": "sha256:8622492553c6fa51169df84f611b7c8eab5d6c4f3190b818a324bb149b22062a",
+  "module": "PellisFormulas",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:00305a7f186e9ae5ad65ebd66a83d9b3e70bdaedcb676f55d78c6960097073b2",
+  "spec_path": "specs/physics/pellis-formulas.t27"
+}

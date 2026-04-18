@@ -1,0 +1,338 @@
+{
+  "benchmarks": [
+    {
+      "name": "tdd_contract_check_latency",
+      "target": "< 5ms"
+    },
+    {
+      "name": "language_policy_check_latency",
+      "target": "< 1ms"
+    },
+    {
+      "name": "naming_convention_check_latency",
+      "target": "< 2ms"
+    },
+    {
+      "name": "validate_spec_full_latency",
+      "target": "< 20ms"
+    }
+  ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:10:00Z",
+  "invariants": [
+    {
+      "assert": "TDD contract fails if spec has no test sections",
+      "name": "tdd_contract_requires_tests"
+    },
+    {
+      "assert": "TDD contract fails if spec has no invariant sections",
+      "name": "tdd_contract_requires_invariants"
+    },
+    {
+      "assert": "goto is never allowed by language policy",
+      "name": "language_policy_rejects_goto"
+    },
+    {
+      "assert": "Global mutable state is never allowed",
+      "name": "language_policy_rejects_global_mutable"
+    },
+    {
+      "assert": "Constants must use UPPER_SNAKE_CASE",
+      "name": "naming_convention_consts_upper_snake"
+    },
+    {
+      "assert": "Functions must use lower_snake_case",
+      "name": "naming_convention_fns_lower_snake"
+    },
+    {
+      "assert": "Structs and enums must use PascalCase",
+      "name": "naming_convention_types_pascal"
+    },
+    {
+      "assert": "validate_spec runs TDD, policy, and naming checks",
+      "name": "validate_spec_checks_all_rules"
+    }
+  ],
+  "module": "Validation",
+  "ring": 37,
+  "schema_version": 2,
+  "seal": "sha256:431dcaee822c14b80ef6a2e6788b997ae61b3015612db992e1dc7caa0a8367ae",
+  "spec_path": "compiler/runtime/validation.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_runtime_validation Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "has_invariant": true,
+            "has_test": true,
+            "spec_path": "specs/with_tests.t27"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "has_invariant": true,
+            "has_test": false,
+            "spec_path": "specs/no_tests.t27"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "has_invariant": false,
+            "has_test": true,
+            "spec_path": "specs/no_invariants.t27"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "has_invariant": false,
+            "has_test": false,
+            "spec_path": "specs/empty.t27"
+          }
+        }
+      ],
+      "function": "tdd_contract",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_allowed": false,
+          "inputs": {
+            "feature": "goto"
+          }
+        },
+        {
+          "expected_allowed": false,
+          "inputs": {
+            "feature": "global_mutable"
+          }
+        },
+        {
+          "expected_allowed": true,
+          "inputs": {
+            "feature": "const_decl"
+          }
+        },
+        {
+          "expected_allowed": true,
+          "inputs": {
+            "feature": "fn_decl"
+          }
+        },
+        {
+          "expected_allowed": false,
+          "inputs": {
+            "feature": "unsafe_cast"
+          }
+        },
+        {
+          "expected_allowed": true,
+          "inputs": {
+            "feature": "enum_decl"
+          }
+        }
+      ],
+      "function": "language_policy",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "kind": "const",
+            "name": "MAX_SIZE"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "kind": "const",
+            "name": "maxSize"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "kind": "fn",
+            "name": "get_value"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "kind": "fn",
+            "name": "getValue"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "kind": "fn",
+            "name": "GetValue"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "kind": "struct",
+            "name": "MyStruct"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "kind": "struct",
+            "name": "my_struct"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "kind": "enum",
+            "name": "Color"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "kind": "enum",
+            "name": "color"
+          }
+        }
+      ],
+      "function": "naming_convention",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": {
+            "naming": true,
+            "policy": true,
+            "tdd": true
+          },
+          "inputs": {
+            "spec_path": "specs/valid_full.t27"
+          }
+        },
+        {
+          "expected": {
+            "naming": true,
+            "policy": true,
+            "tdd": false
+          },
+          "inputs": {
+            "spec_path": "specs/missing_tests.t27"
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "spec_path": ""
+          }
+        }
+      ],
+      "function": "validate_spec",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_tdd_contract_requires_tests",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_tdd_contract_requires_invariants",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_language_policy_rejects_goto",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_language_policy_rejects_global_mutable",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_naming_convention_consts_upper_snake",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_naming_convention_fns_lower_snake",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_naming_convention_types_pascal",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_validate_spec_checks_all_rules",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

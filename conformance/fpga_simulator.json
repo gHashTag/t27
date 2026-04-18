@@ -1,0 +1,121 @@
+{
+  "constants": {
+    "SIM_STATE_IDLE": 0,
+    "SIM_STATE_RUNNING": 1,
+    "SIM_STATE_PAUSED": 2,
+    "SIM_STATE_DONE": 3,
+    "SIM_STATE_ERROR": 4,
+    "DEFAULT_CLOCK_FREQ_HZ": 100000000
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "HIR Cycle-Accurate Simulation Engine Specification -- simulation primitives for verifying HIR modules pre-synthesis",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Sim config max_cycles is always positive",
+      "id": "max_cycles_positive"
+    },
+    {
+      "description": "Simulation time for positive cycles is positive",
+      "id": "sim_time_positive"
+    },
+    {
+      "description": "Cycles computed from positive time is positive",
+      "id": "cycles_for_time_positive"
+    },
+    {
+      "description": "Validation error count is always non-negative",
+      "id": "validate_non_negative"
+    }
+  ],
+  "module": "Simulator",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/simulator.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Simulator Vectors",
+  "vectors": {
+    "config_creation": {
+      "cases": [
+        {
+          "description": "Create sim config without trace",
+          "id": "sim_config_creation"
+        },
+        {
+          "description": "Create sim config with VCD trace enabled",
+          "id": "sim_config_with_trace"
+        }
+      ],
+      "description": "Simulator configuration construction"
+    },
+    "result_creation": {
+      "cases": [
+        {
+          "description": "Successful sim result is done, passed, no errors",
+          "id": "sim_ok_result"
+        },
+        {
+          "description": "Error sim result has errors and is not passed",
+          "id": "sim_error_result"
+        }
+      ],
+      "description": "Simulation result construction and state queries"
+    },
+    "probe_trace": {
+      "cases": [
+        {
+          "description": "Create signal probe point",
+          "id": "probe_creation"
+        },
+        {
+          "description": "Create trace entry with cycle, signal, value",
+          "id": "trace_entry_creation"
+        }
+      ],
+      "description": "Probe point and trace entry construction"
+    },
+    "time_calc": {
+      "cases": [
+        {
+          "description": "Sim time in nanoseconds from cycles",
+          "id": "sim_time_ns"
+        },
+        {
+          "description": "Sim time in microseconds from cycles",
+          "id": "sim_time_us"
+        },
+        {
+          "description": "Sim time in milliseconds from cycles",
+          "id": "sim_time_ms"
+        },
+        {
+          "description": "Cycles computed from time in nanoseconds",
+          "id": "cycles_for_time_ns"
+        }
+      ],
+      "description": "Simulation time and cycle conversion"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid config passes validation",
+          "id": "validate_config_ok"
+        },
+        {
+          "description": "Config with empty name fails validation",
+          "id": "validate_config_empty_name"
+        },
+        {
+          "description": "Config with zero max_cycles fails validation",
+          "id": "validate_config_zero_cycles"
+        }
+      ],
+      "description": "Simulator config validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

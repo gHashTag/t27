@@ -1,0 +1,47 @@
+<<<<<<< Updated upstream
+DIGEST d8b1b6a14de7e6ac25b233dc6ccfb98e
+Fl5_identity
+R20:30 Stdlib.Reals.Reals <> <> lib
+prf 63:78 <> trinity_identity
+R167:169 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R118:119 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R82:82 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R97:99 Corelib.Init.Peano <> ::nat_scope:x_'*'_x not
+R84:86 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+=======
+DIGEST b8b4e12373f83c5610cc073bc575ae69
+Fl5_identity
+R27:31 Stdlib.Reals.Reals <> <> lib
+def 67:69 <> phi
+R73:73 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R79:79 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R90:93 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R81:83 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R84:87 Stdlib.Reals.R_sqrt <> sqrt def
+prf 107:122 <> trinity_identity
+R149:151 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R133:135 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R129:131 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R126:128 l5_identity <> phi def
+R136:136 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R144:147 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R138:140 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R141:143 l5_identity <> phi def
+R171:173 l5_identity <> phi def
+R483:485 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R467:467 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R478:481 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R469:471 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R472:475 Stdlib.Reals.R_sqrt <> sqrt def
+R487:489 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R491:493 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R494:497 Stdlib.Reals.R_sqrt <> sqrt def
+R483:485 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R467:467 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R478:481 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R469:471 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R472:475 Stdlib.Reals.R_sqrt <> sqrt def
+R487:489 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R491:493 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'*'_x not
+R494:497 Stdlib.Reals.R_sqrt <> sqrt def
+>>>>>>> Stashed changes

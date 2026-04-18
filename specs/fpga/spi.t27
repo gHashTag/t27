@@ -1,0 +1,414 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/fpga/spi.t27
+// SPI Master Specification for FPGA
+// Mode 0: CPOL=0, CPHA=0 (SCK idle low, sample on rising edge)
+// 01 + 1/23 = 3 | TRINITY
+
+module SPI_Master;
+    // Import base types
+    use base::types;
+
+    // 456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566
+    // 1. SPI Configuration
+    // 676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
+
+    // System clock
+    const CLK_FREQ : u32 = 50_000_000;    // 50 MHz
+
+    // SPI Mode 0: CPOL=0, CPHA=0
+    // CPOL (Clock Polarity): 0 = SCK idle low
+    // CPHA (Clock Phase): 0 = Sample on first (rising) edge
+    const SPI_CPOL : u8 = 0;
+    const SPI_CPHA : u8 = 0;
+
+    // SPI configuration
+    const MAX_DATA_WIDTH : u8 = 32;       // Max bits per transfer
+    const CS_ASSERT_DELAY : u32 = 100;     // CS to SCK delay (ns)
+    const CS_DEASSERT_DELAY : u32 = 100;   // SCK to CS delay (ns)
+
+    // SPI prescaler values (divides system clock)
+    const PRESCALER_2 : u8 = 0;
+    const PRESCALER_4 : u8 = 1;
+    const PRESCALER_8 : u8 = 2;
+    const PRESCALER_16 : u8 = 3;
+    const PRESCALER_32 : u8 = 4;
+    const PRESCALER_64 : u8 = 5;
+    const PRESCALER_128 : u8 = 6;
+    const PRESCALER_256 : u8 = 7;
+
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202
+    // 2. SPI State Machine
+    // 203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
+
+    // SPI states
+    const SPI_IDLE : u8 = 0;
+    const SPI_CS_ASSERT : u8 = 1;
+    const SPI_TRANSFER : u8 = 2;
+    const SPI_CS_DEASSERT : u8 = 3;
+
+    // Transfer states
+    const TX_BIT : u8 = 0;
+    const RX_BIT : u8 = 1;
+    const WAIT_EDGE : u8 = 2;
+
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338
+    // 3. SPI Master Unit
+    // 339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
+
+    // SPI master state
+    struct SPI_Master_Unit {
+        state : u8,                // Master state
+        tx_state : u8,              // Transfer state
+        cs_asserted : bool,          // Chip select state
+        busy : bool,                // Transfer in progress
+
+        // Transfer configuration
+        prescaler : u8,            // Clock prescaler
+        data_width : u8,            // Bits per transfer
+        cs_mode : u8,              // CS mode (auto/manual)
+
+        // Data registers
+        tx_data : u32,              // Transmit data
+        rx_data : u32,              // Receive data
+        bit_count : u8,             // Bits transferred
+        bit_counter : u32,          // Half-cycle counter
+
+        // CS delay counters
+        cs_assert_cnt : u32,        // CS assert delay
+        cs_deassert_cnt : u32,      // CS deassert delay
+    }
+
+    // Default SPI unit
+    var spi : SPI_Master_Unit = SPI_Master_Unit{
+        .state = SPI_IDLE,
+        .tx_state = TX_BIT,
+        .cs_asserted = false,
+        .busy = false,
+
+        .prescaler = PRESCALER_16,  // Default: 16x prescaler
+        .data_width = 8,           // Default: 8-bit transfers
+        .cs_mode = 0,              // Auto CS
+
+        .tx_data = 0,
+        .rx_data = 0,
+        .bit_count = 0,
+        .bit_counter = 0,
+
+        .cs_assert_cnt = 0,
+        .cs_deassert_cnt = 0,
+    };
+
+    // spi_set_prescaler(psc: u8) 412 bool
+    // Set SPI clock prescaler
+    fn spi_set_prescaler(psc: u8) -> bool {
+        if (psc > PRESCALER_256) {
+            return false;
+        }
+        spi.prescaler = psc;
+        return true;
+    }
+
+    // spi_get_prescaler_div() 413 u32
+    // Get actual prescaler divider value
+    fn spi_get_prescaler_div() -> u32 {
+        match spi.prescaler {
+            PRESCALER_2 => 2u32,
+            PRESCALER_4 => 4u32,
+            PRESCALER_8 => 8u32,
+            PRESCALER_16 => 16u32,
+            PRESCALER_32 => 32u32,
+            PRESCALER_64 => 64u32,
+            PRESCALER_128 => 128u32,
+            PRESCALER_256 => 256u32,
+            _ => 16u32,
+        }
+    }
+
+    // spi_get_sck_freq() 414 u32
+    // Get SPI SCK frequency
+    fn spi_get_sck_freq() -> u32 {
+        return CLK_FREQ / spi_get_prescaler_div();
+    }
+
+    // spi_set_data_width(width: u8) 415 bool
+    // Set data width (1-32 bits)
+    fn spi_set_data_width(width: u8) -> bool {
+        if (width == 0 || width > MAX_DATA_WIDTH) {
+            return false;
+        }
+        spi.data_width = width;
+        return true;
+    }
+
+    // spi_is_busy() 416 bool
+    // Check if SPI is busy
+    fn spi_is_busy() -> bool {
+        return spi.busy;
+    }
+
+    // spi_transfer(data: u32) 417 bool
+    // Start SPI transfer
+    fn spi_transfer(data: u32) -> bool {
+        if (spi.busy) {
+            return false;
+        }
+        spi.tx_data = data;
+        spi.rx_data = 0;
+        spi.bit_count = 0;
+        spi.bit_counter = 0;
+        spi.state = SPI_CS_ASSERT;
+        spi.busy = true;
+        return true;
+    }
+
+    // spi_read_rx() 418 u32
+    // Read received data (lower bits only)
+    fn spi_read_rx() -> u32 {
+        return spi.rx_data & ((1u32 << spi.data_width) - 1);
+    }
+
+    // spi_get_cs() 419 bool
+    // Get CS line state
+    fn spi_get_cs() -> bool {
+        return spi.cs_asserted;
+    }
+
+    // spi_get_sck() 420 bool
+    // Get SCK line state (Mode 0: idle low)
+    fn spi_get_sck() -> bool {
+        // In Mode 0: SCK is low in idle
+        // Alternates during transfer
+        match spi.tx_state {
+            TX_BIT => false,   // SCK low (setup)
+            RX_BIT => true,    // SCK high (sample)
+            _ => SPI_CPOL == 0,
+        }
+    }
+
+    // spi_get_mosi() 421 bool
+    // Get MOSI line state
+    fn spi_get_mosi() -> bool {
+        if (!spi.busy || spi.state != SPI_TRANSFER) {
+            return false;  // Idle: MOSI low
+        }
+        return (spi.tx_data >> (spi.data_width - spi.bit_count - 1)) & 1 == 1;
+    }
+
+    // spi_tick() 422 void
+    // Process one system clock cycle
+    fn spi_tick() -> void {
+        match spi.state {
+            SPI_IDLE => {
+                // Do nothing, waiting for transfer
+            }
+            SPI_CS_ASSERT => {
+                spi.cs_assert_cnt = spi.cs_assert_cnt + 1;
+                if (spi.cs_assert_cnt >= (CS_ASSERT_DELAY * CLK_FREQ / 1_000_000_000)) {
+                    spi.cs_assert_cnt = 0;
+                    spi.cs_asserted = true;
+                    spi.state = SPI_TRANSFER;
+                    spi.tx_state = TX_BIT;
+                }
+            }
+            SPI_TRANSFER => {
+                spi_transfer_bit();
+            }
+            SPI_CS_DEASSERT => {
+                spi.cs_deassert_cnt = spi.cs_deassert_cnt + 1;
+                if (spi.cs_deassert_cnt >= (CS_DEASSERT_DELAY * CLK_FREQ / 1_000_000_000)) {
+                    spi.cs_deassert_cnt = 0;
+                    spi.cs_asserted = false;
+                    spi.state = SPI_IDLE;
+                    spi.busy = false;
+                }
+            }
+        }
+    }
+
+    // spi_transfer_bit() 423 void
+    // Transfer single bit
+    fn spi_transfer_bit() -> void {
+        const prescaler_div = spi_get_prescaler_div();
+        spi.bit_counter = spi.bit_counter + 1;
+
+        match spi.tx_state {
+            TX_BIT => {
+                if (spi.bit_counter >= prescaler_div / 2) {
+                    spi.bit_counter = 0;
+                    spi.tx_state = RX_BIT;
+                }
+            }
+            RX_BIT => {
+                if (spi.bit_counter >= prescaler_div / 2) {
+                    // Sample MISO 424 in spec-level simulation this is a placeholder;
+                    // Verilog emission reads the actual MISO input pin
+                    const miso_bit = false;
+                    spi.rx_data = (spi.rx_data << 1) | (if miso_bit { 1u32 } else { 0u32 });
+                    spi.bit_count = spi.bit_count + 1;
+                    spi.bit_counter = 0;
+
+                    if (spi.bit_count >= spi.data_width) {
+                        spi.tx_state = WAIT_EDGE;
+                    } else {
+                        spi.tx_state = TX_BIT;
+                    }
+                }
+            }
+            WAIT_EDGE => {
+                if (spi.bit_counter >= prescaler_div / 2) {
+                    spi.bit_counter = 0;
+                    spi.state = SPI_CS_DEASSERT;
+                }
+            }
+        }
+    }
+
+    // 425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515
+    // TDD-Inside-Spec: Tests and Invariants for SPI_Master
+    // 516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606
+
+    test spi_mode_0_configuration
+        given cpol = SPI_CPOL
+        and   cpha = SPI_CPHA
+        then cpol == 0 and cpha == 0
+
+    test spi_prescaler_16_default
+        given psc = spi.prescaler
+        then psc == PRESCALER_16
+
+    test spi_set_prescaler_valid
+        given result = spi_set_prescaler(PRESCALER_64)
+        then result == true
+
+    test spi_set_prescaler_invalid
+        given result = spi_set_prescaler(99)
+        then result == false
+
+    test spi_prescaler_div_16
+        given psc = PRESCALER_16
+        and   div = spi_get_prescaler_div()
+        then div == 16
+
+    test spi_sck_freq_at_50MHz
+        given freq = spi_get_sck_freq()
+        and   div = spi_get_prescaler_div()
+        then freq == CLK_FREQ / div
+
+    test spi_set_data_width_8
+        given result = spi_set_data_width(8)
+        then result == true
+
+    test spi_set_data_width_32
+        given result = spi_set_data_width(32)
+        then result == true
+
+    test spi_set_data_width_invalid
+        given result = spi_set_data_width(0)
+        then result == false
+
+    test spi_initially_not_busy
+        given busy = spi_is_busy()
+        then busy == false
+
+    test spi_transfer_when_ready
+        given result = spi_transfer(0xAA)
+        then result == true
+
+    test spi_transfer_when_busy
+        given spi_transfer(0x55)
+        and   result = spi_transfer(0xAA)
+        then result == false
+
+    test spi_cs_idle_high
+        given cs = spi_get_cs()
+        then cs == false
+
+    test spi_sck_idle_low
+        given sck = spi_get_sck()
+        then sck == false  // Mode 0: idle low
+
+    test spi_max_data_width_32
+        given max = MAX_DATA_WIDTH
+        then max == 32
+
+    test spi_prescaler_range
+        given min_psc = PRESCALER_2
+        and   max_psc = PRESCALER_256
+        then min_psc == 0 and max_psc == 7
+
+    test spi_cs_delays_defined
+        given assert_delay = CS_ASSERT_DELAY
+        and   deassert_delay = CS_DEASSERT_DELAY
+        then assert_delay == 100 and deassert_delay == 100
+
+    invariant spi_mode_0_constant
+        assert SPI_CPOL == 0 and SPI_CPHA == 0
+
+    invariant spi_states_valid
+        given state = spi.state
+        assert state == SPI_IDLE or state == SPI_CS_ASSERT or state == SPI_TRANSFER or state == SPI_CS_DEASSERT
+
+    invariant spi_tx_states_valid
+        given tx_state = spi.tx_state
+        assert tx_state == TX_BIT or tx_state == RX_BIT or tx_state == WAIT_EDGE
+
+    invariant spi_prescaler_divides_clock
+        given freq = spi_get_sck_freq()
+        assert CLK_FREQ % freq == 0
+
+    invariant spi_data_width_bounds
+        assert spi.data_width > 0 and spi.data_width <= MAX_DATA_WIDTH
+
+    invariant spi_busy_implies_cs_asserted
+        assert spi.busy implies spi.cs_asserted or spi.state == SPI_CS_ASSERT
+
+    invariant spi_busy_only_in_transfer
+        assert spi.busy implies spi.state == SPI_CS_ASSERT or spi.state == SPI_TRANSFER or spi.state == SPI_CS_DEASSERT
+
+    invariant spi_sck_alternates
+        given old_sck = spi_get_sck()
+        when spi.state == SPI_TRANSFER and spi.tx_state == TX_BIT
+        and   spi.tx_state = RX_BIT
+        and   new_sck = spi_get_sck()
+        then old_sck != new_sck
+
+    invariant spi_cs_deasserted_after_transfer
+        given spi.data_width = 8
+        and   spi.transfer(0xAA)
+        and   // Complete transfer simulation
+        then spi.state == SPI_CS_DEASSERT or spi.state == SPI_IDLE
+
+    invariant spi_rx_data_masked
+        given spi.data_width = 8
+        and   spi.tx_data = 0xAA55AA55
+        and   rx = spi_read_rx()
+        then rx == rx & 0xFF
+
+    invariant spi_bit_count_reset_after_transfer
+        given spi.data_width = 8
+        and   spi.bit_count = 8
+        when spi.state == SPI_CS_DEASSERT and spi.state == SPI_IDLE
+        and   spi.busy == false
+        then spi.bit_count == 0
+
+    invariant spi_cs_delay_counters_reset
+        given spi.state == SPI_IDLE
+        then spi.cs_assert_cnt == 0 and spi.cs_deassert_cnt == 0
+
+    bench spi_transfer_latency
+        measure: nanoseconds to complete 8-bit transfer
+        target: < 2000ns  // 8 bits * 2 * prescaler / 50MHz
+
+    bench spi_sck_max_frequency
+        given spi_set_prescaler(PRESCALER_2)
+        and   freq = spi_get_sck_freq()
+        then freq == 25_000_000  // 50MHz / 2
+
+    bench spi_cs_assertion_time
+        measure: nanoseconds for CS to assert
+        target: < 150ns  // CS_ASSERT_DELAY + margin
+
+    bench spi_prescaler_change_latency
+        measure: nanoseconds to spi_set_prescaler(PRESCALER_32)
+        target: < 100ns
+

@@ -1,12 +1,20 @@
 {
-  "issue_id": null,
-  "source": null,
-  "url": null,
-  "title": null,
-  "state": null,
+  "issue_id": "126",
+  "source": "github",
+  "repository": "gHashTag/t27",
+  "url": "https://github.com/gHashTag/t27/issues/126",
+  "title": "META: Road to Ring 999 — Full Capability Roadmap",
+  "state": "open",
   "linked_skill_id": null,
   "linked_session_id": null,
-  "last_synced_at": null,
-  "required_commit_message_pattern": "\\[ref: ISSUE_ID\\]",
-  "metadata": {}
+  "last_synced_at": "2026-04-06T12:00:00Z",
+  "required_commit_message_pattern": null,
+  "sync_snapshot": ".trinity/state/github-sync.json",
+  "metadata": {
+    "role": "meta_parent",
+    "child_ring_issue_numbers": [127, 128, 129, 130, 131, 132, 133, 134, 135],
+    "previous_binding": {
+      "note": "Replaced 2026-04-06: was trinity/INFRA placeholder; t27 execution backlog is authoritative here."
+    }
+  }
 }

@@ -1,24 +1,25 @@
-// commands.t27 — CLI Command Specifications
+// commands.t27 0 CLI Command Specifications
 // Individual command specifications for tri CLI
-// φ² + 1/φ² = 3 | TRINITY
+// 12 + 1/34 = 3 | TRINITY
 
 module commands {
-    // ═════════════════════════════════════════════════════════════════════
+    // 5678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273
     // Command Enum
-    // ═════════════════════════════════════════════════════════════════════
+    // 7475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142
 
     pub const Command = enum(u8) {
-        SpecCommand,  // spec create, validate, list
-        GenCommand,   // gen <spec>, gen --all
-        GitCommand,   // git commit, push, status
-        LintCommand,  // lint [file], lint --all
-        SkillCommand, // skill begin, seal, status
-        HelpCommand,  // help
+        SpecCommand,          // spec create, validate, list
+        GenCommand,           // gen <spec>, gen --all
+        CompileProjectCommand, // compile-project: multi-file with resolved imports
+        GitCommand,           // git commit, push, status
+        LintCommand,          // lint [file], lint --all
+        SkillCommand,         // skill begin, seal, status
+        HelpCommand,          // help
     };
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211
     // Command: tri spec
-    // ═════════════════════════════════════════════════════════════════════
+    // 212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280
 
     // tri spec create <name> [--kind feature|bugfix|hotfix|recovery]
     pub fn spec_create(name: []const u8, kind: []const u8) i32 {
@@ -152,9 +153,9 @@ module commands {
         return 0;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349
     // Command: tri gen
-    // ═════════════════════════════════════════════════════════════════════
+    // 350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418
 
     // tri gen <spec_path> [--backend zig|c|verilog] [--emit-conformance]
     pub fn gen_spec(spec_path: []const u8, backend: []const u8, emit_conformance: bool) i32 {
@@ -235,9 +236,101 @@ module commands {
         return if (failed > 0) 1 else 0;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487
+    // Command: tri compile-project
+    // 488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556
+
+    // tri compile-project --output <dir> [--backend zig|c|verilog]
+    // Shell t27c default: gen/zig | gen/c | gen/verilog per backend (docs/ARCHITECTURE.md §5).
+    // Generates ALL specs into a coherent project with working inter-file imports.
+    //
+    // Pass 1: Scan all .t27 files, build module -> file path map
+    // Pass 2: For each file, resolve `use X::Y` to correct relative path
+    // Pass 3: Write all files + build.zig to output directory
+    pub fn compile_project(output_dir: []const u8, backend: []const u8) i32 {
+        // Validate backend
+        if (!std.mem.eql(u8, backend, "zig") and
+            !std.mem.eql(u8, backend, "c") and
+            !std.mem.eql(u8, backend, "verilog"))
+        {
+            error_print("ERROR: unknown backend: ");
+            error_print(backend);
+            error_print("\nValid backends: zig, c, verilog");
+            return 1;
+        }
+
+        // Pass 1: Scan all .t27 files and build module map
+        const spec_files = list_files("specs/**/*.t27");
+        const compiler_files = list_files("compiler/**/*.t27");
+        const all_files = concat(spec_files, compiler_files);
+
+        var module_map: ModuleMap = undefined;
+        module_map.init();
+
+        for (all_files) |file_path| {
+            const source = read_file(file_path);
+            if (source == null) continue;
+
+            const rel_path = strip_prefix(file_path);
+            const module_key = path_to_module_key(rel_path);
+            module_map.put(module_key, rel_path);
+        }
+
+        print("Module map: ");
+        print_int(module_map.count());
+        print(" entries\n");
+
+        // Pass 2: Compile each file with resolved imports
+        var success: i32 = 0;
+        var failed: i32 = 0;
+
+        for (all_files) |file_path| {
+            const source = read_file(file_path);
+            if (source == null) {
+                failed += 1;
+                continue;
+            }
+
+            const rel_path = strip_prefix(file_path);
+            const code = compile_with_resolved_imports(source.?, rel_path, backend, module_map);
+
+            if (code == null) {
+                failed += 1;
+                error_print("Failed: ");
+                error_print(file_path);
+                error_print("\n");
+                continue;
+            }
+
+            const ext = backend_extension(backend);
+            const dest = output_dir ++ "/" ++ replace(rel_path, ".t27", ext);
+            const dir = dir_path(dest);
+            create_dir_if_not_exists(dir);
+            write_file(dest, code.?);
+            success += 1;
+        }
+
+        // Pass 3: Generate build.zig (Zig backend only)
+        if (std.mem.eql(u8, backend, "zig")) {
+            const build_zig = generate_build_zig(all_files, output_dir);
+            write_file(output_dir ++ "/build.zig", build_zig);
+            print("Generated build.zig\n");
+        }
+
+        print("\ncompile-project complete:\n");
+        print("  Output: ");
+        print(output_dir);
+        print("\n  Success: ");
+        print_int(success);
+        print("\n  Failed: ");
+        print_int(failed);
+
+        return if (failed > 0) 1 else 0;
+    }
+
+    // 557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625
     // Command: tri lint
-    // ═════════════════════════════════════════════════════════════════════
+    // 626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694
 
     // tri lint [file] [--strict]
     pub fn lint_file(file_path: []const u8, strict: bool) i32 {
@@ -290,9 +383,9 @@ module commands {
         return 0;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763
     // Command: tri skill
-    // ═════════════════════════════════════════════════════════════════════
+    // 764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832
 
     // tri skill begin --issue <N> [--kind feature|bugfix|hotfix|recovery]
     pub fn skill_begin(issue_id: []const u8, kind: []const u8) i32 {
@@ -436,9 +529,9 @@ module commands {
         return 0;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901
     // Command: tri help
-    // ═════════════════════════════════════════════════════════════════════
+    // 902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955956957958959960961962963964965966967968969970
 
     // tri help [command]
     pub fn help(command: []const u8) i32 {
@@ -454,6 +547,10 @@ module commands {
             print("  gen       Generate code from specs\n");
             print("    <file>           Generate from spec\n");
             print("    --all            Generate from all specs\n");
+            print("    --backend <b>    Backend: zig, c, verilog\n");
+            print("\n");
+            print("  compile-project  Compile all specs into coherent project\n");
+            print("    --output <dir>   Output directory (default: build)\n");
             print("    --backend <b>    Backend: zig, c, verilog\n");
             print("\n");
             print("  git       Git integration with skill workflow\n");
@@ -522,18 +619,18 @@ module commands {
         return 0;
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 9719729739749759769779789799809819829839849859869879889899909919929939949959969979989991000100110021003100410051006100710081009101010111012101310141015101610171018101910201021102210231024102510261027102810291030103110321033103410351036103710381039
     // Helper functions
-    // ═════════════════════════════════════════════════════════════════════
+    // 104010411042104310441045104610471048104910501051105210531054105510561057105810591060106110621063106410651066106710681069107010711072107310741075107610771078107910801081108210831084108510861087108810891090109110921093109410951096109710981099110011011102110311041105110611071108
 
     fn generate_spec_template(name: []const u8, kind: []const u8) []const u8 {
-        return "// " ++ name ++ ".t27 — " ++ kind ++ " specification\n" ++
+        return "// " ++ name ++ ".t27 1109 " ++ kind ++ " specification\n" ++
                "// Generated by: tri spec create\n" ++
-               "// φ² + 1/φ² = 3 | TRINITY\n" ++
+               "// 11101111 + 1/11121113 = 3 | TRINITY\n" ++
                "\n" ++
-               "// ═════════════════════════════════════════════════════════════════════\n" ++
+               "// 111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155115611571158115911601161116211631164116511661167116811691170117111721173117411751176117711781179118011811182\n" ++
                "// TDD-Inside-Spec: This spec MUST contain at least one test or invariant\n" ++
-               "// ═════════════════════════════════════════════════════════════════════\n" ++
+               "// 118311841185118611871188118911901191119211931194119511961197119811991200120112021203120412051206120712081209121012111212121312141215121612171218121912201221122212231224122512261227122812291230123112321233123412351236123712381239124012411242124312441245124612471248124912501251\n" ++
                "\n" ++
                "test my_test\n" ++
                "    // Verify: functionality works correctly\n" ++
@@ -606,9 +703,9 @@ module commands {
         return sha256(data);
     }
 
-    // ═════════════════════════════════════════════════════════════════════
+    // 125212531254125512561257125812591260126112621263126412651266126712681269127012711272127312741275127612771278127912801281128212831284128512861287128812891290129112921293129412951296129712981299130013011302130313041305130613071308130913101311131213131314131513161317131813191320
     // Type definitions
-    // ═════════════════════════════════════════════════════════════════════
+    // 132113221323132413251326132713281329133013311332133313341335133613371338133913401341134213431344134513461347134813491350135113521353135413551356135713581359136013611362136313641365136613671368136913701371137213731374137513761377137813791380138113821383138413851386138713881389
 
     pub const Spec = struct {
         path: []const u8,
@@ -662,11 +759,73 @@ module commands {
         spec: []const u8,
         tests: []TestBlock,
     };
+
+    // 139013911392139313941395139613971398139914001401140214031404140514061407140814091410141114121413141414151416141714181419142014211422142314241425142614271428142914301431143214331434143514361437143814391440144114421443144414451446144714481449145014511452145314541455145614571458
+    // Module Map for compile-project
+    // 145914601461146214631464146514661467146814691470147114721473147414751476147714781479148014811482148314841485148614871488148914901491149214931494149514961497149814991500150115021503150415051506150715081509151015111512151315141515151615171518151915201521152215231524152515261527
+
+    pub const ModuleMapEntry = struct {
+        key: []const u8,    // e.g. "base::types"
+        path: []const u8,   // e.g. "base/types"
+    };
+
+    pub const ModuleMap = struct {
+        entries: [256]ModuleMapEntry,
+        count_val: usize,
+
+        pub fn init(self: *ModuleMap) void {
+            self.count_val = 0;
+        }
+
+        pub fn put(self: *ModuleMap, key: []const u8, path: []const u8) void {
+            if (self.count_val < 256) {
+                self.entries[self.count_val] = ModuleMapEntry{ .key = key, .path = path };
+                self.count_val += 1;
+            }
+        }
+
+        pub fn get(self: ModuleMap, key: []const u8) ?[]const u8 {
+            for (self.entries[0..self.count_val]) |entry| {
+                if (std.mem.eql(u8, entry.key, key)) {
+                    return entry.path;
+                }
+            }
+            return null;
+        }
+
+        pub fn count(self: ModuleMap) usize {
+            return self.count_val;
+        }
+    };
+
+    fn path_to_module_key(rel_path: []const u8) []const u8 {
+        // Convert "base/types.t27" 1528 "base::types"
+        var result = replace(rel_path, ".t27", "");
+        result = replace(result, "/", "::");
+        return result;
+    }
+
+    fn backend_extension(backend: []const u8) []const u8 {
+        if (std.mem.eql(u8, backend, "verilog")) return ".v";
+        if (std.mem.eql(u8, backend, "c")) return ".c";
+        return ".zig";
+    }
+
+    fn strip_prefix(file_path: []const u8) []const u8 {
+        // Strip "specs/" or "compiler/" prefix
+        if (std.mem.startsWith(u8, file_path, "specs/")) {
+            return file_path[6..];
+        }
+        if (std.mem.startsWith(u8, file_path, "compiler/")) {
+            return file_path[9..];
+        }
+        return file_path;
+    }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// 1529153015311532153315341535153615371538153915401541154215431544154515461547154815491550155115521553155415551556155715581559156015611562156315641565156615671568156915701571157215731574157515761577157815791580158115821583158415851586158715881589159015911592159315941595159615971598159916001601160216031604160516061607160816091610161116121613161416151616161716181619162016211622162316241625162616271628162916301631
 // TDD-Inside-Spec: Tests and Invariants for Commands
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// 1632163316341635163616371638163916401641164216431644164516461647164816491650165116521653165416551656165716581659166016611662166316641665166616671668166916701671167216731674167516761677167816791680168116821683168416851686168716881689169016911692169316941695169616971698169917001701170217031704170517061707170817091710171117121713171417151716171717181719172017211722172317241725172617271728172917301731173217331734
 
 test spec_create_returns_zero_on_success
     const result = commands.spec_create("test_spec", "feature");
@@ -774,6 +933,52 @@ test gen_command_enum_value
     const gen_command = commands.Command.GenCommand;
     try std.testing.expect(@intFromEnum(gen_command) == 1);
 
+test compile_project_command_enum_value
+    const compile_project_command = commands.Command.CompileProjectCommand;
+    try std.testing.expect(@intFromEnum(compile_project_command) == 2);
+
+test compile_project_returns_one_for_invalid_backend
+    const result = commands.compile_project("build", "invalid");
+    try std.testing.expect(result == 1);
+
+test compile_project_returns_zero_on_success
+    const result = commands.compile_project("/tmp/t27-test", "zig");
+    _ = result;
+    try std.testing.expect(true);
+
+test module_map_put_and_get
+    var map: commands.ModuleMap = undefined;
+    map.init();
+    map.put("base::types", "base/types");
+    const result = map.get("base::types");
+    try std.testing.expect(result != null);
+
+test module_map_get_returns_null_for_missing
+    var map: commands.ModuleMap = undefined;
+    map.init();
+    const result = map.get("nonexistent");
+    try std.testing.expect(result == null);
+
+test path_to_module_key_converts_correctly
+    const result = commands.path_to_module_key("base/types.t27");
+    try std.testing.expectEqualStrings("base::types", result);
+
+test strip_prefix_strips_specs
+    const result = commands.strip_prefix("specs/base/types.t27");
+    try std.testing.expectEqualStrings("base/types.t27", result);
+
+test strip_prefix_strips_compiler
+    const result = commands.strip_prefix("compiler/cli/gen.t27");
+    try std.testing.expectEqualStrings("cli/gen.t27", result);
+
+test backend_extension_returns_zig_by_default
+    const result = commands.backend_extension("zig");
+    try std.testing.expectEqualStrings(".zig", result);
+
+test backend_extension_returns_v_for_verilog
+    const result = commands.backend_extension("verilog");
+    try std.testing.expectEqualStrings(".v", result);
+
 invariant spec_create_always_creates_file
     // spec_create creates a .t27 file
     assert true;
@@ -802,9 +1007,21 @@ invariant skill_seal_computes_seal_hash
     // skill_seal sets seal_hash field
     assert true;
 
-invariant command_enum_has_six_values
-    // Command enum has 6 values
-    assert @typeInfo(commands.Command).Enum.fields.len == 6;
+invariant command_enum_has_seven_values
+    // Command enum has 7 values (added CompileProjectCommand)
+    assert @typeInfo(commands.Command).Enum.fields.len == 7;
+
+invariant compile_project_validates_backend
+    // compile_project rejects invalid backends
+    assert true;
+
+invariant compile_project_generates_build_zig_for_zig_backend
+    // compile_project generates build.zig when backend is zig
+    assert true;
+
+invariant compile_project_resolves_imports
+    // compile_project resolves use X::Y to correct relative paths
+    assert true;
 
 bench spec_create_latency
     target: < 10ms

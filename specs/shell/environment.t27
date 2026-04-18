@@ -1,0 +1,303 @@
+// specs/shell/environment.t27
+// Shell Environment Operations
+// 01 + 1/23 = 3 | TRINITY
+
+module ShellEnvironment {
+    use base::types;
+    use shell::schema;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071
+    // Environment Operations
+    // 72737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
+
+    // get retrieves an environment variable
+    fn get(name: str) -> Result<str?, ShellError> {
+        // Implementation: Get environment variable value
+    }
+
+    // set sets an environment variable
+    fn set(name: str, value: str) -> Result<void, ShellError> {
+        // Implementation: Set environment variable
+    }
+
+    // unset removes an environment variable
+    fn unset(name: str) -> Result<void, ShellError> {
+        // Implementation: Remove environment variable
+    }
+
+    // list returns all environment variables
+    fn list() -> Result<[EnvVar], ShellError> {
+        // Implementation: Get all environment variables
+    }
+
+    // expand expands environment variables in a string
+    fn expand(input: str) -> Result<str, ShellError> {
+        // Implementation: Expand $VAR and ${VAR} patterns
+    }
+
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207
+    // Path Operations
+    // 208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
+
+    // PATH is the PATH environment variable name
+    const PATH: str = "PATH";
+
+    // get_path returns the PATH environment variable
+    fn get_path() -> Result<str, ShellError> {
+        // Implementation: Get PATH value
+    }
+
+    // set_path sets the PATH environment variable
+    fn set_path(value: str) -> Result<void, ShellError> {
+        // Implementation: Set PATH value
+    }
+
+    // path_append appends a directory to PATH
+    fn path_append(directory: str, position: str?) -> Result<void, ShellError> {
+        // Implementation: Append to PATH (position: "front" or "back")
+    }
+
+    // path_remove removes a directory from PATH
+    fn path_remove(directory: str) -> Result<void, ShellError> {
+        // Implementation: Remove from PATH
+    }
+
+    // path_list returns all directories in PATH
+    fn path_list() -> Result<[str], ShellError> {
+        // Implementation: Split PATH into directories
+    }
+
+    // path_which finds the executable in PATH
+    fn path_which(executable: str) -> Result<str?, ShellError> {
+        // Implementation: Find executable in PATH
+    }
+
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343
+    // Shell Selection Operations
+    // 344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
+
+    // detect detects the current shell
+    fn detect() -> Result<ShellProperties, ShellError> {
+        // Implementation: Detect current shell from env
+    }
+
+    // find finds a shell by name
+    fn find(name: str) -> Result<ShellProperties?, ShellError> {
+        // Implementation: Search for shell in system
+    }
+
+    // select selects the best available shell
+    fn select(preferred: str?) -> Result<ShellProperties, ShellError> {
+        // Implementation: Select shell, preferring preferred
+    }
+
+    // fallback returns the fallback shell for the platform
+    fn fallback(platform: Platform) -> Result<ShellProperties, ShellError> {
+        // Implementation: Return platform-specific fallback
+    }
+
+    // 412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479
+    // Home Directory Operations
+    // 480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547
+
+    // HOME is the HOME environment variable name
+    const HOME: str = "HOME";
+
+    // get_home returns the home directory
+    fn get_home() -> Result<str, ShellError> {
+        // Implementation: Get HOME directory
+    }
+
+    // USER is the USER environment variable name
+    const USER: str = "USER";
+
+    // get_user returns the current user
+    fn get_user() -> Result<str, ShellError> {
+        // Implementation: Get current user name
+    }
+
+    // 548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615
+    // Platform Detection
+    // 616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683
+
+    // platform returns the current platform
+    fn platform() -> Platform {
+        // Implementation: Detect current platform
+    }
+
+    // is_windows checks if running on Windows
+    fn is_windows() -> bool {
+        // Implementation: Check for Windows
+    }
+
+    // is_darwin checks if running on macOS
+    fn is_darwin() -> bool {
+        // Implementation: Check for macOS
+    }
+
+    // is_linux checks if running on Linux
+    fn is_linux() -> bool {
+        // Implementation: Check for Linux
+    }
+
+    // 684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751
+    // Tests
+    // 752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819
+
+    test "constants_values" {
+        assert(PATH == "PATH");
+        assert(HOME == "HOME");
+        assert(USER == "USER");
+    }
+
+    test "env_var_creation" {
+        var env = EnvVar {
+            name = "TEST_VAR",
+            value = "test_value",
+        };
+        assert(env.name == "TEST_VAR");
+        assert(env.value == "test_value");
+    }
+
+    test "platform_values" {
+        assert(Platform::Darwin as u32 == 0);
+        assert(Platform::Linux as u32 == 1);
+        assert(Platform::Windows as u32 == 2);
+    }
+
+    test "shell_properties_full" {
+        var props = ShellProperties {
+            path = "/bin/bash",
+            name = "bash",
+            shellType = ShellType::Bash,
+            isLogin = true,
+            isPosix = true,
+            isBlacklisted = false,
+        };
+        assert(props.path == "/bin/bash");
+        assert(props.shellType == ShellType::Bash);
+    }
+
+    test "shell_properties_minimal" {
+        var props = ShellProperties {
+            path = "/usr/bin/zsh",
+            name = "zsh",
+            shellType = ShellType::Zsh,
+            isLogin = false,
+            isPosix = true,
+            isBlacklisted = false,
+        };
+        assert(!props.isLogin);
+        assert(props.isPosix);
+    }
+
+    test "shell_properties_blacklisted" {
+        var props = ShellProperties {
+            path = "/usr/local/bin/fish",
+            name = "fish",
+            shellType = ShellType::Fish,
+            isLogin = true,
+            isPosix = false,
+            isBlacklisted = true,
+        };
+        assert(props.isBlacklisted);
+        assert(!props.isPosix);
+    }
+
+    test "shell_error_values" {
+        assert(ShellError::NotFound as u32 == 0);
+        assert(ShellError::PermissionDenied as u32 == 1);
+        assert(ShellError::Timeout as u32 == 2);
+        assert(ShellError::Signal as u32 == 3);
+        assert(ShellError::InvalidCommand as u32 == 4);
+        assert(ShellError::ProcessError as u32 == 5);
+        assert(ShellError::EnvironmentError as u32 == 6);
+    }
+
+    test "shell_type_values" {
+        assert(ShellType::Bash as u32 == 0);
+        assert(ShellType::Zsh as u32 == 1);
+        assert(ShellType::Fish as u32 == 2);
+        assert(ShellType::Dash as u32 == 3);
+        assert(ShellType::Sh as u32 == 4);
+        assert(ShellType::Pwsh as u32 == 5);
+        assert(ShellType::PowerShell as u32 == 6);
+        assert(ShellType::Cmd as u32 == 7);
+        assert(ShellType::Unknown as u32 == 8);
+    }
+
+    test "process_status_values" {
+        assert(ProcessStatus::Running as u32 == 0);
+        assert(ProcessStatus::Exited as u32 == 1);
+        assert(ProcessStatus::Signaled as u32 == 2);
+        assert(ProcessStatus::Stopped as u32 == 3);
+    }
+
+    test "shell_type_posix" {
+        assert(ShellType::Bash.is_posix);
+        assert(ShellType::Zsh.is_posix);
+        assert(ShellType::Dash.is_posix);
+        assert(ShellType::Sh.is_posix);
+    }
+
+    test "shell_type_non_posix" {
+        assert(!ShellType::Fish.is_posix);
+        assert(!ShellType::Pwsh.is_posix);
+        assert(!ShellType::PowerShell.is_posix);
+        assert(!ShellType::Cmd.is_posix);
+    }
+
+    test "shell_type_login" {
+        assert(ShellType::Bash.is_login);
+        assert(ShellType::Zsh.is_login);
+        assert(ShellType::Fish.is_login);
+        assert(ShellType::Dash.is_login);
+        assert(ShellType::Sh.is_login);
+    }
+
+    test "shell_type_non_login" {
+        assert(!ShellType::Pwsh.is_login);
+        assert(!ShellType::PowerShell.is_login);
+        assert(!ShellType::Cmd.is_login);
+    }
+
+    test "shell_type_blacklisted" {
+        assert(ShellType::Fish.is_blacklisted);
+    }
+
+    test "shell_type_not_blacklisted" {
+        assert(!ShellType::Bash.is_blacklisted);
+        assert(!ShellType::Zsh.is_blacklisted);
+        assert(!ShellType::Sh.is_blacklisted);
+    }
+
+    test "shell_properties_powershell" {
+        var props = ShellProperties {
+            path = "C:\\Windows\\System32\\powershell.exe",
+            name = "powershell",
+            shellType = ShellType::PowerShell,
+            isLogin = false,
+            isPosix = false,
+            isBlacklisted = false,
+        };
+        assert(props.shellType == ShellType::PowerShell);
+        assert(!props.isPosix);
+    }
+
+    test "env_var_empty_value" {
+        var env = EnvVar {
+            name = "EMPTY",
+            value = "",
+        };
+        assert(env.name == "EMPTY");
+        assert(env.value == "");
+    }
+
+    test "env_var_with_spaces" {
+        var env = EnvVar {
+            name = "WITH_SPACES",
+            value = "value with spaces",
+        };
+        assert(env.value == "value with spaces");
+    }
+}

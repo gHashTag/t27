@@ -69,7 +69,7 @@ When an AI agent writes code:
 
 **Bootstrap code**: `build.zig`, `build.zig.zon`, entrypoints may be edited in Zig directly.
 
-**Legacy shim**: Code in `backend/zig/legacy/` is preserved for compatibility.
+**Legacy shim**: Code in `contrib/backend/zig/legacy/` is preserved for compatibility.
 
 **Hardware bridge**: FPGA-specific bindings may use `.zig` directly but depend on `.tri` specs.
 
