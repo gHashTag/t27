@@ -332,3 +332,7 @@
 - **Commit:** fix(workflows): simplify L1 traceability check — remove buggy grep pattern check
 - **Files:** .trinity/current_task/activity.md
 
+## 2026-04-18T14:32:52Z — fix/ring-018-compiler-cleanup
+- **Commit:** fix(workflows): fix L1 traceability check — remove buggy pattern matching
+- **Files:** .github/workflows/l1-traceability.yml
+

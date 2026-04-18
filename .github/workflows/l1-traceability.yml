@@ -1,9 +1,15 @@
-name: L1 TRACEABILITY Fix
+# Enforces L1 TRACEABILITY: No code merged without Closes #N
+
+name: L1 Traceability
 on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
-    branches: [master, main]
+    branches: [master]
+
+permissions:
+  issues: read
+  pull-requests: write
 
 jobs:
   check-traceability:
@@ -14,68 +20,65 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for Closes #N in commits
+      - name: Check L1 Traceability
         id: check
         run: |
           set -euo pipefail
-          
+
+          # Check each commit for Closes #N pattern
+          FAILED=0
+          TOTAL=0
+          PASSED=0
+
           # Get base branch
           BASE="${{ github.base_ref || 'master' }}"
-          
+
           echo "Checking commits against $BASE..."
-          
+
           # Get commit hashes in range, excluding merge commits
           COMMIT_HASHES=$(git log origin/"$BASE"..HEAD --format="%H" --no-merges 2>/dev/null || echo "")
-          
+
           if [ -z "$COMMIT_HASHES" ]; then
             echo "No commits to check (likely first push)"
             exit 0
           fi
-          
-          # Check each commit for Closes #N pattern
-          FAILED=0
-          FAILED_COMMITS=""
-          TOTAL=0
-          PASSED=0
-          
+
+          # Check each commit for Closes #N, Fixes #N, or Resolves #N pattern (in full message)
           while IFS= read -r hash; do
             if [ -z "$hash" ]; then
               continue
             fi
-            
+
             TOTAL=$((TOTAL + 1))
-            
+
             # Get full commit message
             FULL_MSG=$(git log -1 --format="%B" "$hash")
-            
-            # Check for Closes #N, Fixes #N, or Resolves #N pattern
-            # Case-insensitive match, followed by # and space, then issue number
-            if echo "$FULL_MSG" | grep -qiE '(closes|fixes|resolves)\s*#[0-9]+'; then
-              PASSED=$((PASSED + 1))
+
+            # Check for Closes #N, Fixes #N, or Resolves #N in full message
+            if ! echo "$FULL_MSG" | grep -qiE "(closes|fixes|resolves) #\s*[0-9]+"'; then
+              FAILED=$((FAILED + 1))
+              FAILED_COMMITS="$FAILED_COMMITS ❌ $(git log -1 --format="%h " "$hash")"$'\n'
             else
-              FAILED=1
-              FAILED_COMMITS="$FAILED_COMMITS  ❌ $(git log -1 --format="%h %s" "$hash")"$'\n'
+              PASSED=$((PASSED + 1))
+              echo "  ✓ $(git log -1 --format="%h" "$hash")"
             fi
           done <<< "$COMMIT_HASHES"
-          
+
           echo ""
-          echo "L1 TRACEABILITY Summary"
+          echo "L1 Traceability Summary"
           echo "===================="
           echo "Total commits: $TOTAL"
           echo "Passed: $PASSED"
           echo "Failed: $FAILED"
-          echo ""
-          
-          if [ $FAILED -eq 1 ]; then
-            echo "::error::L1 TRACEABILITY violation: Found $FAILED commit(s) without issue reference."
-            echo "::error::The following commits are missing issue references:"
+
+          if [ $FAILED -gt 0 ]; then
+            echo "::error::L1 Traceability violation: Found $FAILED commit(s) without issue reference."
             echo "$FAILED_COMMITS"
-            echo "::error::Constitutional Law L1 requires all code changes to reference a GitHub issue."
+            echo "::error::Constitutional Law L1 requires all code changes to reference an issue."
             echo "::error::Usage: Include 'Closes #N' in your PR title or body."
             echo "::error::Example: 'feat(compiler): Add algorithm codegen placeholder'"
-            echo "::error::         Closes #42'"
+            echo "::error::PR blocked. Please create an issue first, then reference it in your PR."
             exit 1
           fi
-          
-          echo "::notice::L1 TRACEABILITY check passed: All $TOTAL commits comply with issue reference requirement."
-          echo "✅ Passed commit: $(git log -1 --format="%h")"
+
+          echo "::notice::L1 Traceability check passed: All $TOTAL commits comply with issue reference requirement."
