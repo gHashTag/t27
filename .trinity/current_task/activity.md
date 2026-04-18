@@ -236,3 +236,11 @@
 - **Commit:** fix: restore working build and update language policy
 - **Files:** specs/compiler/meta_compile.t27
 
+## 2026-04-18T19:03:47Z — dev
+- **Commit:** fix(compiler): add missing emit_rust() to meta_compile spec
+- **Files:** README.md,bootstrap/src/bridge.rs,docs/.legacy-non-english-docs,docs/AGENTS_ALPHABET.md
+
+## 2026-04-18T19:04:05Z — dev
+- **Commit:** fix(build): restore bootstrap compiler build (#522)
+- **Files:** .trinity/current_task/activity.md,README.md,bootstrap/src/bridge.rs,docs/.legacy-non-english-docs,docs/AGENTS_ALPHABET.md
+
