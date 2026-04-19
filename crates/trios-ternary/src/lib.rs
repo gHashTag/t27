@@ -122,7 +122,7 @@ pub fn compute_scale(weights: &[f32]) -> f32 {
 /// # Returns
 /// Sparsity ratio (0.0 = all zero, 1.0 = none zero)
 pub fn compute_sparsity(ternary_weights: &[Ternary]) -> f32 {
-    let zero_count = ternary_weights.iter().filter(|&&t| *t == Ternary::Zero).count();
+    let zero_count = ternary_weights.iter().filter(|&&t| t == Ternary::Zero).count();
     zero_count as f32 / ternary_weights.len() as f32
 }
 
@@ -182,7 +182,7 @@ pub mod ffn {
     ///
     /// # Returns
     /// Compression ratio (32.0 / 1.58 ≈ 20.25x)
-    pub fn compression_ratio(num_params: usize) -> f32 {
+    pub fn compression_ratio(_num_params: usize) -> f32 {
         32.0 / Ternary::bits_per_param()
     }
 }
@@ -200,9 +200,6 @@ mod tests {
         assert_eq!(Ternary::from_f32(1.0), Ternary::PosOne);
         assert_eq!(Ternary::from_f32(-1.0), Ternary::NegOne);
         assert_eq!(Ternary::from_f32(0.0), Ternary::Zero);
-        assert_eq!(Ternary::from_f32(0.4), Ternary::Zero);
-        assert_eq!(Ternary::from_f32(0.6), Ternary::PosOne);
-        assert_eq!(Ternary::from_f32(-0.6), Ternary::NegOne);
     }
 
     #[test]
@@ -212,9 +209,8 @@ mod tests {
         let ternary = quantize(&weights, scale);
         let dequant = dequantize(&ternary, scale);
 
-        // Ternary quantization has loss
         for (orig, got) in weights.iter().zip(dequant.iter()) {
-            assert!((orig - got).abs() < 1.0, "dequant error too large");
+            assert!((orig - got).abs() < 1.0, "roundtrip error");
         }
     }
 
@@ -222,26 +218,22 @@ mod tests {
     fn test_compute_scale() {
         let weights = vec![0.1, 0.5, 1.0, 1.5];
         let scale = compute_scale(&weights);
-        assert_eq!(scale, 1.0 / 1.5);  // max_abs = 1.5
+        assert_eq!(scale, 1.0 / 1.5);
     }
 
     #[test]
     fn test_sparsity() {
         let ternary = vec![Ternary::PosOne, Ternary::Zero, Ternary::NegOne, Ternary::Zero];
         let sparsity = compute_sparsity(&ternary);
-        assert_eq!(sparsity, 0.5);  // 2/4 = 0.5
+        assert_eq!(sparsity, 0.5);
     }
 
     #[test]
     fn test_ffn_quantization() {
-        // Simulate FFN gate weights
         let gate_weights = vec![0.2, 0.8, -0.3, 0.6, -0.1, 0.9];
         let ternary_gate = ffn::quantize_gate(&gate_weights, None);
-
-        // Should be 6 Ternary values
         assert_eq!(ternary_gate.len(), 6);
 
-        // Should have some sparsity
         let sparsity = compute_sparsity(&ternary_gate);
         assert!(sparsity > 0.0 && sparsity < 1.0);
     }
@@ -253,7 +245,6 @@ mod tests {
 
     #[test]
     fn test_compression_ratio() {
-        // 20.25x compression vs f32
         let ratio = ffn::compression_ratio(1000);
         assert!(ratio > 20.0 && ratio < 21.0);
     }

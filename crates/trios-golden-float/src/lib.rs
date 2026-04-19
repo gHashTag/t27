@@ -301,13 +301,13 @@ pub mod hybrid {
         #[test]
         fn test_quantize_embedding() {
             let weights = vec![0.1, 0.5, 1.0, 1.618];
-            let gf16 = hybrid::quantize_embedding(&weights, None);
-            
+            let gf16 = quantize_embedding(&weights, None);
+
             // Roundtrip test
-            let dequant = hybrid::dequantize(&gf16, 1.0);
+            let dequant = dequantize(&gf16, 1.0);
             for (orig, got) in weights.iter().zip(dequant.iter()) {
-            let orig: f32 = *orig;
-            let got: f32 = *got;
+                let orig: f32 = *orig;
+                let got: f32 = *got;
                 assert!((orig - got).abs() < 0.01, "roundtrip error too large");
             }
         }
@@ -315,7 +315,7 @@ pub mod hybrid {
         #[test]
         fn test_phi_scale() {
             let weights = vec![0.1, 0.5, 1.0, 1.5, 2.0];
-            let scale = hybrid::compute_phi_scale(&weights);
+            let scale = compute_phi_scale(&weights);
             assert!(scale > 0.0, "scale must be positive");
             assert!(scale < 10.0, "scale must be reasonable");
         }
@@ -324,13 +324,13 @@ pub mod hybrid {
         fn test_size_bytes() {
             // 8.59M params like IGLA-GF16 model
             let params = 8_590_032;
-            let size = hybrid::gf16_size_bytes(params);
+            let size = gf16_size_bytes(params);
             assert_eq!(size, 17_180_064);  // 8.59M * 2 bytes
         }
 
         #[test]
         fn test_compression_ratio() {
-            assert_eq!(hybrid::compression_ratio(1000), 2.0);
+            assert_eq!(compression_ratio(1000), 2.0);
         }
     }
 }
