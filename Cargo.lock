@@ -1746,6 +1746,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "trios-zig-agents"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cc",
+ "libc",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -15,6 +15,7 @@
 
 [features]
 	default = ["stub"]
+	stub = []
 	ffi = []
 
 [build-dependencies]

@@ -38,7 +38,6 @@ extern "C" {
     pub fn crypto_sha256(data: *const u8, len: size_t, out_hash: *mut Sha256Hash) -> c_int;
 
     /// Mine a block header with given difficulty target.
-    /// `header` is 80-byte block header, `target` is difficulty threshold.
     pub fn crypto_mine_sha256d(
         header: *const u8,
         target: *const Sha256Hash,
@@ -57,14 +56,4 @@ extern "C" {
 
     /// Verify a DePIN proof-of-work.
     pub fn crypto_depin_verify(proof: *const DepinProof) -> bool;
-
-    /// Compute double SHA-256 (Bitcoin standard).
-    pub fn crypto_double_sha256(
-        data: *const u8,
-        len: size_t,
-        out_hash: *mut Sha256Hash,
-    ) -> c_int;
-
-    /// Get estimated hashrate for current hardware (MH/s).
-    pub fn crypto_estimate_hashrate() -> f64;
 }

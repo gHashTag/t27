@@ -12,12 +12,26 @@ fn main() {
     let status = Command::new("zig")
         .args(["build", "-Doptimize=ReleaseFast"])
         .current_dir(zig_path)
-        .status()
-        .expect("Failed to execute zig build");
+        .status();
 
-    assert!(status.success(), "zig build failed for zig-physics");
+    match status {
+        Ok(s) if s.success() => {
+            let lib_dir = std::env::current_dir().unwrap().join(zig_path).join("zig-out/lib");
+            let static_lib = lib_dir.join("libphysics.a");
+            if static_lib.exists() {
+                println!("cargo:rustc-link-search=native={}", lib_dir.display());
+                println!("cargo:rustc-link-lib=static=physics");
+            } else {
+                println!("cargo:warning=zig build succeeded but static library not found at {:?}", static_lib);
+            }
+        }
+        Ok(s) => {
+            println!("cargo:warning=zig build failed for zig-physics (exit {:?})", s.code());
+        }
+        Err(e) => {
+            println!("cargo:warning=failed to run zig build for zig-physics: {}", e);
+        }
+    }
 
-    println!("cargo:rustc-link-search=native={}/zig-out/lib", zig_path);
-    println!("cargo:rustc-link-lib=static=physics");
     println!("cargo:rerun-if-changed={}/src", zig_path);
 }

@@ -41,6 +41,7 @@ impl std::error::Error for FfiNotAvailable {
     }
 }
 
+#[allow(unused_imports)]
 use libc::{c_char, c_int, size_t};
 
 #[cfg(feature = "ffi")]
@@ -52,7 +53,7 @@ extern "C" {
     pub fn trinity_collaboration_send(
         msg_ptr: *const u8,
         msg_len: size_t,
-    timeout_ms: size_t,
+        timeout_ms: size_t,
     ) -> c_int;
 
     /// Get MCP server health status
@@ -262,31 +263,31 @@ pub fn health_check() -> Result<String, anyhow::Error> {
             let c_str = std::ffi::CStr::from_ptr(ptr);
             Ok(c_str.to_string_lossy().unwrap_or_else(|_| "unknown".into()))
         }
-    }
-} else {
-    Err(anyhow::anyhow!("health check failed with code {}", rc))
+    } else {
+        Err(anyhow::anyhow!("health check failed with code {}", rc))
     }
 }
 
 #[cfg(feature = "ffi")]
 /// Deploy MCP server to Fly.io region
 pub fn deploy_to_fly(region: FlyRegion, org: Option<&str>) -> Result<(), anyhow::Error> {
-    let region_c = std::ffi::CString::new(region.to_region_code());
-    let org_c = std::ffi::CString::new(org.unwrap_or("gHashTag"));
+    let region_c = std::ffi::CString::new(region.to_region_code())?;
+    let org_c = match org {
+        Some(o) => std::ffi::CString::new(o)?,
+        None => std::ffi::CString::new("gHashTag")?,
+    };
 
     let rc = unsafe {
         ffi::trinity_deploy_fly(
             region_c.as_ptr(),
-            org_c.as_ptr_or(std::ptr::null()),
+            org_c.as_ptr(),
         )
     };
 
     // Free allocated strings
     unsafe {
         ffi::trinity_free_string(region_c.as_ptr() as *mut _);
-        if org.is_some() {
-            ffi::trinity_free_string(org_c.unwrap().as_ptr() as *mut _);
-        }
+        ffi::trinity_free_string(org_c.as_ptr() as *mut _);
     }
 
     if rc == 0 {
@@ -306,9 +307,8 @@ pub fn instance_status() -> Result<Option<InstanceStatus>, anyhow::Error> {
             Ok(None)
         } else {
             let c_str = std::ffi::CStr::from_ptr(ptr);
-            // Parse JSON from zig-agents (simplified)
             let json_str = c_str.to_string_lossy().unwrap_or_else(|_| "unknown".into());
-            Ok(serde_json::from_str::<serde_json::Value>(&json_str)
+            serde_json::from_str::<serde_json::Value>(&json_str)
                 .map_err(|e| anyhow::anyhow!("failed to parse instance status: {}", e))
                 .and_then(|v| {
                     // Extract fields from JSON
@@ -367,7 +367,7 @@ pub fn instance_status() -> Result<Option<InstanceStatus>, anyhow::Error> {
                         cpu_percent: cpu,
                     })
                 })
-        })
+        }
     } else {
         Err(anyhow::anyhow!("instance status failed with code {}", rc))
     }
@@ -396,44 +396,37 @@ pub fn stop_instance() -> Result<(), anyhow::Error> {
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: get version
-pub fn version() -> String {
+pub fn version() -> Result<String, FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: send collaboration message
-pub fn send_collaboration_message(_msg: &str, _timeout_ms: u64) -> Result<(), anyhow::Error> {
+pub fn send_collaboration_message(_msg: &str, _timeout_ms: u64) -> Result<(), FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: health check
-pub fn health_check() -> Result<String, anyhow::Error> {
+pub fn health_check() -> Result<String, FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: deploy to fly
-pub fn deploy_to_fly(_region: FlyRegion, _org: Option<&str>) -> Result<(), anyhow::Error> {
+pub fn deploy_to_fly(_region: FlyRegion, _org: Option<&str>) -> Result<(), FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: instance status
-pub fn instance_status() -> Result<Option<InstanceStatus>, anyhow::Error> {
+pub fn instance_status() -> Result<Option<InstanceStatus>, FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: restart instance
-pub fn restart_instance() -> Result<(), anyhow::Error> {
+pub fn restart_instance() -> Result<(), FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
 #[cfg(not(feature = "ffi"))]
-/// Stub: stop instance
-pub fn stop_instance() -> Result<(), anyhow::Error> {
+pub fn stop_instance() -> Result<(), FfiNotAvailable> {
     Err(FfiNotAvailable)
 }
 
@@ -442,8 +435,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg_attr(feature = "ffi", ignore = "requires zig-agents vendor submodule")]
-    #[cfg_attr(not(feature = "ffi"), ignore)]
     fn test_stub_returns_error() {
         let result = version();
         assert!(result.is_err());

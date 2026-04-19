@@ -15,6 +15,7 @@ members = [
     "crates/trios-kg",
     "crates/trios-agents",
     "crates/trios-training",
+    "crates/trios-zig-agents",
 ]
 resolver = "2"
 
