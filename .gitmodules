@@ -1,19 +1,15 @@
 [submodule "crates/trios-golden-float/vendor/zig-golden-float"]
-	path = crates/trios-golden-float/vendor/zig-golden-float
-	url = https://github.com/gHashTag/zig-golden-float.git
+    path = crates/trios-golden-float/vendor/zig-golden-float
+    url = https://github.com/gHashTag/zig-golden-float.git
 
 [submodule "crates/trios-hdc/vendor/zig-hdc"]
-	path = crates/trios-hdc/vendor/zig-hdc
-	url = https://github.com/gHashTag/zig-hdc.git
+    path = crates/trios-hdc/vendor/zig-hdc
+    url = https://github.com/gHashTag/zig-hdc.git
 
 [submodule "crates/trios-physics/vendor/zig-physics"]
-	path = crates/trios-physics/vendor/zig-physics
-	url = https://github.com/gHashTag/zig-physics.git
+    path = crates/trios-physics/vendor/zig-physics
+    url = https://github.com/gHashTag/zig-physics.git
 
 [submodule "crates/trios-sacred/vendor/zig-sacred-geometry"]
-	path = crates/trios-sacred/vendor/zig-sacred-geometry
-	url = https://github.com/gHashTag/zig-sacred-geometry.git
-
-[submodule "crates/trios-crypto/vendor/zig-crypto-mining"]
-	path = crates/trios-crypto/vendor/zig-crypto-mining
-	url = https://github.com/gHashTag/zig-crypto-mining.git
+    path = crates/trios-sacred/vendor/zig-sacred-geometry
+    url = https://github.com/gHashTag/zig-sacred-geometry.git
