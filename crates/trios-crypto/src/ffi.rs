@@ -36,9 +36,23 @@ pub struct DepinProof {
 extern "C" {
     /// Compute SHA-256 hash of data.
     #[allow(dead_code)]
-    pub fn crypto_sha256(data: *const u8, len: size_t, out_hash: *mut Sha256Hash) -> c_int;
+    pub fn _c_abi_crypto_sha256(data: *const u8, len: size_t, out_hash: *mut Sha256Hash) -> c_int;
 
     /// Mine a block header with given difficulty target.
+    #[allow(dead_code)]
+    pub fn _c_abi_crypto_mine_sha256d(
+        header: *const u8,
+        target: *const Sha256Hash,
+        start_nonce: u64,
+        max_nonce: u64,
+        out_result: *mut MiningResult,
+    ) -> c_int;
+
+    /// Compute SHA-256 hash of data (no prefix - for compatibility).
+    #[allow(dead_code)]
+    pub fn crypto_sha256(data: *const u8, len: size_t, out_hash: *mut Sha256Hash) -> c_int;
+
+    /// Mine a block header with given difficulty target (no prefix - for compatibility).
     #[allow(dead_code)]
     pub fn crypto_mine_sha256d(
         header: *const u8,
