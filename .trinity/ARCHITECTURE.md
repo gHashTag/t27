@@ -9,13 +9,13 @@
 
 ## 1. Existing Zig Repositories (LIVE)
 
-| # | Module / Repo | Zig ver | Build | Status | SSOT link README | Submodule |
-|---|---|---|---|---|---|---|
-| 1 | Golden Float / GF16 | `zig-golden-float` | 0.16 ✅ | ✅ | ✅ | [docs](https://github.com/gHashTag/zig-golden-float) |
-| 2 | Physics / Quantum | `zig-physics` | 0.16 ✅ | ✅ | ✅ | [docs](https://github.com/gHashTag/zig-physics) |
-| 3 | HDC / VSA | `zig-hdc` | 0.16 ✅ | ✅ | ✅ | — | — |
-| 4 | Sacred Geometry | `zig-sacred-geometry` | ⚠️ NO VENDOR | Submodule not initialized | — |
-| 5 | Crypto-mining | `zig-crypto-mining` | 0.16 ✅ | ✅ | ✅ | — | — |
+| # | Module / Repo | Zig ver | Build | TRIOS FFI | Status | SSOT link README | Submodule |
+|---|---|---|---|---|---|---|---|
+| 1 | Golden Float / GF16 | `zig-golden-float` | 0.16 ✅ | ✅ | ✅ | PARTIAL — symbol mismatch | [docs](https://github.com/gHashTag/zig-golden-float) |
+| 2 | Physics / Quantum | `zig-physics` | 0.16 ✅ | ✅ | ✅ | GREEN | [docs](https://github.com/gHashTag/zig-physics) |
+| 3 | HDC / VSA | `zig-hdc` | 0.16 ✅ | ✅ | ❌ | FAIL — vendor missing | — | — |
+| 4 | Sacred Geometry | `zig-sacred-geometry` | ⚠️ NO VENDOR | ❌ | ❌ | BLOCKED — repo 404 | — |
+| 5 | Crypto-mining | `zig-crypto-mining` | 0.16 ✅ | ✅ | ❌ | FAIL — sha256 linker error | — | — |
 
 **Note:** Sacred geometry (φ-attention) is already implemented in `zig-physics/src/gravity/sacred_geometry/`, separate Zig repository not required. Status: **deferred, awaiting explicit signal on merge vs resurrect** (choice A1 in audit).
 
@@ -167,7 +167,7 @@
 
 | Area | Status | Action |
 |------|--------|--------|
-| TRIOS FFI link | ❌ 5 FAIL | Zig vendor ✅ (4/5) but TRIOS FFI link ❌ (0/13 test green) |
+| TRIOS FFI link | ❌ 5 FAIL | Zig vendor 4/5 ✅ but TRIOS FFI link 0/13 ❌ (linker errors) |
 | Sacred geometry in zig-physics | ✅ IMPLEMENTED | Current implementation works, status A1 (merge, not resurrect) |
 | zig-sacred submodule 404 | ⏸️ DEFERRED | Sacred geometry already in zig-physics, decision A1 made |
 
@@ -180,8 +180,8 @@
 1. **Phase 1 — FFI Stabilization (IN PROGRESS)**
    - Zig vendor builds: 4/5 ✅ (sacred 404)
    - TRIOS FFI stub mode: 13/13 ✅
-   - TRIOS FFI link mode: 0/13 ❌ (5 FAIL)
-   - Status: NOT complete, requires resolution of 5 FAIL
+   - TRIOS FFI link mode: 0/13 ❌ (5 FAIL: crypto sha256, golden-float gf16_*, hdc vendor, physics vendor, sacred sacred_*)
+   - Status: **NOT complete**, Phase 1 requires resolution of 5 FAIL before Phase 2
 
 2. **Phase 2 — Core Stack (NEXT)**
    - Select one HIGH priority candidate for MVP
