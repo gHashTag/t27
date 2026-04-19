@@ -2,15 +2,30 @@
 //!
 //! φ-LR scheduler — golden ratio-based learning rate schedule.
 //!
-//! ## Formula
+//! ## Issue #54: LR Schedule Calibration
 //!
-//! ```text
-//! LR = base_lr * φ^(-epoch / warmup)
-//! ```
+//! Three schedules for calibration:
+//! - (a) flat_3e4: Constant LR
+//! - (b) cosine_3e4_to_0: Cosine decay
+//! - (c) phi_decay_3e4_to_alpha_phi: Phi-based decay to α_φ floor
 //!
-//! Where φ is the golden ratio (≈1.618...).
+//! ## Key Scientific Finding (Issue #53)
+//!
+//! α_φ = 0.118034 is NOT a valid initial LR (BPB explodes to 18.60).
+//! Hypothesis: α_φ serves as ASYMPTOTIC FLOOR in decay schedule.
 
 use trios_physics::gf_constants;
+
+/// LR schedule type for Issue #54 calibration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LrScheduleType {
+    /// Constant LR 3e-4
+    Flat,
+    /// Cosine decay 3e-4 → 0
+    Cosine,
+    /// Phi decay 3e-4 → α_φ (hypothesis: α_φ as asymptotic floor)
+    PhiDecay,
+}
 
 /// Compute φ-optimized learning rate schedule.
 ///
@@ -41,6 +56,55 @@ pub fn phi_schedule(epoch: usize, base_lr: f32, warmup: usize) -> f32 {
     let phi = gf_constants().phi as f32;
     let decay = phi.powf(-(epoch as f32 / warmup as f32));
     base_lr * decay
+}
+
+/// Issue #54: Flat LR schedule (baseline)
+///
+/// Constant learning rate 3e-4.
+pub fn flat_lr(_step: usize, base_lr: f32) -> f32 {
+    base_lr
+}
+
+/// Issue #54: Cosine LR schedule
+///
+/// Decays from base_lr to 0 using cosine curve.
+pub fn cosine_lr(step: usize, max_steps: usize, base_lr: f32) -> f32 {
+    let progress = step as f32 / max_steps as f32;
+    let cosine = (std::f32::consts::PI * progress).cos();
+    base_lr * (1.0 + cosine) / 2.0
+}
+
+/// Issue #54: Phi-decay LR schedule (hypothesis)
+///
+/// Decays from base_lr to α_φ (asymptotic floor).
+/// Formula: LR = base_lr * α_φ^(-t/τ)
+/// where t = (step - warmup) and τ = max_steps / (φ × 27)
+pub fn phi_decay_lr(step: usize, max_steps: usize, base_lr: f32, warmup_steps: usize) -> f32 {
+    let phi = gf_constants().phi as f32;
+    let alpha_phi = phi.powf(-3.0);  // ≈ 0.23607
+
+    if step < warmup_steps {
+        base_lr
+    } else {
+        let tau = max_steps as f32 / (phi * 27.0);
+        let t = (step - warmup_steps) as f32 / tau;
+        // Decay towards α_φ as floor
+        base_lr * alpha_phi.powf(-t.min(10.0))  // Clamp exponent to prevent overflow
+    }
+}
+
+/// Unified LR scheduler for Issue #54 calibration
+///
+/// Select schedule type and compute LR for current step.
+pub fn lr_schedule_54(schedule_type: LrScheduleType, step: usize, max_steps: usize) -> f32 {
+    const BASE_LR: f32 = 3e-4;
+    const WARMUP_STEPS: usize = 100;
+
+    match schedule_type {
+        LrScheduleType::Flat => flat_lr(step, BASE_LR),
+        LrScheduleType::Cosine => cosine_lr(step, max_steps, BASE_LR),
+        LrScheduleType::PhiDecay => phi_decay_lr(step, max_steps, BASE_LR, WARMUP_STEPS),
+    }
 }
 
 #[cfg(test)]
