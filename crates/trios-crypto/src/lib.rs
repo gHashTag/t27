@@ -155,18 +155,6 @@ mod tests {
         let result = sha256(b"hello world");
         assert!(result.is_err());
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[ignore = "requires zig-crypto-mining vendor submodule"]
-    fn sha256_returns_error_in_stub_mode() {
-        let result = sha256(b"hello world");
-        assert!(result.is_err());
-    }
 
     #[cfg(feature = "ffi")]
     #[test]

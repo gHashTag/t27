@@ -22,6 +22,7 @@
 //! ```
 
 mod ffi;
+pub mod phi_quantization;
 
 use std::marker::PhantomData;
 
@@ -199,3 +200,4 @@ mod tests {
         );
     }
 }
+pub mod phi_quantization;
