@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "HTTP client + MCP proxy for zig-agents (AI agent orchestration)"
+description = "HTTP client and MCP proxy for zig-agents"
 
 [dependencies]
 serde = { workspace = true }
@@ -13,3 +13,6 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
 tracing = { workspace = true }
+
+[dev-dependencies]
+axum = "0.7"
