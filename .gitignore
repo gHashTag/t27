@@ -7,3 +7,10 @@
 *.trinity
 !.trinity/
 dist/
+# Zig vendor submodules
+crates/*/vendor/
+
+# Zig build artifacts
+target/
+*.zig-cache
+*.zig-out
