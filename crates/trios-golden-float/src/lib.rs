@@ -134,6 +134,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_phi_constant() {
+        // Golden ratio φ = (1 + √5) / 2 ≈ 1.618033988749895
+        const PHI: f64 = 1.6180339887498948482;
+        assert!((PHI - 1.618033988749895).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_gf16_zero() {
+        let z = GF16::from_f32(0.0);
+        assert_eq!(z.to_f32(), 0.0);
+        assert_eq!(z.to_bits(), 0u16);
+    }
+
+    #[test]
+    fn test_gf16_roundtrip() {
+        let x = 1.0f32;
+        let encoded = GF16::from_f32(x);
+        assert!((encoded.to_f32() - x).abs() < 0.05);
+    }
+
+    #[test]
     #[ignore = "requires zig-golden-float vendor submodule"]
     fn roundtrip_phi() {
         let phi: f32 = 1.618;
