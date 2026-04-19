@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-trios-precision-router = { path = "../trios-precision-router" }
+precision-router = { path = "../precision-router" }
 trios-golden-float = { path = "../trios-golden-float" }
 trios-ternary = { path = "../trios-ternary" }
-trios-hybrid = { path = "../trios-hybrid" }
