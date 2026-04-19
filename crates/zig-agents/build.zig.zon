@@ -1,0 +1,12 @@
+.{
+    .name = "zig-agents",
+    .version = "0.1.0",
+    .dependencies = .{
+        .zig = "0.16.0",
+        .std = "0.16.0",
+    },
+    .paths = .{
+        "src",
+    },
+    .root_source_file = "src/lib.zig",
+}
