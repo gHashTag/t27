@@ -1,52 +1,62 @@
-# TRIOS Build Status — E2E Test
+# BUILD_STATUS.md — П1 Audit: 12/12 Components
 
-**Date**: 2026-04-19
+**Audit Date:** 2026-04-19
+**Criteria:** stub ✅/❌, ffi ✅/❌/N/A, test ✅/❌
 
-## Rust Workspace Build
+## 12/12 Components Actual State
 
-| Crate | Status | Notes |
-|-------|--------|-------|
-| trios-core | ✅ PASS | Build successful |
-| trios-git | ✅ PASS | Build successful (2 warnings, dead code) |
-| trios-gb | ✅ PASS | Build successful |
-| trios-server | ✅ PASS | Build successful |
-| trios-kg | ✅ PASS | Build successful |
-| trios-agents | ✅ PASS | Build successful |
-| trios-training | ✅ PASS | Build successful |
+| # | Component | stub | ffi | test | Status |
+|---|-----------|------|-----|------|--------|
+| 1 | trios-core | ✅ | N/A | ✅ | GREEN |
+| 2 | trios-git | ✅ | N/A | ✅ | GREEN |
+| 3 | trios-gb | ✅ | N/A | ✅ | GREEN |
+| 4 | trios-server | ✅ | N/A | N/A | GREEN (binary) |
+| 5 | trios-golden-float | ✅ | ❌ | ❌ | RED - linker error |
+| 6 | trios-hdc | ✅ | ❌ | ❌ | RED - vendor missing |
+| 7 | trios-physics | ✅ | ❌ | ❌ | RED - vendor missing |
+| 8 | trios-sacred | ✅ | ❌ | ❌ | RED - linker error |
+| 9 | trios-crypto | ✅ | ✅ | ❌ | RED - compilation error |
+| 10 | trios-kg | ✅ | N/A | ✅ | GREEN |
+| 11 | trios-agents | ✅ | N/A | ✅ | GREEN |
+| 12 | trios-training | ✅ | N/A | ✅ | GREEN |
 
-### Clippy Warnings
-- `group_files_by_dir` unused in `trios-git/src/absorb_simple.rs:9:8`
-- `group_files_smart` unused in `trios-git/src/absorb_smart.rs:9:8`
+## Failing Components (5/12)
 
-### Test Status
-- **SKIP** Zig FFI wrapper tests (no vendor submodules)
-  - trios-golden-float: undefined symbols `_gf16_*`
-  - trios-hdc: no symbols yet
-  - trios-physics: undefined symbols `_physics_*`
-  - trios-crypto: undefined symbols `_crypto_*`
-  - trios-sacred: undefined symbols `_sacred_*`
+### 1. trios-crypto
+- **Error:** `error[E0425]: cannot find function 'sha256' in this scope` in lib.rs:176
+- **Context:** Test calls `sha256(b"hello world")` but function not imported
+- **Fix Attempts:** None yet
+- **Severity:** HIGH - compilation error blocks all tests
 
-**Root Cause**: Vendor submodules not initialized
-- `crates/*/vendor/` directories are empty
-- `build.rs` skips Zig build when vendor missing (expected)
-- Linker fails because Rust FFI expects Zig symbols that don't exist
+### 2. trios-golden-float
+- **Error:** Linker error - missing symbols `_gf16_compress_weights`, `_gf16_decompress_weights`
+- **Context:** Zig library not built or vendor submodule missing
+- **Fix Attempts:** None yet
+- **Severity:** HIGH - FFI broken
 
-**Next Steps for Zig FFI**:
-1. Add Zig submodules: `git submodule add <repo> crates/*/vendor/<name>`
-2. Or: create stub libraries with `zig build-lib` if full Zig code not yet migrated
+### 3. trios-sacred
+- **Error:** Linker error - missing symbols `_sacred_golden_sequence`, `_sacred_phi_bottleneck`
+- **Context:** Zig library not built or vendor submodule missing
+- **Fix Attempts:** None yet
+- **Severity:** HIGH - FFI broken
+
+### 4. trios-hdc
+- **Error:** Tests ignored, vendor submodule missing
+- **Context:** zig-hdc not checked out
+- **Fix Attempts:** None yet
+- **Severity:** MEDIUM - stub exists, tests skipped
+
+### 5. trios-physics
+- **Error:** Tests ignored, vendor submodule missing
+- **Context:** zig-physics not checked out
+- **Fix Attempts:** None yet
+- **Severity:** MEDIUM - stub exists, tests skipped
 
 ## Summary
 
-**Overall Status**: 🟡 PARTIAL
+**GREEN:** 7/12 (58.3%)
+**RED:** 5/12 (41.7%)
 
-- ✅ Rust workspace builds cleanly in release mode (7/7)
-- 🟡 Zig FFI wrappers need submodule initialization
-- ⏸️ zig-agents: Zig 0.16.0 module created (no tests yet)
+**Correct П1 Status:** 7/12 green, NOT 11/12, NOT complete
 
-**Clippy Status**: ⚠️ 2 warnings (non-critical)
-  - Dead code in trios-git (expected, legacy cleanup needed)
-  - Fix: `#[allow(dead_code)]` or remove functions
-
-**Cargo Test**: ❌ FAILED (due to Zig FFI linking errors)
-  - Pass: All Rust-only crates
-  - Fail: Zig FFI wrappers (expected until submodules added)
+**Previous Claim "91.6%" was FALSE.**
