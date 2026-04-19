@@ -124,7 +124,7 @@ pub fn vec_scale(x: &[f32], y: &mut [f32], scale: f32) {
 ///
 /// * `x` - Input vector (modified in-place)
 pub fn gelu(x: &mut [f32]) {
-    const SQRT_2_OVER_PI: f32 = 0.7978845608f32;  // √(2/π)
+    const SQRT_2_OVER_PI: f32 = 0.797_884_6_f32;  // √(2/π)
     const BETA: f32 = 0.044715f32;
 
     for xi in x.iter_mut() {

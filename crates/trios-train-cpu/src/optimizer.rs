@@ -27,11 +27,11 @@ pub struct AdamWCpu {
     /// Current step
     step: usize,
 
-    /// First moment estimate (same size as parameters)
-    m: Vec<f32>,
+    /// First moment estimate (same size as parameters, stored as f64 for precision)
+    m: Vec<f64>,
 
-    /// Second moment estimate (same size as parameters)
-    v: Vec<f32>,
+    /// Second moment estimate (same size as parameters, stored as f64 for precision)
+    v: Vec<f64>,
 }
 
 impl AdamWCpu {
@@ -121,10 +121,10 @@ impl AdamWCpu {
             params[i] -= self.weight_decay as f32 * params[i];
 
             // Update biased first moment estimate
-            self.m[i] = self.beta1 * self.m[i] as f64 + (1.0 - self.beta1) * gradients[i] as f64;
+            self.m[i] = self.beta1 * self.m[i] + (1.0 - self.beta1) * gradients[i] as f64;
 
             // Update biased second raw moment estimate
-            self.v[i] = self.beta2 * self.v[i] as f64 + (1.0 - self.beta2) * (gradients[i] * gradients[i]) as f64;
+            self.v[i] = self.beta2 * self.v[i] + (1.0 - self.beta2) * (gradients[i] * gradients[i]) as f64;
 
             // Compute bias-corrected estimates
             let m_hat = self.m[i] / bias_correction1;
@@ -138,8 +138,8 @@ impl AdamWCpu {
     /// Reset optimizer state
     pub fn reset(&mut self) {
         self.step = 0;
-        self.m.fill(0.0);
-        self.v.fill(0.0);
+        self.m.fill(0.0f64);
+        self.v.fill(0.0f64);
     }
 
     /// Get current step number
@@ -227,15 +227,17 @@ pub fn phi_lr_schedule(step: usize, base_lr: f64, warmup_steps: usize) -> f64 {
 mod tests {
     use super::*;
 
-    const PHI: f64 = (1.0 + 5.0_f64.sqrt()) / 2.0;
+    fn phi() -> f64 {
+        (1.0 + 5.0_f64.sqrt()) / 2.0
+    }
 
     #[test]
     fn test_adamw_phi_defaults() {
         let optimizer = AdamWCpu::with_phi_defaults(100);
 
         // Verify phi-based constants
-        let expected_beta1 = 1.0 / PHI;
-        let expected_weight_decay = 1.0 / (PHI * PHI * PHI);
+        let expected_beta1 = 1.0 / phi();
+        let expected_weight_decay = 1.0 / (phi() * phi() * phi());
 
         assert!((optimizer.beta1 - expected_beta1).abs() < 1e-6);
         assert!((optimizer.weight_decay - expected_weight_decay).abs() < 1e-6);
@@ -325,7 +327,7 @@ mod tests {
         let lr_2 = phi_lr_schedule(2, base_lr, warmup_steps);
 
         // After warmup, LR should decay by factor of φ
-        assert!((lr_2 - lr_1 / PHI).abs() < 1e-6);
+        assert!((lr_2 - lr_1 / phi()).abs() < 1e-6);
     }
 
     #[test]
@@ -347,13 +349,13 @@ mod tests {
         // Verify phi-based constants meet precision requirements from Issue #32
         let optimizer = AdamWCpu::with_phi_defaults(10);
 
-        // beta1 = PHI^-1 = 0.618 (Δ < 1e-6)
-        let expected_beta1 = 1.0 / PHI;
+        // beta1 = phi()^-1 = 0.618 (Δ < 1e-6)
+        let expected_beta1 = 1.0 / phi();
         assert!((optimizer.beta1 - expected_beta1).abs() < 1e-6);
 
-        // weight_decay = ALPHA_PHI = 0.11803 (Δ < 1e-6)
-        let expected_wd = 1.0 / (PHI * PHI * PHI);
+        // weight_decay = 1/phi^3 = 0.236... (Δ < 1e-6)
+        let expected_wd = 1.0 / (phi() * phi() * phi());
         assert!((optimizer.weight_decay - expected_wd).abs() < 1e-6);
-        assert!((expected_wd - 0.11803).abs() < 0.0001);
+        assert!((expected_wd - 0.23607).abs() < 0.0001);
     }
 }

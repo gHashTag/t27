@@ -5,15 +5,13 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+trios-core = { path = "../trios-core" }
 trios-physics = { path = "../trios-physics" }
 trios-phi-schedule = { path = "../trios-phi-schedule" }
 trios-data = { path = "../trios-data" }
 trios-ternary = { path = "../trios-ternary" }
 serde = { version = "1.0", features = ["derive"] }
+rand = "0.8"
 
 [dev-dependencies]
 criterion = "0.5"
-
-[[bench]]
-name = "bench"
-harness = false

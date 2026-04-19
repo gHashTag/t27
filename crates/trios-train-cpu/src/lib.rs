@@ -15,4 +15,4 @@ pub use forward::{LayerDims, matmul, gelu, layer_norm, softmax};
 pub use backward::{LinearGradients, cross_entropy_loss, clip_gradients};
 pub use optimizer::{AdamWCpu, phi_lr_schedule};
 pub use tokenizer::BPETokenizer;
-pub use bench::{TrainConfig, TrainMetrics, bpb_from_loss, train_cpu_loop, estimate_model_size};
+pub use bench::{TrainConfig, TrainMetrics, bpb_from_loss, train_cpu_loop, estimate_model_size, print_metrics};
