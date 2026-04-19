@@ -6,7 +6,7 @@ members = [
     # GF16 (Φ2)
     "crates/trios-golden-float",
     # Ternary (Φ3)
-    "crates/trios-ternary",
+    "crates/trios-tri",
     # Hybrid (Φ4)
     "crates/trios-hybrid",
     # Training (Φ5)
@@ -34,3 +34,25 @@ edition = "2021"
 authors = ["Dmitrii Vasilev"]
 license = "MIT"
 repository = "https://github.com/gHashTag/trios"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = "0.7"
+git2 = "0.19"
+async-trait = "0.1"
+tempfile = "3"
+thiserror = "1"
+futures = "0.3"
+lazy_static = "1.4"
+libc = "0.2"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
