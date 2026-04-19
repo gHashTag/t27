@@ -13,7 +13,6 @@ members = [
     "crates/trios-sacred",
     "crates/trios-crypto",
     "crates/trios-zig-agents",
-    "crates/trios-claraParameter",
 ]
 
 resolver = "2"
