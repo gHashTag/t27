@@ -1705,18 +1705,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trios-llm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "serde",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "trios-physics"
 version = "0.1.0"
 dependencies = [
@@ -1766,15 +1754,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trios-training-ffi"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "libc",
- "serde",
-]
-
-[[package]]
 name = "trios-zig-agents"
 version = "0.1.0"
 dependencies = [
@@ -1785,10 +1764,6 @@ dependencies = [
  "serde_json",
  "thiserror",
 ]
-
-[[package]]
-name = "trios_brain"
-version = "0.1.0"
 
 [[package]]
 name = "try-lock"

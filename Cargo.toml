@@ -13,9 +13,6 @@ members = [
     "crates/trios-sacred",
     "crates/trios-crypto",
     "crates/trios-zig-agents",
-    "crates/trinity-brain",
-    "crates/trios-llm",
-    "crates/trios-training-ffi",
 ]
 
 [workspace.package]
