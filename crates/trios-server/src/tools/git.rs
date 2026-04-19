@@ -8,8 +8,6 @@ use std::path::{Path, PathBuf};
 use trios_core::git::GitOrchestrator;
 use trios_git::Git2Orchestrator;
 
-use crate::security::validate_repo_path;
-
 /// Returns the list of allowed repository root directories.
 fn allowed_roots() -> Vec<PathBuf> {
     std::env::var("TRIOS_ALLOWED_ROOTS")

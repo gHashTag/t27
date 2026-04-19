@@ -6,8 +6,6 @@ use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::path::PathBuf;
 
-use crate::security::validate_repo_path;
-
 /// Returns the list of allowed repository root directories.
 /// Configured via `TRIOS_ALLOWED_ROOTS` env var (colon-separated paths).
 /// If empty, all absolute paths are allowed.

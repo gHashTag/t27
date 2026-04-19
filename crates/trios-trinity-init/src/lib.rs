@@ -14,6 +14,7 @@
 //! assert_eq!(weights.len(), 256 * 128 + 128 * 64);
 //! ```
 
+use rand::Rng;
 use trios_physics::gf_constants;
 
 /// Trinity weight initialization.
@@ -44,13 +45,18 @@ use trios_physics::gf_constants;
 /// }
 /// ```
 pub fn trinity_init(shape: &[usize]) -> Vec<f32> {
+    // Empty shape means no elements
+    if shape.is_empty() {
+        return Vec::new();
+    }
+
     let size = shape.iter().product::<usize>();
     if size == 0 {
         return Vec::new();
     }
 
-    // Get sacred constants from trios-physics
-    let constants = gf_constants();
+    // Get sacred constants from trios-physics (available for future extensions)
+    let _constants = gf_constants();
     // √3 sacred geometry factor
     let sqrt_3 = (3.0_f32).sqrt();
 

@@ -34,7 +34,7 @@ use trios_physics::gf_constants;
 /// ```
 /// use trios_phi_schedule::phi_schedule;
 ///
-/// let lr = phi_schedule(10, 0.001, 20.0);
+/// let lr = phi_schedule(10, 0.001, 20);
 /// assert!(lr < 0.001); // LR should decay
 /// ```
 pub fn phi_schedule(epoch: usize, base_lr: f32, warmup: usize) -> f32 {

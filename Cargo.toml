@@ -11,6 +11,7 @@ members = [
     "crates/trios-hybrid",
     # Training (Φ5)
     "crates/trios-training",
+    "crates/trios-trinity-init",
     "crates/trios-data",
     "crates/trios-ca-mask",
     "crates/trios-phi-schedule",

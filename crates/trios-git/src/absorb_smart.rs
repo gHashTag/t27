@@ -4,6 +4,7 @@ use std::path::Path;
 
 /// Group changed files by semantic similarity (hunk-level analysis).
 /// Returns a JSON array of groups with suggested commit messages.
+#[allow(dead_code)]
 pub async fn group_files_smart(_repo_path: &Path) -> Vec<String> {
     // TODO: Implement using git2 diff analysis to group related hunks.
     vec![]
