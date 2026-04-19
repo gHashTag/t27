@@ -1,0 +1,16 @@
+{
+  "agents": {
+    "agent-1776606343547-avgg46": {
+      "agentId": "agent-1776606343547-avgg46",
+      "agentType": "Explore",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {},
+      "createdAt": "2026-04-19T13:45:43.702Z",
+      "model": "sonnet",
+      "modelRoutedBy": "router"
+    }
+  },
+  "version": "3.0.0"
+}
