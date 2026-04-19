@@ -8,6 +8,8 @@ description = "Rust bindings for zig-golden-float (GF16 numeric core)"
 
 [dependencies]
 libc = "0.2"
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 cc = "1.0"

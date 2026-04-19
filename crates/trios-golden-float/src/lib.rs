@@ -16,6 +16,7 @@
 //! ```
 
 mod ffi;
+pub mod router;
 
 // Re-export only when the Zig library is linked.
 // When vendor/ is absent, the FFI symbols won't exist — use feature-gated access.
@@ -177,6 +178,159 @@ mod tests {
                 (orig - got).abs() < 0.1,
                 "roundtrip error: {orig} → {got}"
             );
+        }
+    }
+}
+
+// ==============================================================================
+// HYBRID PRECISION PIPELINE API (GF16 for Critical Layers)
+// ==============================================================================
+
+/// GF16 quantization for critical layers (embedding, attention, output)
+///
+/// Used in hybrid precision pipeline where:
+/// - Embedding → GF16 (HIGH sensitivity, representation learning)
+/// - Attention (QKV, proj) → GF16 (HIGH sensitivity, attention fragility)
+/// - Output → GF16 (HIGH sensitivity, final logits precision)
+///
+/// Architecture note: These layers are assigned GF16 by STATIC_ROUTING_TABLE
+/// because they are the most sensitive to quantization error.
+pub mod hybrid {
+    use super::GF16;
+
+    /// Quantize a f32 embedding matrix to GF16
+    ///
+    /// # Arguments
+    /// * `weights` - f32 embedding matrix [vocab_size, d_model]
+    /// * `scale` - Optional φ-optimized scaling factor
+    ///
+    /// # Returns
+    /// Vector of GF16 values
+    pub fn quantize_embedding(weights: &[f32], scale: Option<f32>) -> Vec<GF16> {
+        let phi_scale = scale.unwrap_or(1.0);
+        weights.iter().map(|&w| GF16::from_f32(w * phi_scale)).collect()
+    }
+
+    /// Quantize f32 attention weights to GF16
+    ///
+    /// # Arguments
+    /// * `weights` - f32 attention weights [d_model, 3 * d_model] for QKV
+    /// * `scale` - Optional φ-optimized scaling factor
+    ///
+    /// # Returns
+    /// Vector of GF16 values
+    pub fn quantize_attention(weights: &[f32], scale: Option<f32>) -> Vec<GF16> {
+        let phi_scale = scale.unwrap_or(1.0);
+        weights.iter().map(|&w| GF16::from_f32(w * phi_scale)).collect()
+    }
+
+    /// Quantize f32 output projection to GF16
+    ///
+    /// # Arguments
+    /// * `weights` - f32 output weights [d_model, vocab_size]
+    /// * `scale` - Optional φ-optimized scaling factor
+    ///
+    /// # Returns
+    /// Vector of GF16 values
+    pub fn quantize_output(weights: &[f32], scale: Option<f32>) -> Vec<GF16> {
+        let phi_scale = scale.unwrap_or(1.0);
+        weights.iter().map(|&w| GF16::from_f32(w * phi_scale)).collect()
+    }
+
+    /// Compute φ-optimized scaling factor for GF16 quantization
+    ///
+    /// Based on Trinity physics: scale = 1 / (std * φ^(-0.5))
+    /// This matches the log-normal distribution of neural network weights.
+    ///
+    /// # Arguments
+    /// * `weights` - f32 weight tensor
+    ///
+    /// # Returns
+    /// φ-optimized scaling factor
+    pub fn compute_phi_scale(weights: &[f32]) -> f32 {
+        if weights.is_empty() {
+            return 1.0;
+        }
+
+        let mean = weights.iter().sum::<f32>() / weights.len() as f32;
+        let variance = weights.iter().map(|&w| (w - mean).powi(2)).sum::<f32>() / weights.len() as f32;
+        let std = variance.sqrt();
+
+        let phi = 1.618033988749895_f32;  // φ
+        std.powf(-0.5) / phi
+    }
+
+    /// Dequantize GF16 weights back to f32
+    ///
+    /// # Arguments
+    /// * `gf16_weights` - GF16 quantized weights
+    /// * `scale` - φ-optimized scaling factor used during quantization
+    ///
+    /// # Returns
+    /// f32 weights
+    pub fn dequantize(gf16_weights: &[GF16], scale: f32) -> Vec<f32> {
+        gf16_weights.iter().map(|&g| g.to_f32() / scale).collect()
+    }
+
+    /// Calculate model size in bytes after GF16 quantization
+    ///
+    /// # Arguments
+    /// * `num_params` - Number of parameters
+    ///
+    /// # Returns
+    /// Size in bytes (16 bits per parameter)
+    pub fn gf16_size_bytes(num_params: usize) -> usize {
+        num_params * 2  // 16 bits = 2 bytes
+    }
+
+    /// Calculate compression ratio vs f32 (32 bits per parameter)
+    ///
+    /// # Arguments
+    /// * `num_params` - Number of parameters
+    ///
+    /// # Returns
+    /// Compression ratio (32.0 / 16.0 = 2.0x)
+    pub fn compression_ratio(num_params: usize) -> f32 {
+        32.0 / 16.0  // 2.0x compression for GF16
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_quantize_embedding() {
+            let weights = vec![0.1, 0.5, 1.0, 1.618];
+            let gf16 = hybrid::quantize_embedding(&weights, None);
+            
+            // Roundtrip test
+            let dequant = hybrid::dequantize(&gf16, 1.0);
+            for (orig, got) in weights.iter().zip(dequant.iter()) {
+            let orig: f32 = *orig;
+            let got: f32 = *got;
+                assert!((orig - got).abs() < 0.01, "roundtrip error too large");
+            }
+        }
+
+        #[test]
+        fn test_phi_scale() {
+            let weights = vec![0.1, 0.5, 1.0, 1.5, 2.0];
+            let scale = hybrid::compute_phi_scale(&weights);
+            assert!(scale > 0.0, "scale must be positive");
+            assert!(scale < 10.0, "scale must be reasonable");
+        }
+
+        #[test]
+        fn test_size_bytes() {
+            // 8.59M params like IGLA-GF16 model
+            let params = 8_590_032;
+            let size = hybrid::gf16_size_bytes(params);
+            assert_eq!(size, 17_180_064);  // 8.59M * 2 bytes
+        }
+
+        #[test]
+        fn test_compression_ratio() {
+            assert_eq!(hybrid::compression_ratio(1000), 2.0);
         }
     }
 }
