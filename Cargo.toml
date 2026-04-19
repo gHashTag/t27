@@ -2,11 +2,22 @@
 members = [
     # Core (Φ0)
     "crates/trios-core",
+    "crates/trios-vsa",
+    "crates/trios-hybrid",
+    "crates/trios-vm",
+    "crates/trios-sdk",
+    # Precision Routing (Φ1)
     "crates/precision-router",
     # GF16 (Φ2)
     "crates/trios-golden-float",
     # Ternary (Φ3)
     "crates/trios-ternary",
+    # Sacred Geometry (Φ5)
+    "crates/trios-sacred",
+    # Crypto & Physics
+    "crates/trios-crypto",
+    "crates/trios-physics",
+    "crates/trios-hdc",
     # Git & MCP infrastructure
     "crates/trios-git",
     "crates/trios-gb",
@@ -15,13 +26,14 @@ members = [
     # Agents & Training
     "crates/trios-agents",
     "crates/trios-training",
-    # Other modules (legacy - to be reviewed)
-    "crates/trios-hdc",
-    "crates/trios-physics",
-    "crates/trios-sacred",
-    "crates/trios-crypto",
+    "crates/trios-training-ffi",
+    "crates/trios-llm",
     "crates/trios-zig-agents",
+    # Brain
+    "crates/trinity-brain",
+    # Zig engines
     "crates/zig-agents",
+    "crates/zig-knowledge-graph",
 ]
 resolver = "2"
 
