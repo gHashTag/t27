@@ -203,7 +203,7 @@ impl McpService {
 
         match tools::dispatch(&params.name, arguments_value).await {
             Ok(value) => {
-                let text = if value.is_object() || value.is_array() {
+                let text: String = if value.is_object() || value.is_array() {
                     serde_json::to_string_pretty(&value).unwrap_or_default()
                 } else if value.is_string() {
                     value.as_str().unwrap().to_string()
