@@ -15,10 +15,10 @@ pub async fn group_files_smart(_repo_path: &Path) -> Vec<String> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_group_files_smart_empty() {
+    #[tokio::test]
+    async fn test_group_files_smart_empty() {
         let dir = tempfile::TempDir::new().unwrap();
-        let result = group_files_smart(dir.path()).unwrap();
+        let result = group_files_smart(dir.path()).await;
         assert!(result.is_empty());
     }
 }

@@ -53,4 +53,35 @@ extern "C" {
     /// Compute sacred geometry ratio (φ^n mod 1) for attention head spacing.
     pub fn sacred_head_spacing(n_heads: size_t, out_spacing: *mut f64) -> c_int;
 
+    /// Internal wrappers (underscore prefix for internal FFI).
+    #[doc(hidden)]
+    pub fn _sacred_phi_attention(
+        queries: *const f64,
+        keys: *const f64,
+        seq_len: size_t,
+        dim: size_t,
+        phi_factor: f64,
+        out_weights: *mut f64,
+    ) -> c_int;
+
+    #[doc(hidden)]
+    pub fn _sacred_fibonacci_spiral(t: f64, out_x: *mut f64, out_y: *mut f64);
+
+    #[doc(hidden)]
+    pub fn _sacred_golden_sequence(n: size_t, out: *mut f64) -> c_int;
+
+    #[doc(hidden)]
+    pub fn _sacred_beal_search(
+        min_base: u64,
+        max_base: u64,
+        max_exp: u32,
+        candidates: *mut BealCandidate,
+        max_results: size_t,
+    ) -> size_t;
+
+    #[doc(hidden)]
+    pub fn _sacred_phi_bottleneck(model_dim: size_t) -> size_t;
+
+    #[doc(hidden)]
+    pub fn _sacred_head_spacing(n_heads: size_t, out_spacing: *mut f64) -> c_int;
 }

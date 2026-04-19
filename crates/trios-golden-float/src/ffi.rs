@@ -43,4 +43,12 @@ extern "C" {
         scale: f32,
         out: *mut u16,
     ) -> c_int;
+
+    /// Internal: compress weights (underscore prefix for internal FFI).
+    #[doc(hidden)]
+    pub fn _gf16_compress_weights(weights: *const f32, len: size_t, out: *mut u16) -> size_t;
+
+    /// Internal: decompress weights (underscore prefix for internal FFI).
+    #[doc(hidden)]
+    pub fn _gf16_decompress_weights(compressed: *const u16, len: size_t, out: *mut f32) -> size_t;
 }

@@ -83,7 +83,7 @@ Repo: `gHashTag/trios`
 | 10 | trios-hdc | FFI wrapper | ✅ | ✅ | ✅ | GREEN — `libhdc.a` linked | `specs/hdc/core.t27` |
 | 11 | trios-physics | FFI wrapper | ✅ | ✅ | ✅ | GREEN — `libphysics.a` linked | `specs/physics/constants.t27` |
 | 12 | trios-sacred | FFI wrapper | ✅ | ❌ | ❌ | FAIL — no vendor (repo 404) | `specs/sacred-geometry/phi.t27` |
-
+| 13 | trios-zig-agents | lib (FFI) | ✅ | ✅ | GREEN — FFI wrapper for zig-agents | `specs/agents/agents.t27` |
 ### 3.2 Planned Modules
 
 | # | Module | Purpose | Priority |
