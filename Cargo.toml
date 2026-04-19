@@ -13,6 +13,7 @@ members = [
     "crates/trios-sacred",
     "crates/trios-crypto",
     "crates/trios-zig-agents",
+    "crates/trinity-brain",
 ]
 
 [workspace.package]

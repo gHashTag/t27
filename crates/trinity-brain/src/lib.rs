@@ -148,15 +148,20 @@ pub fn brain_count() -> usize {
         .unwrap_or(0)
 }
 
+/// Clear all memories (for testing only)
+#[cfg(test)]
+pub fn brain_clear() {
+    let mut brain = BRAIN.lock().unwrap();
+    *brain = BrainStorage::new();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     /// Setup: clear brain before each test
     fn setup() {
-        let mut brain = BRAIN.lock().unwrap();
-        // In R0 we clear the storage between tests
-        *brain = BrainStorage::new();
+        brain_clear();
     }
 
     #[test]

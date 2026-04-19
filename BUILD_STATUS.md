@@ -31,7 +31,7 @@ All vendors use Zig 0.16 `build.zig` API: `b.createModule()` / `b.addLibrary()` 
 
 ## Layer 3: TRIOS — Rust Workspace + FFI
 
-### 3.1 Current Modules (12 crates)
+### 3.1 Current Modules (13 crates)
 
 | Crate | Type | Stub | FFI | Tests |
 |-------|------|------|-----|-------|
@@ -48,6 +48,7 @@ All vendors use Zig 0.16 `build.zig` API: `b.createModule()` / `b.addLibrary()` 
 | trios-sacred | Sacred Geometry | ✅ | ✅ | 0 (+2 ignored) |
 | trios-crypto | Crypto/Mining | ✅ | ✅ | 7 (+4 FFI integration) |
 | trios-zig-agents | Zig Agents | ✅ | ✅ | 1 |
+| trinity-brain | Memory | ✅ R0 | — | 8 |
 
 ### 3.2 Planned Modules
 
@@ -58,9 +59,9 @@ All vendors use Zig 0.16 `build.zig` API: `b.createModule()` / `b.addLibrary()` 
 
 | Mode | Build | Tests | Notes |
 |------|-------|-------|-------|
-| `cargo build --workspace` | ✅ GREEN | — | 12/12 crates |
-| `cargo test --workspace` | ✅ GREEN | 39 passed, 0 failed, 6 ignored | Stub mode |
-| `cargo test --workspace --features ffi` | ✅ GREEN | 41 passed, 0 failed, 6 ignored | FFI mode (real Zig calls) |
+| `cargo build --workspace` | ✅ GREEN | — | 13/13 crates |
+| `cargo test --workspace` | ✅ GREEN | 47 passed, 0 failed, 6 ignored | Stub mode (+8 trinity-brain) |
+| `cargo test --workspace --features ffi` | ✅ GREEN | 49 passed, 0 failed, 6 ignored | FFI mode (real Zig calls) |
 
 ## RED List — All Resolved ✅
 
@@ -72,12 +73,12 @@ All vendors use Zig 0.16 `build.zig` API: `b.createModule()` / `b.addLibrary()` 
 
 # Verification Results (2026-04-19)
 
-## Rust workspace — ALL GREEN (12/12 crates)
+## Rust workspace — ALL GREEN (13/13 crates)
 
 ```
 cargo build --workspace: ✅ 0 errors
-cargo test --workspace: 39 passed, 0 failed, 6 ignored
-cargo test --workspace --features ffi: 41 passed, 0 failed, 6 ignored
+cargo test --workspace: 47 passed, 0 failed, 6 ignored
+cargo test --workspace --features ffi: 49 passed, 0 failed, 6 ignored
 ```
 
 ## Zig vendor builds — 5/5 GREEN
