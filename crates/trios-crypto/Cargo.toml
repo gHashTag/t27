@@ -1,0 +1,13 @@
+[package]
+name = "trios-crypto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rust bindings for zig-crypto-mining (BTC mining, DePIN primitives)"
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+cc = "1.0"
