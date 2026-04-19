@@ -12,6 +12,7 @@
 
 mod bridge;
 mod compiler;
+mod compiler_memory;
 mod suite;
 
 use clap::{Parser, Subcommand};
