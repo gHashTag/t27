@@ -1,7 +1,7 @@
 # BUILD_STATUS.md — Trinity Ecosystem Full Architecture Map
 
-**Updated:** 2026-04-19 18:00 +07  
-**Zig:** 0.16.0 | **Rust:** stable | **Workspace:** 12 crates
+**Updated:** 2026-04-19 18:30 +07
+**Zig:** 0.16.0 | **Rust:** stable | **Workspace:** 13 crates
 
 ---
 
@@ -72,7 +72,7 @@ Repo: `gHashTag/trios`
 | # | Module | Type | stub | FFI | test | Status | SSOT spec |
 |---|--------|------|:----:|:---:|:----:|--------|-----------|
 | 1 | trios-core | lib | ✅ | N/A | ✅ | GREEN | `specs/trios/core.t27` 📋 |
-| 2 | trios-git | lib | ✅ | N/A | ⚠️ | GREEN (build) | `specs/trios/git.t27` 📋 |
+| 2 | trios-git | lib | ✅ | N/A | ✅ | GREEN | `specs/trios/git.t27` 📋 |
 | 3 | trios-gb | lib | ✅ | N/A | ✅ | GREEN | `specs/trios/gitbutler.t27` 📋 |
 | 4 | trios-server | bin (MCP) | ✅ | N/A | ✅ | GREEN | `specs/trios/server.t27` 📋 |
 | 5 | trios-kg | lib (HTTP) | ✅ | N/A | ✅ | GREEN | `specs/trios/kg.t27` 📋 |
@@ -96,14 +96,25 @@ Repo: `gHashTag/trios`
 | 18 | trios-ensemble | Ensemble orchestrator | P3 D8-9 |
 | 19 | trios-agi-bench | 5 AGI tracks wrapper | P3 parallel |
 
-### 3.3 TRIOS Summary
+### 3.3 TRIOS Summary — Mode-Qualified
 
-- **stub:** 12/12 ✅ (all crates compile without FFI)
-- **FFI linked:** 4/5 ✅ (golden-float, hdc, physics, crypto — all have `.a` files)
-- **FFI full:** 3/5 ✅ (hdc, physics, crypto — all symbols resolve)
-- **Blocked:** 1/5 (sacred-geometry — repo 404)
-- **`cargo build`:** ✅ All 12 crates
-- **`cargo test`:** 7 green, 5 FFI debt (symbol mismatches + missing vendor)
+| Mode | Build | Test | Note |
+|------|-------|------|------|
+| **stub mode** | 13/13 ✅ | 9/13 ✅ | All crates compile without FFI |
+| **FFI mode** | 8/13 ✅ | 0/13 ❌ | Zig symbol contracts failing |
+
+**FFI mode breakdown:**
+- **Zig vendor builds:** 4/5 ✅ (golden-float, hdc, physics, crypto) | sacred 404
+- **TRIOS FFI stub:** 13/13 ✅
+- **TRIOS FFI link:** 2/13 ✅ (hdc, physics symbols resolve)
+- **TRIOS FFI test:** 0/13 ❌ (linker errors: crypto sha256, golden-float gf16_*, sacred sacred_*)
+
+**Critical distinction:**
+- "Zig 0.16 migration complete" = FALSE (TRIOS FFI bridge FAIL)
+- "Zig vendor builds complete" = TRUE (4/5)
+
+**`cargo build --workspace`:** ✅ All 13 crates (stub mode)
+**`cargo test --workspace`:** ❌ 9 green, 4 FFI debt (linker errors)
 
 ---
 
@@ -121,12 +132,14 @@ Repo: `gHashTag/trios`
 ## Build Verification
 
 ```bash
-cargo build                                    # ✅ All 12 crates
-cargo test                                     # 7 green, 5 FFI debt
+# Rust workspace (stub mode)
+cargo build --workspace                         # ✅ All 13 crates
+cargo test --workspace                          # ❌ 9 green, 4 FFI linker errors
 
-# Zig vendor builds
+# Zig vendor builds (4/5, sacred 404)
 cd crates/trios-golden-float/vendor/zig-golden-float && zig build   # ✅
 cd crates/trios-hdc/vendor/zig-hdc && zig build                     # ✅
 cd crates/trios-physics/vendor/zig-physics && zig build             # ✅
 cd crates/trios-crypto/vendor/zig-crypto-mining && zig build        # ✅
+cd crates/trios-sacred/vendor/zig-sacred-geometry && zig build      # ❌ 404
 ```
