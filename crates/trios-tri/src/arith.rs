@@ -151,7 +151,7 @@ pub fn dot_product(a: &[Ternary], b: &[Ternary]) -> i32 {
 
     a.iter()
         .zip(b.iter())
-        .map(|(ta, tb)| (ta as i8) * (tb as i8))
+        .map(|(ta, tb)| (*ta as i8) * (*tb as i8))
         .map(|p| p as i32)
         .sum()
 }
@@ -171,7 +171,7 @@ pub fn l1_distance(a: &[Ternary], b: &[Ternary]) -> i32 {
 
     a.iter()
         .zip(b.iter())
-        .map(|(ta, tb)| (ta as i8 - tb as i8).abs())
+        .map(|(ta, tb)| (*ta as i8 - *tb as i8).abs())
         .map(|d| d as i32)
         .sum()
 }
