@@ -256,3 +256,11 @@
 - **Commit:** feat(compiler): add GF16-native Rust codegen backend to meta_compile spec (Closes #519)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/memory/memory_primitives.t27
 
+## 2026-04-19T02:42:30Z — dev
+- **Commit:** feat(memory): add native remember/recall/forget primitives (Issue #517 Phase 0)
+- **Files:** .claude/plans/replicated-finding-plum.md,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/issues/issue-meta_compile-full-implementation.md,bootstrap/src/compiler.rs,bootstrap/src/main.rs,contrib/backend/notebooklm/__pycache__/__init__.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/auth_token.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/client.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/config.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/cookie_auth.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/notebooks.cpython-314.pyc,experience/memory/001_primitives.md,specs/compiler/meta_compile.t27
+
+## 2026-04-19T02:43:23Z — dev
+- **Commit:** docs(memory): add Phase 0 experience log (Issue #517)
+- **Files:** .claude/plans/replicated-finding-plum.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,.trinity/issues/issue-meta_compile-full-implementation.md,bootstrap/src/compiler.rs,bootstrap/src/main.rs,contrib/backend/notebooklm/__pycache__/__init__.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/auth_token.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/client.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/config.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/cookie_auth.cpython-314.pyc,contrib/backend/notebooklm/__pycache__/notebooks.cpython-314.pyc,experience/memory/001_primitives.md,specs/compiler/meta_compile.t27
+

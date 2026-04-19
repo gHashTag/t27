@@ -89,7 +89,7 @@ enum Commands {
     Compile {
         /// Input file path
         input: String,
-        /// Backend: zig, verilog, or c
+        /// Backend: zig, verilog, c, rust, ts, or all
         #[arg(long, default_value = "zig")]
         backend: String,
         /// Output file path (default: input with backend extension)
@@ -99,7 +99,7 @@ enum Commands {
 
     /// Compile all .t27 files from specs/ and compiler/ into an output directory
     CompileAll {
-        /// Backend: zig, verilog, or c
+        /// Backend: zig, verilog, c, rust, ts, or all
         #[arg(long, default_value = "zig")]
         backend: String,
         /// Output directory
@@ -112,7 +112,7 @@ enum Commands {
 
     /// Compile all .t27 files into a coherent project with resolved inter-file imports
     CompileProject {
-        /// Backend: zig, verilog, or c
+        /// Backend: zig, verilog, c, rust, ts, or all
         #[arg(long, default_value = "zig")]
         backend: String,
         /// Output directory
@@ -1990,6 +1990,7 @@ fn backend_extension(backend: &str) -> &str {
         "verilog" => ".v",
         "c" => ".c",
         "rust" => ".rs",
+        "ts" => ".ts",
         _ => ".zig",
     }
 }
@@ -1999,6 +2000,7 @@ fn compile_source(source: &str, backend: &str) -> Result<String, String> {
         "verilog" => compiler::Compiler::compile_verilog(source),
         "c" => compiler::Compiler::compile_c(source),
         "rust" => compiler::Compiler::compile_rust(source),
+        "ts" => compiler::Compiler::compile_ts(source),
         _ => compiler::Compiler::compile(source),
     }
 }
@@ -2031,6 +2033,16 @@ fn run_compile(input_path: &str, backend: &str, output: Option<&str>) -> anyhow:
         "c" => {
             let mut cg = compiler::CCodegen::new();
             cg.gen_c(&ast);
+            cg.into_string()
+        }
+        "rust" => {
+            let mut cg = compiler::RustCodegen::new();
+            cg.gen_rust(&ast);
+            cg.into_string()
+        }
+        "ts" => {
+            let mut cg = compiler::TypeScriptCodegen::new();
+            cg.gen_typescript(&ast);
             cg.into_string()
         }
         _ => {
@@ -2509,7 +2521,7 @@ fn run_stats() -> anyhow::Result<()> {
     println!("Benchmarks:     {}", benchmarks);
     println!("Conformance:    {} JSON files", conformance_count);
     println!("Seals:          {} saved", seals_count);
-    println!("Backends:       4 (Zig, Verilog, C, Rust)");
+    println!("Backends:       5 (Zig, Verilog, C, Rust, TypeScript)");
     println!("CLI commands:   {}", cli_commands);
     println!("Compiler LOC:   {}", compiler_loc);
     if fixed_point_ring > 0 {
@@ -3921,7 +3933,7 @@ fn run_diff(left_path: &str, right_path: &str) -> anyhow::Result<()> {
 fn run_version() -> anyhow::Result<()> {
     println!("t27c {}", env!("CARGO_PKG_VERSION"));
     println!("phi^2 + 1/phi^2 = 3 | TRINITY");
-    println!("backends: Zig, Verilog, C, Rust");
+    println!("backends: Zig, Verilog, C, Rust, TypeScript");
     println!("compiler LOC: {}", include_str!("compiler.rs").lines().count());
     Ok(())
 }
