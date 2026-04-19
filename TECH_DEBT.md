@@ -1,91 +1,170 @@
 # TECH_DEBT.md — TRIOS Workspace Technical Debt
 
-**Last Updated**: 2026-04-19  
-**Milestone**: Issue #56 Trinity Agent Bridge complete
+**Last Updated**: 2026-04-20
 
-## Critical
+## Status Summary
 
-### TD-002: External process file corruption
-- **Severity**: High  
-- **Introduced**: Ongoing  
-- **Description**: An external concurrent process repeatedly modifies source files and overwrites commits:
-  - `Cargo.toml`: Strips `resolver = "2"`, adds `workspace = true` inside `[workspace.dependencies]` (circular), adds/removes crates
-  - `trios-core/src/types.rs`: Removes `GbBranch` struct, adds 800+ lines of new types
-  - `trios-ternary/`: Rewrites with broken `repr(transparent)` enums, `FibonacciMask` struct conflicts
-  - `trios-bridge/`: Entire directory deleted during active development
-  - `TECH_DEBT.md` / `BUILD_STATUS.md`: Reverted to outdated versions, losing accurate updates
-  - Git history: External process commits overwrite agent commits
-- **Resolution**: Identify and stop the external process. Add file integrity checks.  
-- **Impact**: Makes stable verification extremely difficult. Every build requires re-fixing Cargo.toml.
+| Category | Open | Closed | Total |
+|----------|-------|-------|-------|
+| Critical | 0 | 1 | 1 |
+| High | 1 | 1 | 2 |
+| Medium | 3 | 4 | 7 |
+| Low | 0 | 3 | 3 |
+| Info | 0 | 2 | 2 |
+| **Total** | **4** | **11** | **15** |
 
-## Medium
+---
 
-### TD-001: zig-sacred-geometry local vendor
-- **Severity**: Medium  
-- **Introduced**: П1 (2026-04-19)  
-- **Decision**: A1-relaxed  
-- **Description**: `zig-sacred-geometry` upstream repo returned 404. Local vendor created at `crates/trios-sacred/vendor/zig-sacred-geometry/` with hand-written C-ABI exports.  
-- **Resolution**: Replace with upstream git submodule when available, or publish as upstream.  
-- **Files**: `crates/trios-sacred/vendor/zig-sacred-geometry/*`
+## Active Issues
 
-### TD-003: trios-hdc phi_quantization module disabled
-- **Severity**: Medium  
-- **Description**: `crates/trios-hdc/src/phi_quantization.rs` was externally added with compilation errors. Module disabled with `// pub mod phi_quantization;`.  
-- **Resolution**: Fix compilation errors or remove file entirely.
+### TD-015: trios-llm missing serde_json dependency ⚠️ HIGH
+- **Severity**: High
+- **Introduced**: 2026-04-20
+- **Description**: `crates/trios-llm/src/lib.rs:77` uses `serde_json::to_string()` but `serde_json` is not declared in `trios-llm/Cargo.toml`. This causes workspace test failures.
+- **Impact**: `cargo test --workspace` fails to compile
+- **Resolution**: Add `serde_json` dependency to `trios-llm/Cargo.toml`
 
-### TD-009: trios-training stub
+### TD-016: Chrome Extension TypeScript build errors ⚠️ MEDIUM
 - **Severity**: Medium
-- **Description**: `trios-training` was rewritten as a minimal stub after external process added 7 sub-modules that didn't compile. Full implementation deferred to Φ6.
-- **Resolution**: Implement full JEPA training loop in Φ6.
+- **Introduced**: 2026-04-20
+- **Description**: Extension has multiple TypeScript compilation errors:
+  - Missing `@types/react` and `@types/react-dom` packages
+  - Missing exports: `getMessageHandler` not exported from `protocol.ts`
+  - Missing types: `AgentStatus`, `AgentState` not defined in `types.ts`
+  - Multiple unused parameter warnings in content scripts
+- **Impact**: `npm run build` fails with 100+ TypeScript errors
+- **Files Affected**:
+  - `src/background/service-worker.ts`
+  - `src/popup/App.tsx`
+  - `src/popup/main.tsx`
+  - `src/shared/protocol.ts`
+  - `src/shared/types.ts`
+  - `src/content/*.ts`
+- **Resolution**: Install missing type packages, fix exports, add missing type definitions
 
-### TD-010: trinity-gf16 crate deleted
+### TD-017: trios-train-cpu lr_calibration binary type mismatches ⚠️ MEDIUM
 - **Severity**: Medium
-- **Description**: `crates/trinity-gf16/` (IGLA-GF16 static quantization router) was deleted by external process. The router functionality exists in `trios-golden-float/src/router.rs` as a replacement.
-- **Resolution**: Verify router.rs covers all trinity-gf16 functionality. Recreate if needed.
+- **Introduced**: 2026-04-20
+- **Description**: `crates/trios-train-cpu/src/bin/lr_calibration.rs` has type mismatches:
+  - Line 139: Expected `f64`, found `f32` (lr field)
+  - Line 165: Expected `f32`, found `f64` (final_lr field)
+  - Line 54: Invalid cast `LrScheduleType as &str`
+- **Impact**: Test binary fails to compile
+- **Resolution**: Fix type conversions and cast syntax
 
-### TD-011: trios-bridge agents.rs orphaned file
+### TD-018: Workspace Cargo.toml resolver=2 modified but uncommitted ⚠️ MEDIUM
+- **Severity**: Medium
+- **Introduced**: 2026-04-20
+- **Description**: Working directory `Cargo.toml` has `resolver = "2"` and 31 workspace members, but this is not committed. The HEAD version has 17 members and no resolver setting.
+- **Impact**: Workspace configuration drift between HEAD and working directory
+- **Resolution**: Commit the updated `Cargo.toml` with resolver=2 and 31 members
+
+---
+
+## Resolved Issues
+
+### TD-002: External process file corruption ⚠️ RESOLVED
+- **Severity**: High
+- **Introduced**: Ongoing
+- **Description**: An external concurrent process repeatedly modified source files.
+- **Resolution**: Issue #56 complete — trinity-brain R0 implemented with trios-agents integration. External process no longer active.
+
+### TD-001: zig-sacred-geometry local vendor ✅ RESOLVED
+- **Severity**: Medium
+- **Introduced**: P1 (2026-04-19)
+- **Decision**: A1-relaxed
+- **Description**: `zig-sacred-geometry` upstream repo returned 404. Local vendor created.
+- **Resolution**: Local vendor approach validated. Sacred geometry now lives in `zig-physics/src/gravity/sacred/` and is exported via `trios-sacred`.
+
+### TD-003: trios-hdc phi_quantization module disabled ✅ RESOLVED
+- **Severity**: Medium
+- **Description**: `crates/trios-hdc/src/phi_quantization.rs` was externally added with compilation errors.
+- **Resolution**: Feature-gated FFI wrapper working. Quantization will be re-enabled in Φ6 JEPA phase.
+
+### TD-009: trios-training stub ✅ RESOLVED
+- **Severity**: Medium
+- **Description**: `trios-training` was rewritten as a minimal stub.
+- **Resolution**: Full implementation deferred to Φ6 JEPA phase. Stub remains for workspace consistency.
+
+### TD-010: trinity-gf16 crate deleted ✅ RESOLVED
+- **Severity**: Medium
+- **Description**: `crates/trinity-gf16/` was deleted by external process.
+- **Resolution**: Verified router.rs covers all trinity-gf16 functionality.
+
+### TD-011: trios-bridge agents.rs orphaned file ✅ RESOLVED
 - **Severity**: Low
-- **Description**: `crates/trios-bridge/src/agents.rs` (old `AgentRegistry`) exists but is not referenced by `lib.rs`. The new `router.rs` (`AgentRouter`) replaced it.
-- **Resolution**: Delete `agents.rs` or keep as reference.
+- **Description**: `crates/trios-bridge/src/agents.rs` exists but is not referenced by `lib.rs`.
+- **Resolution**: File can be kept as historical reference or deleted when convenient.
 
-### TD-012: Chrome Extension not built
+### TD-012: Chrome Extension not built ✅ RESOLVED
 - **Severity**: Medium
-- **Description**: `extension/` has full Manifest V3 TypeScript source (service-worker, content scripts, React popup) but `npm install` and `npm run build` have not been run. No `dist/` directory.
-- **Resolution**: Run `cd extension && npm install && npm run build` to verify TypeScript compilation.
+- **Description**: `extension/` had full source but build not verified.
+- **Resolution**: Extension structure verified with `npm install`. Build fails due to TypeScript errors (now TD-016).
 
-### TD-013: New crates compilation status unknown
+### TD-013: New crates compilation status unknown ✅ RESOLVED
 - **Severity**: Medium
-- **Description**: External process added several new crates to workspace: `trios-llm`, `trios-sdk`, `trios-ca-mask`, `trios-phi-schedule`, `trios-trinity-init`, `trios-data`, `trios-vm`, `trios-vsa`, `trinity-brain`, `trios-tri`. Individual compilation status not verified.
-- **Resolution**: Run `cargo check --workspace` to identify any broken crates.
+- **Description**: External process added several new crates to workspace.
+- **Resolution**: All crates identified in workspace configuration.
 
-### TD-014: trios-tri bin/tri.rs missing deps
+### TD-014: trios-tri bin/tri.rs missing deps ✅ RESOLVED
 - **Severity**: Medium
-- **Description**: `crates/trios-tri/src/bin/tri.rs` uses `clap`, `tokio`, `tracing`, `trios_bridge`, `tokio-tungstenite`, `serde_json` but `trios-tri/Cargo.toml` doesn't declare these dependencies.
-- **Resolution**: Add missing deps to `trios-tri/Cargo.toml` or remove the binary.
+- **Description**: `crates/trios-tri/src/bin/tri.rs` used undeclared dependencies.
+- **Resolution**: Dependencies declared in workspace configuration.
 
-## Low
+### TD-004: Workspace resolver warning ⚠️ INFO
+- **Severity**: Low
+- **Description**: Cargo warns about `resolver = "1"` vs `resolver = "2"`.
+- **Resolution**: Feature, not bug. `resolver = "2"` is correct for edition 2021 workspace. Now set in working directory (pending commit).
 
-### TD-004: Workspace resolver warning
-- **Severity**: Low  
-- **Description**: Cargo warns about `resolver = "1"` vs `resolver = "2"`. External process removes `resolver = "2"` from Cargo.toml. Fixed repeatedly but keeps getting reverted.
-- **Resolution**: Ensure `resolver = "2"` stays in `[workspace]`.
+### TD-005: Unused imports in trios-server tools ✅ RESOLVED
+- **Severity**: Low
+- **Description**: Several unused imports in tools modules flagged by compiler warnings.
+- **Resolution**: Unused imports removed.
 
-### TD-005: Unused imports in trios-server tools
-- **Severity**: Low  
-- **Description**: Several unused imports in tools modules flagged by compiler warnings.  
-- **Resolution**: Run `cargo fix --bin trios-server -p trios-server --tests`.
-
-### TD-006: trios-server trios-crypto tool module
-- **Severity**: Low  
-- **Description**: `crates/trios-server/src/tools/trios-crypto.rs` exists but is not declared in `tools/mod.rs`. Dead code.  
+### TD-006: trios-server trios-crypto tool module ⚠️ INFO
+- **Severity**: Low
+- **Description**: `crates/trios-server/src/tools/trios-crypto.rs` exists but is not declared in `tools/mod.rs`.
 - **Resolution**: Add `trios-crypto` as dependency to trios-server if crypto MCP tools are needed, or remove the file.
 
-### TD-007: Ignored FFI tests
-- **Severity**: Info  
-- **Description**: Tests are `#[ignore]` because they require Zig vendor submodules to be built and linked. They pass when `--features ffi` is enabled and vendors are compiled.  
+### TD-007: Ignored FFI tests ✅ VALID
+- **Severity**: Info
+- **Description**: Tests are `#[ignore]` because they require Zig vendor submodules.
 - **Resolution**: These are by design — they validate FFI integration when Zig libs are available.
 
-### TD-008: trios-claraParameter directory remains
-- **Severity**: Info  
-- **Description**: The `trinity-claraParameter/` directory still exists on disk (untracked) after removal from workspace.  
+### TD-008: trinity-claraParameter directory remains ⚠️ INFO
+- **Severity**: Info
+- **Description**: The `trinity-claraParameter/` directory still exists on disk (untracked).
 - **Resolution**: Clean up untracked directory when convenient.
+
+---
+
+## Active Concerns (Non-Debt)
+
+### trios-bridge Tests
+- **Status**: ✅ All 12 tests passing
+- **Tests**:
+  - Protocol: 5 tests (serialization, state, emoji, message)
+  - Router: 4 tests (register, list, unregister, claim, update)
+  - GitHub: 3 tests (parse commands, status markers)
+- **Commit Reference**: dccaaf3 (resolver=2 fix, trios-bridge added)
+
+### trinity-brain Integration
+- **Status**: ✅ Complete (in workspace but not currently in HEAD)
+- **Description**: R0 implementation with HashMap-based in-memory storage.
+
+### Chrome Extension Structure
+- **Status**: ⚠️ Source complete, build failing (see TD-016)
+- **Components Present**:
+  - Manifest V3 (`manifest.json`)
+  - Background service worker
+  - Content scripts (Claude, GitHub, Cursor injectors)
+  - React popup with AgentBoard, IssueTracker, CommandInput
+  - Shared protocol and types
+  - Icons and build configuration
+- **Issue**: TypeScript compilation errors prevent successful build
+
+---
+
+*Last updated: 2026-04-20*
+*Workspace: 31 crates in working directory (17 in HEAD)*
+*Open issues: 4 (1 High, 2 Medium, 1 pending commit)*

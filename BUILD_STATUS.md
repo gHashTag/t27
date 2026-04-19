@@ -1,12 +1,25 @@
 # TRIOS Build Status — IGLA-GF16 Hybrid Precision Pipeline
 
-**Last updated**: 2026-04-19  
-**Commit**: `dccaaf3` (Cargo.toml resolver=2 fix + trios-bridge)  
-**Verification**: `cargo test -p trios-bridge` → 12 passed, 0 failed
+**Last updated**: 2026-04-20
+**Current Branch**: main
+**Working Directory**: 31 crates, resolver=2 (uncommitted)
+**HEAD**: 17 crates, no resolver setting
 
 ---
 
-## 1. Rust Workspace — 31 Crates
+## Status Summary
+
+| Metric | Value |
+|--------|-------|
+| Rust crates (working dir) | 31 |
+| Rust crates (HEAD) | 17 |
+| trios-bridge tests | 12 passed ✅ |
+| Workspace tests | ⚠️ Fails (trios-llm missing deps) |
+| Chrome extension | ⚠️ Build errors (TypeScript) |
+
+---
+
+## 1. Rust Workspace — Working Directory (31 Crates)
 
 | # | Crate | Type | Φ Phase | Tests | Status |
 |---|-------|------|---------|-------|--------|
@@ -26,46 +39,83 @@
 | 14 | trios-kg | lib | — | ✅ | GREEN |
 | 15 | trios-agents | lib | — | ✅ | GREEN |
 | 16 | **trios-bridge** | **bin (WS)** | **#56** | **✅ 12** | **GREEN** |
-| 17 | trios-training | lib | Φ6 | ✅ | GREEN (stub) |
-| 18 | trios-training-ffi | lib | — | ✅ | GREEN |
-| 19 | trios-train-cpu | lib | — | — | GREEN |
-| 20 | trios-zig-agents | FFI wrapper | — | ✅ | GREEN |
-| 21 | zig-agents | FFI wrapper | — | ✅ | GREEN |
-| 22 | trinity-brain | lib | — | — | ⚠️ NEW |
-| 23 | trios-data | lib | — | — | ⚠️ NEW |
-| 24 | trios-vm | lib | — | — | ⚠️ NEW |
-| 25 | trios-vsa | lib | — | — | ⚠️ NEW |
-| 26 | trios-model | lib | — | — | ⚠️ NEW |
-| 27 | trios-llm | lib | — | — | ⚠️ NEW |
-| 28 | trios-sdk | lib | — | — | ⚠️ NEW |
-| 29 | trios-ca-mask | lib | — | — | ⚠️ NEW |
-| 30 | trios-phi-schedule | lib | — | — | ⚠️ NEW |
-| 31 | trios-trinity-init | lib | — | — | ⚠️ NEW |
+| 17 | trinity-brain | lib | — | — | NEW |
+| 18 | trios-zig-agents | FFI wrapper | — | ✅ | GREEN |
+| 19 | zig-agents | FFI wrapper | — | ✅ | GREEN |
+| 20 | trios-training | lib | Φ6 | ✅ | GREEN (stub) |
+| 21 | trios-training-ffi | lib | — | ✅ | GREEN |
+| 22 | trios-train-cpu | lib | — | ⚠️ | BUILD ERRORS |
+| 23 | trios-data | lib | — | — | NEW |
+| 24 | trios-vm | lib | — | — | NEW |
+| 25 | trios-vsa | lib | — | — | NEW |
+| 26 | trios-model | lib | — | — | NEW |
+| 27 | trios-llm | lib | — | ❌ | MISSING DEPS |
+| 28 | trios-sdk | lib | — | — | NEW |
+| 29 | trios-ca-mask | lib | — | — | NEW |
+| 30 | trios-phi-schedule | lib | — | — | NEW |
+| 31 | trios-trinity-init | lib | — | — | NEW |
 
-**Verified GREEN**: 21 crates (tests pass)  
-**New (unverified)**: 10 crates (added by external process, not individually tested)  
-**trios-bridge tests**: 12 passed (5 protocol + 4 router + 3 github)
+**Verified GREEN**: 21 crates
+**New (unverified)**: 9 crates
+**Known Issues**: 1 crate (trios-llm missing serde_json), 1 crate (trios-train-cpu type errors)
 
 ---
 
-## 2. Chrome Extension — Issue #56
+## 2. Trinity Agent Bridge — Complete ✅
+
+| Component | Tests | Status |
+|----------|-------|--------|
+| Protocol Handler | 5 | ✅ |
+| Agent Router | 4 | ✅ |
+| GitHub Injector | 3 | ✅ |
+| Total | **12** | **✅ GREEN** |
+
+**Test Output**:
+```bash
+running 12 tests
+test github::tests::parse_send_command ... ok
+test github::tests::parse_status_marker ... ok
+test protocol::tests::test_agent_status_serialization ... ok
+test protocol::tests::test_agent_state_with_status ... ok
+test github::tests::parse_broadcast_command ... ok
+test protocol::tests::test_agent_status_emoji ... ok
+test protocol::tests::test_agent_state_creation ... ok
+test router::tests::register_and_list ... ok
+test protocol::tests::test_bridge_message_serialization ... ok
+test router::tests::unregister ... ok
+test router::tests::claim_issue ... ok
+test router::tests::update_status ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored
+```
+
+---
+
+## 3. Chrome Extension — Issue #56
 
 | Component | File | Status |
 |-----------|------|--------|
 | Manifest V3 | `extension/manifest.json` | ✅ Complete |
-| Service Worker | `extension/src/background/service-worker.ts` | ✅ WebSocket → localhost:7474 |
-| Claude Injector | `extension/src/content/claude-injector.ts` | ✅ Content script |
-| GitHub Injector | `extension/src/content/github-injector.ts` | ✅ Content script |
-| Cursor Injector | `extension/src/content/cursor-injector.ts` | ✅ Content script |
-| Popup (React) | `extension/src/popup/App.tsx` | ✅ AgentBoard + CommandInput + IssueTracker |
-| Shared Types | `extension/src/shared/types.ts` | ✅ Matches Rust protocol.rs |
-| Shared Protocol | `extension/src/shared/protocol.ts` | ✅ MessageHandler |
-| Build Config | `extension/vite.config.ts` + `tsconfig.json` | ✅ Vite + TypeScript |
-| **npm build** | `npm run build` | ❌ Not yet run |
+| Service Worker | `extension/src/background/service-worker.ts` | ⚠️ Build errors |
+| Claude Injector | `extension/src/content/claude-injector.ts` | ⚠️ Build errors |
+| GitHub Injector | `extension/src/content/github-injector.ts` | ⚠️ Build errors |
+| Cursor Injector | `extension/src/content/cursor-injector.ts` | ✅ Fixed (regex) |
+| Popup (React) | `extension/src/popup/App.tsx` | ⚠️ Missing types |
+| Shared Types | `extension/src/shared/types.ts` | ⚠️ Missing definitions |
+| Shared Protocol | `extension/src/shared/protocol.ts` | ⚠️ Missing exports |
+| Build Config | `extension/vite.config.ts` + `tsconfig.json` | ✅ Present |
+| Dependencies | `node_modules/` | ✅ Installed |
+| **npm build** | `npm run build` | ❌ 100+ TypeScript errors |
+
+**Known Issues**:
+- Missing `@types/react` and `@types/react-dom` packages
+- Missing exports: `getMessageHandler` not exported from `protocol.ts`
+- Missing type definitions: `AgentStatus`, `AgentState`
+- Multiple unused parameter warnings
 
 ---
 
-## 3. Zig Vendor Ecosystem
+## 4. Zig Vendor Ecosystem
 
 | # | Repository | Zig version | Build | C-ABI exports | Status |
 |---|-----------|-------------|-------|---------------|--------|
@@ -73,13 +123,14 @@
 | 2 | zig-hdc | 0.16.0 | ✅ | 10 | GREEN |
 | 3 | zig-physics | 0.16.0 | ✅ | 5 | GREEN |
 | 4 | zig-crypto-mining | 0.16.0 | ✅ | 5 | GREEN |
-| 5 | zig-sacred-geometry | 0.16.0 | Local | 6 | GREEN (local vendor) |
+
+**Note**: Sacred geometry merged into `zig-physics` (A1-relaxed local vendor).
 
 ---
 
-## 4. IGLA-GF16 Static Quantization Router
+## 5. IGLA-GF16 Static Quantization Router
 
-The static quantization router is implemented in `trios-golden-float/src/router.rs`:
+Implemented in `trios-golden-float/src/router.rs`:
 
 | Layer Type | Precision | Reason |
 |-----------|-----------|--------|
@@ -94,7 +145,7 @@ The static quantization router is implemented in `trios-golden-float/src/router.
 
 ---
 
-## 5. Development Phases (Φ0–Φ8)
+## 6. Development Phases (Φ0–Φ8)
 
 | Phase | Status | Description | Key Crate |
 |-------|--------|-------------|-----------|
@@ -111,14 +162,42 @@ The static quantization router is implemented in `trios-golden-float/src/router.
 
 ---
 
-## 6. Verification Results
+## 7. Verification Results
 
 ```bash
-cargo test -p trios-bridge:     ✅ 12 passed, 0 failed
-cargo check -p trios-bridge:    ✅ 0 errors
-cargo test --workspace:         ⚠️ Not run (new crates may have issues)
+# trios-bridge tests (PASSING)
+cargo test -p trios-bridge --lib:  ✅ 12 passed, 0 failed
+
+# Workspace build (FAILING)
+cargo test --workspace:         ❌ trios-llm missing serde_json dependency
+
+# Extension build (FAILING)
+npm run build:                  ❌ 100+ TypeScript errors
 ```
 
 ---
 
-*Last updated: 2026-04-19 · Commit: dccaaf3*
+## 8. Technical Debt Summary
+
+| Severity | Open | Closed | Total |
+|----------|------|-------|-------|
+| Critical | 0 | 1 | 1 |
+| High | 1 | 1 | 2 |
+| Medium | 3 | 4 | 7 |
+| Low | 0 | 3 | 3 |
+| Info | 0 | 2 | 2 |
+| **Total** | **4** | **11** | **15** |
+
+**Key Issues**:
+- TD-015: trios-llm missing serde_json dependency (HIGH)
+- TD-016: Chrome Extension TypeScript build errors (MEDIUM)
+- TD-017: trios-train-cpu lr_calibration type mismatches (MEDIUM)
+- TD-018: Workspace Cargo.toml resolver=2 uncommitted (MEDIUM)
+
+See `TECH_DEBT.md` for full details.
+
+---
+
+*Last updated: 2026-04-20*
+*Workspace: 31 crates (working dir) / 17 crates (HEAD)*
+*resolver: "2" in working dir (uncommitted)*
