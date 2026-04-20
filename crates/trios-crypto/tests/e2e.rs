@@ -6,7 +6,7 @@
 use trios_crypto::{double_sha256, sha256};
 
 #[cfg(not(feature = "ffi"))]
-use trios_crypto::{sha256, FfiNotAvailable};
+use trios_crypto::sha256;
 
 #[cfg(feature = "ffi")]
 #[test]
