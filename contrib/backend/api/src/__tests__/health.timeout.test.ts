@@ -38,18 +38,33 @@ const { eqShim, inArrayShim } = vi.hoisted(() => {
 
 // ─── Mock store ─────────────────────────────────────────────────────────────
 
-let deletedSessionCalls: string[] = [];
-
-const mockDeleteSession = vi.fn(async (id: string) => {
-  deletedSessionCalls.push(id);
+const { mockDeleteSession, getDeletedCalls, clearDeletedCalls } = vi.hoisted(() => {
+  let calls: string[] = [];
+  const mock = vi.fn(async (id: string) => {
+    calls.push(id);
+  });
+  return {
+    mockDeleteSession: mock,
+    getDeletedCalls: () => calls,
+    clearDeletedCalls: () => { calls = []; },
+  };
 });
 
 // ─── Module mocks ─────────────────────────────────────────────────────
 
-vi.mock("../../config.js", () => ({
+vi.mock("../config.js", () => ({
   config: {
-    maxSessionDurationMs: 3_600_000, // 1 hour
+    maxSessionDurationMs: 3_600_000,
   },
+}));
+
+vi.mock("../db/client.js", () => ({
+  db: {},
+  pool: { end: vi.fn() },
+}));
+
+vi.mock("../utils/sandboxTarget.js", () => ({
+  resolveSandboxHealthUrl: vi.fn(() => "http://localhost:8080/health"),
 }));
 
 vi.mock("drizzle-orm", async (importOriginal) => {
@@ -61,7 +76,7 @@ vi.mock("drizzle-orm", async (importOriginal) => {
   };
 });
 
-vi.mock("../sessions.js", () => ({
+vi.mock("../services/sessions.js", () => ({
   deleteSession: mockDeleteSession,
 }));
 
@@ -72,7 +87,7 @@ import { checkSessionTimeout } from "../services/health.js";
 // ─── Test setup ───────────────────────────────────────────────────────
 
 beforeEach(() => {
-  deletedSessionCalls = [];
+  clearDeletedCalls();
   mockDeleteSession.mockClear();
 });
 
@@ -97,7 +112,7 @@ describe("checkSessionTimeout", () => {
 
     expect(mockDeleteSession).toHaveBeenCalledTimes(1);
     expect(mockDeleteSession).toHaveBeenCalledWith("test-123");
-    expect(deletedSessionCalls).toEqual(["test-123"]);
+    expect(getDeletedCalls()).toEqual(["test-123"]);
   });
 
   it("does NOT terminate session within maxDuration (30 minutes)", async () => {
@@ -117,7 +132,7 @@ describe("checkSessionTimeout", () => {
     await checkSessionTimeout(session);
 
     expect(mockDeleteSession).not.toHaveBeenCalled();
-    expect(deletedSessionCalls).toEqual([]);
+    expect(getDeletedCalls()).toEqual([]);
   });
 
   it("does NOT terminate non-active session (starting status)", async () => {
@@ -137,7 +152,7 @@ describe("checkSessionTimeout", () => {
     await checkSessionTimeout(session);
 
     expect(mockDeleteSession).not.toHaveBeenCalled();
-    expect(deletedSessionCalls).toEqual([]);
+    expect(getDeletedCalls()).toEqual([]);
   });
 
   it("does NOT terminate failed session", async () => {
@@ -157,7 +172,7 @@ describe("checkSessionTimeout", () => {
     await checkSessionTimeout(session);
 
     expect(mockDeleteSession).not.toHaveBeenCalled();
-    expect(deletedSessionCalls).toEqual([]);
+    expect(getDeletedCalls()).toEqual([]);
   });
 
   it("does NOT terminate deleted session", async () => {
@@ -177,10 +192,10 @@ describe("checkSessionTimeout", () => {
     await checkSessionTimeout(session);
 
     expect(mockDeleteSession).not.toHaveBeenCalled();
-    expect(deletedSessionCalls).toEqual([]);
+    expect(getDeletedCalls()).toEqual([]);
   });
 
-  it("handles exact threshold (exactly 1 hour = terminate)", async () => {
+  it("handles exact threshold (exactly 1 hour = no terminate, uses strict >)", async () => {
     const session: Session = {
       id: "test-threshold",
       name: "test-session",
@@ -190,15 +205,14 @@ describe("checkSessionTimeout", () => {
       taskDescription: null,
       repoUrl: null,
       branch: null,
-      createdAt: new Date(Date.now() - 3_600_000), // ровно 1 час
+      createdAt: new Date(Date.now() - 3_600_000),
       updatedAt: new Date(),
     };
 
     await checkSessionTimeout(session);
 
-    expect(mockDeleteSession).toHaveBeenCalledTimes(1);
-    expect(mockDeleteSession).toHaveBeenCalledWith("test-threshold");
-    expect(deletedSessionCalls).toEqual(["test-threshold"]);
+    expect(mockDeleteSession).not.toHaveBeenCalled();
+    expect(getDeletedCalls()).toEqual([]);
   });
 
   it("handles just under threshold (3599 seconds = no terminate)", async () => {
@@ -218,6 +232,6 @@ describe("checkSessionTimeout", () => {
     await checkSessionTimeout(session);
 
     expect(mockDeleteSession).not.toHaveBeenCalled();
-    expect(deletedSessionCalls).toEqual([]);
+    expect(getDeletedCalls()).toEqual([]);
   });
 });

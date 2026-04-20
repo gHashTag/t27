@@ -14,7 +14,7 @@ export const httpsEnforceMiddleware = (
 
   const proto =
     req.headers["x-forwarded-proto"] ??
-    (req.socket.encrypted ? "https" : "http");
+    ((req.socket as unknown as { encrypted?: boolean }).encrypted ? "https" : "http");
 
   if (typeof proto === "string" && proto.includes("http") && !proto.includes("https")) {
     res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
