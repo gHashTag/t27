@@ -2,7 +2,7 @@
 // t27/specs/
 // Same FFN applied to each position independently | φ² + 1/φ² = 3 | TRINITY
 
-module FeedForward;
+module FeedForwardNetwork;
     use base::types;
     use math::constants;
 

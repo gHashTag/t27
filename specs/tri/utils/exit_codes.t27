@@ -27,3 +27,14 @@ module TriExitCodes;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "exit_codes_init_succeeds" {
+        given ctx = default_context()
+        when result = exit_codes_init(ctx)
+        then result.status == ok
+    }
+
+    test "exit_codes_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

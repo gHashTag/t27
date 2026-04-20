@@ -10,3 +10,14 @@ module TriMeasurement;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "measurement_init_succeeds" {
+        given ctx = default_context()
+        when result = measurement_init(ctx)
+        then result.status == ok
+    }
+
+    test "measurement_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

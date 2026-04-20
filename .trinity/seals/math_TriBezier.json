@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:56b8d3358cd608e34050ee54d463ff363ebb7d8703e35c6e3e52c65c04e2745d",
+  "gen_hash_rust": "sha256:e2b25dc5aeb6ba6a0c59cfd55745ba7504a3549eef394a4493437fa23758e8d2",
+  "gen_hash_verilog": "sha256:860ef3804def0a2eded2419c9967112cc98f4d5cb0d2e0d2a8c729837e88c5e2",
+  "gen_hash_zig": "sha256:3945a5a99366a49cde2856fce7242e8db82dcc0f17af4b37b2fbd04f2ad83a63",
+  "module": "TriBezier",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:38Z",
+  "spec_hash": "sha256:4f0ae1c180bc369bd06c7f4535ef6a201c37798184ff864bfef6ef436ee95562",
+  "spec_path": "specs/tri/math/bezier.t27"
+}

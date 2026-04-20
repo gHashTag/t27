@@ -61,3 +61,14 @@ module Handoff;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "handoff_init_succeeds" {
+        given ctx = default_context()
+        when result = handoff_init(ctx)
+        then result.status == ok
+    }
+
+    test "handoff_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

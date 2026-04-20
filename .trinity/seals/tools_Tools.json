@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:45b9909329509dbbccd79a1ec460022e33ce675cf70f84e8d956ad15f62d009f",
   "module": "Tools",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:a5795eb0f4f613be5d87942a58c5841de9e27c69414cc8bd3398aee48b6275f5",
+  "sealed_at": "2026-04-20T18:48:37Z",
+  "spec_hash": "sha256:9a016d200cbb04a73da28db8f29df9d84a72297da2349b26ac11ffee901e26a3",
   "spec_path": "specs/tools/schema.t27"
 }

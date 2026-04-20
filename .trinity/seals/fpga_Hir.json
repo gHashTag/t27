@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:6c4d2688bad5a37a60982dbf82bb1d1484781da6301d5db63afae6dd8185d792",
-  "gen_hash_rust": "sha256:817286e9904f56b3095c0ec821bb51a683c4cd436bc775aff3fa9b0fd4565234",
-  "gen_hash_verilog": "sha256:a4b0b1faf4c2ed8e00103c60e850c3b4c1361e9469e6321ef49abb0ba684bd5e",
-  "gen_hash_zig": "sha256:b83c0899553a347ea0a6c628c6b1791a83289274911c5b8b86cead77b207a548",
+  "gen_hash_c": "sha256:39935d212f6076396dcaa98ad709001cf3a7bf446ca46572805d642ca962cbac",
+  "gen_hash_rust": "sha256:848d5b7d2d5cb9dd854231f5c1fac17d5cc138b8eb0a589718ba6d6b41bf7abc",
+  "gen_hash_verilog": "sha256:126ddb1271e7c4f4f7775eb669c1516389376cc468f9291d19537d72b2d20250",
+  "gen_hash_zig": "sha256:990ccc83f65b90d2999f457eb570167d25a53b09b93a913f37ebf6c591e1b332",
   "module": "Hir",
   "ring": 12,
-  "sealed_at": "2026-04-13T11:00:45Z",
-  "spec_hash": "sha256:d9924ac1a2c4b53383123dbcc24665dcfc8b47a90ba8e208ca4294dc81539f70",
+  "sealed_at": "2026-04-20T18:48:43Z",
+  "spec_hash": "sha256:0a8c8fb8b35a2791fbab26a8a95f310c75edeff390902cda5972dabee26abcaa",
   "spec_path": "specs/fpga/hir.t27"
 }

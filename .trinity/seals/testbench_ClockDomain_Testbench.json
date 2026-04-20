@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:8c81d10f11684016a20687a6a7e168f80e1a1b5883b0749854853f542bcc1c09",
   "module": "ClockDomain_Testbench",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
+  "sealed_at": "2026-04-20T18:48:43Z",
   "spec_hash": "sha256:e2741ac40df961f84a58755c1c468f12b911d0a7361d164fd2c2f77adce806dc",
   "spec_path": "specs/fpga/testbench/clock_domain_tb.t27"
 }

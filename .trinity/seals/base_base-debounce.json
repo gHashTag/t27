@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:49644ade15dc6ca14b0d4cfe3547ce4535aa19c294cbf9e2d8ca830756c589e4",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:6d2dafba411887f421dc6909f406d490ab2ada10e03af26e14ac6869c4e9b347",
+  "gen_hash_zig": "sha256:d69f8b516e543e56df2fbd4ad6a90b98b7518a4c9716d18fee47f53d4c929610",
+  "module": "base-debounce",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:45Z",
+  "spec_hash": "sha256:5327811d6750849976773faf4abbe18bd6c06f3a49799ffc4ca850c88581abb9",
+  "spec_path": "specs/base/debounce.t27"
+}

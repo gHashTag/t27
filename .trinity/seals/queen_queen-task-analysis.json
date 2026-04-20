@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:92da4b11587a21a3b15fac85c8be97e0fa8103a5a94bf1a9c8cd89fa5fef52ce",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:46478dd3c529bc5a9c3717174759376dae4ae986e35465e5fa5f73bb0e50ff91",
+  "gen_hash_zig": "sha256:55e14cfd91cd2ff72ab5ffaec28cf490501f866259d222c401e273d571a10544",
+  "module": "queen-task-analysis",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:45Z",
+  "spec_hash": "sha256:5755f819b57e64354992f86357f6b047ac61dd4d6c67afcfad005d4e28fdfbf2",
+  "spec_path": "specs/queen/task_analysis.t27"
+}

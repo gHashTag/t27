@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e0836226ce833a6b1b51870935952c84494efcb3eab6e5cf6c4461a09ca86979",
+  "gen_hash_rust": "sha256:164ad7b4ffed6fd94d97254ffbf10633a56c82e93759ae36d70f1ae8c0083acb",
+  "gen_hash_verilog": "sha256:9e87af6f6bdb56df525a6965f9201e2a9d1943d38f04f2618788c26cebe2ffd7",
+  "gen_hash_zig": "sha256:5eea2370d046fa3d5e0189ccf7f3a992cd4e0d8706efdb7f9726cee9eda88106",
+  "module": "TriBson",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:38Z",
+  "spec_hash": "sha256:7ed6aca7a17af29b1cae74b8e6bfddb1cef19c748ebc840b09a9ce2f6b3ecc54",
+  "spec_path": "specs/tri/encoding/bson.t27"
+}

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:a8c756f09cc3cf6fe6702d198f9e8b1576e1b786b8267beb982d97554b96dd9f",
   "module": "HSLM",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:8ea0766984db7775c474eab25dfb14965fa835ce0a56b33173df319fad342182",
+  "sealed_at": "2026-04-20T18:48:39Z",
+  "spec_hash": "sha256:f6a495ae2bf36b37ed24f0694c7e8450158d9c8bdec57786526c67a498dccb16",
   "spec_path": "specs/nn/hslm.t27"
 }

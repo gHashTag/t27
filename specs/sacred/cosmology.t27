@@ -10,3 +10,13 @@ module TriCosmology;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "cosmology_module_loads" {
+        given module = TriCosmology
+        when result = module.load()
+        then result != error
+    }
+
+    invariant "cosmology_constants_bounded" {
+        given c = sacred_constants()
+        then c.phi > 1.0 && c.phi < 2.0
+    }

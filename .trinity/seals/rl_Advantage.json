@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:12c82584e2cdf6d788860ee95662d87e68efb24110035fd16e704e45eea56481",
+  "gen_hash_rust": "sha256:837b3fd3dba54091397c4ec88d44238e350dbe75f821a53638a8e27f06b1e98b",
+  "gen_hash_verilog": "sha256:db024134858166508168a2011390e85b0cff7336e4a08d0acc89d13aae3d885c",
+  "gen_hash_zig": "sha256:944d4cb00d7b046bce1c571113d0b17b77da230a0e84a54b3437796daba92109",
+  "module": "Advantage",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:7d41d9d1ab43028ea61e4c36eb6c0e40b525e6d0f456db95f0312c2d4d06fc62",
+  "spec_path": "specs/ml/rl/advantage_estimator.t27"
+}

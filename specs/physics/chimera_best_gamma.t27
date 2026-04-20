@@ -14,3 +14,16 @@ module chimera {
         GAMMA.pow(PHI) + PI)
     }
 }
+
+    invariant "chimera_best_gamma_value_finite" {
+        given params = default_parameters()
+        when result = compute(params)
+        then isfinite(result)
+    }
+
+    test "chimera_best_gamma_deterministic" {
+        given params = fixed_params()
+        when r1 = compute(params)
+        and r2 = compute(params)
+        then r1 == r2
+    }

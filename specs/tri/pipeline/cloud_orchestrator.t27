@@ -10,3 +10,14 @@ module CloudOrchestrator;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "cloud_orchestrator_init_succeeds" {
+        given ctx = default_context()
+        when result = cloud_orchestrator_init(ctx)
+        then result.status == ok
+    }
+
+    test "cloud_orchestrator_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

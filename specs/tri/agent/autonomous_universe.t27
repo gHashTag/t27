@@ -10,3 +10,14 @@ module AutonomousUniverse;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "autonomous_universe_init_succeeds" {
+        given ctx = default_context()
+        when result = autonomous_universe_init(ctx)
+        then result.status == ok
+    }
+
+    test "autonomous_universe_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

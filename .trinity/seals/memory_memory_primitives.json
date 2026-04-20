@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:aa301be8fee98d21611b66525aea9fd638646cec72ddf79c8297fc1bf5aaf51f",
+  "gen_hash_rust": "sha256:c34424966784564e769182a05e8adb8209356b458f352e7a1b6a2962460088c2",
+  "gen_hash_verilog": "sha256:c89684428f1888ba4fc33b0772b811709677f50d2258be2162d3c8a4039e1e30",
+  "gen_hash_zig": "sha256:fc84f5b91f56c937970bd2ca6be597d00f08dbd1fa0dd838124b079a09982bf3",
+  "module": "memory_primitives",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:39Z",
+  "spec_hash": "sha256:d5d6629777d167d494503556dac2aa8adaf0f47781ecb936edacf27922fac6fa",
+  "spec_path": "specs/memory/memory_primitives.t27"
+}

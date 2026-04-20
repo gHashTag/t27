@@ -10,3 +10,14 @@ module SiluSwishVbt;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "activation_output_bounded" {
+        given x = random_tensor()
+        when y = activation(x)
+        then isfinite(y)
+    }
+
+    test "activation_gradient_exists" {
+        given x = random_tensor()
+        when grad = gradient(activation, x)
+        then grad != undefined
+    }

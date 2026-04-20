@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fdc1b49e1264dea17924236a947e0ec6c42598eb50f7a519f8e53cfcf22a41fa",
   "module": "FPGA_Bridge",
   "ring": 12,
-  "sealed_at": "2026-04-13T11:00:45Z",
-  "spec_hash": "sha256:8e5ee1b00af6b5e93dab257763f4d07c89a3b18b4109a83261f5c5ce62b82721",
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:4ea3568a8b7752c4f0ad9d83de08ec7d632dbe7d3f6cc2158f5eaef16becb1f8",
   "spec_path": "specs/fpga/bridge.t27"
 }

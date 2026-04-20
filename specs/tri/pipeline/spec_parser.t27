@@ -10,3 +10,14 @@ module TriSpecParser;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "spec_parser_init_succeeds" {
+        given ctx = default_context()
+        when result = spec_parser_init(ctx)
+        then result.status == ok
+    }
+
+    test "spec_parser_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

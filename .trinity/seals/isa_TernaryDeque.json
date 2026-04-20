@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:042aeef480a8cb77d6653f59a82be84778181204bbc8ad7f6c904e5a9ff169d5",
-  "gen_hash_rust": "sha256:16ded593737fc675a4956c4a7c5082a98b3c86c2229d77311594c5190887bdbc",
-  "gen_hash_verilog": "sha256:e0b1a9161ec0c0b539508317fbc4d3260113acc60187a1d232c22e660a3fd673",
-  "gen_hash_zig": "sha256:1862990fa35e0e4b14029bc2b4de06e8dd5a3913f29f6a5f83b2dce097d2e965",
+  "gen_hash_c": "sha256:79cb1a9027add1c267acdce95ad323b90c65c54e287cc93a48d01d613a6cad96",
+  "gen_hash_rust": "sha256:11fca01a1244e9950d2b94bbdb3cac451dbae9e4854e7b771edfee462b643e94",
+  "gen_hash_verilog": "sha256:5fcd863d291ecdb69f8d5e62b711827544dd1ccecfeead8e156692b1b15f151a",
+  "gen_hash_zig": "sha256:1da792cb08a7c130b15779b9799ae914bc281b9aa170df26479a7a5935d01c70",
   "module": "TernaryDeque",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:56113a8df816d524442da3e153ea33d793de0d06087326161aefc18fb0281dd3",
+  "sealed_at": "2026-04-20T18:48:39Z",
+  "spec_hash": "sha256:9bf8a5d8a946630ba9aa0dea52bb3e2c0a5d52c6ca35b1613e77c07668c19dcc",
   "spec_path": "specs/isa/ternary_deque.t27"
 }

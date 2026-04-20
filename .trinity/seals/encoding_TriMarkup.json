@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e596486528d106f4c46f8a87f5d93a648afe63f085eecc8836ed8d4fff886496",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:f73ff72940597fc668e5791cdf23c3862fac2861b8194daf7ba3a2a2e4af5428",
+  "gen_hash_zig": "sha256:5ac162c026587c3e6a17091304176491c6951e23ea7167f4312d2794adc10d26",
+  "module": "TriMarkup",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:38Z",
+  "spec_hash": "sha256:f60ffa66f95a923d551adbf6f40ef3fa81a2179d81e1e8d76fb9202dc1f8f8f4",
+  "spec_path": "specs/tri/encoding/markup.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4fa91d8efd18f3edfc04652d4beaa0fac5dd84506a070cb262daf8ad1b00e345",
+  "gen_hash_rust": "sha256:d19c866596897d616f2934313748b1d1cc475a1f3b21a8cd8ec9bd0f51c33e84",
+  "gen_hash_verilog": "sha256:8893b2b39bfe4a9c7242111beba2230de8cbda7a52412ac5cd201acc4fcd46b3",
+  "gen_hash_zig": "sha256:2b3a5e09f2141c6cf389c1e8d071705bce62ce72f6bf1b9b86b2558840756e95",
+  "module": "TriHelp",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:38Z",
+  "spec_hash": "sha256:11bc2c39064f984559b07d541ca945f1ac6c53089ab0321bc0d947965e426d18",
+  "spec_path": "specs/tri/utils/help.t27"
+}

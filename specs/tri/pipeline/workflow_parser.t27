@@ -10,3 +10,14 @@ module WorkflowParser;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "workflow_parser_init_succeeds" {
+        given ctx = default_context()
+        when result = workflow_parser_init(ctx)
+        then result.status == ok
+    }
+
+    test "workflow_parser_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

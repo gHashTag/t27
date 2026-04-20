@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:91836d5c1232c45716f6d60d450240bb6c0723d8ed9da841e185d887cf1a06eb",
   "module": "Memory",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
+  "sealed_at": "2026-04-20T18:48:43Z",
   "spec_hash": "sha256:5847d80ee4a4f2fc5b812078febf793a17aa56e2e4ad3bd6ea158c2d218f0b84",
   "spec_path": "specs/fpga/memory.t27"
 }

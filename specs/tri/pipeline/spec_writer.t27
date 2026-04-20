@@ -40,3 +40,14 @@ module "[]const u8";
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "spec_writer_init_succeeds" {
+        given ctx = default_context()
+        when result = spec_writer_init(ctx)
+        then result.status == ok
+    }
+
+    test "spec_writer_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

@@ -10,3 +10,14 @@ module ;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "memory_init_succeeds" {
+        given ctx = default_context()
+        when result = memory_init(ctx)
+        then result.status == ok
+    }
+
+    test "memory_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

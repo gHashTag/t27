@@ -10,3 +10,14 @@ module ;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "experience_hooks_init_succeeds" {
+        given ctx = default_context()
+        when result = experience_hooks_init(ctx)
+        then result.status == ok
+    }
+
+    test "experience_hooks_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

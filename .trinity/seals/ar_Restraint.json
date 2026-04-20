@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:24604502ac774abddd6212ace33e43f650d2e0da4257e231c8875e9b8ea6cfa6",
-  "gen_hash_rust": "sha256:1d106e5136b3629e0771fa9eb74c3ff82d386a5e09c44129a10d121316f1300a",
-  "gen_hash_verilog": "sha256:bab87df8fec3195bac3228dfcfbf47fe18885f40a299a2e9d018fd169be6471e",
-  "gen_hash_zig": "sha256:5ca6a98b72472d01409c9bb4eb48b11aca5c7afaa1eeceb67ae3ca907e775025",
-  "module": "Restraint",
+  "gen_hash_c": "sha256:bc789553d5845fb5da7807fabe1214b11021e40db3f72b4aee6faa0363bc6e05",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:57879a0b67f4f4bb6f5aff75a64ad10470da429b9eefbbafcce5d7982d47d7a4",
+  "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
+  "module": "restraint",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:e83dc9359d20597b937f9b673b668a04d0b185aba85a6c21c0f455792ecf42aa",
+  "sealed_at": "2026-04-20T18:48:44Z",
+  "spec_hash": "sha256:3bb0ac54f93b9e634edcff94be2b49a1ed578791302ca8ecd3ad730a2b2713f0",
   "spec_path": "specs/ar/restraint.t27"
 }

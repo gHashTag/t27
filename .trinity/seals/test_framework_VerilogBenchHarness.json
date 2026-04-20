@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:bc9a298e5fb1a467de4b9892f31a0068cbf865f6130a26ebd09228f4d7f3649d",
   "module": "VerilogBenchHarness",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:394d8b86852ee09f078b2e6df56a9e20b076cba63caf3dfc9451742d03fa8dce",
+  "sealed_at": "2026-04-20T18:48:44Z",
+  "spec_hash": "sha256:18acfa0f40b4fba714cc89fe34c6620dc85647b34384ff13aff2e84ff23ad36e",
   "spec_path": "specs/test_framework/verilog_bench_harness.t27"
 }

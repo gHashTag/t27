@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:08c9f0acc4533e5e6527780de7cdcc30bb87a232979f08ca18cf8423d5e2fcc5",
+  "gen_hash_rust": "sha256:425ff36494bc0b476cfbdb27ce0b069b0d05045889671e0249ea9b6ecc3754d2",
+  "gen_hash_verilog": "sha256:420832f29a808b5c8d021261c079fdb8486d76dc9dad2435bd4b1b3173689b7f",
+  "gen_hash_zig": "sha256:1cbb6864c41b0776ea4fa2a15bf91bdcfeaff8e2f99100a2cc286f6833830ffd",
+  "module": "\"[]const u8\"",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:55:52Z",
+  "spec_hash": "sha256:76aafaac7de93bb77c91c274bb0a621c6b667390865b57463dceeb6a66607978",
+  "spec_path": "specs/tri/agent/eternal_monitor.t27"
+}

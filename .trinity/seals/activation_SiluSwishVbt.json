@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:3e21493dfd13906ea647bae3aa42593aff8356f3445201723b3cae62e7dca9eb",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:04ef5cd10bd96a6209dab3f20ca8568422316f524261fdc4dcb7ba3ac3df2b64",
+  "gen_hash_zig": "sha256:886a752c83fcdb5c3bc9c222200195040f6d8ede25785d9c392bd61c4031211d",
+  "module": "SiluSwishVbt",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:49d1f4a903dbee94a418d5563ba9ab9db093b4a872bc28206603729dcfb8f572",
+  "spec_path": "specs/ml/activation/silu_swish_vbt_activation.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1c2cb68c245bbd14fefa7990f0de1cd5e619d1efea4de03644f10f4572d9e64f",
+  "gen_hash_rust": "sha256:702708a46c4d386a3b27b514caf962ac181e187b914289b2c1107cd862b060ae",
+  "gen_hash_verilog": "sha256:cc567fc8a52b5e92b404003ed45d2e71350f0b7849ce4c4666648aa651dc3a6f",
+  "gen_hash_zig": "sha256:640e11b6d45d4501a5476145692a07347f4a9b70d20d1b80a723105b0abe2f76",
+  "module": "Elu",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:80769686b1cd7de71b5a61a790f882226450793f423b8dab1139be10f4df4748",
+  "spec_path": "specs/ml/activation/elu_activation.t27"
+}

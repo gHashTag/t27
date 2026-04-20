@@ -125,3 +125,14 @@ module SwarmAgents;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "swarm_agents_init_succeeds" {
+        given ctx = default_context()
+        when result = swarm_agents_init(ctx)
+        then result.status == ok
+    }
+
+    test "swarm_agents_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

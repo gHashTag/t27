@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:af62ebe917e3bc16fd84238832f80f900fe5dec9ff226ab3f3af941981ff2c21",
+  "gen_hash_rust": "sha256:c692e084486ae2fce2db05ba1db034a42f707c4d676f930aacb1602784ecc401",
+  "gen_hash_verilog": "sha256:459935d133d95338d7fdc87f9b4712484ba51949a9b27230170f16c49e624bc0",
+  "gen_hash_zig": "sha256:4bcaa1e78540c84e27fca79a85713431b34caebdd42e54f8389a99f75df33d83",
+  "module": "LeakyRelu",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:c6cf3e0b7de5d05674b0dcf9c9f2dd1c7efe0a507a99644025f58261c5b15efe",
+  "spec_path": "specs/ml/activation/leaky_relu_activation.t27"
+}

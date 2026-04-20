@@ -10,3 +10,13 @@ module TriQuantum;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "quantum_module_loads" {
+        given module = TriQuantum
+        when result = module.load()
+        then result != error
+    }
+
+    invariant "quantum_constants_bounded" {
+        given c = sacred_constants()
+        then c.phi > 1.0 && c.phi < 2.0
+    }

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:becbe7533bff5d55d6d89592ef6b745b1fc0dcb46a059cdcca30e8ee260f9dd6",
+  "gen_hash_rust": "sha256:d3aaf56c67dc4bd0b60aeb0fbb173969ae1ead4db8cffee0821bf65fa8621fc5",
+  "gen_hash_verilog": "sha256:481e3023e8f23e241d90b2fa5bdcb40170d1646a46ae12f2145729f4215b9d0d",
+  "gen_hash_zig": "sha256:7542ac55e36f7b1cf91aed1c5bdb2e28d460a5ae8365ff92e5e5b05cba53eab5",
+  "module": "Mlp",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:38e27adb2b1502fe1200eaaaf794baf678bedb3dcf17667cba1c5d1f6eb393ab",
+  "spec_path": "specs/ml/pathway/mlp.t27"
+}

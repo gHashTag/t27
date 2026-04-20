@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:67d70024c03eae633fedc5056d47b5f68ab60626e06a2b3f772c1ff70fe12324",
   "module": "BoardMinimalXC7A100T",
   "ring": 12,
-  "sealed_at": "2026-04-12T10:42:24Z",
+  "sealed_at": "2026-04-20T18:48:44Z",
   "spec_hash": "sha256:0a5a2fd4d418235a976748b76bf5d503b4a17e6b41e0c721fc696c17fad8d71d",
   "spec_path": "specs/boards/xc7a100t_minimal.t27"
 }

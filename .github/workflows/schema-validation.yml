@@ -2,7 +2,7 @@ name: Validate JSON Schemas
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, dev]
 
 jobs:
   validate:
@@ -10,6 +10,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate schemas
+      - name: Validate JSON schemas
         run: |
-          echo "Validating JSON schemas..."
+          ERRORS=0
+          for f in $(find . -name "*.json" -not -path "./node_modules/*" -not -path "./target/*" -not -path "./.git/*"); do
+            if ! python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+              echo "::error file=$f::Invalid JSON: $f"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS invalid JSON files found"
+            exit 1
+          fi
+          echo "All JSON files valid"

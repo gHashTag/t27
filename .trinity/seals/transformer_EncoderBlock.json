@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f35fabc3ae7f831fdc971c2dad09a37ce3c9ce9352be5c6f95ff389ffdd9ec2d",
+  "gen_hash_rust": "sha256:723ee3363ea175d8dbc352b51702cfd6fd175cd5ac3e3e157312d848b11b3b48",
+  "gen_hash_verilog": "sha256:3773f8152cbc3e30af910edf1327272e1c9ba0a7766e7396911a3eccd4425674",
+  "gen_hash_zig": "sha256:eff3ff0fb0395f906cabdabd6dd0e5e8a6d35b63a89d444f346996ccef2218e1",
+  "module": "EncoderBlock",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:c1955126a803192f0a46ca05a2be74f2ca28ddedeba7e8b9355f2ed6baa0eaef",
+  "spec_path": "specs/ml/transformer/encoder_block.t27"
+}

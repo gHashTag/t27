@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:2a15cc5710b2f58e7403d18452aaaf4b28dfc55f7e7974f60d86ae942f2addf8",
   "module": "Project",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:63ff5dffa64646a0575f4118a32c01ae5e759c332c2425d6850951f8466126f9",
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:245e1cb7d3316f672985f97d6430f6864e5a1b47a22a82ac59a39ad5d1bb1ce6",
   "spec_path": "specs/server/project.t27"
 }

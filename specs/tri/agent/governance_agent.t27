@@ -92,3 +92,14 @@ module String  # phi, trinity, gematria, evolution, safety;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "governance_agent_init_succeeds" {
+        given ctx = default_context()
+        when result = governance_agent_init(ctx)
+        then result.status == ok
+    }
+
+    test "governance_agent_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }
