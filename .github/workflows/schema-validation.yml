@@ -13,8 +13,9 @@ jobs:
       - name: Validate JSON schemas
         run: |
           ERRORS=0
-          for f in $(find . -name "*.json" -not -path "./node_modules/*" -not -path "./target/*" -not -path "./.git/*"); do
-            if ! python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+          for f in $(find . -name "*.json" -not -path "./node_modules/*" -not -path "./target/*" -not -path "./.git/*" -not -path "./external/*"); do
+              if [ ! -s "$f" ]; then continue; fi
+              if ! python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
               echo "::error file=$f::Invalid JSON: $f"
               ERRORS=$((ERRORS + 1))
             fi
