@@ -7,6 +7,8 @@ import authRouter from "./routes/auth.js";
 import healthRouter from "./routes/health.js";
 import sessionsRouter from "./routes/sessions.js";
 import { HttpError } from "./utils/errors.js";
+import { logger } from "./utils/logger.js";
+import { isShuttingDown, trackRequestStart, trackRequestEnd } from "./utils/shutdown.js";
 
 const app = express();
 
@@ -21,6 +23,16 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
+
+app.use((req, _res, next) => {
+  if (isShuttingDown() && req.path.startsWith("/sessions") && req.method === "POST") {
+    _res.status(503).json({ error: "Server is shutting down" });
+    return;
+  }
+  trackRequestStart();
+  _res.on("finish", trackRequestEnd);
+  next();
+});
 
 // ─────────────────────────────────────────────────────────────
 // Public routes (no auth required)
@@ -60,7 +72,7 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
     return;
   }
 
-  console.error("Unhandled error", error);
+  logger.error("Unhandled error", { error: String(error), stack: error instanceof Error ? error.stack : undefined });
   res.status(500).json({ error: "Internal server error" });
 });
 

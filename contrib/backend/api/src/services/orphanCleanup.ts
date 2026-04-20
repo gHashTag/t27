@@ -3,6 +3,7 @@ import { eq, and, lt, not, inArray } from "drizzle-orm";
 import { config } from "../config.js";
 import { db } from "../db/client.js";
 import { sessions } from "../db/schema.js";
+import { logger } from "../utils/logger.js";
 import { deleteSession } from "./sessions.js";
 
 const ORPHAN_IDLE_MS = config.maxSessionDurationMs;
@@ -23,7 +24,7 @@ export const cleanupOrphanedSessions = async (): Promise<number> => {
 
   if (orphans.length === 0) return 0;
 
-  console.log(`[orphan-cleanup] found ${orphans.length} orphaned session(s)`);
+  logger.info("Orphaned sessions found", { count: orphans.length });
 
   let deleted = 0;
   await Promise.all(
@@ -32,10 +33,10 @@ export const cleanupOrphanedSessions = async (): Promise<number> => {
         await deleteSession(session.id);
         deleted++;
       } catch (err) {
-        console.error(
-          `[orphan-cleanup] failed to delete session ${session.id}`,
-          err,
-        );
+        logger.error("Failed to delete orphaned session", {
+          sessionId: session.id,
+          error: String(err),
+        });
       }
     }),
   );
@@ -43,10 +44,13 @@ export const cleanupOrphanedSessions = async (): Promise<number> => {
   return deleted;
 };
 
-export const startOrphanCleanup = (): void => {
-  setInterval(() => {
+export const startOrphanCleanup = (): NodeJS.Timeout => {
+  const timer = setInterval(() => {
     cleanupOrphanedSessions().catch((err) =>
-      console.error("[orphan-cleanup] failed", err),
+      logger.error("Orphan cleanup failed", { error: String(err) }),
     );
   }, CLEANUP_INTERVAL_MS);
+
+  if (timer.unref) timer.unref();
+  return timer;
 };

@@ -1,11 +1,13 @@
 import type { Server } from "node:http";
 
-import { config } from "../config.js";
+import { logger } from "./logger.js";
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
 let shuttingDown = false;
 let activeRequests = 0;
+
+const cleanupCallbacks: Array<() => Promise<void> | void> = [];
 
 export const isShuttingDown = (): boolean => shuttingDown;
 
@@ -17,24 +19,40 @@ export const trackRequestEnd = (): void => {
   activeRequests--;
 };
 
+export const onShutdown = (cb: () => Promise<void> | void): void => {
+  cleanupCallbacks.push(cb);
+};
+
 export const setupGracefulShutdown = (server: Server): void => {
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    console.log(
-      `[shutdown] ${signal} received, draining ${activeRequests} active requests...`,
-    );
+    logger.info("Shutdown initiated", {
+      signal,
+      activeRequests,
+    });
+
+    for (const cb of cleanupCallbacks) {
+      try {
+        await cb();
+      } catch (err) {
+        logger.error("Cleanup callback failed", {
+          error: String(err),
+        });
+      }
+    }
 
     server.close(() => {
-      console.log("[shutdown] all connections closed, exiting");
+      logger.info("All connections closed, exiting");
       process.exit(0);
     });
 
     setTimeout(() => {
-      console.log(
-        `[shutdown] timeout after ${SHUTDOWN_TIMEOUT_MS}ms with ${activeRequests} active requests, forcing exit`,
-      );
+      logger.error("Shutdown timeout, forcing exit", {
+        timeoutMs: SHUTDOWN_TIMEOUT_MS,
+        activeRequests,
+      });
       process.exit(1);
     }, SHUTDOWN_TIMEOUT_MS);
   };

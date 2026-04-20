@@ -27,6 +27,11 @@ vi.mock("../config.js", () => ({
   railwayAccountCount: () => TOKEN_POOL.length,
 }));
 
+vi.mock("undici", () => ({
+  Agent: vi.fn(),
+  setGlobalDispatcher: vi.fn(),
+}));
+
 // ─── Import SUT after mocks ───────────────────────────────────────────────────
 
 import { railwayRequest } from "../railway/client.js";
