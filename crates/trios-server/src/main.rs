@@ -31,12 +31,15 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(9005);
 
     let app = Router::new()
+        // MCP WebSocket endpoints (Issue #118)
         .route("/ws", get(ws_handler::ws_handler))
+        .route("/mcp", get(ws_handler::ws_handler))  // Alias for extension compatibility
         .route("/health", get(health))
         .route("/", get(health))
+        // Operator API (Issue #157) - ECHO bridge for Comet
         .route("/operator/ping", get(operator::ping))
         .route("/operator/extension/state", get(operator::get_extension_state))
-        .route("/operator/extension/send_chat", get(operator::send_chat))
+        .route("/operator/extension/send_chat", post(operator::send_chat))
         .route("/operator/extension/click", post(operator::click))
         .layer(
             ServiceBuilder::new()

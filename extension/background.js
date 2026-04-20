@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "MCP_REQUEST") {
-    const ws = new WebSocket("ws://localhost:9005/ws");
+    const ws = new WebSocket("ws://localhost:9005/mcp");
     ws.onopen = () => {
       ws.send(JSON.stringify(message.payload));
     };

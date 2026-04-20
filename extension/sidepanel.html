@@ -1,35 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trios Sidebar</title>
-  <link rel="stylesheet" href="style.css" />
+  <script type="module">
+    import init from './trios_ext.js';
+  </script>
 </head>
 <body>
-  <div id="app">
-    <header class="header">
-      <img src="icons/icon-128.png" alt="Trios" class="logo" />
-      <h1>Trios</h1>
-    </header>
-    <nav class="tabs">
-      <button class="tab active" data-tab="chat">Chat</button>
-      <button class="tab" data-tab="agents">Agents</button>
-      <button class="tab" data-tab="tools">MCP Tools</button>
-    </nav>
-    <main id="content">
-      <section id="tab-chat" class="tab-content active">
-        <div id="messages"></div>
-        <input id="chat-input" type="text" placeholder="Send a message..." />
-      </section>
-      <section id="tab-agents" class="tab-content">
-        <div id="agent-list">Loading agents...</div>
-      </section>
-      <section id="tab-tools" class="tab-content">
-        <div id="tool-list">Loading tools...</div>
-      </section>
-    </main>
-  </div>
-  <script src="sidepanel.js"></script>
+  <!-- Rust+Wasm will render the app here -->
 </body>
 </html>
