@@ -11,8 +11,8 @@ description = "Trios Chrome Extension (Dioxus/Wasm)"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = [
+wasm-bindgen = "0.2.92"
+web-sys = { version = "0.3.69", features = [
     "Window", "Document", "Element", "HtmlElement", "HtmlInputElement",
     "HtmlCollection", "NodeList", "DomTokenList",
     "WebSocket", "MessageEvent", "console",
