@@ -1,0 +1,18 @@
+[package]
+name = "igla-trainer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Air-gap PBT-safe IGLA trainer with GitHub-as-broker for Parameter Golf EPIC #110"
+
+[[bin]]
+name = "igla-trainer"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

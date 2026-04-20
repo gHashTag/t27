@@ -1,0 +1,16 @@
+[package]
+name = "anti-ban-audit"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Anti-ban verification tool for Trinity Air-Gap v2 (EPIC #110, #124)"
+
+[[bin]]
+name = "anti-ban-audit"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true

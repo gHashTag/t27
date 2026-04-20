@@ -7,22 +7,15 @@
 | Category | Open | Closed | Total |
 |----------|-------|-------|-------|
 | Critical | 0 | 1 | 1 |
-| High | 1 | 1 | 2 |
-| Medium | 3 | 4 | 7 |
+| High | 0 | 2 | 2 |
+| Medium | 1 | 6 | 7 |
 | Low | 0 | 3 | 3 |
 | Info | 0 | 2 | 2 |
-| **Total** | **4** | **11** | **15** |
+| **Total** | **1** | **14** | **15** |
 
 ---
 
 ## Active Issues
-
-### TD-015: trios-llm missing serde_json dependency ⚠️ HIGH
-- **Severity**: High
-- **Introduced**: 2026-04-20
-- **Description**: `crates/trios-llm/src/lib.rs:77` uses `serde_json::to_string()` but `serde_json` is not declared in `trios-llm/Cargo.toml`. This causes workspace test failures.
-- **Impact**: `cargo test --workspace` fails to compile
-- **Resolution**: Add `serde_json` dependency to `trios-llm/Cargo.toml`
 
 ### TD-016: Chrome Extension TypeScript build errors ⚠️ MEDIUM
 - **Severity**: Medium
@@ -42,26 +35,21 @@
   - `src/content/*.ts`
 - **Resolution**: Install missing type packages, fix exports, add missing type definitions
 
-### TD-017: trios-train-cpu lr_calibration binary type mismatches ⚠️ MEDIUM
-- **Severity**: Medium
-- **Introduced**: 2026-04-20
-- **Description**: `crates/trios-train-cpu/src/bin/lr_calibration.rs` has type mismatches:
-  - Line 139: Expected `f64`, found `f32` (lr field)
-  - Line 165: Expected `f32`, found `f64` (final_lr field)
-  - Line 54: Invalid cast `LrScheduleType as &str`
-- **Impact**: Test binary fails to compile
-- **Resolution**: Fix type conversions and cast syntax
-
-### TD-018: Workspace Cargo.toml resolver=2 modified but uncommitted ⚠️ MEDIUM
-- **Severity**: Medium
-- **Introduced**: 2026-04-20
-- **Description**: Working directory `Cargo.toml` has `resolver = "2"` and 31 workspace members, but this is not committed. The HEAD version has 17 members and no resolver setting.
-- **Impact**: Workspace configuration drift between HEAD and working directory
-- **Resolution**: Commit the updated `Cargo.toml` with resolver=2 and 31 members
-
 ---
 
 ## Resolved Issues
+
+### TD-015: trios-llm missing serde_json dependency ✅ RESOLVED
+- **Severity**: High
+- **Resolution**: Added `serde_json.workspace = true` to trios-llm Cargo.toml. PR #120 merged.
+
+### TD-017: trios-train-cpu lr_calibration binary ✅ RESOLVED
+- **Severity**: Medium
+- **Resolution**: No lr_calibration binary exists on main. Only bench_cpu and train_cpu binaries present. Tech debt was stale.
+
+### TD-018: Workspace Cargo.toml resolver=2 ✅ RESOLVED
+- **Severity**: Medium
+- **Resolution**: resolver=2 and 33 members now committed on main via PR #120.
 
 ### TD-002: External process file corruption ⚠️ RESOLVED
 - **Severity**: High

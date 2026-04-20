@@ -33,6 +33,8 @@ members = [
     "crates/trios-trinity-init",
     "crates/trios-fpga",
     "crates/trios-doctor",
+    "crates/igla-trainer",
+    "contrib/anti-ban",
 ]
 resolver = "2"
 

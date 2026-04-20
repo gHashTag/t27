@@ -1,0 +1,7 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "igla-trainer"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
