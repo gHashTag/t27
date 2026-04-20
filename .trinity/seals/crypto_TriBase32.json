@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:23e6a62f5e3f6ef78b7a636b10879362865183da70512be0066d018309137688",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:718258e4c3aa5f77df4e802c0e70545aee3cf638076bbb681087e17f501bd771",
+  "gen_hash_zig": "sha256:7698c660f17ad0fe3bd67a6982c5fbc9ec745436c2fa41f7b6994ed2df548064",
+  "module": "TriBase32",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:37Z",
+  "spec_hash": "sha256:088cbb8893f0019cef2ff3626aef421d06417126099cd17051ad591cff0d9c0d",
+  "spec_path": "specs/tri/crypto/base32.t27"
+}

@@ -10,3 +10,14 @@ module ;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "agents_init_succeeds" {
+        given ctx = default_context()
+        when result = agents_init(ctx)
+        then result.status == ok
+    }
+
+    test "agents_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

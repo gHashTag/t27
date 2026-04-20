@@ -2,9 +2,9 @@ name: SEAL Coverage
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, dev]
   push:
-    branches: [master]
+    branches: [master, dev]
 
 jobs:
   coverage:
@@ -12,10 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect changed specs (variant 1: hashFiles check)
+      - name: Detect changed specs
         id: changed-specs
         run: |
-          # Get list of changed files in this PR
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             CHANGED_FILES=$(gh api \
               repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files \
@@ -23,20 +22,26 @@ jobs:
           else
             CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} 2>/dev/null || echo "")
           fi
-          # Filter for .t27 spec files (GoldenFloat specs)
           SPECS_CHANGED=$(echo "$CHANGED_FILES" | grep -E '\.t27$' || echo "")
           if [ -n "$SPECS_CHANGED" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
-            echo "specs_changed=true" >> $GITHUB_ENV
           else
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "specs_changed=false" >> $GITHUB_ENV
           fi
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Run coverage
+      - name: Build t27c
+        if: steps.changed-specs.outputs.changed == 'true'
+        run: cargo build --release -p t27c
+
+      - name: Run seal verification
         if: steps.changed-specs.outputs.changed == 'true'
         run: |
           echo "Running SEAL coverage analysis..."
-          echo "Specs changed in this PR - checking L8 compliance and SEAL hashes"
+          FAILURES=$(./target/release/t27c suite 2>&1 | grep "Seal mismatches" | awk '{print $NF}')
+          if [ "$FAILURES" != "0" ]; then
+            echo "::error::$FAILURES seal mismatches detected"
+            exit 1
+          fi
+          echo "All seal hashes verified successfully"

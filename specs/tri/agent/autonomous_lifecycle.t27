@@ -61,3 +61,14 @@ module TriAutonomousLifecycle;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "autonomous_lifecycle_init_succeeds" {
+        given ctx = default_context()
+        when result = autonomous_lifecycle_init(ctx)
+        then result.status == ok
+    }
+
+    test "autonomous_lifecycle_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

@@ -30,3 +30,9 @@ pub use orphan_detection;
 // ─────────────────────────────────────────────
 
 pub use https_enforce;
+
+    invariant "modules_health_check" {
+        given system = boot()
+        when status = health_check(system)
+        then status == healthy
+    }

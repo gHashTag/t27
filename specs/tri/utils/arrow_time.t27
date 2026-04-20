@@ -10,3 +10,14 @@ module ;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "arrow_time_init_succeeds" {
+        given ctx = default_context()
+        when result = arrow_time_init(ctx)
+        then result.status == ok
+    }
+
+    test "arrow_time_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

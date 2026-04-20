@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:456c12f5f87a8dd7cc86be7a42160f5d845a1bcc7e709ed87afc4c9b8b3eef5e",
+  "gen_hash_rust": "sha256:8a6f1d92c707ef62b56ed8bc2b765ca4f8108c2c398aaf0b931cb51968b9eb4b",
+  "gen_hash_verilog": "sha256:7703d63090b4bee0f41aed52cf9085ffd0c9f947897dd92b060d292b16c6ea41",
+  "gen_hash_zig": "sha256:8e2a0e35475e2e0d028a2f581dee8aeb53c5a48d32c97963db13e02f280b6ea1",
+  "module": "TriDijkstra",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:38Z",
+  "spec_hash": "sha256:44044c9787eb731200c48f4bdcd52daf48854b92a7273fba511aa5316ee88ad0",
+  "spec_path": "specs/tri/graph/dijkstra.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:cb06b6f4823c2b849c938be0a9bb6f11d7137b5f1711ac1505696ba22606a90d",
+  "gen_hash_rust": "sha256:5c7a43252d284ad6e4542ecbe3fe03148b9f6b0bfdee2e5888ec910d01f768bf",
+  "gen_hash_verilog": "sha256:052f1c54b8d0481534aaf20cae9f4cb09782358f2ee915ce7dfda5d4ef40f28a",
+  "gen_hash_zig": "sha256:0f6d1074ed0c119703d61ca481b016b37678a88007f9902d5152acae0d15787c",
+  "module": "SgdMomentum",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:e713662a43888a4304da49a3fa56934423615caec6edf983e2260fbb0123de3b",
+  "spec_path": "specs/ml/optimizer/sgd_momentum.t27"
+}

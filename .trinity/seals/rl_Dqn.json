@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:57701675c0c0291eb5ce14560f55977ec96026027af531240aedf0113ea531d7",
+  "gen_hash_rust": "sha256:09d4f8d4a3c4669b41169959c6ccccbbcc0491774da31a78f5c0fc31f317b7d3",
+  "gen_hash_verilog": "sha256:de558635872fa347dadb076594fe205b5e98079c374a4823645f3bb2e4321729",
+  "gen_hash_zig": "sha256:be8a37c46ec2692751093c826af193a9d475857c835016963fd20189c86a7b02",
+  "module": "Dqn",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:c7195be79157467c96d65abbf92dcaf4e20bc194e8a800cfcde8571cffecf4a2",
+  "spec_path": "specs/ml/rl/dqn.t27"
+}

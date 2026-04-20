@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ae81d47828727db674def68402d328a8cc09006fe154ecf9afab8e0055ef9ac2",
   "module": "ternary_vs_binary",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:8a5a6d12f27ae2ed2257c5dc9981cbe004a71ac4d331b053a94f3b7690cfe7aa",
+  "sealed_at": "2026-04-20T18:48:44Z",
+  "spec_hash": "sha256:ebbd15d9c9f6f37aa53fe77276e493d0db857d8f8b0ae440213ceed1b644c36a",
   "spec_path": "specs/benchmarks/ternary_vs_binary.t27"
 }

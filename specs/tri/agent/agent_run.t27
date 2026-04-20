@@ -2,7 +2,7 @@
 // t27/specs/
 //  | φ² + 1/φ² = 3 | TRINITY
 
-module Str = "",;
+module AgentRun;
     use base::types;
     use math::constants;
 
@@ -10,3 +10,14 @@ module Str = "",;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "agent_run_init_succeeds" {
+        given ctx = default_context()
+        when result = agent_run_init(ctx)
+        then result.status == ok
+    }
+
+    test "agent_run_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

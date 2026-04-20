@@ -36,3 +36,10 @@ algorithm ternary_encoding {
         { encode: [+1], decode: [1], 1 }
     ]
 }
+
+    invariant "ternary_encoding_roundtrip" {
+        given value = 42
+        when encoded = ternary_encode(value)
+        and decoded = ternary_decode(encoded)
+        then decoded == value
+    }

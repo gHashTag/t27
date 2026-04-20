@@ -2,7 +2,7 @@
 // t27/specs/
 // Current agent state | φ² + 1/φ² = 3 | TRINITY
 
-module "[]const u8";
+module FacultyBoard;
     use base::types;
     use math::constants;
 
@@ -51,3 +51,14 @@ module "[]const u8";
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "faculty_board_init_succeeds" {
+        given ctx = default_context()
+        when result = faculty_board_init(ctx)
+        then result.status == ok
+    }
+
+    test "faculty_board_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

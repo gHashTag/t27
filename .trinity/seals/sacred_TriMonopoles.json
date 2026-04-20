@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:f0c42901e1340b648814bc58c776eea76b146f0a475784545e19f5bc9463a3b0",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:e98b83613d6494ae10e225cf2a70e2aa28c082f84a77ce08f29ec1d985a9408a",
+  "gen_hash_zig": "sha256:f06c1b49753a08bf73c976c48bcc8f66067ee03d84349178cb973feab4e03bdc",
+  "module": "TriMonopoles",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:1c18df0a73b39524efcca4e4ce6b3b09c25f95fea4c404c9bbaf33fff8c5e6f2",
+  "spec_path": "specs/sacred/monopoles.t27"
+}

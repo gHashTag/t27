@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:77153adbc8c831e0f4716c4bb11d6dff22db0108c21b049c7af8069774beb898",
   "module": "GFCrossLanguageConformance",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:6a4970afbc3c2312d69c058364a11f96063e468cbed7b915aa49f306a8dfc4c2",
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:22ec37d31525c27ed5f219116127c524ac6dc86af073c289ab14a6f6430c7a35",
   "spec_path": "specs/interop/gf_cross_language.t27"
 }

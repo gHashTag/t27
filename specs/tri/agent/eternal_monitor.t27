@@ -2,7 +2,7 @@
 // t27/specs/
 // Component health state | φ² + 1/φ² = 3 | TRINITY
 
-module "[]const u8";
+module EternalMonitor;
     use base::types;
     use math::constants;
 
@@ -60,3 +60,14 @@ module "[]const u8";
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "eternal_monitor_init_succeeds" {
+        given ctx = default_context()
+        when result = eternal_monitor_init(ctx)
+        then result.status == ok
+    }
+
+    test "eternal_monitor_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

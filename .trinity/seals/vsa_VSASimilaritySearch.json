@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ee78e690d7bf0158145c451b8bc3e5179f995c27f3cee766a1e45c4f779bf231",
   "module": "VSASimilaritySearch",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:38Z",
-  "spec_hash": "sha256:49d1e8ddabc30e6cc9e852ea156510b928d618264e25737e12cd57a2eb4d3de7",
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:c1edcb8c97ce142ec4a72bdc684676bc69c5eafb7b4b96479b6743736cc657b6",
   "spec_path": "specs/vsa/similarity_search.t27"
 }

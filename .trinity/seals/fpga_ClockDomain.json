@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:fff7ff59f8f88d98d264044e9c49c810d6848b385b9a907ec258c181cc9af318",
   "module": "ClockDomain",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
+  "sealed_at": "2026-04-20T18:48:43Z",
   "spec_hash": "sha256:2b8c2d7f2d556e30e925e8412b70667b19ac8dd137bd696545d364bc3ef7aa60",
   "spec_path": "specs/fpga/clock_domain.t27"
 }

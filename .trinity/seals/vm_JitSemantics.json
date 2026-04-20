@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:e72b8347aca234266f44fab7087a370f820048e635e02d9341d789e09ce94ac6",
   "module": "JitSemantics",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:1057f56a22357e8b4fa94871b1c98d67432d2b69dce7b80c975c2a2f635469e3",
+  "sealed_at": "2026-04-20T18:48:41Z",
+  "spec_hash": "sha256:cd40b46f482a14ccc0d64c88486ed925016445f7205a83abbe93f90b710f6f60",
   "spec_path": "specs/vm/jit_semantics.t27"
 }

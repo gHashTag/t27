@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:b4aa3eb957d940a97a30fc5d1929500d4285a0cff218f3216fa1653abc5de1d0",
   "module": "QMTech_A100T_Integration",
   "ring": 12,
-  "sealed_at": "2026-04-12T10:42:24Z",
+  "sealed_at": "2026-04-20T18:48:43Z",
   "spec_hash": "sha256:ead219244963a5bead3e5e04b7c6f49f0f99f62581bd7495eca42e3602380469",
   "spec_path": "specs/fpga/boards/qmtech_a100t_integration.t27"
 }

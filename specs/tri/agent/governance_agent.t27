@@ -2,7 +2,7 @@
 // t27/specs/
 // String | φ² + 1/φ² = 3 | TRINITY
 
-module String  # phi, trinity, gematria, evolution, safety;
+module GovernanceAgent;
     use base::types;
     use math::constants;
 
@@ -92,3 +92,14 @@ module String  # phi, trinity, gematria, evolution, safety;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "governance_agent_init_succeeds" {
+        given ctx = default_context()
+        when result = governance_agent_init(ctx)
+        then result.status == ok
+    }
+
+    test "governance_agent_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

@@ -66,3 +66,4 @@ bootstrap/.trinity/
 !.trinity/current_task/notebook_meta.json
 .trinity/current_task/session_log.jsonl
 .trinity/gate_bypasses.log
+opencode/

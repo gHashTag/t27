@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:ecc25623958b855b1e8f2d1ca1f4518bf3183083004b74b436f30103369ec943",
   "module": "PropertyTestTemplate",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:2dae7f68a5651636623154005f92a6e43432b46d72b3bdd45c164df2a38b961c",
+  "sealed_at": "2026-04-20T18:48:41Z",
+  "spec_hash": "sha256:ab6e8c022ffb7bc5a4123ef9df4975ec2063fd92b2b61aa2176c6035378d831b",
   "spec_path": "specs/math/property_test_template.t27"
 }

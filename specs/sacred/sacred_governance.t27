@@ -2,7 +2,7 @@
 // t27/specs/
 // Result of applying governance to an action | φ² + 1/φ² = 3 | TRINITY
 
-module String;
+module SacredGovernance;
     use base::types;
     use math::constants;
 
@@ -75,3 +75,13 @@ module String;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "sacred_governance_module_loads" {
+        given module = TriSacredgovernance
+        when result = module.load()
+        then result != error
+    }
+
+    invariant "sacred_governance_constants_bounded" {
+        given c = sacred_constants()
+        then c.phi > 1.0 && c.phi < 2.0
+    }

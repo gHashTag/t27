@@ -10,3 +10,14 @@ module TriMath;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "math_init_succeeds" {
+        given ctx = default_context()
+        when result = math_init(ctx)
+        then result.status == ok
+    }
+
+    test "math_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

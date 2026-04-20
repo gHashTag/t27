@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e589d108928e4903d07ae9188e0a6d6d0c5ec6ef27de66d66fd8874bc76cf46f",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:6c5e6c958179e0328203e8b589aa92599c5dae78520ed929fa5cf227f93a5ad6",
+  "gen_hash_zig": "sha256:282fe2a1ae7b3b610b49c3383024b03db1770184f05c1effbe63d8e6a73d7ae6",
+  "module": "TriSuperconductivity",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:4276816d01c908ad630c34fc3a0da51209301c3aa270fe44ee663b8e35b0e71d",
+  "spec_path": "specs/sacred/superconductivity.t27"
+}

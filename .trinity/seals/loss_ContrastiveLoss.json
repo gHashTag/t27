@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:cbd0b63faf90cb262baa519453e523c02c0a92e7db3b44ab697aa67670bbd28e",
+  "gen_hash_rust": "sha256:99fff4fd2bf7c8268bcc7b4089b662f9329c482df38e25e689ca0995d6d2c43a",
+  "gen_hash_verilog": "sha256:6e5f67fd91c867c8bd981603eac354571a4ad65ab823a80727042581c687d5b2",
+  "gen_hash_zig": "sha256:c42d393435c2ec10071bfa9c8dcab1884cdd56276762706c14afeafbab2262f7",
+  "module": "ContrastiveLoss",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:e56f7e6a77a0696efa9ed42e43b81534cd2dcff1b7cdaea7123418ce427f244c",
+  "spec_path": "specs/ml/loss/contrastive_loss.t27"
+}

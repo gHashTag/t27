@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1ebf633e8dbd090c1d4798443c95a4e556856d63b35d9ed8b2ae355b589151b5",
+  "gen_hash_rust": "sha256:57b3179a2f53e762bca89098eb5a2c31e3bc652aaa8fade9e05416c0891a1db1",
+  "gen_hash_verilog": "sha256:e089b0fdf64f40f2f6ad6005aa689c1608e592eb7beaf829d9ed1ac98b932eae",
+  "gen_hash_zig": "sha256:b072689204068ebf5495901e4f8e4069e38780c3f4d1752b2706e931d9802f49",
+  "module": "KlDivergence",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:5cf232894b16d3f2e49d5231706441904d9dc620db66d7f1c95b6d8caf819990",
+  "spec_path": "specs/ml/loss/kl_divergence.t27"
+}

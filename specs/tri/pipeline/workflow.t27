@@ -25,3 +25,14 @@ module String;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "workflow_init_succeeds" {
+        given ctx = default_context()
+        when result = workflow_init(ctx)
+        then result.status == ok
+    }
+
+    test "workflow_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:c59643194d90e15f3cb57853a84856ef0b5d6b0272cb1c486a0510f69c6e5403",
   "module": "Router_Testbench",
   "ring": 12,
-  "sealed_at": "2026-04-11T17:07:42Z",
+  "sealed_at": "2026-04-20T18:48:43Z",
   "spec_hash": "sha256:80b4ee7f35d5565bc5b9ca341d79fd417db007eae274989cdb20829f0644d3db",
   "spec_path": "specs/fpga/testbench/router_tb.t27"
 }

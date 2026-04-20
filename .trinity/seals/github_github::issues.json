@@ -5,7 +5,7 @@
   "gen_hash_zig": "sha256:89a689f0af7392f41fa05a0876f2d4e25a1b1446b7f2621c6efc8f616334e0cb",
   "module": "github::issues",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
+  "sealed_at": "2026-04-20T18:48:41Z",
   "spec_hash": "sha256:64d4d76ec19c214697c0f859f52391ebdd6f12947954308e51f49390b46d1ec4",
   "spec_path": "specs/github/issues.t27"
 }

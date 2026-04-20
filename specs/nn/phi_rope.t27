@@ -41,3 +41,15 @@ algorithm phi_rope {
         { input: dim=4, theta: [1.0, 0.886, 0.618, 0.486] }
     ]
 }
+
+    invariant "phi_rope_output_shape" {
+        given x = zeros([1, 10, 243])
+        when out = phi_rope(x)
+        then out.shape == x.shape
+    }
+
+    invariant "phi_rope_no_nan" {
+        given x = random_input()
+        when out = phi_rope(x)
+        then !isnan(out)
+    }

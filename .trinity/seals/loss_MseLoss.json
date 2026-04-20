@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:12ff3ed01634ca3e7c57e5a89c17282fa4f7d43b1a4fe47c68c64befa88ea58e",
+  "gen_hash_rust": "sha256:7d6a437b08c4c6ad7a50a95c7bf9937bafb79ca0b3b55d8a23bb7026a0be7f2c",
+  "gen_hash_verilog": "sha256:b2150f898c17272c187ca9f24e9f275e4091b7d76488ab4ce44a71d2ecc38f18",
+  "gen_hash_zig": "sha256:6add9fe87033dd386e7eea4639c4ffe70141fbe4a342361f548619460f43e12e",
+  "module": "MseLoss",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:42Z",
+  "spec_hash": "sha256:c638af50d443971716097050d0da73d8afc15857f2253e32afe63b4a49104b36",
+  "spec_path": "specs/ml/loss/mse_loss.t27"
+}

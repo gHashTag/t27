@@ -37,3 +37,9 @@ pub trait HealthPoller {
      */
     fn poll_sessions(&self) -> bool;
 }
+
+    invariant "health_health_check" {
+        given system = boot()
+        when status = health_check(system)
+        then status == healthy
+    }

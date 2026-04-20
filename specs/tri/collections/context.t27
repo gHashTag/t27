@@ -10,3 +10,14 @@ module TriContext;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "context_init_succeeds" {
+        given ctx = default_context()
+        when result = context_init(ctx)
+        then result.status == ok
+    }
+
+    test "context_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

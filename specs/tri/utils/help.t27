@@ -26,3 +26,14 @@ module TriHelp;
     // TDD: Tests (from .tri behaviors)
     // ═══════════════════════════════════════════════════════════
 
+    invariant "help_init_succeeds" {
+        given ctx = default_context()
+        when result = help_init(ctx)
+        then result.status == ok
+    }
+
+    test "help_roundtrip" {
+        given input = default_input()
+        when output = process(input)
+        then output != undefined
+    }

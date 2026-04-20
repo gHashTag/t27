@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:418cd9eb3b7977f573f2697e07667866c3cff24b12cc5327715ed9ae5cdce8e6",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:88bd3752a52c32d4cce94824f35b91d7287fea77a6bfcae300d4c2230095a7aa",
+  "gen_hash_zig": "sha256:20aa7533fc25ebaceea2af96089ff412641b3daf5f3fe835ea3316894b328982",
+  "module": "TriBloomFilter",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:39Z",
+  "spec_hash": "sha256:e88d868bf244cdbf0a0312f6afcdd769f8cb119851c811e8fe4131db2f58b776",
+  "spec_path": "specs/tri/search/bloom_filter.t27"
+}

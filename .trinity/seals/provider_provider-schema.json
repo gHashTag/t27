@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d2290c03b15859f1cafb47f94c972ec0031b6c3d782003dda67b5a89177f14f3",
+  "gen_hash_rust": "sha256:df06c0aa7261520e4157037ac4596eff8953bc59fb070addea1160641a278171",
+  "gen_hash_verilog": "sha256:8e49a6d64f4bf33307ad84c027ec35e008927a64d24b16cdf4d11cb15716b60a",
+  "gen_hash_zig": "sha256:732287555dbf1ff27edf76011f0f4d3c94702f66d84c5a341625142da22ee75a",
+  "module": "provider-schema",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:bf010cc8934d6a7e7d4e53b272036a117d7d225cf832460aa3639938fe7ba24a",
+  "spec_path": "specs/provider/schema.t27"
+}

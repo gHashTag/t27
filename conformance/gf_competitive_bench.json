@@ -18,12 +18,11 @@
           "phi_squared_equals_phi_plus_one": true,
           "trinity_identity": true,
           "one_third_exact": true,
-          "gf32_one_third_repeats_binary": true
-        "all_passed": true
+          "gf32_one_third_repeats_binary": true,
+          "all_passed": true
         }
       },
       "created": "2026-04-07"
-    }
     },
     {
       "name": "cross_language_1_3",

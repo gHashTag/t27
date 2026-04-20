@@ -207,3 +207,16 @@ fn omega_b_chimera() -> f64 {
 fn ns_chimera() -> f64 {
     return 3.0 * pow(PHI, 3.0) * pow(PI, -4.0) * pow(E, 2.0);
 }
+
+    invariant "formula_registry_value_finite" {
+        given params = default_parameters()
+        when result = compute(params)
+        then isfinite(result)
+    }
+
+    test "formula_registry_deterministic" {
+        given params = fixed_params()
+        when r1 = compute(params)
+        and r2 = compute(params)
+        then r1 == r2
+    }

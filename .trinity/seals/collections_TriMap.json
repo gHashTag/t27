@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:4b2a9eb9fc210ad0e0c1e6d3fdd769a57f09062bf219cfe84b6163ae62298876",
+  "gen_hash_rust": "sha256:34a580b17f31738546f5b22f2b29e63580b8004b9e66d10cd3e6fa71ec761f80",
+  "gen_hash_verilog": "sha256:218cf00254476e45218f4d81b89816d339f5773201d3a361230906603dfcc335",
+  "gen_hash_zig": "sha256:2eb602022e9d060ec63610274dab37498e0806b8f896bdf5121d743934f2268e",
+  "module": "TriMap",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:39Z",
+  "spec_hash": "sha256:7e0fdae860e6349fdb6e2951b1d7588b0861822f7675c669996d061899c95127",
+  "spec_path": "specs/tri/collections/map.t27"
+}

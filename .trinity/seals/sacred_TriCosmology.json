@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:d9bf39d81b0dd6eeca1c87026a543b1ec25d183dc7ba6a2261adb18c705c89c4",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:d0ba4202193855a279f08c52451e71bf10d9befc378189b848b41c6e335e53e2",
+  "gen_hash_zig": "sha256:e17f5aa68447981291521972c4d47264380aa00ef43273fc7ed8b48122a684cf",
+  "module": "TriCosmology",
+  "ring": 12,
+  "sealed_at": "2026-04-20T18:48:40Z",
+  "spec_hash": "sha256:4470539fa851a7c650802b002e1a101695d99925a6b4ee8b4fc88b7f7bdab5c5",
+  "spec_path": "specs/sacred/cosmology.t27"
+}

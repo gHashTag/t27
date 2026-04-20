@@ -1,11 +1,11 @@
 {
-  "gen_hash_c": "sha256:a96913f64b07beb656dd0468b791a0abb95609d27540e9c1c71483097a3b6bf6",
-  "gen_hash_rust": "sha256:d7c16c94bbba63ddbb4fbcbf383e0845ca5660927630f6e1166517d358a82621",
-  "gen_hash_verilog": "sha256:8e1e8681da6dbf1243e808315d87bd341ae3e58b23a0b5017261f978de13df2e",
-  "gen_hash_zig": "sha256:5c9eb983d950457e36caaa8cfa4b7d1d1155e3dc39d4302143434eef87225c72",
-  "module": "Composition",
+  "gen_hash_c": "sha256:bc789553d5845fb5da7807fabe1214b11021e40db3f72b4aee6faa0363bc6e05",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:57879a0b67f4f4bb6f5aff75a64ad10470da429b9eefbbafcce5d7982d47d7a4",
+  "gen_hash_zig": "sha256:99ee47f25bbf868e6b16ee35611140805c5dbc1b06117722c37fc1a02fe685a3",
+  "module": "composition",
   "ring": 12,
-  "sealed_at": "2026-04-11T16:57:39Z",
-  "spec_hash": "sha256:4165a805f7588e9238aa537cd7aa25d65e1f625aa6298adcad4e5207ac3c47a6",
+  "sealed_at": "2026-04-20T18:48:44Z",
+  "spec_hash": "sha256:9680b23bbde4df74a98dacb40b7ecf2a5268714bc05b982fd8d95c2ec046f225",
   "spec_path": "specs/ar/composition.t27"
 }
