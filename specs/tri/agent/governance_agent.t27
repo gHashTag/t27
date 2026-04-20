@@ -2,7 +2,7 @@
 // t27/specs/
 // String | φ² + 1/φ² = 3 | TRINITY
 
-module String  # phi, trinity, gematria, evolution, safety;
+module GovernanceAgent;
     use base::types;
     use math::constants;
 
