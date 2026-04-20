@@ -35,6 +35,7 @@ members = [
     "crates/trios-doctor",
     "crates/trios-ext",
     "crates/igla-trainer",
+    "crates/trios-claude",
     "contrib/anti-ban",
     "contrib/oracle",
 ]

@@ -1,8 +1,6 @@
-pub mod client {
-    pub struct ClaudeClient;
-    impl ClaudeClient {
-        pub fn new() -> Self {
-            Self
-        }
-    }
-}
+pub mod client;
+pub mod process;
+pub mod session;
+
+pub use client::ClaudeClient;
+pub use session::SessionConfig;

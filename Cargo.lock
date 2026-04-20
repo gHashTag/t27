@@ -2643,6 +2643,17 @@ name = "trios-ca-mask"
 version = "0.1.0"
 
 [[package]]
+name = "trios-claude"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "trios-core"
 version = "0.1.0"
 dependencies = [
