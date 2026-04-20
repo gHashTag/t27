@@ -16,6 +16,12 @@ fn main() -> Result<()> {
     let checks = vec![
         checks::check_no_sh_files(&root),
         checks::check_cargo_clippy(&root),
+        checks::check_no_fixed_ports(&root),
+        checks::check_no_uuid_usage(&root),
+        checks::check_no_sequential_naming(&root),
+        checks::check_no_env_leakage(&root),
+        checks::check_cargo_test(&root),
+        checks::check_no_force_merge(&root),
     ];
 
     let passed = checks.iter().all(|c| c.passed);
