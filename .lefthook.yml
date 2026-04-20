@@ -1,0 +1,40 @@
+pre-commit:
+  commands:
+    no-shell:
+      run: |
+        STAGED=$(git diff --cached --name-only --diff-filter=AC | grep '\.sh$' || true)
+        if [ -n "$STAGED" ]; then
+          echo "::error::L7 UNITY violation: new .sh files detected:"
+          echo "$STAGED"
+          exit 1
+        fi
+
+    now-freshness:
+      run: |
+        TODAY=$(date -u +%Y-%m-%d)
+        if ! grep -q "Last updated: $TODAY" docs/NOW.md 2>/dev/null; then
+          echo "::error::docs/NOW.md not updated today ($TODAY). Update 'Last updated:' line."
+          exit 1
+        fi
+
+    seal-coverage:
+      glob: "specs/**/*.t27"
+      run: |
+        STAGED_SPECS=$(git diff --cached --name-only --diff-filter=AC | grep '\.t27$' || true)
+        if [ -z "$STAGED_SPECS" ]; then
+          exit 0
+        fi
+        MISSING=0
+        for spec in $STAGED_SPECS; do
+          BASENAME=$(basename "$spec" .t27)
+          MODULE=$(dirname "$spec" | sed 's|specs/||')
+          SEAL_NAME="${MODULE}_${BASENAME}"
+          if [ ! -f ".trinity/seals/${SEAL_NAME}.json" ]; then
+            echo "::error::Missing seal: .trinity/seals/${SEAL_NAME}.json (for $spec)"
+            MISSING=$((MISSING + 1))
+          fi
+        done
+        if [ $MISSING -gt 0 ]; then
+          echo "::error::$MISSING spec(s) missing seal files"
+          exit 1
+        fi
