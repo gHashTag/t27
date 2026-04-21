@@ -43,3 +43,4 @@
 [2026-04-21T19:53:35Z] TASK: OPENCODE v14 dashboard #143 | 436 tests GREEN (record), 0 clippy, CI dev 3/4, 30 issues, 0 PRs, GF16 quant in progress (refs #110) | result: SUCCESS
 [2026-04-21T20:01:31Z] TASK: OPENCODE v15 dashboard #143 | 436 tests GREEN local, 0 clippy, CI RED 5/5 fail on dev, 30 issues, 0 PRs, MCP bridge CORS+broadcast in progress (refs #106) | result: SUCCESS
 [2026-04-21T20:12:14Z] TASK: clippy fix trios-golden-float — unnecessary casts + redundant clone | result: SUCCESS — 436 tests, 0 clippy warnings
+[2026-04-21T20:14:57Z] TASK: OPENCODE cycle#14 — CI RECOVERED (PR#229 merged), PR#228 open (Railway parallel #223), 436/436 GREEN, 0 clippy, dashboard v18
