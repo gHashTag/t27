@@ -17,6 +17,10 @@ pub mod swa_phi;
 pub mod residual_mix;
 pub mod sliding_eval;
 
+// Real IGLA Phase A/B training
+pub mod real_igla_model;
+pub mod real_igla_trainer;
+
 // Re-export commonly used types
 pub use backward::{clip_gradients, cross_entropy_loss, LinearGradients};
 pub use bench::{
