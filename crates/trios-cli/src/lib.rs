@@ -22,7 +22,7 @@ pub mod table;
 
 pub use config::Config;
 pub use db::{Entry, Leaderboard, Stats};
-pub use gh::GhClient;
+pub use gh::{AgentIssue, GhClient};
 pub use lock::LockGuard;
 pub use metrics::{validate_bpb, validate_param_count, validate_time};
 pub use table::{parse_table, TableRow, update_table};

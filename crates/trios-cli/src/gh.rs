@@ -1,10 +1,22 @@
 use anyhow::Result;
 use std::process::Command;
 
+/// GitHub issue reference
+#[derive(Debug, Clone)]
+pub struct AgentIssue {
+    pub number: u32,
+    pub title: String,
+}
+
 /// GitHub CLI wrapper
 pub struct GhClient;
 
 impl GhClient {
+    /// Create new client (no-op for gh CLI wrapper)
+    pub fn new() -> Self {
+        Self
+    }
+
     pub fn issue_body(num: u32) -> Result<String> {
         let output = Command::new("gh")
             .args(["issue", "view", &num.to_string(), "--json", "body", "-q", ".body"])
@@ -60,5 +72,38 @@ impl GhClient {
             .status()?;
         
         Ok(())
+    }
+
+    /// List issues for a specific agent
+    pub fn list_agent_issues(agent: &str) -> Result<Vec<AgentIssue>> {
+        let output = Command::new("gh")
+            .args([
+                "issue", "list",
+                "-R", "gHashTag/trios",
+                "--search", agent,
+                "--limit", "50",
+                "--json", "number,title",
+                "-q", ".[] | \"\\(.number) \\(.title)\""
+            ])
+            .output()?;
+
+        if !output.status.success() {
+            anyhow::bail!("gh issue list failed");
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut issues = Vec::new();
+
+        for line in stdout.lines() {
+            if let Some(space_pos) = line.find(' ') {
+                let number: u32 = line[..space_pos].parse().unwrap_or(0);
+                let title = line[space_pos + 1..].to_string();
+                if number > 0 {
+                    issues.push(AgentIssue { number, title });
+                }
+            }
+        }
+
+        Ok(issues)
     }
 }

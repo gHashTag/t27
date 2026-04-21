@@ -15,11 +15,10 @@ use crate::{
 pub fn roster_update(agent: &str, status: &str) -> Result<()> {
     println!("👥 Updating {} agent status: {}", agent, status);
 
-    let config = Config::load();
-    let gh = GhClient::new();
+    let _config = Config::load();
 
     // Find agent roster issue (search for agent: NATO in issues)
-    let issues = gh.list_agent_issues(agent)
+    let issues = GhClient::list_agent_issues(agent)
         .context("Failed to search for agent issues")?;
 
     if let Some(roster_issue) = issues.iter().find(|i| i.title.contains("roster") || i.title.contains("Roster")) {

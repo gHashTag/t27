@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     config::Config,
-    metrics::{validate_bpb, validate_param_count},
+    metrics::validate_bpb,
 };
 
 /// Submit experiment result with BPB and artifact
@@ -23,9 +23,8 @@ pub fn submit(bpb: f64, artifact: &str) -> Result<()> {
         anyhow::bail!("Artifact not found: {}", artifact);
     }
 
-    let config = Config::load();
+    let _config = Config::load();
 
-    println!("  Agent: {}", config.agent_nato);
     println!("  BPB: {:.4}", bpb);
     println!("  Artifact: {}", artifact);
 

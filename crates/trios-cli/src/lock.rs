@@ -8,8 +8,11 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 
+#[cfg(unix)]
+use libc::kill;
+
 const LOCK_FILE: &str = ".trinity/tri.lock";
-const LOCK_TIMEOUT_MS: u64 = 30000; // 30 seconds
+const LOCK_TIMEOUT_MS: u128 = 30000; // 30 seconds
 
 /// Acquire file lock for #143 updates
 pub struct LockGuard {
@@ -55,7 +58,7 @@ impl LockGuard {
     fn try_acquire() -> Result<Self> {
         let path = Path::new(LOCK_FILE);
 
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .write(true)
             .create_new(true) // Fails if exists
             .open(&path)
@@ -78,7 +81,6 @@ impl LockGuard {
         // This doesn't kill the process, just checks
         #[cfg(unix)]
         {
-            use libc::{kill, getpid};
             if unsafe { kill(pid as i32, 0) } == 0 {
                 return Ok(false); // Process exists
             }

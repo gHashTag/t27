@@ -11,7 +11,7 @@ use std::collections::HashMap;
 const GATES: &[(&str, f64)] = &[
     ("bpab_target", 6.0),   // Target BPB for BigramHash(729)
     ("bpab_max", 8.0),      // Maximum acceptable BPB
-    ("params_max", 1_000_000), // Max 1M params
+    ("params_max", 1_000_000.0), // Max 1M params
     ("time_max", 3600.0),   // Max 1 hour training time
 ];
 
@@ -82,7 +82,7 @@ fn check_time(value: Option<f64>) -> Result<GateStatus> {
 fn check_all() -> Result<GateStatus> {
     println!("🚦 Checking all gates...");
 
-    let mut results = HashMap::new();
+    let mut results: HashMap<&'static str, GateStatus> = HashMap::new();
 
     // For now, just check without values (would need to fetch from results)
     println!("  bpab: unknown (target=6.0, max=8.0)");

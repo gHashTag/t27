@@ -60,7 +60,7 @@ pub fn sweep(param: &str, values: Vec<String>) -> Result<SweepResults> {
     Ok(SweepResults { results, failures })
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SweepResults {
     pub results: Vec<(String, RunResult)>,
     pub failures: Vec<(String, String)>,

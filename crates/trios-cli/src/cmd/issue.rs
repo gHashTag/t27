@@ -17,8 +17,6 @@ pub enum IssueCmd {
 pub fn issue_new(template: &str, args: &[String]) -> Result<u32> {
     println!("📝 Creating issue from template: {}", template);
 
-    let gh = GhClient::new();
-
     let (title, body, labels) = match template {
         "experiment" => {
             let agent = args.get(0).context("Missing agent name")?;
@@ -58,7 +56,7 @@ pub fn issue_new(template: &str, args: &[String]) -> Result<u32> {
         _ => anyhow::bail!("Unknown template: {}. Use: experiment, bug, feature", template),
     };
 
-    let num = gh.issue_create(&title, &body, labels)?;
+    let num = GhClient::issue_create(&title, &body, labels)?;
 
     println!("✓ Created issue #{}", num);
 
@@ -69,12 +67,16 @@ pub fn issue_new(template: &str, args: &[String]) -> Result<u32> {
 pub fn issue_close(num: u32, bpb: Option<f64>) -> Result<()> {
     println!("🔒 Closing issue #{}", num);
 
-    let gh = GhClient::new();
-
     let comment = bpb.map(|b| format!("Final result: val_bpb={:.4}", b));
 
-    gh.issue_close(num, comment.as_deref())
-        .context("Failed to close issue")?;
+    if let Some(ref c) = comment {
+        GhClient::comment(num, c)?;
+    }
+
+    // Close the issue via gh CLI
+    std::process::Command::new("gh")
+        .args(["issue", "close", &num.to_string()])
+        .status()?;
 
     println!("✓ Closed issue #{}", num);
 

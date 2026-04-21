@@ -1,35 +1,40 @@
+//! BPB/size/time validators
+
 use anyhow::Result;
 
-/// BPB/size/time validators
-pub struct MetricsValidator;
+pub const GATES: &[(&str, f64)] = &[
+    ("G-BGH", 1.50),
+    ("G-ORTH", 1.20),
+    ("G-SWA", 1.15),
+    ("G-STACK", 1.12),
+    ("G-NEEDLE", 1.00),
+];
 
-impl MetricsValidator {
-    pub const GATES: &'static [(&'static str, f64)] = &[
-        ("G-BGH", 1.50),
-        ("G-ORTH", 1.20),
-        ("G-SWA", 1.15),
-        ("G-STACK", 1.12),
-        ("G-NEEDLE", 1.00),
-    ];
+const MAX_PARAMS: u64 = 1_000_000;
+const MAX_TIME_SEC: f64 = 3600.0; // 1 hour
 
-    pub fn check_gate(gate: &str, bpb: f64) -> Result<bool> {
-        let threshold = Self::threshold(gate)?;
-        Ok(bpb <= threshold)
+/// Validate BPB against gates
+pub fn validate_bpb(bpb: f64) -> Result<&'static str> {
+    for (name, threshold) in GATES.iter().rev() {
+        if bpb <= *threshold {
+            return Ok(name);
+        }
     }
+    Ok("FAILED")
+}
 
-    pub fn threshold(gate: &str) -> Result<f64> {
-        Self::GATES
-            .iter()
-            .find(|(name, _)| *name == gate)
-            .map(|(_, t)| *t)
-            .ok_or_else(|| anyhow::anyhow!("Unknown gate: {gate}"))
+/// Validate parameter count
+pub fn validate_param_count(params: u64) -> Result<()> {
+    if params > MAX_PARAMS {
+        anyhow::bail!("Parameter count {params} exceeds maximum {MAX_PARAMS}");
     }
+    Ok(())
+}
 
-    pub fn best_gate(bpb: f64) -> Option<&'static str> {
-        Self::GATES
-            .iter()
-            .rev()
-            .find(|(_, t)| bpb <= *t)
-            .map(|(name, _)| *name)
+/// Validate training time
+pub fn validate_time(time_sec: f64) -> Result<()> {
+    if time_sec > MAX_TIME_SEC {
+        anyhow::bail!("Training time {time_sec}s exceeds maximum {MAX_TIME_SEC}s");
     }
+    Ok(())
 }
