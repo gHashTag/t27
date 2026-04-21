@@ -43,15 +43,13 @@ pub fn run(exp_id: &str, seeds: u32) -> Result<RunResult> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    run_from_output(exp_id, &stdout, time_sec)
+    run_and_report(exp_id, &stdout, time_sec)
 }
 
 /// Parse trainer output into a RunResult (testable without spawning processes)
 pub fn run_from_output(exp_id: &str, stdout: &str, time_sec: f64) -> Result<RunResult> {
     let (val_bpb, train_bpb) = parse_bpb(stdout)?;
     let params = parse_params(stdout);
-
-    println!("val_bpb: {val_bpb:.4}, train_bpb: {train_bpb:.4}, time: {time_sec:.1}s");
 
     let result = RunResult {
         exp_id: exp_id.to_string(),
@@ -61,6 +59,17 @@ pub fn run_from_output(exp_id: &str, stdout: &str, time_sec: f64) -> Result<RunR
         params,
     };
 
+    Ok(result)
+}
+
+/// Parse trainer output, create RunResult, and report to #143
+pub fn run_and_report(exp_id: &str, stdout: &str, time_sec: f64) -> Result<RunResult> {
+    let result = run_from_output(exp_id, stdout, time_sec)?;
+
+    println!(
+        "val_bpb: {:.4}, train_bpb: {:.4}, time: {:.1}s",
+        result.val_bpb, result.train_bpb, result.time_sec
+    );
     report_result(&result)?;
 
     Ok(result)
