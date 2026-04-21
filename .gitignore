@@ -19,3 +19,4 @@ target/
 validate_bpb.rs
 trinity-clara/
 trinity-claraParameter/
+best_model.pt
