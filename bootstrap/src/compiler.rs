@@ -2159,9 +2159,6 @@ impl Parser {
                     break;
                 }
             } else if self.current.kind == TokenKind::ColonColon {
-                // Don't handle :: in postfix - let it be parsed as part of identifier
-                break;
-            } else if self.current.kind == TokenKind::Dot {
                 // Namespace/path access: expr::name
                 self.advance(); // consume ::
                 if self.current.kind == TokenKind::Ident {
