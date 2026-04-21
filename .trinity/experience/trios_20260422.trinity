@@ -40,3 +40,5 @@
 [2026-04-21T19:46:59Z] TASK: OPENCODE autonomous dashboard #143 v12 UPDATE | result: VERIFIED metrics (428 tests, 30 issues, 7d 21h until Golf deadline, #169 CLOSED, 4 PRs merged, GF16 quantification BLOCKS 16MB target, T01+P07=7.7731 BPB)
 [2026-04-21T19:52:46Z] TASK: OPENCODE cycle#12 — 432/432 GREEN (+4 new), 0 clippy, CI GREEN, 30 issues, 0 PRs, stable, dashboard v16
 [2026-04-21T19:53:12Z] TASK: MCP server bridge (#106) — CORS, operator broadcast, browser push (navigate/screenshot/register), 4 new tests, 436 total GREEN | result: SUCCESS
+[2026-04-21T19:53:35Z] TASK: OPENCODE v14 dashboard #143 | 436 tests GREEN (record), 0 clippy, CI dev 3/4, 30 issues, 0 PRs, GF16 quant in progress (refs #110) | result: SUCCESS
+[2026-04-21T20:01:31Z] TASK: OPENCODE v15 dashboard #143 | 436 tests GREEN local, 0 clippy, CI RED 5/5 fail on dev, 30 issues, 0 PRs, MCP bridge CORS+broadcast in progress (refs #106) | result: SUCCESS

@@ -427,7 +427,7 @@ mod tests {
             &state,
         )
         .await;
-        assert_eq!(result.get("registered").unwrap().as_bool().unwrap(), true);
+        assert!(result.get("registered").unwrap().as_bool().unwrap());
         assert_eq!(result.get("name").unwrap().as_str().unwrap(), "trios-ext");
     }
 }
