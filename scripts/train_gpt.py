@@ -442,7 +442,12 @@ def train(cfg: Config, data_path: str, seed: int = 42, use_muon: bool = False, s
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     print(f"Device: {device}")
     print(f"Activation: {cfg.activation}")
     print(f"Params: {cfg.param_count():,}")

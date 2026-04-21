@@ -53,6 +53,20 @@ fn matvec(a: &[f32], rows: usize, cols: usize, v: &[f32]) -> Vec<f32> {
         .collect()
 }
 
+fn matvec_transpose(a: &[f32], rows: usize, cols: usize, v: &[f32]) -> Vec<f32> {
+    (0..cols)
+        .map(|c| (0..rows).map(|r| a[r * cols + c] * v[r]).sum())
+        .collect()
+}
+
+struct LayerIO {
+    input: Vec<Vec<f32>>,
+    normed1: Vec<Vec<f32>>,
+    after_attn: Vec<Vec<f32>>,
+    normed2: Vec<Vec<f32>>,
+    h1: Vec<Vec<f32>>,
+}
+
 fn xavier_init(size: usize, fan_in: usize, fan_out: usize, seed: &mut u64) -> Vec<f32> {
     let limit = (6.0f32 / (fan_in + fan_out) as f32).sqrt();
     (0..size)
@@ -347,6 +361,7 @@ pub struct RealIglaModel {
 
 pub struct SelfAttentionCache;
 
+#[allow(dead_code)]
 struct ForwardCache {
     embed_out: Vec<Vec<f32>>,
     layer_caches: Vec<LayerCache>,
@@ -434,58 +449,189 @@ impl RealIglaModel {
         let seq_len = tokens.len() - 1;
         let input = &tokens[..seq_len];
         let targets = &tokens[1..];
-
-        let (logits, fwd_cache) = self.forward_cached(input);
         let d_model = self.d_model;
+        let d_ff = d_model * 4;
 
+        // === FORWARD ===
+        let embed_out: Vec<Vec<f32>> = input.iter().map(|&id| {
+            let id = id.min(self.vocab_size - 1);
+            self.embed[id * d_model..(id + 1) * d_model].to_vec()
+        }).collect();
+
+        let mut all_layer_io: Vec<LayerIO> = Vec::new();
+        let mut xs = embed_out.clone();
+
+        for layer in &self.layers {
+            let normed1: Vec<Vec<f32>> = xs.iter().map(|x| layer_norm(x, 1e-5)).collect();
+            let mut attn_out = vec![vec![0.0f32; d_model]; seq_len];
+            for head in &layer.heads {
+                let (h, _) = head.forward(&normed1);
+                for (i, row) in attn_out.iter_mut().enumerate() {
+                    for (r, v) in row.iter_mut().zip(h[i].iter()) {
+                        *r += v;
+                    }
+                }
+            }
+            let after_attn: Vec<Vec<f32>> = xs.iter().zip(attn_out.iter())
+                .map(|(x, a)| x.iter().zip(a.iter()).map(|(xi, ai)| xi + ai).collect())
+                .collect();
+            let normed2: Vec<Vec<f32>> = after_attn.iter().map(|x| layer_norm(x, 1e-5)).collect();
+            let mut h1_all = Vec::with_capacity(seq_len);
+            let mut result = Vec::with_capacity(seq_len);
+            for (i, x) in normed2.iter().enumerate() {
+                let h1: Vec<f32> = matvec(&layer.w1, d_ff, d_model, x).into_iter().map(relu).collect();
+                h1_all.push(h1.clone());
+                let h2 = matvec(&layer.w2, d_model, d_ff, &h1);
+                let res: Vec<f32> = after_attn[i].iter().zip(h2.iter()).map(|(a, b)| a + b).collect();
+                result.push(res);
+            }
+            all_layer_io.push(LayerIO { input: xs, normed1, after_attn, normed2, h1: h1_all });
+            xs = result;
+        }
+
+        let logits: Vec<Vec<f32>> = xs.iter().map(|x| matvec(&self.lm_head, self.vocab_size, d_model, x)).collect();
+
+        // === LOSS + d_logits ===
         let mut d_logits = vec![vec![0.0f32; self.vocab_size]; seq_len];
         let mut total_loss = 0.0f32;
-
         for i in 0..seq_len {
             let mut probs = logits[i].clone();
             softmax(&mut probs);
             let target = targets[i].min(self.vocab_size - 1);
             total_loss -= probs[target].max(1e-10).ln();
-
             d_logits[i][..self.vocab_size].copy_from_slice(&probs[..self.vocab_size]);
             d_logits[i][target] -= 1.0;
         }
-
         let loss = total_loss / seq_len as f32;
+        let scale = 1.0 / seq_len as f32;
 
+        // === BACKPROP: lm_head ===
         let mut d_lm_head = vec![0.0f32; self.vocab_size * d_model];
-        let d_xs: Vec<Vec<f32>> = fwd_cache.layer_caches.last().map_or_else(
-            || fwd_cache.embed_out.clone(),
-            |lc| {
-                lc.after_attn.clone()
-            },
-        );
-
-        let mut d_transformer_out = vec![vec![0.0f32; d_model]; seq_len];
+        let mut d_out = vec![vec![0.0f32; d_model]; seq_len];
         for i in 0..seq_len {
             for j in 0..self.vocab_size {
+                let dl = d_logits[i][j];
                 for k in 0..d_model {
-                    d_lm_head[j * d_model + k] += d_logits[i][j] * d_xs[i][k];
-                }
-                for k in 0..d_model {
-                    d_transformer_out[i][k] += self.lm_head[j * d_model + k] * d_logits[i][j];
+                    d_lm_head[j * d_model + k] += dl * xs[i][k];
+                    d_out[i][k] += self.lm_head[j * d_model + k] * dl;
                 }
             }
         }
-
-        let grad_scale = lr / seq_len as f32;
-        for val in d_lm_head.iter_mut() {
-            *val *= grad_scale;
-        }
-        for (i, lm_val) in self.lm_head.iter_mut().enumerate() {
-            *lm_val -= d_lm_head[i];
+        for (i, v) in self.lm_head.iter_mut().enumerate() {
+            *v -= lr * scale * d_lm_head[i];
         }
 
+        // === BACKPROP: transformer layers (reverse) ===
+        for li in (0..self.layers.len()).rev() {
+            let layer = &self.layers[li];
+            let io = &all_layer_io[li];
+            let n_heads = layer.heads.len();
+            let d_k = d_model / n_heads;
+
+            let mut d_w1 = vec![0.0f32; d_ff * d_model];
+            let mut d_w2 = vec![0.0f32; d_model * d_ff];
+            let mut d_after_attn = vec![vec![0.0f32; d_model]; seq_len];
+
+            // FFN backward
+            for i in 0..seq_len {
+                let mut d_h1 = vec![0.0f32; d_ff];
+                for r in 0..d_model {
+                    for c in 0..d_ff {
+                        d_w2[r * d_ff + c] += d_out[i][r] * io.h1[i][c];
+                        d_h1[c] += layer.w2[r * d_ff + c] * d_out[i][r];
+                    }
+                }
+                let d_preact: Vec<f32> = d_h1.iter().zip(io.h1[i].iter())
+                    .map(|(d, h)| if *h > 0.0 { *d } else { 0.0 }).collect();
+                for r in 0..d_ff {
+                    for c in 0..d_model {
+                        d_w1[r * d_model + c] += d_preact[r] * io.normed2[i][c];
+                    }
+                }
+                let d_n2 = matvec_transpose(&layer.w1, d_ff, d_model, &d_preact);
+                let d_aa = layer_norm_backward(&d_n2, &io.after_attn[i], 1e-5);
+                for k in 0..d_model {
+                    d_after_attn[i][k] = d_out[i][k] + d_aa[k];
+                }
+            }
+
+            // Attention backward (simplified: just pass gradient through)
+            let mut d_normed1 = vec![vec![0.0f32; d_model]; seq_len];
+            for head in &layer.heads {
+                for i in 0..seq_len {
+                    let q = matvec(&head.wq, d_k, d_model, &io.normed1[i]);
+                    let ks: Vec<Vec<f32>> = io.normed1.iter().map(|x| matvec(&head.wk, d_k, d_model, x)).collect();
+                    let vs: Vec<Vec<f32>> = io.normed1.iter().map(|x| matvec(&head.wv, d_k, d_model, x)).collect();
+                    let attn_scale = (d_k as f32).sqrt();
+
+                    let mut scores: Vec<f32> = (0..=i)
+                        .map(|j| q.iter().zip(ks[j].iter()).map(|(qi, ki)| qi * ki).sum::<f32>() / attn_scale)
+                        .collect();
+                    softmax(&mut scores);
+
+                    let d_ctx = matvec_transpose(&head.wo, d_model, d_k, &d_after_attn[i]);
+
+                    let mut d_scores = vec![0.0f32; scores.len()];
+                    for j in 0..scores.len() {
+                        for c in 0..d_k {
+                            d_scores[j] += d_ctx[c] * vs[j][c];
+                        }
+                    }
+
+                    let s_dot: f32 = d_scores.iter().zip(scores.iter()).map(|(d, s)| d * s).sum();
+                    let mut d_q = vec![0.0f32; d_k];
+                    for j in 0..scores.len() {
+                        let ds = scores[j] * (d_scores[j] - s_dot) / attn_scale;
+                        for c in 0..d_k {
+                            d_q[c] += ds * ks[j][c];
+                        }
+                        let d_k_j: Vec<f32> = (0..d_k).map(|c| ds * q[c]).collect();
+                        let d_v_j: Vec<f32> = (0..d_k).map(|c| scores[j] * d_ctx[c]).collect();
+                        for r in 0..d_model {
+                            for c in 0..d_k {
+                                d_normed1[j][r] += head.wk[r * d_k + c] * d_k_j[c];
+                            }
+                        }
+                        for r in 0..d_model {
+                            for c in 0..d_k {
+                                d_normed1[j][r] += head.wv[r * d_k + c] * d_v_j[c];
+                            }
+                        }
+                    }
+                    for r in 0..d_model {
+                        for c in 0..d_k {
+                            d_normed1[i][r] += head.wq[r * d_k + c] * d_q[c];
+                        }
+                    }
+                }
+            }
+
+            // Layer norm 1 backward + residual
+            let mut d_xs = vec![vec![0.0f32; d_model]; seq_len];
+            for i in 0..seq_len {
+                let d_ln1 = layer_norm_backward(&d_normed1[i], &io.input[i], 1e-5);
+                for k in 0..d_model {
+                    d_xs[i][k] = d_ln1[k] + d_after_attn[i][k];
+                }
+            }
+
+            // Update weights
+            let layer_mut = &mut self.layers[li];
+            for (i, v) in layer_mut.w1.iter_mut().enumerate() {
+                *v -= lr * scale * d_w1[i];
+            }
+            for (i, v) in layer_mut.w2.iter_mut().enumerate() {
+                *v -= lr * scale * d_w2[i];
+            }
+
+            d_out = d_xs;
+        }
+
+        // === BACKPROP: embeddings ===
         for (i, &token_id) in input.iter().enumerate() {
             let id = token_id.min(self.vocab_size - 1);
             for k in 0..d_model {
-                let grad = d_transformer_out[i][k] / seq_len as f32;
-                self.embed[id * d_model + k] -= lr * grad;
+                self.embed[id * d_model + k] -= lr * scale * d_out[i][k];
             }
         }
 
