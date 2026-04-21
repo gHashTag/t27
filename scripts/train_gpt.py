@@ -222,13 +222,32 @@ class EMA:
 # ─── Muon Optimizer ──────────────────────────────────────────────────────────
 
 class Muon:
-    def __init__(self, params, lr: float, momentum: float = 0.95, weight_decay: float = 0.01, ns_steps: int = 5):
+    def __init__(self, params, lr: float, momentum: float = 0.95, weight_decay: float = 0.0, ns_steps: int = 5, nesterov: bool = True):
         self.params = list(params)
         self.lr = lr
         self.momentum = momentum
         self.weight_decay = weight_decay
         self.ns_steps = ns_steps
+        self.nesterov = nesterov
         self.buffers = [torch.zeros_like(p) for p in self.params]
+
+    @torch.no_grad()
+    def _newton_schulz(self, M: torch.Tensor) -> torch.Tensor:
+        a, b, c = (3.4443, 4.7750, -2.0315)
+        if M.dim() == 2:
+            X = M.float()
+            norm = X.norm()
+            if norm < 1e-7:
+                return M
+            X = X / norm
+            for _ in range(self.ns_steps):
+                A = X @ X.T
+                B = A @ X
+                X = a * X + b * B + c * (A @ B)
+                if torch.isnan(X).any() or torch.isinf(X).any():
+                    return M
+            return X.to(M.dtype) * norm
+        return M
 
     @torch.no_grad()
     def step(self):
@@ -238,13 +257,13 @@ class Muon:
             g = p.grad
             if self.weight_decay > 0:
                 g = g.add(p.data, alpha=self.weight_decay)
-            self.buffers[i].mul_(self.momentum).add_(g, alpha=1 - self.momentum)
-            update = self.buffers[i].clone()
+            self.buffers[i].mul_(self.momentum).add_(g)
+            if self.nesterov:
+                update = self.buffers[i] * self.momentum + g
+            else:
+                update = self.buffers[i].clone()
             if update.dim() >= 2:
-                for _ in range(self.ns_steps):
-                    mu = update.norm()
-                    nu = (update @ update.T).norm() if update.dim() == 2 else mu
-                    update = update * (mu / (nu + 1e-8))
+                update = self._newton_schulz(update)
             p.data.add_(update, alpha=-self.lr)
 
     def zero_grad(self):
@@ -264,6 +283,22 @@ def load_bytes(path: str, seq_len: int):
     val_data = tokens[split:]
     print(f"Data: {len(train_data):,} train bytes, {len(val_data):,} val bytes")
     return train_data, val_data
+
+
+def load_fineweb(data_dir: str = "data/fineweb", max_bytes: int = 200_000_000):
+    os.makedirs(data_dir, exist_ok=True)
+    bin_path = os.path.join(data_dir, "train.bin")
+    if not os.path.exists(bin_path):
+        print("FineWeb not cached. Using local data.")
+        return None, None
+    import numpy as np
+    data = np.fromfile(bin_path, dtype=np.uint8)
+    if len(data) > max_bytes:
+        data = data[:max_bytes]
+    tokens = data.tolist()
+    split = int(len(tokens) * 0.95)
+    print(f"FineWeb: {len(tokens):,} bytes total")
+    return tokens[:split], tokens[split:]
 
 
 def get_batch(data: list, batch_size: int, seq_len: int, device: torch.device) -> torch.Tensor:
@@ -325,6 +360,11 @@ def train(cfg: Config, data_path: str, seed: int = 42, use_muon: bool = False):
     print(f"Size (FP16): {cfg.model_size_mb_fp16():.2f} MB")
 
     train_data, val_data = load_bytes(data_path, cfg.seq_len)
+    fw_train, fw_val = load_fineweb()
+    if fw_train is not None:
+        train_data = fw_train
+        val_data = fw_val
+        print(f"Using FineWeb data ({len(train_data):,} bytes)")
     model = GPTModel(cfg).to(device)
     ema = EMA(model, cfg.ema_decay)
 
@@ -333,8 +373,16 @@ def train(cfg: Config, data_path: str, seed: int = 42, use_muon: bool = False):
     print(f"Grad accumulation: {grad_accum} steps (effective batch={eff_batch * grad_accum})")
 
     if use_muon:
-        optimizer = Muon(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
-        print("Optimizer: Muon")
+        muon_params = []
+        adam_params = []
+        for name, p in model.named_parameters():
+            if p.dim() >= 2 and "norm" not in name and "emb" not in name:
+                muon_params.append(p)
+            else:
+                adam_params.append(p)
+        optimizer_muon = Muon(muon_params, lr=cfg.lr * 5.0, weight_decay=0.0)
+        optimizer_adam = torch.optim.AdamW(adam_params, lr=cfg.lr * 0.5, weight_decay=cfg.weight_decay, betas=(0.9, 0.95))
+        print(f"Optimizer: Muon({len(muon_params)}) + AdamW({len(adam_params)})")
     else:
         optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay, betas=(0.9, 0.95))
         print("Optimizer: AdamW")
@@ -347,6 +395,10 @@ def train(cfg: Config, data_path: str, seed: int = 42, use_muon: bool = False):
         if not use_muon:
             for pg in optimizer.param_groups:
                 pg["lr"] = lr
+        else:
+            optimizer_muon.lr = lr * 5.0
+            for pg in optimizer_adam.param_groups:
+                pg["lr"] = lr * 0.5
 
         loss_accum = 0.0
         for micro in range(grad_accum):
@@ -357,8 +409,14 @@ def train(cfg: Config, data_path: str, seed: int = 42, use_muon: bool = False):
 
         if cfg.grad_clip > 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
-        optimizer.step()
-        optimizer.zero_grad()
+        if use_muon:
+            optimizer_muon.step()
+            optimizer_adam.step()
+            optimizer_muon.zero_grad()
+            optimizer_adam.zero_grad()
+        else:
+            optimizer.step()
+            optimizer.zero_grad()
         ema.update(model)
 
         if step % max(1, cfg.iterations // 20) == 0:
