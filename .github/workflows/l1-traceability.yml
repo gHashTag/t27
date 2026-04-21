@@ -3,8 +3,6 @@ name: L1 TRACEABILITY Check
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches: [master, main]
 
 jobs:
   check-traceability:
