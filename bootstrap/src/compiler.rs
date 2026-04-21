@@ -1037,15 +1037,24 @@ impl Parser {
                         full_path = alias_name.clone();
                     } else {
                         // Parse :: separated segments
-                        while self.current.kind == TokenKind::Colon {
-                            self.advance(); // first :
-                            if self.current.kind == TokenKind::Colon {
-                                self.advance(); // second :
+                        loop {
+                            if self.current.kind == TokenKind::ColonColon {
+                                self.advance();
+                                full_path.push_str("::");
+                            } else if self.current.kind == TokenKind::Colon {
+                                self.advance();
+                                if self.current.kind == TokenKind::Colon {
+                                    self.advance();
+                                }
+                                full_path.push_str("::");
+                            } else {
+                                break;
                             }
-                            full_path.push_str("::");
                             if self.current.kind == TokenKind::Ident {
                                 full_path.push_str(&self.current.lexeme);
                                 self.advance();
+                            } else {
+                                break;
                             }
                         }
                     }
@@ -1071,7 +1080,9 @@ impl Parser {
             }
 
             match self.parse_top_level_decl() {
-                Ok(decl) => module.children.push(decl),
+                Ok(decl) => {
+                    module.children.push(decl);
+                }
                 Err(_) => {
                     // On parse error, skip to next top-level declaration and continue
                     self.skip_to_next_top_level();
@@ -13164,20 +13175,44 @@ impl HirVerilogEmitter {
         self.indent();
 
         if !hir.signals.is_empty() {
-            self.write_line("// Internal signals");
+            let mut consts = Vec::new();
+            let mut rest = Vec::new();
             for sig in &hir.signals {
-                let kind_str = match sig.kind {
-                    HwSignalKind::Wire => "wire",
-                    HwSignalKind::Reg => "reg ",
-                };
-                let range = sig.ty.verilog_range();
-                if range.is_empty() {
-                    self.write_line(&format!("{} {};", kind_str, sig.name));
+                if sig.kind == HwSignalKind::Wire && !sig.reset_value.is_empty() {
+                    consts.push(sig);
                 } else {
-                    self.write_line(&format!("{} {} {};", kind_str, range, sig.name));
+                    rest.push(sig);
                 }
             }
-            self.write_line("");
+            if !consts.is_empty() {
+                self.write_line("// Constants (localparam)");
+                for sig in &consts {
+                    let range = sig.ty.verilog_range();
+                    let val = sig.reset_value.replace('_', "");
+                    if range.is_empty() {
+                        self.write_line(&format!("localparam {} = {};", sig.name, val));
+                    } else {
+                        self.write_line(&format!("localparam {} {} = {};", range, sig.name, val));
+                    }
+                }
+                self.write_line("");
+            }
+            if !rest.is_empty() {
+                self.write_line("// Internal signals");
+                for sig in &rest {
+                    let kind_str = match sig.kind {
+                        HwSignalKind::Wire => "wire",
+                        HwSignalKind::Reg => "reg ",
+                    };
+                    let range = sig.ty.verilog_range();
+                    if range.is_empty() {
+                        self.write_line(&format!("{} {};", kind_str, sig.name));
+                    } else {
+                        self.write_line(&format!("{} {} {};", kind_str, range, sig.name));
+                    }
+                }
+                self.write_line("");
+            }
         }
 
         if !hir.assigns.is_empty() {
