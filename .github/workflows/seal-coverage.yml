@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect changed specs (variant 1: hashFiles check)
+      - name: "Detect changed specs"
         id: changed-specs
         run: |
           # Get list of changed files in this PR

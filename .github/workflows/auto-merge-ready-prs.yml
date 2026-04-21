@@ -25,69 +25,63 @@ jobs:
 
       - name: Find ready PRs
         id: find-ready
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           READY_PRS=()
           echo "Finding PRs with all CI checks passing..."
 
-          # Get all open PRs
-          for pr in $(gh pr list --state open --limit 50 --json number | jq -r '.[].number'); do
-            # Check CI status
-            STATUS=$(gh pr view $pr --json statusCheckRollup --jq \
-              '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED" and .conclusion != null)] | length')
+          PR_LIST=$(gh pr list --state open --limit 50 --json number --jq '.[].number' 2>/dev/null || echo "")
 
-            # Exclude notebook-sync (non-blocking)
-            MAIN_CHECKS=$(gh pr view $pr --json statusCheckRollup --jq \
-              '[.statusCheckRollup[] | select(.name != "NotebookLM Auto-Sync" and .name != ".github/workflows/notebook-sync.yml")] | map({name: .name, conclusion: .conclusion})')
+          if [ -z "$PR_LIST" ]; then
+            echo "No open PRs found"
+            echo "ready_prs=" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-            FAILING=$(echo "$MAIN_CHECKS" | jq 'map(select(.conclusion != "SUCCESS")) | length')
+          for pr in $PR_LIST; do
+            MAIN_CHECKS=$(gh pr view "$pr" --json statusCheckRollup --jq \
+              '[.statusCheckRollup[] | select(.name != "NotebookLM Auto-Sync" and .name != ".github/workflows/notebook-sync.yml")]' 2>/dev/null || echo "[]")
 
-            echo "PR #$pr: $FAILING failing / $([.statusCheckRollup[] | length]) total checks"
+            FAILING=$(echo "$MAIN_CHECKS" | jq '[.[] | select(.conclusion != "SUCCESS" and .conclusion != "SKIPPED")] | length' 2>/dev/null || echo "1")
 
-            # PR is ready if: 1) no failing main checks, OR 2) only notebook-sync failing
-            if [ $FAILING -eq 0 ]; then
+            echo "PR #$pr: $FAILING failing checks"
+
+            if [ "$FAILING" = "0" ]; then
               READY_PRS+=("$pr")
-              echo "  ✅ Ready to merge"
+              echo "  Ready to merge"
             else
-              echo "  ⏭ Skipped ($FAILING failing)"
+              echo "  Skipped ($FAILING failing)"
             fi
           done
 
-          echo "::set-output name=ready_prs::${READY_PRS[*]}" || true
-          echo "::set-output name=count::${#READY_PRS[@]}" || true
+          echo "ready_prs=${READY_PRS[*]}" >> $GITHUB_OUTPUT
+          echo "count=${#READY_PRS[@]}" >> $GITHUB_OUTPUT
 
       - name: Dry Run Check
         if: inputs.dry_run == 'true'
         run: |
-          echo "🔍 DRY RUN - No actual merges will occur"
+          echo "DRY RUN - No actual merges will occur"
           echo "Ready PRs: ${{ steps.find-ready.outputs.count }}"
           echo "PRs: ${{ steps.find-ready.outputs.ready_prs }}"
           exit 0
 
       - name: Merge Ready PRs
-        if: steps.find-ready.outputs.count > '0'
+        if: steps.find-ready.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "🚀 Merging ${{ steps.find-ready.outputs.count }} PRs..."
+          echo "Merging ${{ steps.find-ready.outputs.count }} PRs..."
 
           for pr in ${{ steps.find-ready.outputs.ready_prs }}; do
             echo "  Merging PR #$pr..."
-            gh pr merge "$pr" --merge --delete-branch || echo "  ❌ Failed to merge PR #$pr"
+            gh pr merge "$pr" --merge --delete-branch || echo "  Failed to merge PR #$pr"
           done
-
-          echo ""
-          echo "✅ All PRs merged!"
-        else
-          run: |
-            echo "⚠️  No ready PRs found"
-            echo "PR count: ${{ steps.find-ready.outputs.count }}"
-            exit 1
 
       - name: Post Summary
         if: always()
         run: |
-          PR_COUNT="${{{ steps.find-ready.outputs.count }}"
           echo "## Summary"
           echo ""
-          echo "**PRs processed:** $PR_COUNT"
-          echo "**Merged:** ${{ steps.merge-ready.outputs.conclusion == 'success' && 'All' || 'None' }}"
-          echo ""
-          echo "Run manually: \`gh workflow run auto-merge-ready-prs -f\`"
+          echo "**PRs processed:** ${{ steps.find-ready.outputs.count }}"

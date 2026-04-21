@@ -43,18 +43,8 @@ jobs:
           cd coq
           coqchk -silent -R . T27 T27.Kernel.PhiFloat
 
-<<<<<<< Updated upstream
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build t27c and validate phi f64 parameters
-        run: |
-          cd bootstrap && cargo build --release
-          ./target/release/t27c validate-phi
-=======
       - name: Validate phi f64 parameters (t27c validate-phi)
         run: ./bootstrap/target/release/t27c --repo-root . validate-phi
->>>>>>> Stashed changes
 
       - name: Verify Kernel PHI layer has no Admitted
         run: |
