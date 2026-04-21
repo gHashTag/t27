@@ -1,0 +1,77 @@
+# IGLA-MUON-105: Muon WD Sweep (0.04 base)
+# Agent: ALFA
+# Target: ~-0.02 BPB
+
+[experiment]
+id = "IGLA-MUON-105"
+agent = "ALFA"
+description = "Muon weight decay sweep - testing WD=0.04 baseline for better generalization"
+target_delta_bpb = -0.02
+status = "in_flight"
+created_at = "2026-04-21T06:14:00Z"
+
+[sweep]
+param = "weight_decay"
+values = [0.02, 0.03, 0.04, 0.05, 0.06]
+baseline = 0.04
+
+[params]
+# Dataset
+data_path = "./data/datasets/fineweb10B_sp1024"
+tokenizer_path = "./data/tokenizers/fineweb_1024_bpe.model"
+vocab_size = 1024
+
+# Model Architecture
+num_layers = 10
+model_dim = 512
+num_heads = 8
+num_kv_heads = 4
+mlp_mult = 3.0
+tie_embeddings = true
+
+# BigramHash (baseline for fair comparison)
+bigram_vocab_size = 0    # Disabled for pure Muon sweep
+bigram_dim = 128
+
+# Training
+iterations = 20000
+train_batch_tokens = 786_432
+train_seq_len = 2048
+val_batch_size = 524_288
+val_loss_every = 500
+max_wallclock_seconds = 600.0
+
+# Learning Rates
+tied_embed_lr = 0.1       # Higher for tied embeddings (per #67 fix)
+embed_lr = 0.6
+head_lr = 0.008
+matrix_lr = 0.02
+scalar_lr = 0.02
+
+# Muon Optimizer
+muon_momentum = 0.99
+muon_backend_steps = 5
+weight_decay = 0.04       # SWEEP PARAMETER
+
+# SWA
+swa_enabled = true
+swa_start_frac = 0.5
+swa_every = 50
+
+# Evaluation
+eval_stride = 64
+eval_batch_seqs = 32
+
+# Init
+qk_gain_init = 1.5
+logit_softcap = 30.0
+rope_base = 10000.0
+
+# Warmup
+warmup_steps = 20
+warmdown_iters = 3000
+
+[expected]
+val_bpb = "~1.09"  # -0.02 from ~1.11 baseline
+best_wd = "expected 0.04-0.05 range"
+compression_ratio = "int6 + zstd-22"

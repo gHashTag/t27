@@ -1,0 +1,1 @@
+TTT-LoRA implementation — target -0.03 BPB (≠ JEPA-TTT)

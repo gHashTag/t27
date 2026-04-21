@@ -1,0 +1,79 @@
+# IGLA-LAYER-P15: Layer Weight Sharing (5L × 4 iter)
+# Agent: INDIA
+# Target: ~-0.02 BPB
+
+[experiment]
+id = "IGLA-LAYER-P15"
+agent = "INDIA"
+description = "Layer weight sharing - 5 unique layers repeated 4x (total 20 effective depth)"
+target_delta_bpb = -0.02
+status = "queued"
+created_at = "2026-04-21T06:14:00Z"
+
+[params]
+# Dataset
+data_path = "./data/datasets/fineweb10B_sp1024"
+tokenizer_path = "./data/tokenizers/fineweb_1024_bpe.model"
+vocab_size = 1024
+
+# Model Architecture
+num_unique_layers = 5        # 5 distinct layer weights
+layer_repeats = 4            # Each repeated 4x
+effective_layers = 20        # 5 × 4 = 20 effective depth
+model_dim = 512
+num_heads = 8
+num_kv_heads = 4
+mlp_mult = 3.0
+tie_embeddings = true
+
+# BigramHash
+bigram_vocab_size = 0
+bigram_dim = 128
+
+# Layer Sharing Config
+layer_sharing_enabled = true
+layer_cycle = 5              # Reuse every 5th layer
+
+# Training
+iterations = 20000
+train_batch_tokens = 786_432
+train_seq_len = 2048
+val_batch_size = 524_288
+val_loss_every = 500
+max_wallclock_seconds = 600.0
+
+# Learning Rates
+tied_embed_lr = 0.1
+embed_lr = 0.6
+head_lr = 0.008
+matrix_lr = 0.02
+scalar_lr = 0.02
+
+# Muon Optimizer
+muon_momentum = 0.99
+muon_backend_steps = 5
+weight_decay = 0.04
+
+# SWA
+swa_enabled = true
+swa_start_frac = 0.5
+swa_every = 50
+
+# Evaluation
+eval_stride = 64
+eval_batch_seqs = 32
+
+# Init
+qk_gain_init = 1.5
+logit_softcap = 30.0
+rope_base = 10000.0
+
+# Warmup
+warmup_steps = 20
+warmdown_iters = 3000
+
+[expected]
+val_bpb = "~1.09"  # -0.02 from ~1.11 baseline
+param_savings = "~75% (5L vs 20L unique params)"
+effective_depth = "20 layers"
+compression_ratio = "int6 + zstd-22"
