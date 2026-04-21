@@ -55,3 +55,4 @@
 [2026-04-21T22:48:09Z] TASK: Dashboard v6 — 439 tests (+2 backward), BPB benchmarks (ReLU^2=9.20, SwiGLU=12.12), FineWeb 50MB auto-loaded, 32 branches cleaned, CI GREEN. 7 days to Golf deadline. | ALL GREEN
 [2026-04-21T22:55:45Z] TASK: Dashboard v31 — BPB 3.97 breakthrough, 252 tests, CI 9/10, pipeline 8/11, Golf 8d | LIVE
 [2026-04-21T23:01:30Z] TASK: Add MCP initialize+ping+id preservation to trios-server. 19 tools registered. Full MCP handshake verified. CI GREEN. | SUCCESS
+[2026-04-21T23:02:01Z] TASK: #143 dashboard update v28 — verified 437 tests GREEN, clippy 0, CI 7+ consecutive GREEN, 86 trios issues, 50 t27 issues, fixed clippy train_real parens, added MPS+CPU flags to train_gpt.py, FineWeb 50MB downloaded, CPU training running | ALL_GREEN
