@@ -5,10 +5,8 @@
 
 use std::fs::File;
 use std::io::Write;
-use std::time::Instant;
 
-// Using the minimal but working modules from trios-train-cpu
-use trios_train_cpu::real_igla_trainer::{ExperimentResult, PhaseAConfig, PhaseBConfig};
+use trios_train_cpu::real_igla_trainer::{PhaseAConfig, PhaseBConfig};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("═══════════════════════════════════════");
@@ -16,8 +14,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("═══════════════════════════════════════");
     println!();
 
-    let all_results = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut handles = Vec::new();
+    let all_results = std::sync::Arc::new(std::sync::Mutex::new(Vec::<
+        trios_train_cpu::real_igla_trainer::ExperimentResult,
+    >::new()));
+    let _handles = Vec::<()>::new();
 
     // Phase A: LR sweep
     println!("Phase A: Learning Rate Sweep");
@@ -41,7 +41,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("  Running: {}", desc);
         let result = config.run(42);
-        println!("  → Final loss: {:.4}, Time: {:.1}s\n", result.final_loss, result.duration_seconds);
+        println!(
+            "  → Final loss: {:.4}, Time: {:.1}s\n",
+            result.final_loss, result.duration_seconds
+        );
 
         all_results.lock().unwrap().push(result);
     }
@@ -63,7 +66,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("  Running: mix_ratio={:.3}", ratio);
         let result = config.run(42);
-        println!("  → Final loss: {:.4}, Time: {:.1}s\n", result.final_loss, result.duration_seconds);
+        println!(
+            "  → Final loss: {:.4}, Time: {:.1}s\n",
+            result.final_loss, result.duration_seconds
+        );
 
         all_results.lock().unwrap().push(result);
     }
@@ -91,7 +97,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("  Running: {}", desc);
         let result = config.run(42);
-        println!("  → Final loss: {:.4}, Time: {:.1}s\n", result.final_loss, result.duration_seconds);
+        println!(
+            "  → Final loss: {:.4}, Time: {:.1}s\n",
+            result.final_loss, result.duration_seconds
+        );
 
         all_results.lock().unwrap().push(result);
     }

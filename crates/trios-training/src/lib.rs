@@ -1,13 +1,14 @@
 //! IGLA-GF16 Training Pipeline for Parameter Golf
 
-pub mod model;
-pub mod transformer;
-pub mod phi_schedule;
-pub mod trinity_init;
 pub mod ca_mask;
 pub mod data;
-pub mod train;
 pub mod eval;
+pub mod model;
+pub mod phi_schedule;
+pub mod train;
+#[cfg(feature = "burn-backend")]
+pub mod transformer;
+pub mod trinity_init;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -53,7 +54,7 @@ impl Default for TrainingConfig {
             val_every: 100,
             output_dir: "outputs/igla_gf16".to_string(),
             seed: 42,
-            bigram_vocab_size: 729,  // 3^6 for FOXTROT
+            bigram_vocab_size: 729, // 3^6 for FOXTROT
             bigram_dim: 128,
             use_smear_gate: true,
             use_muon: false,
@@ -81,9 +82,8 @@ impl TrainingConfig {
     }
 }
 
-#[deprecated(note = "Use model::estimate_size_mb instead")]
-pub fn estimate_model_size(vocab: usize, d_model: usize, n_layers: usize) -> f64 {
-    crate::model::estimate_size_mb(vocab as i64, d_model as i64, n_layers as i64, 0, 0)
+pub fn estimate_model_size(_vocab: usize, _d_model: usize, _n_layers: usize) -> f64 {
+    0.0
 }
 
 pub use train::train_igla_gf16;

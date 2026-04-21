@@ -9,3 +9,11 @@ serde = { version = "1.0", features = ["derive"] }
 precision-router = { path = "../precision-router" }
 trios-golden-float = { path = "../trios-golden-float" }
 trios-tri = { path = "../trios-tri" }
+burn = { version = "0.16", optional = true, features = ["ndarray"] }
+
+[features]
+burn-backend = ["dep:burn"]
+
+[[example]]
+name = "multilayer_train"
+required-features = ["burn-backend"]

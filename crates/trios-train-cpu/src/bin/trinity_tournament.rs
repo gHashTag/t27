@@ -105,6 +105,7 @@ impl TechniqueCombo {
 
 /// Result for a single seed run
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 struct SeedResult {
     seed: u64,
     bpb: f64,
@@ -113,6 +114,7 @@ struct SeedResult {
 
 /// Aggregated result for a technique combo
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ComboResult {
     combo: TechniqueCombo,
     name: String,
@@ -327,8 +329,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     let combos = TechniqueCombo::all_combos();
-    println!("Combos: {} | Seeds: {:?} | Total runs: {}",
-             combos.len(), SEEDS, combos.len() * SEEDS.len());
+    println!(
+        "Combos: {} | Seeds: {:?} | Total runs: {}",
+        combos.len(),
+        SEEDS,
+        combos.len() * SEEDS.len()
+    );
     println!();
 
     println!("Techniques:");
@@ -338,8 +344,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  P07: Residual Mix ratios [0.4, 0.5, 0.618, 0.75]");
     println!("  P11: Sliding eval stride=64");
     println!();
-    println!("Steps: {}, Batch: {}, Seq: {}, Vocab: {}, d_model: {}",
-             STEPS, BATCH_SIZE, SEQ_LEN, VOCAB_SIZE, D_MODEL);
+    println!(
+        "Steps: {}, Batch: {}, Seq: {}, Vocab: {}, d_model: {}",
+        STEPS, BATCH_SIZE, SEQ_LEN, VOCAB_SIZE, D_MODEL
+    );
     println!();
 
     // Load TinyShakespeare (repeated for simple demo)
@@ -365,7 +373,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let elapsed = run_start.elapsed().as_secs_f64();
             println!("val_bpb={:.4} ({:.1}s)", val_bpb, elapsed);
 
-            seed_results.push(SeedResult { seed, bpb: val_bpb, elapsed });
+            seed_results.push(SeedResult {
+                seed,
+                bpb: val_bpb,
+                elapsed,
+            });
         }
 
         // Aggregate across seeds
@@ -374,10 +386,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let median_bpb = bpbs[bpbs.len() / 2];
         let mean_bpb: f64 = bpbs.iter().sum::<f64>() / bpbs.len() as f64;
-        let std_bpb = (bpbs.iter()
-            .map(|&b| (b - mean_bpb).powi(2))
-            .sum::<f64>() / bpbs.len() as f64)
-            .sqrt();
+        let std_bpb =
+            (bpbs.iter().map(|&b| (b - mean_bpb).powi(2)).sum::<f64>() / bpbs.len() as f64).sqrt();
 
         let total_elapsed = combo_start.elapsed().as_secs_f64();
 
@@ -390,8 +400,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std_bpb,
         });
 
-        println!("    → median={:.4}, mean={:.4}, σ={:.4} ({:.1}s total)\n",
-                 median_bpb, mean_bpb, std_bpb, total_elapsed);
+        println!(
+            "    → median={:.4}, mean={:.4}, σ={:.4} ({:.1}s total)\n",
+            median_bpb, mean_bpb, std_bpb, total_elapsed
+        );
     }
 
     let total_time = start.elapsed();

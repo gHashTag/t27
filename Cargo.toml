@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "crates/trios-cli",
     "crates/trios-core",
     "crates/precision-router",
     "crates/trios-golden-float",
@@ -11,6 +10,7 @@ members = [
     "crates/trios-training-ffi",
     "crates/trios-train-cpu",
     "crates/trios-git",
+    "crates/trios-server",
     "crates/trios-gb",
     "crates/trios-agents",
     "crates/trios-bridge",
@@ -43,6 +43,7 @@ members = [
     "crates/trios-claude",
     "contrib/anti-ban",
     "contrib/oracle",
+    "crates/trios-operator-smoke",
 ]
 resolver = "2"
 

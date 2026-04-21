@@ -2,9 +2,9 @@
 //!
 //! Minimal working trainer for Phase A/B hyperparameter sweeps
 
-use crate::backward::{cross_entropy_loss, clip_gradients};
-use crate::real_igla_model::RealIglaModel;
+use crate::backward::cross_entropy_loss;
 use crate::optimizer::AdamWCpu;
+use crate::real_igla_model::RealIglaModel;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,19 +39,23 @@ impl Default for PhaseAConfig {
 
 impl PhaseAConfig {
     /// Run Phase A training
-    pub fn run(&self, seed: u64) -> ExperimentResult {
+    pub fn run(&self, _seed: u64) -> ExperimentResult {
         use std::time::Instant;
 
         let model = RealIglaModel::new(32000, 144, 1); // 1 layer for Phase A
         let start = Instant::now();
 
-        println!("Phase A Training: LR={}, warmup={}, steps={}",
-            self.lr, self.warmup_steps, self.max_steps);
-        println!("Model: vocab={}, d_model={}, layers={}",
-            model.vocab_size, model.d_model, model.n_layers);
+        println!(
+            "Phase A Training: LR={}, warmup={}, steps={}",
+            self.lr, self.warmup_steps, self.max_steps
+        );
+        println!(
+            "Model: vocab={}, d_model={}, layers={}",
+            model.vocab_size, model.d_model, model.n_layers
+        );
 
         // Minimal training simulation (replace with real training)
-        let mut optimizer = AdamWCpu::new(model.vocab_size * model.d_model, self.lr);
+        let _optimizer = AdamWCpu::new(model.vocab_size * model.d_model, self.lr);
         let mut best_loss = f64::MAX;
 
         for step in 0..self.max_steps {
@@ -111,11 +115,13 @@ impl PhaseBConfig {
         let model = RealIglaModel::new(32000, 144, 6); // 6 layers for Phase B
         let start = Instant::now();
 
-        println!("Phase B Fine-tuning: LR={:.4}, mix={:.3}",
-            self.base_lr, self.mix_ratio);
+        println!(
+            "Phase B Fine-tuning: LR={:.4}, mix={:.3}",
+            self.base_lr, self.mix_ratio
+        );
 
         // Simulated fine-tuning
-        let mut optimizer = AdamWCpu::new(model.vocab_size * model.d_model, self.base_lr);
+        let _optimizer = AdamWCpu::new(model.vocab_size * model.d_model, self.base_lr);
         let mut best_loss = f64::MAX;
 
         for step in 0..self.max_steps {
@@ -139,7 +145,7 @@ impl PhaseBConfig {
         ExperimentResult {
             phase: "B".to_string(),
             config: PhaseAConfig {
-                lr: self.base_lr as f64,
+                lr: self.base_lr,
                 warmup_steps: 0,
                 max_steps: self.max_steps,
                 batch_size: self.batch_size,
