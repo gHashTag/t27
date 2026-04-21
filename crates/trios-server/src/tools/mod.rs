@@ -42,6 +42,16 @@ pub async fn dispatch(name: &str, input: Value) -> Result<Value> {
     // Knowledge Graph tools (no repo_path needed)
     if let Some(r) = trios_kg::dispatch(name, &input).await { return r; }
 
+    // System status tool (no repo_path needed)
+    if name == "system_status" {
+        return Ok(serde_json::json!({
+            "status": "ok",
+            "tools_registered": count(),
+            "uptime_hint": "see /health",
+            "version": env!("CARGO_PKG_VERSION"),
+        }));
+    }
+
     // Validate repo_path for git tools
     let raw_repo_path = input
         .get("repo_path")
