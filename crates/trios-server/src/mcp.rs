@@ -214,6 +214,12 @@ fn build_tool_definitions() -> Vec<Tool> {
                 ("max_depth", json!({"type": "integer"}).as_object().unwrap().clone()),
             ],
         ),
+        make_tool(
+            "system_status",
+            "Get trios-server status, version, and tool count",
+            vec![],
+            vec![],
+        ),
     ]
 }
 
