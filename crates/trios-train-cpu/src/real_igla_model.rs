@@ -701,4 +701,32 @@ mod tests {
         assert!(count > 0);
         assert!(count < 1_000_000);
     }
+
+    #[test]
+    fn test_overfit_small_batch() {
+        let mut model = RealIglaModel::new(64, 32, 2);
+        let tokens: Vec<usize> = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let (initial_loss, _) = model.loss_bpb(&tokens);
+        for _ in 0..100 {
+            model.train_step(&tokens, 0.01);
+        }
+        let (final_loss, _) = model.loss_bpb(&tokens);
+        assert!(
+            final_loss < initial_loss * 0.5,
+            "Should overfit: {} vs {}",
+            final_loss,
+            initial_loss
+        );
+    }
+
+    #[test]
+    fn test_multi_layer_gradient_flow() {
+        let mut model = RealIglaModel::new(128, 64, 4);
+        let tokens: Vec<usize> = (0..32).map(|i| i % 128).collect();
+        let (l1, _) = model.loss_bpb(&tokens);
+        model.train_step(&tokens, 0.001);
+        let (l2, _) = model.loss_bpb(&tokens);
+        assert!(l2.is_finite(), "Loss NaN after train step");
+        assert!(l2 != l1, "Loss unchanged — gradient not flowing");
+    }
 }
