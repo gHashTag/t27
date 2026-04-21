@@ -59,12 +59,14 @@ fn matvec_transpose(a: &[f32], rows: usize, cols: usize, v: &[f32]) -> Vec<f32> 
         .collect()
 }
 
+#[allow(dead_code)]
 struct LayerIO {
     input: Vec<Vec<f32>>,
     normed1: Vec<Vec<f32>>,
     after_attn: Vec<Vec<f32>>,
     normed2: Vec<Vec<f32>>,
     h1: Vec<Vec<f32>>,
+    attn_caches: Vec<AttnCache>,
 }
 
 fn xavier_init(size: usize, fan_in: usize, fan_out: usize, seed: &mut u64) -> Vec<f32> {
@@ -465,8 +467,10 @@ impl RealIglaModel {
         for layer in &self.layers {
             let normed1: Vec<Vec<f32>> = xs.iter().map(|x| layer_norm(x, 1e-5)).collect();
             let mut attn_out = vec![vec![0.0f32; d_model]; seq_len];
+            let mut attn_caches = Vec::new();
             for head in &layer.heads {
-                let (h, _) = head.forward(&normed1);
+                let (h, cache) = head.forward(&normed1);
+                attn_caches.push(cache);
                 for (i, row) in attn_out.iter_mut().enumerate() {
                     for (r, v) in row.iter_mut().zip(h[i].iter()) {
                         *r += v;
@@ -486,7 +490,7 @@ impl RealIglaModel {
                 let res: Vec<f32> = after_attn[i].iter().zip(h2.iter()).map(|(a, b)| a + b).collect();
                 result.push(res);
             }
-            all_layer_io.push(LayerIO { input: xs, normed1, after_attn, normed2, h1: h1_all });
+            all_layer_io.push(LayerIO { input: xs, normed1, after_attn, normed2, h1: h1_all, attn_caches });
             xs = result;
         }
 
@@ -558,11 +562,12 @@ impl RealIglaModel {
 
             // Attention backward (simplified: just pass gradient through)
             let mut d_normed1 = vec![vec![0.0f32; d_model]; seq_len];
-            for head in &layer.heads {
+            for (hi, head) in layer.heads.iter().enumerate() {
+                let ac = &io.attn_caches[hi];
                 for i in 0..seq_len {
-                    let q = matvec(&head.wq, d_k, d_model, &io.normed1[i]);
-                    let ks: Vec<Vec<f32>> = io.normed1.iter().map(|x| matvec(&head.wk, d_k, d_model, x)).collect();
-                    let vs: Vec<Vec<f32>> = io.normed1.iter().map(|x| matvec(&head.wv, d_k, d_model, x)).collect();
+                    let q = &ac.qs[i];
+                    let ks = &ac.ks;
+                    let vs = &ac.vs;
                     let attn_scale = (d_k as f32).sqrt();
 
                     let mut scores: Vec<f32> = (0..=i)
