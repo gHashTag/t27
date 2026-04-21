@@ -2,11 +2,13 @@
 //!
 //! Minimal version using only available trios-train-cpu modules.
 
-use std::time::Instant;
-
+#[allow(dead_code)]
 const STEPS: usize = 200;
+#[allow(dead_code)]
 const BATCH_SIZE: usize = 32;
+#[allow(dead_code)]
 const SEQ_LEN: usize = 81;
+#[allow(dead_code)]
 const SEED: u64 = 42;
 
 fn main() {
@@ -18,7 +20,10 @@ fn main() {
     // Use existing Phase A result as baseline
     let phase_a_bpb = 5.91;
 
-    println!("Phase A baseline (step 99, n_layers=1, LR=0.01): BPB = {:.4}", phase_a_bpb);
+    println!(
+        "Phase A baseline (step 99, n_layers=1, LR=0.01): BPB = {:.4}",
+        phase_a_bpb
+    );
     println!();
     println!("Decision: Return to Phase A config (n_layers=1, LR=0.01)");
     println!("Reason: Phase B tested embedding-only model (worse than full transformer)");

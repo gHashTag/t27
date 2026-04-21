@@ -4,8 +4,8 @@
 
 use std::time::Instant;
 use trios_train_cpu::{
+    backward::{clip_gradients, cross_entropy_loss},
     bpb_from_loss,
-    backward::{cross_entropy_loss, clip_gradients},
     optimizer::AdamWCpu,
 };
 
@@ -29,11 +29,16 @@ fn run_lr(lr: f64, train_data: &[u8], val_data: &[u8]) -> f64 {
     // Validation data (fixed)
     let val_len = val_data.len().min(BATCH_SIZE * SEQ_LEN);
     let val_inputs: Vec<usize> = val_data[..val_len].iter().map(|&b| b as usize).collect();
-    let val_targets: Vec<usize> = val_inputs.iter().skip(1).chain(std::iter::once(&val_inputs[0])).copied().collect();
+    let val_targets: Vec<usize> = val_inputs
+        .iter()
+        .skip(1)
+        .chain(std::iter::once(&val_inputs[0]))
+        .copied()
+        .collect();
 
     for _step in 0..STEPS {
         rng = rng.wrapping_mul(1103515245).wrapping_add(12345);
-        let batch_offset = (rng as usize % (train_data.len() - BATCH_SIZE * SEQ_LEN));
+        let batch_offset = rng as usize % (train_data.len() - BATCH_SIZE * SEQ_LEN);
         let mut inputs = Vec::with_capacity(BATCH_SIZE * SEQ_LEN);
 
         for b in 0..BATCH_SIZE {
@@ -43,7 +48,12 @@ fn run_lr(lr: f64, train_data: &[u8], val_data: &[u8]) -> f64 {
             }
         }
 
-        let targets: Vec<usize> = inputs.iter().skip(1).chain(std::iter::once(&inputs[0])).copied().collect();
+        let targets: Vec<usize> = inputs
+            .iter()
+            .skip(1)
+            .chain(std::iter::once(&inputs[0]))
+            .copied()
+            .collect();
 
         // Forward (embedding projection)
         let mut logits = vec![0.0f32; BATCH_SIZE * SEQ_LEN * VOCAB_SIZE];
@@ -100,7 +110,9 @@ fn run_lr(lr: f64, train_data: &[u8], val_data: &[u8]) -> f64 {
         }
 
         let scale = 1.0 / (BATCH_SIZE * SEQ_LEN) as f32;
-        for g in gradients.iter_mut() { *g *= scale; }
+        for g in gradients.iter_mut() {
+            *g *= scale;
+        }
         clip_gradients(&mut gradients, 1.0);
         optimizer.step(&mut embeddings, &gradients);
     }
@@ -168,7 +180,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let total_time = start.elapsed();
 
     // Find winner
-    let winner = results.iter().min_by(|a, b| a.2.partial_cmp(&b.2).unwrap()).unwrap();
+    let winner = results
+        .iter()
+        .min_by(|a, b| a.2.partial_cmp(&b.2).unwrap())
+        .unwrap();
 
     println!();
     println!("═══════════════════════════════════════");
@@ -181,7 +196,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (i, (name, lr, bpb)) in sorted.iter().enumerate() {
         let marker = if *lr == winner.1 { " ← WINNER" } else { "" };
-        println!("  {}. {} ({:.6}) → val_bpb={:.4}{}", i + 1, name, lr, bpb, marker);
+        println!(
+            "  {}. {} ({:.6}) → val_bpb={:.4}{}",
+            i + 1,
+            name,
+            lr,
+            bpb,
+            marker
+        );
     }
 
     println!();
@@ -201,7 +223,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!();
-    println!("Winner: {} ({:.6}) → val_bpb={:.4}", winner.0, winner.1, winner.2);
+    println!(
+        "Winner: {} ({:.6}) → val_bpb={:.4}",
+        winner.0, winner.1, winner.2
+    );
 
     Ok(())
 }

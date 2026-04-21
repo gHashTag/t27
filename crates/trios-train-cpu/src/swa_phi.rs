@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_swa_before_start() {
         let params = vec![1.0, 2.0, 3.0];
-        let mut state = SwaState::new(&params);
+        let state = SwaState::new(&params);
 
         let mut params_copy = params.clone();
         let mut shadow = state.shadow.clone();
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn test_swa_first_update() {
         let params = vec![1.0, 2.0, 3.0];
-        let mut state = SwaState::new(&params);
+        let state = SwaState::new(&params);
 
         let mut params_copy = vec![1.0, 2.0, 3.0];
         let mut shadow = state.shadow;
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn test_swa_between_updates() {
         let params = vec![1.0, 2.0, 3.0];
-        let mut state = SwaState::new(&params);
+        let state = SwaState::new(&params);
 
         let mut params_copy = vec![1.0, 2.0, 3.0];
         let mut shadow = state.shadow;

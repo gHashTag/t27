@@ -18,12 +18,12 @@
 
 use std::time::Instant;
 use trios_train_cpu::{
-    bpb_from_loss,
     backward::{clip_gradients, cross_entropy_loss},
+    bpb_from_loss,
     optimizer::AdamWCpu,
-    phi_ortho_init::phi_ortho_init,
     ortho_init_baseline::ortho_init_baseline,
-    swa_phi::{SwaState, swa_init},
+    phi_ortho_init::phi_ortho_init,
+    swa_phi::{swa_init, SwaState},
     SlidingEvalConfig,
 };
 
@@ -105,11 +105,7 @@ impl TechniqueCombo {
 }
 
 /// Run a single technique combo
-fn run_combo(
-    combo: &TechniqueCombo,
-    train_data: &[u8],
-    val_data: &[u8],
-) -> f64 {
+fn run_combo(combo: &TechniqueCombo, train_data: &[u8], val_data: &[u8]) -> f64 {
     let mut embeddings = vec![0.0f32; VOCAB_SIZE * D_MODEL];
 
     // Apply initialization technique
@@ -260,23 +256,22 @@ fn run_combo(
             let input_offset = input_idx * D_MODEL;
             let mut logits = vec![0.0f32; VOCAB_SIZE];
 
-            for v in 0..VOCAB_SIZE {
+            for (v, logit_slot) in logits.iter_mut().enumerate() {
                 let emb_offset = v * D_MODEL;
                 let mut logit = 0.0f32;
                 for d in 0..D_MODEL {
                     logit += embeddings[input_offset + d] * embeddings[emb_offset + d];
                 }
-                logits[v] = logit;
+                *logit_slot = logit;
             }
 
-            // Compute loss for this position
             let mut max_logit = f32::NEG_INFINITY;
-            for v in 0..VOCAB_SIZE {
-                max_logit = max_logit.max(logits[v]);
+            for l in logits.iter() {
+                max_logit = max_logit.max(*l);
             }
             let mut sum_exp = 0.0f32;
-            for v in 0..VOCAB_SIZE {
-                sum_exp += (logits[v] - max_logit).exp();
+            for l in logits.iter() {
+                sum_exp += (*l - max_logit).exp();
             }
             let target_logit = logits[target_idx];
             let log_prob = target_logit - max_logit - sum_exp.ln();
@@ -347,7 +342,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let elapsed = run_start.elapsed().as_secs_f64();
 
         println!("val_bpb={:.4} ({:.1}s)", val_bpb, elapsed);
-        results.push((combo.clone(), val_bpb, elapsed));
+        results.push((*combo, val_bpb, elapsed));
     }
 
     let total_time = start.elapsed();
