@@ -2985,9 +2985,7 @@ fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
                         if !module_map.contains_key(last_segment) {
                             module_map.insert(last_segment.to_string(), rel_str.clone());
                         }
-                        if !module_map.contains_key(&module_name_lower) {
-                            module_map.insert(module_name_lower, rel_str.clone());
-                        }
+                        module_map.entry(module_name_lower).or_insert_with(|| rel_str.clone());
                     }
                 }
             }
@@ -3034,7 +3032,7 @@ fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
             }
         };
 
-        let dest = out_base.join(format!("{}{}", rel_path, &ext[..]));
+        let dest = out_base.join(format!("{}{}", rel_path, ext));
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -4477,11 +4475,9 @@ fn run_graph(root: &str, format: &str) -> anyhow::Result<()> {
                     for imp in imports {
                         total += 1;
                         let target = imp.replace("::", "/");
-                        let possible = vec![
-                            format!("specs/{}.t27", target),
+                        let possible = [format!("specs/{}.t27", target),
                             format!("compiler/{}.t27", target),
-                            format!("{}.t27", target),
-                        ];
+                            format!("{}.t27", target)];
                         let path_found = possible.iter().any(|p| Path::new(p).exists());
                         let name_match = all_module_names.contains(imp);
                         if path_found || name_match {
@@ -4855,7 +4851,7 @@ fn run_deadcode_cmd(input: &Option<String>, repo: bool) -> anyhow::Result<()> {
             println!("Dead ratio: {:.1}%", 100.0 * total_dead as f64 / total_fns as f64);
         }
     } else if let Some(path) = input {
-        run_deadcode(&path)?;
+        run_deadcode(path)?;
     } else {
         anyhow::bail!("Specify --input <file> or --repo");
     }
@@ -4868,11 +4864,10 @@ fn run_deadcode(input_path: &str) -> anyhow::Result<()> {
     let file_name = std::path::Path::new(input_path).file_name().unwrap_or_default().to_string_lossy();
 
     fn collect_calls(node: &compiler::Node, calls: &mut std::collections::HashSet<String>) {
-        if node.kind == compiler::NodeKind::ExprCall {
-            if !node.name.is_empty() {
+        if node.kind == compiler::NodeKind::ExprCall
+            && !node.name.is_empty() {
                 calls.insert(node.name.clone());
             }
-        }
         for child in &node.children {
             collect_calls(child, calls);
         }
@@ -6196,11 +6191,10 @@ fn run_callgraph(input_path: &str) -> anyhow::Result<()> {
     let ast = compiler::Compiler::parse_ast(&source).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     fn collect_calls(node: &compiler::Node, calls: &mut Vec<String>) {
-        if node.kind == compiler::NodeKind::ExprCall && !node.children.is_empty() {
-            if node.children[0].kind == compiler::NodeKind::ExprIdentifier {
+        if node.kind == compiler::NodeKind::ExprCall && !node.children.is_empty()
+            && node.children[0].kind == compiler::NodeKind::ExprIdentifier {
                 calls.push(node.children[0].name.clone());
             }
-        }
         for child in &node.children {
             collect_calls(child, calls);
         }
@@ -6242,11 +6236,10 @@ fn run_outline(input_path: &str) -> anyhow::Result<()> {
     println!("=== {} ===", file_name);
 
     fn collect_calls(node: &compiler::Node, calls: &mut Vec<String>) {
-        if node.kind == compiler::NodeKind::ExprCall && !node.children.is_empty() {
-            if node.children[0].kind == compiler::NodeKind::ExprIdentifier {
+        if node.kind == compiler::NodeKind::ExprCall && !node.children.is_empty()
+            && node.children[0].kind == compiler::NodeKind::ExprIdentifier {
                 calls.push(node.children[0].name.clone());
             }
-        }
         for child in &node.children {
             collect_calls(child, calls);
         }
@@ -6487,7 +6480,7 @@ fn run_watch(repo_root: &str, interval_secs: u64) -> anyhow::Result<()> {
 
         if !changed.is_empty() || iteration == 0 {
             let suite_result = std::process::Command::new("./bootstrap/target/release/t27c")
-                .args(&["suite", "--repo-root", repo_root])
+                .args(["suite", "--repo-root", repo_root])
                 .output();
             match suite_result {
                 Ok(output) => {
