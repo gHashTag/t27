@@ -6,6 +6,7 @@ pub mod data;
 pub mod eval;
 pub mod model;
 pub mod phi_schedule;
+pub mod spectral_init;
 pub mod train;
 #[cfg(feature = "burn-backend")]
 pub mod transformer;
