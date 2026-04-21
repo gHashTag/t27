@@ -120,9 +120,56 @@ fn parse_params(stdout: &str) -> u64 {
 
 fn report_result(result: &RunResult) -> Result<()> {
     println!(
-        "📊 Reporting to #143: {} → BPB {:.4}",
+        "Reporting to #143: {} -> BPB {:.4}",
         result.exp_id, result.val_bpb
     );
     let agent = std::env::var("TRI_AGENT").unwrap_or_else(|_| "GOLF".into());
     super::report::report(&agent, "complete", Some(result.val_bpb))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_bpb_val_and_train() {
+        let stdout = "step 100 train_bpb: 5.1234\nstep 100 val_bpb: 5.9876\n";
+        let (val, train) = parse_bpb(stdout).unwrap();
+        assert!((val - 5.9876).abs() < 0.001);
+        assert!((train - 5.1234).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_bpb_validation_bpb_format() {
+        let stdout = "validation BPB: 6.5001\ntrain BPB: 6.2000\n";
+        let (val, train) = parse_bpb(stdout).unwrap();
+        assert!((val - 6.5001).abs() < 0.001);
+        assert!((train - 6.2000).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_bpb_fallback() {
+        let stdout = "val_bpb: 7.0000\n";
+        let (val, train) = parse_bpb(stdout).unwrap();
+        assert!((val - 7.0).abs() < 0.001);
+        assert!((train - 7.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_bpb_not_found() {
+        let stdout = "no bpb data here\n";
+        assert!(parse_bpb(stdout).is_err());
+    }
+
+    #[test]
+    fn test_parse_params() {
+        let stdout = "model parameters: 1234567\n";
+        assert_eq!(parse_params(stdout), 1234567);
+    }
+
+    #[test]
+    fn test_parse_params_missing() {
+        let stdout = "no params here\n";
+        assert_eq!(parse_params(stdout), 0);
+    }
 }
