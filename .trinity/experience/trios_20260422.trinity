@@ -47,3 +47,4 @@
 [2026-04-21T22:01:02Z] TASK: Dashboard v27 — ALL GREEN, CI dev 6/6 success, 437 tests, clippy 0, Golf 8d | LIVE
 [2026-04-21T22:03:55Z] TASK: Real training run — BPB 8.24→7.35 in 2000 steps / 12.8s, 82K params, TinyShakespeare, analytical gradients proven | SUCCESS
 [2026-04-21T22:07:05Z] TASK: Dashboard v28 — ALL GREEN 7/7 CI, 437 tests, train_real binary, Golf pipeline 5/8, 8d | LIVE
+[2026-04-21T22:12:02Z] TASK: Add SwiGLU activation, FineWeb HF download, save-artifact, cpu-test flag to train_gpt.py. Clean 32 stale remote branches (30→2). CI GREEN 3/3, 437 tests, clippy 0. | SUCCESS
