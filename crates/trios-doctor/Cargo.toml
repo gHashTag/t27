@@ -10,10 +10,6 @@ description = "Leukocyte agent: autonomous diagnostics, healing, and quick-win r
 name = "trios-doctor"
 path = "src/main.rs"
 
-[[bin]]
-name = "validate_bpb"
-path = "src/validate_bpb.rs"
-
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true

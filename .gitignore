@@ -16,6 +16,6 @@ target/
 *.zig-out
 
 # Root artifacts (Issue #208)
+validate_bpb.rs
 trinity-clara/
 trinity-claraParameter/
-validate_bpb.rs
