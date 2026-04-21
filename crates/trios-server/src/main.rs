@@ -12,6 +12,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
+use tower_http::cors::{CorsLayer, Any};
 use tracing::info;
 use ws_handler::AppState;
 
@@ -37,12 +38,18 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(9005);
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/ws", get(ws_handler::ws_handler))
         .route("/operator", get(operator::operator_ws_handler))
         .route("/mcp", post(mcp_http_handler))
         .route("/health", get(health))
         .route("/", get(health))
+        .layer(cors)
         .layer(
             ServiceBuilder::new()
                 .layer(axum::middleware::from_fn(security::auth_middleware))

@@ -77,24 +77,42 @@ pub async fn operator_ws_handler(
 async fn handle_operator_socket(mut socket: WebSocket, state: AppState) {
     info!("Operator WS client connected");
 
-    while let Some(msg) = socket.next().await {
-        match msg {
-            Ok(Message::Text(text)) => {
-                let response = handle_operator_message(&text, &state).await;
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                if socket.send(Message::Text(response_json)).await.is_err() {
-                    break;
+    let mut rx = state.event_tx.subscribe();
+
+    loop {
+        tokio::select! {
+            msg = socket.next() => {
+                match msg {
+                    Some(Ok(Message::Text(text))) => {
+                        let response = handle_operator_message(&text, &state).await;
+                        let response_json = serde_json::to_string(&response).unwrap_or_default();
+                        if socket.send(Message::Text(response_json)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) => {
+                        info!("Operator WS client disconnected");
+                        break;
+                    }
+                    Some(Err(e)) => {
+                        error!("Operator WS error: {}", e);
+                        break;
+                    }
+                    None => break,
+                    _ => {}
                 }
             }
-            Ok(Message::Close(_)) => {
-                info!("Operator WS client disconnected");
-                break;
+            event = rx.recv() => {
+                if let Ok(ev) = event {
+                    let msg = serde_json::to_string(&json!({
+                        "type": "event",
+                        "event": ev
+                    })).unwrap_or_default();
+                    if socket.send(Message::Text(msg)).await.is_err() {
+                        break;
+                    }
+                }
             }
-            Err(e) => {
-                error!("Operator WS error: {}", e);
-                break;
-            }
-            _ => {}
         }
     }
 }
@@ -114,7 +132,9 @@ async fn handle_operator_message(text: &str, state: &AppState) -> Value {
         "operator/extension/state" => extension_state(state).await,
         "operator/extension/send_chat" => send_chat(state, req.params).await,
         "operator/extension/click" => click_element(req.params).await,
-        "operator/extension/screenshot" => json!({"error": "screenshot requires browser context"}),
+        "operator/extension/screenshot" => request_screenshot(req.params).await,
+        "operator/extension/navigate" => request_navigate(req.params).await,
+        "operator/extension/register" => register_extension(req.params).await,
         "operator/agent/list" => agent_list(state).await,
         "operator/health" => json!({
             "status": "ok",
@@ -191,6 +211,70 @@ async fn click_element(params: Option<Value>) -> Value {
 async fn agent_list(state: &AppState) -> Value {
     let agents = state.agents.lock().await;
     json!(*agents)
+}
+
+async fn request_screenshot(params: Option<Value>) -> Value {
+    let selector = params
+        .as_ref()
+        .and_then(|p| p.get("selector"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("viewport");
+
+    let mut ext = EXT_STATE.lock().unwrap();
+    ext.errors.push(format!("Screenshot requested: {}", selector));
+
+    json!({
+        "status": "requested",
+        "selector": selector,
+        "note": "screenshot will be captured by browser extension and sent back via WS"
+    })
+}
+
+async fn request_navigate(params: Option<Value>) -> Value {
+    let url = params
+        .as_ref()
+        .and_then(|p| p.get("url"))
+        .and_then(|u| u.as_str())
+        .unwrap_or("");
+
+    if url.is_empty() {
+        return json!({"error": "url is required"});
+    }
+
+    let mut ext = EXT_STATE.lock().unwrap();
+    ext.current_tab = format!("navigating:{}", url);
+
+    json!({
+        "status": "navigating",
+        "url": url,
+        "note": "navigation will be executed by browser extension"
+    })
+}
+
+async fn register_extension(params: Option<Value>) -> Value {
+    let name = params
+        .as_ref()
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or("unknown");
+    let version = params
+        .as_ref()
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("0.1.0");
+
+    let mut ext = EXT_STATE.lock().unwrap();
+    ext.sidepanel_open = true;
+
+    info!("Extension registered: {} v{}", name, version);
+
+    json!({
+        "registered": true,
+        "name": name,
+        "version": version,
+        "capabilities": ["navigate", "click", "screenshot", "chat"],
+        "server_version": env!("CARGO_PKG_VERSION")
+    })
 }
 
 #[cfg(test)]
@@ -300,5 +384,50 @@ mod tests {
         )
         .await;
         assert_eq!(result.get("clicked").unwrap().as_str().unwrap(), ".tab");
+    }
+
+    #[tokio::test]
+    async fn test_operator_screenshot() {
+        let state = AppState::new();
+        let result = handle_operator_message(
+            r#"{"method":"operator/extension/screenshot","params":{"selector":"body"}}"#,
+            &state,
+        )
+        .await;
+        assert_eq!(result.get("status").unwrap().as_str().unwrap(), "requested");
+    }
+
+    #[tokio::test]
+    async fn test_operator_navigate_empty() {
+        let state = AppState::new();
+        let result = handle_operator_message(
+            r#"{"method":"operator/extension/navigate","params":{}}"#,
+            &state,
+        )
+        .await;
+        assert!(result.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_operator_navigate_valid() {
+        let state = AppState::new();
+        let result = handle_operator_message(
+            r#"{"method":"operator/extension/navigate","params":{"url":"https://github.com"}}"#,
+            &state,
+        )
+        .await;
+        assert_eq!(result.get("status").unwrap().as_str().unwrap(), "navigating");
+    }
+
+    #[tokio::test]
+    async fn test_operator_register() {
+        let state = AppState::new();
+        let result = handle_operator_message(
+            r#"{"method":"operator/extension/register","params":{"name":"trios-ext","version":"0.1.0"}}"#,
+            &state,
+        )
+        .await;
+        assert_eq!(result.get("registered").unwrap().as_bool().unwrap(), true);
+        assert_eq!(result.get("name").unwrap().as_str().unwrap(), "trios-ext");
     }
 }
