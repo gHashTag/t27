@@ -27,3 +27,4 @@
 [2026-04-21T18:49:46Z] TASK: CI fix — split run_from_output from report_result so tests pass without gh auth | result: SUCCESS — 428 tests GREEN, CI run triggered
 [2026-04-21T18:51:43Z] TASK: OPENCODE v8 CI fix | verified 428 tests GREEN, 0 clippy, run_from_output properly separated from report_result (CI was calling gh without auth), all systems nominal
 [2026-04-21T18:53:27Z] TASK: OPENCODE cycle#7 — 428/428 tests GREEN, 0 clippy, CI 2/3 SUCCESS on dev, PR #225 merged (train_gpt.py), 30 issues (8 eng+22 PhD), dashboard v11 pushed
+[2026-04-21T19:12:00Z] TASK: OPENCODE cycle#8 — 72 tests GREEN, 0 clippy, CI 3/3 SUCCESS on dev, PR #226 merged (model presets+CI fix), 30 issues (8 eng+22 PhD), dashboard v12 pushed
