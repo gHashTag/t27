@@ -282,16 +282,19 @@ def evaluate_bpb(model: nn.Module, data: list, cfg: Config, device: torch.device
     total_bytes = 0
     total_bits = 0.0
     seq = cfg.seq_len
-    n_batches = min(50, (len(data) - seq) // (seq))
-    for b in range(n_batches):
+    n_chunks = min(50, len(data) // (seq + 1))
+    if n_chunks == 0:
+        model.train()
+        return float("inf")
+    for b in range(n_chunks):
         start = b * seq
         chunk = data[start:start + seq + 1]
         if len(chunk) < seq + 1:
-            break
+            chunk = chunk + [0] * (seq + 1 - len(chunk))
         x = torch.tensor([chunk], dtype=torch.long, device=device)
         logits = model(x[:, :-1])
         targets = x[:, 1:]
-        log_probs = F.log_softmax(logits, dim=-1)
+        log_probs = F.log_softmax(logits.float(), dim=-1)
         target_log_probs = log_probs.gather(2, targets.unsqueeze(-1)).squeeze(-1)
         total_bits += -target_log_probs.sum().item() / math.log(2)
         total_bytes += targets.numel()
@@ -351,12 +354,12 @@ def train(cfg: Config, data_path: str, seed: int = 42, use_muon: bool = False):
         optimizer.step()
         ema.update(model)
 
-        if step % 100 == 0:
+        if step % max(1, cfg.iterations // 20) == 0:
             elapsed = time.time() - t0
             sps = step / elapsed
             print(f"step {step:5d}/{cfg.iterations} loss={loss.item():.4f} lr={lr:.6f} sps={sps:.1f}")
 
-        if step % cfg.eval_every == 0:
+        if step % cfg.eval_every == 0 or step == cfg.iterations:
             ema.apply(model)
             bpb = evaluate_bpb(model, val_data, cfg, device)
             ema.restore(model)
