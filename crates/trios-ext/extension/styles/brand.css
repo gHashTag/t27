@@ -1,0 +1,125 @@
+/* Trinity Brand Colors — Total Black Palette */
+:root {
+  --trinity-black: #000000;
+  --trinity-dark: #161616;
+  --trinity-gray: #2a2a2a;
+  --trinity-accent: #5D3FF2;
+  --trinity-pink: #F5D3F2;
+  --trinity-text: #ffffff;
+  --trinity-text-muted: #888888;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--trinity-black);
+  color: var(--trinity-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+/* Trinity Logo Placeholder */
+.trinity-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid var(--trinity-gray);
+}
+
+.trinity-logo-symbol {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--trinity-accent), var(--trinity-pink));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.trinity-logo-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--trinity-text);
+}
+
+/* Chat Container */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px);
+}
+
+/* Messages Area */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.message {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  max-width: 80%;
+}
+
+.message.user {
+  background-color: var(--trinity-gray);
+  margin-left: auto;
+}
+
+.message.agent {
+  background-color: var(--trinity-dark);
+  border: 1px solid var(--trinity-accent);
+}
+
+/* Input Area */
+.input-area {
+  padding: 16px;
+  border-top: 1px solid var(--trinity-gray);
+  display: flex;
+  gap: 8px;
+}
+
+.input-area input {
+  flex: 1;
+  background-color: var(--trinity-gray);
+  border: 1px solid var(--trinity-dark);
+  border-radius: 4px;
+  padding: 12px;
+  color: var(--trinity-text);
+  font-size: 14px;
+}
+
+.input-area input:focus {
+  outline: none;
+  border-color: var(--trinity-accent);
+}
+
+.input-area button {
+  background-color: var(--trinity-accent);
+  color: var(--trinity-text);
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.input-area button:hover {
+  opacity: 0.9;
+}

@@ -1,0 +1,15 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background: Total Black -->
+  <rect width="128" height="128" fill="#000000" rx="16"/>
+
+  <!-- Trinity Symbol: Φ (Greek Phi) -->
+  <text x="64" y="88"
+        text-anchor="middle"
+        font-family="Georgia, serif"
+        font-size="72"
+        font-weight="bold"
+        fill="#5D3FF2">Φ</text>
+
+  <!-- Accent ring -->
+  <circle cx="64" cy="50" r="12" fill="#F5D3F2"/>
+</svg>

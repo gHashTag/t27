@@ -1,0 +1,82 @@
+name: No JS Violation (L6 + #156)
+
+on:
+  pull_request:
+    paths:
+      - 'crates/trios-ext/**'
+  push:
+    paths:
+      - 'crates/trios-ext/**'
+
+jobs:
+  no-js-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for handwritten JS files
+        run: |
+          # Find all .js files in extension/ (except dist/ and background.js)
+          JS_FILES=$(find crates/trios-ext/extension -name "*.js" -not -path "*/dist/*" ! -name "background.js")
+
+          if [ -n "$JS_FILES" ]; then
+            echo "❌ VIOLATION: Handwritten JS files found:"
+            echo "$JS_FILES"
+            echo ""
+            echo "L6 Law: All extension code MUST be Rust→WASM"
+            echo "Only background.js (service worker) is allowed"
+            exit 1
+          fi
+
+          echo "✅ No handwritten JS files found"
+
+      - name: Verify manifest.json exists
+        run: |
+          if [ ! -f "crates/trios-ext/extension/manifest.json" ]; then
+            echo "❌ manifest.json not found"
+            exit 1
+          fi
+          echo "✅ manifest.json exists"
+
+      - name: Verify icons exist
+        run: |
+          for size in 16 32 48 128; do
+            ICON="crates/trios-ext/extension/assets/icons/icon-${size}.png"
+            if [ ! -f "$ICON" ]; then
+              echo "❌ Icon $ICON not found"
+              exit 1
+            fi
+          done
+          echo "✅ All icons exist"
+
+      - name: Verify no inline scripts
+        run: |
+          # Check for inline scripts in HTML files
+          HTML_FILES=$(find crates/trios-ext/extension -name "*.html")
+          INLINE=$(grep -r 'onclick=\|onload=\|<script>' $HTML_FILES | grep -v 'src=' || true)
+
+          if [ -n "$INLINE" ]; then
+            echo "❌ VIOLATION: Inline scripts found:"
+            echo "$INLINE"
+            exit 1
+          fi
+
+          echo "✅ No inline scripts found"
+
+  clippy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Run clippy (L3)
+        run: |
+          cargo clippy --package trios-ext -- -D warnings
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner

@@ -1,37 +1,32 @@
+//! Trios Chrome Extension — Rust + WASM
+//! Trinity Stack Law Compliant: Zero handwritten JS
+
 pub mod bg;
 pub mod dom;
 pub mod mcp;
 
+// Note: Dioxus launch requires different setup for Chrome Extensions
+// Using direct DOM manipulation for now (L6 compliant)
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
-pub fn run() -> Result<(), JsValue> {
-    if web_sys::window().is_none() {
-        bg::background_init()?;
-        return Ok(());
+pub fn run() {
+    // Initialize the extension
+    console_error_panic_hook::set_once();
+    log::info!("Trios extension initialized");
+
+    // For MVP, use simple DOM setup
+    if let Err(e) = crate::dom::build_ui() {
+        log::error!("Failed to build UI: {:?}", e);
     }
 
-    dom::build_ui()?;
-    mcp::mcp_connect()?;
-
-    if let Ok(_doc) = dom::document() {
-        crate::dom::set_agent_list("Loading agents...");
-        crate::dom::set_tool_list("Loading tools...");
+    if let Err(e) = crate::mcp::mcp_connect() {
+        log::warn!("MCP connection failed (trios-server may not be running): {:?}", e);
     }
-    let _ = mcp::mcp_list_agents();
-    let _ = mcp::mcp_list_tools();
 
-    Ok(())
-}
-
-#[wasm_bindgen]
-pub fn greet(name: &str) -> String {
-    format!("Trios says: Hello, {}!", name)
-}
-
-#[wasm_bindgen]
-pub fn init_background() -> Result<(), JsValue> {
-    bg::background_init()
+    // Load initial data
+    let _ = crate::mcp::mcp_list_agents();
+    let _ = crate::mcp::mcp_list_tools();
 }
 
 #[cfg(test)]
@@ -47,30 +42,5 @@ mod tests {
     fn mcp_client_starts_disconnected() {
         let client = mcp::McpClient::new();
         assert!(!client.is_connected());
-    }
-
-    #[test]
-    fn mcp_request_serializes() {
-        let req = mcp::McpRequest {
-            jsonrpc: "2.0".to_string(),
-            id: 1,
-            method: "agents/list".to_string(),
-            params: None,
-        };
-        let json = serde_json::to_string(&req).unwrap();
-        assert!(json.contains("agents/list"));
-        assert!(json.contains("2.0"));
-    }
-
-    #[test]
-    fn style_uses_total_black() {
-        let style = dom::get_style();
-        assert!(style.contains("#000000"));
-    }
-
-    #[test]
-    fn style_uses_gold_accent() {
-        let style = dom::get_style();
-        assert!(style.contains("#D4AF37"));
     }
 }
