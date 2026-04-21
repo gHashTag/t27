@@ -19,23 +19,30 @@
 - `india/` - Architecture tricks (layer sharing, depth recurrence)
 - `delta/` - Initialization tricks (spectral, φ-based)
 
-## Running Experiments
+## Running Experiments (L1 compliant — NO .sh)
 
-Each agent has `.toml` config files. Example:
+**L1 LAW: NO .sh files. Use `tri` CLI only.**
 
 ```bash
 # FOXTROT: BigramHash 729
-cd .parameter-golf/parameter-golf
-BIGRAM_VOCAB_SIZE=729 BIGRAM_DIM=96 TIED_EMBED_LR=0.1 RUN_ID=igla_bgh301 \
-  torchrun --standalone --nproc_per_node=8 train_gpt.py
+tri run IGLA-BGH-301 --seeds 3
+
+# FOXTROT: BigramHash 10240 + SmearGate
+tri run IGLA-BGH-302 --seeds 3
+
+# ALFA: Muon WD sweep
+tri run IGLA-MUON-105 --seeds 3
+
+# Agent dispatch (NATO naming)
+tri agent dispatch FOXTROT "IGLA-BGH-301"
+tri agent dispatch ALFA "IGLA-MUON-105"
 ```
 
 ## Progress Tracking
 
 ```bash
-# Update experience log
-echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] TASK: IGLA-BGH-301 started | IN_FLIGHT" \
-  >> .trinity/experience/trios_$(date +%Y%m%d).trinity
+# Experience log (auto-managed by tri)
+tri log add IGLA-BGH-301 IN_FLIGHT
 ```
 
 ## Unlock Path
