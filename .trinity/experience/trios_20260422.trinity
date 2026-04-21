@@ -22,3 +22,4 @@
 [2026-04-21T18:28:41Z] TASK: OPENCODE autonomous dashboard #143 FINAL UPDATE | result: 415 tests GREEN, 0 clippy, CI GREEN, Parameter Golf P0 (7 days left), trios-cli 11/11 commands working, GitHub sync operational, all priorities set, experience logged
 [2026-04-21T18:35:14Z] TASK: OPENCODE cycle#6 — 428 tests GREEN (NEW RECORD), 0 clippy, CI 3/3 SUCCESS, 30 issues (8 eng+22 PhD), 0 PRs, dashboard v10 pushed
 [2026-04-21T18:35:20Z] TASK: OPENCODE autonomous dashboard #143 VERIFIED UPDATE | result: LIVE METRICS verified (261 tests, 30 issues, 7 days for Parameter Golf, T01+P07 sweep winner 7.7731), priorities set, 39 crates, 80 commits/24h, GitHub sync operational
+[2026-04-21T18:36:43Z] TASK: OPENCODE v8 dashboard #143 + CODE FIX | 416 tests (+4 new), 0 clippy, CI 5/5, 87 issues, fixed tri report cmd table parser (refs #169) | result: SUCCESS
