@@ -10,7 +10,7 @@
     "ws://localhost:9005/*"
   ],
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "dist/trios_ext_bg.js",
     "type": "module"
   },
   "side_panel": {

@@ -2,6 +2,7 @@
 //! Trinity Stack Law Compliant: Zero handwritten JS
 
 pub mod bg;
+pub mod bridge;
 pub mod dom;
 pub mod mcp;
 
@@ -21,7 +22,10 @@ pub fn run() {
     }
 
     if let Err(e) = crate::mcp::mcp_connect() {
-        log::warn!("MCP connection failed (trios-server may not be running): {:?}", e);
+        log::warn!(
+            "MCP connection failed (trios-server may not be running): {:?}",
+            e
+        );
     }
 
     // Load initial data

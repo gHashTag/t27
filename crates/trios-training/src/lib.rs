@@ -4,13 +4,16 @@ pub mod bigram_hash;
 pub mod ca_mask;
 pub mod data;
 pub mod eval;
+pub mod layer_sharing;
 pub mod model;
+pub mod muon;
 pub mod phi_schedule;
 pub mod spectral_init;
 pub mod train;
 #[cfg(feature = "burn-backend")]
 pub mod transformer;
 pub mod trinity_init;
+pub mod ttt_lora;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
