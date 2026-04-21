@@ -36,7 +36,8 @@ members = [
     "crates/trios-ext",
     "crates/igla-trainer",
     "crates/trios-claude",
-    "contrib/anti-ban",
+	    "crates/trios-cli",
+	    "contrib/anti-ban",
     "contrib/oracle",
 ]
 resolver = "2"
