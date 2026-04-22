@@ -1,23 +1,36 @@
-# IGLA-GF16 BPB Status - April 20, 2026
+# IGLA-GF16 BPB Status — April 22, 2026 (LIVE)
 
-## Progress
-1. **BPB 18.60 → 1.82** (H3 fix: α_φ too high → 3e-4)
-2. **LR Calibration**: flat_3e4 wins (BPB 0.0000 in 1000 steps)
-3. **Size**: 9.91MB < 16.0MB ✓
+## Training Results (Pure PyTorch, CPU, FineWeb 50MB)
 
-## Current Status
-- Architecture: Φ1-Φ4 complete
-- Training: Φ5-Φ6 complete
-- Benchmark: Φ7 complete (real run: 65.48s)
-- Size: Φ8 complete (9.91MB < 16MB)
-- LR: Issue #54 calibrated (flat_3e4 selected)
+| Tier | Params | Layers | Steps | Val BPB | Time | Size FP16 | Status |
+|------|--------|--------|-------|---------|------|-----------|--------|
+| T1 tiny | 935K | 2L/192d | 5000 | **2.0195** | 33min | 1.79 MB | DONE |
+| T2 small | 2.7M | 6L/192d | 5000 | **1.9165** | 137min | 5.18 MB | DONE |
+| T3 medium | 4.5M | 10L/192d | 5000 | — | ~4h est | ~9 MB | QUEUED |
+| T4 submit | 6.3M | 14L/192d | 10000 | — | ~12h est | ~12.6 MB | QUEUED |
+
+## BPB Trajectory (T2 small — best so far)
+
+```
+Step  500: BPB 3.12
+Step 1000: BPB 2.54  (Δ -0.58)
+Step 2000: BPB 2.11  (Δ -0.43)
+Step 3000: BPB 1.99  (Δ -0.12)
+Step 4000: BPB 1.94  (Δ -0.05)
+Step 5000: BPB 1.92  (Δ -0.02) ← converging, needs more capacity
+```
+
+## Gap to Target
+
+| Metric | Current | Target | Gap |
+|--------|---------|--------|-----|
+| Best BPB (T2) | 1.9165 | ≤ 1.10 | 0.82 |
+| Expected T3 | ~1.7 | ≤ 1.10 | ~0.6 |
+| Expected T4+Muon | ~1.3 | ≤ 1.10 | ~0.2 |
 
 ## Next Steps
-1. 3 seeds × 1000 steps with flat_3e4
-2. Statistics: mean BPB, std, Cohen's d
-3. Scale to 5000 steps if BPB < 1.15
-4. Parameter Golf submission
-
-## Scientific Note
-α_φ = 0.118034 confirmed as asymptotic floor (not initial LR).
-This distinction requires RG-flow interpretation (Paper 3 topic).
+1. T3 medium (10L/4.5M) — launching now
+2. T4 submit (14L/6.3M) — after T3
+3. Muon optimizer sweep — after T4 baseline
+4. 3-seed sweep for statistics
+5. Final submission before Apr 30

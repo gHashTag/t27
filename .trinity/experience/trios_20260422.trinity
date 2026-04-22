@@ -65,3 +65,4 @@
 [$(date -u +%Y-%m-%dT%H:%M:%SZ)] TASK: T2 small 2.7M training launched on CPU | RUNNING
 [2026-04-22T05:33:20Z] TASK: Dashboard v35 — BREAKTHROUGH BPB 2.02 (T1 complete!), 439 GREEN, CI 10/10, Golf 8d, gap 0.87 to target | LIVE
 [2026-04-22T06:00:14Z] TASK: Dashboard v36 — clippy fix (borrow+assign+loop), 439 GREEN, CI 10+ GREEN, BPB 2.02, Golf 8d | LIVE
+[2026-04-22T06:11:08Z] TASK: Dashboard v36 — T2 small BPB 1.9165 (2.7M/6L/5K steps), T3 medium launched, CI 10/10 GREEN, Golf 8d | LIVE
