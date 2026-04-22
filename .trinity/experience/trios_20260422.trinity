@@ -63,3 +63,4 @@
 [2026-04-21T23:24:26Z] TASK: Dashboard v34 — 439 GREEN, Q/K/V cache 1.8x faster 98s→54s, CI 9/10, pipeline 11/13, Golf 8d | LIVE
 [$(date -u +%Y-%m-%dT%H:%M:%SZ)] TASK: T1 training complete — tiny 935K params, FineWeb 50MB, AdamW, SwiGLU, 5000 steps, 33min CPU → BPB 2.02 | BEST_SO_FAR
 [$(date -u +%Y-%m-%dT%H:%M:%SZ)] TASK: T2 small 2.7M training launched on CPU | RUNNING
+[2026-04-22T05:33:20Z] TASK: Dashboard v35 — BREAKTHROUGH BPB 2.02 (T1 complete!), 439 GREEN, CI 10/10, Golf 8d, gap 0.87 to target | LIVE
