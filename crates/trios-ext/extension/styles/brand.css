@@ -1,27 +1,51 @@
-/* Trinity Brand Colors — Total Black Palette */
+/* Trinity Brand — Total Black + Orange Accent (matches sidebar screenshot) */
 :root {
-  --trinity-black: #000000;
-  --trinity-dark: #161616;
-  --trinity-gray: #2a2a2a;
-  --trinity-accent: #5D3FF2;
-  --trinity-pink: #F5D3F2;
-  --trinity-text: #ffffff;
-  --trinity-text-muted: #888888;
+  /* Base palette */
+  --trinity-black:       #000000;
+  --trinity-bg:          #0A0A0A;
+  --trinity-surface:     #111111;
+  --trinity-surface-2:   #161616;
+  --trinity-border:      #1E1E1E;
+  --trinity-gray:        #2A2A2A;
+
+  /* Text */
+  --trinity-text:        #FFFFFF;
+  --trinity-text-muted:  #CCCCCC;
+  --trinity-text-dim:    #888888;
+
+  /* Orange accent — matches screenshot code/highlight color */
+  --trinity-accent:      #E8834A;
+  --trinity-accent-dim:  #B85F2E;
+  --trinity-code-bg:     #1C1C1E;
+
+  /* Legacy gold (keep for agent status indicators) */
+  --trinity-gold:        #D4AF37;
+  --trinity-gold-dim:    #8B7225;
+
+  /* Agent colors */
+  --trinity-agent-bg:    #0D1117;
+  --trinity-agent-border:#1A3A5C;
+  --trinity-error:       #FF6B6B;
 }
 
+/* ─── Reset ────────────────────────────────────────── */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* ─── Body ─────────────────────────────────────────── */
 body {
-  background-color: var(--trinity-black);
+  background-color: var(--trinity-bg);
   color: var(--trinity-text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -29,80 +53,129 @@ body {
   height: 100%;
 }
 
-/* Trinity Logo Placeholder */
+/* ─── Typography ───────────────────────────────────── */
+h1, h2, h3 {
+  color: var(--trinity-text);
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+p, li {
+  color: var(--trinity-text-muted);
+  font-size: 14px;
+}
+
+/* ─── Inline code / tags (orange, like screenshot) ── */
+code, .tag {
+  background-color: var(--trinity-code-bg);
+  color: var(--trinity-accent);
+  font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ─── Logo ─────────────────────────────────────────── */
 .trinity-logo {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border-bottom: 1px solid var(--trinity-gray);
+  border-bottom: 1px solid var(--trinity-border);
 }
 
 .trinity-logo-symbol {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--trinity-accent), var(--trinity-pink));
+  background: var(--trinity-accent);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
-  font-size: 18px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--trinity-black);
 }
 
 .trinity-logo-text {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--trinity-text);
 }
 
-/* Chat Container */
+/* ─── Chat container ───────────────────────────────── */
 .chat-container {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 64px);
 }
 
-/* Messages Area */
+/* ─── Messages ─────────────────────────────────────── */
 .messages {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--trinity-gray) transparent;
 }
 
 .message {
   margin-bottom: 12px;
-  padding: 12px;
+  padding: 12px 14px;
   border-radius: 8px;
-  max-width: 80%;
+  max-width: 85%;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .message.user {
-  background-color: var(--trinity-gray);
+  background-color: var(--trinity-surface-2);
   margin-left: auto;
+  border: 1px solid var(--trinity-gray);
 }
 
 .message.agent {
-  background-color: var(--trinity-dark);
-  border: 1px solid var(--trinity-accent);
+  background-color: var(--trinity-agent-bg);
+  border: 1px solid var(--trinity-agent-border);
 }
 
-/* Input Area */
+/* ─── Phase / section headers (bold white) ─────────── */
+.phase-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--trinity-text);
+  margin: 16px 0 8px;
+}
+
+/* ─── Input area ───────────────────────────────────── */
 .input-area {
-  padding: 16px;
-  border-top: 1px solid var(--trinity-gray);
+  padding: 12px 16px;
+  border-top: 1px solid var(--trinity-border);
   display: flex;
   gap: 8px;
+  background-color: var(--trinity-bg);
 }
 
 .input-area input {
   flex: 1;
-  background-color: var(--trinity-gray);
-  border: 1px solid var(--trinity-dark);
-  border-radius: 4px;
-  padding: 12px;
+  background-color: var(--trinity-surface);
+  border: 1px solid var(--trinity-gray);
+  border-radius: 6px;
+  padding: 10px 14px;
   color: var(--trinity-text);
   font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.input-area input::placeholder {
+  color: var(--trinity-text-dim);
 }
 
 .input-area input:focus {
@@ -112,14 +185,16 @@ body {
 
 .input-area button {
   background-color: var(--trinity-accent);
-  color: var(--trinity-text);
+  color: var(--trinity-black);
   border: none;
-  border-radius: 4px;
-  padding: 12px 24px;
+  border-radius: 6px;
+  padding: 10px 20px;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 14px;
+  transition: opacity 0.15s;
 }
 
 .input-area button:hover {
-  opacity: 0.9;
+  opacity: 0.85;
 }
