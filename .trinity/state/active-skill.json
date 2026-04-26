@@ -1,10 +1,22 @@
 {
-  "skill_id": "sandbox-010",
-  "session_id": "2026-04-08T00:00:00Z#sandbox-010",
-  "issue_id": "SANDBOX-010",
-  "issue_title": "[SANDBOX-010] [P0, security] Session Timeout Enforcement",
-  "description": "Add configurable max duration enforcement in health polling",
-  "started_at": "2026-04-08T00:00:00Z",
-  "started_by": "agent:claude-code",
-  "status": "active"
+  "skill_id": "cli-railway",
+  "session_id": "2026-04-26T18:10:00Z#cli-railway",
+  "issue_id": "543",
+  "issue_title": "feat(cli): tri railway — 3-seed Gate-2 ONE SHOT for trios-trainer-igla",
+  "description": "Add tri railway subcommand: login, link, up, status, logs, gate2 over Railway GraphQL API. Drives 3-seed Gate-2 deploy of trios-trainer-igla.",
+  "started_at": "2026-04-26T18:10:00Z",
+  "started_by": "agent:perplexity-computer",
+  "status": "active",
+  "allowed_paths": [
+    "specs/cli/railway.t27",
+    "cli/tri/src/railway.rs",
+    "cli/tri/src/main.rs",
+    "cli/tri/Cargo.toml",
+    ".trinity/state/active-skill.json",
+    ".trinity/state/issue-binding.json",
+    ".trinity/seals/CliRailway.json",
+    ".trinity/experience/episodes.jsonl",
+    ".trinity/events/akashic-log.jsonl",
+    "docs/NOW.md"
+  ]
 }

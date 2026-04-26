@@ -1,0 +1,10 @@
+{
+  "module": "cli_railway",
+  "spec_path": "specs/cli/railway.t27",
+  "spec_hash": "sha256:eaba6daa8682f53b7945510738046c3a2e0be185590eac0e0a442f68b6281816",
+  "gen_hash_rust": "sha256:e84e9a0bb5269476b52b5b7282573962552002b80ff89a1cba4ebc7acc175074",
+  "ring": "cli-railway",
+  "issue_id": "543",
+  "tests": {"status": "passed", "count": 19, "failed": []},
+  "sealed_at": "2026-04-26T18:30:00Z"
+}

@@ -1,3 +1,5 @@
+mod railway;
+
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use clap::{Parser, Subcommand};
@@ -44,6 +46,10 @@ enum Commands {
     },
     Health {
         target: Option<String>,
+    },
+    Railway {
+        #[command(subcommand)]
+        action: railway::RailwayAction,
     },
 }
 
@@ -634,6 +640,12 @@ fn main() -> Result<()> {
         Commands::Health { target } => {
             let root = find_trinity_root()?;
             cmd_health(&root, target.as_deref())?;
+        }
+        Commands::Railway { action } => {
+            let code = railway::run(action.clone())?;
+            if code != 0 {
+                std::process::exit(code);
+            }
         }
     }
 

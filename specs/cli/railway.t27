@@ -1,0 +1,333 @@
+// SPDX-License-Identifier: CC0-1.0
+// CLI-RAILWAY-543: tri railway command family for trios-trainer-igla
+//                  3-seed Gate-2 ONE SHOT deploy.
+
+/**
+ * Module: cli.railway
+ *
+ * Defines the surface and semantics of the `tri railway` subcommand family.
+ *
+ * Drives the Railway GraphQL API (backboard.railway.com/graphql/v2) to
+ * deploy the trios-trainer-igla Gate-2 push. The single ONE SHOT is:
+ *
+ *   tri railway up --seeds 43,44,45
+ *
+ * Which creates (or upserts) three Railway services bound to the
+ * trainer image, sets TRIOS_SEED / TRIOS_LEDGER_PUSH / TRIOS_TARGET_BPB,
+ * and returns a JSON envelope of deployment ids.
+ *
+ * Constitutional alignment:
+ *   - R5 honesty   : `up` is `--dry-run` by default; `--confirm` required
+ *                    before any mutation hits the Railway API.
+ *   - R7 triplet   : `status` emits canonical R7 lines once seed rows
+ *                    land in assertions/seed_results.jsonl.
+ *   - R9 embargo   : `up` refuses if HEAD SHA matches an entry in
+ *                    assertions/embargo.txt.
+ *   - NO-MUTATION-WITHOUT-SKILL : every mutation requires active skill.
+ *   - ASCII only   : this spec is ASCII, no Cyrillic anywhere.
+ */
+
+module cli.railway;
+
+use ledger.row;
+use embargo.list;
+
+// ----------------------------------------------------------------------
+// Constants
+// ----------------------------------------------------------------------
+
+const DEFAULT_API_ENDPOINT  : str   = "https://backboard.railway.com/graphql/v2";
+const DEFAULT_PROJECT_ID    : str   = "e4fe33bb-3b09-4842-9782-7d2dea1abc9b";
+const DEFAULT_IMAGE_REF     : str   = "ghcr.io/ghashtag/trios-trainer-igla:latest";
+const DEFAULT_TARGET_BPB    : f64   = 1.85;
+const DEFAULT_STEPS         : u64   = 30_000;
+const GATE2_SEED_QUORUM     : usize = 3;
+const STATE_BINDING_PATH    : str   = ".trinity/state/railway-binding.json";
+const EMBARGO_PATH          : str   = "assertions/embargo.txt";
+const DEFAULT_TIMEOUT_SEC   : u64   = 30;
+const HTTP_OK               : u16   = 200;
+const HTTP_UNAUTHORIZED     : u16   = 401;
+const TRINITY_ANCHOR        : f64   = 3.0;
+const PHI                   : f64   = 1.618033988749895;
+
+// Env variable names exported to each service.
+const ENV_SEED              : str = "TRIOS_SEED";
+const ENV_LEDGER_PUSH       : str = "TRIOS_LEDGER_PUSH";
+const ENV_TARGET_BPB        : str = "TRIOS_TARGET_BPB";
+const ENV_STEPS             : str = "TRIOS_STEPS";
+const ENV_RUST_LOG          : str = "RUST_LOG";
+
+// The canonical Gate-2 seed set. Any `up` that does not contain all three
+// fails fast at plan-time; Gate-2 requires a 3-seed pass.
+const GATE2_SEEDS           : [u64] = [43, 44, 45];
+
+// ----------------------------------------------------------------------
+// Types
+// ----------------------------------------------------------------------
+
+/**
+ * Local persistence of the Railway binding (project UUID, endpoint,
+ * optional explicit image). Written by `tri railway link`.
+ */
+pub struct RailwayBinding {
+    project_id   : str,
+    endpoint     : str,
+    image        : Option<str>,
+    linked_at    : str,  // ISO-8601
+    linked_by    : str,  // "agent:<name>"
+}
+
+/**
+ * A single service plan -- the input to `serviceCreate` / `variableUpsert`
+ * / `serviceInstanceDeployV2`. `up` produces one plan per seed.
+ */
+pub struct ServicePlan {
+    name         : str,            // "trainer-seed-<N>"
+    seed         : u64,
+    image        : str,
+    target_bpb   : f64,
+    steps        : u64,
+    vars         : Map<str, str>,  // TRIOS_* + RUST_LOG
+}
+
+/**
+ * Result of a single `serviceInstanceDeployV2` call.
+ */
+pub struct DeployResult {
+    service_name : str,
+    service_id   : Option<str>,    // None iff dry-run
+    deployment_id: Option<str>,    // None iff dry-run
+    status       : str,            // "planned" | "created" | "deploying" | "failed"
+    message      : Option<str>,
+}
+
+/**
+ * Top-level outcome of `tri railway up`. Success iff every seed is at
+ * least "created" (and, when not dry-run, "deploying").
+ */
+pub struct UpOutcome {
+    project_id   : str,
+    dry_run      : bool,
+    results      : [DeployResult],
+    all_started  : bool,
+}
+
+// ----------------------------------------------------------------------
+// Plan construction (pure, no I/O)
+// ----------------------------------------------------------------------
+
+/**
+ * Produce the ServicePlan for a single seed. Deterministic -- given the
+ * same inputs, the output is byte-identical. This is the property
+ * `bench cli_railway_plan_builder_determinism` pins.
+ */
+fn build_service_plan(seed: u64, image: &str, target_bpb: f64, steps: u64) -> ServicePlan {
+    let mut vars = Map<str, str>::new();
+    vars.insert(ENV_SEED,         seed.to_string());
+    vars.insert(ENV_LEDGER_PUSH,  "1");
+    vars.insert(ENV_TARGET_BPB,   target_bpb.to_string());
+    vars.insert(ENV_STEPS,        steps.to_string());
+    vars.insert(ENV_RUST_LOG,     "info");
+    return ServicePlan {
+        name:       "trainer-seed-" + seed.to_string(),
+        seed:       seed,
+        image:      image.to_string(),
+        target_bpb: target_bpb,
+        steps:      steps,
+        vars:       vars,
+    };
+}
+
+/**
+ * Produce one plan per requested seed. The order mirrors the input
+ * slice so output is stable for tests and logs.
+ */
+fn build_plans(seeds: &[u64], image: &str, target_bpb: f64, steps: u64) -> [ServicePlan] {
+    return seeds.iter().map(|&s| build_service_plan(s, image, target_bpb, steps)).collect();
+}
+
+/**
+ * Gate-2 precondition: the requested seed set must be a superset of the
+ * canonical {43, 44, 45}. Missing any one of those MUST fail fast before
+ * any Railway mutation -- Gate-2 cannot pass with fewer than 3 distinct
+ * seeds.
+ */
+fn is_valid_gate2_seed_set(seeds: &[u64]) -> bool {
+    for required in GATE2_SEEDS {
+        if !seeds.contains(&required) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------
+// GraphQL envelope builders (pure, no I/O)
+// ----------------------------------------------------------------------
+
+/**
+ * Minimal `me { id email }` query used by `tri railway login --token`
+ * to validate that RAILWAY_TOKEN is syntactically and semantically
+ * valid before anything else runs.
+ */
+fn build_login_query() -> str {
+    return "{ \"query\": \"query { me { id email } }\" }";
+}
+
+/**
+ * The GraphQL body for `serviceCreate` bound to an explicit project and
+ * image. `tri railway up` emits one of these per seed.
+ */
+fn build_service_create_body(project_id: &str, plan: &ServicePlan) -> str {
+    // NOTE: the .t27 renders this as a single JSON string at gen time.
+    // The Rust backend uses serde_json::to_string for true escaping.
+    return json!({
+        "query": "mutation($input: ServiceCreateInput!) { serviceCreate(input: $input) { id name } }",
+        "variables": {
+            "input": {
+                "projectId": project_id,
+                "name":      plan.name,
+                "source":    { "image": plan.image }
+            }
+        }
+    });
+}
+
+// ----------------------------------------------------------------------
+// Embargo guard (R9)
+// ----------------------------------------------------------------------
+
+/**
+ * Refuse to deploy if the current HEAD SHA is in the embargo file.
+ * Runs BEFORE any mutation. Returns true iff the SHA is embargoed;
+ * the caller MUST treat true as a hard abort.
+ */
+fn head_is_embargoed(embargo_lines: &[str], head_sha: &str) -> bool {
+    let needle = head_sha.to_lowercase();
+    for line in embargo_lines {
+        let entry = line.trim().to_lowercase();
+        if entry.is_empty() { continue; }
+        if entry == needle { return true; }
+        // Any matching 7-char prefix is enough -- R9 applies to both the
+        // full SHA and its short form.
+        if needle.len() >= 7 && entry.len() >= 7
+            && entry[0..7] == needle[0..7] {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ----------------------------------------------------------------------
+// TDD Tests (TDD-INSIDE-SPEC, ADR-003)
+// ----------------------------------------------------------------------
+
+test cli_railway_plan_for_seed_43
+    given seed  = 43
+    and   image = "ghcr.io/ghashtag/trios-trainer-igla:latest"
+    and   plan  = build_service_plan(seed, image, 1.85, 30_000)
+    then plan.name == "trainer-seed-43"
+    and  plan.seed == 43
+    and  plan.vars.get("TRIOS_SEED")       == "43"
+    and  plan.vars.get("TRIOS_LEDGER_PUSH") == "1"
+    and  plan.vars.get("TRIOS_TARGET_BPB")  == "1.85"
+
+test cli_railway_plan_for_seed_44
+    given plan  = build_service_plan(44, "img", 1.85, 30_000)
+    then plan.name == "trainer-seed-44"
+    and  plan.vars.get("TRIOS_SEED") == "44"
+
+test cli_railway_plan_for_seed_45
+    given plan  = build_service_plan(45, "img", 1.85, 30_000)
+    then plan.name == "trainer-seed-45"
+    and  plan.vars.get("TRIOS_SEED") == "45"
+
+test cli_railway_build_plans_preserves_order
+    given seeds = [43, 44, 45]
+    and   plans = build_plans(seeds, "img", 1.85, 30_000)
+    then plans.len() == 3
+    and  plans[0].seed == 43
+    and  plans[1].seed == 44
+    and  plans[2].seed == 45
+
+test cli_railway_gate2_seed_set_accepts_canonical
+    given seeds = [43, 44, 45]
+    then is_valid_gate2_seed_set(seeds) == true
+
+test cli_railway_gate2_seed_set_accepts_superset
+    given seeds = [43, 44, 45, 46]
+    then is_valid_gate2_seed_set(seeds) == true
+
+test cli_railway_gate2_seed_set_rejects_missing_seed
+    given seeds = [43, 44]
+    then is_valid_gate2_seed_set(seeds) == false
+
+test cli_railway_gate2_seed_set_rejects_empty
+    given seeds = []
+    then is_valid_gate2_seed_set(seeds) == false
+
+test cli_railway_embargo_refuses_full_match
+    given embargo = ["477e3377"]
+    and   sha = "477e3377"
+    then head_is_embargoed(embargo, sha) == true
+
+test cli_railway_embargo_refuses_prefix_match
+    given embargo = ["477e3377deadbeef"]
+    and   sha = "477e3377"
+    then head_is_embargoed(embargo, sha) == true
+
+test cli_railway_embargo_accepts_clean_sha
+    given embargo = ["477e3377", "b3ee6a36"]
+    and   sha = "2446855"
+    then head_is_embargoed(embargo, sha) == false
+
+test cli_railway_login_query_shape
+    then build_login_query().contains("me { id email }") == true
+
+// ----------------------------------------------------------------------
+// Invariants
+// ----------------------------------------------------------------------
+
+invariant cli_railway_seed_quorum_is_three
+    assert GATE2_SEED_QUORUM == 3
+
+invariant cli_railway_canonical_seeds_are_43_44_45
+    assert GATE2_SEEDS == [43, 44, 45]
+
+invariant cli_railway_target_below_champion
+    // The deploy target must be strictly below the current champion BPB
+    // (champion = 2.2393 @ 27K seed=43 sha=2446855).
+    assert DEFAULT_TARGET_BPB < 2.2393
+
+invariant cli_railway_phi_anchor_holds
+    // The TRINITY anchor is the constitutional reason this CLI exists
+    // (without phi^2 + phi^-2 = 3 there is no IGLA RACE).
+    given lhs = (PHI * PHI) + (1.0 / (PHI * PHI))
+    assert (lhs - TRINITY_ANCHOR) < 1.0e-10
+    assert (TRINITY_ANCHOR - lhs) < 1.0e-10
+
+invariant cli_railway_embargo_refusal_is_mandatory
+    // Whenever the embargo list matches the HEAD SHA, up() MUST abort.
+    // This is R9 and cannot be relaxed by any flag.
+    given embargo = ["477e3377"]
+    and   sha = "477e3377"
+    assert head_is_embargoed(embargo, sha) == true
+
+invariant cli_railway_service_naming_is_stable
+    // The service name for a given seed is a pure function of the seed.
+    // Tests and status lookups depend on this.
+    given plan_a = build_service_plan(43, "img", 1.85, 30_000)
+    and   plan_b = build_service_plan(43, "img", 1.85, 30_000)
+    assert plan_a.name == plan_b.name
+
+// ----------------------------------------------------------------------
+// Benchmarks
+// ----------------------------------------------------------------------
+
+bench cli_railway_plan_builder_determinism
+    measure: nanoseconds to build a 3-seed plan set
+    target: < 50_000
+
+bench cli_railway_graphql_body_size
+    measure: bytes per build_service_create_body call
+    target: < 2_048
