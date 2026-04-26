@@ -1,0 +1,17 @@
+{
+  "module": "cli.igla",
+  "spec_path": "specs/cli/igla.t27",
+  "spec_hash_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "spec_hash_after": "cf443c0832f25438f950eaaa2aa863ee4a65cfad6756613b837fda12a613063f",
+  "gen_hash_after": "3d5ed0ead29931d06d6d0a505a91055f15b5c6105d2761bfe2095b5fa9946698",
+  "test_vector_hash": "6a6256e83b3b97be74b1889c866441d3e599f2149c9e73a47d894e452717a15a",
+  "ring": "cli-igla-541",
+  "issue": 541,
+  "sealed_at": "2026-04-26T17:14:58.177816Z",
+  "verdict": "clean",
+  "tests": {
+    "status": "passed",
+    "count": 17,
+    "failed": []
+  }
+}

@@ -1,19 +1,19 @@
 {
-  "skill_id": "ring-18-24-ar-integration",
-  "session_id": "2026-04-04T18:00:00Z#ring18-24",
-  "issue_id": "SEED-18-24",
-  "issue_title": "Rings 18-24: Full AR Domain Integration",
-  "description": "Integrate all 7 AR specs into canonical graph with gen backends, conformance vectors, and seals",
-  "started_at": "2026-04-04T18:00:00Z",
-  "started_by": "agent:claude-code",
-  "status": "complete",
+  "skill_id": "skill-541-igla-cli",
+  "session_id": "2026-04-26T17:11:04.237283Z#skill-541-igla-cli",
+  "issue_id": "541",
+  "issue_title": "feat(cli): tri igla \u2014 search/list/gate/check/triplet",
+  "description": "tri igla command family for IGLA RACE ledger queries",
+  "started_at": "2026-04-26T17:11:04.237283Z",
+  "started_by": "agent:perplexity",
+  "status": "active",
   "allowed_paths": [
-    "specs/ar/",
-    "gen/",
-    "conformance/",
-    ".trinity/seals/",
+    "specs/cli/",
+    "cli/tri/",
     ".trinity/state/",
+    ".trinity/seals/",
     ".trinity/experience/",
-    "architecture/graph_v2.json"
+    ".trinity/events/",
+    ".trinity/cells/"
   ]
 }

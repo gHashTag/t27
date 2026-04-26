@@ -1,12 +1,6 @@
 {
-  "issue_id": "INFRA",
-  "source": "github",
-  "url": "https://github.com/gHashTag/trinity/issues/INFRA",
-  "title": "PHI LOOP Infrastructure: Parser Tests",
-  "state": "in_progress",
-  "linked_skill_id": "tri-constitution",
-  "linked_session_id": "2026-04-04T08:30:00Z#tri",
-  "last_synced_at": "2026-04-04T08:25:00Z",
-  "required_commit_message_pattern": "\\[ref: INFRA\\]",
-  "metadata": {}
+  "issue_id": "541",
+  "issue_url": "https://github.com/gHashTag/t27/issues/541",
+  "skill_id": "skill-541-igla-cli",
+  "linked_at": "2026-04-26T17:11:04.237283Z"
 }

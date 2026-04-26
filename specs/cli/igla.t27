@@ -1,0 +1,400 @@
+// SPDX-License-Identifier: CC0-1.0
+// CLI-IGLA-541: tri igla command family for IGLA RACE ledger queries
+
+/**
+ * Module: cli.igla
+ *
+ * Defines the surface and semantics of the `tri igla` subcommand family.
+ *
+ * Targets the IGLA RACE training ledger produced by trios-trainer-igla:
+ *   - assertions/seed_results.jsonl (one LedgerRow per JSONL line)
+ *   - assertions/embargo.txt        (one git short SHA per line)
+ *
+ * Triplet (R7) emit format:
+ *   BPB=<v> @ step=<N> seed=<S> sha=<7c> jsonl_row=<L> gate_status=<g>
+ *
+ * Gate-2 stop rule:
+ *   PASS iff at least 3 distinct seeds have a row with bpb < target
+ *   AND step >= STEP_MIN_FOR_LEDGER (R8).
+ *
+ * Embargo rule (R9):
+ *   any row whose 7-char sha matches a line in embargo.txt MUST be
+ *   refused by `tri igla check`.
+ */
+
+module cli.igla;
+
+use ledger.row;
+use embargo.list;
+
+// ----------------------------------------------------------------------
+// Constants (Gate-2 anchors)
+// ----------------------------------------------------------------------
+
+const DEFAULT_TARGET_BPB    : f64   = 1.85;
+const STEP_MIN_FOR_LEDGER   : u64   = 4_000;
+const GATE2_SEED_QUORUM     : usize = 3;
+const SHA_PREFIX_LEN        : usize = 7;
+const DEFAULT_LIST_LAST_N   : usize = 10;
+const TRINITY_ANCHOR        : f64   = 3.0;
+const PHI                   : f64   = 1.618033988749895;
+
+const DEFAULT_LEDGER_PATH  : str = "assertions/seed_results.jsonl";
+const DEFAULT_EMBARGO_PATH : str = "assertions/embargo.txt";
+
+// ----------------------------------------------------------------------
+// Ledger row model
+// ----------------------------------------------------------------------
+
+/**
+ * Canonical ledger row schema as written by trios-trainer-igla.
+ * The trainer emits this struct via serde_json; missing optional
+ * fields default to None.
+ */
+pub struct LedgerRow {
+    agent       : str,
+    bpb         : f64,
+    step        : u64,
+    seed        : u64,
+    sha         : str,
+    jsonl_row   : u64,
+    gate_status : str,
+    ts          : str,
+}
+
+/**
+ * GateStatus enumerates the gate verdicts the trainer is allowed to
+ * emit. Any other value is treated as "unknown" and counted by
+ * `tri igla list` but ignored by `tri igla gate`.
+ */
+pub enum GateStatus {
+    VictoryCandidate    = "victory_candidate",
+    BelowChampion       = "below_champion",
+    BelowTargetEvidence = "below_target_evidence",
+    Unknown             = "unknown",
+}
+
+// ----------------------------------------------------------------------
+// Predicate types
+// ----------------------------------------------------------------------
+
+/**
+ * Filter predicate composed from CLI flags. Each Option is None when
+ * the flag is omitted; combining multiple Some values means logical AND.
+ */
+pub struct SearchFilter {
+    seed        : Option<u64>,
+    bpb_max     : Option<f64>,
+    step_min    : Option<u64>,
+    sha         : Option<str>,
+    gate_status : Option<str>,
+}
+
+// ----------------------------------------------------------------------
+// Command surface
+// ----------------------------------------------------------------------
+
+/**
+ * Top-level `tri igla` subcommand interface.
+ */
+pub trait IglaCli {
+    /**
+     * Filter the ledger and emit one R7 triplet line per match.
+     *
+     * @return number of matched rows
+     */
+    fn search(&self, ledger: &LedgerPath, filter: &SearchFilter) -> usize;
+
+    /**
+     * Print the last N rows in triplet form.
+     *
+     * @return number of rows emitted (<= N)
+     */
+    fn list(&self, ledger: &LedgerPath, last_n: usize) -> usize;
+
+    /**
+     * Run Gate-2 quorum check.
+     *
+     * @return true iff at least GATE2_SEED_QUORUM distinct seeds have
+     *         a row with bpb < target_bpb AND step >= STEP_MIN_FOR_LEDGER
+     */
+    fn gate(&self, ledger: &LedgerPath, target_bpb: f64) -> bool;
+
+    /**
+     * Refuse if SHA is on the embargo list (R9), accept otherwise.
+     *
+     * @return true iff sha is NOT on the embargo list
+     */
+    fn check(&self, embargo: &EmbargoPath, sha: &str) -> bool;
+
+    /**
+     * Print the canonical R7 triplet for the row at row_index (0-based).
+     *
+     * @return true iff row_index is within ledger bounds
+     */
+    fn triplet(&self, ledger: &LedgerPath, row_index: usize) -> bool;
+}
+
+pub struct LedgerPath  { path: str }
+pub struct EmbargoPath { path: str }
+
+// ----------------------------------------------------------------------
+// Triplet rendering (R7)
+// ----------------------------------------------------------------------
+
+/**
+ * Canonical R7 triplet line. The 7-character SHA is required.
+ *
+ *   BPB=<v> @ step=<N> seed=<S> sha=<7c> jsonl_row=<L> gate_status=<g>
+ */
+fn render_triplet(row: &LedgerRow) -> str {
+    let sha7 = if row.sha.len() >= SHA_PREFIX_LEN {
+        row.sha[0..SHA_PREFIX_LEN]
+    } else {
+        row.sha
+    };
+    return "BPB=" + row.bpb + " @ step=" + row.step
+         + " seed=" + row.seed + " sha=" + sha7
+         + " jsonl_row=" + row.jsonl_row
+         + " gate_status=" + row.gate_status;
+}
+
+// ----------------------------------------------------------------------
+// Filter evaluation
+// ----------------------------------------------------------------------
+
+/**
+ * Evaluate the filter against a single row. Returns true iff every
+ * Some(.) clause matches the row.
+ */
+fn matches(filter: &SearchFilter, row: &LedgerRow) -> bool {
+    if filter.seed.is_some() && filter.seed.unwrap() != row.seed {
+        return false;
+    }
+    if filter.bpb_max.is_some() && row.bpb >= filter.bpb_max.unwrap() {
+        return false;
+    }
+    if filter.step_min.is_some() && row.step < filter.step_min.unwrap() {
+        return false;
+    }
+    if filter.sha.is_some() && !row.sha.starts_with(filter.sha.unwrap()) {
+        return false;
+    }
+    if filter.gate_status.is_some()
+        && row.gate_status != filter.gate_status.unwrap() {
+        return false;
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------
+// Gate-2 verdict
+// ----------------------------------------------------------------------
+
+/**
+ * Counts the number of distinct seeds that have at least one row
+ * satisfying (bpb < target_bpb) AND (step >= STEP_MIN_FOR_LEDGER).
+ * The value is compared against GATE2_SEED_QUORUM by gate().
+ */
+fn gate2_seed_count(rows: &[LedgerRow], target_bpb: f64) -> usize {
+    let mut seen = Set<u64>::new();
+    for row in rows {
+        if row.bpb < target_bpb && row.step >= STEP_MIN_FOR_LEDGER {
+            seen.insert(row.seed);
+        }
+    }
+    return seen.len();
+}
+
+// ----------------------------------------------------------------------
+// Embargo (R9)
+// ----------------------------------------------------------------------
+
+/**
+ * True iff the candidate sha appears as a prefix of, or full match for,
+ * any line in the embargo file. Comparison is case-insensitive on hex.
+ */
+fn is_embargoed(embargo_lines: &[str], sha: &str) -> bool {
+    let needle = sha.to_lowercase();
+    for line in embargo_lines {
+        let entry = line.trim().to_lowercase();
+        if entry.is_empty() { continue; }
+        if entry == needle { return true; }
+        if needle.len() >= SHA_PREFIX_LEN
+            && entry.len() >= SHA_PREFIX_LEN
+            && entry[0..SHA_PREFIX_LEN] == needle[0..SHA_PREFIX_LEN] {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ----------------------------------------------------------------------
+// TDD Tests (TDD-INSIDE-SPEC, ADR-003)
+// ----------------------------------------------------------------------
+
+test cli_igla_search_hit
+    given filter = SearchFilter {
+        seed: Some(43),
+        bpb_max: Some(2.50),
+        step_min: Some(4000),
+        sha: None,
+        gate_status: None,
+    }
+    and   row = LedgerRow {
+        agent: "igla-gate2-run", bpb: 2.497, step: 12000, seed: 43,
+        sha: "6a40e17", jsonl_row: 1,
+        gate_status: "below_target_evidence", ts: "2026-04-26T12:34:38Z",
+    }
+    then matches(filter, row) == true
+
+test cli_igla_search_miss_step_too_low
+    given filter = SearchFilter {
+        seed: None, bpb_max: None,
+        step_min: Some(4000),
+        sha: None, gate_status: None,
+    }
+    and   row = LedgerRow {
+        agent: "igla-pretrain", bpb: 3.5, step: 1000, seed: 43,
+        sha: "deadbee", jsonl_row: 2,
+        gate_status: "below_champion", ts: "2026-04-26T00:00:00Z",
+    }
+    then matches(filter, row) == false
+
+test cli_igla_search_miss_seed
+    given filter = SearchFilter {
+        seed: Some(44), bpb_max: None, step_min: None,
+        sha: None, gate_status: None,
+    }
+    and   row = LedgerRow {
+        agent: "igla-gate2-run", bpb: 2.497, step: 12000, seed: 43,
+        sha: "6a40e17", jsonl_row: 1,
+        gate_status: "below_target_evidence", ts: "2026-04-26T12:34:38Z",
+    }
+    then matches(filter, row) == false
+
+test cli_igla_gate_pass_three_seeds
+    given target = 1.85
+    and   rows = [
+        LedgerRow { agent: "a", bpb: 1.80, step: 27000, seed: 43,
+                    sha: "aaaaaaa", jsonl_row: 1,
+                    gate_status: "victory_candidate", ts: "t1" },
+        LedgerRow { agent: "a", bpb: 1.79, step: 27000, seed: 44,
+                    sha: "bbbbbbb", jsonl_row: 2,
+                    gate_status: "victory_candidate", ts: "t2" },
+        LedgerRow { agent: "a", bpb: 1.84, step: 27000, seed: 45,
+                    sha: "ccccccc", jsonl_row: 3,
+                    gate_status: "victory_candidate", ts: "t3" },
+    ]
+    then gate2_seed_count(rows, target) == 3
+
+test cli_igla_gate_not_yet_two_seeds
+    given target = 1.85
+    and   rows = [
+        LedgerRow { agent: "a", bpb: 1.80, step: 27000, seed: 43,
+                    sha: "aaaaaaa", jsonl_row: 1,
+                    gate_status: "victory_candidate", ts: "t1" },
+        LedgerRow { agent: "a", bpb: 1.79, step: 27000, seed: 44,
+                    sha: "bbbbbbb", jsonl_row: 2,
+                    gate_status: "victory_candidate", ts: "t2" },
+        LedgerRow { agent: "a", bpb: 2.00, step: 27000, seed: 45,
+                    sha: "ccccccc", jsonl_row: 3,
+                    gate_status: "below_target_evidence", ts: "t3" },
+    ]
+    then gate2_seed_count(rows, target) == 2
+
+test cli_igla_gate_ignores_low_step
+    given target = 1.85
+    and   rows = [
+        LedgerRow { agent: "a", bpb: 1.50, step: 100, seed: 43,
+                    sha: "aaaaaaa", jsonl_row: 1,
+                    gate_status: "victory_candidate", ts: "t1" },
+        LedgerRow { agent: "a", bpb: 1.50, step: 200, seed: 44,
+                    sha: "bbbbbbb", jsonl_row: 2,
+                    gate_status: "victory_candidate", ts: "t2" },
+        LedgerRow { agent: "a", bpb: 1.50, step: 300, seed: 45,
+                    sha: "ccccccc", jsonl_row: 3,
+                    gate_status: "victory_candidate", ts: "t3" },
+    ]
+    then gate2_seed_count(rows, target) == 0
+
+test cli_igla_check_refuses_embargoed_full
+    given embargo = ["477e3377", "b3ee6a36", "2f6e4c2",
+                     "4a158c01", "6393be94", "5950174",
+                     "32d1dd3", "a7574c3"]
+    and   sha = "477e3377"
+    then is_embargoed(embargo, sha) == true
+
+test cli_igla_check_refuses_embargoed_prefix
+    given embargo = ["477e3377abc"]
+    and   sha = "477e337"
+    then is_embargoed(embargo, sha) == true
+
+test cli_igla_check_accepts_clean
+    given embargo = ["477e3377", "b3ee6a36"]
+    and   sha = "2446855"
+    then is_embargoed(embargo, sha) == false
+
+test cli_igla_triplet_renders_canonical
+    given row = LedgerRow {
+        agent: "igla-gate2-run", bpb: 2.2393, step: 27000, seed: 43,
+        sha: "2446855abcde", jsonl_row: 7,
+        gate_status: "below_champion", ts: "2026-04-26T12:34:38Z",
+    }
+    then render_triplet(row) ==
+         "BPB=2.2393 @ step=27000 seed=43 sha=2446855 jsonl_row=7 gate_status=below_champion"
+
+// ----------------------------------------------------------------------
+// Invariants
+// ----------------------------------------------------------------------
+
+invariant cli_igla_triplet_sha_is_seven_chars
+    given row = LedgerRow {
+        agent: "x", bpb: 2.0, step: 5000, seed: 43,
+        sha: "abcdef0123456789", jsonl_row: 0,
+        gate_status: "below_champion", ts: "t",
+    }
+    and   line = render_triplet(row)
+    assert line.contains("sha=abcdef0")
+    assert !line.contains("sha=abcdef01")
+
+invariant cli_igla_gate_quorum_is_three
+    assert GATE2_SEED_QUORUM == 3
+
+invariant cli_igla_step_floor_matches_r8
+    assert STEP_MIN_FOR_LEDGER == 4_000
+
+invariant cli_igla_target_below_champion
+    // Target must be strictly below the current champion BPB
+    // (champion = 2.2393 @ 27K seed=43 sha=2446855).
+    assert DEFAULT_TARGET_BPB < 2.2393
+
+invariant cli_igla_phi_anchor_holds
+    // The TRINITY anchor is the constitutional reason this CLI exists
+    // (without phi^2 + phi^-2 = 3 there is no IGLA RACE).
+    given lhs = (PHI * PHI) + (1.0 / (PHI * PHI))
+    assert (lhs - TRINITY_ANCHOR) < 1.0e-10
+    assert (TRINITY_ANCHOR - lhs) < 1.0e-10
+
+invariant cli_igla_embargo_refusal_is_mandatory
+    // Whenever the embargo list contains an exact match, check() MUST
+    // return false. This is R9 and cannot be relaxed by any flag.
+    given embargo = ["477e3377"]
+    and   sha = "477e3377"
+    assert is_embargoed(embargo, sha) == true
+
+// ----------------------------------------------------------------------
+// Benchmarks
+// ----------------------------------------------------------------------
+
+bench cli_igla_search_latency_1000_rows
+    measure: nanoseconds to scan a 1000-row ledger with 5 active filters
+    target: < 5_000_000
+
+bench cli_igla_gate_latency_1000_rows
+    measure: nanoseconds to compute gate2_seed_count over 1000 rows
+    target: < 2_000_000
+
+bench cli_igla_triplet_render_latency
+    measure: nanoseconds to render a single canonical R7 triplet line
+    target: < 5_000
