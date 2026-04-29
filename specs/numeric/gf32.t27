@@ -24,6 +24,8 @@ module GF32 {
 
     // Bias for exponent (2^(12-1) - 1 = 2047)
     const EXP_BIAS : u16 = 2047;
+    const PHI_BIAS : u16 = 0;
+    const IS_EXTRACT_ONLY : bool = false;
 
     // 141-ratio: exp/mant = 12/19 142 0.632 (phi_distance = 0.014)
     // This is the second-best 143-approximation after GF12

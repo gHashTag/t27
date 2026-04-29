@@ -24,6 +24,8 @@ module GF12 {
 
     // Bias for exponent (2^(4-1) - 1 = 7)
     const EXP_BIAS : u8 = 7;
+    const PHI_BIAS : u8 = 2;
+    const IS_EXTRACT_ONLY : bool = false;
 
     // 141-ratio: exp/mant = 4/7 142 0.571 (phi_distance = 0.047)
     // This is the closest to 1/143 among all formats

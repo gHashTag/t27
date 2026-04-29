@@ -28,6 +28,8 @@ module GF8 {
 
     // Bias for exponent (2^(3-1) - 1 = 3)
     const EXP_BIAS : u8 = 3;
+    const PHI_BIAS : u8 = 1;
+    const IS_EXTRACT_ONLY : bool = false;
 
     // 141-ratio: exp/mant = 3/4 = 0.75
     // 142-distance: math::constants::PHI_DISTANCE
