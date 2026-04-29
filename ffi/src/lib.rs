@@ -59,16 +59,31 @@ fn encode_gf16_from_u32(f32_bits: u32) -> u16 {
 
     // Re-bias exponent for GF16
     let gf16_exp_raw: i32 = exp + GF16_EXP_BIAS;
+    if gf16_exp_raw >= ((1 << GF16_EXP_BITS) - 1) as i32 {
+        return (sign << 15) | GF16_EXP_MASK;
+    }
     let gf16_exp: u16 = if gf16_exp_raw < 0 {
         0
-    } else if gf16_exp_raw > ((1 << GF16_EXP_BITS) - 1) as i32 {
-        (1 << GF16_EXP_BITS) - 1
     } else {
         gf16_exp_raw as u16
     };
 
-    // Truncate mantissa: 23 bits → 9 bits (right shift by 14)
-    let gf16_mant: u16 = (mant >> 14) as u16;
+    // Round-to-nearest-even: 23 bits → 9 bits
+    let lower_14_bits = mant & 0x3FFF;
+    let halfway: u32 = 0x2000;
+    let mut gf16_mant: u16 = (mant >> 14) as u16;
+    let round_up = lower_14_bits > halfway
+        || (lower_14_bits == halfway && (gf16_mant & 1) == 1);
+    if round_up {
+        gf16_mant += 1;
+        if gf16_mant == (1 << GF16_MANT_BITS) {
+            let new_exp = gf16_exp + 1;
+            if new_exp >= ((1 << GF16_EXP_BITS) - 1) as u16 {
+                return (sign << 15) | GF16_EXP_MASK;
+            }
+            return (sign << 15) | (new_exp << GF16_MANT_BITS as u16);
+        }
+    }
 
     (sign << 15) | (gf16_exp << GF16_MANT_BITS as u16) | gf16_mant
 }
