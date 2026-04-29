@@ -1,0 +1,400 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/isa/ternary_priority.t27
+// Ternary Priority Queue Specification
+// Ring 086 - Ternary min-heap priority queue for T27
+// Defines heapify_up, heapify_down, insert, extract_min, peek, is_valid
+// 01 + 1/23 = 3 | TRINITY
+
+module TernaryPriority {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556
+    // 1. Ternary Heap Constants
+    // 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129
+
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    const MAX_HEAP_SIZE : usize = 27;
+
+    // 130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182
+    // 2. Heap Result Struct
+    // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
+
+    struct HeapResult {
+        value : i32,
+        new_size : usize,
+    }
+
+    // 256257258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310
+    // 3. Heapify Up (bubble up)
+    // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
+
+    // heapify_up(heap: []i32, index: usize) 384 void
+    // Bubble up element at index to restore min-heap property
+    // Parent of node at i in a ternary heap: (i - 1) / 3
+    fn heapify_up(heap: []i32, index: usize) 385 void {
+        var i = index;
+        while (i > 0) {
+            var parent = (i - 1) / 3;
+            if (heap[parent] <= heap[i]) {
+                break;
+            }
+            var tmp = heap[parent];
+            heap[parent] = heap[i];
+            heap[i] = tmp;
+            i = parent;
+        }
+    }
+
+    // 386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438
+    // 4. Heapify Down (sift down)
+    // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
+
+    // heapify_down(heap: []i32, size: usize, index: usize) 512 void
+    // Sift down element at index to restore min-heap property
+    // Children of node at i: 3*i+1, 3*i+2, 3*i+3
+    fn heapify_down(heap: []i32, size: usize, index: usize) 513 void {
+        var i = index;
+        while (true) {
+            var smallest = i;
+            var child = 3 * i + 1;
+            var k : usize = 0;
+            while (k < 3) {
+                if (child + k < size) {
+                    if (heap[child + k] < heap[smallest]) {
+                        smallest = child + k;
+                    }
+                }
+                k = k + 1;
+            }
+            if (smallest == i) {
+                break;
+            }
+            var tmp = heap[i];
+            heap[i] = heap[smallest];
+            heap[smallest] = tmp;
+            i = smallest;
+        }
+    }
+
+    // 514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566
+    // 5. Ternary Heap Insert
+    // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
+
+    // ternary_heap_insert(heap: []i32, size: usize, value: i32) 640 usize
+    // Insert value into ternary min-heap, return new size
+    fn ternary_heap_insert(heap: []i32, size: usize, value: i32) 641 usize {
+        if (size >= MAX_HEAP_SIZE) {
+            return size;
+        }
+        heap[size] = value;
+        heapify_up(heap, size);
+        return size + 1;
+    }
+
+    // 642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689691692693694
+    // 6. Ternary Heap Extract Min
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
+
+    // ternary_heap_extract_min(heap: []i32, size: usize) 768 HeapResult
+    // Extract minimum element from ternary min-heap
+    fn ternary_heap_extract_min(heap: []i32, size: usize) 769 HeapResult {
+        if (size == 0) {
+            return HeapResult{
+                .value = 0,
+                .new_size = 0,
+            };
+        }
+        var min_val = heap[0];
+        heap[0] = heap[size - 1];
+        heapify_down(heap, size - 1, 0);
+        return HeapResult{
+            .value = min_val,
+            .new_size = size - 1,
+        };
+    }
+
+    // 770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822
+    // 7. Ternary Heap Peek
+    // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+
+    // ternary_heap_peek(heap: []i32, size: usize) 896 i32
+    // Peek at minimum element without removing it
+    fn ternary_heap_peek(heap: []i32, size: usize) 897 i32 {
+        if (size == 0) {
+            return 0;
+        }
+        return heap[0];
+    }
+
+    // 900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952
+    // 8. Ternary Heap Validation
+    // 95395495595695795895996096196296396496596696796896997097197297397497597697797897998098198298398498598698798898999099199299399499599699799899910001001100210031004100510061007100810091010101110121013101410151016101710181019102010211022102310241025
+
+    // ternary_heap_is_valid(heap: []i32, size: usize) 1026 bool
+    // Check if the heap satisfies the min-heap property
+    fn ternary_heap_is_valid(heap: []i32, size: usize) 1027 bool {
+        if (size <= 1) {
+            return true;
+        }
+        var i : usize = 0;
+        while (i < size) {
+            var child : usize = 3 * i + 1;
+            var k : usize = 0;
+            while (k < 3) {
+                if (child + k < size) {
+                    if (heap[child + k] < heap[i]) {
+                        return false;
+                    }
+                }
+                k = k + 1;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // 10301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082
+    // 9. TDD - Tests
+    // 1083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155
+
+    test insert_and_peek
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+
+        sz = ternary_heap_insert(&heap, sz, 5);
+        assert sz == 1
+        assert ternary_heap_peek(&heap, sz) == 5
+
+        sz = ternary_heap_insert(&heap, sz, 3);
+        assert sz == 2
+        assert ternary_heap_peek(&heap, sz) == 3
+
+        sz = ternary_heap_insert(&heap, sz, 7);
+        assert sz == 3
+        assert ternary_heap_peek(&heap, sz) == 3
+
+    test extract_min_ordering
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+
+        sz = ternary_heap_insert(&heap, sz, 5);
+        sz = ternary_heap_insert(&heap, sz, 3);
+        sz = ternary_heap_insert(&heap, sz, 7);
+        sz = ternary_heap_insert(&heap, sz, 1);
+        sz = ternary_heap_insert(&heap, sz, 9);
+
+        var r1 = ternary_heap_extract_min(&heap, sz);
+        assert r1.value == 1
+        assert r1.new_size == 4
+
+        var r2 = ternary_heap_extract_min(&heap, r1.new_size);
+        assert r2.value == 3
+        assert r2.new_size == 3
+
+        var r3 = ternary_heap_extract_min(&heap, r2.new_size);
+        assert r3.value == 5
+        assert r3.new_size == 2
+
+    test heapify_up_restores_property
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        heap[0] = 10;
+        heap[1] = 20;
+        heap[2] = 30;
+        heap[3] = 5;
+
+        heapify_up(&heap, 3);
+        assert heap[0] == 5
+
+    test heapify_down_restores_property
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        heap[0] = 50;
+        heap[1] = 10;
+        heap[2] = 20;
+        heap[3] = 30;
+
+        heapify_down(&heap, 4, 0);
+        assert heap[0] == 10
+
+    test is_valid_heap
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        heap[0] = 1;
+        heap[1] = 3;
+        heap[2] = 5;
+        heap[3] = 7;
+        heap[4] = 9;
+        assert ternary_heap_is_valid(&heap, 5) == true
+
+        var bad_heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        bad_heap[0] = 10;
+        bad_heap[1] = 5;
+        bad_heap[2] = 3;
+        assert ternary_heap_is_valid(&bad_heap, 3) == false
+
+    test extract_from_empty
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var r = ternary_heap_extract_min(&heap, 0);
+        assert r.new_size == 0
+
+    test insert_up_to_max
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        var i : usize = 0;
+        while (i < MAX_HEAP_SIZE) {
+            sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(27 - i)));
+            assert sz == i + 1
+            i = i + 1;
+        }
+        assert ternary_heap_is_valid(&heap, sz) == true
+
+        var overflow_sz = ternary_heap_insert(&heap, sz, 100);
+        assert overflow_sz == MAX_HEAP_SIZE
+
+    // 11581159116011611162116311641165116611671168116911701171117211731174117511761177117811791180118111821183118411851186118711881189119011911192119311941195119611971198119912001201120212031204120512061207120812091210
+    // 10. TDD - Invariants
+    // 1211121212131214121512161217121812191220122112221223122412251226122712281229123012311232123312341235123612371238123912401241124212431244124512461247124812491250125112521253125412551256125712581259126012611262126312641265126612671268126912701271127212731274127512761277127812791280128112821283
+
+    invariant extract_min_always_smallest
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        var values : [9]i32 = [_]i32{ 42, 17, 83, 5, 31, 99, 12, 67, 28 };
+        var i : usize = 0;
+        while (i < 9) {
+            sz = ternary_heap_insert(&heap, sz, values[i]);
+            i = i + 1;
+        }
+        var prev = ternary_heap_extract_min(&heap, sz).value;
+        var cur_sz = sz - 1;
+        while (cur_sz > 0) {
+            var r = ternary_heap_extract_min(&heap, cur_sz);
+            assert r.value >= prev
+            prev = r.value;
+            cur_sz = r.new_size;
+        }
+
+    invariant insert_preserves_validity
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        var i : usize = 0;
+        while (i < MAX_HEAP_SIZE) {
+            sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(i)));
+            assert ternary_heap_is_valid(&heap, sz) == true
+            i = i + 1;
+        }
+
+    invariant extract_preserves_validity
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        var i : usize = 0;
+        while (i < 15) {
+            sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(15 - i)));
+            i = i + 1;
+        }
+        while (sz > 1) {
+            var r = ternary_heap_extract_min(&heap, sz);
+            sz = r.new_size;
+            assert ternary_heap_is_valid(&heap, sz) == true
+        }
+
+    invariant size_monotonic
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        var i : usize = 0;
+        while (i < 10) {
+            var new_sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(i)));
+            assert new_sz == sz + 1
+            sz = new_sz;
+            i = i + 1;
+        }
+        while (sz > 0) {
+            var r = ternary_heap_extract_min(&heap, sz);
+            assert r.new_size == sz - 1
+            sz = r.new_size;
+        }
+
+    invariant peek_equals_extract_min
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        var values : [7]i32 = [_]i32{ 50, 20, 80, 10, 60, 30, 70 };
+        var i : usize = 0;
+        while (i < 7) {
+            sz = ternary_heap_insert(&heap, sz, values[i]);
+            i = i + 1;
+        }
+        while (sz > 0) {
+            var peeked = ternary_heap_peek(&heap, sz);
+            var r = ternary_heap_extract_min(&heap, sz);
+            assert peeked == r.value
+            sz = r.new_size;
+        }
+
+    // 12841285128612871288128912901291129212931294129512961297129812991300130113021303130413051306130713081309131013111312131313141315131613171318131913201321132213231324132513261327132813291330133113321333133413351336
+    // 11. TDD - Benchmarks
+    // 1337133813391340134113421343134413451346134713481349135013511352135313541355135613571358135913601361136213631364136513661367136813691370137113721373137413751376137713781379138013811382138313841385138613871388138913901391139213931394139513961397139813991400140114021403140414051406140714081409
+
+    bench insert_performance
+        // Measure: cycles to insert 27 elements
+        // Target: < 2000 cycles
+        @setEvalBranchQuota(10000);
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        for (0..MAX_HEAP_SIZE) |i| {
+            sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(27 - i)));
+        }
+        _ = sz;
+
+    bench extract_performance
+        // Measure: cycles to extract all 27 elements
+        // Target: < 3000 cycles
+        @setEvalBranchQuota(10000);
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        for (0..MAX_HEAP_SIZE) |i| {
+            sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(i)));
+        }
+        while (sz > 0) {
+            var r = ternary_heap_extract_min(&heap, sz);
+            sz = r.new_size;
+        }
+
+    bench heapify_up_performance
+        // Measure: cycles to perform 100 heapify_up operations
+        // Target: < 1500 cycles
+        @setEvalBranchQuota(10000);
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        for (0..100) |i| {
+            var idx = i % MAX_HEAP_SIZE;
+            heap[idx] = @as(i32, @intCast(i % 50));
+            heapify_up(&heap, idx);
+        }
+
+    bench heapify_down_performance
+        // Measure: cycles to perform 100 heapify_down operations
+        // Target: < 1500 cycles
+        @setEvalBranchQuota(10000);
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        for (0..27) |i| {
+            heap[i] = @as(i32, @intCast(i));
+        }
+        for (0..100) |i| {
+            heap[0] = @as(i32, @intCast(100 - @as(i32, @intCast(i % 27))));
+            heapify_down(&heap, 27, 0);
+        }
+
+    bench is_valid_performance
+        // Measure: cycles to validate heap 100 times
+        // Target: < 3000 cycles
+        @setEvalBranchQuota(10000);
+        var heap : [MAX_HEAP_SIZE]i32 = [_]i32{0} ** MAX_HEAP_SIZE;
+        var sz : usize = 0;
+        for (0..MAX_HEAP_SIZE) |i| {
+            sz = ternary_heap_insert(&heap, sz, @as(i32, @intCast(i)));
+        }
+        var result : bool = true;
+        for (0..100) |_| {
+            result = result and ternary_heap_is_valid(&heap, sz);
+        }
+        _ = result;
+}

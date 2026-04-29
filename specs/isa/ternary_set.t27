@@ -1,0 +1,397 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/isa/ternary_set.t27
+// Ternary Set Operations Specification
+// Ring 085 - Balanced ternary set operations for T27
+// Defines membership, insertion, removal, union, intersection, cardinality
+// 01 + 1/23 = 3 | TRINITY
+
+module TernarySet {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556
+    // 1. Ternary Set Constants
+    // 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129
+
+    // Balanced ternary values
+    const TRIT_NEG : i32 = -1;   // Negative
+    const TRIT_ZERO : i32 = 0;   // Zero
+    const TRIT_POS : i32 = 1;    // Positive
+
+    // Maximum set size (3^3 = 27 unique trit combinations)
+    const MAX_SET_SIZE : usize = 27;
+
+    // 130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182
+    // 2. Set Membership
+    // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
+
+    // ternary_set_contains(set: []i32, len: usize, value: i32) 256 bool
+    // Check if value is present in the set
+    fn ternary_set_contains(set: []i32, len: usize, value: i32) 257 bool {
+        var i : usize = 0;
+        while (i < len) {
+            if (set[i] == value) {
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    // 258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310
+    // 3. Set Insertion
+    // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
+
+    // ternary_set_insert(set: []i32, len: usize, value: i32) 384 usize
+    // Insert value into set if not already present
+    // Returns new set size
+    fn ternary_set_insert(set: []i32, len: usize, value: i32) 385 usize {
+        if (ternary_set_contains(set, len, value)) {
+            return len;
+        }
+        if (len < MAX_SET_SIZE) {
+            set[len] = value;
+            return len + 1;
+        }
+        return len;
+    }
+
+    // 386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438
+    // 4. Set Removal
+    // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
+
+    // ternary_set_remove(set: []i32, len: usize, value: i32) 512 usize
+    // Remove value from set if present
+    // Returns new set size
+    fn ternary_set_remove(set: []i32, len: usize, value: i32) 513 usize {
+        var i : usize = 0;
+        while (i < len) {
+            if (set[i] == value) {
+                // Shift remaining elements left
+                var j : usize = i;
+                while (j < len - 1) {
+                    set[j] = set[j + 1];
+                    j = j + 1;
+                }
+                return len - 1;
+            }
+            i = i + 1;
+        }
+        return len;
+    }
+
+    // 514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566
+    // 5. Set Union
+    // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
+
+    // ternary_set_union(a: []i32, a_len: usize, b: []i32, b_len: usize, result: []i32) 640 usize
+    // Compute union of two sets into result buffer
+    // Returns result set size
+    fn ternary_set_union(a: []i32, a_len: usize, b: []i32, b_len: usize, result: []i32) 641 usize {
+        var r_len : usize = 0;
+
+        // Copy all elements from a
+        var i : usize = 0;
+        while (i < a_len) {
+            result[r_len] = a[i];
+            r_len = r_len + 1;
+            i = i + 1;
+        }
+
+        // Insert elements from b that are not already in result
+        i = 0;
+        while (i < b_len) {
+            r_len = ternary_set_insert(result, r_len, b[i]);
+            i = i + 1;
+        }
+
+        return r_len;
+    }
+
+    // 642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694
+    // 6. Set Intersection
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
+
+    // ternary_set_intersection(a: []i32, a_len: usize, b: []i32, b_len: usize, result: []i32) 768 usize
+    // Compute intersection of two sets into result buffer
+    // Returns result set size
+    fn ternary_set_intersection(a: []i32, a_len: usize, b: []i32, b_len: usize, result: []i32) 769 usize {
+        var r_len : usize = 0;
+
+        var i : usize = 0;
+        while (i < a_len) {
+            if (ternary_set_contains(b, b_len, a[i])) {
+                result[r_len] = a[i];
+                r_len = r_len + 1;
+            }
+            i = i + 1;
+        }
+
+        return r_len;
+    }
+
+    // 770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822
+    // 7. Set Cardinality
+    // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+
+    // ternary_set_cardinality(set: []i32, len: usize) 896 usize
+    // Count unique elements in the set
+    fn ternary_set_cardinality(set: []i32, len: usize) 897 usize {
+        if (len == 0) {
+            return 0;
+        }
+
+        var count : usize = 0;
+        var i : usize = 0;
+        while (i < len) {
+            // Check if this element appeared earlier
+            var is_duplicate : bool = false;
+            var j : usize = 0;
+            while (j < i) {
+                if (set[j] == set[i]) {
+                    is_duplicate = true;
+                }
+                j = j + 1;
+            }
+            if (!is_duplicate) {
+                count = count + 1;
+            }
+            i = i + 1;
+        }
+
+        return count;
+    }
+
+    // 898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952
+    // 8. TDD - Tests
+    // 95395495595695795895996096196296396496596696796896997097197297397497597697797897998098198298398498598698798898999099199299399499599699799899910001001100210031004100510061007100810091010101110121013101410151016101710181019102010211022102310241025
+
+    test ternary_set_contains_basic
+        var set : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, 2, -2};
+        assert ternary_set_contains(&set, 5, TRIT_NEG) == true
+        assert ternary_set_contains(&set, 5, TRIT_ZERO) == true
+        assert ternary_set_contains(&set, 5, TRIT_POS) == true
+        assert ternary_set_contains(&set, 5, 42) == false
+        assert ternary_set_contains(&set, 3, 2) == false
+        assert ternary_set_contains(&set, 0, TRIT_NEG) == false
+
+    test ternary_set_insert_basic
+        var set : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO} ++ [_]i32{0} ** (MAX_SET_SIZE - 2);
+        var len : usize = 2;
+
+        len = ternary_set_insert(&set, len, TRIT_POS);
+        assert len == 3
+        assert set[2] == TRIT_POS
+
+        // Inserting duplicate should not change size
+        len = ternary_set_insert(&set, len, TRIT_NEG);
+        assert len == 3
+
+        // Insert new value
+        len = ternary_set_insert(&set, len, 5);
+        assert len == 4
+        assert set[3] == 5
+
+    test ternary_set_remove_basic
+        var set : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS} ++ [_]i32{0} ** (MAX_SET_SIZE - 3);
+        var len : usize = 3;
+
+        // Remove middle element
+        len = ternary_set_remove(&set, len, TRIT_ZERO);
+        assert len == 2
+        assert set[0] == TRIT_NEG
+        assert set[1] == TRIT_POS
+
+        // Remove non-existent element
+        len = ternary_set_remove(&set, len, 42);
+        assert len == 2
+
+        // Remove first element
+        len = ternary_set_remove(&set, len, TRIT_NEG);
+        assert len == 1
+        assert set[0] == TRIT_POS
+
+        // Remove last element
+        len = ternary_set_remove(&set, len, TRIT_POS);
+        assert len == 0
+
+    test ternary_set_union_basic
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO} ++ [_]i32{0} ** (MAX_SET_SIZE - 2);
+        var b : [MAX_SET_SIZE]i32 = [_]i32{TRIT_ZERO, TRIT_POS} ++ [_]i32{0} ** (MAX_SET_SIZE - 2);
+        var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+
+        var r_len = ternary_set_union(&a, 2, &b, 2, &result);
+        assert r_len == 3
+        assert ternary_set_contains(&result, r_len, TRIT_NEG) == true
+        assert ternary_set_contains(&result, r_len, TRIT_ZERO) == true
+        assert ternary_set_contains(&result, r_len, TRIT_POS) == true
+
+    test ternary_set_intersection_basic
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS} ++ [_]i32{0} ** (MAX_SET_SIZE - 3);
+        var b : [MAX_SET_SIZE]i32 = [_]i32{TRIT_ZERO, TRIT_POS, 5} ++ [_]i32{0} ** (MAX_SET_SIZE - 3);
+        var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+
+        var r_len = ternary_set_intersection(&a, 3, &b, 3, &result);
+        assert r_len == 2
+        assert ternary_set_contains(&result, r_len, TRIT_ZERO) == true
+        assert ternary_set_contains(&result, r_len, TRIT_POS) == true
+        assert ternary_set_contains(&result, r_len, TRIT_NEG) == false
+
+    test ternary_set_cardinality_basic
+        var set1 : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, 2, -2};
+        assert ternary_set_cardinality(&set1, 5) == 5
+
+        var set2 : [5]i32 = [_]i32{TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS, TRIT_POS};
+        assert ternary_set_cardinality(&set2, 5) == 1
+
+        var set3 : [6]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_POS};
+        assert ternary_set_cardinality(&set3, 6) == 3
+
+        var empty : [1]i32 = [_]i32{0};
+        assert ternary_set_cardinality(&empty, 0) == 0
+
+    test ternary_set_union_empty
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG} ++ [_]i32{0} ** (MAX_SET_SIZE - 1);
+        var empty : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+        var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+
+        // Union with empty set
+        var r_len = ternary_set_union(&a, 1, &empty, 0, &result);
+        assert r_len == 1
+        assert result[0] == TRIT_NEG
+
+        // Empty union with empty
+        var result2 : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+        r_len = ternary_set_union(&empty, 0, &empty, 0, &result2);
+        assert r_len == 0
+
+    // 102610271028102910301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082
+    // 9. TDD - Invariants
+    // 1083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155
+
+    invariant contains_after_insert
+        // Inserting a value then checking contains should return true
+        var set : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+        var len : usize = 0;
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, -5, 5, 13};
+        var i : usize = 0;
+        while (i < 6) {
+            len = ternary_set_insert(&set, len, vals[i]);
+            assert ternary_set_contains(&set, len, vals[i]) == true
+            i = i + 1;
+        }
+
+    invariant not_contains_after_remove
+        // Removing a value then checking contains should return false
+        var set : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, 5, -5} ++ [_]i32{0} ** (MAX_SET_SIZE - 5);
+        var len : usize = 5;
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var i : usize = 0;
+        while (i < 3) {
+            len = ternary_set_remove(&set, len, vals[i]);
+            assert ternary_set_contains(&set, len, vals[i]) == false
+            i = i + 1;
+        }
+
+    invariant union_contains_both
+        // Union of two sets should contain all elements from both
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, 5} ++ [_]i32{0} ** (MAX_SET_SIZE - 2);
+        var b : [MAX_SET_SIZE]i32 = [_]i32{TRIT_POS, -5} ++ [_]i32{0} ** (MAX_SET_SIZE - 2);
+        var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+        var r_len = ternary_set_union(&a, 2, &b, 2, &result);
+        assert ternary_set_contains(&result, r_len, TRIT_NEG) == true
+        assert ternary_set_contains(&result, r_len, TRIT_POS) == true
+        assert ternary_set_contains(&result, r_len, 5) == true
+        assert ternary_set_contains(&result, r_len, -5) == true
+
+    invariant intersection_subset_of_both
+        // Intersection elements must be in both input sets
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS} ++ [_]i32{0} ** (MAX_SET_SIZE - 3);
+        var b : [MAX_SET_SIZE]i32 = [_]i32{TRIT_ZERO, TRIT_POS, 7} ++ [_]i32{0} ** (MAX_SET_SIZE - 3);
+        var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+        var r_len = ternary_set_intersection(&a, 3, &b, 3, &result);
+        var i : usize = 0;
+        while (i < r_len) {
+            assert ternary_set_contains(&a, 3, result[i]) == true
+            assert ternary_set_contains(&b, 3, result[i]) == true
+            i = i + 1;
+        }
+
+    invariant cardinality_monotone_with_insert
+        // Cardinality should never decrease when inserting unique values
+        var set : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+        var len : usize = 0;
+        var prev_card : usize = 0;
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, -10, 10};
+        var i : usize = 0;
+        while (i < 5) {
+            len = ternary_set_insert(&set, len, vals[i]);
+            var card = ternary_set_cardinality(&set, len);
+            assert card >= prev_card
+            prev_card = card;
+            i = i + 1;
+        }
+
+    // 1156115711581159116011611162116311641165116611671168116911701171117211731174117511761177117811791180118111821183118411851186118711881189119011911192119311941195119611971198119912001201120212031204120512061207120812091210
+    // 10. TDD - Benchmarks
+    // 1211121212131214121512161217121812191220122112221223122412251226122712281229123012311232123312341235123612371238123912401241124212431244124512461247124812491250125112521253125412551256125712581259126012611262126312641265126612671268126912701271127212731274127512761277127812791280128112821283
+
+    bench contains_performance
+        // Measure: cycles to check membership 1000 times
+        // Target: < 500 cycles
+        var set : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, -5, 5, -10, 10} ++ [_]i32{0} ** (MAX_SET_SIZE - 7);
+        @setEvalBranchQuota(10000);
+        var result : bool = false;
+        for (0..1000) |i| {
+            result = ternary_set_contains(&set, 7, @as(i32, @intCast(i % 20)) - 10);
+        }
+        _ = result;
+
+    bench insert_performance
+        // Measure: cycles to insert 100 values into sets
+        // Target: < 5000 cycles
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            var set : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+            var len : usize = 0;
+            var i : usize = 0;
+            while (i < 10) {
+                len = ternary_set_insert(&set, len, @as(i32, @intCast(i)));
+                i = i + 1;
+            }
+        }
+
+    bench remove_performance
+        // Measure: cycles to remove values from sets 100 times
+        // Target: < 5000 cycles
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            var set : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, -5, 5, -10, 10, 15, -15, 20} ++ [_]i32{0} ** (MAX_SET_SIZE - 10);
+            _ = ternary_set_remove(&set, 10, TRIT_ZERO);
+        }
+
+    bench union_performance
+        // Measure: cycles to compute 100 set unions
+        // Target: < 5000 cycles
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, 2, 4, 6} ++ [_]i32{0} ** (MAX_SET_SIZE - 5);
+        var b : [MAX_SET_SIZE]i32 = [_]i32{TRIT_POS, TRIT_ZERO, 3, 5, 7} ++ [_]i32{0} ** (MAX_SET_SIZE - 5);
+        @setEvalBranchQuota(10000);
+        var r_len : usize = 0;
+        for (0..100) |_| {
+            var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+            r_len = ternary_set_union(&a, 5, &b, 5, &result);
+        }
+        _ = r_len;
+
+    bench intersection_performance
+        // Measure: cycles to compute 100 set intersections
+        // Target: < 5000 cycles
+        var a : [MAX_SET_SIZE]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, 2, 4} ++ [_]i32{0} ** (MAX_SET_SIZE - 5);
+        var b : [MAX_SET_SIZE]i32 = [_]i32{TRIT_ZERO, TRIT_POS, 3, 4, 7} ++ [_]i32{0} ** (MAX_SET_SIZE - 5);
+        @setEvalBranchQuota(10000);
+        var r_len : usize = 0;
+        for (0..100) |_| {
+            var result : [MAX_SET_SIZE]i32 = [_]i32{0} ** MAX_SET_SIZE;
+            r_len = ternary_set_intersection(&a, 5, &b, 5, &result);
+        }
+        _ = r_len;
+}

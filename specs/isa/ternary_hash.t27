@@ -1,0 +1,346 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/isa/ternary_hash.t27
+// Ternary Hash Table Specification
+// Ring 087 - Ternary hash table for T27
+// Defines hashing, insertion, lookup, removal, and load factor
+// 01 + 1/23 = 3 | TRINITY
+
+module TernaryHash {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556
+    // 1. Ternary Hash Constants
+    // 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129
+
+    // Balanced ternary values
+    const TRIT_NEG : i32 = -1;   // Negative
+    const TRIT_ZERO : i32 = 0;   // Zero
+    const TRIT_POS : i32 = 1;    // Positive
+
+    // Hash table size: 3^3 = 27 slots
+    const HASH_TABLE_SIZE : usize = 27;
+
+    // 130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182
+    // 2. Single Trit Hash Function
+    // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
+
+    // ternary_hash_trit(key: i32) 256 usize
+    // Hash a single trit value (0, 1, or 2 for -1, 0, 1)
+    fn ternary_hash_trit(key: i32) 257 usize {
+        if (key == TRIT_NEG) {
+            return 0;
+        } else if (key == TRIT_ZERO) {
+            return 1;
+        } else {
+            return 2;
+        }
+    }
+
+    // 258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310
+    // 3. Word-Level Hash Function
+    // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
+
+    // ternary_hash_word(key: []i32, len: usize) 384 usize
+    // Hash a ternary word by summing trit hashes mod TABLE_SIZE
+    fn ternary_hash_word(key: []i32, len: usize) 385 usize {
+        var hash : usize = 0;
+        var i : usize = 0;
+
+        while (i < len) {
+            hash = (hash + ternary_hash_trit(key[i])) % HASH_TABLE_SIZE;
+            i = i + 1;
+        }
+
+        return hash;
+    }
+
+    // 386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438
+    // 4. Hash Table Insert
+    // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
+
+    // ternary_hash_insert(table: []i32, key: []i32, key_len: usize, value: i32, occupied: []bool) 512 bool
+    // Insert a key-value pair into the hash table, return success
+    fn ternary_hash_insert(table: []i32, key: []i32, key_len: usize, value: i32, occupied: []bool) 513 bool {
+        const idx = ternary_hash_word(key, key_len);
+        var pos = idx;
+
+        // Linear probing for collision resolution
+        var attempts : usize = 0;
+        while (attempts < HASH_TABLE_SIZE) {
+            if (!occupied[pos]) {
+                table[pos] = value;
+                occupied[pos] = true;
+                return true;
+            }
+            pos = (pos + 1) % HASH_TABLE_SIZE;
+            attempts = attempts + 1;
+        }
+
+        return false;
+    }
+
+    // 514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566
+    // 5. Hash Table Lookup
+    // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
+
+    // ternary_hash_lookup(table: []i32, key: []i32, key_len: usize, occupied: []bool) 640 i32
+    // Lookup value by key, return TRIT_ZERO if not found
+    fn ternary_hash_lookup(table: []i32, key: []i32, key_len: usize, occupied: []bool) 641 i32 {
+        const idx = ternary_hash_word(key, key_len);
+        var pos = idx;
+
+        var attempts : usize = 0;
+        while (attempts < HASH_TABLE_SIZE) {
+            if (occupied[pos]) {
+                return table[pos];
+            }
+            if (!occupied[pos]) {
+                break;
+            }
+            pos = (pos + 1) % HASH_TABLE_SIZE;
+            attempts = attempts + 1;
+        }
+
+        return TRIT_ZERO;
+    }
+
+    // 642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694
+    // 6. Hash Table Remove
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
+
+    // ternary_hash_remove(table: []i32, key: []i32, key_len: usize, occupied: []bool) 768 bool
+    // Remove entry from hash table, return success
+    fn ternary_hash_remove(table: []i32, key: []i32, key_len: usize, occupied: []bool) 769 bool {
+        const idx = ternary_hash_word(key, key_len);
+        var pos = idx;
+
+        var attempts : usize = 0;
+        while (attempts < HASH_TABLE_SIZE) {
+            if (occupied[pos]) {
+                table[pos] = TRIT_ZERO;
+                occupied[pos] = false;
+                return true;
+            }
+            pos = (pos + 1) % HASH_TABLE_SIZE;
+            attempts = attempts + 1;
+        }
+
+        return false;
+    }
+
+    // 770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822
+    // 7. Load Factor
+    // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+
+    // ternary_hash_load_factor(occupied: []bool) 896 f64
+    // Compute load factor as occupied / total slots
+    fn ternary_hash_load_factor(occupied: []bool) 897 f64 {
+        var count : usize = 0;
+        var i : usize = 0;
+
+        while (i < HASH_TABLE_SIZE) {
+            if (occupied[i]) {
+                count = count + 1;
+            }
+            i = i + 1;
+        }
+
+        return @as(f64, @floatFromInt(count)) / @as(f64, @floatFromInt(HASH_TABLE_SIZE));
+    }
+
+    // 898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952
+    // 8. TDD - Tests
+    // 95395495595695795895996096196296396496596696796896997097197297397497597697797897998098198298398498598698798898999099199299399499599699799899910001001100210031004100510061007100810091010101110121013101410151016101710181019102010211022102310241025
+
+    test ternary_hash_trit_basic
+        assert ternary_hash_trit(TRIT_NEG) == 0
+        assert ternary_hash_trit(TRIT_ZERO) == 1
+        assert ternary_hash_trit(TRIT_POS) == 2
+
+    test ternary_hash_word_single
+        var key1 : [1]i32 = [_]i32{TRIT_NEG};
+        var h1 = ternary_hash_word(&key1, 1);
+        assert h1 == 0
+
+        var key2 : [1]i32 = [_]i32{TRIT_ZERO};
+        var h2 = ternary_hash_word(&key2, 1);
+        assert h2 == 1
+
+        var key3 : [1]i32 = [_]i32{TRIT_POS};
+        var h3 = ternary_hash_word(&key3, 1);
+        assert h3 == 2
+
+    test ternary_hash_word_multi
+        var key : [3]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO};
+        var h = ternary_hash_word(&key, 3);
+        // (2 + 0 + 1) % 27 = 3
+        assert h == 3
+
+    test ternary_hash_insert_lookup
+        var table : [HASH_TABLE_SIZE]i32 = undefined;
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        var key : [2]i32 = [_]i32{TRIT_POS, TRIT_NEG};
+
+        var ok = ternary_hash_insert(&table, &key, 2, 42, &occupied);
+        assert ok == true
+
+        var val = ternary_hash_lookup(&table, &key, 2, &occupied);
+        assert val == 42
+
+    test ternary_hash_remove_basic
+        var table : [HASH_TABLE_SIZE]i32 = undefined;
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        var key : [2]i32 = [_]i32{TRIT_NEG, TRIT_POS};
+
+        var ok = ternary_hash_insert(&table, &key, 2, 7, &occupied);
+        assert ok == true
+
+        var removed = ternary_hash_remove(&table, &key, 2, &occupied);
+        assert removed == true
+
+        var val = ternary_hash_lookup(&table, &key, 2, &occupied);
+        assert val == TRIT_ZERO
+
+    test ternary_hash_insert_full
+        var table : [HASH_TABLE_SIZE]i32 = undefined;
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{true} ** HASH_TABLE_SIZE;
+
+        var key : [1]i32 = [_]i32{TRIT_ZERO};
+        var ok = ternary_hash_insert(&table, &key, 1, 99, &occupied);
+        assert ok == false
+
+    test ternary_hash_load_factor_basic
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        var lf0 = ternary_hash_load_factor(&occupied);
+        assert lf0 == 0.0
+
+        occupied[0] = true;
+        var lf1 = ternary_hash_load_factor(&occupied);
+        // 1.0 / 27.0 ~= 0.037
+        assert lf1 > 0.03 and lf1 < 0.04
+
+    // 102610271028102910301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082
+    // 9. TDD - Invariants
+    // 1083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155
+
+    invariant trit_hash_range
+        // Hash of any single trit must be in [0, HASH_TABLE_SIZE)
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var i : usize = 0;
+        while (i < 3) {
+            const h = ternary_hash_trit(vals[i]);
+            assert h < HASH_TABLE_SIZE
+            i = i + 1;
+        }
+
+    invariant word_hash_range
+        // Hash of any ternary word must be in [0, HASH_TABLE_SIZE)
+        var key : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_POS};
+        const h = ternary_hash_word(&key, 5);
+        assert h < HASH_TABLE_SIZE
+
+    invariant load_factor_bounds
+        // Load factor must always be in [0.0, 1.0]
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        var lf = ternary_hash_load_factor(&occupied);
+        assert lf >= 0.0 and lf <= 1.0
+
+        var i : usize = 0;
+        while (i < HASH_TABLE_SIZE) {
+            occupied[i] = true;
+            i = i + 1;
+        }
+        lf = ternary_hash_load_factor(&occupied);
+        assert lf >= 0.0 and lf <= 1.0
+
+    invariant insert_remove_idempotent
+        // Inserting then removing should leave table in original state
+        var table : [HASH_TABLE_SIZE]i32 = undefined;
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        var key : [2]i32 = [_]i32{TRIT_POS, TRIT_ZERO};
+
+        var ok = ternary_hash_insert(&table, &key, 2, 55, &occupied);
+        assert ok == true
+        var removed = ternary_hash_remove(&table, &key, 2, &occupied);
+        assert removed == true
+
+        var lf = ternary_hash_load_factor(&occupied);
+        assert lf == 0.0
+
+    invariant trit_hash_distinct
+        // Each trit value maps to a distinct hash
+        const h_neg = ternary_hash_trit(TRIT_NEG);
+        const h_zero = ternary_hash_trit(TRIT_ZERO);
+        const h_pos = ternary_hash_trit(TRIT_POS);
+        assert h_neg != h_zero
+        assert h_zero != h_pos
+        assert h_neg != h_pos
+
+    // 1156115711581159116011611162116311641165116611671168116911701171117211731174117511761177117811791180118111821183118411851186118711881189119011911192119311941195119611971198119912001201120212031204120512061207120812091210
+    // 10. TDD - Benchmarks
+    // 1211121212131214121512161217121812191220122112221223122412251226122712281229123012311232123312341235123612371238123912401241124212431244124512461247124812491250125112521253125412551256125712581259126012611262126312641265126612671268126912701271127212731274127512761277127812791280128112821283
+
+    bench trit_hash_performance
+        // Measure: cycles to hash 1000 trits
+        // Target: < 500 cycles
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        var idx : usize = 0;
+        for (0..1000) |_| {
+            result = ternary_hash_trit(vals[idx % 3]);
+            idx = idx + 1;
+        }
+        _ = result;
+
+    bench word_hash_performance
+        // Measure: cycles to hash 100 ternary words of length 5
+        // Target: < 3000 cycles
+        var key : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        for (0..100) |_| {
+            result = ternary_hash_word(&key, 5);
+        }
+        _ = result;
+
+    bench insert_performance
+        // Measure: cycles to insert 50 entries
+        // Target: < 10000 cycles
+        var table : [HASH_TABLE_SIZE]i32 = undefined;
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        @setEvalBranchQuota(10000);
+        for (0..50) |j| {
+            var key : [1]i32 = undefined;
+            key[0] = @as(i32, @intCast(j % 3)) - 1;
+            _ = ternary_hash_insert(&table, &key, 1, @as(i32, @intCast(j)), &occupied);
+        }
+
+    bench lookup_performance
+        // Measure: cycles to lookup 100 entries
+        // Target: < 10000 cycles
+        var table : [HASH_TABLE_SIZE]i32 = undefined;
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        var key : [1]i32 = [_]i32{TRIT_POS};
+        _ = ternary_hash_insert(&table, &key, 1, 42, &occupied);
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..100) |_| {
+            result = ternary_hash_lookup(&table, &key, 1, &occupied);
+        }
+        _ = result;
+
+    bench load_factor_performance
+        // Measure: cycles to compute load factor 100 times
+        // Target: < 5000 cycles
+        var occupied : [HASH_TABLE_SIZE]bool = [_]bool{false} ** HASH_TABLE_SIZE;
+        occupied[0] = true;
+        occupied[5] = true;
+        occupied[10] = true;
+        @setEvalBranchQuota(10000);
+        var result : f64 = 0.0;
+        for (0..100) |_| {
+            result = ternary_hash_load_factor(&occupied);
+        }
+        _ = result;
+}

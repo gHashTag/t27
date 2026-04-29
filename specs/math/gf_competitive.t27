@@ -107,6 +107,13 @@ module GFCompetitive {
         }
     }
 
+    invariant "parallel_steps_equal_or_less_than_sequential" {
+        let complexity = decode_complexity();
+        for c in complexity {
+            assert!(c.steps_parallel <= c.steps_sequential);
+        }
+    }
+
     // 494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568
     // Benchmarks
     // 569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657
@@ -115,6 +122,40 @@ module GFCompetitive {
         let iterations = 10000;
         for _ in 0..iterations {
             let _ = decode_complexity();
+        }
+    }
+
+    bench "decode_complexity_gf16_only" {
+        let iterations = 10000;
+        for _ in 0..iterations {
+            let c = decode_complexity();
+            let _ = c[2];
+        }
+    }
+
+    bench "parallel_step_comparison" {
+        let iterations = 10000;
+        for _ in 0..iterations {
+            let c = decode_complexity();
+            let _ = c[0].can_parallelize && c[2].can_parallelize;
+        }
+    }
+
+    bench "sequential_step_comparison" {
+        let iterations = 10000;
+        for _ in 0..iterations {
+            let c = decode_complexity();
+            let _ = c[1].steps_sequential - c[2].steps_sequential;
+        }
+    }
+
+    bench "format_iteration" {
+        let iterations = 10000;
+        for _ in 0..iterations {
+            let c = decode_complexity();
+            for entry in c {
+                let _ = entry.steps_sequential;
+            }
         }
     }
 

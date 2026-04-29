@@ -1,0 +1,384 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/isa/ternary_sorting.t27
+// Ternary Sorting Operations Specification
+// Ring 080 - Sorting algorithms for balanced ternary arrays
+// Defines compare, bubble sort, selection sort, insertion sort, is_sorted, reverse
+// 01 + 1/23 = 3 | TRINITY
+
+module TernarySorting {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556
+    // 1. Ternary Values and Constants
+    // 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129
+
+    // Balanced ternary values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Number of trits in a word
+    const TRITS_PER_WORD : usize = 27;
+
+    // 130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182
+    // 2. Trit Comparison for Sorting
+    // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
+
+    // trit_compare_for_sort(a: i32, b: i32) 256 i32
+    // Compare two trits for sorting order
+    // Returns -1 if a < b, 0 if a == b, 1 if a > b
+    fn trit_compare_for_sort(a: i32, b: i32) 257 i32 {
+        if (a < b) {
+            return -1;
+        } else if (a > b) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    // 258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310
+    // 3. Bubble Sort
+    // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
+
+    // ternary_bubble_sort(arr: []i32, len: usize) 384 void
+    // Bubble sort with early exit optimization
+    // Sorts array of balanced ternary values in ascending order
+    fn ternary_bubble_sort(arr: []i32, len: usize) 385 void {
+        var n : usize = len;
+        while (n > 1) {
+            var swapped : bool = false;
+            var i : usize = 1;
+            while (i < n) {
+                if (arr[i - 1] > arr[i]) {
+                    // Swap
+                    var temp : i32 = arr[i - 1];
+                    arr[i - 1] = arr[i];
+                    arr[i] = temp;
+                    swapped = true;
+                }
+                i = i + 1;
+            }
+            if (!swapped) {
+                break;
+            }
+            n = n - 1;
+        }
+    }
+
+    // 386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438
+    // 4. Selection Sort
+    // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
+
+    // ternary_selection_sort(arr: []i32, len: usize) 512 void
+    // Selection sort for balanced ternary arrays
+    // Finds minimum element and places it at the front
+    fn ternary_selection_sort(arr: []i32, len: usize) 513 void {
+        var i : usize = 0;
+        while (i < len - 1) {
+            var min_idx : usize = i;
+            var j : usize = i + 1;
+            while (j < len) {
+                if (arr[j] < arr[min_idx]) {
+                    min_idx = j;
+                }
+                j = j + 1;
+            }
+            // Swap if minimum is not at position i
+            if (min_idx != i) {
+                var temp : i32 = arr[i];
+                arr[i] = arr[min_idx];
+                arr[min_idx] = temp;
+            }
+            i = i + 1;
+        }
+    }
+
+    // 514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566
+    // 5. Insertion Sort
+    // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
+
+    // ternary_insertion_sort(arr: []i32, len: usize) 640 void
+    // Insertion sort for balanced ternary arrays
+    // Builds sorted portion from left to right
+    fn ternary_insertion_sort(arr: []i32, len: usize) 641 void {
+        var i : usize = 1;
+        while (i < len) {
+            var key : i32 = arr[i];
+            var j : usize = i;
+            while (j > 0 and arr[j - 1] > key) {
+                arr[j] = arr[j - 1];
+                j = j - 1;
+            }
+            arr[j] = key;
+            i = i + 1;
+        }
+    }
+
+    // 642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694
+    // 6. Sorted Check
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
+
+    // is_sorted(arr: []i32, len: usize) 768 bool
+    // Check if an array of balanced ternary values is sorted in ascending order
+    fn is_sorted(arr: []i32, len: usize) 769 bool {
+        if (len <= 1) {
+            return true;
+        }
+        var i : usize = 1;
+        while (i < len) {
+            if (arr[i - 1] > arr[i]) {
+                return false;
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // 770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822
+    // 7. Array Reversal
+    // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+
+    // ternary_reverse(arr: []i32, len: usize) 896 void
+    // Reverse an array of balanced ternary values in place
+    fn ternary_reverse(arr: []i32, len: usize) 897 void {
+        var i : usize = 0;
+        while (i < len / 2) {
+            var temp : i32 = arr[i];
+            arr[i] = arr[len - 1 - i];
+            arr[len - 1 - i] = temp;
+            i = i + 1;
+        }
+    }
+
+    // 898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950
+    // 8. TDD - Tests
+    // 951952953954955956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999100010011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023
+
+    test trit_compare_for_sort_basic
+        // NEG < ZERO < POS in balanced ternary
+        assert trit_compare_for_sort(TRIT_NEG, TRIT_ZERO) == -1
+        assert trit_compare_for_sort(TRIT_ZERO, TRIT_POS) == -1
+        assert trit_compare_for_sort(TRIT_NEG, TRIT_POS) == -1
+        assert trit_compare_for_sort(TRIT_POS, TRIT_NEG) == 1
+        assert trit_compare_for_sort(TRIT_ZERO, TRIT_NEG) == 1
+        assert trit_compare_for_sort(TRIT_POS, TRIT_ZERO) == 1
+        assert trit_compare_for_sort(TRIT_NEG, TRIT_NEG) == 0
+        assert trit_compare_for_sort(TRIT_ZERO, TRIT_ZERO) == 0
+        assert trit_compare_for_sort(TRIT_POS, TRIT_POS) == 0
+
+    test ternary_bubble_sort_basic
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        ternary_bubble_sort(&arr, 5);
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+        assert is_sorted(&arr, 5) == true
+
+    test ternary_selection_sort_basic
+        var arr : [5]i32 = [_]i32{TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_NEG, TRIT_POS};
+        ternary_selection_sort(&arr, 5);
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_POS
+        assert arr[4] == TRIT_POS
+        assert is_sorted(&arr, 5) == true
+
+    test ternary_insertion_sort_basic
+        var arr : [6]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG, TRIT_POS, TRIT_NEG, TRIT_ZERO};
+        ternary_insertion_sort(&arr, 6);
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_ZERO
+        assert arr[3] == TRIT_ZERO
+        assert arr[4] == TRIT_POS
+        assert arr[5] == TRIT_POS
+        assert is_sorted(&arr, 6) == true
+
+    test is_sorted_basic
+        var sorted_arr : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        assert is_sorted(&sorted_arr, 3) == true
+
+        var unsorted_arr : [3]i32 = [_]i32{TRIT_POS, TRIT_ZERO, TRIT_NEG};
+        assert is_sorted(&unsorted_arr, 3) == false
+
+        var equal_arr : [3]i32 = [_]i32{TRIT_ZERO, TRIT_ZERO, TRIT_ZERO};
+        assert is_sorted(&equal_arr, 3) == true
+
+        var single : [1]i32 = [_]i32{TRIT_POS};
+        assert is_sorted(&single, 1) == true
+
+        var empty : [0]i32 = [_]i32{};
+        assert is_sorted(&empty, 0) == true
+
+    test ternary_reverse_basic
+        var arr : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_POS};
+        ternary_reverse(&arr, 5);
+        assert arr[0] == TRIT_POS
+        assert arr[1] == TRIT_NEG
+        assert arr[2] == TRIT_POS
+        assert arr[3] == TRIT_ZERO
+        assert arr[4] == TRIT_NEG
+
+    test bubble_sort_already_sorted
+        var arr : [3]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        ternary_bubble_sort(&arr, 3);
+        assert arr[0] == TRIT_NEG
+        assert arr[1] == TRIT_ZERO
+        assert arr[2] == TRIT_POS
+        assert is_sorted(&arr, 3) == true
+
+    // 1024102510261027102810291030103110321033103410351036103710381039104010411042104310441045104610471048104910501051105210531054105510561057105810591060106110621063106410651066106710681069107010711072107310741075107610771078
+    // 9. TDD - Invariants
+    // 1079108010811082108310841085108610871088108910901091109210931094109510961097109810991100110111021103110411051106110711081109111011111112111311141115111611171118111911201121112211231124112511261127112811291130113111321133113411351136113711381139114011411142114311441145114611471148114911501151
+
+    invariant sorted_output_invariant
+        // All three sort algorithms must produce identical sorted output
+        var arr1 : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        var arr2 : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        var arr3 : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+
+        ternary_bubble_sort(&arr1, 5);
+        ternary_selection_sort(&arr2, 5);
+        ternary_insertion_sort(&arr3, 5);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert arr1[i] == arr2[i]
+            assert arr2[i] == arr3[i]
+            i = i + 1;
+        }
+        assert is_sorted(&arr1, 5) == true
+        assert is_sorted(&arr2, 5) == true
+        assert is_sorted(&arr3, 5) == true
+
+    invariant sort_stability_equal_elements
+        // Sorting preserves element count: same number of NEG, ZERO, POS
+        var arr : [6]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO};
+        var neg_count_before : i32 = 0;
+        var zero_count_before : i32 = 0;
+        var pos_count_before : i32 = 0;
+        var i : usize = 0;
+        while (i < 6) {
+            if (arr[i] == TRIT_NEG) { neg_count_before = neg_count_before + 1; }
+            if (arr[i] == TRIT_ZERO) { zero_count_before = zero_count_before + 1; }
+            if (arr[i] == TRIT_POS) { pos_count_before = pos_count_before + 1; }
+            i = i + 1;
+        }
+
+        ternary_bubble_sort(&arr, 6);
+
+        var neg_count_after : i32 = 0;
+        var zero_count_after : i32 = 0;
+        var pos_count_after : i32 = 0;
+        i = 0;
+        while (i < 6) {
+            if (arr[i] == TRIT_NEG) { neg_count_after = neg_count_after + 1; }
+            if (arr[i] == TRIT_ZERO) { zero_count_after = zero_count_after + 1; }
+            if (arr[i] == TRIT_POS) { pos_count_after = pos_count_after + 1; }
+            i = i + 1;
+        }
+
+        assert neg_count_before == neg_count_after
+        assert zero_count_before == zero_count_after
+        assert pos_count_before == pos_count_after
+
+    invariant reverse_twice_is_original
+        // Reversing twice yields the original array
+        var original : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_POS};
+        var arr : [5]i32 = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_POS};
+        ternary_reverse(&arr, 5);
+        ternary_reverse(&arr, 5);
+
+        var i : usize = 0;
+        while (i < 5) {
+            assert arr[i] == original[i]
+            i = i + 1;
+        }
+
+    invariant sort_then_reverse_then_sort
+        // Sorting, reversing, then sorting again produces sorted output
+        var arr : [5]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG};
+        ternary_bubble_sort(&arr, 5);
+        ternary_reverse(&arr, 5);
+        assert is_sorted(&arr, 5) == false
+        ternary_bubble_sort(&arr, 5);
+        assert is_sorted(&arr, 5) == true
+
+    invariant compare_consistency
+        // trit_compare_for_sort is consistent with standard ordering
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        var i : usize = 0;
+        while (i < 3) {
+            var j : usize = 0;
+            while (j < 3) {
+                var cmp : i32 = trit_compare_for_sort(vals[i], vals[j]);
+                if (i < j) {
+                    assert cmp == -1
+                } else if (i > j) {
+                    assert cmp == 1
+                } else {
+                    assert cmp == 0
+                }
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+
+    // 1152115311541155115611571158115911601161116211631164116511661167116811691170117111721173117411751176117711781179118011811182118311841185118611871188118911901191119211931194119511961197119811991200120112021203120412051206120712081209121012111212121312141215121612171218121912201221122212231224122512261227122812291230123112321233123412351236123712381239124012411242124312441245124612471248124912501251125212531254125512561257125812591260126112621263126412651266126712681269127012711272127312741275127612771278127912801281
+    // 10. TDD - Benchmarks
+    // 12821283128412851286128712881289129012911292129312941295129612971298129913001301130213031304130513061307130813091310131113121313131413151316131713181319132013211322132313241325132613271328132913301331133213331334133513361337133813391340134113421343134413451346134713481349135013511352135313541355135613571358135913601361136213631364136513661367136813691370137113721373137413751376137713781379138013811382138313841385138613871388138913901391139213931394139513961397139813991400140114021403140414051406140714081409
+
+    bench trit_compare_for_sort_performance
+        // Measure: cycles to compute 1000 trit comparisons
+        // Target: < 500 cycles
+        const vals = [_]i32{TRIT_NEG, TRIT_ZERO, TRIT_POS};
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        var idx : usize = 0;
+        for (0..1000) |_| {
+            result = trit_compare_for_sort(vals[idx % 3], vals[(idx + 1) % 3]);
+            idx = idx + 1;
+        }
+        _ = result;
+
+    bench bubble_sort_performance
+        // Measure: cycles to bubble sort a 27-element array 100 times
+        // Target: < 10000 cycles
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            var arr : [27]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO};
+            ternary_bubble_sort(&arr, 27);
+        }
+
+    bench selection_sort_performance
+        // Measure: cycles to selection sort a 27-element array 100 times
+        // Target: < 12000 cycles
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            var arr : [27]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO};
+            ternary_selection_sort(&arr, 27);
+        }
+
+    bench insertion_sort_performance
+        // Measure: cycles to insertion sort a 27-element array 100 times
+        // Target: < 8000 cycles
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            var arr : [27]i32 = [_]i32{TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO, TRIT_POS, TRIT_NEG, TRIT_ZERO};
+            ternary_insertion_sort(&arr, 27);
+        }
+
+    bench is_sorted_and_reverse_performance
+        // Measure: cycles to check sorted + reverse 100 arrays of length 27
+        // Target: < 5000 cycles
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            var arr : [27]i32 = [_]i32{TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_ZERO, TRIT_ZERO, TRIT_POS, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_ZERO, TRIT_ZERO, TRIT_POS, TRIT_POS, TRIT_POS, TRIT_NEG, TRIT_NEG, TRIT_NEG, TRIT_ZERO, TRIT_ZERO, TRIT_ZERO, TRIT_POS, TRIT_POS, TRIT_POS};
+            _ = is_sorted(&arr, 27);
+            ternary_reverse(&arr, 27);
+        }
+}
