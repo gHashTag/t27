@@ -703,6 +703,96 @@ mod tests {
         assert!(decoded_large.is_finite() && decoded_large > 1e199,
             "BUG-003: 1e200 should roundtrip in GF32, got {}", decoded_large);
     }
+
+    // ─── #549: GF4/8/12/20/24 arithmetic + roundtrip ───
+
+    macro_rules! gf_roundtrip_test {
+        ($name:ident, $from_f32:ident, $to_f32:ident, $mant_bits:expr) => {
+            #[test]
+            fn $name() {
+                let tol = 2.0f32.powf(-($mant_bits as f32));
+                for &v in &[0.0f32, -0.0f32, 1.0f32, -1.0f32, 2.0f32, 0.5f32, 3.14f32] {
+                    let enc = $from_f32(v);
+                    let dec = $to_f32(enc);
+                    if v == 0.0 || v == -0.0 {
+                        assert!(dec == 0.0, concat!(stringify!($name), ": {} roundtrip got {}"), v, dec);
+                    } else {
+                        let err = (dec - v).abs() / v.abs();
+                        assert!(err < tol, concat!(stringify!($name), ": {} roundtrip rel_err={}"), v, err);
+                    }
+                }
+                let inf_enc = $from_f32(f32::INFINITY);
+                let inf_dec = $to_f32(inf_enc);
+                assert!(inf_dec.is_infinite() && inf_dec.is_sign_positive(),
+                    concat!(stringify!($name), ": +Inf roundtrip"));
+                let nan_enc = $from_f32(f32::NAN);
+                assert!($to_f32(nan_enc).is_nan(), concat!(stringify!($name), ": NaN roundtrip"));
+            }
+        };
+    }
+
+    #[test]
+    fn gf4_roundtrip() {
+        let tol = 2.0f32.powf(-(GF4_MANT_BITS as f32));
+        assert!(gf4_to_f32(gf4_from_f32(0.0f32)) == 0.0, "gf4 zero");
+        assert!(gf4_to_f32(gf4_from_f32(f32::INFINITY)).is_infinite(), "gf4 +Inf");
+        assert!(gf4_to_f32(gf4_from_f32(f32::NAN)).is_nan(), "gf4 NaN");
+        for &v in &[1.25f32, 1.5f32, 1.75f32, -1.25f32, -1.5f32, -1.75f32] {
+            let enc = gf4_from_f32(v);
+            let dec = gf4_to_f32(enc);
+            let err = (dec - v).abs() / v.abs();
+            assert!(err < tol, "gf4: {} roundtrip rel_err={}", v, err);
+        }
+    }
+
+    gf_roundtrip_test!(gf8_roundtrip, gf8_from_f32, gf8_to_f32, GF8_MANT_BITS);
+    gf_roundtrip_test!(gf12_roundtrip, gf12_from_f32, gf12_to_f32, GF12_MANT_BITS);
+    gf_roundtrip_test!(gf20_roundtrip, gf20_from_f32, gf20_to_f32, GF20_MANT_BITS);
+    gf_roundtrip_test!(gf24_roundtrip, gf24_from_f32, gf24_to_f32, GF24_MANT_BITS);
+
+    macro_rules! gf_arith_test {
+        ($name:ident, $from_f32:ident, $to_f32:ident, $add:ident, $sub:ident, $mul:ident, $div:ident, $tol:expr) => {
+            #[test]
+            fn $name() {
+                let a = $from_f32(3.0f32);
+                let b = $from_f32(4.0f32);
+                let sum = $to_f32($add(a, b));
+                assert!((sum - 7.0).abs() < $tol, "add: expected ~7.0 got {}", sum);
+                let diff = $to_f32($sub(a, b));
+                assert!((diff - (-1.0)).abs() < $tol, "sub: expected ~-1.0 got {}", diff);
+                let prod = $to_f32($mul(a, b));
+                assert!((prod - 12.0).abs() < $tol, "mul: expected ~12.0 got {}", prod);
+                let quot = $to_f32($div(b, a));
+                let q_err = (quot - (4.0f32 / 3.0f32)).abs();
+                assert!(q_err < $tol, "div: expected ~1.333 got {} (err={})", quot, q_err);
+            }
+        };
+    }
+
+    #[test]
+    fn gf4_arithmetic() {
+        let a = gf4_from_f32(1.25f32);
+        let b = gf4_from_f32(1.5f32);
+        let quot = gf4_to_f32(gf4_div(b, a));
+        let q_err = (quot - 1.2).abs();
+        assert!(q_err < 0.5, "gf4 div: expected ~1.2 got {} (err={})", quot, q_err);
+        let neg = gf4_to_f32(gf4_sub(gf4_from_f32(-1.5f32), gf4_from_f32(-1.25f32)));
+        assert!((neg - (-0.25)).abs() < 0.5, "gf4 neg sub");
+    }
+
+    gf_arith_test!(gf8_arithmetic,  gf8_from_f32, gf8_to_f32, gf8_add, gf8_sub, gf8_mul, gf8_div, 0.25);
+    gf_arith_test!(gf12_arithmetic, gf12_from_f32, gf12_to_f32, gf12_add, gf12_sub, gf12_mul, gf12_div, 0.1);
+    gf_arith_test!(gf20_arithmetic, gf20_from_f32, gf20_to_f32, gf20_add, gf20_sub, gf20_mul, gf20_div, 0.01);
+    gf_arith_test!(gf24_arithmetic, gf24_from_f32, gf24_to_f32, gf24_add, gf24_sub, gf24_mul, gf24_div, 0.005);
+
+    #[test]
+    fn gf_all_formats_overflow_to_inf() {
+        for &val in &[1e10f32, 1e30f32, f32::MAX] {
+            assert!(gf4_to_f32(gf4_from_f32(val)).is_infinite(), "gf4 overflow");
+            assert!(gf8_to_f32(gf8_from_f32(val)).is_infinite(), "gf8 overflow");
+            assert!(gf12_to_f32(gf12_from_f32(val)).is_infinite(), "gf12 overflow");
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -1048,4 +1138,224 @@ pub extern "C" fn gf24_to_f32(value: u32) -> f32 {
     let ieee_exp: u32 = (((exp as i32) - GF24_EXP_BIAS + 127) as u32) & 0xFF;
     let ieee_mant: u32 = mant << (23 - GF24_MANT_BITS);
     f32::from_bits((sign << 31) | (ieee_exp << 23) | ieee_mant)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// GF4 ARITHMETIC (1:1:2)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+#[no_mangle]
+pub extern "C" fn gf4_add(a: u8, b: u8) -> u8 {
+    gf4_from_f32(gf4_to_f32(a) + gf4_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf4_sub(a: u8, b: u8) -> u8 {
+    gf4_from_f32(gf4_to_f32(a) - gf4_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf4_mul(a: u8, b: u8) -> u8 {
+    gf4_from_f32(gf4_to_f32(a) * gf4_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf4_div(a: u8, b: u8) -> u8 {
+    if gf4_is_zero(b) { return gf4_from_f32(f32::INFINITY); }
+    gf4_from_f32(gf4_to_f32(a) / gf4_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf4_is_zero(value: u8) -> bool {
+    (value & 0x7) == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf4_is_inf(value: u8) -> bool {
+    let exp = (value >> GF4_MANT_BITS) & ((1 << GF4_EXP_BITS) - 1);
+    let mant = value & ((1u8 << GF4_MANT_BITS) - 1);
+    exp == (1 << GF4_EXP_BITS) - 1 && mant == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf4_is_nan(value: u8) -> bool {
+    let exp = (value >> GF4_MANT_BITS) & ((1 << GF4_EXP_BITS) - 1);
+    let mant = value & ((1u8 << GF4_MANT_BITS) - 1);
+    exp == (1 << GF4_EXP_BITS) - 1 && mant != 0
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// GF8 ARITHMETIC (1:3:4)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+#[no_mangle]
+pub extern "C" fn gf8_add(a: u8, b: u8) -> u8 {
+    gf8_from_f32(gf8_to_f32(a) + gf8_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf8_sub(a: u8, b: u8) -> u8 {
+    gf8_from_f32(gf8_to_f32(a) - gf8_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf8_mul(a: u8, b: u8) -> u8 {
+    gf8_from_f32(gf8_to_f32(a) * gf8_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf8_div(a: u8, b: u8) -> u8 {
+    if gf8_is_zero(b) { return gf8_from_f32(f32::INFINITY); }
+    gf8_from_f32(gf8_to_f32(a) / gf8_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf8_is_zero(value: u8) -> bool {
+    (value & 0x7F) == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf8_is_inf(value: u8) -> bool {
+    let exp = (value >> GF8_MANT_BITS) & ((1 << GF8_EXP_BITS) - 1);
+    let mant = value & ((1u8 << GF8_MANT_BITS) - 1);
+    exp == (1 << GF8_EXP_BITS) - 1 && mant == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf8_is_nan(value: u8) -> bool {
+    let exp = (value >> GF8_MANT_BITS) & ((1 << GF8_EXP_BITS) - 1);
+    let mant = value & ((1u8 << GF8_MANT_BITS) - 1);
+    exp == (1 << GF8_EXP_BITS) - 1 && mant != 0
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// GF12 ARITHMETIC (1:4:7)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+#[no_mangle]
+pub extern "C" fn gf12_add(a: u16, b: u16) -> u16 {
+    gf12_from_f32(gf12_to_f32(a) + gf12_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf12_sub(a: u16, b: u16) -> u16 {
+    gf12_from_f32(gf12_to_f32(a) - gf12_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf12_mul(a: u16, b: u16) -> u16 {
+    gf12_from_f32(gf12_to_f32(a) * gf12_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf12_div(a: u16, b: u16) -> u16 {
+    if gf12_is_zero(b) { return gf12_from_f32(f32::INFINITY); }
+    gf12_from_f32(gf12_to_f32(a) / gf12_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf12_is_zero(value: u16) -> bool {
+    (value & 0x7FF) == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf12_is_inf(value: u16) -> bool {
+    let exp = (value >> GF12_MANT_BITS) & ((1 << GF12_EXP_BITS) - 1);
+    let mant = value & ((1u16 << GF12_MANT_BITS) - 1);
+    exp == (1 << GF12_EXP_BITS) - 1 && mant == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf12_is_nan(value: u16) -> bool {
+    let exp = (value >> GF12_MANT_BITS) & ((1 << GF12_EXP_BITS) - 1);
+    let mant = value & ((1u16 << GF12_MANT_BITS) - 1);
+    exp == (1 << GF12_EXP_BITS) - 1 && mant != 0
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// GF20 ARITHMETIC (1:7:12)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+#[no_mangle]
+pub extern "C" fn gf20_add(a: u32, b: u32) -> u32 {
+    gf20_from_f32(gf20_to_f32(a) + gf20_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf20_sub(a: u32, b: u32) -> u32 {
+    gf20_from_f32(gf20_to_f32(a) - gf20_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf20_mul(a: u32, b: u32) -> u32 {
+    gf20_from_f32(gf20_to_f32(a) * gf20_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf20_div(a: u32, b: u32) -> u32 {
+    if gf20_is_zero(b) { return gf20_from_f32(f32::INFINITY); }
+    gf20_from_f32(gf20_to_f32(a) / gf20_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf20_is_zero(value: u32) -> bool {
+    (value & 0x7FFFF) == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf20_is_inf(value: u32) -> bool {
+    let exp = (value >> GF20_MANT_BITS) & ((1 << GF20_EXP_BITS) - 1);
+    let mant = value & ((1u32 << GF20_MANT_BITS) - 1);
+    exp == (1 << GF20_EXP_BITS) - 1 && mant == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf20_is_nan(value: u32) -> bool {
+    let exp = (value >> GF20_MANT_BITS) & ((1 << GF20_EXP_BITS) - 1);
+    let mant = value & ((1u32 << GF20_MANT_BITS) - 1);
+    exp == (1 << GF20_EXP_BITS) - 1 && mant != 0
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// GF24 ARITHMETIC (1:9:14)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+#[no_mangle]
+pub extern "C" fn gf24_add(a: u32, b: u32) -> u32 {
+    gf24_from_f32(gf24_to_f32(a) + gf24_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf24_sub(a: u32, b: u32) -> u32 {
+    gf24_from_f32(gf24_to_f32(a) - gf24_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf24_mul(a: u32, b: u32) -> u32 {
+    gf24_from_f32(gf24_to_f32(a) * gf24_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf24_div(a: u32, b: u32) -> u32 {
+    if gf24_is_zero(b) { return gf24_from_f32(f32::INFINITY); }
+    gf24_from_f32(gf24_to_f32(a) / gf24_to_f32(b))
+}
+
+#[no_mangle]
+pub extern "C" fn gf24_is_zero(value: u32) -> bool {
+    (value & 0x7FFFFF) == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf24_is_inf(value: u32) -> bool {
+    let exp = (value >> GF24_MANT_BITS) & ((1 << GF24_EXP_BITS) - 1);
+    let mant = value & ((1u32 << GF24_MANT_BITS) - 1);
+    exp == (1 << GF24_EXP_BITS) - 1 && mant == 0
+}
+
+#[no_mangle]
+pub extern "C" fn gf24_is_nan(value: u32) -> bool {
+    let exp = (value >> GF24_MANT_BITS) & ((1 << GF24_EXP_BITS) - 1);
+    let mant = value & ((1u32 << GF24_MANT_BITS) - 1);
+    exp == (1 << GF24_EXP_BITS) - 1 && mant != 0
 }
