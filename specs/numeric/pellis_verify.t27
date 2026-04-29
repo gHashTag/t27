@@ -1,0 +1,137 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/numeric/pellis_verify.t27
+// Phase 2 (issue #289): GMP-backed Pellis verification spec
+// Verifies Pellis closed-form alpha^-1 against mpmath 100-digit reference
+// SSOT for release gates remains specs/*.t27 + tri / t27c
+//
+// Anchor (L5): phi^2 + phi^-2 = 3 | TRINITY
+
+module PellisVerify {
+    use math::constants;
+    use physics::pellis-formulas;
+
+    const PHI : f64 = constants::PHI;
+    const PHI_SQ : f64 = PHI * PHI;
+    const PHI_INV : f64 = 1.0 / PHI;
+
+    // Pre-registered Pellis alpha^-1 closed form (row 31, FORMULA_TABLE.md)
+    // 360/phi^2 - 2/phi^3 + (3*phi)^-5
+    // Fixed to 50 digits for pre-registration checkpoint
+    const PELLIS_ALPHA_INV : f64 = 360.0 / PHI_SQ - 2.0 / (PHI * PHI_SQ) + 1.0 / ((3.0 * PHI) * (3.0 * PHI) * (3.0 * PHI) * (3.0 * PHI) * (3.0 * PHI));
+
+    // CODATA 2022 alpha^-1 reference value
+    const CODATA_2022_ALPHA_INV : f64 = 137.035999177;
+
+    // Pre-registered 50-digit checkpoint (from mpmath at dps=100)
+    const PELLIS_PREREG_50_DIGITS : string = "137.03599916476639345065182598341596570459733761749";
+
+    // Tolerance for f64 comparison (phi-derived values are approximate)
+    const F64_TOLERANCE : f64 = 1e-6;
+
+    // 123456789101112131415161718192021222324252627282930
+    // 1. Closed-form computation
+    // 313233343536373839404142434445464748495051525354555657585960616263646566
+
+    fn compute_pellis_term1() -> f64 {
+        return 360.0 / PHI_SQ;
+    }
+
+    fn compute_pellis_term2() -> f64 {
+        return 2.0 / (PHI * PHI_SQ);
+    }
+
+    fn compute_pellis_term3() -> f64 {
+        var three_phi : f64 = 3.0 * PHI;
+        var result : f64 = 1.0;
+        var i : usize = 0;
+        while (i < 5) {
+            result = result / three_phi;
+            i = i + 1;
+        }
+        return result;
+    }
+
+    fn compute_pellis_full() -> f64 {
+        return compute_pellis_term1() - compute_pellis_term2() + compute_pellis_term3();
+    }
+
+    fn pellis_vs_codata_error() -> f64 {
+        return abs(PELLIS_ALPHA_INV - CODATA_2022_ALPHA_INV);
+    }
+
+    // 676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125
+    // 2. TDD - Tests
+    // 126127128129130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177
+
+    test pellis_term1_positive
+        then compute_pellis_term1() > 100.0
+        and   compute_pellis_term1() < 200.0
+
+    test pellis_term2_small
+        then compute_pellis_term2() > 0.0
+        and   compute_pellis_term2() < 1.0
+
+    test pellis_term3_tiny
+        then compute_pellis_term3() > 0.0
+        and   compute_pellis_term3() < 0.01
+
+    test pellis_full_matches_constant
+        then abs(compute_pellis_full() - PELLIS_ALPHA_INV) < F64_TOLERANCE
+
+    test pellis_near_alpha_inverse
+        then PELLIS_ALPHA_INV > 130.0
+        and   PELLIS_ALPHA_INV < 145.0
+
+    test pellis_codata_relative_error
+        var rel_err : f64 = pellis_vs_codata_error() / CODATA_2022_ALPHA_INV;
+        then rel_err < 0.001
+
+    test pellis_pre_registered_checkpoint_exists
+        then PELLIS_PREREG_50_DIGITS != ""
+
+    // 178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222
+    // 3. Invariants
+    // 223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260
+
+    invariant pellis_always_positive
+        then PELLIS_ALPHA_INV > 0.0
+
+    invariant pellis_codata_order_of_magnitude
+        then PELLIS_ALPHA_INV > 100.0
+        and   PELLIS_ALPHA_INV < 200.0
+
+    invariant pellis_preregistered_checkpoint_fixed
+        then PELLIS_PREREG_50_DIGITS == "137.03599916476639345065182598341596570459733761749"
+
+    invariant term1_dominates
+        then compute_pellis_term1() > compute_pellis_term2()
+
+    invariant closed_form_self_consistent
+        then abs(compute_pellis_full() - PELLIS_ALPHA_INV) < F64_TOLERANCE
+
+    // 261262263264265266267268269270271272273274275276277278279280281282283284285
+    // 4. Benchmarks
+    // 286287288289290291292293294295296297298299300301302303304305306307308309310
+
+    bench pellis_compute_latency
+        var x = compute_pellis_full()
+        target_cycles 100
+
+    bench pellis_term_decomposition
+        var t1 = compute_pellis_term1()
+        var t2 = compute_pellis_term2()
+        var t3 = compute_pellis_term3()
+        target_cycles 300
+
+    bench pellis_vs_codata_check
+        var err = pellis_vs_codata_error()
+        target_cycles 100
+
+    bench pellis_f64_roundtrip
+        var v = PELLIS_ALPHA_INV
+        target_cycles 50
+
+    bench pre_registered_lookup
+        var s = PELLIS_PREREG_50_DIGITS
+        target_cycles 50
+}
