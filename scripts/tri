@@ -1,40 +1,18 @@
 #!/usr/bin/env bash
-<<<<<<< Updated upstream
-set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T27C="${TRI_T27C:-}"
-if [[ -z "$T27C" ]]; then
-  for p in "$ROOT/bootstrap/target/release/t27c" "$ROOT/bootstrap/target/debug/t27c"; do
-    [[ -x "$p" ]] && T27C="$p" && break
-  done
-fi
-[[ -n "${T27C:-}" && -x "$T27C" ]] || {
-  echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
-  exit 1
-}
-<<<<<<< Updated upstream
-exec "$T27C" --repo-root "$ROOT" "$@"
-=======
-# Exec shim only: all logic lives in `t27c` (Rust). See SOUL.md Article VIII (NO-PYTHON / NO-SHELL).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 T27C="${TRI_T27C:-$REPO_ROOT/bootstrap/target/release/t27c}"
 if [[ ! -x "$T27C" && -x "$REPO_ROOT/bootstrap/target/debug/t27c" ]]; then
-  T27C="$REPO_ROOT/bootstrap/target/debug/t27c"
+    T27C="$REPO_ROOT/bootstrap/target/debug/t27c"
 fi
 if [[ ! -x "$T27C" ]]; then
-  echo "TOXIC: t27c not found. Run: cd bootstrap && cargo build --release" >&2
-  echo "TOXIC: or set TRI_T27C to your t27c executable." >&2
-  exit 1
+    echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
+    exit 1
 fi
-exec "$T27C" --repo-root "$REPO_ROOT" "$@"
->>>>>>> Stashed changes
-=======
-# Don't add --repo-root for commands that have their own repo-root option
-if [[ "$1" =~ ^(check-now|typecheck|check)$ ]]; then
-  exec "$T27C" "$@"
+REPO_CMPTS="suite|validate-conformance|validate-gen-headers|check-now|doc-all|analyze|ci"
+if [[ $# -gt 0 && "$1" =~ ^($REPO_CMPTS)$ ]]; then
+    exec "$T27C" "$1" --repo-root "$REPO_ROOT" "${@:2}"
 else
-  exec "$T27C" --repo-root "$ROOT" "$@"
+    exec "$T27C" "$@"
 fi
->>>>>>> Stashed changes

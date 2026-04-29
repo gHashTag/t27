@@ -27,48 +27,10 @@ cp "$SCRIPT_DIR/githooks/commit-msg-traceability" "$HOOKS_DIR/commit-msg"
 chmod +x "$HOOKS_DIR/commit-msg"
 echo -e "${GREEN}✓ commit-msg hook installed${NC}"
 
-# Install pre-commit hook for L3 PURITY (ASCII-only, English)
+# Install pre-commit hook for all 4 constitutional gates
 echo ""
-echo "Installing pre-commit hook (L3 PURITY enforcement)..."
-cat > "$HOOKS_DIR/pre-commit" << 'EOF'
-#!/usr/bin/env bash
-# L3 PURITY Pre-Commit Hook
-# Checks for ASCII-only source files and English identifiers
-
-set -euo pipefail
-
-# ANSI colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Check for non-ASCII characters in tracked source files
-# Excludes: docs/.legacy-non-english-docs/, binary files
-FILES=$(git diff --cached --name-only --diff-filter=ACM | \
-    grep -E '\.(t27|zig|rs|c|h|v|md)$' | \
-    grep -v '^docs/\.legacy-non-english-docs/' || true)
-
-if [ -n "$FILES" ]; then
-    NON_ASCII=$(git diff --cached --name-only | \
-        xargs -I {} sh -c 'file {} | grep -q "ASCII text" || echo {}' || true)
-
-    if [ -n "$NON_ASCII" ]; then
-        # Check for actual non-ASCII characters
-        for file in $NON_ASCII; do
-            if [ -f "$file" ]; then
-                # Check if file contains non-ASCII (excluding UTF-8 BOM)
-                if LC_ALL=C grep -q '[^[:print:][:space:]]' "$file" 2>/dev/null; then
-                    echo -e "${YELLOW}⚠️  Warning: $file may contain non-ASCII characters${NC}"
-                fi
-            fi
-        done
-    fi
-fi
-
-echo -e "${GREEN}✅ L3 PURITY check passed${NC}"
-EOF
-
+echo "Installing pre-commit hook (L1 NOW + L2 Seal + L4 Cargo + L7 No-.sh)..."
+cp "$SCRIPT_DIR/githooks/pre-commit" "$HOOKS_DIR/pre-commit"
 chmod +x "$HOOKS_DIR/pre-commit"
 echo -e "${GREEN}✓ pre-commit hook installed${NC}"
 
@@ -108,7 +70,7 @@ echo -e "${GREEN}All Git hooks installed successfully!${NC}"
 echo ""
 echo "Installed hooks:"
 echo "  - commit-msg: Enforces L1 TRACEABILITY (Closes #N required)"
-echo "  - pre-commit: Checks L3 PURITY (ASCII-only, English)"
+echo "  - pre-commit: 4 gates — NOW freshness, seal coverage, cargo check, no .sh (L1/L2/L4/L7)"
 echo "  - pre-push: Warns about L4 TESTABILITY (test/invariant/bench)"
 echo ""
 echo "To skip hooks (not recommended):"
