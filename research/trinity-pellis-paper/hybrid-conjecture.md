@@ -48,11 +48,11 @@ These are **different maps**. Using one number while describing the other is amb
 
 Reference IEEE f64: **~0.563780474444**. Do not treat arccos(H_5^(v1)) as a Euclidean angle between L2-unit vectors; H_5^(v1) is a **named diagnostic** only.
 
-## Hybrid v2 (proposed — issue #287, not in CLI yet)
+## Hybrid v2 (implemented — issue #287, #339)
 
 **Goal:** cosine similarity between two **L2-normalized** positive vectors in R^N, then optional **theta_N** in degrees.
 
-**Dimension N:** integer **N >= 2**, chosen per run (planned flag e.g. `--n N`). Roadmap checkpoints: **{5, 10, 15, 20, 50, 152}**. N is the **length of both ladders**; tying N=152 to the sacred formula catalog is a **convention** until the catalog feeds the same builder.
+**Dimension N:** integer **N >= 2**, chosen per run (flag `--n N`). Roadmap checkpoints: **{5, 10, 15, 20, 50, 152}**. N is the **length of both ladders**; tying N=152 to the sacred formula catalog is a **convention** until the catalog feeds the same builder.
 
 **Raw vectors (length N):**
 
@@ -65,13 +65,24 @@ Reference IEEE f64: **~0.563780474444**. Do not treat arccos(H_5^(v1)) as a Eucl
 
 **Hybrid v2 scalar:**
 
-- **H_N^(v2) = u_hat · v_hat** (in [0,1] for this construction)
+- **H_N^(v2) = u_hat . v_hat** (in [0,1] for this construction)
 
-**Angle (planned `--theta`, degrees):**
+**Angle (flag `--theta`, degrees):**
 
 - **theta_N = arccos(clip(H_N^(v2), -1, 1)) * (180 / pi)**
 
-**Exploratory targets (not SSOT):** external calculations suggest plateaus near **H ~ 0.9617** and **theta ~ 15.90 deg** for large N; **do not** use in outreach until `tri math compare --hybrid-v2` reproduces them on a clean checkout.
+**Golden values (computed by `tri math compare --hybrid --hybrid-v2 --theta --n <N>`):**
+
+| N | H_N^(v2) | theta (deg) |
+|---|-----------|-------------|
+| 5 | 0.9649159951 | 15.2219 |
+| 10 | 0.9617744938 | 15.8931 |
+| 15 | 0.9617437739 | 15.8995 |
+| 20 | 0.9617435184 | 15.8995 |
+| 50 | 0.9617435163 | 15.8995 |
+| 152 | 0.9617435163 | 15.8995 |
+
+**Plateau:** H_N^(v2) converges to ~0.9617435 by N=15, stable to 10+ digits by N=20.
 
 ## Conjecture H1 (structural projection, research — not proven in code)
 
