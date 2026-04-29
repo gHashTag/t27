@@ -34,9 +34,18 @@ pub enum MathCommands {
         /// Add W/Z, Higgs, neutrino ratio placeholder, CKM moduli.
         #[arg(long)]
         pellis_extended: bool,
-        /// Project normalized Trinity monomials onto normalized Pell weights (diagnostic scalar).
+        /// Project normalized Trinity monomials onto normalized Pell weights (v1 diagnostic scalar).
         #[arg(long)]
         hybrid: bool,
+        /// L2 cosine similarity between phi^k and Pell vectors (hybrid v2). Requires --hybrid.
+        #[arg(long)]
+        hybrid_v2: bool,
+        /// Dimension N for hybrid v2 (default 5, range 2..152).
+        #[arg(long, default_value_t = 5)]
+        n: u32,
+        /// Emit theta = arccos(clip(cosine_sim)) in degrees (requires --hybrid-v2).
+        #[arg(long)]
+        theta: bool,
         /// Numeric partials of TRINITY and (if --hybrid) hybrid score w.r.t. phi.
         #[arg(long)]
         sensitivity: bool,
@@ -52,6 +61,9 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
             pellis,
             pellis_extended,
             hybrid,
+            hybrid_v2,
+            n,
+            theta,
             sensitivity,
             gamma_conflict,
         } => run_compare(
@@ -60,6 +72,9 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
                 pellis,
                 pellis_extended,
                 hybrid,
+                hybrid_v2,
+                n,
+                theta,
                 sensitivity,
                 gamma_conflict,
             },
@@ -71,6 +86,9 @@ pub struct CompareOpts {
     pub pellis: bool,
     pub pellis_extended: bool,
     pub hybrid: bool,
+    pub hybrid_v2: bool,
+    pub n: u32,
+    pub theta: bool,
     pub sensitivity: bool,
     pub gamma_conflict: bool,
 }
@@ -112,6 +130,49 @@ fn hybrid_inner_product(phi: f64) -> f64 {
         .map(|(a, b)| a * b)
         .sum()
 }
+
+/// Hybrid v2: L2 cosine similarity between phi^k (k=0..N-1) and Pell P_{k+1} (k=0..N-1).
+/// Both sides L2-normalized. Returns cosine in [0, 1].
+fn hybrid_v2_cosine(phi: f64, n: usize) -> f64 {
+    let u: Vec<f64> = (0..n).map(|k| phi.powi(k as i32)).collect();
+    let v: Vec<f64> = (0..n).map(|k| pell_f64(k as u32 + 1)).collect();
+    let u_norm: f64 = u.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let v_norm: f64 = v.iter().map(|x| x * x).sum::<f64>().sqrt();
+    if u_norm == 0.0 || v_norm == 0.0 {
+        return 0.0;
+    }
+    let dot: f64 = u.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
+    dot / (u_norm * v_norm)
+}
+
+/// Pell numbers as f64 (avoids u64 overflow for N > 60).
+fn pell_f64(n: u32) -> f64 {
+    match n {
+        0 => 0.0,
+        1 => 1.0,
+        _ => {
+            let mut a = 0.0_f64;
+            let mut b = 1.0_f64;
+            for _ in 2..=n {
+                let c = 2.0 * b + a;
+                a = b;
+                b = c;
+            }
+            b
+        }
+    }
+}
+
+/// Golden test values for hybrid v2 at known N checkpoints.
+/// Computed from: H_N = (phi^k / ||phi^k||_2) . (P_{k+1} / ||P_{k+1}||_2)
+const GOLDEN_V2: &[(u32, f64, f64)] = &[
+    (5,   0.9649159951, 15.2219),
+    (10,  0.9617744938, 15.8931),
+    (15,  0.9617437739, 15.8995),
+    (20,  0.9617435184, 15.8995),
+    (50,  0.9617435163, 15.8995),
+    (152, 0.9617435163, 15.8995),
+];
 
 /// SSOT anchor: `spec_hash` from sealed `PellisFormulas` spec (if present in checkout).
 fn read_pellis_spec_seal_hash(repo_root: &Path) -> Option<String> {
@@ -206,6 +267,41 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
         record["hybrid_note"] = json!(
             "Diagnostic scalar only. Falsify the research hypothesis if no stable map links this proxy to measured observables under t27 rules (see research/trinity-pellis-paper/)."
         );
+    }
+
+    if opts.hybrid_v2 {
+        let n = opts.n.max(2).min(152) as usize;
+        let cos_sim = hybrid_v2_cosine(phi, n);
+        println!("--hybrid-v2: L2 cosine similarity (N={}) = {:.12}", n, cos_sim);
+        record["hybrid_v2"] = json!(cos_sim);
+        record["hybrid_v2_N"] = json!(n);
+
+        if opts.theta {
+            let theta_rad = (cos_sim.clamp(-1.0, 1.0)).acos();
+            let theta_deg = theta_rad * 180.0 / std::f64::consts::PI;
+            println!("--theta: theta_N = {:.6} deg", theta_deg);
+            record["theta_deg"] = json!(theta_deg);
+        }
+
+        // Golden test verification
+        for &(gn, gc, _gt) in GOLDEN_V2 {
+            if n == gn as usize {
+                let computed = hybrid_v2_cosine(phi, n);
+                let diff = (computed - gc).abs();
+                let pass = diff < 1e-6;
+                println!(
+                    "  golden N={}: computed={:.10} expected={:.10} diff={:.2e} {}",
+                    gn, computed, gc, diff,
+                    if pass { "PASS" } else { "FAIL" }
+                );
+                record[&format!("golden_N{}", gn)] = json!({
+                    "expected": gc,
+                    "computed": computed,
+                    "diff": diff,
+                    "pass": pass,
+                });
+            }
+        }
     }
 
     if opts.sensitivity {
@@ -305,4 +401,111 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
     );
     println!("math compare: OK");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn phi() -> f64 {
+        (1.0 + 5.0_f64.sqrt()) / 2.0
+    }
+
+    #[test]
+    fn test_hybrid_v1_golden() {
+        let h = hybrid_inner_product(phi());
+        let expected = 0.563780474444;
+        assert!(
+            (h - expected).abs() < 1e-6,
+            "v1: got {:.12}, expected {:.12}",
+            h, expected
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_golden_n5() {
+        let cos = hybrid_v2_cosine(phi(), 5);
+        assert!(
+            (cos - 0.9649159951).abs() < 1e-6,
+            "v2 N=5: got {:.12}",
+            cos
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_golden_n10() {
+        let cos = hybrid_v2_cosine(phi(), 10);
+        assert!(
+            (cos - 0.9617744938).abs() < 1e-6,
+            "v2 N=10: got {:.12}",
+            cos
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_golden_n15() {
+        let cos = hybrid_v2_cosine(phi(), 15);
+        assert!(
+            (cos - 0.9617437739).abs() < 1e-6,
+            "v2 N=15: got {:.12}",
+            cos
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_golden_n20() {
+        let cos = hybrid_v2_cosine(phi(), 20);
+        assert!(
+            (cos - 0.9617435184).abs() < 1e-6,
+            "v2 N=20: got {:.12}",
+            cos
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_golden_n50() {
+        let cos = hybrid_v2_cosine(phi(), 50);
+        assert!(
+            (cos - 0.9617435163).abs() < 1e-6,
+            "v2 N=50: got {:.12}",
+            cos
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_golden_n152() {
+        let cos = hybrid_v2_cosine(phi(), 152);
+        assert!(
+            (cos - 0.9617435163).abs() < 1e-6,
+            "v2 N=152: got {:.12}",
+            cos
+        );
+    }
+
+    #[test]
+    fn test_hybrid_v2_plateau() {
+        let n15 = hybrid_v2_cosine(phi(), 15);
+        let n20 = hybrid_v2_cosine(phi(), 20);
+        let n152 = hybrid_v2_cosine(phi(), 152);
+        assert!((n20 - n15).abs() < 1e-6, "N=20 should be near plateau");
+        assert!((n152 - n20).abs() < 1e-9, "N=152 should match N=20");
+    }
+
+    #[test]
+    fn test_hybrid_v2_monotonic_after_n10() {
+        let n10 = hybrid_v2_cosine(phi(), 10);
+        let n15 = hybrid_v2_cosine(phi(), 15);
+        assert!(n15 <= n10, "v2 should decrease or stay flat after N=10");
+    }
+
+    #[test]
+    fn test_theta_degrees() {
+        let cos = hybrid_v2_cosine(phi(), 152);
+        let theta = cos.clamp(-1.0, 1.0).acos() * 180.0 / std::f64::consts::PI;
+        assert!(
+            (theta - 15.8995).abs() < 0.01,
+            "theta: got {:.4} deg",
+            theta
+        );
+    }
 }
