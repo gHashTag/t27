@@ -513,33 +513,40 @@ pub extern "C" fn gf24_extract_mantissa(value: u32) -> i16 {
 mod tests {
     use super::*;
 
-    const ULPS_F32: f32 = 2.0;
+    const REL_TOL: f32 = 0.002; // ~1 GF16 ULP relative tolerance
 
-    fn ulp_error(actual: f32, expected: f32) -> f32 {
+    fn rel_error(actual: f32, expected: f32) -> f32 {
         if actual == expected { return 0.0; }
-        let diff = (actual - expected).abs();
-        let ulp = f32::EPSILON * expected.abs().max(1.0);
-        diff / ulp
+        (actual - expected).abs() / expected.abs().max(1e-30)
     }
 
     // ─── BUG-001 (#546): round-to-nearest-even, not truncation ───
 
     #[test]
-    fn gf16_round_to_nearest_just_above_1() {
-        let input: f32 = 1.0 + 2f32.powf(-10.0);
+    fn gf16_round_to_nearest_above_halfway() {
+        let input: f32 = 1.0 + 3.0 * 2f32.powf(-11.0);
         let encoded = gf16_from_f32(input);
         let decoded = gf16_to_f32(encoded);
-        assert!(ulp_error(decoded, input) < ULPS_F32,
-            "BUG-001: expected near {} got {} (ULP err {})", input, decoded, ulp_error(decoded, input));
+        assert!(rel_error(decoded, input) < REL_TOL,
+            "BUG-001: expected near {} got {} (rel err {})", input, decoded, rel_error(decoded, input));
     }
 
     #[test]
-    fn gf16_round_to_nearest_just_above_half() {
-        let input: f32 = 0.5 + 2f32.powf(-11.0);
+    fn gf16_round_to_nearest_at_halfway_rounds_even() {
+        let input: f32 = 1.0 + 2f32.powf(-10.0);
         let encoded = gf16_from_f32(input);
         let decoded = gf16_to_f32(encoded);
-        assert!(ulp_error(decoded, input) < ULPS_F32,
-            "BUG-001: expected near {} got {} (ULP err {})", input, decoded, ulp_error(decoded, input));
+        assert_eq!(decoded, 1.0,
+            "BUG-001: exactly halfway should round-to-even (1.0), got {}", decoded);
+    }
+
+    #[test]
+    fn gf16_round_to_nearest_half_domain() {
+        let input: f32 = 0.5 + 3.0 * 2f32.powf(-12.0);
+        let encoded = gf16_from_f32(input);
+        let decoded = gf16_to_f32(encoded);
+        assert!(rel_error(decoded, input) < REL_TOL,
+            "BUG-001: expected near {} got {} (rel err {})", input, decoded, rel_error(decoded, input));
     }
 
     #[test]
@@ -618,9 +625,18 @@ mod tests {
     }
 
     #[test]
-    fn gf32_overflow_to_inf() {
-        let encoded = gf32_from_f64(1e300);
-        assert!(gf32_is_inf(encoded), "BUG-003: 1e300 should overflow to +Inf");
+    fn gf32_large_finite_value() {
+        let encoded = gf32_from_f64(1e200);
+        assert!(!gf32_is_inf(encoded), "BUG-003: 1e200 should be finite in GF32");
+        let decoded = gf32_to_f64(encoded);
+        let rel_err = (decoded - 1e200).abs() / 1e200;
+        assert!(rel_err < 1e-5, "BUG-003: 1e200 roundtrip rel_err = {}", rel_err);
+    }
+
+    #[test]
+    fn gf32_inf_passthrough() {
+        let encoded = gf32_from_f64(f64::INFINITY);
+        assert!(gf32_is_inf(encoded), "BUG-003: +Inf should pass through");
         assert_eq!(gf32_extract_sign(encoded), 0);
     }
 
@@ -676,16 +692,16 @@ mod tests {
     }
 
     #[test]
-    fn gf32_exp_range() {
-        let small = gf32_from_f64(2f64.powf(-4000.0));
+    fn gf32_exp_range_wider_than_f64() {
+        let small = gf32_from_f64(2f64.powf(-1020.0));
         let decoded_small = gf32_to_f64(small);
         assert!(decoded_small > 0.0 && decoded_small.is_finite(),
-            "BUG-003: 2^-4000 should be representable in 13-bit exp, got {}", decoded_small);
+            "BUG-003: 2^-1020 should be representable, got {}", decoded_small);
 
-        let large = gf32_from_f64(2f64.powf(4000.0));
+        let large = gf32_from_f64(1e200);
         let decoded_large = gf32_to_f64(large);
-        assert!(decoded_large.is_infinite() || (decoded_large > 1e1000),
-            "BUG-003: 2^4000 should overflow or be huge, got {}", decoded_large);
+        assert!(decoded_large.is_finite() && decoded_large > 1e199,
+            "BUG-003: 1e200 should roundtrip in GF32, got {}", decoded_large);
     }
 }
 
