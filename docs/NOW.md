@@ -7,12 +7,12 @@
 
 ## Active Work
 
-**FFI Bug Fixes + API Completeness** (PR #553)
-- BUG-001 (#546): GF16 mantissa truncation → round-to-nearest-even
-- BUG-002 (#547): GF16 overflow → canonical ±Inf (IEEE 754)
-- BUG-003 (#548): GF32 paperware comment fix
-- API (#549): GF4/8/12/20/24 encode/decode added (all 7 formats complete)
-- 16 tests passing
+**Pre-commit Gate (Ring 073)** (PR #554)
+- 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
+- Install: `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`
+
+**FFI Bug Fixes + API Completeness** (PR #553 — merged)
+- BUG-001/002/003 fixed, GF4/8/12/20/24 encode/decode added
 
 ---
 
