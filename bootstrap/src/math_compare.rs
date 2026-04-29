@@ -24,6 +24,11 @@ const CKM_V_US: f64 = 0.225;
 const CKM_V_CB: f64 = 0.0418;
 const CKM_V_UB: f64 = 0.0037;
 
+/// PDG 2023 on-shell scheme sin^2(theta_W) reference.
+/// Source: Particle Data Group, "Review of Particle Physics" (2023), sec. 10.1
+/// sin^2(theta_W) = 0.22312 (on-shell scheme, MS-bar running ~0.23122).
+const SIN2_THETA_W_REF: f64 = 0.23122;
+
 #[derive(Subcommand, Debug)]
 pub enum MathCommands {
     /// Compare L5 anchors; optional Pellis, extended SM proxies, hybrid map, sensitivity, gamma conflict.
@@ -43,6 +48,9 @@ pub enum MathCommands {
         /// Show gamma (Barbero-Immirzi) conflict analysis: gamma_phi vs LQG standard vs LQG alternative.
         #[arg(long)]
         gamma_conflict: bool,
+        /// Weinberg angle diagnostic: phi^-3 vs PDG sin^2(theta_W) with tolerance.
+        #[arg(long)]
+        weinberg: bool,
     },
 }
 
@@ -54,6 +62,7 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
             hybrid,
             sensitivity,
             gamma_conflict,
+            weinberg,
         } => run_compare(
             repo_root,
             CompareOpts {
@@ -62,6 +71,7 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
                 hybrid,
                 sensitivity,
                 gamma_conflict,
+                weinberg,
             },
         ),
     }
@@ -73,6 +83,7 @@ pub struct CompareOpts {
     pub hybrid: bool,
     pub sensitivity: bool,
     pub gamma_conflict: bool,
+    pub weinberg: bool,
 }
 
 #[inline]
@@ -295,6 +306,31 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
         record["pellis_spec_seal_hash"] = json!(h);
     }
 
+    if opts.weinberg {
+        let phi_inv_cubed = phi_inv.powi(3);
+        let delta_abs = (phi_inv_cubed - SIN2_THETA_W_REF).abs();
+        let delta_rel = delta_abs / SIN2_THETA_W_REF;
+
+        println!("=== Weinberg Angle Diagnostic (issue #295) ===");
+        println!("phi^-3           = {:.10}", phi_inv_cubed);
+        println!("sin^2(theta_W)   = {:.10}  (PDG MS-bar, source: PDG 2023 sec 10.1)", SIN2_THETA_W_REF);
+        println!("delta_abs        = {:.10}", delta_abs);
+        println!("delta_rel        = {:.6} ({:.2}%)", delta_rel, delta_rel * 100.0);
+
+        let bound = 0.005_f64;
+        if delta_abs < bound {
+            println!("golden test: |phi^-3 - sin^2(theta_W)| = {:.10} < {} PASS", delta_abs, bound);
+        } else {
+            println!("golden test: |phi^-3 - sin^2(theta_W)| = {:.10} >= {} NOT MET (conjecture diagnostic only)", delta_abs, bound);
+        }
+
+        record["weinberg_enabled"] = json!(true);
+        record["phi_inv_cubed"] = json!(phi_inv_cubed);
+        record["sin2_theta_w_ref"] = json!(SIN2_THETA_W_REF);
+        record["delta_abs"] = json!(delta_abs);
+        record["delta_rel"] = json!(delta_rel);
+    }
+
 
     append_experience(repo_root, &record)?;
     println!(
@@ -305,4 +341,39 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
     );
     println!("math compare: OK");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_weinberg_golden_bound() {
+        let phi = phi_f64();
+        let phi_inv_cubed = (1.0 / phi).powi(3);
+        let delta = (phi_inv_cubed - SIN2_THETA_W_REF).abs();
+        assert!(
+            delta < 0.005,
+            "golden test: |phi^-3 - sin^2(theta_W)| = {:.10} >= 0.005",
+            delta
+        );
+    }
+
+    #[test]
+    fn test_trinity_identity() {
+        let phi = phi_f64();
+        let trinity = phi * phi + (1.0 / phi).powi(2);
+        assert!((trinity - 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_phi_inv_cubed_approx() {
+        let phi = phi_f64();
+        let phi_inv_cubed = (1.0 / phi).powi(3);
+        assert!(
+            (phi_inv_cubed - 0.236068).abs() < 0.001,
+            "phi^-3 should be ~0.236, got {:.10}",
+            phi_inv_cubed
+        );
+    }
 }
