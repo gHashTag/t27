@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
 
-**Language:** [English](README.md) | [Русский](docs/README_RU.md)
+**Language:** [English](README.md) | [Russian](docs/README_RU.md)
 
 The canonical source of truth for Trinity S3AI.
 `.t27` specs in → Zig, Verilog, C out.
