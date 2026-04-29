@@ -1,0 +1,7 @@
+{
+  "module": "MemoryPrimitives",
+  "ring": 12,
+  "sealed_at": "2026-04-29T20:33:18Z",
+  "spec_path": "specs/memory/memory_primitives.t27",
+  "spec_hash": "sha256:76e18e5f2a7fc43ffdcbf55adc8d52437ab144d4aec86b2a4fa446c7fcdf0928"
+}

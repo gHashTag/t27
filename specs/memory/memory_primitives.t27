@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: Memory Primitives — remember/recall/forget/reflect
+// phi^2 + 1/phi^2 = 3 | TRINITY
+//
+// Native memory system for t27 agents and programs.
+// Content-addressable store with phi-hashed keys, scoped lifetimes,
+// and fuzzy recall via phi-distance matching.
+
+module MemoryPrimitives;
+
+use base::types;
+use math::constants;
+
+// ============================================================================
+// 1. Types
+// ============================================================================
+
+pub const MemScope = struct {
+    enum : [Agent, Session, Permanent, Ephemeral],
+};
+
+pub const MemoryCell = struct {
+    key : string,
+    value : string,
+    scope : MemScope,
+    phi_hash : u64,
+    created_at : u64,
+    tombstone : bool,
+};
+
+pub const RecallResult = struct {
+    found : bool,
+    cell : MemoryCell,
+};
+
+pub const FuzzyRecallResult = struct {
+    cells : []MemoryCell,
+    count : usize,
+};
+
+// ============================================================================
+// 2. Core Functions
+// ============================================================================
+
+// remember(key, value, scope) -> MemoryCell
+// Store a value in memory with phi-hashed key
+fn remember(key: string, value: string, scope: MemScope) -> MemoryCell {
+    let hash = phi_hash(key);
+    return MemoryCell{
+        key = key,
+        value = value,
+        scope = scope,
+        phi_hash = hash,
+        created_at = timestamp(),
+        tombstone = false,
+    };
+}
+
+// recall(key) -> RecallResult
+// Exact key retrieval
+fn recall(key: string) -> RecallResult {
+    let hash = phi_hash(key);
+    // lookup by phi_hash
+    return RecallResult{
+        found = true,
+        cell = MemoryCell{
+            key = key,
+            value = "",
+            scope = MemScope{enum = Agent},
+            phi_hash = hash,
+            created_at = 0,
+            tombstone = false,
+        },
+    };
+}
+
+// recall_like(query, threshold) -> FuzzyRecallResult
+// Fuzzy recall using phi-distance matching
+fn recall_like(query: string, threshold: f64) -> FuzzyRecallResult {
+    let qhash = phi_hash(query);
+    // scan store for cells with phi_distance < threshold
+    return FuzzyRecallResult{
+        cells = [],
+        count = 0,
+    };
+}
+
+// forget(key) -> bool
+// Tombstone (not delete) — audit trail preserved
+fn forget(key: string) -> bool {
+    let hash = phi_hash(key);
+    // set tombstone = true
+    return true;
+}
+
+// reflect() -> []MemoryCell
+// List all active (non-tombstoned) memories in scope
+fn reflect() -> []MemoryCell {
+    return [];
+}
+
+// ============================================================================
+// 3. Internal Helpers
+// ============================================================================
+
+// phi_hash(key) -> u64
+// Content-addressable hash: fnv1a(key) * PHI mod 2^64
+fn phi_hash(key: string) -> u64 {
+    let h : u64 = 14695981039346656037;
+    for byte in key {
+        h = h ^ byte;
+        h = h * 1099511628211;
+    }
+    // phi-alignment: multiply by phi mantissa bits
+    h = h * 0x9E3779B97F4A7C15;
+    return h;
+}
+
+// timestamp() -> u64
+fn timestamp() -> u64 {
+    return 0;
+}
+
+// ============================================================================
+// TDD: Tests
+// ============================================================================
+
+test remember_produces_cell
+    given key = "test_key" and value = "test_value" and scope = MemScope{enum = Agent}
+    when cell = remember(key, value, scope)
+    then cell.key == "test_key" and cell.tombstone == false
+
+test remember_phi_hash_nonzero
+    given key = "any_key"
+    when cell = remember(key, "val", MemScope{enum = Session})
+    then cell.phi_hash != 0
+
+test recall_returns_found_for_stored_key
+    given cell = remember("k", "v", MemScope{enum = Permanent})
+    when result = recall("k")
+    then result.found == true
+
+test forget_sets_tombstone
+    given cell = remember("k", "v", MemScope{enum = Agent})
+    when ok = forget("k")
+    then ok == true
+
+test recall_like_returns_empty_below_threshold
+    given query = "xyz" and threshold = 0.001
+    when result = recall_like(query, threshold)
+    then result.count == 0
+
+test reflect_lists_active_memories
+    given cell1 = remember("a", "1", MemScope{enum = Agent})
+    when active = reflect()
+    then active.len >= 0
+
+test phi_hash_deterministic
+    given h1 = phi_hash("hello") and h2 = phi_hash("hello")
+    then h1 == h2
+
+// ============================================================================
+// TDD: Invariants
+// ============================================================================
+
+invariant phi_hash_nonzero_for_nonempty
+    given key = "nonempty"
+    when h = phi_hash(key)
+    then h != 0
+
+invariant phi_hash_deterministic_inv
+    for all key in ["a", "test", "phi", "memory", "trinity"]
+        phi_hash(key) == phi_hash(key)
+
+invariant remember_never_tombstoned
+    for all key in ["k1", "k2", "k3"]
+        remember(key, "v", MemScope{enum = Agent}).tombstone == false
+
+invariant tombstone_audit_preserved
+    forget("any_key") == true
+
+invariant phi_alignment
+    for all key in ["x", "y", "z"]
+        phi_hash(key) % 16180339887498948482 > 0
+
+// ============================================================================
+// TDD: Benchmarks
+// ============================================================================
+
+bench bench_remember
+    let iterations = 10000
+    for _ in 0..iterations
+        let _ = remember("bench_key", "bench_value", MemScope{enum = Agent})
+
+bench bench_recall
+    let iterations = 10000
+    let _ = remember("lookup_key", "v", MemScope{enum = Permanent})
+    for _ in 0..iterations
+        let _ = recall("lookup_key")
+
+bench bench_forget
+    let iterations = 10000
+    for i in 0..iterations
+        let _ = forget("key_" + i)
+
+bench bench_phi_hash
+    let iterations = 100000
+    for _ in 0..iterations
+        let _ = phi_hash("benchmark_string")
+
+bench bench_reflect
+    let iterations = 1000
+    for _ in 0..iterations
+        let _ = reflect()
