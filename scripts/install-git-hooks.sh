@@ -42,7 +42,7 @@ cat > "$HOOKS_DIR/pre-push" << 'EOF'
 # L4 TESTABILITY Pre-Push Hook
 # Warns if .t27 files are being pushed without test/invariant/bench
 
-set -euo pipefill
+set -euo pipefail
 
 # ANSI colors
 RED='\033[0;31m'
