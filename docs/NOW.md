@@ -11,10 +11,15 @@
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
 - Closes #260 #262 #264 #267 #269 #271 #275
 
-**Hybrid v2 + Golden Tests** (PR pending)
+**Hybrid v2 + Golden Tests** (PR #559 — merged)
 - L2 cosine similarity with f64 Pell numbers (N=2..152)
 - Golden tests for N={5,10,15,20,50,152}, all pass
 - Closes #339 #287
+
+**GF Competitive Analysis** (PR pending)
+- verify_precision.py with mpmath 100-digit sacred constants
+- gf_competitive.t27 + pellis_verify.t27 specs
+- Closes #289
 
 **Pre-commit Gate (Ring 073)** (PR #554)
 - 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
