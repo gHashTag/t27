@@ -227,6 +227,19 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
         record["pellis_spec_seal_hash"] = json!(h);
     }
 
+    if opts.hybrid_v2 {
+        let n = opts.n.max(5);
+        let cos_v2 = hybrid_v2_cosine(phi, n);
+        println!("--hybrid-v2: L2 cosine(N={}) = {:.15}", n, cos_v2);
+        record["hybrid_v2_cosine"] = json!(cos_v2);
+        record["hybrid_v2_n"] = json!(n);
+
+        if opts.theta {
+            let theta_deg = cos_v2.acos().to_degrees();
+            println!("--theta: arccos(H_v2) = {:.6} deg", theta_deg);
+            record["theta_deg"] = json!(theta_deg);
+        }
+    }
 
     append_experience(repo_root, &record)?;
     println!(
@@ -237,4 +250,78 @@ fn run_compare(repo_root: &Path, opts: CompareOpts) -> anyhow::Result<()> {
     );
     println!("math compare: OK");
     Ok(())
+}
+
+fn hybrid_v2_cosine(phi: f64, n: usize) -> f64 {
+    let a: Vec<f64> = (0..n).map(|k| phi.powi(k as i32)).collect();
+    let b: Vec<f64> = (0..n).map(|k| pell_u64(k as u32 + 1) as f64).collect();
+    let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let norm_a: f64 = a.iter().map(|x| x * x).sum::<f64>().sqrt();
+    let norm_b: f64 = b.iter().map(|x| x * x).sum::<f64>().sqrt();
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+    (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
+}
+
+fn run_golden_tests(repo_root: &Path) -> anyhow::Result<()> {
+    let phi = phi_f64();
+    let h1 = hybrid_inner_product(phi);
+
+    println!("=== Golden Tests: hybrid v1 + v2 at N = 5, 10, 15, ..., 152 ===");
+    println!("phi = {:.15}", phi);
+    println!("hybrid v1 (diagnostic) = {:.12}", h1);
+    println!();
+
+    println!("{:>6}  {:>18}  {:>18}  {:>12}", "N", "cos_v2", "theta_deg", "status");
+    println!("{}", "-".repeat(60));
+
+    let mut all_pass = true;
+    let mut golden_values: Vec<serde_json::Value> = Vec::new();
+
+    let n_values: Vec<usize> = (1..=30).map(|i| 5 * i).collect();
+    for n in &n_values {
+        let cos_v2 = hybrid_v2_cosine(phi, *n);
+        let theta_deg = cos_v2.acos().to_degrees();
+        let monotone = if golden_values.is_empty() {
+            true
+        } else {
+            let prev = golden_values.last().unwrap()["cos_v2"].as_f64().unwrap();
+            cos_v2 >= prev - 1e-10
+        };
+        let bounded = cos_v2 >= 0.0 && cos_v2 <= 1.0;
+        let status = if bounded && monotone { "PASS" } else { "FAIL" };
+        if status == "FAIL" {
+            all_pass = false;
+        }
+
+        println!("{:>6}  {:>18.15}  {:>18.12}  {:>12}", n, cos_v2, theta_deg, status);
+
+        golden_values.push(json!({
+            "N": n,
+            "cos_v2": cos_v2,
+            "theta_deg": theta_deg,
+        }));
+    }
+
+    println!();
+    println!("v1 = {:.12} (fixed, independent of N)", h1);
+    println!("v2 at N=152 = {:.15}", hybrid_v2_cosine(phi, 152));
+
+    let record = json!({
+        "event": "golden_tests",
+        "ts": Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        "hybrid_v1": h1,
+        "golden_values": golden_values,
+        "all_pass": all_pass,
+    });
+
+    append_experience(repo_root, &record)?;
+
+    if all_pass {
+        println!("\nGolden tests: ALL PASSED");
+        Ok(())
+    } else {
+        anyhow::bail!("Golden tests: SOME FAILED");
+    }
 }
