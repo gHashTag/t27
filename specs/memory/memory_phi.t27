@@ -1,0 +1,223 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: MemoryPhi — phi-hash seal integration for memory cells
+// Issue: #517
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module MemoryPhi;
+
+use memory::memory_primitives::MemoryCell;
+use base::constants::PHI;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const VERSION : u32 = 1;
+pub const PHI_HASH_LEN : usize = 64;
+pub const GOLDEN_RATIO_HASH_SEED : u64 = 16180339887498948482;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const PhiSeal = struct {
+    hash : []const u8,
+    phi_distance : Float,
+    generation : u64,
+    is_valid : bool,
+};
+
+pub const PhiAuditEntry = struct {
+    key : []const u8,
+    old_hash : []const u8,
+    new_hash : []const u8,
+    timestamp_ns : u64,
+    operation : str,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+pub fn phi_hash_cell(cell: MemoryCell) -> []const u8;
+
+pub fn phi_verify(cell: MemoryCell) -> bool;
+
+pub fn phi_distance(a: []const u8, b: []const u8) -> Float;
+
+pub fn phi_seal_create(cell: MemoryCell) -> PhiSeal;
+
+pub fn phi_seal_verify(seal: PhiSeal) -> bool;
+
+pub fn phi_audit_log(entry: PhiAuditEntry) -> bool;
+
+pub fn phi_hash_combine(hashes: [][]const u8) -> []const u8;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test phi_hash_deterministic {
+    const cell = MemoryCell{
+        .key = "phi_test",
+        .value = "phi_val",
+        .scope = 0,
+        .phi_hash = "",
+        .created_ns = 1000,
+        .updated_ns = 1000,
+        .tags = &.{},
+    };
+    const h1 = phi_hash_cell(cell);
+    const h2 = phi_hash_cell(cell);
+    assert(h1 == h2);
+}
+
+test phi_hash_different_for_different_cells {
+    const c1 = MemoryCell{
+        .key = "a",
+        .value = "1",
+        .scope = 0,
+        .phi_hash = "",
+        .created_ns = 1000,
+        .updated_ns = 1000,
+        .tags = &.{},
+    };
+    const c2 = MemoryCell{
+        .key = "b",
+        .value = "2",
+        .scope = 0,
+        .phi_hash = "",
+        .created_ns = 1000,
+        .updated_ns = 1000,
+        .tags = &.{},
+    };
+    const h1 = phi_hash_cell(c1);
+    const h2 = phi_hash_cell(c2);
+    assert(h1 != h2);
+}
+
+test phi_verify_roundtrip {
+    const cell = MemoryCell{
+        .key = "verify_me",
+        .value = "data",
+        .scope = 1,
+        .phi_hash = "",
+        .created_ns = 2000,
+        .updated_ns = 2000,
+        .tags = &.{},
+    };
+    const hash = phi_hash_cell(cell);
+    const sealed = MemoryCell{
+        .key = cell.key,
+        .value = cell.value,
+        .scope = cell.scope,
+        .phi_hash = hash,
+        .created_ns = cell.created_ns,
+        .updated_ns = cell.updated_ns,
+        .tags = cell.tags,
+    };
+    assert(phi_verify(sealed));
+}
+
+test phi_distance_self_is_zero {
+    const h = "abc123";
+    const d = phi_distance(h, h);
+    assert(d == 0.0);
+}
+
+test phi_seal_create_and_verify {
+    const cell = MemoryCell{
+        .key = "sealed",
+        .value = "treasure",
+        .scope = 2,
+        .phi_hash = "",
+        .created_ns = 3000,
+        .updated_ns = 3000,
+        .tags = &.{},
+    };
+    const seal = phi_seal_create(cell);
+    assert(seal.is_valid);
+    assert(seal.hash.len > 0);
+    assert(phi_seal_verify(seal));
+}
+
+test phi_hash_combine_nonempty {
+    const hashes = &.{"hash1", "hash2", "hash3"};
+    const combined = phi_hash_combine(hashes);
+    assert(combined.len > 0);
+}
+
+test phi_audit_log_writes {
+    const entry = PhiAuditEntry{
+        .key = "audit_key",
+        .old_hash = "old",
+        .new_hash = "new",
+        .timestamp_ns = 4000,
+        .operation = "update",
+    };
+    const ok = phi_audit_log(entry);
+    assert(ok);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant hash_deterministic {
+    forall cell: MemoryCell ::
+        phi_hash_cell(cell) == phi_hash_cell(cell)
+}
+
+invariant distance_non_negative {
+    forall a: []const u8, b: []const u8 ::
+        phi_distance(a, b) >= 0.0
+}
+
+invariant distance_zero_iff_equal {
+    forall a: []const u8 ::
+        phi_distance(a, a) == 0.0
+}
+
+invariant seal_hash_populated {
+    forall cell: MemoryCell ::
+        phi_seal_create(cell).hash.len > 0
+}
+
+invariant seal_valid_when_created {
+    forall cell: MemoryCell ::
+        phi_seal_verify(phi_seal_create(cell))
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench phi_hash_bench {
+    const cell = MemoryCell{
+        .key = "bench",
+        .value = "bench_val",
+        .scope = 0,
+        .phi_hash = "",
+        .created_ns = 0,
+        .updated_ns = 0,
+        .tags = &.{},
+    };
+    phi_hash_cell(cell)
+} expect < 2000 cycles
+
+bench phi_verify_bench {
+    const cell = MemoryCell{
+        .key = "bench_v",
+        .value = "bench_vv",
+        .scope = 0,
+        .phi_hash = "pretend_hash",
+        .created_ns = 0,
+        .updated_ns = 0,
+        .tags = &.{},
+    };
+    phi_verify(cell)
+} expect < 2000 cycles
+
+bench phi_distance_bench {
+    phi_distance("hash_a_123", "hash_b_456")
+} expect < 500 cycles

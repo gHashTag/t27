@@ -1,0 +1,11 @@
+{
+  "module": "MemoryPhi",
+  "ring": 89,
+  "sealed_at": "2026-04-29T21:10:36Z",
+  "spec_hash": "sha256:pending-be7afeaca4ec526e",
+  "spec_path": "specs/memory/memory_phi.t27",
+  "gen_hash_c": "pending",
+  "gen_hash_rust": "pending",
+  "gen_hash_verilog": "pending",
+  "gen_hash_zig": "pending"
+}

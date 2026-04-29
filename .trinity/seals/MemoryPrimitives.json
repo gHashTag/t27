@@ -1,0 +1,11 @@
+{
+  "module": "MemoryPrimitives",
+  "ring": 89,
+  "sealed_at": "2026-04-29T21:10:36Z",
+  "spec_hash": "sha256:pending-c6d3896b658be726",
+  "spec_path": "specs/memory/memory_primitives.t27",
+  "gen_hash_c": "pending",
+  "gen_hash_rust": "pending",
+  "gen_hash_verilog": "pending",
+  "gen_hash_zig": "pending"
+}
