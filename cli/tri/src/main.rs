@@ -7,6 +7,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod igla;
+
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
 struct Cli {
@@ -44,6 +46,11 @@ enum Commands {
     },
     Health {
         target: Option<String>,
+    },
+    /// IGLA RACE ledger queries (spec: specs/cli/igla.t27)
+    Igla {
+        #[command(subcommand)]
+        action: igla::IglaAction,
     },
 }
 
@@ -634,6 +641,9 @@ fn main() -> Result<()> {
         Commands::Health { target } => {
             let root = find_trinity_root()?;
             cmd_health(&root, target.as_deref())?;
+        }
+        Commands::Igla { action } => {
+            igla::dispatch(action)?;
         }
     }
 

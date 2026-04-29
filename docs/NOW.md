@@ -1,11 +1,19 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
 
 ## Active Work
+
+**`tri igla` IGLA RACE ledger CLI** (PR #542 / Issue #541) — five new subcommands
+- `specs/cli/igla.t27` — search/list/gate/check/triplet (10 tests, 6 invariants, 3 benches)
+- `cli/tri/src/igla.rs` — Rust backend matching the spec 1:1
+- Powers Gate-2 quorum verdict (3 seeds with bpb<1.85 AND step>=4000) and R9 embargo enforcement
+- 17/17 cargo tests pass; CANON_DE_ZIGFICATION + L1 traceability respected
+
+---
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
