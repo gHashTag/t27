@@ -1,0 +1,7 @@
+{
+  "module": "TernarySearch",
+  "ring": 12,
+  "sealed_at": "2026-04-29T20:01:27Z",
+  "spec_path": "specs/isa/ternary_search.t27",
+  "spec_hash": "sha256:4936b56410b670b362bdb4258e5deb38361f5aff0b0b219d20fc492e527b72d4"
+}

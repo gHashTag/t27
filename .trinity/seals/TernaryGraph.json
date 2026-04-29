@@ -1,0 +1,7 @@
+{
+  "module": "TernaryGraph",
+  "ring": 12,
+  "sealed_at": "2026-04-29T20:01:27Z",
+  "spec_path": "specs/isa/ternary_graph.t27",
+  "spec_hash": "sha256:88e42aca7302cc67eb1af892cad07d3528d2707dda78952a9edb58c66a6961ba"
+}

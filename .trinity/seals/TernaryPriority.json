@@ -1,0 +1,7 @@
+{
+  "module": "TernaryPriority",
+  "ring": 12,
+  "sealed_at": "2026-04-29T20:01:27Z",
+  "spec_path": "specs/isa/ternary_priority.t27",
+  "spec_hash": "sha256:4c27c7dcefa5229b855e5ab78769c307385de7aa37fdcafdc610167f6c2c8968"
+}

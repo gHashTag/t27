@@ -1,0 +1,7 @@
+{
+  "module": "TernarySorting",
+  "ring": 12,
+  "sealed_at": "2026-04-29T20:01:27Z",
+  "spec_path": "specs/isa/ternary_sorting.t27",
+  "spec_hash": "sha256:2189d31d8817ca625a76684047939e38dcd2c25b2b5ec82b3704719f2c58aee6"
+}

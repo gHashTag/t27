@@ -1,0 +1,7 @@
+{
+  "module": "TernarySet",
+  "ring": 12,
+  "sealed_at": "2026-04-29T20:01:27Z",
+  "spec_path": "specs/isa/ternary_set.t27",
+  "spec_hash": "sha256:ff1b51839acbf0a8b28c31f41703a601ab3c0b5a091b2db1daebbacf021a9799"
+}
