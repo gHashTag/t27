@@ -1,11 +1,15 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
 
 ## Active Work
+
+**Ring 080-087: Ternary Collection Specs** (PR #555)
+- 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
+- Closes #260 #262 #264 #267 #269 #271 #275
 
 **Pre-commit Gate (Ring 073)** (PR #554)
 - 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
