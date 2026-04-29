@@ -1,3 +1,4 @@
+mod igla;
 mod railway;
 
 use anyhow::{bail, Context, Result};
@@ -50,6 +51,10 @@ enum Commands {
     Railway {
         #[command(subcommand)]
         action: railway::RailwayAction,
+    },
+    Igla {
+        #[command(subcommand)]
+        action: igla::IglaAction,
     },
 }
 
@@ -643,6 +648,12 @@ fn main() -> Result<()> {
         }
         Commands::Railway { action } => {
             let code = railway::run(action.clone())?;
+            if code != 0 {
+                std::process::exit(code);
+            }
+        }
+        Commands::Igla { action } => {
+            let code = igla::run(&action)?;
             if code != 0 {
                 std::process::exit(code);
             }
