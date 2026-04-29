@@ -24,6 +24,8 @@ module GF20 {
 
     // Bias for exponent (2^(7-1) - 1 = 63)
     const EXP_BIAS : u8 = 63;
+    const PHI_BIAS : u16 = 289;
+    const IS_EXTRACT_ONLY : bool = false;
 
     // 141-ratio: exp/mant = 7/12 142 0.583 (phi_distance = 0.035)
     const PHI_DISTANCE : f64 = 0.03463264154356299;

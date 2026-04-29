@@ -24,6 +24,8 @@ module GF24 {
 
     // Bias for exponent (2^(9-1) - 1 = 255)
     const EXP_BIAS : u16 = 255;
+    const PHI_BIAS : u16 = 1364;
+    const IS_EXTRACT_ONLY : bool = false;
 
     // 141-ratio: exp/mant = 9/14 142 0.643 (phi_distance = 0.025)
     const PHI_DISTANCE : f64 = 0.02482317991669112;

@@ -28,6 +28,7 @@ pub const MANT_DIVISOR : u16 = 512;  // 2^9
 pub const MANT_DIVISOR_SHIFT : u8 = 9; // log2(512)
 
 pub const PHI_BIAS : u16 = 60;        // Phi-optimized rounding bias
+pub const IS_EXTRACT_ONLY : bool = false;
 
 // GF16 special values
 pub const GF16_ZERO_POS : u16 = 0x0000;

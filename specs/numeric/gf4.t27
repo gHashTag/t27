@@ -24,6 +24,8 @@ module GF4 {
 
     // Bias for exponent (0-biased for GF4)
     const EXP_BIAS : u8 = 0;
+    const PHI_BIAS : u8 = 0;
+    const IS_EXTRACT_ONLY : bool = false;
 
     // 141-ratio: exp/mant = 1/2 = 0.5 (phi_distance = 0.118)
     const PHI_DISTANCE : f64 = 0.1180339887498949;
