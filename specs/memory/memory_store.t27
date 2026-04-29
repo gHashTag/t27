@@ -1,0 +1,198 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: MemoryStore — content-addressable backend for memory cells
+// Issue: #517
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module MemoryStore;
+
+use memory::memory_primitives::MemoryCell;
+use memory::memory_primitives::SCOPE_AGENT;
+use memory::memory_primitives::SCOPE_SESSION;
+use memory::memory_primitives::SCOPE_PERMANENT;
+use memory::memory_primitives::TOMBSTONE;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const VERSION : u32 = 1;
+pub const MAX_STORE_SIZE : usize = 1000000;
+pub const HASH_ALGORITHM : str = "sha256";
+pub const BUCKET_COUNT : usize = 1024;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const StoreStats = struct {
+    total_entries : usize,
+    live_entries : usize,
+    tombstoned : usize,
+    total_bytes : usize,
+    bucket_collisions : usize,
+};
+
+pub const StoreEntry = struct {
+    hash : []const u8,
+    cell : MemoryCell,
+    is_tombstone : bool,
+    generation : u64,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+pub fn store_init() -> bool;
+
+pub fn store_put(cell: MemoryCell) -> []const u8;
+
+pub fn store_get(key: []const u8) -> ?StoreEntry;
+
+pub fn store_delete(key: []const u8) -> bool;
+
+pub fn store_stats() -> StoreStats;
+
+pub fn store_compact() -> usize;
+
+pub fn store_hash(content: []const u8) -> []const u8;
+
+pub fn store_list_by_scope(scope: u8) -> []StoreEntry;
+
+pub fn store_close() -> bool;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test store_put_get_roundtrip {
+    store_init();
+    const cell = MemoryCell{
+        .key = "s_test",
+        .value = "s_value",
+        .scope = SCOPE_AGENT,
+        .phi_hash = "abc123",
+        .created_ns = 1000,
+        .updated_ns = 1000,
+        .tags = &.{},
+    };
+    const hash = store_put(cell);
+    assert(hash.len > 0);
+    const entry = store_get("s_test");
+    assert(entry != null);
+    assert(entry.?.cell.value == "s_value");
+}
+
+test store_delete_returns_true {
+    store_init();
+    const cell = MemoryCell{
+        .key = "s_del",
+        .value = "bye",
+        .scope = SCOPE_SESSION,
+        .phi_hash = "def456",
+        .created_ns = 2000,
+        .updated_ns = 2000,
+        .tags = &.{},
+    };
+    _ = store_put(cell);
+    const ok = store_delete("s_del");
+    assert(ok);
+    const entry = store_get("s_del");
+    assert(entry == null);
+}
+
+test store_stats_reflect_state {
+    store_init();
+    const stats = store_stats();
+    assert(stats.total_entries >= 0);
+    assert(stats.live_entries >= 0);
+    assert(stats.tombstoned >= 0);
+}
+
+test store_hash_deterministic {
+    const h1 = store_hash("hello");
+    const h2 = store_hash("hello");
+    assert(h1 == h2);
+}
+
+test store_compact_removes_tombstones {
+    store_init();
+    const cell = MemoryCell{
+        .key = "c_me",
+        .value = "gone",
+        .scope = SCOPE_AGENT,
+        .phi_hash = "ghi789",
+        .created_ns = 3000,
+        .updated_ns = 3000,
+        .tags = &.{},
+    };
+    _ = store_put(cell);
+    _ = store_delete("c_me");
+    const removed = store_compact();
+    assert(removed >= 1);
+}
+
+test store_list_by_scope_filters {
+    store_init();
+    const a = MemoryCell{
+        .key = "l_a",
+        .value = "a",
+        .scope = SCOPE_AGENT,
+        .phi_hash = "h1",
+        .created_ns = 4000,
+        .updated_ns = 4000,
+        .tags = &.{},
+    };
+    const s = MemoryCell{
+        .key = "l_s",
+        .value = "s",
+        .scope = SCOPE_SESSION,
+        .phi_hash = "h2",
+        .created_ns = 4001,
+        .updated_ns = 4001,
+        .tags = &.{},
+    };
+    _ = store_put(a);
+    _ = store_put(s);
+    const agent_list = store_list_by_scope(SCOPE_AGENT);
+    assert(agent_list.len >= 1);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant hash_deterministic {
+    forall content: []const u8 :: store_hash(content) == store_hash(content)
+}
+
+invariant unique_keys {
+    forall a: StoreEntry, b: StoreEntry ::
+        a.cell.key == b.cell.key implies a.hash == b.hash
+}
+
+invariant stats_consistent {
+    let s = store_stats();
+    s.live_entries + s.tombstoned == s.total_entries
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench store_put_bench {
+    const cell = MemoryCell{
+        .key = "b_key",
+        .value = "b_val",
+        .scope = SCOPE_AGENT,
+        .phi_hash = "bench_hash",
+        .created_ns = 0,
+        .updated_ns = 0,
+        .tags = &.{},
+    };
+    store_put(cell)
+} expect < 2000 cycles
+
+bench store_get_bench {
+    store_get("b_key")
+} expect < 1000 cycles

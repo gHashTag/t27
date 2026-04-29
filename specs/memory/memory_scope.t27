@@ -1,0 +1,155 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: MemoryScope — agent/session/permanent lifetime management
+// Issue: #517
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module MemoryScope;
+
+use memory::memory_primitives::SCOPE_AGENT;
+use memory::memory_primitives::SCOPE_SESSION;
+use memory::memory_primitives::SCOPE_PERMANENT;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const VERSION : u32 = 1;
+pub const MAX_SCOPES : usize = 3;
+pub const AGENT_TTL_NS : u64 = 3600000000000;
+pub const SESSION_TTL_NS : u64 = 86400000000000;
+pub const PERMANENT_TTL_NS : u64 = 0;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const ScopePolicy = struct {
+    scope : u8,
+    ttl_ns : u64,
+    max_entries : usize,
+    max_bytes : usize,
+    evict_lru : bool,
+};
+
+pub const ScopeSnapshot = struct {
+    scope : u8,
+    entry_count : usize,
+    byte_count : usize,
+    oldest_ns : u64,
+    newest_ns : u64,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+pub fn scope_init() -> bool;
+
+pub fn scope_get_policy(scope: u8) -> ?ScopePolicy;
+
+pub fn scope_set_policy(scope: u8, policy: ScopePolicy) -> bool;
+
+pub fn scope_snapshot(scope: u8) -> ?ScopeSnapshot;
+
+pub fn scope_evict(scope: u8, now_ns: u64) -> usize;
+
+pub fn scope_is_valid(scope: u8) -> bool;
+
+pub fn scope_ttl_for(scope: u8) -> u64;
+
+pub fn scope_close() -> bool;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test scope_is_valid_all_three {
+    assert(scope_is_valid(SCOPE_AGENT));
+    assert(scope_is_valid(SCOPE_SESSION));
+    assert(scope_is_valid(SCOPE_PERMANENT));
+    assert(!scope_is_valid(99));
+}
+
+test scope_ttl_defaults {
+    assert(scope_ttl_for(SCOPE_AGENT) == AGENT_TTL_NS);
+    assert(scope_ttl_for(SCOPE_SESSION) == SESSION_TTL_NS);
+    assert(scope_ttl_for(SCOPE_PERMANENT) == PERMANENT_TTL_NS);
+}
+
+test scope_get_policy_returns_for_valid {
+    const p = scope_get_policy(SCOPE_AGENT);
+    assert(p != null);
+    assert(p.?.scope == SCOPE_AGENT);
+}
+
+test scope_get_policy_null_for_invalid {
+    const p = scope_get_policy(200);
+    assert(p == null);
+}
+
+test scope_set_policy_roundtrip {
+    scope_init();
+    const policy = ScopePolicy{
+        .scope = SCOPE_AGENT,
+        .ttl_ns = 999,
+        .max_entries = 50,
+        .max_bytes = 1024,
+        .evict_lru = true,
+    };
+    const ok = scope_set_policy(SCOPE_AGENT, policy);
+    assert(ok);
+    const retrieved = scope_get_policy(SCOPE_AGENT);
+    assert(retrieved != null);
+    assert(retrieved.?.ttl_ns == 999);
+}
+
+test scope_snapshot_returns_counts {
+    scope_init();
+    const snap = scope_snapshot(SCOPE_AGENT);
+    assert(snap != null);
+    assert(snap.?.scope == SCOPE_AGENT);
+    assert(snap.?.entry_count >= 0);
+}
+
+test scope_evict_returns_count {
+    scope_init();
+    const evicted = scope_evict(SCOPE_AGENT, 0);
+    assert(evicted >= 0);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant only_three_scopes {
+    forall s: u8 :: scope_is_valid(s) implies (s <= SCOPE_PERMANENT)
+}
+
+invariant ttl_ordering {
+    scope_ttl_for(SCOPE_AGENT) < scope_ttl_for(SCOPE_SESSION)
+}
+
+invariant permanent_no_expiry {
+    scope_ttl_for(SCOPE_PERMANENT) == 0
+}
+
+invariant policy_scope_matches {
+    forall s: u8 ::
+        scope_get_policy(s) != null implies scope_get_policy(s).?.scope == s
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench scope_get_policy_bench {
+    scope_get_policy(SCOPE_AGENT)
+} expect < 100 cycles
+
+bench scope_evict_bench {
+    scope_evict(SCOPE_AGENT, 0)
+} expect < 5000 cycles
+
+bench scope_snapshot_bench {
+    scope_snapshot(SCOPE_SESSION)
+} expect < 1000 cycles

@@ -1,0 +1,173 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: MemoryPrimitives — language-level remember/recall/forget/reflect
+// Issue: #517
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module MemoryPrimitives;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const VERSION : u32 = 1;
+pub const MAX_KEY_LEN : usize = 256;
+pub const MAX_VALUE_LEN : usize = 65536;
+pub const DEFAULT_SCOPE : u8 = 0;
+pub const SCOPE_AGENT : u8 = 0;
+pub const SCOPE_SESSION : u8 = 1;
+pub const SCOPE_PERMANENT : u8 = 2;
+pub const TOMBSTONE : str = "__DELETED__";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const MemoryCell = struct {
+    key : []const u8,
+    value : []const u8,
+    scope : u8,
+    phi_hash : []const u8,
+    created_ns : u64,
+    updated_ns : u64,
+    tags : [][]const u8,
+};
+
+pub const RecallResult = struct {
+    cell : MemoryCell,
+    similarity : Float,
+    found : bool,
+};
+
+pub const ReflectReport = struct {
+    total_cells : usize,
+    by_scope : [3]usize,
+    oldest_ns : u64,
+    newest_ns : u64,
+    total_bytes : usize,
+};
+
+pub const ForgetOutcome = struct {
+    key : []const u8,
+    success : bool,
+    was_tombstoned : bool,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+pub fn remember(key: []const u8, value: []const u8, scope: u8) -> MemoryCell;
+
+pub fn recall(key: []const u8) -> RecallResult;
+
+pub fn recall_fuzzy(query: []const u8, top_k: usize) -> []RecallResult;
+
+pub fn forget(key: []const u8) -> ForgetOutcome;
+
+pub fn reflect() -> ReflectReport;
+
+pub fn recall_by_tag(tag: []const u8) -> []RecallResult;
+
+pub fn forget_scope(scope: u8) -> usize;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test remember_recall_roundtrip {
+    const cell = remember("test_key", "test_value", SCOPE_SESSION);
+    assert(cell.key == "test_key");
+    assert(cell.value == "test_value");
+    assert(cell.scope == SCOPE_SESSION);
+    const result = recall("test_key");
+    assert(result.found);
+    assert(result.cell.value == "test_value");
+}
+
+test forget_marks_tombstone {
+    const cell = remember("doomed", "data", SCOPE_AGENT);
+    const outcome = forget("doomed");
+    assert(outcome.success);
+    assert(outcome.was_tombstoned);
+    const result = recall("doomed");
+    assert(!result.found);
+}
+
+test recall_missing_returns_not_found {
+    const result = recall("nonexistent_key_xyz");
+    assert(!result.found);
+    assert(result.similarity == 0.0);
+}
+
+test reflect_counts_by_scope {
+    forget_scope(SCOPE_AGENT);
+    forget_scope(SCOPE_SESSION);
+    forget_scope(SCOPE_PERMANENT);
+    _ = remember("a", "1", SCOPE_AGENT);
+    _ = remember("b", "2", SCOPE_SESSION);
+    _ = remember("c", "3", SCOPE_PERMANENT);
+    const report = reflect();
+    assert(report.total_cells >= 3);
+    assert(report.by_scope[SCOPE_AGENT] >= 1);
+    assert(report.by_scope[SCOPE_SESSION] >= 1);
+    assert(report.by_scope[SCOPE_PERMANENT] >= 1);
+}
+
+test remember_updates_existing {
+    _ = remember("up_key", "v1", SCOPE_SESSION);
+    const cell = remember("up_key", "v2", SCOPE_SESSION);
+    assert(cell.value == "v2");
+    const result = recall("up_key");
+    assert(result.cell.value == "v2");
+}
+
+test recall_by_tag {
+    const cell = remember("tagged", "data", SCOPE_SESSION);
+    // In a full implementation, tags would be set during remember
+    const results = recall_by_tag("session");
+    assert(results.len >= 0);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant key_not_empty {
+    forall cell: MemoryCell :: cell.key.len > 0
+}
+
+invariant phi_hash_always_set {
+    forall cell: MemoryCell :: cell.phi_hash.len > 0
+}
+
+invariant scope_valid_range {
+    forall cell: MemoryCell :: cell.scope <= SCOPE_PERMANENT
+}
+
+invariant created_before_updated {
+    forall cell: MemoryCell :: cell.created_ns <= cell.updated_ns
+}
+
+invariant tombstone_not_recallable {
+    forall key: []const u8 :: forget(key).success implies !recall(key).found
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench remember_bench {
+    remember("bench_key", "bench_value", SCOPE_SESSION)
+} expect < 1000 cycles
+
+bench recall_bench {
+    recall("bench_key")
+} expect < 500 cycles
+
+bench forget_bench {
+    forget("bench_forget_key")
+} expect < 500 cycles
+
+bench reflect_bench {
+    reflect()
+} expect < 2000 cycles

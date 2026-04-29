@@ -1,0 +1,11 @@
+{
+  "module": "MemoryScope",
+  "ring": 89,
+  "sealed_at": "2026-04-29T21:10:36Z",
+  "spec_hash": "sha256:pending-090392fb861fd531",
+  "spec_path": "specs/memory/memory_scope.t27",
+  "gen_hash_c": "pending",
+  "gen_hash_rust": "pending",
+  "gen_hash_verilog": "pending",
+  "gen_hash_zig": "pending"
+}
