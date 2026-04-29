@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bootstrap", "ffi", "bindings/javascript"]
+members = ["bootstrap", "ffi", "bindings/javascript", "cli/tri"]
 exclude = ["bindings/python", "tools/converter", "gen"]
 
 [workspace.package]

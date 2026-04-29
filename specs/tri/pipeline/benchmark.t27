@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: PipelineBench — performance benchmarking for tri pipeline
+// Issue: #490
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module PipelineBench;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const VERSION : u32 = 1;
+pub const WARMUP_ITERATIONS : usize = 10;
+pub const MEASURE_ITERATIONS : usize = 100;
+pub const BENCH_TIMEOUT_MS : u32 = 60000;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const BenchTarget = struct {
+    name : []const u8,
+    backend : []const u8,
+    spec_path : []const u8,
+};
+
+pub const LatencyStats = struct {
+    p50_ns : u64,
+    p95_ns : u64,
+    p99_ns : u64,
+    min_ns : u64,
+    max_ns : u64,
+    mean_ns : u64,
+    iterations : usize,
+};
+
+pub const ThroughputStats = struct {
+    ops_per_sec : Float,
+    bytes_per_sec : Float,
+    total_ops : usize,
+    total_duration_ns : u64,
+};
+
+pub const BenchResult = struct {
+    target : BenchTarget,
+    latency : LatencyStats,
+    throughput : ThroughputStats,
+    timestamp : []const u8,
+    delta_vs_last : ?Float,
+};
+
+pub const BenchSuite = struct {
+    name : []const u8,
+    results : []BenchResult,
+    timestamp : []const u8,
+    total_duration_ns : u64,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+pub fn bench_run(target: BenchTarget) -> BenchResult;
+
+pub fn bench_run_suite(targets: []BenchTarget) -> BenchSuite;
+
+pub fn bench_compare(current: BenchResult, previous: BenchResult) -> Float;
+
+pub fn bench_save(result: BenchSuite) -> bool;
+
+pub fn bench_load_previous(name: []const u8) -> ?BenchSuite;
+
+pub fn bench_format_report(suite: BenchSuite) -> []const u8;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test bench_run_returns_stats {
+    const target = BenchTarget{
+        .name = "parse_types",
+        .backend = "zig",
+        .spec_path = "specs/base/types.t27",
+    };
+    const result = bench_run(target);
+    assert(result.latency.iterations > 0);
+    assert(result.latency.p50_ns > 0);
+    assert(result.throughput.total_ops > 0);
+}
+
+test bench_compare_positive_improvement {
+    const t = BenchTarget{
+        .name = "cmp",
+        .backend = "zig",
+        .spec_path = "",
+    };
+    const cur = BenchResult{
+        .target = t,
+        .latency = LatencyStats{ .p50_ns = 100, .p95_ns = 150, .p99_ns = 200, .min_ns = 90, .max_ns = 250, .mean_ns = 110, .iterations = 100 },
+        .throughput = ThroughputStats{ .ops_per_sec = 1000.0, .bytes_per_sec = 0.0, .total_ops = 100, .total_duration_ns = 100000 },
+        .timestamp = "",
+        .delta_vs_last = null,
+    };
+    const prev = BenchResult{
+        .target = t,
+        .latency = LatencyStats{ .p50_ns = 200, .p95_ns = 300, .p99_ns = 400, .min_ns = 180, .max_ns = 500, .mean_ns = 220, .iterations = 100 },
+        .throughput = ThroughputStats{ .ops_per_sec = 500.0, .bytes_per_sec = 0.0, .total_ops = 100, .total_duration_ns = 200000 },
+        .timestamp = "",
+        .delta_vs_last = null,
+    };
+    const delta = bench_compare(cur, prev);
+    assert(delta > 0.0);
+}
+
+test bench_format_report_nonempty {
+    const suite = BenchSuite{
+        .name = "test_suite",
+        .results = &.{},
+        .timestamp = "2026-04-30",
+        .total_duration_ns = 1000000,
+    };
+    const report = bench_format_report(suite);
+    assert(report.len > 0);
+}
+
+test bench_save_and_load {
+    const target = BenchTarget{
+        .name = "persist",
+        .backend = "c",
+        .spec_path = "",
+    };
+    const suite = BenchSuite{
+        .name = "persist_test",
+        .results = &.{},
+        .timestamp = "2026-04-30",
+        .total_duration_ns = 1000,
+    };
+    const ok = bench_save(suite);
+    assert(ok);
+    const loaded = bench_load_previous("persist_test");
+    assert(loaded != null);
+}
+
+test latency_stats_ordering {
+    const stats = LatencyStats{
+        .p50_ns = 100,
+        .p95_ns = 500,
+        .p99_ns = 1000,
+        .min_ns = 50,
+        .max_ns = 2000,
+        .mean_ns = 150,
+        .iterations = 100,
+    };
+    assert(stats.min_ns <= stats.p50_ns);
+    assert(stats.p50_ns <= stats.p95_ns);
+    assert(stats.p95_ns <= stats.p99_ns);
+    assert(stats.p99_ns <= stats.max_ns);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant latency_ordering {
+    forall s: LatencyStats ::
+        s.min_ns <= s.p50_ns and s.p50_ns <= s.p95_ns and s.p95_ns <= s.p99_ns and s.p99_ns <= s.max_ns
+}
+
+invariant throughput_positive {
+    forall t: ThroughputStats ::
+        t.ops_per_sec >= 0.0 and t.total_ops > 0 implies t.ops_per_sec > 0.0
+}
+
+invariant delta_positive_means_improvement {
+    forall cur: BenchResult, prev: BenchResult ::
+        bench_compare(cur, prev) > 0.0 implies cur.latency.p50_ns < prev.latency.p50_ns
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench bench_run_bench {
+    const target = BenchTarget{
+        .name = "self",
+        .backend = "zig",
+        .spec_path = "specs/base/ops.t27",
+    };
+    bench_run(target)
+} expect < 10000000 cycles
+
+bench bench_format_bench {
+    const suite = BenchSuite{
+        .name = "fmt_bench",
+        .results = &.{},
+        .timestamp = "",
+        .total_duration_ns = 0,
+    };
+    bench_format_report(suite)
+} expect < 1000 cycles

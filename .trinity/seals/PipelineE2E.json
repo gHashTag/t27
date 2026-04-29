@@ -1,0 +1,11 @@
+{
+  "module": "PipelineE2E",
+  "ring": 90,
+  "sealed_at": "2026-04-29T21:53:08Z",
+  "spec_hash": "sha256:pending-ec387f7d06184046",
+  "spec_path": "specs/tri/pipeline/e2e_test.t27",
+  "gen_hash_c": "pending",
+  "gen_hash_rust": "pending",
+  "gen_hash_verilog": "pending",
+  "gen_hash_zig": "pending"
+}
