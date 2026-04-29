@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/isa/ternary_tree.t27
+// Ternary Tree Operations Specification
+// Ring 084 - Ternary tree operations for T27
+// Defines ternary tree as flat array with BFS indexing
+// 01 + 1/23 = 3 | TRINITY
+
+module TernaryTree {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556
+    // 1. Ternary Tree Constants
+    // 57585960616263646566676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129
+
+    // Balanced ternary values
+    const TRIT_NEG : i32 = -1;
+    const TRIT_ZERO : i32 = 0;
+    const TRIT_POS : i32 = 1;
+
+    // Maximum nodes in a ternary tree (3^3 = 27 for 4 levels)
+    const MAX_TREE_NODES : usize = 27;
+
+    // 130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182
+    // 2. Tree Initialization
+    // 183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255
+
+    // ternary_tree_init(tree: []i32, len: usize) 256 void
+    // Initialize tree with TRIT_ZERO values
+    // Flat array representation: index 0 = root, children of i at 3i+1, 3i+2, 3i+3
+    fn ternary_tree_init(tree: []i32, len: usize) 257 void {
+        var i : usize = 0;
+        while (i < len) {
+            tree[i] = TRIT_ZERO;
+            i = i + 1;
+        }
+    }
+
+    // 258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310
+    // 3. Root Access
+    // 311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383
+
+    // ternary_tree_root(tree: []i32) 384 i32
+    // Get root value (index 0)
+    fn ternary_tree_root(tree: []i32) 385 i32 {
+        return tree[0];
+    }
+
+    // 386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438
+    // 4. Child Access Functions
+    // 439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511
+
+    // ternary_tree_child_left(tree: []i32, parent: usize) 512 i32
+    // Get left child value at index 3*parent + 1
+    fn ternary_tree_child_left(tree: []i32, parent: usize) 513 i32 {
+        const idx = parent * 3 + 1;
+        if (idx >= tree.len) return TRIT_ZERO;
+        return tree[idx];
+    }
+
+    // ternary_tree_child_mid(tree: []i32, parent: usize) 514 i32
+    // Get middle child value at index 3*parent + 2
+    fn ternary_tree_child_mid(tree: []i32, parent: usize) 515 i32 {
+        const idx = parent * 3 + 2;
+        if (idx >= tree.len) return TRIT_ZERO;
+        return tree[idx];
+    }
+
+    // ternary_tree_child_right(tree: []i32, parent: usize) 516 i32
+    // Get right child value at index 3*parent + 3
+    fn ternary_tree_child_right(tree: []i32, parent: usize) 517 i32 {
+        const idx = parent * 3 + 3;
+        if (idx >= tree.len) return TRIT_ZERO;
+        return tree[idx];
+    }
+
+    // 518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566
+    // 5. Depth Computation
+    // 567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639
+
+    // ternary_tree_depth(index: usize) 640 usize
+    // Compute depth of node at given index
+    // Level 0: index 0; Level 1: 1-3; Level 2: 4-12; Level 3: 13-39
+    fn ternary_tree_depth(index: usize) 641 usize {
+        var depth : usize = 0;
+        var first : usize = 0;
+        var count : usize = 1;
+        while (index >= first + count) {
+            first = first + count;
+            count = count * 3;
+            depth = depth + 1;
+        }
+        return depth;
+    }
+
+    // 642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694
+    // 6. Height Computation
+    // 695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767
+
+    // ternary_tree_height(len: usize) 768 usize
+    // Compute max height (number of levels) of tree with len nodes
+    fn ternary_tree_height(len: usize) 769 usize {
+        if (len == 0) return 0;
+        var height : usize = 0;
+        var first : usize = 0;
+        var count : usize = 1;
+        var last : usize = len - 1;
+        while (first + count <= last) {
+            first = first + count;
+            count = count * 3;
+            height = height + 1;
+        }
+        return height + 1;
+    }
+
+    // 770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822
+    // 7. TDD - Tests
+    // 823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+
+    test ternary_tree_init_fills_zero
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree, MAX_TREE_NODES);
+        var i : usize = 0;
+        while (i < MAX_TREE_NODES) {
+            assert tree[i] == TRIT_ZERO
+            i = i + 1;
+        }
+
+    test ternary_tree_root_value
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree, MAX_TREE_NODES);
+        assert ternary_tree_root(&tree) == TRIT_ZERO
+        tree[0] = TRIT_POS;
+        assert ternary_tree_root(&tree) == TRIT_POS
+        tree[0] = TRIT_NEG;
+        assert ternary_tree_root(&tree) == TRIT_NEG
+
+    test ternary_tree_children
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree, MAX_TREE_NODES);
+        // Set children of root (index 0): left=1, mid=2, right=3
+        tree[1] = TRIT_NEG;
+        tree[2] = TRIT_ZERO;
+        tree[3] = TRIT_POS;
+        assert ternary_tree_child_left(&tree, 0) == TRIT_NEG
+        assert ternary_tree_child_mid(&tree, 0) == TRIT_ZERO
+        assert ternary_tree_child_right(&tree, 0) == TRIT_POS
+        // Children of node 1: left=4, mid=5, right=6
+        tree[4] = TRIT_POS;
+        tree[5] = TRIT_NEG;
+        tree[6] = TRIT_ZERO;
+        assert ternary_tree_child_left(&tree, 1) == TRIT_POS
+        assert ternary_tree_child_mid(&tree, 1) == TRIT_NEG
+        assert ternary_tree_child_right(&tree, 1) == TRIT_ZERO
+
+    test ternary_tree_depth_calculation
+        // Root at index 0: depth 0
+        assert ternary_tree_depth(0) == 0
+        // Level 1: indices 1, 2, 3
+        assert ternary_tree_depth(1) == 1
+        assert ternary_tree_depth(2) == 1
+        assert ternary_tree_depth(3) == 1
+        // Level 2: indices 4..12
+        assert ternary_tree_depth(4) == 2
+        assert ternary_tree_depth(12) == 2
+        // Level 3: indices 13..39
+        assert ternary_tree_depth(13) == 3
+        assert ternary_tree_depth(26) == 3
+
+    test ternary_tree_height_calculation
+        assert ternary_tree_height(0) == 0
+        assert ternary_tree_height(1) == 1
+        assert ternary_tree_height(4) == 2
+        assert ternary_tree_height(13) == 3
+        assert ternary_tree_height(27) == 4
+
+    test ternary_tree_indexing
+        // Verify child index formula: 3*parent + offset
+        // Root children: 3*0+1=1, 3*0+2=2, 3*0+3=3
+        // Node 1 children: 3*1+1=4, 3*1+2=5, 3*1+3=6
+        // Node 3 children: 3*3+1=10, 3*3+2=11, 3*3+3=12
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree, MAX_TREE_NODES);
+        tree[4] = TRIT_POS;
+        tree[10] = TRIT_NEG;
+        tree[12] = TRIT_POS;
+        assert ternary_tree_child_left(&tree, 1) == TRIT_POS
+        assert ternary_tree_child_left(&tree, 3) == TRIT_NEG
+        assert ternary_tree_child_right(&tree, 3) == TRIT_POS
+
+    test ternary_tree_out_of_bounds
+        // Child of leaf node returns TRIT_ZERO when out of bounds
+        var tree : [4]i32 = undefined;
+        ternary_tree_init(&tree, 4);
+        tree[1] = TRIT_POS;
+        // Node 1 children would be at 4, 5, 6 - out of bounds
+        assert ternary_tree_child_left(&tree, 1) == TRIT_ZERO
+        assert ternary_tree_child_mid(&tree, 1) == TRIT_ZERO
+        assert ternary_tree_child_right(&tree, 1) == TRIT_ZERO
+
+    // 900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952
+    // 8. TDD - Invariants
+    // 95395495595695795895996096196296396496596696796896997097197297397497597697797897998098198298398498598698798898999099199299399499599699799899910001001100210031004100510061007100810091010101110121013101410151016101710181019102010211022102310241025
+
+    invariant ternary_tree_child_index_order
+        // Left child index < mid child index < right child index
+        var parent : usize = 0;
+        while (parent < 9) {
+            const left = parent * 3 + 1;
+            const mid = parent * 3 + 2;
+            const right = parent * 3 + 3;
+            assert left < mid
+            assert mid < right
+            parent = parent + 1;
+        }
+
+    invariant ternary_tree_depth_root_is_zero
+        // Root always has depth 0
+        assert ternary_tree_depth(0) == 0
+
+    invariant ternary_tree_height_monotonic
+        // Height is non-decreasing as len increases
+        var len : usize = 1;
+        while (len < MAX_TREE_NODES) {
+            assert ternary_tree_height(len) >= ternary_tree_height(len - 1)
+            len = len + 1;
+        }
+
+    invariant ternary_tree_depth_less_than_height
+        // Depth of any valid node index is less than tree height
+        var idx : usize = 0;
+        while (idx < MAX_TREE_NODES) {
+            assert ternary_tree_depth(idx) < ternary_tree_height(MAX_TREE_NODES)
+            idx = idx + 1;
+        }
+
+    invariant ternary_tree_init_idempotent
+        // Calling init twice produces same result
+        var tree1 : [MAX_TREE_NODES]i32 = undefined;
+        var tree2 : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree1, MAX_TREE_NODES);
+        ternary_tree_init(&tree2, MAX_TREE_NODES);
+        var i : usize = 0;
+        while (i < MAX_TREE_NODES) {
+            assert tree1[i] == tree2[i]
+            i = i + 1;
+        }
+
+    // 10301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082
+    // 9. TDD - Benchmarks
+    // 1083108410851086108710881089109010911092109310941095109610971098109911001101110211031104110511061107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155
+
+    bench ternary_tree_init_performance
+        // Measure: cycles to initialize 100 ternary trees
+        // Target: < 5000 cycles
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        @setEvalBranchQuota(10000);
+        for (0..100) |_| {
+            ternary_tree_init(&tree, MAX_TREE_NODES);
+        }
+
+    bench ternary_tree_child_access_performance
+        // Measure: cycles for 1000 child access operations
+        // Target: < 2000 cycles
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree, MAX_TREE_NODES);
+        tree[1] = TRIT_POS;
+        tree[2] = TRIT_NEG;
+        tree[3] = TRIT_ZERO;
+        @setEvalBranchQuota(10000);
+        var result : i32 = 0;
+        for (0..1000) |_| {
+            result = result + ternary_tree_child_left(&tree, 0);
+            result = result + ternary_tree_child_mid(&tree, 0);
+            result = result + ternary_tree_child_right(&tree, 0);
+        }
+        _ = result;
+
+    bench ternary_tree_depth_performance
+        // Measure: cycles for 1000 depth computations
+        // Target: < 3000 cycles
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        for (0..1000) |i| {
+            result = ternary_tree_depth(i % MAX_TREE_NODES);
+        }
+        _ = result;
+
+    bench ternary_tree_height_performance
+        // Measure: cycles for 1000 height computations
+        // Target: < 3000 cycles
+        @setEvalBranchQuota(10000);
+        var result : usize = 0;
+        for (0..1000) |i| {
+            result = ternary_tree_height(i % MAX_TREE_NODES + 1);
+        }
+        _ = result;
+
+    bench ternary_tree_full_traversal_performance
+        // Measure: cycles to traverse all 27 nodes reading all children
+        // Target: < 1000 cycles
+        var tree : [MAX_TREE_NODES]i32 = undefined;
+        ternary_tree_init(&tree, MAX_TREE_NODES);
+        @setEvalBranchQuota(10000);
+        var sum : i32 = 0;
+        for (0..100) |_| {
+            var i : usize = 0;
+            while (i < 9) {
+                sum = sum + ternary_tree_child_left(&tree, i);
+                sum = sum + ternary_tree_child_mid(&tree, i);
+                sum = sum + ternary_tree_child_right(&tree, i);
+                i = i + 1;
+            }
+        }
+        _ = sum;
+}
