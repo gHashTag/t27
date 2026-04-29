@@ -1,0 +1,11 @@
+{
+  "module": "PipelineBench",
+  "ring": 90,
+  "sealed_at": "2026-04-29T21:53:08Z",
+  "spec_hash": "sha256:pending-7cfb0769fc5407b6",
+  "spec_path": "specs/tri/pipeline/benchmark.t27",
+  "gen_hash_c": "pending",
+  "gen_hash_rust": "pending",
+  "gen_hash_verilog": "pending",
+  "gen_hash_zig": "pending"
+}

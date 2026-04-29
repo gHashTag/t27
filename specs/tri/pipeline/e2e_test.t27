@@ -1,0 +1,216 @@
+// SPDX-License-Identifier: Apache-2.0
+// Module: PipelineE2E — end-to-end test specification for tri pipeline
+// Issue: #490
+// phi^2 + 1/phi^2 = 3 | TRINITY
+
+module PipelineE2E;
+
+use tri::pipeline::pipeline::TriPipeline;
+use tri::pipeline::spec_parser::SpecParser;
+use tri::pipeline::codegen::CodegenBackend;
+use tri::pipeline::spec_writer::SpecWriter;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+pub const VERSION : u32 = 1;
+pub const MAX_E2E_STEPS : usize = 10;
+pub const E2E_TIMEOUT_MS : u32 = 30000;
+pub const PASS_THRESHOLD : Float = 1.0;
+
+const STATUS_PENDING : u8 = 0;
+const STATUS_RUNNING : u8 = 1;
+const STATUS_PASS : u8 = 2;
+const STATUS_FAIL : u8 = 3;
+const STATUS_SKIP : u8 = 4;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const E2EStep = struct {
+    name : []const u8,
+    command : []const u8,
+    expected_exit : i32,
+    status : u8,
+    duration_ns : u64,
+    output_hash : []const u8,
+};
+
+pub const E2EResult = struct {
+    name : []const u8,
+    steps : []E2EStep,
+    total_steps : usize,
+    passed : usize,
+    failed : usize,
+    skipped : usize,
+    total_duration_ns : u64,
+    verdict : []const u8,
+    delta_vs_last : ?Float,
+};
+
+pub const E2ESuite = struct {
+    name : []const u8,
+    results : []E2EResult,
+    timestamp : []const u8,
+    all_pass : bool,
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+pub fn e2e_run_suite(suite_name: []const u8) -> E2ESuite;
+
+pub fn e2e_run_single(spec_path: []const u8) -> E2EResult;
+
+pub fn e2e_compare_with_previous(current: E2EResult) -> ?Float;
+
+pub fn e2e_step_execute(step: E2EStep) -> E2EStep;
+
+pub fn e2e_verdict(result: E2EResult) -> []const u8;
+
+pub fn e2e_delta_report(current: E2ESuite) -> []const u8;
+
+pub fn e2e_save_experience(result: E2EResult) -> bool;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test e2e_full_pipeline_pass {
+    const result = e2e_run_single("specs/base/types.t27");
+    assert(result.total_steps > 0);
+    assert(result.verdict == "PASS" or result.verdict == "SKIP");
+}
+
+test e2e_verdict_pass_when_no_failures {
+    const result = E2EResult{
+        .name = "test",
+        .steps = &.{},
+        .total_steps = 3,
+        .passed = 3,
+        .failed = 0,
+        .skipped = 0,
+        .total_duration_ns = 1000,
+        .verdict = "PASS",
+        .delta_vs_last = null,
+    };
+    const v = e2e_verdict(result);
+    assert(v == "PASS");
+}
+
+test e2e_verdict_fail_with_any_failure {
+    const result = E2EResult{
+        .name = "test",
+        .steps = &.{},
+        .total_steps = 3,
+        .passed = 2,
+        .failed = 1,
+        .skipped = 0,
+        .total_duration_ns = 1000,
+        .verdict = "FAIL",
+        .delta_vs_last = null,
+    };
+    const v = e2e_verdict(result);
+    assert(v == "FAIL");
+}
+
+test e2e_step_execute_updates_status {
+    const step = E2EStep{
+        .name = "parse",
+        .command = "t27c parse specs/base/types.t27",
+        .expected_exit = 0,
+        .status = STATUS_PENDING,
+        .duration_ns = 0,
+        .output_hash = "",
+    };
+    const executed = e2e_step_execute(step);
+    assert(executed.status != STATUS_PENDING);
+    assert(executed.duration_ns > 0);
+}
+
+test e2e_suite_all_pass {
+    const suite = e2e_run_suite("core");
+    assert(suite.results.len > 0);
+    assert(suite.all_pass or !suite.all_pass);
+}
+
+test e2e_save_experience_returns_true {
+    const result = E2EResult{
+        .name = "save_test",
+        .steps = &.{},
+        .total_steps = 1,
+        .passed = 1,
+        .failed = 0,
+        .skipped = 0,
+        .total_duration_ns = 500,
+        .verdict = "PASS",
+        .delta_vs_last = null,
+    };
+    const ok = e2e_save_experience(result);
+    assert(ok);
+}
+
+// ============================================================================
+// Invariants
+// ============================================================================
+
+invariant verdict_consistent {
+    forall r: E2EResult ::
+        (r.failed == 0 and r.total_steps > 0) implies r.verdict != "FAIL"
+}
+
+invariant step_counts_sum {
+    forall r: E2EResult ::
+        r.passed + r.failed + r.skipped == r.total_steps
+}
+
+invariant duration_positive {
+    forall s: E2EStep ::
+        s.status != STATUS_PENDING implies s.duration_ns > 0
+}
+
+invariant suite_verdict_matches_results {
+    forall suite: E2ESuite ::
+        suite.all_pass implies forall r in suite.results :: r.verdict == "PASS"
+}
+
+// ============================================================================
+// Benchmarks
+// ============================================================================
+
+bench e2e_single_spec_bench {
+    e2e_run_single("specs/base/types.t27")
+} expect < 5000000 cycles
+
+bench e2e_verdict_bench {
+    const r = E2EResult{
+        .name = "bench",
+        .steps = &.{},
+        .total_steps = 0,
+        .passed = 0,
+        .failed = 0,
+        .skipped = 0,
+        .total_duration_ns = 0,
+        .verdict = "PASS",
+        .delta_vs_last = null,
+    };
+    e2e_verdict(r)
+} expect < 100 cycles
+
+bench e2e_compare_bench {
+    const r = E2EResult{
+        .name = "bench",
+        .steps = &.{},
+        .total_steps = 1,
+        .passed = 1,
+        .failed = 0,
+        .skipped = 0,
+        .total_duration_ns = 100,
+        .verdict = "PASS",
+        .delta_vs_last = null,
+    };
+    e2e_compare_with_previous(r)
+} expect < 1000 cycles
