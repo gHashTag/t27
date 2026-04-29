@@ -299,6 +299,28 @@ module TernaryDeque {
 
         assert deque_is_empty(count)
 
+    test deque_wraparound_circular
+        var data : [4]i32 = undefined;
+        var front : usize = 0;
+        var back : usize = 0;
+        var count : usize = 0;
+        deque_init(&data, &front, &back, &count);
+
+        deque_push_back(&data, &front, &back, &count, TRIT_POS);
+        deque_push_back(&data, &front, &back, &count, TRIT_NEG);
+        deque_push_back(&data, &front, &back, &count, TRIT_ZERO);
+        deque_push_back(&data, &front, &back, &count, TRIT_POS);
+
+        var v1 = deque_pop_front(&data, &front, &back, &count);
+        assert v1 == TRIT_POS
+        var v2 = deque_pop_front(&data, &front, &back, &count);
+        assert v2 == TRIT_NEG
+
+        deque_push_back(&data, &front, &back, &count, TRIT_NEG);
+        deque_push_back(&data, &front, &back, &count, TRIT_ZERO);
+
+        assert count == 4
+
     // 404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456
     // 4. TDD - Invariants
     // 457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529
