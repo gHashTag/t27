@@ -285,7 +285,6 @@ fn encode_gf32_from_u64(f64_bits: u64) -> u32 {
     if round_up {
         gf32_mant += 1;
         if gf32_mant == (1 << GF32_MANT_BITS) {
-            gf32_mant = 0;
             let new_exp = gf32_exp + 1;
             if new_exp >= ((1 << GF32_EXP_BITS) - 1) as u32 {
                 return (sign << 31) | GF32_EXP_MASK;
