@@ -7,6 +7,10 @@
 
 ## Active Work
 
+**Ring 080-087: Ternary Collection Specs** (PR #555)
+- 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
+- Closes #260 #262 #264 #267 #269 #271 #275
+
 **Pre-commit Gate (Ring 073)** (PR #554)
 - 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
 - Install: `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`
