@@ -1,21 +1,38 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-29
+**Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
-## Active PRs
-- PR #529 — feat: TypeScript codegen backend (feat/typescript-codegen-525 → dev) 🟡 CI pending
+---
 
-## Recently Merged
-- PR #523 — fix: bootstrap main.rs restored ✅
-- PR #520 — feat: GF16-native Rust codegen + emit_rust() ✅
+## Active Work
 
-## Closed Issues
-- #519 — GF16 Rust codegen spec ✅
-- #522 — Bootstrap recovery ✅
-- #525 — TypeScript codegen spec (closes with PR #529)
+**Pre-commit Gate (Ring 073)** (PR #554)
+- 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
+- Install: `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`
 
-## Next
-- Zig codegen backend (emit_zig) — issue TBD
-- C codegen backend (emit_c) — issue TBD
+**FFI Bug Fixes + API Completeness** (PR #553 — merged)
+- BUG-001/002/003 fixed, GF4/8/12/20/24 encode/decode added
 
-## φ² + 1/φ² = 3 | TRINITY
+---
+
+## Previous Active Work
+
+**Ring 32 — Cloud Orchestration** (PR #485) — New ring for cloud deployment capabilities
+- specs/base/ring_32.t27 — Ring 32 definition
+- specs/cloud/railway_deploy.t27 — Railway deployment orchestrator
+- specs/base/debounce.t27 — φ-structured debouncing (618ms)
+- specs/queen/task_analysis.t27 — Task priority analysis for 27 bees
+- specs/compiler/mod_structure.t27 — Module structure validation
+- Full TDD coverage: 12 tests, 6 invariants, 1 benchmark
+- Constitutional compliance: L1-L7
+
+---
+
+**DARPA CLARA Documentation Organization** (PR #478) — Docs structure overhaul for clarity
+
+**DARPA CLARA v1.5 Submission** (PR #473) — Ready for review, deadline April 17, 2026
+
+---
+
+**φ² + 1/φ² = 3 | TRINITY**

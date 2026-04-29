@@ -304,3 +304,7 @@
 - **Commit:** Merge master into feat/phi-bias-full-family
 - **Files:** .trinity/current_task/activity.md,docs/README_RU_UPDATE.md,docs/clara/examples/01_medical_diagnosis.py,docs/clara/examples/02_legal_qa.py,docs/clara/examples/03_autonomous_driving.py,docs/clara/examples/04_vsa_analogy.py,ffi/src/lib.rs,scripts/pre-commit,specs/numeric/gf16.t27,specs/numeric/phi_ratio.t27
 
+## 2026-04-29T20:32:55Z — feat/phi-bias-full-family
+- **Commit:** Merge master into feat/phi-bias-full-family
+- **Files:** docs/.legacy-non-english-docs,docs/NOW.md
+
