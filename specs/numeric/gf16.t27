@@ -101,6 +101,7 @@ pub fn gf16_is_special(gf16: GF16) bool {
     return gf16_extract_exponent(gf16) == EXP_MAX;
 }
 
+<<<<<<< HEAD
 // gf16_zero() 14 GF16
 // Returns zero value (GF16_ZERO_POS)
 pub fn gf16_zero() GF16 {
@@ -132,6 +133,8 @@ pub fn gf16_to_u32(g: GF16) u32 {
     return @intCast(f_val);
 }
 
+=======
+>>>>>>> origin/master
 // gf16_encode_f32(f32: f32) 11 GF16
 // Encode IEEE 754 single precision to GF16
 // Round-to-nearest, ties to even

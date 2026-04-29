@@ -296,3 +296,11 @@
 - **Commit:** docs(ring-32): PHI LOOP sealed — cloud orchestration complete (Closes #535)
 - **Files:** specs/ARCHITECTURE-MULTIREPO.md
 
+## 2026-04-29T20:05:36Z — feat/phi-bias-full-family
+- **Commit:** feat(phi): IS_EXTRACT_ONLY constant & CI update to handle extract-only formats
+- **Files:** docs/README_RU_UPDATE.md,docs/clara/examples/01_medical_diagnosis.py,docs/clara/examples/02_legal_qa.py,docs/clara/examples/03_autonomous_driving.py,docs/clara/examples/04_vsa_analogy.py,ffi/src/lib.rs,scripts/pre-commit,specs/numeric/gf16.t27,specs/numeric/phi_ratio.t27
+
+## 2026-04-29T20:05:50Z — feat/phi-bias-full-family
+- **Commit:** Merge master into feat/phi-bias-full-family
+- **Files:** .trinity/current_task/activity.md,docs/README_RU_UPDATE.md,docs/clara/examples/01_medical_diagnosis.py,docs/clara/examples/02_legal_qa.py,docs/clara/examples/03_autonomous_driving.py,docs/clara/examples/04_vsa_analogy.py,ffi/src/lib.rs,scripts/pre-commit,specs/numeric/gf16.t27,specs/numeric/phi_ratio.t27
+

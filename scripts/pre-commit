@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# pre-commit gate for t27 — L7 compliance (no new .sh on critical path)
+# Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+# Or: lefthook install
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+FAIL=0
+
+# Gate 1: NOW freshness — docs/NOW.md must contain today's date (UTC)
+check_now_freshness() {
+    local now_file="docs/NOW.md"
+    if [ ! -f "$now_file" ]; then
+        echo -e "${RED}FAIL: docs/NOW.md not found${NC}"
+        FAIL=1
+        return
+    fi
+    local today=$(date -u +%Y-%m-%d)
+    if grep -q "Last updated.*$today" "$now_file" 2>/dev/null; then
+        echo -e "${GREEN}PASS: NOW.md date is current ($today)${NC}"
+    else
+        echo -e "${RED}FAIL: NOW.md date is not today ($today). Update 'Last updated:' line.${NC}"
+        FAIL=1
+    fi
+}
+
+# Gate 2: Seal coverage — staged .t27 specs must have seals
+check_seal_coverage() {
+    local staged_specs=$(git diff --cached --name-only --diff-filter=ACMR 'specs/**/*.t27' 2>/dev/null || true)
+    if [ -z "$staged_specs" ]; then
+        echo -e "${GREEN}PASS: no staged .t27 specs to check${NC}"
+        return
+    fi
+    local missing=0
+    for spec in $staged_specs; do
+        local basename=$(basename "$spec" .t27)
+        if [ ! -f ".trinity/seals/${basename}.json" ]; then
+            echo -e "${YELLOW}WARN: no seal for $spec (.trinity/seals/${basename}.json)${NC}"
+            missing=$((missing + 1))
+        fi
+    done
+    if [ "$missing" -gt 0 ]; then
+        echo -e "${YELLOW}WARN: $missing specs missing seals (non-blocking)${NC}"
+    else
+        echo -e "${GREEN}PASS: all staged specs have seals${NC}"
+    fi
+}
+
+# Gate 3: No new .sh files on critical path (L7 UNITY)
+check_no_new_shell() {
+    local new_sh=$(git diff --cached --name-only --diff-filter=A '*.sh' 2>/dev/null || true)
+    if [ -n "$new_sh" ]; then
+        echo -e "${RED}FAIL: new .sh files detected (L7 UNITY violation):${NC}"
+        echo "$new_sh"
+        FAIL=1
+    else
+        echo -e "${GREEN}PASS: no new .sh files${NC}"
+    fi
+}
+
+# Gate 4: Cargo check (if bootstrap/ or ffi/ changed)
+check_cargo() {
+    local changed=$(git diff --cached --name-only 2>/dev/null | grep -E '^(ffi/|bootstrap/|Cargo\.toml)' || true)
+    if [ -z "$changed" ]; then
+        echo -e "${GREEN}PASS: no Rust changes to check${NC}"
+        return
+    fi
+    echo -e "${YELLOW}RUN: cargo check (Rust files changed)${NC}"
+    if cargo check --quiet 2>/dev/null; then
+        echo -e "${GREEN}PASS: cargo check${NC}"
+    else
+        echo -e "${RED}FAIL: cargo check failed${NC}"
+        FAIL=1
+    fi
+}
+
+echo "=== t27 Pre-Commit Gate ==="
+echo ""
+check_now_freshness
+check_seal_coverage
+check_no_new_shell
+check_cargo
+echo ""
+
+if [ "$FAIL" -eq 0 ]; then
+    echo -e "${GREEN}All gates passed.${NC}"
+    exit 0
+else
+    echo -e "${RED}Gates failed. Fix issues before committing.${NC}"
+    exit 1
+fi
