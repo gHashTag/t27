@@ -69,7 +69,28 @@ enum CellAction {
 
 #[derive(Subcommand)]
 enum ExperienceAction {
-    Save,
+    Save {
+        #[arg(long)]
+        skill: Option<String>,
+        #[arg(long)]
+        verdict: Option<String>,
+        #[arg(long)]
+        notes: Option<String>,
+        #[arg(long)]
+        performance_ns: Option<u64>,
+    },
+    List {
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
+    Query {
+        #[arg(long)]
+        skill: Option<String>,
+        #[arg(long)]
+        verdict: Option<String>,
+        #[arg(long)]
+        after: Option<String>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -497,36 +518,64 @@ fn cmd_verdict(toxic: bool) -> Result<()> {
     Ok(())
 }
 
-fn cmd_experience_save(root: &Path) -> Result<()> {
+fn cmd_experience_save(
+    root: &Path,
+    skill_name: Option<String>,
+    verdict: Option<String>,
+    notes: Option<String>,
+    performance_ns: Option<u64>,
+) -> Result<()> {
     ensure_dirs(root)?;
 
-    let skill = load_active_skill(root)?;
+    let active = load_active_skill(root)?;
     let reg = load_registry(root)?;
     let ts = Utc::now().to_rfc3339();
+
+    let skill_id = skill_name
+        .or(active.skill_id)
+        .unwrap_or_else(|| "unknown".into());
 
     let skill_cells: Vec<&Cell> = reg
         .cells
         .iter()
-        .filter(|c| {
-            skill
-                .skill_id
-                .as_deref()
-                .map_or(false, |sid| c.skill == sid)
-        })
+        .filter(|c| c.skill == skill_id)
         .collect();
 
-    let episode = serde_json::json!({
+    let verdict_val = verdict.unwrap_or_else(|| "skip".into());
+
+    let mut episode = serde_json::json!({
         "at": ts,
-        "skill_id": skill.skill_id,
-        "session_id": skill.session_id,
+        "skill_id": skill_id,
+        "session_id": active.session_id,
         "cells": skill_cells.len(),
         "total_checkpoints": skill_cells.iter().map(|c| c.checkpoints.len()).sum::<usize>(),
+        "verdict": verdict_val,
     });
 
-    let ep_path = trinity_path(
-        root,
-        &format!("experience/episode-{}.jsonl", Utc::now().timestamp()),
-    );
+    if let Some(n) = notes {
+        episode["notes"] = serde_json::json!(n);
+    }
+    if let Some(perf) = performance_ns {
+        episode["performance_ns"] = serde_json::json!(perf);
+    }
+
+    let content = serde_json::to_string(&episode)?;
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+    episode["hash"] = serde_json::json!(hash);
+
+    if verdict_val == "fail" {
+        let mistake_path = trinity_path(root, &format!("mistakes/{}.json", hash));
+        if let Some(parent) = mistake_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&mistake_path, serde_json::to_string_pretty(&episode)?)?;
+    }
+
+    let exp_dir = trinity_path(root, &format!("experience/{}", skill_id));
+    fs::create_dir_all(&exp_dir)?;
+    let ep_path = exp_dir.join(format!("{}.json", Utc::now().timestamp()));
     let line = serde_json::to_string(&episode)? + "\n";
     fs::write(&ep_path, line)?;
 
@@ -535,13 +584,123 @@ fn cmd_experience_save(root: &Path) -> Result<()> {
         &AkashicEvent {
             at: ts,
             event: "experience.save".into(),
-            skill_id: skill.skill_id,
+            skill_id: Some(skill_id.clone()),
             cell_id: None,
-            detail: Some(episode),
+            detail: Some(episode.clone()),
         },
     )?;
 
-    println!("experience saved");
+    println!(
+        "experience saved: skill={} verdict={} hash={}",
+        skill_id, verdict_val, &hash[..12]
+    );
+    Ok(())
+}
+
+fn cmd_experience_list(root: &Path, limit: usize) -> Result<()> {
+    ensure_dirs(root)?;
+    let exp_dir = trinity_path(root, "experience");
+    if !exp_dir.exists() {
+        println!("No experience entries found.");
+        return Ok(());
+    }
+
+    let mut entries: Vec<(String, serde_json::Value)> = Vec::new();
+    for entry in fs::read_dir(&exp_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            for file in fs::read_dir(&path)? {
+                let file = file?;
+                if let Ok(content) = fs::read_to_string(file.path()) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        entries.push((file.path().display().to_string(), val));
+                    }
+                }
+            }
+        }
+    }
+
+    entries.sort_by(|a, b| {
+        let ta = a.1.get("at").and_then(|v| v.as_str()).unwrap_or("");
+        let tb = b.1.get("at").and_then(|v| v.as_str()).unwrap_or("");
+        tb.cmp(ta)
+    });
+
+    println!("{:<6} {:<20} {:<10} {:<12} {}", "#", "skill", "verdict", "hash", "at");
+    println!("{}", "-".repeat(70));
+    for (i, (_, val)) in entries.iter().take(limit).enumerate() {
+        let skill = val.get("skill_id").and_then(|v| v.as_str()).unwrap_or("?");
+        let verdict = val.get("verdict").and_then(|v| v.as_str()).unwrap_or("-");
+        let hash = val.get("hash").and_then(|v| v.as_str()).map(|h| &h[..12]).unwrap_or("-");
+        let at = val.get("at").and_then(|v| v.as_str()).unwrap_or("-");
+        println!("{:<6} {:<20} {:<10} {:<12} {}", i + 1, skill, verdict, hash, at);
+    }
+    Ok(())
+}
+
+fn cmd_experience_query(
+    root: &Path,
+    skill_filter: Option<String>,
+    verdict_filter: Option<String>,
+    after: Option<String>,
+) -> Result<()> {
+    ensure_dirs(root)?;
+    let exp_dir = trinity_path(root, "experience");
+    if !exp_dir.exists() {
+        println!("No experience entries found.");
+        return Ok(());
+    }
+
+    let mut results: Vec<serde_json::Value> = Vec::new();
+    for entry in fs::read_dir(&exp_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            for file in fs::read_dir(&path)? {
+                let file = file?;
+                if let Ok(content) = fs::read_to_string(file.path()) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        let mut matches = true;
+                        if let Some(ref sf) = skill_filter {
+                            matches &= val
+                                .get("skill_id")
+                                .and_then(|v| v.as_str())
+                                .map_or(false, |s| s == sf);
+                        }
+                        if let Some(ref vf) = verdict_filter {
+                            matches &= val
+                                .get("verdict")
+                                .and_then(|v| v.as_str())
+                                .map_or(false, |s| s == vf);
+                        }
+                        if let Some(ref af) = after {
+                            matches &= val
+                                .get("at")
+                                .and_then(|v| v.as_str())
+                                .map_or(false, |s| s > af.as_str());
+                        }
+                        if matches {
+                            results.push(val);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if results.is_empty() {
+        println!("No matching entries.");
+    } else {
+        for val in &results {
+            let skill = val.get("skill_id").and_then(|v| v.as_str()).unwrap_or("?");
+            let verdict = val.get("verdict").and_then(|v| v.as_str()).unwrap_or("-");
+            let at = val.get("at").and_then(|v| v.as_str()).unwrap_or("-");
+            let notes = val.get("notes").and_then(|v| v.as_str()).unwrap_or("");
+            println!("[{}] {} {} {}", at, skill, verdict, notes);
+        }
+        println!("\n{} matching entries.", results.len());
+    }
     Ok(())
 }
 
@@ -624,7 +783,18 @@ fn main() -> Result<()> {
         Commands::Experience { action } => {
             let root = find_trinity_root()?;
             match action {
-                ExperienceAction::Save => cmd_experience_save(&root)?,
+                ExperienceAction::Save {
+                    skill,
+                    verdict,
+                    notes,
+                    performance_ns,
+                } => cmd_experience_save(&root, skill.clone(), verdict.clone(), notes.clone(), *performance_ns)?,
+                ExperienceAction::List { limit } => cmd_experience_list(&root, *limit)?,
+                ExperienceAction::Query {
+                    skill,
+                    verdict,
+                    after,
+                } => cmd_experience_query(&root, skill.clone(), verdict.clone(), after.clone())?,
             }
         }
         Commands::Doctor { action } => {
