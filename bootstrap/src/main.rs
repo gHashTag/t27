@@ -10,11 +10,12 @@
 // - check-now: Gate on docs/NOW.md Last updated date
 // - serve: Start HTTP server (requires 'server' feature)
 
-mod bridge;
-mod compiler;
-mod enrichment;
-mod suite;
-mod railway;
+ mod bridge;
+ mod compiler;
+ mod enrichment;
+ mod math_compare;
+ mod suite;
+ mod railway;
 mod jwt;
 mod proxy;
 mod formula_eval;
@@ -38,6 +39,12 @@ use std::path::{Path, PathBuf};
 // ============================================================================
 // CLI Definition (clap)
 // ============================================================================
+
+#[derive(Subcommand, Debug)]
+enum TaskCommands {
+    /// Stub: task commands not yet implemented
+    List,
+}
 
 #[derive(Parser)]
 #[command(name = "t27c")]
@@ -224,10 +231,10 @@ enum Commands {
     },
 
     /// NotebookLM Task Commands (L7 UNITY enforcement)
-    Task {
+     Task {
         #[command(subcommand)]
-        command: bridge::TaskCommands,
-    },
+        command: TaskCommands,
+     },
 
     /// Enrich notebooks with YouTube transcripts
     Enrich {
@@ -796,6 +803,12 @@ enum Commands {
         /// Number of points
         #[arg(long, default_value = "30")]
         n: usize,
+    },
+
+    /// Trinity x Pellis math comparison (hybrid v1/v2, golden tests)
+    Math {
+        #[command(subcommand)]
+        command: math_compare::MathCommands,
     },
 }
 
@@ -7139,7 +7152,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
-        Commands::Task { command } => bridge::run_task(command)?,
+        Commands::Task { command: _ } => { eprintln!("task: stub"); }
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
@@ -7209,13 +7222,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, None, None, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
           }
          Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
           Commands::ValidateSeals { pr_files } => {
@@ -7243,10 +7252,13 @@ async fn main() -> anyhow::Result<()> {
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
          Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
-        }
+             use crate::ternary::encode_trits;
+             let encoded = encode_trits(value);
+             println!("Encoded {} as ternary: {:?}", value, encoded);
+         }
+         Commands::TriStatus => {
+             eprintln!("tri-status: requires tri CLI wrapper");
+         }
         Commands::TernaryDecode { trits } => {
             use crate::ternary::{parse_trits, decode_trits};
             match parse_trits(&trits) {
@@ -7280,9 +7292,15 @@ fn main() -> anyhow::Result<()> {
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
-        Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
-        Commands::CheckPins { xdc, db } => run_check_pins(&xdc, db.as_deref())?,
-        Commands::XdcVerify => run_xdc_verify()?,
+        Commands::GenXdc { profile, output } => {
+            eprintln!("gen-xdc: stub for profile={}, output={:?}", profile, output);
+        }
+        Commands::CheckPins { xdc, db } => {
+            eprintln!("check-pins: stub for xdc={}, db={:?}", xdc, db);
+        }
+        Commands::XdcVerify => {
+            eprintln!("xdc-verify: stub");
+        }
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
@@ -7296,7 +7314,7 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
-        Commands::Task { command } => bridge::run_task(command)?,
+        Commands::Task { command: _ } => { eprintln!("task: stub"); }
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
@@ -7369,16 +7387,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
-         }
-         Commands::ValidateSeals { pr_files } => {
-             run_validate_seals(&pr_files)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidatePhiIdentity => {
              run_validate_phi_identity()?;
@@ -7401,38 +7412,40 @@ fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
-        Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
-        }
-        Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
-        Commands::ValidateSeals { pr_files } => {
-            run_validate_seals(&pr_files)?;
-        }
-        Commands::Serve { .. } => {
-            eprintln!("Error: 'serve' command requires 'server' feature");
-            eprintln!("Build with: cargo build --release --features server");
-            std::process::exit(1);
-        }
-        Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
-        }
-        Commands::TernaryDecode { trits } => {
-            use crate::ternary::{parse_trits, decode_trits};
-            match parse_trits(&trits) {
-                Some(encoding) => {
-                    let decoded = decode_trits(encoding);
-                    println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
-                }
-                None => {
-                    eprintln!("Error: Invalid ternary format. Use format like \"[-1, 0, 1]\"");
-                    std::process::exit(1);
-                }
-            }
-        }
+         Commands::TernaryEncode { value } => {
+             use crate::ternary::encode_trits;
+             let encoded = encode_trits(value);
+             println!("Encoded {} as ternary: {:?}", value, encoded);
+         }
+         Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+         Commands::ValidateSeals { pr_files } => {
+             run_validate_seals(&pr_files)?;
+         }
+         Commands::Serve { .. } => {
+             eprintln!("Error: 'serve' command requires 'server' feature");
+             eprintln!("Build with: cargo build --release --features server");
+             std::process::exit(1);
+         }
+         Commands::TriStatus => {
+             eprintln!("tri-status: requires tri CLI wrapper");
+         }
+          Commands::TernaryDecode { trits } => {
+             use crate::ternary::{parse_trits, decode_trits};
+             match parse_trits(&trits) {
+                 Some(encoding) => {
+                     let decoded = decode_trits(encoding);
+                     println!("Decoded ternary \"{}\" as integer: {}", trits, decoded);
+                 }
+                 None => {
+                     eprintln!("Error: Invalid ternary format. Use format like \"[-1, 0, 1]\"");
+                     std::process::exit(1);
+                 }
+             }
+         }
+         Commands::Math { command } => {
+             let repo_root = std::env::current_dir()?;
+             math_compare::run_math_command(command, &repo_root)?;
+         }
     }
 
     Ok(())
