@@ -5,7 +5,7 @@
 [NOW document](https://github.com/gHashTag/t27/blob/master/docs/NOW.md)
 [Queen health](https://github.com/gHashTag/t27/blob/master/.trinity/state/queen-health.json)
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-04-29
 **Active:** FFI bug fixes (#545-#549), tri igla CLI (#541), API completeness
 
 ---

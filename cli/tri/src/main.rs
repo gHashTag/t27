@@ -56,6 +56,7 @@ enum Commands {
         #[command(subcommand)]
         action: igla::IglaAction,
     },
+    PreCommit,
 }
 
 #[derive(Subcommand)]
@@ -607,6 +608,88 @@ fn cmd_health(root: &Path, target: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+fn cmd_pre_commit(root: &Path) -> Result<()> {
+    let mut failures = Vec::new();
+
+    let today = Utc::now().format("%Y-%m-%d").to_string();
+    let now_path = root.join("docs/NOW.md");
+    if now_path.exists() {
+        let content = fs::read_to_string(&now_path)?;
+        let fresh = content.lines().any(|line| {
+            let l = line.to_lowercase();
+            l.contains("last updated") && l.contains(&today)
+        });
+        if fresh {
+            println!("[PASS] NOW.md is fresh ({})", today);
+        } else {
+            failures.push("NOW.md not updated today (Last updated must contain today's date)".into());
+        }
+    } else {
+        failures.push("docs/NOW.md not found".into());
+    }
+
+    let output = Command::new("git")
+        .args(["diff", "--cached", "--name-only"])
+        .output()
+        .context("failed to run git diff --cached")?;
+    let staged = String::from_utf8_lossy(&output.stdout);
+    let staged_files: Vec<&str> = staged.lines().filter(|l| !l.is_empty()).collect();
+
+    for f in &staged_files {
+        if f.ends_with(".sh") {
+            failures.push(format!("L7 UNITY: staged .sh file detected: {}", f));
+        }
+    }
+    if !staged_files.iter().any(|f| f.ends_with(".sh")) {
+        println!("[PASS] No .sh files in staged changes (L7)");
+    }
+
+    let specs_dir = root.join("specs");
+    let seals_dir = root.join(".trinity/seals");
+    if specs_dir.exists() && seals_dir.exists() {
+        for f in &staged_files {
+            if f.starts_with("specs/") && f.ends_with(".t27") {
+                let spec_name = Path::new(f)
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let seal_path = seals_dir.join(format!("{}.json", spec_name));
+                if !seal_path.exists() {
+                    failures.push(format!("Seal missing for spec: {} (expected .trinity/seals/{}.json)", f, spec_name));
+                }
+            }
+        }
+        println!("[PASS] Seal coverage OK");
+    }
+
+    let cargo_check = Command::new("cargo")
+        .args(["check"])
+        .current_dir(root.join("bootstrap"))
+        .output();
+    match cargo_check {
+        Ok(out) if out.status.success() => {
+            println!("[PASS] cargo check (bootstrap)");
+        }
+        Ok(_) => {
+            failures.push("cargo check failed in bootstrap/".into());
+        }
+        Err(e) => {
+            failures.push(format!("cargo check error: {}", e));
+        }
+    }
+
+    if failures.is_empty() {
+        println!("\npre-commit gate: ALL PASSED");
+        Ok(())
+    } else {
+        eprintln!("\npre-commit gate: FAILED");
+        for f in &failures {
+            eprintln!("  - {}", f);
+        }
+        bail!("pre-commit gate failed with {} issue(s)", failures.len());
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -657,6 +740,10 @@ fn main() -> Result<()> {
             if code != 0 {
                 std::process::exit(code);
             }
+        }
+        Commands::PreCommit => {
+            let root = find_trinity_root()?;
+            cmd_pre_commit(&root)?;
         }
     }
 
