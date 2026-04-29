@@ -43,7 +43,18 @@ pub enum MathCommands {
         /// Show gamma (Barbero-Immirzi) conflict analysis: gamma_phi vs LQG standard vs LQG alternative.
         #[arg(long)]
         gamma_conflict: bool,
+        /// Hybrid v2: L2 cosine similarity with dimension N.
+        #[arg(long)]
+        hybrid_v2: bool,
+        /// Dimension N for --hybrid-v2 (default 152).
+        #[arg(long, default_value_t = 152)]
+        n: usize,
+        /// Print theta = arccos(H_v2) in degrees (requires --hybrid-v2).
+        #[arg(long)]
+        theta: bool,
     },
+    /// Run golden tests for hybrid v1/v2 at N = 5, 10, 15, ..., 152.
+    GoldenTests,
 }
 
 pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<()> {
@@ -54,6 +65,9 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
             hybrid,
             sensitivity,
             gamma_conflict,
+            hybrid_v2,
+            n,
+            theta,
         } => run_compare(
             repo_root,
             CompareOpts {
@@ -62,8 +76,12 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
                 hybrid,
                 sensitivity,
                 gamma_conflict,
+                hybrid_v2,
+                n,
+                theta,
             },
         ),
+        MathCommands::GoldenTests => run_golden_tests(repo_root),
     }
 }
 
@@ -73,6 +91,9 @@ pub struct CompareOpts {
     pub hybrid: bool,
     pub sensitivity: bool,
     pub gamma_conflict: bool,
+    pub hybrid_v2: bool,
+    pub n: usize,
+    pub theta: bool,
 }
 
 #[inline]
