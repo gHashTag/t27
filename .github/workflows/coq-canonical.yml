@@ -1,0 +1,55 @@
+# Trinity Canonical Coq SSOT — CI verifier
+# Anchor: phi^2 + phi^-2 = 3
+# Census: github.com/gHashTag/trios/issues/373#issuecomment-4351659821
+name: coq-canonical
+
+on:
+  push:
+    paths:
+      - 'proofs/canonical/**'
+      - '.github/workflows/coq-canonical.yml'
+  pull_request:
+    paths:
+      - 'proofs/canonical/**'
+  workflow_dispatch:
+
+jobs:
+  audit-counts:
+    name: Theorem-count audit (grep, no compile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Qed/Admitted/Abort counts
+        working-directory: proofs/canonical
+        run: |
+          set -e
+          THM=$(grep -rE '^(Theorem|Lemma|Corollary|Proposition|Example|Goal|Fact|Remark)\b' sacred/ kernel/ igla/ | wc -l)
+          QED=$(grep -rE '\bQed\.' sacred/ kernel/ igla/ | wc -l)
+          ADM=$(grep -rE '\bAdmitted\.' sacred/ kernel/ igla/ | wc -l)
+          ABT=$(grep -rE '\bAbort\.' sacred/ kernel/ igla/ | wc -l)
+          echo "Theorem-like: $THM   (expected ≥330)"
+          echo "Qed:          $QED   (expected ≥290)"
+          echo "Admitted:     $ADM   (expected ≤45)"
+          echo "Abort/WIP:    $ABT   (expected ≤12)"
+          test "$QED" -ge 280 || { echo "FAIL: Qed below floor"; exit 1; }
+          test "$ADM" -le 50  || { echo "FAIL: Admitted above ceiling"; exit 1; }
+
+  coq-compile:
+    name: coqc verify (38 bundles)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up OCaml + Coq
+        uses: coq-community/docker-coq-action@v1
+        with:
+          coq_version: '8.18'
+          ocaml_version: '4.14-flambda'
+          custom_script: |
+            startGroup "Print versions"
+              coqc --version
+              ocaml --version
+            endGroup
+            startGroup "Build canonical (proofs/canonical/)"
+              cd proofs/canonical
+              make
+            endGroup

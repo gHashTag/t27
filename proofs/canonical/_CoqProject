@@ -1,0 +1,46 @@
+-Q sacred Trinity.Canonical.Sacred
+-Q kernel Trinity.Canonical.Kernel
+-Q igla   Trinity.Canonical.Igla
+-Q refutation Trinity.Canonical.Refutation
+-arg -w
+-arg -all-deprecated-deprecation,-notation-overridden,-deprecated,-ambiguous-paths
+
+sacred/CorePhi.v
+sacred/AlphaPhi.v
+sacred/ExactIdentities.v
+sacred/DerivationLevels.v
+sacred/Catalog42.v
+sacred/FormulaEval.v
+sacred/ConsistencyChecks.v
+sacred/Unitarity.v
+sacred/BoundsGauge.v
+sacred/BoundsLeptonMasses.v
+sacred/BoundsMasses.v
+sacred/BoundsMixing.v
+sacred/BoundsQuarkMasses.v
+sacred/GammaPhi3.v
+sacred/L5Identity.v
+sacred/StrongCP.v
+sacred/DLBounds.v
+kernel/Phi.v
+kernel/PhiAttractor.v
+kernel/PhiFloat.v
+kernel/PhiDistance.v
+kernel/FlowerE8Embedding.v
+kernel/Trit.v
+kernel/Semantics.v
+kernel/GenIdempotency.v
+kernel/TernarySufficiency.v
+igla/INV1_BpbMonotoneBackward.v
+igla/INV1b_LrPhiOptimality.v
+igla/INV2_IglaAshaBound.v
+igla/INV3_Gf16Precision.v
+igla/INV4_NcaEntropyBand.v
+igla/INV5_LucasClosureGf16.v
+igla/INV6_HybridQkGain.v
+igla/INV7_IglaFoundCriterion.v
+igla/INV7b_RainbowBridgeConsistency.v
+igla/INV8_WorkerPoolComposite.v
+igla/INV9_EmaDecayValid.v
+igla/IglaCatalog.v
+_Index.v
