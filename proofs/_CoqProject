@@ -12,3 +12,6 @@ trinity/Bounds_Gauge.v
 trinity/Bounds_Mixing.v
 trinity/Bounds_Masses.v
 trinity/Catalog42.v
+
+# Phase 1 derived configurations (theorem-first cascade)
+derived/TrainerConfig.v
