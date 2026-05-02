@@ -1,240 +1,886 @@
 {
-  "module": "tritype-base",
-  "spec_path": "specs/base/types.t27",
-  "ring": 25,
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
   "generated_at": "2026-04-04T19:00:00Z",
-  "vectors": [
-    {
-      "function": "trit_add",
-      "cases": [
-        { "inputs": { "a": -1, "b": -1 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  1 }, "expected":  0 },
-        { "inputs": { "a":  0, "b": -1 }, "expected": -1 },
-        { "inputs": { "a":  0, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  1 },
-        { "inputs": { "a":  1, "b": -1 }, "expected":  0 },
-        { "inputs": { "a":  1, "b":  0 }, "expected":  1 },
-        { "inputs": { "a":  1, "b":  1 }, "expected":  1 }
-      ]
-    },
-    {
-      "function": "trit_multiply",
-      "cases": [
-        { "inputs": { "a": -1, "b": -1 }, "expected":  1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected":  0 },
-        { "inputs": { "a": -1, "b":  1 }, "expected": -1 },
-        { "inputs": { "a":  0, "b": -1 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  0 },
-        { "inputs": { "a":  1, "b": -1 }, "expected": -1 },
-        { "inputs": { "a":  1, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  1, "b":  1 }, "expected":  1 }
-      ]
-    },
-    {
-      "function": "trit_negate",
-      "cases": [
-        { "inputs": { "a": -1 }, "expected":  1 },
-        { "inputs": { "a":  0 }, "expected":  0 },
-        { "inputs": { "a":  1 }, "expected": -1 }
-      ]
-    },
-    {
-      "function": "trit_to_packed",
-      "cases": [
-        { "inputs": { "trit": -1 }, "expected": 2 },
-        { "inputs": { "trit":  0 }, "expected": 0 },
-        { "inputs": { "trit":  1 }, "expected": 1 }
-      ]
-    },
-    {
-      "function": "packed_to_trit",
-      "cases": [
-        { "inputs": { "packed": 2 }, "expected": -1 },
-        { "inputs": { "packed": 0 }, "expected":  0 },
-        { "inputs": { "packed": 1 }, "expected":  1 },
-        { "inputs": { "packed": 3 }, "expected":  0 }
-      ]
-    },
-    {
-      "function": "pack_trit",
-      "cases": [
-        { "inputs": { "trit":  1, "position": 0, "packed": 0 }, "expected": 1 },
-        { "inputs": { "trit": -1, "position": 0, "packed": 0 }, "expected": 2 },
-        { "inputs": { "trit":  0, "position": 0, "packed": 0 }, "expected": 0 },
-        { "inputs": { "trit":  1, "position": 8, "packed": 0 }, "expected": 255 }
-      ]
-    },
-    {
-      "function": "trit_compare",
-      "cases": [
-        { "inputs": { "a": -1, "b":  0 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  1 }, "expected": -1 },
-        { "inputs": { "a":  0, "b":  1 }, "expected": -1 },
-        { "inputs": { "a": -1, "b": -1 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  1, "b":  1 }, "expected":  0 },
-        { "inputs": { "a":  1, "b":  0 }, "expected":  1 },
-        { "inputs": { "a":  1, "b": -1 }, "expected":  1 },
-        { "inputs": { "a":  0, "b": -1 }, "expected":  1 }
-      ]
-    },
-    {
-      "function": "trit_min",
-      "cases": [
-        { "inputs": { "a": -1, "b":  1 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected": -1 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  0 }
-      ]
-    },
-    {
-      "function": "trit_max",
-      "cases": [
-        { "inputs": { "a": -1, "b":  1 }, "expected":  1 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected":  0 }
-      ]
-    },
-    {
-      "function": "trit_abs",
-      "cases": [
-        { "inputs": { "a": -1 }, "expected": 1 },
-        { "inputs": { "a":  0 }, "expected": 0 },
-        { "inputs": { "a":  1 }, "expected": 1 }
-      ]
-    },
-    {
-      "function": "trit_from_i8",
-      "cases": [
-        { "inputs": { "value": -1 }, "expected": -1 },
-        { "inputs": { "value":  0 }, "expected":  0 },
-        { "inputs": { "value":  1 }, "expected":  1 },
-        { "inputs": { "value": -2 }, "expected":  0 },
-        { "inputs": { "value":  2 }, "expected":  0 }
-      ]
-    },
-    {
-      "function": "trit_and",
-      "cases": [
-        { "inputs": { "a": -1, "b": -1 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  1 }, "expected": -1 },
-        { "inputs": { "a":  0, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  0 },
-        { "inputs": { "a":  1, "b":  1 }, "expected":  1 }
-      ]
-    },
-    {
-      "function": "trit_or",
-      "cases": [
-        { "inputs": { "a": -1, "b": -1 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected":  0 },
-        { "inputs": { "a": -1, "b":  1 }, "expected":  1 },
-        { "inputs": { "a":  0, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  1 },
-        { "inputs": { "a":  1, "b":  1 }, "expected":  1 }
-      ]
-    },
-    {
-      "function": "trit_xor",
-      "cases": [
-        { "inputs": { "a": -1, "b": -1 }, "expected": -1 },
-        { "inputs": { "a": -1, "b":  0 }, "expected":  1 },
-        { "inputs": { "a": -1, "b":  1 }, "expected":  1 },
-        { "inputs": { "a":  0, "b":  0 }, "expected":  0 },
-        { "inputs": { "a":  0, "b":  1 }, "expected":  1 },
-        { "inputs": { "a":  1, "b":  1 }, "expected":  0 }
-      ]
-    },
-    {
-      "function": "trit_not",
-      "cases": [
-        { "inputs": { "a": -1 }, "expected": 1 },
-        { "inputs": { "a":  0 }, "expected": 1 },
-        { "inputs": { "a":  1 }, "expected": 0 }
-      ]
-    },
-    {
-      "function": "trit_select",
-      "cases": [
-        { "inputs": { "condition":  1, "a": -1, "b":  1 }, "expected": -1 },
-        { "inputs": { "condition":  1, "a":  0, "b": -1 }, "expected":  0 },
-        { "inputs": { "condition":  0, "a": -1, "b":  1 }, "expected":  1 },
-        { "inputs": { "condition": -1, "a": -1, "b":  1 }, "expected":  1 }
-      ]
-    }
-  ],
   "invariants": [
     {
-      "name": "trit_value_range",
+      "assertion": "intFromEnum(Trit.neg)==-1 && intFromEnum(Trit.zero)==0 && intFromEnum(Trit.pos)==1",
       "description": "All Trit values are in {-1, 0, +1}",
-      "assertion": "intFromEnum(Trit.neg)==-1 && intFromEnum(Trit.zero)==0 && intFromEnum(Trit.pos)==1"
+      "name": "trit_value_range"
     },
     {
-      "name": "packed_trit_encoding_valid",
+      "assertion": "PACKED_NEG==2 && PACKED_ZERO==0 && PACKED_ONE==1",
       "description": "All packed trit encodings are in {0, 1, 2}",
-      "assertion": "PACKED_NEG==2 && PACKED_ZERO==0 && PACKED_ONE==1"
+      "name": "packed_trit_encoding_valid"
     },
     {
-      "name": "trit_add_result_in_range",
+      "assertion": "for_all(a,b in {-1,0,1}): trit_add(a,b) in {-1,0,1}",
       "description": "trit_add result is always in {-1, 0, +1}",
-      "assertion": "for_all(a,b in {-1,0,1}): trit_add(a,b) in {-1,0,1}"
+      "name": "trit_add_result_in_range"
     },
     {
-      "name": "trit_mul_result_in_range",
+      "assertion": "for_all(a,b in {-1,0,1}): trit_multiply(a,b) in {-1,0,1}",
       "description": "trit_multiply result is always in {-1, 0, +1}",
-      "assertion": "for_all(a,b in {-1,0,1}): trit_multiply(a,b) in {-1,0,1}"
+      "name": "trit_mul_result_in_range"
     },
     {
-      "name": "pack_position_bounds",
+      "assertion": "TRITS_PER_BYTE == 8",
       "description": "pack_trit position must be in [0, 7]",
-      "assertion": "TRITS_PER_BYTE == 8"
+      "name": "pack_position_bounds"
     },
     {
-      "name": "ternary_word_max_trits",
+      "assertion": "TRITS_PER_WORD == 27",
       "description": "TernaryWord contains exactly 27 trits",
-      "assertion": "TRITS_PER_WORD == 27"
+      "name": "ternary_word_max_trits"
     },
     {
-      "name": "trit_multiply_commutative",
+      "assertion": "for_all(a,b in {-1,0,1}): trit_multiply(a,b) == trit_multiply(b,a)",
       "description": "trit_multiply(a, b) == trit_multiply(b, a)",
-      "assertion": "for_all(a,b in {-1,0,1}): trit_multiply(a,b) == trit_multiply(b,a)"
+      "name": "trit_multiply_commutative"
     },
     {
-      "name": "trit_negate_involutive",
+      "assertion": "for_all(x in {-1,0,1}): trit_negate(trit_negate(x)) == x",
       "description": "trit_negate(trit_negate(x)) = x for all trit values",
-      "assertion": "for_all(x in {-1,0,1}): trit_negate(trit_negate(x)) == x"
+      "name": "trit_negate_involutive"
     },
     {
-      "name": "trit_add_identity_zero",
+      "assertion": "for_all(x in {-1,0,1}): trit_add(0,x) == x",
       "description": "trit_add(0, x) == x for all x",
-      "assertion": "for_all(x in {-1,0,1}): trit_add(0,x) == x"
+      "name": "trit_add_identity_zero"
     },
     {
-      "name": "trit_mul_zero_annihilates",
+      "assertion": "for_all(x in {-1,0,1}): trit_multiply(0,x) == 0",
       "description": "trit_multiply(0, x) == 0 for all x",
-      "assertion": "for_all(x in {-1,0,1}): trit_multiply(0,x) == 0"
+      "name": "trit_mul_zero_annihilates"
     },
     {
-      "name": "trit_abs_non_negative",
+      "assertion": "for_all(x in {-1,0,1}): trit_abs(x) in {0,1}",
       "description": "trit_abs(x) is always in {0, +1}",
-      "assertion": "for_all(x in {-1,0,1}): trit_abs(x) in {0,1}"
+      "name": "trit_abs_non_negative"
     },
     {
-      "name": "trit_and_commutative",
+      "assertion": "for_all(a,b in {-1,0,1}): trit_and(a,b) == trit_and(b,a)",
       "description": "trit_and(a, b) == trit_and(b, a)",
-      "assertion": "for_all(a,b in {-1,0,1}): trit_and(a,b) == trit_and(b,a)"
+      "name": "trit_and_commutative"
     },
     {
-      "name": "trit_or_commutative",
+      "assertion": "for_all(a,b in {-1,0,1}): trit_or(a,b) == trit_or(b,a)",
       "description": "trit_or(a, b) == trit_or(b, a)",
-      "assertion": "for_all(a,b in {-1,0,1}): trit_or(a,b) == trit_or(b,a)"
+      "name": "trit_or_commutative"
     },
     {
-      "name": "trit_xor_commutative",
+      "assertion": "for_all(a,b in {-1,0,1}): trit_xor(a,b) == trit_xor(b,a)",
       "description": "trit_xor(a, b) == trit_xor(b, a)",
-      "assertion": "for_all(a,b in {-1,0,1}): trit_xor(a,b) == trit_xor(b,a)"
+      "name": "trit_xor_commutative"
     }
-  ]
+  ],
+  "module": "tritype-base",
+  "ring": 25,
+  "schema_version": 2,
+  "seal": "sha256:b1cbc2c38be8bba44cdb91e20311a4ca6bb18148666fcb952051bb096d7100fc",
+  "spec_path": "specs/base/types.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "base_types Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_add",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_multiply",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_negate",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 2,
+          "inputs": {
+            "trit": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "trit": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "trit": 1
+          }
+        }
+      ],
+      "function": "trit_to_packed",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "packed": 2
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "packed": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "packed": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "packed": 3
+          }
+        }
+      ],
+      "function": "packed_to_trit",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "packed": 0,
+            "position": 0,
+            "trit": 1
+          }
+        },
+        {
+          "expected": 2,
+          "inputs": {
+            "packed": 0,
+            "position": 0,
+            "trit": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "packed": 0,
+            "position": 0,
+            "trit": 0
+          }
+        },
+        {
+          "expected": 255,
+          "inputs": {
+            "packed": 0,
+            "position": 8,
+            "trit": 1
+          }
+        }
+      ],
+      "function": "pack_trit",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": -1
+          }
+        }
+      ],
+      "function": "trit_compare",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_min",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        }
+      ],
+      "function": "trit_max",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_abs",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "value": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "value": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "value": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "value": -2
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "value": 2
+          }
+        }
+      ],
+      "function": "trit_from_i8",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_and",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_or",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0,
+            "b": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1,
+            "b": 1
+          }
+        }
+      ],
+      "function": "trit_xor",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": 0
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 1
+          }
+        }
+      ],
+      "function": "trit_not",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": -1,
+          "inputs": {
+            "a": -1,
+            "b": 1,
+            "condition": 1
+          }
+        },
+        {
+          "expected": 0,
+          "inputs": {
+            "a": 0,
+            "b": -1,
+            "condition": 1
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1,
+            "condition": 0
+          }
+        },
+        {
+          "expected": 1,
+          "inputs": {
+            "a": -1,
+            "b": 1,
+            "condition": -1
+          }
+        }
+      ],
+      "function": "trit_select",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: intFromEnum(Trit.neg)==-1 && intFromEnum(Trit.zero)==0 && intFromEnum(Trit.pos)==1",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "intFromEnum(Trit.neg)==-1 && intFromEnum(Trit.zero)==0 && intFromEnum(Trit.pos)==1"
+      },
+      "name": "inv_trit_value_range",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: PACKED_NEG==2 && PACKED_ZERO==0 && PACKED_ONE==1",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "PACKED_NEG==2 && PACKED_ZERO==0 && PACKED_ONE==1"
+      },
+      "name": "inv_packed_trit_encoding_valid",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_add(a,b) in {-1,0,1}",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_add(a,b) in {-1,0,1}"
+      },
+      "name": "inv_trit_add_result_in_range",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_multiply(a,b) in {-1,0,1}",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_multiply(a,b) in {-1,0,1}"
+      },
+      "name": "inv_trit_mul_result_in_range",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: TRITS_PER_BYTE == 8",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "TRITS_PER_BYTE == 8"
+      },
+      "name": "inv_pack_position_bounds",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: TRITS_PER_WORD == 27",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "TRITS_PER_WORD == 27"
+      },
+      "name": "inv_ternary_word_max_trits",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_multiply(a,b) == trit_multiply(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_multiply(a,b) == trit_multiply(b,a)"
+      },
+      "name": "inv_trit_multiply_commutative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x in {-1,0,1}): trit_negate(trit_negate(x)) == x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x in {-1,0,1}): trit_negate(trit_negate(x)) == x"
+      },
+      "name": "inv_trit_negate_involutive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x in {-1,0,1}): trit_add(0,x) == x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x in {-1,0,1}): trit_add(0,x) == x"
+      },
+      "name": "inv_trit_add_identity_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x in {-1,0,1}): trit_multiply(0,x) == 0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x in {-1,0,1}): trit_multiply(0,x) == 0"
+      },
+      "name": "inv_trit_mul_zero_annihilates",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x in {-1,0,1}): trit_abs(x) in {0,1}",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x in {-1,0,1}): trit_abs(x) in {0,1}"
+      },
+      "name": "inv_trit_abs_non_negative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_and(a,b) == trit_and(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_and(a,b) == trit_and(b,a)"
+      },
+      "name": "inv_trit_and_commutative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_or(a,b) == trit_or(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_or(a,b) == trit_or(b,a)"
+      },
+      "name": "inv_trit_or_commutative",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(a,b in {-1,0,1}): trit_xor(a,b) == trit_xor(b,a)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(a,b in {-1,0,1}): trit_xor(a,b) == trit_xor(b,a)"
+      },
+      "name": "inv_trit_xor_commutative",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

@@ -1,38 +1,175 @@
 {
-  "module": "TestGen",
-  "spec_path": "compiler/codegen/testgen.t27",
-  "ring": 36,
-  "generated_at": "2026-04-04T21:00:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "generate",
-      "cases": [
-        { "inputs": { "backend": "zig" }, "expected_contains": "Zig tests" },
-        { "inputs": { "backend": "c" }, "expected_contains": "C tests" },
-        { "inputs": { "backend": "verilog" }, "expected_contains": "module tb_" },
-        { "inputs": { "backend": "rust" }, "expected_contains": "#[cfg(test)]" },
-        { "inputs": { "backend": "json" }, "expected_contains": "test_vectors" },
-        { "inputs": { "backend": "python" }, "expected_contains": "Unsupported" }
-      ]
+      "name": "testgen_generate_zig_latency",
+      "target": "< 10ms"
     },
     {
-      "function": "StringBuilder",
-      "cases": [
-        { "inputs": { "append": ["hello", " ", "world"] }, "expected": "hello world" },
-        { "inputs": { "append": ["overflow test"], "capacity": 5 }, "expected_max_len": 5 }
-      ]
+      "name": "testgen_generate_json_latency",
+      "target": "< 5ms"
+    },
+    {
+      "name": "string_builder_append_latency",
+      "target": "< 1us per append"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:00:00Z",
   "invariants": [
-    { "name": "testgen_backend_switch", "assert": "Dispatches to correct backend function" },
-    { "name": "testgen_output_contains_tdd_header", "assert": "All outputs contain TDD header" },
-    { "name": "string_builder_capacity_fixed", "assert": "Fixed capacity from creation" },
-    { "name": "testgen_json_escaped_properly", "assert": "JSON escapes special chars" },
-    { "name": "testgen_filename_mangled", "assert": "Filenames mangled to valid identifiers" }
+    {
+      "assert": "Dispatches to correct backend function",
+      "name": "testgen_backend_switch"
+    },
+    {
+      "assert": "All outputs contain TDD header",
+      "name": "testgen_output_contains_tdd_header"
+    },
+    {
+      "assert": "Fixed capacity from creation",
+      "name": "string_builder_capacity_fixed"
+    },
+    {
+      "assert": "JSON escapes special chars",
+      "name": "testgen_json_escaped_properly"
+    },
+    {
+      "assert": "Filenames mangled to valid identifiers",
+      "name": "testgen_filename_mangled"
+    }
   ],
-  "benchmarks": [
-    { "name": "testgen_generate_zig_latency", "target": "< 10ms" },
-    { "name": "testgen_generate_json_latency", "target": "< 5ms" },
-    { "name": "string_builder_append_latency", "target": "< 1us per append" }
-  ]
+  "module": "TestGen",
+  "ring": 36,
+  "schema_version": 2,
+  "seal": "sha256:24a5901c82baee5bc229280ab0ec7f2684bf0a84870894d82dbaa32fd52c497f",
+  "spec_path": "compiler/codegen/testgen.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_codegen_testgen Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected_contains": "Zig tests",
+          "inputs": {
+            "backend": "zig"
+          }
+        },
+        {
+          "expected_contains": "C tests",
+          "inputs": {
+            "backend": "c"
+          }
+        },
+        {
+          "expected_contains": "module tb_",
+          "inputs": {
+            "backend": "verilog"
+          }
+        },
+        {
+          "expected_contains": "#[cfg(test)]",
+          "inputs": {
+            "backend": "rust"
+          }
+        },
+        {
+          "expected_contains": "test_vectors",
+          "inputs": {
+            "backend": "json"
+          }
+        },
+        {
+          "expected_contains": "Unsupported",
+          "inputs": {
+            "backend": "python"
+          }
+        }
+      ],
+      "function": "generate",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": "hello world",
+          "inputs": {
+            "append": [
+              "hello",
+              " ",
+              "world"
+            ]
+          }
+        },
+        {
+          "expected_max_len": 5,
+          "inputs": {
+            "append": [
+              "overflow test"
+            ],
+            "capacity": 5
+          }
+        }
+      ],
+      "function": "StringBuilder",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_testgen_backend_switch",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_testgen_output_contains_tdd_header",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_string_builder_capacity_fixed",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_testgen_json_escaped_properly",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_testgen_filename_mangled",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

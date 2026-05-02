@@ -1,0 +1,229 @@
+// specs/git/diff.t27
+// Git Diff Operations
+// 01 + 1/23 = 3 | TRINITY
+
+module GitDiff {
+    use base::types;
+    use git::schema;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071
+    // Diff Operations
+    // 72737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
+
+    // diff returns changed files compared to a ref
+    fn diff(cwd: str, ref: str) -> Result<[Item], GitError> {
+        // Implementation: Run git diff --name-status ref
+    }
+
+    // diff_cached returns staged changes compared to a ref
+    fn diff_cached(cwd: str, ref: str?) -> Result<[Item], GitError> {
+        // Implementation: Run git diff --cached --name-status [ref]
+    }
+
+    // diff_files returns diff for specific files
+    fn diff_files(cwd: str, ref: str, files: [str]) -> Result<[Item], GitError> {
+        // Implementation: Run git diff --name-status ref -- files...
+    }
+
+    // diff_text returns the full diff text
+    fn diff_text(cwd: str, ref: str) -> Result<str, GitError> {
+        // Implementation: Run git diff ref
+    }
+
+    // diff_file_text returns diff text for a specific file
+    fn diff_file_text(cwd: str, ref: str, file: str) -> Result<str, GitError> {
+        // Implementation: Run git diff ref -- file
+    }
+
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207
+    // Diff Statistics
+    // 208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
+
+    // stats returns line change statistics
+    fn stats(cwd: str, ref: str) -> Result<[Stat], GitError> {
+        // Implementation: Run git diff --numstat ref
+    }
+
+    // stats_cached returns staged change statistics
+    fn stats_cached(cwd: str, ref: str?) -> Result<[Stat], GitError> {
+        // Implementation: Run git diff --cached --numstat [ref]
+    }
+
+    // stats_summary returns summary statistics
+    struct StatsSummary {
+        files_changed: u32,
+        additions: u32,
+        deletions: u32,
+    }
+
+    fn stats_summary(cwd: str, ref: str) -> Result<StatsSummary, GitError> {
+        // Implementation: Calculate totals from stats output
+    }
+
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343
+    // Diff Analysis
+    // 344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
+
+    // get_files_changed returns list of changed files
+    fn get_files_changed(items: [Item]) -> [str] {
+        // Implementation: Extract file paths from items
+    }
+
+    // count_files_by_status counts files by status
+    fn count_files_by_status(items: [Item]) -> (added: u32, deleted: u32, modified: u32) {
+        // Implementation: Count items in each category
+    }
+
+    // find_changes_in_path filters changes by path prefix
+    fn find_changes_in_path(items: [Item], path: str) -> [Item] {
+        // Implementation: Return items whose file starts with path
+    }
+
+    // find_changes_in_patterns filters changes by multiple patterns
+    fn find_changes_in_patterns(items: [Item], patterns: [str]) -> [Item] {
+        // Implementation: Return items matching any pattern
+    }
+
+    // has_changes_in_path checks if there are changes in a path
+    fn has_changes_in_path(items: [Item], path: str) -> bool {
+        // Implementation: Return true if any item matches path
+    }
+
+    // 412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479
+    // Hunk Operations
+    // 480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547
+
+    // Hunk represents a single diff hunk
+    struct Hunk {
+        file: str,
+        old_start: u32,
+        old_count: u32,
+        new_start: u32,
+        new_count: u32,
+        header: str,
+    }
+
+    // parse_hunks parses hunks from diff text
+    fn parse_hunks(diff_text: str) -> Result<[Hunk], GitError> {
+        // Implementation: Parse @@ lines from diff output
+    }
+
+    // count_hunks counts the number of hunks in a diff
+    fn count_hunks(diff_text: str) -> u32 {
+        // Implementation: Count @@ markers in diff text
+    }
+
+    // 548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615
+    // Tests
+    // 616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683
+
+    test "stat_creation" {
+        var stat = Stat {
+            file = "src/main.t27",
+            additions = 10,
+            deletions = 5,
+        };
+        assert(stat.file == "src/main.t27");
+        assert(stat.additions == 10);
+        assert(stat.deletions == 5);
+    }
+
+    test "stats_summary_creation" {
+        var summary = StatsSummary {
+            files_changed = 3,
+            additions = 42,
+            deletions = 17,
+        };
+        assert(summary.files_changed == 3);
+        assert(summary.additions == 42);
+        assert(summary.deletions == 17);
+    }
+
+    test "get_files_changed_extracts_paths" {
+        var items = [
+            Item { file = "src/a.t27", code = "M", status = Kind::Modified },
+            Item { file = "src/b.t27", code = "A", status = Kind::Added },
+        ];
+        var files = get_files_changed(items);
+        assert(files.len == 2);
+        assert(files.contains("src/a.t27"));
+        assert(files.contains("src/b.t27"));
+    }
+
+    test "count_files_by_status" {
+        var items = [
+            Item { file = "a.t27", code = "A", status = Kind::Added },
+            Item { file = "b.t27", code = "M", status = Kind::Modified },
+            Item { file = "c.t27", code = "D", status = Kind::Deleted },
+            Item { file = "d.t27", code = "??", status = Kind::Added },
+        ];
+        var counts = count_files_by_status(items);
+        assert(counts.added == 2);
+        assert(counts.deleted == 1);
+        assert(counts.modified == 1);
+    }
+
+    test "find_changes_in_path_filters_correctly" {
+        var items = [
+            Item { file = "src/a.t27", code = "M", status = Kind::Modified },
+            Item { file = "test/b.t27", code = "A", status = Kind::Added },
+            Item { file = "src/c.t27", code = "D", status = Kind::Deleted },
+        ];
+        var src_changes = find_changes_in_path(items, "src/");
+        assert(src_changes.len == 2);
+        assert(src_changes[0].file == "src/a.t27");
+        assert(src_changes[1].file == "src/c.t27");
+    }
+
+    test "find_changes_in_path_no_match" {
+        var items = [
+            Item { file = "src/a.t27", code = "M", status = Kind::Modified },
+        ];
+        var test_changes = find_changes_in_path(items, "test/");
+        assert(test_changes.len == 0);
+    }
+
+    test "has_changes_in_path_true" {
+        var items = [
+            Item { file = "src/a.t27", code = "M", status = Kind::Modified },
+        ];
+        assert(has_changes_in_path(items, "src/"));
+    }
+
+    test "has_changes_in_path_false" {
+        var items = [
+            Item { file = "src/a.t27", code = "M", status = Kind::Modified },
+        ];
+        assert(!has_changes_in_path(items, "test/"));
+    }
+
+    test "hunk_creation" {
+        var hunk = Hunk {
+            file = "src/test.t27",
+            old_start = 10,
+            old_count = 5,
+            new_start = 10,
+            new_count = 7,
+            header = "@@ -10,5 +10,7 @@ function test",
+        };
+        assert(hunk.file == "src/test.t27");
+        assert(hunk.old_start == 10);
+        assert(hunk.new_count == 7);
+    }
+
+    test "stats_summary_calculates_totals" {
+        var stats = [
+            Stat { file = "a.t27", additions = 10, deletions = 5 },
+            Stat { file = "b.t27", additions = 20, deletions = 15 },
+            Stat { file = "c.t27", additions = 5, deletions = 0 },
+        ];
+        var summary = StatsSummary {
+            files_changed = 3,
+            additions = 35,
+            deletions = 20,
+        };
+        assert(summary.files_changed == 3);
+        assert(summary.additions == 35);
+        assert(summary.deletions == 20);
+    }
+}

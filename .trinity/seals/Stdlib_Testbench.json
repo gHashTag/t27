@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:00b6c568b1153f86db64df17a4b125091af21967fac47cecd7762ad480eed544",
+  "gen_hash_rust": "sha256:71315df9145cb7e882533039cb50f264f2a1071da5cb97a493c58a70dfaa6490",
+  "gen_hash_verilog": "sha256:fa89d0ce2de2f88e5835215a624d96ea0ac4da29eb55d5ff3b820dd47993f274",
+  "gen_hash_zig": "sha256:1ac2236f8de490a7b0d245766e252305edd57324b0e3b5e5313d085ee7d9f0b8",
+  "module": "Stdlib_Testbench",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:c9f60c228cb3f4b1b2a6fc6e000f87b1e293557106cdf0f003b5d163c5efa5b2",
+  "spec_path": "specs/fpga/testbench/stdlib_tb.t27"
+}

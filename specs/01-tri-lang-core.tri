@@ -1,0 +1,93 @@
+spec tri_lang_core
+
+numericformat gf16 tf3
+
+-- Trinity constants (L5 identity law)
+pub const PHI f64 = 1.6180339887498948482
+pub const TRINITY f64 = 3.0
+
+-- Ternary base type
+pub const Trit enum(i8) {
+  neg = -1,
+  neu = 0,
+  pos = 1
+}
+
+-- Kleene logic invariants
+invariant kleene_not_involution {
+  given a Trit
+  assert trit_not(trit_not(a)) == a
+}
+
+invariant phi_identity {
+  -- phi^2 + phi^-2 = 3 = TRINITY
+  assert PHI * PHI + 1.0 / (PHI * PHI) == TRINITY
+}
+
+invariant trit_consensus {
+  given a Trit
+  given b Trit
+  assert consensus(a, b) == if a == b then a else Trit.neu
+}
+
+-- Core functions
+pub fn trit_and(a Trit, b Trit) -> Trit
+pub fn trit_or(a Trit, b Trit) -> Trit
+pub fn trit_not(a Trit) -> Trit
+pub fn consensus(a Trit, b Trit) -> Trit
+pub fn phi_pow(n i32) -> f64
+
+-- Tests (mandatory 8)
+test trit_neg_and_pos {
+  given a = Trit.neg
+  given b = Trit.pos
+  assert trit_and(a, b) == Trit.neg
+}
+
+test trit_not_involution {
+  given a = Trit.pos
+  assert trit_not(trit_not(a)) == a
+}
+
+test phi_trinity_law {
+  let lhs = PHI * PHI + 1.0 / (PHI * PHI)
+  assert lhs == TRINITY
+}
+
+test trit_consensus_equal {
+  given a = Trit.pos
+  assert consensus(a, a) == a
+}
+
+test trit_consensus_differ {
+  given a = Trit.pos
+  given b = Trit.neg
+  assert consensus(a, b) == Trit.neu
+}
+
+test phi_pow_zero {
+  assert phi_pow(0) == 1.0
+}
+
+test phi_pow_one {
+  assert phi_pow(1) == PHI
+}
+
+test trit_or_pos {
+  assert trit_or(Trit.neu, Trit.pos) == Trit.pos
+}
+
+-- Benchmarks (mandatory 2)
+bench phi_pow_bench {
+  measure nanoseconds to phi_pow(10)
+  target 50_000_000
+  warmup 3
+  runs 100
+}
+
+bench trit_ops_bench {
+  measure nanoseconds to trit_and(Trit.pos, Trit.neg)
+  target 1_000_000_000
+  warmup 3
+  runs 100
+}

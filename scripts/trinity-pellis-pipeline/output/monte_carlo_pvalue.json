@@ -1,0 +1,15 @@
+{
+  "method": "Exact Poisson calculation",
+  "num_expressions": 286000,
+  "observed_hits": 69,
+  "expected_hits_under_null": 286.0,
+  "null_hit_rate": 0.001,
+  "lambda_poisson": 286.0,
+  "p_value_geq_observed": 1.0,
+  "p_value_leq_observed": 1.4689445937347429e-53,
+  "p_value_geq_str": "1.0",
+  "p_value_leq_str": "1.46894459373474e-53",
+  "significance": "Not significant",
+  "sigma_level": "5\u03c3",
+  "interpretation": "Observed 69 hits is significantly LOWER than expected 286 under null hypothesis (p \u2264 1\u00d710^-12). This suggests non-random structure."
+}

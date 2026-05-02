@@ -4,7 +4,7 @@ This document details SACRED-PHYSICS-001 for sacred constants in t27.
 
 ## Source Document
 
-**Location:** `docs/SACRED-PHYSICS-001.md`
+**Location:** `docs/nona-02-organism/SACRED-PHYSICS-001.md`
 
 ## Sacred Constants
 

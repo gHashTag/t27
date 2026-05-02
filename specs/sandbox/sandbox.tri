@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 // Sandbox Module Specification
 // Source of truth for Railway sandbox lifecycle management
 // PHI LOOP: spec → gen → test → verdict

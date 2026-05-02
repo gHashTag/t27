@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:79490855b85ab49092406d030270da2e1ebcf3f6ac88bd15eda30d99e4701b14",
+  "gen_hash_rust": "sha256:d5c1dc189f37e0290891dbe821feaa0c0aef15c965d6ef815d709c4b2cc4cbce",
+  "gen_hash_verilog": "sha256:66132355922b394abb3e296087a66e6dc95171b2fb4419953ff8ed2ca2e98e54",
+  "gen_hash_zig": "sha256:053ca2b656de7d3b88fc51c58656fdee8454ad3918e463d12b6f4ce5248010da",
+  "module": "TestSpec",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:fc14c912253e6b52a302909533c7da0fd963384e66b03eda50a3ca9ca7c68659",
+  "spec_path": "specs/tri/pipeline/codegen.t27"
+}

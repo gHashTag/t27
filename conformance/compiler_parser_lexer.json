@@ -1,59 +1,248 @@
 {
-  "module": "Lexer",
-  "spec_path": "compiler/parser/lexer.t27",
-  "ring": 38,
-  "generated_at": "2026-04-04T21:20:00Z",
-  "vectors": [
+  "benchmarks": [
     {
-      "function": "is_ident_start",
-      "cases": [
-        { "inputs": { "c": "a" }, "expected": true },
-        { "inputs": { "c": "Z" }, "expected": true },
-        { "inputs": { "c": "_" }, "expected": true },
-        { "inputs": { "c": "0" }, "expected": false },
-        { "inputs": { "c": "+" }, "expected": false },
-        { "inputs": { "c": " " }, "expected": false }
-      ]
+      "name": "tokenize_latency",
+      "target": "< 10us per 1KB"
     },
     {
-      "function": "is_ident_continue",
-      "cases": [
-        { "inputs": { "c": "a" }, "expected": true },
-        { "inputs": { "c": "0" }, "expected": true },
-        { "inputs": { "c": "-" }, "expected": true },
-        { "inputs": { "c": "_" }, "expected": true },
-        { "inputs": { "c": "+" }, "expected": false },
-        { "inputs": { "c": " " }, "expected": false }
-      ]
-    },
-    {
-      "function": "is_digit",
-      "cases": [
-        { "inputs": { "c": "0" }, "expected": true },
-        { "inputs": { "c": "9" }, "expected": true },
-        { "inputs": { "c": "a" }, "expected": false },
-        { "inputs": { "c": " " }, "expected": false }
-      ]
-    },
-    {
-      "function": "tokenize",
-      "cases": [
-        { "inputs": { "source": "hello" }, "expected_first_kind": "identifier" },
-        { "inputs": { "source": "42" }, "expected_first_kind": "integer" },
-        { "inputs": { "source": "+" }, "expected_first_kind": "plus" },
-        { "inputs": { "source": "" }, "expected_first_kind": "eof" }
-      ]
+      "name": "is_ident_start_latency",
+      "target": "< 1ns"
     }
   ],
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-04T21:20:00Z",
   "invariants": [
-    { "name": "token_type_eof_is_zero", "assert": "EOF == 0" },
-    { "name": "max_identifier_len_64", "assert": "MAX_IDENTIFIER_LEN == 64" },
-    { "name": "max_tokens_10000", "assert": "MAX_TOKENS == 10000" },
-    { "name": "lexer_tracks_line_column", "assert": "Line/column updated on advance" },
-    { "name": "lexer_handles_empty_input", "assert": "Empty source returns EOF" }
+    {
+      "assert": "EOF == 0",
+      "name": "token_type_eof_is_zero"
+    },
+    {
+      "assert": "MAX_IDENTIFIER_LEN == 64",
+      "name": "max_identifier_len_64"
+    },
+    {
+      "assert": "MAX_TOKENS == 10000",
+      "name": "max_tokens_10000"
+    },
+    {
+      "assert": "Line/column updated on advance",
+      "name": "lexer_tracks_line_column"
+    },
+    {
+      "assert": "Empty source returns EOF",
+      "name": "lexer_handles_empty_input"
+    }
   ],
-  "benchmarks": [
-    { "name": "tokenize_latency", "target": "< 10us per 1KB" },
-    { "name": "is_ident_start_latency", "target": "< 1ns" }
-  ]
+  "module": "Lexer",
+  "ring": 38,
+  "schema_version": 2,
+  "seal": "sha256:9ebd27a3e2719451704593f56cd5f172224a8928d0253ed9661fde0dc1540e62",
+  "spec_path": "compiler/parser/lexer.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "compiler_parser_lexer Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "c": "a"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "c": "Z"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "c": "_"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": "0"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": "+"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": " "
+          }
+        }
+      ],
+      "function": "is_ident_start",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "c": "a"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "c": "0"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "c": "-"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "c": "_"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": "+"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": " "
+          }
+        }
+      ],
+      "function": "is_ident_continue",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": true,
+          "inputs": {
+            "c": "0"
+          }
+        },
+        {
+          "expected": true,
+          "inputs": {
+            "c": "9"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": "a"
+          }
+        },
+        {
+          "expected": false,
+          "inputs": {
+            "c": " "
+          }
+        }
+      ],
+      "function": "is_digit",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected_first_kind": "identifier",
+          "inputs": {
+            "source": "hello"
+          }
+        },
+        {
+          "expected_first_kind": "integer",
+          "inputs": {
+            "source": "42"
+          }
+        },
+        {
+          "expected_first_kind": "plus",
+          "inputs": {
+            "source": "+"
+          }
+        },
+        {
+          "expected_first_kind": "eof",
+          "inputs": {
+            "source": ""
+          }
+        }
+      ],
+      "function": "tokenize",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_token_type_eof_is_zero",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_max_identifier_len_64",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_max_tokens_10000",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_lexer_tracks_line_column",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: ",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": ""
+      },
+      "name": "inv_lexer_handles_empty_input",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

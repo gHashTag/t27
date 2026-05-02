@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+T27C="${TRI_T27C:-$ROOT/bootstrap/target/release/t27c}"
+exec "$T27C" "$@"

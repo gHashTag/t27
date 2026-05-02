@@ -1,0 +1,253 @@
+// SPDX-License-Identifier: Apache-2.0
+module memory_primitives;
+
+// ============================================================================
+// Memory Cell Type (L4: must have test/invariant)
+// ============================================================================
+
+struct MemoryCell {
+    key: GoldenFloat;
+    value: Tri;
+    scope: MemScope;
+    phi_hash: Hash27;
+    timestamp: u64;
+}
+
+// Memory scopes: Agent | Session | Permanent | Ephemeral
+enum MemScope {
+    Agent,      // Agent-level persistent memory
+    Session,    // Session-scoped memory (evicted on tri session end)
+    Permanent,  // Never evicted
+    Ephemeral,  // In-memory only, no persistence
+}
+
+// ============================================================================
+// Memory Primitives (L4: must have test/invariant)
+// ============================================================================
+
+// remember(key, value, scope) -> Result<Hash27>
+// Store a memory cell with phi_hash seal (L5: PHI-IDENTITY)
+fn remember(key: Str, value: Tri, scope: MemScope) -> Result<Hash27> {
+    let phi_input = @asBytes(value);
+    let hash = hash27(phi_input);
+    
+    // L5 PHI-IDENTITY: phi_hash mod phi ≈ 0
+    let phi_normalized = @floatFromInt(hash);
+    let phi_mod = @mod(phi_normalized, PHI);
+    let phi_threshold = @floatFromInt(1) / @floatFromInt(100); // 0.01
+    
+    if (phi_mod > phi_threshold) {
+        return Err(Error::PhiIdentityViolation);
+    }
+    
+    let cell = MemoryCell{
+        key = gf16_encode_f32(@floatFromInt(@byteCount(key))),
+        value = value,
+        scope = scope,
+        phi_hash = hash,
+        timestamp = @intCast(@unixTimestamp()),
+    };
+    
+    memory_store_write(cell);
+    return Ok(hash);
+}
+
+// recall(key) -> Option<MemoryCell>
+// Exact retrieval by key
+fn recall(key: Str) -> Option<MemoryCell> {
+    let key_hash = hash27(@asBytes(key));
+    return memory_store_read(key_hash);
+}
+
+// recall_like(query, threshold: GoldenFloat) -> Vec<MemoryCell>
+// Fuzzy recall via φ-distance
+fn recall_like(query: Str, threshold: GoldenFloat) -> Vec<MemoryCell> {
+    let query_hash = hash27(@asBytes(query));
+    let all_cells = memory_store_list();
+    
+    var result: Vec<MemoryCell> = Vec::new();
+    var i: u32 = 0;
+    while (i < len(all_cells)) {
+        let cell = all_cells[i];
+        
+        // Compute φ-distance between query and cell
+        let distance = phi_distance(query_hash, cell.phi_hash);
+        
+        if (distance < threshold) {
+            result.push(cell);
+        }
+        
+        i = i + 1;
+    }
+    
+    return result;
+}
+
+// forget(key) -> Result<()>
+// Tombstone key (not delete, audit trail preserved)
+fn forget(key: Str) -> Result<()> {
+    let key_hash = hash27(@asBytes(key));
+    memory_store_tombstone(key_hash);
+    return Ok(());
+}
+
+// reflect() -> Vec<MemoryCell>
+// List all active memories in scope
+fn reflect() -> Vec<MemoryCell> {
+    return memory_store_list_active();
+}
+
+// ============================================================================
+// Tests (L4: TDD Mandate)
+// ============================================================================
+
+test remember_success_returns_hash
+    given result = remember("test_key", tri{42}, MemScope::Agent)
+    then result.is_ok() == true
+
+test remember_phi_hash_satisfies_l5
+    given result = remember("phi_test", tri{3.14}, MemScope::Permanent)
+    let hash = result.unwrap()
+    let phi_normalized = @floatFromInt(hash)
+    let phi_mod = @mod(phi_normalized, PHI)
+    then phi_mod <= @floatFromInt(1) / @floatFromInt(100)
+
+test recall_exact_match
+    given _ = remember("exact", tri{123}, MemScope::Agent)
+    given cell = recall("exact")
+    then cell.is_some() == true
+    then cell.unwrap().value == tri{123}
+
+test recall_miss_returns_none
+    given cell = recall("nonexistent")
+    then cell.is_none() == true
+
+test forget_tombstone_prevents_recall
+    given _ = remember("tomb", tri{999}, MemScope::Agent)
+    given _ = forget("tomb")
+    given cell = recall("tomb")
+    then cell.is_none() == true
+
+test recall_like_fuzzy_match
+    given _ = remember("fuzzy_test", tri{1}, MemScope::Agent)
+    let results = recall_like("fuzzy", @floatFromInt(5))
+    then len(results) > 0
+
+test reflect_returns_all_active
+    given _ = remember("a", tri{1}, MemScope::Agent)
+    given _ = remember("b", tri{2}, MemScope::Agent)
+    let all = reflect()
+    then len(all) >= 2
+
+// ============================================================================
+// Invariants (L4: TDD Mandate)
+// ============================================================================
+
+invariant memory_cell_has_valid_scope
+    given cell = MemoryCell{
+        key = @gf16(0),
+        value = tri{0},
+        scope = MemScope::Agent,
+        phi_hash = 0,
+        timestamp = 0,
+    }
+    assert cell.scope == MemScope::Agent
+
+invariant phi_hash_is_27bit
+    given result = remember("invariant", tri{0}, MemScope::Agent)
+    let hash = result.unwrap()
+    assert hash < @pow(2, 27)
+
+invariant timestamp_is_monotonic
+    let t1 = @unixTimestamp()
+    given _ = remember("t1", tri{0}, MemScope::Agent)
+    let t2 = @unixTimestamp()
+    given _ = remember("t2", tri{0}, MemScope::Agent)
+    assert t2 >= t1
+
+// ============================================================================
+// External Dependencies (placeholders for Phase 0)
+// ============================================================================
+
+use numeric::gf16;
+
+// Placeholder types (to be imported in Phase 2)
+type Tri = void;
+type Hash27 = u64;
+type GoldenFloat = GF16;
+
+// Placeholder constants
+const PHI: f64 = 1.618033988749895;
+const HASH27_BITS: u32 = 27;
+
+// Placeholder error type
+enum Error {
+    PhiIdentityViolation,
+    KeyNotFound,
+}
+
+// Placeholder functions (to be implemented in Phase 2)
+fn hash27(bytes: []u8) -> Hash27 {
+    return 0;
+}
+
+fn phi_distance(a: Hash27, b: Hash27) -> GoldenFloat {
+    return GF16_ZERO_POS;
+}
+
+fn memory_store_write(cell: MemoryCell) -> void {
+}
+
+fn memory_store_read(key: Hash27) -> Option<MemoryCell> {
+    return None;
+}
+
+fn memory_store_list() -> Vec<MemoryCell> {
+    return Vec::new();
+}
+
+fn memory_store_list_active() -> Vec<MemoryCell> {
+    return Vec::new();
+}
+
+fn memory_store_tombstone(key: Hash27) -> void {
+}
+
+fn @floatFromInt(n: Hash27) -> f64 {
+    return @floatFromInt(n);
+}
+
+fn @mod(a: f64, b: f64) -> f64 {
+    return a - @floatFromInt(@intCast(a / b)) * b;
+}
+
+fn @pow(base: f64, exp: u32) -> f64 {
+    if (exp == 0) return 1.0;
+    var result = 1.0;
+    var i: u32 = 0;
+    while (i < exp) {
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
+
+fn @intCast(f: f64) -> u32 {
+    return @intCast(f);
+}
+
+fn @asBytes(t: Tri) -> []u8 {
+    return [];
+}
+
+fn @byteCount(s: Str) -> u32 {
+    return 0;
+}
+
+fn @unixTimestamp() -> u64 {
+    return 0;
+}
+
+fn gf16_encode_f32(f: f32) -> GF16 {
+    return GF16_ZERO_POS;
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1f0ca295f595922a9bd4621579f10075d9b550fe58fc8d5df030f5902c8baa9f",
+  "gen_hash_rust": "sha256:6df0188e14e287581c12ddc92f5ea83d0033bc9cb847d54da83ac8f673cf2e88",
+  "gen_hash_verilog": "sha256:b593d38dc4185bd1381244e3a78c8eb09eb3d6955b6af83abaa7190ac25331e6",
+  "gen_hash_zig": "sha256:4c21c83d83c88cc6310d698898ca039217ea57b9054ac529794fe573058b982f",
+  "module": "TriError",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:83fd64fdf3b8a0001d74c1769230ca11b7a0d7f3729c46881b92320b51708b7f",
+  "spec_path": "specs/tri/utils/error.t27"
+}

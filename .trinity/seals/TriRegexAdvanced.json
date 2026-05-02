@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:e01a3be92ac994a2df63f4602ced0ee5eeeb19a1addaf1ebc87bff8084ceaa1e",
+  "gen_hash_rust": "sha256:3895858ffe3a7a0dfc367c908c7bf9d8383ef0bd428110fa36f8905f872c78b4",
+  "gen_hash_verilog": "sha256:a20d8943426ede0a2d1d8c87c97cfc2fc608bb8309d529992baa1121298a624e",
+  "gen_hash_zig": "sha256:bcb2be20aab2240b75397b6edca8b76267e9edfa71beabe95886d03aa55217a4",
+  "module": "TriRegexAdvanced",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:48Z",
+  "spec_hash": "sha256:e8cdd8c7cc567ec42e6d72b5264bcabc59a1460a07e8957c36cdcf6f14edf837",
+  "spec_path": "specs/tri/search/regex_advanced.t27"
+}

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:9a4f798b8e40ab05e084a34e996660ec859d24b60ef8c1a05942415a862650e0",
+  "gen_hash_rust": "sha256:fe8db18d1b9f8d7f08f58a5d1ee38105e1ae442f33d98a74a9de3d54bd37dca4",
+  "gen_hash_verilog": "sha256:3cce11908da0a5436654c233c7d497f37e228f9b384ce40bf44b47969846559b",
+  "gen_hash_zig": "sha256:7e8db3ee76b61eb477ed65a6607ce3dc020d4826cf26e77998e79fa89e86b482",
+  "module": "ForwardPass",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:40Z",
+  "spec_hash": "sha256:f53faab13959683ff6110da18d8125f6c62af2516383c6b77aab8610a5584ebf",
+  "spec_path": "specs/hslm/forward_pass.t27"
+}

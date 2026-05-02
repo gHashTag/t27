@@ -1,0 +1,720 @@
+// specs/file/schema.t27
+// File Types Specification
+// 01 + 1/23 = 3 | TRINITY
+
+module File {
+    use base::types;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071
+    // File Type
+    // 72737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
+
+    // FileType represents the type of a file system entry
+    enum FileType {
+        File = 0,              // Regular file
+        Directory = 1,         // Directory
+        Symlink = 2,           // Symbolic link
+    }
+
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207
+    // File Status
+    // 208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
+
+    // FileStatus represents the status of a file change
+    enum FileStatus {
+        Added = 0,             // File was added
+        Deleted = 1,           // File was deleted
+        Modified = 2,          // File was modified
+    }
+
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343
+    // Content Type
+    // 344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
+
+    // ContentType represents the type of file content
+    enum ContentType {
+        Text = 0,              // Text content
+        Binary = 1,            // Binary content
+        Image = 2,             // Image content
+    }
+
+    // 412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479
+    // Watch Event Type
+    // 480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547
+
+    // WatchEventType represents the type of file system event
+    enum WatchEventType {
+        Add = 0,               // File/directory added
+        Change = 1,            // File/directory changed
+        Unlink = 2,            // File/directory removed
+    }
+
+    // 548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615
+    // File Error
+    // 616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683
+
+    // FileError represents errors in file operations
+    enum FileError {
+        NotFound = 0,
+        PermissionDenied = 1,
+        IsDirectory = 2,
+        NotDirectory = 3,
+        AccessDenied = 4,
+        InvalidPath = 5,
+        ReadError = 6,
+        WriteError = 7,
+        DeleteError = 8,
+    }
+
+    // 684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751
+    // File Info
+    // 752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819
+
+    // FileInfo represents metadata about a file
+    struct FileInfo {
+        path: str,             // File path
+        fileType: FileType,    // Type of file
+        size: u64,             // File size in bytes
+        modified: u64,         // Last modified timestamp (Unix epoch)
+        permissions: u32,      // File permissions (octal)
+        isHidden: bool,        // Whether file is hidden
+        isIgnored: bool,       // Whether file is ignored
+    }
+
+    // 820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887
+    // File Content
+    // 888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955
+
+    // FileContent represents the content of a file
+    struct FileContent {
+        type: ContentType,     // Type of content
+        content: str,          // File content (text or encoded)
+        diff: str?,            // Git diff if available
+        mimeType: str,         // MIME type
+        encoding: str?,        // Encoding (e.g., "base64" for images)
+        lineCount: u32?,       // Number of lines (text only)
+    }
+
+    // 956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999100010011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023
+    // File Node
+    // 10241025102610271028102910301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082108310841085108610871088108910901091
+
+    // FileNode represents a node in the file tree
+    struct FileNode {
+        name: str,             // File/directory name
+        path: str,             // Relative path
+        absolute: str,         // Absolute path
+        fileType: FileType,    // Type of node
+        ignored: bool,         // Whether node is ignored
+        children: [FileNode]?, // Children (directories only)
+    }
+
+    // 10921093109410951096109710981099110011011102110311041105110611071108110911101111111211131114111511161117111811191120112111221123112411251126112711281129113011311132113311341135113611371138113911401141114211431144114511461147114811491150115111521153115411551156115711581159
+    // File Change
+    // 11601161116211631164116511661167116811691170117111721173117411751176117711781179118011811182118311841185118611871188118911901191119211931194119511961197119811991200120112021203120412051206120712081209121012111212121312141215121612171218121912201221122212231224122512261227
+
+    // FileChange represents a change to a file
+    struct FileChange {
+        path: str,             // File path
+        status: FileStatus,    // Change status
+        additions: u32,        // Number of lines added
+        deletions: u32,        // Number of lines deleted
+    }
+
+    // 12281229123012311232123312341235123612371238123912401241124212431244124512461247124812491250125112521253125412551256125712581259126012611262126312641265126612671268126912701271127212731274127512761277127812791280128112821283128412851286128712881289129012911292129312941295
+    // Ignore Rules
+    // 12961297129812991300130113021303130413051306130713081309131013111312131313141315131613171318131913201321132213231324132513261327132813291330133113321333133413351336133713381339134013411342134313441345134613471348134913501351135213531354135513561357135813591360136113621363
+
+    // IgnorePattern represents a single ignore pattern
+    struct IgnorePattern {
+        pattern: str,          // Ignore pattern (gitignore style)
+        isDir: bool,           // Whether pattern applies only to directories
+    }
+
+    // IgnoreRules represents a collection of ignore rules
+    struct IgnoreRules {
+        patterns: [IgnorePattern], // Ignore patterns
+        whitelists: [str],    // Whitelisted paths (exceptions)
+    }
+
+    // 13641365136613671368136913701371137213731374137513761377137813791380138113821383138413851386138713881389139013911392139313941395139613971398139914001401140214031404140514061407140814091410141114121413141414151416141714181419142014211422142314241425142614271428142914301431
+    // Search
+    // 14321433143414351436143714381439144014411442144314441445144614471448144914501451145214531454145514561457145814591460146114621463146414651466146714681469147014711472147314741475147614771478147914801481148214831484148514861487148814891490149114921493149414951496149714981499
+
+    // SearchMatch represents a search result
+    struct SearchMatch {
+        path: str,             // File path
+        line: u32,             // Line number (1-indexed)
+        content: str,          // Line content
+        start: u32,            // Start position of match in line
+        end: u32,              // End position of match in line
+    }
+
+    // SearchOptions represents options for file search
+    struct SearchOptions {
+        query: str,            // Search query/pattern
+        pattern: str?,         // File glob pattern (e.g., "*.ts")
+        caseSensitive: bool,   // Whether search is case sensitive
+        maxResults: u32,       // Maximum results to return
+        includeHidden: bool,   // Whether to include hidden files
+        fileType: FileType?,   // Filter by file type
+    }
+
+    // 15001501150215031504150515061507150815091510151115121513151415151516151715181519152015211522152315241525152615271528152915301531153215331534153515361537153815391540154115421543154415451546154715481549155015511552155315541555155615571558155915601561156215631564156515661567
+    // Watch Event
+    // 15681569157015711572157315741575157615771578157915801581158215831584158515861587158815891590159115921593159415951596159715981599160016011602160316041605160616071608160916101611161216131614161516161617161816191620162116221623162416251626162716281629163016311632163316341635
+
+    // WatchEvent represents a file system watch event
+    struct WatchEvent {
+        path: str,             // Path that changed
+        eventType: WatchEventType, // Type of event
+        timestamp: u64,        // Event timestamp (Unix epoch)
+    }
+
+    // WatcherHandle represents a watcher handle
+    struct WatcherHandle {
+        id: str,               // Watcher ID
+        paths: [str],          // Watched paths
+        active: bool,          // Whether watcher is active
+    }
+
+    // 16361637163816391640164116421643164416451646164716481649165016511652165316541655165616571658165916601661166216631664166516661667166816691670167116721673167416751676167716781679168016811682168316841685168616871688168916901691169216931694169516961697169816991700170117021703
+    // Ripgrep Integration
+    // 17041705170617071708170917101711171217131714171517161717171817191720172117221723172417251726172717281729173017311732173317341735173617371738173917401741174217431744174517461747174817491750175117521753175417551756175717581759176017611762176317641765176617671768176917701771
+
+    // Submatch represents a regex submatch
+    struct Submatch {
+        match: str,            // Matched text
+        start: u32,            // Start position in content
+        end: u32,              // End position in content
+    }
+
+    // RipgrepMatch represents a ripgrep search result
+    struct RipgrepMatch {
+        path: str,             // File path
+        lineNumber: u32,       // Line number (1-indexed)
+        content: str,          // Line content
+        submatches: [Submatch], // All submatches in the line
+    }
+
+    // RipgrepOptions represents options for ripgrep search
+    struct RipgrepOptions {
+        glob: [str]?,          // File glob patterns
+        hidden: bool,          // Whether to search hidden files
+        follow: bool,          // Whether to follow symlinks
+        maxDepth: u32,         // Maximum search depth
+        limit: u32,            // Maximum number of results
+    }
+
+    // 17721773177417751776177717781779178017811782178317841785178617871788178917901791179217931794179517961797179817991800180118021803180418051806180718081809181018111812181318141815181618171818181918201821182218231824182518261827182818291830183118321833183418351836183718381839
+    // Constants
+    // 18401841184218431844184518461847184818491850185118521853185418551856185718581859186018611862186318641865186618671868186918701871187218731874187518761877187818791880188118821883188418851886188718881889189018911892189318941895189618971898189919001901190219031904190519061907
+
+    const MAX_FILE_SIZE: u64 = 10485760;      // 10MB max file size
+    const MAX_SEARCH_RESULTS: u32 = 1000;      // Max search results
+    const DEFAULT_READ_CHUNK: u32 = 8192;      // 8KB default read chunk
+
+    // 19081909191019111912191319141915191619171918191919201921192219231924192519261927192819291930193119321933193419351936193719381939194019411942194319441945194619471948194919501951195219531954195519561957195819591960196119621963196419651966196719681969197019711972197319741975
+    // Helper Functions
+    // 19761977197819791980198119821983198419851986198719881989199019911992199319941995199619971998199920002001200220032004200520062007200820092010201120122013201420152016201720182019202020212022202320242025202620272028202920302031203220332034203520362037203820392040204120422043
+
+    // is_text checks if content type is text
+    fn is_text(contentType: ContentType) -> bool {
+        return contentType == ContentType::Text;
+    }
+
+    // is_binary checks if content type is binary
+    fn is_binary(contentType: ContentType) -> bool {
+        return contentType == ContentType::Binary;
+    }
+
+    // is_image checks if content type is image
+    fn is_image(contentType: ContentType) -> bool {
+        return contentType == ContentType::Image;
+    }
+
+    // is_hidden checks if a path is hidden
+    fn is_hidden(path: str) -> bool {
+        var parts = split(path, "/");
+        for part in parts {
+            if part.len > 0 && part[0] == '.' && part != "." && part != ".." {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // get_extension returns the file extension
+    fn get_extension(path: str) -> str {
+        var parts = split(path, ".");
+        if parts.len <= 1 {
+            return "";
+        }
+        return parts[parts.len - 1];
+    }
+
+    // 20442045204620472048204920502051205220532054205520562057205820592060206120622063206420652066206720682069207020712072207320742075207620772078207920802081208220832084208520862087208820892090209120922093209420952096209720982099210021012102210321042105210621072108210921102111
+    // Tests
+    // 21122113211421152116211721182119212021212122212321242125212621272128212921302131213221332134213521362137213821392140214121422143214421452146214721482149215021512152215321542155215621572158215921602161216221632164216521662167216821692170217121722173217421752176217721782179
+
+    test "file_type_values" {
+        assert(FileType::File as u32 == 0);
+        assert(FileType::Directory as u32 == 1);
+        assert(FileType::Symlink as u32 == 2);
+    }
+
+    test "file_status_values" {
+        assert(FileStatus::Added as u32 == 0);
+        assert(FileStatus::Deleted as u32 == 1);
+        assert(FileStatus::Modified as u32 == 2);
+    }
+
+    test "content_type_values" {
+        assert(ContentType::Text as u32 == 0);
+        assert(ContentType::Binary as u32 == 1);
+        assert(ContentType::Image as u32 == 2);
+    }
+
+    test "watch_event_type_values" {
+        assert(WatchEventType::Add as u32 == 0);
+        assert(WatchEventType::Change as u32 == 1);
+        assert(WatchEventType::Unlink as u32 == 2);
+    }
+
+    test "file_error_values" {
+        assert(FileError::NotFound as u32 == 0);
+        assert(FileError::PermissionDenied as u32 == 1);
+        assert(FileError::IsDirectory as u32 == 2);
+        assert(FileError::NotDirectory as u32 == 3);
+        assert(FileError::AccessDenied as u32 == 4);
+        assert(FileError::InvalidPath as u32 == 5);
+        assert(FileError::ReadError as u32 == 6);
+        assert(FileError::WriteError as u32 == 7);
+        assert(FileError::DeleteError as u32 == 8);
+    }
+
+<<<<<<< Updated upstream
+=======
+    test "file_info_creation" {
+        var info = FileInfo {
+            path = "test.txt",
+            fileType = FileType::File,
+            size = 1024,
+            modified = 1234567890,
+            permissions = 644,
+            isHidden = false,
+            isIgnored = false,
+        };
+        assert(info.path == "test.txt");
+        assert(info.fileType == FileType::File);
+        assert(info.size == 1024);
+    }
+
+    test "file_content_text" {
+        var content = FileContent {
+            type = ContentType::Text,
+            content = "hello world",
+            diff = null,
+            mimeType = "text/plain",
+            encoding = null,
+            lineCount = 1,
+        };
+        assert(content.content == "hello world");
+        assert(content.lineCount == 1);
+    }
+
+    test "file_content_binary" {
+        var content = FileContent {
+            type = ContentType::Binary,
+            content = "",
+            diff = null,
+            mimeType = "application/octet-stream",
+            encoding = null,
+            lineCount = null,
+        };
+        assert(content.type == ContentType::Binary);
+    }
+
+    test "file_content_image" {
+        var content = FileContent {
+            type = ContentType::Image,
+            content = "base64data",
+            diff = null,
+            mimeType = "image/png",
+            encoding = "base64",
+            lineCount = null,
+        };
+        assert(content.type == ContentType::Image);
+        assert(content.encoding == "base64");
+    }
+
+    test "file_node_file" {
+        var node = FileNode {
+            name = "test.txt",
+            path = "test.txt",
+            absolute = "/home/user/test.txt",
+            fileType = FileType::File,
+            ignored = false,
+            children = null,
+        };
+        assert(node.name == "test.txt");
+        assert(node.fileType == FileType::File);
+    }
+
+    test "file_node_directory" {
+        var children = [
+            FileNode {
+                name = "file.txt",
+                path = "dir/file.txt",
+                absolute = "/abs/dir/file.txt",
+                fileType = FileType::File,
+                ignored = false,
+                children = null,
+            },
+        ];
+        var node = FileNode {
+            name = "dir",
+            path = "dir",
+            absolute = "/abs/dir",
+            fileType = FileType::Directory,
+            ignored = false,
+            children = children,
+        };
+        assert(node.fileType == FileType::Directory);
+        assert(node.children?.len == 1);
+    }
+
+    test "file_change_added" {
+        var change = FileChange {
+            path = "new.txt",
+            status = FileStatus::Added,
+            additions = 10,
+            deletions = 0,
+        };
+        assert(change.status == FileStatus::Added);
+        assert(change.additions == 10);
+    }
+
+    test "file_change_modified" {
+        var change = FileChange {
+            path = "modified.txt",
+            status = FileStatus::Modified,
+            additions = 5,
+            deletions = 3,
+        };
+        assert(change.status == FileStatus::Modified);
+    }
+
+    test "ignore_pattern_creation" {
+        var pattern = IgnorePattern {
+            pattern = "*.log",
+            isDir = false,
+        };
+        assert(pattern.pattern == "*.log");
+        assert(!pattern.isDir);
+    }
+
+    test "ignore_pattern_directory" {
+        var pattern = IgnorePattern {
+            pattern = "node_modules",
+            isDir = true,
+        };
+        assert(pattern.isDir);
+    }
+
+    test "ignore_rules_creation" {
+        var patterns = [
+            IgnorePattern {
+                pattern = "*.log",
+                isDir = false,
+            },
+            IgnorePattern {
+                pattern = "node_modules",
+                isDir = true,
+            },
+        ];
+        var rules = IgnoreRules {
+            patterns = patterns,
+            whitelists: ["important.log"],
+        };
+        assert(rules.patterns.len == 2);
+        assert(rules.whitelists.len == 1);
+    }
+
+    test "search_match_creation" {
+        var match = SearchMatch {
+            path = "test.ts",
+            line = 42,
+            content = "const test = 'hello';",
+            start = 12,
+            end = 17,
+        };
+        assert(match.path == "test.ts");
+        assert(match.line == 42);
+    }
+
+    test "search_options_creation" {
+        var options = SearchOptions {
+            query = "test",
+            pattern = "*.ts",
+            caseSensitive = true,
+            maxResults = 100,
+            includeHidden = false,
+            fileType = FileType::File,
+        };
+        assert(options.query == "test");
+        assert(options.caseSensitive);
+    }
+
+    test "watch_event_add" {
+        var event = WatchEvent {
+            path = "new.txt",
+            eventType = WatchEventType::Add,
+            timestamp = 1234567890,
+        };
+        assert(event.eventType == WatchEventType::Add);
+    }
+
+    test "watch_event_change" {
+        var event = WatchEvent {
+            path = "changed.txt",
+            eventType = WatchEventType::Change,
+            timestamp = 1234567890,
+        };
+        assert(event.eventType == WatchEventType::Change);
+    }
+
+    test "watch_event_unlink" {
+        var event = WatchEvent {
+            path = "deleted.txt",
+            eventType = WatchEventType::Unlink,
+            timestamp = 1234567890,
+        };
+        assert(event.eventType == WatchEventType::Unlink);
+    }
+
+    test "watcher_handle_creation" {
+        var handle = WatcherHandle {
+            id = "watch-123",
+            paths: ["/home/project"],
+            active = true,
+        };
+        assert(handle.id == "watch-123");
+        assert(handle.active);
+    }
+
+    test "submatch_creation" {
+        var submatch = Submatch {
+            match = "test",
+            start = 0,
+            end = 4,
+        };
+        assert(submatch.match == "test");
+    }
+
+    test "ripgrep_match_creation" {
+        var submatches = [
+            Submatch {
+                match = "pattern",
+                start = 10,
+                end = 17,
+            },
+        ];
+        var match = RipgrepMatch {
+            path = "file.ts",
+            lineNumber = 5,
+            content = "const pattern = /test/;",
+            submatches = submatches,
+        };
+        assert(match.path == "file.ts");
+        assert(match.submatches.len == 1);
+    }
+
+    test "ripgrep_options_creation" {
+        var globs = ["*.ts", "*.js"];
+        var options = RipgrepOptions {
+            glob = globs,
+            hidden = false,
+            follow = true,
+            maxDepth = 10,
+            limit = 50,
+        };
+        assert(options.glob?.len == 2);
+        assert(options.follow);
+    }
+
+>>>>>>> Stashed changes
+    test "constants_values" {
+        assert(MAX_FILE_SIZE == 10485760);
+        assert(MAX_SEARCH_RESULTS == 1000);
+        assert(DEFAULT_READ_CHUNK == 8192);
+    }
+
+    test "is_text_true" {
+        assert(is_text(ContentType::Text));
+    }
+
+<<<<<<< Updated upstream
+=======
+    test "is_text_false" {
+        assert(!is_text(ContentType::Binary));
+        assert(!is_text(ContentType::Image));
+    }
+
+>>>>>>> Stashed changes
+    test "is_binary_true" {
+        assert(is_binary(ContentType::Binary));
+    }
+
+<<<<<<< Updated upstream
+=======
+    test "is_binary_false" {
+        assert(!is_binary(ContentType::Text));
+        assert(!is_binary(ContentType::Image));
+    }
+
+>>>>>>> Stashed changes
+    test "is_image_true" {
+        assert(is_image(ContentType::Image));
+    }
+
+<<<<<<< Updated upstream
+    test "is_hidden_true" {
+        assert(is_hidden(".git"));
+        assert(is_hidden("path/.hidden"));
+    }
+
+    test "is_hidden_false" {
+        assert(!is_hidden("visible"));
+        assert(!is_hidden("."));
+    }
+
+    test "get_extension_simple" {
+        assert(get_extension("test.txt") == "txt");
+        assert(get_extension("file.tar.gz") == "gz");
+    }
+
+    test "get_extension_none" {
+        assert(get_extension("README") == "");
+        assert(get_extension("path/to/file") == "");
+=======
+    test "is_image_false" {
+        assert(!is_image(ContentType::Text));
+        assert(!is_image(ContentType::Binary));
+    }
+
+    test "is_hidden_dot_file" {
+        assert(is_hidden(".git"));
+        assert(is_hidden(".env"));
+    }
+
+    test "is_hidden_hidden_in_path" {
+        assert(is_hidden("path/.hidden"));
+        assert(is_hidden("dir/.config"));
+    }
+
+    test "is_hidden_not_hidden" {
+        assert(!is_hidden("visible.txt"));
+        assert(!is_hidden("path/visible"));
+    }
+
+    test "is_hidden_special_paths" {
+        assert(!is_hidden("."));
+        assert(!is_hidden(".."));
+    }
+
+    test "get_extension_simple" {
+        assert(get_extension("file.txt") == "txt");
+        assert(get_extension("document.pdf") == "pdf");
+    }
+
+    test "get_extension_multiple_dots" {
+        assert(get_extension("archive.tar.gz") == "gz");
+        assert(get_extension("file.name.with.dots.md") == "md");
+    }
+
+    test "get_extension_no_extension" {
+        assert(get_extension("README") == "");
+        assert(get_extension("Makefile") == "");
+    }
+
+    test "get_extension_path_with_directory" {
+        assert(get_extension("path/to/file.txt") == "txt");
+        assert(get_extension("src/index.ts") == "ts");
+    }
+
+    test "file_info_symlink" {
+        var info = FileInfo {
+            path = "link",
+            fileType = FileType::Symlink,
+            size = 0,
+            modified = 1234567890,
+            permissions = 777,
+            isHidden = false,
+            isIgnored = false,
+        };
+        assert(info.fileType == FileType::Symlink);
+    }
+
+    test "file_info_hidden" {
+        var info = FileInfo {
+            path = ".git",
+            fileType = FileType::Directory,
+            size = 0,
+            modified = 1234567890,
+            permissions = 700,
+            isHidden = true,
+            isIgnored = false,
+        };
+        assert(info.isHidden);
+    }
+
+    test "file_info_ignored" {
+        var info = FileInfo {
+            path = "node_modules",
+            fileType = FileType::Directory,
+            size = 0,
+            modified = 1234567890,
+            permissions = 755,
+            isHidden = false,
+            isIgnored = true,
+        };
+        assert(info.isIgnored);
+    }
+
+    test "file_content_with_diff" {
+        var content = FileContent {
+            type = ContentType::Text,
+            content = "new content",
+            diff = "@@ -1 +1 @@\n-old\n+new",
+            mimeType = "text/plain",
+            encoding = null,
+            lineCount = 1,
+        };
+        assert(content.diff != null);
+    }
+
+    test "search_options_no_pattern" {
+        var options = SearchOptions {
+            query = "test",
+            pattern = null,
+            caseSensitive = false,
+            maxResults = 50,
+            includeHidden = true,
+            fileType = null,
+        };
+        assert(options.pattern == null);
+    }
+
+    test "ripgrep_options_no_glob" {
+        var options = RipgrepOptions {
+            glob = null,
+            hidden = false,
+            follow = false,
+            maxDepth = 5,
+            limit = 100,
+        };
+        assert(options.glob == null);
+>>>>>>> Stashed changes
+    }
+}

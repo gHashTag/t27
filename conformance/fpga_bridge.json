@@ -1,142 +1,169 @@
 {
-  "module": "FPGA_Bridge",
-  "spec_path": "specs/fpga/bridge.t27",
-  "ring": 43,
-  "generated_at": "2026-04-05T12:00:00Z",
-  "description": "FPGA Bridge conformance vectors -- circular buffer, packet parsing, configuration handling",
   "constants": {
-    "RX_BUFFER_SIZE": 256,
-    "TX_BUFFER_SIZE": 256,
     "MAX_PACKET_SIZE": 128,
-    "PACKET_TIMEOUT": 10000
+    "PACKET_TIMEOUT": 10000,
+    "RX_BUFFER_SIZE": 256,
+    "TX_BUFFER_SIZE": 256
   },
-  "vectors": {
-    "buffer_write": {
-      "description": "Write to circular buffer",
-      "cases": [
-        {
-          "id": "bridge_buffer_write_empty",
-          "data": 42,
-          "initial_head": 0,
-          "initial_tail": 0,
-          "expected_head": 1,
-          "expected_stored": 42,
-          "note": "Write to empty buffer advances head"
-        },
-        {
-          "id": "bridge_buffer_write_wrap",
-          "data": 99,
-          "initial_head": 255,
-          "initial_tail": 0,
-          "expected_head": 0,
-          "expected_stored": 99,
-          "note": "Write at end wraps head to 0"
-        },
-        {
-          "id": "bridge_buffer_write_full",
-          "data": 55,
-          "initial_head": 128,
-          "initial_tail": 129,
-          "expected_error": "buffer_full",
-          "note": "Write to full buffer returns error"
-        }
-      ]
-    },
-    "buffer_read": {
-      "description": "Read from circular buffer",
-      "cases": [
-        {
-          "id": "bridge_buffer_read_single",
-          "stored_data": 42,
-          "initial_head": 1,
-          "initial_tail": 0,
-          "expected_tail": 1,
-          "expected_read": 42,
-          "note": "Read single byte advances tail"
-        },
-        {
-          "id": "bridge_buffer_read_empty",
-          "initial_head": 0,
-          "initial_tail": 0,
-          "expected_error": "buffer_empty",
-          "note": "Read from empty buffer returns error"
-        },
-        {
-          "id": "bridge_buffer_read_wrap",
-          "stored_data": 77,
-          "initial_head": 0,
-          "initial_tail": 255,
-          "expected_tail": 0,
-          "expected_read": 77,
-          "note": "Read at end wraps tail to 0"
-        }
-      ]
-    },
-    "bridge_parse_header": {
-      "description": "Parse packet header from buffer",
-      "cases": [
-        {
-          "id": "bridge_parse_header_valid",
-          "raw_bytes": [84, 50, 55, 16, 0],
-          "expected_magic": "T27",
-          "expected_length": 16,
-          "expected_valid": true,
-          "note": "Valid T27 header with length 16"
-        },
-        {
-          "id": "bridge_parse_header_invalid_magic",
-          "raw_bytes": [0, 0, 0, 16, 0],
-          "expected_valid": false,
-          "note": "Invalid magic bytes rejected"
-        },
-        {
-          "id": "bridge_parse_header_oversized",
-          "raw_bytes": [84, 50, 55, 255, 0],
-          "expected_valid": false,
-          "note": "Packet exceeding MAX_PACKET_SIZE rejected"
-        }
-      ]
-    },
-    "bridge_config": {
-      "description": "Configuration handling",
-      "cases": [
-        {
-          "id": "bridge_config_set_baud",
-          "register": "baud_rate",
-          "value": 115200,
-          "expected_ack": true,
-          "note": "Set baud rate configuration"
-        },
-        {
-          "id": "bridge_config_invalid_register",
-          "register": "unknown",
-          "value": 0,
-          "expected_ack": false,
-          "note": "Unknown register returns NAK"
-        }
-      ]
-    }
-  },
+  "created_at": "2026-04-06T15:54:08Z",
+  "description": "FPGA Bridge conformance vectors -- circular buffer, packet parsing, configuration handling",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-05T12:00:00Z",
   "invariants": [
     {
-      "id": "bridge_states_valid",
-      "description": "Bridge FSM states are in {IDLE, RX, TX, PARSE, ERROR}"
+      "description": "Bridge FSM states are in {IDLE, RX, TX, PARSE, ERROR}",
+      "id": "bridge_states_valid"
     },
     {
-      "id": "buffer_bounds",
       "description": "Buffer head and tail always in [0, BUFFER_SIZE)",
+      "id": "buffer_bounds",
       "rx_max": 256,
       "tx_max": 256
     },
     {
-      "id": "packet_length_bounds",
       "description": "Packet length <= MAX_PACKET_SIZE (128)",
+      "id": "packet_length_bounds",
       "value": 128
     },
     {
-      "id": "timeout_counter",
       "description": "Timeout counter <= PACKET_TIMEOUT (10000)",
+      "id": "timeout_counter",
       "value": 10000
     }
-  ]
+  ],
+  "module": "FPGA_Bridge",
+  "ring": 43,
+  "schema_version": 2,
+  "seal": "sha256:2556b576ab751fc4eb3e52b71aaed2289816d8f796c78d5a91863e5aec8a2ad1",
+  "spec_path": "specs/fpga/bridge.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "fpga_bridge Vectors",
+  "vectors": {
+    "bridge_config": {
+      "cases": [
+        {
+          "expected_ack": true,
+          "id": "bridge_config_set_baud",
+          "note": "Set baud rate configuration",
+          "register": "baud_rate",
+          "value": 115200
+        },
+        {
+          "expected_ack": false,
+          "id": "bridge_config_invalid_register",
+          "note": "Unknown register returns NAK",
+          "register": "unknown",
+          "value": 0
+        }
+      ],
+      "description": "Configuration handling"
+    },
+    "bridge_parse_header": {
+      "cases": [
+        {
+          "expected_length": 16,
+          "expected_magic": "T27",
+          "expected_valid": true,
+          "id": "bridge_parse_header_valid",
+          "note": "Valid T27 header with length 16",
+          "raw_bytes": [
+            84,
+            50,
+            55,
+            16,
+            0
+          ]
+        },
+        {
+          "expected_valid": false,
+          "id": "bridge_parse_header_invalid_magic",
+          "note": "Invalid magic bytes rejected",
+          "raw_bytes": [
+            0,
+            0,
+            0,
+            16,
+            0
+          ]
+        },
+        {
+          "expected_valid": false,
+          "id": "bridge_parse_header_oversized",
+          "note": "Packet exceeding MAX_PACKET_SIZE rejected",
+          "raw_bytes": [
+            84,
+            50,
+            55,
+            255,
+            0
+          ]
+        }
+      ],
+      "description": "Parse packet header from buffer"
+    },
+    "buffer_read": {
+      "cases": [
+        {
+          "expected_read": 42,
+          "expected_tail": 1,
+          "id": "bridge_buffer_read_single",
+          "initial_head": 1,
+          "initial_tail": 0,
+          "note": "Read single byte advances tail",
+          "stored_data": 42
+        },
+        {
+          "expected_error": "buffer_empty",
+          "id": "bridge_buffer_read_empty",
+          "initial_head": 0,
+          "initial_tail": 0,
+          "note": "Read from empty buffer returns error"
+        },
+        {
+          "expected_read": 77,
+          "expected_tail": 0,
+          "id": "bridge_buffer_read_wrap",
+          "initial_head": 0,
+          "initial_tail": 255,
+          "note": "Read at end wraps tail to 0",
+          "stored_data": 77
+        }
+      ],
+      "description": "Read from circular buffer"
+    },
+    "buffer_write": {
+      "cases": [
+        {
+          "data": 42,
+          "expected_head": 1,
+          "expected_stored": 42,
+          "id": "bridge_buffer_write_empty",
+          "initial_head": 0,
+          "initial_tail": 0,
+          "note": "Write to empty buffer advances head"
+        },
+        {
+          "data": 99,
+          "expected_head": 0,
+          "expected_stored": 99,
+          "id": "bridge_buffer_write_wrap",
+          "initial_head": 255,
+          "initial_tail": 0,
+          "note": "Write at end wraps head to 0"
+        },
+        {
+          "data": 55,
+          "expected_error": "buffer_full",
+          "id": "bridge_buffer_write_full",
+          "initial_head": 128,
+          "initial_tail": 129,
+          "note": "Write to full buffer returns error"
+        }
+      ],
+      "description": "Write to circular buffer"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

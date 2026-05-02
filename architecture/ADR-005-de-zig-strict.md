@@ -24,15 +24,15 @@ This violated the core Trinity principle and created technical debt.
 
 ### SOUL Law #4: De-Zig Strict
 
-> **Никакой новой бизнес-логики Trinity в Zig руками.**
+> **No new Trinity business logic handwritten in Zig.**
 >
-> 1. **Source of Truth**: Любая новая логика Trinity (CLI, runtime, numeric, physics, graph, agents) описывается только в `.t27/.tri` спецификациях.
-> 2. **Backends Only**: Zig, C, Verilog, Rust могут существовать только как **сгенерированные backends** из `.t27/.tri` через `tri gen`.
-> 3. **Temporary Bootstrap**: Любой новый `.zig` файл допускается только как временный bootstrap‑слой (I/O, process startup). Доменная логика в Zig запрещена.
-> 4. **Migration Debt**: Любой существующий handwritten Zig‑код с доменной логикой должен иметь явную задачу на миграцию в `.t27/.tri`. Новые долги создавать запрещено.
+> 1. **Source of truth**: All new Trinity logic (CLI, runtime, numeric, physics, graph, agents) is specified only in `.t27` / `.tri`.
+> 2. **Backends only**: Zig, C, Verilog, and Rust exist only as **generated backends** from `.t27` / `.tri` via `tri gen`.
+> 3. **Temporary bootstrap**: New `.zig` files are allowed only as temporary bootstrap (I/O, process startup). Domain logic in Zig is forbidden.
+> 4. **Migration debt**: Any existing handwritten Zig with domain logic must have an explicit migration task into `.t27` / `.tri`. Do not add new debt.
 > 5. **Enforcement**:
->    - `tri lint` падает, если обнаруживает новые `.zig` файлы без пометки `generated`
->    - `tri git push --strict` блокирует пуш, если есть diff в `src/` Zig‑файлах, не прошедших проверку
+>    - `tri lint` fails if new `.zig` files appear without a `generated` marker
+>    - `tri git push --strict` blocks push if Zig diffs under `src/` fail checks
 
 ### Allowed Zig Files
 
@@ -51,11 +51,11 @@ Zig files are ONLY permitted in these cases:
    - No domain logic (no Trinity-specific algorithms, math, physics, etc.)
 
 3. **Legacy quarantine** - Existing Zig being migrated:
-   - `backend/zig/legacy/*.zig` - Handwritten code awaiting migration
+   - `contrib/backend/zig/legacy/*.zig` - Handwritten code awaiting migration
    - Each file must have `TODO: migrate to .t27 spec` comment
 
 4. **Hardware bridge** - FPGA bindings and external system interfaces:
-   - `backend/bridges/*.zig` - Foreign function interfaces only
+   - `contrib/backend/bridges/*.zig` - Foreign function interfaces only (if present)
 
 ### Forbidden Zig Files
 
@@ -105,7 +105,7 @@ error: Zig file lacks generated header
 $ tri lint src/bootstrap/main.zig
 ok: bootstrap file (no domain logic detected)
 
-$ tri lint backend/zig/legacy/old_code.zig
+$ tri lint contrib/backend/zig/legacy/old_code.zig
 warning: legacy file detected
   Status: awaiting migration to .t27
   Hint: Create migration task for this file
@@ -190,5 +190,5 @@ All existing handwritten Zig with domain logic must be migrated:
 
 - ADR-001: De-Zigfication (original high-level principle)
 - SOUL.md: Constitutional Laws
-- docs/GENERATED-HEADER-POLICY.md: Header specification
+- docs/nona-03-manifest/GENERATED-HEADER-POLICY.md: Header specification
 - compiler/runtime/runtime.t27: CLI runtime specification (source of truth)

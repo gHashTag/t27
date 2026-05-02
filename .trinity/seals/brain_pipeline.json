@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "seal_type": "brain_pipeline",
+  "timestamp": "2026-04-07T12:00:00Z",
+  "pipeline": {
+    "name": "lotus_brain_seal_refresh",
+    "trigger": "on_ring_completion",
+    "steps": [
+      {
+        "name": "collect_experience",
+        "description": "Parse .trinity/experience/episodes.jsonl",
+        "command": "t27c collect-experience"
+      },
+      {
+        "name": "compute_health",
+        "description": "Calculate queen health from domains",
+        "command": "t27c compute-health"
+      },
+      {
+        "name": "generate_seals",
+        "description": "Write brain_summary.json, brain_domains.json",
+        "command": "t27c gen-brain-seals"
+      },
+      {
+        "name": "validate",
+        "description": "Validate against VERDICT_SCHEMA.json",
+        "command": "t27c validate-brain-seals"
+      }
+    ]
+  },
+  "outputs": [
+    ".trinity/seals/brain_summary.json",
+    ".trinity/seals/brain_domains.json",
+    ".trinity/state/queen-health.json"
+  ],
+  "ci_integration": {
+    "workflow": ".github/workflows/brain-seal-refresh.yml",
+    "trigger_on": "pull_request, push to master"
+  }
+}

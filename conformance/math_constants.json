@@ -1,166 +1,480 @@
 {
-  "module": "Constants",
-  "spec_path": "specs/math/constants.t27",
-  "ring": 25,
+  "created_at": "2026-04-06T15:54:08Z",
+  "format_family": "Conformance",
   "generated_at": "2026-04-04T19:00:00Z",
-  "vectors": [
-    {
-      "function": "constant_values",
-      "cases": [
-        { "constant": "PHI",     "expected": 1.61803398874989484820458683436563811772, "tolerance": 1e-15 },
-        { "constant": "PHI_INV", "expected": 0.61803398874989484820458683436563811772, "tolerance": 1e-15 },
-        { "constant": "TRINITY", "expected": 3.0, "tolerance": 0.0 },
-        { "constant": "PI",      "expected": 3.14159265358979323846264338327950288, "tolerance": 1e-15 },
-        { "constant": "E",       "expected": 2.7182818284590452353602874713526625, "tolerance": 1e-15 },
-        { "constant": "G_MEASURED", "expected": 6.67430e-11, "tolerance": 1e-15 },
-        { "constant": "LAMBDA_COSMO", "expected": 1.1056e-52, "tolerance": 1e-56 },
-        { "constant": "OMEGA_LAMBDA_MEASURED", "expected": 0.685, "tolerance": 1e-15 }
-      ]
-    },
-    {
-      "function": "abs",
-      "cases": [
-        { "inputs": { "x": -5.0 }, "expected": 5.0 },
-        { "inputs": { "x":  0.0 }, "expected": 0.0 },
-        { "inputs": { "x":  3.7 }, "expected": 3.7 },
-        { "inputs": { "x": -1e-10 }, "expected": 1e-10 }
-      ]
-    },
-    {
-      "function": "pow",
-      "cases": [
-        { "inputs": { "x": 2.0, "n": 0.0 },   "expected": 1.0,    "tolerance": 1e-15 },
-        { "inputs": { "x": 5.0, "n": 1.0 },   "expected": 5.0,    "tolerance": 1e-15 },
-        { "inputs": { "x": 2.0, "n": 10.0 },  "expected": 1024.0, "tolerance": 1e-10 },
-        { "inputs": { "x": 2.0, "n": -3.0 },  "expected": 0.125,  "tolerance": 1e-10 },
-        { "inputs": { "x": 4.0, "n": 0.5 },   "expected": 2.0,    "tolerance": 1e-6 },
-        { "inputs": { "x": 0.0, "n": 5.0 },   "expected": 0.0,    "tolerance": 0.0 },
-        { "inputs": { "x": 1.0, "n": 10.0 },  "expected": 1.0,    "tolerance": 1e-15 },
-        { "inputs": { "x": 1.0, "n": -5.0 },  "expected": 1.0,    "tolerance": 1e-15 }
-      ]
-    },
-    {
-      "function": "floor",
-      "cases": [
-        { "inputs": { "x":  3.7 }, "expected":  3.0 },
-        { "inputs": { "x": -3.2 }, "expected": -4.0 },
-        { "inputs": { "x":  5.0 }, "expected":  5.0 },
-        { "inputs": { "x":  0.0 }, "expected":  0.0 },
-        { "inputs": { "x": -1.0 }, "expected": -1.0 }
-      ]
-    },
-    {
-      "function": "phi_squared_plus_inverse_squared",
-      "cases": [
-        {
-          "description": "phi^2 + phi^-2 = 3 (TRINITY identity)",
-          "inputs": {},
-          "expected": 3.0,
-          "tolerance": 1e-12,
-          "computation": "PHI*PHI + PHI_INV*PHI_INV"
-        }
-      ]
-    },
-    {
-      "function": "phi_inverse_property",
-      "cases": [
-        {
-          "description": "PHI_INV == PHI - 1",
-          "inputs": {},
-          "expected": true,
-          "tolerance": 1e-15,
-          "computation": "abs(PHI_INV - (PHI - 1.0)) < 1e-15"
-        }
-      ]
-    },
-    {
-      "function": "phi_multiplicative_persistence",
-      "cases": [
-        {
-          "description": "phi^2 - phi = 1",
-          "inputs": {},
-          "expected": 1.0,
-          "tolerance": 1e-12,
-          "computation": "PHI*PHI - PHI"
-        }
-      ]
-    }
-  ],
   "invariants": [
     {
-      "name": "phi_squared_plus_inverse_squared_equals_3",
+      "assertion": "abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12",
       "description": "|PHI*PHI + 1.0/(PHI*PHI) - 3.0| < 1e-12",
-      "assertion": "abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12"
+      "name": "phi_squared_plus_inverse_squared_equals_3"
     },
     {
-      "name": "phi_self_similarity",
+      "assertion": "abs(PHI - (1.0 + 1.0/PHI)) < 1e-15",
       "description": "|PHI - (1.0 + 1.0/PHI)| < 1e-15",
-      "assertion": "abs(PHI - (1.0 + 1.0/PHI)) < 1e-15"
+      "name": "phi_self_similarity"
     },
     {
-      "name": "phi_inverse_property",
+      "assertion": "abs(PHI_INV - (PHI - 1.0)) < 1e-15",
       "description": "|PHI_INV - (PHI - 1.0)| < 1e-15",
-      "assertion": "abs(PHI_INV - (PHI - 1.0)) < 1e-15"
+      "name": "phi_inverse_property"
     },
     {
-      "name": "phi_golden_conjugate",
+      "assertion": "abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12",
       "description": "|PHI + PHI_INV - 1.0/PHI_INV| < 1e-12",
-      "assertion": "abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12"
+      "name": "phi_golden_conjugate"
     },
     {
-      "name": "trinity_exact",
+      "assertion": "TRINITY == 3.0",
       "description": "TRINITY == 3.0",
-      "assertion": "TRINITY == 3.0"
+      "name": "trinity_exact"
     },
     {
-      "name": "pi_transcendental",
+      "assertion": "structural_invariant",
       "description": "PI is transcendental (Lindemann-Weierstrass theorem)",
-      "assertion": "structural_invariant"
+      "name": "pi_transcendental"
     },
     {
-      "name": "euler_irrational",
+      "assertion": "structural_invariant",
       "description": "E is irrational (Euler, 1737)",
-      "assertion": "structural_invariant"
+      "name": "euler_irrational"
     },
     {
-      "name": "codata_gravitational_constant",
+      "assertion": "abs(G_MEASURED - 6.67430e-11) < 1.5e-15",
       "description": "G_MEASURED = 6.67430e-11 +/- 1.5e-15",
-      "assertion": "abs(G_MEASURED - 6.67430e-11) < 1.5e-15"
+      "name": "codata_gravitational_constant"
     },
     {
-      "name": "cosmological_constant_positive",
+      "assertion": "LAMBDA_COSMO > 0",
       "description": "LAMBDA_COSMO > 0",
-      "assertion": "LAMBDA_COSMO > 0"
+      "name": "cosmological_constant_positive"
     },
     {
-      "name": "dark_energy_dominance",
+      "assertion": "OMEGA_LAMBDA_MEASURED > 0.5 && OMEGA_LAMBDA_MEASURED < 1.0",
       "description": "OMEGA_LAMBDA_MEASURED > 0.5 and OMEGA_LAMBDA_MEASURED < 1.0",
-      "assertion": "OMEGA_LAMBDA_MEASURED > 0.5 && OMEGA_LAMBDA_MEASURED < 1.0"
+      "name": "dark_energy_dominance"
     },
     {
-      "name": "pow_zero_exponent_identity",
+      "assertion": "for_all(valid x): pow(x, 0.0) == 1.0",
       "description": "pow(x, 0.0) == 1.0 for all valid x",
-      "assertion": "for_all(valid x): pow(x, 0.0) == 1.0"
+      "name": "pow_zero_exponent_identity"
     },
     {
-      "name": "pow_one_exponent_identity",
+      "assertion": "for_all(valid x): pow(x, 1.0) == x",
       "description": "pow(x, 1.0) == x for all valid x",
-      "assertion": "for_all(valid x): pow(x, 1.0) == x"
+      "name": "pow_one_exponent_identity"
     },
     {
-      "name": "pow_multiply_exponents",
+      "assertion": "for_all(x>0, int a, int b): pow(pow(x,a),b) == pow(x,a*b)",
       "description": "pow(pow(x, a), b) == pow(x, a * b) for positive x, integer a, b",
-      "assertion": "for_all(x>0, int a, int b): pow(pow(x,a),b) == pow(x,a*b)"
+      "name": "pow_multiply_exponents"
     },
     {
-      "name": "floor_returns_integer",
+      "assertion": "for_all(x): floor(x) == (int64_t)floor(x)",
       "description": "floor(x) == i64 for all f64 x",
-      "assertion": "for_all(x): floor(x) == (int64_t)floor(x)"
+      "name": "floor_returns_integer"
     },
     {
-      "name": "floor_monotonic",
+      "assertion": "for_all(x<=y): floor(x) <= floor(y)",
       "description": "floor(x) <= floor(y) when x <= y",
-      "assertion": "for_all(x<=y): floor(x) <= floor(y)"
+      "name": "floor_monotonic"
     }
-  ]
+  ],
+  "module": "Constants",
+  "ring": 25,
+  "schema_version": 2,
+  "seal": "sha256:870a20bc5963337335a2984899005cec120f4beb6640442fe5c51f9201bb0401",
+  "spec_path": "specs/math/constants.t27",
+  "updated_at": "2026-04-06T15:54:08Z",
+  "validated_at": "2026-04-06T15:54:08Z",
+  "vector_name": "math_constants Vectors",
+  "vectors": [
+    {
+      "cases": [
+        {
+          "constant": "PHI",
+          "expected": 1.618033988749895,
+          "tolerance": 1e-15
+        },
+        {
+          "constant": "PHI_INV",
+          "expected": 0.6180339887498949,
+          "tolerance": 1e-15
+        },
+        {
+          "constant": "TRINITY",
+          "expected": 3.0,
+          "tolerance": 0.0
+        },
+        {
+          "constant": "PI",
+          "expected": 3.141592653589793,
+          "tolerance": 1e-15
+        },
+        {
+          "constant": "E",
+          "expected": 2.7182818284590455,
+          "tolerance": 1e-15
+        },
+        {
+          "constant": "G_MEASURED",
+          "expected": 6.6743e-11,
+          "tolerance": 1e-15
+        },
+        {
+          "constant": "LAMBDA_COSMO",
+          "expected": 1.1056e-52,
+          "tolerance": 9.999999999999999e-57
+        },
+        {
+          "constant": "OMEGA_LAMBDA_MEASURED",
+          "expected": 0.685,
+          "tolerance": 1e-15
+        }
+      ],
+      "function": "constant_values",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 5.0,
+          "inputs": {
+            "x": -5.0
+          }
+        },
+        {
+          "expected": 0.0,
+          "inputs": {
+            "x": 0.0
+          }
+        },
+        {
+          "expected": 3.7,
+          "inputs": {
+            "x": 3.7
+          }
+        },
+        {
+          "expected": 1e-10,
+          "inputs": {
+            "x": -1e-10
+          }
+        }
+      ],
+      "function": "abs",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 1.0,
+          "inputs": {
+            "n": 0.0,
+            "x": 2.0
+          },
+          "tolerance": 1e-15
+        },
+        {
+          "expected": 5.0,
+          "inputs": {
+            "n": 1.0,
+            "x": 5.0
+          },
+          "tolerance": 1e-15
+        },
+        {
+          "expected": 1024.0,
+          "inputs": {
+            "n": 10.0,
+            "x": 2.0
+          },
+          "tolerance": 1e-10
+        },
+        {
+          "expected": 0.125,
+          "inputs": {
+            "n": -3.0,
+            "x": 2.0
+          },
+          "tolerance": 1e-10
+        },
+        {
+          "expected": 2.0,
+          "inputs": {
+            "n": 0.5,
+            "x": 4.0
+          },
+          "tolerance": 1e-6
+        },
+        {
+          "expected": 0.0,
+          "inputs": {
+            "n": 5.0,
+            "x": 0.0
+          },
+          "tolerance": 0.0
+        },
+        {
+          "expected": 1.0,
+          "inputs": {
+            "n": 10.0,
+            "x": 1.0
+          },
+          "tolerance": 1e-15
+        },
+        {
+          "expected": 1.0,
+          "inputs": {
+            "n": -5.0,
+            "x": 1.0
+          },
+          "tolerance": 1e-15
+        }
+      ],
+      "function": "pow",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "expected": 3.0,
+          "inputs": {
+            "x": 3.7
+          }
+        },
+        {
+          "expected": -4.0,
+          "inputs": {
+            "x": -3.2
+          }
+        },
+        {
+          "expected": 5.0,
+          "inputs": {
+            "x": 5.0
+          }
+        },
+        {
+          "expected": 0.0,
+          "inputs": {
+            "x": 0.0
+          }
+        },
+        {
+          "expected": -1.0,
+          "inputs": {
+            "x": -1.0
+          }
+        }
+      ],
+      "function": "floor",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "computation": "PHI*PHI + PHI_INV*PHI_INV",
+          "description": "phi^2 + phi^-2 = 3 (TRINITY identity)",
+          "expected": 3.0,
+          "inputs": {},
+          "tolerance": 1e-12
+        }
+      ],
+      "function": "phi_squared_plus_inverse_squared",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "computation": "abs(PHI_INV - (PHI - 1.0)) < 1e-15",
+          "description": "PHI_INV == PHI - 1",
+          "expected": true,
+          "inputs": {},
+          "tolerance": 1e-15
+        }
+      ],
+      "function": "phi_inverse_property",
+      "verdict": "CLEAN"
+    },
+    {
+      "cases": [
+        {
+          "computation": "PHI*PHI - PHI",
+          "description": "phi^2 - phi = 1",
+          "expected": 1.0,
+          "inputs": {},
+          "tolerance": 1e-12
+        }
+      ],
+      "function": "phi_multiplicative_persistence",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(PHI*PHI + 1.0/(PHI*PHI) - 3.0) < 1e-12"
+      },
+      "name": "inv_phi_squared_plus_inverse_squared_equals_3",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(PHI - (1.0 + 1.0/PHI)) < 1e-15",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(PHI - (1.0 + 1.0/PHI)) < 1e-15"
+      },
+      "name": "inv_phi_self_similarity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(PHI_INV - (PHI - 1.0)) < 1e-15",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(PHI_INV - (PHI - 1.0)) < 1e-15"
+      },
+      "name": "inv_phi_inverse_property",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(PHI + PHI_INV - 1.0/PHI_INV) < 1e-12"
+      },
+      "name": "inv_phi_golden_conjugate",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: TRINITY == 3.0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "TRINITY == 3.0"
+      },
+      "name": "inv_trinity_exact",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: structural_invariant",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "structural_invariant"
+      },
+      "name": "inv_pi_transcendental",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: structural_invariant",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "structural_invariant"
+      },
+      "name": "inv_euler_irrational",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: abs(G_MEASURED - 6.67430e-11) < 1.5e-15",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "abs(G_MEASURED - 6.67430e-11) < 1.5e-15"
+      },
+      "name": "inv_codata_gravitational_constant",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: LAMBDA_COSMO > 0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "LAMBDA_COSMO > 0"
+      },
+      "name": "inv_cosmological_constant_positive",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: OMEGA_LAMBDA_MEASURED > 0.5 && OMEGA_LAMBDA_MEASURED < 1.0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "OMEGA_LAMBDA_MEASURED > 0.5 && OMEGA_LAMBDA_MEASURED < 1.0"
+      },
+      "name": "inv_dark_energy_dominance",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(valid x): pow(x, 0.0) == 1.0",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(valid x): pow(x, 0.0) == 1.0"
+      },
+      "name": "inv_pow_zero_exponent_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(valid x): pow(x, 1.0) == x",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(valid x): pow(x, 1.0) == x"
+      },
+      "name": "inv_pow_one_exponent_identity",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x>0, int a, int b): pow(pow(x,a),b) == pow(x,a*b)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x>0, int a, int b): pow(pow(x,a),b) == pow(x,a*b)"
+      },
+      "name": "inv_pow_multiply_exponents",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x): floor(x) == (int64_t)floor(x)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x): floor(x) == (int64_t)floor(x)"
+      },
+      "name": "inv_floor_returns_integer",
+      "verdict": "CLEAN"
+    },
+    {
+      "description": "Invariant: for_all(x<=y): floor(x) <= floor(y)",
+      "expected": {
+        "value": true
+      },
+      "input": {
+        "assertion": "for_all(x<=y): floor(x) <= floor(y)"
+      },
+      "name": "inv_floor_monotonic",
+      "verdict": "CLEAN"
+    }
+  ],
+  "verdict": "CLEAN",
+  "version": "2.0"
 }

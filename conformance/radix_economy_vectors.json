@@ -1,0 +1,82 @@
+{
+  "$schema": "./SCHEMA_V2.json",
+  "schema_version": 2,
+  "format_family": "Math",
+  "format_name": "RadixEconomy",
+  "format_bits": null,
+  "vector_name": "Radix Economy Conformance Vectors",
+  "version": "1.0.0",
+  "description": "Conformance vectors for radix economy theorem: E(3)/E(e) >= 99.5%, E(3) > E(2) by 5.4%",
+  "verdict": "CLEAN",
+  "seal": "sha256:PENDING_COMPUTE_ON_COMMIT",
+  "phi_distance": null,
+  "sacred_ok": null,
+  "is_primary": true,
+  "format_spec": {
+    "e_base3": 0.3662040962227032,
+    "e_base2": 0.34657359027997264,
+    "e_optimal": 0.36787944117144233,
+    "log2_3": 1.584962500721156
+  },
+  "test_vectors": [
+    {
+      "name": "e_base3_near_optimal",
+      "description": "E(3) >= 99.5% of E(e)",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"efficiency_ratio": 0.995, "tolerance": 0.001}
+    },
+    {
+      "name": "e_base3_beats_base2",
+      "description": "E(3) > E(2) with 5.4% advantage",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"e3_gt_e2": true, "advantage_ratio": 0.054, "tolerance": 0.001}
+    },
+    {
+      "name": "log2_3_accuracy",
+      "description": "log2(3) ≈ 1.58496 within tolerance",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"value": 1.584962500721156, "tolerance": 1e-6}
+    },
+    {
+      "name": "ternary_vs_binary_range_27trit",
+      "description": "27 trits > 42 bits, <= 43 bits",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"ternary_range_27": 3936808944, "binary_range_42": 4398046511104, "binary_range_43": 8796093022208}
+    },
+    {
+      "name": "ternary_vs_binary_range_18trit",
+      "description": "18 trits > 28 bits, <= 29 bits",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"ternary_range_18": 193710244, "binary_range_28": 268435456, "binary_range_29": 536870912}
+    },
+    {
+      "name": "base_advantage_3_vs_2",
+      "description": "E(3)/E(2) >= 1.054 (5.4% advantage)",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"ratio": 1.0544, "tolerance": 0.001}
+    },
+    {
+      "name": "info_density_trit",
+      "description": "log2(3) bits per trit information density",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"bits_per_trit": 1.585, "tolerance": 0.001}
+    },
+    {
+      "name": "trit_info_density_range",
+      "description": "Trit has >1 and <2 bits of information",
+      "verdict": "CLEAN",
+      "input": {},
+      "expected": {"min": 1.5, "max": 2.0}
+    }
+  ],
+  "created_at": "2026-04-07T15:00:00+07:00",
+  "updated_at": "2026-04-07T15:00:00+07:00",
+  "validated_at": "2026-04-07T15:00:00+07:00"
+}

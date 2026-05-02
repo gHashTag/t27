@@ -1,0 +1,82 @@
+{
+  "chsh_bounds": {
+    "classical": "2.0",
+    "tsirelson": "2.8284271247461902909492437174776569008827209472656",
+    "tsirelson_exact": "2.8284271247461902909492437174776569008827209472656"
+  },
+  "trinity_candidates": [
+    {
+      "monomial": "e",
+      "value": "2.7182818284590452353602874713526624977572470937",
+      "delta_pct": 3.894224296022086,
+      "tier": "CANDIDATE",
+      "complexity": 1.0
+    },
+    {
+      "monomial": "\\phi^{2}",
+      "value": "2.6180339887498948482045868343656381177203091798058",
+      "delta_pct": 7.4385206589042,
+      "tier": "CONJECTURAL",
+      "complexity": 2.0
+    },
+    {
+      "monomial": "2 \\cdot \\phi^{-2} \\cdot \\pi",
+      "value": "2.3999632297286533222315555066336138531249990110581",
+      "delta_pct": 15.148486283025068,
+      "tier": "CONJECTURAL",
+      "complexity": 3.0
+    },
+    {
+      "monomial": "\\phi^{-1} \\cdot \\pi",
+      "value": "1.941611038725466577346865629962695957634669893846",
+      "delta_pct": 31.35368340452832,
+      "tier": "CONJECTURAL",
+      "complexity": 2.0
+    },
+    {
+      "monomial": "3 \\cdot \\phi^{-1}",
+      "value": "1.8541019662496845446137605030969143531609275394173",
+      "delta_pct": 34.447596332676845,
+      "tier": "CONJECTURAL",
+      "complexity": 1.0
+    },
+    {
+      "monomial": "\\pi^{0.5}",
+      "value": "1.7724538509055160272981674833411451827975494561224",
+      "delta_pct": 37.33429313422499,
+      "tier": "CONJECTURAL",
+      "complexity": 0.5
+    },
+    {
+      "monomial": "\\phi^{0.5} \\cdot \\pi",
+      "value": "3.9961675861352626667057493784776157105875524205838",
+      "delta_pct": 41.28585994570604,
+      "tier": "CONJECTURAL",
+      "complexity": 1.5
+    },
+    {
+      "monomial": "2 \\cdot e",
+      "value": "5.4365636569180904707205749427053249955144941873999",
+      "delta_pct": 92.21155140795582,
+      "tier": "CONJECTURAL",
+      "complexity": 1.0
+    }
+  ],
+  "best_approximation": {
+    "monomial": "2 \\cdot \\phi \\cdot \\pi^{-1} \\cdot e",
+    "value": "2.8000271673809697125972270059995805207639733805062",
+    "delta_pct": "1.004090121917815244013532870751418543013285763942276944996421350979310454001437172383021103877900039",
+    "complexity": 3.0
+  },
+  "null_result": {
+    "description": "Trinity basis cannot achieve VERIFIED precision for CHSH = 2\u221a2",
+    "best_delta_pct": 3.894224296022086,
+    "best_tier": "CANDIDATE",
+    "limitation": "Basis {\u03c6, \u03c0, e} does not contain \u221a2 exactly"
+  },
+  "hybrid_conjecture": {
+    "hypothesis": "Pellis polynomial framework may achieve better precision for 2\u221a2",
+    "rationale": "Pellis polynomials P(\u03c6) = \u03a3 c_k\u00b7\u03c6^{-k} allow more flexibility",
+    "question_for_sterigos": "Can Pellis polynomials achieve better than CANDIDATE precision (\u0394 < 0.35%) for the Tsirelson bound 2\u221a2 \u2248 2.828?"
+  }
+}

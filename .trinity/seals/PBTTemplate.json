@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:04bf4bb58c7613299b30015e17c4039b70f306ffafd3e681465aef0a218a38db",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:a1e688189a2b4ddacd61528c73edd407f4114efefb637ff095301afa8622d310",
+  "gen_hash_zig": "sha256:1d9cb43512cdfb7600984d9fdead3129dd59810c0d5113d46a660e564bcdd4a3",
+  "module": "PBTTemplate",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:4df77a447e28e3e0799495cd1701dcb022b20377a83898032d2f7f7523c5dacc",
+  "spec_path": "specs/test_framework/property_test_template.t27"
+}

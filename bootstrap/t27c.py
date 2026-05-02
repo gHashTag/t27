@@ -65,6 +65,22 @@ class TokenType(Enum):
     DOT = "dot"
     DCOLON = "dcolon"
     BANG = "bang"
+    PLUS = "plus"
+    MINUS = "minus"
+    STAR = "star"
+    SLASH = "slash"
+    PERCENT = "percent"
+    LT = "lt"
+    GT = "gt"
+    LE = "le"
+    GE = "ge"
+    EQ_EQ = "eq_eq"
+    BANG_EQ = "bang_eq"
+    AMP_AMP = "amp_amp"
+    PIPE_PIPE = "pipe_pipe"
+    AMP = "amp"
+    PIPE = "pipe"
+    CARET = "caret"
 
     # Special
     EOF = "eof"
@@ -218,24 +234,6 @@ class Lexer:
                 # It's a statement terminator
                 return Token(TokenType.SEMICOLON, ";", self.line, self.column - 1)
 
-        # Single char tokens
-        single_char_tokens = {
-            ":": TokenType.COLON,
-            ",": TokenType.COMMA,
-            "=": TokenType.EQUALS,
-            "(": TokenType.LPAREN,
-            ")": TokenType.RPAREN,
-            "{": TokenType.LBRACE,
-            "}": TokenType.RBRACE,
-            "[": TokenType.LBRACKET,
-            "]": TokenType.RBRACKET,
-            ".": TokenType.DOT,
-            "!": TokenType.BANG,
-        }
-        if ch in single_char_tokens:
-            self.advance()
-            return Token(single_char_tokens[ch], ch, self.line, self.column - 1)
-
         # Multi-char operators (must check before single-char tokens)
         if self.pos + 1 < len(self.source):
             two_chars = self.source[self.pos:self.pos+2]
@@ -255,6 +253,30 @@ class Lexer:
                 self.advance()
                 self.advance()
                 return Token(TokenType.DCOLON, two_chars, self.line, self.column - 2)
+            if two_chars == "<=":
+                self.advance()
+                self.advance()
+                return Token(TokenType.LE, two_chars, self.line, self.column - 2)
+            if two_chars == ">=":
+                self.advance()
+                self.advance()
+                return Token(TokenType.GE, two_chars, self.line, self.column - 2)
+            if two_chars == "==":
+                self.advance()
+                self.advance()
+                return Token(TokenType.EQ_EQ, two_chars, self.line, self.column - 2)
+            if two_chars == "!=":
+                self.advance()
+                self.advance()
+                return Token(TokenType.BANG_EQ, two_chars, self.line, self.column - 2)
+            if two_chars == "&&":
+                self.advance()
+                self.advance()
+                return Token(TokenType.AMP_AMP, two_chars, self.line, self.column - 2)
+            if two_chars == "||":
+                self.advance()
+                self.advance()
+                return Token(TokenType.PIPE_PIPE, two_chars, self.line, self.column - 2)
 
         # Single char tokens
         single_char_tokens = {
@@ -269,6 +291,16 @@ class Lexer:
             "]": TokenType.RBRACKET,
             ".": TokenType.DOT,
             "!": TokenType.BANG,
+            "+": TokenType.PLUS,
+            "-": TokenType.MINUS,
+            "*": TokenType.STAR,
+            "/": TokenType.SLASH,
+            "%": TokenType.PERCENT,
+            "<": TokenType.LT,
+            ">": TokenType.GT,
+            "&": TokenType.AMP,
+            "|": TokenType.PIPE,
+            "^": TokenType.CARET,
         }
         if ch in single_char_tokens:
             self.advance()
@@ -290,13 +322,21 @@ class Lexer:
             token_type = KEYWORDS.get(lexeme, TokenType.IDENTIFIER)
             return Token(token_type, lexeme, self.line, self.column - len(lexeme))
 
-        # Numbers
+        # Numbers (including floating point)
         if ch.isdigit() or (ch == "-" and self.pos + 1 < len(self.source) and self.source[self.pos + 1].isdigit()):
             start = self.pos
             if ch == "-":
                 self.advance()
+            # Integer part
             while self.pos < len(self.source) and self.peek().isdigit():
                 self.advance()
+            # Decimal point and fractional part
+            if self.pos < len(self.source) and self.peek() == ".":
+                # Check if this is actually a decimal point (followed by digit)
+                if self.pos + 1 < len(self.source) and self.source[self.pos + 1].isdigit():
+                    self.advance()  # consume .
+                    while self.pos < len(self.source) and self.peek().isdigit():
+                        self.advance()
             # Hex prefix 0x
             if self.pos < len(self.source) and self.peek() == "x":
                 self.advance()
@@ -386,12 +426,13 @@ class Parser:
             self.expect(TokenType.KW_USE)
             # Build path: identifier (:: identifier)*
             path_parts = []
-            if self.current.type == TokenType.IDENTIFIER:
+            # Allow keywords in paths
+            if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
                 path_parts.append(self.current.lexeme)
                 self.next()
             while self.current.type == TokenType.DCOLON:
                 self.next()  # consume ::
-                if self.current.type == TokenType.IDENTIFIER:
+                if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
                     path_parts.append(self.current.lexeme)
                     self.next()
             node.name = "::".join(path_parts)
@@ -434,7 +475,12 @@ class Parser:
         if self.current.type == TokenType.IDENTIFIER:
             node.name = self.current.lexeme
             self.next()
-        self.expect(TokenType.SEMICOLON)
+        # Support both module NAME; and module NAME { ... }
+        if self.current.type == TokenType.SEMICOLON:
+            self.next()
+        elif self.current.type == TokenType.LBRACE:
+            body = self.parse_block()
+            node.children.append(body)
         return node
 
     def parse_const_decl(self, is_pub: bool) -> Node:
@@ -456,9 +502,19 @@ class Parser:
         if self.current.type == TokenType.COLON:
             # Typed constant: NAME : TYPE = VALUE;
             self.next()
-            if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE):
-                node.extra["type"] = self.current.lexeme
+            # Support qualified types: module::type
+            type_parts = []
+            # Allow keywords as type names (e.g., module::Type)
+            if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
+                type_parts.append(self.current.lexeme)
                 self.next()
+                while self.current.type == TokenType.DCOLON:
+                    self.next()  # consume ::
+                    if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
+                        type_parts.append(self.current.lexeme)
+                        self.next()
+            if type_parts:
+                node.extra["type"] = "::".join(type_parts)
             if self.current.type == TokenType.EQUALS:
                 self.next()
                 init = self.parse_expression()
@@ -474,9 +530,19 @@ class Parser:
                     node.extra["array_size"] = self.current.lexeme
                     self.next()
                 self.expect(TokenType.RBRACKET)
-            if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE):
-                node.extra["type"] = self.current.lexeme
+            # Support qualified types: module::type
+            type_parts = []
+            # Allow keywords as type names (e.g., module::Type)
+            if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
+                type_parts.append(self.current.lexeme)
                 self.next()
+                while self.current.type == TokenType.DCOLON:
+                    self.next()  # consume ::
+                    if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
+                        type_parts.append(self.current.lexeme)
+                        self.next()
+            if type_parts:
+                node.extra["type"] = "::".join(type_parts)
             self.expect(TokenType.SEMICOLON)
         else:
             raise SyntaxError(f"Expected : or = after const name, got {self.current.type}")
@@ -646,6 +712,26 @@ class Parser:
         return node
 
     def parse_statement(self) -> Node:
+        # const NAME: TYPE = VALUE; (for module blocks)
+        if self.current.type == TokenType.KW_CONST:
+            return self.parse_const_decl(is_pub=False)
+
+        # fn NAME(...) TYPE { ... } (for module blocks)
+        if self.current.type == TokenType.KW_FN:
+            return self.parse_fn_decl(is_pub=False)
+
+        # test "name" { ... } (for module blocks)
+        if self.current.type == TokenType.KW_TEST:
+            return self.parse_test_block()
+
+        # invariant name { ... } (for module blocks)
+        if self.current.type == TokenType.KW_INVARIANT:
+            return self.parse_invariant_block()
+
+        # bench "name" { ... } (for module blocks)
+        if self.current.type == TokenType.KW_BENCH:
+            return self.parse_bench_block()
+
         # var NAME: TYPE = init;
         if self.current.type == TokenType.KW_VAR:
             return self.parse_var_decl()
@@ -728,31 +814,29 @@ class Parser:
 
     def parse_or(self) -> Node:
         left = self.parse_and()
-        while self.current.type == TokenType.IDENTIFIER:
-            op = self.current.lexeme
+        while self.current.type == TokenType.PIPE_PIPE:
             self.next()
             right = self.parse_and()
             node = Node("expr_binary")
-            node.extra["operator"] = op
+            node.extra["operator"] = "||"
             node.children = [left, right]
             left = node
         return left
 
     def parse_and(self) -> Node:
         left = self.parse_comparison()
-        while self.current.type == TokenType.IDENTIFIER:
-            op = self.current.lexeme
+        while self.current.type == TokenType.AMP_AMP:
             self.next()
             right = self.parse_comparison()
             node = Node("expr_binary")
-            node.extra["operator"] = op
+            node.extra["operator"] = "&&"
             node.children = [left, right]
             left = node
         return left
 
     def parse_comparison(self) -> Node:
         left = self.parse_switch()
-        while self.current.type == TokenType.IDENTIFIER:
+        while self.current.type in (TokenType.LT, TokenType.GT, TokenType.LE, TokenType.GE, TokenType.EQ_EQ, TokenType.BANG_EQ):
             op = self.current.lexeme
             self.next()
             right = self.parse_switch()
@@ -800,7 +884,7 @@ class Parser:
 
     def parse_term(self) -> Node:
         left = self.parse_factor()
-        while self.current.type == TokenType.IDENTIFIER:
+        while self.current.type in (TokenType.PLUS, TokenType.MINUS):
             op = self.current.lexeme
             self.next()
             right = self.parse_factor()
@@ -812,7 +896,7 @@ class Parser:
 
     def parse_factor(self) -> Node:
         left = self.parse_unary()
-        while self.current.type == TokenType.IDENTIFIER:
+        while self.current.type in (TokenType.STAR, TokenType.SLASH, TokenType.PERCENT):
             op = self.current.lexeme
             self.next()
             right = self.parse_unary()
@@ -874,14 +958,23 @@ class Parser:
         # switch EXPR { ... } or Identifier or function call or field access
         if self.current.type == TokenType.KW_SWITCH:
             return self.parse_switch()
-        if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE):
-            name = self.current.lexeme
+        # Allow keywords in qualified paths (e.g., module::fn)
+        if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
+            # Build path: identifier (:: identifier)*
+            path_parts = [self.current.lexeme]
             self.next()
 
-            # Function call
+            # Handle qualified path (module::fn or module::submodule::fn)
+            while self.current.type == TokenType.DCOLON:
+                self.next()  # consume ::
+                if self.current.type in (TokenType.IDENTIFIER, TokenType.KW_UNDERSCORE, TokenType.KW_MODULE):
+                    path_parts.append(self.current.lexeme)
+                    self.next()
+
+            # Function call with qualified path
             if self.current.type == TokenType.LPAREN:
                 node = Node("expr_call")
-                node.name = name
+                node.name = "::".join(path_parts)
                 self.next()
                 while self.current.type != TokenType.RPAREN and self.current.type != TokenType.EOF:
                     arg = self.parse_expression()
@@ -891,19 +984,26 @@ class Parser:
                 self.expect(TokenType.RPAREN)
                 return node
 
-            # Field access
+            # Field access with qualified path (module::obj.field)
             if self.current.type == TokenType.DOT:
                 node = Node("expr_field_access")
-                node.name = name
+                node.name = "::".join(path_parts)
                 self.next()
                 if self.current.type == TokenType.IDENTIFIER:
                     node.extra["field"] = self.current.lexeme
                     self.next()
                 return node
 
+            # Simple identifier or qualified identifier without call/access
+            if len(path_parts) > 1:
+                # Qualified identifier (e.g., module::constant)
+                node = Node("expr_qualified")
+                node.name = "::".join(path_parts)
+                return node
+
             # Simple identifier
             node = Node("expr_identifier")
-            node.name = name
+            node.name = path_parts[0]
             return node
 
         # Parenthesized expression
@@ -962,10 +1062,12 @@ def generate_zig(node: Node, indent: int = 0) -> str:
 
     elif node.node_type == "const_decl":
         pub_prefix = "pub " if node.extra.get("pub") == "true" else ""
+        # Convert qualified types from :: to . for Zig
+        type_name = node.extra.get('type', '').replace("::", ".")
         if node.children:
-            emit(f"{pub_prefix}const {node.name}: {node.extra['type']} = {generate_zig(node.children[0])};")
+            emit(f"{pub_prefix}const {node.name}: {type_name} = {generate_zig(node.children[0])};")
         else:
-            emit(f"{pub_prefix}const {node.name}: {node.extra['type']};")
+            emit(f"{pub_prefix}const {node.name}: {type_name};")
 
     elif node.node_type == "enum_decl":
         pub_prefix = "pub " if node.extra.get("pub") == "true" else ""
@@ -1034,12 +1136,19 @@ def generate_zig(node: Node, indent: int = 0) -> str:
     elif node.node_type == "expr_identifier":
         return node.name
 
+    elif node.node_type == "expr_qualified":
+        # Convert module::name to module.name for Zig
+        return node.name.replace("::", ".")
+
     elif node.node_type == "expr_call":
         args = ", ".join([generate_zig(a) for a in node.children])
         return f"{node.name}({args})"
 
     elif node.node_type == "expr_field_access":
-        return f"{node.name}.{node.extra.get('field', '')}"
+        # Convert module::name to module.name for Zig
+        base = node.name.replace("::", ".")
+        field = node.extra.get('field', '')
+        return f"{base}.{field}"
 
     elif node.node_type == "expr_binary":
         if len(node.children) >= 2:

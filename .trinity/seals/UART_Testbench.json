@@ -1,21 +1,11 @@
 {
+  "gen_hash_c": "sha256:bb28a9f16f8c7440ce2484d297b7919b752aed39df28f50d2b192755608cb4f2",
+  "gen_hash_rust": "sha256:325a7e146abe1e7505d095670a7b4b598baa23771759a6dfc5b16858359d8873",
+  "gen_hash_verilog": "sha256:a87cc4f9552bc97536a0be5a606ab02dde69c61367b4f04f40080dab74b90164",
+  "gen_hash_zig": "sha256:56f477a6d19f01cfd29c226f96b7dc75ebe29104ea97bc4690d0720d4d4f8b55",
   "module": "UART_Testbench",
-  "ring": 43,
-  "spec_path": "specs/fpga/testbench/uart_tb.t27",
-  "spec_hash": "sha256:0a1b2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8",
-  "gen_hash_zig": "sha256:2c3d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a",
-  "gen_hash_c": "sha256:4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c",
-  "gen_hash_verilog": "sha256:6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e",
-  "conformance_hash": "sha256:829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f607",
-  "tests": {
-    "status": "passed",
-    "count": 7,
-    "invariants": 11,
-    "benchmarks": 3
-  },
-  "verdict": {
-    "toxicity": "clean",
-    "score": 0.0
-  },
-  "sealed_at": "2026-04-05T12:00:00Z"
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:379740eea2f1d1c60693f69cd89d57566017db7dcbe77484f8d2f54c97cb40b8",
+  "spec_path": "specs/fpga/testbench/uart_tb.t27"
 }

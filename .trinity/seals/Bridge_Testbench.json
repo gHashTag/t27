@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:09c2a214fa9297e62d235b5a2745c8a0e1761896b90dc4ca5c758e96b3feea0b",
+  "gen_hash_rust": "sha256:b7c4f1097e0346fe05d3ff5592885b86118fb9c22b612f23bd5e1418e8348768",
+  "gen_hash_verilog": "sha256:e6177fd2d9d8a11cfe3368ab7308d3181836e184b36005463d20e788ba2e2916",
+  "gen_hash_zig": "sha256:0debcb94767893dd0bdc26ab103e4cf4c49396c1b6b19cc452da3c9afcc7d2b4",
+  "module": "Bridge_Testbench",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:c1cbe82a00e3075ac9f1ecbc4f19cc905a6b90e80e437fd4780770301c9bfd68",
+  "spec_path": "specs/fpga/testbench/bridge_tb.t27"
+}

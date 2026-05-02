@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:7e807004dd257e5aeda6834b350666e9e2ea2247aa43b32fb53ed5e81e97d50a",
+  "gen_hash_rust": "sha256:9af8ab0e0f9536780c8cde8387397307e51e26d097967b7cd7e2ffe26cb457fa",
+  "gen_hash_verilog": "sha256:dd3c59a00042d0cf9f5d9e46ee4deb861ac9113433ddd5aa619eed2850498763",
+  "gen_hash_zig": "sha256:9f3e7345e2e2a0beccfebc20807afae121ef793645c40749ff65e473228b101d",
+  "module": "e8_lqg_bridge",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:46fae880669b169f692fe7f833dbbb5438a038fc51295cd6202ffdfaef75e889",
+  "spec_path": "specs/physics/e8_lqg_bridge.t27"
+}

@@ -1,0 +1,40 @@
+<<<<<<< Updated upstream
+DIGEST e5a254b2e49181c3d26e861e5071c227
+Fgamma_phi3
+R15:19 Stdlib.Reals.Reals <> <> lib
+def 55:57 <> phi
+R61:61 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R66:66 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R77:80 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R68:70 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R71:74 Stdlib.Reals.R_sqrt <> sqrt def
+def 95:103 <> gamma_phi
+R107:107 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R115:118 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R121:121 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R112:114 gamma_phi3 <> phi def
+=======
+DIGEST 272415c4116198ca2c0f4ae3363ff601
+Fgamma_phi3
+R27:31 Stdlib.Reals.Reals <> <> lib
+R61:65 Stdlib.setoid_ring.Field <> <> lib
+def 101:103 <> phi
+R107:107 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R113:113 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R124:127 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R115:117 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'+'_x not
+R118:121 Stdlib.Reals.R_sqrt <> sqrt def
+def 143:151 <> gamma_phi
+R155:155 Stdlib.Reals.Rdefinitions RbaseSymbolsImpl R defax
+R161:164 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R172:172 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'/'_x not
+R168:170 Stdlib.Reals.Rfunctions <> ::R_scope:x_'^'_x not
+R165:167 gamma_phi3 <> phi def
+prf 184:209 <> gamma_phi_is_sqrt5_minus_2
+R222:224 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R213:221 gamma_phi3 <> gamma_phi def
+R231:233 Stdlib.Reals.Rdefinitions <> ::R_scope:x_'-'_x not
+R225:228 Stdlib.Reals.R_sqrt <> sqrt def
+R253:261 gamma_phi3 <> gamma_phi def
+R264:266 gamma_phi3 <> phi def
+>>>>>>> Stashed changes

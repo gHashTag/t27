@@ -1,0 +1,202 @@
+{
+  "constants": {
+    "MAX_ASSIGNS": 256,
+    "MAX_BUS_PORTS": 8,
+    "MAX_CLOCK_DOMAINS": 8,
+    "MAX_ERRORS": 64,
+    "MAX_INSTANCES": 32,
+    "MAX_MEM_PORTS": 4,
+    "MAX_MEMS": 16,
+    "MAX_PORTS": 64,
+    "MAX_SIGNALS": 256
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Hardware Intermediate Representation (HIR) for Trinity T27 -- decouples .t27 spec semantics from Verilog/SystemVerilog emission",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Empty module has zero ports",
+      "id": "empty_module_zero_ports"
+    },
+    {
+      "description": "Empty module has zero signals",
+      "id": "empty_module_zero_signals"
+    },
+    {
+      "description": "Port count is always non-negative",
+      "id": "port_count_non_negative"
+    },
+    {
+      "description": "Total port bits is always non-negative",
+      "id": "total_port_bits_non_negative"
+    },
+    {
+      "description": "Module validation returns non-negative error count",
+      "id": "validate_returns_non_negative"
+    },
+    {
+      "description": "Memory BRAM18 count is always non-negative",
+      "id": "mem_bram18_count_non_negative"
+    },
+    {
+      "description": "Memory port count stays within MAX_MEM_PORTS bounds",
+      "id": "mem_port_count_within_bounds"
+    },
+    {
+      "description": "Bus port total signals is positive for valid config",
+      "id": "bus_port_total_signals_positive"
+    }
+  ],
+  "module": "Hir",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/hir.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Hir Vectors",
+  "vectors": {
+    "module_construction": {
+      "cases": [
+        {
+          "description": "Empty module starts with zero ports, signals, and assigns",
+          "id": "empty_module_has_zero_ports"
+        },
+        {
+          "description": "Adding a port increments port count",
+          "id": "add_port_increments_count"
+        },
+        {
+          "description": "Adding two ports yields count=2 and correct total bits",
+          "id": "add_two_ports"
+        },
+        {
+          "description": "Adding a signal increments signal count",
+          "id": "add_signal_increments_count"
+        },
+        {
+          "description": "Adding an assign increments assign count",
+          "id": "add_assign_increments_count"
+        }
+      ],
+      "description": "HIR module construction and mutation"
+    },
+    "port_detection": {
+      "cases": [
+        {
+          "description": "Module with clock port returns has_clock_port=true",
+          "id": "has_clock_port_true"
+        },
+        {
+          "description": "Module without clock port returns has_clock_port=false",
+          "id": "has_clock_port_false"
+        },
+        {
+          "description": "Module with reset port returns has_reset_port=true",
+          "id": "has_reset_port_true"
+        }
+      ],
+      "description": "Clock and reset port detection"
+    },
+    "module_validation": {
+      "cases": [
+        {
+          "description": "Named empty module passes validation",
+          "id": "validate_empty_module_ok"
+        },
+        {
+          "description": "Unnamed module fails validation",
+          "id": "validate_unnamed_module_fails"
+        },
+        {
+          "description": "Duplicate port names fail validation",
+          "id": "validate_duplicate_ports_fails"
+        }
+      ],
+      "description": "HIR module validation"
+    },
+    "memory_nodes": {
+      "cases": [
+        {
+          "description": "Empty memory has zero total bits",
+          "id": "mem_empty_has_zero_bits"
+        },
+        {
+          "description": "make_mem sets depth and data_width correctly",
+          "id": "mem_make_sets_fields"
+        },
+        {
+          "description": "Total bits = depth * data_width = 32768",
+          "id": "mem_total_bits"
+        },
+        {
+          "description": "Single BRAM18 fits 1024x18 bits",
+          "id": "mem_bram18_count_single"
+        },
+        {
+          "description": "Two BRAM18s needed for 2048x18 bits",
+          "id": "mem_bram18_count_two"
+        },
+        {
+          "description": "Adding a port increments memory port count",
+          "id": "mem_add_port_increments"
+        },
+        {
+          "description": "Adding two ports yields port_count=2",
+          "id": "mem_add_two_ports"
+        },
+        {
+          "description": "Adding a mem to module increments mem_count",
+          "id": "add_mem_to_module"
+        }
+      ],
+      "description": "Memory (BRAM/DRAM/ROM) node operations"
+    },
+    "clock_domains": {
+      "cases": [
+        {
+          "description": "Adding a clock domain increments clock_domain_count",
+          "id": "add_clock_domain_to_module"
+        },
+        {
+          "description": "Primary clock domain has is_primary=true",
+          "id": "clock_domain_primary"
+        },
+        {
+          "description": "Secondary clock domain has is_primary=false",
+          "id": "clock_domain_secondary"
+        }
+      ],
+      "description": "Clock domain management"
+    },
+    "bus_ports": {
+      "cases": [
+        {
+          "description": "Adding a bus port increments bus_port_count",
+          "id": "add_bus_port_to_module"
+        },
+        {
+          "description": "AXI4-Lite bus port total signals = addr + data*2 + 9",
+          "id": "bus_port_axi4_lite_signals"
+        },
+        {
+          "description": "APB bus port total signals = addr + data*2 + 5",
+          "id": "bus_port_apb_signals"
+        }
+      ],
+      "description": "Bus port (AXI/APB/Wishbone) operations"
+    },
+    "initial_state": {
+      "cases": [
+        {
+          "description": "Empty module has zero mems, clock domains, and bus ports",
+          "id": "empty_module_zero_mems_and_clocks"
+        }
+      ],
+      "description": "Module initial state verification"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

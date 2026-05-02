@@ -12,11 +12,13 @@ usage() {
     echo "  flash      - Flash bitstream to FPGA (default)"
     echo "  list       - List connected FPGA boards"
     echo "  openocd    - Flash using OpenOCD"
+    echo "  ofl        - Flash using openFPGALoader"
     echo "  impact     - Flash using Xilinx Impact (legacy)"
     echo ""
     echo "Environment variables:"
     echo "  BITSTREAM  - Path to bitstream file (default: build/fpga/pnr/design.bit)"
     echo "  CABLE      - JTAG cable name (default: auto-detect)"
+  echo "  BOARD      - Target board: qmtech_a100t or arty_a7 (default: qmtech_a100t)"
 }
 
 check_bitstream() {
@@ -58,7 +60,7 @@ flash_openocd() {
     
     if ! command -v openocd &> /dev/null; then
         echo "Error: OpenOCD is required but not installed."
-        echo "Install openocd or use Docker with USE_DOCKER=1"
+        echo "Install openocd or use openFPGALoader (openFPGALoader -f $BITSTREAM)"
         exit 1
     fi
     
@@ -80,6 +82,30 @@ flash_openocd() {
             -c "shutdown"
     fi
     
+    echo "Flash complete!"
+}
+
+flash_openfpgaloader() {
+    echo "=== Flashing with openFPGALoader ==="
+    check_bitstream
+
+    if ! command -v openFPGALoader &> /dev/null; then
+        echo "Error: openFPGALoader not found."
+        echo "Install: https://github.com/trabucayre/openFPGALoader"
+        exit 1
+    fi
+
+    local board="${BOARD:-qmtech_a100t}"
+    local extra_args=""
+
+    if [[ "$board" == "qmtech_a100t" ]]; then
+        extra_args="--fpga-part xc7a100t --cable digilent_hs1"
+    elif [[ "$board" == "arty_a7" ]]; then
+        extra_args="--board arty_a7_100t"
+    fi
+
+    echo "Programming $BITSTREAM on $board..."
+    openFPGALoader --write-bitstream $extra_args "$BITSTREAM"
     echo "Flash complete!"
 }
 
@@ -138,6 +164,9 @@ main() {
             ;;
         openocd)
             flash_openocd
+            ;;
+        ofl)
+            flash_openfpgaloader
             ;;
         impact)
             flash_impact

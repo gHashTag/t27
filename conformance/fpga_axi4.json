@@ -1,0 +1,153 @@
+{
+  "constants": {
+    "MAX_BUS_PORTS": 32,
+    "AXI_ADDR_WIDTH": 32,
+    "AXI_DATA_WIDTH": 32,
+    "AXI_STRB_WIDTH": 4,
+    "AXI_ID_WIDTH": 4,
+    "AXI_LEN_WIDTH": 8,
+    "AXI_SIZE_WIDTH": 3,
+    "AXI_BURST_WIDTH": 2,
+    "AXI_RESP_WIDTH": 2,
+    "AXI_CACHE_WIDTH": 4,
+    "AXI_PROT_WIDTH": 3,
+    "AXI_QOS_WIDTH": 4,
+    "AXI_REGION_WIDTH": 4,
+    "AXI_USER_WIDTH": 1,
+    "CH_AW": 0,
+    "CH_AR": 1,
+    "CH_W": 2,
+    "CH_R": 3,
+    "CH_B": 4
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "AXI4-Lite and AXI4-Full Bus Interface Specification for Trinity T27 FPGA HIR -- defines bus port groups for AW/AR/W/R/B channels",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "id": "addr_width_positive",
+      "description": "AXI address width must be positive"
+    },
+    {
+      "id": "data_width_byte_aligned",
+      "description": "AXI data width must be byte-aligned"
+    },
+    {
+      "id": "strb_width_matches_data",
+      "description": "Strobe width equals data width divided by 8"
+    },
+    {
+      "id": "lite_has_zero_id",
+      "description": "AXI4-Lite always has zero ID width"
+    },
+    {
+      "id": "full_has_nonzero_id",
+      "description": "AXI4-Full always has nonzero ID width"
+    },
+    {
+      "id": "validate_non_negative",
+      "description": "Validation error count is always non-negative"
+    },
+    {
+      "id": "total_bus_bits_positive",
+      "description": "Total bus bit count is always positive"
+    }
+  ],
+  "module": "Axi4",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/axi4.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Axi4 Vectors",
+  "vectors": {
+    "bus_kind": {
+      "description": "AXI4-Lite vs AXI4-Full identification",
+      "cases": [
+        {
+          "id": "axi4_lite_is_lite",
+          "description": "Lite slave correctly identified as lite"
+        },
+        {
+          "id": "axi4_full_is_full",
+          "description": "Full slave correctly identified as full"
+        },
+        {
+          "id": "lite_no_id",
+          "description": "Lite config has zero ID width"
+        },
+        {
+          "id": "full_has_id",
+          "description": "Full config has nonzero ID width"
+        },
+        {
+          "id": "full_has_extras",
+          "description": "Full config has cache, region, QoS, and lock signals"
+        }
+      ]
+    },
+    "strobe_width": {
+      "description": "Strobe width derivation from data width",
+      "cases": [
+        {
+          "id": "strb_width_32bit",
+          "description": "32-bit data yields 4-byte strobe"
+        },
+        {
+          "id": "strb_width_64bit",
+          "description": "64-bit data yields 8-byte strobe"
+        }
+      ]
+    },
+    "validation": {
+      "description": "AXI bus config validation",
+      "cases": [
+        {
+          "id": "validate_lite_ok",
+          "description": "Valid lite config passes with zero errors"
+        },
+        {
+          "id": "validate_full_ok",
+          "description": "Valid full config passes with zero errors"
+        },
+        {
+          "id": "validate_empty_name",
+          "description": "Empty name triggers validation error"
+        },
+        {
+          "id": "validate_zero_addr",
+          "description": "Zero address width triggers validation error"
+        },
+        {
+          "id": "validate_zero_data",
+          "description": "Zero data width triggers validation error"
+        },
+        {
+          "id": "validate_non_byte_data",
+          "description": "Non-byte-aligned data width triggers error"
+        },
+        {
+          "id": "validate_full_no_id",
+          "description": "Full config with zero ID triggers error"
+        }
+      ]
+    },
+    "port_count": {
+      "description": "Slave port count and bus bit width",
+      "cases": [
+        {
+          "id": "slave_port_count_lite",
+          "description": "Lite slave port count is positive"
+        },
+        {
+          "id": "total_bus_bits_positive",
+          "description": "Total bus bit count is positive"
+        }
+      ]
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

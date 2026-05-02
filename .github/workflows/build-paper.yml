@@ -1,0 +1,60 @@
+name: Build Paper
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docs/WHITEPAPER/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'docs/WHITEPAPER/**'
+
+jobs:
+  build-paper:
+    runs-on: ubuntu-latest
+    name: Build LaTeX PDF
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install LaTeX dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            texlive-latex-recommended \
+            texlive-fonts-recommended \
+            texlive-fonts-extra \
+            texlive-latex-extra \
+            texlive-bibtex-extra \
+            texlive-xetex \
+            biber \
+            pandoc
+
+      - name: Build PDF from Markdown
+        run: |
+          cd docs/WHITEPAPER
+          pandoc gf_paper_v3_imrad_draft.md \
+            -o paper_from_md.pdf \
+            --pdf-engine=xelatex \
+            --citeproc \
+            --bibliography=latex/references.bib \
+            --metadata title="GoldenFloat: A Formally Verified, Phi-Optimal Floating-Point Family" \
+            --metadata author="t27 Project Team" \
+            --metadata date="April 2026"
+
+      - name: Build PDF from LaTeX
+        run: |
+          cd docs/WHITEPAPER/latex
+          pdflatex -interaction=nonstopmode main.tex
+          bibtex -min-crossrefs=1000 -min-crossref=10 main
+          pdflatex -interaction=nonstopmode main.tex
+          pdflatex -interaction=nonstopmode main.tex
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: goldenfloat-paper
+          path: docs/WHITEPAPER/
+          retention-days: 30

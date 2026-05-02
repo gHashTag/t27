@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1703c52f13e62e2877ca6dbb0dd6b9264b075a3d81edbaa6c4603ab8635fc8b8",
+  "gen_hash_rust": "sha256:ed00db8c721b94d5fd993a477e0a1134a9d84268cfff24c4c2851f2be819e96e",
+  "gen_hash_verilog": "sha256:d24c8a5df83d3275596ee13585d7bfaf667bcc08491f0293e3fa09d9da6c3d60",
+  "gen_hash_zig": "sha256:701c1244286249f610f9d006a7f58375e1ac94a402559fb8f2b39a76035ac543",
+  "module": "RnnCell",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:50Z",
+  "spec_hash": "sha256:05f807c932b9a3ce5837100fe8432e8dfddc733db9f62a494c777ff6da885607",
+  "spec_path": "specs/ml/recurrent/rnn_cell.t27"
+}

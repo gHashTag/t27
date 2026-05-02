@@ -1,0 +1,124 @@
+{
+  "constants": {
+    "ARTY_A7_LUTS": 63400,
+    "ARTY_A7_FFS": 126800,
+    "ARTY_A7_BRAM18": 135,
+    "ARTY_A7_DSP48": 240,
+    "ARTY_A7_IO": 300,
+    "ARTY_A7_DEVICE": "xc7a100t",
+    "LVDS_MAX_MBPS": 1000,
+    "SERDES_MAX_MBPS": 6250,
+    "SERDES_WIDTH": 4,
+    "SERDES_PROTOCOL": 1,
+    "LVDS_PROTOCOL": 0
+  },
+  "created_at": "2026-04-14T12:00:00Z",
+  "description": "Multi-FPGA Partition Specification -- partitions HIR modules across FPGAs, estimates inter-FPGA bandwidth and latency",
+  "format_family": "Conformance",
+  "generated_at": "2026-04-14T12:00:00Z",
+  "invariants": [
+    {
+      "description": "Link bandwidth is always non-negative",
+      "id": "bandwidth_non_negative"
+    },
+    {
+      "description": "FPGA utilisation is bounded at zero when used_luts=0",
+      "id": "util_bounded"
+    }
+  ],
+  "module": "Partition",
+  "ring": 28,
+  "schema_version": 2,
+  "seal": "sha256:placeholder",
+  "spec_path": "specs/fpga/partition.t27",
+  "updated_at": "2026-04-14T12:00:00Z",
+  "validated_at": "2026-04-14T12:00:00Z",
+  "vector_name": "Partition Vectors",
+  "vectors": {
+    "node_creation": {
+      "cases": [
+        {
+          "description": "Create an Arty A7 FPGA node with correct device and resource values",
+          "id": "fpga_node_creation"
+        }
+      ],
+      "description": "FPGA node construction"
+    },
+    "link_creation": {
+      "cases": [
+        {
+          "description": "Create LVDS link and verify bandwidth = width * max_mbps",
+          "id": "lvds_link_creation"
+        },
+        {
+          "description": "Create SERDES link and verify bandwidth = width * max_mbps",
+          "id": "serdes_link_creation"
+        }
+      ],
+      "description": "Inter-FPGA link construction and bandwidth"
+    },
+    "assignment": {
+      "cases": [
+        {
+          "description": "Create partition assignment for a module to an FPGA",
+          "id": "assignment_creation"
+        }
+      ],
+      "description": "Partition assignment construction"
+    },
+    "partition_result": {
+      "cases": [
+        {
+          "description": "Successful partition result is balanced and passed",
+          "id": "partition_ok_creation"
+        },
+        {
+          "description": "Failed partition result is not passed",
+          "id": "partition_fail_creation"
+        }
+      ],
+      "description": "Partition result construction and pass/fail"
+    },
+    "bandwidth": {
+      "cases": [
+        {
+          "description": "Total bandwidth of multiple links is summed correctly",
+          "id": "total_link_bandwidth"
+        }
+      ],
+      "description": "Aggregate bandwidth calculation"
+    },
+    "utilisation": {
+      "cases": [
+        {
+          "description": "FPGA utilisation percentage calculation",
+          "id": "fpga_util_calc"
+        },
+        {
+          "description": "FPGA remaining LUTs when under capacity",
+          "id": "fpga_remaining_calc"
+        },
+        {
+          "description": "FPGA remaining LUTs clamped to zero when over capacity",
+          "id": "fpga_remaining_over"
+        }
+      ],
+      "description": "FPGA utilisation and remaining resources"
+    },
+    "validation": {
+      "cases": [
+        {
+          "description": "Valid FPGA node passes validation",
+          "id": "validate_node_ok"
+        },
+        {
+          "description": "Empty-name zero-lut node fails validation",
+          "id": "validate_node_empty"
+        }
+      ],
+      "description": "Node validation"
+    }
+  },
+  "verdict": "CLEAN",
+  "version": "2.0"
+}

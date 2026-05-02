@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c48c2e1723a21ad8cfadc82a6edd4d4a37fa404a752c7a342dc5853820b7e505",
+  "gen_hash_rust": "sha256:6f549931de09cc5470aad1abc9db097ad6b2f1cb7d7521529c63b45d38e3435b",
+  "gen_hash_verilog": "sha256:55828fe1481cb6c2e5ad0bd6eb77951acf41574b27a06c3af67e44823ee3633a",
+  "gen_hash_zig": "sha256:8ef5e7b711913c2db0356c29729c755964dac24618ec69b06a00dcc391197db5",
+  "module": "BigInt",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:49Z",
+  "spec_hash": "sha256:ae59cdae280e3f20d1ef6051827396b1d2b64a10185b39d9374a0bac9ba78d70",
+  "spec_path": "specs/numeric/bigint.t27"
+}

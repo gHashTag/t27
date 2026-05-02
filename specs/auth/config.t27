@@ -1,0 +1,294 @@
+// specs/auth/config.t27
+// Authentication Configuration Storage
+// 01 + 1/23 = 3 | TRINITY
+
+module AuthConfig {
+    use base::types;
+    use account::schema;
+
+    // 4567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071
+    // Auth Types
+    // 72737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139
+
+    // AuthType represents the type of authentication
+    enum AuthType {
+        Oauth = 0,
+        Api = 1,
+        WellKnown = 2,
+    }
+
+    // 140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207
+    // OAuth Configuration
+    // 208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275
+
+    // Oauth represents OAuth authentication configuration
+    struct Oauth {
+        type: AuthType,
+        refresh: RefreshToken,
+        access: AccessToken,
+        expires: u64,
+        account_id: str,
+        enterprise_url: str?,
+    }
+
+    // 276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343
+    // API Key Configuration
+    // 344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411
+
+    // Api represents API key authentication configuration
+    struct Api {
+        type: AuthType,
+        key: str,
+    }
+
+    // 412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479
+    // Well-Known Configuration
+    // 480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547
+
+    // WellKnown represents well-known authentication configuration
+    struct WellKnown {
+        type: AuthType,
+        key: str,
+        token: str,
+    }
+
+    // 548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615
+    // Auth Info
+    // 616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683
+
+    // Info represents authentication info (type tag)
+    struct Info(u8);
+
+    // 684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751
+    // Config Operations
+    // 752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819
+
+    // get retrieves auth configuration for a provider
+    fn get(provider_id: str) -> Result<Info, AuthConfigError> {
+        // Implementation: Read auth config from storage
+    }
+
+    // all returns all stored auth configurations
+    fn all() -> Result<[str: Info], AuthConfigError> {
+        // Implementation: Read all auth configs from storage
+    }
+
+    // set stores auth configuration for a provider
+    fn set(key: str, info: Info) -> Result<void, AuthConfigError> {
+        // Implementation: Write auth config to storage
+    }
+
+    // remove deletes auth configuration for a provider
+    fn remove(key: str) -> Result<void, AuthConfigError> {
+        // Implementation: Delete auth config from storage
+    }
+
+    // exists checks if auth config exists for a provider
+    fn exists(provider_id: str) -> Result<bool, AuthConfigError> {
+        // Implementation: Check if config file exists
+    }
+
+    // clear removes all auth configurations
+    fn clear() -> Result<void, AuthConfigError> {
+        // Implementation: Delete all auth config files
+    }
+
+    // 820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887
+    // Error Types
+    // 888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955
+
+    // AuthConfigError represents an auth config operation error
+    struct AuthConfigError {
+        message: str,
+        provider_id: str?,
+    }
+
+    // 956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999100010011002100310041005100610071008100910101011101210131014101510161017101810191020102110221023
+    // Type Conversion
+    // 10241025102610271028102910301031103210331034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082108310841085108610871088108910901091
+
+    // to_oauth converts Info to Oauth if type matches
+    fn to_oauth(info: Info) -> Result<Oauth, AuthConfigError> {
+        // Implementation: Cast if type is Oauth
+    }
+
+    // to_api converts Info to Api if type matches
+    fn to_api(info: Info) -> Result<Api, AuthConfigError> {
+        // Implementation: Cast if type is Api
+    }
+
+    // to_well_known converts Info to WellKnown if type matches
+    fn to_well_known(info: Info) -> Result<WellKnown, AuthConfigError> {
+        // Implementation: Cast if type is WellKnown
+    }
+
+    // from_oauth creates Info from Oauth
+    fn from_oauth(oauth: Oauth) -> Info {
+        // Implementation: Create Info with Oauth type tag
+    }
+
+    // from_api creates Info from Api
+    fn from_api(api: Api) -> Info {
+        // Implementation: Create Info with Api type tag
+    }
+
+    // from_well_known creates Info from WellKnown
+    fn from_well_known(well_known: WellKnown) -> Info {
+        // Implementation: Create Info with WellKnown type tag
+    }
+
+    // get_type extracts AuthType from Info
+    fn get_type(info: Info) -> AuthType {
+        // Implementation: Extract type tag from Info
+    }
+
+    // 10921093109410951096109710981099110011011102110311041105110611071108110911101111111211131114111511161117111811191120112111221123112411251126112711281129113011311132113311341135113611371138113911401141114211431144114511461147114811491150115111521153115411551156115711581159
+    // Provider IDs (well-known)
+    // 11601161116211631164116511661167116811691170117111721173117411751176117711781179118011811182118311841185118611871188118911901191119211931194119511961197119811991200120112021203120412051206120712081209121012111212121312141215121612171218121912201221122212231224122512261227
+
+    const PROVIDER_OPENCODE: str = "opencode";
+    const PROVIDER_ANTHROPIC: str = "anthropic";
+    const PROVIDER_OPENAI: str = "openai";
+    const PROVIDER_GOOGLE: str = "google";
+    const PROVIDER_GOOGLE_VERTEX: str = "google-vertex";
+    const PROVIDER_GITHUB_COPILOT: str = "github-copilot";
+    const PROVIDER_AMAZON_BEDROCK: str = "amazon-bedrock";
+    const PROVIDER_AZURE: str = "azure";
+    const PROVIDER_OPENROUTER: str = "openrouter";
+    const PROVIDER_MISTRAL: str = "mistral";
+    const PROVIDER_GITLAB: str = "gitlab";
+
+    // 12281229123012311232123312341235123612371238123912401241124212431244124512461247124812491250125112521253125412551256125712581259126012611262126312641265126612671268126912701271127212731274127512761277127812791280128112821283128412851286128712881289129012911292129312941295
+    // Tests
+    // 12961297129812991300130113021303130413051306130713081309131013111312131313141315131613171318131913201321132213231324132513261327132813291330133113321333133413351336133713381339134013411342134313441345134613471348134913501351135213531354135513561357135813591360136113621363
+
+    test "auth_type_values" {
+        assert(AuthType::Oauth as u32 == 0);
+        assert(AuthType::Api as u32 == 1);
+        assert(AuthType::WellKnown as u32 == 2);
+    }
+
+    test "oauth_creation" {
+        var oauth = Oauth {
+            type = AuthType::Oauth,
+            refresh = RefreshToken("refresh"),
+            access = AccessToken("access"),
+            expires = 3600000,
+            account_id = "user-123",
+            enterprise_url = "https://enterprise.example.com",
+        };
+        assert(oauth.type == AuthType::Oauth);
+        assert(oauth.account_id == "user-123");
+        assert(oauth.enterprise_url? == "https://enterprise.example.com");
+    }
+
+    test "oauth_without_enterprise_url" {
+        var oauth = Oauth {
+            type = AuthType::Oauth,
+            refresh = RefreshToken("refresh"),
+            access = AccessToken("access"),
+            expires = 3600000,
+            account_id = "user-123",
+            enterprise_url = null,
+        };
+        assert(oauth.enterprise_url == null);
+    }
+
+    test "api_creation" {
+        var api = Api {
+            type = AuthType::Api,
+            key = "sk-api-key",
+        };
+        assert(api.type == AuthType::Api);
+        assert(api.key == "sk-api-key");
+    }
+
+    test "well_known_creation" {
+        var wk = WellKnown {
+            type = AuthType::WellKnown,
+            key = "provider-key",
+            token = "provider-token",
+        };
+        assert(wk.type == AuthType::WellKnown);
+        assert(wk.key == "provider-key");
+        assert(wk.token == "provider-token");
+    }
+
+    test "info_creation" {
+        var info = Info(0);  // Oauth type
+        assert(info.0 == 0);
+    }
+
+    test "get_type_from_info" {
+        var oauth_info = Info(0);
+        var api_info = Info(1);
+        var wk_info = Info(2);
+
+        assert(get_type(oauth_info) == AuthType::Oauth);
+        assert(get_type(api_info) == AuthType::Api);
+        assert(get_type(wk_info) == AuthType::WellKnown);
+    }
+
+    test "from_oauth_creates_correct_info" {
+        var oauth = Oauth {
+            type = AuthType::Oauth,
+            refresh = RefreshToken("refresh"),
+            access = AccessToken("access"),
+            expires = 3600000,
+            account_id = "user-123",
+            enterprise_url = null,
+        };
+        var info = from_oauth(oauth);
+        assert(get_type(info) == AuthType::Oauth);
+    }
+
+    test "from_api_creates_correct_info" {
+        var api = Api {
+            type = AuthType::Api,
+            key = "sk-api-key",
+        };
+        var info = from_api(api);
+        assert(get_type(info) == AuthType::Api);
+    }
+
+    test "from_well_known_creates_correct_info" {
+        var wk = WellKnown {
+            type = AuthType::WellKnown,
+            key = "key",
+            token = "token",
+        };
+        var info = from_well_known(wk);
+        assert(get_type(info) == AuthType::WellKnown);
+    }
+
+    test "auth_config_error_creation" {
+        var err = AuthConfigError {
+            message = "Config not found",
+            provider_id = "unknown",
+        };
+        assert(err.message == "Config not found");
+        assert(err.provider_id? == "unknown");
+    }
+
+    test "auth_config_error_without_provider" {
+        var err = AuthConfigError {
+            message = "Storage error",
+            provider_id = null,
+        };
+        assert(err.provider_id == null);
+    }
+
+    test "provider_constants" {
+        assert(PROVIDER_OPENCODE == "opencode");
+        assert(PROVIDER_ANTHROPIC == "anthropic");
+        assert(PROVIDER_OPENAI == "openai");
+        assert(PROVIDER_GOOGLE == "google");
+        assert(PROVIDER_GOOGLE_VERTEX == "google-vertex");
+        assert(PROVIDER_GITHUB_COPILOT == "github-copilot");
+        assert(PROVIDER_AMAZON_BEDROCK == "amazon-bedrock");
+        assert(PROVIDER_AZURE == "azure");
+        assert(PROVIDER_OPENROUTER == "openrouter");
+        assert(PROVIDER_MISTRAL == "mistral");
+        assert(PROVIDER_GITLAB == "gitlab");
+    }
+}

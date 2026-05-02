@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "PreToolUse": ".claude/hooks/check-l1-traceability.sh",
+    "Stop": ".claude/hooks/stop-hook-guard.sh"
+  },
+  "permissions": {
+    "allowedCommands": [
+      "cargo",
+      "tri",
+      "t27c",
+      "zig",
+      "git",
+      "cat",
+      "ls",
+      "grep",
+      "find",
+      "head",
+      "tail",
+      "sed",
+      "awk",
+      "cut",
+      "sort",
+      "uniq",
+      "wc",
+      "jq",
+      "node",
+      "pnpm",
+      "npm",
+      "python3",
+      "python"
+    ],
+    "allowedTools": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash"
+    ]
+  }
+}

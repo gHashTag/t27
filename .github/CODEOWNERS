@@ -1,0 +1,127 @@
+# GitHub CODEOWNERS — native syntax for PR reviewer routing
+# See root OWNERS.md for constitutional ownership hierarchy
+
+# ============================================================================
+# REPOSITORY LEVEL
+# ============================================================================
+
+* @gHashTag # Default owner for all paths
+
+# Root policy documents (A-Architect domain)
+README.md @gHashTag
+SOUL.md @gHashTag
+AGENTS.md @gHashTag
+TASK.md @gHashTag
+CLAUDE.md @gHashTag
+OWNERS.md @gHashTag
+CONTRIBUTING.md @gHashTag
+SECURITY.md @gHashTag
+NOW.md @gHashTag
+
+# ============================================================================
+# DIRECTORIES
+# ============================================================================
+
+# Core specs — source of truth
+/specs/ @gHashTag
+
+# Bootstrap compiler (Rust)
+/bootstrap/ @gHashTag
+
+# Generated code (L2: do not hand-edit)
+/gen/ @gHashTag
+
+# Conformance vectors
+/conformance/ @gHashTag
+
+# Architecture docs
+/OWNERS.md @gHashTag
+/OWNERS.md @gHashTag
+
+# Compiler frontends
+/compiler/ @gHashTag
+
+# FFI layer
+/ffi/ @gHashTag
+
+# Bindings
+/bindings/ @gHashTag
+
+# Tests and benchmarks
+/tests/ @gHashTag
+/benchmarks/ @gHashTag
+
+# Coq proofs
+/coq/ @gHashTag
+
+# Research papers
+/research/ @gHashTag
+/neurips/ @gHashTag
+
+# Documentation
+/docs/ @gHashTag
+
+# GitHub workflows and CI
+.github/workflows/ @gHashTag
+
+# Git hooks
+.githooks/ @gHashTag
+
+# Scripts
+/scripts/ @gHashTag
+
+# External/vendored code
+/external/ @gHashTag
+
+# ============================================================================
+# SPECIFIC DOMAINS
+# ============================================================================
+
+# AR (CLARA Argumentation & Reasoning)
+/specs/ar/ @gHashTag
+
+# Neural Network components
+/specs/nn/ @gHashTag
+
+# FPGA/Hardware
+/specs/fpga/ @gHashTag
+/specs/isa/ @gHashTag
+
+# Queen orchestration
+/specs/queen/ @gHashTag
+
+# VSA (Vector Symbolic Architecture)
+/specs/vsa/ @gHashTag
+
+# Compiler self-spec
+/specs/compiler/ @gHashTag
+
+# Numeric (GoldenFloat, TF3, phi)
+/specs/numeric/ @gHashTag
+/specs/math/ @gHashTag
+
+# Base types and ops
+/specs/base/ @gHashTag
+
+# ============================================================================
+# GENERATED FILES (always auto-assigned to default owner)
+# ============================================================================
+
+# Generated output should rarely need review beyond spec changes
+/gen/** @gHashTag
+/gen/** @gHashTag
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# Docker, Railway, deployment
+Dockerfile @gHashTag
+railway.toml @gHashTag
+
+# Zenodo publishing
+.zenodo.json @gHashTag
+
+# Cargo workspace
+Cargo.toml @gHashTag
+Cargo.lock @gHashTag

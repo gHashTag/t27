@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:0469cd25968df8b52447704c28b32ce430a7c536b2e03f3237d9c2c280bfc996",
+  "gen_hash_rust": "sha256:2a1ce93a08b7d51fe51cd5817b072ae7512c87d00f172c48ab94bd91776500fb",
+  "gen_hash_verilog": "sha256:de837810c901405a21adc544b425680e951bf156d3bb543f192ba5f6cb9d31e9",
+  "gen_hash_zig": "sha256:1d6437c2eeee4e946019f82ac98bc25b2c01acfd41190ac56d1a5ff62f139bfc",
+  "module": "BoardFullXC7A100T",
+  "ring": 12,
+  "sealed_at": "2026-04-14T06:32:51Z",
+  "spec_hash": "sha256:7ed0768769fcbe3216daf7c39d9e9c3955ade2228159ee79593cc91a81f9eadb",
+  "spec_path": "specs/boards/xc7a100t_full.t27"
+}

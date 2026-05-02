@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:c57daddbdc94e5a4e63f1a4b5bfbc66cd9afc1431cec91b95022688d6f1e627d",
+  "gen_hash_rust": "sha256:9a6109821a9fc1c4759e7d54e5833960ba79993838ff0b5d66a3ba482350ca2c",
+  "gen_hash_verilog": "sha256:ec03ca7489e243cf43039e96a1dcdb49aa907023af15313cbc8226d9338e2b08",
+  "gen_hash_zig": "sha256:1a4811e6e97da8f41c25da9f9a7bca353290ab6e51ad7e1f0d68fc8b39af6d5a",
+  "module": "trinity-numeric-surface",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:39Z",
+  "spec_hash": "sha256:77566dd023604fbac7e5faed2a768ddb4e05c21c50d05569b2bebd5be2c61579",
+  "spec_path": "specs/numeric/trinity_numeric_surface.t27"
+}

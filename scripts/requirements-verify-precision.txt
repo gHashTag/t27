@@ -1,0 +1,3 @@
+# Optional: high-precision formula dumps (scripts/verify_precision.py)
+# Not used on CI critical path by default.
+mpmath>=1.3.0

@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:bc1747fb90bb058b953fe4bc815e6331e37d7e0dde68dcbbe622c6e284378abe",
+  "gen_hash_rust": "sha256:b3f7ec91054ee13ca5e7577429afb64b8b5d31e8df9a1e51d70388635aa133c9",
+  "gen_hash_verilog": "sha256:c4e7d5f24e4ec705cff67e8c02a2c8aa5ff1d2a7372299be618edc019ce1c59c",
+  "gen_hash_zig": "sha256:67873e8145eb32f30a7e45ebf6b225f669223716460c6728d38e0af7068cfaf4",
+  "module": "SimpleTest",
+  "ring": 12,
+  "sealed_at": "2026-04-11T16:57:40Z",
+  "spec_hash": "sha256:8538ad97f51494ef1c556e7c9f0a792710427c5f2fb7354ed840a8dd71e05af2",
+  "spec_path": "specs/demos/simple_test.t27"
+}

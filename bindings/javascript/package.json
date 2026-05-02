@@ -1,0 +1,30 @@
+{
+  "name": "golden-float",
+  "version": "0.1.0",
+  "description": "Phi-structured floating-point formats for machine learning and scientific computing",
+  "main": "golden-float.js",
+  "types": "golden-float.d.ts",
+  "module": "es6",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trinity-s3ai/t27"
+  },
+  "keywords": [
+    "golden-float",
+    "phi",
+    "floating-point",
+    "machine-learning",
+    "webassembly",
+    "wasm"
+  ],
+  "author": "Trinity S3AI",
+  "license": "MIT",
+  "scripts": {
+    "build": "wasm-pack build --target bundler",
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "wasm-pack": "^0.12.0"
+  }
+}
