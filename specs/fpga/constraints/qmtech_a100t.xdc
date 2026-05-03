@@ -21,7 +21,7 @@ set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports clk]
 create_clock -add -name sys_clk -period 83.333 -waveform {0 41.666} [get_ports clk]
 
 # Reset button (active low)
-set_property -dict { PACKAGE_PIN C18   IOSTANDARD LVCMOS33 } [get_ports rst_n]
+set_property -dict { PACKAGE_PIN C17   IOSTANDARD LVCMOS33 } [get_ports rst_n]
 
 ################################################################################
 # UART Signals (CP2102 USB-UART bridge) - 1-bit serial, 8N1 @ 115200 baud
@@ -38,9 +38,9 @@ set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports uart_tx]
 # Mode 0: CPOL=0, CPHA=0
 ################################################################################
 
-set_property -dict { PACKAGE_PIN G8    IOSTANDARD LVCMOS33 } [get_ports spi_cs]
-set_property -dict { PACKAGE_PIN G7    IOSTANDARD LVCMOS33 } [get_ports spi_sck]
-set_property -dict { PACKAGE_PIN G5    IOSTANDARD LVCMOS33 } [get_ports spi_mosi]
+set_property -dict { PACKAGE_PIN G4    IOSTANDARD LVCMOS33 } [get_ports spi_cs]
+set_property -dict { PACKAGE_PIN G3    IOSTANDARD LVCMOS33 } [get_ports spi_sck]
+set_property -dict { PACKAGE_PIN G2    IOSTANDARD LVCMOS33 } [get_ports spi_mosi]
 set_property -dict { PACKAGE_PIN G6    IOSTANDARD LVCMOS33  PULLUP true } [get_ports spi_miso]
 
 ################################################################################
@@ -67,42 +67,17 @@ set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports { led[7]
 set_property -dict { PACKAGE_PIN D5    IOSTANDARD LVCMOS33 } [get_ports mac_done]
 
 # MAC result[7:0] - lower byte for debug LED/view
-set_property -dict { PACKAGE_PIN D6    IOSTANDARD LVCMOS33 } [get_ports { mac_result[0] }]
+set_property -dict { PACKAGE_PIN D7    IOSTANDARD LVCMOS33 } [get_ports { mac_result[0] }]
 set_property -dict { PACKAGE_PIN E6    IOSTANDARD LVCMOS33 } [get_ports { mac_result[1] }]
 set_property -dict { PACKAGE_PIN E5    IOSTANDARD LVCMOS33 } [get_ports { mac_result[2] }]
 set_property -dict { PACKAGE_PIN A5    IOSTANDARD LVCMOS33 } [get_ports { mac_result[3] }]
 set_property -dict { PACKAGE_PIN A4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[4] }]
 set_property -dict { PACKAGE_PIN F4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[5] }]
 set_property -dict { PACKAGE_PIN H4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[6] }]
-set_property -dict { PACKAGE_PIN B5    IOSTANDARD LVCMOS33 } [get_ports { mac_result[7] }]
+set_property -dict { PACKAGE_PIN B4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[7] }]
 
-# MAC result[15:8] - upper debug byte
-set_property -dict { PACKAGE_PIN B4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[8] }]
-set_property -dict { PACKAGE_PIN G4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[9] }]
-set_property -dict { PACKAGE_PIN J4    IOSTANDARD LVCMOS33 } [get_ports { mac_result[10] }]
-set_property -dict { PACKAGE_PIN U10   IOSTANDARD LVCMOS33 } [get_ports { mac_result[11] }]
-set_property -dict { PACKAGE_PIN U11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[12] }]
-set_property -dict { PACKAGE_PIN V11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[13] }]
-set_property -dict { PACKAGE_PIN W11   IOSTANDARD LVCMOS33 } [get_ports { mac_result[14] }]
-set_property -dict { PACKAGE_PIN W12   IOSTANDARD LVCMOS33 } [get_ports { mac_result[15] }]
-
-# MAC result[31:16] - remaining bits (Pmod expansion)
-set_property -dict { PACKAGE_PIN T10   IOSTANDARD LVCMOS33 } [get_ports { mac_result[16] }]
-set_property -dict { PACKAGE_PIN V22   IOSTANDARD LVCMOS33 } [get_ports { mac_result[17] }]
-set_property -dict { PACKAGE_PIN W22   IOSTANDARD LVCMOS33 } [get_ports { mac_result[18] }]
-set_property -dict { PACKAGE_PIN U21   IOSTANDARD LVCMOS33 } [get_ports { mac_result[19] }]
-set_property -dict { PACKAGE_PIN U22   IOSTANDARD LVCMOS33 } [get_ports { mac_result[20] }]
-set_property -dict { PACKAGE_PIN V21   IOSTANDARD LVCMOS33 } [get_ports { mac_result[21] }]
-set_property -dict { PACKAGE_PIN W21   IOSTANDARD LVCMOS33 } [get_ports { mac_result[22] }]
-set_property -dict { PACKAGE_PIN W20   IOSTANDARD LVCMOS33 } [get_ports { mac_result[23] }]
-set_property -dict { PACKAGE_PIN W19   IOSTANDARD LVCMOS33 } [get_ports { mac_result[24] }]
-set_property -dict { PACKAGE_PIN W18   IOSTANDARD LVCMOS33 } [get_ports { mac_result[25] }]
-set_property -dict { PACKAGE_PIN W17   IOSTANDARD LVCMOS33 } [get_ports { mac_result[26] }]
-set_property -dict { PACKAGE_PIN W16   IOSTANDARD LVCMOS33 } [get_ports { mac_result[27] }]
-set_property -dict { PACKAGE_PIN V18   IOSTANDARD LVCMOS33 } [get_ports { mac_result[28] }]
-set_property -dict { PACKAGE_PIN V16   IOSTANDARD LVCMOS33 } [get_ports { mac_result[29] }]
-set_property -dict { PACKAGE_PIN U15   IOSTANDARD LVCMOS33 } [get_ports { mac_result[30] }]
-set_property -dict { PACKAGE_PIN V12   IOSTANDARD LVCMOS33 } [get_ports { mac_result[31] }]
+# MAC result[15:8] and [31:16] removed: not enough valid CSG324 pins
+# Full 32-bit accumulator available via UART command protocol
 
 ################################################################################
 # Configuration Options
