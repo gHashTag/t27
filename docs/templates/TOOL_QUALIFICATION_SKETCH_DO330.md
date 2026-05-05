@@ -55,7 +55,7 @@
 |----|-----------|-----------------|
 | TV-01 | `./scripts/tri test` on clean snapshot | Exit **0**; suite PASS |
 | TV-02 | Regenerate from fixed inputs; hash `gen/` tree | Match blessed SHA-256 `[TBD]` |
-| TV-03 | `./scripts/tri validate-gen-headers --repo-root .` | No violations |
+| TV-03 | `./scripts/tri validate-gen-headers` | No violations |
 | TV-04 | `./scripts/tri validate-conformance` | Schema pass |
 | TV-05 | `make -C coq/` (or **coq-kernel** workflow) | Zero compile errors (`Admitted` policy `[TBD]`) |
 | TV-06 | Repeat TV-01/02 on second OS/arch (pinned) | Byte-identical `gen/` or documented delta |

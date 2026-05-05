@@ -171,7 +171,7 @@ fn main() {
         "README.md",
         "AGENTS.md",
         "CLAUDE.md",
-        "TASK.md",
+        "NOW.md",
         "SOUL.md",
         "OWNERS.md",
         "CONTRIBUTING.md",
@@ -188,5 +188,6 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=../docs/.legacy-non-english-docs");
+    println!("cargo:rerun-if-changed=../NOW.md");
     println!("cargo:rerun-if-changed=build.rs");
 }

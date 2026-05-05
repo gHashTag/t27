@@ -47,7 +47,7 @@ Forbidden in source files:
 
 These locations MUST use English prose:
 
-- `docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/**/*.md`, root `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`
+- `docs/`, `specs/**/*.md`, `architecture/`, `clara-bridge/`, `conformance/**/*.md`, root `README.md`, `AGENTS.md`, `CLAUDE.md`, `NOW.md`, `SOUL.md`
 
 Grandfathered non-English files are listed in **`docs/.legacy-non-english-docs`** until translated.
 
@@ -100,7 +100,11 @@ The error message includes file path, line, column, a snippet, and pointers to *
 
 ### CI: First-party doc language
 
-`scripts/check-first-party-doc-language.sh` fails if Cyrillic appears in first-party Markdown outside `docs/.legacy-non-english-docs` and `external/`.
+<<<<<<< Updated upstream
+**Authoritative:** `cargo build` / `cargo build --release` in **`bootstrap/`** — `build.rs` fails if Cyrillic appears in first-party Markdown (same allowlist: `docs/.legacy-non-english-docs`) and in the other surfaces listed above. **`scripts/check-first-party-doc-language.sh`** (Python) is optional manual hygiene only, not the CI gate.
+=======
+`./scripts/tri lint-docs` ( **`t27c lint-docs`** ) fails if Cyrillic appears in first-party Markdown outside `docs/.legacy-non-english-docs` and `external/`.
+>>>>>>> Stashed changes
 
 ## Consequences
 

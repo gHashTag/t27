@@ -1,1 +1,2 @@
-9d6165ae377f6e10cbf78ad33242a1ea1820941bdce0e3d71467adff34326c44  /home/user/workspace/t27-96f2d18d/bootstrap/src/compiler.rs
+# t27 — frozen bootstrap compiler core (see FROZEN.md, CANON.md M5)
+af208c1bcd8361092fe6303313c94729c67a71e0eb24de1b9ba7c3d992d8e215  bootstrap/src/compiler.rs

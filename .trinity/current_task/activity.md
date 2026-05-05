@@ -168,3 +168,43 @@
 - **Commit:** feat(portable): upgrade relay_observer.js to v2.0 with multi-agent support
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,specs/portable/relay_observer.js
 
+## 2026-04-16T12:48:41Z — master
+- **Commit:** feat(portable): upgrade relay_observer.js to v2.0 with multi-agent support
+- **Files:** .trinity/roads.md,bootstrap/src/lexer.rs,docs/rfc/tri-language-core.md,packages/browseros-agent/CLAUDE.md,packages/browseros-agent/WORKSPACE-BOUNDARY.md,packages/browseros-agent/apps/server/src/agent/portable/relay-observer.ts,specs/01-vm-core.tri,specs/03-bootstrap-lexer.tri,specs/03-simple-parser.tri,specs/04-tri-codegen.tri,specs/04-tri-runtime.tri,trivm/core/gf16.c,trivm/core/phi_arith.h,trivm/core/phi_arith.o,trivm/core/tf3.c,trivm/core/trit_logic.o,trivm/core/vm.o,trivm/core/vm_benchmark
+
+## 2026-04-16T12:50:07Z — master
+- **Commit:** fix(ring-001): constitutional compliance - remove Rust/C violations, .tri source of truth
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,bootstrap/src/lexer.rs,bootstrap/src/main.rs
+
+## 2026-04-16T12:51:26Z — master
+- **Commit:** fix(ring-000): remove constitutional violations (rust, raw-c)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bootstrap/src/lexer.rs,bootstrap/src/main.rs
+
+## 2026-04-16T12:52:02Z — master
+- **Commit:** fix(ring-000): remove constitutional violations (rust, raw-c)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,trivm/core/gf16.c,trivm/core/phi_arith.h,trivm/core/phi_arith.o,trivm/core/tf3.c,trivm/core/trit_logic.o,trivm/core/vm.o,trivm/core/vm_benchmark
+
+## 2026-04-16T12:57:57Z — master
+- **Commit:** fix(ring-000): remove raw .c/.o violations from trivm/core
+- **Files:** research/trinity-pellis-paper/G2_TRINITY_V1.0_FRAGRANCE.tex
+
+## 2026-04-16T13:02:08Z — master
+- **Commit:** feat(paper): add golden balance figure placeholder, attribute Olsen contribution
+- **Files:** specs/01-tri-lang-core.tri,specs/02-gf16-format.tri,specs/03-tri-bootstrap-compiler.tri
+
+## 2026-04-16T13:02:34Z — master
+- **Commit:** feat(ring-001): tri VM core spec - Trit, PHI, Kleene invariants
+- **Files:** 
+
+## 2026-04-16T13:02:41Z — master
+- **Commit:** feat(ring-002-003): GF16 format and bootstrap compiler specs
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bootstrap/build.rs,bootstrap/src/main.rs
+
+## 2026-04-18T16:59:52Z — 
+- **Commit:** feat(compiler): add GF16-native Rust codegen backend to meta_compile spec
+- **Files:** bootstrap/src/main.rs
+
+## 2026-04-18T17:04:04Z — fix/ring-018-bootstrap-recovery-522-clean
+- **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
+- **Files:** .claude/mcp/tri-ssot/manifest.json,.claude/skills/tri/skill.md,.claude/skills/wrap-up/skill.md,.cursor/rules/t27-ssot-math.mdc,.githooks/pre-commit,.github/CODEOWNERS,.github/ISSUE_TEMPLATE/audit_task.md,.github/ISSUE_TEMPLATE/backend_task.md,.github/ISSUE_TEMPLATE/benchmark_task.md,.github/ISSUE_TEMPLATE/bug.md,.github/ISSUE_TEMPLATE/epic.md,.github/ISSUE_TEMPLATE/publication_task.md,.github/ISSUE_TEMPLATE/question.md,.github/ISSUE_TEMPLATE/research_claim.md,.github/ISSUE_TEMPLATE/spec_task.md,.github/ISSUE_TEMPLATE/ux_docs_task.md,.github/PULL_REQUEST_TEMPLATE.md,.github/dependabot.yml,.github/workflows/coq-kernel.yml,.github/workflows/l1-traceability.yml
+

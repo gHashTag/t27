@@ -59,17 +59,24 @@ When operating as the Trinity Agent (Queen), follow this 6-phase loop:
 1. `[AGENTS.md](AGENTS.md)` — entry point and constitutional stack.
 2. `[SOUL.md](SOUL.md)` — canonical law (TDD, language, validation).
 3. `[docs/T27-CONSTITUTION.md](docs/T27-CONSTITUTION.md)` — **SSOT-MATH**, **LANG-EN**, **DOCS-TREE**.
-4. `[TASK.md](TASK.md)` and `[docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
+4. `[NOW.md](NOW.md)` and `[docs/coordination/TASK_PROTOCOL.md](docs/coordination/TASK_PROTOCOL.md)` — if the task touches coordination, locks, or shared hot paths.
 5. Nearest `[OWNERS.md](OWNERS.md)` for the directories you edit.
 
 Do **not** add parallel math/physics implementations in ad-hoc scripts when the same belongs in `*.t27` and the **`tri`** pipeline (`./scripts/tri`).
+
+### Trinity generation law (Zig **and** Rust)
+
+- **No hand-written `.zig` (or hand-edited generated backends)** for **domain logic** that must come from **`.t27` / `.tri` → `tri gen`**. Zig and peers under **`gen/`** are **compiler output**, not a second place to author product math.
+- **No second SSOT in Rust:** **`bootstrap/`** hosts the compiler and CLI; it **must not** duplicate normative formulas, invariants, or tests that belong in **`specs/**/*.t27`**. If code exists there today, treat it as **debt** and migrate behind a tracked issue — same rule as Zig.
+
+Full text: **Article SSOT-MATH** in [`docs/T27-CONSTITUTION.md`](docs/T27-CONSTITUTION.md).
 
 ---
 
 ## 2. Engineering workflow
 
 - **Bootstrap compiler:** `cd bootstrap && cargo build --release` (runs `build.rs` language checks).
-- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./bootstrap/target/release/t27c suite --repo-root .` (Rust runner; no shell test harness under `tests/`).
+- **Local sweep (CI-like):** from repo root, `./scripts/tri test` or `./bootstrap/target/release/t27c --repo-root . suite` (Rust runner; no shell test harness under `tests/`).
 - **Generated code:** under `gen/` — do not hand-edit for routine fixes; change specs and regenerate.
 - **Pull requests:** follow project Issue Gate and linking policy; **do not approve** PRs unless explicitly authorized.
 

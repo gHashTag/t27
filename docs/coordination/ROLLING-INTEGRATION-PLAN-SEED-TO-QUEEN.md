@@ -3,7 +3,7 @@
 **Status:** Operational backlog (planning). **Language:** English (**LANG-EN**).  
 **Date:** 2026-04-06  
 
-**Paired with:** [`docs/NOW.md`](../NOW.md) (snapshot), [`docs/T27-CONSTITUTION.md`](../T27-CONSTITUTION.md) (**tri** / **`t27c`** as canonical CLI), [`docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md`](../nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md).
+**Paired with:** [`NOW.md`](../../NOW.md) (snapshot, repo root), [`docs/T27-CONSTITUTION.md`](../T27-CONSTITUTION.md) (**tri** / **`t27c`** as canonical CLI), [`docs/nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md`](../nona-03-manifest/T27-BOOTSTRAP-TESTING-PLAN.md).
 
 ---
 
@@ -185,7 +185,7 @@ gh issue create --title "SEED-002: Add 5 golden seed .t27 specs" --label "seed,p
 # Rust bootstrap
 cd bootstrap && cargo build --release
 ./target/release/t27c help
-./target/release/t27c suite --repo-root .   # or documented subset
+./target/release/t27c --repo-root . suite   # or documented subset
 
 # Zig parser bootstrap (if you maintain it)
 # zig build …  # only if build.zig exists for bootstrap/main.zig

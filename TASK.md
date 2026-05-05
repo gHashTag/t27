@@ -37,6 +37,25 @@
 
 ---
 
+## Canonical iteration schema
+
+*When recording work iterations (PHI LOOP cycles), use this schema:*
+
+```markdown
+## Iteration <N>
+- **Goal**: <single capability, one sentence>
+- **Spec delta**: <which .t27 spec changed>
+- **Generated artifacts**: <zig/verilog/c outputs>
+- **Tests**: <test/invariant/bench executed>
+- **Seal**: <hash or PENDING>
+- **Verdict**: CLEAN | TOXIC
+- **Next constraint**: <single next bottleneck>
+```
+
+*This aligns with PHI LOOP (§4) and ISSUE-GATE laws (L1–L7).*
+
+---
+
 ## Handoff log
 
 *Format: `YYYY-MM-DDTHH:MMZ` | `agent_id` | intent | outcome | next (newest last).*
@@ -44,6 +63,7 @@
 - 2026-04-06T12:00Z | cursor-agent | Bootstrap TASK Protocol v1.0 + build.rs validation + Anchor #141 | protocol landed | maintainers set locks when parallel work starts
 - 2026-04-06T18:00Z | cursor-agent | Add `docs/coordination/inter-agent-handoff/` bundle (scientific excellence EPICs + zip) + TASK_PROTOCOL §8 pointer | landed | downstream agents read README in bundle; normative state stays TASK.md + #141
 - 2026-04-06T18:30Z | cursor-agent | Add `ERRATA_PERPLEXITY_HANDOFF.md` (Epoch-2 / “create RESEARCH_CLAIMS” text is non-canonical) | landed | agents with Perplexity paste read errata before executing TASK-01.1
+- 2026-04-07T00:00Z | autonomous-agent | Add canonical iteration schema to TASK.md per Ring 032 | schema embedded | Ring 032 closure pending
 
 ---
 

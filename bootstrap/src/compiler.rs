@@ -30,6 +30,7 @@ pub enum NodeKind {
     ExprSwitch,
     ExprBinary,
     ExprUnary,
+    ExprCast,
     ExprReturn,
     ExprIndex,
     ExprIf,
@@ -144,6 +145,7 @@ pub enum TokenKind {
     KwOr,
     KwAnd,
     KwTry,
+    KwAs,
     KwBreak,
     KwContinue,
 
@@ -193,6 +195,7 @@ pub enum TokenKind {
     ShiftRight,
     PlusEquals,
     PlusPercent,
+    ColonColon,
 
     // Special
     Semicolon,
@@ -344,6 +347,7 @@ impl Lexer {
             "var" => TokenKind::KwVar,
             "using" => TokenKind::KwUsing,
             "use" => TokenKind::KwUse,
+            "as" => TokenKind::KwAs,
             "void" => TokenKind::KwVoid,
             "true" => TokenKind::KwTrue,
             "false" => TokenKind::KwFalse,
@@ -582,6 +586,17 @@ impl Lexer {
                 };
             }
 
+            if two == [b':', b':'] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::ColonColon,
+                    lexeme: String::from("::"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
             if two == [b'.', b'.'] {
                 self.advance();
                 self.advance();
@@ -640,7 +655,7 @@ impl Lexer {
                     }
                     number.push(c as char);
                     self.advance();
-                } else if is_hex && ((c >= b'a' && c <= b'f') || (c >= b'A' && c <= b'F')) {
+                } else if is_hex && ((b'a'..=b'f').contains(&c) || (b'A'..=b'F').contains(&c)) {
                     number.push(c as char);
                     self.advance();
                 } else {
@@ -1022,15 +1037,24 @@ impl Parser {
                         full_path = alias_name.clone();
                     } else {
                         // Parse :: separated segments
-                        while self.current.kind == TokenKind::Colon {
-                            self.advance(); // first :
-                            if self.current.kind == TokenKind::Colon {
-                                self.advance(); // second :
+                        loop {
+                            if self.current.kind == TokenKind::ColonColon {
+                                self.advance();
+                                full_path.push_str("::");
+                            } else if self.current.kind == TokenKind::Colon {
+                                self.advance();
+                                if self.current.kind == TokenKind::Colon {
+                                    self.advance();
+                                }
+                                full_path.push_str("::");
+                            } else {
+                                break;
                             }
-                            full_path.push_str("::");
                             if self.current.kind == TokenKind::Ident {
                                 full_path.push_str(&self.current.lexeme);
                                 self.advance();
+                            } else {
+                                break;
                             }
                         }
                     }
@@ -1056,7 +1080,9 @@ impl Parser {
             }
 
             match self.parse_top_level_decl() {
-                Ok(decl) => module.children.push(decl),
+                Ok(decl) => {
+                    module.children.push(decl);
+                }
                 Err(_) => {
                     // On parse error, skip to next top-level declaration and continue
                     self.skip_to_next_top_level();
@@ -2125,12 +2151,38 @@ impl Parser {
         self.parse_expr_postfix()
     }
 
-    /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), call (f(args))
+    /// Parse postfix expressions: field access (.field), namespace (::name), deref (.*), indexing ([i]), call (f(args))
     fn parse_expr_postfix(&mut self) -> Result<Node, String> {
         let mut expr = self.parse_expr_primary()?;
 
         loop {
-            if self.current.kind == TokenKind::Dot {
+            if self.current.kind == TokenKind::KwAs {
+                // Type cast: expr as Type
+                self.advance(); // consume as
+                if self.current.kind == TokenKind::Ident {
+                    let type_name = self.current.lexeme.clone();
+                    self.advance();
+                    let mut cast = Node::new(NodeKind::ExprCast);
+                    cast.extra_type = type_name;
+                    cast.children.push(expr);
+                    expr = cast;
+                } else {
+                    break;
+                }
+            } else if self.current.kind == TokenKind::ColonColon {
+                // Namespace/path access: expr::name
+                self.advance(); // consume ::
+                if self.current.kind == TokenKind::Ident {
+                    let field = self.current.lexeme.clone();
+                    self.advance();
+                    let mut fa = Node::new(NodeKind::ExprFieldAccess);
+                    fa.name = field;
+                    fa.children.push(expr);
+                    expr = fa;
+                } else {
+                    break;
+                }
+            } else if self.current.kind == TokenKind::Dot {
                 self.advance(); // consume .
                 if self.current.kind == TokenKind::Star {
                     // Dereference: expr.*
@@ -2290,6 +2342,14 @@ impl Parser {
                         name.push_str("::");
                         self.advance(); // consume first :
                         self.advance(); // consume second :
+                        if self.current.kind == TokenKind::Ident {
+                            name.push_str(&self.current.lexeme);
+                            self.advance();
+                        }
+                    } else if self.current.kind == TokenKind::ColonColon {
+                        // Single :: token
+                        name.push_str("::");
+                        self.advance(); // consume ::
                         if self.current.kind == TokenKind::Ident {
                             name.push_str(&self.current.lexeme);
                             self.advance();
@@ -2754,7 +2814,7 @@ impl Codegen {
             if decl.kind == NodeKind::UseDecl {
                 self.write_line(&format!(
                     "const {} = @import(\"{}.zig\");",
-                    decl.name, decl.name
+                    decl.name, decl.value
                 ));
                 has_imports = true;
             }
@@ -2983,7 +3043,7 @@ impl Codegen {
     }
 
     fn gen_invariant_block(&mut self, node: &Node) {
-        self.write_line(&format!("comptime {{"));
+        self.write_line("comptime {");
 
         self.indent();
         self.write_indent();
@@ -3429,6 +3489,13 @@ impl Codegen {
                     }
                 }
                 self.write(" }");
+            }
+            NodeKind::ExprCast => {
+                // Type cast: (expr as Type)
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write(&format!(" as {}", node.extra_type));
             }
             _ => {}
         }
@@ -3957,7 +4024,7 @@ impl VerilogCodegen {
         self.write_line("end");
     }
 
-    fn gen_verilog_test_stmt(&mut self, node: &Node, test_name: &str) {
+    fn gen_verilog_test_stmt(&mut self, node: &Node, _test_name: &str) {
         match node.kind {
             NodeKind::StmtExpr => {
                 if let Some(expr) = node.children.first() {
@@ -4202,7 +4269,7 @@ impl VerilogCodegen {
         if body_idx > 0 {
             let iterable = &node.children[0];
             // Emit: integer iter_var; for (iter_var = 0; iter_var < iterable; iter_var = iter_var + 1)
-            self.write_line(&format!("// for-each over iterable"));
+            self.write_line("// for-each over iterable");
             self.write_indent();
             self.write(&format!("for ({} = 0; {} < ", iter_var, iter_var));
             self.gen_verilog_expr(iterable);
@@ -4506,7 +4573,7 @@ impl CCodegen {
         self.write_line(&format!("   Generated from t27 spec: {}", self.module_name));
         self.write_line("   DO NOT EDIT - generated by t27c gen-c");
         let mn = self.module_name.clone();
-        self.write_line(&format!("   phi^2 + 1/phi^2 = 3 | TRINITY"));
+        self.write_line("   phi^2 + 1/phi^2 = 3 | TRINITY");
         self.write_line(
             "   ============================================================================ */",
         );
@@ -4720,7 +4787,7 @@ impl CCodegen {
 
     fn gen_c_enum(&mut self, node: &Node) {
         // typedef enum { ... } Name;
-        self.write_line(&format!("typedef enum {{"));
+        self.write_line("typedef enum {");
         self.indent();
 
         for (i, variant) in node.children.iter().enumerate() {
@@ -4748,7 +4815,7 @@ impl CCodegen {
     }
 
     fn gen_c_struct(&mut self, node: &Node) {
-        self.write_line(&format!("typedef struct {{"));
+        self.write_line("typedef struct {");
         self.indent();
 
         for field in &node.children {
@@ -5115,8 +5182,7 @@ impl CCodegen {
     /// Map a t27/Zig type to C for use in parameter/return positions
     fn param_type_to_c(ty: &str) -> String {
         // Slice types: []Type → Type*
-        if ty.starts_with("[]") {
-            let inner = &ty[2..];
+        if let Some(inner) = ty.strip_prefix("[]") {
             let c_inner = if Self::is_primitive(inner) {
                 Self::type_to_c(inner).to_string()
             } else {
@@ -5823,7 +5889,7 @@ fn const_propagate(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             let name = stmt.name.clone();
             let reassigned = stmts.iter().any(|s| {
                 s.kind == NodeKind::StmtAssign
-                    && s.children.len() >= 1
+                    && !s.children.is_empty()
                     && s.children[0].kind == NodeKind::ExprIdentifier
                     && s.children[0].name == name
             });
@@ -6073,16 +6139,14 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     }
     let before = stmts.len();
     stmts.retain(|s| {
-        if s.kind == NodeKind::StmtLocal && !s.children.is_empty() {
-            if !reads.contains(&s.name) {
+        if s.kind == NodeKind::StmtLocal && !s.children.is_empty()
+            && !reads.contains(&s.name) {
                 return false;
             }
-        }
-        if s.kind == NodeKind::StmtAssign && !s.children.is_empty() {
-            if !reads.contains(&s.name) {
+        if s.kind == NodeKind::StmtAssign && !s.children.is_empty()
+            && !reads.contains(&s.name) {
                 return false;
             }
-        }
         true
     });
     stats.dead_stores += (before - stmts.len()) as u32;
@@ -6093,8 +6157,8 @@ fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     for (i, stmt) in stmts.iter_mut().enumerate() {
         if stmt.kind == NodeKind::StmtFor && stmt.children.len() >= 3 {
             let iter_expr = &stmt.children[0];
-            if iter_expr.kind == NodeKind::ExprBinary && iter_expr.extra_op == ".." {
-                if iter_expr.children.len() >= 2 {
+            if iter_expr.kind == NodeKind::ExprBinary && iter_expr.extra_op == ".."
+                && iter_expr.children.len() >= 2 {
                     let start = parse_int_value(&iter_expr.children[0].value);
                     let end = parse_int_value(&iter_expr.children[1].value);
                     if let (Some(s), Some(e)) = (start, end) {
@@ -6119,7 +6183,6 @@ fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
                         }
                     }
                 }
-            }
         }
     }
     for (idx, unrolled) in insertions.into_iter().rev() {
@@ -6163,8 +6226,8 @@ fn eval_binary(left: &str, op: &str, right: &str) -> Option<String> {
         "&" => Some(l & r),
         "|" => Some(l | r),
         "^" => Some(l ^ r),
-        "<<" if r >= 0 && r < 64 => Some(l << r),
-        ">>" if r >= 0 && r < 64 => Some(l >> r),
+        "<<" if (0..64).contains(&r) => Some(l << r),
+        ">>" if (0..64).contains(&r) => Some(l >> r),
         _ => None,
     };
     result.map(|v| v.to_string())
@@ -6285,7 +6348,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                 )
             })
             .collect();
-        for (sname, _fields) in &struct_fields {
+        for sname in struct_fields.keys() {
             let mut visited = std::collections::HashSet::new();
             fn has_cycle(
                 name: &str,
@@ -6383,8 +6446,8 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                 collect_reads(body_child, &mut reads);
             }
             for body_child in &child.children {
-                if body_child.kind == NodeKind::StmtLocal && !body_child.name.is_empty() {
-                    if !reads.contains(&body_child.name) && !body_child.extra_mutable {
+                if body_child.kind == NodeKind::StmtLocal && !body_child.name.is_empty()
+                    && !reads.contains(&body_child.name) && !body_child.extra_mutable {
                         result.warnings += 1;
                         let line = if body_child.line > 0 {
                             format!(":{}", body_child.line)
@@ -6396,7 +6459,6 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                             body_child.name, child.name, line
                         ));
                     }
-                }
             }
 
             fn is_tail_call(fn_body: &[Node], fn_name: &str) -> bool {
@@ -6404,13 +6466,12 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                     Some(s) => s,
                     None => return false,
                 };
-                if last.kind == NodeKind::ExprReturn && !last.children.is_empty() {
-                    if last.children[0].kind == NodeKind::ExprCall
+                if last.kind == NodeKind::ExprReturn && !last.children.is_empty()
+                    && last.children[0].kind == NodeKind::ExprCall
                         && last.children[0].name == fn_name
                     {
                         return true;
                     }
-                }
                 false
             }
 
@@ -6451,7 +6512,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
             collect_enum_values(child, used);
         }
     }
-    collect_enum_values(&ast, &mut used_variants);
+    collect_enum_values(ast, &mut used_variants);
 
     for (enum_name, variants) in &enum_variants {
         let unused: Vec<&String> = variants
@@ -6876,9 +6937,7 @@ impl RustCodegen {
     }
 
     fn gen_struct(&mut self, node: &Node) {
-        self.write_line(&format!(
-            "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]"
-        ));
+        self.write_line("#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]");
         self.write_line(&format!("pub struct {} {{", node.name));
         self.indent += 1;
         for child in &node.children {
@@ -6895,9 +6954,7 @@ impl RustCodegen {
     }
 
     fn gen_enum(&mut self, node: &Node) {
-        self.write_line(&format!(
-            "#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]"
-        ));
+        self.write_line("#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]");
         self.write_line(&format!("pub enum {} {{", node.name));
         self.indent += 1;
         for child in &node.children {
@@ -7257,7 +7314,7 @@ impl RustCodegen {
                 let args: Vec<String> = node
                     .children
                     .iter()
-                    .map(|c| Self::expr_to_rust(c))
+                    .map(Self::expr_to_rust)
                     .collect();
                 format!("{}({})", node.name, args.join(", "))
             }
@@ -7265,7 +7322,7 @@ impl RustCodegen {
                 let elems: Vec<String> = node
                     .children
                     .iter()
-                    .map(|c| Self::expr_to_rust(c))
+                    .map(Self::expr_to_rust)
                     .collect();
                 format!("vec![{}]", elems.join(", "))
             }
@@ -7623,7 +7680,7 @@ impl HirMemory {
     pub fn bram18_count(&self) -> u32 {
         let bits = self.total_bits();
         let count = bits / 18432;
-        if bits % 18432 > 0 {
+        if !bits.is_multiple_of(18432) {
             count + 1
         } else {
             count
@@ -7871,7 +7928,7 @@ impl HirBusPort {
         if self.data_width == 0 {
             errors.push(format!("bus '{}' has zero data width", self.name));
         }
-        if self.data_width % 8 != 0 {
+        if !self.data_width.is_multiple_of(8) {
             errors.push(format!(
                 "bus '{}' data width {} is not byte-aligned",
                 self.name, self.data_width
@@ -8085,7 +8142,7 @@ impl HirApbBridge {
         if self.data_width == 0 {
             errors.push(format!("APB bridge '{}' has zero data width", self.name));
         }
-        if self.data_width % 8 != 0 {
+        if !self.data_width.is_multiple_of(8) {
             errors.push(format!(
                 "APB bridge '{}' data width {} is not byte-aligned",
                 self.name, self.data_width
@@ -9443,7 +9500,7 @@ impl HirTestbench {
         tb.push_str("    reg rst_n;\n\n");
 
         let dut = &self.config.dut_name;
-        tb.push_str(&format!("    // DUT instance\n"));
+        tb.push_str("    // DUT instance\n");
         tb.push_str(&format!("    {} uut (\n", dut));
         tb.push_str("        .clk(clk),\n");
         tb.push_str("        .rst_n(rst_n)\n");
@@ -9511,7 +9568,7 @@ impl HirTestbench {
                 tb.push_str(&format!("    wire probe_{};\n", sig));
                 tb.push_str(&format!("    assign probe_{} = uut.{};\n", sig, sig));
             }
-            tb.push_str("\n");
+            tb.push('\n');
         }
 
         let timeout_ps = self.config.timeout_ns * 1000;
@@ -10566,18 +10623,10 @@ impl PlacementRegion {
         }
     }
     pub fn width(&self) -> u32 {
-        if self.x1 > self.x0 {
-            self.x1 - self.x0
-        } else {
-            0
-        }
+        self.x1.saturating_sub(self.x0)
     }
     pub fn height(&self) -> u32 {
-        if self.y1 > self.y0 {
-            self.y1 - self.y0
-        } else {
-            0
-        }
+        self.y1.saturating_sub(self.y0)
     }
     pub fn area(&self) -> u32 {
         self.width() * self.height()
@@ -11814,7 +11863,7 @@ impl HirConfigBlock {
     }
     pub fn total_bytes(&self) -> u32 {
         let total_bits = self.registers.iter().map(|r| r.width).sum::<u32>();
-        (total_bits + 7) / 8
+        total_bits.div_ceil(8)
     }
     pub fn validate(&self) -> Vec<String> {
         let mut errors = Vec::new();
@@ -11991,7 +12040,7 @@ impl DmaChannel {
         if self.burst_size == 0 {
             return 0;
         }
-        let num_bursts = (self.length_bytes + self.burst_size - 1) / self.burst_size;
+        let num_bursts = self.length_bytes.div_ceil(self.burst_size);
         num_bursts * (self.burst_size + 2)
     }
     pub fn bandwidth_mbps(&self, clock_mhz: u32) -> u32 {
@@ -12741,12 +12790,12 @@ impl AstToHir {
                 let lhs = node
                     .children
                     .first()
-                    .map(|c| Self::expr_to_string(c))
+                    .map(Self::expr_to_string)
                     .unwrap_or_default();
                 let rhs = node
                     .children
                     .get(1)
-                    .map(|c| Self::expr_to_string(c))
+                    .map(Self::expr_to_string)
                     .unwrap_or_default();
                 format!("{} {} {}", lhs, node.extra_op, rhs)
             }
@@ -12754,7 +12803,7 @@ impl AstToHir {
                 let args: Vec<String> = node
                     .children
                     .iter()
-                    .map(|c| Self::expr_to_string(c))
+                    .map(Self::expr_to_string)
                     .collect();
                 format!("{}({})", node.name, args.join(", "))
             }
@@ -13108,20 +13157,44 @@ impl HirVerilogEmitter {
         self.indent();
 
         if !hir.signals.is_empty() {
-            self.write_line("// Internal signals");
+            let mut consts = Vec::new();
+            let mut rest = Vec::new();
             for sig in &hir.signals {
-                let kind_str = match sig.kind {
-                    HwSignalKind::Wire => "wire",
-                    HwSignalKind::Reg => "reg ",
-                };
-                let range = sig.ty.verilog_range();
-                if range.is_empty() {
-                    self.write_line(&format!("{} {};", kind_str, sig.name));
+                if sig.kind == HwSignalKind::Wire && !sig.reset_value.is_empty() {
+                    consts.push(sig);
                 } else {
-                    self.write_line(&format!("{} {} {};", kind_str, range, sig.name));
+                    rest.push(sig);
                 }
             }
-            self.write_line("");
+            if !consts.is_empty() {
+                self.write_line("// Constants (localparam)");
+                for sig in &consts {
+                    let range = sig.ty.verilog_range();
+                    let val = sig.reset_value.replace('_', "");
+                    if range.is_empty() {
+                        self.write_line(&format!("localparam {} = {};", sig.name, val));
+                    } else {
+                        self.write_line(&format!("localparam {} {} = {};", range, sig.name, val));
+                    }
+                }
+                self.write_line("");
+            }
+            if !rest.is_empty() {
+                self.write_line("// Internal signals");
+                for sig in &rest {
+                    let kind_str = match sig.kind {
+                        HwSignalKind::Wire => "wire",
+                        HwSignalKind::Reg => "reg ",
+                    };
+                    let range = sig.ty.verilog_range();
+                    if range.is_empty() {
+                        self.write_line(&format!("{} {};", kind_str, sig.name));
+                    } else {
+                        self.write_line(&format!("{} {} {};", kind_str, range, sig.name));
+                    }
+                }
+                self.write_line("");
+            }
         }
 
         if !hir.assigns.is_empty() {
@@ -13612,7 +13685,7 @@ impl HirVerilogEmitter {
         self.write_line(&format!("assign {}_prdata = {}_prdata_r;", n, n));
         self.write_line(&format!("assign {}_pready = {}_pready_r;", n, n));
 
-        self.write_line(&format!("always @(*) begin",));
+        self.write_line("always @(*) begin");
         self.indent();
         self.write_line(&format!("{}_prdata_r = {}d0;", n, dw));
         self.write_line(&format!("{}_pready_r = 1'b1;", n));

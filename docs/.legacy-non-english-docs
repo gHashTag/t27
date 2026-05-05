@@ -1,12 +1,16 @@
 # One path per line (relative to repo root). Grandfathered until translated.
 # Do not add entries without Architect approval (see docs/nona-03-manifest/SOUL.md Law #1).
+README.md
+QUICK_START.md
+task.md
 docs/nona-02-organism/opencode_workflow.md
 docs/nona-03-manifest/TRI_CORE_ISSUES.md
 docs/agents/AGENTS_ALPHABET.md
+docs/AGENTS_ALPHABET.md
+docs/README_RU_UPDATE.md
+docs/rfc/tri-language-core.md
 docs/nona-01-foundation/SANDBOX-ARCHITECTURE.md
 docs/nona-03-manifest/migration-plan-vsa-nn-fpga-queen.md
-task.md
+specs/demos/PYTHON_L7_VIOLATION_REPORT.md
 # RU companion: compiler verification impact (NOW links here; Cyrillic allowed only in allowlisted paths)
 docs/COMPILER_VERIFICATION_IMPACT_RU.md
-docs/README_RU_UPDATE.md
-README.md

@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "last_sync_at": null,
+  "sync_stats": {
+    "issues": { "synced": 0, "failed": 0 },
+    "prs": { "synced": 0, "failed": 0 },
+    "docs": { "synced": 0, "failed": 0 }
+  },
+  "issues": {},
+  "prs": {},
+  "docs": {}
+}

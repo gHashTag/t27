@@ -30,7 +30,7 @@ fn collect_t27(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let mut v: Vec<PathBuf> = WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |x| x == "t27"))
+        .filter(|e| e.path().extension().is_some_and(|x| x == "t27"))
         .map(|e| e.path().to_path_buf())
         .collect();
     v.sort();
@@ -266,7 +266,7 @@ pub fn validate_conformance(repo_root: &Path) -> anyhow::Result<()> {
         .with_context(|| format!("read_dir {}", dir.display()))?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.extension().map_or(false, |x| x == "json"))
+        .filter(|p| p.extension().is_some_and(|x| x == "json"))
         .collect();
     entries.sort();
 

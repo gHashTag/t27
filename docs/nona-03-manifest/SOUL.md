@@ -4,8 +4,9 @@
 
 This document **expands** root **SOUL** with operational detail—especially **Law #1** (English-first docs and ASCII source), enforcement tables, examples, and cross-links. If anything here **conflicts** with root **`SOUL.md`**, **root wins**.
 
-**Version** (this expansion): 1.2  
+**Version** (this expansion): 1.3  
 **Date**: 2026-04-06  
+**Change**: Law #1 CI path + **NO-NEW-SHELL** toolchain note (root **SOUL.md** Article VIII)  
 **Status**: Sacred — Changes require consensus with root **SOUL.md**
 
 > *SOUL = System of Universal Laws*
@@ -20,7 +21,7 @@ This document **expands** root **SOUL** with operational detail—especially **L
 
 **Source files** (`.t27`, `.tri`, `.zig`, `.c`, `.v`, `.verilog`) **MUST NOT** contain Cyrillic or other non-Latin scripts in identifiers or comments (see ADR-004 for ASCII details). **Prose MUST be English.**
 
-**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `TASK.md`) **MUST be written in English**, except:
+**First-party documentation** (all `*.md` under `docs/`, `specs/`, `architecture/`, `clara-bridge/`, `conformance/`, and Markdown at repository root such as `README.md`, `AGENTS.md`, `CLAUDE.md`, `NOW.md`, `SOUL.md`) **MUST be written in English**, except:
 
 - Paths listed in **`docs/.legacy-non-english-docs`** (grandfathered until translated; **no new entries** without Architect approval).
 - Vendored trees under **`external/`** (upstream locales).
@@ -59,7 +60,11 @@ This document **expands** root **SOUL** with operational detail—especially **L
    error: spec contains Cyrillic characters - not allowed in source files
    ```
 4. **Pre-commit Hook**: Git pre-commit hook checks for Cyrillic in staged source files (if installed)
-5. **CI**: `scripts/check-first-party-doc-language.sh` on pull requests
+5. **CI**: `./scripts/tri lint-docs` (forwards to **`t27c lint-docs`**) on pull requests
+
+### Toolchain — NO-PYTHON / NO-SHELL (aligned with root SOUL.md Article VIII)
+
+**Do not** add new **`*.sh`** for validation, generation, or data processing. Implement in **`t27c`** (Rust), with **`#[test]`** / **`cargo test`** where feasible. **`scripts/tri`** is an **exec-only** shim (resolve **`t27c`**, pass **`--repo-root`**, **`exec`**). **`scripts/setup-git-hooks.sh`** is the only allowed long-lived bootstrap shell helper (one-time `core.hooksPath`).
 
 ### Violation Example
 

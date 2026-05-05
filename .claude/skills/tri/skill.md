@@ -92,6 +92,77 @@ tri wrapup --summary "completed <task>" \
 - "known issues with <spec>" — Find blockers
 - "architecture of <component>" — Get design context
 
+<<<<<<< Updated upstream
+## MANDATORY WORKFLOW: Start Task Before Pushing
+
+**L7 UNITY Requirement:** Every push to the repository must have an active NotebookLM notebook.
+
+<<<<<<< Updated upstream
+```bash
+=======
+```
+>>>>>>> Stashed changes
+# Step 1: ALWAYS start a task before beginning work
+t27c bridge task start --title "Your task description"
+
+# This creates:
+# - .trinity/current_task/.notebook_id  (tracked in git)
+# - .trinity/current_task/notebook_meta.json
+# - A new NotebookLM notebook linked to your session
+
+# Step 2: Do your work (PHI LOOP, edits, commits, etc.)
+
+# Step 3: Push (gate will check for notebook)
+git push  # Succeeds only if .notebook_id exists and is valid
+```
+
+**Alternative: Attach existing notebook**
+
+<<<<<<< Updated upstream
+```bash
+=======
+```
+>>>>>>> Stashed changes
+t27c bridge task attach --notebook_id "abc123def456"
+```
+
+**Check current task status**
+
+<<<<<<< Updated upstream
+```bash
+=======
+```
+>>>>>>> Stashed changes
+t27c bridge task status
+```
+
+**Verify notebook is valid**
+
+<<<<<<< Updated upstream
+```bash
+=======
+```
+>>>>>>> Stashed changes
+t27c bridge task verify
+```
+
+**Emergency bypass (NOT recommended)**
+
+<<<<<<< Updated upstream
+```bash
+=======
+```
+>>>>>>> Stashed changes
+SKIP_NOTEBOOK_GATE=1 git push
+# Bypass is logged to .trinity/gate_bypasses.log
+```
+
+**Branch Protection Rule (to be configured):**
+- Required status check: "NotebookLM Gate / 🔒 NotebookLM notebook required"
+- Require branches to be up to date before merging: YES
+- Include administrators: YES
+
+<<<<<<< Updated upstream
 ## /tri wrapup
 
 Automatic session wrap-up with NotebookLM upload. This is the canonical way to end a session and preserve context for future agents.
@@ -222,6 +293,124 @@ t27 #343 — Restore phi-loop-ci.yml
 t27 #350 — NotebookLM Integration
   └─ Source 1: "Session 2026-04-08 17:00 — Spec creation"
   └─ Source 2: "Session 2026-04-08 18:00 — Backend impl"
+=======
+## tri task — Task Notebook Management (via t27c bridge)
+
+Quick NotebookLM commands for notebook management:
+
+```bash
+# Create a new notebook
+t27c bridge nb create --title "Sprint 9: NeurIPS"
+
+# List all notebooks
+t27c bridge nb list
+
+# Add a file as source to current notebook
+t27c bridge nb add --file path/to/file.md
+
+# Query current notebook with prompt
+t27c bridge nb query --prompt "что сделано вчера?"
+
+# Upload activity.md to notebook
+t27c bridge nb upload-log
+
+# Link current notebook to GitHub issue
+t27c bridge nb link --issue 370
+```
+
+**Configuration:**
+- Backend: `contrib/backend/notebooklm/` (Playwright-based)
+- Storage: `~/.notebooklm/storage_state.json`
+- Auth: Cookie-based via `notebooklm login` CLI
+- Python: `python3.10` (where `notebooklm-py` is installed)
+
+**MCP Integration:**
+- Server: `notebooklm-mcp` (installed via `npm install -g notebooklm-mcp`)
+- Config: `.claude/mcp.json`
+- Claude Code can directly create notebooks, upload sources, and query with Gemini citations
+
+**Bulk Creation:**
+```bash
+# Create notebooks for all open issues
+scripts/bulk-create-notebooks.sh
+>>>>>>> Stashed changes
+=======
+## Task Notebook Management (L7 UNITY Enforcement)
+
+**MANDATORY:** Every task must have a NotebookLM notebook assigned before pushing code.
+
+### Starting a New Task
+
+```bash
+# Initialize task with a new notebook
+t27c task start --title "Implement feature X" --sources "specs/*.t27,README.md"
+
+# This creates:
+# - A NotebookLM notebook with the given title
+# - .trinity/current_task/.notebook_id (tracked in git)
+# - .trinity/current_task/notebook_meta.json
+
+# Then proceed with PHI LOOP work
+tri notebook query "status of feature X"  # Check existing work
+tri spec edit <module>
+# ... rest of PHI LOOP ...
+```
+
+### Attaching Existing Notebook
+
+```bash
+# Use an existing notebook if one already exists for this work
+t27c task attach --notebook-id "existing-notebook-id"
+```
+
+### Checking Task Status
+
+```bash
+# Show current task notebook status
+t27c task status
+
+# Output shows:
+# - Notebook ID and URL
+# - Task title
+# - Branch
+# - Sources count
+```
+
+### Verifying Notebook Gate
+
+```bash
+# Verify notebook gate requirement is satisfied (called by pre-push hook)
+t27c task verify
+```
+
+### Mandatory Workflow Order
+
+1. **Before starting work:** Query NotebookLM to avoid duplication
+   ```bash
+   tri notebook query "status of <task>"
+   ```
+
+2. **Initialize task:** Create notebook if starting new work
+   ```bash
+   t27c task start --title "task description"
+   ```
+
+3. **Execute PHI LOOP:** tri spec edit, tri gen, tri test, etc.
+
+4. **After completing work:** Upload wrap-up
+   ```bash
+   tri notebook wrapup --summary "completed <task>" --decisions "..." --files "..." --next "..."
+   ```
+
+5. **Git push:** Pre-push hook verifies .notebook_id exists
+   ```bash
+   git push  # Blocked if no valid notebook
+   ```
+
+**Emergency Bypass** (logged to `.trinity/gate_bypasses.log`):
+```bash
+SKIP_NOTEBOOK_GATE=1 git push
+>>>>>>> Stashed changes
 ```
 
 ## Standard /tri Status Output

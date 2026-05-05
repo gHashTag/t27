@@ -2,7 +2,7 @@
 
 ## Primary
 
-**A-Architect** — top-level layout, cross-cutting policy docs, coordination entrypoints (`README.md`, `SOUL.md`, `TASK.md`).
+**A-Architect** — top-level layout, cross-cutting policy docs, coordination entrypoints (`README.md`, `SOUL.md`, `NOW.md`).
 
 ## Notes
 

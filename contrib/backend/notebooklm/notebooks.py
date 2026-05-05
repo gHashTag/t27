@@ -1,22 +1,31 @@
 # contrib/backend/notebooklm/notebooks.py
-# Notebook operations for NotebookLM integration
+# Notebook CRUD operations for NotebookLM integration
 # phi^2 + 1/phi^2 = 3 | TRINITY
 
-"""Notebook operations: create, list, get, find, delete."""
-
-import asyncio
-from dataclasses import dataclass, asdict
 from typing import Optional, List, Dict, Any
+from pathlib import Path
+from dataclasses import dataclass, asdict
 from datetime import datetime
 
-try:
-    from notebooklm import NotebookLMClient
-    NOTEBOOKLM_AVAILABLE = True
-except ImportError:
-    NOTEBOOKLM_AVAILABLE = False
+from .config import NotebookLMConfig, config_from_env
+from .client import client_new, _update_client_state, client_get_current
+from .auth_token import token_load, token_save, token_is_valid, AuthTokens
 
-from .client import client_get_current
+# Global cache for notebooks (in-memory)
+_notebook_cache: Dict[str, Notebook] = {}
 
+
+def _clear_cache() -> None:
+    """Clear notebook cache.
+
+    Complexity: O(n) where n is cache size
+    """
+    _notebook_cache.clear()
+
+
+# ============================================================================
+# 1. Data Structures
+# ============================================================================
 
 @dataclass
 class Notebook:
@@ -29,164 +38,283 @@ class Notebook:
         updated_at: Last update timestamp
         source_count: Number of sources
     """
-
     id: str
     title: str
-    created_at: str
-    updated_at: str
-    source_count: int
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
-        return asdict(self)
+    created_at: datetime
+    updated_at: datetime
+    source_count: int = 0
 
 
-def _run_async(coro):
-    """Run async coroutine synchronously."""
+# ============================================================================
+# 2. Helper Functions
+# ============================================================================
+
+def _run_sync(coro):
+    """Run async coroutine synchronously.
+
+    Args:
+        coro: Async coroutine to run
+
+    Returns:
+        Result of coroutine or None on error
+    """
+    import asyncio
     try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures
+            import threading
+
+            result = [None]
+            exception = [None]
+
+            def run_in_new_loop():
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    result[0] = new_loop.run_until_complete(coro)
+                except Exception as e:
+                    exception[0] = e
+                finally:
+                    new_loop.close()
+
+            thread = threading.Thread(target=run_in_new_loop)
+            thread.start()
+            thread.join(timeout=60)
+
+            if exception[0]:
+                raise exception[0]
+            return result[0]
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
         return asyncio.run(coro)
-    except RuntimeError as e:
-        if "This event loop" in str(e):
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(coro)
-            finally:
-                loop.close()
-        raise
 
 
-def notebook_create(title: str) -> Optional[Dict[str, Any]]:
-    """Create a new notebook.
+# ============================================================================
+# 3. Notebook CRUD Functions
+# ============================================================================
+
+def notebook_create(title: str, config: Optional[NotebookLMConfig] = None) -> Dict[str, Any]:
+    """Create a new NotebookLM notebook.
 
     Args:
         title: Title for the notebook
 
     Returns:
-        Dict with notebook data or None if failed
+        Dict with keys: 'success', 'notebook', 'error'
+
+    Complexity: O(1)
     """
-    client = client_get_current()
+    if config is None:
+        config = config_from_env()
+
+    # Validate notebook name
+    if not title or len(title.strip()) == 0:
+        return {
+            "success": False,
+            "notebook": None,
+            "error": "Notebook name cannot be empty",
+        }
+
+    # Check cache first
+    cache_key = f"nb_{title}"
+    if cache_key in _notebook_cache:
+        # Return cached notebook without re-fetching
+        return {
+            "success": True,
+            "notebook": _notebook_cache[cache_key],
+        }
+
+    # Initialize client
+    client = client_new(config)
     if client is None:
-        print("Error: No authenticated client")
-        return None
+        return {
+            "success": False,
+            "notebook": None,
+            "error": "Failed to initialize client",
+        }
 
-    async def _create() -> Optional[Dict[str, Any]]:
+    from notebooklm import Notebook
+
+    async def _create():
         try:
-            nb = await client.notebooks.create(title)
-            return Notebook(
-                id=nb.id,
-                title=nb.title,
-                created_at=str(nb.created_at),
-                updated_at=str(nb.updated_at),
-                source_count=len(nb.sources) if hasattr(nb, "sources") else 0,
-            ).to_dict()
+            nb = await Notebook()
+            result = await nb.notebooks.create(title)
+
+            # Update cache
+            new_nb = Notebook(
+                id=str(result.id),
+                title=result.title,
+                created_at=result.created_at,
+                updated_at=result.updated_at,
+                source_count=len(result.sources) if hasattr(result, "sources") else 0,
+            )
+            _notebook_cache[cache_key] = new_nb
+            _clear_cache()  # Clear old cache on success
+
+            return {
+                "success": True,
+                "notebook": new_nb,
+            }
         except Exception as e:
-            print(f"Error creating notebook: {e}")
-            return None
+            return {
+                "success": False,
+                "notebook": None,
+                "error": str(e),
+            }
 
-    return _run_async(_create())
+    return _run_sync(_create)
 
 
-def notebook_list() -> List[Dict[str, Any]]:
-    """List all notebooks.
+def notebook_list(config: Optional[NotebookLMConfig] = None) -> Dict[str, Any]:
+    """List all NotebookLM notebooks.
+
+    Args:
+        config: Configuration (uses defaults if None)
 
     Returns:
-        List of notebook data dicts
+        List of Notebook data dicts
+
+    Complexity: O(1)
     """
-    client = client_get_current()
+    if config is None:
+        config = config_from_env()
+
+    # Initialize client
+    client = client_new(config)
     if client is None:
-        print("Error: No authenticated client")
         return []
 
-    async def _list() -> List[Dict[str, Any]]:
+    from notebooklm import Notebook
+
+    async def _list():
         try:
-            notebooks = await client.notebooks.list()
-            return [
-                Notebook(
-                    id=nb.id,
+            result = await client.notebooks.list()
+
+            # Convert to Notebook objects
+            notebooks = []
+            for nb in result:
+                notebooks.append(Notebook(
+                    id=str(nb.id),
                     title=nb.title,
-                    created_at=str(nb.created_at),
-                    updated_at=str(nb.updated_at),
+                    created_at=nb.created_at,
+                    updated_at=nb.updated_at,
                     source_count=len(nb.sources) if hasattr(nb, "sources") else 0,
-                ).to_dict()
-                for nb in notebooks
-            ]
-        except Exception as e:
-            print(f"Error listing notebooks: {e}")
+                ))
+
+            return notebooks
+        except Exception:
             return []
 
-    return _run_async(_list())
+    return _run_sync(_list)
 
 
-def notebook_get(notebook_id: str) -> Optional[Dict[str, Any]]:
-    """Get a specific notebook.
+def notebook_get(notebook_id: str, config: Optional[NotebookLMConfig] = None) -> Optional[Notebook]:
+    """Get a specific notebook by ID.
 
     Args:
         notebook_id: Notebook ID
+        config: Configuration (uses defaults if None)
 
     Returns:
-        Dict with notebook data or None if not found
+        Notebook object or None if not found
+
+    Complexity: O(1)
     """
-    client = client_get_current()
+    if config is None:
+        config = config_from_env()
+
+    # Check cache first
+    if notebook_id in _notebook_cache:
+        return _notebook_cache[notebook_id]
+
+    # Initialize client
+    client = client_new(config)
     if client is None:
-        print("Error: No authenticated client")
         return None
 
-    async def _get() -> Optional[Dict[str, Any]]:
+    from notebooklm import Notebook
+
+    async def _get():
         try:
-            nb = await client.notebooks.get(notebook_id)
+            result = await client.notebooks.get(notebook_id)
             return Notebook(
-                id=nb.id,
-                title=nb.title,
-                created_at=str(nb.created_at),
-                updated_at=str(nb.updated_at),
-                source_count=len(nb.sources) if hasattr(nb, "sources") else 0,
-            ).to_dict()
-        except Exception as e:
-            print(f"Error getting notebook: {e}")
+                id=str(result.id),
+                title=result.title,
+                created_at=result.created_at,
+                updated_at=result.updated_at,
+                source_count=len(result.sources) if hasattr(result, "sources") else 0,
+            )
+        except Exception:
             return None
 
-    return _run_async(_get())
+    return _run_sync(_get)
 
 
-def notebook_find_by_name(name: str) -> Optional[Dict[str, Any]]:
+def notebook_find_by_name(name: str, config: Optional[NotebookLMConfig] = None) -> Optional[Notebook]:
     """Find a notebook by title.
 
     Args:
         name: Notebook title to search for
+        config: Configuration (uses defaults if None)
 
     Returns:
-        Dict with notebook data or None if not found
-    """
-    notebooks = notebook_list()
+        Notebook object or None if not found
 
-    for nb in notebooks:
-        if nb["title"] == name:
-            return nb
+    Complexity: O(n) where n is number of notebooks
+    """
+    if config is None:
+        config = config_from_env()
+
+    # List all notebooks to search
+    all_notebooks = notebook_list(config)
+
+    # Find matching notebook (case-insensitive)
+    for notebook in all_notebooks:
+        if notebook["title"].lower() == name.lower():
+            return notebook
 
     return None
 
 
-def notebook_delete(notebook_id: str) -> bool:
+def notebook_delete(notebook_id: str, config: Optional[NotebookLMConfig] = None) -> bool:
     """Delete a notebook.
 
     Args:
         notebook_id: Notebook ID to delete
+        config: Configuration (uses defaults if None)
 
     Returns:
         True if successful, False otherwise
+
+    Complexity: O(1)
     """
-    client = client_get_current()
+    if config is None:
+        config = config_from_env()
+
+    # Remove from cache
+    if notebook_id in _notebook_cache:
+        del _notebook_cache[notebook_id]
+
+    # Initialize client
+    client = client_new(config)
     if client is None:
-        print("Error: No authenticated client")
         return False
 
-    async def _delete() -> bool:
+    from notebooklm import Notebook
+
+    async def _delete():
         try:
+            # Use notebooks.delete (synchronous)
             await client.notebooks.delete(notebook_id)
+
+            # Update cache
+            if notebook_id in _notebook_cache:
+                del _notebook_cache[notebook_id]
+
             return True
-        except Exception as e:
-            print(f"Error deleting notebook: {e}")
+        except Exception:
             return False
 
-    return _run_async(_delete())
+    return _run_sync(_delete)

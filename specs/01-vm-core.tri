@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: Apache-2.0
+// Trinity VM Core - Ring 001
+// .t27-MIN Specification
+
+spec vm_core {
+
+    // Types for register-based virtual machine
+    type VMState = struct {
+        registers: [8]u64,
+        pc: u32,
+        flags: u8,
+        halted: bool,
+        cycles: u64
+    }
+
+    // Opcodes for minimal but complete VM
+    type Opcode = enum(u8) {
+        // Control flow
+        HALT = 0x00,
+
+        // Load/Store
+        LOAD_CONST = 0x10,  // Load 32-bit constant
+        STORE = 0x11,           // Store register byte
+
+        // Arithmetic
+        ADD = 0x20,
+        SUB = 0x21,
+        MUL = 0x22,
+        DIV = 0x23,
+
+        // Comparison
+        EQ = 0x30,
+        LT = 0x31,
+        GT = 0x32,
+
+        // Jump
+        JMP = 0x40,
+        JZ = 0x41,
+        JNZ = 0x42,
+
+        // Memory
+        LOAD = 0x50,
+        CALL = 0x60,
+        RET = 0x61
+    }
+
+    // Flag bits in flags register
+    const ZERO: u8 = 0x00;  // Comparison result zero
+    const SIGN: u8 = 0x01;  // Comparison result negative
+
+    // Kleene logic functions
+    fn trit_not(t: Trit) -> Trit;
+
+    // Execute single VM step
+    fn vm_step(vm: VMState, memory: [_]u8{65536}) -> VMState;
+
+    // Run VM until halt
+    fn vm_run(vm: VMState, memory: [_]u8{65536}) -> u64;
+
+    // Benchmark VM execution
+    fn vm_benchmark(program: [_]u8, iterations: u64) -> u64;
+}

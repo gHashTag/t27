@@ -3,7 +3,7 @@
 __Date:__ 2026-04-07
 __Version:__ 3.0
 __Status:__ Working Draft
-__Author:__ t27 Project Team
+__Author:__ Dmitrii Vasilev
 
 ---
 

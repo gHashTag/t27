@@ -162,10 +162,17 @@ specs/brain/
 From repo root, after `cargo build --release` in `bootstrap/`:
 
 ```bash
+<<<<<<< Updated upstream
 # Whole brain tree (path is a directory → batch under gen/{zig,c,verilog}/…)
 ./scripts/tri gen-zig       specs/brain
 ./scripts/tri gen-c         specs/brain
 ./scripts/tri gen-verilog   specs/brain
+=======
+# Whole brain tree → gen/{zig,c,verilog}/… (mirrors specs/** under out-root)
+./scripts/tri gen-dir --backend zig --out-root gen/zig specs/brain
+./scripts/tri gen-dir --backend c --out-root gen/c specs/brain
+./scripts/tri gen-dir --backend verilog --out-root gen/verilog specs/brain
+>>>>>>> Stashed changes
 
 # Single file (Zig on stdout)
 ./scripts/tri gen-zig       specs/brain/unified_state.t27
@@ -177,7 +184,10 @@ From repo root, after `cargo build --release` in `bootstrap/`:
 # Seal (verify / save)
 ./scripts/tri seal          specs/brain/unified_state.t27 --verify
 ./scripts/tri seal          specs/brain/unified_state.t27 --save
+<<<<<<< Updated upstream
 ./scripts/tri skill-seal    specs/brain/unified_state.t27
+=======
+>>>>>>> Stashed changes
 
 # Conformance JSON check (full repo scan)
 ./scripts/tri validate-conformance
@@ -186,7 +196,11 @@ From repo root, after `cargo build --release` in `bootstrap/`:
 ./scripts/tri test
 ```
 
+<<<<<<< Updated upstream
 **Implementation note:** `scripts/tri` is an **exec shim** (`t27c --repo-root <repo> …`). **`t27c`** is equivalent when **`--repo-root`** is set.
+=======
+**Implementation note:** `scripts/tri` is an **exec shim**: it runs `t27c --repo-root <repo> …` (override binary with **`TRI_T27C`**). **`./scripts/tri`** is the canonical entry from repo root; **`t27c`** is equivalent when **`--repo-root`** is set.
+>>>>>>> Stashed changes
 
 **Generated layout (target):** directory arguments write under `gen/zig/…`, `gen/c/…`, `gen/verilog/…` mirroring `specs/**` — **never edit generated files by hand**.
 
@@ -204,7 +218,11 @@ From repo root, after `cargo build --release` in `bootstrap/`:
 | `t27c gen-c` | `tri gen-c` |
 | `t27c gen-verilog` | `tri gen-verilog` |
 | `t27c gen` | `tri gen-zig` (single file) or `tri gen` (same Zig backend) |
+<<<<<<< Updated upstream
 | `t27c seal --save` | `tri seal <file.t27> --save` or `tri skill-seal <file.t27>` |
+=======
+| `t27c seal --save` | `tri seal <file.t27> --save` |
+>>>>>>> Stashed changes
 | `t27c validate-conformance` | `tri validate-conformance` |
 | `./bootstrap/target/release/t27c` | `tri` (via `./scripts/tri`) |
 
@@ -239,7 +257,11 @@ tri skill commit
 tri git commit -m "feat(brain): DLPFC spec — Closes #501"
 ```
 
+<<<<<<< Updated upstream
 Only what **`t27c`** implements applies in this repo (`gen`, `skill-seal`, `test`, …); **`tri skill …`** lines above are **charter / Trinity app** wiring, not the exec shim.
+=======
+Only the subset forwarded by `scripts/tri` to **`t27c`** works here today (`gen`, `gen-dir`, `seal`, `test`, …); product **`tri skill …`** / **`tri verdict`** lines above are **charter / Trinity app** wiring, not this shim.
+>>>>>>> Stashed changes
 
 ---
 

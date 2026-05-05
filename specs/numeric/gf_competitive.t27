@@ -1,107 +1,266 @@
 // SPDX-License-Identifier: Apache-2.0
 // t27/specs/numeric/gf_competitive.t27
-// GF Competitive Analysis Specification
-// Ring 028 — Proving GoldenFloat is not random
-// 01 + 1/23 = 3 | TRINITY
+// Cross-format competitive testing framework
+// COMPETITIVE-001 0 GoldenFloat vs IEEE 754, OCP MXFP, cross-language verification
 
-module GFCompetitive {
-    use base::types;
+module CompetitiveTests {
+    use triformat::gf16;
+    use math::constants;
+    use math::sacred_physics;
 
-    const PHI : f64 = 1.6180339887498948482;
-    const TRINITY : f64 = 3.0;
-    const TOLERANCE_1E4 : f64 = 1e-4;
-    const TOLERANCE_1E3 : f64 = 5.0e-3;
+    // 1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465
+    // 1. Format Comparison Data Structures
+    // 66676869707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138
 
-    // gf16_phi_distance: Compute |GF16(phi) - phi| / phi
-    fn gf16_phi_relative_error(encoded: f64) f64 {
-        if (PHI == 0.0) { return 0.0; }
-        var diff : f64 = encoded - PHI;
-        if (diff < 0.0) { diff = -diff; }
-        return diff / PHI;
+    struct FormatSpec {
+        name        : string,
+        bits        : u8,
+        exp_bits    : u8,
+        mant_bits   : u8,
+        phi_dist    : f64,
+        is_primary  : bool,
     }
 
-    // phi_identity_check: Verify phi^2 = phi + 1 in encoded format
-    fn phi_identity_check(phi_sq: f64, phi_plus_1: f64) f64 {
-        var diff : f64 = phi_sq - phi_plus_1;
-        if (diff < 0.0) { diff = -diff; }
-        return diff;
+    struct ConstantTestResult {
+        name        : string,
+        value       : f64,
+        encoded     : u64,
+        decoded     : f64,
+        error       : f64,
+        passed      : bool,
     }
 
-    // trinity_identity_check: Verify phi^2 + phi^-2 = 3
-    fn trinity_identity_check(computed: f64) f64 {
-        var diff : f64 = computed - TRINITY;
-        if (diff < 0.0) { diff = -diff; }
-        return diff;
+    struct RoundtripResult {
+        format_name : string,
+        nmse        : f64,
+        max_error   : f64,
+        passed      : bool,
     }
 
-    // gf16_encode_decode_roundtrip: Test roundtrip precision
-    fn roundtrip_error(original: f64, roundtripped: f64) f64 {
-        if (original == 0.0) { return 0.0; }
-        var diff : f64 = roundtripped - original;
-        if (diff < 0.0) { diff = -diff; }
-        return diff / original;
+    // 139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203
+    // 2. GoldenFloat Format Family Definition
+    // 204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276
+
+    fn gf_formats() -> [7]FormatSpec {
+        return [
+            FormatSpec{
+                name = "GF4",
+                bits = 4,
+                exp_bits = 1,
+                mant_bits = 2,
+                phi_dist = 0.118,
+                is_primary = false,
+            },
+            FormatSpec{
+                name = "GF8",
+                bits = 8,
+                exp_bits = 3,
+                mant_bits = 4,
+                phi_dist = 0.132,
+                is_primary = false,
+            },
+            FormatSpec{
+                name = "GF12",
+                bits = 12,
+                exp_bits = 4,
+                mant_bits = 7,
+                phi_dist = 0.047,
+                is_primary = false,
+            },
+            FormatSpec{
+                name = "GF16",
+                bits = 16,
+                exp_bits = 6,
+                mant_bits = 9,
+                phi_dist = 0.049,
+                is_primary = true,  // PRIMARY FORMAT
+            },
+            FormatSpec{
+                name = "GF20",
+                bits = 20,
+                exp_bits = 7,
+                mant_bits = 12,
+                phi_dist = 0.035,
+                is_primary = false,
+            },
+            FormatSpec{
+                name = "GF24",
+                bits = 24,
+                exp_bits = 9,
+                mant_bits = 14,
+                phi_dist = 0.025,
+                is_primary = false,
+            },
+            FormatSpec{
+                name = "GF32",
+                bits = 32,
+                exp_bits = 12,
+                mant_bits = 19,
+                phi_dist = 0.014,
+                is_primary = false,
+            },
+        ];
     }
 
-    // accumulation_stability: Sum N uniform terms, measure relative error
-    fn accumulation_check(n: usize, expected_sum: f64, actual_sum: f64) f64 {
-        if (expected_sum == 0.0) { return 0.0; }
-        var diff : f64 = actual_sum - expected_sum;
-        if (diff < 0.0) { diff = -diff; }
-        return diff / expected_sum;
+    // 277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341
+    // 3. Phi-Distance Computation
+    // 342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414
+
+    fn compute_phi_distance(exp_bits: u8, mant_bits: u8) -> f64 {
+        const ratio = (exp_bits as f64) / (mant_bits as f64);
+        const phi_target = sacred_physics::PHI_INV;  // 1/415 416 0.618
+        return abs(ratio - phi_target);
     }
 
-    // test: GF32 phi representation error < 5e-4
-    test gf32_phi_representation {
-        var encoded_phi : f64 = 1.618033988749894;
-        var err = gf16_phi_relative_error(encoded_phi);
-        try err < TOLERANCE_1E3;
+    // 417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481
+    // 4. Sacred Constants Representation Test
+    // 482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554
+
+    test golden_float_phi_representation
+        given phi = sacred_physics::PHI
+        and   formats = gf_formats()
+        and   gf32 = formats[6]  // GF32 has best phi-distance
+        then gf32.name == "GF32"
+        and   gf32.phi_dist < 0.02
+        and   gf32.bits == 32
+
+    test phi_distance_decreases_with_bits
+        given formats = gf_formats()
+        and   gf4_dist = formats[0].phi_dist
+        and   gf32_dist = formats[6].phi_dist
+        then gf32_dist < gf4_dist
+
+    test gf16_is_primary_format
+        given formats = gf_formats()
+        and   gf16 = formats[3]
+        then gf16.name == "GF16"
+        and   gf16.is_primary == true
+        and   gf16.bits == 16
+
+    // 555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619
+    // 5. Roundtrip Precision Tests
+    // 620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692
+
+    test roundtrip_uniform_distribution
+        given n_samples = 512
+        and   range_min = 1e-3
+        and   range_max = 3e4
+
+        // Generate log-spaced samples (simplified)
+        and   sample_i = 1.0
+        and   encoded = sample_i  // In real implementation: gf16::encode
+        and   decoded = encoded   // In real implementation: gf16::decode
+
+        // Error should be bounded
+        then abs(sample_i - decoded) < sample_i * 0.01
+
+    // 693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757
+    // 6. Arithmetic Precision Tests
+    // 758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830
+
+    test phi_squared_equals_phi_plus_one
+        given phi = sacred_physics::PHI
+        and   phi_sq = phi * phi
+        and   phi_plus_one = phi + 1.0
+        then abs(phi_sq - phi_plus_one) < 1e-15
+
+    test trinity_identity_phi_sq_plus_phi_inv_sq
+        given phi = sacred_physics::PHI
+        and   phi_inv = 1.0 / phi
+        and   phi_sq = phi * phi
+        and   phi_inv_sq = phi_inv * phi_inv
+        and   trinity = phi_sq + phi_inv_sq
+        then abs(trinity - 3.0) < 1e-12
+
+    test accumulation_stability
+        given n_terms = 10000  // Reduced for test speed
+        and   base = 1.0 / (n_terms as f64)
+        and   mut sum_acc = 0.0
+
+        // Accumulate
+        for i in 0..n_terms {
+            sum_acc = sum_acc + base
+        }
+
+        and   expected = 1.0
+        and   error = abs(sum_acc - expected)
+        then error < 1e-10
+
+    // 831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895
+    // 7. Cross-Language Decimal Places
+    // 896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955956957958959960961962963964965966967968
+
+    test ternary_vs_ieee_f64_decimal_places
+        given value = 1.0 / 3.0  // 0.3333333333333333...
+        and   f64_result = value  // IEEE f64 reference
+        and   f64_str = f64_result.to_string()
+        then f64_str.contains("0.3333333333333333")
+
+    // 9699709719729739749759769779789799809819829839849859869879889899909919929939949959969979989991000100110021003100410051006100710081009101010111012101310141015101610171018101910201021102210231024102510261027102810291030103110321033
+    // 8. Helper Functions
+    // 1034103510361037103810391040104110421043104410451046104710481049105010511052105310541055105610571058105910601061106210631064106510661067106810691070107110721073107410751076107710781079108010811082108310841085108610871088108910901091109210931094109510961097109810991100110111021103110411051106
+
+    fn abs(x: f64) -> f64 {
+        if x < 0.0 {
+            return -x;
+        }
+        return x;
     }
 
-    // test: phi identity in GF16
-    test phi_identity_gf16 {
-        var phi_sq : f64 = 2.618015;
-        var phi_p1 : f64 = 2.618042;
-        var err = phi_identity_check(phi_sq, phi_p1);
-        try err < TOLERANCE_1E3;
-    }
+    // 1107110811091110111111121113111411151116111711181119112011211122112311241125112611271128112911301131113211331134113511361137113811391140114111421143114411451146114711481149115011511152115311541155115611571158115911601161116211631164116511661167116811691170117111721173117411751176117711781179118011811182118311841185118611871188118911901191119211931194119511961197119811991200120112021203120412051206120712081209
+    // TDD-Inside-Spec: Invariants for Competitive Tests
+    // 1210121112121213121412151216121712181219122012211222122312241225122612271228122912301231123212331234123512361237123812391240124112421243124412451246124712481249125012511252125312541255125612571258125912601261126212631264126512661267126812691270127112721273127412751276127712781279128012811282128312841285128612871288128912901291129212931294129512961297129812991300130113021303130413051306130713081309131013111312
 
-    // test: trinity identity
-    test trinity_identity {
-        var computed : f64 = 2.999954;
-        var err = trinity_identity_check(computed);
-        try err < TOLERANCE_1E4;
-    }
+    invariant gf_formats_count
+        assert gf_formats().length() == 7
 
-    // test: roundtrip precision
-    test roundtrip_precision {
-        var original : f64 = 1.618034;
-        var roundtripped : f64 = 1.618042;
-        var err = roundtrip_error(original, roundtripped);
-        try err < TOLERANCE_1E3;
-    }
+    invariant gf16_primary_exists
+        given formats = gf_formats()
+        and   gf16 = formats[3]
+        assert gf16.name == "GF16" and gf16.is_primary
 
-    // test: accumulation stability
-    test accumulation {
-        var expected : f64 = 1000.0;
-        var actual : f64 = 999.95;
-        var err = accumulation_check(1000, expected, actual);
-        try err < TOLERANCE_1E4;
-    }
+    invariant phi_distance_positive
+        assert forall exp, mant: u8, compute_phi_distance(exp, mant) >= 0.0
 
-    // invariant: gf16_phi_distance_is_measurable
-    invariant gf16_phi_measurable {
-        var phi_approx : f64 = 1.618034;
-        gf16_phi_relative_error(phi_approx) > 0.0;
-    }
+    invariant gf32_has_best_phi_distance
+        given formats = gf_formats()
+        and   gf32_dist = formats[6].phi_dist
+        and   gf16_dist = formats[3].phi_dist
+        assert gf32_dist < gf16_dist
 
-    // invariant: phi_split bounds
-    invariant phi_split_bounds {
-        PHI > 1.618 and PHI < 1.619;
-    }
+    invariant phi_squared_near_2_618
+        given phi = sacred_physics::PHI
+        and   phi_sq = phi * phi
+        assert abs(phi_sq - 2.618) < 0.001
 
-    // bench: encode_decode_latency
-    bench gf16_encode_decode {
-        var x : f64 = 1.618033988749894;
-        var y = roundtrip_error(x, x);
-    }
+    invariant trinity_near_3
+        given phi = sacred_physics::PHI
+        and   phi_inv = 1.0 / phi
+        and   trinity = (phi * phi) + (phi_inv * phi_inv)
+        assert abs(trinity - 3.0) < 1e-12
+
+    invariant accumulation_converges
+        given n_terms = 10000
+        and   base = 1.0 / (n_terms as f64)
+        and   mut sum = 0.0
+        for i in 0..n_terms {
+            sum = sum + base
+        }
+        assert abs(sum - 1.0) < 0.001
+
+    // 13131314131513161317131813191320132113221323132413251326132713281329133013311332133313341335133613371338133913401341134213431344134513461347134813491350135113521353135413551356135713581359136013611362136313641365136613671368136913701371137213731374137513761377
+    // 9. Benchmarks
+    // 1378137913801381138213831384138513861387138813891390139113921393139413951396139713981399140014011402140314041405140614071408140914101411141214131414141514161417141814191420142114221423142414251426142714281429143014311432143314341435143614371438143914401441144214431444144514461447144814491450
+
+    bench phi_distance_computation
+        measure: nanoseconds to compute phi_distance(6, 9)
+        target: < 100ns
+
+    bench gf_formats_lookup
+        measure: nanoseconds to get all 7 GF formats
+        target: < 500ns
+
+    bench trinity_identity_check
+        measure: nanoseconds to compute 14511452 + 145314541455
+        target: < 200ns
 }

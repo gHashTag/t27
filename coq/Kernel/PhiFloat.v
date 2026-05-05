@@ -1,6 +1,6 @@
 (** PHI-IDENTITY — Flocq IEEE 754 binary64 bridge (Phase B).
     Requires [coq-flocq] on COQPATH (CI: opam install coq-flocq; see [../README.md]).
-    Mantissas/exponents must match [scripts/validate_phi_f64.py].
+    Mantissas/exponents must match t27c validate-phi (Rust; former scripts/validate_phi_f64.py).
 
     For this [binary64] literal of φ, [fl(phi*phi)] and [fl(phi+1)] coincide (bit-identical);
     [phi_identity_contract] is therefore [Rabs 0 < phi_tolerance], using [phi_tolerance_pos]
