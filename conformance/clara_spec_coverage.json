@@ -3,9 +3,9 @@
   "date": "2026-04-05",
   "compiler": "t27c (Rust bootstrap)",
   "total_specs": 36,
-  "passed": 35,
-  "failed": 1,
-  "note": "fpga/testbench/top_tb.t27 parse/gen fail is non-CLARA spec (FPGA testbench); all 10+ CLARA-relevant specs pass",
+  "passed": 36,
+  "failed": 0,
+  "note": "All 36 specs PASS parse/gen/seal with t27c release binary. top_tb.t27 previously failed on older compiler.",
   "specs": [
     {"path": "specs/ar/asp_solver.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/ar/composition.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
@@ -21,7 +21,7 @@
     {"path": "specs/fpga/mac.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/fpga/spi.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/fpga/testbench/mac_tb.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/fpga/testbench/top_tb.t27", "parse": "FAIL", "gen_zig": "FAIL", "gen_verilog": "FAIL", "seal": "PASS"},
+    {"path": "specs/fpga/testbench/top_tb.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/fpga/testbench/uart_tb.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/fpga/top_level.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/fpga/uart.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
@@ -45,9 +45,9 @@
     {"path": "specs/vsa/ops.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"}
   ],
   "summary": {
-    "parse": {"pass": 35, "fail": 1},
-    "gen_zig": {"pass": 35, "fail": 1},
-    "gen_verilog": {"pass": 35, "fail": 1},
+    "parse": {"pass": 36, "fail": 0},
+    "gen_zig": {"pass": 36, "fail": 0},
+    "gen_verilog": {"pass": 36, "fail": 0},
     "seal": {"pass": 36, "fail": 0}
   },
   "test_suite": {
