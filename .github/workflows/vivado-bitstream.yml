@@ -6,15 +6,14 @@ on:
 jobs:
   vivado-build:
     runs-on: ubuntu-latest
-    container:
-      image: kkrizka/vivado:2019.2
     steps:
       - uses: actions/checkout@v4
 
       - name: Synthesize blinky with Vivado
         run: |
-          cd fpga/vivado
-          vivado -mode batch -nojournal -nolog -source build.tcl
+          docker run --rm -v "$PWD:/work" -w /work/fpga/vivado \
+            kkrizka/vivado:2019.2 \
+            vivado -mode batch -nojournal -nolog -source build.tcl
 
       - name: Upload bitstream
         uses: actions/upload-artifact@v4
