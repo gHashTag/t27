@@ -1,6 +1,6 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-05-08
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
@@ -16,16 +16,10 @@
 - Golden tests for N={5,10,15,20,50,152}, all pass
 - Closes #339 #287
 
-**GF Competitive Analysis** (PR #560 — merged)
+**GF Competitive Analysis** (PR pending)
 - verify_precision.py with mpmath 100-digit sacred constants
 - gf_competitive.t27 + pellis_verify.t27 specs
 - Closes #289
-
-**Pipeline E2E + Memory Primitives** (PR pending)
-- specs/pipeline/e2e_test.t27, experience_save.t27, benchmarks.t27
-- specs/memory/memory_primitives.t27 — remember/recall/forget/reflect
-- docs/TECH_TREE.md — 5-level technology tree
-- Closes #490 #517
 
 **Pre-commit Gate (Ring 073)** (PR #554)
 - 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
