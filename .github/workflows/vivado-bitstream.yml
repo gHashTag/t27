@@ -13,7 +13,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/work" -w /work/fpga/vivado \
             kkrizka/vivado:2019.2 \
-            vivado -mode batch -nojournal -nolog -source build.tcl
+            bash -c "source /opt/Xilinx/Vivado/*/settings64.sh && vivado -mode batch -nojournal -nolog -source build.tcl"
 
       - name: Upload bitstream
         uses: actions/upload-artifact@v4
