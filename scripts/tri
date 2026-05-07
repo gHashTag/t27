@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T27C="${TRI_T27C:-}"
-if [[ -z "$T27C" ]]; then
-  for p in "$ROOT/bootstrap/target/release/t27c" "$ROOT/bootstrap/target/debug/t27c"; do
-    [[ -x "$p" ]] && T27C="$p" && break
-  done
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+T27C="${TRI_T27C:-$REPO_ROOT/bootstrap/target/release/t27c}"
+if [[ ! -x "$T27C" && -x "$REPO_ROOT/bootstrap/target/debug/t27c" ]]; then
+  T27C="$REPO_ROOT/bootstrap/target/debug/t27c"
 fi
-[[ -n "${T27C:-}" && -x "$T27C" ]] || {
+if [[ ! -x "$T27C" ]]; then
   echo "tri: t27c not found. Run: cd bootstrap && cargo build --release" >&2
   exit 1
-}
-exec "$T27C" --repo-root "$ROOT" "$@"
+fi
+exec "$T27C" --repo-root "$REPO_ROOT" "$@"
