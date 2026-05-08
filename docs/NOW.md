@@ -1,7 +1,7 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-07
-**Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara). FPGA: ring oscillator with DRC suppress for combinatorial loop.
+**Last updated:** 2026-05-08
+**Note:** GF16 hardware multiplier running on QMTECH XC7A100T. Ring oscillator + gf16_mul synthesized (openXC7, 330 MHz), flashed via XVC (ESP32). 13/13 iverilog tests pass. XVC flash requires `--port 2542` flag.
 
 ---
 
