@@ -1,36 +1,29 @@
 module blinky (
-    input sys_clk,
-    input sys_rst_n,
-    output led_g20,
-    output led_g21,
-    output led_r23,
-    output led_t23
+    output wire led_r23,
+    output wire led_t23
 );
 
-reg [31:0] count;
-reg r_led;
+    (* KEEP = "TRUE" *) wire osc;
+    (* KEEP = "TRUE" *) wire chain [19:0];
+    reg [22:0] counter = 0;
 
-always @(posedge sys_clk or negedge sys_rst_n) begin
-    if (!sys_rst_n)
-        count <= 32'd0;
-    else if (count == 32'd50_000_000)
-        count <= 32'd0;
-    else
-        count <= count + 32'd1;
-end
+    assign chain[0] = ~chain[19];
+    genvar i;
+    generate
+        for (i = 1; i < 20; i = i + 1) begin : inv_chain
+            (* KEEP = "TRUE" *) LUT1 #(.INIT(2'b01)) inv (
+                .I0(chain[i-1]),
+                .O(chain[i])
+            );
+        end
+    endgenerate
+    assign osc = chain[19];
 
-always @(posedge sys_clk or negedge sys_rst_n) begin
-    if (!sys_rst_n)
-        r_led <= 1'b0;
-    else if (count < 32'd25_000_000)
-        r_led <= 1'b1;
-    else
-        r_led <= 1'b0;
-end
+    always @(posedge osc) begin
+        counter <= counter + 1;
+    end
 
-assign led_g20 = r_led;
-assign led_g21 = ~r_led;
-assign led_r23 = r_led;
-assign led_t23 = ~r_led;
+    assign led_r23 = ~counter[20];
+    assign led_t23 = ~counter[19];
 
 endmodule
