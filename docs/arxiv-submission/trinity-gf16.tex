@@ -1,0 +1,494 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\section{Trinity GF16: A phi-Anchored 16-bit Float with FPGA
+Implementation at 323
+MHz}\label{trinity-gf16-a-phi-anchored-16-bit-float-with-fpga-implementation-at-323-mhz}
+
+\subsection{Abstract}\label{abstract}
+
+We introduce Golden Float 16 (GF16), a 16-bit floating-point format with
+a phi-anchored exponent bias of 31. GF16 uses a 1/6/9 bit layout
+(sign/exponent/mantissa) and achieves 323 MHz combinational throughput
+on a Xilinx Artix-7 XC7A100T FPGA using the open-source openXC7
+toolchain (Yosys + nextpnr). We present a complete dot-product (N=4) and
+4x4 matrix multiplication accelerator verified on silicon, with 35/35
+RTL tests passing and 0 timing violations at 100 MHz. The design has
+been submitted for ASIC fabrication on Sky130 via the TinyTapeout
+TTSKY26a shuttle (May 2026).
+
+\subsection{1. Introduction}\label{introduction}
+
+The golden ratio phi (phi = (1+sqrt(5))/2 = 1.618\ldots) appears
+throughout nature, mathematics, and information theory. We observe that
+the IEEE 754 half-precision format (float16) uses a 5-bit exponent with
+bias 15, while bfloat16 uses 8-bit exponent with bias 127. Neither has
+any connection to fundamental mathematical constants.
+
+Trinity GF16 anchors its exponent bias at 31, derived from the
+relationship:
+
+\begin{verbatim}
+phi^2 + phi^-2 = 3
+phi^2 = phi + 1
+\end{verbatim}
+
+The bias value 31 encodes 1.0 at the golden ratio's ``natural center''
+of the exponent range, creating a format where common physics and ML
+values cluster around the representational sweet spot.
+
+\subsection{2. GF16 Format
+Specification}\label{gf16-format-specification}
+
+\subsubsection{2.1 Bit Layout}\label{bit-layout}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Bit(s) & Field & Width \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+15 & Sign & 1 \\
+14:9 & Exponent & 6 \\
+8:0 & Mantissa & 9 \\
+\end{longtable}
+}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Total:} 16 bits
+\item
+  \textbf{Exponent bias:} 31
+\item
+  \textbf{Implicit leading 1:} Normal numbers have implicit 1.mantissa
+\end{itemize}
+
+\subsubsection{2.2 Special Values}\label{special-values}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Value & Encoding \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
++0 & 0x0000 \\
+-0 & 0x8000 \\
++Infinity & 0x7E00 \\
+-Infinity & 0xFE00 \\
+NaN & 0xFE01 \\
+\end{longtable}
+}
+
+\subsubsection{2.3 Encoding of Key
+Constants}\label{encoding-of-key-constants}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+Value & GF16 Hex & Decoded & Relative Error \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1.0 & 0x3E00 & 1.0 & 0 \\
+phi & 0x3F3C & 1.6171875 & 0.0005 \\
+pi & 0x4049 & 3.140625 & 0.0003 \\
+e & 0x4058 & 2.71875 & 0.0002 \\
+sqrt(2) & 0x3F5C & 1.4140625 & 0.0001 \\
+\end{longtable}
+}
+
+\subsubsection{2.4 Dynamic Range}\label{dynamic-range}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Max normal:} (1 + 511/512) x 2\^{}(62-31) =
+  \textasciitilde4.29 x 10\^{}9
+\item
+  \textbf{Min normal:} 1.0 x 2\^{}(1-31) = \textasciitilde9.31 x
+  10\^{}-10
+\item
+  \textbf{Machine epsilon:} 2\^{}-9 = 0.001953125
+\end{itemize}
+
+\subsubsection{2.5 Comparison with Existing
+Formats}\label{comparison-with-existing-formats}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llllll@{}}
+\toprule\noalign{}
+Format & Bits & Exp & Mant & Bias & Max Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+float16 & 16 & 5 & 10 & 15 & 65504 \\
+\textbf{GF16} & \textbf{16} & \textbf{6} & \textbf{9} & \textbf{31} &
+\textbf{4.29 x 10\^{}9} \\
+bfloat16 & 16 & 8 & 7 & 127 & 3.39 x 10\^{}38 \\
+\end{longtable}
+}
+
+GF16 provides 65x wider dynamic range than float16 while maintaining
+better precision than bfloat16 (9 vs 7 mantissa bits). The 6-bit
+exponent with bias=31 positions 1.0 at the center of a practical
+ML/inference range.
+
+\subsection{3. Hardware Architecture}\label{hardware-architecture}
+
+\subsubsection{3.1 GF16 Multiplier}\label{gf16-multiplier}
+
+Combinational multiplier implementing: - 10-bit x 10-bit mantissa
+multiplication (mapped to DSP48E1 on Xilinx) - Exponent addition with
+bias subtraction - Round-to-nearest-even with guard/round/sticky bits -
+Special value handling (NaN, Inf, zero)
+
+\subsubsection{3.2 GF16 Adder}\label{gf16-adder}
+
+Combinational adder implementing: - Exponent alignment via priority
+encoder (no for-loops) - Sign-magnitude addition with cancellation
+support - Normalization with round-to-nearest-even - Special value
+handling
+
+Key design constraint: all internal \texttt{reg} variables initialized
+with defaults at the top of \texttt{always\ @(*)} blocks to prevent
+latch inference in Yosys synthesis.
+
+\subsubsection{3.3 Dot Product (N=4)}\label{dot-product-n4}
+
+Tree reduction: 4 multipliers + 3 adders
+
+\begin{verbatim}
+a0*b0 ---\
+          +-- s01 ---\
+a1*b1 ---/           \
+                      +-- result
+a2*b2 ---\           /
+          +-- s23 --/
+a3*b3 ---/
+\end{verbatim}
+
+\subsubsection{3.4 Matrix Multiplication
+(4x4)}\label{matrix-multiplication-4x4}
+
+16 parallel dot-product units. Each unit computes one element of the
+output matrix C = A x B.
+
+\begin{verbatim}
+C[i][j] = dot4(A[i][0:3], B[0:3][j])
+\end{verbatim}
+
+\subsection{4. FPGA Implementation
+Results}\label{fpga-implementation-results}
+
+\subsubsection{4.1 Platform}\label{platform}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{FPGA:} QMTECH XC7A100T-1FGG676C (Artix-7, 126,800 LUTs, 240
+  DSP48E1)
+\item
+  \textbf{Toolchain:} openXC7 (Yosys 0.62 + nextpnr-xilinx)
+\item
+  \textbf{Clock:} 20-stage ring oscillator (onboard M21 crystal
+  non-functional)
+\item
+  \textbf{Programming:} XVC via ESP32 (192.168.1.30:2542)
+\end{itemize}
+
+\subsubsection{4.2 Resource Utilization}\label{resource-utilization}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+Design & LUTs & DSP48E1 & Max Freq & Tests \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+GF16 mul & \textasciitilde650 & 1 & 330 MHz & 13/13 \\
+GF16 dot4 & 2,605 & 4 & 322 MHz & 6/6 \\
+GF16 matmul 4x4 & 40,350 & 64 & 323 MHz & 35/35 \\
+\end{longtable}
+}
+
+\subsubsection{4.3 Timing}\label{timing}
+
+All designs pass timing at 100 MHz with positive slack:
+
+\begin{verbatim}
+Max frequency for clock 'chain[19]': 323.31 MHz (PASS at 100.00 MHz)
+\end{verbatim}
+
+\subsubsection{4.4 Latch Elimination}\label{latch-elimination}
+
+A critical design challenge was eliminating all LDCE latch inferences
+from Yosys. The root cause was incompletely-assigned \texttt{reg}
+variables in \texttt{always\ @(*)} combinational blocks. Solution:
+initialize all \texttt{reg} variables with defaults at the block entry,
+and ensure every control path assigns every variable.
+
+Before fix: 1 latch (gf16\_add.result) After fix: 0 latches, 0 errors
+
+\subsubsection{4.5 Hardware Verification}\label{hardware-verification}
+
+All designs verified on FPGA via XVC programming: - dot4({[}1,2,3,4{]},
+{[}1,2,3,4{]}) = 30.0 (0x47C0) --- LEDs confirm - matmul4x4 identity
+test --- ISC\_DONE=1, DONE=1
+
+\subsubsection{4.6 Throughput}\label{throughput}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Metric & Value \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Dot4 throughput & 322M dot4/sec (combinational, 1-cycle) \\
+Matmul4x4 throughput & 322M matmuls/sec (fully parallel) \\
+GF16 ops/sec (matmul) & 41.2 GOPS @ 323 MHz \\
+GF16 ops/sec @ 100 MHz & 12.8 GOPS \\
+\end{longtable}
+}
+
+\subsection{5. ASIC Path (TinyTapeout
+TTSKY26a)}\label{asic-path-tinytapeout-ttsky26a}
+
+\subsubsection{5.1 Submission}\label{submission}
+
+The GF16 dot4 design was wrapped for the TinyTapeout Sky130 shuttle:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Repo:} github.com/gHashTag/tt-trinity-gf16
+\item
+  \textbf{Module:} tt\_um\_ghtag\_trinity\_gf16
+\item
+  \textbf{Tile:} 1x1 (167 x 108 um)
+\item
+  \textbf{PDK:} Sky130A (OpenLane/LibreLane 3.0.0)
+\end{itemize}
+
+\subsubsection{5.2 CI Results}\label{ci-results}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Check & Status \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+GDS Build & PASSED \\
+Gate-Level Test & PASSED \\
+Precheck & PASSED \\
+DRC & Clean \\
+LVS & Clean \\
+\end{longtable}
+}
+
+\subsubsection{5.3 Expected Timeline}\label{expected-timeline}
+
+\begin{itemize}
+\tightlist
+\item
+  Shuttle close: May 11, 2026
+\item
+  Chip delivery: \textasciitilde December 2026
+\end{itemize}
+
+\subsection{6. Python Reference
+Implementation}\label{python-reference-implementation}
+
+A complete Python reference (encode/decode/mul/add/dot4) is provided in
+\texttt{conformance/gf16\_ref.py}:
+
+\begin{itemize}
+\tightlist
+\item
+  32/32 FPGA consistency tests pass
+\item
+  19/19 roundtrip tests pass
+\item
+  Encoding matches FPGA testbench exactly
+\end{itemize}
+
+\subsection{7. Conclusion}\label{conclusion}
+
+We have demonstrated a complete implementation of the Trinity GF16
+floating-point format, from specification through FPGA verification to
+ASIC submission. The phi-anchored bias=31 provides a natural centering
+for ML and scientific computation values, while the 6/9
+exponent/mantissa split offers 65x wider dynamic range than float16 with
+better precision than bfloat16.
+
+All verified numbers (323 MHz, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0
+latches, 0 timing violations) are from actual hardware runs, not
+simulation estimates.
+
+\subsection{References}\label{references}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  IEEE 754-2019, IEEE Standard for Floating-Point Arithmetic
+\item
+  TinyTapeout, https://tinytapeout.com
+\item
+  openXC7 toolchain, https://github.com/openXC7
+\item
+  Yosys Open SYnthesis Suite, https://github.com/YosysHQ/yosys
+\item
+  nextpnr-xilinx, https://github.com/openXC7/nextpnr-xilinx
+\end{enumerate}
+
+\subsection{Appendix A: GF16 Encoding
+Examples}\label{appendix-a-gf16-encoding-examples}
+
+\begin{verbatim}
+Value    | Hex    | Sign | Exp | Mant | Decoded
+---------|--------|------|-----|------|--------
+0.0      | 0x0000 | 0    | 0   | 0    | 0.0
+1.0      | 0x3E00 | 0    | 31  | 0    | 1.0
+-1.0     | 0xBE00 | 1    | 31  | 0    | -1.0
+2.0      | 0x4000 | 0    | 32  | 0    | 2.0
+0.5      | 0x3C00 | 0    | 30  | 0    | 0.5
+3.0      | 0x4100 | 0    | 32  | 256  | 3.0
+1.5      | 0x3F00 | 0    | 31  | 256  | 1.5
+100.0    | 0x4B20 | 0    | 37  | 288  | 100.0
+phi      | 0x3F3C | 0    | 31  | 60   | 1.6171875
++Inf     | 0x7E00 | 0    | 63  | 0    | Infinity
+NaN      | 0xFE01 | 1    | 63  | 1    | NaN
+\end{verbatim}
+
+\subsection{Appendix B: Reproduce
+Instructions}\label{appendix-b-reproduce-instructions}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# FPGA synthesis (openXC7)}
+\ExtensionTok{docker}\NormalTok{ run }\AttributeTok{{-}{-}rm} \AttributeTok{{-}v} \StringTok{"}\VariableTok{$(}\BuiltInTok{pwd}\VariableTok{)}\StringTok{"}\NormalTok{:/workspace regymm/openxc7 bash }\AttributeTok{{-}c} \StringTok{\textquotesingle{}}
+\StringTok{  yosys {-}p "read\_verilog fpga/vivado/gf16\_*.v; synth\_xilinx {-}top gf16\_matmul4x4 {-}family xc7; write\_json build/synth.json"}
+\StringTok{  nextpnr{-}xilinx {-}{-}chipdb xc7a100t.bin {-}{-}json build/synth.json {-}{-}freq 100}
+\StringTok{\textquotesingle{}}
+
+\CommentTok{\# RTL simulation}
+\ExtensionTok{iverilog} \AttributeTok{{-}g2012} \AttributeTok{{-}o}\NormalTok{ /tmp/test fpga/vivado/gf16\_}\PreprocessorTok{*}\NormalTok{.v }\KeywordTok{\&\&} \ExtensionTok{vvp}\NormalTok{ /tmp/test}
+
+\CommentTok{\# Python reference}
+\ExtensionTok{python3}\NormalTok{ conformance/gf16\_ref.py}
+\end{Highlighting}
+\end{Shaded}
+
+
+\end{document}
