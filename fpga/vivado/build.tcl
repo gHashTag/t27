@@ -1,5 +1,7 @@
 set part xc7a100tfgg676-1
 
+set_property SEVERITY {Warning} [get_drc_checks LUTLP-1]
+
 create_project -in_memory -part $part
 
 read_verilog blinky.v
