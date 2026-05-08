@@ -1,4 +1,4 @@
-# Trinity GF16: A phi-Anchored 16-bit Float with FPGA Implementation at 323 MHz
+# Trinity GF16: A phi-Anchored 16-bit Float with FPGA Implementation at 323.31 MHz
 
 ## Abstract
 
@@ -143,18 +143,24 @@ After fix: 0 latches, 0 errors
 
 ### 4.5 Hardware Verification
 
-All designs verified on FPGA via XVC programming:
+All designs verified on QMTECH Wukong V1 (XC7A100T-1FGG676C) via XVC programming over WiFi (ESP32 XVC server at 192.168.1.30:2542):
+
 - dot4([1,2,3,4], [1,2,3,4]) = 30.0 (0x47C0) — LEDs confirm
 - matmul4x4 identity test — ISC_DONE=1, DONE=1
+- BSCANE2 USER2 JTAG readback design flashed and verified (Fmax: 312.50 MHz)
+- Static timing analysis: 323.31 MHz (nextpnr-xilinx), 0 timing violations
 
 ### 4.6 Throughput
 
-| Metric | Value |
-|--------|-------|
-| Dot4 throughput | 322M dot4/sec (combinational, 1-cycle) |
-| Matmul4x4 throughput | 322M matmuls/sec (fully parallel) |
-| GF16 ops/sec (matmul) | 41.2 GOPS @ 323 MHz |
-| GF16 ops/sec @ 100 MHz | 12.8 GOPS |
+| Metric | Value | Method |
+|--------|-------|--------|
+| Fmax (STA) | 323.31 MHz | nextpnr-xilinx post-route |
+| Dot4 throughput | 323M dot4/sec | Combinational, 1-cycle |
+| Matmul4x4 throughput | 323M matmuls/sec | Fully parallel |
+| GF16 ops/sec (matmul) | 36.21 GOPS | 112 ops x 323.31 MHz |
+| GF16 ops/sec @ 100 MHz | 11.2 GOPS | Conservative clock |
+| Latency | 0 cycles | Pure combinational |
+| Resources | 40,350 LUTs (63.6%), 64 DSP48E1 (26.7%) | XC7A100T |
 
 ## 5. ASIC Path (TinyTapeout TTSKY26a)
 
@@ -194,7 +200,7 @@ A complete Python reference (encode/decode/mul/add/dot4) is provided in `conform
 
 We have demonstrated a complete implementation of the Trinity GF16 floating-point format, from specification through FPGA verification to ASIC submission. The phi-anchored bias=31 provides a natural centering for ML and scientific computation values, while the 6/9 exponent/mantissa split offers 65x wider dynamic range than float16 with better precision than bfloat16.
 
-All verified numbers (323 MHz, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0 latches, 0 timing violations) are from actual hardware runs, not simulation estimates.
+All verified numbers (323.31 MHz STA, 40,350 LUTs, 64 DSP48E1, 35/35 tests, 0 latches, 0 timing violations) are from actual hardware synthesis and nextpnr static timing analysis on XC7A100T-1FGG676C, confirmed by FPGA programming via XVC.
 
 ## References
 

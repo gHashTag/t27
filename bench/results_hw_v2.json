@@ -1,0 +1,65 @@
+{
+  "platform": "QMTECH Wukong V1",
+  "fpga": "XC7A100T-1FGG676C",
+  "idcode": "0x3631093",
+  "toolchain": "openXC7 (Yosys 0.62 + nextpnr-xilinx + prjxray)",
+  "verification": {
+    "simulation": {
+      "testbench": "gf16_matmul4x4_tb.v",
+      "tests_passed": "35/35",
+      "zero_latches": true,
+      "errors": 0
+    },
+    "hardware": {
+      "method": "JTAG XVC + LED verification",
+      "fpga_status": "DONE=1, ISC_DONE=1",
+      "bitstream_flashed": true,
+      "identity_multiply_verified": true,
+      "xvc_host": "192.168.1.30:2542"
+    },
+    "sta": {
+      "tool": "nextpnr-xilinx",
+      "matmul4x4_fmax_mhz": 323.31,
+      "bscan_dot4_fmax_mhz": 312.50,
+      "bscan_tck_mhz": 22.01
+    }
+  },
+  "performance": {
+    "fmax_mhz": 323.31,
+    "clock_period_ns": 3.093,
+    "matmul4x4_per_sec": 323310000,
+    "latency_cycles": 0,
+    "ops_per_matmul": 112,
+    "gops": 36.21,
+    "note": "Combinational design: 1 matmul per clock, 0 cycle latency"
+  },
+  "resources": {
+    "matmul4x4": {
+      "luts": 40350,
+      "total_luts": 63400,
+      "lut_util_pct": 63.6,
+      "dsp48e1": 64,
+      "total_dsp48e1": 240,
+      "dsp_util_pct": 26.7,
+      "bram": 0,
+      "zero_multipliers": false
+    },
+    "bscan_dot4": {
+      "luts": 1030,
+      "dsp48e1": 1
+    }
+  },
+  "conformance": {
+    "gf16_ref_py": "32/32 FPGA consistency, 19/19 roundtrip",
+    "bias": 31,
+    "gf16_one": "0x3E00"
+  },
+  "uart_status": {
+    "serial_port": "/dev/cu.usbserial-10 (ESP32 USB-C, not FPGA CP2102)",
+    "cp2102_connected_to": "FPGA T14/T15 but no USB cable to host",
+    "xvc_shift_broken": "ESP32 XVC server does not respond to shift: commands",
+    "note": "UART benchmark requires separate USB cable to QMTECH CP2102 or ESP32 firmware update"
+  },
+  "benchmark_method": "iverilog simulation + nextpnr STA + hardware LED verification",
+  "timestamp": "2026-05-08T21:50:00Z"
+}
