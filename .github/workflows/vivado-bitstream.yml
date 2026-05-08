@@ -2,6 +2,11 @@ name: Vivado Bitstream
 
 on:
   workflow_dispatch:
+    inputs:
+      design:
+        description: 'Design to build (blinky or gf16)'
+        required: false
+        default: 'gf16'
 
 jobs:
   vivado-build:
@@ -9,17 +14,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Synthesize blinky with Vivado
+      - name: Synthesize with Vivado
         run: |
+          DESIGN="${{ github.event.inputs.design || 'gf16' }}"
+          echo "Building design: $DESIGN"
           docker run --rm -v "$PWD:/work" -w /work/fpga/vivado \
             kkrizka/vivado:2019.2 \
-            bash -c "source /opt/Xilinx/Vivado/*/settings64.sh && vivado -mode batch -source build.tcl 2>&1 | tee vivado.log"
+            bash -c "source /opt/Xilinx/Vivado/*/settings64.sh && vivado -mode batch -source build_${DESIGN}.tcl 2>&1 | tee vivado.log"
 
       - name: Upload bitstream
         uses: actions/upload-artifact@v4
         with:
           name: vivado-bitstream
-          path: fpga/vivado/blinky.bit
+          path: fpga/vivado/*.bit
           retention-days: 30
 
       - name: Upload Vivado log
