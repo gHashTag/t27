@@ -29,7 +29,27 @@ module gf16_mul (
     wire [19:0] mant_prod  = full_mant_a * full_mant_b;
     wire [6:0]  exp_sum    = {1'b0, exp_a} + {1'b0, exp_b};
 
+    reg [6:0]  raw_exp;
+    reg [8:0]  mant_out;
+    reg [19:0] prod;
+    reg        guard_bit, round_bit, sticky;
+    reg [8:0]  mant_rounded;
+    reg [6:0]  final_exp;
+    reg [8:0]  final_mant;
+    reg [15:0] final_result;
+
     always @(*) begin
+        raw_exp = 0;
+        mant_out = 0;
+        prod = 0;
+        guard_bit = 0;
+        round_bit = 0;
+        sticky = 0;
+        mant_rounded = 0;
+        final_exp = 0;
+        final_mant = 0;
+        final_result = 0;
+
         if (is_nan_a || is_nan_b) begin
             result = 16'hFE01;
         end else if ((is_zero_a && is_inf_b) || (is_zero_b && is_inf_a)) begin
@@ -39,66 +59,56 @@ module gf16_mul (
         end else if (is_inf_a || is_inf_b) begin
             result = result_sign ? 16'hFE00 : 16'h7E00;
         end else begin
-            begin : mul_body
-                reg [6:0]  raw_exp;
-                reg [8:0]  mant_out;
-                reg [19:0] prod;
-                reg        guard_bit, round_bit, sticky;
-                reg [8:0]  mant_rounded;
-                reg [6:0]  final_exp;
-                reg [8:0]  final_mant;
-                reg [15:0] final_result;
+            prod = mant_prod;
+            raw_exp = exp_sum - BIAS;
 
-                prod = mant_prod;
-                raw_exp = exp_sum - BIAS;
-
-                if (prod[19]) begin
-                    raw_exp = raw_exp + 7'd1;
-                    mant_out = prod[18:10];
-                    guard_bit = prod[9];
-                    round_bit = prod[8];
-                    sticky = |prod[7:0];
-                end else if (prod[18]) begin
-                    mant_out = prod[17:9];
-                    guard_bit = prod[8];
-                    round_bit = prod[7];
-                    sticky = |prod[6:0];
-                end else if (prod[17]) begin
-                    raw_exp = raw_exp - 7'd1;
-                    mant_out = prod[16:8];
-                    guard_bit = prod[7];
-                    round_bit = prod[6];
-                    sticky = |prod[5:0];
-                end else begin
-                    mant_out = prod[15:7];
-                    guard_bit = prod[6];
-                    round_bit = prod[5];
-                    sticky = |prod[4:0];
-                end
-
-                if (guard_bit && (round_bit || sticky))
-                    mant_rounded = mant_out + 9'd1;
-                else
-                    mant_rounded = mant_out;
-
-                if (mant_rounded[9]) begin
-                    final_exp = raw_exp + 7'd1;
-                    final_mant = 9'd0;
-                end else begin
-                    final_exp = raw_exp;
-                    final_mant = mant_rounded;
-                end
-
-                if (final_exp[6]) begin
-                    final_result = result_sign ? 16'h8000 : 16'h0000;
-                end else if (final_exp[5:0] >= EXP_MAX) begin
-                    final_result = result_sign ? 16'hFE00 : 16'h7E00;
-                end else begin
-                    final_result = {result_sign, final_exp[5:0], final_mant};
-                end
-
-                result = final_result;
+            if (prod[19]) begin
+                raw_exp = raw_exp + 7'd1;
+                mant_out = prod[18:10];
+                guard_bit = prod[9];
+                round_bit = prod[8];
+                sticky = |prod[7:0];
+            end else if (prod[18]) begin
+                mant_out = prod[17:9];
+                guard_bit = prod[8];
+                round_bit = prod[7];
+                sticky = |prod[6:0];
+            end else if (prod[17]) begin
+                raw_exp = raw_exp - 7'd1;
+                mant_out = prod[16:8];
+                guard_bit = prod[7];
+                round_bit = prod[6];
+                sticky = |prod[5:0];
+            end else begin
+                raw_exp = raw_exp - 7'd2;
+                mant_out = prod[15:7];
+                guard_bit = prod[6];
+                round_bit = prod[5];
+                sticky = |prod[4:0];
             end
+
+            if (guard_bit && (round_bit || sticky))
+                mant_rounded = mant_out + 9'd1;
+            else
+                mant_rounded = mant_out;
+
+            if (mant_rounded[9]) begin
+                final_exp = raw_exp + 7'd1;
+                final_mant = 9'd0;
+            end else begin
+                final_exp = raw_exp;
+                final_mant = mant_rounded;
+            end
+
+            if (final_exp[6]) begin
+                final_result = result_sign ? 16'h8000 : 16'h0000;
+            end else if (final_exp[5:0] >= EXP_MAX) begin
+                final_result = result_sign ? 16'hFE00 : 16'h7E00;
+            end else begin
+                final_result = {result_sign, final_exp[5:0], final_mant};
+            end
+
+            result = final_result;
         end
     end
 

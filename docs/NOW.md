@@ -1,11 +1,22 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-05-08
-**Note:** GF16 hardware multiplier running on QMTECH XC7A100T. Ring oscillator + gf16_mul synthesized (openXC7, 330 MHz), flashed via XVC (ESP32). 13/13 iverilog tests pass. XVC flash requires `--port 2542` flag.
+**Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz.
 
 ---
 
 ## Active Work
+
+**GF16 Hardware Accelerator — FPGA**
+- `fpga/vivado/gf16_mul.v` — combinational multiplier, 13/13 tests, DSP48E1
+- `fpga/vivado/gf16_add.v` — combinational adder, 14/14 tests, latch-free
+- `fpga/vivado/gf16_dot4.v` — dot product N=4 (4× mul + 3× add tree), 6/6 tests
+- `fpga/vivado/gf16_matmul_top.v` — top-level with ring osc + LED verification
+- `fpga/vivado/uart.v` — UART TX/RX (written, not yet flashed — ring osc stability)
+- `conformance/gf16_ref.py` — Python reference (encode/decode/mul/add/dot4)
+- Key: bias=31, exp=6-bit, mant=9-bit, specials: +inf=0x7E00, -inf=0xFE00, NaN=0xFE01
+- XVC flash: `openFPGALoader -c xvc-client --ip 192.168.1.30 --port 2542 --file-type bit -m <file>.bit`
+- **Next:** gf16_matmul4x4.v, UART interactive verification, benchmark
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table

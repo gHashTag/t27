@@ -28,11 +28,11 @@ module gf16_mul_tb;
                     exp = exp - 1;
                 end
                 shifted = abs_v * 512.0 + 0.5;
-                if (shifted >= 512) begin
+                if (shifted >= 1024) begin
                     shifted = shifted / 2;
                     exp = exp + 1;
                 end
-                mant = shifted[8:0];
+                mant = shifted - 512;
                 encode_gf16 = {sign, exp, mant};
             end
         end
