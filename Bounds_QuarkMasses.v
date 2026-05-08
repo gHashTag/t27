@@ -3,6 +3,7 @@
 
 Require Import Reals.Reals.
 Require Import Interval.Tactic.
+Require Import Lra.
 Open Scope R_scope.
 
 Require Import CorePhi.
@@ -22,21 +23,49 @@ Definition tolerance_SG : R := 10 / 10000. (* 0.01% for smoking guns *)
 Definition Q03_theoretical : R := (phi ^ 4) * PI / (exp 1 ^ 2).
 Definition Q03_experimental : R := 171.5.
 
-Theorem Q03_within_tolerance :
-  Rabs (Q03_theoretical - Q03_experimental) / Q03_experimental < tolerance_V.
+(* R8 falsification — PDG 2024: m_c/m_d ~ 171.5.
+   Numerical:  phi^4 * pi / e^2  ~= (3 sqrt 5 + 5) * pi / e^2
+                                 ~= 6.854 * 3.142 / 7.389
+                                 ~= 2.914
+                |2.914 - 171.5| / 171.5  ~= 0.983
+                tolerance_V = 1/100, so 0.983 > 0.01.  FALSIFIED. *)
+Theorem Q03_falsified_by_PDG :
+  Rabs (Q03_theoretical - Q03_experimental) / Q03_experimental > tolerance_V.
 Proof.
-  (* TODO: Q03 formula does not match experimental value (98% error) *)
-  admit.
-Admitted.
+  unfold Q03_theoretical, Q03_experimental, tolerance_V.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
 
-Theorem Q03_monomial_form :
-  exists m : monomial,
-    eval_monomial m = Q03_theoretical
-    /\ Rabs (eval_monomial m - Q03_experimental) / Q03_experimental < tolerance_V.
+Theorem Q03_within_tolerance :
+  ~ Rabs (Q03_theoretical - Q03_experimental) / Q03_experimental < tolerance_V.
 Proof.
-  (* TODO: Depends on admitted eval_monomial for Rocq 9.x compatibility *)
-  admit.
-Admitted.
+  pose proof Q03_falsified_by_PDG as Hf. intros Hlt. lra.
+Qed.
+
+(* The monomial form would require: (i) a witness monomial m whose eval
+   equals Q03_theoretical, and (ii) the within-tolerance bound on m.
+   By Q03_falsified_by_PDG, condition (ii) is impossible for any such m
+   (substituting eval_monomial m = Q03_theoretical into the within-bound
+   gives the same Rabs > tolerance_V).  Therefore the existential is
+   FALSE; we prove its negation. *)
+Theorem Q03_monomial_form_falsified :
+  ~ (exists m : monomial,
+       eval_monomial m = Q03_theoretical
+       /\ Rabs (eval_monomial m - Q03_experimental) / Q03_experimental < tolerance_V).
+Proof.
+  intros [m [Heq Hlt]].
+  pose proof Q03_falsified_by_PDG as Hf.
+  rewrite Heq in Hlt. lra.
+Qed.
+
+(* Restated theorem name (kept for downstream references) — its content
+   is now the negation; proved trivially from Q03_monomial_form_falsified. *)
+Theorem Q03_monomial_form :
+  ~ (exists m : monomial,
+       eval_monomial m = Q03_theoretical
+       /\ Rabs (eval_monomial m - Q03_experimental) / Q03_experimental < tolerance_V).
+Proof. exact Q03_monomial_form_falsified. Qed.
 
 (** ====================================================================== *)
 (** Q05: m_b/m_s = 48·e²/φ⁴ ≈ 52.3 [IMPROVED via Chimera] *)
@@ -48,22 +77,39 @@ Admitted.
 Definition Q05_theoretical : R := 48 * (exp 1 ^ 2) / (phi ^ 4).
 Definition Q05_experimental : R := 52.3.
 
-Theorem Q05_within_tolerance :
-  Rabs (Q05_theoretical - Q05_experimental) / Q05_experimental < tolerance_V.
+(* R8 falsification (BARELY) — Q05 candidate from Chimera v1.0:
+     48 e^2 / phi^4  ~= 48 * 7.389 / 6.854  ~= 51.747
+     |51.747 - 52.3| / 52.3 ~= 0.01058
+     tolerance_V = 1/100 = 0.01.  0.01058 > 0.01 -> falsified by ~6 ppt. *)
+Theorem Q05_falsified_by_PDG :
+  Rabs (Q05_theoretical - Q05_experimental) / Q05_experimental > tolerance_V.
 Proof.
-  (* TODO: Q05 is a CANDIDATE formula (Δ≈1%, outside 0.1% tolerance) *)
-  (* Chimera v1.0 result: 48·e²/φ⁴ = 51.75 vs experimental 52.3 *)
-  admit.
-Admitted.
+  unfold Q05_theoretical, Q05_experimental, tolerance_V.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
+
+Theorem Q05_within_tolerance :
+  ~ Rabs (Q05_theoretical - Q05_experimental) / Q05_experimental < tolerance_V.
+Proof.
+  pose proof Q05_falsified_by_PDG as Hf. intros Hlt. lra.
+Qed.
+
+Theorem Q05_monomial_form_falsified :
+  ~ (exists m : monomial,
+       eval_monomial m = Q05_theoretical
+       /\ Rabs (eval_monomial m - Q05_experimental) / Q05_experimental < tolerance_V).
+Proof.
+  intros [m [Heq Hlt]].
+  pose proof Q05_falsified_by_PDG as Hf.
+  rewrite Heq in Hlt. lra.
+Qed.
 
 Theorem Q05_monomial_form :
-  exists m : monomial,
-    eval_monomial m = Q05_theoretical
-    /\ Rabs (eval_monomial m - Q05_experimental) / Q05_experimental < tolerance_V.
-Proof.
-  (* TODO: Depends on admitted eval_monomial for Rocq 9.x compatibility *)
-  admit.
-Admitted.
+  ~ (exists m : monomial,
+       eval_monomial m = Q05_theoretical
+       /\ Rabs (eval_monomial m - Q05_experimental) / Q05_experimental < tolerance_V).
+Proof. exact Q05_monomial_form_falsified. Qed.
 
 (** ====================================================================== *)
 (** Q06: m_b/m_d = Q05 × Q07 = 1034.93 [CHAIN VERIFIED] *)
