@@ -13,11 +13,18 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/work" -w /work/fpga/vivado \
             kkrizka/vivado:2019.2 \
-            bash -c "source /opt/Xilinx/Vivado/*/settings64.sh && vivado -mode batch -nojournal -nolog -source build.tcl"
+            bash -c "source /opt/Xilinx/Vivado/*/settings64.sh && vivado -mode batch -source build.tcl 2>&1 | tee vivado.log"
 
       - name: Upload bitstream
         uses: actions/upload-artifact@v4
         with:
           name: vivado-bitstream
           path: fpga/vivado/blinky.bit
+          retention-days: 30
+
+      - name: Upload Vivado log
+        uses: actions/upload-artifact@v4
+        with:
+          name: vivado-log
+          path: fpga/vivado/vivado.log
           retention-days: 30
