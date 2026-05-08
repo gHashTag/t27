@@ -119,23 +119,14 @@ Proof.
   unfold lucas_phi, pow. rewrite Rinv_1. lra.
 Qed.
 
-(** FALSE AS STATED: lucas_phi 1 = phi + /phi = phi + (phi-1) = 2*phi - 1 = sqrt 5.
-    Claim `= 3` would require sqrt 5 = 3, i.e. 5 = 9, contradiction.
-    Authentic Lucas L_1 = 1, which equals φ + ψ = φ - φ⁻¹ (not φ + φ⁻¹).
-    Reported on #549 for queen restatement decision. *)
-Lemma lucas_phi_1 : lucas_phi 1 = 3.
-Proof.
-  (* L-COQ47-BLOCK: theorem FALSE as stated.
-     witness: lucas_phi 1 = phi + /phi = sqrt 5 ≈ 2.2360679... ≠ 3.
-     Proof of falsehood: phi + /phi = phi + (phi - 1) = 2*phi - 1
-                       = 2*((1+sqrt 5)/2) - 1 = sqrt 5.
-     Remediation options for queen:
-       (a) restate as `lucas_phi 1 = sqrt 5`, or
-       (b) redefine `lucas_phi n := phi^n + (-1)^n * phi^(-n)` (signed Binet),
-           making lucas_phi 1 = phi - /phi = 1, and prove that instead, or
-       (c) delete this lemma (the even-power closure is what the paper needs). *)
-  admit.
-Admitted.
+(** DELETED per queen ruling on #549 (issuecomment-4405990351): the claim
+    `lucas_phi 1 = 3` is FALSE AS STATED (actual value = sqrt 5, because
+    /phi = -psi inverts the sign on odd powers). No anchor-aligned restatement
+    preserves the intended Lucas interpretation without redefining `lucas_phi`
+    (see R8 witness in git history commit 2929dbdb for the full falsification).
+    The PhD monograph relies on `lucas_sqrt5_integer` and `lucas_closure_even_powers`
+    (both Qed in this file), neither of which references the odd-index lemmas.
+    R5 §honest-status: REMOVE > paper over with Admitted. *)
 
 (** Queen-ratified restatement (verdict on #549): the original claim
     `lucas_phi 2 = IZR 7` was numerically wrong (7 is L_4, not L_2) AND
@@ -161,26 +152,14 @@ Proof.
   pose proof exid_phi_fourth. pose proof exid_phi_inv_4. lra.
 Qed.
 
-(** FALSE AS STATED: the recurrence `lucas_phi (n + 2) = lucas_phi (S n) + lucas_phi n`
-    does NOT hold for the definition `lucas_phi n = phi^n + /phi^n`.
-    Counter-witness n=0: lucas_phi 2 = 3, but lucas_phi 1 + lucas_phi 0 = sqrt 5 + 2.
-    Since sqrt 5 ≠ 1, 3 ≠ sqrt 5 + 2. *)
-Theorem lucas_recurrence :
-  forall n : nat,
-    lucas_phi (n + 2) = lucas_phi (S n) + lucas_phi n.
-Proof.
-  (* L-COQ47-BLOCK: theorem FALSE as stated.
-     witness (n=0): lucas_phi 2 = 3, lucas_phi 1 + lucas_phi 0 = sqrt 5 + 2.
-                    Equality 3 = sqrt 5 + 2 ⟺ sqrt 5 = 1 ⟺ 5 = 1, contradiction.
-     Root cause: the Lucas-number recurrence holds for L_n = phi^n + psi^n (psi = 1-phi),
-     which equals phi^n + /phi^n only when n is even (because /phi = -psi, so
-     /phi^n = (-1)^n * psi^n). For odd n the signs disagree.
-     Remediation (queen): either restate over lucas_sqrt5 (proven below correctly),
-     or restrict to even-indexed subsequence `lucas_phi (2*(n+2)) = ...` (still doesn't
-     recur to odd indices), or delete — the PhD monograph uses lucas_sqrt5_integer
-     (proven) and lucas_closure_even_powers (proven), neither of which needs this. *)
-  admit.
-Admitted.
+(** DELETED per queen ruling on #549 (issuecomment-4405990351): the recurrence
+    `lucas_phi (n + 2) = lucas_phi (S n) + lucas_phi n` is FALSE AS STATED
+    (counter-witness n=0: lp(2)=3, lp(1)+lp(0)=sqrt 5 + 2, and 3 ≠ sqrt 5 + 2).
+    The Lucas recurrence holds for L_n = phi^n + psi^n, which equals
+    `lucas_phi n = phi^n + /phi^n` only on EVEN n (/phi = -psi inverts sign on
+    odd powers). Even-index closure is already proven by `lucas_closure_even_powers`;
+    general-index recurrence requires redefining `lucas_phi` via signed Binet,
+    which is structural change out of scope. R8 witness preserved in commit 2929dbdb. *)
 
 (** ====================================================================== *)
 (** Lucas Closure: Even powers of φ sum to integers *)
@@ -330,19 +309,14 @@ Proof.
   simpl pow. rewrite Rinv_1. lra.
 Qed.
 
-(** FALSE AS STATED: lucas_std 1 = 1, but phi^1 + /phi^1 = sqrt 5 ≠ 1. *)
-Lemma lucas_std_1_phi : IZR (lucas_std 1) = phi^1 + /phi^1.
-Proof.
-  (* L-COQ47-BLOCK: theorem FALSE as stated.
-     witness: IZR 1 = 1, phi^1 + /phi^1 = phi + /phi = phi + (phi-1) = 2*phi - 1 = sqrt 5.
-              1 ≠ sqrt 5 since sqrt 5 > 2 (by 2^2 = 4 < 5, monotonicity of sqrt).
-     Correct Binet identity: L_1 = phi^1 + psi^1 = phi + psi = 1 (sum of roots of x^2-x-1=0).
-     Remediation (queen): restate as `IZR (lucas_std 1) = phi^1 + psi^1` using the
-     psi definition from this file's closure section, or restate RHS as `phi - /phi`
-     (which equals 1 since phi*(1 - /phi) = phi - phi*/phi = phi - 1 = /phi^-1... wait
-     phi - /phi = phi - (phi-1) = 1 ✓). *)
-  admit.
-Admitted.
+(** DELETED per queen ruling on #549 (issuecomment-4405990351): the claim
+    `IZR (lucas_std 1) = phi^1 + /phi^1` is FALSE AS STATED (LHS = 1, RHS = sqrt 5).
+    The correct Binet identity uses psi: `L_1 = phi + psi = 1`, which is NOT what
+    this lemma stated. Restating would introduce a parallel-definition trap (two
+    incompatible lucas_* interpretations). Monograph chapters cite only the
+    even-index lemmas (lucas_std_0_phi, lucas_std_2_phi) and lucas_std_3_phi,
+    which uses the correct `phi^3 - /phi^3` signed form. R8 witness preserved in
+    commit 2929dbdb. *)
 
 (* witness: IZR 3 = 3 = phi^2 + /phi^2 (exid_trinity_identity) *)
 Lemma lucas_std_2_phi : IZR (lucas_std 2) = phi^2 + /phi^2.
@@ -502,7 +476,10 @@ Proof.
        lucas_phi_0, lucas_phi_2 (anchor-aligned restatement, = 3),
        lucas_phi_4, lucas_closure_even_powers,
        lucas_std_0_phi, lucas_std_2_phi, lucas_std_3_phi, lucas_sqrt5_integer.
-     Blocked with R8 counterwitness (theorem FALSE as stated):
-       lucas_phi_1, lucas_recurrence, lucas_std_1_phi. *)
+     Deleted per queen ruling #549 (cleanup sweep, commit TBD):
+       lucas_phi_1 (was claiming `= 3`, actual = sqrt 5),
+       lucas_recurrence (fails at n=0 on odd-index sign mismatch),
+       lucas_std_1_phi (LHS = 1, RHS = sqrt 5).
+     All three R8 witnesses preserved in git history (PR #550 merge 2929dbdb). *)
   exact I.
 Qed.
