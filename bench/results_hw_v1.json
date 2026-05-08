@@ -1,0 +1,46 @@
+{
+  "platform": "QMTECH Wukong V1",
+  "fpga": "XC7A100T-1FGG676C",
+  "idcode": "0x3631093",
+  "toolchain": "openXC7 (Yosys 0.62 + nextpnr-xilinx + prjxray)",
+  "designs": {
+    "gf16_dot4_bscan": {
+      "description": "GF16 dot product N=4 with BSCANE2 USER2 JTAG readback",
+      "fmax_mhz": 312.5,
+      "bscan_tck_mhz": 22.01,
+      "luts": 1030,
+      "dsps": 1
+    },
+    "gf16_matmul4x4": {
+      "description": "GF16 4x4 matrix multiply (16 parallel dot4)",
+      "fmax_mhz": 323.31,
+      "luts": 40350,
+      "dsps": 64,
+      "lut_utilization_pct": 63.6,
+      "dsp_utilization_pct": 26.7
+    }
+  },
+  "performance": {
+    "dot4_gops": 2.26,
+    "matmul4x4_gops": 36.21,
+    "matmul4x4_per_sec": 323.31,
+    "tokens_per_sec_estimate": 323.31
+  },
+  "jtag": {
+    "transport": "XVC over WiFi (ESP32 XVC server v1.0)",
+    "xvc_host": "192.168.1.30",
+    "xvc_port": 2542,
+    "jtag_freq_mhz": 6.0,
+    "jtag_bandwidth_mbps": 6.0
+  },
+  "hardware_verification": {
+    "method": "LED-based + JTAG STATUS register",
+    "led_r23": "ring oscillator heartbeat (counter[20])",
+    "led_t23": "test result indicator",
+    "fpga_status": "DONE=1, ISC_DONE=1",
+    "bitstream_flashed": true,
+    "identity_multiply_verified": true
+  },
+  "note": "Static timing analysis from nextpnr-xilinx. FPGA compute is ~3ns/cycle. JTAG XVC shift commands not supported by ESP32 server - benchmark uses STA.",
+  "timestamp": "2026-05-08T12:33:37Z"
+}
