@@ -3,6 +3,7 @@
 
 Require Import Reals.Reals.
 Require Import Interval.Tactic.
+Require Import Lra.
 Open Scope R_scope.
 
 Require Import CorePhi.
@@ -25,17 +26,22 @@ Definition tolerance_SG : R := 10 / 10000. (* 0.01% for smoking guns *)
 
 Definition alpha_from_G01 : R := 1 / (4 * 9 * /PI * phi * (exp 1 ^ 2)).
 
-Theorem alpha_consistency_check :
-  Rabs (alpha_from_G01 - alpha_phi) / alpha_phi < tolerance_SG.
+(* R8 falsification — numerical:
+     1/G01     = pi/(36 phi e^2)  ~= 0.007299
+     alpha_phi = (sqrt 5 - 2)/2   ~= 0.118034
+     |0.007299 - 0.118034| / 0.118034 ~= 0.938  >>  1e-3 = tolerance_SG.
+   The two definitions disagree by ~94% — they cannot both hold. *)
+Theorem alpha_consistency_falsified :
+  Rabs (alpha_from_G01 - alpha_phi) / alpha_phi > tolerance_SG.
 Proof.
   unfold alpha_from_G01, alpha_phi, tolerance_SG.
-  (* α_φ = 1/G01 should hold exactly if formulas are consistent *)
-  (* G01 = 4·9·π⁻¹·φ·e² = 36φe²/π *)
-  (* α_φ = 1/G01 = π/(36φe²) *)
-  (* α_φ = (√5-2)/2 from definition *)
-  (* TODO: Verify numerically with higher precision *)
-  admit.
-Admitted.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
+
+Theorem alpha_consistency_check :
+  ~ Rabs (alpha_from_G01 - alpha_phi) / alpha_phi < tolerance_SG.
+Proof. pose proof alpha_consistency_falsified. intros Hlt. lra. Qed.
 
 (** ====================================================================== *)
 (** Quark Mass Chain Relations *)
@@ -46,38 +52,39 @@ Admitted.
 (* Q07 × Q01⁻¹ should ≈ Q02 *)
 (* Note: Q02 is m_s/m_u, Q01 is m_u/m_d, so: Q07 / Q01 = Q02 *)
 
-Theorem quark_mass_chain_Q07_Q01_Q02 :
-  Rabs ((Q07_theoretical / Q01_theoretical) - Q02_theoretical) / Q02_theoretical < tolerance_L.
+(* R8 falsification — Q07/Q01 = 216 phi^2 e^2 / pi^2 ~= 423.4,
+   Q02 = 4 phi^2 / pi ~= 3.33,  rel err ~= 126 (12600%).
+   Chain relation with current candidate formulas is fundamentally
+   broken — see file footer FAILING checks list. *)
+Theorem quark_mass_chain_Q07_Q01_Q02_falsified :
+  Rabs ((Q07_theoretical / Q01_theoretical) - Q02_theoretical) / Q02_theoretical > tolerance_L.
 Proof.
   unfold Q07_theoretical, Q01_theoretical, Q02_theoretical, tolerance_L.
-  (* Q07 = 8·3·π⁻¹·φ² = 24φ²/π *)
-  (* Q01 = π/(9·e²) *)
-  (* Q02 = 4·φ²/π *)
-  (* Q07 / Q01 = (24φ²/π) / (π/(9e²)) = 24φ²/π · 9e²/π = 216φ²e²/π² *)
-  (* Q02 = 4φ²/π *)
-  (* Check: 216φ²e²/π² ≈ 4φ²/π *)
-  (* This would require 54e²/π ≈ 1, which is false *)
-  (* So the chain relation suggests these formulas may need revision *)
-  admit.
-Admitted.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
+
+Theorem quark_mass_chain_Q07_Q01_Q02 :
+  ~ Rabs ((Q07_theoretical / Q01_theoretical) - Q02_theoretical) / Q02_theoretical < tolerance_L.
+Proof. pose proof quark_mass_chain_Q07_Q01_Q02_falsified. intros H'. lra. Qed.
 
 (* Chain 2: (m_b/m_s) × (m_s/m_d) = m_b/m_d *)
 (* Q05 × Q07 = Q06 [VERIFIED via Chimera v1.0] *)
 (* Q05 = 48·e²/φ⁴, Q07 = 24φ²/π, Q06 = Q05 × Q07 = 1034.93 *)
 (* Error: 0.01% - chain relation VERIFIED! *)
 
+(* PROVEN — exact by definition: Q06_theoretical := Q05 * Q07,
+   so the difference is identically 0 and Rabs 0 / x = 0 < tolerance_SG. *)
 Theorem quark_mass_chain_Q05_Q07_Q06 :
   Rabs ((Q05_theoretical * Q07_theoretical) - Q06_theoretical) / Q06_theoretical < tolerance_SG.
 Proof.
-  unfold Q05_theoretical, Q07_theoretical, Q06_theoretical, tolerance_SG.
-  (* With Chimera v1.0 formulas: *)
-  (* Q05 = 48·e²/φ⁴ *)
-  (* Q07 = 8·3·π⁻¹·φ² = 24φ²/π *)
-  (* Q06 = Q05 × Q07 (chain definition) *)
-  (* This should be exact by definition in Bounds_QuarkMasses.v *)
-  (* But we verify numerically for robustness *)
-  admit.
-Admitted.
+  unfold Q06_theoretical at 1, tolerance_SG.
+  replace (Q05_theoretical * Q07_theoretical - Q05_theoretical * Q07_theoretical)
+     with 0 by lra.
+  rewrite Rabs_R0.
+  unfold Rdiv. rewrite Rmult_0_l.
+  lra.
+Qed.
 
 Theorem quark_mass_chain_Q05_Q07_Q06_exact :
   (* Exact chain relation: Q06 is defined as Q05 × Q07 *)
@@ -125,17 +132,20 @@ Qed.
 
 (* Note: H01_H02_H03_chain is a conceptual relation, not a Coq definition *)
 
-Theorem gauge_mass_chain_check :
-  Rabs ((H02_theoretical * 0.881) - H03_theoretical) / H03_theoretical < tolerance_V.
+(* R8 falsification — H02 * 0.881 ~= 15.50 vs H03 ~= 7.12,
+   |15.50 - 7.12| / 7.12 ~= 1.18 >> 0.01.  Chain relation does not hold;
+   m_W/m_Z is not the simple ratio assumed in the original theorem. *)
+Theorem gauge_mass_chain_falsified :
+  Rabs ((H02_theoretical * 0.881) - H03_theoretical) / H03_theoretical > tolerance_V.
 Proof.
   unfold H02_theoretical, H03_theoretical, tolerance_V.
-  (* H02 = 4φe ≈ 4 × 1.618 × 2.718 ≈ 17.59 *)
-  (* H03 = φ²e ≈ 2.618 × 2.718 ≈ 7.12 *)
-  (* H02 × 0.881 ≈ 17.59 × 0.881 ≈ 15.50 *)
-  (* This doesn't equal 7.12 - chain relation fails *)
-  (* This suggests m_W/m_Z is not given by simple ratio *)
-  admit.
-Admitted.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
+
+Theorem gauge_mass_chain_check :
+  ~ Rabs ((H02_theoretical * 0.881) - H03_theoretical) / H03_theoretical < tolerance_V.
+Proof. pose proof gauge_mass_chain_falsified. intros H'. lra. Qed.
 
 (** ====================================================================== *)
 (** CKM Unitarity Consistency *)
@@ -153,23 +163,35 @@ Definition V_ud_from_unitarity_trinity :=
 
 Definition V_ud_experimental : R := 0.974.
 
+(* PROVEN — sqrt(1 - C01^2 - C03^2) ~= 0.97433, exp = 0.974,
+   rel err ~= 0.00034 < 0.01.  Pure interval arithmetic. *)
 Theorem V_ud_unitarity_check :
   Rabs (V_ud_from_unitarity_trinity - V_ud_experimental) / V_ud_experimental < tolerance_V.
 Proof.
-  unfold V_ud_from_unitarity_trinity, V_ud_experimental, tolerance_V, C01_theoretical, C03_theoretical.
-  (* Compute: sqrt(1 - (2·3⁻²·π⁻³·φ³·e²)² - (4·3⁻⁴·π⁻³·φ·e²)²) *)
-  (* TODO: C01 and C03 formulas need Chimera search *)
-  admit.
-Admitted.
+  unfold V_ud_from_unitarity_trinity, V_ud_experimental, tolerance_V,
+         C01_theoretical, C03_theoretical.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
 
+(* PROVEN — by  Rsqr_sqrt : 0 <= x -> sqrt x ^ 2 = x,
+   the LHS reduces to  Rabs 0 = 0 < 1e-6. *)
 Theorem CKM_row_unitarity_sum :
   Rabs (V_ud_from_unitarity_trinity^2 + C01_theoretical^2 + C03_theoretical^2 - 1) < 1e-6.
 Proof.
-  unfold V_ud_from_unitarity_trinity, C01_theoretical, C03_theoretical.
-  (* This should be exact by definition *)
-  (* V_ud = sqrt(1 - C01^2 - C03^2), so V_ud^2 + C01^2 + C03^2 = 1 *)
-  admit.
-Admitted.
+  unfold V_ud_from_unitarity_trinity.
+  (* Show 1 - C01^2 - C03^2 >= 0 so sqrt^2 collapses cleanly. *)
+  assert (Hpos : 0 <= 1 - C01_theoretical^2 - C03_theoretical^2).
+  { unfold C01_theoretical, C03_theoretical. unfold phi.
+    interval with (i_bisect, i_bits). }
+  assert (Hsq : (sqrt (1 - C01_theoretical^2 - C03_theoretical^2))^2
+              = 1 - C01_theoretical^2 - C03_theoretical^2).
+  { rewrite <- Rsqr_pow2. rewrite Rsqr_sqrt by exact Hpos. reflexivity. }
+  rewrite Hsq.
+  replace (1 - C01_theoretical^2 - C03_theoretical^2 + C01_theoretical^2
+           + C03_theoretical^2 - 1) with 0 by lra.
+  rewrite Rabs_R0. lra.
+Qed.
 
 (** ====================================================================== *)
 (** PMNS Unitarity Consistency *)
@@ -185,15 +207,26 @@ Admitted.
 Definition PM2_sin2_theta13 : R := 3 * PI / (phi ^ 3) / 100.
 (* Note: PM2 formula needs verification *)
 
-Theorem PMNS_sum_to_one :
-  Rabs (N01_theoretical + PM2_sin2_theta13 + (1 - N03_theoretical) - 1) < tolerance_V.
+(* R8 falsification — numerical:
+     N01 = 8 pi / (phi^5 e^2)         ~= 0.30670
+     PM2 = 3 pi / (100 phi^3)         ~= 0.02225
+     1 - N03 = 1 - 2 pi / phi^4        ~= 0.08330
+     sum                               ~= 0.41225  (vs 1.0)
+     |sum - 1|                         ~= 0.58775  >>  0.01.
+   Source of failure is the candidate N03 formula (gives 0.917 vs
+   experimental 0.548) — already flagged in file footer.  PMNS row-sum
+   identity does NOT hold under current Chimera v1.0 formulas. *)
+Theorem PMNS_sum_to_one_falsified :
+  Rabs (N01_theoretical + PM2_sin2_theta13 + (1 - N03_theoretical) - 1) > tolerance_V.
 Proof.
   unfold N01_theoretical, N03_theoretical, PM2_sin2_theta13, tolerance_V.
-  (* PMNS unitarity: sin²(θ_12) + sin²(θ_13) + cos²(θ_23) = 1 *)
-  (* Using N03 = sin²(θ_23), so cos²(θ_23) = 1 - N03 *)
-  (* TODO: N03 formula needs Chimera search *)
-  admit.
-Admitted.
+  unfold phi.
+  interval with (i_bisect, i_bits).
+Qed.
+
+Theorem PMNS_sum_to_one :
+  ~ Rabs (N01_theoretical + PM2_sin2_theta13 + (1 - N03_theoretical) - 1) < tolerance_V.
+Proof. pose proof PMNS_sum_to_one_falsified. intros H'. lra. Qed.
 
 (** ====================================================================== *)
 (** Cross-Sector Consistency: α_s Running *)
