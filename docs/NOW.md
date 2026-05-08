@@ -1,7 +1,7 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-05-07
-**Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara). FPGA: exact QMTECH Wukong V3 ref design replication for clock debug.
+**Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara). FPGA: debugging M21 clock on QMTECH Wukong V1 — capturing Vivado log.
 
 ---
 
