@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-T27C="${TRI_T27C:-$ROOT/bootstrap/target/release/t27c}"
+# Try multiple paths for t27c binary
+if [ -n "${TRI_T27C:-}" ]; then
+    T27C="$TRI_T27C"
+elif [ -f "$ROOT/target/release/t27c" ]; then
+    T27C="$ROOT/target/release/t27c"
+elif [ -f "$ROOT/bootstrap/target/release/t27c" ]; then
+    T27C="$ROOT/bootstrap/target/release/t27c"
+else
+    echo "Error: t27c binary not found. Run 'cargo build --release' from repo root." >&2
+    exit 1
+fi
 exec "$T27C" "$@"

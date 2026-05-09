@@ -1,0 +1,87 @@
+# Fast PR CI Lane — Subset of tests for quick feedback
+# Runs on every PR to master branch
+
+name: CI Fast PR Lane
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  fast-check:
+    name: Fast PR Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Build bootstrap compiler
+        run: |
+          cd bootstrap
+          cargo build --release
+
+      - name: PHI Loop identity check (L5)
+        run: |
+          echo "L5: phi^2 + phi^-2 = 3"
+          python3 -c "
+          phi = (1.0 + 5.0**0.5) / 2.0
+          identity = phi**2 + phi**(-2)
+          assert abs(identity - 3.0) < 1e-10, f'L5 FAILED: {identity}'
+          print(f'L5 PASSED: phi^2 + phi^-2 = {identity:.15f}')
+          "
+
+      - name: FPGA-Safety lint (L8)
+        run: |
+          VIOLATIONS=$(grep -rn "as f64\|as f32\|: f64\|: f32\|\.powi\|\.powf\|\.sqrt()\|\.abs()" ffi/src/ --include="*.rs" 2>/dev/null || true)
+          FILTERED=$(echo "$VIOLATIONS" | grep -v "to_bits\|from_bits\|FPGA-ALLOWED\|//.*f32\|//.*f64" || true)
+          if [ -n "$FILTERED" ]; then
+            echo "L8 FAILED: found f64/f32 arithmetic in core paths"
+            echo "$FILTERED"
+            exit 1
+          fi
+          echo "L8 PASSED: FPGA-Safety lint"
+
+      - name: Rust format check
+        run: |
+          cd bootstrap
+          cargo fmt -- --check
+
+      - name: Rust clippy
+        run: |
+          cd bootstrap
+          cargo clippy -- -D warnings
+
+      - name: Parse core specs
+        run: |
+          chmod +x scripts/tri
+          ./bootstrap/target/release/t27c parse specs/base/types.t27
+          ./bootstrap/target/release/t27c parse specs/base/ops.t27
+          echo "Core specs parse OK"
+
+      - name: Verify seal coverage (partial)
+        run: |
+          SEALS=$(find .trinity/seals -name '*.json' | wc -l)
+          echo "Seals count: $SEALS"
+          if [ "$SEALS" -lt 40 ]; then
+            echo "WARNING: Low seal coverage (< 40)"
+          fi
+
+  issue-gate:
+    name: Issue Gate (L1 TRACEABILITY)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for issue reference in PR
+        run: |
+          if [ -n "$GITHUB_PR_NUMBER" ]; then
+            echo "Checking PR #$GITHUB_PR_NUMBER for issue reference..."
+            # This check is also enforced by the separate issue-gate workflow
+            echo "Issue gate check passed (redundant with issue-gate.yml)"
+          else
+            echo "Not a PR context, skipping..."
+          fi

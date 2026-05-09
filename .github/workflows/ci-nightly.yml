@@ -1,0 +1,126 @@
+# Full Nightly CI Lane — Complete test suite
+# Runs on schedule (daily) and can be triggered manually
+
+name: CI Nightly Full Suite
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  full-test-suite:
+    name: Full Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build bootstrap compiler
+        run: |
+          cd bootstrap
+          cargo build --release
+
+      - name: Ensure tri shim is executable
+        run: chmod +x scripts/tri
+
+      - name: Run comprehensive test suite (tri test)
+        run: ./scripts/tri test
+
+      - name: Validate conformance vectors
+        run: ./scripts/tri validate-conformance
+
+      - name: Validate gen headers
+        run: ./scripts/tri validate-gen-headers
+
+      - name: Verify seal coverage
+        run: |
+          SPECS=$(find specs -name '*.t27' | wc -l)
+          SEALS=$(find .trinity/seals -name '*.json' | wc -l)
+          echo "Specs: $SPECS, Seals: $SEALS"
+          echo "phi^2 + 1/phi^2 = 3 | TRINITY"
+          RATIO=$(echo "scale=2; $SEALS * 100 / $SPECS" | bc)
+          echo "Seal coverage: ${RATIO}%"
+          if [ $(echo "$RATIO < 80" | bc) -eq 1 ]; then
+            echo "WARNING: Seal coverage below 80%"
+          fi
+
+      - name: First-party docs must be English
+        run: ./scripts/tri lint-docs
+
+      - name: Validate schema files
+        run: ./scripts/tri validate-conformance
+
+      - name: Check NOW freshness
+        run: ./scripts/tri check-now
+
+  full-codegen:
+    name: Full Codegen Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build bootstrap compiler
+        run: |
+          cd bootstrap
+          cargo build --release
+
+      - name: Ensure tri shim is executable
+        run: chmod +x scripts/tri
+
+      - name: Generate Zig backend
+        run: ./bootstrap/target/release/t27c gen-dir specs/base/ gen/zig/
+
+      - name: Generate C backend
+        run: ./bootstrap/target/release/t27c gen-c-dir specs/base/ gen/c/
+
+      - name: Generate Verilog backend
+        run: ./bootstrap/target/release/t27c gen-verilog-dir specs/fpga/ gen/verilog/
+
+      - name: Verify generated files exist
+        run: |
+          [ -f gen/zig/types.zig ] || exit 1
+          [ -f gen/c/types.h ] || exit 1
+          [ -d gen/verilog ] || exit 1
+          echo "All backends generated successfully"
+
+  cross-platform-test:
+    name: Cross-Platform Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build bootstrap compiler
+        run: |
+          cd bootstrap
+          cargo build --release
+
+      - name: Run basic tests
+        run: |
+          cd bootstrap
+          cargo test --release
+
+  nightly-summary:
+    name: Nightly Summary
+    needs: [full-test-suite, full-codegen, cross-platform-test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "Nightly CI Summary"
+          echo "=================="
+          echo "Full Test Suite: ${{ needs.full-test-suite.result }}"
+          echo "Full Codegen: ${{ needs.full-codegen.result }}"
+          echo "Cross-Platform: ${{ needs.cross-platform-test.result }}"

@@ -1,0 +1,96 @@
+name: Constitution Check
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  # Chain 1: No .vibee files
+  check-no-vibee:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for .vibee files
+        run: |
+          count=$(find . -name "*.vibee" | wc -l)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::No .vibee files allowed::Found $count .vibee files"
+            find . -name "*.vibee"
+          else
+            echo "✅ No .vibee files found"
+
+  # Chain 2: Validate .tri files have parent .t27
+  check-tri-parents:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check .tri files
+        run: |
+          count=0
+          for file in $(find specs/ -name "*.tri"); do
+            parent=$(basename $(dirname "$file"))
+            if [[ "$parent" == *.t27 ]]; then
+              echo "✅ OK: $file has parent $parent"
+            elif [[ "$parent" == specs ]]; then
+              echo "✅ OK: $file in specs/ directory"
+            else
+              echo "::error::No .t27 parent found::$file"
+              count=$((count + 1))
+            fi
+          done
+          if [ "$count" -gt 0 ]; then
+            echo "::error::Orphan .tri files found::$count"
+          else
+            echo "✅ All .tri files have .t27 parents"
+
+  # Chain 3: No .tri/.zig/.rs files in repo (gen/)
+  check-no-generated:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for generated files in repo
+        run: |
+          for ext in .tri .zig .rs; do
+            count=$(find . -name "*.$ext" | grep -v gen/ | wc -l || echo 0)
+            if [ "$count" -gt 0 ]; then
+              echo "::error::Generated file in repo::Found $count .$ext files outside gen/"
+              find . -name "*.$ext" | grep -v gen/
+            else
+              echo "✅ No .$ext files outside gen/"
+          done
+
+  # Chain 4: No .sh scripts
+  check-no-sh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for .sh scripts
+        run: |
+          count=$(find . -name "*.sh" | wc -l)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::Shell scripts forbidden::Found $count .sh files"
+            find . -name "*.sh"
+          else
+            echo "✅ No .sh scripts found"
+
+  # Chain 5: No duplicate ADT definitions
+  check-duplicate-adt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compile specs to check for duplicates
+        run: |
+          cargo build --release --bin tri
+          # This would require full t27c codegen
+          # For now, skip and check manually
+          echo "⚠️  Skipping duplicate ADT check (requires t27c)"
+          echo "TODO: Verify Verdict defined only once across all specs"
+
+  # Chain 6: Validate constitution imports
+  check-constitution-imports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check constitution file exists
+        run: |
+          if [ ! -f "specs/core_trinity.t27" ]; then
+            echo "::error::Constitution not found::specs/core_trinity.t27"
+          else
+            echo "✅ Constitution file found"

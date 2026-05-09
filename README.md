@@ -58,35 +58,43 @@ git clone https://github.com/gHashTag/t27.git
 cd t27
 
 # Build the bootstrap compiler (Rust); use ./scripts/tri as the CLI entry (wraps t27c)
-cd bootstrap && cargo build --release
-cd ..
+cargo build --release
 
 # Parse a spec (canonical CLI: tri → wraps bootstrap t27c)
 ./scripts/tri parse specs/base/types.t27
 
-<<<<<<< Updated upstream
-# Generate Zig (stdout for one file; if the path is a directory, batch → gen/zig/… by default)
-./scripts/tri gen-zig specs/numeric/gf16.t27
-./scripts/tri gen-zig specs/numeric
-# Or: ./scripts/tri gen-dir --backend zig --out-root gen/zig <dir>
-=======
-# Generate Zig backend (stdout for a single file)
-./scripts/tri gen-zig specs/numeric/gf16.t27
-# Batch a directory into gen/zig/… (mirrors paths under out-root)
-./scripts/tri gen-dir --backend zig --out-root gen/zig specs/numeric
->>>>>>> Stashed changes
+# Generate Zig code from a single spec file (stdout)
+./scripts/tri gen specs/base/types.t27
 
-# Generate Verilog (file or directory → gen/verilog/…)
+# Generate Zig code for all specs to output directory
+./scripts/tri compile-all --backend zig -o gen/zig
+
+# Generate Verilog from a single spec
 ./scripts/tri gen-verilog specs/fpga/mac.t27
 
-# Generate C (file or directory → gen/c/…)
+# Generate C from a single spec file
 ./scripts/tri gen-c specs/base/ops.t27
+
+# Generate C code for all specs to output directory
+./scripts/tri compile-all --backend c -o gen/c
+
+# Generate Rust code for all specs
+./scripts/tri compile-all --backend rust -o gen/rust
+
+# Generate TypeScript code for all specs
+./scripts/tri compile-all --backend ts -o gen/ts
+
+# Generate Verilog code for all specs
+./scripts/tri compile-all --backend verilog -o gen/verilog
+
+# Generate all backends at once (Zig, C, Verilog, Rust, TypeScript)
+./scripts/tri compile-all --backend all -o gen/all
 
 # Verify a seal
 ./scripts/tri seal specs/numeric/gf16.t27 --verify
 
-# Run all tests (Rust suite: parse / gen / seal / fixed-point)
-./scripts/tri test
+# Run full repository test suite (parse, Zig/Verilog/C gen, seal verify, fixed-point)
+./scripts/tri suite
 
 # Validate conformance vectors (JSON under conformance/)
 ./scripts/tri validate-conformance
@@ -255,7 +263,8 @@ The compiler grows ring-by-ring. Each ring adds exactly one capability, sealed w
 | 29   | Gen backends: NN attention, HSLM, Queen Lotus      | GEN    | Sealed      |
 | 30   | Conformance vectors: AR gap coverage               | GEN    | Sealed      |
 | 31   | Compiler/parser gen + graph sync + queen health    | GEN    | Sealed      |
-| 32+  | Hardening: docs, validation, CI                    | HARDEN | In Progress |
+| 32-58| EPOCH-01 HARDEN: docs, validation, CI, security    | HARDEN | ✅ Complete |
+| 59-118| EPOCH-02 EXPAND: LSP, WASM, FFI, Coq               | EXPAND | Planned     |
 
 
 ## GoldenFloat Family
@@ -428,6 +437,13 @@ See [ISSUE-GATE-001](docs/nona-03-manifest/ISSUE-GATE-001.md) for details.
 - [ADR-005: De-Zig Strict](architecture/ADR-005-de-zig-strict.md)
 - [CANON DE-ZIGFICATION](architecture/CANON_DE_ZIGFICATION.md)
 - [TECHNOLOGY-TREE](docs/nona-03-manifest/TECHNOLOGY-TREE.md) -- Evolution roadmap
+- [ADR Index](docs/ADR_INDEX.md) -- Complete architecture decision records
+
+### Planning & Roadmap
+
+- [ROADMAP](docs/ROADMAP.md) -- Execution tracker and milestones
+- [EPOCH-01 Retrospective](docs/EPOCH_01_RETROSPECTIVE.md) -- HARDEN phase complete
+- [EPOCH-02 Proposal](docs/EPOCH_02_EXPAND_PROPOSAL.md) -- EXPAND phase (LSP, WASM, FFI, Coq)
 
 ### Agents & Operations
 
@@ -447,6 +463,6 @@ MIT
 
 **Maintained by**: [Trinity Project](https://github.com/gHashTag) — [Dmitrii Vasilev](https://github.com/gHashTag)
 
-**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+**Status:** Ring 58 Complete (2026-05-09) — EPOCH-01 HARDEN ✅, 58 rings sealed, 505 specs, 100+ gen files, 591 conformance tests, 49 seals, CI enforced
 
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)

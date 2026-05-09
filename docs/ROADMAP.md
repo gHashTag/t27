@@ -37,11 +37,12 @@ Use template **EPIC (roadmap anchor)** when creating, or paste from that file:
 ## Milestones (suggested GitHub Milestones)
 
 - **`META / Program / Rings 32–63`** — Copy-paste issue bodies: [`docs/GITHUB_RING_ISSUES_RINGS_32_63.md`](GITHUB_RING_ISSUES_RINGS_32_63.md) (meta **Road to Ring 999**, program chunk, rings **032–063**).
-- **`EPOCH-01-HARDEN`** — Rings **32–58** planning package: [`docs/EPOCH_01_HARDEN_PLAN.md`](docs/EPOCH_01_HARDEN_PLAN.md) (GitHub **Milestone** + ring issues; **SOUL** Law **#9** / Article **VIII**; **constitution** **Article RING-LAW**). Next agent-activation slice plan: [`docs/RING_BACKLOG_047_063.md`](RING_BACKLOG_047_063.md).  
-- `v0.9 spec hardening`  
-- `GoldenFloat validation`  
-- `Zenodo publication pipeline (t27)`  
-- `Q2 2026 publications`
+- **`EPOCH-01-HARDEN`** — Rings **32–58** ✅ **COMPLETE** — Planning: [`docs/EPOCH_01_HARDEN_PLAN.md`](docs/EPOCH_01_HARDEN_PLAN.md) | Retrospective: [`docs/EPOCH_01_RETROSPECTIVE.md`](docs/EPOCH_01_RETROSPECTIVE.md)
+- **`EPOCH-02-EXPAND`** — Rings **59–118** 🟡 **PLANNED** — Proposal: [`docs/EPOCH_02_EXPAND_PROPOSAL.md`](docs/EPOCH_02_EXPAND_PROPOSAL.md) (LSP, WASM, FFI, Coq)
+- `v0.1.1` — EPOCH-01 HARDEN release (pending tag)
+- `v0.2.0` — EPOCH-02 EXPAND release (Q1 2027)
+- `GoldenFloat validation` — L4 differential oracle
+- `Zenodo publication pipeline (t27)`
 
 ---
 

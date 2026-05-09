@@ -296,3 +296,7 @@
 - **Commit:** docs(ring-32): PHI LOOP sealed — cloud orchestration complete (Closes #535)
 - **Files:** specs/ARCHITECTURE-MULTIREPO.md
 
+## 2026-05-09T19:34:26Z — gitbutler/workspace
+- **Commit:** docs(multi-backend): update codegen documentation and CI infrastructure
+- **Files:** .github/workflows/ci-fast-pr.yml,.github/workflows/ci-nightly.yml,.github/workflows/constitution.yml,.github/workflows/coq-kernel.yml,.github/workflows/l1-traceability.yml,.github/workflows/now-sync-gate.yml,.github/workflows/seal-coverage.yml,README.md,docs/ADR_INDEX.md,docs/CONFORMANCE_TRACEABILITY.md,docs/EPOCH_01_RETROSPECTIVE.md,docs/EPOCH_02_EXPAND_PROPOSAL.md,docs/GOLDENFLOAT_VALIDATION_PLAN.md,docs/LANGUAGE_SPEC.md,docs/LIMITATIONS.md,docs/PROVENANCE_SIGNING.md,docs/ROADMAP.md,docs/SECRETS_HYGIENE_AUDIT.md,docs/SPECS_BOUNDARY.md,docs/TESTING_TAXONOMY.md
+
