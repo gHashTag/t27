@@ -300,3 +300,11 @@
 - **Commit:** docs(multi-backend): update codegen documentation and CI infrastructure
 - **Files:** .github/workflows/ci-fast-pr.yml,.github/workflows/ci-nightly.yml,.github/workflows/constitution.yml,.github/workflows/coq-kernel.yml,.github/workflows/l1-traceability.yml,.github/workflows/now-sync-gate.yml,.github/workflows/seal-coverage.yml,README.md,docs/ADR_INDEX.md,docs/CONFORMANCE_TRACEABILITY.md,docs/EPOCH_01_RETROSPECTIVE.md,docs/EPOCH_02_EXPAND_PROPOSAL.md,docs/GOLDENFLOAT_VALIDATION_PLAN.md,docs/LANGUAGE_SPEC.md,docs/LIMITATIONS.md,docs/PROVENANCE_SIGNING.md,docs/ROADMAP.md,docs/SECRETS_HYGIENE_AUDIT.md,docs/SPECS_BOUNDARY.md,docs/TESTING_TAXONOMY.md
 
+## 2026-05-09T19:52:44Z — gitbutler/workspace
+- **Commit:** feat: EPOCH-01 HARDEN complete (Rings 32-58)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,Cargo.lock,Cargo.toml,docs/LSP_ARCHITECTURE.md,docs/STATE_OF_THE_PROJECT.md,lsp/Cargo.toml,lsp/README.md,lsp/src/backend/mod.rs,lsp/src/config.rs,lsp/src/lib.rs,lsp/src/main.rs,lsp/src/services/completion.rs,lsp/src/services/diagnostics.rs,lsp/src/services/document.rs,lsp/src/services/hover.rs,lsp/src/services/mod.rs,lsp/src/services/navigation.rs,lsp/src/services/symbols.rs,lsp/src/types/document.rs
+
+## 2026-05-09T19:53:01Z — gitbutler/workspace
+- **Commit:** feat(lsp): Language Server Protocol implementation (Ring 059)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,Cargo.lock,Cargo.toml,docs/LSP_ARCHITECTURE.md,docs/STATE_OF_THE_PROJECT.md,lsp/Cargo.toml,lsp/README.md,lsp/src/backend/mod.rs,lsp/src/config.rs,lsp/src/lib.rs,lsp/src/main.rs,lsp/src/services/completion.rs,lsp/src/services/diagnostics.rs,lsp/src/services/document.rs,lsp/src/services/hover.rs,lsp/src/services/mod.rs,lsp/src/services/navigation.rs,lsp/src/services/symbols.rs
+

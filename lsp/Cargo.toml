@@ -1,0 +1,48 @@
+[package]
+name = "t27-language-server"
+version = "0.1.0"
+edition = "2021"
+description = "Language Server Protocol implementation for t27 spec files"
+authors = ["Trinity Project <admin@t27.ai>"]
+license = "MIT"
+repository = "https://github.com/gHashTag/t27"
+readme = "README.md"
+
+[[bin]]
+name = "t27-language-server"
+path = "src/main.rs"
+
+[dependencies]
+# LSP framework
+tower-lsp = "0.20"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# URL handling
+url = "2.5"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Internal dependencies (will use parser from bootstrap)
+# t27c-parser = { path = "../bootstrap/compiler" }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
