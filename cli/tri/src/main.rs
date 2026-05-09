@@ -659,6 +659,7 @@ fn cmd_serve(addr: &str) -> Result<()> {
 
     let app = Router::new()
         .route("/prove", post(prove::post_prove))
+        .route("/epoch-challenge", get(prove::get_epoch_challenge))
         .route("/health", get(prove::health_check))
         .with_state(state);
 

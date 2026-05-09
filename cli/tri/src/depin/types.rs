@@ -22,8 +22,17 @@ pub struct ProveResponse {
     pub reward_lamports: u64,
     pub epoch_hash: String,
     pub next_challenge: String,
+    pub tokens_count: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EpochChallengeResponse {
+    pub epoch: u64,
+    pub phi_challenge: String,
+    pub block_reward: u64,
+    pub seed_hash: String,
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +70,7 @@ impl MiningEpoch {
     }
 }
 
-fn sha2_hash(inputs: &[&[u8]]) -> [u8; 32] {
+pub fn sha2_hash(inputs: &[&[u8]]) -> [u8; 32] {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
     for input in inputs {
