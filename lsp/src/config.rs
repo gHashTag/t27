@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Server configuration
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ServerConfig {
     /// Path to t27c binary for fallback parsing
     #[serde(default)]
@@ -31,12 +31,25 @@ pub struct ServerConfig {
     pub semantic_tokens: SemanticTokensConfig,
 }
 
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            t27c_path: None,
+            max_workspace_files: default_max_workspace_files(),
+            experimental: false,
+            diagnostics: DiagnosticConfig::default(),
+            completion: CompletionConfig::default(),
+            semantic_tokens: SemanticTokensConfig::default(),
+        }
+    }
+}
+
 fn default_max_workspace_files() -> usize {
     1000
 }
 
 /// Diagnostic configuration
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DiagnosticConfig {
     /// Enable type errors
     #[serde(default = "default_true")]
@@ -55,12 +68,23 @@ pub struct DiagnosticConfig {
     pub enable_semantic_errors: bool,
 }
 
+impl Default for DiagnosticConfig {
+    fn default() -> Self {
+        Self {
+            enable_type_errors: default_true(),
+            enable_seal_errors: default_true(),
+            enable_warnings: default_true(),
+            enable_semantic_errors: default_true(),
+        }
+    }
+}
+
 fn default_true() -> bool {
     true
 }
 
 /// Completion configuration
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CompletionConfig {
     /// Enable code snippets
     #[serde(default = "default_true")]
@@ -79,6 +103,17 @@ pub struct CompletionConfig {
     pub max_items: usize,
 }
 
+impl Default for CompletionConfig {
+    fn default() -> Self {
+        Self {
+            enable_snippets: default_true(),
+            show_documentation: default_true(),
+            trigger_characters: default_trigger_characters(),
+            max_items: default_max_completion_items(),
+        }
+    }
+}
+
 fn default_trigger_characters() -> Vec<char> {
     vec!['.', ':', '(', '{']
 }
@@ -88,7 +123,7 @@ fn default_max_completion_items() -> usize {
 }
 
 /// Semantic tokens configuration
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SemanticTokensConfig {
     /// Enable semantic tokens
     #[serde(default = "default_true")]
@@ -113,6 +148,19 @@ pub struct SemanticTokensConfig {
     /// Enable semantic tokens for variables
     #[serde(default = "default_true")]
     pub variables: bool,
+}
+
+impl Default for SemanticTokensConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_true(),
+            modules: default_true(),
+            functions: default_true(),
+            types: default_true(),
+            constants: default_true(),
+            variables: default_true(),
+        }
+    }
 }
 
 impl ServerConfig {

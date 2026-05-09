@@ -1,5 +1,7 @@
 // Backend for t27 Language Server
 
+pub mod parser;
+
 use crate::config::ServerConfig;
 use crate::services::{
     CompletionService, DiagnosticsService, DocumentManager, HoverService, NavigationService,

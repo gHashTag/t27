@@ -1,11 +1,12 @@
 // Document manager for t27 Language Server
 
+use crate::backend::parser::{extract_symbols, validate_document, is_t27_file, is_tri_file};
 use crate::types::Document;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 use tower_lsp::lsp_types::{
-    TextDocumentContentChangeEvent, TextDocumentIdentifier, Url,
+    TextDocumentContentChangeEvent, Url,
 };
 
 /// Document manager for handling open documents
@@ -38,8 +39,10 @@ impl DocumentManager {
         let mut doc = Document::new(uri.clone(), text);
         doc.version = 1;
 
-        // Parse the document (placeholder - will be connected to parser)
-        // self.parse_document(&mut doc).await;
+        // Only parse t27 or tri files
+        if is_t27_file(&uri) || is_tri_file(&uri) {
+            self.parse_document(&mut doc);
+        }
 
         docs.insert(uri, doc);
     }
@@ -61,8 +64,10 @@ impl DocumentManager {
             doc.version = version;
             doc.update(changes);
 
-            // Re-parse after update
-            // self.parse_document(doc).await;
+            // Re-parse after update for t27/tri files
+            if is_t27_file(uri) || is_tri_file(uri) {
+                self.parse_document(doc);
+            }
         }
     }
 
@@ -120,21 +125,11 @@ impl DocumentManager {
             .collect()
     }
 
-    /// Parse a document (placeholder for actual parser integration)
-    async fn parse_document(&self, _doc: &mut Document) {
-        // TODO: Integrate with t27c parser
-        // let parser = T27Parser::new();
-        // match parser.parse(&doc.text) {
-        //     Ok(ast) => {
-        //         doc.symbols = SymbolExtractor::extract(&ast);
-        //         doc.diagnostics = DiagnosticsGenerator::generate(&ast);
-        //         doc.parsed = true;
-        //     }
-        //     Err(e) => {
-        //         doc.diagnostics = vec![error_diagnostic(/* ... */)];
-        //         doc.parsed = false;
-        //     }
-        // }
+    /// Parse a document using the t27 parser
+    fn parse_document(&self, doc: &mut Document) {
+        doc.symbols = extract_symbols(doc);
+        doc.diagnostics = validate_document(doc);
+        doc.parsed = true;
     }
 }
 
