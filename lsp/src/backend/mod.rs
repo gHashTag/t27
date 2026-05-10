@@ -4,8 +4,8 @@ pub mod parser;
 
 use crate::config::ServerConfig;
 use crate::services::{
-    CompletionService, DiagnosticsService, DocumentManager, HoverService, NavigationService,
-    SymbolService,
+    CodeActionsService, CompletionService, DiagnosticsService, DocumentManager, HoverService,
+    NavigationService, SemanticTokensService, SignatureHelpService, SymbolService,
 };
 use crate::types::Document;
 use std::sync::Arc;
@@ -21,18 +21,21 @@ pub struct Backend {
     client: Client,
     documents: Arc<DocumentManager>,
     config: Arc<ServerConfig>,
+    semantic_tokens_service: Arc<SemanticTokensService>,
 }
 
 impl Backend {
     pub fn new(client: Client) -> Self {
+        let semantic_tokens_service = SemanticTokensService::new();
         Self {
             client,
             documents: Arc::new(DocumentManager::new()),
             config: Arc::new(ServerConfig::default()),
+            semantic_tokens_service: Arc::new(semantic_tokens_service),
         }
     }
 
-    /// Initialize the backend
+    /// Initialize backend
     pub async fn initialize(&mut self, params: InitializeParams) -> Result<InitializeResult> {
         // Set workspace root if provided
         if let Some(workspace_folders) = params.workspace_folders {
@@ -48,6 +51,19 @@ impl Backend {
             let loaded_config = ServerConfig::from_workspace(&root);
             self.config = Arc::new(loaded_config);
         }
+
+        // Build semantic tokens provider if enabled
+        let semantic_tokens_provider = if self.config.semantic_tokens.enabled {
+            Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+                SemanticTokensOptions {
+                    legend: self.semantic_tokens_service.legend(),
+                    range: Some(false),
+                    full: Some(SemanticTokensFullOptions::Bool(true)),
+                },
+            ))
+        } else {
+            None
+        };
 
         Ok(InitializeResult {
             server_info: Some(ServerInfo {
@@ -74,11 +90,14 @@ impl Backend {
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
-                // references_provider: Some(OneOf::Left(true)), // TODO: Fix type compatibility
+                references_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
-                // workspace_symbol_provider: Some(OneOf::Left(true)), // TODO: Fix method name
-                semantic_tokens_provider: None, // TODO: Implement
-                code_action_provider: None,    // TODO: Implement
+                workspace_symbol_provider: Some(OneOf::Left(true)),
+                semantic_tokens_provider,
+                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec![".".to_string(), ",".to_string()]),
+                }),
                 ..Default::default()
             },
         })
@@ -171,7 +190,7 @@ impl LanguageServer for Backend {
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        let uri = params.text_document_position_params.text_document.uri;
+        let uri = params.text_document_position_params.text_document.uri.clone();
         let position = params.text_document_position_params.position;
 
         if let Some(doc) = self.documents.get(&uri).await {
@@ -196,23 +215,25 @@ impl LanguageServer for Backend {
         }
     }
 
-    // TODO: Fix type compatibility with tower-lsp 0.20.0
-    // async fn references(&self, params: ReferencesParams) -> Result<Option<Vec<Location>>> {
-    //     let uri = params.text_document_position.text_document.uri;
-    //     let position = params.text_document_position.position;
-    //     let include_declaration = params.context.include_declaration;
+    async fn references(
+        &self,
+        params: ReferenceParams,
+    ) -> Result<Option<Vec<Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let include_declaration = params.context.include_declaration;
 
-    //     if let Some(doc) = self.documents.get(&uri).await {
-    //         let all_docs = self.documents.all_documents().await;
-    //         Ok(Some(NavigationService::find_references(
-    //             &all_docs,
-    //             position,
-    //             include_declaration,
-    //         )))
-    //     } else {
-    //         Ok(None)
-    //     }
-    // }
+        if let Some(doc) = self.documents.get(&uri).await {
+            let all_docs = self.documents.all_documents().await;
+            Ok(Some(NavigationService::find_references(
+                &all_docs,
+                position,
+                include_declaration,
+            )))
+        } else {
+            Ok(None)
+        }
+    }
 
     async fn document_symbol(
         &self,
@@ -228,13 +249,59 @@ impl LanguageServer for Backend {
         }
     }
 
-    // TODO: Fix method name for tower-lsp 0.20.0
-    // async fn workspace_symbol(
-    //     &self,
-    //     params: WorkspaceSymbolParams,
-    // ) -> Result<Option<Vec<SymbolInformation>>> {
-    //     let all_docs = self.documents.all_documents().await;
-    //     let symbols = SymbolService::workspace_symbols(&all_docs, params.query);
-    //     Ok(Some(symbols))
-    // }
+    async fn symbol(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> Result<Option<Vec<SymbolInformation>>> {
+        let all_docs = self.documents.all_documents().await;
+        let symbols = SymbolService::workspace_symbols(&all_docs, Some(params.query));
+        Ok(if symbols.is_empty() {
+            None
+        } else {
+            Some(symbols)
+        })
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let uri = params.text_document.uri;
+
+        if let Some(doc) = self.documents.get(&uri).await {
+            match self.semantic_tokens_service.full(&doc) {
+                Ok(tokens) => Ok(Some(SemanticTokensResult::Tokens(tokens))),
+                Err(e) => {
+                    self.client
+                        .log_message(MessageType::ERROR, format!("Semantic tokens error: {}", e))
+                        .await;
+                    Ok(None)
+                }
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn code_action(
+        &self,
+        params: CodeActionParams,
+    ) -> Result<Option<Vec<CodeAction>>> {
+        // TODO: Implement code actions
+        Ok(None)
+    }
+
+    async fn signature_help(
+        &self,
+        params: SignatureHelpParams,
+    ) -> Result<Option<SignatureHelp>> {
+        let uri = params.text_document_position_params.text_document.uri.clone();
+        let position = params.text_document_position_params.position;
+
+        if let Some(doc) = self.documents.get(&uri).await {
+            Ok(SignatureHelpService::signature_help(&doc, position))
+        } else {
+            Ok(None)
+        }
+    }
 }

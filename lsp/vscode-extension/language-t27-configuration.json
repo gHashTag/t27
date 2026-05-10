@@ -1,0 +1,10 @@
+{
+  "t27ServerPath": {
+    "type": "string",
+    "default": "cargo run --package t27-language-server",
+    "description": "Path to t27 language server binary"
+  },
+  "[t27]": {
+    "maxProblems": 100
+  }
+}

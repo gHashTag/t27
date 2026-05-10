@@ -1,0 +1,54 @@
+{
+  "name": "vscode-t27",
+  "version": "1.0.0",
+  "description": "VS Code extension for t27 Language Server",
+  "main": "./index.js",
+  "activationEvents": [
+    "onLanguage:t27"
+  ],
+  "engines": [
+    {
+      "id": "t27"
+    }
+  ],
+  "languages": [
+    {
+      "id": "t27",
+      "extensions": [".t27"],
+      "aliases": ["t27", "trinity", "phi"],
+      "configuration": "./language-t27-configuration.json"
+    }
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "t27",
+        "extensions": [".t27"],
+        "configuration": "./language-t27-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "t27",
+        "scopeName": "source.t27",
+        "path": "./syntaxes/t27.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "t27 Server",
+      "properties": {
+        "t27ServerPath": {
+          "type": "string",
+          "default": "cargo run --package t27-language-server",
+          "description": "Path to t27 language server binary"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "vscode-t27.openLog",
+        "title": "Open t27 Language Server Log"
+      }
+    ]
+  }
+}

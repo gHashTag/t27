@@ -312,3 +312,7 @@
 - **Commit:** feat(lsp): Language Server Protocol implementation (Ring 059)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,lsp/src/backend/mod.rs,lsp/src/backend/parser.rs,lsp/src/config.rs,lsp/src/services/diagnostics.rs,lsp/src/services/document.rs
 
+## 2026-05-10T20:22:10Z — gitbutler/workspace
+- **Commit:** feat(lsp): Parser integration and enhanced diagnostics (Rings 060-062)
+- **Files:** lsp/src/backend/mod.rs,lsp/src/services/code_actions.rs,lsp/src/services/signature_help.rs,lsp/src/services/tokens.rs,lsp/vscode-extension/index.js,lsp/vscode-extension/language-t27-configuration.json,lsp/vscode-extension/package.json,lsp/vscode-extension/syntaxes/t27.tmLanguage.json
+

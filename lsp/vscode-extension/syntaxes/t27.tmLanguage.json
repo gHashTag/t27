@@ -1,0 +1,45 @@
+{
+  "scopeName": "source.t27",
+  "patterns": [
+    {
+      "match": "(?x)\\b(test|invariant|bench|const|type|fn|import|let|return|if|else|match|pub|use|mod|struct|enum|impl|for|while|loop|break|continue|true|false|async|await|pub)\\b",
+      "name": "keyword.control.t27"
+    },
+    {
+      "match": "(?x)\\b(PHI|phi|GF\\d+|TF\\d+|Boolean|String|Number|Integer|Float|Option|Result|Vec|Box|Arc|Rc|HashMap|BTreeSet|HashMap)\\b",
+      "name": "keyword.type.t27"
+    },
+    {
+      "match": "(?x)\\b(GF\\d+|TF\\d+)\\b(?=)\\s*([0-9.]+(?:e-?[0-9]+)?(?:\\.[0-9]+)?)\\b",
+      "name": "constant.numeric.t27"
+    },
+    {
+      "match": "\".*?\"",
+      "name": "string.quoted.t27"
+    },
+    {
+      "match": "//.*$",
+      "name": "comment.line.t27"
+    },
+    {
+      "match": "/\\*.*?\\*/",
+      "name": "comment.block.t27"
+    },
+    {
+      "match": "(?x)\\b(\\.t27|\\.tri)\\b",
+      "name": "string.path.t27"
+    },
+    {
+      "match": "(?x)\\b([A-Z][a-z0-9_]+)\\s*\\([A-Z][a-z0-9_]+)\\s*\\b",
+      "name": "entity.name.function.t27"
+    },
+    {
+      "match": "([A-Z][a-z0-9_]+)\\s*\\b(?=)\\s*[a-zA-Z0-9_<>\\[\\]{}.,:|&]+)\\b",
+      "name": "entity.name.type.t27"
+    },
+    {
+      "match": "([A-Z][a-z0-9_]+)\\s*\\b(?=)\\s*[a-zA-Z0-9_<>\\[\\]{}.,:|&|]+)\\s*\\b",
+      "name": "variable.other.t27"
+    }
+  ]
+}
