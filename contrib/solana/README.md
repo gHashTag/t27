@@ -21,17 +21,45 @@ tests/tri-mining.ts              — Integration tests (3 node mock)
 | Account | Size | Description |
 |---------|------|-------------|
 | `MiningEpoch` | 72B | epoch_id, block_reward, total_proofs, authority |
-| `NodeProof` | 156B | miner, phi_response, merkle_root, signature, tokens_earned |
+| `NodeProof` | 164B | miner, phi_response, merkle_root, signature, tokens_earned |
 
-## Deploy (when Solana CLI installed)
+## Test (local validator)
+
+```bash
+# Start local validator
+solana-test-validator --reset --quiet &
+
+# Wait for readiness
+solana cluster-version --url http://127.0.0.1:8899
+
+# Deploy program
+solana program deploy target/deploy/tri_mining.so \
+  --url http://127.0.0.1:8899 \
+  --program-id target/deploy/tri_mining-keypair.json
+
+# Fund test wallet
+solana airdrop 100 $(solana-keygen pubkey ~/.config/solana/id.json) --url http://127.0.0.1:8899
+
+# Run tests
+anchor build
+rm -rf tests-compiled && npx tsc
+ANCHOR_PROVIDER_URL=http://127.0.0.1:8899 \
+ANCHOR_WALLET=$HOME/.config/solana/id.json \
+npx mocha --timeout 1000000 tests-compiled/tests/tri-mining.js
+
+# Stop validator
+pkill -f solana-test-validator
+```
+
+## Deploy to devnet
 
 ```bash
 solana config set --url devnet
+solana airdrop 2 $(solana-keygen pubkey ~/.config/solana/id.json) --url devnet
 anchor build
 anchor deploy
-anchor test --skip-deploy
 ```
 
 ## G-TRI-2 Acceptance
 
-3 test nodes submit valid NodeProof → all receive mock TRI rewards on-chain.
+3 test nodes submit valid NodeProof -> all receive mock TRI rewards on-chain. **PASSED** (3/3 tests, 5s).

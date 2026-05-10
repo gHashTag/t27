@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("TRiMining11111111111111111111111111111111111");
+declare_id!("GAoPb3sVjtg1ey7gRtVGWtWFxGhK1eazdKanz3LZKmqV");
 
 #[program]
 pub mod tri_mining {

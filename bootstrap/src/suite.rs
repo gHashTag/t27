@@ -398,6 +398,9 @@ fn first_yyyy_mm_dd_in_line(line: &str) -> Option<String> {
         if !slice.is_ascii() {
             continue;
         }
+        if !slice.as_bytes()[0].is_ascii_digit() {
+            continue;
+        }
         if chrono::NaiveDate::parse_from_str(slice, "%Y-%m-%d").is_ok() {
             return Some(slice.to_string());
         }

@@ -6,6 +6,7 @@ pub struct ProveRequest {
     pub epoch: u64,
     pub phi_response: String,
     pub merkle_proof: MerkleProof,
+    pub merkle_leaf_index: usize,
     pub peer_sample_sig: String,
 }
 
