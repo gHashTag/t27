@@ -189,6 +189,49 @@ class DLC10:
     def cycle_tck(self, n):
         self._do_shift([True] * n, [False] * n)
 
+    def read_dr_32(self):
+        tdi, tms = [True, True, True], [True, False, False]
+        rdo_start = len(tdi)
+        for i in range(32):
+            tdi.append(False)
+            tms.append(i == 31)
+        tdi += [True, True]
+        tms += [True, False]
+        n = len(tdi)
+        if n % 4 == 0:
+            tdi.append(False)
+            tms.append(False)
+            n += 1
+        nw = (n + 3) // 4
+        buf = bytearray(nw * 2)
+        for i in range(n):
+            bi = i & 3
+            wi = (i - bi) >> 1
+            if bi == 0:
+                buf[wi] = 0
+                buf[wi + 1] = 0
+            if tdi[i]:
+                buf[wi] |= 0x01 << bi
+            if tms[i]:
+                buf[wi] |= 0x10 << bi
+            if rdo_start <= i < rdo_start + 32:
+                buf[wi + 1] |= 0x11 << bi
+            else:
+                buf[wi + 1] |= 0x01 << bi
+        self.dev.ctrl_transfer(0x40, 0xB0, 0xA6, n, b"", 10000)
+        self.dev.write(0x02, bytes(buf), timeout=30000)
+        ol = 2 * ((32 + 15) // 16)
+        resp = bytes(self.dev.read(0x86, ol, timeout=10000))
+        words = [
+            struct.unpack_from("<H", resp, j)[0] for j in range(0, len(resp), 2)
+        ]
+        val = 0
+        for i in range(32):
+            wi, bi = i // 16, i % 16
+            if words[wi] & (1 << bi):
+                val |= 1 << i
+        return val
+
     def read_idcode(self):
         """Read IDCODE via dedicated instruction. Returns 32-bit value."""
         self.shift_ir(XC7_IR["IDCODE"])
@@ -258,6 +301,12 @@ class DLC10:
         self.shift_ir(XC7_IR["BYPASS"])
         self.shift_dr_small(bytes([0x00]), 1)
         self.cycle_tck(1)
+
+        self.shift_ir(XC7_IR["CFG_OUT"])
+        tdo = self.read_dr_32()
+        print(f"STATUS: 0x{tdo:08X}")
+        done = (tdo >> 2) & 1
+        print(f"DONE pin: {'HIGH (configured!)' if done else 'LOW (not configured)'}")
 
         print("Done.")
 
