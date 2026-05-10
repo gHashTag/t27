@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "types": ["mocha", "chai"],
+    "lib": ["es2020"],
+    "module": "commonjs",
+    "target": "es2020",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "sourceMap": false,
+    "declaration": false,
+    "outDir": "./tests-compiled",
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["tests/**/*.ts", "target/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -3,7 +3,7 @@ seeds = false
 skip-lint = false
 
 [programs.devnet]
-tri_mining = "TRiMining11111111111111111111111111111111111"
+tri_mining = "GAoPb3sVjtg1ey7gRtVGWtWFxGhK1eazdKanz3LZKmqV"
 
 [registry]
 url = "https://api.apr.dev"
@@ -13,4 +13,4 @@ cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "npx tsc --outDir tests-compiled --declaration false && npx mocha --timeout 1000000 tests-compiled/**/*.js"

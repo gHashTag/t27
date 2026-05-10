@@ -33,6 +33,10 @@ pub fn verify_merkle(root: &[u8; 32], leaf: &[u8; 32], siblings: &[[u8; 32]], in
     current == *root
 }
 
+pub fn hash_pair_test(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
+    hash_pair(a, b)
+}
+
 fn hash_pair(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
     let mut h = Sha256::new();
     h.update(a);
