@@ -1,0 +1,24 @@
+{
+    "device": "DSLogic",
+    "sample_rate": 16000000,
+    "sample_limit": 0,
+    "probes": [
+        {"name": "TCK",  "bit": 0, "channel": 0, "vdiv": 1, "factor": 1, "coupling": 0, "trig": 0},
+        {"name": "TMS",  "bit": 1, "channel": 1, "vdiv": 1, "factor": 1, "coupling": 0, "trig": 0},
+        {"name": "TDI",  "bit": 2, "channel": 2, "vdiv": 1, "factor": 1, "coupling": 0, "trig": 0},
+        {"name": "TDO",  "bit": 3, "channel": 3, "vdiv": 1, "factor": 1, "coupling": 0, "trig": 0}
+    ],
+    "decoders": [
+        {
+            "id": "jtag",
+            "name": "JTAG",
+            "channels": [
+                {"id": "tck", "name": "TCK", "bit": 0},
+                {"id": "tms", "name": "TMS", "bit": 1},
+                {"id": "tdi", "name": "TDI", "bit": 2},
+                {"id": "tdo", "name": "TDO", "bit": 3}
+            ]
+        }
+    ],
+    "threshold": 1.6
+}
