@@ -5,6 +5,15 @@
 
 ---
 
+## R5-PASS-8 Honest Audit (Issue #600 — placeholder DOIs in .bib files)
+
+- Discovered during the PASS-8 10-dimension deep-sweep across the 5-repo Trinity hive (after PASS-6/PASS-7 merges).
+- `clara-bridge/CITATION.bib:5` carried the placeholder `doi={10.xxxx/zenodo.xxxxx}` instead of the canonical Trinity SOT anchor record. Replaced with `10.5281/zenodo.19227877` (B007 VSA Operations v5.0, community `trinity-s3ai`).
+- `research/trinity-pellis-paper/NEW_BIBLIOGRAPHY_ENTRIES.bib:48` carried `doi = {10.1038/s41467-025-xxxxx-x}` for the Minev 2025 Fibonacci anyons paper — the suffix was a placeholder when drafted. Stripped the malformed DOI field and added an explicit `TODO(LD)` note so the entry cannot be mistaken for a resolvable DOI; reference is retained pending the final Nature Communications article ID.
+- No other placeholder DOIs found in t27 .bib files (other Pellis-paper entries carry resolvable `10.1103/`, `10.3390/`, `10.1093/`, `10.1016/`, `10.1090/`, `10.1007/` DOIs).
+- Anchor `φ² + φ⁻² = 3` algebraic identity unchanged.
+- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264). Closes #600.
+
 ## R5-PASS-7 Honest Audit (Issue #598 — invalid ORCID + wrong community slug in `.zenodo.json`)
 
 - Discovered during the 10-dimension PASS-7 deep-sweep across the 5-repo Trinity hive.
