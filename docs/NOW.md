@@ -1,11 +1,18 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-11
+**Last updated:** 2026-05-12
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
 
 ## Active Work
+
+**Pure-Rust DLC10 Driver + SPI Flash** (branch feat/dlc10-rust)
+- cli/dlc10 crate: USB control transfer + JTAG state machine via rusb (no Vivado, no openFPGALoader)
+- IDCODE 0x13631093 (XC7A100T) verified on silicon through pure-Rust path
+- cli/flash-spi rewritten to call dlc10::Dlc10::program_flash directly
+- Includes bscan_spi_xc7a100t.bit (MIT, quartiq) + Cypress FX2 firmware
+- Refs #590 (DSLogic JTAG diagnostics)
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
