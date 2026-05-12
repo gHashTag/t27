@@ -336,60 +336,119 @@ impl Dlc10 {
         self.read_dr_32()
     }
 
-    /// Read a 7-series configuration register the correct way:
-    /// (1) drive CFG_IN with a Type-1 Read packet for the chosen register,
-    /// (2) park in Run-Test/Idle for ≥12 TCK cycles so the FPGA's
-    ///     configuration FSM actually *executes* the queued read,
-    /// (3) switch IR to CFG_OUT and shift the 32-bit value out.
+    /// Build the canonical openFPGALoader `dumpRegister` packet sequence
+    /// for reading config register `reg_addr` (UG470 Type-1 read).
     ///
-    /// Implements the protocol from UG470 §6 / xc3sprog's `ProgAlgXC7::readReg`.
-    /// The mandatory RTI parking step was the missing piece in v1: without
-    /// it, the read command sat in the input pipeline, the FDRO data register
-    /// stayed at reset value (0), and *every* register read back as 0.
+    /// Returns the 5 host-order u32 packet words. The on-the-wire encoding
+    /// (per-word `reverse_bits` followed by LE byte-split) is applied
+    /// separately in `read_cfg_reg`.
+    pub fn build_read_cfg_packets(reg_addr: u8) -> [u32; 5] {
+        // openFPGALoader `xilinx.cpp::dumpRegister`:
+        //   ((0x01 & 0x0007) << 29)  // header type 1
+        // | ((0x01 & 0x0003) << 27)  // opcode = read
+        // | ((reg  & 0x3FFF) << 13)  // register address
+        // | ((0x00 & 0x0003) << 11)  // reserved
+        // | ((0x01 & 0x07FF) <<  0)  // word count
+        let read_hdr: u32 = (1u32 << 29)
+            | (1u32 << 27)
+            | (((reg_addr as u32) & 0x3FFF) << 13)
+            | 1u32;
+        [
+            0xAA995566, // Sync Word (NO bus-width 0xFFFFFFFF prefix on JTAG)
+            0x20000000, // NOP
+            read_hdr,   // Type-1 Read
+            0x20000000, // NOP
+            0x20000000, // NOP
+        ]
+    }
+
+    /// Read a 7-series configuration register. Mirrors openFPGALoader
+    /// `Xilinx::dumpRegister` byte-for-byte:
+    ///
+    /// 1. `shift_ir(CFG_IN)`.
+    /// 2. Shift FIVE separate 32-bit DR transactions, one per packet word,
+    ///    each going through its own Capture-DR → Shift-DR → Exit1-DR →
+    ///    **Update-DR** → RTI cycle. The per-word `Update-DR` event is what
+    ///    causes the FPGA's configuration FSM to actually *latch* and
+    ///    process each Type-1 packet.
+    /// 3. `shift_ir(CFG_OUT)`.
+    /// 4. One 32-bit DR shift to read the queued value.
+    /// 5. Reverse all 32 bits of the result (the FPGA streams MSBs first;
+    ///    `read_dr_32` accumulates LSBs first).
+    ///
+    /// **Why one big shift didn't work in v2**: my previous implementation
+    /// concatenated the 6 packet words into a single 192-bit DR shift with
+    /// a single Update-DR at the very end. The hardware (XC7A100T) refused
+    /// to execute the queued read, leaving FDRO = 0 — every register read
+    /// (including IDCODE, which is hard-wired to 0x13631093) came back as
+    /// `0x00000000`. openFPGALoader and Vivado both do per-word Update-DR.
     pub fn read_cfg_reg(&mut self, reg_addr: u8) -> Result<u32> {
-        // Build the CFG_IN packet (big-endian on the wire).
-        // 0xFFFFFFFF (dummy/bus-width) ; 0xAA995566 (sync) ; 0x20000000 (NOP) ;
-        // Type-1 read header ; 2x NOP (read pipeline flush).
-        let read_hdr: u32 = (1u32 << 29)            // header type 1
-            | (1u32 << 27)                          // opcode = read
-            | (((reg_addr as u32) & 0x3FFF) << 13)  // addr
-            | 1u32;                                 // word count = 1
-        let packet_be: [u32; 6] = [
-            0xFFFFFFFF,
-            0xAA995566,
-            0x20000000,
-            read_hdr,
-            0x20000000,
-            0x20000000,
-        ];
-        // Serialize to MSB-first bytes (as the FPGA expects), then bit-reverse
-        // each byte because the JTAG TDI shifts LSB-first — the same trick
-        // used for the bitstream payload.
-        let mut wire = Vec::with_capacity(packet_be.len() * 4);
-        for w in &packet_be {
-            wire.extend_from_slice(&w.to_be_bytes());
+        let raw = self.read_cfg_reg_raw_n(reg_addr, 32)?;
+        Ok(raw[0])
+    }
+
+    /// Same as `read_cfg_reg`, but also returns the host-order packet
+    /// bytes shifted into CFG_IN (for `idcode-cfg --raw` diagnostics).
+    pub fn read_cfg_reg_diag(
+        &mut self,
+        reg_addr: u8,
+        bits: usize,
+    ) -> Result<ReadCfgDiag> {
+        let packets = Self::build_read_cfg_packets(reg_addr);
+        let mut wire_bytes: Vec<u8> = Vec::with_capacity(20);
+        for w in &packets {
+            // openFPGALoader: tmp = reverse_32(packet); then split LE.
+            let tmp = w.reverse_bits();
+            wire_bytes.push((tmp & 0xFF) as u8);
+            wire_bytes.push(((tmp >> 8) & 0xFF) as u8);
+            wire_bytes.push(((tmp >> 16) & 0xFF) as u8);
+            wire_bytes.push(((tmp >> 24) & 0xFF) as u8);
         }
-        let shifted = bitrev(&wire);
+        let result_words = self.read_cfg_reg_raw_n(reg_addr, bits)?;
+        Ok(ReadCfgDiag {
+            packets_host_order: packets,
+            wire_bytes_per_word: wire_bytes,
+            result_words,
+        })
+    }
+
+    /// Shift the read packets in, then shift `bits` (rounded up to multiples
+    /// of 32) out of CFG_OUT. Returns the result split into 32-bit words.
+    pub fn read_cfg_reg_raw_n(&mut self, reg_addr: u8, bits: usize) -> Result<Vec<u32>> {
+        let packets = Self::build_read_cfg_packets(reg_addr);
 
         self.shift_ir(ir::CFG_IN)?;
-        self.shift_dr(&shifted, shifted.len() * 8)?;
-        // Park in Run-Test/Idle so the config FSM consumes the queued read.
-        // xc3sprog uses 12; we use 32 to be conservative against slow TCK.
-        self.cycle_tck(32)?;
+        for &w in &packets {
+            // openFPGALoader: tmp = reverse_32(packet); split into 4 LE bytes;
+            // shift 32 bits via shiftDR. Each shift does its own Capture-DR →
+            // Shift-DR → Exit1-DR → Update-DR cycle.
+            let tmp = w.reverse_bits();
+            let bytes = [
+                (tmp & 0xFF) as u8,
+                ((tmp >> 8) & 0xFF) as u8,
+                ((tmp >> 16) & 0xFF) as u8,
+                ((tmp >> 24) & 0xFF) as u8,
+            ];
+            self.shift_dr_small(&bytes, 32)?;
+        }
 
         self.shift_ir(ir::CFG_OUT)?;
-        let raw = self.read_dr_32()?;
-        // The FPGA returns 32 bits MSB-first, which our `read_dr_32`
-        // captured LSB-first into the u32. Convert byte-wise + bit-reverse.
-        Ok(swap_msb_lsb_u32(raw))
+        let n_words = bits.div_ceil(32);
+        let mut out = Vec::with_capacity(n_words);
+        for _ in 0..n_words {
+            let raw = self.read_dr_32()?;
+            // FPGA emits MSB first; `read_dr_32` packs LSB-first. Reverse.
+            out.push(raw.reverse_bits());
+        }
+        Ok(out)
     }
 
     /// Self-test: read the configuration IDCODE register (addr 0x0C) via the
     /// proper Type-1 read protocol. On a healthy XC7A100T this must return
     /// `0x13631093` — same as the JTAG IDCODE. If `read_cfg_reg` ever returns
     /// 0 here while `read_idcode` returns the expected value, the bug is in
-    /// the Type-1 read sequence (most likely missing RTI parking), not in
-    /// the device.
+    /// the Type-1 read sequence (most likely missing per-word Update-DR),
+    /// not in the device.
     pub fn read_cfg_idcode(&mut self) -> Result<u32> {
         self.read_cfg_reg(cfg_reg::IDCODE)
     }
@@ -896,9 +955,29 @@ impl Dlc10 {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Reverse all 32 bits of a `u32` (bit 0 ↔ bit 31).
+/// Reverse all 32 bits of a `u32` (bit 0 ↔ bit 31). Retained as a named
+/// helper for test legibility, even though `read_cfg_reg_raw_n` now calls
+/// `u32::reverse_bits` directly.
+#[allow(dead_code)]
 fn swap_msb_lsb_u32(v: u32) -> u32 {
     v.reverse_bits()
+}
+
+/// Diagnostic snapshot returned by `read_cfg_reg_diag` — captures the
+/// exact host-order packet words, the bytes shifted on the wire (after
+/// per-word `reverse_bits` + LE byte-split, before TDI bit-encoding),
+/// and the raw result words clocked out of CFG_OUT.
+#[derive(Debug, Clone)]
+pub struct ReadCfgDiag {
+    /// The 5 host-order u32 packet words built by `build_read_cfg_packets`.
+    pub packets_host_order: [u32; 5],
+    /// 20 bytes — exactly what gets shifted on the wire over the 5 DR
+    /// transactions (4 bytes per packet). Use this to hand-compare with
+    /// xc3sprog / openFPGALoader.
+    pub wire_bytes_per_word: Vec<u8>,
+    /// 32-bit words clocked out of CFG_OUT, already `reverse_bits`'d so
+    /// the FPGA's MSB-first stream lines up with normal u32 bit numbering.
+    pub result_words: Vec<u32>,
 }
 
 /// Decoded view of the 7-series STAT register (UG470 Table 5-25).
@@ -1248,5 +1327,55 @@ mod tests {
         assert_eq!(hdr(cfg_reg::IDCODE), 0x2801_8001);
         // CTL0 (0x05).
         assert_eq!(hdr(cfg_reg::CTL0), 0x2800_A001);
+    }
+
+    /// Pin the 5 packet words `build_read_cfg_packets` emits for IDCODE,
+    /// matching openFPGALoader `Xilinx::dumpRegister`.
+    #[test]
+    fn build_read_cfg_packets_idcode_matches_openfpgaloader() {
+        let p = Dlc10::build_read_cfg_packets(cfg_reg::IDCODE);
+        assert_eq!(p[0], 0xAA995566); // SYNC
+        assert_eq!(p[1], 0x20000000); // NOP
+        assert_eq!(p[2], 0x28018001); // READ_HDR for IDCODE (addr 0x0C)
+        assert_eq!(p[3], 0x20000000); // NOP
+        assert_eq!(p[4], 0x20000000); // NOP
+    }
+
+    /// Pin the per-word wire encoding (reverse_bits → LE byte-split)
+    /// against hand-computed reference values. This is the protocol step
+    /// the user explicitly asked us to audit.
+    #[test]
+    fn wire_encoding_per_word_matches_reference() {
+        // 0xAA995566:
+        //   reverse_bits(0xAA995566) = 0x66AA9955
+        //   LE bytes                 = [0x55, 0x99, 0xAA, 0x66]
+        let tmp = 0xAA995566u32.reverse_bits();
+        assert_eq!(tmp, 0x66AA9955);
+        let bytes = [
+            (tmp & 0xFF) as u8,
+            ((tmp >> 8) & 0xFF) as u8,
+            ((tmp >> 16) & 0xFF) as u8,
+            ((tmp >> 24) & 0xFF) as u8,
+        ];
+        assert_eq!(bytes, [0x55, 0x99, 0xAA, 0x66]);
+
+        // 0x28018001 (IDCODE read header):
+        //   reverse_bits(0x28018001) = 0x80018014
+        //   LE bytes                 = [0x14, 0x80, 0x01, 0x80]
+        let tmp = 0x28018001u32.reverse_bits();
+        assert_eq!(tmp, 0x80018014);
+        let bytes = [
+            (tmp & 0xFF) as u8,
+            ((tmp >> 8) & 0xFF) as u8,
+            ((tmp >> 16) & 0xFF) as u8,
+            ((tmp >> 24) & 0xFF) as u8,
+        ];
+        assert_eq!(bytes, [0x14, 0x80, 0x01, 0x80]);
+
+        // 0x20000000 (NOP):
+        //   reverse_bits(0x20000000) = 0x00000004
+        //   LE bytes                 = [0x04, 0x00, 0x00, 0x00]
+        let tmp = 0x20000000u32.reverse_bits();
+        assert_eq!(tmp, 0x00000004);
     }
 }

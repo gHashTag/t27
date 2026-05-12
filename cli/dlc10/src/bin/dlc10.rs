@@ -53,7 +53,16 @@ enum Cmd {
     /// XC7A100T this MUST return 0x13631093 — same as the JTAG IDCODE.
     /// If JTAG IDCODE matches but this reads 0x00000000, the bug is in
     /// our read protocol (e.g. missing RTI parking), not in the chip.
-    IdcodeCfg,
+    IdcodeCfg {
+        /// Dump the exact wire-format DR payload (host-order packet words
+        /// AND the bytes shifted on the wire after `reverse_32` + LE
+        /// byte-split) for hand-comparison with xc3sprog / openFPGALoader,
+        /// plus a 64-bit CFG_OUT shift to test the dummy-pipeline-word
+        /// hypothesis (some 7-series parts return the value on the SECOND
+        /// 32-bit word, not the first).
+        #[arg(long)]
+        raw: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -104,26 +113,70 @@ fn main() -> Result<()> {
             let s = cable.read_status()?;
             println!("STATUS: 0x{:08X}", s);
         }
-        Cmd::IdcodeCfg => {
+        Cmd::IdcodeCfg { raw } => {
             let jtag_id = cable.read_idcode()?;
-            let cfg_id = cable.read_cfg_idcode()?;
             println!("JTAG IDCODE        : 0x{:08X}{}",
                 jtag_id,
                 if jtag_id == 0x13631093 { "  (XC7A100T)" } else { "  (UNEXPECTED)" });
-            println!("CFG IDCODE (0x0C)  : 0x{:08X}{}",
-                cfg_id,
-                if cfg_id == 0x13631093 { "  (XC7A100T)" } else { "  (mismatch!)" });
-            println!();
-            if jtag_id == 0x13631093 && cfg_id == 0x13631093 {
-                println!("=> Type-1 read protocol OK (CFG IDCODE matches JTAG IDCODE).");
-            } else if jtag_id == 0x13631093 && cfg_id != 0x13631093 {
-                println!("=> JTAG bus is healthy but Type-1 read protocol is BROKEN.");
-                println!("   The chip is responding on the JTAG instruction layer but");
-                println!("   the configuration read pipeline never produced a value.");
-                println!("   Common causes: missing RTI parking between CFG_IN write");
-                println!("   and CFG_OUT shift; wrong read header; bit-order error.");
+
+            if raw {
+                // Wire-format dump + 64-bit CFG_OUT for the dummy-pipeline
+                // hypothesis. Two consecutive read attempts so the user
+                // can see whether the value migrates between words.
+                let diag = cable.read_cfg_reg_diag(dlc10::cfg_reg::IDCODE, 64)?;
+                println!();
+                println!("== Wire-format diagnostic (Type-1 read for IDCODE addr 0x0C) ==");
+                println!("Host-order packet words ([0]=SYNC … [4]=NOP2):");
+                for (i, w) in diag.packets_host_order.iter().enumerate() {
+                    let tag = match i {
+                        0 => "SYNC",
+                        1 => "NOP",
+                        2 => "READ_HDR",
+                        3 => "NOP",
+                        4 => "NOP",
+                        _ => "?",
+                    };
+                    println!("  [{i}] {tag:>8} = 0x{w:08X}");
+                }
+                println!();
+                println!("Wire bytes (per-word reverse_bits, then LE byte-split — 4 bytes/word, 20 bytes total):");
+                for chunk in diag.wire_bytes_per_word.chunks(4) {
+                    println!("  {}", hex::encode(chunk));
+                }
+                println!();
+                println!("Concatenated wire bytes: {}", hex::encode(&diag.wire_bytes_per_word));
+                println!();
+                println!("CFG_OUT 64-bit shift (2 × 32-bit words clocked out, already reverse_bits-applied):");
+                for (i, w) in diag.result_words.iter().enumerate() {
+                    let tag = if w == &0x13631093 { "  ← XC7A100T IDCODE" } else { "" };
+                    println!("  word[{i}] = 0x{w:08X}{tag}");
+                }
+                println!();
+                if diag.result_words.iter().any(|&w| w == 0x13631093) {
+                    if diag.result_words.first() == Some(&0x13631093) {
+                        println!("=> Type-1 read OK on first CFG_OUT word.");
+                    } else {
+                        println!("=> Type-1 read OK on SECOND CFG_OUT word — there IS a 1-word dummy pipeline.");
+                        println!("   The driver should drop the first CFG_OUT word.");
+                    }
+                } else {
+                    println!("=> Type-1 read FAILED — no word matched 0x13631093.");
+                    println!("   Check wire bytes above against `openFPGALoader xilinx.cpp::dumpRegister` step-by-step.");
+                }
             } else {
-                println!("=> JTAG IDCODE itself is wrong — TAP walk / cable issue.");
+                let cfg_id = cable.read_cfg_idcode()?;
+                println!("CFG IDCODE (0x0C)  : 0x{:08X}{}",
+                    cfg_id,
+                    if cfg_id == 0x13631093 { "  (XC7A100T)" } else { "  (mismatch!)" });
+                println!();
+                if jtag_id == 0x13631093 && cfg_id == 0x13631093 {
+                    println!("=> Type-1 read protocol OK (CFG IDCODE matches JTAG IDCODE).");
+                } else if jtag_id == 0x13631093 && cfg_id != 0x13631093 {
+                    println!("=> JTAG bus is healthy but Type-1 read protocol is BROKEN.");
+                    println!("   Re-run with `--raw` to dump exact wire bytes for comparison.");
+                } else {
+                    println!("=> JTAG IDCODE itself is wrong — TAP walk / cable issue.");
+                }
             }
         }
         Cmd::Debug { no_jstart } => {
