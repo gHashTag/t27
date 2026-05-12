@@ -84,6 +84,30 @@ pub const STATUS_BUSY_BIT: u8 = 0x01;
 pub const PAGE_SIZE: usize = 256;
 pub const SECTOR_SIZE: usize = 65_536;
 
+/// 7-series configuration register addresses (UG470 Table 5-23).
+pub mod cfg_reg {
+    pub const CRC: u8 = 0x00;
+    pub const FAR: u8 = 0x01;
+    pub const FDRI: u8 = 0x02;
+    pub const FDRO: u8 = 0x03;
+    pub const CMD: u8 = 0x04;
+    pub const CTL0: u8 = 0x05;
+    pub const MASK: u8 = 0x06;
+    pub const STAT: u8 = 0x07;
+    pub const LOUT: u8 = 0x08;
+    pub const COR0: u8 = 0x09;
+    pub const MFWR: u8 = 0x0A;
+    pub const CBC: u8 = 0x0B;
+    pub const IDCODE: u8 = 0x0C;
+    pub const AXSS: u8 = 0x0D;
+    pub const COR1: u8 = 0x0E;
+    pub const WBSTAR: u8 = 0x10;
+    pub const TIMER: u8 = 0x11;
+    pub const BOOTSTS: u8 = 0x16;
+    pub const CTL1: u8 = 0x18;
+    pub const BSPI: u8 = 0x1F;
+}
+
 /// Embedded Cypress FX2 firmware (Intel-HEX, ~22 KB).
 ///
 /// On systems where the file is not yet committed to the repo, the build
@@ -153,6 +177,13 @@ pub fn bitrev(data: &[u8]) -> Vec<u8> {
 /// Scans the first 512 bytes for tag `0x65` (the `e` field), reads a
 /// big-endian `u32` length, and returns `bitrev(payload)`.
 pub fn parse_bitfile(data: &[u8]) -> Result<Vec<u8>> {
+    let (start, len) = bitfile_payload_range(data)?;
+    Ok(bitrev(&data[start..start + len]))
+}
+
+/// Locate the raw bitstream payload range inside a `.bit` file. Returns
+/// `(start_offset, length)` of the raw (non-bit-reversed) FPGA payload.
+pub fn bitfile_payload_range(data: &[u8]) -> Result<(usize, usize)> {
     let scan_end = std::cmp::min(512, data.len().saturating_sub(5));
     for i in 0..scan_end {
         if data[i] == 0x65 {
@@ -164,11 +195,18 @@ pub fn parse_bitfile(data: &[u8]) -> Result<Vec<u8>> {
             ]) as usize;
             let remainder = data.len().saturating_sub(i + 5);
             if remainder >= bs_len && (remainder - bs_len) < 256 {
-                return Ok(bitrev(&data[i + 5..i + 5 + bs_len]));
+                return Ok((i + 5, bs_len));
             }
         }
     }
     Err(Dlc10Error::BadBitfile("no 'e' field found".into()).into())
+}
+
+/// Find the offset of the Xilinx sync word `0xAA995566` inside a byte slice.
+/// Returns the index of the first byte of the sync, or `None` if not found.
+pub fn find_sync_word(data: &[u8]) -> Option<usize> {
+    const SYNC: [u8; 4] = [0xAA, 0x99, 0x55, 0x66];
+    data.windows(4).position(|w| w == SYNC)
 }
 
 // ---------------------------------------------------------------------------
@@ -290,10 +328,55 @@ impl Dlc10 {
         self.read_dr_32()
     }
 
-    /// Read the configuration `STATUS` register via `CFG_OUT`.
+    /// Read the configuration `STATUS` register via `CFG_OUT` (raw — no
+    /// preceding CFG_IN protocol; this returns whatever the DR captured
+    /// last, which may be stale).
     pub fn read_status(&mut self) -> Result<u32> {
         self.shift_ir(ir::CFG_OUT)?;
         self.read_dr_32()
+    }
+
+    /// Read a 7-series configuration register the correct way:
+    /// (1) drive CFG_IN with a Type-1 Read packet for the chosen register,
+    /// (2) switch IR to CFG_OUT, (3) shift the 32-bit value out.
+    ///
+    /// Implements the protocol from UG470 §6 / xc3sprog's `ReadRegister`.
+    pub fn read_cfg_reg(&mut self, reg_addr: u8) -> Result<u32> {
+        // Build the CFG_IN packet (big-endian on the wire).
+        // 0xFFFFFFFF (dummy/bus-width) ; 0xAA995566 (sync) ; 0x20000000 (NOP) ;
+        // Type-1 read header ; 4x NOP padding for read pipeline.
+        let read_hdr: u32 = (1u32 << 29)            // header type 1
+            | (1u32 << 27)                          // opcode = read
+            | (((reg_addr as u32) & 0x3FFF) << 13)  // addr
+            | 1u32;                                 // word count = 1
+        let packet_be: [u32; 8] = [
+            0xFFFFFFFF,
+            0xAA995566,
+            0x20000000,
+            read_hdr,
+            0x20000000,
+            0x20000000,
+            0x20000000,
+            0x20000000,
+        ];
+        // Serialize to MSB-first bytes (as the FPGA expects), then bit-reverse
+        // each byte because the JTAG TDI shifts LSB-first — the same trick
+        // used for the bitstream payload.
+        let mut wire = Vec::with_capacity(packet_be.len() * 4);
+        for w in &packet_be {
+            wire.extend_from_slice(&w.to_be_bytes());
+        }
+        let shifted = bitrev(&wire);
+
+        self.shift_ir(ir::CFG_IN)?;
+        self.shift_dr(&shifted, shifted.len() * 8)?;
+        self.cycle_tck(1)?;
+
+        self.shift_ir(ir::CFG_OUT)?;
+        let raw = self.read_dr_32()?;
+        // The FPGA returns 32 bits MSB-first, which our `read_dr_32`
+        // captured LSB-first into the u32. Convert byte-wise + bit-reverse.
+        Ok(swap_msb_lsb_u32(raw))
     }
 
     /// Program FPGA SRAM (volatile). Returns the final `STATUS` register.
@@ -307,7 +390,65 @@ impl Dlc10 {
     /// 4. `JSTART` + `cycle_tck(24)` — start-up sequence.
     /// 5. `BYPASS` (1-bit shift) → `CFG_OUT` → 32-bit `STATUS`.
     pub fn program_sram(&mut self, bit: &[u8]) -> Result<u32> {
-        let bs = parse_bitfile(bit)?;
+        self.program_sram_verbose(bit, false)
+    }
+
+    /// Like `program_sram`, but emits diagnostic lines to `stderr` when
+    /// `verbose = true`. Reports bytes loaded, sync-word offset, payload
+    /// preview, and total TCK shift bits.
+    pub fn program_sram_verbose(&mut self, bit: &[u8], verbose: bool) -> Result<u32> {
+        let (raw_start, raw_len) = bitfile_payload_range(bit)?;
+        let raw = &bit[raw_start..raw_start + raw_len];
+        let bs = bitrev(raw);
+
+        if verbose {
+            eprintln!(
+                "[verbose] .bit file size = {} bytes ; payload range = [0x{:X}..0x{:X}) ; payload len = {} bytes",
+                bit.len(),
+                raw_start,
+                raw_start + raw_len,
+                raw_len,
+            );
+            match find_sync_word(raw) {
+                Some(off) => {
+                    let first_dword = if off + 8 <= raw.len() {
+                        let s = &raw[off + 4..off + 8];
+                        u32::from_be_bytes([s[0], s[1], s[2], s[3]])
+                    } else {
+                        0
+                    };
+                    eprintln!(
+                        "[verbose] sync word 0xAA995566 at payload-relative offset {} (file 0x{:X}) ; first DWORD after sync = 0x{:08X}",
+                        off,
+                        raw_start + off,
+                        first_dword,
+                    );
+                    if first_dword != 0x20000000 && first_dword != 0x30020001 {
+                        eprintln!(
+                            "[verbose] WARN: first DWORD after sync is unusual (expected NOP 0x20000000 or CMD-write 0x30020001)",
+                        );
+                    }
+                }
+                None => eprintln!("[verbose] WARN: sync word 0xAA995566 NOT found in payload"),
+            }
+            eprintln!(
+                "[verbose] first 16 raw bytes  = {}",
+                hex::encode(&raw[..raw.len().min(16)])
+            );
+            eprintln!(
+                "[verbose] first 16 shifted   = {}  (bit-reversed)",
+                hex::encode(&bs[..bs.len().min(16)])
+            );
+            let n = bs.len();
+            let tail = &bs[n.saturating_sub(64)..];
+            eprintln!("[verbose] last 64 shifted bytes = {}", hex::encode(tail));
+            eprintln!(
+                "[verbose] chunk_bits = {} ; total bits to shift = {} ; chunks = {}",
+                CHUNK_BITS,
+                bs.len() * 8,
+                (bs.len() * 8).div_ceil(CHUNK_BITS),
+            );
+        }
 
         self.shift_ir(ir::JPROGRAM)?;
         self.cycle_tck(64)?;
@@ -328,6 +469,10 @@ impl Dlc10 {
 
         self.shift_ir(ir::CFG_OUT)?;
         let status = self.read_dr_32()?;
+
+        if verbose {
+            eprintln!("[verbose] raw CFG_OUT read = 0x{:08X}", status);
+        }
         Ok(status)
     }
 
@@ -679,6 +824,98 @@ impl Dlc10 {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// Reverse all 32 bits of a `u32` (bit 0 ↔ bit 31).
+fn swap_msb_lsb_u32(v: u32) -> u32 {
+    v.reverse_bits()
+}
+
+/// Decoded view of the 7-series STAT register (UG470 Table 5-25).
+#[derive(Debug, Clone, Copy)]
+pub struct StatBits {
+    pub raw: u32,
+    pub crc_error: bool,        // bit 0
+    pub part_secured: bool,     // bit 1
+    pub mmcm_lock: bool,        // bit 2
+    pub dci_match: bool,        // bit 3
+    pub eos: bool,              // bit 4 — End-Of-Startup
+    pub gts_cfg_b: bool,        // bit 5
+    pub gwe: bool,              // bit 6
+    pub ghigh_b: bool,          // bit 7
+    pub mode: u8,               // bits 10..8 — boot mode pins
+    pub init_complete: bool,    // bit 11
+    pub init_b: bool,           // bit 12
+    pub release_done: bool,     // bit 13
+    pub done: bool,             // bit 14
+    pub id_error: bool,         // bit 15
+    pub dec_error: bool,        // bit 16
+    pub xadc_over_temp: bool,   // bit 17
+    pub startup_state: u8,      // bits 21..18
+    pub bus_width: u8,          // bits 23..22
+    pub cfgerr_b: bool,         // bit 25
+}
+
+impl StatBits {
+    pub fn from_raw(raw: u32) -> Self {
+        Self {
+            raw,
+            crc_error: (raw & (1 << 0)) != 0,
+            part_secured: (raw & (1 << 1)) != 0,
+            mmcm_lock: (raw & (1 << 2)) != 0,
+            dci_match: (raw & (1 << 3)) != 0,
+            eos: (raw & (1 << 4)) != 0,
+            gts_cfg_b: (raw & (1 << 5)) != 0,
+            gwe: (raw & (1 << 6)) != 0,
+            ghigh_b: (raw & (1 << 7)) != 0,
+            mode: ((raw >> 8) & 0x7) as u8,
+            init_complete: (raw & (1 << 11)) != 0,
+            init_b: (raw & (1 << 12)) != 0,
+            release_done: (raw & (1 << 13)) != 0,
+            done: (raw & (1 << 14)) != 0,
+            id_error: (raw & (1 << 15)) != 0,
+            dec_error: (raw & (1 << 16)) != 0,
+            xadc_over_temp: (raw & (1 << 17)) != 0,
+            startup_state: ((raw >> 18) & 0xF) as u8,
+            bus_width: ((raw >> 22) & 0x3) as u8,
+            cfgerr_b: (raw & (1 << 25)) != 0,
+        }
+    }
+
+    /// One-line human-readable diagnosis of why DONE might be LOW.
+    pub fn diagnose(&self) -> String {
+        if self.done {
+            return "DONE=HIGH (configured OK)".into();
+        }
+        let mut reasons: Vec<String> = Vec::new();
+        if self.crc_error {
+            reasons.push("CRC_ERROR=1 (bitstream payload corrupted on TDI)".into());
+        }
+        if self.id_error {
+            reasons.push("ID_ERROR=1 (IDCODE in bitstream != device IDCODE)".into());
+        }
+        if self.dec_error {
+            reasons.push("DEC_ERROR=1 (AES decryption failed)".into());
+        }
+        if !self.init_b {
+            reasons.push("INIT_B=0 (config FSM held in reset / power issue)".into());
+        }
+        if !self.eos {
+            reasons.push("EOS=0 (start-up sequence never reached End-Of-Startup)".into());
+        }
+        if !self.mmcm_lock {
+            reasons.push("MMCM_LOCK=0 (clock generator not locked)".into());
+        }
+        if self.cfgerr_b {
+            // CFGERR_B is active-low; "true" means OK.
+        } else {
+            reasons.push("CFGERR_B=0 (configuration logic flagged an error)".into());
+        }
+        if reasons.is_empty() {
+            reasons.push("DONE=LOW with no obvious bit set — bitstream may not have been shifted at all".into());
+        }
+        reasons.join("; ")
+    }
+}
+
 fn decode_dr_32(resp: &[u8]) -> u32 {
     let mut words = [0u16; 2];
     for (i, w) in words.iter_mut().enumerate() {
@@ -841,5 +1078,85 @@ mod tests {
     fn parse_bitfile_no_tag_errors() {
         let buf = vec![0u8; 100];
         assert!(parse_bitfile(&buf).is_err());
+    }
+
+    #[test]
+    fn find_sync_word_basic() {
+        let mut buf = vec![0xFFu8; 32];
+        buf.extend_from_slice(&[0xAA, 0x99, 0x55, 0x66]);
+        buf.extend_from_slice(&[0x20, 0x00, 0x00, 0x00]);
+        assert_eq!(find_sync_word(&buf), Some(32));
+        let none = vec![0u8; 32];
+        assert_eq!(find_sync_word(&none), None);
+    }
+
+    #[test]
+    fn bitfile_payload_range_skips_bogus_e_bytes() {
+        // Construct a file that contains a 'e' byte (0x65) in an earlier
+        // string (here at offset 4) followed by a clearly-bogus BE length,
+        // then a valid 'e' tag.
+        let payload: Vec<u8> = (0..16u8).collect();
+        let mut buf = vec![0xAA, 0xBB, 0xCC, 0xDD];
+        buf.push(0x65);                                  // bogus 'e'
+        buf.extend_from_slice(&0xFFFFFFFFu32.to_be_bytes()); // huge length
+        // Pad some random non-'e' bytes.
+        buf.extend_from_slice(&[0x00, 0x11, 0x22, 0x33]);
+        // The valid 'e' tag.
+        buf.push(0x65);
+        buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
+        buf.extend_from_slice(&payload);
+        let (start, len) = bitfile_payload_range(&buf).expect("parse");
+        assert_eq!(len, payload.len());
+        assert_eq!(&buf[start..start + len], &payload[..]);
+    }
+
+    #[test]
+    fn stat_bits_decode_done_high() {
+        // Construct a STAT word where DONE=1, EOS=1, INIT_B=1, MMCM_LOCK=1.
+        let raw = (1u32 << 14)  // DONE
+            | (1u32 << 4)        // EOS
+            | (1u32 << 12)       // INIT_B
+            | (1u32 << 2)        // MMCM_LOCK
+            | (1u32 << 25);      // CFGERR_B (active-low: 1 = no error)
+        let s = StatBits::from_raw(raw);
+        assert!(s.done);
+        assert!(s.eos);
+        assert!(s.init_b);
+        assert!(s.mmcm_lock);
+        assert!(!s.crc_error);
+        assert!(!s.id_error);
+        assert!(s.diagnose().contains("DONE=HIGH"));
+    }
+
+    #[test]
+    fn stat_bits_decode_crc_error() {
+        // DONE=0, CRC_ERROR=1.
+        let raw = 0x0000_0001u32;
+        let s = StatBits::from_raw(raw);
+        assert!(!s.done);
+        assert!(s.crc_error);
+        let d = s.diagnose();
+        assert!(d.contains("CRC_ERROR"));
+    }
+
+    #[test]
+    fn stat_bits_diagnose_done_low_no_obvious_flag() {
+        // All-zero STAT: DONE=0 and no error bits set. Diagnose should still
+        // produce a useful (non-empty) message.
+        let s = StatBits::from_raw(0);
+        assert!(!s.done);
+        let d = s.diagnose();
+        assert!(!d.is_empty());
+        // CFGERR_B is bit 25; raw=0 means CFGERR_B=0 → "flagged an error".
+        assert!(d.contains("CFGERR_B"));
+    }
+
+    #[test]
+    fn swap_msb_lsb_u32_roundtrip() {
+        for &v in &[0u32, 1, 0xDEADBEEF, 0xFFFFFFFF, 0x13631093] {
+            assert_eq!(swap_msb_lsb_u32(swap_msb_lsb_u32(v)), v);
+        }
+        assert_eq!(swap_msb_lsb_u32(0x80000000), 0x00000001);
+        assert_eq!(swap_msb_lsb_u32(0x00000001), 0x80000000);
     }
 }
