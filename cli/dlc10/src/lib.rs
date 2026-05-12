@@ -126,8 +126,7 @@ const XUSB_FW_HEX: &[u8] = include_bytes!("../../../fpga/tools/xusb_xp2.hex");
 
 /// Embedded JTAG-to-SPI bridge bitstream for XC7A100T (MIT,
 /// quartiq/bscan_spi_bitstreams).
-pub const BSCAN_SPI_XC7A100T: &[u8] =
-    include_bytes!("../../../fpga/tools/bscan_spi_xc7a100t.bit");
+pub const BSCAN_SPI_XC7A100T: &[u8] = include_bytes!("../../../fpga/tools/bscan_spi_xc7a100t.bit");
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -197,12 +196,8 @@ pub fn bitfile_payload_range(data: &[u8]) -> Result<(usize, usize)> {
     let scan_end = std::cmp::min(512, data.len().saturating_sub(5));
     for i in 0..scan_end {
         if data[i] == 0x65 {
-            let bs_len = u32::from_be_bytes([
-                data[i + 1],
-                data[i + 2],
-                data[i + 3],
-                data[i + 4],
-            ]) as usize;
+            let bs_len =
+                u32::from_be_bytes([data[i + 1], data[i + 2], data[i + 3], data[i + 4]]) as usize;
             let remainder = data.len().saturating_sub(i + 5);
             if remainder >= bs_len && (remainder - bs_len) < 256 {
                 return Ok((i + 5, bs_len));
@@ -359,10 +354,8 @@ impl Dlc10 {
         // | ((reg  & 0x3FFF) << 13)  // register address
         // | ((0x00 & 0x0003) << 11)  // reserved
         // | ((0x01 & 0x07FF) <<  0)  // word count
-        let read_hdr: u32 = (1u32 << 29)
-            | (1u32 << 27)
-            | (((reg_addr as u32) & 0x3FFF) << 13)
-            | 1u32;
+        let read_hdr: u32 =
+            (1u32 << 29) | (1u32 << 27) | (((reg_addr as u32) & 0x3FFF) << 13) | 1u32;
         [
             0xAA995566, // Sync Word (NO bus-width 0xFFFFFFFF prefix on JTAG)
             0x20000000, // NOP
@@ -399,11 +392,7 @@ impl Dlc10 {
 
     /// Same as `read_cfg_reg`, but also returns the host-order packet
     /// bytes shifted into CFG_IN (for `idcode-cfg --raw` diagnostics).
-    pub fn read_cfg_reg_diag(
-        &mut self,
-        reg_addr: u8,
-        bits: usize,
-    ) -> Result<ReadCfgDiag> {
+    pub fn read_cfg_reg_diag(&mut self, reg_addr: u8, bits: usize) -> Result<ReadCfgDiag> {
         let packets = Self::build_read_cfg_packets(reg_addr);
         let mut wire_bytes: Vec<u8> = Vec::with_capacity(20);
         for w in &packets {
@@ -598,7 +587,10 @@ impl Dlc10 {
         let status = self.read_dr_32()?;
 
         if verbose {
-            eprintln!("[verbose] raw CFG_OUT read (BYPASS+CFG_OUT) = 0x{:08X}", status);
+            eprintln!(
+                "[verbose] raw CFG_OUT read (BYPASS+CFG_OUT) = 0x{:08X}",
+                status
+            );
             // Now do a real STAT read via the corrected protocol so the
             // verbose output also contains the trustworthy value.
             match self.read_cfg_reg(cfg_reg::STAT) {
@@ -636,7 +628,9 @@ impl Dlc10 {
         );
         if id == vec![0xFF, 0xFF, 0xFF] || id == vec![0x00, 0x00, 0x00] {
             // Try the standard recovery sequences before bailing.
-            eprintln!("[debug] JEDEC looks dead — trying 0xAB Release Power-down + 0x66/0x99 reset");
+            eprintln!(
+                "[debug] JEDEC looks dead — trying 0xAB Release Power-down + 0x66/0x99 reset"
+            );
             self.spi_xfer_verbose(&[spi_extra::RELEASE_PD], 0, true)?;
             std::thread::sleep(Duration::from_millis(5));
             self.spi_xfer_verbose(&[spi_extra::RESET_ENABLE], 0, true)?;
@@ -846,7 +840,11 @@ impl Dlc10 {
         eprintln!(
             "[debug]   IDCODE = 0x{:08X}{}",
             idcode,
-            if idcode == 0x13631093 { " (XC7A100T)" } else { " (UNEXPECTED)" },
+            if idcode == 0x13631093 {
+                " (XC7A100T)"
+            } else {
+                " (UNEXPECTED)"
+            },
         );
         let raw = self.read_cfg_reg(cfg_reg::STAT)?;
         let bits = StatBits::from_raw(raw);
@@ -1143,25 +1141,60 @@ impl Dlc10 {
 
     /// Like `spi_xfer` but emits `eprintln!("[debug] ...")` instrumentation
     /// when `verbose=true`.
-    pub fn spi_xfer_verbose(
-        &mut self,
-        tx: &[u8],
-        rx_len: usize,
-        verbose: bool,
-    ) -> Result<Vec<u8>> {
-        // Bit-reverse each TX byte: SPI is MSB-first, JTAG TDI is LSB-first.
-        let mut jtx: Vec<u8> = tx.iter().map(|&b| BIT_REV_TABLE[b as usize]).collect();
-        if rx_len > 0 {
-            // One extra padding byte for the 1-bit JTAG capture skew.
-            jtx.extend(std::iter::repeat(0u8).take(rx_len + 1));
+    ///
+    /// **Frame format** (Migen `xilinx_bscan_spi.py` JTAG2SPI bridge):
+    ///
+    /// ```text
+    /// TDI:  [marker=1] [length BE 32 bits, MSB first]  [data MSB first]  [zero padding]
+    /// ```
+    ///
+    /// `length` is the number of SPI clocks (`(tx.len() + rx_len) * 8`).
+    /// Data is shifted MSB-first **per byte** (no bit-reverse — the bridge
+    /// itself routes TDI directly to MOSI). After the last data bit the
+    /// bridge needs a few extra TCK pulses to drain MISO → TDO; we append
+    /// `MIGEN_TDO_LATENCY_BITS` trailing zeros.
+    ///
+    /// **RX reconstruction**: TDO is sampled on every Shift-DR bit; the
+    /// capture stream is offset by `1 + 32` (marker + length header) plus
+    /// the on-the-wire latency of the bridge (`MIGEN_TDO_LATENCY_BITS`,
+    /// see the `negedge`/`miso_capture` double-flop in `bscan_spi_qmtech.v`).
+    /// `MIGEN_TDO_LATENCY_BITS` can be overridden via the
+    /// `T27_DLC10_MIGEN_LATENCY` env var for empirical tuning.
+    pub fn spi_xfer_verbose(&mut self, tx: &[u8], rx_len: usize, verbose: bool) -> Result<Vec<u8>> {
+        // ---- Compose the Migen-framed bit-stream on TDI ------------------
+        let data_bits = (tx.len() + rx_len) * 8;
+        if data_bits == 0 {
+            return Ok(Vec::new());
         }
-        let total_bits = jtx.len() * 8;
+        let latency = migen_latency();
+        // 1 marker + 32 length + data + latency drain bits.
+        let total_bits = 1 + 32 + data_bits + latency;
+
+        let mut bits: Vec<bool> = Vec::with_capacity(total_bits);
+        // Marker bit.
+        bits.push(true);
+        // 32-bit BE length: MSB of `data_bits` first.
+        for i in (0..32).rev() {
+            bits.push(((data_bits as u32) & (1u32 << i)) != 0);
+        }
+        // Data bits: per byte MSB-first.
+        for &b in tx {
+            for i in (0..8).rev() {
+                bits.push((b & (1 << i)) != 0);
+            }
+        }
+        // Zero data bits for the RX phase (MOSI=0 while host reads MISO).
+        bits.resize(bits.len() + rx_len * 8, false);
+        // Latency drain: a few extra TCK pulses so the bridge can present
+        // the final MISO bits on TDO.
+        bits.resize(bits.len() + latency, false);
+        assert_eq!(bits.len(), total_bits);
+
         let mut tdi = vec![true, true, true];
         let mut tms = vec![true, false, false];
         let rdo_start = tdi.len();
         for i in 0..total_bits {
-            let bit = (jtx[i >> 3] & (1 << (i & 7))) != 0;
-            tdi.push(bit);
+            tdi.push(bits[i]);
             tms.push(i == total_bits - 1);
         }
         tdi.extend_from_slice(&[true, true]);
@@ -1169,17 +1202,19 @@ impl Dlc10 {
 
         if verbose {
             eprintln!(
-                "[debug] spi_xfer tx={} bytes ({}) rx_len={} ; on-wire jtx={} bytes",
+                "[debug] spi_xfer (Migen-framed) tx={} bytes ({}) rx_len={}",
                 tx.len(),
                 hex::encode(tx),
                 rx_len,
-                jtx.len(),
             );
-            eprintln!("[debug]   bit-reversed TX (on wire) = {}", hex::encode(&jtx[..tx.len()]));
-            if rx_len > 0 {
-                eprintln!("[debug]   padding bytes appended    = {}", rx_len + 1);
-            }
-            eprintln!("[debug]   total_bits = {} (Shift-DR)", total_bits);
+            eprintln!(
+                "[debug]   data_bits={} (length-field value, BE on wire), latency={}",
+                data_bits, latency,
+            );
+            eprintln!(
+                "[debug]   total_bits={} (1 marker + 32 length + {} data + {} drain)",
+                total_bits, data_bits, latency,
+            );
         }
 
         if rx_len == 0 {
@@ -1187,24 +1222,34 @@ impl Dlc10 {
             return Ok(Vec::new());
         }
         let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, total_bits)?;
-        // Reconstruct: extract the contiguous TDO bytes from the packed
-        // 16-bit-LE response, then apply the 1-bit-shift + bit-reverse.
-        let captured = extract_byte_stream(&resp, total_bits);
-        if verbose {
-            eprintln!(
-                "[debug]   captured raw stream = {}",
-                hex::encode(&captured)
-            );
-        }
-        let rx_start = tx.len();
+        // ---- Reconstruct RX from the TDO bit stream ----------------------
+        // TDO is invalid during the marker+length phase. Once data starts,
+        // TDO bit `j` (j=0 is MSB of first RX byte) corresponds to
+        // capture-bit-index `1 + 32 + tx.len()*8 + latency + j`.
+        let rx_bit_start = 1 + 32 + tx.len() * 8 + latency;
         let mut rx = vec![0u8; rx_len];
+        // The Migen bridge presents MISO on TDO **MSB-first** because the
+        // SPI flash is MSB-first and the bridge passes bits unmodified.
         for i in 0..rx_len {
-            let lo = captured.get(rx_start + i).copied().unwrap_or(0);
-            let hi = captured.get(rx_start + i + 1).copied().unwrap_or(0);
-            // openFPGALoader: reverseByte(jrx[i+1] >> 1) | (jrx[i+2] & 0x01)
-            rx[i] = BIT_REV_TABLE[(lo >> 1) as usize] | (hi & 0x01);
+            let mut byte: u8 = 0;
+            for j in 0..8 {
+                let bit_idx = rx_bit_start + i * 8 + j;
+                if bit_at(&resp, bit_idx) {
+                    byte |= 1 << (7 - j);
+                }
+            }
+            rx[i] = byte;
         }
         if verbose {
+            // Emit the captured stream (post extraction) for hand-debugging.
+            let captured = extract_byte_stream(&resp, total_bits);
+            eprintln!("[debug]   captured raw stream = {}", hex::encode(&captured));
+            eprintln!(
+                "[debug]   rx_bit_start = {} (1 marker + 32 length + {} tx-bits + {} latency)",
+                rx_bit_start,
+                tx.len() * 8,
+                latency,
+            );
             eprintln!("[debug]   reconstructed RX = {}", hex::encode(&rx));
         }
         Ok(rx)
@@ -1261,25 +1306,25 @@ pub struct ReadCfgDiag {
 #[derive(Debug, Clone, Copy)]
 pub struct StatBits {
     pub raw: u32,
-    pub crc_error: bool,        // bit 0
-    pub part_secured: bool,     // bit 1
-    pub mmcm_lock: bool,        // bit 2
-    pub dci_match: bool,        // bit 3
-    pub eos: bool,              // bit 4 — End-Of-Startup
-    pub gts_cfg_b: bool,        // bit 5
-    pub gwe: bool,              // bit 6
-    pub ghigh_b: bool,          // bit 7
-    pub mode: u8,               // bits 10..8 — boot mode pins
-    pub init_complete: bool,    // bit 11
-    pub init_b: bool,           // bit 12
-    pub release_done: bool,     // bit 13
-    pub done: bool,             // bit 14
-    pub id_error: bool,         // bit 15
-    pub dec_error: bool,        // bit 16
-    pub xadc_over_temp: bool,   // bit 17
-    pub startup_state: u8,      // bits 21..18
-    pub bus_width: u8,          // bits 23..22
-    pub cfgerr_b: bool,         // bit 25
+    pub crc_error: bool,      // bit 0
+    pub part_secured: bool,   // bit 1
+    pub mmcm_lock: bool,      // bit 2
+    pub dci_match: bool,      // bit 3
+    pub eos: bool,            // bit 4 — End-Of-Startup
+    pub gts_cfg_b: bool,      // bit 5
+    pub gwe: bool,            // bit 6
+    pub ghigh_b: bool,        // bit 7
+    pub mode: u8,             // bits 10..8 — boot mode pins
+    pub init_complete: bool,  // bit 11
+    pub init_b: bool,         // bit 12
+    pub release_done: bool,   // bit 13
+    pub done: bool,           // bit 14
+    pub id_error: bool,       // bit 15
+    pub dec_error: bool,      // bit 16
+    pub xadc_over_temp: bool, // bit 17
+    pub startup_state: u8,    // bits 21..18
+    pub bus_width: u8,        // bits 23..22
+    pub cfgerr_b: bool,       // bit 25
 }
 
 impl StatBits {
@@ -1338,7 +1383,10 @@ impl StatBits {
             reasons.push("CFGERR_B=0 (configuration logic flagged an error)".into());
         }
         if reasons.is_empty() {
-            reasons.push("DONE=LOW with no obvious bit set — bitstream may not have been shifted at all".into());
+            reasons.push(
+                "DONE=LOW with no obvious bit set — bitstream may not have been shifted at all"
+                    .into(),
+            );
         }
         reasons.join("; ")
     }
@@ -1386,6 +1434,31 @@ fn extract_rx(resp: &[u8], total_bits: usize, rx_start_bits: usize, rx_len_bits:
     out
 }
 
+/// Default JTAG-bit latency between TDI presentation and the corresponding
+/// TDO bit for the Migen JTAG2SPI bridge. The Verilog has a 2-stage MISO
+/// flop (`negedge`/`miso_capture` then `tdo`) plus the JTAG host's own
+/// 1-bit Capture-DR delay — so a starting guess of 3 is reasonable. Can
+/// be overridden by `T27_DLC10_MIGEN_LATENCY` for empirical tuning.
+const MIGEN_TDO_LATENCY_BITS_DEFAULT: usize = 3;
+
+fn migen_latency() -> usize {
+    std::env::var("T27_DLC10_MIGEN_LATENCY")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(MIGEN_TDO_LATENCY_BITS_DEFAULT)
+}
+
+/// Index into the DLC10 16-bit-LE packed response by absolute Shift-DR
+/// bit position (LSB-first within each 16-bit word).
+fn bit_at(resp: &[u8], bit_idx: usize) -> bool {
+    let wi = bit_idx / 16;
+    let bi = bit_idx % 16;
+    let lo = resp.get(2 * wi).copied().unwrap_or(0);
+    let hi = resp.get(2 * wi + 1).copied().unwrap_or(0);
+    let word = u16::from_le_bytes([lo, hi]);
+    (word & (1 << bi)) != 0
+}
+
 /// Repack the DLC10 16-bit-LE captured response into a contiguous byte
 /// stream, **as if** TDO had been clocked directly into a shift register
 /// LSB-first. The stream length is `total_bits.div_ceil(8)`.
@@ -1419,9 +1492,7 @@ fn find_device<C: UsbContext>(
     Ok(None)
 }
 
-fn open_and_claim<C: UsbContext>(
-    dev: rusb::Device<C>,
-) -> Result<rusb::DeviceHandle<C>> {
+fn open_and_claim<C: UsbContext>(dev: rusb::Device<C>) -> Result<rusb::DeviceHandle<C>> {
     let h = dev.open().context("open dlc10")?;
     let _ = h.set_auto_detach_kernel_driver(true);
     h.set_active_configuration(1).ok();
@@ -1439,10 +1510,13 @@ fn init_after_firmware<C: UsbContext>(h: &rusb::DeviceHandle<C>) -> Result<()> {
     let rto = request_type(Direction::Out, RequestType::Vendor, Recipient::Device);
 
     let mut buf = [0u8; 2];
-    h.read_control(rti, VENDOR_REQ, 0x0050, 0, &mut buf, to).ok();
-    h.read_control(rti, VENDOR_REQ, 0x0050, 1, &mut buf, to).ok();
+    h.read_control(rti, VENDOR_REQ, 0x0050, 0, &mut buf, to)
+        .ok();
+    h.read_control(rti, VENDOR_REQ, 0x0050, 1, &mut buf, to)
+        .ok();
     h.write_control(rto, VENDOR_REQ, 0x0028, 0x11, &[], to).ok();
-    h.write_control(rto, VENDOR_REQ, 0x0030, 1u16 << 3, &[], to).ok();
+    h.write_control(rto, VENDOR_REQ, 0x0030, 1u16 << 3, &[], to)
+        .ok();
     h.write_control(rto, VENDOR_REQ, 0x0028, 0x11, &[], to).ok();
     h.write_control(rto, VENDOR_REQ, 0x0018, 0, &[], to).ok();
     h.write_control(rto, VENDOR_REQ, 0x00A6, 2, &[], to).ok();
@@ -1545,9 +1619,9 @@ mod tests {
         // then a valid 'e' tag.
         let payload: Vec<u8> = (0..16u8).collect();
         let mut buf = vec![0xAA, 0xBB, 0xCC, 0xDD];
-        buf.push(0x65);                                  // bogus 'e'
+        buf.push(0x65); // bogus 'e'
         buf.extend_from_slice(&0xFFFFFFFFu32.to_be_bytes()); // huge length
-        // Pad some random non-'e' bytes.
+                                                             // Pad some random non-'e' bytes.
         buf.extend_from_slice(&[0x00, 0x11, 0x22, 0x33]);
         // The valid 'e' tag.
         buf.push(0x65);
@@ -1565,7 +1639,7 @@ mod tests {
             | (1u32 << 4)        // EOS
             | (1u32 << 12)       // INIT_B
             | (1u32 << 2)        // MMCM_LOCK
-            | (1u32 << 25);      // CFGERR_B (active-low: 1 = no error)
+            | (1u32 << 25); // CFGERR_B (active-low: 1 = no error)
         let s = StatBits::from_raw(raw);
         assert!(s.done);
         assert!(s.eos);
@@ -1613,10 +1687,7 @@ mod tests {
     #[test]
     fn type1_read_header_matches_xc3sprog() {
         fn hdr(addr: u8) -> u32 {
-            (1u32 << 29)
-                | (1u32 << 27)
-                | (((addr as u32) & 0x3FFF) << 13)
-                | 1u32
+            (1u32 << 29) | (1u32 << 27) | (((addr as u32) & 0x3FFF) << 13) | 1u32
         }
         // STAT (0x07) — well-known constant in xc3sprog and openFPGALoader.
         assert_eq!(hdr(cfg_reg::STAT), 0x2800_E001);
@@ -1639,19 +1710,27 @@ mod tests {
     }
 
     #[test]
-    fn spi_jedec_command_bitrev() {
-        // READ_ID = 0x9F = 0b1001_1111 ; MSB-first on SPI.
-        // JTAG TDI shifts LSB-first; the bridge maps TDI bit → MOSI bit
-        // in arrival order. So byte 0x9F must be reversed to 0xF9 on
-        // the wire for the flash to see READ_ID.
-        assert_eq!(BIT_REV_TABLE[0x9F], 0xF9);
-        // WREN = 0x06 = 0b0000_0110 → reversed = 0x60.
-        assert_eq!(BIT_REV_TABLE[0x06], 0x60);
-        // Release Power-down 0xAB = 0b1010_1011 → reversed = 0xD5.
-        assert_eq!(BIT_REV_TABLE[0xAB], 0xD5);
-        // Reset Enable / Reset Device.
-        assert_eq!(BIT_REV_TABLE[0x66], 0x66);
-        assert_eq!(BIT_REV_TABLE[0x99], 0x99);
+    fn migen_frame_layout_jedec() {
+        // For a 1-byte TX (0x9F) + 3-byte RX (JEDEC ID), the on-wire frame
+        // is: 1 marker + 32 length-bits (value = 32, BE MSB-first) +
+        // 8 tx-bits (MSB-first 0x9F = 1,0,0,1,1,1,1,1) + 24 zero bits +
+        // `latency` drain bits.
+        let data_bits: u32 = (1 + 3) * 8;
+        assert_eq!(data_bits, 32);
+        // Length value = 32 = 0x00000020 → BE MSB-first bits:
+        // 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,1,0,0,0,0,0
+        let expected_length_bits: Vec<bool> = (0..32)
+            .rev()
+            .map(|i| (data_bits & (1u32 << i)) != 0)
+            .collect();
+        assert_eq!(expected_length_bits.iter().filter(|b| **b).count(), 1);
+        assert!(expected_length_bits[26]); // bit 5 (MSB-first index 26) is set
+                                           // TX byte 0x9F = 0b1001_1111 MSB-first → 1,0,0,1,1,1,1,1
+        let tx_msb_first: Vec<bool> = (0..8).rev().map(|i| (0x9Fu8 & (1 << i)) != 0).collect();
+        assert_eq!(
+            tx_msb_first,
+            vec![true, false, false, true, true, true, true, true],
+        );
     }
 
     #[test]

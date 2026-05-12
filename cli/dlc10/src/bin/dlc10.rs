@@ -7,9 +7,11 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use dlc10::{cfg_reg, Dlc10, FlashOpts, StatBits};
 
-
 #[derive(Parser, Debug)]
-#[command(version, about = "Pure-Rust driver for Xilinx DLC10 (Platform Cable USB II)")]
+#[command(
+    version,
+    about = "Pure-Rust driver for Xilinx DLC10 (Platform Cable USB II)"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -77,8 +79,7 @@ fn main() -> Result<()> {
             }
         }
         Cmd::Sram { bit, verbose } => {
-            let bytes = std::fs::read(&bit)
-                .with_context(|| format!("read {}", bit.display()))?;
+            let bytes = std::fs::read(&bit).with_context(|| format!("read {}", bit.display()))?;
             let status = cable.program_sram_verbose(&bytes, verbose)?;
             println!("CFG_OUT raw (BYPASS+CFG_OUT): 0x{:08X}", status);
             // The raw CFG_OUT after BYPASS does not implement the
@@ -91,8 +92,7 @@ fn main() -> Result<()> {
             );
         }
         Cmd::Flash { bit, verify } => {
-            let bytes = std::fs::read(&bit)
-                .with_context(|| format!("read {}", bit.display()))?;
+            let bytes = std::fs::read(&bit).with_context(|| format!("read {}", bit.display()))?;
             let total = bytes.len() as u64;
             let opts = FlashOpts {
                 verify,
@@ -115,9 +115,15 @@ fn main() -> Result<()> {
         }
         Cmd::IdcodeCfg { raw } => {
             let jtag_id = cable.read_idcode()?;
-            println!("JTAG IDCODE        : 0x{:08X}{}",
+            println!(
+                "JTAG IDCODE        : 0x{:08X}{}",
                 jtag_id,
-                if jtag_id == 0x13631093 { "  (XC7A100T)" } else { "  (UNEXPECTED)" });
+                if jtag_id == 0x13631093 {
+                    "  (XC7A100T)"
+                } else {
+                    "  (UNEXPECTED)"
+                }
+            );
 
             if raw {
                 // Wire-format dump + 64-bit CFG_OUT for the dummy-pipeline
@@ -144,15 +150,22 @@ fn main() -> Result<()> {
                     println!("  {}", hex::encode(chunk));
                 }
                 println!();
-                println!("Concatenated wire bytes: {}", hex::encode(&diag.wire_bytes_per_word));
+                println!(
+                    "Concatenated wire bytes: {}",
+                    hex::encode(&diag.wire_bytes_per_word)
+                );
                 println!();
                 println!("CFG_OUT 64-bit shift (2 × 32-bit words clocked out, already reverse_bits-applied):");
                 for (i, w) in diag.result_words.iter().enumerate() {
-                    let tag = if w == &0x13631093 { "  ← XC7A100T IDCODE" } else { "" };
+                    let tag = if w == &0x13631093 {
+                        "  ← XC7A100T IDCODE"
+                    } else {
+                        ""
+                    };
                     println!("  word[{i}] = 0x{w:08X}{tag}");
                 }
                 println!();
-                if diag.result_words.iter().any(|&w| w == 0x13631093) {
+                if diag.result_words.contains(&0x13631093) {
                     if diag.result_words.first() == Some(&0x13631093) {
                         println!("=> Type-1 read OK on first CFG_OUT word.");
                     } else {
@@ -165,9 +178,15 @@ fn main() -> Result<()> {
                 }
             } else {
                 let cfg_id = cable.read_cfg_idcode()?;
-                println!("CFG IDCODE (0x0C)  : 0x{:08X}{}",
+                println!(
+                    "CFG IDCODE (0x0C)  : 0x{:08X}{}",
                     cfg_id,
-                    if cfg_id == 0x13631093 { "  (XC7A100T)" } else { "  (mismatch!)" });
+                    if cfg_id == 0x13631093 {
+                        "  (XC7A100T)"
+                    } else {
+                        "  (mismatch!)"
+                    }
+                );
                 println!();
                 if jtag_id == 0x13631093 && cfg_id == 0x13631093 {
                     println!("=> Type-1 read protocol OK (CFG IDCODE matches JTAG IDCODE).");
@@ -182,9 +201,15 @@ fn main() -> Result<()> {
         Cmd::Debug { no_jstart } => {
             let idcode = cable.read_idcode()?;
             println!("== JTAG IDCODE ==");
-            println!("  IDCODE              : 0x{:08X}{}",
+            println!(
+                "  IDCODE              : 0x{:08X}{}",
                 idcode,
-                if idcode == 0x13631093 { "  (XC7A100T)" } else { "  (UNEXPECTED)" });
+                if idcode == 0x13631093 {
+                    "  (XC7A100T)"
+                } else {
+                    "  (UNEXPECTED)"
+                }
+            );
             println!();
 
             if no_jstart {
@@ -231,9 +256,15 @@ fn main() -> Result<()> {
             println!("  CTL0    (0x05)      : 0x{:08X}", ctl0);
             println!("  CTL1    (0x18)      : 0x{:08X}", ctl1);
             println!("  BOOTSTS (0x16)      : 0x{:08X}", boot_sts);
-            println!("  IDCODE  (0x0C)      : 0x{:08X}{}",
+            println!(
+                "  IDCODE  (0x0C)      : 0x{:08X}{}",
                 cfg_idcode,
-                if cfg_idcode == 0x13631093 { "  (XC7A100T)" } else { "  (mismatch!)" });
+                if cfg_idcode == 0x13631093 {
+                    "  (XC7A100T)"
+                } else {
+                    "  (mismatch!)"
+                }
+            );
             println!("  WBSTAR  (0x10)      : 0x{:08X}", wbstar);
             println!("  COR0    (0x09)      : 0x{:08X}", cor0);
             println!("  COR1    (0x0E)      : 0x{:08X}", cor1);
