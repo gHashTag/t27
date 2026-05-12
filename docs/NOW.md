@@ -5,6 +5,14 @@
 
 ---
 
+## R5-PASS-7 Honest Audit (Issue #598 — invalid ORCID + wrong community slug in `.zenodo.json`)
+
+- Discovered during the 10-dimension PASS-7 deep-sweep across the 5-repo Trinity hive.
+- `.zenodo.json` carried `"orcid": "0000-0002-5135-5363"` for Dmitrii Vasilev — the ORCID API returns no person record for that ID; the canonical (and CITATION.cff-confirmed) ORCID is `0009-0008-4294-6159`.
+- `.zenodo.json` also pointed at `"communities": [{"identifier": "trinity"}]` — that community does not exist on Zenodo; canonical SOT per PASS-6 operator directive is `trinity-s3ai` (id `668f1264-2341-488a-bb14-351fa908ac64`, 12 records).
+- Both deposit-hazards corrected in this PR. Anchor `φ²+φ⁻²=3` algebraic identity unchanged.
+- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264). Closes #598.
+
 ## R5-PASS-6 Honest Audit (Issue #596 — community trinity-s3ai SOT alignment)
 
 - Operator directive: `«один источник правды и все мои zenodo здесь https://zenodo.org/communities/trinity-s3ai/»`.
