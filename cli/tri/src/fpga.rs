@@ -83,6 +83,26 @@ pub enum FpgaCmd {
     /// 0x66+0x99 software-reset recovery attempts. Equivalent to
     /// `flash-id --verbose` plus auto-recovery.
     FlashIdDebug,
+    /// Build the QMTech XC7A100T-FGG676 JTAG-to-SPI proxy bitstream via the
+    /// openXC7 open-source toolchain (yosys + nextpnr-himbaechel + prjxray).
+    /// Requires `yosys`, `nextpnr-himbaechel`, `fasm2frames.py` and
+    /// `xc7frames2bit` on PATH. With `--install`, the produced `.bit` is
+    /// copied to `fpga/tools/bscan_spi_xc7a100t.bit` so the embedded
+    /// `BSCAN_SPI_XC7A100T` constant picks it up on the next rebuild.
+    BuildProxy {
+        /// After a successful build, copy the bitstream to
+        /// `fpga/tools/bscan_spi_xc7a100t.bit`.
+        #[arg(long)]
+        install: bool,
+        /// Source directory (Verilog + XDC). Defaults to
+        /// `fpga/bscan_spi_qmtech/` under the repo root.
+        #[arg(long)]
+        src: Option<PathBuf>,
+        /// Output directory for intermediate artefacts and the final
+        /// `bscan_spi_xc7a100tfgg676.bit`. Defaults to `<src>/build/`.
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
 }
 
 pub fn run(cmd: &FpgaCmd) -> Result<()> {
@@ -98,6 +118,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         FpgaCmd::SpiRaw { hex, rx } => spi_raw(hex, *rx),
         FpgaCmd::IrProbe { ir_hex } => ir_probe(ir_hex),
         FpgaCmd::FlashIdDebug => flash_id_debug(),
+        FpgaCmd::BuildProxy { install, src, out } => build_proxy(*install, src.as_ref(), out.as_ref()),
     }
 }
 
@@ -331,5 +352,188 @@ fn debug(no_jstart: bool) -> Result<()> {
         println!("=> FPGA is NOT configured. {}", stat.diagnose());
     }
     cable.close();
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// build-proxy: openXC7 (yosys + nextpnr-himbaechel + prjxray) flow for the
+// QMTech XC7A100T-FGG676 JTAG-to-SPI proxy bitstream. No Vivado, no Python
+// build glue — all stages are invoked as plain external commands.
+// ---------------------------------------------------------------------------
+
+fn which(tool: &str) -> Result<PathBuf> {
+    use std::path::Path;
+    let path_env = std::env::var_os("PATH")
+        .ok_or_else(|| anyhow!("PATH not set"))?;
+    for dir in std::env::split_paths(&path_env) {
+        let candidate = dir.join(tool);
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+    }
+    bail!("required tool not found on PATH: {}", tool)
+}
+
+fn run_step(tool: &str, args: &[&str], cwd: &std::path::Path) -> Result<()> {
+    let bin = which(tool)?;
+    eprintln!(
+        "[build-proxy] $ {} {}",
+        bin.display(),
+        args.join(" ")
+    );
+    let status = std::process::Command::new(&bin)
+        .args(args)
+        .current_dir(cwd)
+        .status()
+        .with_context(|| format!("spawn {}", tool))?;
+    if !status.success() {
+        bail!("{} exited with {:?}", tool, status);
+    }
+    Ok(())
+}
+
+fn repo_root() -> Result<PathBuf> {
+    let mut dir = std::env::current_dir()?;
+    loop {
+        if dir.join(".git").exists() || dir.join("Cargo.toml").is_file() {
+            return Ok(dir);
+        }
+        if !dir.pop() {
+            bail!("could not locate repository root");
+        }
+    }
+}
+
+fn build_proxy(
+    install: bool,
+    src: Option<&PathBuf>,
+    out: Option<&PathBuf>,
+) -> Result<()> {
+    let root = repo_root()?;
+    let src_dir = match src {
+        Some(p) => p.clone(),
+        None => root.join("fpga").join("bscan_spi_qmtech"),
+    };
+    let out_dir = match out {
+        Some(p) => p.clone(),
+        None => src_dir.join("build"),
+    };
+
+    let verilog = src_dir.join("bscan_spi_qmtech.v");
+    let xdc = src_dir.join("bscan_spi_qmtech.xdc");
+    if !verilog.is_file() {
+        bail!("missing source: {}", verilog.display());
+    }
+    if !xdc.is_file() {
+        bail!("missing constraints: {}", xdc.display());
+    }
+    std::fs::create_dir_all(&out_dir)
+        .with_context(|| format!("create {}", out_dir.display()))?;
+
+    let json_path = out_dir.join("bscan_spi_qmtech.json");
+    let fasm_path = out_dir.join("bscan_spi_qmtech.fasm");
+    let frames_path = out_dir.join("bscan_spi_qmtech.frames");
+    let bit_path = out_dir.join("bscan_spi_xc7a100tfgg676.bit");
+
+    eprintln!("[build-proxy] source : {}", verilog.display());
+    eprintln!("[build-proxy] xdc    : {}", xdc.display());
+    eprintln!("[build-proxy] out    : {}", out_dir.display());
+
+    // ---- Stage 1: yosys synthesis -------------------------------------
+    let yosys_script = format!(
+        "read_verilog {v}\nsynth_xilinx -family xc7 -top bscan_spi_qmtech -flatten\nwrite_json {j}\n",
+        v = verilog.display(),
+        j = json_path.display()
+    );
+    let ys_path = out_dir.join("synth.ys");
+    std::fs::write(&ys_path, yosys_script)?;
+    run_step("yosys", &["-q", "-s", ys_path.to_str().unwrap()], &out_dir)?;
+
+    // ---- Stage 2: nextpnr-himbaechel place & route --------------------
+    run_step(
+        "nextpnr-himbaechel",
+        &[
+            "--device",
+            "xc7a100t-fgg676-2",
+            "--xdc",
+            xdc.to_str().unwrap(),
+            "--json",
+            json_path.to_str().unwrap(),
+            "--fasm",
+            fasm_path.to_str().unwrap(),
+        ],
+        &out_dir,
+    )?;
+
+    // ---- Stage 3: fasm2frames + xc7frames2bit -------------------------
+    // prjxray ships fasm2frames as either `fasm2frames.py` or `fasm2frames`;
+    // try the wrapper first, then fall back to the Python script.
+    let fasm2frames_tool = if which("fasm2frames").is_ok() {
+        "fasm2frames"
+    } else if which("fasm2frames.py").is_ok() {
+        "fasm2frames.py"
+    } else {
+        bail!("neither `fasm2frames` nor `fasm2frames.py` found on PATH (install prjxray)");
+    };
+    // Both variants accept --part / positional FASM input and write frames
+    // to stdout; capture to a file.
+    let bin = which(fasm2frames_tool)?;
+    eprintln!(
+        "[build-proxy] $ {} --part xc7a100tfgg676-2 {} > {}",
+        bin.display(),
+        fasm_path.display(),
+        frames_path.display()
+    );
+    let frames_file = std::fs::File::create(&frames_path)
+        .with_context(|| format!("create {}", frames_path.display()))?;
+    let status = std::process::Command::new(&bin)
+        .args(["--part", "xc7a100tfgg676-2", fasm_path.to_str().unwrap()])
+        .stdout(frames_file)
+        .current_dir(&out_dir)
+        .status()
+        .context("spawn fasm2frames")?;
+    if !status.success() {
+        bail!("fasm2frames exited with {:?}", status);
+    }
+
+    run_step(
+        "xc7frames2bit",
+        &[
+            "--part_file",
+            // Allow prjxray to find the part_db; tools resolve via env XRAY_DATABASE_DIR.
+            // Pass --part_name explicitly so the user only needs XRAY_DATABASE_DIR set.
+            "",
+            "--part_name",
+            "xc7a100tfgg676-2",
+            "--frm_file",
+            frames_path.to_str().unwrap(),
+            "--output_file",
+            bit_path.to_str().unwrap(),
+        ],
+        &out_dir,
+    )?;
+
+    if !bit_path.is_file() {
+        bail!("expected bitstream not produced: {}", bit_path.display());
+    }
+    let size = std::fs::metadata(&bit_path)?.len();
+    println!(
+        "[build-proxy] OK  {} ({:.1} KiB)",
+        bit_path.display(),
+        size as f64 / 1024.0
+    );
+
+    if install {
+        let dst = root
+            .join("fpga")
+            .join("tools")
+            .join("bscan_spi_xc7a100t.bit");
+        std::fs::copy(&bit_path, &dst)
+            .with_context(|| format!("install {} -> {}", bit_path.display(), dst.display()))?;
+        println!("[build-proxy] installed -> {}", dst.display());
+        eprintln!("[build-proxy] rebuild `cli/dlc10` to pick up the new embedded bitstream:");
+        eprintln!("    cargo build -p tri --release");
+    }
+
     Ok(())
 }

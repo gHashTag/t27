@@ -1,6 +1,7 @@
 # SPI flash debug — `JEDEC = FF FF FF` on QMTech XC7A100T
 
 > Refs #592 (DLC10 pure-Rust driver) · Refs #590 (DSLogic diagnostics)
+> · Refs trabucayre/openFPGALoader#663
 > Last updated: 2026-05-12
 
 ## Symptom
@@ -107,6 +108,33 @@ Mitigations (in increasing order of effort):
    `tri fpga spi-raw 9F --rx 3`. If it doesn't, the bridge is broken.
 4. Fall back to direct configuration-FSM flash programming over CFG_IN
    (UG470 §6 — `WBSTAR` warm-boot), which bypasses the bridge entirely.
+
+## Solution — openXC7 QMTech-specific proxy
+
+For users on macOS (no Vivado) the supported fix is the in-tree openXC7
+build path: a board-specific Verilog re-implementation of the openocd
+`xilinx_bscan_spi.py` Migen module, FGG676 XDC, and the
+`yosys → nextpnr-himbaechel → fasm2frames → xc7frames2bit` pipeline.
+
+Sources live at [`fpga/bscan_spi_qmtech/`](../../fpga/bscan_spi_qmtech/);
+the driver is the Rust subcommand `tri fpga build-proxy` (see
+`cli/tri/src/fpga.rs`).
+
+```sh
+# One-shot: build + install + rebuild the embedded constant
+cargo run -p tri --release -- fpga build-proxy --install
+cargo build -p tri --release
+tri fpga proxy-load
+tri fpga proxy-status            # expect DONE=1
+tri fpga spi-raw 9F --rx 3       # expect non-FF JEDEC
+```
+
+If Vivado **is** available, the equivalent Vivado path is the
+[`gHashTag/openFPGALoader`](https://github.com/gHashTag/openFPGALoader)
+fork carrying PR #663 (`spiOverJtag_xc7a100tfgg676`).
+
+See [`fpga/bscan_spi_qmtech/README.md`](../../fpga/bscan_spi_qmtech/README.md)
+for the full build flow and tool-version matrix.
 
 ## Diagnostic command reference
 

@@ -15,6 +15,11 @@
 - 2026-05-12: SPI bit-reverse + 1-bit JTAG capture skew fix; new diagnostic subcommands
   `tri fpga proxy-load|proxy-status|spi-raw|ir-probe|flash-id-debug` for JEDEC=FF FF FF triage
   (see docs/fpga/SPI_FLASH_DEBUG.md). Refs #590, Closes #592.
+- 2026-05-12: openXC7 QMTech-specific JTAG-to-SPI proxy build path
+  (`fpga/bscan_spi_qmtech/`, `tri fpga build-proxy --install`) — replaces the
+  generic csg324 quartiq bitstream with a FGG676 one built via
+  yosys + nextpnr-himbaechel + prjxray (no Vivado).
+  Refs #592, trabucayre/openFPGALoader#663.
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
