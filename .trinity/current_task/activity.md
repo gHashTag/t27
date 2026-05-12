@@ -340,3 +340,7 @@
 - **Commit:** feat(trios): Rings 093-107 - Coq Verification and Formal Proofs (EPOCH-03 VERIFY)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bindings/python/Cargo.toml,bindings/python/__init__.py,bindings/python/setup.py,bindings/python/t27_core.rs,bindings/typescript/lsp-client/index.ts,bindings/typescript/lsp-client/package.json,lsp/README.md,lsp/src/backend/mod.rs,lsp/src/services/code_actions.rs,lsp/src/services/document_colors.rs,lsp/src/services/formatting.rs,lsp/src/services/mod.rs,lsp/src/services/signature_help.rs,lsp/src/services/signaty_help.rs,trios-coq/Mapping.v,trios-coq/Operations.v,trios-coq/README.md
 
+## 2026-05-12T16:20:49Z — gitbutler/workspace
+- **Commit:** feat(trios): Rings 093-107 - Coq Verification and Formal Proofs (EPOCH-03 VERIFY)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/issues/coq-verification-rings-093-107.md
+
