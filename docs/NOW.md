@@ -37,6 +37,18 @@
   pins via STARTUPE2+USRCCLKO, which openXC7 does not yet model.
   See docs/fpga/OPENXC7_FGG676_STATUS.md. Docker-Vivado (ce0f7ae3) remains
   the only path to a functional `bscan_spi_xc7a100tfgg676.bit`. Closes #592.
+- 2026-05-12: Docker-Vivado recipe refreshed for the actually-on-disk
+  installer: `FPGAs_AdaptiveSoCs_Unified_SDI_2025.2_1114_2157_Lin64.bin`
+  (web installer stub, 363 MiB). `docker/Dockerfile.vivado` now targets
+  Vivado ML Standard 2025.2, drives the unattended `xsetup -b AuthTokenGen`
+  via `expect`, and accepts either a pre-baked
+  `docker/wi_authentication_key` (Variant A — recommended) or
+  `--secret id=xilinx_user / xilinx_pass` (Variant B).
+  `docker/install_config.txt` selects only Artix-7 + Spartan-7 modules
+  (~10 GiB post-install vs ~96 GiB full archive). Auth token generated
+  via expect-driven `xsetup -b AuthTokenGen` (valid until 2026-05-19),
+  saved to `docker/wi_authentication_key` (gitignored — see
+  `.gitignore`). See docs/fpga/DOCKER_VIVADO_STATUS.md. Refs #592.
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
