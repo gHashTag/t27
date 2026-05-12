@@ -1,3 +1,9 @@
+(* 
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (** THEOREM-K1 direction — HSLM / linear layer over trit; to be refined with matrix ops. *)
 
 Require Import T27.Kernel.Trit.

@@ -1,3 +1,9 @@
+(* 
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (** THEOREM-K2 direction — numeric format ordering via phi-distance; stub until formats are formalized. *)
 
 Require Import Reals.

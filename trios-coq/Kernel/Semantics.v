@@ -1,3 +1,9 @@
+(* 
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (** Minimal expression calculus — placeholder for denotational / RT story (AXIOM-K3 direction). *)
 
 Require Import T27.Kernel.Trit.

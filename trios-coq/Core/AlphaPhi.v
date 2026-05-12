@@ -1,3 +1,9 @@
+(* 
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (* AlphaPhi.v - Named Constant α_φ Definition *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 

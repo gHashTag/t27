@@ -1,3 +1,9 @@
+(* 
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (** Golden ratio as real; algebraic identities (AXIOM-K2 / PHI-IDENTITY).
     Layer A: pure [Coq.Reals] — no Flocq here. See [Kernel/PhiFloat.v] for Flocq link. *)
 
