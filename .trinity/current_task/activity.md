@@ -320,3 +320,23 @@
 - **Commit:** feat(lsp): VS Code extension (Ring 071)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,lsp/vscode-extension/README.md
 
+## 2026-05-10T20:44:42Z — gitbutler/workspace
+- **Commit:** feat(trios): Neovim plugin with LSP client (Ring 072)
+- **Files:** lsp/src/services/code_actions.rs,lsp/src/services/signature_help.rs,lsp/src/services/signaty_help.rs
+
+## 2026-05-12T08:29:06Z — gitbutler/workspace
+- **Commit:** feat(lsp): Add CodeActionsService and SignatureHelpService (Rings 067-068)
+- **Files:** .trinity/current_task/activity.md,lsp/src/services/code_actions.rs,lsp/src/services/signature_help.rs,lsp/src/services/signaty_help.rs
+
+## 2026-05-12T16:05:35Z — gitbutler/workspace
+- **Commit:** feat(lsp): Add CodeActionsService (Ring 071-073)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bindings/python/Cargo.toml,bindings/python/__init__.py,bindings/python/setup.py,bindings/python/t27_core.rs,bindings/typescript/lsp-client/index.ts,bindings/typescript/lsp-client/package.json,lsp/README.md,lsp/src/backend/mod.rs,lsp/src/services/code_actions.rs,lsp/src/services/document_colors.rs,lsp/src/services/formatting.rs,lsp/src/services/mod.rs,lsp/src/services/signature_help.rs,lsp/src/services/signaty_help.rs,trios-coq/Mapping.v,trios-zig/backend/src/main.zig
+
+## 2026-05-12T16:20:19Z — gitbutler/workspace
+- **Commit:** feat(trios): Rings 093-107 - Coq LSP Mapping & Basic Machine-Verified Proofs (EPOCH-03 VERIFY)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bindings/python/Cargo.toml,bindings/python/__init__.py,bindings/python/setup.py,bindings/python/t27_core.rs,bindings/typescript/lsp-client/index.ts,bindings/typescript/lsp-client/package.json,lsp/README.md,lsp/src/backend/mod.rs,lsp/src/services/code_actions.rs,lsp/src/services/document_colors.rs,lsp/src/services/formatting.rs,lsp/src/services/mod.rs,lsp/src/services/signature_help.rs,lsp/src/services/signaty_help.rs,trios-coq/Mapping.v,trios-coq/Operations.v,trios-coq/README.md
+
+## 2026-05-12T16:20:33Z — gitbutler/workspace
+- **Commit:** feat(trios): Rings 093-107 - Coq Verification and Formal Proofs (EPOCH-03 VERIFY)
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,bindings/python/Cargo.toml,bindings/python/__init__.py,bindings/python/setup.py,bindings/python/t27_core.rs,bindings/typescript/lsp-client/index.ts,bindings/typescript/lsp-client/package.json,lsp/README.md,lsp/src/backend/mod.rs,lsp/src/services/code_actions.rs,lsp/src/services/document_colors.rs,lsp/src/services/formatting.rs,lsp/src/services/mod.rs,lsp/src/services/signature_help.rs,lsp/src/services/signaty_help.rs,trios-coq/Mapping.v,trios-coq/Operations.v,trios-coq/README.md
+

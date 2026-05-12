@@ -1,15 +1,13 @@
 [package]
-name = "golden-float-py"
+name = "t27-python-bindings"
 version = "0.1.0"
 edition = "2021"
-description = "Python bindings for GoldenFloat via PyO3"
-license = "MIT"
+description = "Python bindings for t27"
 
 [lib]
-name = "golden_float"
+name = "t27"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.28", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.20.11", features = ["extension-module", "abi3-py39", "abi3"] }
 numpy = "0.21"
-golden-float-ffi = { path = "../../ffi" }

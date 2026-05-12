@@ -4,8 +4,8 @@ pub mod parser;
 
 use crate::config::ServerConfig;
 use crate::services::{
-    CodeActionsService, CompletionService, DiagnosticsService, DocumentManager, HoverService,
-    NavigationService, SemanticTokensService, SignatureHelpService, SymbolService,
+    CompletionService, DiagnosticsService, DocumentManager, HoverService,
+    NavigationService, SymbolService,
 };
 use crate::types::Document;
 use std::sync::Arc;

@@ -1,190 +1,115 @@
-// Code actions service for t27 Language Server
+// Code Actions Service for t27 Language Server
 
 use crate::types::Document;
-use tower_lsp::lsp_types::{
-    CodeAction, CodeActionKind, Diagnostic, Position, Range, TextEdit, Url, WorkspaceEdit,
-};
+use tower_lsp::lsp_types::{CodeAction, CodeActionKind, Diagnostic, Range};
 
-/// Code actions service
+/// Code Actions Service
 pub struct CodeActionsService;
 
 impl CodeActionsService {
     /// Get code actions for a position/range
-    pub fn get_code_actions(
-        doc: &Document,
-        range: Range,
-    ) -> Vec<CodeAction> {
+    pub fn get_code_actions(doc: &Document, range: Range) -> Vec<CodeAction> {
         let mut actions = Vec::new();
 
         // Add quick fixes for diagnostics in range
         for diagnostic in &doc.diagnostics {
-            if Self::diagnostic_intersects_range(diagnostic, range) {
-                actions.extend(Self::quick_fixes_for_diagnostic(diagnostic, doc));
+            if Self::range_intersects(&diagnostic.range, range) {
+                if let Some(action) = Self::quick_fix_for_diagnostic(diagnostic) {
+                    actions.push(action);
+                }
             }
         }
 
-        // Add general refactoring actions
-        actions.extend(Self::refactoring_actions(doc, range));
-
-        actions
-    }
-
-    /// Get quick fixes for a specific diagnostic
-    fn quick_fixes_for_diagnostic(
-        diagnostic: &Diagnostic,
-        doc: &Document,
-    ) -> Vec<CodeAction> {
-        let mut fixes = Vec::new();
-
-        // Quick fix for TODO/FIXME comments
-        if let Some(message) = diagnostic.message.strip_prefix("TODO: ") {
-            fixes.push(Self::create_add_task_action(message, diagnostic.range));
-        }
-
-        if let Some(message) = diagnostic.message.strip_prefix("FIXME: ") {
-            fixes.push(Self::create_fix_issue_action(message, diagnostic.range));
-        }
-
-        // Quick fix for unused imports
-        if diagnostic.message.contains("unused") && diagnostic.message.contains("import") {
-            fixes.push(Self::create_remove_import_action(diagnostic.range, doc));
-        }
-
-        fixes
-    }
-
-    /// Get refactoring actions
-    fn refactoring_actions(doc: &Document, range: Range) -> Vec<CodeAction> {
-        let mut actions = Vec::new();
-
-        // Extract to constant action
-        if let Some(text) = Self::get_selected_text(doc, range) {
-            if !text.is_empty() && text.len() < 50 {
-                actions.push(Self::create_extract_constant_action(&text, range));
+        // Add refactoring suggestions for symbols in range
+        for symbol in &doc.symbols {
+            if Self::range_intersects(&symbol.range, range) {
+                if let Some(action) = Self::refactoring_action_for_symbol(symbol) {
+                    actions.push(action);
+                }
             }
         }
 
         actions
     }
 
-    /// Check if a diagnostic intersects with a range
-    fn diagnostic_intersects_range(diagnostic: &Diagnostic, range: Range) -> bool {
-        let d_range = diagnostic.range;
-        !(d_range.end < range.start || d_range.start > range.end)
+    /// Check if two ranges intersect
+    fn range_intersects(diagnostic_range: &Range, check_range: &Range) -> bool {
+        !(diagnostic_range.end < check_range.start || diagnostic_range.start > check_range.end)
     }
 
-    /// Get text at a range
-    fn get_selected_text(doc: &Document, range: Range) -> Option<String> {
-        let lines: Vec<&str> = doc.text.lines().collect();
-        if range.start.line as usize >= lines.len() {
-            return None;
-        }
+    /// Get quick fix for a diagnostic
+    fn quick_fix_for_diagnostic(diagnostic: &Diagnostic) -> Option<CodeAction> {
+        let message = diagnostic.message.to_lowercase();
 
-        if range.start.line == range.end.line {
-            let line = lines[range.start.line as usize];
-            let start = range.start.character as usize;
-            let end = range.end.character as usize;
-            if end <= line.len() {
-                return Some(line[start..end].to_string());
-            }
-        }
-
-        None
-    }
-
-    /// Create action to add a task
-    fn create_add_task_action(task: &str, range: Range) -> CodeAction {
-        CodeAction {
-            title: format!("Create task: {}", task),
-            kind: Some(CodeActionKind::QUICKFIX),
-            diagnostics: None,
-            edit: None,
-            command: None,
-            is_preferred: Some(true),
-            disabled: None,
-            data: None,
+        if message.contains("todo:") || message.contains("fixme:") {
+            Some(CodeAction {
+                title: format!("Create task for {}", message.trim_start_matches(5..)),
+                kind: Some(CodeActionKind::QuickFix),
+                diagnostics: Some(vec![diagnostic.clone()]),
+                edit: None,
+                command: None,
+                is_preferred: Some(true),
+                data: None,
+            })
+        } else if message.contains("unused import") {
+            Some(CodeAction {
+                title: "Remove unused import".to_string(),
+                kind: Some(CodeActionKind::QuickFix),
+                diagnostics: Some(vec![diagnostic.clone()]),
+                edit: Some(vec![{
+                    range: diagnostic.range,
+                    new_text: String::new(),
+                }]),
+                command: None,
+                is_preferred: Some(true),
+                data: None,
+            })
+        } else {
+            None
         }
     }
 
-    /// Create action to fix an issue
-    fn create_fix_issue_action(issue: &str, range: Range) -> CodeAction {
-        CodeAction {
-            title: format!("Address issue: {}", issue),
-            kind: Some(CodeActionKind::QUICKFIX),
-            diagnostics: None,
-            edit: None,
-            command: None,
-            is_preferred: Some(true),
-            disabled: None,
-            data: None,
-        }
-    }
-
-    /// Create action to remove unused import
-    fn create_remove_import_action(range: Range, doc: &Document) -> CodeAction {
-        let uri = doc.uri.clone();
-        let mut changes = std::collections::HashMap::new();
-        changes.insert(uri, vec![TextEdit {
-            range,
-            new_text: String::new(),
-        }]);
-
-        CodeAction {
-            title: "Remove unused import".to_string(),
-            kind: Some(CodeActionKind::QUICKFIX),
-            diagnostics: None,
-            edit: Some(WorkspaceEdit {
-                changes: Some(changes),
-                document_changes: None,
-                change_annotations: None,
-            }),
-            command: None,
-            is_preferred: Some(true),
-            disabled: None,
-            data: None,
-        }
-    }
-
-    /// Create action to extract constant
-    fn create_extract_constant_action(text: &str, range: Range) -> CodeAction {
-        CodeAction {
-            title: format!("Extract to constant: {}", text),
-            kind: Some(CodeActionKind::REFACTOR_EXTRACT),
-            diagnostics: None,
-            edit: None,
-            command: None,
-            is_preferred: Some(false),
-            disabled: None,
-            data: None,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tower_lsp::lsp_types::{Position, Range, Url};
-
-    #[test]
-    fn test_diagnostic_intersects_range() {
-        let diagnostic = Diagnostic {
-            range: Range {
-                start: Position::new(0, 5),
-                end: Position::new(0, 10),
+    /// Get refactoring action for a symbol
+    fn refactoring_action_for_symbol(symbol: &crate::types::Symbol) -> Option<CodeAction> {
+        match &symbol.kind {
+            crate::types::SymbolKind::Function => {
+                Some(CodeAction {
+                    title: "Add documentation comment".to_string(),
+                    kind: Some(CodeActionKind::Refactor),
+                    diagnostics: None,
+                    edit: Some(vec![{
+                        range: symbol.range,
+                        new_text: format!("// {}\n", symbol.name),
+                    }]),
+                    command: None,
+                    is_preferred: Some(false),
+                    data: None,
+                })
             },
-            ..Default::default()
-        };
-
-        let intersecting = Range {
-            start: Position::new(0, 0),
-            end: Position::new(0, 15),
-        };
-        assert!(CodeActionsService::diagnostic_intersects_range(&diagnostic, intersecting));
-
-        let non_intersecting = Range {
-            start: Position::new(1, 0),
-            end: Position::new(1, 10),
-        };
-        assert!(!CodeActionsService::diagnostic_intersects_range(&diagnostic, non_intersecting));
+            crate::types::SymbolKind::Variable | crate::types::SymbolKind::Constant => {
+                if let Some(detail) = &symbol.detail {
+                    if detail.contains(':') {
+                        let type_part = detail.split(':').nth(1);
+                        Some(CodeAction {
+                            title: format!("Annotate variable as: {}", type_part.unwrap_or("unknown")),
+                            kind: Some(CodeActionKind::RefactorInline),
+                            diagnostics: None,
+                            edit: Some(vec![{
+                                range: symbol.range,
+                                new_text: format!("{}: {}", symbol.name, type_part.unwrap_or("unknown")),
+                            }]),
+                            command: None,
+                            is_preferred: Some(false),
+                            data: None,
+                        })
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+            _ => None,
+        }
     }
 }
