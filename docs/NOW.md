@@ -3,6 +3,8 @@
 **Last updated:** 2026-05-12
 **Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz.
 
+**PASS-9 (2026-05-12 UTC):** R5-honest fix — added missing `doi: 10.5281/zenodo.19456875` field to CITATION.cff so machine-readable citation metadata matches the GoldenFloat v0.1.0 Zenodo deposit. Companion PASS-9 PRs: gHashTag/trios#767 (image-gate root-fix + broken refs), gHashTag/trinity-fpga (CITATION.cff rewrite).
+
 ---
 
 ## R5-PASS-7 Honest Audit (Issue #598 — invalid ORCID + wrong community slug in `.zenodo.json`)

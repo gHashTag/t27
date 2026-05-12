@@ -2,6 +2,7 @@ cff-version: 1.2.0
 message: "If you use T27/GoldenFloat in research or software, please cite it as below."
 title: "GoldenFloat: φ-Optimal Floating-Point Formats for Ternary Computing (T27)"
 version: 0.1.0
+doi: 10.5281/zenodo.19456875
 date-released: 2026-04-07
 authors:
   - family-names: Vasilev
