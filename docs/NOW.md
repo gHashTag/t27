@@ -20,6 +20,12 @@
   generic csg324 quartiq bitstream with a FGG676 one built via
   yosys + nextpnr-himbaechel + prjxray (no Vivado).
   Refs #592, trabucayre/openFPGALoader#663.
+- 2026-05-12: openXC7 native build attempt on macOS — corrected himbaechel
+  device name xc7a100t-fgg676-2 -> xc7a100tfgg676-1 (the canonical prjxray
+  spelling). Native chipdb generation via bbaexport.py reaches the
+  Exporting tile and site instances stage then OOMs at ~1.5 GiB RSS on a
+  low-disk Apple Silicon box (<1 GiB free, 16 GiB RAM). Docker-Vivado
+  path (commit ce0f7ae3) remains the recommended Mac flow. Closes #592.
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table

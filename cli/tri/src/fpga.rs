@@ -557,7 +557,7 @@ fn build_proxy(
         "nextpnr-himbaechel",
         &[
             "--device",
-            "xc7a100t-fgg676-2",
+            "xc7a100tfgg676-1",
             "--chipdb",
             chipdb_str,
             "--json",
