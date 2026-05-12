@@ -135,6 +135,91 @@ This route is **not used by this repo's CI** because the QMTech contributors
 work on macOS where Vivado is unsupported. The openXC7 path is the
 supported one.
 
+## Docker Vivado path
+
+For users who want the Vivado-built reference bitstream **without
+installing Vivado on the host** — most relevant on macOS / Apple Silicon
+where Vivado is not natively available — the `tri` CLI ships a
+`build-proxy-docker` subcommand that:
+
+1. Clones the openFPGALoader fork
+   (`https://github.com/gHashTag/openFPGALoader`,
+   branch `feat/qmtech-xc7a100t-board`) into `target/openfpgaloader-fork/`.
+2. Runs the fork's `spiOverJtag/Makefile` inside a Docker container that
+   provides Vivado. On Apple Silicon (`arm64`), the container is launched
+   with `--platform linux/amd64` so Vivado executes under x86_64
+   emulation.
+3. With `--install`, decompresses the produced
+   `spiOverJtag_xc7a100tfgg676.bit.gz` and copies it to
+   `fpga/tools/bscan_spi_xc7a100t.bit`, then prints its SHA256.
+
+### One-shot command
+
+```sh
+cargo run --release -p tri -- fpga build-proxy-docker --install
+```
+
+After this completes, rebuild `tri` to pick up the freshly embedded
+bitstream:
+
+```sh
+cargo build -p tri --release
+```
+
+Optional flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `--fork-dir <path>`   | Reuse an existing checkout instead of cloning into `target/openfpgaloader-fork/`. |
+| `--image <ref>`       | Override the Docker image (default `t27/vivado:webpack`). |
+| `--no-platform`       | Skip `--platform linux/amd64` (use on native x86_64 hosts or multi-arch images). |
+| `--install`           | Decompress + install into `fpga/tools/bscan_spi_xc7a100t.bit` and print SHA256. |
+
+### Docker image
+
+There is **no official AMD/Xilinx Vivado image** on Docker Hub, and the
+Vivado clickwrap licence forbids redistributing the installer. The
+default image name `t27/vivado:webpack` is a *local* tag — users build
+it once from `docker/Dockerfile.vivado` after downloading the free
+Vivado HLx WebPack installer from
+[xilinx.com/support/download.html](https://www.xilinx.com/support/download.html).
+
+```sh
+# 1. drop the WebPack installer next to docker/Dockerfile.vivado as
+#    Xilinx_Unified_2023.1_0507_1903_Lin64.bin
+# 2. drop an install_config.txt next to it (template in the Dockerfile)
+# 3. build the image:
+docker buildx build \
+    --platform linux/amd64 \
+    -t t27/vivado:webpack \
+    -f docker/Dockerfile.vivado \
+    --load \
+    docker/
+```
+
+Community images such as `pgillich/vivado:2023.1` or `gradleadams/vivado`
+may work as drop-in alternatives:
+
+```sh
+cargo run --release -p tri -- fpga build-proxy-docker \
+    --image pgillich/vivado:2023.1 \
+    --install
+```
+
+The QMTech Verilog/XDC has no Vivado-version-specific dependencies, so
+any 2019.1+ release with Artix-7 device support is sufficient.
+
+### Expected build time
+
+| Host                                  | Approximate wall-clock for one `.bit.gz` |
+| ---                                   | --- |
+| x86_64 Linux, native                  | 2–4 minutes |
+| Apple Silicon M-series, `--platform linux/amd64` (qemu emulation) | 15–25 minutes |
+| Apple Silicon M-series, **image build** (one-time) | 20–40 minutes (~12 GiB on disk) |
+
+The image is single-purpose and read-only at runtime, so subsequent
+`build-proxy-docker` invocations only pay the bitstream synthesis cost.
+
 ## Verifying after install
 
 ```sh

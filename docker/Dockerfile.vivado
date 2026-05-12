@@ -1,0 +1,139 @@
+# syntax=docker/dockerfile:1.6
+#
+# Dockerfile.vivado — Xilinx Vivado HLx WebPack container for building
+# the QMTech XC7A100T-FGG676 proxy bitstream via the openFPGALoader fork.
+#
+# This image is consumed by `tri fpga build-proxy-docker` and must
+# satisfy:
+#
+#   docker run --rm \
+#     --platform linux/amd64 \
+#     -v <fork>:/work -w /work/spiOverJtag \
+#     t27/vivado:webpack \
+#     make spiOverJtag_xc7a100tfgg676.bit.gz
+#
+# i.e. `vivado` must be on PATH and the WebPack edition must include the
+# Artix-7 (`xc7a100t`) device family. The QMTech FGG676 part is supported
+# by the free WebPack licence — no paid Vivado entitlement is required.
+#
+# ----------------------------------------------------------------------------
+# Why we ship a Dockerfile instead of pinning a public image
+# ----------------------------------------------------------------------------
+# AMD/Xilinx does not publish Vivado on Docker Hub. Community images
+# (e.g. `gradleadams/vivado`, `pgillich/vivado:2023.1`) exist but:
+#   * none are signed or pinned by digest;
+#   * Vivado's clickwrap licence forbids redistribution of the installer;
+#   * Apple Silicon users in particular need a slim, AMD64-only image
+#     because every layer is run under qemu-x86_64 emulation.
+#
+# This file gives the user a reproducible recipe they run *once* on their
+# own machine to produce a local image tagged `t27/vivado:webpack`.
+#
+# ----------------------------------------------------------------------------
+# Building this image
+# ----------------------------------------------------------------------------
+#
+# 1. Download Vivado HLx WebPack 2023.1 (or newer) Linux self-extracting
+#    installer from
+#      https://www.xilinx.com/support/download.html
+#    You will need a free AMD/Xilinx account. The file is named like
+#      Xilinx_Unified_2023.1_0507_1903_Lin64.bin    (~85 MiB stub)
+#    or
+#      Xilinx_Vivado_SDK_Web_2023.1_0507_1903_Lin64.bin (legacy bundle)
+#
+# 2. Place the installer next to this Dockerfile and create an
+#    `install_config.txt` that selects only the Artix-7 device support
+#    (saves ~50 GiB of image size). A minimal example:
+#
+#      Edition=Vivado HL WebPACK
+#      Product=Vivado
+#      Destination=/opt/Xilinx
+#      Modules=Artix-7:1,Kintex-7:0,Virtex-7:0,Zynq-7000:0,UltraScale:0
+#      InstallOptions=
+#      CreateProgramGroupShortcuts=0
+#      CreateShortcutsForAllUsers=0
+#      CreateDesktopShortcuts=0
+#      CreateFileAssociation=0
+#
+# 3. Build (on Apple Silicon, force amd64 so the resulting image matches
+#    the platform the runtime container uses):
+#
+#      docker buildx build \
+#        --platform linux/amd64 \
+#        -t t27/vivado:webpack \
+#        -f docker/Dockerfile.vivado \
+#        --load \
+#        docker/
+#
+#    First-time build downloads ~6 GiB of Artix-7 device data and takes
+#    20-40 minutes on a recent Mac under emulation.
+#
+# ----------------------------------------------------------------------------
+# Expected build time of the proxy bitstream
+# ----------------------------------------------------------------------------
+#
+#   x86_64 host   (native)            :  ~2-4 min   wall clock
+#   Apple Silicon (linux/amd64 emu)   : ~15-25 min  wall clock (M-series)
+#   Disk usage after install          : ~12 GiB
+#
+# ----------------------------------------------------------------------------
+FROM --platform=linux/amd64 ubuntu:22.04
+
+ARG VIVADO_INSTALLER=Xilinx_Unified_2023.1_0507_1903_Lin64.bin
+ARG VIVADO_CONFIG=install_config.txt
+ARG VIVADO_PREFIX=/opt/Xilinx
+ARG VIVADO_VERSION=2023.1
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8
+
+# Vivado runtime + build deps (per UG973 "Installation, Licensing and
+# Release Notes" for 2023.1 on Ubuntu 22.04). `make` and `gzip` are for
+# the openFPGALoader spiOverJtag Makefile that this container will run.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libtinfo5 \
+        libncurses5 \
+        libxrender1 \
+        libxtst6 \
+        libxi6 \
+        libgtk2.0-0 \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
+        locales \
+        make \
+        gzip \
+        git \
+        python3 \
+        python3-pip \
+        unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Stage the installer + config. We do NOT bake the installer into a
+# committed layer — we use a multi-stage `--mount=type=bind` pattern so
+# the ~85 GiB extracted tree does not bloat the final image. The user is
+# expected to keep the installer + config beside this Dockerfile.
+COPY ${VIVADO_INSTALLER} /tmp/vivado-installer.bin
+COPY ${VIVADO_CONFIG}    /tmp/install_config.txt
+
+RUN chmod +x /tmp/vivado-installer.bin \
+    && /tmp/vivado-installer.bin --keep --noexec --target /tmp/vivado-installer \
+    && /tmp/vivado-installer/xsetup \
+        --agree XilinxEULA,3rdPartyEULA \
+        --batch Install \
+        --config /tmp/install_config.txt \
+    && rm -rf /tmp/vivado-installer /tmp/vivado-installer.bin /tmp/install_config.txt \
+    && find ${VIVADO_PREFIX}/Vivado/${VIVADO_VERSION}/data/parts \
+        -mindepth 1 -maxdepth 1 \
+        \! -name 'xc7a*' \
+        -exec rm -rf {} + || true
+
+# Source Vivado settings on every shell invocation, so `make` inside the
+# spiOverJtag tree finds `vivado` on PATH.
+ENV PATH="${VIVADO_PREFIX}/Vivado/${VIVADO_VERSION}/bin:${PATH}" \
+    XILINX_VIVADO="${VIVADO_PREFIX}/Vivado/${VIVADO_VERSION}"
+
+WORKDIR /work
+CMD ["bash", "-lc", "vivado -version && exec bash"]

@@ -131,6 +131,38 @@ pub enum FpgaCmd {
         #[arg(long, default_value = "master")]
         git_ref: String,
     },
+    /// Build the QMTech XC7A100T-FGG676 proxy bitstream via a Docker
+    /// container running Xilinx Vivado. Clones our `openFPGALoader` fork
+    /// (`feat/qmtech-xc7a100t-board`) into `target/openfpgaloader-fork/`
+    /// and runs `make` inside `spiOverJtag/`. On Apple Silicon (arm64),
+    /// the container runs under x86_64 emulation via
+    /// `--platform linux/amd64`. With `--install`, the produced
+    /// `bscan_spi_xc7a100tfgg676.bit.gz` is decompressed and copied to
+    /// `fpga/tools/bscan_spi_xc7a100t.bit` and its SHA256 is printed.
+    ///
+    /// This is an alternative to `build-proxy` (which uses the open-source
+    /// openXC7 flow) for users who already have a Vivado-capable Docker
+    /// image. See `docker/Dockerfile.vivado` for build instructions when
+    /// no public image is available.
+    BuildProxyDocker {
+        /// Path to an already-cloned openFPGALoader fork. If omitted,
+        /// the fork is cloned into `target/openfpgaloader-fork/`.
+        #[arg(long)]
+        fork_dir: Option<PathBuf>,
+        /// Docker image providing Vivado on `linux/amd64`. Defaults to
+        /// the locally-built `t27/vivado:webpack` (see
+        /// `docker/Dockerfile.vivado`).
+        #[arg(long)]
+        image: Option<String>,
+        /// After build, decompress and install the bitstream to
+        /// `fpga/tools/bscan_spi_xc7a100t.bit`.
+        #[arg(long)]
+        install: bool,
+        /// Skip the `--platform linux/amd64` flag (use when already on
+        /// an x86_64 host or when the chosen image is multi-arch).
+        #[arg(long)]
+        no_platform: bool,
+    },
 }
 
 pub fn run(cmd: &FpgaCmd) -> Result<()> {
@@ -158,6 +190,12 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
             work_dir,
             git_ref,
         } => setup_openxc7_chipdb(prefix.as_ref(), family, work_dir.as_ref(), git_ref),
+        FpgaCmd::BuildProxyDocker {
+            fork_dir,
+            image,
+            install,
+            no_platform,
+        } => build_proxy_docker(fork_dir.as_ref(), image.as_deref(), *install, *no_platform),
     }
 }
 
@@ -784,5 +822,202 @@ fn setup_openxc7_chipdb(
         size as f64 / 1024.0 / 1024.0
     );
     eprintln!("[setup-chipdb] next: `tri fpga build-proxy --install`");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// build-proxy-docker: Vivado-in-Docker flow targeting the same proxy
+// bitstream. Drives the openFPGALoader fork's `spiOverJtag/Makefile` inside
+// a container so users on macOS / Apple Silicon (where Vivado is not
+// natively available) can still produce a board-specific .bit without
+// installing the 90 GiB Vivado toolchain on the host.
+// ---------------------------------------------------------------------------
+
+const OPENFPGALOADER_FORK_URL: &str = "https://github.com/gHashTag/openFPGALoader";
+const OPENFPGALOADER_FORK_BRANCH: &str = "feat/qmtech-xc7a100t-board";
+const DEFAULT_VIVADO_IMAGE: &str = "t27/vivado:webpack";
+
+fn run_cmd(cmd: &mut std::process::Command, label: &str) -> Result<()> {
+    eprintln!("[build-proxy-docker] $ {:?}", cmd);
+    let status = cmd
+        .status()
+        .with_context(|| format!("spawn {}", label))?;
+    if !status.success() {
+        bail!("{} exited with {:?}", label, status);
+    }
+    Ok(())
+}
+
+fn ensure_fork(fork_dir: &std::path::Path) -> Result<()> {
+    if fork_dir.join(".git").is_dir() {
+        eprintln!(
+            "[build-proxy-docker] fork already present at {}; running `git fetch`",
+            fork_dir.display()
+        );
+        let mut fetch = std::process::Command::new("git");
+        fetch
+            .args(["fetch", "origin", OPENFPGALOADER_FORK_BRANCH])
+            .current_dir(fork_dir);
+        // Non-fatal — user may be offline; warn but proceed with whatever
+        // is on disk.
+        if let Err(e) = run_cmd(&mut fetch, "git fetch") {
+            eprintln!("[build-proxy-docker] warning: git fetch failed: {e}");
+        }
+        let mut checkout = std::process::Command::new("git");
+        checkout
+            .args(["checkout", OPENFPGALOADER_FORK_BRANCH])
+            .current_dir(fork_dir);
+        run_cmd(&mut checkout, "git checkout")?;
+        return Ok(());
+    }
+    if let Some(parent) = fork_dir.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create {}", parent.display()))?;
+    }
+    eprintln!(
+        "[build-proxy-docker] cloning {} (branch {}) into {}",
+        OPENFPGALOADER_FORK_URL,
+        OPENFPGALOADER_FORK_BRANCH,
+        fork_dir.display()
+    );
+    let mut clone = std::process::Command::new("git");
+    clone.args([
+        "clone",
+        "--branch",
+        OPENFPGALOADER_FORK_BRANCH,
+        "--depth",
+        "1",
+        OPENFPGALOADER_FORK_URL,
+        fork_dir
+            .to_str()
+            .ok_or_else(|| anyhow!("non-UTF8 fork path"))?,
+    ]);
+    run_cmd(&mut clone, "git clone")?;
+    Ok(())
+}
+
+fn sha256_hex(path: &std::path::Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let data = std::fs::read(path)
+        .with_context(|| format!("read {}", path.display()))?;
+    let mut h = Sha256::new();
+    h.update(&data);
+    Ok(format!("{:x}", h.finalize()))
+}
+
+fn gunzip(gz_path: &std::path::Path, out_path: &std::path::Path) -> Result<()> {
+    // Shell out to `gunzip -c` (POSIX, ships on macOS and every mainstream
+    // Linux). Avoids pulling `flate2` into the `tri` crate for a one-shot
+    // decompression on the user's host.
+    let gunzip = which("gunzip")?;
+    eprintln!(
+        "[build-proxy-docker] $ {} -c {} > {}",
+        gunzip.display(),
+        gz_path.display(),
+        out_path.display()
+    );
+    let out_file = std::fs::File::create(out_path)
+        .with_context(|| format!("create {}", out_path.display()))?;
+    let status = std::process::Command::new(&gunzip)
+        .arg("-c")
+        .arg(gz_path)
+        .stdout(out_file)
+        .status()
+        .context("spawn gunzip")?;
+    if !status.success() {
+        bail!("gunzip exited with {:?}", status);
+    }
+    Ok(())
+}
+
+fn build_proxy_docker(
+    fork_dir: Option<&PathBuf>,
+    image: Option<&str>,
+    install: bool,
+    no_platform: bool,
+) -> Result<()> {
+    let root = repo_root()?;
+    let fork_path: PathBuf = match fork_dir {
+        Some(p) => p.clone(),
+        None => root.join("target").join("openfpgaloader-fork"),
+    };
+    let image_name = image.unwrap_or(DEFAULT_VIVADO_IMAGE);
+
+    // 1. docker available?
+    let docker = which("docker")
+        .context("`docker` not found on PATH — install Docker Desktop or Docker Engine")?;
+
+    // 2. clone or refresh the fork
+    ensure_fork(&fork_path)?;
+
+    let spi_dir = fork_path.join("spiOverJtag");
+    if !spi_dir.is_dir() {
+        bail!(
+            "expected {} after clone — fork layout changed?",
+            spi_dir.display()
+        );
+    }
+
+    // 3. run the container
+    //
+    //   docker run --rm \
+    //     [--platform linux/amd64] \
+    //     -v <fork>:/work -w /work/spiOverJtag \
+    //     <image> \
+    //     make spiOverJtag_xc7a100tfgg676.bit.gz
+    //
+    let fork_abs = std::fs::canonicalize(&fork_path)
+        .with_context(|| format!("canonicalize {}", fork_path.display()))?;
+    let mount = format!(
+        "{}:/work",
+        fork_abs
+            .to_str()
+            .ok_or_else(|| anyhow!("non-UTF8 fork path"))?
+    );
+    let mut cmd = std::process::Command::new(&docker);
+    cmd.arg("run").arg("--rm");
+    if !no_platform {
+        cmd.args(["--platform", "linux/amd64"]);
+    }
+    cmd.args(["-v", &mount, "-w", "/work/spiOverJtag", image_name]);
+    cmd.args(["make", "spiOverJtag_xc7a100tfgg676.bit.gz"]);
+    run_cmd(&mut cmd, "docker run")?;
+
+    let bit_gz = spi_dir.join("spiOverJtag_xc7a100tfgg676.bit.gz");
+    if !bit_gz.is_file() {
+        bail!(
+            "expected artefact not produced: {} (check container output)",
+            bit_gz.display()
+        );
+    }
+    let gz_size = std::fs::metadata(&bit_gz)?.len();
+    println!(
+        "[build-proxy-docker] OK  {} ({:.1} KiB, gzipped)",
+        bit_gz.display(),
+        gz_size as f64 / 1024.0
+    );
+
+    if install {
+        let dst = root
+            .join("fpga")
+            .join("tools")
+            .join("bscan_spi_xc7a100t.bit");
+        if let Some(parent) = dst.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("create {}", parent.display()))?;
+        }
+        gunzip(&bit_gz, &dst)?;
+        let bit_size = std::fs::metadata(&dst)?.len();
+        let digest = sha256_hex(&dst)?;
+        println!(
+            "[build-proxy-docker] installed -> {} ({:.1} KiB)",
+            dst.display(),
+            bit_size as f64 / 1024.0
+        );
+        println!("[build-proxy-docker] sha256 : {}", digest);
+        eprintln!("[build-proxy-docker] rebuild to pick up the new embedded bitstream:");
+        eprintln!("    cargo build -p tri --release");
+    }
+
     Ok(())
 }
