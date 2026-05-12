@@ -6,7 +6,7 @@
     {
       "name": "Vasilev, Dmitrii",
       "affiliation": "Trinity Computing",
-      "orcid": "0000-0002-5135-5363"
+      "orcid": "0009-0008-4294-6159"
     }
   ],
   "keywords": [
@@ -16,7 +16,7 @@
     "spec-first development", "Theorem 3", "generative mechanism"
   ],
   "license": "MIT",
-  "communities": [{"identifier": "trinity"}],
+  "communities": [{"identifier": "trinity-s3ai"}],
   "access_right": "open",
   "embargo_date": null,
   "publication_date": "2026-04-07",
