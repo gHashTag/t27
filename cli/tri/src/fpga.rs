@@ -455,12 +455,12 @@ fn build_proxy(
         &[
             "--device",
             "xc7a100t-fgg676-2",
-            "--xdc",
-            xdc.to_str().unwrap(),
             "--json",
             json_path.to_str().unwrap(),
-            "--fasm",
-            fasm_path.to_str().unwrap(),
+            "-o",
+            &format!("xdc={}", xdc.display()),
+            "-o",
+            &format!("fasm={}", fasm_path.display()),
         ],
         &out_dir,
     )?;
