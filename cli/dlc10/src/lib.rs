@@ -84,6 +84,16 @@ pub const STATUS_BUSY_BIT: u8 = 0x01;
 pub const PAGE_SIZE: usize = 256;
 pub const SECTOR_SIZE: usize = 65_536;
 
+/// Extra SPI command bytes (Micron / Macronix / Spansion / Cypress).
+pub mod spi_extra {
+    /// Release from Deep Power-down (and optionally read electronic signature).
+    pub const RELEASE_PD: u8 = 0xAB;
+    /// Reset Enable (must precede 0x99 within 1 clock).
+    pub const RESET_ENABLE: u8 = 0x66;
+    /// Reset Device (after 0x66).
+    pub const RESET_DEVICE: u8 = 0x99;
+}
+
 /// 7-series configuration register addresses (UG470 Table 5-23).
 pub mod cfg_reg {
     pub const CRC: u8 = 0x00;
@@ -116,7 +126,7 @@ const XUSB_FW_HEX: &[u8] = include_bytes!("../../../fpga/tools/xusb_xp2.hex");
 
 /// Embedded JTAG-to-SPI bridge bitstream for XC7A100T (MIT,
 /// quartiq/bscan_spi_bitstreams).
-const BSCAN_SPI_XC7A100T: &[u8] =
+pub const BSCAN_SPI_XC7A100T: &[u8] =
     include_bytes!("../../../fpga/tools/bscan_spi_xc7a100t.bit");
 
 // ---------------------------------------------------------------------------
@@ -609,19 +619,43 @@ impl Dlc10 {
 
     /// Program the on-board SPI flash.
     pub fn program_flash(&mut self, bit: &[u8], mut opts: FlashOpts) -> Result<()> {
-        // Step 1: load the JTAG-to-SPI bridge into FPGA SRAM.
-        let _bridge_status = self.program_sram(BSCAN_SPI_XC7A100T)?;
+        // Step 1: load the JTAG-to-SPI bridge into FPGA SRAM (verbose so
+        // the user sees the post-JSTART STAT decode if anything is off).
+        let _bridge_status = self.program_sram_verbose(BSCAN_SPI_XC7A100T, true)?;
 
         // Step 2: select USER1 — that maps the BSCAN data register to the
         // single-bit SPI shift register inside the bridge.
         self.shift_ir(ir::USER1)?;
+        eprintln!("[debug] program_flash: IR=USER1, attempting JEDEC ID read");
 
-        // Step 3: read JEDEC ID — sanity check.
-        let id = self.spi_xfer(&[spi_cmd::READ_ID], 3)?;
+        // Step 3: read JEDEC ID — sanity check (with recovery attempts).
+        let id = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, true)?;
         eprintln!(
             "SPI flash JEDEC ID: {:02X} {:02X} {:02X}",
             id[0], id[1], id[2]
         );
+        if id == vec![0xFF, 0xFF, 0xFF] || id == vec![0x00, 0x00, 0x00] {
+            // Try the standard recovery sequences before bailing.
+            eprintln!("[debug] JEDEC looks dead — trying 0xAB Release Power-down + 0x66/0x99 reset");
+            self.spi_xfer_verbose(&[spi_extra::RELEASE_PD], 0, true)?;
+            std::thread::sleep(Duration::from_millis(5));
+            self.spi_xfer_verbose(&[spi_extra::RESET_ENABLE], 0, true)?;
+            self.spi_xfer_verbose(&[spi_extra::RESET_DEVICE], 0, true)?;
+            std::thread::sleep(Duration::from_millis(30));
+            let retry = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, true)?;
+            eprintln!(
+                "SPI flash JEDEC ID (after recovery): {:02X} {:02X} {:02X}",
+                retry[0], retry[1], retry[2]
+            );
+            if retry == vec![0xFF, 0xFF, 0xFF] || retry == vec![0x00, 0x00, 0x00] {
+                return Err(anyhow!(
+                    "SPI flash unreachable: JEDEC stays at {:02X} {:02X} {:02X} after release-PD and software reset. \
+                     Run `tri fpga proxy-load fpga/tools/bscan_spi_xc7a100t.bit` then `tri fpga proxy-status` to confirm DONE=HIGH; \
+                     if DONE=LOW, the proxy bitstream does not match this board's pinout — see docs/fpga/SPI_FLASH_DEBUG.md.",
+                    retry[0], retry[1], retry[2],
+                ));
+            }
+        }
 
         // Step 4: erase the sectors we're about to write.
         let total = bit.len() as u64;
@@ -693,14 +727,191 @@ impl Dlc10 {
     /// Load the bridge bitstream into FPGA SRAM and read the SPI flash
     /// JEDEC ID (READ_ID 0x9F → 3 bytes).
     pub fn read_flash_id(&mut self) -> Result<[u8; 3]> {
-        self.program_sram(BSCAN_SPI_XC7A100T)?;
+        self.read_flash_id_verbose(false)
+    }
+
+    /// Like `read_flash_id`, but emits `[debug] ...` lines describing each
+    /// step (proxy load, STAT poll, USER1 select, raw RX bytes).
+    ///
+    /// Also performs **two recovery attempts** before declaring failure:
+    ///
+    /// 1. Issue `0xAB` (Release Power-down) — if the flash booted in
+    ///    deep-power-down (Micron N25Q does this on certain board variants),
+    ///    this wakes it up. Re-reads JEDEC.
+    /// 2. Issue `0x66` + `0x99` (Reset Enable + Reset Device) — full chip
+    ///    reset. Re-reads JEDEC.
+    ///
+    /// The function returns the **first non-FF non-zero** triple it sees,
+    /// or the last triple read if all attempts return FF/00.
+    pub fn read_flash_id_verbose(&mut self, verbose: bool) -> Result<[u8; 3]> {
+        if verbose {
+            eprintln!("[debug] read_flash_id: loading bridge bitstream (proxy)");
+        }
+        let _status = self.program_sram_verbose(BSCAN_SPI_XC7A100T, verbose)?;
+        if verbose {
+            // Re-read STAT via the proper Type-1 path so we report a number
+            // the user can trust.
+            match self.read_cfg_reg(cfg_reg::STAT) {
+                Ok(s) => {
+                    let bits = StatBits::from_raw(s);
+                    eprintln!(
+                        "[debug] post-proxy STAT=0x{:08X} DONE={} EOS={} INIT_B={} INIT_COMPLETE={} ID_ERROR={} CRC_ERROR={}",
+                        bits.raw,
+                        bits.done as u8,
+                        bits.eos as u8,
+                        bits.init_b as u8,
+                        bits.init_complete as u8,
+                        bits.id_error as u8,
+                        bits.crc_error as u8,
+                    );
+                    if !bits.done {
+                        eprintln!("[debug] WARN: proxy did NOT reach DONE=HIGH — bridge is not running, JEDEC will be FF FF FF");
+                    }
+                }
+                Err(e) => eprintln!("[debug] WARN: post-proxy STAT read failed: {e}"),
+            }
+        }
         self.shift_ir(ir::USER1)?;
-        let id = self.spi_xfer(&[spi_cmd::READ_ID], 3)?;
-        let mut out = [0u8; 3];
-        for (i, b) in id.iter().take(3).enumerate() {
-            out[i] = *b;
+        if verbose {
+            eprintln!("[debug] IR = USER1 (0x02) — BSCAN1 SPI bridge selected");
+        }
+
+        let id = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, verbose)?;
+        let triple = |v: &[u8]| -> [u8; 3] { [v[0], v[1], v[2]] };
+        let is_dead = |a: &[u8; 3]| a == &[0xFF, 0xFF, 0xFF] || a == &[0x00, 0x00, 0x00];
+        let mut out = triple(&id);
+        if !is_dead(&out) {
+            return Ok(out);
+        }
+
+        if verbose {
+            eprintln!(
+                "[debug] JEDEC came back as {:02X} {:02X} {:02X} — attempting 0xAB Release Power-down",
+                out[0], out[1], out[2],
+            );
+        }
+        // Recovery 1: Release from Deep Power-down (0xAB), then re-read.
+        self.spi_xfer_verbose(&[spi_extra::RELEASE_PD], 0, verbose)?;
+        std::thread::sleep(Duration::from_millis(5));
+        let id2 = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, verbose)?;
+        out = triple(&id2);
+        if !is_dead(&out) {
+            if verbose {
+                eprintln!("[debug] recovery via 0xAB succeeded");
+            }
+            return Ok(out);
+        }
+
+        if verbose {
+            eprintln!(
+                "[debug] still {:02X} {:02X} {:02X} — attempting 0x66 + 0x99 software reset",
+                out[0], out[1], out[2],
+            );
+        }
+        // Recovery 2: Reset Enable + Reset Device.
+        self.spi_xfer_verbose(&[spi_extra::RESET_ENABLE], 0, verbose)?;
+        self.spi_xfer_verbose(&[spi_extra::RESET_DEVICE], 0, verbose)?;
+        std::thread::sleep(Duration::from_millis(30));
+        let id3 = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, verbose)?;
+        out = triple(&id3);
+        if verbose && !is_dead(&out) {
+            eprintln!("[debug] recovery via 0x66/0x99 succeeded");
         }
         Ok(out)
+    }
+
+    // ------------------ Diagnostic primitives (Rust API) -------------------
+
+    /// Diagnostic-only: load *any* bitstream into FPGA SRAM and leave the
+    /// JTAG TAP in Run-Test/Idle with IR=`BYPASS` (so the caller can poll
+    /// STAT separately). Returns the post-`JSTART` CFG_OUT read.
+    ///
+    /// Use this to validate that the bridge proxy bitstream actually
+    /// configures the device (DONE goes HIGH) **before** worrying about
+    /// USER1/SPI semantics. Always emits `[debug] ...` instrumentation.
+    pub fn proxy_load(&mut self, bit: &[u8]) -> Result<u32> {
+        eprintln!(
+            "[debug] proxy_load: bitstream size = {} bytes (sha256 prefix: {})",
+            bit.len(),
+            hex::encode(&bit[..bit.len().min(8)]),
+        );
+        self.program_sram_verbose(bit, true)
+    }
+
+    /// Diagnostic-only: leave the FPGA alone, just read STAT via the
+    /// known-good Type-1 read path and emit a decoded report.
+    pub fn proxy_status(&mut self) -> Result<StatBits> {
+        eprintln!("[debug] proxy_status: reading IDCODE + STAT (no JPROGRAM)");
+        let idcode = self.read_idcode()?;
+        eprintln!(
+            "[debug]   IDCODE = 0x{:08X}{}",
+            idcode,
+            if idcode == 0x13631093 { " (XC7A100T)" } else { " (UNEXPECTED)" },
+        );
+        let raw = self.read_cfg_reg(cfg_reg::STAT)?;
+        let bits = StatBits::from_raw(raw);
+        eprintln!(
+            "[debug]   STAT=0x{:08X} DONE={} EOS={} INIT_B={} INIT_COMPL={} MMCM_LOCK={} ID_ERROR={} CRC_ERROR={}",
+            bits.raw,
+            bits.done as u8,
+            bits.eos as u8,
+            bits.init_b as u8,
+            bits.init_complete as u8,
+            bits.mmcm_lock as u8,
+            bits.id_error as u8,
+            bits.crc_error as u8,
+        );
+        eprintln!("[debug]   diagnosis: {}", bits.diagnose());
+        if bits.done {
+            // Also probe USER1: shift in a known IR and confirm the IR
+            // capture pattern came back as the documented `0x...01` (TAP
+            // capture always loads `01` into the two LSBs).
+            self.shift_ir(ir::USER1)?;
+            eprintln!("[debug]   IR=USER1 select ok (no exception)");
+        }
+        Ok(bits)
+    }
+
+    /// Diagnostic-only: shift `tx` bytes through USER1 and read `rx_len`
+    /// bytes back, **assuming** the bridge proxy is already configured.
+    /// Always verbose. Caller is responsible for proxy_load() first.
+    pub fn spi_raw(&mut self, tx: &[u8], rx_len: usize) -> Result<Vec<u8>> {
+        eprintln!(
+            "[debug] spi_raw: TX = {} ({} bytes), rx_len = {}",
+            hex::encode(tx),
+            tx.len(),
+            rx_len,
+        );
+        // Ensure the IR is set — this is a single shift, idempotent.
+        self.shift_ir(ir::USER1)?;
+        self.spi_xfer_verbose(tx, rx_len, true)
+    }
+
+    /// Diagnostic-only: dump the FPGA IR capture pattern after selecting
+    /// IR `ir_val`. The TAP's Capture-IR loads `...0_0001` into the IR
+    /// shift register (always), so this read-back probe confirms the
+    /// scan chain is intact and `ir_val` was accepted.
+    pub fn probe_ir_capture(&mut self, ir_val: u8) -> Result<u8> {
+        // Select IR, then immediately re-scan IR to read back the capture.
+        self.shift_ir(ir_val)?;
+        // Shift in 6 bits of TDI=1 with TMS pattern that re-enters Shift-IR.
+        let mut tdi = vec![true, true, true, true, false, false]; // → Shift-IR
+        let mut tms = vec![true, true, false, false, false, false];
+        let rdo_start = tdi.len();
+        for i in 0..6 {
+            tdi.push(true);
+            tms.push(i == 5);
+        }
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[true, false]);
+        let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, 6)?;
+        let stream = extract_byte_stream(&resp, 6);
+        let cap = stream.first().copied().unwrap_or(0) & 0x3F;
+        eprintln!(
+            "[debug] probe_ir_capture(0x{:02X}): IR capture = 0x{:02X} (expect 0x01 for healthy 7-series TAP)",
+            ir_val, cap,
+        );
+        Ok(cap)
     }
 
     /// Close (drops the handle).
@@ -903,34 +1114,100 @@ impl Dlc10 {
         Ok(decode_dr_32(&resp))
     }
 
-    /// Shift `tx` through USER1 and capture `rx_len` bytes back. The bridge
-    /// uses single-bit SPI: TDI = MOSI, TDO = MISO, TCK = CCLK.
-    fn spi_xfer(&mut self, tx: &[u8], rx_len: usize) -> Result<Vec<u8>> {
-        // Each xfer must re-enter Shift-DR through USER1. The IR was
-        // already set by the caller (program_flash), so we just toggle the
-        // DR cycle.
-        let total_bits = tx.len() * 8 + rx_len * 8;
+    /// Shift `tx` through `USER1` (the JTAG-to-SPI bridge BSCAN slot) and
+    /// capture `rx_len` bytes of MISO data after the last TX byte.
+    ///
+    /// **Protocol** (mirrors openFPGALoader `Xilinx::spi_put`):
+    ///
+    /// * Each TX byte is **bit-reversed** before being shifted onto TDI,
+    ///   because the bridge feeds TDI bits in arrival order onto MOSI, but
+    ///   SPI flash commands are defined MSB-first. JTAG TDI naturally
+    ///   transports LSB-first. So byte `0x9F` (READ_ID) becomes `0xF9`
+    ///   on the wire. Skipping this is what produces `JEDEC = FF FF FF`
+    ///   (the flash never sees a valid opcode).
+    /// * After the last TX byte, the bridge needs **one extra byte of
+    ///   shift activity** to clock out the trailing MISO bit. The driver
+    ///   inserts `rx_len + 1` zero bytes of TX padding when `rx_len > 0`.
+    /// * MISO arrives with a **1-bit JTAG capture delay** (Capture-DR
+    ///   injects one bit at the head of the stream). Each RX byte is
+    ///   reconstructed by `bitrev(captured[i+1] >> 1) | (captured[i+2] & 1)`
+    ///   — the canonical 1-bit-of-chain compensation from openFPGALoader.
+    /// * `total_bits` = `(tx.len() + rx_len + 1) * 8` when `rx_len > 0`,
+    ///   else just `tx.len() * 8`.
+    ///
+    /// `verbose=true` emits `[debug] ...` lines describing each step on
+    /// stderr, including raw captured bytes pre-reconstruction.
+    pub fn spi_xfer(&mut self, tx: &[u8], rx_len: usize) -> Result<Vec<u8>> {
+        self.spi_xfer_verbose(tx, rx_len, false)
+    }
+
+    /// Like `spi_xfer` but emits `eprintln!("[debug] ...")` instrumentation
+    /// when `verbose=true`.
+    pub fn spi_xfer_verbose(
+        &mut self,
+        tx: &[u8],
+        rx_len: usize,
+        verbose: bool,
+    ) -> Result<Vec<u8>> {
+        // Bit-reverse each TX byte: SPI is MSB-first, JTAG TDI is LSB-first.
+        let mut jtx: Vec<u8> = tx.iter().map(|&b| BIT_REV_TABLE[b as usize]).collect();
+        if rx_len > 0 {
+            // One extra padding byte for the 1-bit JTAG capture skew.
+            jtx.extend(std::iter::repeat(0u8).take(rx_len + 1));
+        }
+        let total_bits = jtx.len() * 8;
         let mut tdi = vec![true, true, true];
         let mut tms = vec![true, false, false];
         let rdo_start = tdi.len();
         for i in 0..total_bits {
-            // TDI is little-endian-of-bytes for tx range, then 0 for rx range.
-            let bit = if i < tx.len() * 8 {
-                (tx[i >> 3] & (1 << (i & 7))) != 0
-            } else {
-                false
-            };
+            let bit = (jtx[i >> 3] & (1 << (i & 7))) != 0;
             tdi.push(bit);
             tms.push(i == total_bits - 1);
         }
         tdi.extend_from_slice(&[true, true]);
         tms.extend_from_slice(&[true, false]);
+
+        if verbose {
+            eprintln!(
+                "[debug] spi_xfer tx={} bytes ({}) rx_len={} ; on-wire jtx={} bytes",
+                tx.len(),
+                hex::encode(tx),
+                rx_len,
+                jtx.len(),
+            );
+            eprintln!("[debug]   bit-reversed TX (on wire) = {}", hex::encode(&jtx[..tx.len()]));
+            if rx_len > 0 {
+                eprintln!("[debug]   padding bytes appended    = {}", rx_len + 1);
+            }
+            eprintln!("[debug]   total_bits = {} (Shift-DR)", total_bits);
+        }
+
         if rx_len == 0 {
             self.do_shift(&tdi, &tms)?;
             return Ok(Vec::new());
         }
         let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, total_bits)?;
-        Ok(extract_rx(&resp, total_bits, tx.len() * 8, rx_len * 8))
+        // Reconstruct: extract the contiguous TDO bytes from the packed
+        // 16-bit-LE response, then apply the 1-bit-shift + bit-reverse.
+        let captured = extract_byte_stream(&resp, total_bits);
+        if verbose {
+            eprintln!(
+                "[debug]   captured raw stream = {}",
+                hex::encode(&captured)
+            );
+        }
+        let rx_start = tx.len();
+        let mut rx = vec![0u8; rx_len];
+        for i in 0..rx_len {
+            let lo = captured.get(rx_start + i).copied().unwrap_or(0);
+            let hi = captured.get(rx_start + i + 1).copied().unwrap_or(0);
+            // openFPGALoader: reverseByte(jrx[i+1] >> 1) | (jrx[i+2] & 0x01)
+            rx[i] = BIT_REV_TABLE[(lo >> 1) as usize] | (hi & 0x01);
+        }
+        if verbose {
+            eprintln!("[debug]   reconstructed RX = {}", hex::encode(&rx));
+        }
+        Ok(rx)
     }
 
     fn spi_write_enable(&mut self) -> Result<()> {
@@ -1089,6 +1366,7 @@ fn decode_dr_32(resp: &[u8]) -> u32 {
 /// Extract `rx_len_bits` starting at `rx_start_bits` from the captured stream.
 /// Bits arrive in the same packed format as `decode_dr_32`: 16-bit LE words,
 /// LSB-first within each.
+#[allow(dead_code)]
 fn extract_rx(resp: &[u8], total_bits: usize, rx_start_bits: usize, rx_len_bits: usize) -> Vec<u8> {
     let words: Vec<u16> = (0..resp.len() / 2)
         .map(|i| u16::from_le_bytes([resp[2 * i], resp[2 * i + 1]]))
@@ -1102,6 +1380,25 @@ fn extract_rx(resp: &[u8], total_bits: usize, rx_start_bits: usize, rx_len_bits:
         let wi = src / 16;
         let bi = src % 16;
         if wi < words.len() && (words[wi] & (1 << bi)) != 0 {
+            out[i >> 3] |= 1 << (i & 7);
+        }
+    }
+    out
+}
+
+/// Repack the DLC10 16-bit-LE captured response into a contiguous byte
+/// stream, **as if** TDO had been clocked directly into a shift register
+/// LSB-first. The stream length is `total_bits.div_ceil(8)`.
+fn extract_byte_stream(resp: &[u8], total_bits: usize) -> Vec<u8> {
+    let n = total_bits.div_ceil(8);
+    let mut out = vec![0u8; n];
+    for i in 0..total_bits {
+        let wi = i / 16;
+        let bi = i % 16;
+        let lo = resp.get(2 * wi).copied().unwrap_or(0);
+        let hi = resp.get(2 * wi + 1).copied().unwrap_or(0);
+        let word = u16::from_le_bytes([lo, hi]);
+        if (word & (1 << bi)) != 0 {
             out[i >> 3] |= 1 << (i & 7);
         }
     }
@@ -1339,6 +1636,46 @@ mod tests {
         assert_eq!(p[2], 0x28018001); // READ_HDR for IDCODE (addr 0x0C)
         assert_eq!(p[3], 0x20000000); // NOP
         assert_eq!(p[4], 0x20000000); // NOP
+    }
+
+    #[test]
+    fn spi_jedec_command_bitrev() {
+        // READ_ID = 0x9F = 0b1001_1111 ; MSB-first on SPI.
+        // JTAG TDI shifts LSB-first; the bridge maps TDI bit → MOSI bit
+        // in arrival order. So byte 0x9F must be reversed to 0xF9 on
+        // the wire for the flash to see READ_ID.
+        assert_eq!(BIT_REV_TABLE[0x9F], 0xF9);
+        // WREN = 0x06 = 0b0000_0110 → reversed = 0x60.
+        assert_eq!(BIT_REV_TABLE[0x06], 0x60);
+        // Release Power-down 0xAB = 0b1010_1011 → reversed = 0xD5.
+        assert_eq!(BIT_REV_TABLE[0xAB], 0xD5);
+        // Reset Enable / Reset Device.
+        assert_eq!(BIT_REV_TABLE[0x66], 0x66);
+        assert_eq!(BIT_REV_TABLE[0x99], 0x99);
+    }
+
+    #[test]
+    fn extract_byte_stream_roundtrip() {
+        // Pack a known LSB-first bit stream into the 16-bit-LE container,
+        // then verify extract_byte_stream rebuilds the same bytes.
+        let original: [u8; 4] = [0x12, 0x34, 0xAB, 0xCD];
+        let bits = original.len() * 8;
+        let mut packed = vec![0u8; 2 * bits.div_ceil(16)];
+        for i in 0..bits {
+            let bit = (original[i >> 3] & (1 << (i & 7))) != 0;
+            if bit {
+                let wi = i / 16;
+                let bi = i % 16;
+                let off = 2 * wi;
+                let mut word = u16::from_le_bytes([packed[off], packed[off + 1]]);
+                word |= 1 << bi;
+                let bytes = word.to_le_bytes();
+                packed[off] = bytes[0];
+                packed[off + 1] = bytes[1];
+            }
+        }
+        let stream = extract_byte_stream(&packed, bits);
+        assert_eq!(stream, original);
     }
 
     /// Pin the per-word wire encoding (reverse_bits → LE byte-split)

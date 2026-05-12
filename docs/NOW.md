@@ -12,7 +12,9 @@
 - IDCODE 0x13631093 (XC7A100T) verified on silicon through pure-Rust path
 - cli/flash-spi rewritten to call dlc10::Dlc10::program_flash directly
 - Includes bscan_spi_xc7a100t.bit (MIT, quartiq) + Cypress FX2 firmware
-- Refs #590 (DSLogic JTAG diagnostics)
+- 2026-05-12: SPI bit-reverse + 1-bit JTAG capture skew fix; new diagnostic subcommands
+  `tri fpga proxy-load|proxy-status|spi-raw|ir-probe|flash-id-debug` for JEDEC=FF FF FF triage
+  (see docs/fpga/SPI_FLASH_DEBUG.md). Refs #590, Closes #592.
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
