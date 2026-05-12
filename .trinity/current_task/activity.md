@@ -356,3 +356,7 @@
 - **Commit:** feat(trios-coq): Single Source of Truth - 200+ verified theorems
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,trios-coq/Core/AlphaPhi.v,trios-coq/Core/CorePhi.v,trios-coq/Core/ExactIdentities.v,trios-coq/Kernel/FlowerE8Embedding.v,trios-coq/Kernel/KernelSpec.v,trios-coq/Kernel/Phi.v,trios-coq/Kernel/PhiAttractor.v,trios-coq/Kernel/PhiFloat.v,trios-coq/Kernel/Semantics.v,trios-coq/Kernel/Trit.v,trios-coq/Theorems/Catalog42.v,trios-coq/Theorems/GenIdempotency.v,trios-coq/Theorems/PhiDistance.v,trios-coq/Theorems/TernarySufficiency.v,trios-coq/Verilog/gf12.v,trios-coq/Verilog/gf16.v,trios-coq/Verilog/gf20.v,trios-coq/Verilog/gf24.v
 
+## 2026-05-12T16:56:23Z — gitbutler/workspace
+- **Commit:** feat(trios-coq): Cross-references to Single Source of Truth
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,trios-coq/README.md
+
