@@ -125,19 +125,43 @@ back to user pins.
 ## Files added / changed this session
 
 ```
-docker/Dockerfile.vivado     [refreshed for 2025.2 + expect AuthTokenGen]
+docker/Dockerfile.vivado     [refreshed for 2025.2 web installer + token]
 docker/install_config.txt    [new — ML Standard, Artix-7 + Spartan-7]
+docker/wi_authentication_key [gitignored — pre-generated token]
 docs/fpga/DOCKER_VIVADO_STATUS.md  [this file]
 docs/NOW.md                  [add 2025-05-12 build-status bullet]
+.gitignore                   [exclude wi_authentication_key + installer .bin]
 ```
 
-## Next concrete step
+Commit on `feat/dlc10-rust`: `237a6a73 feat(fpga): docker vivado 2025.2 image prep for FGG676 proxy` (Refs #592).
 
-1. **Refresh the Xilinx account password** so `xsetup -b AuthTokenGen`
-   accepts it.
-2. Free ~10 GiB on `/System/Volumes/Data`.
-3. Run `docker buildx build … docker/` per the recipe above.
-4. Run `cargo run --release -p tri -- fpga build-proxy-docker --install`.
-5. Verify with `tri fpga flash-id` → `20 BA 18`.
-6. Commit the freshly-built `bscan_spi_xc7a100t.bit` plus an updated
+## Build in progress
+
+`docker buildx build --platform linux/amd64 -t t27/vivado:webpack -f docker/Dockerfile.vivado --build-arg VIVADO_INSTALLER=FPGAs_AdaptiveSoCs_Unified_SDI_2025.2_1114_2157_Lin64.bin --load docker/` started 2026-05-12 20:57 ICT (in `nohup` background, log at `build/docker-vivado-proxy.log`).
+
+Status at last check (2026-05-12 21:09 ICT): authenticated against
+xilinx.com as `admin@t27.ai`, downloading 17.18 GiB of Artix-7 + Spartan-7
+device payloads at ~3-5 MiB/s under qemu emulation. ETA ~1.5 h to finish
+download, then ~30 min to install + trim.
+
+Host data volume started at 24 GiB free; expect to drop to ~5-7 GiB
+free at peak (during download + extract) and recover to ~10 GiB free
+after the post-install trim of non-`xc7a*` device data. If the build
+log shows `EXIT=0` at the tail and `docker images | grep t27/vivado`
+lists the image, proceed to the next step.
+
+## Next concrete step (once image build completes)
+
+1. `cargo run --release -p tri -- fpga build-proxy-docker --install`
+   — clones the openFPGALoader fork into `target/openfpgaloader-fork/`,
+   runs `docker run --platform linux/amd64 ... t27/vivado:webpack
+   make spiOverJtag_xc7a100tfgg676.bit.gz`, gunzips to
+   `fpga/tools/bscan_spi_xc7a100t.bit`, prints sha256.
+2. Verify the header explicitly: `strings fpga/tools/bscan_spi_xc7a100t.bit | grep '7a100tfgg676'`.
+3. Rebuild the `tri` binary so `include_bytes!` picks up the new
+   bitstream: `cargo build --release -p dlc10 -p tri`.
+4. Flash the proxy and read the SPI JEDEC ID:
+   `./target/release/tri fpga flash-id`
+   Expected output: `JEDEC ID: 20 BA 18` (Micron MT25QL128).
+5. Commit the freshly-built `bscan_spi_xc7a100t.bit` plus an updated
    `NOW.md` line; push to `origin/feat/dlc10-rust`; close #592.
