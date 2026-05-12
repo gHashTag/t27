@@ -26,6 +26,17 @@
   Exporting tile and site instances stage then OOMs at ~1.5 GiB RSS on a
   low-disk Apple Silicon box (<1 GiB free, 16 GiB RAM). Docker-Vivado
   path (commit ce0f7ae3) remains the recommended Mac flow. Closes #592.
+- 2026-05-12: openXC7 native build re-attempt with 29 GiB free disk.
+  bbaexport.py completes (71s real, 2.1 GiB peak RSS, .bba=462 MB).
+  bbasm assembles xc7a100tfgg676-1 chipdb (158 MB .bin) in ~6s. nextpnr-xilinx
+  routes a user-pin variant of the bridge cleanly (Fmax 254 MHz, post-routing
+  legalisation OK). **Blocker:** routing onto the dedicated configuration
+  pins (FCS_B=C8, MOSI=B19, MISO=A18) triggers `dict::at()` abort during
+  `Preparing clocking...` after IOB placement on `OPAD_X0Y10`
+  (GTP_CHANNEL_1_X130Y173). The proxy by design must drive these dedicated
+  pins via STARTUPE2+USRCCLKO, which openXC7 does not yet model.
+  See docs/fpga/OPENXC7_FGG676_STATUS.md. Docker-Vivado (ce0f7ae3) remains
+  the only path to a functional `bscan_spi_xc7a100tfgg676.bit`. Closes #592.
 
 **Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
 - 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
