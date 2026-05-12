@@ -194,7 +194,7 @@ Trinity CLARA implements four DARPA-specified neuro-symbolic composition pattern
 
 ### References
 
-1. Coq Development - t27/codebase/proofs/ (84 theorems verifying Trinity kernel)
+1. Coq Development - t27/coq + t27/proofs (28 .v files, 218 statements = 122 Theorem + 96 Lemma, 162 Qed, 32 Admitted, 11 Abort on 2026-05-12 audit). The folkloric "84 theorems" count is retired.
 2. AR Specifications - specs/ar/*.t27 (7 specifications, 93 tests each with bounded reasoning)
 3. VSA Performance - gen/verilog/vsa/*.v (hardware synthesis files with resource utilization)
 4. ML Specifications - specs/nn/*.t27 (neural network layers, attention mechanisms, RL)
