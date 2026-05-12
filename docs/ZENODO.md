@@ -1,8 +1,11 @@
 # Zenodo DOI Registry — Trinity / t27
 
-> **Audit 2026-05-12** — registry rewritten under R5-honest deep sweep PASS-4.
-> All March 2026 DOIs (`19224xxx`) were marked SUPERSEDED on Zenodo and replaced
-> by the May 2026 canonical set (`19227865`–`19227879`). Cite only the canonical
+> **Single source of truth (community-level):** [`https://zenodo.org/communities/trinity-s3ai/`](https://zenodo.org/communities/trinity-s3ai/) — 12 records (8 v5.0 description stubs B001–B008 + 4 D-series D004–D007). Any DOI not in this community is **outside** the canonical Trinity S³AI surface.
+>
+> **Audit 2026-05-12 (PASS-6)** — registry re-verified under R5-honest deep
+> sweep against `/api/communities/trinity-s3ai/records`. All March 2026
+> DOIs (`19224xxx`) were marked SUPERSEDED on Zenodo and replaced by the
+> May 2026 canonical set (`19227865`–`19227879`). Cite only the canonical
 > set in new work.
 
 ## Honest framing
@@ -10,21 +13,23 @@
 These DOIs are **software description stubs** on Zenodo, NOT peer-reviewed
 papers. The mathematical anchor `φ² + φ⁻² = 3` is an algebraic identity from
 `φ = (1+√5)/2`. Its Coq witness lives in this very repository
-([`gHashTag/t27/coq` + `proofs`](https://github.com/gHashTag/t27)) — **28 .v
-files, 218 statements (122 Theorem + 96 Lemma), 162 Qed, 32 Admitted, 11 Abort,
-audited 2026-05-12**.
+([`gHashTag/t27/coq`](https://github.com/gHashTag/t27/tree/main/coq)) —
+**10 .v files, 48 statements (6 Theorem + 42 Lemma), 35 Qed, 0 Admitted,
+audited 2026-05-12** (per the trinity-queen-hive skill canonical count;
+the broader `t27/proofs/` tree adds further work-in-progress lemmas
+outside the canonical `coq/` directory and is not counted here).
 
 For "always-latest of B007" use **concept DOI** `10.5281/zenodo.19227876` (it
 resolves to the current B007 version regardless of revisions).
 
-## Canonical collection (curated, 2026-05-12)
+## Canonical collection (curated, 2026-05-12, community `trinity-s3ai`)
 
-| DOI | Title | Type |
-|-----|-------|------|
-| [10.5281/zenodo.19227879](https://doi.org/10.5281/zenodo.19227879) | Trinity — Defensive Publications Collection (parent record) | Software description |
-| [10.5281/zenodo.18950696](https://doi.org/10.5281/zenodo.18950696) | gHashTag/trinity v2.0.3 — FPGA Autoregressive Ternary LLM | Software release |
+| DOI | Title | Type | In community |
+|-----|-------|------|--------------|
+| [10.5281/zenodo.19227879](https://doi.org/10.5281/zenodo.19227879) | Trinity S³AI Framework — Complete Research Collection v5.0 (parent record) | Software description | ✅ trinity-s3ai |
+| [10.5281/zenodo.18950696](https://doi.org/10.5281/zenodo.18950696) | gHashTag/trinity v2.0.3 — FPGA Autoregressive Ternary LLM | Software release | ❌ outside (legitimate Vasilev record; not attached to community) |
 
-## Individual bundles B001–B007 (canonical)
+## Individual bundles B001–B007 (canonical, all in community `trinity-s3ai`)
 
 | DOI | Bundle | Description |
 |-----|--------|-------------|
