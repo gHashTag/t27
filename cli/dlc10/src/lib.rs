@@ -338,24 +338,27 @@ impl Dlc10 {
 
     /// Read a 7-series configuration register the correct way:
     /// (1) drive CFG_IN with a Type-1 Read packet for the chosen register,
-    /// (2) switch IR to CFG_OUT, (3) shift the 32-bit value out.
+    /// (2) park in Run-Test/Idle for ≥12 TCK cycles so the FPGA's
+    ///     configuration FSM actually *executes* the queued read,
+    /// (3) switch IR to CFG_OUT and shift the 32-bit value out.
     ///
-    /// Implements the protocol from UG470 §6 / xc3sprog's `ReadRegister`.
+    /// Implements the protocol from UG470 §6 / xc3sprog's `ProgAlgXC7::readReg`.
+    /// The mandatory RTI parking step was the missing piece in v1: without
+    /// it, the read command sat in the input pipeline, the FDRO data register
+    /// stayed at reset value (0), and *every* register read back as 0.
     pub fn read_cfg_reg(&mut self, reg_addr: u8) -> Result<u32> {
         // Build the CFG_IN packet (big-endian on the wire).
         // 0xFFFFFFFF (dummy/bus-width) ; 0xAA995566 (sync) ; 0x20000000 (NOP) ;
-        // Type-1 read header ; 4x NOP padding for read pipeline.
+        // Type-1 read header ; 2x NOP (read pipeline flush).
         let read_hdr: u32 = (1u32 << 29)            // header type 1
             | (1u32 << 27)                          // opcode = read
             | (((reg_addr as u32) & 0x3FFF) << 13)  // addr
             | 1u32;                                 // word count = 1
-        let packet_be: [u32; 8] = [
+        let packet_be: [u32; 6] = [
             0xFFFFFFFF,
             0xAA995566,
             0x20000000,
             read_hdr,
-            0x20000000,
-            0x20000000,
             0x20000000,
             0x20000000,
         ];
@@ -370,13 +373,48 @@ impl Dlc10 {
 
         self.shift_ir(ir::CFG_IN)?;
         self.shift_dr(&shifted, shifted.len() * 8)?;
-        self.cycle_tck(1)?;
+        // Park in Run-Test/Idle so the config FSM consumes the queued read.
+        // xc3sprog uses 12; we use 32 to be conservative against slow TCK.
+        self.cycle_tck(32)?;
 
         self.shift_ir(ir::CFG_OUT)?;
         let raw = self.read_dr_32()?;
         // The FPGA returns 32 bits MSB-first, which our `read_dr_32`
         // captured LSB-first into the u32. Convert byte-wise + bit-reverse.
         Ok(swap_msb_lsb_u32(raw))
+    }
+
+    /// Self-test: read the configuration IDCODE register (addr 0x0C) via the
+    /// proper Type-1 read protocol. On a healthy XC7A100T this must return
+    /// `0x13631093` — same as the JTAG IDCODE. If `read_cfg_reg` ever returns
+    /// 0 here while `read_idcode` returns the expected value, the bug is in
+    /// the Type-1 read sequence (most likely missing RTI parking), not in
+    /// the device.
+    pub fn read_cfg_idcode(&mut self) -> Result<u32> {
+        self.read_cfg_reg(cfg_reg::IDCODE)
+    }
+
+    /// Poll the configuration STATUS register until `INIT_COMPLETE` (or
+    /// `INIT_B`) is high, with a timeout. UG470 §6 requires this between
+    /// `JPROGRAM` and `CFG_IN`; the chip is busy mass-erasing configuration
+    /// memory and will eat the bitstream silently if we shift too early.
+    pub fn wait_for_init(&mut self, timeout: Duration) -> Result<StatBits> {
+        let deadline = Instant::now() + timeout;
+        let mut last = StatBits::from_raw(0);
+        while Instant::now() < deadline {
+            let raw = self.read_cfg_reg(cfg_reg::STAT)?;
+            last = StatBits::from_raw(raw);
+            if last.init_b && last.init_complete {
+                return Ok(last);
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        Err(anyhow!(
+            "wait_for_init: timed out (last STAT=0x{:08X}, INIT_B={}, INIT_COMPLETE={})",
+            last.raw,
+            last.init_b as u8,
+            last.init_complete as u8,
+        ))
     }
 
     /// Program FPGA SRAM (volatile). Returns the final `STATUS` register.
@@ -450,8 +488,28 @@ impl Dlc10 {
             );
         }
 
+        // Step 1: JPROGRAM — asserts internal PROG_B, mass-erases config.
+        // The chip drives INIT_B low while erasing.
         self.shift_ir(ir::JPROGRAM)?;
         self.cycle_tck(64)?;
+
+        // Step 2: poll STAT.INIT_B (via the now-correct Type-1 read path)
+        // until the chip is ready. Without this poll we routinely shifted
+        // CFG_IN bytes into the void while INIT_B was still low.
+        match self.wait_for_init(Duration::from_secs(2)) {
+            Ok(s) => {
+                if verbose {
+                    eprintln!(
+                        "[verbose] post-JPROGRAM STAT=0x{:08X} (INIT_B={}, INIT_COMPLETE={})",
+                        s.raw, s.init_b as u8, s.init_complete as u8,
+                    );
+                }
+            }
+            Err(e) if verbose => {
+                eprintln!("[verbose] WARN: wait_for_init failed: {e}");
+            }
+            Err(_) => {}
+        }
 
         self.shift_ir(ir::JSHUTDOWN)?;
         self.cycle_tck(12)?;
@@ -471,7 +529,21 @@ impl Dlc10 {
         let status = self.read_dr_32()?;
 
         if verbose {
-            eprintln!("[verbose] raw CFG_OUT read = 0x{:08X}", status);
+            eprintln!("[verbose] raw CFG_OUT read (BYPASS+CFG_OUT) = 0x{:08X}", status);
+            // Now do a real STAT read via the corrected protocol so the
+            // verbose output also contains the trustworthy value.
+            match self.read_cfg_reg(cfg_reg::STAT) {
+                Ok(stat) => {
+                    let s = StatBits::from_raw(stat);
+                    eprintln!(
+                        "[verbose] final STAT (Type-1 read) = 0x{:08X} (DONE={}, EOS={}, INIT_B={}, MMCM_LOCK={}, CRC_ERROR={}, ID_ERROR={})",
+                        s.raw, s.done as u8, s.eos as u8, s.init_b as u8,
+                        s.mmcm_lock as u8, s.crc_error as u8, s.id_error as u8,
+                    );
+                    eprintln!("[verbose] diagnosis: {}", s.diagnose());
+                }
+                Err(e) => eprintln!("[verbose] WARN: final STAT read failed: {e}"),
+            }
         }
         Ok(status)
     }
@@ -1158,5 +1230,23 @@ mod tests {
         }
         assert_eq!(swap_msb_lsb_u32(0x80000000), 0x00000001);
         assert_eq!(swap_msb_lsb_u32(0x00000001), 0x80000000);
+    }
+
+    /// Pure (no-hardware) check: the Type-1 read-header construction we use
+    /// in `read_cfg_reg` must produce the well-known xc3sprog constants.
+    #[test]
+    fn type1_read_header_matches_xc3sprog() {
+        fn hdr(addr: u8) -> u32 {
+            (1u32 << 29)
+                | (1u32 << 27)
+                | (((addr as u32) & 0x3FFF) << 13)
+                | 1u32
+        }
+        // STAT (0x07) — well-known constant in xc3sprog and openFPGALoader.
+        assert_eq!(hdr(cfg_reg::STAT), 0x2800_E001);
+        // IDCODE (0x0C).
+        assert_eq!(hdr(cfg_reg::IDCODE), 0x2801_8001);
+        // CTL0 (0x05).
+        assert_eq!(hdr(cfg_reg::CTL0), 0x2800_A001);
     }
 }

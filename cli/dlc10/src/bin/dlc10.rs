@@ -40,7 +40,20 @@ enum Cmd {
     /// Decode the FPGA configuration state: STAT, CTL0, CTL1, BOOT_STS,
     /// IDCODE registers via the correct CFG_IN → CFG_OUT protocol.
     /// Use this after a failing `sram` attempt to diagnose DONE=LOW.
-    Debug,
+    Debug {
+        /// Read STAT *without* trying any JSTART/BYPASS toggle first.
+        /// Useful to confirm whether `program_sram` is leaving the chip
+        /// in DONE=HIGH state while only the post-JSTART readback path
+        /// is broken.
+        #[arg(long)]
+        no_jstart: bool,
+    },
+    /// Self-test the Type-1 read protocol by reading the configuration
+    /// IDCODE register (addr 0x0C) via CFG_IN+CFG_OUT. On a healthy
+    /// XC7A100T this MUST return 0x13631093 — same as the JTAG IDCODE.
+    /// If JTAG IDCODE matches but this reads 0x00000000, the bug is in
+    /// our read protocol (e.g. missing RTI parking), not in the chip.
+    IdcodeCfg,
 }
 
 fn main() -> Result<()> {
@@ -91,13 +104,40 @@ fn main() -> Result<()> {
             let s = cable.read_status()?;
             println!("STATUS: 0x{:08X}", s);
         }
-        Cmd::Debug => {
+        Cmd::IdcodeCfg => {
+            let jtag_id = cable.read_idcode()?;
+            let cfg_id = cable.read_cfg_idcode()?;
+            println!("JTAG IDCODE        : 0x{:08X}{}",
+                jtag_id,
+                if jtag_id == 0x13631093 { "  (XC7A100T)" } else { "  (UNEXPECTED)" });
+            println!("CFG IDCODE (0x0C)  : 0x{:08X}{}",
+                cfg_id,
+                if cfg_id == 0x13631093 { "  (XC7A100T)" } else { "  (mismatch!)" });
+            println!();
+            if jtag_id == 0x13631093 && cfg_id == 0x13631093 {
+                println!("=> Type-1 read protocol OK (CFG IDCODE matches JTAG IDCODE).");
+            } else if jtag_id == 0x13631093 && cfg_id != 0x13631093 {
+                println!("=> JTAG bus is healthy but Type-1 read protocol is BROKEN.");
+                println!("   The chip is responding on the JTAG instruction layer but");
+                println!("   the configuration read pipeline never produced a value.");
+                println!("   Common causes: missing RTI parking between CFG_IN write");
+                println!("   and CFG_OUT shift; wrong read header; bit-order error.");
+            } else {
+                println!("=> JTAG IDCODE itself is wrong — TAP walk / cable issue.");
+            }
+        }
+        Cmd::Debug { no_jstart } => {
             let idcode = cable.read_idcode()?;
             println!("== JTAG IDCODE ==");
             println!("  IDCODE              : 0x{:08X}{}",
                 idcode,
                 if idcode == 0x13631093 { "  (XC7A100T)" } else { "  (UNEXPECTED)" });
             println!();
+
+            if no_jstart {
+                println!("(--no-jstart: skipping any JSTART/BYPASS pulse before reading STAT)");
+                println!();
+            }
 
             let stat_raw = cable.read_cfg_reg(cfg_reg::STAT)?;
             let stat = StatBits::from_raw(stat_raw);
