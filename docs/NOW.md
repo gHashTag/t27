@@ -1,9 +1,19 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-08
+**Last updated:** 2026-05-12
 **Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz.
 
 ---
+
+## R5-PASS-4 Honest Audit (PR #594, Issue #595)
+
+- Retired the folkloric "84 theorems" claim across `research/` (actual corpus: 28 .v files, 218 statements, 162 Qed, 32 Admitted, 11 Abort — audit 2026-05-12)
+- Rewrote `docs/ZENODO.md` as a registry pointer aligned with [trios `zenodo-registry.md`](https://github.com/gHashTag/trios/blob/main/docs/infrastructure/zenodo-registry.md)
+- Bibliography honesty: commented out fake `zenodo.12345` placeholder, corrected `zenodo.19271888` mislabel (actually Koide-formula paper), and `zenodo.19377394` mislabel (actually Latin-American employment dataset) in `research/trinity-pellis-paper/G2_*`
+- Sibling PRs (R5-PASS-4): gHashTag/trinity#592 (merged), gHashTag/trinity-fpga#43 (merged)
+- Sibling PRs (R5-PASS-5): gHashTag/trinity#593, gHashTag/trinity-fpga#44 (new arXiv/ORCID class)
+- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264)
+
 
 ## Active Work
 

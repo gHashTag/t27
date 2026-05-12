@@ -89,7 +89,7 @@ Together they parametrize \textbf{18 additional observables}
 spanning quantum gravity, neural dynamics, and cosmology.
 The central named constant is $\aph = \ph^{-3}/2 = (\sqrt{5}-2)/2\approx0.118034$,
 coinciding with $\alpha_s(m_Z)=0.1180\pm0.0009$ within $0.03\sigma$.
-Machine-verified Coq proof base: \textbf{84 theorems}, 13 compiled \texttt{.v}~files
+Machine-verified Coq proof base: \textbf{audited 2026-05-12: 28 \texttt{.v} files, 218 statements (122 Theorem + 96 Lemma), 162 Qed, 32 Admitted, 11 Abort}. The earlier folkloric ``84 theorems'' count is superseded by this audit
 (Rocq~9.1.1 + \texttt{coq-interval}$\ge$4.8.0, 0~compilation errors).%
 \footnote{Repository: \url{https://github.com/gHashTag/t27}.
 Monte Carlo significance: $p=1.47\times10^{-53}$ (Poisson, $\mu_0\approx0.4$).
@@ -484,7 +484,7 @@ in the Trinity constants. \textbf{84 clean theorems are stronger than
 \end{tikzpicture}
 \caption{L1--L7 derivation hierarchy. Each level adds mathematical structure;
 formulas at higher levels derive from lower levels via composition.
-Total: 84 theorems across 7 levels.}
+Total: audited 2026-05-12 as 218 statements (162 Qed, 32 Admitted, 11 Abort); the earlier ``84 theorems / 7 levels'' shorthand is retired.}
 \label{fig:levels}
 \end{figure}
 
@@ -764,7 +764,7 @@ reproducible via \texttt{make -f CoqMakefile} (Rocq~9.1.1,
 The ML search engine (Python, 2400+ lines) generates Trinity monomial
 candidates, which are then certified in Coq. This AR+ML composition
 demonstrates the CLARA technical objective of verifiable reasoning
-at scale: 84 theorems, L1-L7 hierarchy, depth $\le$ 7 levels.
+at scale: 218 audited statements (2026-05-12), L1-L7 hierarchy, depth $\le$ 7 levels.
 
 % ============================================================
 \section*{13.\quad Conclusion}
