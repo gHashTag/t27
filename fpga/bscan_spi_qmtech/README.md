@@ -72,6 +72,53 @@ make install    # copies to ../tools/bscan_spi_xc7a100t.bit
 `XRAY_DATABASE_DIR` must point at a built prjxray database for the
 `artix7` family.
 
+## openXC7 path on Mac/Linux (no Vivado, no chipdb shipped)
+
+Homebrew ships `nextpnr-himbaechel` without any 7-series chipdb, so on a
+fresh machine `tri fpga build-proxy` will fail with
+`Invalid device xc7a100t-fgg676-2`. The `tri` CLI provides a one-shot
+helper that clones [`openXC7/nextpnr-xilinx`](https://github.com/openXC7/nextpnr-xilinx),
+builds the chipdb (`.bba`) for `xc7a100t`, and installs it under
+`~/.local/share/nextpnr/himbaechel-xilinx/`.
+
+```sh
+# One-time setup (≈20–40 min on Apple Silicon, ~1 GiB checkout).
+tri fpga setup-openxc7-chipdb
+
+# Then build + install the proxy bitstream (≈1 min).
+tri fpga build-proxy --install
+```
+
+`build-proxy` auto-detects a chipdb in the following order — first hit wins:
+
+1. `$HOME/.local/share/nextpnr/himbaechel-xilinx/xc7a100t*.bba`
+2. `/opt/homebrew/share/nextpnr/himbaechel-xilinx/xc7a100t*.bba`
+3. `/usr/local/share/nextpnr/himbaechel-xilinx/xc7a100t*.bba`
+4. `<repo>/build/fpga/xc7a100t*.bba`
+
+You can override discovery with `tri fpga build-proxy --chipdb <path>`.
+
+### Flags
+
+| Flag | Default | Notes |
+| --- | --- | --- |
+| `--prefix <DIR>` | `~/.local/share/nextpnr/himbaechel-xilinx/` | Where the `.bba` is installed. |
+| `--family <NAME>` | `xc7a100t` | Build a different 7-series chipdb if you need one. |
+| `--work-dir <DIR>` | `<repo>/target/nextpnr-xilinx/` | Where the upstream repo is cloned + built. |
+| `--git-ref <REF>` | `master` | Pin to a tag/SHA for reproducibility. |
+
+### Troubleshooting
+
+* **`nextpnr-himbaechel: Invalid device xc7a100t-fgg676-2`** — chipdb not
+  on disk; run `tri fpga setup-openxc7-chipdb` and re-run `build-proxy`.
+* **`no nextpnr-himbaechel chipdb found for xc7a100t`** — the file exists
+  in a non-standard location. Pass it via `--chipdb <path>`.
+* **Setup hangs on submodule fetch** — the upstream repo vendors
+  `prjxray-db` (~1 GiB). Make sure you have a stable network and enough
+  free disk under `target/`.
+* **Want to use an existing `xc7a100t.bba`** — drop it under any of the
+  search paths above (or pass `--chipdb`); no rebuild needed.
+
 ## Alternative — Vivado-based build via openFPGALoader fork
 
 If you have access to Vivado (Linux/Windows; **not available on macOS**),

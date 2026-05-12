@@ -102,6 +102,34 @@ pub enum FpgaCmd {
         /// `bscan_spi_xc7a100tfgg676.bit`. Defaults to `<src>/build/`.
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Explicit path to a pre-built nextpnr-himbaechel chipdb (`.bba`).
+        /// If omitted, standard locations are scanned (see
+        /// `tri fpga setup-openxc7-chipdb` for installation).
+        #[arg(long)]
+        chipdb: Option<PathBuf>,
+    },
+    /// Clone the openXC7 `nextpnr-xilinx` repo and build a chipdb (`.bba`)
+    /// for the requested 7-series part, then install it into
+    /// `~/.local/share/nextpnr/himbaechel-xilinx/`.
+    ///
+    /// The standard build takes 20–40 minutes on Apple Silicon and downloads
+    /// the prjxray database as a submodule (~1 GiB). No Python is invoked
+    /// from this CLI; the upstream CMake/ninja project is used as-is.
+    SetupOpenxc7Chipdb {
+        /// Installation prefix. Defaults to
+        /// `~/.local/share/nextpnr/himbaechel-xilinx/`.
+        #[arg(long)]
+        prefix: Option<PathBuf>,
+        /// 7-series family. Defaults to `xc7a100t`.
+        #[arg(long, default_value = "xc7a100t")]
+        family: String,
+        /// Working directory for the clone + build. Defaults to
+        /// `<repo>/target/nextpnr-xilinx/`.
+        #[arg(long)]
+        work_dir: Option<PathBuf>,
+        /// Git ref (branch / tag / SHA) of `openXC7/nextpnr-xilinx` to use.
+        #[arg(long, default_value = "master")]
+        git_ref: String,
     },
 }
 
@@ -118,7 +146,18 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         FpgaCmd::SpiRaw { hex, rx } => spi_raw(hex, *rx),
         FpgaCmd::IrProbe { ir_hex } => ir_probe(ir_hex),
         FpgaCmd::FlashIdDebug => flash_id_debug(),
-        FpgaCmd::BuildProxy { install, src, out } => build_proxy(*install, src.as_ref(), out.as_ref()),
+        FpgaCmd::BuildProxy {
+            install,
+            src,
+            out,
+            chipdb,
+        } => build_proxy(*install, src.as_ref(), out.as_ref(), chipdb.as_ref()),
+        FpgaCmd::SetupOpenxc7Chipdb {
+            prefix,
+            family,
+            work_dir,
+            git_ref,
+        } => setup_openxc7_chipdb(prefix.as_ref(), family, work_dir.as_ref(), git_ref),
     }
 }
 
@@ -408,6 +447,7 @@ fn build_proxy(
     install: bool,
     src: Option<&PathBuf>,
     out: Option<&PathBuf>,
+    chipdb: Option<&PathBuf>,
 ) -> Result<()> {
     let root = repo_root()?;
     let src_dir = match src {
@@ -418,6 +458,27 @@ fn build_proxy(
         Some(p) => p.clone(),
         None => src_dir.join("build"),
     };
+
+    let chipdb_path = match chipdb {
+        Some(p) => {
+            if !p.is_file() {
+                bail!("--chipdb path is not a file: {}", p.display());
+            }
+            p.clone()
+        }
+        None => detect_chipdb(&root, "xc7a100t")?
+            .ok_or_else(|| anyhow!(
+                "no nextpnr-himbaechel chipdb found for xc7a100t.\n  \
+                 Searched:\n    \
+                 ~/.local/share/nextpnr/himbaechel-xilinx/\n    \
+                 /opt/homebrew/share/nextpnr/himbaechel-xilinx/\n    \
+                 /usr/local/share/nextpnr/himbaechel-xilinx/\n    \
+                 <repo>/build/fpga/\n  \
+                 Run `tri fpga setup-openxc7-chipdb` first (≈20–40 min),\n  \
+                 or pass an explicit `--chipdb <path>` to a pre-built `.bba`."
+            ))?,
+    };
+    eprintln!("[build-proxy] chipdb : {}", chipdb_path.display());
 
     let verilog = src_dir.join("bscan_spi_qmtech.v");
     let xdc = src_dir.join("bscan_spi_qmtech.xdc");
@@ -450,17 +511,23 @@ fn build_proxy(
     run_step("yosys", &["-q", "-s", ys_path.to_str().unwrap()], &out_dir)?;
 
     // ---- Stage 2: nextpnr-himbaechel place & route --------------------
+    let chipdb_str = chipdb_path.to_str()
+        .ok_or_else(|| anyhow!("chipdb path is not valid UTF-8: {:?}", chipdb_path))?;
+    let xdc_arg = format!("xdc={}", xdc.display());
+    let fasm_arg = format!("fasm={}", fasm_path.display());
     run_step(
         "nextpnr-himbaechel",
         &[
             "--device",
             "xc7a100t-fgg676-2",
+            "--chipdb",
+            chipdb_str,
             "--json",
             json_path.to_str().unwrap(),
             "-o",
-            &format!("xdc={}", xdc.display()),
+            &xdc_arg,
             "-o",
-            &format!("fasm={}", fasm_path.display()),
+            &fasm_arg,
         ],
         &out_dir,
     )?;
@@ -535,5 +602,187 @@ fn build_proxy(
         eprintln!("    cargo build -p tri --release");
     }
 
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Chipdb discovery + openXC7 nextpnr-xilinx setup helper.
+// ---------------------------------------------------------------------------
+
+/// Return `$HOME` as a `PathBuf` or `None` if unavailable.
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
+}
+
+/// Standard locations where a himbaechel-xilinx chipdb `.bba` may live.
+/// Order matters: user-local first, then platform packages, then repo.
+fn chipdb_search_dirs(repo: &std::path::Path) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if let Some(home) = home_dir() {
+        dirs.push(home.join(".local/share/nextpnr/himbaechel-xilinx"));
+        dirs.push(home.join(".local/share/nextpnr"));
+    }
+    dirs.push(PathBuf::from("/opt/homebrew/share/nextpnr/himbaechel-xilinx"));
+    dirs.push(PathBuf::from("/opt/homebrew/share/nextpnr"));
+    dirs.push(PathBuf::from("/usr/local/share/nextpnr/himbaechel-xilinx"));
+    dirs.push(PathBuf::from("/usr/local/share/nextpnr"));
+    dirs.push(repo.join("build").join("fpga"));
+    dirs
+}
+
+/// Attempt to find a chipdb file for `family` (e.g. `xc7a100t`). Returns
+/// `Ok(Some(path))` if one matches, `Ok(None)` if nothing was found and
+/// `Err` only on I/O errors that are not "does not exist".
+fn detect_chipdb(repo: &std::path::Path, family: &str) -> Result<Option<PathBuf>> {
+    // Common filename variants produced by openXC7 / himbaechel-xilinx.
+    let candidates: Vec<String> = vec![
+        format!("{family}.bba"),
+        format!("{family}-fgg676.bba"),
+        format!("{family}-fgg676-2.bba"),
+    ];
+    for dir in chipdb_search_dirs(repo) {
+        for name in &candidates {
+            let p = dir.join(name);
+            match p.try_exists() {
+                Ok(true) if p.is_file() => return Ok(Some(p)),
+                Ok(_) => continue,
+                Err(e) => {
+                    eprintln!(
+                        "[chipdb] warning: cannot stat {}: {}",
+                        p.display(),
+                        e
+                    );
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn setup_openxc7_chipdb(
+    prefix: Option<&PathBuf>,
+    family: &str,
+    work_dir: Option<&PathBuf>,
+    git_ref: &str,
+) -> Result<()> {
+    if family.is_empty() {
+        bail!("--family must be non-empty (e.g. xc7a100t)");
+    }
+    let root = repo_root()?;
+    let work = match work_dir {
+        Some(p) => p.clone(),
+        None => root.join("target").join("nextpnr-xilinx"),
+    };
+    let dest_dir = match prefix {
+        Some(p) => p.clone(),
+        None => home_dir()
+            .ok_or_else(|| anyhow!("$HOME not set; pass --prefix explicitly"))?
+            .join(".local/share/nextpnr/himbaechel-xilinx"),
+    };
+
+    eprintln!("[setup-chipdb] family   : {}", family);
+    eprintln!("[setup-chipdb] git ref  : {}", git_ref);
+    eprintln!("[setup-chipdb] workdir  : {}", work.display());
+    eprintln!("[setup-chipdb] install  : {}", dest_dir.display());
+    eprintln!("[setup-chipdb] note     : full chipdb build takes ≈20–40 min on Apple Silicon");
+
+    // ---- Stage 1: clone (or update) openXC7/nextpnr-xilinx ------------
+    if let Some(parent) = work.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create {}", parent.display()))?;
+    }
+    if work.join(".git").is_dir() {
+        eprintln!("[setup-chipdb] existing checkout — fetching {}", git_ref);
+        run_step("git", &["fetch", "--depth=1", "origin", git_ref], &work)?;
+        run_step("git", &["checkout", "FETCH_HEAD"], &work)?;
+    } else {
+        run_step(
+            "git",
+            &[
+                "clone",
+                "--recurse-submodules",
+                "--shallow-submodules",
+                "--depth=1",
+                "--branch",
+                git_ref,
+                "https://github.com/openXC7/nextpnr-xilinx",
+                work.to_str()
+                    .ok_or_else(|| anyhow!("workdir is not valid UTF-8"))?,
+            ],
+            &root,
+        )?;
+    }
+
+    // ---- Stage 2: configure (cmake) ----------------------------------
+    let build_dir = work.join("build");
+    std::fs::create_dir_all(&build_dir)
+        .with_context(|| format!("create {}", build_dir.display()))?;
+    let cmake_arch = format!("-DARCH=xilinx");
+    let cmake_family = format!("-DXILINX_FAMILY={family}");
+    run_step(
+        "cmake",
+        &[
+            "-S",
+            work.to_str()
+                .ok_or_else(|| anyhow!("workdir is not valid UTF-8"))?,
+            "-B",
+            build_dir.to_str()
+                .ok_or_else(|| anyhow!("build dir is not valid UTF-8"))?,
+            &cmake_arch,
+            &cmake_family,
+            "-DCMAKE_BUILD_TYPE=Release",
+        ],
+        &work,
+    )?;
+
+    // ---- Stage 3: build chipdb target ---------------------------------
+    // openXC7 exposes a `chipdb-xc7a100t` (and similar) target that emits
+    // a `.bba` next to the build tree.
+    let target = format!("chipdb-{family}");
+    let jobs = std::thread::available_parallelism()
+        .map(|n| n.get().to_string())
+        .unwrap_or_else(|_| String::from("2"));
+    run_step(
+        "cmake",
+        &[
+            "--build",
+            build_dir.to_str()
+                .ok_or_else(|| anyhow!("build dir is not valid UTF-8"))?,
+            "--target",
+            &target,
+            "--parallel",
+            &jobs,
+        ],
+        &work,
+    )?;
+
+    // ---- Stage 4: locate emitted .bba and install --------------------
+    let bba_name = format!("{family}.bba");
+    let candidates = [
+        build_dir.join(&bba_name),
+        build_dir.join("xilinx").join(&bba_name),
+        build_dir.join("share").join("himbaechel").join("xilinx").join(&bba_name),
+    ];
+    let produced = candidates
+        .iter()
+        .find(|p| p.is_file())
+        .cloned()
+        .ok_or_else(|| anyhow!(
+            "chipdb target succeeded but `{bba_name}` was not found in expected locations:\n  {}",
+            candidates.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join("\n  ")
+        ))?;
+
+    std::fs::create_dir_all(&dest_dir)
+        .with_context(|| format!("create {}", dest_dir.display()))?;
+    let installed = dest_dir.join(&bba_name);
+    std::fs::copy(&produced, &installed)
+        .with_context(|| format!("install {} -> {}", produced.display(), installed.display()))?;
+    let size = std::fs::metadata(&installed)?.len();
+    println!(
+        "[setup-chipdb] OK  {} ({:.1} MiB)",
+        installed.display(),
+        size as f64 / 1024.0 / 1024.0
+    );
+    eprintln!("[setup-chipdb] next: `tri fpga build-proxy --install`");
     Ok(())
 }
