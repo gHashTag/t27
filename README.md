@@ -7,6 +7,8 @@
 
 **Language:** [English](README.md) | [Русский](docs/README_RU.md)
 
+> **Canonical Zenodo SOT:** [zenodo.org/communities/trinity-s3ai](https://zenodo.org/communities/trinity-s3ai/). The GoldenFloat badge above (19456875) is a legitimate Vasilev deposit but lives **outside** the curated S³AI v5.0 record set; see [docs/ZENODO.md](docs/ZENODO.md) for the canonical 12-record bundle and aliases.
+
 The canonical source of truth for Trinity S3AI.
 `.t27` specs in → Zig, Verilog, C out.
 

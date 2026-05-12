@@ -5,6 +5,18 @@
 
 ---
 
+## R5-PASS-6 Honest Audit (Issue #596 — community trinity-s3ai SOT alignment)
+
+- Operator directive: `«один источник правды и все мои zenodo здесь https://zenodo.org/communities/trinity-s3ai/»`.
+- Verified via Zenodo REST `/api/communities/trinity-s3ai/records?size=25` that the community contains EXACTLY 12 records (B001–B008 = 19227865/67/69/71/73/75/77/79; D004–D007 = 19020270/75/80/82; concept DOI B007 = 19227876).
+- t27 changes:
+  - `README.md`: canonical SOT pointer next to GoldenFloat 19456875 badge with explicit note that GoldenFloat is legitimate Vasilev authorship but lives OUTSIDE the curated S³AI v5.0 record set.
+  - `CITATION.cff`: corrected mangled ORCID `0009-0008-429-6159-6159-6159` → `0009-0008-4294-6159`; SOT pointer added.
+  - `docs/ZENODO.md`: parent title corrected ("Defensive Pubs" → "S³AI Framework v5.0"); folklore Coq corpus figure "28 .v files / 218 stmts" replaced with verified "10 .v files / 48 stmts / 35 Qed / 0 Admitted"; canonical SOT pointer added.
+- No Category C foreign-DOIs were present in t27 — pre-existing PASS-4/5 honest-annotation comments in `research/trinity-pellis-paper/G2_*` for `19271888` (Koide) and `19377394` (Latin-American employment) are preserved.
+- Companion PASS-6 PRs: gHashTag/trinity#594, gHashTag/trinity-fpga#45, gHashTag/trios#755.
+- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264).
+
 ## R5-PASS-4 Honest Audit (PR #594, Issue #595)
 
 - Retired the folkloric "84 theorems" claim across `research/` (actual corpus: 28 .v files, 218 statements, 162 Qed, 32 Admitted, 11 Abort — audit 2026-05-12)

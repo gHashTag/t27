@@ -3,14 +3,19 @@ message: "If you use T27/GoldenFloat in research or software, please cite it as 
 title: "GoldenFloat: φ-Optimal Floating-Point Formats for Ternary Computing (T27)"
 version: 0.1.0
 date-released: 2026-04-07
-orcid: 0009-0008-429-6159-6159-6159
 authors:
   - family-names: Vasilev
     given-names: Dmitrii
+    orcid: "https://orcid.org/0009-0008-4294-6159"
     affiliation: Trinity Computing
 license: MIT
 repository-code: https://github.com/gHashTag/t27
 url: https://github.com/gHashTag/t27
+# Canonical Zenodo source of truth (community-level):
+#   https://zenodo.org/communities/trinity-s3ai/
+# This record (GoldenFloat v0.1.0, 10.5281/zenodo.19456875) is a
+# legitimate Vasilev record but is NOT currently attached to the
+# trinity-s3ai community. PASS-6 R5-honest audit 2026-05-12.
 abstract: >
   GoldenFloat (GF) is a family of seven narrow floating-point
   formats parameterized by φ ≈ 1.618. We prove that φ is
