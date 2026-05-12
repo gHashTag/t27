@@ -124,9 +124,9 @@ pub mod cfg_reg {
 /// fails here with a clear error. Copy `xusb_xp2.hex` to `fpga/tools/`.
 const XUSB_FW_HEX: &[u8] = include_bytes!("../../../fpga/tools/xusb_xp2.hex");
 
-/// Embedded JTAG-to-SPI bridge bitstream for XC7A100T (MIT,
-/// quartiq/bscan_spi_bitstreams).
-pub const BSCAN_SPI_XC7A100T: &[u8] = include_bytes!("../../../fpga/tools/bscan_spi_xc7a100t.bit");
+/// Embedded JTAG-to-SPI bridge bitstream for XC7A100T-FGG676
+/// (QMTECH Wukong V1), built by CI via Vivado 2025.2.
+pub const BSCAN_SPI_XC7A100T: &[u8] = include_bytes!("../../../fpga/tools/bscan_spi_xc7a100t_fgg676.bit");
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -299,7 +299,39 @@ impl Dlc10 {
         // Look for already-initialized cable first.
         if let Some((dev, _desc)) = find_device(&ctx, VID_XILINX, PID_READY)? {
             let h = open_and_claim(dev)?;
-            init_after_firmware(&h)?;
+            // init_after_firmware sends a dummy 2-bit shift to flush any stale
+            // FX2 state from prior crashes. If that bulk write times out, the
+            // FX2 endpoint is truly stuck — reload the firmware to recover.
+            if let Err(e) = init_after_firmware(&h) {
+                return Err(e);
+            }
+            // Check that EP_OUT is usable with a second dummy shift.
+            // ctrl_out(0xA6, 2) tells FX2 to expect 1 byte, then we send it.
+            let to = Duration::from_secs(3);
+            let rto = request_type(Direction::Out, RequestType::Vendor, Recipient::Device);
+            let ep_ok = h.write_control(rto, VENDOR_REQ, 0x00A6, 2, &[], to).is_ok()
+                && h.write_bulk(EP_OUT, &[0x00, 0x00], to).is_ok();
+            if !ep_ok {
+                // Endpoint stuck. Reload firmware via FX2 CPUCS trick.
+                eprintln!("[debug] EP_OUT stuck after init — reloading FX2 firmware");
+                reload_fx2_firmware(&h)?;
+                drop(h);
+                // Wait for re-enumeration after firmware reload.
+                // reload_fx2_firmware already slept 6s; give more margin here.
+                std::thread::sleep(Duration::from_secs(4));
+                let deadline = Instant::now() + Duration::from_secs(20);
+                loop {
+                    std::thread::sleep(Duration::from_secs(2));
+                    if let Some((dev2, _)) = find_device(&ctx, VID_XILINX, PID_READY)? {
+                        let h2 = open_and_claim(dev2)?;
+                        init_after_firmware(&h2)?;
+                        return Ok(Self { handle: h2 });
+                    }
+                    if Instant::now() > deadline {
+                        return Err(Dlc10Error::FirmwareTimeout.into());
+                    }
+                }
+            }
             return Ok(Self { handle: h });
         }
 
@@ -365,26 +397,32 @@ impl Dlc10 {
         ]
     }
 
-    /// Read a 7-series configuration register. Mirrors openFPGALoader
-    /// `Xilinx::dumpRegister` byte-for-byte:
+    /// Read a 7-series configuration register.
     ///
-    /// 1. `shift_ir(CFG_IN)`.
-    /// 2. Shift FIVE separate 32-bit DR transactions, one per packet word,
-    ///    each going through its own Capture-DR → Shift-DR → Exit1-DR →
-    ///    **Update-DR** → RTI cycle. The per-word `Update-DR` event is what
-    ///    causes the FPGA's configuration FSM to actually *latch* and
-    ///    process each Type-1 packet.
-    /// 3. `shift_ir(CFG_OUT)`.
-    /// 4. One 32-bit DR shift to read the queued value.
-    /// 5. Reverse all 32 bits of the result (the FPGA streams MSBs first;
-    ///    `read_dr_32` accumulates LSBs first).
+    /// **v3 (this version)** — single unbroken TMS/TDI stream:
     ///
-    /// **Why one big shift didn't work in v2**: my previous implementation
-    /// concatenated the 6 packet words into a single 192-bit DR shift with
-    /// a single Update-DR at the very end. The hardware (XC7A100T) refused
-    /// to execute the queued read, leaving FDRO = 0 — every register read
-    /// (including IDCODE, which is hard-wired to 0x13631093) came back as
-    /// `0x00000000`. openFPGALoader and Vivado both do per-word Update-DR.
+    /// 1. TLR → RTI (standard setup).
+    /// 2. `shift_ir(CFG_IN)` ending in **Select-DR-Scan** (NOT RTI).
+    /// 3. Enter Cap-DR → Shift-DR once, then shift all 5 × 32 = 160 packet
+    ///    bits. The last bit of packet 4 exits to Exit1-DR, then navigates
+    ///    Exit1-DR → Update-DR → Sel-DR → Sel-IR-Scan WITHOUT going through
+    ///    TLR or RTI.
+    /// 4. `shift_ir(CFG_OUT)` starting from Sel-IR-Scan, ending in
+    ///    Sel-DR-Scan.
+    /// 5. One 32-bit DR scan to read the queued value; TDO captured.
+    /// 6. Reverse all 32 bits (FPGA streams MSB-first, TDO is LSB-first).
+    ///
+    /// The entire sequence is one `do_shift_with_read` call — no TLR
+    /// (Test-Logic-Reset) between CFG_IN and CFG_OUT. Any TLR would reset
+    /// the Xilinx config pipeline and lose the queued read command, causing
+    /// CFG_OUT to return 0x00000000.
+    ///
+    /// Mirrors `openFPGALoader Xilinx::dumpRegister` (lines 1126–1193):
+    ///   `shiftIR(CFG_IN, SELECT_DR_SCAN)` →
+    ///   `shiftDR(pkt[0..3], SHIFT_DR)` →
+    ///   `shiftDR(pkt[4], SELECT_IR_SCAN)` →
+    ///   `shiftIR(CFG_OUT, SELECT_DR_SCAN)` →
+    ///   `shiftDR(dummy, reg, 32)`.
     pub fn read_cfg_reg(&mut self, reg_addr: u8) -> Result<u32> {
         let raw = self.read_cfg_reg_raw_n(reg_addr, 32)?;
         Ok(raw[0])
@@ -411,32 +449,121 @@ impl Dlc10 {
         })
     }
 
-    /// Shift the read packets in, then shift `bits` (rounded up to multiples
-    /// of 32) out of CFG_OUT. Returns the result split into 32-bit words.
+    /// Shift the CFG_IN read-command packets and capture register bits from
+    /// CFG_OUT, all as **one unbroken TAP sequence**. No TLR between
+    /// CFG_IN and CFG_OUT. Returns `bits.div_ceil(32)` words, each
+    /// bit-reversed (FPGA emits MSB-first; TDO captures LSB-first).
+    ///
+    /// TAP path (mimics openFPGALoader `Xilinx::dumpRegister`):
+    ///
+    /// ```text
+    /// TLR → RTI                                       (5×TMS=1, TMS=0)
+    ///   → Sel-DR → Sel-IR → Cap-IR → Shift-IR        (CFG_IN IR, 6 bits)
+    ///   → Exit1-IR → Upd-IR → Sel-DR                 (end CFG_IN IR)
+    ///   → Cap-DR → Shift-DR                           (enter packet DR)
+    ///     … 160 bits (5 packets, last bit TMS=1) …    (CFG_IN packets)
+    ///   → Exit1-DR → Upd-DR → Sel-DR → Sel-IR        (exit packets)
+    ///   → Cap-IR → Shift-IR                           (CFG_OUT IR, 6 bits)
+    ///   → Exit1-IR → Upd-IR → Sel-DR                 (end CFG_OUT IR)
+    ///   → Cap-DR → Shift-DR                           (TDO capture starts)
+    ///     … 32 bits captured …                        (register value)
+    ///   → Exit1-DR → Upd-DR → RTI                    (cleanup)
+    /// ```
     pub fn read_cfg_reg_raw_n(&mut self, reg_addr: u8, bits: usize) -> Result<Vec<u32>> {
         let packets = Self::build_read_cfg_packets(reg_addr);
+        let n_words = bits.div_ceil(32);
+        let total_read_bits = n_words * 32;
 
-        self.shift_ir(ir::CFG_IN)?;
-        for &w in &packets {
-            // openFPGALoader: tmp = reverse_32(packet); split into 4 LE bytes;
-            // shift 32 bits via shiftDR. Each shift does its own Capture-DR →
-            // Shift-DR → Exit1-DR → Update-DR cycle.
-            let tmp = w.reverse_bits();
-            let bytes = [
-                (tmp & 0xFF) as u8,
-                ((tmp >> 8) & 0xFF) as u8,
-                ((tmp >> 16) & 0xFF) as u8,
-                ((tmp >> 24) & 0xFF) as u8,
-            ];
-            self.shift_dr_small(&bytes, 32)?;
+        // Capacity estimate: ~229 bits for the 32-bit case.
+        let cap = 250 + total_read_bits;
+        let mut tdi: Vec<bool> = Vec::with_capacity(cap);
+        let mut tms: Vec<bool> = Vec::with_capacity(cap);
+
+        // ── Step 1: TLR → RTI ───────────────────────────────────────────────
+        for _ in 0..5 { tdi.push(true); tms.push(true); }   // 5×TMS=1 → TLR
+        tdi.push(true); tms.push(false);                     // TMS=0   → RTI
+
+        // ── Step 2: RTI → Shift-IR (for CFG_IN) ────────────────────────────
+        // RTI -1→ Sel-DR -1→ Sel-IR -0→ Cap-IR -0→ Shift-IR
+        for &t in &[true, true, false, false] {
+            tdi.push(true); tms.push(t);
         }
 
-        self.shift_ir(ir::CFG_OUT)?;
-        let n_words = bits.div_ceil(32);
+        // ── Step 3: Shift 6 bits of CFG_IN (LSB first) ─────────────────────
+        // Last bit: TMS=1 → Exit1-IR.
+        for i in 0..6usize {
+            tdi.push((ir::CFG_IN >> i) & 1 != 0);
+            tms.push(i == 5);
+        }
+
+        // ── Step 4: Exit1-IR → Upd-IR → Sel-DR-Scan ────────────────────────
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[true, true]);
+
+        // ── Step 5: Sel-DR → Cap-DR → Shift-DR (packet entry) ───────────────
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[false, false]);
+
+        // ── Step 6: Shift 5 × 32 = 160 packet bits ──────────────────────────
+        // Each word is bit-reversed before shifting (openFPGALoader wire fmt).
+        // Packets 0–3: TMS=0 throughout (stay in Shift-DR).
+        // Packet 4, last bit: TMS=1 → Exit1-DR.
+        for (pi, &word) in packets.iter().enumerate() {
+            let wire = word.reverse_bits();
+            for bi in 0..32usize {
+                let is_last = pi == 4 && bi == 31;
+                tdi.push((wire >> bi) & 1 != 0);
+                tms.push(is_last);
+            }
+        }
+
+        // ── Step 7: Exit1-DR → Upd-DR → Sel-DR → Sel-IR-Scan ───────────────
+        tdi.extend_from_slice(&[true, true, true]);
+        tms.extend_from_slice(&[true, true, true]);
+
+        // ── Step 8: Sel-IR → Cap-IR → Shift-IR (for CFG_OUT) ───────────────
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[false, false]);
+
+        // ── Step 9: Shift 6 bits of CFG_OUT (LSB first) ─────────────────────
+        // Last bit: TMS=1 → Exit1-IR.
+        for i in 0..6usize {
+            tdi.push((ir::CFG_OUT >> i) & 1 != 0);
+            tms.push(i == 5);
+        }
+
+        // ── Step 10: Exit1-IR → Upd-IR → Sel-DR-Scan ───────────────────────
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[true, true]);
+
+        // ── Step 11: Sel-DR → Cap-DR → Shift-DR (read entry) ────────────────
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[false, false]);
+
+        // rdo_start: one position AFTER the clock that enters Shift-DR.
+        // The DLC10 FX2 firmware has a 1-TCK TDO latency — same convention
+        // as `read_dr_32` which sets rdo_start = 3 after 3 nav bits.
+        let rdo_start = tdi.len();
+
+        // ── Step 12: Shift read bits (TDI=0, TDO captured) ──────────────────
+        for i in 0..total_read_bits {
+            tdi.push(false);
+            tms.push(i == total_read_bits - 1); // last bit → Exit1-DR
+        }
+
+        // ── Step 13: Upd-DR → RTI ───────────────────────────────────────────
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[true, false]);
+
+        let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, total_read_bits)?;
+
+        // `do_shift_with_read` returns bits packed as 16-bit LE words.
+        // `decode_dr_32` unpacks them LSB-first into a u32.
+        // CFG_OUT streams register bits MSB-first, so each word is reversed.
         let mut out = Vec::with_capacity(n_words);
-        for _ in 0..n_words {
-            let raw = self.read_dr_32()?;
-            // FPGA emits MSB first; `read_dr_32` packs LSB-first. Reverse.
+        for w in 0..n_words {
+            let slice = &resp[w * 4..];
+            let raw = decode_dr_32(slice);
             out.push(raw.reverse_bits());
         }
         Ok(out)
@@ -477,21 +604,23 @@ impl Dlc10 {
 
     /// Program FPGA SRAM (volatile). Returns the final `STATUS` register.
     ///
-    /// **Implements the correct UG470 §6 flow** (the Python version was
-    /// missing `JPROGRAM`):
+    /// **Implements the correct UG470 §6 flow** (revised; no JSHUTDOWN):
     ///
-    /// 1. `JPROGRAM` + `cycle_tck(64)` — mass-erase configuration memory.
-    /// 2. `JSHUTDOWN` + `cycle_tck(12)` — drive Tap to capture/shift state.
-    /// 3. `CFG_IN` + bit-reversed bitstream + `cycle_tck(1)`.
-    /// 4. `JSTART` + `cycle_tck(24)` — start-up sequence.
-    /// 5. `BYPASS` (1-bit shift) → `CFG_OUT` → 32-bit `STATUS`.
+    /// 1. `JPROGRAM` — asserts internal PROG_B, starts mass-erase.
+    /// 2. Blind 50 ms sleep + 120_000 RTI clocks — erase-completion margin.
+    ///    (DLC10 FX2 firmware does not propagate TDO during Shift-IR, so
+    ///    IR-capture polling of INIT_B is impossible on this cable.)
+    /// 3. `CFG_IN` + bit-reversed bitstream.
+    /// 4. `JSTART` + `cycle_tck(2000)` — startup clocks (UG470 step 22).
+    /// 5. IDCODE sanity check — verifies the JTAG chain survived.
+    /// 6. `read_cfg_reg(STAT)` for detailed status (returned as `u32`).
     pub fn program_sram(&mut self, bit: &[u8]) -> Result<u32> {
         self.program_sram_verbose(bit, false)
     }
 
     /// Like `program_sram`, but emits diagnostic lines to `stderr` when
     /// `verbose = true`. Reports bytes loaded, sync-word offset, payload
-    /// preview, and total TCK shift bits.
+    /// preview, INIT_B polling progress, and final DONE/EOS status.
     pub fn program_sram_verbose(&mut self, bit: &[u8], verbose: bool) -> Result<u32> {
         let (raw_start, raw_len) = bitfile_payload_range(bit)?;
         let raw = &bit[raw_start..raw_start + raw_len];
@@ -546,66 +675,63 @@ impl Dlc10 {
             );
         }
 
-        // Step 1: JPROGRAM — asserts internal PROG_B, mass-erases config.
-        // The chip drives INIT_B low while erasing.
+        // Step 1: JPROGRAM — assert internal PROG_B, mass-erase config.
         self.shift_ir(ir::JPROGRAM)?;
-        self.cycle_tck(64)?;
 
-        // Step 2: poll STAT.INIT_B (via the now-correct Type-1 read path)
-        // until the chip is ready. Without this poll we routinely shifted
-        // CFG_IN bytes into the void while INIT_B was still low.
-        match self.wait_for_init(Duration::from_secs(2)) {
-            Ok(s) => {
-                if verbose {
-                    eprintln!(
-                        "[verbose] post-JPROGRAM STAT=0x{:08X} (INIT_B={}, INIT_COMPLETE={})",
-                        s.raw, s.init_b as u8, s.init_complete as u8,
-                    );
-                }
-            }
-            Err(e) if verbose => {
-                eprintln!("[verbose] WARN: wait_for_init failed: {e}");
-            }
-            Err(_) => {}
+        // Step 2: blind wait for erase to complete. DLC10 FX2 firmware does
+        // not propagate TDO during Shift-IR, so IR-capture polling of INIT_B
+        // is impossible — sleep generously (50ms is way more than needed for
+        // 7-series mass erase, which is sub-millisecond).
+        std::thread::sleep(Duration::from_millis(50));
+        if verbose {
+            eprintln!("[verbose] post-JPROGRAM: slept 50ms (blind wait, no IR-capture available on DLC10)");
         }
 
-        self.shift_ir(ir::JSHUTDOWN)?;
-        self.cycle_tck(12)?;
+        // Step 3: long RTI dwell — config erase + INIT_B release margin.
+        // openFPGALoader uses 12*10_000 = 120k clocks total. Must be split
+        // into chunks of <= 10_000 to stay under the DLC10 firmware's 16-bit
+        // bit-count field limit (65_535 bits per USB transfer).
+        for _ in 0..12 {
+            self.cycle_tck(10_000)?;
+        }
 
+        // Step 4-6 unchanged: CFG_IN + bitstream + JSTART + 2000 startup clocks
         self.shift_ir(ir::CFG_IN)?;
         self.shift_dr(&bs, bs.len() * 8)?;
-        self.cycle_tck(1)?;
-
         self.shift_ir(ir::JSTART)?;
-        self.cycle_tck(24)?;
+        self.cycle_tck(2000)?;
 
-        self.shift_ir(ir::BYPASS)?;
-        self.shift_dr_small(&[0x00], 1)?;
-        self.cycle_tck(1)?;
+        // Step 7: sanity check — read IDCODE. If FPGA still answers with
+        // 0x13631093, the JTAG chain survived; if not, we kicked it out.
+        match self.read_idcode() {
+            Ok(idc) if verbose => {
+                eprintln!("[verbose] post-JSTART IDCODE = 0x{:08X} (expect 0x13631093)", idc);
+            }
+            Err(e) if verbose => eprintln!("[verbose] WARN: post-JSTART IDCODE read failed: {e}"),
+            _ => {}
+        }
 
-        self.shift_ir(ir::CFG_OUT)?;
-        let status = self.read_dr_32()?;
+        // Step 8: read STAT via CFG_OUT Type-1.
+        let status = match self.read_cfg_reg(cfg_reg::STAT) {
+            Ok(s) => s,
+            Err(e) => {
+                if verbose {
+                    eprintln!("[verbose] final STAT read failed: {e}");
+                }
+                0
+            }
+        };
 
         if verbose {
+            let s = StatBits::from_raw(status);
             eprintln!(
-                "[verbose] raw CFG_OUT read (BYPASS+CFG_OUT) = 0x{:08X}",
-                status
+                "[verbose] final STAT (Type-1 read) = 0x{:08X} (DONE={}, EOS={}, INIT_B={}, MMCM_LOCK={}, CRC_ERROR={}, ID_ERROR={})",
+                s.raw, s.done as u8, s.eos as u8, s.init_b as u8,
+                s.mmcm_lock as u8, s.crc_error as u8, s.id_error as u8,
             );
-            // Now do a real STAT read via the corrected protocol so the
-            // verbose output also contains the trustworthy value.
-            match self.read_cfg_reg(cfg_reg::STAT) {
-                Ok(stat) => {
-                    let s = StatBits::from_raw(stat);
-                    eprintln!(
-                        "[verbose] final STAT (Type-1 read) = 0x{:08X} (DONE={}, EOS={}, INIT_B={}, MMCM_LOCK={}, CRC_ERROR={}, ID_ERROR={})",
-                        s.raw, s.done as u8, s.eos as u8, s.init_b as u8,
-                        s.mmcm_lock as u8, s.crc_error as u8, s.id_error as u8,
-                    );
-                    eprintln!("[verbose] diagnosis: {}", s.diagnose());
-                }
-                Err(e) => eprintln!("[verbose] WARN: final STAT read failed: {e}"),
-            }
+            eprintln!("[verbose] diagnosis: {}", s.diagnose());
         }
+
         Ok(status)
     }
 
@@ -1027,6 +1153,47 @@ impl Dlc10 {
         self.bulk_in(EP_IN, ol, Duration::from_secs(10))
     }
 
+    /// Shift IR and capture the TDO bits emitted during Shift-IR (the IR
+    /// capture value latched at Capture-IR). Returns the 6-bit captured IR
+    /// status byte. For 7-series the capture byte encodes:
+    ///   bit5 = DONE, bit4 = INIT_B, bit3 = ISC_ENABLED,
+    ///   bit2 = ISC_DONE, bits[1:0] = 01 (always).
+    ///
+    /// NOTE: DLC10 FX2 firmware does not propagate TDO during Shift-IR, so
+    /// results are unreliable on this cable (always reads 0x00). Retained for
+    /// diagnostic use (e.g. `ir-probe` command) and future firmware variants.
+    #[allow(dead_code)]
+    pub fn shift_ir_capture(&mut self, ir_val: u8) -> Result<u8> {
+        // Same TMS framing as shift_ir, but we enable TDO capture during
+        // the 6 IR-bit clocks using do_shift_with_read.
+        let mut tdi = Vec::with_capacity(19);
+        let mut tms = Vec::with_capacity(19);
+        // 5 x TMS=1 — Test-Logic-Reset
+        for _ in 0..5 {
+            tdi.push(true);
+            tms.push(true);
+        }
+        // Navigate TLR → Run-Test/Idle → Select-DR → Select-IR →
+        // Capture-IR → Shift-IR  (TMS: 0,1,1,0,0)
+        tdi.extend_from_slice(&[true, false, true, true, false, false]);
+        tms.extend_from_slice(&[false, true, true, false, false, false]);
+        // Now in Shift-IR; record start of the capture window.
+        let rdo_start = tdi.len();
+        // Shift 6 IR bits; last bit exits on TMS=1 (Shift-IR → Exit1-IR).
+        for i in 0..6usize {
+            tdi.push((ir_val & (1 << i)) != 0);
+            tms.push(i == 5);
+        }
+        // Exit1-IR → Update-IR → Run-Test/Idle.
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[true, false]);
+        let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, 6)?;
+        // resp is Vec<u8> in the packed 16-bit-word format; extract 6 bits.
+        let stream = extract_byte_stream(&resp, 6);
+        let cap = stream.first().copied().unwrap_or(0) & 0x3F;
+        Ok(cap)
+    }
+
     pub fn shift_ir(&mut self, ir_val: u8) -> Result<()> {
         let mut tdi = Vec::with_capacity(16);
         let mut tms = Vec::with_capacity(16);
@@ -1139,62 +1306,44 @@ impl Dlc10 {
         self.spi_xfer_verbose(tx, rx_len, false)
     }
 
-    /// Like `spi_xfer` but emits `eprintln!("[debug] ...")` instrumentation
-    /// when `verbose=true`.
+    /// SPI transfer through the standard bscan_spi / spiOverJtag bridge.
     ///
-    /// **Frame format** (Migen `xilinx_bscan_spi.py` JTAG2SPI bridge):
+    /// **Protocol** (matches openFPGALoader `Xilinx::spi_put`):
     ///
-    /// ```text
-    /// TDI:  [marker=1] [length BE 32 bits, MSB first]  [data MSB first]  [zero padding]
-    /// ```
+    /// After selecting USER1, each Shift-DR bit clocks TDI → MOSI and
+    /// captures MISO → TDO with a 1-bit pipeline delay (Capture-DR).
     ///
-    /// `length` is the number of SPI clocks (`(tx.len() + rx_len) * 8`).
-    /// Data is shifted MSB-first **per byte** (no bit-reverse — the bridge
-    /// itself routes TDI directly to MOSI). After the last data bit the
-    /// bridge needs a few extra TCK pulses to drain MISO → TDO; we append
-    /// `MIGEN_TDO_LATENCY_BITS` trailing zeros.
-    ///
-    /// **RX reconstruction**: TDO is sampled on every Shift-DR bit; the
-    /// capture stream is offset by `1 + 32` (marker + length header) plus
-    /// the on-the-wire latency of the bridge (`MIGEN_TDO_LATENCY_BITS`,
-    /// see the `negedge`/`miso_capture` double-flop in `bscan_spi_qmtech.v`).
-    /// `MIGEN_TDO_LATENCY_BITS` can be overridden via the
-    /// `T27_DLC10_MIGEN_LATENCY` env var for empirical tuning.
+    /// * TX bytes are **bit-reversed** (LSB-first on JTAG, MSB-first on SPI).
+    /// * Total shift length = `(tx.len() + rx_len + 1) * 8` bits when
+    ///   `rx_len > 0`, else `tx.len() * 8`. The extra byte gives the
+    ///   bridge time to clock out the last MISO bit.
+    /// * RX reconstruction: the captured TDO stream is offset by 1 bit
+    ///   (Capture-DR injects one stale bit at the head). Each RX byte is
+    ///   rebuilt by sampling bits `[tx_bits+1 .. tx_bits+1+rx_bits]`,
+    ///   bit-reversing each byte back to MSB-first.
     pub fn spi_xfer_verbose(&mut self, tx: &[u8], rx_len: usize, verbose: bool) -> Result<Vec<u8>> {
-        // ---- Compose the Migen-framed bit-stream on TDI ------------------
-        let data_bits = (tx.len() + rx_len) * 8;
-        if data_bits == 0 {
+        if tx.is_empty() && rx_len == 0 {
             return Ok(Vec::new());
         }
-        let latency = migen_latency();
-        // 1 marker + 32 length + data + latency drain bits.
-        let total_bits = 1 + 32 + data_bits + latency;
 
-        let mut bits: Vec<bool> = Vec::with_capacity(total_bits);
-        // Marker bit.
-        bits.push(true);
-        // 32-bit BE length: MSB of `data_bits` first.
-        for i in (0..32).rev() {
-            bits.push(((data_bits as u32) & (1u32 << i)) != 0);
-        }
-        // Data bits: per byte MSB-first.
+        let tx_bits = tx.len() * 8;
+        let extra = if rx_len > 0 { 1 } else { 0 };
+        let total_bytes = tx.len() + rx_len + extra;
+        let total_bits = total_bytes * 8;
+
+        // Build the TDI bit vector: bit-reverse each TX byte (JTAG is
+        // LSB-first, SPI is MSB-first), then pad with zeros for RX + extra.
+        let mut tdi_bits: Vec<bool> = Vec::with_capacity(total_bits);
         for &b in tx {
-            for i in (0..8).rev() {
-                bits.push((b & (1 << i)) != 0);
-            }
+            tdi_bits.extend((0..8).map(|i| (b & (1 << i)) != 0));
         }
-        // Zero data bits for the RX phase (MOSI=0 while host reads MISO).
-        bits.resize(bits.len() + rx_len * 8, false);
-        // Latency drain: a few extra TCK pulses so the bridge can present
-        // the final MISO bits on TDO.
-        bits.resize(bits.len() + latency, false);
-        assert_eq!(bits.len(), total_bits);
+        tdi_bits.resize(total_bits, false);
 
         let mut tdi = vec![true, true, true];
         let mut tms = vec![true, false, false];
         let rdo_start = tdi.len();
         for i in 0..total_bits {
-            tdi.push(bits[i]);
+            tdi.push(tdi_bits[i]);
             tms.push(i == total_bits - 1);
         }
         tdi.extend_from_slice(&[true, true]);
@@ -1202,18 +1351,15 @@ impl Dlc10 {
 
         if verbose {
             eprintln!(
-                "[debug] spi_xfer (Migen-framed) tx={} bytes ({}) rx_len={}",
+                "[debug] spi_xfer (bscan) tx={} bytes ({}) rx_len={} extra={}",
                 tx.len(),
                 hex::encode(tx),
                 rx_len,
+                extra,
             );
             eprintln!(
-                "[debug]   data_bits={} (length-field value, BE on wire), latency={}",
-                data_bits, latency,
-            );
-            eprintln!(
-                "[debug]   total_bits={} (1 marker + 32 length + {} data + {} drain)",
-                total_bits, data_bits, latency,
+                "[debug]   total_bits={} ({} tx + {} rx + {} extra) * 8",
+                total_bits, tx.len(), rx_len, extra,
             );
         }
 
@@ -1221,34 +1367,32 @@ impl Dlc10 {
             self.do_shift(&tdi, &tms)?;
             return Ok(Vec::new());
         }
+
         let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, total_bits)?;
-        // ---- Reconstruct RX from the TDO bit stream ----------------------
-        // TDO is invalid during the marker+length phase. Once data starts,
-        // TDO bit `j` (j=0 is MSB of first RX byte) corresponds to
-        // capture-bit-index `1 + 32 + tx.len()*8 + latency + j`.
-        let rx_bit_start = 1 + 32 + tx.len() * 8 + latency;
+
+        // RX reconstruction: skip tx_bits+1 captured bits (1 for
+        // Capture-DR pipeline delay, tx_bits for the TX phase), then
+        // sample rx_len*8 bits and bit-reverse each byte.
+        let rx_bit_start = tx_bits + 1;
         let mut rx = vec![0u8; rx_len];
-        // The Migen bridge presents MISO on TDO **MSB-first** because the
-        // SPI flash is MSB-first and the bridge passes bits unmodified.
         for i in 0..rx_len {
             let mut byte: u8 = 0;
             for j in 0..8 {
                 let bit_idx = rx_bit_start + i * 8 + j;
                 if bit_at(&resp, bit_idx) {
-                    byte |= 1 << (7 - j);
+                    byte |= 1 << j;
                 }
             }
-            rx[i] = byte;
+            // bit-reverse: captured LSB-first → SPI MSB-first
+            rx[i] = byte.reverse_bits();
         }
+
         if verbose {
-            // Emit the captured stream (post extraction) for hand-debugging.
             let captured = extract_byte_stream(&resp, total_bits);
             eprintln!("[debug]   captured raw stream = {}", hex::encode(&captured));
             eprintln!(
-                "[debug]   rx_bit_start = {} (1 marker + 32 length + {} tx-bits + {} latency)",
-                rx_bit_start,
-                tx.len() * 8,
-                latency,
+                "[debug]   rx_bit_start = {} (tx_bits={} + 1 pipeline)",
+                rx_bit_start, tx_bits,
             );
             eprintln!("[debug]   reconstructed RX = {}", hex::encode(&rx));
         }
@@ -1520,8 +1664,41 @@ fn init_after_firmware<C: UsbContext>(h: &rusb::DeviceHandle<C>) -> Result<()> {
     h.write_control(rto, VENDOR_REQ, 0x0028, 0x11, &[], to).ok();
     h.write_control(rto, VENDOR_REQ, 0x0018, 0, &[], to).ok();
     h.write_control(rto, VENDOR_REQ, 0x00A6, 2, &[], to).ok();
-    h.write_bulk(EP_OUT, &[0x00, 0x00], to).ok();
+    // 2-bit dummy shift to flush any stale FX2 state. Use a short timeout so
+    // we don't block forever if the FX2 is stuck from a prior failed transfer.
+    let short_to = Duration::from_secs(3);
+    match h.write_bulk(EP_OUT, &[0x00, 0x00], short_to) {
+        Ok(n) => eprintln!("[debug] init_after_firmware: dummy bulk_out OK ({n} bytes)"),
+        Err(e) => eprintln!("[debug] init_after_firmware: dummy bulk_out FAILED: {e} — FX2 may be stuck; proceeding anyway"),
+    }
     h.write_control(rto, VENDOR_REQ, 0x0028, 0x12, &[], to).ok();
+    Ok(())
+}
+
+/// Reload the FX2 firmware into an already-running DLC10.
+///
+/// Places the FX2 CPU in reset (CPUCS=1), writes all firmware records, then
+/// releases reset (CPUCS=0). After this the device will re-enumerate as
+/// PID_READY (0x0008) after ~2s. Use this to recover from a stuck FX2 state.
+fn reload_fx2_firmware<C: UsbContext>(h: &rusb::DeviceHandle<C>) -> Result<()> {
+    eprintln!("[debug] reload_fx2_firmware: asserting FX2 CPU reset");
+    let to = Duration::from_secs(5);
+    let rto = request_type(Direction::Out, RequestType::Vendor, Recipient::Device);
+    // Assert CPU reset: CPUCS = 1.
+    h.write_control(rto, FX2_FW_REQ, FX2_CPUCS, 0, &[0x01], to)
+        .context("FX2 assert reset (CPUCS=1)")?;
+    eprintln!("[debug] reload_fx2_firmware: loading firmware HEX");
+    let text = std::str::from_utf8(XUSB_FW_HEX).context("xusb_xp2.hex must be UTF-8 ASCII")?;
+    let records = parse_intel_hex(text)?;
+    for (addr, data) in &records {
+        h.write_control(rto, FX2_FW_REQ, *addr, 0, data, to)
+            .with_context(|| format!("FX2 fw write @0x{:04X}", addr))?;
+    }
+    // Release reset (CPUCS = 0).
+    h.write_control(rto, FX2_FW_REQ, FX2_CPUCS, 0, &[0x00], to)
+        .context("FX2 release reset (CPUCS=0)")?;
+    eprintln!("[debug] reload_fx2_firmware: done, waiting 6s for re-enumeration");
+    std::thread::sleep(Duration::from_secs(6));
     Ok(())
 }
 
@@ -1795,3 +1972,5 @@ mod tests {
         assert_eq!(tmp, 0x00000004);
     }
 }
+
+

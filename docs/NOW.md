@@ -1,6 +1,6 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-13
+**Last updated:** 2026-05-13 (DONE=HIGH milestone)
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
@@ -8,6 +8,27 @@
 ## Active Work
 
 **Pure-Rust DLC10 Driver + SPI Flash** (branch feat/dlc10-rust)
+- 2026-05-13: **DONE=HIGH ACHIEVED** after 3 months blocked.
+  Three root causes fixed in one session:
+  1. `cli/dlc10::program_sram_verbose`: replaced broken IR-capture INIT_B polling
+     with blind 50ms sleep + 12×10k RTI clocks (DLC10 FX2 firmware does not
+     propagate TDO during Shift-IR, so `shift_ir_capture` always returns 0).
+     JSHUTDOWN removed. JSTART startup clocks raised from 24 to 2000 per UG470 §6.3.
+  2. `cli/dlc10::read_cfg_reg_raw_n`: replaced 5 separate `shift_dr_small` packet
+     transfers (which TLR-reset config FSM in between) with one unbroken TMS/TDI
+     vector — TLR → RTI → CFG_IN IR → 160-bit packet DR (5×32, packets 0..3 in
+     Shift-DR, packet 4 last bit in Exit1-DR) → SELECT_IR → CFG_OUT IR → DR read,
+     dispatched as one `do_shift_with_read` call. Matches openFPGALoader
+     `Xilinx::dumpRegister` exactly. `tri fpga idcode-cfg` now returns 0x13631093.
+  3. `spiOverJtag/constr_xc7a_fgg676.xdc` (openFPGALoader fork): added
+     `set_property BITSTREAM.STARTUP.STARTUPCLK JTAGCLK [current_design]`.
+     Without it the startup FSM never sees clocks when loading over JTAG
+     (default CFGCLK=CCLK only runs during SelectMAP/SPI). STAT was stuck at
+     0x4000190C (INIT_COMPL=1, MMCM_LOCK=1, CRC=0, ID_ERROR=0, EOS=0). Rebuilt
+     via CI (run 25763758480, sha 800b4dbe...), STAT now 0x401079FC (DONE=1,
+     EOS=1). Remaining work: `tri fpga flash-id` returns FF FF FE (floating
+     MISO) — bridge wire protocol / CS_N routing needs separate triage.
+  Updates #590, Closes #592 (partial: DONE=HIGH; flash-id is follow-up).
 - cli/dlc10 crate: USB control transfer + JTAG state machine via rusb (no Vivado, no openFPGALoader)
 - IDCODE 0x13631093 (XC7A100T) verified on silicon through pure-Rust path
 - cli/flash-spi rewritten to call dlc10::Dlc10::program_flash directly

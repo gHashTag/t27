@@ -14,6 +14,11 @@ use dlc10::{cfg_reg, ir, Dlc10, FlashOpts, StatBits, BSCAN_SPI_XC7A100T};
 pub enum FpgaCmd {
     /// Read and print the JTAG IDCODE of the attached DLC10 cable target.
     Idcode,
+    /// Read the configuration IDCODE register via the Type-1 CFG_IN/CFG_OUT
+    /// protocol. On a healthy XC7A100T this must return 0x13631093 (same as
+    /// the JTAG IDCODE). If 0x00000000 is returned while `idcode` works, the
+    /// read_cfg_reg implementation is broken.
+    IdcodeCfg,
     /// Program FPGA SRAM (volatile — lost on power-cycle).
     Sram {
         bit: PathBuf,
@@ -168,6 +173,7 @@ pub enum FpgaCmd {
 pub fn run(cmd: &FpgaCmd) -> Result<()> {
     match cmd {
         FpgaCmd::Idcode => idcode(),
+        FpgaCmd::IdcodeCfg => idcode_cfg(),
         FpgaCmd::Sram { bit, verbose } => sram(bit, *verbose),
         FpgaCmd::Program { bit, no_verify } => program(bit, !*no_verify),
         FpgaCmd::FlashId => flash_id(),
@@ -209,6 +215,21 @@ fn idcode() -> Result<()> {
     println!("IDCODE: 0x{:08X}", id);
     if id != 0x13631093 {
         eprintln!("note: expected 0x13631093 (XC7A100T), got 0x{:08X}", id);
+    }
+    cable.close();
+    Ok(())
+}
+
+fn idcode_cfg() -> Result<()> {
+    let mut cable = open_cable()?;
+    let id = cable.read_cfg_idcode()?;
+    println!("CFG IDCODE: 0x{:08X}", id);
+    if id == 0x13631093 {
+        println!("  (XC7A100T — correct)");
+    } else if id == 0x00000000 {
+        eprintln!("  ERROR: 0x00000000 — read_cfg_reg is broken (Update-DR issue?)");
+    } else {
+        eprintln!("  UNEXPECTED: expected 0x13631093 for XC7A100T");
     }
     cable.close();
     Ok(())
@@ -1021,3 +1042,4 @@ fn build_proxy_docker(
 
     Ok(())
 }
+

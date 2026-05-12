@@ -36,7 +36,10 @@ enum Cmd {
         verify: bool,
     },
     /// Read the SPI flash JEDEC ID via the JTAG-to-SPI bridge.
-    FlashId,
+    FlashId {
+        #[arg(long)]
+        verbose: bool,
+    },
     /// Read the (raw) configuration STATUS register via plain CFG_OUT.
     Status,
     /// Decode the FPGA configuration state: STAT, CTL0, CTL1, BOOT_STS,
@@ -65,6 +68,8 @@ enum Cmd {
         #[arg(long)]
         raw: bool,
     },
+    /// Read IR capture byte (DONE, INIT_B, ISC_ENABLED, ISC_DONE).
+    IrCapture,
 }
 
 fn main() -> Result<()> {
@@ -105,8 +110,8 @@ fn main() -> Result<()> {
             cable.program_flash(&bytes, opts)?;
             eprintln!("Flash write OK.");
         }
-        Cmd::FlashId => {
-            let id = cable.read_flash_id()?;
+        Cmd::FlashId { verbose } => {
+            let id = cable.read_flash_id_verbose(verbose)?;
             println!("JEDEC ID: {:02X} {:02X} {:02X}", id[0], id[1], id[2]);
         }
         Cmd::Status => {
@@ -275,6 +280,16 @@ fn main() -> Result<()> {
             } else {
                 println!("=> FPGA is NOT configured. {}", stat.diagnose());
             }
+        }
+        Cmd::IrCapture => {
+            let cap = cable.shift_ir_capture(dlc10::ir::BYPASS)?;
+            let done = (cap >> 5) & 1;
+            let init_b = (cap >> 4) & 1;
+            let isc_en = (cap >> 3) & 1;
+            let isc_done = (cap >> 2) & 1;
+            let low2 = cap & 0x03;
+            println!("IR capture: 0x{:02X}", cap);
+            println!("  DONE={} INIT_B={} ISC_EN={} ISC_DONE={} low2=0x{:02X}", done, init_b, isc_en, isc_done, low2);
         }
     }
     cable.close();
