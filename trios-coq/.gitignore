@@ -1,0 +1,23 @@
+# Coq compiled files
+*.vo
+*.vos
+*.vok
+*.vio
+*.glob
+
+# CoqMakefile
+CoqMakefile.conf
+.coqdeps/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/

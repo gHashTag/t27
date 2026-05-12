@@ -344,3 +344,7 @@
 - **Commit:** feat(trios): Rings 093-107 - Coq Verification and Formal Proofs (EPOCH-03 VERIFY)
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,docs/issues/coq-verification-rings-093-107.md
 
+## 2026-05-12T16:47:08Z — gitbutler/workspace
+- **Commit:** docs(issues): Add Coq Verification issue (Rings 093-107)
+- **Files:** trios-coq-backup/Bounds/Bounds_Gauge.v,trios-coq-backup/Bounds/Bounds_LeptonMasses.v,trios-coq-backup/Bounds/Bounds_Masses.v,trios-coq-backup/Bounds/Bounds_Mixing.v,trios-coq-backup/Bounds/Bounds_QuarkMasses.v,trios-coq-backup/Bounds/DerivationLevels.v,trios-coq-backup/Core/AlphaPhi.v,trios-coq-backup/Core/CorePhi.v,trios-coq-backup/Core/ExactIdentities.v,trios-coq-backup/Kernel/FlowerE8Embedding.v,trios-coq-backup/Kernel/KernelSpec.v,trios-coq-backup/Kernel/Phi.v,trios-coq-backup/Kernel/PhiAttractor.v,trios-coq-backup/Kernel/PhiFloat.v,trios-coq-backup/Kernel/Semantics.v,trios-coq-backup/Kernel/Trit.v,trios-coq-backup/Mapping.v,trios-coq-backup/Operations.v,trios-coq-backup/Physics/ConsistencyChecks.v,trios-coq-backup/Physics/FormulaEval.v
+
