@@ -46,6 +46,21 @@
   packet must reserve space for the RX bytes that the bridge clocks
   out during XFER. Result: `tri fpga flash-id` returns `20 BA 17`
   (N25Q064A, 8 Mbit). Three-month blocker fully resolved.
+- 2026-05-13: **BLOCKER-2 (flash verify) — fixed `spi_xfer_v2` for tx-then-rx flow.**
+  When porting `Xilinx::spi_put_v2`, READ_ID (tx empty, rx=3) worked
+  because `data_len = max(tx.len(), rx_len)` happened to equal `rx_len`.
+  But READ_DATA / PAGE_PROGRAM use a TX phase (3 address bytes) **followed**
+  by an RX phase — the two are sequential on the wire, not overlapping.
+  The packet payload must be `cmd + tx_bytes + zero_pad(rx_len)`, so
+  `data_len = tx.len() + rx_len` (not `max`), and the RX-reconstruction
+  index must skip the address-phase echo: `idx = idx_base + tx.len()`.
+  Also switched `program_flash` (SECTOR_ERASE, PAGE_PROGRAM, READ_DATA,
+  WREN, READ_STATUS) and the spi_wait_wip / spi_write_enable helpers
+  to use `spi_xfer_v2`, since the legacy `spi_xfer` only reads floating
+  `FF FF...FE FF` through the new `spiOverJtag_core.v` FSM bridge.
+  Fixed spi_xfer_v2 RX byte alignment for tx-then-rx flow (READ_DATA + flash verify).
+  Verified on real DLC10 hardware via end-to-end `tri fpga program`.
+  Updates #590.
 - cli/dlc10 crate: USB control transfer + JTAG state machine via rusb (no Vivado, no openFPGALoader)
 - IDCODE 0x13631093 (XC7A100T) verified on silicon through pure-Rust path
 - cli/flash-spi rewritten to call dlc10::Dlc10::program_flash directly

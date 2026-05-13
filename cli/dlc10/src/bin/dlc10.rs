@@ -32,11 +32,27 @@ enum Cmd {
     /// Program the on-board SPI flash (non-volatile).
     Flash {
         bit: PathBuf,
-        #[arg(long, default_value_t = true)]
-        verify: bool,
+        #[arg(long)]
+        no_verify: bool,
+        /// Skip the final JPROGRAM (don't reload from flash after write).
+        #[arg(long, default_value_t = false)]
+        no_jprogram: bool,
     },
+    /// Reload FPGA from SPI flash (JPROGRAM + JSTART).
+    Reload,
     /// Read the SPI flash JEDEC ID via the JTAG-to-SPI bridge.
     FlashId {
+        #[arg(long)]
+        verbose: bool,
+    },
+    /// Read N bytes from SPI flash at a given offset (diagnostic).
+    FlashRead {
+        /// Start offset in flash (hex or decimal).
+        #[arg(default_value = "0")]
+        offset: u64,
+        /// Number of bytes to read (default 256).
+        #[arg(short, long, default_value = "256")]
+        len: usize,
         #[arg(long)]
         verbose: bool,
     },
@@ -96,11 +112,12 @@ fn main() -> Result<()> {
                  Run `dlc10 debug` for register-by-register diagnosis."
             );
         }
-        Cmd::Flash { bit, verify } => {
+        Cmd::Flash { bit, no_verify, no_jprogram } => {
             let bytes = std::fs::read(&bit).with_context(|| format!("read {}", bit.display()))?;
             let total = bytes.len() as u64;
             let opts = FlashOpts {
-                verify,
+                verify: !no_verify,
+                no_jprogram,
                 progress: Some(Box::new(move |w, t| {
                     if w == t || w % (1 << 18) < 256 {
                         eprintln!("  {} / {} ({}%)", w, total, 100 * w / total.max(1));
@@ -113,6 +130,42 @@ fn main() -> Result<()> {
         Cmd::FlashId { verbose } => {
             let id = cable.read_flash_id_verbose(verbose)?;
             println!("JEDEC ID: {:02X} {:02X} {:02X}", id[0], id[1], id[2]);
+        }
+        Cmd::FlashRead { offset, len, verbose } => {
+            cable.go_test_logic_reset()?;
+            let _id = cable.read_idcode()?;
+            let _bridge_status = cable.program_sram_verbose(
+                dlc10::BSCAN_SPI_XC7A100T, true)?;
+            let mut addr_bytes = [0u8; 3];
+            addr_bytes[0] = ((offset >> 16) & 0xFF) as u8;
+            addr_bytes[1] = ((offset >> 8) & 0xFF) as u8;
+            addr_bytes[2] = (offset & 0xFF) as u8;
+            let data = cable.spi_xfer_v2(dlc10::spi_cmd::READ_DATA,
+                &addr_bytes, len, verbose)?;
+            println!("Read {} bytes from offset 0x{:X}:", data.len(), offset);
+            for (i, chunk) in data.chunks(16).enumerate() {
+                print!("  {:04X}: ", i * 16);
+                for b in chunk {
+                    print!("{:02X} ", b);
+                }
+                println!();
+            }
+        }
+        Cmd::Reload => {
+            cable.shift_ir(dlc10::ir::JPROGRAM)?;
+            cable.cycle_tck(64)?;
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            cable.shift_ir(dlc10::ir::JSTART)?;
+            cable.cycle_tck(2000)?;
+            cable.go_test_logic_reset()?;
+            let stat = cable.read_cfg_reg(dlc10::cfg_reg::STAT)?;
+            let bits = dlc10::StatBits::from_raw(stat);
+            println!("STAT=0x{:08X} DONE={} EOS={}", bits.raw, bits.done as u8, bits.eos as u8);
+            if bits.done {
+                println!("FPGA reloaded from flash OK!");
+            } else {
+                eprintln!("DONE=LOW — flash reload failed.");
+            }
         }
         Cmd::Status => {
             let s = cable.read_status()?;
