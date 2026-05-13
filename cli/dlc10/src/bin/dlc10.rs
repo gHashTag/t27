@@ -37,6 +37,11 @@ enum Cmd {
         /// Skip the final JPROGRAM (don't reload from flash after write).
         #[arg(long, default_value_t = false)]
         no_jprogram: bool,
+        /// Disable the default per-byte bit-swap of the bitstream payload.
+        /// Vivado's `write_cfgmem` swaps bits by default for Master SPI
+        /// boot; turn this on only if your bitstream is already pre-swapped.
+        #[arg(long, default_value_t = false)]
+        no_bitswap: bool,
     },
     /// Reload FPGA from SPI flash (JPROGRAM + JSTART).
     Reload,
@@ -112,12 +117,13 @@ fn main() -> Result<()> {
                  Run `dlc10 debug` for register-by-register diagnosis."
             );
         }
-        Cmd::Flash { bit, no_verify, no_jprogram } => {
+        Cmd::Flash { bit, no_verify, no_jprogram, no_bitswap } => {
             let bytes = std::fs::read(&bit).with_context(|| format!("read {}", bit.display()))?;
             let total = bytes.len() as u64;
             let opts = FlashOpts {
                 verify: !no_verify,
                 no_jprogram,
+                bitswap: !no_bitswap,
                 progress: Some(Box::new(move |w, t| {
                     if w == t || w % (1 << 18) < 256 {
                         eprintln!("  {} / {} ({}%)", w, total, 100 * w / total.max(1));

@@ -32,6 +32,11 @@ pub enum FpgaCmd {
         /// Skip read-back verification.
         #[arg(long)]
         no_verify: bool,
+        /// Disable the default per-byte bit-swap of the bitstream payload.
+        /// Vivado's `write_cfgmem` bit-swaps by default for Master SPI boot;
+        /// disable only if your bitstream is already pre-swapped.
+        #[arg(long, default_value_t = false)]
+        no_bitswap: bool,
     },
     /// Read the SPI flash JEDEC ID via the JTAG-to-SPI bridge.
     FlashId,
@@ -175,7 +180,7 @@ pub fn run(cmd: &FpgaCmd) -> Result<()> {
         FpgaCmd::Idcode => idcode(),
         FpgaCmd::IdcodeCfg => idcode_cfg(),
         FpgaCmd::Sram { bit, verbose } => sram(bit, *verbose),
-        FpgaCmd::Program { bit, no_verify } => program(bit, !*no_verify),
+        FpgaCmd::Program { bit, no_verify, no_bitswap } => program(bit, !*no_verify, !*no_bitswap),
         FpgaCmd::FlashId => flash_id(),
         FpgaCmd::Status => status(),
         FpgaCmd::Debug { no_jstart } => debug(*no_jstart),
@@ -249,7 +254,7 @@ fn sram(bit: &PathBuf, verbose: bool) -> Result<()> {
     Ok(())
 }
 
-fn program(bit: &PathBuf, verify: bool) -> Result<()> {
+fn program(bit: &PathBuf, verify: bool, bitswap: bool) -> Result<()> {
     if !bit.is_file() {
         bail!("bitstream not found: {}", bit.display());
     }
@@ -274,6 +279,8 @@ fn program(bit: &PathBuf, verify: bool) -> Result<()> {
 
     let opts = FlashOpts {
         verify,
+        no_jprogram: false,
+        bitswap,
         progress: Some(Box::new(move |w, t| {
             if w == t || w % (1 << 18) < 256 {
                 eprintln!("  {} / {} ({}%)", w, total, 100 * w / total.max(1));

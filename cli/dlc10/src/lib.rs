@@ -265,6 +265,16 @@ pub fn parse_intel_hex(text: &str) -> Result<Vec<HexRecord>> {
 pub struct FlashOpts {
     pub verify: bool,
     pub no_jprogram: bool,
+    /// When `true` (default), apply per-byte bit-reversal to the bitstream
+    /// payload before writing it to flash. This matches Vivado's
+    /// `write_cfgmem` default behavior: the 7-series Master SPI
+    /// configuration engine reads bytes from flash in MSB-first wire order
+    /// but interprets them as if they had been bit-mirrored. See
+    /// <https://docs.amd.com/r/en-US/ug835-vivado-tcl-commands/write_cfgmem>
+    /// ("`-disablebitswap`: Disable bit swapping in a byte for bitfiles.").
+    /// Set to `false` only for boards that already store pre-swapped
+    /// bitstreams (rare).
+    pub bitswap: bool,
     pub progress: Option<Box<dyn FnMut(u64, u64)>>,
 }
 
@@ -273,6 +283,7 @@ impl Default for FlashOpts {
         Self {
             verify: true,
             no_jprogram: false,
+            bitswap: true,
             progress: None,
         }
     }
@@ -282,6 +293,8 @@ impl std::fmt::Debug for FlashOpts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FlashOpts")
             .field("verify", &self.verify)
+            .field("no_jprogram", &self.no_jprogram)
+            .field("bitswap", &self.bitswap)
             .field("progress", &self.progress.is_some())
             .finish()
     }
@@ -740,10 +753,23 @@ impl Dlc10 {
     /// Program the on-board SPI flash.
     pub fn program_flash(&mut self, bit: &[u8], mut opts: FlashOpts) -> Result<()> {
         let (payload_start, payload_len) = bitfile_payload_range(bit)?;
-        let payload = &bit[payload_start..payload_start + payload_len];
+        let raw_payload = &bit[payload_start..payload_start + payload_len];
+        // Vivado `write_cfgmem` default: the configuration payload is
+        // bit-mirrored per byte before being stored in flash, because the
+        // 7-series Master SPI engine reads bytes in a wire order that is
+        // bit-reversed relative to the .bit file. Without this swap, the
+        // FPGA cannot match the sync word `aa 99 55 66` on flash boot
+        // (STAT shows DEC_ERROR=1).
+        // Ref: https://docs.amd.com/r/en-US/ug835-vivado-tcl-commands/write_cfgmem
+        let swapped: Vec<u8> = if opts.bitswap {
+            raw_payload.iter().map(|b| b.reverse_bits()).collect()
+        } else {
+            Vec::new()
+        };
+        let payload: &[u8] = if opts.bitswap { &swapped } else { raw_payload };
         eprintln!(
-            "[verbose] .bit file: {} bytes, payload: {} bytes at offset 0x{:X}",
-            bit.len(), payload_len, payload_start,
+            "[verbose] .bit file: {} bytes, payload: {} bytes at offset 0x{:X} (bitswap={})",
+            bit.len(), payload_len, payload_start, opts.bitswap,
         );
 
         self.go_test_logic_reset()?;
