@@ -1,0 +1,87 @@
+# .github/workflows/vivado-build.yml
+#
+# Vivado FPGA Build — gf16_heartbeat_uart_top
+# Target: xc7a100tfgg676-1 (QMTech Wukong V1)
+#
+# Runs on a self-hosted runner with Vivado 2023.2 installed locally.
+# The runner must carry labels: [self-hosted, linux, vivado].
+# Configure XILINX_VIVADO in the runner's environment (see SETUP_RUNNER.md).
+
+name: Vivado FPGA Build
+
+on:
+  push:
+    branches:
+      - feat/vivado-ci
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+jobs:
+  build-bitstream:
+    # Only run PR builds when the "build:vivado" label is attached.
+    # Push and workflow_dispatch runs always proceed.
+    if: >
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'build:vivado')
+
+    name: Build .bit (Vivado 2023.2)
+    runs-on: [self-hosted, linux, vivado]
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. Vivado on PATH ────────────────────────────────────────────────────
+      #
+      # XILINX_VIVADO must be set in the runner's systemd unit or .env file,
+      # e.g.:  XILINX_VIVADO=/opt/Xilinx/Vivado/2023.2
+      #
+      # We extend PATH here rather than sourcing settings64.sh to avoid
+      # polluting the environment with every Vivado variable (and because
+      # .sh files are disallowed in this repository).
+      - name: Add Vivado to PATH
+        run: echo "$XILINX_VIVADO/bin" >> "$GITHUB_PATH"
+        env:
+          XILINX_VIVADO: ${{ env.XILINX_VIVADO }}
+
+      # ── 3. Vivado batch build ────────────────────────────────────────────────
+      - name: Run Vivado build
+        working-directory: fpga/vivado/uart
+        run: >
+          vivado
+          -mode batch
+          -nojournal
+          -nolog
+          -source build.tcl
+        env:
+          XILINX_VIVADO: ${{ env.XILINX_VIVADO }}
+
+      # ── 4. Upload artefacts ──────────────────────────────────────────────────
+      - name: Upload bitstream and reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: vivado-output-${{ github.sha }}
+          path: |
+            fpga/vivado/uart/build/output/gf16_heartbeat_uart_top.bit
+            fpga/vivado/uart/build/output/utilization.rpt
+            fpga/vivado/uart/build/output/timing.rpt
+          if-no-files-found: error
+          retention-days: 30
+
+      # ── 5. SHA-256 summary ───────────────────────────────────────────────────
+      - name: Write SHA-256 to step summary
+        run: |
+          BIT=fpga/vivado/uart/build/output/gf16_heartbeat_uart_top.bit
+          SHA=$(sha256sum "$BIT" | awk '{print $1}')
+          echo "## Bitstream" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File  | \`gf16_heartbeat_uart_top.bit\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SHA-256 | \`$SHA\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
