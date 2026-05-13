@@ -891,12 +891,11 @@ impl Dlc10 {
                 Err(e) => eprintln!("[debug] WARN: post-proxy STAT read failed: {e}"),
             }
         }
-        self.shift_ir(ir::USER1)?;
         if verbose {
-            eprintln!("[debug] IR = USER1 (0x02) — BSCAN1 SPI bridge selected");
+            eprintln!("[debug] IR = USER1 (0x02) — BSCAN1 SPI bridge selected (v2 protocol)");
         }
 
-        let id = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, verbose)?;
+        let id = self.spi_xfer_v2(spi_cmd::READ_ID, &[], 3, verbose)?;
         let triple = |v: &[u8]| -> [u8; 3] { [v[0], v[1], v[2]] };
         let is_dead = |a: &[u8; 3]| a == &[0xFF, 0xFF, 0xFF] || a == &[0x00, 0x00, 0x00];
         let mut out = triple(&id);
@@ -911,9 +910,9 @@ impl Dlc10 {
             );
         }
         // Recovery 1: Release from Deep Power-down (0xAB), then re-read.
-        self.spi_xfer_verbose(&[spi_extra::RELEASE_PD], 0, verbose)?;
+        self.spi_xfer_v2(spi_extra::RELEASE_PD, &[], 0, verbose)?;
         std::thread::sleep(Duration::from_millis(5));
-        let id2 = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, verbose)?;
+        let id2 = self.spi_xfer_v2(spi_cmd::READ_ID, &[], 3, verbose)?;
         out = triple(&id2);
         if !is_dead(&out) {
             if verbose {
@@ -929,10 +928,10 @@ impl Dlc10 {
             );
         }
         // Recovery 2: Reset Enable + Reset Device.
-        self.spi_xfer_verbose(&[spi_extra::RESET_ENABLE], 0, verbose)?;
-        self.spi_xfer_verbose(&[spi_extra::RESET_DEVICE], 0, verbose)?;
+        self.spi_xfer_v2(spi_extra::RESET_ENABLE, &[], 0, verbose)?;
+        self.spi_xfer_v2(spi_extra::RESET_DEVICE, &[], 0, verbose)?;
         std::thread::sleep(Duration::from_millis(30));
-        let id3 = self.spi_xfer_verbose(&[spi_cmd::READ_ID], 3, verbose)?;
+        let id3 = self.spi_xfer_v2(spi_cmd::READ_ID, &[], 3, verbose)?;
         out = triple(&id3);
         if verbose && !is_dead(&out) {
             eprintln!("[debug] recovery via 0x66/0x99 succeeded");
@@ -1414,6 +1413,173 @@ impl Dlc10 {
             std::thread::sleep(Duration::from_millis(1));
         }
         Err(Dlc10Error::FlashBusyTimeout.into())
+    }
+
+    // -------- spiOverJtag v2 primitives (openFPGALoader-compatible) ----------
+
+    /// Perform a single Shift-DR scan of `nb` bits, shifting out `tdi_bytes`
+    /// (LSB-first), and capture the TDO response. Returns the captured TDO
+    /// data as packed bytes (LSB-first per byte), same layout as the input.
+    ///
+    /// Used by `spi_xfer_v2` to send the spiOverJtag packet and read back
+    /// the MISO data in one DR scan.
+    pub fn shift_dr_read_bytes(&mut self, tdi_bytes: &[u8], nb: usize) -> Result<Vec<u8>> {
+        // TMS framing: TLR→RTI→Select-DR-Scan→Capture-DR→Shift-DR
+        // = [1,1,1] then nb data bits, last bit exits with TMS=1
+        let mut tdi = vec![true, true, true];
+        let mut tms = vec![true, false, false];
+        let rdo_start = tdi.len();
+        for i in 0..nb {
+            let b = tdi_bytes.get(i >> 3).copied().unwrap_or(0);
+            tdi.push((b & (1 << (i & 7))) != 0);
+            tms.push(i == nb - 1);
+        }
+        // Exit1-DR → Update-DR → Run-Test/Idle
+        tdi.extend_from_slice(&[true, true]);
+        tms.extend_from_slice(&[true, false]);
+
+        let resp = self.do_shift_with_read(&tdi, &tms, rdo_start, nb)?;
+        // Unpack the DLC10 16-bit-LE captured words into a flat byte stream.
+        Ok(extract_byte_stream(&resp, nb))
+    }
+
+    /// Reset the JTAG TAP to Test-Logic-Reset by clocking 5 cycles with TMS=1.
+    /// This is required after a spiOverJtag v2 DR scan to reset the FSM to IDLE.
+    pub fn go_test_logic_reset(&mut self) -> Result<()> {
+        let tdi = vec![true; 5];
+        let tms = vec![true; 5];
+        self.do_shift(&tdi, &tms)
+    }
+
+    /// Build the spiOverJtag v2 packet (openFPGALoader `Xilinx::spi_put_v2`).
+    ///
+    /// Returns `(pkt, xfer_bits)` where `pkt` is the TDI byte vector and
+    /// `xfer_bits` is the number of bits to shift in `shift_dr_read_bytes`.
+    ///
+    /// Mirrors the openFPGALoader C++ exactly:
+    /// - `data_len` = `max(tx.len(), rx_len)`  (payload length after cmd)
+    /// - `real_len` = `data_len + 1`
+    /// - `mode`     = 0x01 if real_len ≤ 32 else 0x00
+    /// - `k_pkt_len`= real_len + 2  (+ 3 if mode == 0)
+    /// - `xfer_bits`= (k_pkt_len - 1) * 8 + if want_rx { 8 } else { 1 }
+    /// - pkt\[0\]   = ((real_len & 0x1F) << 3) | ((mode & 0x03) << 1) | 1
+    /// - pkt\[1\]   = (real_len >> 5) & 0xFF  (only if mode == 0)
+    /// - pkt\[next\]= cmd.reverse_bits()
+    /// - pkt\[next\]= b.reverse_bits() for each b in tx
+    /// - zero-pad remaining data_len bytes (for RX phase)
+    pub fn build_spi_v2_pkt(
+        cmd: u8,
+        tx: &[u8],
+        rx_len: usize,
+    ) -> (Vec<u8>, usize) {
+        // data_len is the payload after cmd: covers both TX bytes and RX bytes.
+        let data_len = tx.len().max(rx_len);
+        let real_len: usize = data_len + 1;
+        let mode: u8 = if real_len <= 32 { 0x01 } else { 0x00 };
+        // kPktLen = real_len + 2 (+ 1 extra header if mode == 0)
+        let k_pkt_len: usize = real_len + 2 + if mode == 0x00 { 1 } else { 0 };
+        let want_rx = rx_len > 0;
+        let xfer_bits: usize =
+            (k_pkt_len - 1) * 8 + if want_rx { 8 } else { 1 };
+
+        let mut pkt = vec![0u8; k_pkt_len];
+        pkt[0] = ((real_len as u8 & 0x1F) << 3) | ((mode & 0x03) << 1) | 1;
+        let mut idx = 1;
+        if mode == 0x00 {
+            pkt[idx] = ((real_len >> 5) & 0xFF) as u8;
+            idx += 1;
+        }
+        pkt[idx] = cmd.reverse_bits();
+        idx += 1;
+        for &b in tx {
+            if idx < k_pkt_len {
+                pkt[idx] = b.reverse_bits();
+                idx += 1;
+            }
+        }
+        // remaining bytes already 0 (zero-pad for RX phase)
+        (pkt, xfer_bits)
+    }
+
+    /// SPI transfer using the **spiOverJtag v2** protocol from openFPGALoader
+    /// (`Xilinx::spi_put_v2`). Required for the new-style BSCAN bridge
+    /// bitstream (sha256 prefix 800b4dbe...) which uses the
+    /// `IDLE → RECV_HEADER1 → [RECV_HEADER2] → XFER → WAIT_END` FSM.
+    ///
+    /// Unlike `spi_xfer` / `spi_xfer_verbose`, this function:
+    /// * Prepends a 1- or 2-byte header that the FSM needs to decode `CSn`.
+    /// * Uses a **single** `shift_dr_read_bytes` call for the whole packet.
+    /// * Follows with `go_test_logic_reset()` to reset the FSM to IDLE.
+    ///
+    /// `cmd`     — SPI opcode (e.g. `spi_cmd::READ_ID = 0x9F`).
+    /// `tx`      — additional data bytes to send *after* the command byte.
+    /// `rx_len`  — number of MISO bytes to capture.
+    /// `verbose` — emit `[debug]` lines on stderr.
+    pub fn spi_xfer_v2(
+        &mut self,
+        cmd: u8,
+        tx: &[u8],
+        rx_len: usize,
+        verbose: bool,
+    ) -> Result<Vec<u8>> {
+        let (pkt, xfer_bits) = Self::build_spi_v2_pkt(cmd, tx, rx_len);
+
+        if verbose {
+            eprintln!(
+                "[debug] spi_xfer_v2: cmd=0x{:02X} tx={} rx_len={}",
+                cmd,
+                hex::encode(tx),
+                rx_len,
+            );
+            eprintln!(
+                "[debug]   pkt={} xfer_bits={}",
+                hex::encode(&pkt),
+                xfer_bits,
+            );
+        }
+
+        // Select USER1 — routes the DR scan to the BSCAN SPI bridge.
+        self.shift_ir(ir::USER1)?;
+
+        // Single Shift-DR scan: shift the whole packet, capture TDO.
+        let jrx = self.shift_dr_read_bytes(&pkt, xfer_bits)?;
+
+        // After the scan, reset the FSM to IDLE (mandatory).
+        self.go_test_logic_reset()?;
+
+        if verbose {
+            eprintln!("[debug]   jrx raw = {}", hex::encode(&jrx));
+        }
+
+        if rx_len == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Reconstruct RX bytes from captured TDO.
+        // Matches openFPGALoader C++ exactly:
+        //   idx   = 2 if mode=1 (1-byte header), else 3 (2-byte header)
+        //   shift = _jtag_chain_len = 1 for single DLC10
+        //   rx[i] = reverseByte(jrx[i+idx] >> shift) | (jrx[i+idx+1] & 0x01)  (shift==1)
+        let data_len = tx.len().max(rx_len);
+        let real_len = data_len + 1;
+        let mode: u8 = if real_len <= 32 { 0x01 } else { 0x00 };
+        let idx: usize = if mode == 0x01 { 2 } else { 3 };
+        let shift: usize = 1; // single DLC10 in the JTAG chain
+
+        let mut rx = vec![0u8; rx_len];
+        for i in 0..rx_len {
+            let j = i + idx;
+            let lo = jrx.get(j).copied().unwrap_or(0);
+            let hi = jrx.get(j + 1).copied().unwrap_or(0);
+            // reverse_bits(lo >> shift) | (hi & 0x01)  — exact C++ formula
+            rx[i] = (lo >> shift).reverse_bits() | (hi & 0x01);
+        }
+
+        if verbose {
+            eprintln!("[debug]   idx={} shift={} reconstructed rx={}", idx, shift, hex::encode(&rx));
+        }
+
+        Ok(rx)
     }
 }
 
@@ -1970,6 +2136,38 @@ mod tests {
         //   LE bytes                 = [0x04, 0x00, 0x00, 0x00]
         let tmp = 0x20000000u32.reverse_bits();
         assert_eq!(tmp, 0x00000004);
+    }
+
+    #[test]
+    fn spi_xfer_v2_pkt_header_readid() {
+        // For cmd=0x9F (READ_ID), tx=[], rx_len=3:
+        // data_len = max(0, 3) = 3
+        // real_len = 4
+        // mode = 0x01   (4 <= 32)
+        // k_pkt_len = 4 + 2 = 6
+        // pkt[0] = ((4 & 0x1F) << 3) | ((1 & 0x03) << 1) | 1 = 0x20 | 0x02 | 0x01 = 0x23
+        // pkt[1] = reverse_bits(0x9F) = 0xF9
+        // pkt[2..5] = 0x00 (rx padding)
+        // xfer_bits = (6-1)*8 + 8 = 48  (want_rx=true)
+        let (pkt, xfer_bits) = super::Dlc10::build_spi_v2_pkt(0x9F, &[], 3);
+        assert_eq!(pkt[0], 0x23, "header byte mismatch");
+        assert_eq!(pkt[1], 0xF9, "cmd byte (reversed 0x9F) mismatch");
+        assert_eq!(pkt.len(), 6, "pkt length should be 6");
+        assert_eq!(xfer_bits, (pkt.len() - 1) * 8 + 8, "xfer_bits mismatch");
+    }
+
+    #[test]
+    fn spi_xfer_v2_pkt_header_no_rx() {
+        // For cmd=0xAB (RELEASE_PD), tx=[], rx_len=0:
+        // data_len = max(0, 0) = 0
+        // real_len = 1, mode = 0x01, k_pkt_len = 1 + 2 = 3
+        // pkt[0] = ((1 & 0x1F) << 3) | ((1 & 0x03) << 1) | 1 = 0x08 | 0x02 | 0x01 = 0x0B
+        // pkt[1] = reverse_bits(0xAB) = 0xD5
+        // xfer_bits = (3-1)*8 + 1 = 17  (want_rx=false)
+        let (pkt, xfer_bits) = super::Dlc10::build_spi_v2_pkt(0xAB, &[], 0);
+        assert_eq!(pkt[0], 0x0B, "header byte mismatch");
+        assert_eq!(pkt[1], 0xD5, "cmd byte (reversed 0xAB) mismatch"); // 0xAB.reverse_bits() = 0xD5
+        assert_eq!(xfer_bits, (pkt.len() - 1) * 8 + 1, "xfer_bits mismatch (no rx)");
     }
 }
 

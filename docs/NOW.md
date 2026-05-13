@@ -1,6 +1,6 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-13 (DONE=HIGH milestone)
+**Last updated:** 2026-05-13 (JEDEC=20BA17 — SPI flash unblocked end-to-end)
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
@@ -29,6 +29,23 @@
      EOS=1). Remaining work: `tri fpga flash-id` returns FF FF FE (floating
      MISO) — bridge wire protocol / CS_N routing needs separate triage.
   Updates #590, Closes #592 (partial: DONE=HIGH; flash-id is follow-up).
+- 2026-05-13 (later): **JEDEC=20BA17 read** — fourth and final root cause was
+  the wire protocol on top of USER1. The current `spiOverJtag_core.v` from
+  openFPGALoader uses an FSM `IDLE → RECV_HEADER1 [→ RECV_HEADER2] → XFER →
+  WAIT_END` and requires a leading start-bit + header byte(s) encoding
+  mode and transfer length, NOT raw SPI bytes like the older quartiq/
+  bscan_spi bridge. Without the header `csn` never asserts and MISO
+  floats (FF FF FE). Ported `Xilinx::spi_put_v2` from openFPGALoader
+  src/xilinx.cpp:2278 as `Dlc10::spi_xfer_v2`. Added primitives
+  `shift_dr_read_bytes` and `go_test_logic_reset` to support it. The
+  v2 packet for READ_ID is [0x23, 0xF9, 0x00, 0x00, 0x00, 0x00] over
+  48 bits with single Shift-DR scan, ending in TLR. `read_flash_id`
+  switched to v2 for all SPI ops (READ_ID, RELEASE_PD, RESET_ENABLE,
+  RESET_DEVICE). One implementation gotcha caught by the subagent:
+  `real_len = max(tx.len(), rx_len) + 1`, not `tx.len() + 1` — the
+  packet must reserve space for the RX bytes that the bridge clocks
+  out during XFER. Result: `tri fpga flash-id` returns `20 BA 17`
+  (N25Q064A, 8 Mbit). Three-month blocker fully resolved.
 - cli/dlc10 crate: USB control transfer + JTAG state machine via rusb (no Vivado, no openFPGALoader)
 - IDCODE 0x13631093 (XC7A100T) verified on silicon through pure-Rust path
 - cli/flash-spi rewritten to call dlc10::Dlc10::program_flash directly
