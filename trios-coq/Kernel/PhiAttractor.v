@@ -1,9 +1,3 @@
-(* 
-SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
-
-Repository: https://github.com/gHashTag/trios-coq
-Single Source of Truth for t27/Trios operations
-*)
 (** THEOREM-3 — φ as Universal Fixed-Point Attractor *)
 (** Balancing recursion: f(x) = (x + x⁻¹ + 1) / 2 *)
 (** From any x₀ > 0, iteration converges to φ with rate λ = (√5 - 1)/4 *)

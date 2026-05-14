@@ -1,3 +1,8 @@
+(*
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (* Bounds_Mixing.v - Certified Bounds for Mixing Parameter Formulas *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 

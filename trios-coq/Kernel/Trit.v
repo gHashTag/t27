@@ -1,9 +1,3 @@
-(* 
-SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
-
-Repository: https://github.com/gHashTag/trios-coq
-Single Source of Truth for t27/Trios operations
-*)
 (** T27 formal layer — ternary carrier (maps to AXIOM-K1 semantic kernel, not process laws K5/K6). *)
 
 Inductive trit : Set :=

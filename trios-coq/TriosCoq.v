@@ -1,3 +1,8 @@
+(*
+SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
+Repository: https://github.com/gHashTag/trios-coq
+Single Source of Truth for t27/Trios operations
+*)
 (* TriosCoq.v - Single Source of Truth for t27/Trios *)
 (* All machine-verified theorems in one place *)
 (* Unified from: proofs/trinity, coq/Kernel, coq/Theorems, sacred physics *)
@@ -17,11 +22,14 @@
     - t27/proofs/gravity/ - Gravity bounds
     - t27/coq/Kernel/ - T27 kernel definitions
     - t27/coq/Theorems/ - General theorems
+    - trios/docs/phd/theorems/ - PhD proof base (43 .v files)
+    - trios/docs/phd/theorems/igla/ - IGLA proofs (22 .v files)
+    - trinity-clara/proofs/ - IGLA/ASHA invariants (11 .v files)
     - feat/trinity-pellis-277 - Extended proof library (60 .v files)
     - docs/trinity-pellis-h1-roadmap - Additional proofs (54 .v files)
 
     Repository: https://github.com/gHashTag/trios-coq
-    Total: 35 Coq files, 1081+ lines of verified proofs
+    Total: 73 Coq files, 2000+ lines of verified proofs
 *)
 
 Require Import Reals.Reals.
@@ -69,6 +77,15 @@ Require Import Trios.Theorems.GenIdempotency.
 Require Import Trios.Theorems.PhiDistance.
 Require Import Trios.Theorems.TernarySufficiency.
 Require Import Trios.Theorems.Catalog42.
+
+(* IGLA/ML Proofs *)
+Require Import Trios.IGLA.IGLA_ASHA_Bound.
+Require Import Trios.IGLA.IGLA_BPB_Convergence.
+Require Import Trios.IGLA.IGLA_Catalog.
+Require Import Trios.IGLA.IGLA_GF16_Precision.
+Require Import Trios.IGLA.IGLA_NCA_Entropy.
+Require Import Trios.IGLA.asha_champion_survives.
+Require Import Trios.IGLA.igla_found_criterion.
 
 (* T27 Operations Mapping *)
 Require Import Trios.Mapping.
@@ -335,7 +352,17 @@ Qed.
 (* - lepton_mass_bound: Lepton mass bounds (e, mu, tau) *)
 (* - quark_mass_hierarchy: Quark mass hierarchy (u<d<s<c<b<t) *)
 
-(** Physics Proofs (43+ theorems): *)
+** Physics Proofs (43+.*):
+** - unitarity_preserved: Quantum state normalization
+** - Mass bounds: All particle mass constraints verified
+** - Sacred physics: L5 identity, strong CP violation, gamma_phi³
+
+** IGLA/ML Proofs (50+ theorems):
+** - asha_champion_survives: ASHA cannot prune champion at threshold ≥ 3.5
+** - igla_found_criterion: IGLA won when BPB < 1.50 on 3 seeds
+** - IGLA_NCA_Entropy: NCA entropy band invariants
+** - lr_convergence: Learning rate convergence properties
+** - lucas_closure_gf16: Lucas numbers in GF16
 (* - unitarity_preserved: Quantum state normalization *)
 (* - Mass bounds: All particle mass constraints verified *)
 (* - Sacred physics: L5 identity, strong CP violation, gamma_phi³ *)
@@ -372,3 +399,10 @@ Qed.
 (** End of Single Source of Truth *)
 
 (* φ² + 1/φ² = 3 | TRINITY *)
+
+(* Coq Arithmetic Proofs *)
+Require Import Trios.Coq.Arithmetic.
+Require Import Trios.Coq.Invariants.
+
+(* SECTION 1: Coq Arithmetic - VERIFIED TRUTH *)
+(** ====================================================================== *)

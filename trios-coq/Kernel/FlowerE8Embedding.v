@@ -1,9 +1,3 @@
-(* 
-SOURCE OF TRUTH: All theorems in this repository are verified in TriosCoq.v
-
-Repository: https://github.com/gHashTag/trios-coq
-Single Source of Truth for t27/Trios operations
-*)
 (** FLOWER-E8-EMBEDDING — E8 = H4 + φ·H4 Decomposition *)
 (*
  * Formal proof of Dechant (2016) theorem: E8 Lie algebra
