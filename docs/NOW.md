@@ -1,6 +1,6 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-13 (JEDEC=20BA17 — SPI flash unblocked end-to-end)
+**Last updated:** 2026-05-14 (JEDEC=20BA17 — SPI flash unblocked end-to-end)
 **Note:** DARPA CLARA PA-25-07-02 submission package migrated to [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara)
 
 ---
