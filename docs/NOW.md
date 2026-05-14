@@ -15,7 +15,7 @@
 
 ## R5-PASS-6 Honest Audit (Issue #596 — community trinity-s3ai SOT alignment)
 
-- Operator directive: `«один источник правды и все мои zenodo здесь https://zenodo.org/communities/trinity-s3ai/»`.
+- Operator directive: a single source of truth — all Zenodo records live at <https://zenodo.org/communities/trinity-s3ai/>.
 - Verified via Zenodo REST `/api/communities/trinity-s3ai/records?size=25` that the community contains EXACTLY 12 records (B001–B008 = 19227865/67/69/71/73/75/77/79; D004–D007 = 19020270/75/80/82; concept DOI B007 = 19227876).
 - t27 changes:
   - `README.md`: canonical SOT pointer next to GoldenFloat 19456875 badge with explicit note that GoldenFloat is legitimate Vasilev authorship but lives OUTSIDE the curated S³AI v5.0 record set.
