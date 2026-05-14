@@ -1,6 +1,10 @@
 # Persistent SPI Flash Workflow — XC7A100T (QMTech Wukong V1)
 
 > **The grain agents missed for 3 months:** `--write-flash`, NOT `--program`.
+>
+> **Now via pure-Rust `dlc10`** — `flash-spi` no longer shells out to
+> `openFPGALoader`. It calls `dlc10::Dlc10::program_flash` directly, so the
+> only host-side requirement is `libusb`.
 
 ## TL;DR
 
@@ -42,11 +46,13 @@ development, but the bitstream dies the moment power is cut. The new
 
 ## What the binary does
 
-1. Pre-flight: locates `openFPGALoader` in PATH, validates `.bit` exists.
-2. `openFPGALoader --cable dlc10 --detect` — confirms IDCODE `0x13631093`
-   (XC7A100T). Aborts loudly if cable missing or wrong board.
-3. `openFPGALoader --cable dlc10 --write-flash <bit> --verify` — programs
-   M25P/N25Q SPI flash with read-back verification.
+1. Pre-flight: validates `.bit` exists and is readable.
+2. Opens the DLC10 cable (loading FX2 firmware on first attach), reads
+   `IDCODE` and aborts if it does not match `0x13631093` (XC7A100T).
+3. Loads the embedded `bscan_spi_xc7a100t.bit` JTAG-to-SPI bridge into
+   FPGA SRAM (UG470 §6 sequence with `JPROGRAM`), then drives the
+   M25P/N25Q SPI flash via `USER1`:
+   sector-erase → page-program → optional read-back verify → `JPROGRAM`.
 4. On success prints next-steps for the operator.
 
 Total wall-clock: ~60 s on a 3.6 MiB compressed Artix-7 bitstream.
@@ -73,10 +79,10 @@ unplug. Done.
 
 ```text
 flash-spi [BIT]                    # default: fpga/vsa/gf16_heartbeat_top.bit
-  --cable <name>                   # default: dlc10 (env: CABLE)
   --expected-idcode <hex>          # default: 13631093 (XC7A100T)
   --skip-detect                    # skip cable detection
-  --dry-run                        # print command instead of running it
+  --no-verify                      # skip read-back verification
+  --dry-run                        # describe intent and exit
 ```
 
 ## Files
