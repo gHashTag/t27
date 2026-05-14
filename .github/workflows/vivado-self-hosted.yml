@@ -1,0 +1,102 @@
+name: Vivado Bitstream (self-hosted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      design:
+        description: 'Design to build (blinky | gf16 | phi_heartbeat)'
+        required: false
+        default: 'gf16'
+      uart:
+        description: 'Include UART telemetry block'
+        required: false
+        default: 'true'
+        type: boolean
+  pull_request:
+    paths:
+      - 'fpga/vivado/**'
+      - 'specs/fpga/**'
+      - 'bootstrap/src/**'
+      - '.github/workflows/vivado-self-hosted.yml'
+
+jobs:
+  vivado-build:
+    runs-on: [self-hosted, vivado, x86_64, linux]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Print runner info
+        run: |
+          uname -a
+          which vivado || echo "vivado not on PATH"
+          df -h /opt/Xilinx || true
+
+      - name: Build t27c
+        run: |
+          cd bootstrap
+          cargo build --release --bin t27c
+          echo "T27C_BIN=$PWD/target/release/t27c" >> "$GITHUB_ENV"
+
+      - name: Generate Verilog from .t27 specs
+        run: |
+          DESIGN="${{ github.event.inputs.design || 'gf16' }}"
+          "$T27C_BIN" fpga-build --smoke --device xc7a100tcsg324-1 --top "${DESIGN}_top" --output build/fpga
+          ls -la build/fpga/generated/
+
+      - name: Synthesize with Vivado
+        run: |
+          DESIGN="${{ github.event.inputs.design || 'gf16' }}"
+          UART_FLAG="${{ github.event.inputs.uart || 'true' }}"
+          cd fpga/vivado
+          vivado -mode batch -nojournal -nolog \
+            -source "build_${DESIGN}.tcl" \
+            -tclargs --uart "$UART_FLAG" --device xc7a100tcsg324-1 \
+            2>&1 | tee vivado.log
+
+      - name: Run UART smoke (capture tok/s)
+        run: |
+          # Requires DLC-10 JTAG attached on runner host (optional path).
+          # Skipped when LANES_ATTACHED=0; only metadata-extract from Vivado log.
+          if [ "${LANES_ATTACHED:-0}" = "1" ]; then
+            cd fpga/vivado
+            timeout 30 cargo run --release --bin dlc10 -- program *.bit
+            timeout 30 cargo run --release --bin uart-smoke -- --port /dev/ttyUSB1 --duration 10 | tee tok_s.txt
+          else
+            echo "UART/JTAG hardware not attached on this runner; bit-only build."
+          fi
+
+      - name: Extract utilization summary
+        run: |
+          cd fpga/vivado
+          awk '
+            /Slice LUTs/         {print}
+            /Slice Registers/    {print}
+            /Block RAM Tile/     {print}
+            /DSPs/               {print}
+            /WNS\(ns\)/          {getline; print}
+          ' vivado.log > utilization_summary.txt || true
+          cat utilization_summary.txt
+
+      - name: Upload bitstream
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vivado-bitstream-${{ github.event.inputs.design || 'gf16' }}
+          path: |
+            fpga/vivado/*.bit
+            fpga/vivado/*.ltx
+          retention-days: 30
+
+      - name: Upload Vivado logs & utilization
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vivado-log-${{ github.event.inputs.design || 'gf16' }}
+          path: |
+            fpga/vivado/vivado.log
+            fpga/vivado/utilization_summary.txt
+            fpga/vivado/tok_s.txt
+          retention-days: 30

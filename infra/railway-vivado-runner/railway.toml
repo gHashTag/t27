@@ -1,0 +1,35 @@
+# Railway service definition for Vivado self-hosted GitHub Actions runner.
+# Deploy: `railway up --service vivado-runner` from this directory.
+# Required Railway env vars:
+#   GH_RUNNER_TOKEN  — registration token from Settings -> Actions -> Runners -> New self-hosted (expires ~1h, re-deploy to refresh)
+#   GH_REPO_URL      — e.g. https://github.com/gHashTag/t27
+#   RUNNER_NAME      — optional, defaults to railway-vivado
+#   RUNNER_LABELS    — optional, defaults to "vivado,x86_64,linux"
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Required: persistent volume for Vivado install (~110 GB) + runner work dir
+# Mount paths inside container:
+#   /opt/Xilinx   — Vivado install (survives redeploys)
+#   /opt/installer — drop Vivado_2025.2_Lin64.bin here once via railway volume sync
+#   /actions-runner/_work — runner build cache
+[[volumes]]
+mountPath = "/opt/Xilinx"
+sizeGB = 130
+
+[[volumes]]
+mountPath = "/opt/installer"
+sizeGB = 1
+
+[[volumes]]
+mountPath = "/actions-runner/_work"
+sizeGB = 20
+
+# Resource hints (Railway Pro plan recommended; Vivado synth needs RAM)
+# Set in Railway UI: 8 vCPU / 32 GB RAM for full synth, 4 vCPU / 16 GB for smoke
