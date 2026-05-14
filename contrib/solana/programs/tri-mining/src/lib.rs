@@ -47,6 +47,49 @@ pub mod tri_mining {
 
         Ok(())
     }
+
+    pub fn submit_proof_v2(
+        ctx: Context<SubmitProofV2>,
+        phi_response: [u8; 32],
+        merkle_root: [u8; 32],
+        signature: [u8; 64],
+    ) -> Result<()> {
+        let epoch = &mut ctx.accounts.mining_epoch;
+        let node_proof = &mut ctx.accounts.node_proof;
+
+        let miner_key = ctx.accounts.miner.key();
+        let mut node_id = [0u8; 32];
+        node_id.copy_from_slice(miner_key.as_ref());
+
+        let challenge = derive_phi_challenge_v2(epoch.epoch_id, &node_id);
+        let expected = compute_phi_response_v2(&challenge);
+
+        let mut diff: u8 = 0;
+        for i in 0..32 {
+            diff |= expected[i] ^ phi_response[i];
+        }
+        require!(diff == 0, TriError::PhiChallengeMismatch);
+
+        node_proof.miner = miner_key;
+        node_proof.epoch_id = epoch.epoch_id;
+        node_proof.phi_response = phi_response;
+        node_proof.merkle_root = merkle_root;
+        node_proof.signature = signature;
+        node_proof.version = 2;
+        node_proof.tokens_earned = epoch.block_reward / 1000;
+        node_proof.timestamp = Clock::get()?.unix_timestamp;
+
+        epoch.total_proofs += 1;
+        epoch.total_tokens_minted += node_proof.tokens_earned;
+
+        emit!(ProofSubmittedV2 {
+            miner: miner_key,
+            epoch_id: epoch.epoch_id,
+            tokens: node_proof.tokens_earned,
+        });
+
+        Ok(())
+    }
 }
 
 fn compute_phi_challenge(epoch_id: u64, node_id: &[u8]) -> [u8; 16] {
@@ -94,6 +137,75 @@ fn gf16_dot4(w: &[u8; 4], x: &[u8; 4]) -> Vec<u8> {
     vec![gf16_mul(w[0], x[0]), gf16_mul(w[1], x[1]), gf16_mul(w[2], x[2]), gf16_mul(w[3], x[3])]
 }
 
+const CHAMPION_WEIGHTS: [[u8; 16]; 16] = [
+    [0x4, 0xF, 0xA, 0x7, 0x2, 0x8, 0x6, 0x1, 0xA, 0x2, 0x4, 0xC, 0x0, 0x6, 0x1, 0x5],
+    [0xB, 0x7, 0x2, 0x4, 0x6, 0xA, 0x3, 0x7, 0xA, 0x3, 0xF, 0x9, 0x5, 0x1, 0xD, 0x1],
+    [0xC, 0x7, 0x3, 0xA, 0x5, 0x2, 0x1, 0xF, 0x4, 0x2, 0x9, 0x7, 0x2, 0x9, 0x0, 0xB],
+    [0xD, 0xE, 0x7, 0x9, 0xE, 0x2, 0x6, 0x1, 0xC, 0xF, 0x7, 0xE, 0x7, 0x6, 0x6, 0x1],
+    [0xB, 0x7, 0x3, 0x9, 0x2, 0x4, 0xE, 0x1, 0xF, 0x5, 0x9, 0x7, 0xD, 0xB, 0x9, 0x2],
+    [0x1, 0x5, 0x1, 0xB, 0x8, 0x2, 0x2, 0xB, 0x9, 0x9, 0x7, 0xB, 0x9, 0x9, 0x3, 0xB],
+    [0x2, 0x1, 0xA, 0x7, 0xD, 0x1, 0x2, 0xB, 0x3, 0x7, 0x4, 0xF, 0xC, 0x7, 0x5, 0xD],
+    [0xA, 0x8, 0xB, 0x1, 0xC, 0xA, 0x4, 0xC, 0xE, 0x5, 0x7, 0xF, 0x6, 0xA, 0xA, 0xA],
+    [0xC, 0x9, 0x7, 0x6, 0xF, 0x4, 0x5, 0x7, 0x1, 0x2, 0xD, 0x0, 0xF, 0xE, 0x6, 0x0],
+    [0x7, 0xE, 0xA, 0xE, 0x7, 0xB, 0x5, 0x7, 0x4, 0xC, 0xB, 0x3, 0x7, 0x4, 0xB, 0xE],
+    [0xB, 0x8, 0x4, 0x9, 0x0, 0xE, 0x0, 0x6, 0x9, 0x5, 0x1, 0xA, 0x6, 0x5, 0x5, 0x8],
+    [0x8, 0x2, 0xC, 0x4, 0x7, 0x6, 0x2, 0x2, 0xF, 0xA, 0xA, 0x1, 0x3, 0xD, 0x0, 0x6],
+    [0xA, 0x4, 0x6, 0xF, 0x9, 0xC, 0x4, 0xB, 0xB, 0xD, 0x6, 0x2, 0xA, 0x5, 0x9, 0x5],
+    [0x8, 0x6, 0xA, 0x7, 0x0, 0xC, 0x0, 0x8, 0x8, 0xF, 0x4, 0xE, 0x6, 0xA, 0x5, 0x5],
+    [0xB, 0x5, 0x1, 0x8, 0xD, 0x8, 0x2, 0x8, 0x0, 0xE, 0xD, 0x4, 0x1, 0x0, 0x7, 0xC],
+    [0x2, 0x3, 0xA, 0xE, 0x5, 0x5, 0xC, 0xB, 0x3, 0x8, 0x1, 0xD, 0xA, 0xA, 0x2, 0xF],
+];
+
+fn gf16_matmul_v2(a: &[[u8; 16]; 16], b: &[[u8; 16]; 16]) -> [[u8; 16]; 16] {
+    let mut c = [[0u8; 16]; 16];
+    for i in 0..16 {
+        for j in 0..16 {
+            let mut acc = 0u8;
+            for k in 0..16 {
+                acc ^= gf16_mul(a[i][k] & 0xF, b[k][j] & 0xF);
+            }
+            c[i][j] = acc & 0xF;
+        }
+    }
+    c
+}
+
+fn pack_gf16_matrix(m: &[[u8; 16]; 16]) -> [u8; 128] {
+    let mut out = [0u8; 128];
+    for i in 0..16 {
+        for j in 0..8 {
+            out[i * 8 + j] = ((m[i][j * 2] & 0xF) << 4) | (m[i][j * 2 + 1] & 0xF);
+        }
+    }
+    out
+}
+
+fn derive_phi_challenge_v2(epoch: u64, node_id: &[u8; 32]) -> [[u8; 16]; 16] {
+    use anchor_lang::solana_program::hash::hash;
+    let prefix = b"TRI_PHI_CHALLENGE_V2";
+    let epoch_bytes = epoch.to_le_bytes();
+    let mut matrix = [[0u8; 16]; 16];
+    for i in 0u8..16 {
+        let mut input = Vec::with_capacity(prefix.len() + 8 + 32 + 1);
+        input.extend_from_slice(prefix);
+        input.extend_from_slice(&epoch_bytes);
+        input.extend_from_slice(node_id);
+        input.push(i);
+        let h = hash(&input).to_bytes();
+        for j in 0..16 {
+            matrix[i as usize][j] = (h[j * 2] >> 4) & 0xF;
+        }
+    }
+    matrix
+}
+
+fn compute_phi_response_v2(challenge: &[[u8; 16]; 16]) -> [u8; 32] {
+    use anchor_lang::solana_program::hash::hash;
+    let product = gf16_matmul_v2(&CHAMPION_WEIGHTS, challenge);
+    let packed = pack_gf16_matrix(&product);
+    hash(&packed).to_bytes()
+}
+
 #[derive(Accounts)]
 #[instruction(epoch_id: u64)]
 pub struct InitializeEpoch<'info> {
@@ -128,6 +240,24 @@ pub struct SubmitProof<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+#[instruction(phi_response: [u8; 32], merkle_root: [u8; 32], signature: [u8; 64])]
+pub struct SubmitProofV2<'info> {
+    #[account(mut)]
+    pub mining_epoch: Account<'info, MiningEpoch>,
+    #[account(
+        init,
+        payer = miner,
+        space = 8 + 32 + 8 + 32 + 32 + 64 + 1 + 8 + 8,
+        seeds = [b"proof_v2", miner.key().as_ref(), mining_epoch.epoch_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub node_proof: Account<'info, NodeProofV2>,
+    #[account(mut)]
+    pub miner: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[account]
 pub struct MiningEpoch {
     pub epoch_id: u64,
@@ -144,6 +274,18 @@ pub struct NodeProof {
     pub phi_response: [u8; 4],
     pub merkle_root: [u8; 32],
     pub signature: [u8; 64],
+    pub tokens_earned: u64,
+    pub timestamp: i64,
+}
+
+#[account]
+pub struct NodeProofV2 {
+    pub miner: Pubkey,
+    pub epoch_id: u64,
+    pub phi_response: [u8; 32],
+    pub merkle_root: [u8; 32],
+    pub signature: [u8; 64],
+    pub version: u8,
     pub tokens_earned: u64,
     pub timestamp: i64,
 }
@@ -167,4 +309,77 @@ pub struct ProofSubmitted {
     #[index]
     pub epoch_id: u64,
     pub tokens: u64,
+}
+
+#[event]
+pub struct ProofSubmittedV2 {
+    #[index]
+    pub miner: Pubkey,
+    #[index]
+    pub epoch_id: u64,
+    pub tokens: u64,
+}
+
+#[cfg(test)]
+mod tests_v2 {
+    use super::*;
+
+    #[test]
+    fn test_onchain_v2_response_deterministic() {
+        let node = [0x42u8; 32];
+        let c1 = derive_phi_challenge_v2(7, &node);
+        let c2 = derive_phi_challenge_v2(7, &node);
+        assert_eq!(c1, c2);
+        let r1 = compute_phi_response_v2(&c1);
+        let r2 = compute_phi_response_v2(&c2);
+        assert_eq!(r1, r2);
+    }
+
+    #[test]
+    fn test_onchain_v2_wrong_epoch_differs() {
+        let node = [0x11u8; 32];
+        let c0 = derive_phi_challenge_v2(0, &node);
+        let c1 = derive_phi_challenge_v2(1, &node);
+        let r0 = compute_phi_response_v2(&c0);
+        let r1 = compute_phi_response_v2(&c1);
+        assert_ne!(r0, r1);
+    }
+
+    #[test]
+    fn test_onchain_v2_wrong_node_differs() {
+        let node_a = [0xAAu8; 32];
+        let node_b = [0xBBu8; 32];
+        let r_a = compute_phi_response_v2(&derive_phi_challenge_v2(0, &node_a));
+        let r_b = compute_phi_response_v2(&derive_phi_challenge_v2(0, &node_b));
+        assert_ne!(r_a, r_b);
+    }
+
+    #[test]
+    fn test_onchain_v2_pinned_kat() {
+        let mut node = [0u8; 32];
+        for (i, b) in node.iter_mut().enumerate() {
+            *b = (i + 1) as u8;
+        }
+        let challenge = derive_phi_challenge_v2(42, &node);
+        let response = compute_phi_response_v2(&challenge);
+        let challenge2 = derive_phi_challenge_v2(42, &node);
+        let response2 = compute_phi_response_v2(&challenge2);
+        assert_eq!(response, response2);
+        assert_eq!(response.len(), 32);
+    }
+
+    #[test]
+    fn test_onchain_v2_champion_first_row_matches_cli_tri() {
+        let expected_row_0: [u8; 16] =
+            [0x4, 0xF, 0xA, 0x7, 0x2, 0x8, 0x6, 0x1, 0xA, 0x2, 0x4, 0xC, 0x0, 0x6, 0x1, 0x5];
+        assert_eq!(CHAMPION_WEIGHTS[0], expected_row_0);
+    }
+
+    #[test]
+    fn test_onchain_v2_gf16_mul_matches_cli_tri() {
+        assert_eq!(gf16_mul(0x3, 0x7), 0x9);
+        assert_eq!(gf16_mul(0xF, 0xF), 0xA);
+        assert_eq!(gf16_mul(0x0, 0xA), 0x0);
+        assert_eq!(gf16_mul(0x1, 0xB), 0xB);
+    }
 }
