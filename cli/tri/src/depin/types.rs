@@ -8,6 +8,12 @@ pub struct ProveRequest {
     pub merkle_proof: MerkleProof,
     pub merkle_leaf_index: usize,
     pub peer_sample_sig: String,
+    #[serde(default = "default_version")]
+    pub version: u8,
+}
+
+fn default_version() -> u8 {
+    1
 }
 
 #[derive(Debug, Serialize, Deserialize)]
