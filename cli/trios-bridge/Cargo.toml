@@ -16,7 +16,7 @@ serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 base64 = "0.22"
-dirs = "5"
+dirs = "6"
 gethostname = "0.5"
 
 [dev-dependencies]
