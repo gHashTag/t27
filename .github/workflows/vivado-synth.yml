@@ -19,12 +19,14 @@ on:
         required: false
         default: 'true'
         type: boolean
-  pull_request:
-    paths:
-      - 'fpga/vivado/**'
-      - 'specs/fpga/**'
-      - 'bootstrap/src/**'
-      - '.github/workflows/vivado-synth.yml'
+  # PR trigger intentionally disabled until ghcr.io/<owner>/t27-vivado:2025.2 exists.
+  # After running build-vivado-image.yml once, re-enable by uncommenting the pull_request block:
+  # pull_request:
+  #   paths:
+  #     - 'fpga/vivado/**'
+  #     - 'specs/fpga/**'
+  #     - 'bootstrap/src/**'
+  #     - '.github/workflows/vivado-synth.yml'
 
 permissions:
   contents: read
