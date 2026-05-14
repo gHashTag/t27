@@ -1023,10 +1023,7 @@ impl Parser {
                     } else {
                         // Parse :: separated segments
                         loop {
-                            if self.current.kind == TokenKind::ColonColon {
-                                self.advance();
-                                full_path.push_str("::");
-                            } else if self.current.kind == TokenKind::Colon {
+                            if self.current.kind == TokenKind::Colon {
                                 self.advance();
                                 if self.current.kind == TokenKind::Colon {
                                     self.advance();

@@ -106,27 +106,6 @@ enum Commands {
         output: Option<String>,
     },
 
-    /// Generate XDC constraints from board profile
-    GenXdc {
-        /// Board profile: minimal, full, or path to .t27 board spec
-        profile: String,
-        /// Output file path (stdout if omitted)
-        #[arg(long)]
-        output: Option<String>,
-    },
-
-    /// Check XDC pins against prjxray-db
-    CheckPins {
-        /// XDC file to validate
-        xdc: String,
-        /// prjxray-db artix7 directory
-        #[arg(long)]
-        db: Option<String>,
-    },
-
-    /// Verify gen-xdc output matches emitter_xdc.t27 spec expectations
-    XdcVerify,
-
     /// Generate C code (.c/.h style) from .t27 file
     GenC {
         /// Input file path
@@ -221,12 +200,6 @@ enum Commands {
     Bridge {
         #[command(subcommand)]
         command: bridge::BridgeCommands,
-    },
-
-    /// NotebookLM Task Commands (L7 UNITY enforcement)
-    Task {
-        #[command(subcommand)]
-        command: bridge::TaskCommands,
     },
 
     /// Enrich notebooks with YouTube transcripts
@@ -7120,6 +7093,7 @@ async fn main() -> anyhow::Result<()> {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
         Commands::GenC { input } => run_gen_c(&input)?,
+        Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
         Commands::Seal { input, save, verify } => run_seal(&input, save, verify)?,
         Commands::Compile { input, backend, output } => {
@@ -7132,7 +7106,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Stats => run_stats()?,
         Commands::Serve { port } => run_server(&port).await?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
-        Commands::Task { command } => bridge::run_task(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
@@ -7202,15 +7175,14 @@ async fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
          Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
           }
          Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+         Commands::TriStatus => {
+             println!("TRI PHI LOOP: status pending implementation");
+         }
           Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
          }
@@ -7273,9 +7245,6 @@ fn main() -> anyhow::Result<()> {
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
         }
-        Commands::GenXdc { profile, output } => run_gen_xdc(&profile, output.as_deref())?,
-        Commands::CheckPins { xdc, db } => run_check_pins(&xdc, db.as_deref())?,
-        Commands::XdcVerify => run_xdc_verify()?,
         Commands::GenC { input } => run_gen_c(&input)?,
         Commands::GenRust { input } => run_gen_rust(&input)?,
         Commands::Conformance { input } => run_conformance(&input)?,
@@ -7289,7 +7258,6 @@ fn main() -> anyhow::Result<()> {
         Commands::CompileProject { backend, output } => run_compile_project(&backend, &output)?,
         Commands::Stats => run_stats()?,
         Commands::Bridge { command } => bridge::run_bridge(command)?,
-        Commands::Task { command } => bridge::run_task(command)?,
         Commands::Enrich { notebook, all, force, token, lang } => enrichment::run_enrich(notebook, all, force, token, lang)?,
         Commands::Audio { notebook, all, dry_run, bilingual, workers, token, project, location, region } => {
             enrichment::run_audio(notebook, all, dry_run, bilingual, workers, token, project, location, region)?;
@@ -7362,13 +7330,9 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
-         Commands::FpgaBuild { smoke, synth_only, minimal, profile, board, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
+         Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
-             let effective_device = device.as_deref().unwrap_or_else(|| match board.as_deref() {
-                 Some("arty-a7") => "xc7a100tcsg324-1",
-                 _ => "xc7a100tcsg324-1",
-             });
-             run_fpga_build(&repo_root, smoke, synth_only, minimal, profile.as_deref(), board.as_deref(), effective_device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
+             run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
          }
          Commands::ValidateSeals { pr_files } => {
              run_validate_seals(&pr_files)?;
@@ -7400,6 +7364,9 @@ fn main() -> anyhow::Result<()> {
             println!("Encoded {} as ternary: {:?}", value, encoded);
         }
         Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+        Commands::TriStatus => {
+            println!("TRI PHI LOOP: status pending implementation");
+        }
         Commands::ValidateSeals { pr_files } => {
             run_validate_seals(&pr_files)?;
         }
