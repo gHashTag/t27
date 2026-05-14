@@ -1,0 +1,15 @@
+[package]
+name = "flash-spi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Persistent SPI flash programmer for QMTech Wukong V1 (XC7A100T) — pure-Rust via dlc10"
+
+[[bin]]
+name = "flash-spi"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+anyhow = "1"
+dlc10 = { path = "../dlc10" }

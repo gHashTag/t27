@@ -7,6 +7,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod depin;
+mod fpga;
+mod hooks;
+
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
 struct Cli {
@@ -44,6 +48,20 @@ enum Commands {
     },
     Health {
         target: Option<String>,
+    },
+    Serve {
+        #[arg(long, default_value = "0.0.0.0:3000")]
+        addr: String,
+    },
+    /// FPGA programming via the in-tree DLC10 driver (pure Rust).
+    Fpga {
+        #[command(subcommand)]
+        action: fpga::FpgaCmd,
+    },
+    /// Pure-Rust ports of repository commit / push gates.
+    Hooks {
+        #[command(subcommand)]
+        action: hooks::HooksCmd,
     },
 }
 
@@ -635,7 +653,38 @@ fn main() -> Result<()> {
             let root = find_trinity_root()?;
             cmd_health(&root, target.as_deref())?;
         }
+        Commands::Serve { addr } => cmd_serve(addr)?,
+        Commands::Fpga { action } => fpga::run(action)?,
+        Commands::Hooks { action } => hooks::run(action)?,
     }
+
+    Ok(())
+}
+
+fn cmd_serve(addr: &str) -> Result<()> {
+    use axum::routing::{get, post};
+    use axum::Router;
+    use depin::prove;
+    use depin::types::AppState;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    let state = Arc::new(RwLock::new(AppState::new()));
+
+    let app = Router::new()
+        .route("/prove", post(prove::post_prove))
+        .route("/epoch-challenge", get(prove::get_epoch_challenge))
+        .route("/health", get(prove::health_check))
+        .with_state(state);
+
+    println!("trinity depin v0.1.0 — listening on {}", addr);
+
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+        axum::serve(listener, app).await?;
+        Ok::<(), anyhow::Error>(())
+    })?;
 
     Ok(())
 }

@@ -3,7 +3,6 @@ name: PR Dashboard
 on:
   workflow_dispatch:
   schedule:
-    # Run every hour
     - cron: '0 * * * *'
   pull_request:
     types: [opened, synchronize]
@@ -46,6 +45,9 @@ jobs:
           echo "" >> /tmp/pr_dashboard.md
           echo "| Status | Count |" >> /tmp/pr_dashboard.md
           echo "| --- | --- |" >> /tmp/pr_dashboard.md
+          echo "| Total Open PRs | $TOTAL |" >> /tmp/pr_dashboard.md
+          echo "| PRs with Failing Checks | $FAILING |" >> /tmp/pr_dashboard.md
+          echo "| PRs with All Checks Green | $((TOTAL - FAILING)) |" >> /tmp/pr_dashboard.md
 
           READY=$(echo "$PR_DATA"   | jq -r '[.[] | select((.statusCheckRollup // []) | all(.conclusion == "SUCCESS" or .conclusion == "SKIPPED" or .conclusion == null))] | length')
           FAILED=$(echo "$PR_DATA"  | jq -r '[.[] | select((.statusCheckRollup // []) | any(.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT"))] | length')
