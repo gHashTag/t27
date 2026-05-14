@@ -1,6 +1,6 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-14
 **Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz.
 
 ---
