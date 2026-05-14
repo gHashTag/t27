@@ -1,3 +1,22 @@
+# TRINITY MANDATE (read first — non-negotiable)
+
+**Repository policy overrides any model or agent default.** If instructions conflict, **`docs/T27-CONSTITUTION.md`**, **`SOUL.md`** / **`docs/SOUL.md`**, **`AGENTS.md`** / **`docs/AGENTS.md`**, and **ADR-004 / ADR-005 / ADR-006** win. **`docs/T27-CONSTITUTION.md` v1.7+** — **RING-LAW**, **AGENT-DOMAIN**, **BRAIN-MAP**, **COMPETITION-READY**.
+
+| Law | Must follow |
+|-----|-------------|
+| **SSOT-MATH** | Math/physics only in **`*.t27`** and **`tri` / `t27c`** (and `.trinity/experience` where specified). No duplicate formula layers in scripts. |
+| **LANG-EN** | First-party `*.md` and English surfaces in `bootstrap/src/**/*.rs` and `bootstrap/tests/**/*.rs` per **`bootstrap/build.rs`**; legacy only via **`docs/.legacy-non-english-docs`**. |
+| **Golden rings** | Workflow in **`docs/SEED-RINGS.md`** + **`CANON.md`** (root): include `cargo build` in `bootstrap/`, `t27c parse`, tests; **`stage0/FROZEN_HASH`** seals compiler **GOLD**; other critical-path work is **REFACTOR-HEAP** until removed. Tag PRs **`[GOLD-RING]`** vs **`[REFACTOR-HEAP]`** when applicable. |
+| **GF16 primary** | Primary inference **`docs/NUMERIC-STANDARD-001.md`**; non-GF16 / `f32`/`f64` in specs = **debt** — **`docs/NUMERIC-GF16-DEBT-INVENTORY.md`**. |
+| **No new critical-path Python** | No new Python (or JS/Go) for verdict/conformance/orchestration. Legacy + migration: **`docs/QUEEN-LOTUS-SEED-LANGUAGE-PURGE.md`**, **`docs/TZ-T27-001-NO-PYTHON-CRITICAL-PATH.md`**. |
+
+**Hard gates (failure = invalid change):**
+
+1. `cargo build` (or `--release`) in **`bootstrap/`** — **`build.rs` (Rust)** enforces required constitutional files, **`FROZEN_HASH`** (**`FROZEN.md`**), and LANG-EN scans. **No bash/Python on this critical path.**
+2. Optional local hook: `sh scripts/install-constitutional-hook.sh` → `cargo build` in `bootstrap/` on each commit.
+
+---
+
 # AGENTS.md v2 — Agent Specifications for Trinity S³AI
 
 ---

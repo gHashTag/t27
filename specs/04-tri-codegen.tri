@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: Apache-2.0
+// Basic .tri Codegen - Ring 004
+// Minimal .tri to Rust codegen
+
+spec tri_codegen {
+
+    // Types
+    pub type TyKind = enum(u8) {
+        VOID = 0x01,
+        TRIT = 0x02,
+        F64 = 0x03,
+        STRING = 0x04,
+        BOOL = 0x05,
+        STRUCT = 0x06,
+        ENUM = 0x07,
+        ARRAY = 0x08,
+        SLICE = 0x09,
+    }
+
+    pub type Type = struct {
+        kind: TyKind,
+        is_const: bool,
+        is_mutable: bool,
+        name: string,
+        size: u32,
+    }
+
+    pub type Field = struct {
+        name: string,
+        ty: Type,
+    }
+
+    pub type StructDef = struct {
+        name: string,
+        fields: []Field,
+    }
+
+    pub type EnumDef = struct {
+        name: string,
+        variants: []string,
+    }
+
+    pub type FnDef = struct {
+        name: string,
+        params: []Field,
+        ret_ty: Type,
+        is_variadic: bool,
+    }
+
+    pub type ConstDef = struct {
+        name: string,
+        value: string,  // Will be parsed to appropriate type
+    }
+
+    // Core functions (3)
+    pub fn ty_void() -> Type;
+
+    pub fn ty_bool() -> Type;
+
+    pub fn ty_struct(name: string, fields: []Field) -> Type;
+
+    pub fn ty_enum(name: string, variants: []string) -> Type;
+
+    pub fn ty_array(elem: Type, size: u32) -> Type;
+
+    // Template generator
+    pub fn generate_ty(ty: Type) -> string;
+
+    pub fn generate_field(field: Field) -> string;
+
+    pub fn generate_var(decl: string) -> string;
+
+    pub fn generate_fn_decl(fn_def: FnDef) -> string;
+
+    pub fn generate_const_def(const_def: ConstDef) -> string;
+
+    pub fn generate_test(test_name: string) -> string;
+
+    pub fn generate_invariant(inv_name: string) -> string;
+
+    pub fn generate_bench(bench_name: string) -> string;
+
+    pub fn generate_module(spec_name: string, items: []string) -> string;
+
+    // Rust codegen template
+    pub fn generate_rust_module(spec_name: string, items: []string) -> string {
+        let mut code = String::new();
+
+        // Add mod declaration
+        code.push_str("mod ");
+        code.push_str(spec_name);
+        code.push_str(";\n");
+
+        // Add use statements
+        code.push_str("use std::collections::HashMap;\n");
+        code.push_str("use super::\{Vec, HashMap, Box, String, Option, Result, Error\};\n");
+
+        // Generate items
+        for item in items {
+            code.push_str(&generate_rust_item(item));
+            code.push_str("\n");
+        }
+
+        code.push_str("fn main() {\n");
+        code.push_str("    println!(\"Trinity .tri Codegen - Ring 004\");\n");
+        code.push_str("    0;\n");
+        code.push_str("}\n");
+
+        code
+    }
+}
+
+// Item generators (minimal for now)
+fn generate_rust_item(item: string) -> string {
+    // For types
+    match item {
+        "ty_void" => "let _void = ();".to_string(),
+
+        "ty_bool" => "let _bool = bool;".to_string(),
+
+        "ty_f64" => "let _f64 = f64;".to_string(),
+
+        "ty_struct" => format!("let _{} = struct {{ {} }};", item.args.join(", ")),
+
+        "ty_enum" => format!("let _{} = enum {{ {} }};", item.args.join(", ")),
+
+        "ty_array" => format!("let _{} = [{}; {}];", item.args[0], item.args[1]),
+
+        "fn_def" => format!(
+            "pub fn {}({}: {}{}) -> {}{};\n",
+            item.name,
+            item.args.iter().map(|a| a).join(", "),
+            item.ret_ty
+        ).to_string(),
+
+        "const_def" => format!("pub const {}: {} = {};", item.name, item.value),
+
+        "test" => format!(
+            "#[test] pub fn {}() -> bool {{\n",
+            "    let result = {};\n",
+            "}};\n",
+            item.args[0]
+        ).to_string(),
+    }
+}
+
+// Simple main function
+pub fn main() {
+    println!("Basic .tri Codegen - Ring 004");
+    println!("Minimal .tri to Rust codegen");
+
+    // Test generation
+    let mut code = String::new();
+    code.push_str(&generate_module("test_module", [
+        &generate_const_def("PHI", "1.6180339887498948482"),
+        &generate_fn_decl("test_fn", [
+            &generate_field("x", &ty_f64()),
+        ], &ty_f64()),
+        &generate_test("test_simple", false),
+    ]));
+
+    println!("{}", code);
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Trinity / t27: Native Ternary Framework and Language",
+  "description": "Spec-first .t27 language, bootstrap compiler (Rust), Zig/C/Verilog codegen, conformance vectors, seals. Complete creators and version when creating a Zenodo release; link GitHub repo for auto-archive.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "keywords": ["compiler", "specification", "ternary", "GoldenFloat", "Verilog"],
+  "creators": [
+    {
+      "name": "Vasilev, Dmitrii",
+      "affiliation": "Trinity Project",
+      "orcid": "0009-0008-4294-6159"
+    }
+  ]
+}

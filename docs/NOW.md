@@ -15,7 +15,7 @@
 
 ## R5-PASS-6 Honest Audit (Issue #596 — community trinity-s3ai SOT alignment)
 
-- Operator directive: `«один источник правды и все мои zenodo здесь https://zenodo.org/communities/trinity-s3ai/»`.
+- Operator directive: a single source of truth — all Zenodo records live at <https://zenodo.org/communities/trinity-s3ai/>.
 - Verified via Zenodo REST `/api/communities/trinity-s3ai/records?size=25` that the community contains EXACTLY 12 records (B001–B008 = 19227865/67/69/71/73/75/77/79; D004–D007 = 19020270/75/80/82; concept DOI B007 = 19227876).
 - t27 changes:
   - `README.md`: canonical SOT pointer next to GoldenFloat 19456875 badge with explicit note that GoldenFloat is legitimate Vasilev authorship but lives OUTSIDE the curated S³AI v5.0 record set.
@@ -65,6 +65,22 @@
 **Pre-commit Gate (Ring 073)** (PR #554)
 - 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
 - Install: `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`
+
+- 2026-05-13: **CI win** — GitHub Actions builds spiOverJtag_xc7a100tfgg676.bit
+  successfully via Vivado 2024.2 on ubuntu-24.04 runner (workflow run 25753882084,
+  commit f44f5af3). Root cause of prior route_design failures: the previous
+  constr_xc7a_fgg676.xdc tried to use dedicated configuration bank pins
+  (C8/B19/A18/B18/A19) which are GT terminals on FGG676. Corrected pinout
+  P18/R14/R15/P14/N14 sourced from QMTECH_XC7A75T_100T_200T-CORE-BOARD
+  schematic (Bank 14 dual-purpose D00..D03 + FCS_B). New bitstream
+  407,262 bytes, sha256 bf5be125e9098d61b4855c599b19a5c90c360592991b7b9b7835af02e605cad2,
+  contains "7a100tfgg676" device string. Deployed to fpga/tools/bscan_spi_xc7a100t.bit
+  and re-embedded into cli/dlc10 via include_bytes!. Runtime status:
+  STAT=0x00000000 after proxy-load — DONE never goes HIGH for both the new and the
+  pre-existing fgg676 bitstreams, so the remaining blocker is in the JTAG transport
+  layer (cli/dlc10 program_sram path), not the bitstream itself. On-board flash is
+  N25Q064A 3V (JEDEC 0x20BA17), not MT25QL128. Closes #592 (CI side); follow-up
+  issue needed for proxy-load DONE=LOW. See docs/fpga/SPI_FLASH_DEBUG.md.
 
 **FFI Bug Fixes + API Completeness** (PR #553 — merged)
 - BUG-001/002/003 fixed, GF4/8/12/20/24 encode/decode added

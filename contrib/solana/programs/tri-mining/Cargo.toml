@@ -1,0 +1,23 @@
+[package]
+name = "tri-mining"
+version = "0.1.0"
+description = "Trinity $TRI Token Mining Program — PoUC on Solana"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "tri_mining"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[workspace]
+
+[dependencies]
+anchor-lang = "0.30"
+anchor-spl = "0.30"
