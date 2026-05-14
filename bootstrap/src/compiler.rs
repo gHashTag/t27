@@ -21096,3 +21096,361 @@ mod tests_phase40_coverage {
         assert!(cm.is_complete());
     }
 }
+
+// ============================================================================
+// MetaCompilation Module - Multi-backend Code Generation
+// ============================================================================
+
+/// Compilation result for all backends
+#[derive(Debug, Clone, Default)]
+pub struct CompileResult {
+    pub parse_ok: bool,
+    pub zig_ok: bool,
+    pub verilog_ok: bool,
+    pub c_ok: bool,
+    pub rust_ok: bool,
+    pub ts_ok: bool,
+    pub zig_lines: u32,
+    pub verilog_lines: u32,
+    pub c_lines: u32,
+    pub rust_lines: u32,
+    pub ts_lines: u32,
+}
+
+impl CompileResult {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn is_full_success(&self) -> bool {
+        self.parse_ok && self.zig_ok && self.verilog_ok && self.c_ok && self.rust_ok && self.ts_ok
+    }
+
+    pub fn total_lines(&self) -> u32 {
+        self.zig_lines + self.verilog_lines + self.c_lines + self.rust_lines + self.ts_lines
+    }
+
+    pub fn any_backend_ok(&self) -> bool {
+        self.zig_ok || self.verilog_ok || self.c_ok || self.rust_ok || self.ts_ok
+    }
+
+    pub fn count_lines(code: &str) -> u32 {
+        code.lines().count() as u32
+    }
+}
+
+/// T27 type mapping functions
+pub struct TypeMapper;
+
+impl TypeMapper {
+    /// Map T27 type to Zig type
+    pub fn to_zig(ty: &str) -> String {
+        match ty.trim() {
+            "bool" => "bool".to_string(),
+            "u8" => "u8".to_string(),
+            "i8" => "i8".to_string(),
+            "u16" | "GF16" | "gf16" | "phi" => "u16".to_string(),
+            "i16" => "i16".to_string(),
+            "u32" => "u32".to_string(),
+            "i32" => "i32".to_string(),
+            "u64" => "u64".to_string(),
+            "i64" => "i64".to_string(),
+            "f32" => "f32".to_string(),
+            "f64" => "f64".to_string(),
+            "void" => "void".to_string(),
+            "str" => "[]const u8".to_string(),
+            t => t.to_string(),
+        }
+    }
+
+    /// Map T27 type to C type
+    pub fn to_c(ty: &str) -> String {
+        match ty.trim() {
+            "bool" => "bool".to_string(),
+            "u8" => "uint8_t".to_string(),
+            "i8" => "int8_t".to_string(),
+            "u16" | "GF16" | "gf16" | "phi" => "uint16_t".to_string(),
+            "i16" => "int16_t".to_string(),
+            "u32" => "uint32_t".to_string(),
+            "i32" => "int32_t".to_string(),
+            "u64" => "uint64_t".to_string(),
+            "i64" => "int64_t".to_string(),
+            "f32" => "float".to_string(),
+            "f64" => "double".to_string(),
+            "void" => "void".to_string(),
+            "usize" => "size_t".to_string(),
+            "str" => "const char*".to_string(),
+            t => t.to_string(),
+        }
+    }
+
+    /// Map T27 type to Rust type
+    pub fn to_rust(ty: &str) -> String {
+        match ty.trim() {
+            "bool" => "bool".to_string(),
+            "u8" => "u8".to_string(),
+            "i8" => "i8".to_string(),
+            "u16" | "GF16" | "gf16" | "phi" => "u16".to_string(),
+            "i16" => "i16".to_string(),
+            "u32" => "u32".to_string(),
+            "i32" => "i32".to_string(),
+            "u64" => "u64".to_string(),
+            "i64" => "i64".to_string(),
+            "f32" => "f32".to_string(),
+            "f64" => "f64".to_string(),
+            "void" => "()".to_string(),
+            "str" => "String".to_string(),
+            "usize" => "usize".to_string(),
+            t => t.to_string(),
+        }
+    }
+
+    /// Map T27 type to TypeScript type
+    pub fn to_typescript(ty: &str) -> String {
+        match ty.trim() {
+            "bool" => "boolean".to_string(),
+            "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "u64" | "i64" | "GF16" | "gf16" | "phi" | "usize" => "number".to_string(),
+            "f32" | "f64" => "number".to_string(),
+            "void" => "void".to_string(),
+            "str" => "string".to_string(),
+            t => t.to_string(),
+        }
+    }
+
+    /// Map T27 type to Verilog bit width
+    pub fn to_verilog(ty: &str) -> String {
+        match ty.trim() {
+            "bool" => "".to_string(),
+            "u8" => "[7:0]".to_string(),
+            "i8" => "[7:0] signed".to_string(),
+            "u16" | "GF16" | "gf16" | "phi" => "[15:0]".to_string(),
+            "i16" => "[15:0] signed".to_string(),
+            "u32" => "[31:0]".to_string(),
+            "i32" => "[31:0] signed".to_string(),
+            _ => "".to_string(),
+        }
+    }
+}
+
+/// MetaCompilation - Multi-backend code generation orchestrator
+pub struct MetaCompilation {
+    source: String,
+    ast: Option<Node>,
+}
+
+impl MetaCompilation {
+    pub fn new(source: String) -> Self {
+        Self {
+            source,
+            ast: None,
+        }
+    }
+
+    /// Parse the source code
+    pub fn parse(&mut self, lexer: &mut Lexer, parser: &mut Parser) -> Result<&Node, String> {
+        *lexer = Lexer::new(&self.source);
+        match parser.parse() {
+            Ok(ast) => {
+                self.ast = Some(ast.clone());
+                Ok(&self.ast.as_ref().unwrap())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Emit Zig code
+    pub fn emit_zig(&self, ast: &Node) -> (String, CompileResult) {
+        let mut codegen = Codegen::new();
+        codegen.gen_zig(ast);
+        let code = codegen.output;
+        let lines = CompileResult::count_lines(&code);
+        let mut result = CompileResult::new();
+        result.parse_ok = ast.kind == NodeKind::Module;
+        result.zig_ok = !code.is_empty();
+        result.zig_lines = lines;
+        (code, result)
+    }
+
+    /// Emit C code
+    pub fn emit_c(&self, ast: &Node) -> (String, CompileResult) {
+        let mut codegen = CCodegen::new();
+        codegen.gen_c(ast);
+        let code = codegen.into_string();
+        let lines = CompileResult::count_lines(&code);
+        let mut result = CompileResult::new();
+        result.parse_ok = ast.kind == NodeKind::Module;
+        result.c_ok = !code.is_empty();
+        result.c_lines = lines;
+        (code, result)
+    }
+
+    /// Emit Verilog code
+    pub fn emit_verilog(&self, ast: &Node) -> (String, CompileResult) {
+        let mut codegen = VerilogCodegen::new();
+        codegen.gen_verilog(ast);
+        let code = codegen.into_string();
+        let lines = CompileResult::count_lines(&code);
+        let mut result = CompileResult::new();
+        result.parse_ok = ast.kind == NodeKind::Module;
+        result.verilog_ok = !code.is_empty();
+        result.verilog_lines = lines;
+        (code, result)
+    }
+
+    /// Emit Rust code
+    pub fn emit_rust(&self, ast: &Node) -> (String, CompileResult) {
+        let mut codegen = RustCodegen::new();
+        codegen.gen_rust(ast);
+        let code = codegen.into_string();
+        let lines = CompileResult::count_lines(&code);
+        let mut result = CompileResult::new();
+        result.parse_ok = ast.kind == NodeKind::Module;
+        result.rust_ok = !code.is_empty();
+        result.rust_lines = lines;
+        (code, result)
+    }
+
+    /// Emit TypeScript code
+    pub fn emit_typescript(&self, ast: &Node) -> (String, CompileResult) {
+        let mut codegen = TypeScriptCodegen::new();
+        codegen.gen_typescript(ast);
+        let code = codegen.into_string();
+        let lines = CompileResult::count_lines(&code);
+        let mut result = CompileResult::new();
+        result.parse_ok = ast.kind == NodeKind::Module;
+        result.ts_ok = !code.is_empty();
+        result.ts_lines = lines;
+        (code, result)
+    }
+
+    /// Compile to all backends
+    pub fn compile_all(&self, ast: &Node) -> (MultiBackendOutput, CompileResult) {
+        let (zig_code, zig_r) = self.emit_zig(ast);
+        let (c_code, c_r) = self.emit_c(ast);
+        let (verilog_code, v_r) = self.emit_verilog(ast);
+        let (rust_code, rust_r) = self.emit_rust(ast);
+        let (ts_code, ts_r) = self.emit_typescript(ast);
+
+        let mut result = CompileResult::new();
+        result.parse_ok = ast.kind == NodeKind::Module;
+        result.zig_ok = zig_r.zig_ok;
+        result.verilog_ok = v_r.verilog_ok;
+        result.c_ok = c_r.c_ok;
+        result.rust_ok = rust_r.rust_ok;
+        result.ts_ok = ts_r.ts_ok;
+        result.zig_lines = zig_r.zig_lines;
+        result.verilog_lines = v_r.verilog_lines;
+        result.c_lines = c_r.c_lines;
+        result.rust_lines = rust_r.rust_lines;
+        result.ts_lines = ts_r.ts_lines;
+
+        let output = MultiBackendOutput {
+            zig: zig_code,
+            c: c_code,
+            verilog: verilog_code,
+            rust: rust_code,
+            typescript: ts_code,
+        };
+
+        (output, result)
+    }
+}
+
+/// Output from all backends
+#[derive(Debug, Clone)]
+pub struct MultiBackendOutput {
+    pub zig: String,
+    pub c: String,
+    pub verilog: String,
+    pub rust: String,
+    pub typescript: String,
+}
+
+impl MultiBackendOutput {
+    pub fn new() -> Self {
+        Self {
+            zig: String::new(),
+            c: String::new(),
+            verilog: String::new(),
+            rust: String::new(),
+            typescript: String::new(),
+        }
+    }
+}
+
+impl Default for MultiBackendOutput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests_meta_compile {
+    use super::*;
+
+    #[test]
+    fn test_compile_result_default() {
+        let r = CompileResult::new();
+        assert!(!r.parse_ok);
+        assert!(!r.zig_ok);
+        assert_eq!(r.total_lines(), 0);
+        assert!(!r.is_full_success());
+        assert!(!r.any_backend_ok());
+    }
+
+    #[test]
+    fn test_type_mapper_zig() {
+        assert_eq!(TypeMapper::to_zig("bool"), "bool");
+        assert_eq!(TypeMapper::to_zig("u32"), "u32");
+        assert_eq!(TypeMapper::to_zig("phi"), "u16");
+        assert_eq!(TypeMapper::to_zig("GF16"), "u16");
+    }
+
+    #[test]
+    fn test_type_mapper_c() {
+        assert_eq!(TypeMapper::to_c("u32"), "uint32_t");
+        assert_eq!(TypeMapper::to_c("phi"), "uint16_t");
+        assert_eq!(TypeMapper::to_c("f64"), "double");
+    }
+
+    #[test]
+    fn test_type_mapper_rust() {
+        assert_eq!(TypeMapper::to_rust("u32"), "u32");
+        assert_eq!(TypeMapper::to_rust("phi"), "u16");
+        assert_eq!(TypeMapper::to_rust("void"), "()");
+    }
+
+    #[test]
+    fn test_type_mapper_typescript() {
+        assert_eq!(TypeMapper::to_typescript("bool"), "boolean");
+        assert_eq!(TypeMapper::to_typescript("u32"), "number");
+        assert_eq!(TypeMapper::to_typescript("phi"), "number");
+    }
+
+    #[test]
+    fn test_type_mapper_verilog() {
+        assert_eq!(TypeMapper::to_verilog("bool"), "");
+        assert_eq!(TypeMapper::to_verilog("u32"), "[31:0]");
+        assert_eq!(TypeMapper::to_verilog("phi"), "[15:0]");
+    }
+
+    #[test]
+    fn test_count_lines() {
+        assert_eq!(CompileResult::count_lines(""), 0);
+        assert_eq!(CompileResult::count_lines("line1"), 1);
+        assert_eq!(CompileResult::count_lines("line1\nline2\nline3"), 3);
+    }
+
+    #[test]
+    fn test_meta_compilation_new() {
+        let mc = MetaCompilation::new("test".to_string());
+        assert!(mc.ast.is_none());
+    }
+
+    #[test]
+    fn test_multi_backend_output_default() {
+        let out = MultiBackendOutput::new();
+        assert!(out.zig.is_empty());
+        assert!(out.c.is_empty());
+    }
+}
