@@ -32,7 +32,7 @@ Single Source of Truth for t27/Trios operations
     Total: 73 Coq files, 2000+ lines of verified proofs
 *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import ZArith.
 Require Import List.
 Open Scope R_scope.

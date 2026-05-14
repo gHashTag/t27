@@ -4,6 +4,8 @@
 *.vok
 *.vio
 *.glob
+*.aux
+*.cache
 
 # CoqMakefile
 CoqMakefile.conf

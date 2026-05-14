@@ -7,7 +7,7 @@
     Falsification: K=9, grid=9x9 but entropy = 3.0 → band broken. *)
 
 Require Import Coq.Reals.Reals.
-Require Import Coq.micromega.Lra.
+From Stdlib Require Import micromega.Lra.
 Require Import Coq.Init.Nat.
 Require Import Coq.Reals.R_sqrt.
 

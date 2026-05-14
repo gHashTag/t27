@@ -12,7 +12,7 @@ Single Source of Truth for t27/Trios operations
 (* Catalog42.v - Representative Theorems for Flagship Catalog *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Open Scope R_scope.
 
 Require Import Bounds_Gauge.

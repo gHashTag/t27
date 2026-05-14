@@ -2,7 +2,7 @@
 (** Balancing recursion: f(x) = (x + x⁻¹ + 1) / 2 *)
 (** From any x₀ > 0, iteration converges to φ with rate λ = (√5 - 1)/4 *)
 
-Require Import Reals.
+From Stdlib Require Import Reals.
 Require Import Psatz.
 Require Import RealField.
 Require Import ZArith.

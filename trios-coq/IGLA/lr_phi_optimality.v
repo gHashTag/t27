@@ -7,7 +7,7 @@
    L-R14 gate: this file must coqc-compile before IGLA RACE starts. *)
 
 Require Import Coq.Reals.Reals.
-Require Import Coq.micromega.Lra.
+From Stdlib Require Import micromega.Lra.
 Open Scope R_scope.
 
 (* φ constants *)

@@ -12,7 +12,8 @@ Single Source of Truth for t27/Trios operations
 (* CorePhi.v - Exact Algebraic Identities for Phi *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
+From Stdlib Require Import micromega.Lra.
 Open Scope R_scope.
 
 (** Golden ratio definition: φ = (1 + √5) / 2 *)
@@ -22,12 +23,11 @@ Definition phi : R := (1 + sqrt(5)) / 2.
 Lemma phi_pos : 0 < phi.
 Proof.
   unfold phi.
-  apply Rmult_lt_pos_pos.
-  - apply (Rlt_trans 0 2). lra.
-  - apply Rle_lt_trans with (sqrt(5) + 0).
-    + apply sqrt_pos.
-      lra.
+  apply Rdiv_lt_0_compat.
+  - apply Rplus_lt_0_compat.
     + lra.
+    + apply sqrt_lt_R0; lra.
+  - lra.
 Qed.
 
 (** φ is non-zero *)

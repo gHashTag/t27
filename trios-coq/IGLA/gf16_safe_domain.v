@@ -6,7 +6,7 @@
     Falsification: d_model=255 with GF16 produces error ≥ φ⁻⁶. *)
 
 Require Import Coq.Reals.Reals.
-Require Import Coq.micromega.Lra.
+From Stdlib Require Import micromega.Lra.
 Require Import Coq.Arith.Arith.
 Require Import Coq.Arith.PeanoNat.
 

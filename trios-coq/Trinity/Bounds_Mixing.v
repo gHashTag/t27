@@ -1,7 +1,7 @@
 (* Bounds_Mixing.v - Certified Bounds for Mixing Parameter Formulas *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import Interval.Tactic.
 Open Scope R_scope.
 

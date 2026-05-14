@@ -12,7 +12,8 @@ Single Source of Truth for t27/Trios operations
 (* AlphaPhi.v - Named Constant α_φ Definition *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
+From Stdlib Require Import micromega.Lra.
 Open Scope R_scope.
 
 Require Import CorePhi.
@@ -35,7 +36,7 @@ Lemma alpha_phi_pos : 0 < alpha_phi < 1.
 Proof.
   unfold alpha_phi.
   split.
-  - apply Rmult_lt_pos_pos.
+  - apply Rmult_pos_pos.
     + apply Rinv_lt_pos.
       apply Rgt_not_eq.
       apply Rlt_gt.

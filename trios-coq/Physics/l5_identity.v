@@ -1,4 +1,4 @@
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Open Scope R_scope.
 
 (* Trinity Identity: φ² + φ⁻² = 3 where φ = (1 + √5)/2 *)

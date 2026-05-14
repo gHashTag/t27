@@ -7,7 +7,7 @@
     Falsification: if champion is pruned at threshold=3.5 → INV-2 violated → RACE INVALID *)
 
 Require Import Coq.Reals.Reals.
-Require Import Coq.micromega.Lra.
+From Stdlib Require Import micromega.Lra.
 
 Open Scope R_scope.
 

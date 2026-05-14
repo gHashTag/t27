@@ -1,7 +1,7 @@
 (* ExactIdentities.v - Exact Algebraic Identities and Number Theory *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import ZArith.
 Require Import Arith.
 Open Scope R_scope.

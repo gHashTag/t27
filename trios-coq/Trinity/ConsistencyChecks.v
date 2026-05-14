@@ -1,7 +1,7 @@
 (* ConsistencyChecks.v - Cross-Sector Validation and Chain Relations *)
 (* Part of Trinity S3AI Coq Proof Base for v1.0 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import Interval.Tactic.
 Open Scope R_scope.
 

@@ -1,7 +1,7 @@
 (* FormulaEval.v - Monomial Datatype and Evaluator *)
 (* Part of Trinity S3AI Coq Proof Base for v0.9 Framework *)
 
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import ZArith.
 Require Import String.
 Open Scope R_scope.

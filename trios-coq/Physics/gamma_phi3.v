@@ -1,4 +1,4 @@
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Open Scope R_scope.
 
 Definition phi : R := (1 + sqrt(5)) / 2.

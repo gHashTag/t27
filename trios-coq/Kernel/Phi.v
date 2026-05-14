@@ -1,7 +1,7 @@
 (** Golden ratio as real; algebraic identities (AXIOM-K2 / PHI-IDENTITY).
     Layer A: pure [Coq.Reals] — no Flocq here. See [Kernel/PhiFloat.v] for Flocq link. *)
 
-Require Import Reals.
+From Stdlib Require Import Reals.
 Require Import Psatz.
 Require Import ZArith.
 Require Import RealField.

@@ -6,7 +6,7 @@ Single Source of Truth for t27/Trios operations
 (* T27 to Coq Mapping - Rings 093-107: Coq Verification *)
 
 Require Import List.
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import Bool.Bool.
 Open Scope R_scope.
 

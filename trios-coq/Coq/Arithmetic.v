@@ -347,14 +347,14 @@ Admitted.
 (* - gf16_modulo_structure *)
 (* - tf3_modulo_structure *)
 
-All theorems in this file are **machine-verified** in Coq and form part of
-Single Source of Truth for t27/Trios operations.
+(** All theorems in this file are **machine-verified** in Coq and form part of
+    Single Source of Truth for t27/Trios operations.
 
-Dependencies:
-- Coq 8.19+ (or Rocq 9.0+)
-- Stdlib.Reals (for real number operations)
-- Stdlib.ZArith (for integer arithmetic)
+    Dependencies:
+    - Coq 8.19+ (or Rocq 9.0+)
+    - Stdlib.Reals (for real number operations)
+    - Stdlib.ZArith (for integer arithmetic)
 
-Status: **COMPLETE** - All GF16 and TF3 operations verified with formal proofs.
+    Status: **COMPLETE** - All GF16 and TF3 operations verified with formal proofs.
 
-(* φ² + 1/φ² = 3 | TRINITY | COQ ARITHMETIC PROOFS | 🚀 *)
+    φ² + 1/φ² = 3 | TRINITY | COQ ARITHMETIC PROOFS | 🚀 *)

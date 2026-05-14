@@ -11,7 +11,7 @@ Single Source of Truth for t27/Trios operations
 (* Trios - T27 Formal Verification Package *)
 
 Require Import List.
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Require Import Bool.Bool.
 Open Scope R_scope.
 

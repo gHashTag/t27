@@ -6,7 +6,7 @@ Single Source of Truth for t27/Trios operations
 (* T27 Operations - Formal Semantics *)
 
 Require Import List.
-Require Import Reals.Reals.
+From Stdlib Require Import Reals.
 Open Scope R_scope.
 
 (** * T27 Core Operations *)
