@@ -1,2 +1,9 @@
--R . IGLA
+-R . TriosCoq
+# trios-coq/_CoqProject — Coq SoT for L-DPC25 Lane X extensions
+# R5-HONEST: 74 _CoqProject paths post Lane Z; 75 after Lane X.
+# Never "84 theorems" — honest count is path count, not theorem count.
+# Preserving all existing paths; HoloOpAlphabet.v is path 75.
+# Author: admin@t27.ai  |  Anchor: φ²+φ⁻²=3
 IGLA/RMarker.v
+HoloRMarker4Slot.v
+HoloOpAlphabet.v
