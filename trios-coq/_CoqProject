@@ -12,3 +12,4 @@ Physics/AvsStacking.v
 Physics/SubThreshold.v
 Physics/HoloMux.v
 Physics/DFS.v
+Physics/SparseGate.v

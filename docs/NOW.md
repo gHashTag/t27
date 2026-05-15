@@ -167,3 +167,20 @@ DOI 10.5281/zenodo.19227877
 - Predecessors: W35 LUT-NPU (0xE3), W36 AVS-48
 - Anchor: phi^2 + phi^-2 = 3
 
+
+## Wave-41 Lane GG — SparseGate.v (OP_SPARSE_SKIP = 0xE8)
+
+Wave-41 SparseGate.v 8 Qed sacred 0xE8
+
+- Sparse-Activation Gating: skip computation for sub-threshold activations
+- **NEW**: trios-coq/Physics/SparseGate.v — 8 Qed lemmas
+  - sparse_op_distinct_from_dfs: OP_SPARSE_SKIP <> 231 (0xE7)
+  - sparse_op_distinct_from_holo_mux: OP_SPARSE_SKIP <> 230 (0xE6)
+  - sparse_op_distinct_from_subth: OP_SPARSE_SKIP <> 229 (0xE5)
+  - sparse_op_distinct_from_avs_reconf: OP_SPARSE_SKIP <> 228 (0xE4)
+  - sparse_op_distinct_from_lut_npu: OP_SPARSE_SKIP <> 227 (0xE3)
+  - sparse_op_distinct_from_tom: OP_SPARSE_SKIP <> 226 (0xE2)
+  - sparse_op_distinct_from_tenet: OP_SPARSE_SKIP <> 225 (0xE1)
+  - sparse_skip_power_law: forall s <= 100, 100*(100 - s*55/100) <= 10000
+- Predecessor: W40 Lane FF DFS.v (0xE7), merge SHA 384f5a97
+- Anchor: phi^2 + phi^-2 = 3 · DOI 10.5281/zenodo.19227877 · NEVER STOP
