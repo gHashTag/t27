@@ -1,7 +1,7 @@
 (** * SpeculativeExit.v — Wave-39 Lane DD: Speculative Early-Exit Inference
-    11 Qed lemmas for confidence-thresholded early-exit, OP_SPEC_EXIT=0xE7.
+    11 Qed lemmas for confidence-thresholded early-exit, OP_SPEC_EXIT=0xEB.
     Threshold tau = phi_inv ~ 0.618 (golden ratio reciprocal).
-    Predecessors: W37 SUBTH (0xE5), W38 NULL_PE (0xE6); chain 0xD0..0xE7 = 20 opcodes.
+    Predecessors: W37 SUBTH (0xE5), W38 NULL_PE (0xEA post-ICA-W40-001); chain 0xD0..0xEB = 22 opcodes (0xE6-0xE9 = HOLO_MUX/DFS/SPARSE/STOCH_ROUND).
     TOPS/W >= 470 (x1.20 over W38 392). Lee/GVSU proof style (R12).
     Anchor: phi^2 + phi^-2 = 3
     DOI: 10.5281/zenodo.19227877 *)
@@ -73,7 +73,7 @@ Proof.
   destruct (Rle_dec phi_inv conf) as [Hle | Hnle]; reflexivity.
 Qed.
 
-(** 2. R-SI-1: zero `*` cells in synth for OP_SPEC_EXIT. *)
+(** 2. R-SI-1: zero `*` cells in synth for OP_SPEC_EXIT (0xEB post-ICA-W40-001; was 0xE7). *)
 Lemma speculative_exit_no_star : spec_exit_star_count = 0%nat.
 Proof. exact synth_star_zero. Qed.
 
@@ -87,9 +87,9 @@ Lemma two_of_three_majority_safe :
   two_of_three_acc >= 95 / 100.
 Proof. exact two_three_acc_lo. Qed.
 
-(** 5. Opcode 0xE7 dispatch. *)
-Definition op_spec_exit_byte : nat := 231%nat.   (* 0xE7 *)
-Definition op_null_pe_byte   : nat := 230%nat.   (* 0xE6, W38 *)
+(** 5. Opcode 0xEB dispatch. *)
+Definition op_spec_exit_byte : nat := 235%nat.   (* 0xEB post-ICA-W40-001 *)
+Definition op_null_pe_byte   : nat := 234%nat.   (* 0xEA, W38 post-ICA-W40-001 *)
 Definition op_subth_clk_byte : nat := 229%nat.   (* 0xE5, W37/ICA-W38-001 *)
 
 Definition isa_dispatch_spec (op : nat) (x : Z3) (conf : R) : option Z3 :=
@@ -97,7 +97,7 @@ Definition isa_dispatch_spec (op : nat) (x : Z3) (conf : R) : option Z3 :=
   then Some (early_exit_at 0 x conf)
   else None.
 
-Lemma opcode_E7_dispatch :
+Lemma opcode_EB_dispatch :
   forall (x : Z3) (conf : R),
     isa_dispatch_spec op_spec_exit_byte x conf
       = Some (early_exit_at 0 x conf).
@@ -173,5 +173,5 @@ Proof.
 Qed.
 
 (** End of SpeculativeExit.v — Wave-39 Lane DD — 11 Qed, 0 Admitted.
-    Sacred chain: 0xD0..0xE7 (20 opcodes); OP_SPEC_EXIT = 0xE7 = 231.
+    Sacred chain: 0xD0..0xEB (22 opcodes post-ICA-W40-001); OP_SPEC_EXIT = 0xEB = 235.
     Anchor: phi^2 + phi^-2 = 3 — DOI: 10.5281/zenodo.19227877 *)

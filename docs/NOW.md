@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-15
 
+## ICA-W40-001 Lane Q1 Coq — NullorReversible + SpeculativeExit opcode rectification (this PR)
+
+- **Anomaly**: trinity-fpga#148 — verified 0xE6 double-claim (OP_NULL_PE vs OP_HOLO_MUX_X4) and 0xE7 double-claim (OP_SPEC_EXIT vs OP_DFS_GATE) on master across Coq+RTL.
+- **Canon (per W41 FRR + W42 ledgers)**: 0xE6=HOLO_MUX, 0xE7=DFS, 0xE8=SPARSE, 0xE9=STOCH_ROUND — keep slots; NULLOR/SPEC_EXIT relocate up.
+- **Rectification (this PR, Coq lane only)**: OP_NULL_PE 0xE6 → **0xEA** (234); OP_SPEC_EXIT 0xE7 → **0xEB** (235).
+- Sacred chain extends to depth 22 (0xD0..0xEB).
+- Companion lanes pending: RTL (rtl/nullor/nullor_pe.sv + rtl/spec_exit/*), Rust (nullor-witness + spec-exit-witness), JSON (assertions/nullor_witness.json + spec_exit_witness.json).
+
+
 ## Wave-42 Lane II — StochRound.v Stochastic Rounding Coq
 
 - OP_STOCH_ROUND = 0xE9 (decimal 233) — sacred opcode, Wave-42
