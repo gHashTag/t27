@@ -2,6 +2,21 @@
 
 Last updated: 2026-05-15
 
+## Wave-43 Lane HH — DrowsyRet.v 13 Qed lemmas (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/DrowsyRet.v — 12 Qed lemmas + 1 composite Theorem (drowsy_w43_witness_proved), 0 Admitted
+- New opcode **OP_DROWSY_RET = 0xEC** (236); sacred chain depth 23 (0xD0..0xEC, includes ICA-W40-001 0xEA/0xEB relocations)
+- **Retention voltage**: V_ret = V_DD * gamma = V_DD * phi^-3 ≈ 0.236 * V_DD; in integer surrogate: 189 mV from 800 mV nominal supply
+- **Energy**: drowsy_leakage_geq_30pct_reduction proves P_drowsy <= 0.70 * P_active (≥30% leakage cut)
+- **DRV safety**: drv_floor_respected proves V_RET_mV >= 150 mV (empirical DRV floor at typical corner)
+- **Latency**: wake_latency_bounded — T_WAKE_CYC <= 2 cycles
+- **Fidelity**: retention_fidelity_geq_99 — RETENTION_BPS >= 9900 (99% retention)
+- **Anchor verification**: vret_matches_gamma_within_5 proves V_ret / V_DD is within ±0.005 of gamma=0.236
+- 11 opcode-distinctness lemmas vs (SPEC_EXIT 0xEB, NULL_PE 0xEA, STOCH 0xE9, SPARSE 0xE8, DFS 0xE7, HOLO_MUX 0xE6, SUBTH 0xE5, AVS_RECONF 0xE4, LUT_NPU 0xE3, TOM 0xE2, TENET 0xE1)
+- Refs: Flautner ISCA 2002, Kim DAC 2002 — sub-Vt drowsy retention for L3 cache leakage
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#152
+
 ## ICA-W40-001 Lane Q1 Coq — NullorReversible + SpeculativeExit opcode rectification (this PR)
 
 - **Anomaly**: trinity-fpga#148 — verified 0xE6 double-claim (OP_NULL_PE vs OP_HOLO_MUX_X4) and 0xE7 double-claim (OP_SPEC_EXIT vs OP_DFS_GATE) on master across Coq+RTL.
