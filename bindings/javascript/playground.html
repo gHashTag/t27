@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>t27 Playground — Spec-First Ternary Programming</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #238636;
+      --accent-hover: #2ea043;
+      --border: #30363d;
+      --code-bg: #0d1117;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .phi-badge {
+      background: var(--bg-tertiary);
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      height: calc(100vh - 70px);
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: var(--bg-tertiary);
+      padding: 0.75rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+      font-weight: 500;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .editor {
+      flex: 1;
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 1rem;
+      background: var(--code-bg);
+      color: var(--text-primary);
+      border: none;
+      resize: none;
+      outline: none;
+    }
+
+    .output {
+      flex: 1;
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 1rem;
+      background: var(--code-bg);
+      color: var(--text-primary);
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border);
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button.secondary {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    button.secondary:hover {
+      background: var(--bg-tertiary);
+    }
+
+    select {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 0.5rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-secondary);
+    }
+
+    .status-indicator.ready { background: var(--accent); }
+    .status-indicator.error { background: #f85149; }
+    .status-indicator.compiling { background: #d29922; }
+
+    .examples {
+      position: fixed;
+      right: 0;
+      top: 70px;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem;
+      width: 300px;
+      transform: translateX(100%);
+      transition: transform 0.3s;
+      z-index: 100;
+    }
+
+    .examples.open {
+      transform: translateX(0);
+    }
+
+    .examples-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .example-item {
+      padding: 0.75rem;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .example-item:hover {
+      background: var(--border);
+    }
+
+    .example-name {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .example-desc {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>t27 Playground</h1>
+    <span class="phi-badge">φ² + φ⁻² = 3</span>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Input (.t27)</span>
+        <button class="secondary" id="showExamples">Examples</button>
+      </div>
+      <textarea class="editor" id="input" spellcheck="false">// t27 Playground
+// Write your spec here and click "Compile"
+
+module Example {
+    const PHI: f64 = 1.618033988749895;
+
+    fn golden_ratio() -> f64 {
+        return PHI;
+    }
+
+    fn trinity_sum() -> f64 {
+        return PHI * PHI + 1.0 / (PHI * PHI);
+    }
+
+    invariant "trinity_identity" {
+        return trinity_sum() == 3.0;
+    }
+}</textarea>
+      <div class="toolbar">
+        <select id="backend">
+          <option value="wasm">WebAssembly</option>
+          <option value="zig">Zig</option>
+          <option value="c">C</option>
+          <option value="rust">Rust</option>
+          <option value="verilog">Verilog</option>
+        </select>
+        <button id="compile">Compile</button>
+        <button class="secondary" id="download">Download</button>
+        <div class="status">
+          <div class="status-indicator ready" id="statusIndicator"></div>
+          <span id="statusText">Ready</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Output</span>
+      </div>
+      <div class="output" id="output">Click "Compile" to see generated code...</div>
+    </div>
+  </main>
+
+  <div class="examples" id="examples">
+    <div class="examples-header">
+      <h3>Examples</h3>
+      <button class="secondary" id="hideExamples">Close</button>
+    </div>
+    <div class="example-item" data-example="trinity">
+      <div class="example-name">Trinity Identity</div>
+      <div class="example-desc">Prove φ² + φ⁻² = 3</div>
+    </div>
+    <div class="example-item" data-example="math">
+      <div class="example-name">Math Operations</div>
+      <div class="example-desc">Basic arithmetic functions</div>
+    </div>
+    <div class="example-item" data-example="gf16">
+      <div class="example-name">GoldenFloat GF16</div>
+      <div class="example-desc">φ-optimized 16-bit floating point</div>
+    </div>
+    <div class="example-item" data-example="fpga">
+      <div class="example-name">FPGA Counter</div>
+      <div class="example-desc">Verilog-ready counter module</div>
+    </div>
+  </div>
+
+  <script src="runtime.js"></script>
+  <script>
+    const examples = {
+      trinity: `module TrinityIdentity {
+    const PHI: f64 = 1.618033988749895;
+
+    fn phi_squared() -> f64 {
+        return PHI * PHI;
+    }
+
+    fn phi_neg_squared() -> f64 {
+        return 1.0 / (PHI * PHI);
+    }
+
+    fn trinity_sum() -> f64 {
+        return phi_squared() + phi_neg_squared();
+    }
+
+    invariant "trinity_identity" {
+        return trinity_sum() ≈ 3.0;
+    }
+}`,
+      math: `module MathOps {
+    fn add(a: i32, b: i32) -> i32 {
+        return a + b;
+    }
+
+    fn multiply(a: i32, b: i32) -> i32 {
+        return a * b;
+    }
+
+    fn factorial(n: i32) -> i32 {
+        if n <= 1 {
+            return 1;
+        }
+        return n * factorial(n - 1);
+    }
+
+    test "factorial_of_5" {
+        given { }
+        then { let result = factorial(5); }
+        expect { result == 120; }
+    }
+}`,
+      gf16: `module GoldenFloat {
+    const GF16_BIAS: i32 = 31;
+    const GF16_MANT_BITS: i32 = 9;
+
+    fn gf16_from_f32(value: f32) -> u16 {
+        if value == 0.0 {
+            return 0;
+        }
+        // Simplified encoding
+        return 0;
+    }
+
+    fn gf16_to_f32(bits: u16) -> f32 {
+        if bits == 0 {
+            return 0.0;
+        }
+        // Simplified decoding
+        return 0.0;
+    }
+
+    fn gf16_add(a: u16, b: u16) -> u16 {
+        return gf16_from_f32(gf16_to_f32(a) + gf16_to_f32(b));
+    }
+}`,
+      fpga: `module FpgaCounter {
+    const MAX_COUNT: u32 = 999999;
+
+    fn parity_checker(data: u8) -> u1 {
+        let mut parity: u1 = 0;
+        for i in 0..8 {
+            parity = parity xor ((data >> i) & 1);
+        }
+        return parity;
+    }
+
+    #clock
+    fn blink_counter() -> u32 {
+        static mut count: u32 = 0;
+        count = count + 1;
+        if count >= MAX_COUNT {
+            count = 0;
+        }
+        return count;
+    }
+
+    test "parity_all_zeros" {
+        given { }
+        then { let result = parity_checker(0); }
+        expect { result == 0; }
+    }
+}`
+    };
+
+    const inputEl = document.getElementById('input');
+    const outputEl = document.getElementById('output');
+    const backendEl = document.getElementById('backend');
+    const compileBtn = document.getElementById('compile');
+    const downloadBtn = document.getElementById('download');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const examplesPanel = document.getElementById('examples');
+    const showExamplesBtn = document.getElementById('showExamples');
+    const hideExamplesBtn = document.getElementById('hideExamples');
+
+    // Event listeners
+    compileBtn.addEventListener('click', compile);
+    downloadBtn.addEventListener('click', download);
+    showExamplesBtn.addEventListener('click', () => examplesPanel.classList.add('open'));
+    hideExamplesBtn.addEventListener('click', () => examplesPanel.classList.remove('open'));
+
+    document.querySelectorAll('.example-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const example = item.dataset.example;
+        if (examples[example]) {
+          inputEl.value = examples[example];
+          examplesPanel.classList.remove('open');
+        }
+      });
+    });
+
+    function setStatus(status, text) {
+      statusIndicator.className = 'status-indicator ' + status;
+      statusText.textContent = text;
+    }
+
+    async function compile() {
+      const source = inputEl.value;
+      const backend = backendEl.value;
+
+      setStatus('compiling', 'Compiling...');
+      outputEl.textContent = 'Compiling...';
+
+      try {
+        const response = await fetch('/compile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ source, backend }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          outputEl.textContent = result.output;
+          setStatus('ready', 'Success');
+        } else {
+          outputEl.textContent = 'Error: ' + result.error;
+          setStatus('error', 'Failed');
+        }
+      } catch (error) {
+        outputEl.textContent = 'Network error: ' + error.message;
+        setStatus('error', 'Failed');
+      }
+    }
+
+    function download() {
+      const content = outputEl.textContent;
+      const backend = backendEl.value;
+      const extensions = {
+        wasm: '.wat',
+        zig: '.zig',
+        c: '.c',
+        rust: '.rs',
+        verilog: '.v'
+      };
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'module' + (extensions[backend] || '.txt');
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Auto-compile on Ctrl+Enter
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        compile();
+      }
+    });
+  </script>
+</body>
+</html>

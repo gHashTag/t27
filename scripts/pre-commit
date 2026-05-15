@@ -62,7 +62,51 @@ check_no_new_shell() {
     fi
 }
 
-# Gate 4: Cargo check (if bootstrap/ or ffi/ changed)
+# Gate 4: .t27 spec formatting
+check_t27_format() {
+    local changed=$(git diff --cached --name-only --diff-filter=ACMR '*.t27' 2>/dev/null || true)
+    if [ -z "$changed" ]; then
+        echo -e "${GREEN}PASS: no .t27 files to format check${NC}"
+        return
+    fi
+    local needs_format=0
+    for spec in $changed; do
+        if [ -f "$spec" ]; then
+            if ! python3 scripts/tri-fmt --check "$spec" 2>/dev/null; then
+                echo -e "${YELLOW}WARN: $spec needs formatting. Run 'python3 scripts/tri-fmt $spec'${NC}"
+                needs_format=1
+            fi
+        fi
+    done
+    if [ "$needs_format" -eq 0 ]; then
+        echo -e "${GREEN}PASS: all .t27 files are formatted${NC}"
+    fi
+}
+
+# Gate 5: Lint .t27 specs
+check_t27_lint() {
+    local changed=$(git diff --cached --name-only --diff-filter=ACMR '*.t27' 2>/dev/null || true)
+    if [ -z "$changed" ]; then
+        echo -e "${GREEN}PASS: no .t27 files to lint${NC}"
+        return
+    fi
+    local lint_errors=0
+    for spec in $changed; do
+        if [ -f "$spec" ]; then
+            if python3 scripts/tri-fmt --lint "$spec" 2>&1 | grep -q "ERROR:"; then
+                echo -e "${RED}FAIL: $spec has lint errors${NC}"
+                lint_errors=1
+            fi
+        fi
+    done
+    if [ "$lint_errors" -eq 0 ]; then
+        echo -e "${GREEN}PASS: all .t27 files passed lint${NC}"
+    else
+        FAIL=1
+    fi
+}
+
+# Gate 6: Cargo check (if bootstrap/ or ffi/ changed)
 check_cargo() {
     local changed=$(git diff --cached --name-only 2>/dev/null | grep -E '^(ffi/|bootstrap/|Cargo\.toml)' || true)
     if [ -z "$changed" ]; then
@@ -83,6 +127,8 @@ echo ""
 check_now_freshness
 check_seal_coverage
 check_no_new_shell
+check_t27_format
+check_t27_lint
 check_cargo
 echo ""
 

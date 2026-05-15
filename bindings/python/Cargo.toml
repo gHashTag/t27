@@ -1,9 +1,9 @@
 [package]
 name = "golden-float-py"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "Python bindings for GoldenFloat via PyO3"
-license = "MIT"
+license = "Apache-2.0"
 
 [lib]
 name = "golden_float"
@@ -13,3 +13,5 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.28", features = ["extension-module", "abi3-py39"] }
 numpy = "0.21"
 golden-float-ffi = { path = "../../ffi" }
+
+[workspace]

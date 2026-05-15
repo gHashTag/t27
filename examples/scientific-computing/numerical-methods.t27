@@ -1,0 +1,438 @@
+// Numerical Methods with φ-Optimized Precision
+//
+// Mathematical algorithms using GoldenFloat for scientific computing
+//
+// φ² + 1/φ² = 3 | TRINITY
+
+module NumericalMethods {
+    // ============================================================================
+    // Golden Ratio Constants
+    // ============================================================================
+
+    const PHI: f64 = 1.618033988749895;
+    const PHI_SQUARED: f64 = PHI * PHI;           // ≈ 2.618
+    const PHI_NEG: f64 = 1.0 / PHI;              // ≈ 0.618
+    const PHI_NEG_SQUARED: f64 = 1.0 / PHI_SQUARED; // ≈ 0.382
+
+    // ============================================================================
+    // Trinity Identity Verification
+    // ============================================================================
+
+    fn trinity_sum() -> f64 {
+        return PHI_SQUARED + PHI_NEG_SQUARED;
+    }
+
+    fn trinity_identity_check() -> bool {
+        return abs(trinity_sum() - 3.0) < 1e-10;
+    }
+
+    // ============================================================================
+    // Numerical Integration
+    // ============================================================================
+
+    // Type alias for mathematical functions
+    type MathFn = fn(f64) -> f64;
+
+    // Simpson's rule for numerical integration
+    fn simpsons_rule(f: MathFn, a: f64, b: f64, n: i32) -> f64 {
+        if n % 2 != 0 {
+            return simpsons_rule(f, a, b, n + 1);  // Ensure even
+        }
+
+        let h: f64 = (b - a) / (n as f64);
+        let mut sum: f64 = f(a) + f(b);
+
+        for i in 1..n {
+            let x: f64 = a + (i as f64) * h;
+            if i % 2 == 0 {
+                sum = sum + 2.0 * f(x);  // Even terms
+            } else {
+                sum = sum + 4.0 * f(x);  // Odd terms
+            }
+        }
+
+        return (h / 3.0) * sum;
+    }
+
+    // Monte Carlo integration
+    fn monte_carlo_integrate(f: MathFn, a: f64, b: f64, samples: i32) -> f64 {
+        let mut sum: f64 = 0.0;
+        let range: f64 = b - a;
+
+        for i in 0..samples {
+            let x: f64 = a + (range * (i as f64 + 0.5) / (samples as f64));
+            sum = sum + f(x);
+        }
+
+        return range * sum / (samples as f64);
+    }
+
+    // ============================================================================
+    // Root Finding (Newton-Raphson)
+    // ============================================================================
+
+    struct DerivativeFn {
+        f: MathFn,
+        df: MathFn,
+    }
+
+    fn newton_raphson(df: DerivativeFn, x0: f64, tolerance: f64, max_iter: i32) -> f64 {
+        let mut x: f64 = x0;
+
+        for i in 0..max_iter {
+            let fx: f64 = df.f(x);
+            let dfx: f64 = df.df(x);
+
+            if abs(dfx) < tolerance {
+                return x;  // Derivative too small
+            }
+
+            let x_new: f64 = x - fx / dfx;
+
+            if abs(x_new - x) < tolerance {
+                return x_new;  // Converged
+            }
+
+            x = x_new;
+        }
+
+        return x;  // Return best estimate
+    }
+
+    // ============================================================================
+    // Linear Algebra (Vector Operations)
+    // ============================================================================
+
+    fn dot_product(a: vec<f64>, b: vec<f64>) -> f64 {
+        let mut result: f64 = 0.0;
+        let n: i32 = min(len(a), len(b)) as i32;
+
+        for i in 0..n {
+            result = result + a[i as usize] * b[i as usize];
+        }
+
+        return result;
+    }
+
+    fn vector_norm(v: vec<f64>) -> f64 {
+        return sqrt(dot_product(v, v));
+    }
+
+    fn normalize(v: vec<f64>) -> vec<f64> {
+        let norm: f64 = vector_norm(v);
+        if norm == 0.0 {
+            return v;
+        }
+
+        let mut result: vec<f64> = [];
+        for i in 0..len(v) {
+            result.push(v[i] / norm);
+        }
+        return result;
+    }
+
+    // ============================================================================
+    // Special Functions (Approximations)
+    // ============================================================================
+
+    // Sine approximation using Taylor series
+    fn sin_approx(x: f64, terms: i32) -> f64 {
+        // Normalize to [-π, π]
+        let x_norm: f64 = x - (2.0 * PI) * floor((x + PI) / (2.0 * PI));
+
+        let mut result: f64 = 0.0;
+        let mut term: f64 = x_norm;
+        let mut sign: f64 = 1.0;
+
+        for i in 0..terms {
+            result = result + sign * term;
+            sign = -sign;
+            term = term * x_norm * x_norm / ((2 * (i as i32) + 3) * (2 * (i as i32) + 2)) as f64;
+        }
+
+        return result;
+    }
+
+    // Cosine approximation using Taylor series
+    fn cos_approx(x: f64, terms: i32) -> f64 {
+        let x_norm: f64 = x - (2.0 * PI) * floor((x + PI) / (2.0 * PI));
+
+        let mut result: f64 = 1.0;
+        let mut term: f64 = 1.0;
+        let mut sign: f64 = 1.0;
+
+        for i in 1..terms {
+            term = term * x_norm * x_norm / ((2 * i - 1) * (2 * i)) as f64;
+            sign = -sign;
+            result = result + sign * term;
+        }
+
+        return result;
+    }
+
+    // Exponential approximation
+    fn exp_approx(x: f64, terms: i32) -> f64 {
+        let mut result: f64 = 1.0;
+        let mut term: f64 = 1.0;
+
+        for i in 1..terms {
+            term = term * x / (i as f64);
+            result = result + term;
+        }
+
+        return result;
+    }
+
+    // ============================================================================
+    // Matrix Operations
+    // ============================================================================
+
+    struct Matrix {
+        rows: i32,
+        cols: i32,
+        data: vec<f64>,
+    }
+
+    fn matrix_multiply(a: Matrix, b: Matrix) -> Matrix {
+        if a.cols != b.rows {
+            return Matrix { rows: 0, cols: 0, data: [] };
+        }
+
+        let mut result: vec<f64> = [];
+        for i in 0..(a.rows * b.cols) {
+            result.push(0.0);
+        }
+
+        for i in 0..a.rows {
+            for j in 0..b.cols {
+                let mut sum: f64 = 0.0;
+                for k in 0..a.cols {
+                    let a_val = a.data[(i * a.cols + k) as usize];
+                    let b_val = b.data[(k * b.cols + j) as usize];
+                    sum = sum + a_val * b_val;
+                }
+                result[(i * b.cols + j) as usize] = sum;
+            }
+        }
+
+        return Matrix {
+            rows: a.rows,
+            cols: b.cols,
+            data: result,
+        };
+    }
+
+    fn matrix_trace(m: Matrix) -> f64 {
+        let n: i32 = min(m.rows, m.cols);
+        let mut trace: f64 = 0.0;
+
+        for i in 0..n {
+            trace = trace + m.data[(i * m.cols + i) as usize];
+        }
+
+        return trace;
+    }
+
+    // ============================================================================
+    // Phi-Based Algorithms
+    // ============================================================================
+
+    // Fibonacci sequence using φ
+    // F(n) = (φ^n - (-φ)^-n) / √5
+    fn fibonacci_phi(n: i32) -> f64 {
+        let sqrt5: f64 = sqrt(5.0);
+        let phi_pow: f64 = powf(PHI, n as f64);
+        let neg_phi_pow: f64 = powf(-PHI, -(n as f64));
+
+        return (phi_pow - neg_phi_pow) / sqrt5;
+    }
+
+    // Golden section search for minimization
+    fn golden_section_search(f: MathFn, a: f64, b: f64, tolerance: f64) -> f64 {
+        let golden_ratio: f64 = (sqrt(5.0) - 1.0) / 2.0;  // ≈ 0.618
+
+        let mut left: f64 = a;
+        let mut right: f64 = b;
+
+        while (right - left) > tolerance {
+            let mid1: f64 = right - golden_ratio * (right - left);
+            let mid2: f64 = left + golden_ratio * (right - left);
+
+            if f(mid1) < f(mid2) {
+                right = mid2;
+            } else {
+                left = mid1;
+            }
+        }
+
+        return (left + right) / 2.0;
+    }
+
+    // ============================================================================
+    // Tests
+    // ============================================================================
+
+    test "trinity_identity_exact" {
+        given { }
+        then { let sum = trinity_sum(); }
+        expect {
+            abs(sum - 3.0) < 1e-10;
+        }
+    }
+
+    test "phi_squared_is_phi_plus_one" {
+        given { }
+        then { let diff = abs(PHI_SQUARED - (PHI + 1.0)); }
+        expect {
+            diff < 1e-10;
+        }
+    }
+
+    test "phi_neg_is_phi_minus_one" {
+        given { }
+        then { let diff = abs(PHI_NEG - (PHI - 1.0)); }
+        expect {
+            diff < 1e-10;
+        }
+    }
+
+    test "simpsons_rule_constant" {
+        given {
+            let f_const = fn(x: f64) -> f64 { return 5.0; };
+        }
+        then {
+            let integral = simpsons_rule(f_const, 0.0, 10.0, 100);
+        }
+        expect {
+            abs(integral - 50.0) < 0.1;
+        }
+    }
+
+    test "simpsons_rule_linear" {
+        given {
+            let f_linear = fn(x: f64) -> f64 { return x; };
+        }
+        then {
+            let integral = simpsons_rule(f_linear, 0.0, 10.0, 100);
+        }
+        expect {
+            abs(integral - 50.0) < 0.1;
+        }
+    }
+
+    test "newton_raphson_sqrt" {
+        given {
+            let f_sqrt = fn(x: f64) -> f64 { return x * x - 2.0; };
+            let df_sqrt = fn(x: f64) -> f64 { return 2.0 * x; };
+            let df = DerivativeFn { f: f_sqrt, df: df_sqrt };
+        }
+        then {
+            let result = newton_raphson(df, 1.0, 0.0001, 100);
+        }
+        expect {
+            abs(result - sqrt(2.0)) < 0.001;
+        }
+    }
+
+    test "dot_product_simple" {
+        given {
+            let a = [1.0, 2.0, 3.0];
+            let b = [4.0, 5.0, 6.0];
+        }
+        then {
+            let result = dot_product(a, b);
+        }
+        expect {
+            abs(result - 32.0) < 0.001;
+        }
+    }
+
+    test "vector_norm_euclidean" {
+        given {
+            let v = [3.0, 4.0];
+        }
+        then {
+            let norm = vector_norm(v);
+        }
+        expect {
+            abs(norm - 5.0) < 0.001;
+        }
+    }
+
+    test "fibonacci_phi_convergence" {
+        given { }
+        then {
+            let f10 = fibonacci_phi(10);
+            let expected = 55.0;
+        }
+        expect {
+            abs(f10 - expected) < 0.1;
+        }
+    }
+
+    test "golden_section_finds_minimum" {
+        given {
+            // f(x) = (x - 2)², minimum at x = 2
+            let f_quad = fn(x: f64) -> f64 {
+                let diff = x - 2.0;
+                return diff * diff;
+            };
+        }
+        then {
+            let result = golden_section_search(f_quad, 0.0, 5.0, 0.001);
+        }
+        expect {
+            abs(result - 2.0) < 0.01;
+        }
+    }
+
+    test "matrix_multiplication_identity" {
+        given {
+            let m1 = Matrix {
+                rows: 2,
+                cols: 2,
+                data: [1.0, 0.0, 0.0, 1.0],
+            };
+            let m2 = Matrix {
+                rows: 2,
+                cols: 2,
+                data: [5.0, 3.0, 7.0, 2.0],
+            };
+        }
+        then {
+            let result = matrix_multiply(m1, m2);
+        }
+        expect {
+            result.data == m2.data;
+        }
+    }
+
+    // ============================================================================
+    // Benchmarks
+    // ============================================================================
+
+    bench "simpsons_integration_1000_intervals" {
+        let f = fn(x: f64) -> f64 { return x * x; };
+        for _ in 0..100 {
+            let _ = simpsons_rule(f, 0.0, 10.0, 1000);
+        }
+    }
+
+    bench "fibonacci_phi_100" {
+        for _ in 0..100 {
+            let _ = fibonacci_phi(100);
+        }
+    }
+
+    bench "matrix_multiply_100x100" {
+        let mut data: vec<f64> = [];
+        for i in 0..10000 {
+            data.push((i as f64) / 100.0);
+        }
+        let m1 = Matrix { rows: 100, cols: 100, data: data };
+        let m2 = Matrix { rows: 100, cols: 100, data: data };
+        for _ in 0..10 {
+            let _ = matrix_multiply(m1, m2);
+        }
+    }
+}

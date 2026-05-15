@@ -1,0 +1,120 @@
+{
+  "Module Definition": {
+    "prefix": "module",
+    "description": "Create a module",
+    "body": [
+      "module ${1:Name} {",
+      "\t${0:// content}",
+      "}"
+    ]
+  },
+  "Function Definition": {
+    "prefix": "fn",
+    "description": "Create a function",
+    "body": [
+      "fn ${1:name}(${2:params}) -> ${3:return_type} {",
+      "\t${0:// body}",
+      "}"
+    ]
+  },
+  "Constant Definition": {
+    "prefix": "const",
+    "description": "Define a constant",
+    "body": [
+      "const ${1:name}: ${2:type} = ${3:value};"
+    ]
+  },
+  "Phi Constant": {
+    "prefix": "phi-const",
+    "description": "Define phi constant",
+    "body": [
+      "const ${1:PHI}: phi = 1.618033988749895;"
+    ]
+  },
+  "Test Case": {
+    "prefix": "test",
+    "description": "Create a test",
+    "body": [
+      "test \"${1:name}\" {",
+      "\tgiven {",
+      "\t\t${2:// setup}",
+      "\t}",
+      "\tthen {",
+      "\t\t${3:// action}",
+      "\t}",
+      "\texpect {",
+      "\t\t${4:// assertion}",
+      "\t}",
+      "}"
+    ]
+  },
+  "Invariant": {
+    "prefix": "invariant",
+    "description": "Define an invariant",
+    "body": [
+      "invariant: ${1:expression} == ${2:expected};"
+    ]
+  },
+  "Benchmark": {
+    "prefix": "bench",
+    "description": "Create a benchmark",
+    "body": [
+      "bench \"${1:name}\" {",
+      "\t${0:// benchmark code}",
+      "}"
+    ]
+  },
+  "If Statement": {
+    "prefix": "if",
+    "description": "If statement",
+    "body": [
+      "if ${1:condition} {",
+      "\t${0:// true branch}",
+      "\t} else {",
+      "\t${2:// false branch}",
+      "\t}"
+    ]
+  },
+  "Return Statement": {
+    "prefix": "return",
+    "description": "Return statement",
+    "body": [
+      "return ${1:value};"
+    ]
+  },
+  "GF16 Type": {
+    "prefix": "gf16",
+    "description": "GF16 type annotation",
+    "body": [
+      "gf16"
+    ]
+  },
+  "GF32 Type": {
+    "prefix": "gf32",
+    "description": "GF32 type annotation",
+    "body": [
+      "gf32"
+    ]
+  },
+  "Vector Type": {
+    "prefix": "vec",
+    "description": "Vector type",
+    "body": [
+      "vec<${1:element}>"
+    ]
+  },
+  "Option Type": {
+    "prefix": "option",
+    "description": "Option type",
+    "body": [
+      "option<${1:element}>"
+    ]
+  },
+  "Result Type": {
+    "prefix": "result",
+    "description": "Result type",
+    "body": [
+      "result<${1:success}, ${2:error}>"
+    ]
+  }
+}

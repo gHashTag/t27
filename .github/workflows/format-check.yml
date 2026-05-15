@@ -1,0 +1,160 @@
+name: Format and Lint Check
+
+on:
+  push:
+    branches: [ main, master, gitbutler/* ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  format-check:
+    name: Check .t27 Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check formatting
+        run: |
+          python3 scripts/tri-fmt --check $(git ls-files '*.t27')
+
+  lint-check:
+    name: Lint .t27 Specs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run linter
+        run: |
+          for spec in $(git ls-files '*.t27'); do
+            python3 scripts/tri-fmt --lint "$spec" || exit 1
+          done
+
+  ascii-check:
+    name: Check ASCII-only Source (L3)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for non-ASCII characters
+        run: |
+          # Check .t27 specs
+          for file in $(git ls-files '*.t27'); do
+            if LC_ALL=C grep -P '[^\x00-\x7F]' "$file" > /dev/null; then
+              echo "ERROR: Non-ASCII characters in $file (L3 violation)"
+              exit 1
+            fi
+          done
+          echo "PASS: All .t27 files are ASCII-only"
+
+  constitutional-check:
+    name: Constitutional Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: L1: Traceability check
+        run: |
+          # Check for TODO/FIXME without issue references
+          for file in $(git ls-files '*.t27' '*.rs' '*.zig'); do
+            if grep -iE "TODO|FIXME|HACK" "$file" | grep -v "//.*#\|//.*Closes" > /dev/null; then
+              echo "WARN: Found TODO/FIXME without issue reference (L1): $file"
+            fi
+          done
+          echo "INFO: L1 check complete"
+
+      - name: L4: Testability check
+        run: |
+          # Check that .t27 specs have tests
+          for file in $(git ls-files '*.t27'); do
+            if grep -q "module" "$file"; then
+              if ! grep -qE "test |invariant " "$file"; then
+                echo "ERROR: No test/invariant in $file (L4 violation)"
+                exit 1
+              fi
+            fi
+          done
+          echo "PASS: All specs have tests (L4)"
+
+      - name: L5: Trinity Identity check
+        run: |
+          # Check PHI constant values
+          for file in $(git ls-files '*.t27'); do
+            if grep -qi "const.*phi.*=" "$file"; then
+              if grep -qiE "const\s+\w*phi\s*\w*\s*=\s*(\d+\.?\d*)" "$file"; then
+                # Extract and validate phi value
+                phi_val=$(grep -iE "const\s+\w*phi" "$file" | grep -oE '\d+\.\d+' | head -1)
+                # Allow some tolerance for different formats
+                if (( $(echo "$phi_val < 1.61" | bc -l) )); then
+                  echo "WARN: PHI value $phi_val seems low in $file (expected ~1.618)"
+                elif (( $(echo "$phi_val > 1.62" | bc -l) )); then
+                  echo "WARN: PHI value $phi_val seems high in $file (expected ~1.618)"
+                fi
+              fi
+            fi
+          done
+          echo "INFO: L5 check complete"
+
+  format-rust:
+    name: Format Rust Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install rustfmt
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: |
+          cargo fmt --all -- --check
+
+  format-zig:
+    name: Format Zig Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Zig
+        run: |
+          wget https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
+          tar -xf zig-linux-x86_64-0.13.0.tar.xz
+          echo "$PWD/zig-linux-x86_64-0.13.0" >> $GITHUB_PATH
+
+      - name: Check formatting
+        run: |
+          zig fmt --check $(git ls-files '*.zig')
+
+  no-shell-check:
+    name: L7: No New Shell Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for new .sh files
+        run: |
+          new_sh=$(git diff --name-only --diff-filter=A HEAD~1 HEAD '*.sh' || true)
+          if [ -n "$new_sh" ]; then
+            echo "ERROR: New .sh files detected (L7 UNITY violation):"
+            echo "$new_sh"
+            exit 1
+          fi
+          echo "PASS: No new .sh files (L7)"
