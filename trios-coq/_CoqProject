@@ -10,3 +10,4 @@ IGLA/VoltStack.v
 Kernel/LutNpu.v
 Physics/AvsStacking.v
 Physics/SubThreshold.v
+Physics/HoloMux.v
