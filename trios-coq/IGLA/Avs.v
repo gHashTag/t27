@@ -60,25 +60,25 @@ Proof. reflexivity. Qed.
 
 (* Membership lemmas: each named op participates in the pipeline. *)
 Lemma avs_oplist_in_lut_lookup : In OP_LUT_LOOKUP avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. left. reflexivity. Qed.
 
 Lemma avs_oplist_in_bitrom_read : In OP_BITROM_READ avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. right. left. reflexivity. Qed.
 
 Lemma avs_oplist_in_sparse_skip : In OP_SPARSE_SKIP avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. right. right. left. reflexivity. Qed.
 
 Lemma avs_oplist_in_noc_forward : In OP_NOC_FORWARD avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. right. right. right. left. reflexivity. Qed.
 
 Lemma avs_oplist_in_holo_mux : In OP_HOLO_MUX_1X2 avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. right. right. right. right. left. reflexivity. Qed.
 
 Lemma avs_oplist_in_lut_npu : In OP_LUT_NPU avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. right. right. right. right. right. left. reflexivity. Qed.
 
 Lemma avs_oplist_in_avs_reconf : In OP_AVS_RECONF avs_oplist.
-Proof. simpl. auto. Qed.
+Proof. unfold avs_oplist. simpl. right. right. right. right. right. right. left. reflexivity. Qed.
 
 (* Sacred ROM L0 untouched: the W36 alphabet does NOT contain
    OP_LOAD_PHYSICS_CONST (which would access L0). This is the
@@ -103,7 +103,9 @@ Qed.
 Lemma avs_extends_lut_npu :
   In OP_LUT_NPU avs_oplist /\ In OP_AVS_RECONF avs_oplist.
 Proof.
-  split; simpl; auto.
+  split.
+  - apply avs_oplist_in_lut_npu.
+  - apply avs_oplist_in_avs_reconf.
 Qed.
 
 (* Sacred chain depth lemma: the alphabet chain is monotonically growing
