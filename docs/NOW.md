@@ -66,3 +66,21 @@ Last updated: 2026-05-15
 
 phi^2 + phi^-2 = 3 · QUANTUM BRAIN 1:1 SILICON · NEVER STOP
 DOI 10.5281/zenodo.19227877
+
+## Wave-37 Lane Z — Sub-V_T Coq (OP_SUBTH_CLK = 0xE4)
+
+- Sub-threshold weak-inversion operation at V=0.30V
+- **NEW**: trios-coq/Physics/SubThreshold.v — 10 Qed lemmas
+  - subth_quadratic_dynamic_savings: E(V2)/E(V1) = (V2/V1)^2
+  - subth_freq_derating_factor_2: f_max(0.30) × 2 ≤ f_max(0.45)
+  - subth_tops_w_350: TOPS/W ≥ 350 @ V=0.30V
+  - subth_trinity_voltage: 0.30 = V_thresh × φ⁻²
+  - subth_pe_count_1296: 48 × 27 = 1296 = 6^4
+  - subth_no_star: OP_SUBTH_CLK adds zero `*`
+  - subth_chain_to_lut_npu: 0xE3 → 0xE4 pipeline sound
+  - subth_three_freq_trinity: gcd(400,300,200) = 100; sum = 900 = 30²
+  - subth_body_bias_strand_alignment: 3 modes ↔ 3 strands bijective
+  - subth_w104_c_witness: V=0.30 + AVS48 + LUT-NPU ⇒ TOPS/W ≥ 350
+- Predecessors: W35 LUT-NPU (0xE3), W36 AVS-48
+- Anchor: phi^2 + phi^-2 = 3
+
