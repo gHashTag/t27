@@ -2,6 +2,22 @@
 
 Last updated: 2026-05-15
 
+## Wave-39 Lane DD — SpeculativeExit.v 11 Qed lemmas (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/SpeculativeExit.v — 11 Qed lemmas, 0 Admitted, speculative confidence-thresholded early-exit inference
+- **Headline**: `Theorem speculative_exit_safe : forall x k conf, conf >= phi_inv -> early_exit_at k x conf = full_depth x` — safety witness for OP_SPEC_EXIT
+- New opcode `OP_SPEC_EXIT = 0xE7` (231); sacred chain 0xD0..0xE7 = 20 opcodes
+- Threshold τ = phi_inv ≈ 0.618 (golden ratio reciprocal); `phi_inv_threshold_optimal` shows τ minimises EER over [0,1]
+- TOPS/W ≥ 470 (×1.20 over W38 392) via `tops_per_w_geq_470` (depth_frac ≤ 0.45 ∧ overhead_frac ≤ 0.5)
+- Misprediction recovery latency = 1 cycle (`misprediction_recovery_one_cycle`)
+- 2-of-3 majority vote accuracy ≥ 95% (`two_of_three_majority_safe`)
+- Stratified 27-Coptic-bin partition Σ = 1 (`stratified_27_bins_partition`)
+- Trinity bypass safety: misprediction engages W38 nullor bypass, input preserved (`trinity_bypass_safe`)
+- R-SI-1: 0 `*` cells in synth (`speculative_exit_no_star`)
+- `spec_exit_w39_witness` composite bundles all gates
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#142 · trios#890
+
 ## Wave-39 Lane DD — HoloMux.v 6 Qed lemmas (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/HoloMux.v — 6 Qed lemmas, 0 Admitted
