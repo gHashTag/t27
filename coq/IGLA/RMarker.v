@@ -1,9 +1,10 @@
-(** * IGLA / Lane Z+X — R-marker formal specification for TTSKY26c HOLOGRAPHIC v9 + LEVER STACK.
+(** * IGLA / Lane Z+X+T' — R-marker formal specification for TTSKY26c HOLOGRAPHIC v9 + LEVER STACK + TENET Wave-29.
 
     Anchor: phi^2 + phi^-2 = 3.
     Scope: 4-slot R-marker register (R-SI-1 boot vector for inter-die NoC),
-           plus 6-element holo-op alphabet covering HOLOGRAPHIC v9 RTL surface
-           (Lanes A'/B'/C'/Y) AND the Wave-28 LEVER STACK (Lanes V/W).
+           plus 7-element holo-op alphabet covering HOLOGRAPHIC v9 RTL surface
+           (Lanes A'/B'/C'/Y) AND the Wave-28 LEVER STACK (Lanes V/W)
+           AND the Wave-29 TENET sparsity-aware LUT (Lane T').
            The [holographic_no_star] lemma proves the RTL family NEVER reduces
            through a Kleene-star fixpoint -- the star operator is forbidden by
            R-SI-1, the no-star constitutional rule on max-true and holo.
@@ -12,6 +13,8 @@
     Lane X (+2 ops): OP_LUT_LOOKUP (sacred 0xDF, Lever #1 Platinum LUT PE,
                      arXiv 2511.21910 ASP-DAC 2026), OP_BITROM_READ (sacred 0xE0,
                      Lever #2 BitROM bidirectional ROM, arXiv 2509.08542).
+    Lane T' (+1 op): OP_SPARSE_SKIP (sacred 0xE1, Wave-29 L-DPC26 TENET
+                     sparsity-aware LUT skip).
 
     Style follows [Kernel/Trit.v] and [Theorems/PhiDistance.v]:
     terse [Inductive] / [Definition] / [Lemma ... Qed].
@@ -70,6 +73,7 @@ Inductive holo_op : Set :=
   | OP_HOLO_MUX_1X2        (** Lane Y — 1x2 holographic mux *)
   | OP_LUT_LOOKUP          (** TRI-27 ISA 0xDF — Lane V Lever #1 Platinum LUT PE *)
   | OP_BITROM_READ         (** TRI-27 ISA 0xE0 — Lane W Lever #2 BitROM bidirectional ROM *)
+  | OP_SPARSE_SKIP         (** TRI-27 ISA 0xE1 — Lane T' Wave-29 TENET sparsity-aware LUT skip *)
   .
 
 (** Reflexive predicate: does this op use the forbidden [*] operator?
@@ -83,6 +87,7 @@ Definition rtl_uses_star (op : holo_op) : bool :=
   | OP_HOLO_MUX_1X2       => false
   | OP_LUT_LOOKUP         => false
   | OP_BITROM_READ        => false
+  | OP_SPARSE_SKIP        => false
   end.
 
 (** ** The headline lemma — R-SI-1 enforced at spec layer.
@@ -103,6 +108,17 @@ Lemma lut_no_star : rtl_uses_star OP_LUT_LOOKUP = false.
 Proof. reflexivity. Qed.
 
 Lemma bitrom_no_star : rtl_uses_star OP_BITROM_READ = false.
+Proof. reflexivity. Qed.
+
+(** ** TENET sparsity-aware LUT spot lemma (Lane T' Wave-29).
+
+    Named witness for OP_SPARSE_SKIP (0xE1) — the Wave-29 L-DPC26 TENET
+    sparsity-aware LUT skip opcode. Purely additive on the Wave-28
+    6-element alphabet (R18 LAYER-FROZEN: Wave-28 lemmas holographic_no_star,
+    lut_no_star, bitrom_no_star are preserved unchanged). The new constructor
+    extends the sacred ISA sequence 0xDE/0xDF/0xE0 → 0xE1 (R15).
+    R-SI-1: no [*] operator introduced or used. *)
+Lemma tenet_no_star : rtl_uses_star OP_SPARSE_SKIP = false.
 Proof. reflexivity. Qed.
 
 (** ** R-marker boot integrity.
@@ -148,9 +164,11 @@ Lemma holo_op_preserves_no_star :
   forall (op : holo_op) (m : r_marker), rtl_uses_star op = false.
 Proof. intros op m. apply holographic_no_star. Qed.
 
-(** End of Lane Z+X spec. Falsification (R7): any future holo_op variant
+(** End of Lane Z+X+T' spec. Falsification (R7): any future holo_op variant
     that sets [rtl_uses_star = true] will fail this file at [Qed]-time,
     blocking the CI gate before TTIHP27a silicon submission (deadline
     2026-09-30). The Wave-28 LEVER STACK adds OP_LUT_LOOKUP (sacred 0xDF)
     and OP_BITROM_READ (sacred 0xE0) -- both explicitly enumerated as
-    star-free in [rtl_uses_star]. *)
+    star-free in [rtl_uses_star]. The Wave-29 TENET extension (Lane T')
+    adds OP_SPARSE_SKIP (sacred 0xE1) -- also star-free, proven by
+    [tenet_no_star]. R18 LAYER-FROZEN: all Wave-28 lemmas preserved. *)

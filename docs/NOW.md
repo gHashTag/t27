@@ -5,6 +5,17 @@
 
 ---
 
+## Lane T' — L-DPC26 Wave-29 TENET Coq alphabet extension (Issue #643)
+
+- Extended `coq/IGLA/RMarker.v` `holo_op` alphabet: +`OP_SPARSE_SKIP` (TRI-27 ISA `0xE1`, Wave-29 TENET sparsity-aware LUT skip). Purely additive — R18 LAYER-FROZEN.
+- Added named spot lemma: `Lemma tenet_no_star : rtl_uses_star OP_SPARSE_SKIP = false. Qed.` — Wave-29 R-SI-1 ZERO `*` witness.
+- 15 Qed / 16 Lemma total (Wave-28 baseline 14 Qed preserved). Local `coqc -R coq/IGLA T27 coq/IGLA/RMarker.v` exit 0.
+- R15 sacred-synth-gate: `0xE1` continues the sacred sequence `0xDE` (Lane C') / `0xDF` (Lane V) / `0xE0` (Lane W) / `0xE1` (Lane T').
+- R-SI-1 ✅ (no new `*`), R8 ✅ (`admin@t27.ai`), R15 ✅ (`0xE1`), R18 LAYER-FROZEN ✅ (Wave-28 lemmas holographic_no_star, lut_no_star, bitrom_no_star untouched).
+- Cross-repo refs: gHashTag/trios#845 (Wave-29 ONE SHOT), Wave-28 Lane X commit `5758b53cb9` / PR #637. Closes #643.
+
+---
+
 ## Lane X — L-DPC25 Wave-28 LEVER STACK Coq alphabet extension (Issue #635 — 2026-05-15)
 
 - Extended `coq/IGLA/RMarker.v` `holo_op` alphabet: +`OP_LUT_LOOKUP` (sacred 0xDF, Lever #1) +`OP_BITROM_READ` (sacred 0xE0, Lever #2).
