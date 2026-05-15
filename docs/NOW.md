@@ -1,7 +1,19 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-05-15
-**Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622). **2026-05-15: L-DPC24 HOLOGRAPHIC v9 ONE SHOT (trios#832) Lane Z** — new `coq/IGLA/RMarker.v` adds formal 4-slot R-marker spec and `Lemma holographic_no_star` proving R-SI-1 (zero `*` operator) at the spec layer; 12 Qed / 13 Lemma, all accepted by coqc 8.20.1. Sibling RTL surface on `tt-trinity-holo` @ `86d34ee` (army-landed Lanes A'/B'/C'/Y). See `coq/IGLA/RMarker.v` and Issue #631.
+**Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622). **2026-05-15: L-DPC25 Wave-28 LEVER STACK Lane X** (Issue #635) extends `coq/IGLA/RMarker.v` `holo_op` alphabet with `OP_LUT_LOOKUP` (sacred 0xDF, Lever #1 Platinum LUT PE, arXiv 2511.21910) and `OP_BITROM_READ` (sacred 0xE0, Lever #2 BitROM, arXiv 2509.08542); re-proves `holographic_no_star` over 6-op alphabet; 14 Qed / 15 Lemma total, all accepted by coqc 8.20.1. Builds on Lane Z (Issue #631 / PR #630). **2026-05-15: L-DPC24 HOLOGRAPHIC v9 ONE SHOT (trios#832) Lane Z** — new `coq/IGLA/RMarker.v` adds formal 4-slot R-marker spec and `Lemma holographic_no_star` proving R-SI-1 (zero `*` operator) at the spec layer; 12 Qed / 13 Lemma, all accepted by coqc 8.20.1. Sibling RTL surface on `tt-trinity-holo` @ `86d34ee` (army-landed Lanes A'/B'/C'/Y). See `coq/IGLA/RMarker.v` and Issue #631.
+
+---
+
+## Lane X — L-DPC25 Wave-28 LEVER STACK Coq alphabet extension (Issue #635 — 2026-05-15)
+
+- Extended `coq/IGLA/RMarker.v` `holo_op` alphabet: +`OP_LUT_LOOKUP` (sacred 0xDF, Lever #1) +`OP_BITROM_READ` (sacred 0xE0, Lever #2).
+- Re-proved `Lemma holographic_no_star : forall op : holo_op, rtl_uses_star op = false. Qed.` over the extended 6-element alphabet — R-SI-1 ZERO `*` invariant preserved.
+- Added two named spot lemmas: `lut_no_star` and `bitrom_no_star` (cite-able from Lane V/W RTL CI commit messages).
+- 14 Qed / 15 Lemma total (12 baseline Lane Z + 2 Lever Stack). Local `coqc -R . T27 IGLA/RMarker.v` exit 0 (Coq 8.20.1).
+- Sources of new opcodes: arXiv 2511.21910 (Platinum LUT PE, ASP-DAC 2026, 1534 GOPS @ 0.96 mm² @ 28nm), arXiv 2509.08542 (BitROM bidirectional ROM, 20.8 TOPS/W @ 65nm, 4 967 kB/mm²).
+- R5-HONEST (no Admitted), R7 (any future RTL `rtl_uses_star=true` op breaks file at Qed-time), R8 admin@t27.ai, R15 sacred-synth-gate (0xDF, 0xE0 continuing 0xDE Lane C'), R18 LAYER-FROZEN (purely additive, no `Kernel/` / `Theorems/` edits).
+- Cross-repo refs: gHashTag/trios#834 (Wave-28 ONE SHOT), gHashTag/trios#836 (Lane Q assertion mirror PR), gHashTag/trinity-fpga#104 (army mirror). Closes #635.
 
 ---
 

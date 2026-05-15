@@ -1,16 +1,22 @@
-(** * IGLA / Lane Z — R-marker formal specification for TTSKY26c HOLOGRAPHIC v9.
+(** * IGLA / Lane Z+X — R-marker formal specification for TTSKY26c HOLOGRAPHIC v9 + LEVER STACK.
 
     Anchor: phi^2 + phi^-2 = 3.
     Scope: 4-slot R-marker register (R-SI-1 boot vector for inter-die NoC),
-           and the [holographic_no_star] lemma proving the RTL family
-           NEVER reduces through a Kleene-star fixpoint -- the star operator
-           is forbidden by R-SI-1, the no-star constitutional rule on
-           max-true and holo.
+           plus 6-element holo-op alphabet covering HOLOGRAPHIC v9 RTL surface
+           (Lanes A'/B'/C'/Y) AND the Wave-28 LEVER STACK (Lanes V/W).
+           The [holographic_no_star] lemma proves the RTL family NEVER reduces
+           through a Kleene-star fixpoint -- the star operator is forbidden by
+           R-SI-1, the no-star constitutional rule on max-true and holo.
+
+    Lane Z (4 ops): OP_LOAD_PHYSICS_CONST, OP_NOC_FORWARD, OP_RAZOR_SAMPLE, OP_HOLO_MUX_1X2.
+    Lane X (+2 ops): OP_LUT_LOOKUP (sacred 0xDF, Lever #1 Platinum LUT PE,
+                     arXiv 2511.21910 ASP-DAC 2026), OP_BITROM_READ (sacred 0xE0,
+                     Lever #2 BitROM bidirectional ROM, arXiv 2509.08542).
 
     Style follows [Kernel/Trit.v] and [Theorems/PhiDistance.v]:
     terse [Inductive] / [Definition] / [Lemma ... Qed].
 
-    Sibling assertion mirror: gHashTag/trios assertions/holographic.json.
+    Sibling assertion mirror: gHashTag/trios assertions/lever_stack.json (Lane Q).
 
     Author: Vasilev Dmitrii <admin@t27.ai>.
 *)
@@ -62,20 +68,42 @@ Inductive holo_op : Set :=
   | OP_NOC_FORWARD         (** Lane A' — 1-cycle inter-die NoC stub *)
   | OP_RAZOR_SAMPLE        (** Lane B' — shadow flip-flop *)
   | OP_HOLO_MUX_1X2        (** Lane Y — 1x2 holographic mux *)
+  | OP_LUT_LOOKUP          (** TRI-27 ISA 0xDF — Lane V Lever #1 Platinum LUT PE *)
+  | OP_BITROM_READ         (** TRI-27 ISA 0xE0 — Lane W Lever #2 BitROM bidirectional ROM *)
   .
 
-(** Reflexive predicate: does this op use the forbidden [*] operator? *)
+(** Reflexive predicate: does this op use the forbidden [*] operator?
+    Lever Stack ops are explicitly enumerated false here -- this is the
+    spec-layer counterpart of [check_no_star.sh] which scans the RTL. *)
 Definition rtl_uses_star (op : holo_op) : bool :=
   match op with
   | OP_LOAD_PHYSICS_CONST => false
   | OP_NOC_FORWARD        => false
   | OP_RAZOR_SAMPLE       => false
   | OP_HOLO_MUX_1X2       => false
+  | OP_LUT_LOOKUP         => false
+  | OP_BITROM_READ        => false
   end.
 
-(** ** The headline lemma — R-SI-1 enforced at spec layer. *)
+(** ** The headline lemma — R-SI-1 enforced at spec layer.
+
+    After Lane X extension this lemma quantifies over 6 constructors:
+    Lane Z's original 4 (HOLOGRAPHIC v9) plus Lane X's 2 (LEVER STACK).
+    The [destruct op] tactic still discharges all branches by
+    [reflexivity] because every match arm in [rtl_uses_star] is [false]. *)
 Lemma holographic_no_star : forall (op : holo_op), rtl_uses_star op = false.
 Proof. destruct op; reflexivity. Qed.
+
+(** ** Lever Stack spot lemmas (Lane X).
+
+    Explicit witnesses for the two new opcodes -- exported by name so the
+    Lane V (LUT PE) and Lane W (BitROM) RTL CI gates can cite them by
+    Lemma name in their commit messages and assertion JSON. *)
+Lemma lut_no_star : rtl_uses_star OP_LUT_LOOKUP = false.
+Proof. reflexivity. Qed.
+
+Lemma bitrom_no_star : rtl_uses_star OP_BITROM_READ = false.
+Proof. reflexivity. Qed.
 
 (** ** R-marker boot integrity.
 
@@ -120,6 +148,9 @@ Lemma holo_op_preserves_no_star :
   forall (op : holo_op) (m : r_marker), rtl_uses_star op = false.
 Proof. intros op m. apply holographic_no_star. Qed.
 
-(** End of Lane Z spec. Falsification: any future holo_op variant that
-    sets [rtl_uses_star = true] will fail this file at [Qed]-time,
-    blocking the CI gate before silicon submission. *)
+(** End of Lane Z+X spec. Falsification (R7): any future holo_op variant
+    that sets [rtl_uses_star = true] will fail this file at [Qed]-time,
+    blocking the CI gate before TTIHP27a silicon submission (deadline
+    2026-09-30). The Wave-28 LEVER STACK adds OP_LUT_LOOKUP (sacred 0xDF)
+    and OP_BITROM_READ (sacred 0xE0) -- both explicitly enumerated as
+    star-free in [rtl_uses_star]. *)
