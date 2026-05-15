@@ -1,0 +1,17 @@
+# Vivado 2025.2 silent install config — t27 Artix-7-only minimal footprint.
+# Generated to match Vivado_2025.2_Lin64.bin -- ConfigGen output for "Vivado ML Standard"
+# with all non-Artix7 device families disabled.
+
+Edition=Vivado ML Standard
+
+# Components
+Modules=Vivado:1,Vitis HLS:0,DocNav:0,Engineering Sample Devices for Artix-7:0,Kintex-7:0,Virtex-7:0,Zynq-7000 SoC:0,UltraScale:0,UltraScale+:0,Versal AI Core:0,Versal AI Edge:0,Versal Prime:0,Versal Premium:0,Spartan-7:0,Artix-7:1
+
+# Install paths
+InstallOptions=Acquire or Manage a License Key:0,Enable WebTalk for SDK to send usage statistics to Xilinx (Always enabled for WebPACK license):0
+CreateProgramGroupShortcuts=0
+CreateShortcutsForAllUsers=0
+CreateDesktopShortcuts=0
+CreateFileAssociation=0
+EnableDiskUsageOptimization=1
+Destination=/opt/Xilinx
