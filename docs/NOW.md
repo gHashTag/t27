@@ -2,6 +2,23 @@
 
 Last updated: 2026-05-15
 
+## Wave-36 Lane X — AVS-48 Voltage Stacking Coq
+
+- AVS-48: 48-island series voltage stacking, charge-recycling, η ≥ 0.93
+- **NEW**: trios-coq/Physics/AvsStacking.v — 8 Qed lemmas
+  - avs_ir_drop_quadratic_savings: ir_drop_loss(N) = ir_drop_loss(1) / N²
+  - avs_island_count_48_optimum: 48 = 3×16 (strands × sacred-ALU opcodes)
+  - avs_efficiency_lower_bound: η_avs_48 ≥ 0.93 at INT1.58/800MHz
+  - avs_trinity_divisibility: 48 mod 3 = 0
+  - avs_sacred_alignment: 48 = 16 × 3
+  - avs_no_multiplier_synth: AVS adds zero * to netlist (R-SI-1 keystone)
+  - avs_chain_to_lut_npu: AVS×LUT-NPU sound at each boundary
+  - avs_w104_b_witness: η ≥ 0.93 → TOPS/W ≥ 297 (W-104-B pre-reg)
+- W-104-B falsification witness: η ≥ 0.93 implies TOPS/W ≥ 297
+- 48 = 3 × 16 = strands × sacred-ALU opcodes (Trinity alignment)
+- citation_map.json extended: WAVE_36_AVS → Physics/AvsStacking.v, wave 36
+- Closes trinity-fpga#128
+
 ## Wave-35 Lane V — LUT-NPU Coq
 
 - OP_LUT_NPU = 0xE3 extends sacred chain 0xDE → 0xDF → 0xE0 → 0xE1 → 0xE2 → 0xE3
