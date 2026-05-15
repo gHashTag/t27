@@ -1,6 +1,8 @@
 # Current Work — Trinity t27
 
 **Last updated:** 2026-05-15
+**2026-05-15: L-DPC29 Wave-33 LEVER #3 TENET Lane T'** (Closes #646; Refs trinity-fpga#114) extends `coq/IGLA/RMarker.v` `holo_op` alphabet with `OP_SPARSE_SKIP` (sacred 0xE1, Wave-33 TENET sparsity-aware LUT skip controller); adds new `Lemma tenet_no_star`; introduces `trios-coq/IGLA/Tenet.v` proving depth-5 alphabet chain via `Theorem tenet_safe`. Projection: ×1.3 TOPS/W → 195 TOPS/W on TTIHP27a generic synth. Strategic ref: trios `docs/strategic/TOPS-LEVERS-2026-05-16-001.md`.
+
 **Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622). **2026-05-15: L-DPC25 Wave-28 LEVER STACK Lane X** (Issue #635) extends `coq/IGLA/RMarker.v` `holo_op` alphabet with `OP_LUT_LOOKUP` (sacred 0xDF, Lever #1 Platinum LUT PE, arXiv 2511.21910) and `OP_BITROM_READ` (sacred 0xE0, Lever #2 BitROM, arXiv 2509.08542); re-proves `holographic_no_star` over 6-op alphabet; 14 Qed / 15 Lemma total, all accepted by coqc 8.20.1. Builds on Lane Z (Issue #631 / PR #630). **2026-05-15: L-DPC24 HOLOGRAPHIC v9 ONE SHOT (trios#832) Lane Z** — new `coq/IGLA/RMarker.v` adds formal 4-slot R-marker spec and `Lemma holographic_no_star` proving R-SI-1 (zero `*` operator) at the spec layer; 12 Qed / 13 Lemma, all accepted by coqc 8.20.1. Sibling RTL surface on `tt-trinity-holo` @ `86d34ee` (army-landed Lanes A'/B'/C'/Y). See `coq/IGLA/RMarker.v` and Issue #631.
 
 ---

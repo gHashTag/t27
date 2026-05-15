@@ -70,6 +70,7 @@ Inductive holo_op : Set :=
   | OP_HOLO_MUX_1X2        (** Lane Y — 1x2 holographic mux *)
   | OP_LUT_LOOKUP          (** TRI-27 ISA 0xDF — Lane V Lever #1 Platinum LUT PE *)
   | OP_BITROM_READ         (** TRI-27 ISA 0xE0 — Lane W Lever #2 BitROM bidirectional ROM *)
+  | OP_SPARSE_SKIP         (** TRI-27 ISA 0xE1 — Wave-33 Lane T Lever #3 TENET sparsity-aware LUT skip *)
   .
 
 (** Reflexive predicate: does this op use the forbidden [*] operator?
@@ -83,6 +84,7 @@ Definition rtl_uses_star (op : holo_op) : bool :=
   | OP_HOLO_MUX_1X2       => false
   | OP_LUT_LOOKUP         => false
   | OP_BITROM_READ        => false
+  | OP_SPARSE_SKIP        => false
   end.
 
 (** ** The headline lemma — R-SI-1 enforced at spec layer.
@@ -103,6 +105,14 @@ Lemma lut_no_star : rtl_uses_star OP_LUT_LOOKUP = false.
 Proof. reflexivity. Qed.
 
 Lemma bitrom_no_star : rtl_uses_star OP_BITROM_READ = false.
+Proof. reflexivity. Qed.
+
+(** Wave-33 Lane T' — TENET sparsity-aware LUT skip controller witness.
+    OP_SPARSE_SKIP (TRI-27 ISA 0xE1) extends the alphabet to 7 ops and
+    chain depth 5. Energy projection: ×1.3 TOPS/W → 195 TOPS/W on
+    TTIHP27a generic synth. Area cost +0.12 mm², power +5 mW.
+    R7 falsifier W-102-A: BitNet b1.58-3B runtime sparsity ≥ 25 %. *)
+Lemma tenet_no_star : rtl_uses_star OP_SPARSE_SKIP = false.
 Proof. reflexivity. Qed.
 
 (** ** R-marker boot integrity.
