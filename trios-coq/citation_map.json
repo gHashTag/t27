@@ -30,6 +30,42 @@
       "avs_w104_b_witness"
     ]
   },
+  "WAVE_36_VOLT_STACK_EXT": {
+    "coq_file": "IGLA/VoltStack.v",
+    "wave": 36,
+    "lever": 10,
+    "depends_on": ["OP_AVS_RECONF (RMarker.v 0xE4)"],
+    "lemmas": [
+      "tier_mv_near_ret",
+      "tier_mv_cruise",
+      "tier_mv_active",
+      "tier_mv_strict_lo",
+      "tier_mv_strict_hi",
+      "tier_mv_strict_full",
+      "tier_distinct_near_cruise",
+      "tier_distinct_near_active",
+      "tier_distinct_cruise_active",
+      "total_islands_value",
+      "volt_stack_grows_islands",
+      "wakeup_within_budget",
+      "wakeup_le_budget",
+      "leakage_floor_value",
+      "leakage_observed_above_floor",
+      "volt_stack_passes_w105a",
+      "volt_stack_op_in_chain",
+      "volt_stack_op_no_star",
+      "volt_stack_chain_depth",
+      "volt_stack_safe_chain"
+    ],
+    "rtl_sibling": "gHashTag/trinity-fpga rtl/volt_stack/volt_stack_controller.sv (W36 Lane U)",
+    "rust_witness_sibling": "gHashTag/tt-trinity-max-true crates/tri1-volt-stack-witnesses/ (W36 Lane W'')",
+    "json_assertion_sibling": "gHashTag/trios assertions/wave36_volt_stack.json (W36 Lane W')",
+    "phd_chapter_sibling": "gHashTag/trios docs/phd/chapters/glava_82_voltage_stacking_wave36.tex (W36 Lane W''')",
+    "one_shot": "gHashTag/trinity-fpga#130",
+    "falsifier": "W-105-A: BitNet b1.58-3B leakage saved >= 9% (90 permille floor) at 28FDX",
+    "tops_w_projection": "x1.10 -> 297 TOPS/W (W35 LUT-NPU baseline 270, projected)",
+    "complement_to": ["WAVE_36_AVS (t27#656)", "Avs.v 7-op pipeline (t27#655)"]
+  },
   "WAVE_37_SUBTH": {
     "opcode": "0xE4",
     "coq_file": "Physics/SubThreshold.v",
