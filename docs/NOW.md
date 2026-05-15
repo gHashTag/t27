@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-15
 
+## Wave-38 Lane BB — RECTIFY opcode 0xE4 collision (NEW)
+
+- ICA-W38-001: W37 OP_SUBTH_CLK originally claimed 0xE4, collided with W36 OP_AVS_RECONF=0xE4
+- W36 holds 0xE4 by merge-precedence; W38 moves OP_SUBTH_CLK → 0xE5 (next free slot)
+- Added in `trios-coq/Physics/SubThreshold.v`:
+  - `Definition op_subth_clk_byte : nat := 229.` (0xE5)
+  - `Definition op_avs_reconf_byte : nat := 228.` (0xE4)
+  - `Lemma subth_opcode_byte_eq_E5`
+  - `Lemma subth_op_distinct_from_avs` (R-SI-1 enforcement)
+- Sacred chain restored: 0xE3 LUT-NPU → 0xE4 AVS_RECONF (W36) → 0xE5 SUBTH_CLK (W38)
 ## Wave-36 Lane W-EXT — VoltStack.v 22 lemmas + Avs.v proof fixes (NEW, this PR)
 
 - **NEW**: trios-coq/IGLA/VoltStack.v — 22 Qed lemmas in 5 sections (3-tier voltage ladder, 48-island arithmetic, wake-up budget, **W-105-A leakage falsifier R7 witness**, pipeline re-witness)
