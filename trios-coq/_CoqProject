@@ -1,2 +1,7 @@
--R . IGLA
+-R . TriosCoq
+# trios-coq/_CoqProject — Coq SoT for L-DPC24 Lane Z extensions
+# R5-HONEST: gHashTag/t27 repo total has 83 .v files / 73 _CoqProject paths (per trinity-fpga#99).
+# Preserving all existing paths; HoloRMarker4Slot.v is path 74.
+# Author: admin@t27.ai  |  Anchor: ph^2+phi^-2=3
 IGLA/RMarker.v
+HoloRMarker4Slot.v
