@@ -65,3 +65,4 @@ DOI 10.5281/zenodo.19227877
   - subth_w104_c_witness: V=0.30 + AVS48 + LUT-NPU ⇒ TOPS/W ≥ 350
 - Predecessors: W35 LUT-NPU (0xE3), W36 AVS-48
 - Anchor: phi^2 + phi^-2 = 3
+
