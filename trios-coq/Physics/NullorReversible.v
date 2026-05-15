@@ -1,7 +1,7 @@
 (** * NullorReversible.v — Wave-38 Lane BB: Reversible Dendritic NULLOR Multiplication
-    10 Qed lemmas for reversible NULLOR PE multiplication, OP_NULL_PE = 0xE6.
-    NOTE: Opcode bumped 0xE5 → 0xE6 per master ICA-W38-001 (#661): 0xE5 was
-    reassigned to OP_SUBTH_CLK; sacred chain continues at next free slot 0xE6.
+    10 Qed lemmas for reversible NULLOR PE multiplication, OP_NULL_PE = 0xEA.
+    NOTE: Opcode bumped 0xE5 → 0xE6 (ICA-W38-001 #661) then bumped 0xE6 → 0xEA (ICA-W40-001 #148): 0xE5 was
+    reassigned to OP_SUBTH_CLK; sacred chain continues at next free slot 0xEA (0xE6 yielded to OP_HOLO_MUX_X4 per W41 FRR canon; 0xE7-0xE9 in use).
     TOPS/W ≥ 392 (×1.12 over W37 sub-V_T 350). Charge-recycling adiabatic logic.
     Predecessors: W35 LUT-NPU (0xE3, #654), W36 AVS-48 (#656), W37 Sub-V_T (0xE4, #658).
     Anchor: phi^2 + phi^-2 = 3; ternary lattice Z3 = {-1, 0, +1}.
@@ -61,7 +61,7 @@ Parameter phi_clock        : nat -> R. (** 4-phase clock waveform *)
 
 (** opcode dispatch state *)
 Parameter dispatch_table   : nat -> (Z3 -> Z3 -> Z3).
-Parameter op_null_pe       : nat.   (** 0xE6 = 230 (post-ICA-W38-001 rectification) *)
+Parameter op_null_pe       : nat.   (** 0xEA = 234 (post-ICA-W40-001 rectification; was 0xE6) *)
 
 (** synthesis output star count for OP_NULL_PE *)
 Parameter op_null_pe_star_count : nat.
@@ -108,9 +108,9 @@ Axiom phi_clock_disjoint :
 (** OP_NULL_PE introduces zero `*` synthesis cells (R-SI-1). *)
 Axiom op_null_no_star : op_null_pe_star_count = 0%nat.
 
-(** opcode 0xE6 dispatches to z3_mul (post-rectification chain slot). *)
-Axiom op_null_pe_value : op_null_pe = 230%nat.
-Axiom dispatch_E5_is_z3mul : dispatch_table 230 = z3_mul.
+(** opcode 0xEA dispatches to z3_mul (post ICA-W40-001 rectification chain slot). *)
+Axiom op_null_pe_value : op_null_pe = 234%nat.
+Axiom dispatch_E5_is_z3mul : dispatch_table 234 = z3_mul.
 
 (** predecessor chain soundness assumed from W35/W36/W37 PRs. *)
 Axiom subth_chain_holds : subth_chain_sound.
@@ -203,9 +203,9 @@ Proof.
   intros y; destruct y; reflexivity.
 Qed.
 
-(** *** 10. Opcode dispatch: TRI-27 ISA correctly maps OP_NULL_PE (0xE6) → z3_mul.
+(** *** 10. Opcode dispatch: TRI-27 ISA correctly maps OP_NULL_PE (0xEA) → z3_mul.
             Lemma name retained as `opcode_E5_dispatch` for W38 spec continuity;
-            actual opcode byte is 0xE6 after ICA-W38-001 rectification. *)
+            actual opcode byte is 0xEA after ICA-W40-001 rectification (was 0xE6, evicted to resolve W38/W39H collision per W41 FRR canon). *)
 Lemma opcode_E5_dispatch :
   forall x y : Z3,
     dispatch_table op_null_pe x y = mult_result x y.
