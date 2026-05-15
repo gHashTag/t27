@@ -1,7 +1,21 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-15
 **Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622).
+## L-DPC25 Lane X · holo_op Coq alphabet + no_star theorem (2026-05-15)
+
+- **Wave-28 gate file**: `trios-coq/IGLA/HoloOp.v` adds a 5-symbol `holo_op` inductive type covering all LEVER STACK lanes (LUT_LOOKUP, BITROM_READ, NOC_FORWARD, R_MARKER_LATCH, RAZOR_SAMPLE).
+- **Theorems delivered** (zero `admit.`, zero `Admitted.`, zero `Axiom`, zero `Parameter`):
+  - `Theorem holo_op_no_star : forall op : holo_op, rtl_uses_star op = false.`
+  - `Lemma holo_op_eq_dec : forall a b : holo_op, {a = b} + {a <> b}.`
+  - `Definition lever_stack_safe : list holo_op -> Prop` + three corollaries (empty/singleton/full).
+- **Build gate**: `coqc` v8.20.1 exits 0 with zero warnings on `trios-coq/IGLA/HoloOp.v`.
+- **Parent ONE SHOT**: trinity-fpga#106 (L-DPC25 Wave-28 LEVER STACK #1+#2+#3 · ~150 TOPS/W silicon gate W28-G1).
+- **Predecessor**: Lane Z (RMarker.v) merged via t27#629 on 2026-05-15.
+- **Closes**: #639.
+
+---
+
 
 ---
 
