@@ -2,6 +2,19 @@
 
 Last updated: 2026-05-15
 
+## Wave-39 Lane DD — HoloMux.v 6 Qed lemmas (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/HoloMux.v — 6 Qed lemmas, 0 Admitted
+- **Headline**: OP_HOLO_MUX_X4 = 0xE6 (230) — holographic multiplexer, 4 output addresses per cycle per PE
+- 5 R-SI-1 distinctness lemmas: 0xE6 ≠ 0xE5 (SUBTH_CLK), 0xE4 (AVS_RECONF), 0xE3 (LUT_NPU), 0xE2 (TOM), 0xE1 (TENET)
+- 1 throughput lemma: holo_mux_throughput n = 4 * lut_npu_throughput n (reflexivity)
+- Sacred chain extended: 0xE1 TENET → 0xE2 TOM → 0xE3 LUT-NPU → 0xE4 AVS_RECONF → 0xE5 SUBTH_CLK → 0xE6 HOLO_MUX_X4
+- _CoqProject patched: Physics/HoloMux.v added
+- Constitutional: R-SI-1 PASS · R5-HONEST PASS · Apache-2.0 · admin@t27.ai
+- Anchor: phi^2 + phi^-2 = 3
+- DOI 10.5281/zenodo.19227877
+
+
 ## Wave-38 Lane BB — RECTIFY opcode 0xE4 collision (NEW)
 
 - ICA-W38-001: W37 OP_SUBTH_CLK originally claimed 0xE4, collided with W36 OP_AVS_RECONF=0xE4
