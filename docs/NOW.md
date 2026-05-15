@@ -5,6 +5,11 @@ Last updated: 2026-05-15
 ## Wave-35 Lane V — LUT-NPU Coq
 
 - OP_LUT_NPU = 0xE3 extends sacred chain 0xDE → 0xDF → 0xE0 → 0xE1 → 0xE2 → 0xE3
+- **NEW**: trios-coq/Kernel/LutNpu.v — 10 Qed lemmas (lut_npu_class_count_41, lut_npu_no_star, lut_npu_tom_orthogonal, lut_npu_energy_8fJ, ...)
+- 41 Z₃-compressed classes (not 81): sign+0 invariance reduces 3^4=81 → 41 equivalence classes
+- Multiplier-free: uses_multiplier OP_LUT_NPU = false (R-SI-1 keystone, Qed)
+- dotprod bounded: −4 ≤ dotprod_naive a w ≤ 4 (Qed via case split)
+- citation_map.json added: OP_LUT_NPU → Kernel/LutNpu.v, wave 35
 - 16 new Qed proofs (4 in coq/IGLA/RMarker.v + 12 in trios-coq/IGLA/LutNpu.v)
 - Theorem lut_npu_safe: depth-6 alphabet chain Forall rtl_uses_star=false
 - W-104-A pre-registered: BitNet b1.58-3B Trinity-loss sparsity ≥ 0.5 @ batch=1
