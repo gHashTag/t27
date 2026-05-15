@@ -9,6 +9,14 @@ authors:
     orcid: "https://orcid.org/0009-0008-4294-6159"
     affiliation: Trinity Computing
 license: MIT
+doi: 10.5281/zenodo.19456875
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.19456875
+    description: "GoldenFloat v0.1.0 Zenodo deposit (Vasilev record, not yet attached to trinity-s3ai community)"
+  - type: doi
+    value: 10.5281/zenodo.19227877
+    description: "Trinity S³AI canonical anchor (φ²+φ⁻²=3)"
 repository-code: https://github.com/gHashTag/t27
 url: https://github.com/gHashTag/t27
 # Canonical Zenodo source of truth (community-level):
