@@ -135,3 +135,4 @@
 
 2026-05-16  Wave-29 Lane C — Sparsity24.v Qed (no admit) — refs #108
 2026-05-16  Wave-30 Lane K — Timing400.v Qed (no admit) — refs #109
+2026-05-16  Wave-31 Lane J — PdkPortable.v Qed (no admit) — refs #110
