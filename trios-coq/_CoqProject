@@ -1,0 +1,3 @@
+-R . TriosCoq
+-R ../coq T27
+IGLA/Sparsity24.v
