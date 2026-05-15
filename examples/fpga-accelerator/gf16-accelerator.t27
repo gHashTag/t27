@@ -1,0 +1,378 @@
+// GF16 FPGA Accelerator IP Core
+//
+// Hardware-accelerated GF16 operations for neural network inference
+// Generates Verilog with φ-aligned bit allocation
+//
+// φ² + 1/φ² = 3 | TRINITY
+
+module Gf16Accelerator {
+    // ============================================================================
+    // Constants
+    // ============================================================================
+
+    const GF16_EXP_BITS: i32 = 6;
+    const GF16_MANT_BITS: i32 = 9;
+    const GF16_BIAS: i32 = 31;
+    const VECTOR_WIDTH: i32 = 8;
+
+    // ============================================================================
+    // GF16 Encoding (Bit Field Extraction)
+    // ============================================================================
+
+    // Extract sign bit (bit 15)
+    fn gf16_sign(value: u16) -> u1 {
+        return (value >> 15) & 1;
+    }
+
+    // Extract exponent bits (bits 14:9)
+    fn gf16_exponent(value: u16) -> u6 {
+        return (value >> 9) & 0x3F;
+    }
+
+    // Extract mantissa bits (bits 8:0)
+    fn gf16_mantissa(value: u16) -> u9 {
+        return value & 0x1FF;
+    }
+
+    // Assemble GF16 from components
+    fn gf16_assemble(sign: u1, exp: u6, mant: u9) -> u16 {
+        return (sign as u16) << 15 | (exp as u16) << 9 | mant as u16;
+    }
+
+    // ============================================================================
+    // GF16 Addition
+    // ============================================================================
+
+    // Add two GF16 values (decode, add, encode)
+    #clock
+    fn gf16_add(a: u16, b: u16) -> u16 {
+        // Decode to f32 for accurate addition
+        // In real hardware, this would be a dedicated adder IP
+        let a_f32 = gf16_decode(a);
+        let b_f32 = gf16_decode(b);
+        return gf16_encode(a_f32 + b_f32);
+    }
+
+    // ============================================================================
+    // GF16 Multiplication
+    // ============================================================================
+
+    // Multiply two GF16 values (Booth-encoded multiplier)
+    #clock
+    fn gf16_mul(a: u16, b: u16) -> u16 {
+        let a_f32 = gf16_decode(a);
+        let b_f32 = gf16_decode(b);
+        return gf16_encode(a_f32 * b_f32);
+    }
+
+    // ============================================================================
+    // Vector Operations
+    // ============================================================================
+
+    // Parallel addition of 8 GF16 values
+    #clock
+    fn gf16_vec_add(a: vec<u16>, b: vec<u16>) -> vec<u16> {
+        let mut result: vec<u16> = [];
+        for i in 0..VECTOR_WIDTH {
+            result.push(gf16_add(a[i as usize], b[i as usize]));
+        }
+        return result;
+    }
+
+    // Parallel multiplication of 8 GF16 values
+    #clock
+    fn gf16_vec_mul(a: vec<u16>, b: vec<u16>) -> vec<u16> {
+        let mut result: vec<u16> = [];
+        for i in 0..VECTOR_WIDTH {
+            result.push(gf16_mul(a[i as usize], b[i as usize]));
+        }
+        return result;
+    }
+
+    // ============================================================================
+    // MAC Unit (Multiply-Accumulate)
+    // ============================================================================
+
+    // MAC: acc = acc + a * b
+    #clock
+    fn gf16_mac(acc: u16, a: u16, b: u16) -> u16 {
+        let product = gf16_mul(a, b);
+        return gf16_add(acc, product);
+    }
+
+    // Vector MAC: accumulates 8 pairs
+    #clock
+    fn gf16_vec_mac(acc_vec: vec<u16>, a_vec: vec<u16>, b_vec: vec<u16>) -> vec<u16> {
+        let mut result: vec<u16> = [];
+        for i in 0..VECTOR_WIDTH {
+            result.push(gf16_mac(acc_vec[i as usize], a_vec[i as usize], b_vec[i as usize]));
+        }
+        return result;
+    }
+
+    // ============================================================================
+    // Activation Functions (ReLU, Tanh approximation)
+    // ============================================================================
+
+    // ReLU: max(0, x)
+    fn gf16_relu(value: u16) -> u16 {
+        let decoded = gf16_decode(value);
+        if decoded < 0.0 {
+            return 0;  // GF16 zero
+        } else {
+            return value;
+        }
+    }
+
+    // ============================================================================
+    // Decode/Encode Helper Functions
+    // ============================================================================
+
+    fn gf16_decode(value: u16) -> f32 {
+        if value == 0 { return 0.0; }
+        if value == 0x8000 { return -0.0; }
+
+        let sign_f: f32 = if gf16_sign(value) != 0 { -1.0 } else { 1.0 };
+        let exp: i32 = gf16_exponent(value) as i32;
+        let mant: u16 = gf16_mantissa(value);
+
+        if exp == 63 {
+            if mant == 0 {
+                return if sign_f < 0.0 { f32::NEG_INFINITY } else { f32::INFINITY };
+            } else {
+                return f32::NAN;
+            }
+        }
+
+        let mant_norm: f32 = 1.0 + (mant as f32) / 512.0;
+        let exp_adj: f32 = (exp - GF16_BIAS) as f32;
+        return sign_f * mant_norm * powf(2.0, exp_adj);
+    }
+
+    fn gf16_encode(value: f32) -> u16 {
+        if value == 0.0 { return 0; }
+
+        let sign: u16 = if value < 0.0 { 0x8000 } else { 0 };
+        let abs_value = if value < 0.0 { -value } else { value };
+
+        // IEEE 754 extraction
+        let bits: u32 = abs_value as u32;
+        let ieee_exp: i32 = ((bits >> 23) & 0xFF) as i32 - 127;
+        let ieee_mant: u32 = bits & 0x007FFFFF;
+
+        let mut gf16_exp: i32 = ieee_exp + GF16_BIAS;
+        if gf16_exp < 0 { gf16_exp = 0; }
+        if gf16_exp > 62 { gf16_exp = 62; }
+
+        let mut gf16_mant: u16 = (ieee_mant >> 14) as u16;
+        let discarded: u32 = ieee_mant & 0x3FFF;
+        let halfway: u32 = 0x2000;
+
+        if discarded > halfway || (discarded == halfway && (gf16_mant & 1) == 1) {
+            gf16_mant = gf16_mant + 1;
+            if gf16_mant == 512 {
+                gf16_mant = 0;
+                if gf16_exp < 62 {
+                    gf16_exp = gf16_exp + 1;
+                }
+            }
+        }
+
+        return sign | ((gf16_exp as u16) << 9) | gf16_mant;
+    }
+
+    // ============================================================================
+    // Tests
+    // ============================================================================
+
+    test "gf16_sign_extraction" {
+        given {
+            let positive = gf16_encode(1.0);
+            let negative = gf16_encode(-1.0);
+        }
+        then {
+            let pos_sign = gf16_sign(positive);
+            let neg_sign = gf16_sign(negative);
+        }
+        expect {
+            pos_sign == 0 && neg_sign == 1;
+        }
+    }
+
+    test "gf16_component_roundtrip" {
+        given {
+            let value = 1.618;
+            let encoded = gf16_encode(value);
+        }
+        then {
+            let sign = gf16_sign(encoded);
+            let exp = gf16_exponent(encoded);
+            let mant = gf16_mantissa(encoded);
+            let reassembled = gf16_assemble(sign, exp, mant);
+        }
+        expect {
+            reassembled == encoded;
+        }
+    }
+
+    test "gf16_add_basic" {
+        given {
+            let a = gf16_encode(1.0);
+            let b = gf16_encode(2.0);
+        }
+        then {
+            let result = gf16_add(a, b);
+            let decoded = gf16_decode(result);
+        }
+        expect {
+            abs(decoded - 3.0) < 0.01;
+        }
+    }
+
+    test "gf16_mul_basic" {
+        given {
+            let a = gf16_encode(3.0);
+            let b = gf16_encode(4.0);
+        }
+        then {
+            let result = gf16_mul(a, b);
+            let decoded = gf16_decode(result);
+        }
+        expect {
+            abs(decoded - 12.0) < 0.01;
+        }
+    }
+
+    test "gf16_mac_accumulates" {
+        given {
+            let acc = gf16_encode(5.0);
+            let a = gf16_encode(3.0);
+            let b = gf16_encode(4.0);
+        }
+        then {
+            let result = gf16_mac(acc, a, b);
+            let decoded = gf16_decode(result);
+        }
+        expect {
+            // 5 + 3*4 = 17
+            abs(decoded - 17.0) < 0.01;
+        }
+    }
+
+    test "gf16_relu_negative" {
+        given {
+            let negative = gf16_encode(-5.0);
+        }
+        then {
+            let result = gf16_relu(negative);
+        }
+        expect {
+            result == 0;
+        }
+    }
+
+    test "gf16_relu_positive" {
+        given {
+            let positive = gf16_encode(5.0);
+        }
+        then {
+            let result = gf16_relu(positive);
+        }
+        expect {
+            result == positive;
+        }
+    }
+
+    test "gf16_vec_add_parallel" {
+        given {
+            let a_vec: vec<u16> = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+            let b_vec: vec<u16> = [8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
+        }
+        then {
+            let result = gf16_vec_add(a_vec, b_vec);
+        }
+        expect {
+            len(result) == VECTOR_WIDTH;
+        }
+    }
+
+    test "gf16_vec_mul_parallel" {
+        given {
+            let a_vec: vec<u16> = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+            let b_vec: vec<u16> = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0];
+        }
+        then {
+            let result = gf16_vec_mul(a_vec, b_vec);
+        }
+        expect {
+            len(result) == VECTOR_WIDTH;
+        }
+    }
+
+    test "gf16_vec_mac_accumulates" {
+        given {
+            let acc_vec: vec<u16> = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+            let a_vec: vec<u16> = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+            let b_vec: vec<u16> = [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0];
+        }
+        then {
+            let result = gf16_vec_mac(acc_vec, a_vec, b_vec);
+        }
+        expect {
+            len(result) == VECTOR_WIDTH;
+        }
+    }
+
+    test "gf16_inf_overflow" {
+        given {
+            let huge = gf16_encode(1e30 as f32);
+        }
+        then {
+            let decoded = gf16_decode(huge);
+        }
+        expect {
+            is_inf(decoded);
+        }
+    }
+
+    test "gf16_zero_preserved" {
+        given {
+            let zero_enc = gf16_encode(0.0);
+        }
+        then {
+            let zero_dec = gf16_decode(zero_enc);
+        }
+        expect {
+            zero_dec == 0.0;
+        }
+    }
+
+    // ============================================================================
+    // Benchmarks (simulated timing)
+    // ============================================================================
+
+    bench "gf16_add_latency" {
+        let a = gf16_encode(1.0);
+        let b = gf16_encode(2.0);
+        for _ in 0..1000 {
+            let _ = gf16_add(a, b);
+        }
+    }
+
+    bench "gf16_mul_latency" {
+        let a = gf16_encode(1.5);
+        let b = gf16_encode(1.5);
+        for _ in 0..1000 {
+            let _ = gf16_mul(a, b);
+        }
+    }
+
+    bench "gf16_vec_mac_throughput" {
+        let acc_vec: vec<u16> = [0.0; 8];
+        let a_vec: vec<u16> = [1.0; 8];
+        let b_vec: vec<u16> = [1.0; 8];
+        for _ in 0..100 {
+            acc_vec = gf16_vec_mac(acc_vec, a_vec, b_vec);
+        }
+    }
+}

@@ -19,7 +19,7 @@
   "communities": [{"identifier": "trinity-s3ai"}],
   "access_right": "open",
   "embargo_date": null,
-  "publication_date": "2026-04-07",
+  "publication_date": "2026-05-16",
   "related_identifiers": [
     {
       "relation": "isSupplementTo",
@@ -33,6 +33,6 @@
       "title": "T27: TRI-27 — Spec-First Language for Ternary Computing"
     }
   ],
-  "version": "0.1.0",
+  "version": "1.0.0",
   "language": "eng"
 }

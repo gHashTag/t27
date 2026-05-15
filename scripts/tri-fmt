@@ -1,0 +1,518 @@
+#!/usr/bin/env python3
+"""
+t27 Formatter — Auto-format .t27 specifications
+
+φ² + 1/φ² = 3 | TRINITY
+
+Usage:
+    tri-fmt <file.t27>           # Format file in place
+    tri-fmt --check <file.t27>   # Check formatting without changes
+    tri-fmt --stdin              # Format from stdin to stdout
+"""
+
+import re
+import sys
+import argparse
+from typing import List, Tuple
+from dataclasses import dataclass
+from enum import Enum
+
+# ============================================================================
+# Tokens and Formatting Rules
+# ============================================================================
+
+class TokenType(Enum):
+    KEYWORD = "keyword"
+    IDENTIFIER = "identifier"
+    TYPE = "type"
+    OPERATOR = "operator"
+    DELIMITER = "delimiter"
+    STRING = "string"
+    NUMBER = "number"
+    COMMENT = "comment"
+    WHITESPACE = "whitespace"
+
+@dataclass
+class Token:
+    type: TokenType
+    value: str
+    line: int
+    col: int
+
+# Keywords that should have specific spacing
+KEYWORDS = {
+    "module", "use", "const", "fn", "struct", "enum", "type", "return",
+    "if", "else", "for", "while", "match", "impl", "trait",
+    "test", "invariant", "bench", "given", "then", "expect",
+    "true", "false", "mut", "let", "pub", "async", "await",
+}
+
+# Types that should be recognized
+TYPES = {
+    "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64",
+    "f32", "f64", "phi", "gf16", "gf32", "gf64",
+    "bool", "str", "char", "void", "unit", "nat",
+    "vec", "option", "result",
+}
+
+# ============================================================================
+# Formatter Configuration
+# ============================================================================
+
+@dataclass
+class FormatterConfig:
+    indent_size: int = 4
+    indent_style: str = "spaces"  # "spaces" or "tabs"
+    max_line_length: int = 100
+    insert_final_newline: bool = True
+    trim_trailing_whitespace: bool = True
+    spaces_around_operators: bool = True
+    spaces_after_comma: bool = True
+    spaces_before_colon: bool = False
+    spaces_after_colon: bool = True
+    blank_line_after_module: bool = True
+    blank_line_after_fn: bool = False
+    blank_line_after_struct: bool = True
+
+DEFAULT_CONFIG = FormatterConfig()
+
+# ============================================================================
+# Lexer
+# ============================================================================
+
+class Lexer:
+    def __init__(self, text: str):
+        self.text = text
+        self.lines = text.splitlines()
+        self.tokens: List[Token] = []
+
+    def tokenize(self) -> List[Token]:
+        """Tokenize the input text."""
+        for line_num, line in enumerate(self.lines, 1):
+            self._tokenize_line(line, line_num)
+        return self.tokens
+
+    def _tokenize_line(self, line: str, line_num: int) -> None:
+        """Tokenize a single line."""
+        i = 0
+        col = 1
+
+        while i < len(line):
+            # Skip whitespace
+            if line[i].isspace():
+                i += 1
+                col += 1
+                continue
+
+            # Single-line comment
+            if i < len(line) - 1 and line[i:i+2] == "//":
+                self.tokens.append(Token(
+                    TokenType.COMMENT,
+                    line[i:].rstrip(),
+                    line_num,
+                    col
+                ))
+                break
+
+            # String literal
+            if line[i] in ('"', "'"):
+                end_char = line[i]
+                start = i
+                i += 1
+                while i < len(line) and line[i] != end_char:
+                    if line[i] == "\\" and i + 1 < len(line):
+                        i += 2  # Escape sequence
+                        continue
+                    i += 1
+                if i < len(line):
+                    self.tokens.append(Token(
+                        TokenType.STRING,
+                        line[start:i+1],
+                        line_num,
+                        col
+                    ))
+                    i += 1
+                    col += i - start
+                    continue
+
+            # Multi-character operators
+            two_char_ops = ("==", "!=", "<=", ">=", "=>", "->", "::", "..", "&&", "||")
+            if i + 1 < len(line) and line[i:i+2] in two_char_ops:
+                self.tokens.append(Token(
+                    TokenType.OPERATOR,
+                    line[i:i+2],
+                    line_num,
+                    col
+                ))
+                i += 2
+                col += 2
+                continue
+
+            # Single-character operators and delimiters
+            if line[i] in ("+", "-", "*", "/", "%", "=", "<", ">", "&", "|", "^", "!"):
+                self.tokens.append(Token(
+                    TokenType.OPERATOR,
+                    line[i],
+                    line_num,
+                    col
+                ))
+                i += 1
+                col += 1
+                continue
+
+            if line[i] in ("{", "}", "(", ")", "[", "]", ";", ",", ":"):
+                self.tokens.append(Token(
+                    TokenType.DELIMITER,
+                    line[i],
+                    line_num,
+                    col
+                ))
+                i += 1
+                col += 1
+                continue
+
+            # Number
+            if line[i].isdigit() or (line[i] == "." and i + 1 < len(line) and line[i+1].isdigit()):
+                start = i
+                while i < len(line) and (line[i].isdigit() or line[i] in ".eE+-"):
+                    i += 1
+                self.tokens.append(Token(
+                    TokenType.NUMBER,
+                    line[start:i],
+                    line_num,
+                    col
+                ))
+                col += i - start
+                continue
+
+            # Identifier or keyword
+            if line[i].isalpha() or line[i] == "_":
+                start = i
+                while i < len(line) and (line[i].isalnum() or line[i] == "_"):
+                    i += 1
+                value = line[start:i]
+                if value in KEYWORDS:
+                    tok_type = TokenType.KEYWORD
+                elif value in TYPES:
+                    tok_type = TokenType.TYPE
+                else:
+                    tok_type = TokenType.IDENTIFIER
+                self.tokens.append(Token(tok_type, value, line_num, col))
+                col += i - start
+                continue
+
+            # Unknown character
+            i += 1
+            col += 1
+
+# ============================================================================
+# Formatter
+# ============================================================================
+
+class Formatter:
+    def __init__(self, config: FormatterConfig = None):
+        self.config = config or DEFAULT_CONFIG
+        self.indent_char = " " if self.config.indent_style == "spaces" else "\t"
+
+    def format(self, text: str) -> str:
+        """Format the input text."""
+        lexer = Lexer(text)
+        tokens = lexer.tokenize()
+
+        # Parse and format
+        formatted = self._format_tokens(tokens, text)
+
+        # Post-processing
+        if self.config.trim_trailing_whitespace:
+            formatted = "\n".join(line.rstrip() for line in formatted.split("\n"))
+
+        if self.config.insert_final_newline and formatted and not formatted.endswith("\n"):
+            formatted += "\n"
+
+        return formatted
+
+    def _format_tokens(self, tokens: List[Token], original: str) -> str:
+        """Format tokens back into text with proper formatting."""
+        lines = original.splitlines()
+        result = []
+        indent_level = 0
+        i = 0
+
+        while i < len(tokens):
+            token = tokens[i]
+            line_num = token.line - 1
+
+            # Handle empty lines
+            if line_num >= len(lines) or not lines[line_num].strip():
+                if line_num < len(lines):
+                    result.append("")
+                i += 1
+                continue
+
+            # Format each line
+            formatted_line = self._format_line(tokens, i, indent_level)
+            result.append(formatted_line)
+
+            # Advance to next line
+            while i < len(tokens) and tokens[i].line == token.line:
+                i += 1
+
+            # Adjust indentation based on braces
+            if "{" in formatted_line:
+                indent_level += 1
+            if "}" in formatted_line:
+                indent_level -= 1
+
+        return "\n".join(result)
+
+    def _format_line(self, tokens: List[Token], start_idx: int, indent: int) -> str:
+        """Format a single line from tokens."""
+        line_tokens = []
+        line = tokens[start_idx].line
+
+        # Collect tokens for this line
+        for i in range(start_idx, len(tokens)):
+            if tokens[i].line != line:
+                break
+            line_tokens.append(tokens[i])
+
+        if not line_tokens:
+            return ""
+
+        # Handle comment lines (preserve as-is)
+        if any(t.type == TokenType.COMMENT for t in line_tokens):
+            # Reconstruct comment line
+            comment_token = [t for t in line_tokens if t.type == TokenType.COMMENT][0]
+            return f"{comment_token.value}"
+
+        # Build formatted line
+        indent_str = self.indent_char * (indent * self.config.indent_size)
+        parts = []
+
+        for token in line_tokens:
+            if token.type == TokenType.WHITESPACE:
+                continue
+
+            parts.append(token.value)
+
+        # Apply spacing rules
+        line = " ".join(parts)
+
+        # Fix spacing around operators
+        if self.config.spaces_around_operators:
+            for op in ("==", "!=", "<=", ">=", "=", "+", "-", "*", "/", "%", "&&", "||"):
+                line = re.sub(rf"(\w){op}(\w)", rf"\1 {op} \2", line)
+            line = re.sub(r"(\w)<(\w)", r"\1 < \2", line)
+            line = re.sub(r"(\w)>(\w)", r"\1 > \2", line)
+
+        # Fix spacing around colons
+        if not self.config.spaces_before_colon:
+            line = re.sub(r" :\s*", ": ", line)
+        else:
+            line = re.sub(r":", " :", line)
+
+        # Fix spacing after comma
+        if self.config.spaces_after_comma:
+            line = re.sub(r",(\S)", r", \1", line)
+
+        # Fix spacing around braces
+        line = re.sub(r"\s*\{\s*", " { ", line)
+        line = re.sub(r"\s*\}\s*", " }", line)
+
+        # Add indent
+        line = indent_str + line
+
+        # Line length check
+        if len(line) > self.config.max_line_length:
+            # Simple line splitting for long lines
+            line = self._split_long_line(line, indent)
+
+        return line
+
+    def _split_long_line(self, line: str, indent: int) -> str:
+        """Split a line that's too long."""
+        # Try to split at logical points
+        split_points = ["=", "+", "-", "*", "/", ",", "(", ")"]
+
+        for point in split_points:
+            if point in line:
+                idx = line.rfind(point)
+                if idx > len(line) // 2:  # Split in second half
+                    before = line[:idx+len(point)]
+                    after = line[idx+len(point):]
+                    indent_str = self.indent_char * ((indent + 1) * self.config.indent_size)
+                    return before.rstrip() + "\n" + indent_str + after.lstrip()
+
+        return line
+
+# ============================================================================
+# Linter
+# ============================================================================
+
+class Linter:
+    """Lint .t27 specs for constitutional compliance and style."""
+
+    def __init__(self):
+        self.issues = []
+
+    def lint(self, text: str, filename: str = None) -> List[dict]:
+        """Lint the input text."""
+        self.issues = []
+        self.filename = filename or "<stdin>"
+
+        # Constitutional checks
+        self._check_ascii_only(text)
+        self._check_english_identifiers(text)
+        self._check_traceability(text)
+        self._check_tests_present(text)
+        self._check_trinity_identity(text)
+
+        # Style checks
+        self._check_line_length(text)
+        self._check_trailing_whitespace(text)
+        self._check_final_newline(text)
+
+        return self.issues
+
+    def _add_issue(self, level: str, message: str, line: int = None):
+        """Add a lint issue."""
+        self.issues.append({
+            "level": level,  # "error", "warning", "info"
+            "message": message,
+            "file": self.filename,
+            "line": line,
+        })
+
+    def _check_ascii_only(self, text: str):
+        """L3: PURITY — ASCII-only source."""
+        for i, line in enumerate(text.splitlines(), 1):
+            try:
+                line.encode('ascii')
+            except UnicodeEncodeError:
+                self._add_issue("error", f"Non-ASCII character found (L3 violation)", i)
+
+    def _check_english_identifiers(self, text: str):
+        """L3: PURITY — English identifiers only."""
+        # Simple heuristic: check for non-Latin letters in identifiers
+        lexer = Lexer(text)
+        tokens = lexer.tokenize()
+
+        for token in tokens:
+            if token.type == TokenType.IDENTIFIER:
+                if any(ord(c) > 127 for c in token.value):
+                    self._add_issue("error", f"Non-ASCII identifier: {token.value} (L3 violation)", token.line)
+
+    def _check_traceability(self, text: str):
+        """L1: TRACEABILITY — Issue reference in commits."""
+        # This is more of a commit check, but we can warn about TODO/FIXME
+        for i, line in enumerate(text.splitlines(), 1):
+            if "TODO" in line or "FIXME" in line or "HACK" in line:
+                if "#" not in line or not line.strip().startswith("//"):
+                    self._add_issue("warning", f"TODO/FIXME found without issue reference (L1)", i)
+
+    def _check_tests_present(self, text: str):
+        """L4: TESTABILITY — Every spec must contain tests."""
+        has_test = "test " in text.lower() or "invariant" in text.lower()
+
+        if not has_test and "module" in text.lower():
+            self._add_issue("error", "No test or invariant found (L4 violation)", None)
+
+    def _check_trinity_identity(self, text: str):
+        """L5: IDENTITY — φ² = φ + 1; φ² + φ⁻² = 3."""
+        # Check for phi constant definition
+        if "phi" in text.lower() and "const" in text.lower():
+            # Verify phi value is approximately correct
+            lines = text.splitlines()
+            for i, line in enumerate(lines, 1):
+                if "phi" in line.lower() and "=" in line:
+                    # Extract numeric value
+                    match = re.search(r"(\d+\.?\d*)", line)
+                    if match:
+                        phi_val = float(match.group(1))
+                        if abs(phi_val - 1.618033988749895) > 0.01:
+                            self._add_issue("warning", f"PHI constant value {phi_val} differs from golden ratio {1.618033988749895} (L5)", i)
+
+    def _check_line_length(self, text: str):
+        """Check line length."""
+        max_len = 100
+        for i, line in enumerate(text.splitlines(), 1):
+            if len(line) > max_len:
+                self._add_issue("warning", f"Line exceeds {max_len} characters (length: {len(line)})", i)
+
+    def _check_trailing_whitespace(self, text: str):
+        """Check for trailing whitespace."""
+        for i, line in enumerate(text.splitlines(), 1):
+            if line != line.rstrip():
+                self._add_issue("info", f"Trailing whitespace", i)
+
+    def _check_final_newline(self, text: str):
+        """Check for final newline."""
+        if text and not text.endswith("\n"):
+            self._add_issue("info", "Missing final newline", len(text.splitlines()))
+
+# ============================================================================
+# Main
+# ============================================================================
+
+def main():
+    parser = argparse.ArgumentParser(description="t27 formatter and linter")
+    parser.add_argument("file", nargs="?", help="File to format/lint")
+    parser.add_argument("--check", action="store_true", help="Check formatting without changes")
+    parser.add_argument("--stdin", action="store_true", help="Read from stdin")
+    parser.add_argument("--lint", action="store_true", help="Run linter")
+    parser.add_argument("--fix", action="store_true", help="Auto-fix lint issues where possible")
+    parser.add_argument("--indent", type=int, default=4, help="Indentation size")
+    parser.add_argument("--tabs", action="store_true", help="Use tabs instead of spaces")
+
+    args = parser.parse_args()
+
+    config = FormatterConfig(
+        indent_size=args.indent,
+        indent_style="tabs" if args.tabs else "spaces"
+    )
+
+    formatter = Formatter(config)
+    linter = Linter()
+
+    # Read input
+    if args.stdin:
+        text = sys.stdin.read()
+        filename = "<stdin>"
+    elif args.file:
+        with open(args.file, 'r') as f:
+            text = f.read()
+        filename = args.file
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+    # Run linter if requested
+    if args.lint:
+        issues = linter.lint(text, filename)
+        for issue in issues:
+            level = issue["level"].upper()
+            line = f":{issue['line']}" if issue['line'] else ""
+            print(f"{level}: {filename}{line}: {issue['message']}")
+        sys.exit(1 if any(i["level"] == "error" for i in issues) else 0)
+
+    # Format
+    formatted = formatter.format(text)
+
+    # Check if formatting needed
+    if args.check:
+        if text != formatted:
+            print(f"{filename} needs formatting")
+            sys.exit(1)
+        print(f"{filename} is formatted")
+        sys.exit(0)
+
+    # Write output
+    if args.stdin:
+        print(formatted)
+    elif args.file:
+        with open(args.file, 'w') as f:
+            f.write(formatted)
+        print(f"Formatted {args.file}")
+
+if __name__ == "__main__":
+    main()

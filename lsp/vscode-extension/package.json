@@ -1,0 +1,101 @@
+{
+  "name": "t27-language",
+  "displayName": "t27 Language",
+  "description": "Language support for Trinity S³AI (t27) — Spec-first ternary programming language",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Languages",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "t27",
+    "ternary",
+    "golden",
+    "phi",
+    "trinity",
+    "spec-first"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trinity-s3ai/t27"
+  },
+  "license": "Apache-2.0",
+  "activationEvents": [
+    "onStartupFinished",
+    "onLanguage:t27"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [{
+      "id": "t27",
+      "aliases": ["t27", "tri"],
+      "extensions": [".t27"],
+      "configuration": "./language-t27-configuration.json"
+    }],
+    "grammars": [{
+      "language": "t27",
+      "scopeName": "source.t27",
+      "path": "./syntaxes/t27.tmLanguage.json"
+    }],
+    "snippets": [
+      {
+        "language": "t27",
+        "path": "./snippets/t27.code-snippets"
+      }
+    ],
+    "commands": [
+      {
+        "command": "t27.runTests",
+        "title": "Run Tests",
+        "category": "t27"
+      },
+      {
+        "command": "t27.generate",
+        "title": "Generate Code",
+        "category": "t27"
+      },
+      {
+        "command": "t27.parse",
+        "title": "Parse Spec",
+        "category": "t27"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "t27.runTests"
+        },
+        {
+          "command": "t27.generate"
+        },
+        {
+          "command": "t27.parse"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "t27",
+      "properties": {
+        "t27.server.path": {
+          "type": "string",
+          "default": "../../target/release/t27-lsp",
+          "description": "Path to the t27 LSP server executable"
+        },
+        "t27.trace.server": {
+          "type": "string",
+          "enum": ["off", "messages", "verbose"],
+          "default": "off",
+          "description": "Trace level for LSP communication"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

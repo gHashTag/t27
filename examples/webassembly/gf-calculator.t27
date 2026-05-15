@@ -1,0 +1,353 @@
+// GoldenFloat Calculator for WebAssembly
+//
+// Browser-accessible GF16/GF32 operations
+//
+// φ² + 1/φ² = 3 | TRINITY
+
+module GfCalculator {
+    // ============================================================================
+    // Constants
+    // ============================================================================
+
+    const PHI: f64 = 1.618033988749895;
+    const PI: f64 = 3.141592653589793;
+    const E: f64 = 2.718281828459045;
+
+    // ============================================================================
+    // GF16 Encoding
+    // ============================================================================
+
+    fn phi_gf16() -> u16 {
+        return gf16_encode(PHI);
+    }
+
+    fn pi_gf16() -> u16 {
+        return gf16_encode(PI);
+    }
+
+    fn e_gf16() -> u16 {
+        return gf16_encode(E);
+    }
+
+    fn gf16_encode(value: f64) -> u16 {
+        if value == 0.0 { return 0; }
+
+        let sign: u16 = if value < 0.0 { 0x8000 } else { 0 };
+        let abs_value = if value < 0.0 { -value } else { value };
+
+        // Extract IEEE 754 from f64
+        let bits: u64 = abs_value as u64;
+        let ieee_exp: i32 = ((bits >> 52) & 0x7FF) as i32 - 1023;
+        let ieee_mant: u64 = bits & 0x000FFFFFFFFFFFFF;
+
+        let mut gf16_exp: i32 = ieee_exp + 31;
+        if gf16_exp < 0 { gf16_exp = 0; }
+        if gf16_exp > 62 { gf16_exp = 62; }
+
+        let mut gf16_mant: u16 = (ieee_mant >> 43) as u16;
+        let discarded: u64 = ieee_mant & 0x7FFFFFFFFFF;
+
+        if discarded > 0x4000000000 || (discarded == 0x4000000000 && (gf16_mant & 1) == 1) {
+            gf16_mant = gf16_mant + 1;
+            if gf16_mant == 512 {
+                gf16_mant = 0;
+                if gf16_exp < 62 {
+                    gf16_exp = gf16_exp + 1;
+                }
+            }
+        }
+
+        return sign | ((gf16_exp as u16) << 9) | gf16_mant;
+    }
+
+    // ============================================================================
+    // GF16 Decoding
+    // ============================================================================
+
+    fn gf16_decode(value: u16) -> f64 {
+        if value == 0 { return 0.0; }
+        if value == 0x8000 { return -0.0; }
+
+        let sign_f: f64 = if (value & 0x8000) != 0 { -1.0 } else { 1.0 };
+        let exp: i32 = ((value >> 9) & 0x3F) as i32;
+        let mant: u16 = value & 0x01FF;
+
+        if exp == 63 {
+            if mant == 0 {
+                return if sign_f < 0.0 { f64::NEG_INFINITY } else { f64::INFINITY };
+            } else {
+                return f64::NAN;
+            }
+        }
+
+        let mant_norm: f64 = 1.0 + (mant as f64) / 512.0;
+        let exp_adj: f64 = (exp - 31) as f64;
+        return sign_f * mant_norm * pow(2.0, exp_adj);
+    }
+
+    // ============================================================================
+    // GF16 Arithmetic
+    // ============================================================================
+
+    fn gf16_add(a: u16, b: u16) -> u16 {
+        return gf16_encode(gf16_decode(a) + gf16_decode(b));
+    }
+
+    fn gf16_sub(a: u16, b: u16) -> u16 {
+        return gf16_encode(gf16_decode(a) - gf16_decode(b));
+    }
+
+    fn gf16_mul(a: u16, b: u16) -> u16 {
+        return gf16_encode(gf16_decode(a) * gf16_decode(b));
+    }
+
+    fn gf16_div(a: u16, b: u16) -> u16 {
+        if b == 0 {
+            // Return infinity with sign of a
+            return if (a & 0x8000) != 0 { 0xFE00 } else { 0x7E00 };
+        }
+        return gf16_encode(gf16_decode(a) / gf16_decode(b));
+    }
+
+    // ============================================================================
+    // GF32 Operations
+    // ============================================================================
+
+    fn gf32_encode(value: f64) -> u32 {
+        if value == 0.0 { return 0; }
+
+        let sign: u32 = if value < 0.0 { 0x80000000 } else { 0 };
+        let abs_value = if value < 0.0 { -value } else { value };
+
+        let bits: u64 = abs_value as u64;
+        let ieee_exp: i32 = ((bits >> 52) & 0x7FF) as i32 - 1023;
+        let ieee_mant: u64 = bits & 0x000FFFFFFFFFFFFF;
+
+        let mut gf32_exp: i32 = ieee_exp + 2047;
+        if gf32_exp < 0 { gf32_exp = 0; }
+        if gf32_exp > 4094 { gf32_exp = 4094; }
+
+        let gf32_mant: u32 = (ieee_mant >> 33) & 0x7FFFF;
+
+        return sign | ((gf32_exp as u32) << 19) | gf32_mant;
+    }
+
+    fn gf32_decode(value: u32) -> f64 {
+        if value == 0 { return 0.0; }
+
+        let sign_f: f64 = if (value & 0x80000000) != 0 { -1.0 } else { 1.0 };
+        let exp: i32 = ((value >> 19) & 0xFFF) as i32;
+        let mant: u32 = value & 0x7FFFF;
+
+        if exp == 4095 {
+            if mant == 0 {
+                return if sign_f < 0.0 { f64::NEG_INFINITY } else { f64::INFINITY };
+            } else {
+                return f64::NAN;
+            }
+        }
+
+        let mant_norm: f64 = 1.0 + (mant as f64) / 524288.0;
+        let exp_adj: f64 = (exp - 2047) as f64;
+        return sign_f * mant_norm * pow(2.0, exp_adj);
+    }
+
+    fn gf32_add(a: u32, b: u32) -> u32 {
+        return gf32_encode(gf32_decode(a) + gf32_decode(b));
+    }
+
+    // ============================================================================
+    // Vector Operations
+    // ============================================================================
+
+    fn gf16_vec_add(a: vec<u16>, b: vec<u16>) -> vec<u16> {
+        let mut result: vec<u16> = [];
+        let n: i32 = min(len(a), len(b)) as i32;
+
+        for i in 0..n {
+            result.push(gf16_add(a[i as usize], b[i as usize]));
+        }
+
+        return result;
+    }
+
+    fn gf16_vec_mul(a: vec<u16>, b: vec<u16>) -> vec<u16> {
+        let mut result: vec<u16> = [];
+        let n: i32 = min(len(a), len(b)) as i32;
+
+        for i in 0..n {
+            result.push(gf16_mul(a[i as usize], b[i as usize]));
+        }
+
+        return result;
+    }
+
+    fn gf16_vec_sum(values: vec<u16>) -> u16 {
+        let mut sum: u16 = gf16_encode(0.0);
+
+        for i in 0..len(values) {
+            sum = gf16_add(sum, values[i]);
+        }
+
+        return sum;
+    }
+
+    // ============================================================================
+    // Matrix Operations
+    // ============================================================================
+
+    fn gf16_mat_mul(a_rows: i32, a_cols: i32, b_cols: i32, a: vec<u16>, b: vec<u16>) -> vec<u16> {
+        let mut result: vec<u16> = [];
+
+        for i in 0..a_rows {
+            for j in 0..b_cols {
+                let mut sum: u16 = gf16_encode(0.0);
+
+                for k in 0..a_cols {
+                    let a_val = gf16_decode(a[(i * a_cols + k) as usize]);
+                    let b_val = gf16_decode(b[(k * b_cols + j) as usize]);
+                    sum = gf16_add(sum, gf16_encode(a_val * b_val));
+                }
+
+                result.push(sum);
+            }
+        }
+
+        return result;
+    }
+
+    // ============================================================================
+    // Trinity Identity Check
+    // ============================================================================
+
+    fn trinity_check() -> bool {
+        let phi_sq = PHI * PHI;
+        let phi_neg_sq = 1.0 / (PHI * PHI);
+        let sum = phi_sq + phi_neg_sq;
+        return abs(sum - 3.0) < 1e-10;
+    }
+
+    // ============================================================================
+    // Tests
+    // ============================================================================
+
+    test "phi_gf16_encodes_correctly" {
+        given { }
+        then { let encoded = phi_gf16(); }
+        expect {
+            let decoded = gf16_decode(encoded);
+            abs(decoded - PHI) < 0.001;
+        }
+    }
+
+    test "pi_gf16_encodes_correctly" {
+        given { }
+        then { let encoded = pi_gf16(); }
+        expect {
+            let decoded = gf16_decode(encoded);
+            abs(decoded - PI) < 0.001;
+        }
+    }
+
+    test "gf16_add_preserves_value" {
+        given {
+            let a = gf16_encode(1.0);
+            let b = gf16_encode(2.0);
+        }
+        then {
+            let result = gf16_add(a, b);
+        }
+        expect {
+            let decoded = gf16_decode(result);
+            abs(decoded - 3.0) < 0.01;
+        }
+    }
+
+    test "gf16_mul_correct" {
+        given {
+            let a = gf16_encode(3.0);
+            let b = gf16_encode(4.0);
+        }
+        then {
+            let result = gf16_mul(a, b);
+        }
+        expect {
+            let decoded = gf16_decode(result);
+            abs(decoded - 12.0) < 0.01;
+        }
+    }
+
+    test "gf16_div_by_zero_returns_inf" {
+        given {
+            let a = gf16_encode(5.0);
+            let b = gf16_encode(0.0);
+        }
+        then {
+            let result = gf16_div(a, b);
+        }
+        expect {
+            is_inf(gf16_decode(result));
+        }
+    }
+
+    test "gf16_vec_add_parallel" {
+        given {
+            let a = [1.0, 2.0, 3.0, 4.0];
+            let b = [5.0, 6.0, 7.0, 8.0];
+        }
+        then {
+            let result = gf16_vec_add(a, b);
+        }
+        expect {
+            len(result) == 4;
+        }
+    }
+
+    test "gf16_vec_sum_accumulates" {
+        given {
+            let values = [1.0, 2.0, 3.0, 4.0];
+        }
+        then {
+            let sum = gf16_vec_sum(values);
+        }
+        expect {
+            let decoded = gf16_decode(sum);
+            abs(decoded - 10.0) < 0.01;
+        }
+    }
+
+    test "trinity_identity_holds" {
+        given { }
+        then { let holds = trinity_check(); }
+        expect {
+            holds;
+        }
+    }
+
+    test "gf32_encode_decode_roundtrip" {
+        given {
+            let original = 1.618;
+        }
+        then {
+            let encoded = gf32_encode(original);
+            let decoded = gf32_decode(encoded);
+        }
+        expect {
+            abs(decoded - original) < 0.001;
+        }
+    }
+
+    test "gf16_mat_mul_2x2" {
+        given {
+            // 2x2 identity
+            let a = [1.0, 0.0, 0.0, 1.0];
+            let b = [2.0, 3.0, 5.0, 7.0];
+        }
+        then {
+            let result = gf16_mat_mul(2, 2, 2, a, b);
+        }
+        expect {
+            len(result) == 4;
+        }
+    }
+}

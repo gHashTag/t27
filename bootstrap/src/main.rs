@@ -1750,6 +1750,30 @@ async fn gen_rust_handler(
 }
 
 #[cfg(feature = "server")]
+async fn gen_wasm_handler(
+    Json(req): Json<CompileRequest>,
+) -> impl IntoResponse {
+    match compiler::Compiler::compile_wasm(&req.source) {
+        Ok(code) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                output: Some(code),
+                error: None,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse {
+                success: false,
+                output: None,
+                error: Some(e),
+            }),
+        ),
+    }
+}
+
+#[cfg(feature = "server")]
 async fn seal_handler(
     Json(req): Json<CompileRequest>,
 ) -> impl IntoResponse {
@@ -1771,6 +1795,10 @@ async fn seal_handler(
         Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
         Err(_) => "none".to_string(),
     };
+    let gen_hash_wasm = match compiler::Compiler::compile_wasm(&req.source) {
+        Ok(code) => format!("sha256:{}", sha256_hex(code.as_bytes())),
+        Err(_) => "none".to_string(),
+    };
 
     let output = serde_json::json!({
         "spec_hash": spec_hash,
@@ -1778,6 +1806,7 @@ async fn seal_handler(
         "gen_hash_verilog": gen_hash_verilog,
         "gen_hash_c": gen_hash_c,
         "gen_hash_rust": gen_hash_rust,
+        "gen_hash_wasm": gen_hash_wasm,
     });
 
     (
@@ -1794,8 +1823,8 @@ async fn seal_handler(
 async fn stats_handler() -> impl IntoResponse {
     let stats = serde_json::json!({
         "version": env!("CARGO_PKG_VERSION"),
-        "backends": ["zig", "verilog", "c"],
-        "endpoints": ["/health", "/compile", "/parse", "/gen", "/gen-verilog", "/gen-c", "/seal", "/stats",
+        "backends": ["zig", "verilog", "c", "rust", "wasm"],
+        "endpoints": ["/health", "/compile", "/parse", "/gen", "/gen-verilog", "/gen-c", "/gen-rust", "/gen-wasm", "/seal", "/stats",
                       "/optimize", "/typecheck", "/lint", "/explain", "/bench", "/graph", "/doc", "/size", "/inspect", "/deadcode", "/metrics", "/coverage"],
     });
 
@@ -2335,6 +2364,7 @@ async fn run_server(port_arg: &str) -> anyhow::Result<()> {
         .route("/gen-verilog", post(gen_verilog_handler))
         .route("/gen-c", post(gen_c_handler))
         .route("/gen-rust", post(gen_rust_handler))
+        .route("/gen-wasm", post(gen_wasm_handler))
         .route("/seal", post(seal_handler))
         .route("/stats", get(stats_handler))
         .route("/optimize", post(optimize_handler))
@@ -2754,6 +2784,7 @@ fn backend_extension(backend: &str) -> &str {
         "verilog" => ".v",
         "c" => ".c",
         "rust" => ".rs",
+        "wasm" => ".wat",
         _ => ".zig",
     }
 }
@@ -2763,6 +2794,7 @@ fn compile_source(source: &str, backend: &str) -> Result<String, String> {
         "verilog" => compiler::Compiler::compile_verilog(source),
         "c" => compiler::Compiler::compile_c(source),
         "rust" => compiler::Compiler::compile_rust(source),
+        "wasm" => compiler::Compiler::compile_wasm(source),
         _ => compiler::Compiler::compile(source),
     }
 }
@@ -2993,6 +3025,7 @@ fn run_compile_project(backend: &str, output_dir: &str) -> anyhow::Result<()> {
             "verilog" => compiler::Compiler::compile_verilog(&source),
             "c" => compiler::Compiler::compile_c(&source),
             "rust" => compiler::Compiler::compile_rust(&source),
+            "wasm" => compiler::Compiler::compile_wasm(&source),
             _ => compiler::Compiler::compile_project_file(&source, rel_path, &module_map),
         };
 
@@ -6553,7 +6586,7 @@ fn run_diff(left_path: &str, right_path: &str) -> anyhow::Result<()> {
 fn run_version() -> anyhow::Result<()> {
     println!("t27c {}", env!("CARGO_PKG_VERSION"));
     println!("phi^2 + 1/phi^2 = 3 | TRINITY");
-    println!("backends: Zig, Verilog, C, Rust");
+    println!("backends: Zig, Verilog, C, Rust, WASM");
     println!("compiler LOC: {}", include_str!("compiler.rs").lines().count());
     Ok(())
 }

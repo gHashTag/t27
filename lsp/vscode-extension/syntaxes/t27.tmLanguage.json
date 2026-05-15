@@ -1,0 +1,57 @@
+{
+  "scopeName": "source.t27",
+  "patterns": [
+    {
+      "name": "keyword.control",
+      "match": "\\b(module|fn|const|let|if|else|return|test|invariant|bench|given|then|expect)\\b"
+    },
+    {
+      "name": "keyword.type",
+      "match": "\\b(phi|gf4|gf8|gf12|gf16|gf20|gf24|gf32|u8|u16|u32|u64|i8|i16|i32|i64|f32|f64|bool|str|vec|array|option|result)\\b"
+    },
+    {
+      "name": "keyword.operator",
+      "match": "\\+|\\-|\\*|\\/|%|\\^|<|>|=|==|!=|<=|>=|&&|\\|||!"
+    },
+    {
+      "name": "string.quoted.double",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "number",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "number.phi",
+      "match": "\\b(1\\.618033988749895|1\\.[0-9]+)\\b"
+    },
+    {
+      "name": "comment.line",
+      "match": "//.*$"
+    },
+    {
+      "name": "comment.block",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    {
+      "name": "punctuation",
+      "match": "\\{|\\}|\\(|\\)|\\[|\\]|\\.|,|:|;|->|::|="
+    },
+    {
+      "name": "variable.other",
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+    },
+    {
+      "name": "constant.language",
+      "match": "\\b(PHI|PI|E|INF|NAN)\\b"
+    }
+  ]
+}
