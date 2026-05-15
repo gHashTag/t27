@@ -1,0 +1,19 @@
+{
+  "OP_LUT_NPU": {
+    "opcode": "0xE3",
+    "coq_file": "Kernel/LutNpu.v",
+    "wave": 35,
+    "lemmas": [
+      "lut_npu_class_count_41",
+      "lut_npu_no_star",
+      "lut_npu_tom_orthogonal",
+      "lut_npu_energy_8fJ",
+      "lut_npu_class_complete",
+      "lut_npu_class_disjoint",
+      "lut_npu_sign_invariance",
+      "lut_npu_zero_dominance",
+      "lut_npu_bird_correctness",
+      "lut_npu_chain_to_tom"
+    ]
+  }
+}
