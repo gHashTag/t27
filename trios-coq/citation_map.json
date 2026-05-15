@@ -29,5 +29,22 @@
       "avs_chain_to_lut_npu",
       "avs_w104_b_witness"
     ]
+  },
+  "WAVE_37_SUBTH": {
+    "opcode": "0xE4",
+    "coq_file": "Physics/SubThreshold.v",
+    "wave": 37,
+    "lemmas": [
+      "subth_quadratic_dynamic_savings",
+      "subth_freq_derating_factor_2",
+      "subth_tops_w_350",
+      "subth_trinity_voltage",
+      "subth_pe_count_1296",
+      "subth_no_star",
+      "subth_chain_to_lut_npu",
+      "subth_three_freq_trinity",
+      "subth_body_bias_strand_alignment",
+      "subth_w104_c_witness"
+    ]
   }
 }
