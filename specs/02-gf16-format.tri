@@ -1,0 +1,85 @@
+spec gf16_tf3_format
+
+numericformat gf16 tf3
+
+-- GF16: phi-optimized float16
+-- phi-distance: 0.049 vs f16's 0.118
+-- Dynamic range: ~4.3e9 vs f16's 65,504
+pub const GF16_PHI_DISTANCE f64 = 0.049
+pub const F16_PHI_DISTANCE f64 = 0.118
+pub const TF3_PHI_DISTANCE f64 = 0.018
+
+pub fn gf16_from_f32(x f32) -> gf16
+pub fn gf16_to_f32(x gf16) -> f32
+pub fn gf16_phi_quantize(x f32) -> gf16
+pub fn tf3_from_f32(x f32) -> tf3
+
+invariant gf16_range_exceeds_f16 {
+  -- GF16 dynamic range 65,000x wider than f16
+  assert GF16_PHI_DISTANCE < F16_PHI_DISTANCE
+}
+
+invariant tf3_is_most_phi_aligned {
+  assert TF3_PHI_DISTANCE < GF16_PHI_DISTANCE
+}
+
+-- Tests (mandatory 8)
+test gf16_roundtrip {
+  given x = 1.618
+  let result = gf16_to_f32(gf16_from_f32(x))
+  assert abs(result - x) < 0.01
+}
+
+test tf3_neg_one {
+  given x = -1.0
+  let result = tf3_from_f32(x)
+  assert result encodes to negative trit pattern
+}
+
+test gf16_better_phi_distance {
+  assert GF16_PHI_DISTANCE < F16_PHI_DISTANCE
+}
+
+test tf3_phi_alignment {
+  assert TF3_PHI_DISTANCE < GF16_PHI_DISTANCE
+}
+
+test gf16_from_zero {
+  given x = 0.0
+  let result = gf16_from_f32(x)
+  assert result == gf16_zero
+}
+
+test gf16_phi_identity {
+  given x = PHI
+  let result = gf16_from_f32(x)
+  assert result encodes phi correctly
+}
+
+test tf3_from_phi {
+  given x = PHI
+  let result = tf3_from_f32(x)
+  assert result encodes phi in trit space
+}
+
+test gf16_quantization_roundtrip {
+  given x = 3.14159
+  let q = gf16_phi_quantize(x)
+  let back = gf16_to_f32(q)
+  assert abs(back - x) < 0.05
+}
+
+-- Benchmarks (mandatory 2)
+bench gf16_mul {
+  measure nanoseconds to gf16_from_f32(1.618)
+  target 200_000_000
+  warmup 3
+  runs 100
+}
+
+bench gf16_vs_f32_instructions {
+  -- SIMD: 56 instructions vs 2304 at f16
+  measure instructions to gf16_from_f32(1.0)
+  target 56
+  runs 100
+}

@@ -88,15 +88,15 @@ The paper states explicitly that many relations are **empirical approximations**
 
 These Zenodo records describe **architectures and artifacts**, not theorems. Claims below should be tightened as independent benchmarks and papers appear.
 
-**Related DOIs:** [10.5281/zenodo.18939352](https://doi.org/10.5281/zenodo.18939352) (FPGA autoregressive ternary LLM), [10.5281/zenodo.19020211](https://doi.org/10.5281/zenodo.19020211) (Ouroboros), [10.5281/zenodo.19020213](https://doi.org/10.5281/zenodo.19020213) (VSA + SIMD), [10.5281/zenodo.19020215](https://doi.org/10.5281/zenodo.19020215) (phi-RoPE), [10.5281/zenodo.19020217](https://doi.org/10.5281/zenodo.19020217) (sparse ternary matmul), [10.5281/zenodo.19227877](https://doi.org/10.5281/zenodo.19227877) (VSA ops); concept [10.5281/zenodo.18947017](https://doi.org/10.5281/zenodo.18947017).
+**Related DOIs:** [10.5281/zenodo.18939352](https://doi.org/10.5281/zenodo.18939352) (FPGA autoregressive ternary LLM), [10.5281/zenodo.19020270](https://doi.org/10.5281/zenodo.19020270) (Ouroboros), [10.5281/zenodo.19020275](https://doi.org/10.5281/zenodo.19020275) (VSA + SIMD), [10.5281/zenodo.19020280](https://doi.org/10.5281/zenodo.19020280) (phi-RoPE), [10.5281/zenodo.19020282](https://doi.org/10.5281/zenodo.19020282) (sparse ternary matmul), [10.5281/zenodo.19227877](https://doi.org/10.5281/zenodo.19227877) (VSA ops); concept [10.5281/zenodo.18947017](https://doi.org/10.5281/zenodo.18947017).
 
 | ID | Claim | Domain | Status | Rationale | Artifacts |
 |----|-------|--------|--------|-----------|-----------|
 | C-ternary-001 | FPGA autoregressive ternary LLM runs inference in balanced-ternary arithmetic | HW / ML | `EMPIRICAL_FIT` | Zenodo describes design/code; independent replication + benchmarks needed. | 10.5281/zenodo.18939352 |
-| C-ternary-002 | Self-Evolving Ouroboros demonstrates a self-hosting / self-evolving cycle | Systems | `CONJECTURAL` | Need formal criteria and reproducible experiment logs. | 10.5281/zenodo.19020211 |
-| C-ternary-003 | VSA balanced ternary + SIMD gives stable high-dimensional VSA ops | VSA / numerics | `EMPIRICAL_FIT` | Zenodo description; needs stability tests vs binary VSA baselines. | 10.5281/zenodo.19020213, 10.5281/zenodo.19227877 |
-| C-ternary-004 | phi-RoPE improves quality/stability vs standard RoPE on binary models | ML / attention | `CONJECTURAL` | Need public perplexity / stability / spectral comparisons. | 10.5281/zenodo.19020215 |
-| C-ternary-005 | Sparse ternary matmul wins FLOPs/W and/or latency on FPGA vs dense binary matmul | HW | `CONJECTURAL` | Need published measurement methodology. | 10.5281/zenodo.19020217 |
+| C-ternary-002 | Self-Evolving Ouroboros demonstrates a self-hosting / self-evolving cycle | Systems | `CONJECTURAL` | Need formal criteria and reproducible experiment logs. | 10.5281/zenodo.19020270 |
+| C-ternary-003 | VSA balanced ternary + SIMD gives stable high-dimensional VSA ops | VSA / numerics | `EMPIRICAL_FIT` | Zenodo description; needs stability tests vs binary VSA baselines. | 10.5281/zenodo.19020275, 10.5281/zenodo.19227877 |
+| C-ternary-004 | phi-RoPE improves quality/stability vs standard RoPE on binary models | ML / attention | `CONJECTURAL` | Need public perplexity / stability / spectral comparisons. | 10.5281/zenodo.19020280 |
+| C-ternary-005 | Sparse ternary matmul wins FLOPs/W and/or latency on FPGA vs dense binary matmul | HW | `CONJECTURAL` | Need published measurement methodology. | 10.5281/zenodo.19020282 |
 
 ---
 
@@ -105,7 +105,7 @@ These Zenodo records describe **architectures and artifacts**, not theorems. Cla
 | ID | Claim | Domain | Status | Rationale | Artifacts |
 |----|-------|--------|--------|-----------|-----------|
 | C-meta-001 | Trinity / t27 is a spec-first ternary stack; Zig/C/Verilog backends are generated from `.t27` | PL / compilers | `EMPIRICAL_FIT` | Repo layout + CI (gen headers, conformance) demonstrate discipline; full `docs/nona-02-organism/LANGUAGE_SPEC.md` + backend contracts still incomplete. | This repo; `docs/nona-02-organism/LANGUAGE_SPEC.md`, `docs/BACKEND_CONTRACT.md`. |
-| C-meta-002 | Trinity / t27 is self-hosting / self-evolving | Systems | `CONJECTURAL` | Define terms precisely + reproducible pipeline; partial story in rings + Ouroboros Zenodo. | 10.5281/zenodo.19020211; `CANON.md`, `docs/nona-01-foundation/SEED-RINGS.md`. |
+| C-meta-002 | Trinity / t27 is self-hosting / self-evolving | Systems | `CONJECTURAL` | Define terms precisely + reproducible pipeline; partial story in rings + Ouroboros Zenodo. | 10.5281/zenodo.19020270; `CANON.md`, `docs/nona-01-foundation/SEED-RINGS.md`. |
 
 ---
 
@@ -134,10 +134,10 @@ These Zenodo records describe **architectures and artifacts**, not theorems. Cla
 | [10.5281/zenodo.18947017](https://doi.org/10.5281/zenodo.18947017) | Concept DOI (all versions) | 2026-03-10 |
 | [10.5281/zenodo.18950696](https://doi.org/10.5281/zenodo.18950696) | Latest Trinity Framework version | 2026-03-10 |
 | [10.5281/zenodo.18939352](https://doi.org/10.5281/zenodo.18939352) | FPGA Autoregressive Ternary LLM | 2026-03-10 |
-| [10.5281/zenodo.19020211](https://doi.org/10.5281/zenodo.19020211) | Self-Evolving Ouroboros | 2026-03-14 |
-| [10.5281/zenodo.19020213](https://doi.org/10.5281/zenodo.19020213) | VSA Balanced Ternary + SIMD | 2026-03-14 |
-| [10.5281/zenodo.19020215](https://doi.org/10.5281/zenodo.19020215) | phi-RoPE Attention | 2026-03-14 |
-| [10.5281/zenodo.19020217](https://doi.org/10.5281/zenodo.19020217) | Sparse Ternary MatMul | 2026-03-14 |
+| [10.5281/zenodo.19020270](https://doi.org/10.5281/zenodo.19020270) | Self-Evolving Ouroboros | 2026-03-14 |
+| [10.5281/zenodo.19020275](https://doi.org/10.5281/zenodo.19020275) | VSA Balanced Ternary + SIMD | 2026-03-14 |
+| [10.5281/zenodo.19020280](https://doi.org/10.5281/zenodo.19020280) | phi-RoPE Attention | 2026-03-14 |
+| [10.5281/zenodo.19020282](https://doi.org/10.5281/zenodo.19020282) | Sparse Ternary MatMul | 2026-03-14 |
 | [10.5281/zenodo.19227877](https://doi.org/10.5281/zenodo.19227877) | VSA Operations for Ternary Computing | — |
 
 ---

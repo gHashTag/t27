@@ -1,0 +1,18 @@
+{
+    "platform": "QMTECH Wukong V1",
+    "fpga": "XC7A100T-1FGG676C",
+    "bitstream": "fpga/vsa/gf16_heartbeat_top.bit",
+    "bitstream_sha256": "TBD — fill after running: shasum -a 256 fpga/vsa/gf16_heartbeat_top.bit",
+    "method": "UART throughput measurement",
+    "uart_baud": 115200,
+    "uart_device": "/dev/cu.usbserial-XXX",
+    "tokens_per_sec_real": null,
+    "tokens_per_sec_sim": 1193,
+    "duration_sec": 60,
+    "clock_hz": 66000000,
+    "programmer": "DLC-10",
+    "idcode": "0x03631093",
+    "status_register": "0x401079FC",
+    "timestamp": "TBD — fill with ISO 8601 after measurement",
+    "notes": "Fill tokens_per_sec_real after running trios-fpga bench or minicom capture"
+}

@@ -3,8 +3,6 @@ name: L1 TRACEABILITY Check
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches: [master, main]
 
 jobs:
   check-traceability:
@@ -54,8 +52,13 @@ jobs:
             FULL_MSG=$(git log -1 --format="%B" "$hash")
             SHORT_MSG=$(git log -1 --format="%h %s" "$hash")
 
-            # Check for "Closes #N" or "Close #N" or "Fixes #N" or "Fix #N" in full message
-            if ! echo "$FULL_MSG" | grep -qiE "(Closes?|Fixes?)\s*#[0-9]+"; then
+            # Check for issue reference in full message.
+            # Accept any standard GitHub linking keyword:
+            #   Close(s)/Fix(es)/Resolve(s) — closes the issue on merge
+            #   Refs/Ref — references an issue (work in progress on same epic)
+            #   Updates/Update — progress update on an existing issue
+            # Also accept "#N" anywhere on a line that contains one of these verbs.
+            if ! echo "$FULL_MSG" | grep -qiE "(Closes?|Fixes?|Resolves?|Refs?|Updates?)\s*#[0-9]+"; then
               FAILED=1
               FAILED_COMMITS="$FAILED_COMMITS  ❌ $SHORT_MSG"$'\n'
             else

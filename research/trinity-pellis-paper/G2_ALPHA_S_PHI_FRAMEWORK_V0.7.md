@@ -374,7 +374,7 @@ This work emerged from discussions within the Trinity S³AI research group. We a
 
 **[chimera2026]** S. Pellis, *CKM Wolfenstein Parameters via Golden Ratio Polynomials*, preprint, 2026.
 
-**[olsen2026]** S. Olsen, *Historical Context of φ in Physics: from Pythagoras to Bohm*, Zenodo, DOI: 10.5281/zenodo.19377394, 2026.
+**[olsen2026]** S. Olsen, *Historical Context of φ in Physics: from Pythagoras to Bohm*, contribution to this paper (2026). [R5-honest audit 2026-05-12: the DOI 10.5281/zenodo.19377394 previously cited here resolves to an unrelated Latin-American employment dataset, not to Olsen's work. Restated as personal contribution; replace with real Olsen Zenodo DOI before publication.]
 
 **[PDG2024]** Particle Data Group (S. Navas et al.), *Review of Particle Physics*, Phys. Rev. D **110**, 030001 (2024).
 
