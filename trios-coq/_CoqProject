@@ -5,5 +5,6 @@ IGLA/Timing400.v
 IGLA/PdkPortable.v
 IGLA/Tenet.v
 IGLA/LutNpu.v
+IGLA/Avs.v
 Kernel/LutNpu.v
 Physics/AvsStacking.v
