@@ -13,3 +13,4 @@ Physics/SubThreshold.v
 Physics/HoloMux.v
 Physics/DFS.v
 Physics/SparseGate.v
+Physics/StochRound.v

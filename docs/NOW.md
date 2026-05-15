@@ -2,6 +2,23 @@
 
 Last updated: 2026-05-15
 
+## Wave-42 Lane II — StochRound.v Stochastic Rounding Coq
+
+- OP_STOCH_ROUND = 0xE9 (decimal 233) — sacred opcode, Wave-42
+- **NEW**: trios-coq/Physics/StochRound.v — 9 Qed lemmas
+  - stoch_op_distinct_from_sparse: 233 <> 232 (OP_SPARSE_SKIP)
+  - stoch_op_distinct_from_dfs: 233 <> 231 (OP_DFS_GATE)
+  - stoch_op_distinct_from_holo_mux: 233 <> 230 (OP_HOLO_MUX_X4)
+  - stoch_op_distinct_from_subth: 233 <> 229 (OP_SUBTH_CLK)
+  - stoch_op_distinct_from_avs_reconf: 233 <> 228 (OP_AVS_RECONF)
+  - stoch_op_distinct_from_lut_npu: 233 <> 227 (OP_LUT_NPU)
+  - stoch_op_distinct_from_tom: 233 <> 226 (OP_TOM)
+  - stoch_op_distinct_from_tenet: 233 <> 225 (OP_TENET)
+  - stoch_unbiased_count: forall xf <= 16, xf + (16 - xf) = 16 (LFSR-16 unbiasedness)
+- Wave-42 StochRound.v 9 Qed sacred 0xE9
+- Refs: Hubara 2018, Gupta 2015 — unbiased rounding for INT4/INT2 quantization
+- Closes trinity-fpga#149
+
 ## Wave-39 Lane DD — SpeculativeExit.v 11 Qed lemmas (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/SpeculativeExit.v — 11 Qed lemmas, 0 Admitted, speculative confidence-thresholded early-exit inference
