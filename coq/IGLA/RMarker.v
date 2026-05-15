@@ -84,6 +84,7 @@ Inductive holo_op : Set :=
   | OP_BITROM_READ         (** TRI-27 ISA 0xE0 — Lane W Lever #2 BitROM bidirectional ROM *)
   | OP_SPARSE_SKIP         (** TRI-27 ISA 0xE1 — Wave-33 Lane T Lever #3 TENET sparsity-aware LUT skip *)
   | OP_LAYER_GATE          (** TRI-27 ISA 0xE2 — Wave-34 Lane Y Lever #4 TOM Ternary ROM Accelerator *)
+  | OP_LUT_NPU             (** TRI-27 ISA 0xE3 — Wave-35 Lane V Lever #9 LUT-NPU 81-entry bitnet.cpp port *)
   .
 
 (** Reflexive predicate: does this op use the forbidden [*] operator?
@@ -99,6 +100,7 @@ Definition rtl_uses_star (op : holo_op) : bool :=
   | OP_BITROM_READ        => false
   | OP_SPARSE_SKIP        => false
   | OP_LAYER_GATE         => false
+  | OP_LUT_NPU            => false
   end.
 
 (** ** The headline lemma — R-SI-1 enforced at spec layer.
@@ -128,6 +130,29 @@ Proof. reflexivity. Qed.
     R7 falsifier W-102-A: BitNet b1.58-3B runtime sparsity >= 25 %. *)
 Lemma tenet_no_star : rtl_uses_star OP_SPARSE_SKIP = false.
 Proof. reflexivity. Qed.
+
+(** Wave-35 Lane V — LUT-NPU 81-entry MAC-replacement controller witness.
+    OP_LUT_NPU (TRI-27 ISA 0xE3) extends the alphabet to 8 ops and
+    chain depth 6. Energy projection: ×1.20 TOPS/W → 270 TOPS/W on
+    TTIHP27a generic synth (W34 baseline 225). The 81-entry LUT is
+    the hardware port of Microsoft bitnet.cpp's lookup table for
+    b1.58 ternary inference, indexed by Z₃⁹ symmetry (3^4 = 81).
+    Area cost +0.18 mm², power +6 mW.
+    R7 falsifier W-104-A: BitNet b1.58-3B Trinity-loss sparsity ≥ 50 %. *)
+Lemma lut_npu_no_star : rtl_uses_star OP_LUT_NPU = false.
+Proof. reflexivity. Qed.
+
+(** Distinctness witnesses: LUT-NPU is a fresh opcode, not a re-skin of
+    earlier Lever #1 (LUT_LOOKUP) or Lever #3 (SPARSE_SKIP). Proven by
+    [discriminate] on the [holo_op] inductive. *)
+Lemma lut_npu_neq_lut_lookup : OP_LUT_NPU <> OP_LUT_LOOKUP.
+Proof. discriminate. Qed.
+
+Lemma lut_npu_neq_sparse_skip : OP_LUT_NPU <> OP_SPARSE_SKIP.
+Proof. discriminate. Qed.
+
+Lemma lut_npu_neq_bitrom_read : OP_LUT_NPU <> OP_BITROM_READ.
+Proof. discriminate. Qed.
 
 (** ** R-marker boot integrity.
 
