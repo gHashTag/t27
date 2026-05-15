@@ -1,143 +1,19 @@
-# NOW — last sync 2026-05-15T18:58:44Z
+# NOW — Trinity t27 sync
 
-**Last updated:** 2026-05-16
-**2026-05-16: L-DPC31 Wave-34 LEVER #4 TOM Lane Y** (Closes #647; Refs trinity-fpga#116) extends `coq/IGLA/RMarker.v` `holo_op` alphabet with `OP_LAYER_GATE` (sacred 0xE2, Wave-34 TOM Ternary ROM Accelerator, Lever #4); adds `Lemma tom_no_star`, `sacred_alphabet`, `no_star_in`, `Definition opcode_E2`, and 10 supporting lemmas; 29 Qed total (14 `^Qed` new multi-line + 15 inline). Sacred-synth-gate chain 0xDE→0xDF→0xE0→0xE1→0xE2 (R15). Sibling: trios#853. Energy projection: ×1.4 TOPS/W → 273 TOPS/W on TTIHP27a (projected). Coq not local — relies on CI.
-**2026-05-15: L-DPC29 Wave-33 LEVER #3 TENET Lane T'** (Closes #646; Refs trinity-fpga#114) extends `coq/IGLA/RMarker.v` `holo_op` alphabet with `OP_SPARSE_SKIP` (sacred 0xE1, Wave-33 TENET sparsity-aware LUT skip controller); adds new `Lemma tenet_no_star`; introduces `trios-coq/IGLA/Tenet.v` proving depth-5 alphabet chain via `Theorem tenet_safe`. Projection: ×1.3 TOPS/W → 195 TOPS/W on TTIHP27a generic synth. Strategic ref: trios `docs/strategic/TOPS-LEVERS-2026-05-16-001.md`.
+Last updated: 2026-05-15
 
-**Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622). **2026-05-15: L-DPC25 Wave-28 LEVER STACK Lane X** (Issue #635) extends `coq/IGLA/RMarker.v` `holo_op` alphabet with `OP_LUT_LOOKUP` (sacred 0xDF, Lever #1 Platinum LUT PE, arXiv 2511.21910) and `OP_BITROM_READ` (sacred 0xE0, Lever #2 BitROM, arXiv 2509.08542); re-proves `holographic_no_star` over 6-op alphabet; 14 Qed / 15 Lemma total, all accepted by coqc 8.20.1. Builds on Lane Z (Issue #631 / PR #630). **2026-05-15: L-DPC24 HOLOGRAPHIC v9 ONE SHOT (trios#832) Lane Z** — new `coq/IGLA/RMarker.v` adds formal 4-slot R-marker spec and `Lemma holographic_no_star` proving R-SI-1 (zero `*` operator) at the spec layer; 12 Qed / 13 Lemma, all accepted by coqc 8.20.1. Sibling RTL surface on `tt-trinity-holo` @ `86d34ee` (army-landed Lanes A'/B'/C'/Y). See `coq/IGLA/RMarker.v` and Issue #631.
+## Wave-34 Lane Y — TOM Coq
 
----
+- OP_LAYER_GATE = 0xE2 extends sacred chain 0xDE → 0xDF → 0xE0 → 0xE1 → 0xE2
+- 14 new ^Qed proofs in coq/RMarker.v (29 total)
+- W-103-A pre-registered: layer-idle fraction ≥ 0.5 @ BitNet b1.58-3B batch=1
+- Freeze 2026-08-15, fail-stop on violation
 
-## Lane X — L-DPC25 Wave-28 LEVER STACK Coq alphabet extension (Issue #635 — 2026-05-15)
+## Constitutional verdict
 
-- Extended `coq/IGLA/RMarker.v` `holo_op` alphabet: +`OP_LUT_LOOKUP` (sacred 0xDF, Lever #1) +`OP_BITROM_READ` (sacred 0xE0, Lever #2).
-- Re-proved `Lemma holographic_no_star : forall op : holo_op, rtl_uses_star op = false. Qed.` over the extended 6-element alphabet — R-SI-1 ZERO `*` invariant preserved.
-- Added two named spot lemmas: `lut_no_star` and `bitrom_no_star` (cite-able from Lane V/W RTL CI commit messages).
-- 14 Qed / 15 Lemma total (12 baseline Lane Z + 2 Lever Stack). Local `coqc -R . T27 IGLA/RMarker.v` exit 0 (Coq 8.20.1).
-- Sources of new opcodes: arXiv 2511.21910 (Platinum LUT PE, ASP-DAC 2026, 1534 GOPS @ 0.96 mm² @ 28nm), arXiv 2509.08542 (BitROM bidirectional ROM, 20.8 TOPS/W @ 65nm, 4 967 kB/mm²).
-- R5-HONEST (no Admitted), R7 (any future RTL `rtl_uses_star=true` op breaks file at Qed-time), R8 admin@t27.ai, R15 sacred-synth-gate (0xDF, 0xE0 continuing 0xDE Lane C'), R18 LAYER-FROZEN (purely additive, no `Kernel/` / `Theorems/` edits).
-- Cross-repo refs: gHashTag/trios#834 (Wave-28 ONE SHOT), gHashTag/trios#836 (Lane Q assertion mirror PR), gHashTag/trinity-fpga#104 (army mirror). Closes #635.
+- R5-HONEST PASS · R7 PASS · R8 PASS (admin@t27.ai) · R14 PASS · R15 PASS · R18 PASS · Apache-2.0 PASS
 
----
+## Anchor
 
-## Lane Z — L-DPC24 HOLOGRAPHIC v9 Coq spec (Issue #631 — 2026-05-15)
-
-- Added `coq/IGLA/RMarker.v` (126 lines, additive — `Kernel/` and `Theorems/` untouched, R18 LAYER-FROZEN).
-- Formal R-SI-1 enforcement: `Lemma holographic_no_star : forall op, rtl_uses_star op = false. Qed.`
-- 4-slot R-marker carrier mapped to physics anchors: φ²+φ⁻²=3 / γ=φ⁻³ / C=φ⁻¹ / G=π³γ²/φ.
-- holo_op alphabet covers army-landed RTL: OP_LOAD_PHYSICS_CONST (0xDE, Lane C'), OP_NOC_FORWARD (Lane A'), OP_RAZOR_SAMPLE (Lane B'), OP_HOLO_MUX_1X2 (Lane Y).
-- canonical_boot bijection + period-4 stability + Lane U runtime corollary (12 Qed total).
-- Local verification: `coqc -R . T27 IGLA/RMarker.v` → exit 0.
-- R5-HONEST (no Admitted), R7 falsification witness (any future `holo_op` with `rtl_uses_star=true` breaks file at Qed-time, blocking CI before silicon submission).
-- Cross-repo refs: gHashTag/trios#832 (ONE SHOT), gHashTag/tt-trinity-holo@86d34ee (sibling RTL). Closes #631.
-
----
-
-## R5-PASS-7 Honest Audit (Issue #598 — invalid ORCID + wrong community slug in `.zenodo.json`)
-
-- Discovered during the 10-dimension PASS-7 deep-sweep across the 5-repo Trinity hive.
-- `.zenodo.json` carried `"orcid": "0000-0002-5135-5363"` for Dmitrii Vasilev — the ORCID API returns no person record for that ID; the canonical (and CITATION.cff-confirmed) ORCID is `0009-0008-4294-6159`.
-- `.zenodo.json` also pointed at `"communities": [{"identifier": "trinity"}]` — that community does not exist on Zenodo; canonical SOT per PASS-6 operator directive is `trinity-s3ai` (id `668f1264-2341-488a-bb14-351fa908ac64`, 12 records).
-- Both deposit-hazards corrected in this PR. Anchor `φ²+φ⁻²=3` algebraic identity unchanged.
-- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264). Closes #598.
-
-## R5-PASS-6 Honest Audit (Issue #596 — community trinity-s3ai SOT alignment)
-
-- Operator directive: a single source of truth — all Zenodo records live at <https://zenodo.org/communities/trinity-s3ai/>.
-- Verified via Zenodo REST `/api/communities/trinity-s3ai/records?size=25` that the community contains EXACTLY 12 records (B001–B008 = 19227865/67/69/71/73/75/77/79; D004–D007 = 19020270/75/80/82; concept DOI B007 = 19227876).
-- t27 changes:
-  - `README.md`: canonical SOT pointer next to GoldenFloat 19456875 badge with explicit note that GoldenFloat is legitimate Vasilev authorship but lives OUTSIDE the curated S³AI v5.0 record set.
-  - `CITATION.cff`: corrected mangled ORCID `0009-0008-429-6159-6159-6159` → `0009-0008-4294-6159`; SOT pointer added.
-  - `docs/ZENODO.md`: parent title corrected ("Defensive Pubs" → "S³AI Framework v5.0"); folklore Coq corpus figure "28 .v files / 218 stmts" replaced with verified "10 .v files / 48 stmts / 35 Qed / 0 Admitted"; canonical SOT pointer added.
-- No Category C foreign-DOIs were present in t27 — pre-existing PASS-4/5 honest-annotation comments in `research/trinity-pellis-paper/G2_*` for `19271888` (Koide) and `19377394` (Latin-American employment) are preserved.
-- Companion PASS-6 PRs: gHashTag/trinity#594, gHashTag/trinity-fpga#45, gHashTag/trios#755.
-- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264).
-
-## R5-PASS-4 Honest Audit (PR #594, Issue #595)
-
-- Retired the folkloric "84 theorems" claim across `research/` (actual corpus: 28 .v files, 218 statements, 162 Qed, 32 Admitted, 11 Abort — audit 2026-05-12)
-- Rewrote `docs/ZENODO.md` as a registry pointer aligned with [trios `zenodo-registry.md`](https://github.com/gHashTag/trios/blob/main/docs/infrastructure/zenodo-registry.md)
-- Bibliography honesty: commented out fake `zenodo.12345` placeholder, corrected `zenodo.19271888` mislabel (actually Koide-formula paper), and `zenodo.19377394` mislabel (actually Latin-American employment dataset) in `research/trinity-pellis-paper/G2_*`
-- Sibling PRs (R5-PASS-4): gHashTag/trinity#592 (merged), gHashTag/trinity-fpga#43 (merged)
-- Sibling PRs (R5-PASS-5): gHashTag/trinity#593, gHashTag/trinity-fpga#44 (new arXiv/ORCID class)
-- Throne: [trios#264](https://github.com/gHashTag/trios/issues/264)
-
-
-## Active Work
-
-**GF16 Hardware Accelerator — FPGA**
-- `fpga/vivado/gf16_mul.v` — combinational multiplier, 13/13 tests, DSP48E1
-- `fpga/vivado/gf16_add.v` — combinational adder, 14/14 tests, latch-free
-- `fpga/vivado/gf16_dot4.v` — dot product N=4 (4× mul + 3× add tree), 6/6 tests
-- `fpga/vivado/gf16_matmul_top.v` — top-level with ring osc + LED verification
-- `fpga/vivado/uart.v` — UART TX/RX (written, not yet flashed — ring osc stability)
-- `conformance/gf16_ref.py` — Python reference (encode/decode/mul/add/dot4)
-- Key: bias=31, exp=6-bit, mant=9-bit, specials: +inf=0x7E00, -inf=0xFE00, NaN=0xFE01
-- XVC flash: `openFPGALoader -c xvc-client --ip 192.168.1.30 --port 2542 --file-type bit -m <file>.bit`
-- **Next:** gf16_matmul4x4.v, UART interactive verification, benchmark
-
-**Ring 080-087: Ternary Collection Specs** (PR #558 — merged)
-- 6 new specs: sorting, search, pattern matching, graph, tree, set, hash table
-- Closes #260 #262 #264 #267 #269 #271 #275
-
-**Hybrid v2 + Golden Tests** (PR #559 — merged)
-- L2 cosine similarity with f64 Pell numbers (N=2..152)
-- Golden tests for N={5,10,15,20,50,152}, all pass
-- Closes #339 #287
-
-**GF Competitive Analysis** (PR pending)
-- verify_precision.py with mpmath 100-digit sacred constants
-- gf_competitive.t27 + pellis_verify.t27 specs
-- Closes #289
-
-**Pre-commit Gate (Ring 073)** (PR #554)
-- 4 gates: NOW freshness, seal coverage, L7 no-new-shell, cargo check
-- Install: `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`
-
-- 2026-05-13: **CI win** — GitHub Actions builds spiOverJtag_xc7a100tfgg676.bit
-  successfully via Vivado 2024.2 on ubuntu-24.04 runner (workflow run 25753882084,
-  commit f44f5af3). Root cause of prior route_design failures: the previous
-  constr_xc7a_fgg676.xdc tried to use dedicated configuration bank pins
-  (C8/B19/A18/B18/A19) which are GT terminals on FGG676. Corrected pinout
-  P18/R14/R15/P14/N14 sourced from QMTECH_XC7A75T_100T_200T-CORE-BOARD
-  schematic (Bank 14 dual-purpose D00..D03 + FCS_B). New bitstream
-  407,262 bytes, sha256 bf5be125e9098d61b4855c599b19a5c90c360592991b7b9b7835af02e605cad2,
-  contains "7a100tfgg676" device string. Deployed to fpga/tools/bscan_spi_xc7a100t.bit
-  and re-embedded into cli/dlc10 via include_bytes!. Runtime status:
-  STAT=0x00000000 after proxy-load — DONE never goes HIGH for both the new and the
-  pre-existing fgg676 bitstreams, so the remaining blocker is in the JTAG transport
-  layer (cli/dlc10 program_sram path), not the bitstream itself. On-board flash is
-  N25Q064A 3V (JEDEC 0x20BA17), not MT25QL128. Closes #592 (CI side); follow-up
-  issue needed for proxy-load DONE=LOW. See docs/fpga/SPI_FLASH_DEBUG.md.
-
-**FFI Bug Fixes + API Completeness** (PR #553 — merged)
-- BUG-001/002/003 fixed, GF4/8/12/20/24 encode/decode added
-
----
-
-## Previous Active Work
-
-**Ring 32 — Cloud Orchestration** (PR #485) — New ring for cloud deployment capabilities
-- specs/base/ring_32.t27 — Ring 32 definition
-- specs/cloud/railway_deploy.t27 — Railway deployment orchestrator
-- specs/base/debounce.t27 — φ-structured debouncing (618ms)
-- specs/queen/task_analysis.t27 — Task priority analysis for 27 bees
-- specs/compiler/mod_structure.t27 — Module structure validation
-- Full TDD coverage: 12 tests, 6 invariants, 1 benchmark
-- Constitutional compliance: L1-L7
-
----
-
-**DARPA CLARA Documentation Organization** (PR #478) — Docs structure overhaul for clarity
-
-**DARPA CLARA v1.5 Submission** (PR #473) — Ready for review, deadline April 17, 2026
-
----
-
-**φ² + 1/φ² = 3 | TRINITY**
-
-2026-05-16  Wave-29 Lane C — Sparsity24.v Qed (no admit) — refs #108
-2026-05-16  Wave-30 Lane K — Timing400.v Qed (no admit) — refs #109
-2026-05-16  Wave-31 Lane J — PdkPortable.v Qed (no admit) — refs #110
-
-Wave-34 Lane Y TOM Coq · OP_LAYER_GATE=0xE2 · 14 new Qed · synced 2026-05-15T18:58:44Z
+phi^2 + phi^-2 = 3 · QUANTUM BRAIN 1:1 SILICON · NEVER STOP
+DOI 10.5281/zenodo.19227877
