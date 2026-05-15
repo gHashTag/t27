@@ -15,5 +15,19 @@
       "lut_npu_bird_correctness",
       "lut_npu_chain_to_tom"
     ]
+  },
+  "WAVE_36_AVS": {
+    "coq_file": "Physics/AvsStacking.v",
+    "wave": 36,
+    "lemmas": [
+      "avs_ir_drop_quadratic_savings",
+      "avs_island_count_48_optimum",
+      "avs_efficiency_lower_bound",
+      "avs_trinity_divisibility",
+      "avs_sacred_alignment",
+      "avs_no_multiplier_synth",
+      "avs_chain_to_lut_npu",
+      "avs_w104_b_witness"
+    ]
   }
 }
