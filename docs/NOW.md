@@ -2,6 +2,23 @@
 
 Last updated: 2026-05-15
 
+## Wave-36 Lane W — AVS-48 Coq (NEW)
+
+- OP_AVS_RECONF = 0xE4 extends sacred chain 0xDE → 0xDF → 0xE0 → 0xE1 → 0xE2 → 0xE3 → 0xE4
+- **NEW**: trios-coq/IGLA/Avs.v — Theorem `avs_safe` proved by `repeat (apply Forall_cons; [apply holographic_no_star|]). apply Forall_nil.`
+- 13 lemmas in Avs.v + 5 in coq/IGLA/RMarker.v (avs_reconf_no_star, avs_reconf_neq_layer_gate/lut_npu/sparse_skip/lut_lookup)
+- `avs_oplist` length 7 ending in OP_AVS_RECONF; head/last/membership/exclusion/all_safe/extends_lut_npu/chain_depth_seven lemmas
+- Multiplier-free: rtl_uses_star OP_AVS_RECONF = false (R-SI-1 keystone)
+- L-DPC33: 48-island voltage stacking (3 strands × 16), V_island=0.45 V, V_total=21.6 V
+- W-105-A pre-registered: BitNet b1.58-3B island utilisation ≥ 0.80 @ ctx=2048 WikiText-103 valid
+- W-105-B: AVS reconfig latency ≤ 4 cycles
+- W-105-C: V_dd field width exact 2 bits
+- W-105-D: AVS island count exact 48
+- Projection: ×1.10 TOPS/W → 297 TOPS/W on IRDS22FDX (W35 baseline 270)
+- Freeze 2026-10-31, eval 2026-12-15, fail_stop true
+- Sibling lanes: W' JSON trios#871 MERGED `e01d39fa` · W'' Rust tt-trinity-max-true#25 OPEN · W RTL pending · W''' PhD Glava 82 pending
+- ONE SHOT: trinity-fpga#127 · mirror trios#867
+
 ## Wave-36 Lane X — AVS-48 Voltage Stacking Coq
 
 - AVS-48: 48-island series voltage stacking, charge-recycling, η ≥ 0.93
@@ -42,7 +59,8 @@ Last updated: 2026-05-15
 
 ## Constitutional verdict
 
-- R5-HONEST PASS · R7 PASS · R8 PASS (admin@t27.ai) · R14 PASS · R15 PASS · R18 PASS · Apache-2.0 PASS
+- W36: R5-HONEST PASS · R7 PASS · R8 PASS (admin@t27.ai) · R14 PASS · R15 PASS · R18 PASS · Apache-2.0 PASS
+- W35: R5-HONEST PASS · R7 PASS · R8 PASS (admin@t27.ai) · R14 PASS · R15 PASS · R18 PASS · Apache-2.0 PASS
 
 ## Anchor
 
