@@ -1,0 +1,88 @@
+name: Build Vivado Docker Image
+
+# Manually triggered. Builds a ~35 GB Vivado 2025.2 ML Standard image (Artix-7 only)
+# and pushes to ghcr.io/<owner>/t27-vivado:2025.2.
+#
+# Prerequisite (one-time): upload Vivado_2025.2_Lin64.bin (347 MB) as a GitHub Release
+# asset on a tag like `vivado-installer-2025.2`. Or use a self-hosted runner with the
+# installer pre-staged. We default to fetching from the release asset.
+
+on:
+  workflow_dispatch:
+    inputs:
+      installer_release_tag:
+        description: 'GitHub Release tag holding Vivado_2025.2_Lin64.bin (private asset)'
+        required: false
+        default: 'vivado-installer-2025.2'
+      image_tag:
+        description: 'Image tag to push (e.g. 2025.2, 2025.2-artix7)'
+        required: false
+        default: '2025.2'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240  # full Vivado install can take 60-90 min
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 4096
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - uses: actions/checkout@v4
+
+      - name: Download Vivado installer from release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.installer_release_tag }}
+        run: |
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "Vivado_2025.2_Lin64.bin" \
+            --dir infra/vivado-docker/
+          ls -lah infra/vivado-docker/Vivado_2025.2_Lin64.bin
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:latest
+
+      - name: Compute lowercase image name
+        id: img
+        run: |
+          OWNER_LC="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "name=ghcr.io/${OWNER_LC}/t27-vivado" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: infra/vivado-docker
+          file: infra/vivado-docker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:${{ github.event.inputs.image_tag }}
+            ${{ steps.img.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print summary
+        run: |
+          echo "Pushed ${{ steps.img.outputs.name }}:${{ github.event.inputs.image_tag }}"
+          echo "Used by .github/workflows/vivado-synth.yml via container: directive."
