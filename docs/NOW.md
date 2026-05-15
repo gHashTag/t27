@@ -1,7 +1,20 @@
 # Current Work — Trinity t27
 
-**Last updated:** 2026-05-14
-**Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622).
+**Last updated:** 2026-05-15
+**Note:** GF16 4×4 matmul validated on FPGA @ 323 MHz, 40350 LUTs, 64 DSP48E1, 0 latches. **TinyTapeout TTSKY26a submitted** — `gHashTag/tt-trinity-gf16`, CI running. 41.2 GOPS @ 323 MHz | 12.8 GOPS @ 100 MHz. **Vivado CI now runs entirely in GitHub Actions** via a pre-built Docker image on ghcr.io — no self-hosted runner, no Railway. See `infra/vivado-docker/README.md` (PR #622). **2026-05-15: L-DPC24 HOLOGRAPHIC v9 ONE SHOT (trios#832) Lane Z** — new `coq/IGLA/RMarker.v` adds formal 4-slot R-marker spec and `Lemma holographic_no_star` proving R-SI-1 (zero `*` operator) at the spec layer; 12 Qed / 13 Lemma, all accepted by coqc 8.20.1. Sibling RTL surface on `tt-trinity-holo` @ `86d34ee` (army-landed Lanes A'/B'/C'/Y). See `coq/IGLA/RMarker.v` and Issue #631.
+
+---
+
+## Lane Z — L-DPC24 HOLOGRAPHIC v9 Coq spec (Issue #631 — 2026-05-15)
+
+- Added `coq/IGLA/RMarker.v` (126 lines, additive — `Kernel/` and `Theorems/` untouched, R18 LAYER-FROZEN).
+- Formal R-SI-1 enforcement: `Lemma holographic_no_star : forall op, rtl_uses_star op = false. Qed.`
+- 4-slot R-marker carrier mapped to physics anchors: φ²+φ⁻²=3 / γ=φ⁻³ / C=φ⁻¹ / G=π³γ²/φ.
+- holo_op alphabet covers army-landed RTL: OP_LOAD_PHYSICS_CONST (0xDE, Lane C'), OP_NOC_FORWARD (Lane A'), OP_RAZOR_SAMPLE (Lane B'), OP_HOLO_MUX_1X2 (Lane Y).
+- canonical_boot bijection + period-4 stability + Lane U runtime corollary (12 Qed total).
+- Local verification: `coqc -R . T27 IGLA/RMarker.v` → exit 0.
+- R5-HONEST (no Admitted), R7 falsification witness (any future `holo_op` with `rtl_uses_star=true` breaks file at Qed-time, blocking CI before silicon submission).
+- Cross-repo refs: gHashTag/trios#832 (ONE SHOT), gHashTag/tt-trinity-holo@86d34ee (sibling RTL). Closes #631.
 
 ---
 
