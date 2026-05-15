@@ -5,3 +5,4 @@ IGLA/Timing400.v
 IGLA/PdkPortable.v
 IGLA/Tenet.v
 IGLA/LutNpu.v
+Kernel/LutNpu.v
