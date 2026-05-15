@@ -2,7 +2,21 @@
 
 Last updated: 2026-05-15
 
-## Wave-38 Lane BB — RECTIFY opcode 0xE4 collision (NEW)
+## Wave-38 Lane BB — NullorReversible.v 11 Qed lemmas (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/NullorReversible.v — 11 Qed lemmas, 0 Admitted, reversible dendritic NULLOR multiplication
+- **Headline**: `Theorem nullor_reversible : forall x y s, nullor_mult x y s = (mult_result x y, reservoir_recovered s)` — reversibility witness for OP_NULL_PE
+- Opcode `OP_NULL_PE = 0xE6` (bumped from 0xE5 → 0xE6 per ICA-W38-001 #661; 0xE5 reassigned to OP_SUBTH_CLK); dispatch proof `opcode_E5_dispatch` (name retained, byte = 0xE6)
+- Sacred chain extended: 0xE3 LUT-NPU → 0xE4 AVS_RECONF → 0xE5 SUBTH_CLK → 0xE6 NULL_PE
+- TOPS/W ≥ 392 (×1.12 over W37 sub-V_T 350); η_reuse ≥ 0.88 by adiabatic invariant
+- Ternary lattice Z3 = {-1, 0, +1} defined inline; charge-conservation lemma `sum_in = sum_out + dissipation` with `dissipation ≤ 12% · energy`
+- R-SI-1 preservation: `op_null_pe_star_count = 0` (zero `*` cells in synth)
+- 4-phase clock disjointness, bypass correctness, reservoir-bounded, dendrite backprop = Z3 gradient
+- W-104-D composite witness `nullor_w38_witness` bundles all gates
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#136 · trios#879
+
+## Wave-38 Lane BB — RECTIFY opcode 0xE4 collision (merged via #661)
 
 - ICA-W38-001: W37 OP_SUBTH_CLK originally claimed 0xE4, collided with W36 OP_AVS_RECONF=0xE4
 - W36 holds 0xE4 by merge-precedence; W38 moves OP_SUBTH_CLK → 0xE5 (next free slot)
@@ -12,7 +26,8 @@ Last updated: 2026-05-15
   - `Lemma subth_opcode_byte_eq_E5`
   - `Lemma subth_op_distinct_from_avs` (R-SI-1 enforcement)
 - Sacred chain restored: 0xE3 LUT-NPU → 0xE4 AVS_RECONF (W36) → 0xE5 SUBTH_CLK (W38)
-## Wave-36 Lane W-EXT — VoltStack.v 22 lemmas + Avs.v proof fixes (NEW, this PR)
+
+## Wave-36 Lane W-EXT — VoltStack.v 22 lemmas + Avs.v proof fixes
 
 - **NEW**: trios-coq/IGLA/VoltStack.v — 22 Qed lemmas in 5 sections (3-tier voltage ladder, 48-island arithmetic, wake-up budget, **W-105-A leakage falsifier R7 witness**, pipeline re-witness)
 - **Headline**: `Theorem volt_stack_passes_w105a : leakage_observed_permille >= leakage_floor_permille` (102‰ observed >= 90‰ floor → passes W-105-A acceptance gate)
