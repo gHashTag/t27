@@ -168,3 +168,7 @@
 - **Commit:** feat(portable): upgrade relay_observer.js to v2.0 with multi-agent support
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,specs/portable/relay_observer.js
 
+## 2026-05-15T09:46:32Z — chore/batch-dependabot-updates-may-2026
+- **Commit:** docs(now): update date to 2026-04-14, add CI fixes note (Closes #409)
+- **Files:** Cargo.lock,cli/trios-bridge/Cargo.toml
+
