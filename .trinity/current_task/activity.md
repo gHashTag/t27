@@ -172,3 +172,7 @@
 - **Commit:** docs(now): update date to 2026-04-14, add CI fixes note (Closes #409)
 - **Files:** Cargo.lock,cli/trios-bridge/Cargo.toml
 
+## 2026-05-15T09:47:00Z — chore/batch-dependabot-updates-may-2026
+- **Commit:** Merge dependabot/cargo/dirs-6.0.0 into batch
+- **Files:** Cargo.lock,bootstrap/Cargo.toml
+
