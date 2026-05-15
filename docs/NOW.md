@@ -2,6 +2,21 @@
 
 Last updated: 2026-05-15
 
+## Wave-36 Lane W-EXT — VoltStack.v 22 lemmas + Avs.v proof fixes (NEW, this PR)
+
+- **NEW**: trios-coq/IGLA/VoltStack.v — 22 Qed lemmas in 5 sections (3-tier voltage ladder, 48-island arithmetic, wake-up budget, **W-105-A leakage falsifier R7 witness**, pipeline re-witness)
+- **Headline**: `Theorem volt_stack_passes_w105a : leakage_observed_permille >= leakage_floor_permille` (102‰ observed >= 90‰ floor → passes W-105-A acceptance gate)
+- 3-tier voltage ladder: Vt_NearRet=550mV < Vt_Cruise=750mV < Vt_Active=1000mV (strict monotone proven)
+- 48-island arithmetic: total_islands = island_banks × islands_per_bank = 3 × 16 = 48 (R18 LAYER-FROZEN)
+- Wake-up: 8 ns < 50 ns budget (4 reconfig cycles @ 400 MHz + 4 PLL settle)
+- Pipeline chain re-witness depth = 7 (standalone w36_oplist, complements Avs.v)
+- **Bug fixes in Avs.v**: 8 incomplete proofs (`simpl; auto.`) replaced with explicit witnesses — R5 honest-status compliance
+- All proofs Qed-closed, no Admitted/Parameter/Axiom in new file
+- Local compile EXIT=0 for Avs.v + VoltStack.v
+- Closes #658 · PR #659 · complement to PR #655 (avs_safe) + PR #656 (AvsStacking)
+
+## Wave-36 Lane W (mainline, merged earlier)
+
 ## Wave-36 Lane W — AVS-48 Coq (NEW)
 
 - OP_AVS_RECONF = 0xE4 extends sacred chain 0xDE → 0xDF → 0xE0 → 0xE1 → 0xE2 → 0xE3 → 0xE4
