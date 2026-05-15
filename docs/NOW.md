@@ -18,6 +18,20 @@ Last updated: 2026-05-15
 - Local `coqc` EXIT=0
 - Closes trinity-fpga#142 · trios#890
 
+## Wave-40 Lane FF — DFS.v 8 Qed lemmas (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/DFS.v — 8 Qed lemmas, 0 Admitted
+- **Headline**: OP_DFS_GATE = 0xE7 (231) — Dynamic Frequency Scaling gate, sibling of W36 AVS
+- 6 R-SI-1 distinctness lemmas: 0xE7 ≠ 0xE6 (HOLO_MUX_X4), 0xE5 (SUBTH_CLK), 0xE4 (AVS_RECONF), 0xE3 (LUT_NPU), 0xE2 (TOM), 0xE1 (TENET)
+- 1 monotonicity lemma: dfs_freq_monotone — f(Vdd) non-decreasing in Vdd (IRDS22FDX envelope)
+- 1 cubic energy law lemma: dfs_cubic_energy_law_non_negative — E/op ~ V^2 ≥ 0
+- Sacred chain extended depth 10: 0xE1 TENET → 0xE2 TOM → 0xE3 LUT-NPU → 0xE4 AVS_RECONF → 0xE5 SUBTH_CLK → 0xE6 HOLO_MUX_X4 → 0xE7 DFS_GATE
+- _CoqProject patched: Physics/DFS.v added
+- Constitutional: R-SI-1 PASS · R5-HONEST PASS · Apache-2.0 · admin@t27.ai
+- Anchor: phi^2 + phi^-2 = 3
+- DOI 10.5281/zenodo.19227877
+
+
 ## Wave-39 Lane DD — HoloMux.v 6 Qed lemmas (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/HoloMux.v — 6 Qed lemmas, 0 Admitted
