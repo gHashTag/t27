@@ -1,9 +1,15 @@
 (** * SubThreshold.v — Wave-37 Lane Z: Sub-V_T Weak-Inversion PE
-    10 Qed lemmas for V=0.30V sub-threshold operation, OP_SUBTH_CLK=0xE4.
+    10 Qed lemmas for V=0.30V sub-threshold operation, OP_SUBTH_CLK=0xE5.
     TOPS/W ≥ 350, 1296 PEs = 6^4, Trinity 3-strand body-bias alignment.
-    Predecessors: W35 LUT-NPU (0xE3, #654), W36 AVS-48 (#656).
+    Predecessors: W35 LUT-NPU (0xE3, #654), W36 AVS-48 (0xE4, #655).
     Anchor: phi^2 + phi^-2 = 3
-    DOI: 10.5281/zenodo.19227877 *)
+    DOI: 10.5281/zenodo.19227877
+
+    ICA-W38-001 (rectification, 2026-05-15): originally W37 claimed OP_SUBTH_CLK=0xE4,
+    colliding with W36 OP_AVS_RECONF=0xE4. R-SI-1 (opcode uniqueness) requires distinct
+    encodings. W36 holds 0xE4 by merge-precedence (older mergedAt). W38 moves W37
+    OP_SUBTH_CLK to 0xE5 (next free sacred slot 0xD0..0xEF).
+    Closes ICA-W38-001 via lemmas subth_opcode_byte_eq_E5 and subth_op_distinct_from_avs. *)
 
 Require Import Reals.
 Require Import Lia.
@@ -26,6 +32,11 @@ Parameter tops_per_watt_subth : R -> R.
 
 (** op_subth_clk_star_count = number of `*` (multiply) cells in OP_SUBTH_CLK pipeline. *)
 Parameter op_subth_clk_star_count : nat.
+
+(** Sacred-opcode byte for OP_SUBTH_CLK after W38 rectification.
+    Distinct from W36 OP_AVS_RECONF byte 0xE4 = 228 by R-SI-1 uniqueness. *)
+Definition op_subth_clk_byte : nat := 229.   (* 0xE5 *)
+Definition op_avs_reconf_byte : nat := 228.  (* 0xE4 — W36, preserved *)
 
 (** lut_npu_chain_sound_subth : soundness boundary inherited from W35/W36. *)
 Parameter lut_npu_chain_sound_subth : Prop.
@@ -125,7 +136,21 @@ Proof.
   exact op_subth_no_star.
 Qed.
 
-(** *** 7. Pipeline soundness: 0xE3 → 0xE4 chain is sound *)
+(** *** 6b. ICA-W38-001: OP_SUBTH_CLK byte = 0xE5 = 229 *)
+Lemma subth_opcode_byte_eq_E5 :
+  op_subth_clk_byte = 229%nat.
+Proof.
+  reflexivity.
+Qed.
+
+(** *** 6c. ICA-W38-001: R-SI-1 opcode uniqueness — SUBTH_CLK <> AVS_RECONF *)
+Lemma subth_op_distinct_from_avs :
+  op_subth_clk_byte <> op_avs_reconf_byte.
+Proof.
+  unfold op_subth_clk_byte, op_avs_reconf_byte. lia.
+Qed.
+
+(** *** 7. Pipeline soundness: 0xE3 → 0xE4 (AVS) → 0xE5 (SUBTH) chain is sound *)
 Lemma subth_chain_to_lut_npu :
   lut_npu_chain_sound_subth /\ avs_chain_sound_subth.
 Proof.
