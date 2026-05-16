@@ -208,3 +208,11 @@
 - **Commit:** feat(numeric): Add comprehensive number format support to t27 hardware
 - **Files:** trios-coq/Physics/.Avs96Safe.aux,trios-coq/Physics/.ClockGating.aux,trios-coq/Physics/.DataRetention.aux,trios-coq/Physics/.EmergencyShutdown.aux,trios-coq/Physics/.FreqThrottle.aux,trios-coq/Physics/.Hysteresis.aux,trios-coq/Physics/.NullorReversible.aux,trios-coq/Physics/.PowerCapping.aux,trios-coq/Physics/.PowerState.aux,trios-coq/Physics/.PurkinjeThermal.aux,trios-coq/Physics/.SleepGating.aux,trios-coq/Physics/.SparsityMask.aux,trios-coq/Physics/.SpeculativeExit.aux,trios-coq/Physics/.ThermalGuard.aux,trios-coq/Physics/.ThrottleSlew.aux,trios-coq/Physics/.VoltageGuard.aux,trios-coq/Physics/Avs96Safe.glob,trios-coq/Physics/Avs96Safe.vo,trios-coq/Physics/Avs96Safe.vok,trios-coq/Physics/Avs96Safe.vos
 
+## 2026-05-16T22:00:39Z — publication/v1.0.0-toolchain
+- **Commit:** feat(wave-47-60): Complete 14 power-management sacred opcodes with Coq proofs
+- **Files:** .github/workflows/tri-test.yml,.gitignore,coq/_CoqProject,docs/HARDWARE-IMPLEMENTATION.md,docs/T27_IMPROVEMENT_PLAN.md,rtl_gen/Makefile,rtl_gen/gf16_add.v,rtl_gen/gf16_mul.v,rtl_gen/gf4_add.v,rtl_gen/gf8_add.v,rtl_gen/gf_formats.v,rtl_gen/golden_tests.py,rtl_gen/int4_quantizer.v,rtl_gen/nf4_quantizer.v,specs/numeric/gf128.t27
+
+## 2026-05-16T22:01:20Z — publication/v1.0.0-toolchain
+- **Commit:** feat(toolchain): Add GitHub Actions CI, RTL generation, Coq integration
+- **Files:** .github/workflows/tri-test.yml,.gitignore,.trinity/current_task/activity.md,coq/_CoqProject,docs/HARDWARE-IMPLEMENTATION.md,docs/T27_IMPROVEMENT_PLAN.md,rtl_gen/Makefile,rtl_gen/gf16_add.v,rtl_gen/gf16_mul.v,rtl_gen/gf4_add.v,rtl_gen/gf8_add.v,rtl_gen/gf_formats.v,rtl_gen/golden_tests.py,rtl_gen/int4_quantizer.v,rtl_gen/nf4_quantizer.v,specs/numeric/gf128.t27
+

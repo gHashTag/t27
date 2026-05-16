@@ -8,7 +8,7 @@
 ## Executive Summary
 
 t27 occupies a unique position with ternary computing foundation and spec-first development. Key gaps:
-1. **LSP Support** — Full la ыnguaчge server not implemented
+1. **LSP Support** — Full language server not implemented
 2. **Tooling Maturity** — Limited IDE integration
 3. **Hardware Reality** — No silicon implementation
 4. **Community** — Small user base
