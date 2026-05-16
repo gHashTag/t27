@@ -69,7 +69,17 @@ One spec → Five backends:
 - ✅ Formatter & Linter (L1-L5 constitutional compliance)
 - ✅ Python Bindings (PyO3 with NumPy)
 - ✅ WASM Runtime (browser playground)
-- ✅ Coq Formal Verification
+- ✅ Coq Formal Verification (130+ Qed theorems across Physics, Core, IGLA)
+
+### Physics Coq Proofs (NEW in v1.0.0)
+- **Wave-47**: RBB.v 33 Qed (OP_RBB=0xF1) — Reverse Body Bias
+- **Wave-48**: FBBActive2.v 33 Qed (OP_FBB_ACTIVE=0xF2) — Forward Body Bias
+- **Wave-49**: CapBoost.v 38 Qed (OP_CAP_BOOST=0xF3) — γ³ Decoupling-Cap Burst
+- **Wave-45**: Avs96Safe.v 8 Qed — AVS-96 Dopamine Safety (S-200 milestone)
+- **Wave-44**: StochSkipSafe.v 10 Qed — Stochastic Time-Skip
+- **Wave-43**: Int2QuantSafe.v 8 Qed — INT2 Activation Codebook
+- **Wave-42**: StochRound.v 9 Qed — Stochastic Rounding (OP_STOCH_ROUND=0xE9)
+- Plus: AdiabRC, DFS, DrowsyRet, HoloMux, MoeRouter, NodeShrink, NullorReversible, PurkinjeThermal, SparseGate, SparsityMask, SpeculativeExit, WLBoost
 
 ---
 

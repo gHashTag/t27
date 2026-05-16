@@ -172,3 +172,7 @@
 - **Commit:** Merge dependabot/cargo/colored-3.1.1 into batch
 - **Files:** .github/PUBLICATION_V1_0_0_ISSUE.md,.github/workflows/format-check.yml,.zenodo.json,CITATION.cff,bindings/javascript/playground.html,bindings/javascript/runtime.js,bindings/python/Cargo.toml,bindings/python/pyproject.toml,bindings/python/src/lib.rs,bindings/python/tests/test_golden_float.py,bootstrap/src/compiler.rs,bootstrap/src/main.rs,docs/PUBLICATION_SUMMARY.md,docs/T27_IMPROVEMENT_PLAN.md,docs/community/blog-v1-0-0-release.md,docs/comparative-analysis/README.md,docs/comparative-analysis/gf-vs-fp8.md,docs/comparative-analysis/gf-vs-ieee754.md,docs/comparative-analysis/gf-vs-posit.md,docs/comparative-analysis/ternary-vs-binary.md
 
+## 2026-05-16T20:23:48Z — publication/v1.0.0-toolchain
+- **Commit:** merge(master): Pull latest Coq Physics proofs (Closes #177)
+- **Files:** docs/PUBLICATION_SUMMARY.md,docs/community/blog-v1-0-0-release.md,docs/templates/announcement-github.md,docs/templates/announcement-twitter.md,presentation/t27_v1_pldi_2027.md
+
