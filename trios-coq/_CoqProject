@@ -16,3 +16,4 @@ Physics/SparseGate.v
 Physics/StochRound.v
 Physics/DrowsyRet.v
 Physics/FBBActive.v
+Physics/NodeShrink.v

@@ -19,6 +19,17 @@ Last updated: 2026-05-16
 - Local `coqc` EXIT=0
 - Closes trinity-fpga#159
 
+## Wave-41 Lane HH — NodeShrink.v 7 Qed lemmas (NEW, this PR)
+
+- **OP_NODE_SHRINK = 0xEF = 239** (Wave-41 IHP 22FDX node shrink, last free sacred slot)
+- **NEW**: trios-coq/Physics/NodeShrink.v — 7 Qed lemmas, 0 Admitted
+- Sacred chain depth = 32 (0xD0..0xEF); 14 opcode-distinctness lemmas vs predecessors
+- V_DD scale ratio (1.2/0.8)² = 2.25 within ±5% tolerance proved
+- η_port ≥ 0.40 (model: 62 ≥ 40); K_VDD_SHRINK = 1.135 in [1.0, 2.0]
+- Iso-functionality: sacred_isofunctional 239 = true
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#160 · trios#912
+
 ## Wave-44 Lane JJ — FBBActive.v 21 Qed + 1 composite Theorem (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/FBBActive.v — 21 Qed lemmas + composite Theorem `fbb_active_composite`, 0 Admitted
