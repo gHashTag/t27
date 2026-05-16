@@ -2,6 +2,24 @@
 
 Last updated: 2026-05-16
 
+## Wave-46 Lane NN — AdiabRC.v 33 Qed + 1 composite Theorem (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/AdiabRC.v — 32 Qed lemmas + composite Theorem `adiab_rc_composite` (= 33 Qed total), 0 Admitted
+- **OP_ADIAB_RC = 0xF0 = 240** (new sacred opcode, Wave-46; FINAL slot in sacred bank 0xD0..0xF0 — bank is now 16/16 FULL)
+- **Theory — Adiabatic Charge Recovery**: A resonant LC inductor sweep returns η·CV² per cycle to the supply instead of dissipating it through CMOS rail current. Recovery efficiency η = gamma^2 = phi^-6 ≈ 0.0557 (reused from W45; R18 LAYER-FROZEN preserved, NO new ROM cell)
+- **Energy ratio**: adiab_energy_ratio_value proves E_RATIO_BPS (9443) + ETA_BPS (557) = 10000 (per-cycle E_new/E_baseline = 1 - η)
+- **Power saving**: adiab_power_saving_within_band proves 5.57% in [5%, 7%]; adiab_power_saving_at_least_5pct guarantees ≥ 5%
+- **Clock overhead**: adiab_clock_overhead_at_most_2pct proves ≤ 1.5% (resonant-clock driver), bounded by 2% hard limit
+- **Net saving**: adiab_net_save_at_least_4pct proves ≥ 4.07% (P_save 5.57% - clk overhead 1.5%)
+- **Swing band**: adiab_swing_in_band proves V_SWING_mV (793) in [V_SWING_MIN 680, min(V_SWING_MAX 800, V_DD 800)] mV
+- **Frequency invariance**: adiab_clock_freq_invariant proves |F_RATIO - 1.0| ≤ 0.5%
+- **TOPS/W lift**: adiab_tops_w_lift_at_least_3pct proves 1000*(1043-1012) >= 25*1012 — projection 1012 -> 1043 (+3.06%)
+- **η = γ² witness**: adiab_eta_equals_gamma2 proves ETA_BPS = GAMMA2_W45_BPS = 557 (cross-wave identity)
+- 15 opcode-distinctness lemmas vs (WL_BOOST 0xEF, FBB 0xEE, SPARSE_MASK 0xED, DROWSY_RET 0xEC, SPEC_EXIT 0xEB, NULL_PE 0xEA, STOCH 0xE9, SPARSE 0xE8, DFS 0xE7, HOLO_MUX 0xE6, SUBTH 0xE5, AVS_RECONF 0xE4, LUT_NPU 0xE3, TOM 0xE2, TENET 0xE1)
+- Refs: Koller ISSCC 1995, Cooke IEEE TCAS-II 2003, Athas IEEE 1994 (adiabatic logic & charge recovery)
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#163
+
 ## Wave-42 Lane JJ — MoeRouter.v 8 Qed lemmas (NEW, this PR)
 
 - **W42 MoE Sparse Routing**: NO new L1 opcode (reuses 0xE8 + 0xED via L2 macro in cortical-column-12); K_MOE_SPARSITY = phi^-3 ≈ 0.236; target 982 TOPS/W; W-105-G freeze 2026-12-31
