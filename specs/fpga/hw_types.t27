@@ -31,6 +31,31 @@ module HwTypes {
         bundle_tag = 7,
         enum_tag = 8,
         gf16_tag = 9,
+        // IEEE Floating Point tags
+        fp32_tag = 10,
+        fp16_tag = 11,
+        bf16_tag = 12,
+        fp8_e4m3_tag = 13,
+        fp8_e5m2_tag = 14,
+        // GoldenFloat tags
+        gf4_tag = 15,
+        gf8_tag = 16,
+        gf12_tag = 17,
+        gf20_tag = 18,
+        gf24_tag = 19,
+        gf32_tag = 20,
+        gf64_tag = 21,
+        gf128_tag = 22,
+        gf256_tag = 23,
+        // Integer tags
+        int4_tag = 24,
+        int8_tag = 25,
+        // Quantization tags
+        nf4_tag = 26,
+        binary16_tag = 27,
+        ternary_tag = 28,
+        // Posit tag
+        posit16_tag = 29,
     };
 
     // === Hardware signal type (flat struct) ===
@@ -150,6 +175,276 @@ module HwTypes {
         };
     }
 
+    // === IEEE Floating Point format helpers ===
+
+    pub fn hw_fp32() -> HwType {
+        return HwType{
+            .tag = 10,
+            .width = 32,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_fp16() -> HwType {
+        return HwType{
+            .tag = 11,
+            .width = 16,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_bf16() -> HwType {
+        return HwType{
+            .tag = 12,
+            .width = 16,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_fp8_e4m3() -> HwType {
+        return HwType{
+            .tag = 13,
+            .width = 8,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_fp8_e5m2() -> HwType {
+        return HwType{
+            .tag = 14,
+            .width = 8,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    // === GoldenFloat format helpers ===
+
+    pub fn hw_gf4() -> HwType {
+        return HwType{
+            .tag = 15,
+            .width = 4,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf8() -> HwType {
+        return HwType{
+            .tag = 16,
+            .width = 8,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf12() -> HwType {
+        return HwType{
+            .tag = 17,
+            .width = 12,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf20() -> HwType {
+        return HwType{
+            .tag = 18,
+            .width = 20,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf24() -> HwType {
+        return HwType{
+            .tag = 19,
+            .width = 24,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf32() -> HwType {
+        return HwType{
+            .tag = 20,
+            .width = 32,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf64() -> HwType {
+        return HwType{
+            .tag = 21,
+            .width = 64,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf128() -> HwType {
+        return HwType{
+            .tag = 22,
+            .width = 128,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_gf256() -> HwType {
+        return HwType{
+            .tag = 23,
+            .width = 256,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    // === Integer format helpers ===
+
+    pub fn hw_int4() -> HwType {
+        return HwType{
+            .tag = 24,
+            .width = 4,
+            .is_signed_flag = true,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_int8() -> HwType {
+        return HwType{
+            .tag = 25,
+            .width = 8,
+            .is_signed_flag = true,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    // === Quantization format helpers ===
+
+    pub fn hw_nf4() -> HwType {
+        return HwType{
+            .tag = 26,
+            .width = 4,
+            .is_signed_flag = false,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_binary16() -> HwType {
+        return HwType{
+            .tag = 27,
+            .width = 16,
+            .is_signed_flag = true,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    pub fn hw_ternary() -> HwType {
+        return HwType{
+            .tag = 28,
+            .width = 2,
+            .is_signed_flag = true,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
+    // === Posit format helper ===
+
+    pub fn hw_posit16() -> HwType {
+        return HwType{
+            .tag = 29,
+            .width = 16,
+            .is_signed_flag = true,
+            .is_clock_flag = false,
+            .is_reset_flag = false,
+            .elem_tag = 0,
+            .vec_len = 0,
+            .field_count = 0,
+        };
+    }
+
     // === Width query ===
 
     pub fn hw_width(ty: HwType) -> u32 {
@@ -242,6 +537,104 @@ module HwTypes {
     test gf16_width
         given w = hw_width(hw_gf16())
         then w == 16
+
+    test fp32_width
+        given w = hw_width(hw_fp32())
+        then w == 32
+
+    test fp16_width
+        given w = hw_width(hw_fp16())
+        then w == 16
+
+    test bf16_width
+        given w = hw_width(hw_bf16())
+        then w == 16
+
+    test fp8_e4m3_width
+        given w = hw_width(hw_fp8_e4m3())
+        then w == 8
+
+    test fp8_e5m2_width
+        given w = hw_width(hw_fp8_e5m2())
+        then w == 8
+
+    test gf4_width
+        given w = hw_width(hw_gf4())
+        then w == 4
+
+    test gf8_width
+        given w = hw_width(hw_gf8())
+        then w == 8
+
+    test gf12_width
+        given w = hw_width(hw_gf12())
+        then w == 12
+
+    test gf20_width
+        given w = hw_width(hw_gf20())
+        then w == 20
+
+    test gf24_width
+        given w = hw_width(hw_gf24())
+        then w == 24
+
+    test gf32_width
+        given w = hw_width(hw_gf32())
+        then w == 32
+
+    test gf64_width
+        given w = hw_width(hw_gf64())
+        then w == 64
+
+    test gf128_width
+        given w = hw_width(hw_gf128())
+        then w == 128
+
+    test gf256_width
+        given w = hw_width(hw_gf256())
+        then w == 256
+
+    test int4_width
+        given w = hw_width(hw_int4())
+        then w == 4
+
+    test int8_width
+        given w = hw_width(hw_int8())
+        then w == 8
+
+    test nf4_width
+        given w = hw_width(hw_nf4())
+        then w == 4
+
+    test binary16_width
+        given w = hw_width(hw_binary16())
+        then w == 16
+
+    test ternary_width
+        given w = hw_width(hw_ternary())
+        then w == 2
+
+    test posit16_width
+        given w = hw_width(hw_posit16())
+        then w == 16
+
+    test int4_is_signed
+        then is_signed(hw_int4()) == true
+
+    test int8_is_signed
+        then is_signed(hw_int8()) == true
+
+    test binary16_is_signed
+        then is_signed(hw_binary16()) == true
+
+    test ternary_is_signed
+        then is_signed(hw_ternary()) == true
+
+    test posit16_is_signed
+        then is_signed(hw_posit16()) == true
+
+    test fp32_not_signed
+        then is_signed(hw_fp32()) == false
 
     test uint_not_signed
         then is_signed(hw_uint(8)) == false

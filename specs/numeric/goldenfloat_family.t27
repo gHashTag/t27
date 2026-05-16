@@ -13,8 +13,8 @@ module GoldenFloatFamily {
     // 707172737475767778798081828384858687888990919293949596979899100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142
 
     struct GoldenFloatFormat {
-        name            : string,       // "GF4", "GF8", ..., "GF32"
-        bits            : u8,           // Total bits: 4, 8, 12, 16, 20, 24, 32
+        name            : string,       // "GF4", "GF8", ..., "GF256"
+        bits            : u8,           // Total bits: 4, 8, 12, 16, 20, 24, 32, 64, 128, 256
         sign_bits       : u8,           // Always 1
         exp_bits        : u8,           // Exponent bits
         mant_bits       : u8,           // Mantissa bits
@@ -31,9 +31,9 @@ module GoldenFloatFamily {
     // exp/mant ratios closer to 0.618 are more "golden"
     const PHI_RATIO_TARGET : f64 = sacred_physics::PHI_INV;
 
-    // Format array: ordered by bits (4 286 32)
-    const GOLDEN_FLOAT_FAMILY : [7]GoldenFloatFormat = [
-        // name,  bits, S,  E,  M,   ratio, phi_dist, primary
+    // Format array: ordered by bits (4 → 256)
+    const GOLDEN_FLOAT_FAMILY : [10]GoldenFloatFormat = [
+        // name,  bits, S,  E,   M,     ratio, phi_dist, primary
         GoldenFloatFormat{
             name = "GF4",
             bits = 4,
@@ -104,6 +104,36 @@ module GoldenFloatFamily {
             phi_distance = abs(0.631578947368421 - PHI_RATIO_TARGET),
             is_primary = false,
         },
+        GoldenFloatFormat{
+            name = "GF64",
+            bits = 64,
+            sign_bits = 1,
+            exp_bits = 24,
+            mant_bits = 39,
+            exp_mant_ratio = 0.6153846153846154,
+            phi_distance = abs(0.6153846153846154 - PHI_RATIO_TARGET),
+            is_primary = false,
+        },
+        GoldenFloatFormat{
+            name = "GF128",
+            bits = 128,
+            sign_bits = 1,
+            exp_bits = 48,
+            mant_bits = 79,
+            exp_mant_ratio = 0.6075949367088608,
+            phi_distance = abs(0.6075949367088608 - PHI_RATIO_TARGET),
+            is_primary = false,
+        },
+        GoldenFloatFormat{
+            name = "GF256",
+            bits = 256,
+            sign_bits = 1,
+            exp_bits = 97,
+            mant_bits = 158,
+            exp_mant_ratio = 0.6139240506329114,
+            phi_distance = abs(0.6139240506329114 - PHI_RATIO_TARGET),
+            is_primary = false,
+        },
     ];
 
     // 287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351
@@ -156,7 +186,7 @@ module GoldenFloatFamily {
         var all_phi_distances_non_negative : bool = true;
 
         // Check for duplicate names
-        var names_seen : [7]string = ["", "", "", "", "", "", ""];
+        var names_seen : [10]string = ["", "", "", "", "", "", "", "", "", ""];
 
         for (const GOLDEN_FLOAT_FAMILY) |fmt| {
             format_count = format_count + 1;
@@ -193,11 +223,11 @@ module GoldenFloatFamily {
             }
         }
 
-        const avg_dist = total_dist / 7.0;
+        const avg_dist = total_dist / 10.0;
 
         // All checks must pass
         const all_checks_valid =
-            format_count == 7 &&
+            format_count == 10 &&
             all_names_unique &&
             all_bit_sums_valid &&
             all_phi_distances_non_negative &&
@@ -252,9 +282,9 @@ module GoldenFloatFamily {
         given primary = get_primary_format()
         then primary.name == "GF16" and primary.is_primary == true
 
-    test gffamily_family_size_7
+    test gffamily_family_size_10
         given size = GOLDEN_FLOAT_FAMILY.len()
-        then size == 7
+        then size == 10
 
     test gffamily_phi_ratio_target_is_phi_inverse
         given target = PHI_RATIO_TARGET
@@ -320,9 +350,9 @@ module GoldenFloatFamily {
         given report = verify_golden_family()
         then report.all_valid == true
 
-    test gffamily_verify_format_count_is_7
+    test gffamily_verify_format_count_is_10
         given report = verify_golden_family()
-        then report.all_valid == true  // implies format_count == 7
+        then report.all_valid == true  // implies format_count == 10
 
     test gffamily_verify_names_unique
         given report = verify_golden_family()
@@ -356,10 +386,19 @@ module GoldenFloatFamily {
         assert PHI_RATIO_TARGET < 1.0
 
     invariant gffamily_family_size_constant
-        assert GOLDEN_FLOAT_FAMILY.len() == 7
+        assert GOLDEN_FLOAT_FAMILY.len() == 10
 
     invariant gffamily_gf4_at_index_0
         assert GOLDEN_FLOAT_FAMILY[0].name == "GF4"
+
+    invariant gffamily_gf256_at_index_9
+        assert GOLDEN_FLOAT_FAMILY[9].name == "GF256"
+
+    invariant gffamily_gf128_at_index_8
+        assert GOLDEN_FLOAT_FAMILY[8].name == "GF128"
+
+    invariant gffamily_gf64_at_index_7
+        assert GOLDEN_FLOAT_FAMILY[7].name == "GF64"
 
     invariant gffamily_gf32_at_index_6
         assert GOLDEN_FLOAT_FAMILY[6].name == "GF32"
