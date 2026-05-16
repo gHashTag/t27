@@ -23,6 +23,59 @@ module BoardArtyA7 {
     const HAS_UART : bool = true;
     const HAS_SPI : bool = true;
 
+    // ========================================================================
+    // Format Support Constants
+    // ========================================================================
+    // Arty A7 supports all major formats for ML and DSP workloads
+
+    // IEEE Floating Point Support
+    const SUPPORTS_FP32 : bool = true;   // Full 32-bit IEEE 754
+    const SUPPORTS_FP16 : bool = true;   // IEEE 754 binary16
+    const SUPPORTS_BF16 : bool = true;   // Brain Float 16
+    const SUPPORTS_FP8_E4M3 : bool = true;  // OCP FP8 E4M3
+    const SUPPORTS_FP8_E5M2 : bool = true;  // OCP FP8 E5M2
+
+    // GoldenFloat Family Support (φ-optimized)
+    const SUPPORTS_GF4 : bool = true;    // 4-bit GF
+    const SUPPORTS_GF8 : bool = true;    // 8-bit GF
+    const SUPPORTS_GF12 : bool = true;   // 12-bit GF
+    const SUPPORTS_GF16 : bool = true;   // 16-bit GF (PRIMARY)
+    const SUPPORTS_GF20 : bool = true;   // 20-bit GF
+    const SUPPORTS_GF24 : bool = true;   // 24-bit GF
+    const SUPPORTS_GF32 : bool = true;   // 32-bit GF
+    const SUPPORTS_GF64 : bool = true;   // 64-bit GF
+    const SUPPORTS_GF128 : bool = true;  // 128-bit GF
+    const SUPPORTS_GF256 : bool = false; // 256-bit GF (requires larger FPGA)
+
+    // Integer Format Support
+    const SUPPORTS_INT4 : bool = true;   // 4-bit signed integer
+    const SUPPORTS_INT8 : bool = true;   // 8-bit signed integer
+
+    // Quantization Format Support
+    const SUPPORTS_NF4 : bool = true;    // NormalFloat4 (4-bit quantization)
+    const SUPPORTS_BINARY16 : bool = true;  // Binary packed 16 (3 bits per int)
+    const SUPPORTS_TERNARY : bool = true;   // Ternary {-1, 0, +1}
+
+    // Posit Format Support
+    const SUPPORTS_POSIT16 : bool = true;  // Posit16 (unum 1.0 format)
+
+    // Format Memory Ratios (vs FP32 = 1.0)
+    const MEMORY_RATIO_FP32 : f32 = 1.0;
+    const MEMORY_RATIO_FP16 : f32 = 0.5;
+    const MEMORY_RATIO_BF16 : f32 = 0.5;
+    const MEMORY_RATIO_FP8 : f32 = 0.25;
+    const MEMORY_RATIO_GF16 : f32 = 0.5;
+    const MEMORY_RATIO_INT8 : f32 = 0.25;
+    const MEMORY_RATIO_INT4 : f32 = 0.125;
+    const MEMORY_RATIO_NF4 : f32 = 0.125;
+
+    // BRAM Usage per Format (per element)
+    const BRAM_BITS_FP32 : u8 = 32;
+    const BRAM_BITS_FP16 : u8 = 16;
+    const BRAM_BITS_GF16 : u8 = 16;
+    const BRAM_BITS_INT8 : u8 = 8;
+    const BRAM_BITS_NF4 : u8 = 4;
+
     struct PinAssignment {
         port_name : &str,
         package_pin : &str,
@@ -173,6 +226,42 @@ module BoardArtyA7 {
         return CLOCK_FREQ_HZ / 1_000_000;
     }
 
+    // ========================================================================
+    // Format Support Queries
+    // ========================================================================
+
+    fn supports_fp32() -> bool { return SUPPORTS_FP32; }
+    fn supports_fp16() -> bool { return SUPPORTS_FP16; }
+    fn supports_bf16() -> bool { return SUPPORTS_BF16; }
+    fn supports_fp8_e4m3() -> bool { return SUPPORTS_FP8_E4M3; }
+    fn supports_fp8_e5m2() -> bool { return SUPPORTS_FP8_E5M2; }
+
+    fn supports_gf4() -> bool { return SUPPORTS_GF4; }
+    fn supports_gf8() -> bool { return SUPPORTS_GF8; }
+    fn supports_gf12() -> bool { return SUPPORTS_GF12; }
+    fn supports_gf16() -> bool { return SUPPORTS_GF16; }
+    fn supports_gf20() -> bool { return SUPPORTS_GF20; }
+    fn supports_gf24() -> bool { return SUPPORTS_GF24; }
+    fn supports_gf32() -> bool { return SUPPORTS_GF32; }
+    fn supports_gf64() -> bool { return SUPPORTS_GF64; }
+    fn supports_gf128() -> bool { return SUPPORTS_GF128; }
+    fn supports_gf256() -> bool { return SUPPORTS_GF256; }
+
+    fn supports_int4() -> bool { return SUPPORTS_INT4; }
+    fn supports_int8() -> bool { return SUPPORTS_INT8; }
+
+    fn supports_nf4() -> bool { return SUPPORTS_NF4; }
+    fn supports_binary16() -> bool { return SUPPORTS_BINARY16; }
+    fn supports_ternary() -> bool { return SUPPORTS_TERNARY; }
+
+    fn supports_posit16() -> bool { return SUPPORTS_POSIT16; }
+
+    fn memory_ratio_fp16() -> f32 { return MEMORY_RATIO_FP16; }
+    fn memory_ratio_gf16() -> f32 { return MEMORY_RATIO_GF16; }
+    fn memory_ratio_int8() -> f32 { return MEMORY_RATIO_INT8; }
+    fn memory_ratio_int4() -> f32 { return MEMORY_RATIO_INT4; }
+    fn memory_ratio_nf4() -> f32 { return MEMORY_RATIO_NF4; }
+
     test board_name_set
         given name = BOARD_NAME
         then name == "Digilent Arty A7-35T"
@@ -241,6 +330,69 @@ module BoardArtyA7 {
         given p35 = FPGA_PART_35T
         and   p100 = FPGA_PART_100T
         then p35 != "" and p100 != ""
+
+    // Format Support Tests
+    test supports_fp32_true
+        then supports_fp32() == true
+
+    test supports_fp16_true
+        then supports_fp16() == true
+
+    test supports_bf16_true
+        then supports_bf16() == true
+
+    test supports_fp8_e4m3_true
+        then supports_fp8_e4m3() == true
+
+    test supports_fp8_e5m2_true
+        then supports_fp8_e5m2() == true
+
+    test supports_gf4_true
+        then supports_gf4() == true
+
+    test supports_gf16_true
+        then supports_gf16() == true
+
+    test supports_gf256_false
+        then supports_gf256() == false
+
+    test supports_int4_true
+        then supports_int4() == true
+
+    test supports_int8_true
+        then supports_int8() == true
+
+    test supports_nf4_true
+        then supports_nf4() == true
+
+    test supports_binary16_true
+        then supports_binary16() == true
+
+    test supports_ternary_true
+        then supports_ternary() == true
+
+    test supports_posit16_true
+        then supports_posit16() == true
+
+    test memory_ratio_fp16_half
+        given ratio = memory_ratio_fp16()
+        then abs(ratio - 0.5) < 0.01
+
+    test memory_ratio_gf16_half
+        given ratio = memory_ratio_gf16()
+        then abs(ratio - 0.5) < 0.01
+
+    test memory_ratio_int8_quarter
+        given ratio = memory_ratio_int8()
+        then abs(ratio - 0.25) < 0.01
+
+    test memory_ratio_int4_eighth
+        given ratio = memory_ratio_int4()
+        then abs(ratio - 0.125) < 0.01
+
+    test memory_ratio_nf4_eighth
+        given ratio = memory_ratio_nf4()
+        then abs(ratio - 0.125) < 0.01
 
     invariant board_name_not_empty
         assert BOARD_NAME != ""
