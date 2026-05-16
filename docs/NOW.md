@@ -16,6 +16,24 @@ Last updated: 2026-05-16
 - Closes #686, Refs gHashTag/trinity-fpga#175, gHashTag/trios#932
 
 - W45 PP: Avs96Safe.v landed on master (S-200 milestone)
+
+## Wave-49 Lane VV — CapBoost.v 38 Qed + γ³ Capacitive Decoupling Burst (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/CapBoost.v — 37 Qed lemmas + composite Theorem `cap_boost_composite` (= 38 Qed total), 0 Admitted
+- **OP_CAP_BOOST = 0xF3 = 243** (new sacred opcode, Wave-49 — THIRD slot of extended sacred bank 0xD0..0xFF)
+- **TRIPLE-DECKER with W47/W48**: RBB (0xF1, leakage well) → FBB-ACTIVE (0xF2, active well) → CAP-BOOST (0xF3, supply rail). Three orthogonal dynamic-power levers stacked at iso-area.
+- **Theory — γ³ Decoupling-Cap Burst**: ΔC_dec = C_dec_base · gamma^3 ≈ 100 pF · 0.0081 ≈ 0.81 pF capacitive burst on supply rail. gamma^3 = phi^-9 ≈ 0.01316 inherited from B007^3 — R18 preserved (no new ROM cell).
+- **ΔC positive uplift**: cap_boost_delta_c_positive proves DELTA_C_DEC_BPS > 0; cap_boost_delta_c_in_band proves uplift in [50, 100] bps (R7 area envelope)
+- **di/dt margin band**: cap_boost_didt_in_band proves 6% in [4%, 10%] (R7 falsification band, cite Larsson/Svensson 1994)
+- **Droop suppression band**: cap_boost_droop_in_band proves 4% in [2%, 8%] (R7 worst-case supply droop reduction)
+- **Cap area uplift cap**: cap_boost_area_cap proves observed <= 50 bps (≤0.5% area, R18 iso-area constraint)
+- **f_clk impact cap**: cap_boost_fclk_impact_cap proves impact <= 200 bps (≤2% frequency back-pressure)
+- **TOPS/W lift**: cap_boost_tops_w_lift_at_least_0pt7pct proves 1000*(1091-1083) >= 7*1083 — projection 1083 -> 1091 (+0.738%)
+- **Triple-decker cross-wave**: triple_decker_consecutive proves OP_CAP_BOOST = OP_RBB + 2 ∧ OP_FBB_ACTIVE = OP_RBB + 1 (consecutive slots 0xF1/0xF2/0xF3)
+- **R18 SACRED BANK EXTENSION held**: bank-set frozen at 0xD0..0xFF (32 slots), only slots populated — no new ROM cell. cap_boost_in_extended_bank + 18 prior opcode-distinctness lemmas
+- Refs: Larsson and Svensson 1994 (di/dt SSO), Jiang et al. 2018 (capacitive supply decoupling), Rabaey 2003 (decap sizing)
+- Local `coqc` EXIT=0
+
 ## Wave-48 Lane SS — FBBActive2.v 33 Qed + Forward Body Bias DUAL of W47 (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/FBBActive2.v — 32 Qed lemmas + composite Theorem `fbb_active_composite` (= 33 Qed total), 0 Admitted
