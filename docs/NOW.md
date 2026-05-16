@@ -2,6 +2,22 @@
 
 Last updated: 2026-05-16
 
+## Wave-45 Lane PP — Avs96Safe.v AVS-96 Dopamine Safety Coq (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/Avs96Safe.v — 8 Qed lemmas, 0 Admitted
+- **AVS-96 voltage steps**: avs96_steps = 96; bin width 6250 uV (6.25 mV), half of W36 AVS-48 baseline
+- **Step gate**: step_gate_input clamps occupancy_bin >= 96 to 0
+- **Lemmas**: avs96_step_count, avs96_bin_width_positive, avs96_half_of_avs48, step_gate_in_range, step_gate_clamp_out_of_range, step_gate_zero, step_gate_max_in_range, avs96_steps_ne_zero
+- **L2_BG_AVS96_STEP_GATE** microcode (no new L1)
+- Silicon-vector counter milestone S-200
+- Sprints: S-194, S-195, S-200
+- BIO->SI: basal-ganglia-DA
+- anchor phi^2 + phi^-2 = 3, DOI 10.5281/zenodo.19227877
+- Closes #686, Refs gHashTag/trinity-fpga#175, gHashTag/trios#932
+
+- W45 PP: Avs96Safe.v landed on master (S-200 milestone)
+
+
 ## Wave-44 Lane NN — StochSkipSafe.v Stochastic Time-Skip Safety Coq (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/StochSkipSafe.v — 10 Qed lemmas, 0 Admitted
