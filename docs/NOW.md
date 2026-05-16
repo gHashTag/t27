@@ -2,6 +2,23 @@
 
 Last updated: 2026-05-16
 
+## Wave-45 Lane KK — WLBoost.v 33 Qed + 1 composite Theorem (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/WLBoost.v — 32 Qed lemmas + composite Theorem `wl_boost_composite` (= 33 Qed total), 0 Admitted
+- **OP_WL_BOOST = 0xEF = 239** (new sacred opcode, Wave-45; first free slot after FBB 0xEE)
+- **Theory**: V_WL = V_DD * (1 + gamma^2) ≈ 1.0557 * V_DD ; V_DD_new = V_DD * (1 - gamma^2) ≈ 0.9443 * V_DD. gamma^2 = phi^-6 ≈ 0.0557 (derived from existing gamma=phi^-3 Sacred ROM cell B007; R18 LAYER-FROZEN preserved, no new ROM cell)
+- **Read-margin invariance**: wlb_read_margin_value proves V_WL_mV (844) - V_DD_NEW_mV (756) = 88 mV; wlb_read_margin_in_band proves 60 <= 88 <= 120 (SRAM stability band)
+- **Voltage safety**: V_WL ≤ V_WL_MAX_mV (880 = 1.10*V_DD gate-oxide); V_DD_new ≥ V_DD_NEW_MIN_mV (680 = 0.85*V_DD periphery threshold safety)
+- **Power saving**: wlb_power_saving_within_band proves P_dyn saving (10.84%) in [10%, 12%] (P ∝ V_DD_new^2 ⇒ 1 - 0.9443^2 ≈ 10.84%)
+- **WL-driver overhead**: wlb_wl_driver_overhead_bounded proves ≤ 5% (typical 3%)
+- **Net benefit**: wlb_net_benefit_at_least_7pct proves ≥ 7.8% per-access savings (10.84% - 3%)
+- **TOPS/W lift**: wlb_tops_w_lift_at_least_5pct proves 100*(1012-955) >= 5*955 — projection 955 -> 1012 (+6%)
+- **gamma^2 anchor match**: wlb_gamma2_match proves |557bps - 557bps_exact| <= 1bps (±0.01% absolute); wlb_gamma2_relative_drift_half_percent proves <0.5% relative drift
+- 14 opcode-distinctness lemmas vs (FBB 0xEE, SPARSE_MASK 0xED, DROWSY_RET 0xEC, SPEC_EXIT 0xEB, NULL_PE 0xEA, STOCH 0xE9, SPARSE 0xE8, DFS 0xE7, HOLO_MUX 0xE6, SUBTH 0xE5, AVS_RECONF 0xE4, LUT_NPU 0xE3, TOM 0xE2, TENET 0xE1)
+- Refs: Yamaoka VLSI2008, Mizuno ISSCC2007, Kanno JSSC2012 (WL-boost design); Buzsaki 2006 (theta-gamma coupling for BIO→SI axonal Na⁺ regen mapping)
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#159
+
 ## Wave-44 Lane JJ — FBBActive.v 21 Qed + 1 composite Theorem (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/FBBActive.v — 21 Qed lemmas + composite Theorem `fbb_active_composite`, 0 Admitted
