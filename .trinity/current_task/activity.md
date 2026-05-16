@@ -216,3 +216,7 @@
 - **Commit:** feat(toolchain): Add GitHub Actions CI, RTL generation, Coq integration
 - **Files:** .github/workflows/tri-test.yml,.gitignore,.trinity/current_task/activity.md,coq/_CoqProject,docs/HARDWARE-IMPLEMENTATION.md,docs/T27_IMPROVEMENT_PLAN.md,rtl_gen/Makefile,rtl_gen/gf16_add.v,rtl_gen/gf16_mul.v,rtl_gen/gf4_add.v,rtl_gen/gf8_add.v,rtl_gen/gf_formats.v,rtl_gen/golden_tests.py,rtl_gen/int4_quantizer.v,rtl_gen/nf4_quantizer.v,specs/numeric/gf128.t27
 
+## 2026-05-16T22:01:25Z — publication/v1.0.0-toolchain
+- **Commit:** feat(toolchain): Add GitHub Actions CI, RTL generation, Coq integration
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
