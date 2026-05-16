@@ -16,6 +16,23 @@ Last updated: 2026-05-16
 - Closes #686, Refs gHashTag/trinity-fpga#175, gHashTag/trios#932
 
 - W45 PP: Avs96Safe.v landed on master (S-200 milestone)
+## Wave-48 Lane SS — FBBActive2.v 33 Qed + Forward Body Bias DUAL of W47 (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/FBBActive2.v — 32 Qed lemmas + composite Theorem `fbb_active_composite` (= 33 Qed total), 0 Admitted
+- **OP_FBB_ACTIVE = 0xF2 = 242** (new sacred opcode, Wave-48 — SECOND slot of extended sacred bank 0xD0..0xFF)
+- **DUAL of W47 RBB**: where RBB (0xF1) applies NEGATIVE body bias to idle PEs to cut leakage, FBB_ACTIVE (0xF2) applies POSITIVE body bias to ACTIVE-path PEs to cut delay. Same gamma^4 magnitude, opposite sign — symmetric pair.
+- **Theory — Forward Body Bias of Active Path**: V_BS,active = +V_DD · gamma^4 ≈ +2.5 mV (positive body-source potential reduces threshold voltage on the critical path, accelerating switching). gamma^4 = phi^-12 ≈ 0.0031 inherited from B007^2 (W45 cell) — R18 preserved (no new ROM cell).
+- **V_BS positive sign**: fbb_active_vbs_positive proves V_BS_DECIMV > 0 (distinct from W47 RBB which proves <0); fbb_active_vbs_within_band proves V_BS_DECIMV in [+1.0, +5.0] mV (R7)
+- **Delay reduction band**: fbb_active_delay_red_within_band proves 12% in [8%, 18%] (R7)
+- **Leakage overhead cap**: fbb_active_leak_overhead_at_most_8pct proves leak_ovh <= 8% (FBB worst-case leakage growth bounded — R7 floor)
+- **Net delay save**: fbb_active_net_delay_save_at_least_8pct proves net >= 8% (12% delay red - 4% f_clk back-pressure cap)
+- **f_clk scaling cap**: fbb_active_fclk_scale_at_most_6pct proves scale_bps <= 600 (frequency-domain back-pressure bounded)
+- **TOPS/W lift**: fbb_active_tops_w_lift_at_least_1pt5pct proves 1000*(1083-1063) >= 15*1063 — projection 1063 -> 1083 (+1.881%)
+- **Cross-wave identity**: fbb_active_rbb_symmetric proves |V_BS_FBB_ACTIVE| = |V_BS_RBB| (both = 25 deci-mV magnitude, opposite signs)
+- **R18 SACRED BANK EXTENSION held**: bank-set frozen at 0xD0..0xFF (32 slots), only slots populated — no new ROM cell. fbb_active_in_extended_bank, fbb_active_distinct_from_rbb_w47 + 16 prior opcode-distinctness lemmas
+- Refs: Tschanz JSSC 2002, Mukhopadhyay 2009 (forward body bias active path)
+- Local `coqc` EXIT=0
+
 
 
 ## Wave-44 Lane NN — StochSkipSafe.v Stochastic Time-Skip Safety Coq (NEW, this PR)
@@ -32,6 +49,7 @@ Last updated: 2026-05-16
 - Local `coqc` EXIT=0
 - Closes #684, Refs gHashTag/trinity-fpga#172, gHashTag/trios#929
 
+
 ## Wave-43 Lane LL — Int2QuantSafe.v INT2 Activation Codebook Coq (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/Int2QuantSafe.v — 8 Qed lemmas, 0 Admitted
@@ -41,6 +59,7 @@ Last updated: 2026-05-16
 - **INT2 density**: 2*2=4 formalizes INT2 4-level packing capacity (2 bits, 4 levels)
 - Refs gHashTag/trinity-fpga#168
 - Local `coqc` EXIT=0
+
 
 ## Wave-47 Lane QQ — RBB.v 33 Qed + 1 composite Theorem + R18 SACRED BANK EXTENSION (NEW, this PR)
 
