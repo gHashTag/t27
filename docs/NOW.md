@@ -1,8 +1,19 @@
 # NOW — Trinity t27 sync
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
-## Wave-43 Lane HH — DrowsyRet.v 13 Qed lemmas (NEW, this PR)
+## Wave-40 Lane FF — SparsityMask.v 11 Qed lemmas (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/SparsityMask.v — 11 Qed lemmas, 0 Admitted, AND-only channel-sparsity mask
+- **Headline**: `Lemma golden_lambda_minimises_loss` — λ = φ⁻² minimises L_total surrogate over [0,1]
+- ICA-W40-002 opcode rectification: spec called OP_SPARSE_MASK = 0xE8, but 0xE8 = OP_SPARSE_SKIP (W41) already in master. Slots 0xE9..0xEC also occupied. New byte = **0xED = 237** (next free sacred slot)
+- TOPS/W ≥ 540 (×1.15 over W39 = 470); combined compute fraction = 0.42 × 0.20 = 0.084
+- 27 Coptic register groups partition channel set; mask idempotent; reactivation bounded; nullor bypass preserved when mask=false
+- R-SI-1 preservation: `sparsity_mask_star_count = 0`
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#155 · trios#906
+
+## Wave-43 Lane HH — DrowsyRet.v 13 Qed lemmas
 
 - **NEW**: trios-coq/Physics/DrowsyRet.v — 12 Qed lemmas + 1 composite Theorem (drowsy_w43_witness_proved), 0 Admitted
 - New opcode **OP_DROWSY_RET = 0xEC** (236); sacred chain depth 23 (0xD0..0xEC, includes ICA-W40-001 0xEA/0xEB relocations)
