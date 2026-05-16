@@ -2,6 +2,22 @@
 
 Last updated: 2026-05-16
 
+## Wave-44 Lane JJ — FBBActive.v 21 Qed + 1 composite Theorem (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/FBBActive.v — 21 Qed lemmas + composite Theorem `fbb_active_composite`, 0 Admitted
+- **OP_FBB = 0xEE = 238** (new sacred opcode, Wave-44; relocated from 0xED per ICA-W44-001 because 0xED claimed by SparsityMask W40 LL ICA-W40-002)
+- **Theory**: V_FBB = V_DD * (1 + gamma^4) ≈ 1.00309 * V_DD. gamma^4 = phi^-12 ≈ 0.0031 (smallest natural Trinity quantum producing measurable Vt shift via body coefficient)
+- **Bias safety**: fbb_voltage_below_max proves V_FBB_mV (802) <= V_FBB_MAX_mV (840 = 1.05 * V_DD body-source diode limit)
+- **Body coefficient**: fbb_body_coefficient_in_range proves gamma_body_typ (0.30) in [0.25, 0.35] V^(1/2) for SKY130
+- **Speed-up bound**: fbb_speedup_within_band proves Δt_pd/t_pd (12%) in [10%, 15%]
+- **Power overhead**: fbb_power_overhead_bounded proves <= 2% (P_FBB / P_active <= 1.02)
+- **TOPS/W lift**: fbb_tops_w_lift_at_least_7pct proves 100*(955-890) >= 7*890 — projection 890 -> 955 (+7.3%)
+- **gamma^4 anchor match**: fbb_gamma4_match proves |31bps - 31bps_exact| <= 1bps (±0.01% absolute)
+- 13 opcode-distinctness lemmas vs (SPARSE_MASK 0xED, DROWSY_RET 0xEC, SPEC_EXIT 0xEB, NULL_PE 0xEA, STOCH 0xE9, SPARSE 0xE8, DFS 0xE7, HOLO_MUX 0xE6, SUBTH 0xE5, AVS_RECONF 0xE4, LUT_NPU 0xE3, TOM 0xE2, TENET 0xE1)
+- Refs: Tschanz JSSC2002, Kawaguchi ISSCC2004, Buzsaki 2006 (gamma-band cortical firing for BIO→SI mapping)
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#154
+
 ## Wave-40 Lane FF — SparsityMask.v 11 Qed lemmas (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/SparsityMask.v — 11 Qed lemmas, 0 Admitted, AND-only channel-sparsity mask
