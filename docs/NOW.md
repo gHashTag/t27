@@ -12,6 +12,24 @@ Last updated: 2026-05-16
 - Refs gHashTag/trinity-fpga#168
 - Local `coqc` EXIT=0
 
+## Wave-47 Lane QQ — RBB.v 33 Qed + 1 composite Theorem + R18 SACRED BANK EXTENSION (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/RBB.v — 32 Qed lemmas + composite Theorem `rbb_composite` (= 33 Qed total), 0 Admitted
+- **OP_RBB = 0xF1 = 241** (new sacred opcode, Wave-47 — FIRST slot of extended sacred bank 0xD0..0xFF)
+- **R18 LAYER-FROZEN BANK EXTENSION CEREMONY**: sacred bank extended from 0xD0..0xF0 (16 slots, FULL after W46) to 0xD0..0xFF (32 slots). Opcode-space-only — NO Sacred ROM cell added or mutated.
+- **Theory — Reverse Body Bias**: V_BS = -V_DD · gamma^4 ≈ -2.5 mV (negative body-source potential reduces sub-threshold leakage in idle PEs). gamma^4 = phi^-12 ≈ 0.0031 derived from B007^2 (W45 cell) — R18 preserved.
+- **Bank-extension lemmas**: `sacred_bank_extension_strict`, `sacred_bank_extension_width` (32 slots), `all_w46_opcodes_in_extended_bank` (all 16 prior opcodes retained), `sacred_bank_now_covers_0xD0_to_0xFF`
+- **V_BS band**: rbb_vbs_within_band proves V_BS_DECIMV in [-5.0, -1.0] mV (R7 falsification)
+- **gamma^4 derivation**: rbb_gamma4_derived_from_gamma2 proves 10000*31 = gamma^2 * gamma^2 ± tolerance (from B007^2)
+- **Leakage save band**: rbb_leak_save_within_band proves 40% in [35%, 50%] (R7)
+- **Active overhead**: rbb_active_overhead_at_most_2pct proves <= 1.5% (charge-pump tax bounded)
+- **Net idle save**: rbb_net_idle_save_at_least_30pct proves >= 31.7% (40% * 80% idle - 1.5% * 20% active)
+- **TOPS/W lift**: rbb_tops_w_lift_at_least_1pt5pct proves 1000*(1063-1043) >= 15*1043 — projection 1043 -> 1063 (+1.918%)
+- 16 opcode-distinctness lemmas vs (ADIAB_RC 0xF0, WL_BOOST 0xEF, FBB 0xEE, SPARSE_MASK 0xED, DROWSY_RET 0xEC, SPEC_EXIT 0xEB, NULL_PE 0xEA, STOCH 0xE9, SPARSE 0xE8, DFS 0xE7, HOLO_MUX 0xE6, SUBTH 0xE5, AVS_RECONF 0xE4, LUT_NPU 0xE3, TOM 0xE2, TENET 0xE1)
+- Refs: Tschanz JSSC 2002, Mukhopadhyay 2009 (reverse body bias)
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#167
+
 ## Wave-46 Lane NN — AdiabRC.v 33 Qed + 1 composite Theorem (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/AdiabRC.v — 32 Qed lemmas + composite Theorem `adiab_rc_composite` (= 33 Qed total), 0 Admitted
