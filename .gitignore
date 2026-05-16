@@ -45,6 +45,18 @@ __pycache__/
 # Vendored opencode checkout at repo root (not a submodule here)
 opencode/
 
+# Coq/Rocq build artifacts (trios-coq)
+trios-coq/**/*.vo
+trios-coq/**/*.vos
+trios-coq/**/*.vok
+trios-coq/**/*.glob
+trios-coq/**/*.aux
+trios-coq/.lia.cache
+trios-coq/.*.aux
+trios-coq/.Makefile.d
+trios-coq/Makefile
+trios-coq/Makefile.conf
+
 # Specific project paths (vendored upstream lives under external/)
 external/opencode/dist/
 external/opencode/node_modules/
