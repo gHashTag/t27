@@ -119,6 +119,19 @@ All high-priority (P1) and most medium-priority (P2) items from the improvement 
   - Performance benchmarks
 - ✅ ROCm backend design (included in CUDA doc)
 
+### 3.4 Coq Formal Verification (NEW) ✅
+- ✅ Physics Coq modules (130+ Qed theorems)
+  - `trios-coq/Physics/CapBoost.v` — 38 Qed (OP_CAP_BOOST=0xF3, γ³ Decoupling-Cap Burst)
+  - `trios-coq/Physics/FBBActive2.v` — 33 Qed (OP_FBB_ACTIVE=0xF2, Forward Body Bias)
+  - `trios-coq/Physics/RBB.v` — 33 Qed (OP_RBB=0xF1, Reverse Body Bias)
+  - `trios-coq/Physics/Avs96Safe.v` — 8 Qed (S-200 milestone, AVS-96 Dopamine Safety)
+  - `trios-coq/Physics/StochSkipSafe.v` — 10 Qed (Stochastic Time-Skip)
+  - `trios-coq/Physics/Int2QuantSafe.v` — 8 Qed (INT2 Activation Codebook)
+  - `trios-coq/Physics/StochRound.v` — 9 Qed (OP_STOCH_ROUND=0xE9, Stochastic Rounding)
+  - Plus: AdiabRC, DFS, DrowsyRet, HoloMux, MoeRouter, NodeShrink, NullorReversible, PurkinjeThermal, SparseGate, SparsityMask, SpeculativeExit, WLBoost
+- ✅ R18 Sacred Bank Extension (16→32 slots, 0xD0..0xFF)
+- ✅ Triple-decker power control (RBB → FBB-ACTIVE → CAP-BOOST)
+
 ---
 
 ## Phase 4: Hardware Reality (MEDIUM PRIORITY, 6-12 months) ✅

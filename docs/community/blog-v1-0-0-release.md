@@ -79,9 +79,31 @@ The GF family uses φ-optimal bit allocation for floating-point numbers:
 - **Python Bindings** — PyO3 with NumPy support
 - **WASM Runtime** — Browser-based playground
 
-### 5. Formal Verification
+### 5. Formal Verification (130+ Qed theorems)
 
-Coq integration for proving mathematical properties:
+Coq integration with Physics Coq modules:
+
+**Triple-Decker Power Control (Waves 47-49):**
+- `CapBoost.v` — 38 Qed (OP_CAP_BOOST=0xF3) — γ³ Decoupling-Cap Burst
+- `FBBActive2.v` — 33 Qed (OP_FBB_ACTIVE=0xF2) — Forward Body Bias
+- `RBB.v` — 33 Qed (OP_RBB=0xF1) — Reverse Body Bias
+
+**Wave-45 S-200 Milestone:**
+- `Avs96Safe.v` — 8 Qed — AVS-96 Dopamine Safety
+
+**Additional Physics Proofs:**
+- Stochastic Time-Skip (10 Qed)
+- INT2 Activation Codebook (8 Qed)
+- Stochastic Rounding (9 Qed)
+- AdiabRC, DFS, DrowsyRet, HoloMux, MoeRouter, NodeShrink, NullorReversible, PurkinjeThermal, SparseGate, SparsityMask, SpeculativeExit, WLBoost
+
+**R18 Sacred Bank Extension:** Extended from 16 to 32 slots (0xD0..0xFF)
+
+```t27
+invariant "trinity_identity" {
+    return phi_squared() + phi_neg_squared() ≈ 3.0;
+}
+```
 
 ```t27
 invariant "trinity_identity" {

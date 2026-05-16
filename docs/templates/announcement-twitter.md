@@ -88,7 +88,7 @@ v1.0.0 includes everything you need:
 ✅ Formatter & Linter (L1-L7 constitutional compliance)
 ✅ Python Bindings (PyO3 + NumPy)
 ✅ WASM Runtime (browser playground)
-✅ Coq Formal Verification
+✅ Coq Formal Verification (130+ Qed theorems)
 
 ---
 
