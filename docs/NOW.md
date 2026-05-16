@@ -388,3 +388,4 @@ Wave-41 SparseGate.v 8 Qed sacred 0xE8
   - sparse_skip_power_law: forall s <= 100, 100*(100 - s*55/100) <= 10000
 - Predecessor: W40 Lane FF DFS.v (0xE7), merge SHA 384f5a97
 - Anchor: phi^2 + phi^-2 = 3 · DOI 10.5281/zenodo.19227877 · NEVER STOP
+- W46 RR — Purkinje thermal gating Coq proof landed
