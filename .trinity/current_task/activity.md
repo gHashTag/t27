@@ -176,3 +176,15 @@
 - **Commit:** merge(master): Pull latest Coq Physics proofs (Closes #177)
 - **Files:** docs/PUBLICATION_SUMMARY.md,docs/community/blog-v1-0-0-release.md,docs/templates/announcement-github.md,docs/templates/announcement-twitter.md,presentation/t27_v1_pldi_2027.md
 
+## 2026-05-16T21:26:31Z — publication/v1.0.0-toolchain
+- **Commit:** docs(v1.0.0): Add READMEs for LSP, formatter, and bindings
+- **Files:** conformance/FORMAT-SPEC-001.json
+
+## 2026-05-16T21:34:38Z — publication/v1.0.0-toolchain
+- **Commit:** feat(conformance): add GF64, GF128, GF256 to FORMAT-SPEC-001
+- **Files:** specs/numeric/TRI_NET_FORMATS_SUMMARY.md,specs/numeric/binary16.t27,specs/numeric/fp8_e4m3.t27,specs/numeric/fp8_e5m2.t27,specs/numeric/gf128.t27,specs/numeric/gf256.t27,specs/numeric/gf64.t27,specs/numeric/int4.t27,specs/numeric/int8.t27,specs/numeric/nf4.t27,specs/numeric/posit16.t27,specs/numeric/tri_net_formats.t27
+
+## 2026-05-16T21:34:51Z — publication/v1.0.0-toolchain
+- **Commit:** feat: complete TRI-NET format specification (17 formats)
+- **Files:** .trinity/current_task/activity.md,specs/numeric/TRI_NET_FORMATS_SUMMARY.md,specs/numeric/binary16.t27,specs/numeric/fp8_e4m3.t27,specs/numeric/fp8_e5m2.t27,specs/numeric/gf128.t27,specs/numeric/gf256.t27,specs/numeric/gf64.t27,specs/numeric/int4.t27,specs/numeric/int8.t27,specs/numeric/nf4.t27,specs/numeric/posit16.t27,specs/numeric/tri_net_formats.t27
+
