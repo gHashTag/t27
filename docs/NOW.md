@@ -2,6 +2,20 @@
 
 Last updated: 2026-05-16
 
+## Wave-44 Lane NN — StochSkipSafe.v Stochastic Time-Skip Safety Coq (NEW, this PR)
+
+- **NEW**: trios-coq/Physics/StochSkipSafe.v — 10 Qed lemmas, 0 Admitted
+- **Hippocampal theta anchor**: theta_freq_hz = 7 Hz; theta_period_ps = 142857143 ps (~= 1/7 Hz)
+- **Skip predicate**: cos_high AND theta_off_phase (boolean gating, 0 Admitted)
+- **Lemmas**: theta_freq_is_seven, theta_period_positive, skip_predicate_true_when_both_true, skip_predicate_false_when_cos_low, skip_predicate_false_when_on_phase, skip_predicate_false_when_both_false, cycle_saving_ratio, theta_period_ne_zero, cos_threshold_den_ne_zero, cos_threshold_lt_den
+- **Cycle savings**: 23% skip => 77% active (cycle_saving_ratio: 77 + 23 = 100)
+- **L2_DG_THETA_SKIP_GATE** microcode (no new L1 opcode)
+- Sprints: S-186, S-187, S-192
+- BIO->SI: hippocampal-theta-7Hz
+- anchor phi^2 + phi^-2 = 3, DOI 10.5281/zenodo.19227877
+- Local `coqc` EXIT=0
+- Closes #684, Refs gHashTag/trinity-fpga#172, gHashTag/trios#929
+
 ## Wave-43 Lane LL — Int2QuantSafe.v INT2 Activation Codebook Coq (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/Int2QuantSafe.v — 8 Qed lemmas, 0 Admitted
