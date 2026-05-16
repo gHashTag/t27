@@ -1,0 +1,21 @@
+name: iverilog -g2005 strict
+on: [push, pull_request]
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y iverilog
+      - run: |
+          set +e
+          FAIL=0
+          for f in $(find gen/verilog -name '*.v' 2>/dev/null); do
+            echo "Compiling $f..."
+            iverilog -g2005 -Wall -Wno-timescale -o /tmp/out "$f" 2>&1 | tee /tmp/log
+            if grep -qE 'error|syntax' /tmp/log; then
+              echo "FAIL: $f"
+              FAIL=$((FAIL+1))
+            fi
+          done
+          if [ $FAIL -gt 0 ]; then echo "Total failures: $FAIL"; exit 1; fi
+          echo "All gen/verilog files compile clean under iverilog -g2005 -Wall"
