@@ -2,6 +2,19 @@
 
 Last updated: 2026-05-16
 
+## Wave-42 Lane JJ — MoeRouter.v 8 Qed lemmas (NEW, this PR)
+
+- **W42 MoE Sparse Routing**: NO new L1 opcode (reuses 0xE8 + 0xED via L2 macro in cortical-column-12); K_MOE_SPARSITY = phi^-3 ≈ 0.236; target 982 TOPS/W; W-105-G freeze 2026-12-31
+- **NEW**: trios-coq/Physics/MoeRouter.v — 8 Qed lemmas, 0 Admitted
+- `OP_MOE_route` decomposes into OP_SPARSE_MASK=237 (0xED) + OP_SPARSE_SKIP=232 (0xE8) only; no new opcode allocated
+- k=2 of N=8 experts selected; moe_k_le_N and moe_k_pos proved
+- K_MOE_SPARSITY = 236 milli (phi^-3); within 20 milli of k/N=250 milli tolerance
+- Load imbalance ceiling 0.25 (250 milli); cache amplification >= 1150 milli; eta_gate >= 950 milli
+- TOPS/W lift: 756 (W41) -> 982 (W42), within witness band [979, 985]
+- R15 sacred-synth-gate preserved by construction; sacred_chain_depth = 32 unchanged
+- Local `coqc` EXIT=0
+- Closes trinity-fpga#164 · trios#917
+
 ## Wave-45 Lane KK — WLBoost.v 33 Qed + 1 composite Theorem (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/WLBoost.v — 32 Qed lemmas + composite Theorem `wl_boost_composite` (= 33 Qed total), 0 Admitted
