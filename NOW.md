@@ -1,6 +1,6 @@
 # NOW — Trinity t27 sync
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Wave-42 Lane II — StochRound.v Stochastic Rounding Coq
 
