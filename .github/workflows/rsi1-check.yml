@@ -1,0 +1,49 @@
+name: R-SI-1 no-star check (gen/verilog)
+
+# Mirrors the R-SI-1 gate from tt-trinity-* repos.
+# CROWN rule R-SI-1: zero arithmetic * operator in synthesizable Verilog.
+#
+# NOTE (Phase 0.2): Issue #692 (mac.v R-SI-1 violation) is NOT yet fixed.
+# The check for the LEGACY path gen/verilog/ uses continue-on-error: true
+# until #692 is resolved.  A clean sub-path gen/verilog/phase0/ is gated
+# with a hard-fail from day one so all new output starts clean.
+
+on: [push, pull_request]
+
+jobs:
+  check-legacy:
+    name: R-SI-1 legacy (gen/verilog, soft gate)
+    runs-on: ubuntu-latest
+    # Soft gate: issue #692 not yet fixed — do not block merges on legacy files
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: R-SI-1 scan — gen/verilog (legacy, soft)
+        run: |
+          set -e
+          VIOLATIONS=$(find gen/verilog -name '*.v' 2>/dev/null | xargs -r grep -nE '[^*/]\*[^/=*]' | grep -v '/\*' | grep -v '\*/' || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "R-SI-1 VIOLATIONS FOUND (legacy — tracked by #692):"
+            echo "$VIOLATIONS"
+            echo "::warning::R-SI-1 violations present; fix tracked in issue #692"
+            exit 1
+          fi
+          echo "R-SI-1 PASS: zero arithmetic * in gen/verilog/**/*.v"
+
+  check-phase0:
+    name: R-SI-1 phase0 (gen/verilog/phase0, hard gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: R-SI-1 scan — gen/verilog/phase0 (hard fail)
+        run: |
+          set -e
+          VIOLATIONS=$(find gen/verilog/phase0 -name '*.v' 2>/dev/null | xargs -r grep -nE '[^*/]\*[^/=*]' | grep -v '/\*' | grep -v '\*/' || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "R-SI-1 VIOLATIONS FOUND in phase0 (hard gate — must fix before merge):"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "R-SI-1 PASS: zero arithmetic * in gen/verilog/phase0/**/*.v (or directory absent)"
