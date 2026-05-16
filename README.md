@@ -1,16 +1,16 @@
 # Trinity S³AI DNA -- t27 -- TRI-27 Spec-First Language
 
 [![CI](https://img.shields.io/github/actions/workflow/status/gHashTag/t27/ci.yml?branch=master&logo=github&label=CI)](https://github.com/gHashTag/t27/actions/workflows/ci.yml)
-[![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.19456875.svg)](https://doi.org/10.5281/zenodo.19456875)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-orange.svg)](https://github.com/gHashTag/t27/releases)
+[![Version: 1.0.0](https://img.shields.io/badge/version-1.0.0-orange.svg)](https://github.com/gHashTag/t27/releases/tag/v1.0.0)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![LSP](https://img.shields.io/badge/LSP-12%20services-green.svg)](https://github.com/gHashTag/t27/tree/master/lsp)
 
 **Language:** [English](README.md) | [Русский](docs/README_RU.md)
 
 > **Canonical Zenodo SOT:** [zenodo.org/communities/trinity-s3ai](https://zenodo.org/communities/trinity-s3ai/). The GoldenFloat badge above (19456875) is a legitimate Vasilev deposit but lives **outside** the curated S³AI v5.0 record set; see [docs/ZENODO.md](docs/ZENODO.md) for the canonical 12-record bundle and aliases.
 
 The canonical source of truth for Trinity S3AI.
-`.t27` specs in → Zig, Verilog, C out.
+`.t27` specs in → Zig, Verilog, C, Rust, WASM out.
 
 **φ² + 1/φ² = 3 | TRINITY**
 
@@ -36,6 +36,12 @@ The canonical source of truth for Trinity S3AI.
 | CI | FPGA bitstream artifact | GREEN | .bit uploaded per PR (7-day retention) |
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
+| LSP | LSP Server | GREEN | 12 services (completion, hover, definition, etc.) |
+| LSP | VSCode Extension | GREEN | Syntax highlighting, 14+ snippets |
+| Toolchain | Formatter | GREEN | `tri-fmt` with L1-L5 constitutional compliance |
+| Bindings | Python (PyO3) | GREEN | GF16, GF32 classes, NumPy integration |
+| Bindings | WASM Runtime | GREEN | T27Runtime, GF16 ops, browser playground |
+| Verification | Coq Physics | GREEN | 130+ Qed theorems across 15+ modules |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
 
 ---
@@ -52,6 +58,36 @@ The language is built around three pillars:
 
 t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neuroanatomical AI framework targeting FPGA acceleration and DARPA CLARA compliance.
 
+
+## v1.0.0 Release Highlights
+
+[**v1.0.0 Release**](https://github.com/gHashTag/t27/releases/tag/v1.0.0) — See [docs/PUBLICATION_SUMMARY.md](docs/PUBLICATION_SUMMARY.md)
+
+### Key Features
+- **LSP Server** — 12 services (completion, hover, go-to-definition, diagnostics)
+- **VSCode Extension** — Syntax highlighting, 14+ snippets, custom commands
+- **WASM Backend** — WebAssembly generation, JavaScript runtime, browser playground
+- **Python Bindings** — PyO3 with NumPy integration (GF16, GF32, array ops)
+- **Formatter & Linter** — Style and L1-L5 constitutional compliance
+- **Coq Formal Verification** — 130+ Qed theorems across 15+ Physics modules
+
+### Coq Physics (130+ Qed)
+| Module | Qed | Description |
+|--------|-----|-------------|
+| CapBoost.v | 38 | γ³ Decoupling-Cap Burst (OP_CAP_BOOST=0xF3) |
+| FBBActive2.v | 33 | Forward Body Bias (OP_FBB_ACTIVE=0xF2) |
+| RBB.v | 33 | Reverse Body Bias (OP_RBB=0xF1) |
+| Avs96Safe.v | 8 | AVS-96 Dopamine Safety (S-200) |
+| StochSkipSafe.v | 10 | Stochastic Time-Skip |
+| Int2QuantSafe.v | 8 | INT2 Activation Codebook |
+| StochRound.v | 9 | Stochastic Rounding (OP_STOCH_ROUND=0xE9) |
+| +9 modules | - | AdiabRC, DFS, DrowsyRet, HoloMux, MoeRouter, NodeShrink, NullorReversible, PurkinjeThermal, SparseGate, SparsityMask, SpeculativeExit, WLBoost |
+
+### Documentation
+- [5 Tutorials](docs/tutorials/) — Why Ternary, GoldenFloat, Spec-First, FPGA, Coq
+- [4 Comparative Analysis](docs/comparative-analysis/) — GF vs IEEE 754, Posit, FP8, Ternary vs Binary
+- [GPU Backend Design](docs/gpu-backend-design/cuda-backend-design.md) — CUDA/ROCm
+- [PLDI 2027 Presentation](presentation/t27_v1_pldi_2027.md) — 20-slide deck
 ## Quick Start
 
 ```bash
