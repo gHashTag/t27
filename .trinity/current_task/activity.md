@@ -204,3 +204,7 @@
 - **Commit:** feat(numeric): Add comprehensive number format support to t27 hardware
 - **Files:** 
 
+## 2026-05-16T21:44:17Z — publication/v1.0.0-toolchain
+- **Commit:** feat(numeric): Add comprehensive number format support to t27 hardware
+- **Files:** trios-coq/Physics/.Avs96Safe.aux,trios-coq/Physics/.ClockGating.aux,trios-coq/Physics/.DataRetention.aux,trios-coq/Physics/.EmergencyShutdown.aux,trios-coq/Physics/.FreqThrottle.aux,trios-coq/Physics/.Hysteresis.aux,trios-coq/Physics/.NullorReversible.aux,trios-coq/Physics/.PowerCapping.aux,trios-coq/Physics/.PowerState.aux,trios-coq/Physics/.PurkinjeThermal.aux,trios-coq/Physics/.SleepGating.aux,trios-coq/Physics/.SparsityMask.aux,trios-coq/Physics/.SpeculativeExit.aux,trios-coq/Physics/.ThermalGuard.aux,trios-coq/Physics/.ThrottleSlew.aux,trios-coq/Physics/.VoltageGuard.aux,trios-coq/Physics/Avs96Safe.glob,trios-coq/Physics/Avs96Safe.vo,trios-coq/Physics/Avs96Safe.vok,trios-coq/Physics/Avs96Safe.vos
+
