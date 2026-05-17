@@ -220,3 +220,11 @@
 - **Commit:** feat(TTSKY26b-COMPLETE): All 8 improvements finished
 - **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/fpga/gf16_to_fp16.t27,specs/fpga/gf16_to_posit16.t27,specs/fpga/gf32_to_fp32.t27,specs/fpga/purkinje_thermal_gate.t27
 
+## 2026-05-17T20:51:22Z — main
+- **Commit:** chore(session): Update session after FPGA spec additions
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
+## 2026-05-17T20:52:33Z — main
+- **Commit:** chore(session): Update session after FPGA spec additions
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl
+
