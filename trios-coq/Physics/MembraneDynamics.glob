@@ -1,0 +1,231 @@
+DIGEST 78a8d2c3ed4ba1e8b56ee7e31cc27e67
+FMembraneDynamics
+R1465:1481 Stdlib.ZArith.ZArith <> <> lib
+R1499:1515 Stdlib.micromega.Lia <> <> lib
+def 1782:1801 <> OP_MEMBRANE_DYNAMICS
+def 1887:1906 <> OP_AXONAL_CONDUCTION
+def 1947:1968 <> OP_SOMATIC_INTEGRATION
+def 2039:2054 <> SACRED_BANK_BASE
+def 2093:2107 <> SACRED_BANK_END
+prf 2373:2410 <> membrane_dynamics_distinct_from_axonal
+R2436:2439 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2416:2435 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2440:2459 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+R2476:2495 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2498:2517 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+prf 2537:2572 <> membrane_dynamics_adjacent_to_axonal
+R2598:2600 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2578:2597 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2621:2623 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2601:2620 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+R2641:2660 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2663:2682 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+prf 2702:2730 <> membrane_dynamics_in_mid_bank
+R2776:2779 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2752:2755 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2736:2751 MembraneDynamics <> SACRED_BANK_BASE def
+R2756:2775 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2800:2803 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2780:2799 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2804:2818 MembraneDynamics <> SACRED_BANK_END def
+R2835:2850 MembraneDynamics <> SACRED_BANK_BASE def
+R2853:2872 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R2875:2889 MembraneDynamics <> SACRED_BANK_END def
+def 3196:3210 <> g_Na_max_scaled
+R3214:3214 Corelib.Numbers.BinNums <> Z ind
+def 3261:3274 <> g_K_max_scaled
+R3278:3278 Corelib.Numbers.BinNums <> Z ind
+def 3328:3337 <> g_L_scaled
+R3341:3341 Corelib.Numbers.BinNums <> Z ind
+def 3451:3464 <> E_Na_mV_scaled
+R3468:3468 Corelib.Numbers.BinNums <> Z ind
+def 3511:3523 <> E_K_mV_scaled
+R3527:3527 Corelib.Numbers.BinNums <> Z ind
+def 3573:3585 <> E_L_mV_scaled
+R3589:3589 Corelib.Numbers.BinNums <> Z ind
+def 3680:3689 <> C_m_scaled
+R3693:3693 Corelib.Numbers.BinNums <> Z ind
+def 3766:3774 <> A_mem_cm2
+R3778:3778 Corelib.Numbers.BinNums <> Z ind
+prf 4119:4152 <> sodium_potassium_conductance_ratio
+R4173:4175 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4158:4172 MembraneDynamics <> g_Na_max_scaled def
+R4194:4196 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4190:4192 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4176:4189 MembraneDynamics <> g_K_max_scaled def
+R4215:4229 MembraneDynamics <> g_Na_max_scaled def
+R4232:4245 MembraneDynamics <> g_K_max_scaled def
+prf 4306:4336 <> sodium_reversal_above_potassium
+R4356:4358 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4342:4355 MembraneDynamics <> E_Na_mV_scaled def
+R4359:4371 MembraneDynamics <> E_K_mV_scaled def
+R4388:4401 MembraneDynamics <> E_Na_mV_scaled def
+R4404:4416 MembraneDynamics <> E_K_mV_scaled def
+prf 4474:4501 <> leak_conductance_nonnegative
+R4517:4520 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R4507:4516 MembraneDynamics <> g_L_scaled def
+R4538:4547 MembraneDynamics <> g_L_scaled def
+prf 4608:4627 <> capacitance_positive
+R4643:4645 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4633:4642 MembraneDynamics <> C_m_scaled def
+R4663:4672 MembraneDynamics <> C_m_scaled def
+prf 4726:4740 <> g_Na_max_is_120
+R4759:4761 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4744:4758 MembraneDynamics <> g_Na_max_scaled def
+R4781:4795 MembraneDynamics <> g_Na_max_scaled def
+prf 4855:4867 <> g_K_max_is_36
+R4885:4887 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4871:4884 MembraneDynamics <> g_K_max_scaled def
+R4906:4919 MembraneDynamics <> g_K_max_scaled def
+prf 4974:4981 <> g_L_is_0
+R4995:4997 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4985:4994 MembraneDynamics <> g_L_scaled def
+R5015:5024 MembraneDynamics <> g_L_scaled def
+prf 5085:5096 <> E_Na_is_50mV
+R5114:5116 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5100:5113 MembraneDynamics <> E_Na_mV_scaled def
+R5135:5148 MembraneDynamics <> E_Na_mV_scaled def
+prf 5208:5224 <> E_K_is_minus_77mV
+R5241:5243 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5228:5240 MembraneDynamics <> E_K_mV_scaled def
+R5263:5275 MembraneDynamics <> E_K_mV_scaled def
+prf 5336:5352 <> E_L_is_minus_54mV
+R5369:5371 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5356:5368 MembraneDynamics <> E_L_mV_scaled def
+R5391:5403 MembraneDynamics <> E_L_mV_scaled def
+prf 5468:5475 <> C_m_is_1
+R5489:5491 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5479:5488 MembraneDynamics <> C_m_scaled def
+R5509:5518 MembraneDynamics <> C_m_scaled def
+prf 5579:5599 <> total_max_conductance
+R5637:5639 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5620:5622 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5605:5619 MembraneDynamics <> g_Na_max_scaled def
+R5623:5636 MembraneDynamics <> g_K_max_scaled def
+R5659:5673 MembraneDynamics <> g_Na_max_scaled def
+R5676:5689 MembraneDynamics <> g_K_max_scaled def
+prf 5747:5759 <> reversal_span
+R5795:5797 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5779:5781 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R5765:5778 MembraneDynamics <> E_Na_mV_scaled def
+R5782:5794 MembraneDynamics <> E_K_mV_scaled def
+R5817:5830 MembraneDynamics <> E_Na_mV_scaled def
+R5833:5845 MembraneDynamics <> E_K_mV_scaled def
+prf 5887:5903 <> sodium_above_leak
+R5923:5925 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5909:5922 MembraneDynamics <> E_Na_mV_scaled def
+R5926:5938 MembraneDynamics <> E_L_mV_scaled def
+R5955:5968 MembraneDynamics <> E_Na_mV_scaled def
+R5971:5983 MembraneDynamics <> E_L_mV_scaled def
+prf 6024:6043 <> leak_above_potassium
+R6062:6064 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6049:6061 MembraneDynamics <> E_L_mV_scaled def
+R6065:6077 MembraneDynamics <> E_K_mV_scaled def
+R6094:6106 MembraneDynamics <> E_L_mV_scaled def
+R6109:6121 MembraneDynamics <> E_K_mV_scaled def
+prf 6193:6226 <> three_consecutive_membrane_opcodes
+R6258:6263 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6252:6254 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6232:6251 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+R6290:6295 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6284:6286 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6264:6283 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R6318:6320 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6296:6317 MembraneDynamics <> OP_SOMATIC_INTEGRATION def
+R6349:6368 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+R6400:6419 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R6444:6465 MembraneDynamics <> OP_SOMATIC_INTEGRATION def
+prf 6533:6547 <> sodium_dominant
+R6568:6570 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6553:6567 MembraneDynamics <> g_Na_max_scaled def
+R6571:6584 MembraneDynamics <> g_K_max_scaled def
+R6601:6615 MembraneDynamics <> g_Na_max_scaled def
+R6618:6631 MembraneDynamics <> g_K_max_scaled def
+prf 6697:6710 <> sodium_3x_plus
+R6719:6721 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6728:6730 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6724:6726 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6793:6814 <> all_values_physiologic
+R6827:6832 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6823:6825 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6839:6844 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6835:6837 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6851:6856 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6846:6849 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R6858:6860 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6887:6901 MembraneDynamics <> g_Na_max_scaled def
+R6925:6938 MembraneDynamics <> g_K_max_scaled def
+R6962:6971 MembraneDynamics <> g_L_scaled def
+R6988:6997 MembraneDynamics <> C_m_scaled def
+prf 7051:7063 <> area_positive
+R7078:7080 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7069:7077 MembraneDynamics <> A_mem_cm2 def
+R7098:7106 MembraneDynamics <> A_mem_cm2 def
+prf 7419:7445 <> membrane_dynamics_composite
+R7477:7482 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7471:7473 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7451:7470 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R7504:7509 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7498:7500 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7483:7497 MembraneDynamics <> g_Na_max_scaled def
+R7529:7534 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7524:7526 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7510:7523 MembraneDynamics <> g_K_max_scaled def
+R7549:7554 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7545:7547 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7535:7544 MembraneDynamics <> g_L_scaled def
+R7574:7579 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7569:7571 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7555:7568 MembraneDynamics <> E_Na_mV_scaled def
+R7599:7604 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7593:7595 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7580:7592 MembraneDynamics <> E_K_mV_scaled def
+R7624:7629 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7618:7620 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7605:7617 MembraneDynamics <> E_L_mV_scaled def
+R7644:7649 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7640:7642 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7630:7639 MembraneDynamics <> C_m_scaled def
+R7682:7687 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7665:7667 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7650:7664 MembraneDynamics <> g_Na_max_scaled def
+R7668:7681 MembraneDynamics <> g_K_max_scaled def
+R7718:7723 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7702:7704 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7688:7701 MembraneDynamics <> E_Na_mV_scaled def
+R7705:7717 MembraneDynamics <> E_K_mV_scaled def
+R7739:7744 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7734:7737 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R7724:7733 MembraneDynamics <> g_L_scaled def
+R7759:7764 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7755:7757 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7745:7754 MembraneDynamics <> C_m_scaled def
+R7785:7787 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7765:7784 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R7808:7810 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7788:7807 MembraneDynamics <> OP_AXONAL_CONDUCTION def
+R7837:7856 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R7887:7901 MembraneDynamics <> g_Na_max_is_120 thm
+R7887:7901 MembraneDynamics <> g_Na_max_is_120 thm
+R7919:7931 MembraneDynamics <> g_K_max_is_36 thm
+R7919:7931 MembraneDynamics <> g_K_max_is_36 thm
+R7949:7956 MembraneDynamics <> g_L_is_0 thm
+R7949:7956 MembraneDynamics <> g_L_is_0 thm
+R7974:7985 MembraneDynamics <> E_Na_is_50mV thm
+R7974:7985 MembraneDynamics <> E_Na_is_50mV thm
+R8003:8019 MembraneDynamics <> E_K_is_minus_77mV thm
+R8003:8019 MembraneDynamics <> E_K_is_minus_77mV thm
+R8037:8053 MembraneDynamics <> E_L_is_minus_54mV thm
+R8037:8053 MembraneDynamics <> E_L_is_minus_54mV thm
+R8071:8078 MembraneDynamics <> C_m_is_1 thm
+R8071:8078 MembraneDynamics <> C_m_is_1 thm
+R8096:8110 MembraneDynamics <> sodium_dominant thm
+R8096:8110 MembraneDynamics <> sodium_dominant thm
+R8128:8158 MembraneDynamics <> sodium_reversal_above_potassium thm
+R8128:8158 MembraneDynamics <> sodium_reversal_above_potassium thm
+R8176:8203 MembraneDynamics <> leak_conductance_nonnegative thm
+R8176:8203 MembraneDynamics <> leak_conductance_nonnegative thm
+R8221:8240 MembraneDynamics <> capacitance_positive thm
+R8221:8240 MembraneDynamics <> capacitance_positive thm
+R8252:8271 MembraneDynamics <> OP_MEMBRANE_DYNAMICS def
+R8274:8293 MembraneDynamics <> OP_AXONAL_CONDUCTION def

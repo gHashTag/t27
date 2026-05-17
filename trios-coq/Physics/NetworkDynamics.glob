@@ -1,0 +1,217 @@
+DIGEST 01c9c363a76dba04b1e197906da1f575
+FNetworkDynamics
+R1300:1316 Stdlib.ZArith.ZArith <> <> lib
+R1334:1350 Stdlib.micromega.Lia <> <> lib
+def 1617:1635 <> OP_NETWORK_DYNAMICS
+def 1720:1741 <> OP_SOMATIC_INTEGRATION
+def 1782:1802 <> OP_NETWORK_PLASTICITY
+def 1873:1888 <> SACRED_BANK_BASE
+def 1927:1941 <> SACRED_BANK_END
+prf 2207:2244 <> network_dynamics_distinct_from_somatic
+R2269:2272 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2250:2268 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2273:2294 NetworkDynamics <> OP_SOMATIC_INTEGRATION def
+R2311:2329 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2332:2353 NetworkDynamics <> OP_SOMATIC_INTEGRATION def
+prf 2373:2408 <> network_dynamics_adjacent_to_somatic
+R2433:2435 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2414:2432 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2458:2460 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2436:2457 NetworkDynamics <> OP_SOMATIC_INTEGRATION def
+R2478:2496 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2499:2520 NetworkDynamics <> OP_SOMATIC_INTEGRATION def
+prf 2540:2567 <> network_dynamics_in_mid_bank
+R2612:2615 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2589:2592 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2573:2588 NetworkDynamics <> SACRED_BANK_BASE def
+R2593:2611 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2635:2638 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2616:2634 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2639:2653 NetworkDynamics <> SACRED_BANK_END def
+R2670:2685 NetworkDynamics <> SACRED_BANK_BASE def
+R2688:2706 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R2709:2723 NetworkDynamics <> SACRED_BANK_END def
+def 3000:3015 <> N_neurons_scaled
+R3019:3019 Corelib.Numbers.BinNums <> Z ind
+def 3120:3132 <> p_connect_num
+R3136:3136 Corelib.Numbers.BinNums <> Z ind
+def 3175:3187 <> p_connect_den
+R3191:3191 Corelib.Numbers.BinNums <> Z ind
+def 3262:3273 <> N_syn_scaled
+R3277:3277 Corelib.Numbers.BinNums <> Z ind
+def 3379:3388 <> tau_net_ms
+R3392:3392 Corelib.Numbers.BinNums <> Z ind
+def 3464:3471 <> f_net_Hz
+R3475:3475 Corelib.Numbers.BinNums <> Z ind
+prf 3784:3800 <> N_neurons_is_1000
+R3820:3822 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3804:3819 NetworkDynamics <> N_neurons_scaled def
+R3843:3858 NetworkDynamics <> N_neurons_scaled def
+prf 3925:3941 <> p_connect_is_0pt1
+R3963:3965 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3958:3960 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R3945:3957 NetworkDynamics <> p_connect_num def
+R3966:3978 NetworkDynamics <> p_connect_den def
+R3995:4007 NetworkDynamics <> p_connect_num def
+R4010:4022 NetworkDynamics <> p_connect_den def
+prf 4094:4112 <> sparse_connectivity
+R4130:4132 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4118:4129 NetworkDynamics <> N_syn_scaled def
+R4149:4151 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4133:4148 NetworkDynamics <> N_neurons_scaled def
+R4152:4167 NetworkDynamics <> N_neurons_scaled def
+R4184:4195 NetworkDynamics <> N_syn_scaled def
+R4198:4213 NetworkDynamics <> N_neurons_scaled def
+prf 4255:4270 <> tau_net_positive
+R4284:4286 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4274:4283 NetworkDynamics <> tau_net_ms def
+R4304:4313 NetworkDynamics <> tau_net_ms def
+prf 4365:4385 <> p_connect_num_is_1000
+R4402:4404 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4389:4401 NetworkDynamics <> p_connect_num def
+R4425:4437 NetworkDynamics <> p_connect_num def
+prf 4498:4519 <> p_connect_den_is_10000
+R4536:4538 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4523:4535 NetworkDynamics <> p_connect_den def
+R4560:4572 NetworkDynamics <> p_connect_den def
+prf 4625:4638 <> N_syn_is_99900
+R4654:4656 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4642:4653 NetworkDynamics <> N_syn_scaled def
+R4678:4689 NetworkDynamics <> N_syn_scaled def
+prf 4744:4758 <> tau_net_is_50ms
+R4772:4774 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4762:4771 NetworkDynamics <> tau_net_ms def
+R4793:4802 NetworkDynamics <> tau_net_ms def
+prf 4855:4867 <> f_net_is_20Hz
+R4879:4881 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4871:4878 NetworkDynamics <> f_net_Hz def
+R4900:4907 NetworkDynamics <> f_net_Hz def
+prf 4969:4990 <> frequency_time_product
+R5017:5019 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5004:5006 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4996:5003 NetworkDynamics <> f_net_Hz def
+R5007:5016 NetworkDynamics <> tau_net_ms def
+R5040:5047 NetworkDynamics <> f_net_Hz def
+R5050:5059 NetworkDynamics <> tau_net_ms def
+prf 5115:5133 <> neurons_power_of_10
+R5143:5145 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5148:5150 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 5213:5226 <> synapse_approx
+R5244:5246 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5232:5243 NetworkDynamics <> N_syn_scaled def
+R5250:5252 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5272:5283 NetworkDynamics <> N_syn_scaled def
+prf 5347:5378 <> four_consecutive_network_opcodes
+R5393:5398 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5387:5389 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5408:5413 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5402:5404 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5423:5428 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5417:5419 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5432:5434 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5571:5589 <> network_in_mid_bank
+R5621:5626 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5598:5601 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5602:5620 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R5646:5649 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5627:5645 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R5669:5687 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+prf 5731:5742 <> sparse_ratio
+R5753:5755 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+prf 5820:5838 <> all_values_positive
+R5852:5857 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5848:5850 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5866:5871 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5862:5864 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5881:5886 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5877:5879 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5896:5901 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5892:5894 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5908:5913 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5904:5906 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5916:5918 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5945:5960 NetworkDynamics <> N_neurons_scaled def
+R5984:5996 NetworkDynamics <> p_connect_num def
+R6020:6032 NetworkDynamics <> p_connect_den def
+R6056:6067 NetworkDynamics <> N_syn_scaled def
+R6091:6100 NetworkDynamics <> tau_net_ms def
+R6117:6124 NetworkDynamics <> f_net_Hz def
+prf 6167:6185 <> density_less_than_1
+R6196:6198 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6203:6205 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6266:6283 <> oscillation_period
+R6293:6295 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6298:6300 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6360:6378 <> synapses_per_neuron
+R6389:6391 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6395:6397 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6460:6473 <> sparsity_ratio
+R6483:6485 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+prf 6810:6835 <> network_dynamics_composite
+R6866:6871 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6860:6862 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6841:6859 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R6895:6900 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6888:6890 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6872:6887 NetworkDynamics <> N_neurons_scaled def
+R6921:6926 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6914:6916 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6901:6913 NetworkDynamics <> p_connect_num def
+R6948:6953 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6940:6942 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6927:6939 NetworkDynamics <> p_connect_den def
+R6974:6979 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6966:6968 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6954:6965 NetworkDynamics <> N_syn_scaled def
+R6995:7000 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6990:6992 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6980:6989 NetworkDynamics <> tau_net_ms def
+R7014:7019 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7009:7011 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7001:7008 NetworkDynamics <> f_net_Hz def
+R7054:7059 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7038:7040 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7033:7035 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7020:7032 NetworkDynamics <> p_connect_num def
+R7041:7053 NetworkDynamics <> p_connect_den def
+R7110:7115 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7072:7074 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7060:7071 NetworkDynamics <> N_syn_scaled def
+R7091:7093 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7075:7090 NetworkDynamics <> N_neurons_scaled def
+R7094:7109 NetworkDynamics <> N_neurons_scaled def
+R7130:7135 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7126:7128 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7116:7125 NetworkDynamics <> tau_net_ms def
+R7164:7169 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7157:7159 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7144:7146 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7136:7143 NetworkDynamics <> f_net_Hz def
+R7147:7156 NetworkDynamics <> tau_net_ms def
+R7189:7191 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7170:7188 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R7214:7216 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7192:7213 NetworkDynamics <> OP_SOMATIC_INTEGRATION def
+R7243:7261 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R7292:7308 NetworkDynamics <> N_neurons_is_1000 thm
+R7292:7308 NetworkDynamics <> N_neurons_is_1000 thm
+R7326:7346 NetworkDynamics <> p_connect_num_is_1000 thm
+R7326:7346 NetworkDynamics <> p_connect_num_is_1000 thm
+R7364:7385 NetworkDynamics <> p_connect_den_is_10000 thm
+R7364:7385 NetworkDynamics <> p_connect_den_is_10000 thm
+R7403:7416 NetworkDynamics <> N_syn_is_99900 thm
+R7403:7416 NetworkDynamics <> N_syn_is_99900 thm
+R7434:7448 NetworkDynamics <> tau_net_is_50ms thm
+R7434:7448 NetworkDynamics <> tau_net_is_50ms thm
+R7466:7478 NetworkDynamics <> f_net_is_20Hz thm
+R7466:7478 NetworkDynamics <> f_net_is_20Hz thm
+R7496:7512 NetworkDynamics <> p_connect_is_0pt1 thm
+R7496:7512 NetworkDynamics <> p_connect_is_0pt1 thm
+R7530:7548 NetworkDynamics <> sparse_connectivity thm
+R7530:7548 NetworkDynamics <> sparse_connectivity thm
+R7566:7581 NetworkDynamics <> tau_net_positive thm
+R7566:7581 NetworkDynamics <> tau_net_positive thm
+R7599:7620 NetworkDynamics <> frequency_time_product thm
+R7599:7620 NetworkDynamics <> frequency_time_product thm
+R7632:7650 NetworkDynamics <> OP_NETWORK_DYNAMICS def
+R7653:7674 NetworkDynamics <> OP_SOMATIC_INTEGRATION def

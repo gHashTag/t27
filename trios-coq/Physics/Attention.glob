@@ -1,0 +1,233 @@
+DIGEST ba55e34bd2a4f6fa5130d5d08e4d5d26
+FAttention
+R1246:1262 Stdlib.ZArith.ZArith <> <> lib
+R1280:1296 Stdlib.micromega.Lia <> <> lib
+def 1563:1574 <> OP_ATTENTION
+def 1652:1669 <> OP_SYNCHRONIZATION
+def 1710:1726 <> OP_WORKING_MEMORY
+def 1797:1812 <> SACRED_BANK_BASE
+def 1851:1865 <> SACRED_BANK_END
+prf 2131:2158 <> attention_distinct_from_sync
+R2176:2179 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2164:2175 Attention <> OP_ATTENTION def
+R2180:2197 Attention <> OP_SYNCHRONIZATION def
+R2214:2225 Attention <> OP_ATTENTION def
+R2228:2245 Attention <> OP_SYNCHRONIZATION def
+prf 2265:2290 <> attention_adjacent_to_sync
+R2308:2310 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2296:2307 Attention <> OP_ATTENTION def
+R2329:2331 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2311:2328 Attention <> OP_SYNCHRONIZATION def
+R2349:2360 Attention <> OP_ATTENTION def
+R2363:2380 Attention <> OP_SYNCHRONIZATION def
+prf 2400:2420 <> attention_in_mid_bank
+R2458:2461 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2442:2445 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2426:2441 Attention <> SACRED_BANK_BASE def
+R2446:2457 Attention <> OP_ATTENTION def
+R2474:2477 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2462:2473 Attention <> OP_ATTENTION def
+R2478:2492 Attention <> SACRED_BANK_END def
+R2509:2524 Attention <> SACRED_BANK_BASE def
+R2527:2538 Attention <> OP_ATTENTION def
+R2541:2555 Attention <> SACRED_BANK_END def
+def 2860:2872 <> alpha_att_num
+R2876:2876 Corelib.Numbers.BinNums <> Z ind
+def 2914:2926 <> alpha_att_den
+R2930:2930 Corelib.Numbers.BinNums <> Z ind
+def 3016:3025 <> tau_att_ms
+R3029:3029 Corelib.Numbers.BinNums <> Z ind
+def 3103:3116 <> n_focus_scaled
+R3120:3120 Corelib.Numbers.BinNums <> Z ind
+def 3196:3210 <> capacity_scaled
+R3214:3214 Corelib.Numbers.BinNums <> Z ind
+def 3301:3310 <> t_shift_ms
+R3314:3314 Corelib.Numbers.BinNums <> Z ind
+def 3402:3413 <> boost_scaled
+R3417:3417 Corelib.Numbers.BinNums <> Z ind
+prf 3721:3737 <> alpha_att_is_half
+R3756:3758 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3743:3755 Attention <> alpha_att_den def
+R3772:3774 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R3759:3771 Attention <> alpha_att_num def
+R3792:3804 Attention <> alpha_att_den def
+R3807:3819 Attention <> alpha_att_num def
+prf 3861:3876 <> tau_att_positive
+R3890:3892 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3880:3889 Attention <> tau_att_ms def
+R3910:3919 Attention <> tau_att_ms def
+prf 3968:3991 <> focus_less_than_capacity
+R4011:4013 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3997:4010 Attention <> n_focus_scaled def
+R4014:4028 Attention <> capacity_scaled def
+R4045:4058 Attention <> n_focus_scaled def
+R4061:4075 Attention <> capacity_scaled def
+prf 4145:4164 <> capacity_physiologic
+R4185:4187 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4170:4184 Attention <> capacity_scaled def
+R4205:4219 Attention <> capacity_scaled def
+prf 4277:4295 <> alpha_att_num_is_50
+R4312:4314 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4299:4311 Attention <> alpha_att_num def
+R4333:4345 Attention <> alpha_att_num def
+prf 4404:4423 <> alpha_att_den_is_100
+R4440:4442 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4427:4439 Attention <> alpha_att_den def
+R4462:4474 Attention <> alpha_att_den def
+prf 4530:4545 <> tau_att_is_100ms
+R4559:4561 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4549:4558 Attention <> tau_att_ms def
+R4581:4590 Attention <> tau_att_ms def
+prf 4641:4652 <> n_focus_is_5
+R4670:4672 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4656:4669 Attention <> n_focus_scaled def
+R4690:4703 Attention <> n_focus_scaled def
+prf 4755:4767 <> capacity_is_7
+R4786:4788 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4771:4785 Attention <> capacity_scaled def
+R4806:4820 Attention <> capacity_scaled def
+prf 4877:4892 <> t_shift_is_200ms
+R4906:4908 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4896:4905 Attention <> t_shift_ms def
+R4928:4937 Attention <> t_shift_ms def
+prf 5002:5013 <> boost_is_150
+R5029:5031 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5017:5028 Attention <> boost_scaled def
+R5051:5062 Attention <> boost_scaled def
+prf 5123:5134 <> shift_2x_tau
+R5150:5152 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5140:5149 Attention <> t_shift_ms def
+R5163:5165 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5153:5162 Attention <> tau_att_ms def
+R5183:5192 Attention <> t_shift_ms def
+R5195:5204 Attention <> tau_att_ms def
+prf 5268:5301 <> nine_consecutive_attention_opcodes
+R5316:5321 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5310:5312 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5331:5336 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5325:5327 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5346:5351 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5340:5342 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5361:5366 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5355:5357 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5376:5381 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5370:5372 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5391:5396 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5385:5387 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5406:5411 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5400:5402 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5421:5426 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5415:5417 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5430:5432 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5681:5705 <> attention_mid_bank_bounds
+R5730:5735 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5714:5717 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5718:5729 Attention <> OP_ATTENTION def
+R5748:5751 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5736:5747 Attention <> OP_ATTENTION def
+R5771:5782 Attention <> OP_ATTENTION def
+prf 5833:5851 <> all_values_positive
+R5863:5868 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5859:5861 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5876:5881 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5872:5874 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5889:5894 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5885:5887 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5900:5905 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5896:5898 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5911:5916 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5907:5909 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5924:5929 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5920:5922 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5933:5935 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5962:5974 Attention <> alpha_att_num def
+R5998:6010 Attention <> alpha_att_den def
+R6034:6043 Attention <> tau_att_ms def
+R6067:6080 Attention <> n_focus_scaled def
+R6104:6118 Attention <> capacity_scaled def
+R6142:6151 Attention <> t_shift_ms def
+R6168:6179 Attention <> boost_scaled def
+prf 6231:6250 <> focus_capacity_ratio
+R6257:6259 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+prf 6312:6324 <> boost_scaling
+R6333:6335 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6338:6340 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6400:6419 <> capacity_minus_focus
+R6430:6432 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6426:6428 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+prf 6488:6503 <> time_progression
+R6512:6514 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+prf 6566:6575 <> alpha_half
+R6584:6586 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6589:6591 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6912:6930 <> attention_composite
+R6954:6959 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6948:6950 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6936:6947 Attention <> OP_ATTENTION def
+R6978:6983 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6973:6975 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6960:6972 Attention <> alpha_att_num def
+R7003:7008 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6997:6999 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6984:6996 Attention <> alpha_att_den def
+R7025:7030 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7019:7021 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7009:7018 Attention <> tau_att_ms def
+R7049:7054 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7045:7047 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7031:7044 Attention <> n_focus_scaled def
+R7074:7079 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7070:7072 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7055:7069 Attention <> capacity_scaled def
+R7096:7101 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7090:7092 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7080:7089 Attention <> t_shift_ms def
+R7120:7125 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7114:7116 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7102:7113 Attention <> boost_scaled def
+R7140:7145 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7136:7138 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7126:7135 Attention <> tau_att_ms def
+R7178:7183 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7160:7162 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7146:7159 Attention <> n_focus_scaled def
+R7163:7177 Attention <> capacity_scaled def
+R7217:7222 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7197:7199 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7184:7196 Attention <> alpha_att_den def
+R7213:7215 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7200:7212 Attention <> alpha_att_num def
+R7250:7255 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7233:7235 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7223:7232 Attention <> t_shift_ms def
+R7246:7248 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7236:7245 Attention <> tau_att_ms def
+R7268:7270 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7256:7267 Attention <> OP_ATTENTION def
+R7289:7291 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7271:7288 Attention <> OP_SYNCHRONIZATION def
+R7318:7329 Attention <> OP_ATTENTION def
+R7360:7378 Attention <> alpha_att_num_is_50 thm
+R7360:7378 Attention <> alpha_att_num_is_50 thm
+R7396:7415 Attention <> alpha_att_den_is_100 thm
+R7396:7415 Attention <> alpha_att_den_is_100 thm
+R7433:7448 Attention <> tau_att_is_100ms thm
+R7433:7448 Attention <> tau_att_is_100ms thm
+R7466:7477 Attention <> n_focus_is_5 thm
+R7466:7477 Attention <> n_focus_is_5 thm
+R7495:7507 Attention <> capacity_is_7 thm
+R7495:7507 Attention <> capacity_is_7 thm
+R7525:7540 Attention <> t_shift_is_200ms thm
+R7525:7540 Attention <> t_shift_is_200ms thm
+R7558:7569 Attention <> boost_is_150 thm
+R7558:7569 Attention <> boost_is_150 thm
+R7587:7602 Attention <> tau_att_positive thm
+R7587:7602 Attention <> tau_att_positive thm
+R7620:7643 Attention <> focus_less_than_capacity thm
+R7620:7643 Attention <> focus_less_than_capacity thm
+R7661:7677 Attention <> alpha_att_is_half thm
+R7661:7677 Attention <> alpha_att_is_half thm
+R7695:7706 Attention <> shift_2x_tau thm
+R7695:7706 Attention <> shift_2x_tau thm
+R7718:7729 Attention <> OP_ATTENTION def
+R7732:7749 Attention <> OP_SYNCHRONIZATION def

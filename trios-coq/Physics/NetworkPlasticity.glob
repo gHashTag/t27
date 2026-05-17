@@ -1,0 +1,239 @@
+DIGEST 9f1f20332ef3192a474a4d4e82798c3e
+FNetworkPlasticity
+R1286:1302 Stdlib.ZArith.ZArith <> <> lib
+R1320:1336 Stdlib.micromega.Lia <> <> lib
+def 1603:1623 <> OP_NETWORK_PLASTICITY
+def 1710:1728 <> OP_NETWORK_DYNAMICS
+def 1769:1786 <> OP_HOMEOSTATIC_REG
+def 1857:1872 <> SACRED_BANK_BASE
+def 1911:1925 <> SACRED_BANK_END
+prf 2191:2231 <> network_plasticity_distinct_from_dynamics
+R2258:2261 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2237:2257 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2262:2280 NetworkPlasticity <> OP_NETWORK_DYNAMICS def
+R2297:2317 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2320:2338 NetworkPlasticity <> OP_NETWORK_DYNAMICS def
+prf 2358:2396 <> network_plasticity_adjacent_to_dynamics
+R2423:2425 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2402:2422 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2445:2447 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2426:2444 NetworkPlasticity <> OP_NETWORK_DYNAMICS def
+R2465:2485 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2488:2506 NetworkPlasticity <> OP_NETWORK_DYNAMICS def
+prf 2526:2555 <> network_plasticity_in_mid_bank
+R2602:2605 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2577:2580 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2561:2576 NetworkPlasticity <> SACRED_BANK_BASE def
+R2581:2601 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2627:2630 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2606:2626 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2631:2645 NetworkPlasticity <> SACRED_BANK_END def
+R2662:2677 NetworkPlasticity <> SACRED_BANK_BASE def
+R2680:2700 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R2703:2717 NetworkPlasticity <> SACRED_BANK_END def
+def 3017:3023 <> eta_num
+R3027:3027 Corelib.Numbers.BinNums <> Z ind
+def 3065:3071 <> eta_den
+R3075:3075 Corelib.Numbers.BinNums <> Z ind
+def 3153:3162 <> w_init_bps
+R3166:3166 Corelib.Numbers.BinNums <> Z ind
+def 3215:3226 <> w_target_bps
+R3230:3230 Corelib.Numbers.BinNums <> Z ind
+def 3277:3285 <> w_min_bps
+R3289:3289 Corelib.Numbers.BinNums <> Z ind
+def 3332:3340 <> w_max_bps
+R3344:3344 Corelib.Numbers.BinNums <> Z ind
+def 3426:3435 <> t_homeo_ms
+R3439:3439 Corelib.Numbers.BinNums <> Z ind
+def 3507:3518 <> tau_decay_ms
+R3522:3522 Corelib.Numbers.BinNums <> Z ind
+prf 3817:3828 <> eta_is_0pt01
+R3839:3841 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3832:3838 NetworkPlasticity <> eta_den def
+R3849:3851 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R3842:3848 NetworkPlasticity <> eta_num def
+R3871:3877 NetworkPlasticity <> eta_den def
+R3880:3886 NetworkPlasticity <> eta_num def
+prf 3934:3956 <> w_init_less_than_target
+R3972:3974 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3962:3971 NetworkPlasticity <> w_init_bps def
+R3975:3986 NetworkPlasticity <> w_target_bps def
+R4003:4012 NetworkPlasticity <> w_init_bps def
+R4015:4026 NetworkPlasticity <> w_target_bps def
+prf 4068:4083 <> t_homeo_positive
+R4097:4099 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4087:4096 NetworkPlasticity <> t_homeo_ms def
+R4117:4126 NetworkPlasticity <> t_homeo_ms def
+prf 4180:4190 <> eta_scaling
+R4207:4209 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4201:4203 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4194:4200 NetworkPlasticity <> eta_num def
+R4210:4216 NetworkPlasticity <> eta_den def
+R4233:4239 NetworkPlasticity <> eta_num def
+R4242:4248 NetworkPlasticity <> eta_den def
+prf 4291:4302 <> eta_num_is_1
+R4313:4315 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4306:4312 NetworkPlasticity <> eta_num def
+R4333:4339 NetworkPlasticity <> eta_num def
+prf 4392:4405 <> eta_den_is_100
+R4416:4418 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4409:4415 NetworkPlasticity <> eta_den def
+R4438:4444 NetworkPlasticity <> eta_den def
+prf 4497:4510 <> w_init_is_5000
+R4524:4526 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4514:4523 NetworkPlasticity <> w_init_bps def
+R4547:4556 NetworkPlasticity <> w_init_bps def
+prf 4612:4628 <> w_target_is_10000
+R4644:4646 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4632:4643 NetworkPlasticity <> w_target_bps def
+R4668:4679 NetworkPlasticity <> w_target_bps def
+prf 4728:4737 <> w_min_is_0
+R4750:4752 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4741:4749 NetworkPlasticity <> w_min_bps def
+R4770:4778 NetworkPlasticity <> w_min_bps def
+prf 4832:4845 <> w_max_is_10000
+R4858:4860 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4849:4857 NetworkPlasticity <> w_max_bps def
+R4882:4890 NetworkPlasticity <> w_max_bps def
+prf 4948:4964 <> t_homeo_is_1000ms
+R4978:4980 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4968:4977 NetworkPlasticity <> t_homeo_ms def
+R5001:5010 NetworkPlasticity <> t_homeo_ms def
+prf 5069:5086 <> tau_decay_is_500ms
+R5102:5104 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5090:5101 NetworkPlasticity <> tau_decay_ms def
+R5124:5135 NetworkPlasticity <> tau_decay_ms def
+prf 5198:5211 <> homeo_2x_decay
+R5227:5229 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5217:5226 NetworkPlasticity <> t_homeo_ms def
+R5242:5244 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5230:5241 NetworkPlasticity <> tau_decay_ms def
+R5262:5271 NetworkPlasticity <> t_homeo_ms def
+R5274:5285 NetworkPlasticity <> tau_decay_ms def
+prf 5349:5383 <> five_consecutive_plasticity_opcodes
+R5398:5403 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5392:5394 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5413:5418 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5407:5409 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5428:5433 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5422:5424 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5443:5448 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5437:5439 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5452:5454 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5624:5645 <> plasticity_in_mid_bank
+R5679:5684 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5654:5657 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5658:5678 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R5706:5709 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5685:5705 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R5729:5749 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+prf 5800:5816 <> weight_range_is_1
+R5843:5845 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5831:5833 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R5822:5830 NetworkPlasticity <> w_max_bps def
+R5834:5842 NetworkPlasticity <> w_min_bps def
+R5867:5875 NetworkPlasticity <> w_max_bps def
+R5878:5886 NetworkPlasticity <> w_min_bps def
+prf 5950:5964 <> values_positive
+R5975:5980 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5971:5973 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5988:5993 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5984:5986 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6002:6007 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5998:6000 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6017:6022 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6013:6015 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6031:6036 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6027:6029 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6040:6042 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6069:6075 NetworkPlasticity <> eta_num def
+R6099:6105 NetworkPlasticity <> eta_den def
+R6129:6138 NetworkPlasticity <> w_init_bps def
+R6162:6170 NetworkPlasticity <> w_max_bps def
+R6194:6203 NetworkPlasticity <> t_homeo_ms def
+R6220:6231 NetworkPlasticity <> tau_decay_ms def
+prf 6280:6293 <> learning_steps
+R6302:6304 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6307:6309 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6366:6381 <> target_reachable
+R6392:6394 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6399:6401 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6452:6462 <> decay_ratio
+R6472:6474 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6478:6480 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6801:6828 <> network_plasticity_composite
+R6861:6866 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6855:6857 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6834:6854 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R6878:6883 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6874:6876 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6867:6873 NetworkPlasticity <> eta_num def
+R6897:6902 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6891:6893 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6884:6890 NetworkPlasticity <> eta_den def
+R6920:6925 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6913:6915 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6903:6912 NetworkPlasticity <> w_init_bps def
+R6946:6951 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6938:6940 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6926:6937 NetworkPlasticity <> w_target_bps def
+R6965:6970 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6961:6963 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6952:6960 NetworkPlasticity <> w_min_bps def
+R6988:6993 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6980:6982 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6971:6979 NetworkPlasticity <> w_max_bps def
+R7011:7016 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7004:7006 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6994:7003 NetworkPlasticity <> t_homeo_ms def
+R7035:7040 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7029:7031 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7017:7028 NetworkPlasticity <> tau_decay_ms def
+R7064:7069 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7054:7056 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7048:7050 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7041:7047 NetworkPlasticity <> eta_num def
+R7057:7063 NetworkPlasticity <> eta_den def
+R7095:7100 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7080:7082 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7070:7079 NetworkPlasticity <> w_init_bps def
+R7083:7094 NetworkPlasticity <> w_target_bps def
+R7115:7120 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7111:7113 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7101:7110 NetworkPlasticity <> t_homeo_ms def
+R7150:7155 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7131:7133 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7121:7130 NetworkPlasticity <> t_homeo_ms def
+R7146:7148 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7134:7145 NetworkPlasticity <> tau_decay_ms def
+R7177:7179 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7156:7176 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R7199:7201 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7180:7198 NetworkPlasticity <> OP_NETWORK_DYNAMICS def
+R7228:7248 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R7279:7290 NetworkPlasticity <> eta_num_is_1 thm
+R7279:7290 NetworkPlasticity <> eta_num_is_1 thm
+R7308:7321 NetworkPlasticity <> eta_den_is_100 thm
+R7308:7321 NetworkPlasticity <> eta_den_is_100 thm
+R7339:7352 NetworkPlasticity <> w_init_is_5000 thm
+R7339:7352 NetworkPlasticity <> w_init_is_5000 thm
+R7370:7386 NetworkPlasticity <> w_target_is_10000 thm
+R7370:7386 NetworkPlasticity <> w_target_is_10000 thm
+R7404:7413 NetworkPlasticity <> w_min_is_0 thm
+R7404:7413 NetworkPlasticity <> w_min_is_0 thm
+R7431:7444 NetworkPlasticity <> w_max_is_10000 thm
+R7431:7444 NetworkPlasticity <> w_max_is_10000 thm
+R7462:7478 NetworkPlasticity <> t_homeo_is_1000ms thm
+R7462:7478 NetworkPlasticity <> t_homeo_is_1000ms thm
+R7496:7513 NetworkPlasticity <> tau_decay_is_500ms thm
+R7496:7513 NetworkPlasticity <> tau_decay_is_500ms thm
+R7531:7541 NetworkPlasticity <> eta_scaling thm
+R7531:7541 NetworkPlasticity <> eta_scaling thm
+R7559:7581 NetworkPlasticity <> w_init_less_than_target thm
+R7559:7581 NetworkPlasticity <> w_init_less_than_target thm
+R7599:7614 NetworkPlasticity <> t_homeo_positive thm
+R7599:7614 NetworkPlasticity <> t_homeo_positive thm
+R7632:7645 NetworkPlasticity <> homeo_2x_decay thm
+R7632:7645 NetworkPlasticity <> homeo_2x_decay thm
+R7657:7677 NetworkPlasticity <> OP_NETWORK_PLASTICITY def
+R7680:7698 NetworkPlasticity <> OP_NETWORK_DYNAMICS def

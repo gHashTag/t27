@@ -1,0 +1,218 @@
+DIGEST d8f621f214e6c28a7f1b481e9e20f581
+FSomaticIntegration
+R1386:1402 Stdlib.ZArith.ZArith <> <> lib
+R1420:1436 Stdlib.micromega.Lia <> <> lib
+def 1703:1724 <> OP_SOMATIC_INTEGRATION
+def 1812:1831 <> OP_MEMBRANE_DYNAMICS
+def 1872:1890 <> OP_NETWORK_DYNAMICS
+def 1961:1976 <> SACRED_BANK_BASE
+def 2015:2029 <> SACRED_BANK_END
+prf 2295:2336 <> somatic_integration_distinct_from_membrane
+R2364:2367 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2342:2363 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2368:2387 SomaticIntegration <> OP_MEMBRANE_DYNAMICS def
+R2404:2425 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2428:2447 SomaticIntegration <> OP_MEMBRANE_DYNAMICS def
+prf 2467:2506 <> somatic_integration_adjacent_to_membrane
+R2534:2536 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2512:2533 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2557:2559 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2537:2556 SomaticIntegration <> OP_MEMBRANE_DYNAMICS def
+R2577:2598 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2601:2620 SomaticIntegration <> OP_MEMBRANE_DYNAMICS def
+prf 2640:2670 <> somatic_integration_in_mid_bank
+R2718:2721 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2692:2695 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2676:2691 SomaticIntegration <> SACRED_BANK_BASE def
+R2696:2717 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2744:2747 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2722:2743 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2748:2762 SomaticIntegration <> SACRED_BANK_END def
+R2779:2794 SomaticIntegration <> SACRED_BANK_BASE def
+R2797:2818 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R2821:2835 SomaticIntegration <> SACRED_BANK_END def
+def 3137:3149 <> R_soma_scaled
+R3153:3153 Corelib.Numbers.BinNums <> Z ind
+def 3236:3248 <> C_soma_scaled
+R3252:3252 Corelib.Numbers.BinNums <> Z ind
+def 3327:3337 <> tau_soma_ms
+R3341:3341 Corelib.Numbers.BinNums <> Z ind
+def 3411:3422 <> V_soma_th_mV
+R3426:3426 Corelib.Numbers.BinNums <> Z ind
+def 3481:3495 <> n_inputs_scaled
+R3499:3499 Corelib.Numbers.BinNums <> Z ind
+def 3577:3587 <> t_window_ms
+R3591:3591 Corelib.Numbers.BinNums <> Z ind
+prf 3897:3911 <> tau_soma_is_5ms
+R3926:3928 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3915:3925 SomaticIntegration <> tau_soma_ms def
+R3946:3956 SomaticIntegration <> tau_soma_ms def
+prf 4027:4041 <> R_soma_positive
+R4058:4060 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4045:4057 SomaticIntegration <> R_soma_scaled def
+R4078:4090 SomaticIntegration <> R_soma_scaled def
+prf 4154:4168 <> C_soma_positive
+R4185:4187 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4172:4184 SomaticIntegration <> C_soma_scaled def
+R4205:4217 SomaticIntegration <> C_soma_scaled def
+prf 4271:4287 <> n_inputs_is_10000
+R4306:4308 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4291:4305 SomaticIntegration <> n_inputs_scaled def
+R4330:4344 SomaticIntegration <> n_inputs_scaled def
+prf 4404:4416 <> R_soma_is_100
+R4433:4435 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4420:4432 SomaticIntegration <> R_soma_scaled def
+R4455:4467 SomaticIntegration <> R_soma_scaled def
+prf 4526:4537 <> C_soma_is_50
+R4554:4556 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4541:4553 SomaticIntegration <> C_soma_scaled def
+R4575:4587 SomaticIntegration <> C_soma_scaled def
+prf 4653:4675 <> V_soma_th_is_minus_55mV
+R4691:4693 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4679:4690 SomaticIntegration <> V_soma_th_mV def
+R4713:4724 SomaticIntegration <> V_soma_th_mV def
+prf 4788:4803 <> t_window_is_20ms
+R4818:4820 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4807:4817 SomaticIntegration <> t_window_ms def
+R4839:4849 SomaticIntegration <> t_window_ms def
+prf 4907:4926 <> tau_less_than_window
+R4943:4945 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4932:4942 SomaticIntegration <> tau_soma_ms def
+R4946:4956 SomaticIntegration <> t_window_ms def
+R4973:4983 SomaticIntegration <> tau_soma_ms def
+R4986:4996 SomaticIntegration <> t_window_ms def
+prf 5044:5056 <> window_4x_tau
+R5073:5075 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5062:5072 SomaticIntegration <> t_window_ms def
+R5087:5089 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5076:5086 SomaticIntegration <> tau_soma_ms def
+R5107:5117 SomaticIntegration <> t_window_ms def
+R5120:5130 SomaticIntegration <> tau_soma_ms def
+prf 5178:5189 <> inputs_count
+R5200:5202 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5203:5217 SomaticIntegration <> n_inputs_scaled def
+R5234:5248 SomaticIntegration <> n_inputs_scaled def
+prf 5307:5319 <> R_equals_2x_C
+R5338:5340 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5325:5337 SomaticIntegration <> R_soma_scaled def
+R5354:5356 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5341:5353 SomaticIntegration <> C_soma_scaled def
+R5374:5386 SomaticIntegration <> R_soma_scaled def
+R5389:5401 SomaticIntegration <> C_soma_scaled def
+prf 5473:5505 <> three_consecutive_somatic_opcodes
+R5520:5525 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5514:5516 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5535:5540 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5529:5531 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5544:5546 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5658:5673 <> soma_in_mid_bank
+R5708:5713 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5682:5685 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5686:5707 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R5736:5739 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5714:5735 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R5759:5780 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+prf 5830:5839 <> RC_product
+R5874:5876 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5858:5860 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5845:5857 SomaticIntegration <> R_soma_scaled def
+R5861:5873 SomaticIntegration <> C_soma_scaled def
+R5897:5909 SomaticIntegration <> R_soma_scaled def
+R5912:5924 SomaticIntegration <> C_soma_scaled def
+prf 5975:5993 <> all_values_positive
+R6006:6011 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6002:6004 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6018:6023 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6014:6016 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6029:6034 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6025:6027 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6044:6049 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6040:6042 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6052:6054 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6081:6093 SomaticIntegration <> R_soma_scaled def
+R6117:6129 SomaticIntegration <> C_soma_scaled def
+R6153:6163 SomaticIntegration <> tau_soma_ms def
+R6187:6201 SomaticIntegration <> n_inputs_scaled def
+R6218:6228 SomaticIntegration <> t_window_ms def
+prf 6284:6304 <> threshold_physiologic
+R6322:6324 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6310:6321 SomaticIntegration <> V_soma_th_mV def
+R6345:6356 SomaticIntegration <> V_soma_th_mV def
+prf 6405:6421 <> integration_ratio
+R6429:6431 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6433:6435 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6488:6500 <> input_density
+R6511:6513 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6517:6519 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6577:6588 <> soma_compact
+R6597:6599 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6602:6604 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6926:6954 <> somatic_integration_composite
+R6988:6993 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6982:6984 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6960:6981 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R7013:7018 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7007:7009 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6994:7006 SomaticIntegration <> R_soma_scaled def
+R7037:7042 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7032:7034 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7019:7031 SomaticIntegration <> C_soma_scaled def
+R7058:7063 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7054:7056 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7043:7053 SomaticIntegration <> tau_soma_ms def
+R7082:7087 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7076:7078 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7064:7075 SomaticIntegration <> V_soma_th_mV def
+R7111:7116 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7103:7105 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7088:7102 SomaticIntegration <> n_inputs_scaled def
+R7133:7138 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7128:7130 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7117:7127 SomaticIntegration <> t_window_ms def
+R7156:7161 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7152:7154 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7139:7151 SomaticIntegration <> R_soma_scaled def
+R7179:7184 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7175:7177 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7162:7174 SomaticIntegration <> C_soma_scaled def
+R7208:7213 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7200:7202 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7185:7199 SomaticIntegration <> n_inputs_scaled def
+R7239:7244 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7225:7227 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7214:7224 SomaticIntegration <> tau_soma_ms def
+R7228:7238 SomaticIntegration <> t_window_ms def
+R7274:7279 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7256:7258 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7245:7255 SomaticIntegration <> t_window_ms def
+R7270:7272 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7259:7269 SomaticIntegration <> tau_soma_ms def
+R7302:7304 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7280:7301 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R7325:7327 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7305:7324 SomaticIntegration <> OP_MEMBRANE_DYNAMICS def
+R7354:7375 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R7406:7418 SomaticIntegration <> R_soma_is_100 thm
+R7406:7418 SomaticIntegration <> R_soma_is_100 thm
+R7436:7447 SomaticIntegration <> C_soma_is_50 thm
+R7436:7447 SomaticIntegration <> C_soma_is_50 thm
+R7465:7479 SomaticIntegration <> tau_soma_is_5ms thm
+R7465:7479 SomaticIntegration <> tau_soma_is_5ms thm
+R7497:7519 SomaticIntegration <> V_soma_th_is_minus_55mV thm
+R7497:7519 SomaticIntegration <> V_soma_th_is_minus_55mV thm
+R7537:7553 SomaticIntegration <> n_inputs_is_10000 thm
+R7537:7553 SomaticIntegration <> n_inputs_is_10000 thm
+R7571:7586 SomaticIntegration <> t_window_is_20ms thm
+R7571:7586 SomaticIntegration <> t_window_is_20ms thm
+R7604:7618 SomaticIntegration <> R_soma_positive thm
+R7604:7618 SomaticIntegration <> R_soma_positive thm
+R7636:7650 SomaticIntegration <> C_soma_positive thm
+R7636:7650 SomaticIntegration <> C_soma_positive thm
+R7668:7684 SomaticIntegration <> n_inputs_is_10000 thm
+R7668:7684 SomaticIntegration <> n_inputs_is_10000 thm
+R7702:7721 SomaticIntegration <> tau_less_than_window thm
+R7702:7721 SomaticIntegration <> tau_less_than_window thm
+R7739:7751 SomaticIntegration <> window_4x_tau thm
+R7739:7751 SomaticIntegration <> window_4x_tau thm
+R7763:7784 SomaticIntegration <> OP_SOMATIC_INTEGRATION def
+R7787:7806 SomaticIntegration <> OP_MEMBRANE_DYNAMICS def

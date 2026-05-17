@@ -1,0 +1,230 @@
+DIGEST 9e6bcc8b2a44dfe30b9160bc4c087b5e
+FAxonalConduction
+R1403:1419 Stdlib.ZArith.ZArith <> <> lib
+R1437:1453 Stdlib.micromega.Lia <> <> lib
+def 1720:1739 <> OP_AXONAL_CONDUCTION
+def 1825:1843 <> OP_ACTION_POTENTIAL
+def 1884:1903 <> OP_MEMBRANE_DYNAMICS
+def 1974:1989 <> SACRED_BANK_BASE
+def 2028:2042 <> SACRED_BANK_END
+prf 2308:2345 <> axonal_conduction_distinct_from_action
+R2371:2374 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2351:2370 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2375:2393 AxonalConduction <> OP_ACTION_POTENTIAL def
+R2410:2429 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2432:2450 AxonalConduction <> OP_ACTION_POTENTIAL def
+prf 2470:2505 <> axonal_conduction_adjacent_to_action
+R2531:2533 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2511:2530 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2553:2555 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2534:2552 AxonalConduction <> OP_ACTION_POTENTIAL def
+R2573:2592 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2595:2613 AxonalConduction <> OP_ACTION_POTENTIAL def
+prf 2633:2661 <> axonal_conduction_in_mid_bank
+R2707:2710 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2683:2686 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2667:2682 AxonalConduction <> SACRED_BANK_BASE def
+R2687:2706 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2731:2734 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2711:2730 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2735:2749 AxonalConduction <> SACRED_BANK_END def
+R2766:2781 AxonalConduction <> SACRED_BANK_BASE def
+R2784:2803 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R2806:2820 AxonalConduction <> SACRED_BANK_END def
+def 3096:3104 <> d_axon_um
+R3108:3108 Corelib.Numbers.BinNums <> Z ind
+def 3158:3166 <> l_axon_um
+R3170:3170 Corelib.Numbers.BinNums <> Z ind
+def 3220:3233 <> lambda_axon_um
+R3237:3237 Corelib.Numbers.BinNums <> Z ind
+def 3341:3349 <> g_axon_ms
+R3353:3353 Corelib.Numbers.BinNums <> Z ind
+def 3450:3459 <> tau_ref_ms
+R3463:3463 Corelib.Numbers.BinNums <> Z ind
+def 3516:3525 <> tau_rel_ms
+R3529:3529 Corelib.Numbers.BinNums <> Z ind
+def 3609:3621 <> R_axon_Ohm_cm
+R3625:3625 Corelib.Numbers.BinNums <> Z ind
+def 3680:3691 <> C_mem_uF_cm2
+R3695:3695 Corelib.Numbers.BinNums <> Z ind
+prf 4014:4027 <> g_axon_is_15ms
+R4040:4042 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4031:4039 AxonalConduction <> g_axon_ms def
+R4061:4069 AxonalConduction <> g_axon_ms def
+prf 4150:4170 <> tau_ref_less_than_rel
+R4186:4188 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4176:4185 AxonalConduction <> tau_ref_ms def
+R4189:4198 AxonalConduction <> tau_rel_ms def
+R4215:4224 AxonalConduction <> tau_ref_ms def
+R4227:4236 AxonalConduction <> tau_rel_ms def
+prf 4310:4323 <> lambda_scaling
+R4344:4346 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4338:4340 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4329:4337 AxonalConduction <> d_axon_um def
+R4347:4360 AxonalConduction <> lambda_axon_um def
+R4377:4385 AxonalConduction <> d_axon_um def
+R4388:4401 AxonalConduction <> lambda_axon_um def
+prf 4456:4470 <> g_axon_positive
+R4483:4485 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4474:4482 AxonalConduction <> g_axon_ms def
+R4503:4511 AxonalConduction <> g_axon_ms def
+prf 4566:4579 <> d_axon_is_10um
+R4592:4594 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4583:4591 AxonalConduction <> d_axon_um def
+R4613:4621 AxonalConduction <> d_axon_um def
+prf 4686:4701 <> l_axon_is_1000um
+R4714:4716 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4705:4713 AxonalConduction <> l_axon_um def
+R4737:4745 AxonalConduction <> l_axon_um def
+prf 4815:4835 <> lambda_axon_is_1000um
+R4853:4855 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4839:4852 AxonalConduction <> lambda_axon_um def
+R4876:4889 AxonalConduction <> lambda_axon_um def
+prf 4951:4964 <> tau_ref_is_1ms
+R4978:4980 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4968:4977 AxonalConduction <> tau_ref_ms def
+R4998:5007 AxonalConduction <> tau_ref_ms def
+prf 5069:5082 <> tau_rel_is_3ms
+R5096:5098 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5086:5095 AxonalConduction <> tau_rel_ms def
+R5116:5125 AxonalConduction <> tau_rel_ms def
+prf 5193:5205 <> R_axon_is_100
+R5222:5224 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5209:5221 AxonalConduction <> R_axon_Ohm_cm def
+R5244:5256 AxonalConduction <> R_axon_Ohm_cm def
+prf 5323:5332 <> C_mem_is_1
+R5348:5350 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5336:5347 AxonalConduction <> C_mem_uF_cm2 def
+R5368:5379 AxonalConduction <> C_mem_uF_cm2 def
+prf 5442:5464 <> total_refractory_is_4ms
+R5493:5495 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5480:5482 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5470:5479 AxonalConduction <> tau_ref_ms def
+R5483:5492 AxonalConduction <> tau_rel_ms def
+R5513:5522 AxonalConduction <> tau_ref_ms def
+R5525:5534 AxonalConduction <> tau_rel_ms def
+prf 5604:5626 <> conduction_time_for_1mm
+R5636:5638 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5646:5648 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5641:5643 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 5714:5733 <> l_axon_equals_lambda
+R5748:5750 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5739:5747 AxonalConduction <> l_axon_um def
+R5751:5764 AxonalConduction <> lambda_axon_um def
+R5781:5789 AxonalConduction <> l_axon_um def
+R5792:5805 AxonalConduction <> lambda_axon_um def
+prf 5860:5887 <> length_greater_than_diameter
+R5902:5904 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5893:5901 AxonalConduction <> l_axon_um def
+R5905:5913 AxonalConduction <> d_axon_um def
+R5930:5938 AxonalConduction <> l_axon_um def
+R5941:5949 AxonalConduction <> d_axon_um def
+prf 6044:6059 <> velocity_scaling
+R6070:6072 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6066:6068 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6152:6183 <> three_consecutive_axonal_opcodes
+R6214:6219 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6208:6210 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6189:6207 AxonalConduction <> OP_ACTION_POTENTIAL def
+R6246:6251 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6240:6242 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6220:6239 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R6272:6274 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6252:6271 AxonalConduction <> OP_MEMBRANE_DYNAMICS def
+R6303:6321 AxonalConduction <> OP_ACTION_POTENTIAL def
+R6353:6372 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R6397:6416 AxonalConduction <> OP_MEMBRANE_DYNAMICS def
+prf 6472:6487 <> axon_in_mid_bank
+R6520:6525 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6496:6499 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6500:6519 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R6546:6549 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6526:6545 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R6569:6588 AxonalConduction <> OP_AXONAL_CONDUCTION def
+prf 6636:6656 <> refractory_ratio_is_3
+R6661:6663 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6665:6667 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6726:6744 <> all_values_positive
+R6756:6761 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6752:6754 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6770:6775 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6766:6768 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6782:6787 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6778:6780 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6793:6798 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6789:6791 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6800:6802 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6829:6837 AxonalConduction <> d_axon_um def
+R6861:6874 AxonalConduction <> lambda_axon_um def
+R6898:6906 AxonalConduction <> g_axon_ms def
+R6930:6939 AxonalConduction <> tau_ref_ms def
+R6956:6965 AxonalConduction <> tau_rel_ms def
+prf 7278:7304 <> axonal_conduction_composite
+R7336:7341 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7330:7332 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7310:7329 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R7356:7361 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7351:7353 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7342:7350 AxonalConduction <> d_axon_um def
+R7378:7383 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7371:7373 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7362:7370 AxonalConduction <> l_axon_um def
+R7405:7410 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7398:7400 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7384:7397 AxonalConduction <> lambda_axon_um def
+R7425:7430 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7420:7422 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7411:7419 AxonalConduction <> g_axon_ms def
+R7445:7450 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7441:7443 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7431:7440 AxonalConduction <> tau_ref_ms def
+R7465:7470 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7461:7463 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7451:7460 AxonalConduction <> tau_rel_ms def
+R7490:7495 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7484:7486 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7471:7483 AxonalConduction <> R_axon_Ohm_cm def
+R7512:7517 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7508:7510 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7496:7507 AxonalConduction <> C_mem_uF_cm2 def
+R7541:7546 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7528:7530 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7518:7527 AxonalConduction <> tau_ref_ms def
+R7531:7540 AxonalConduction <> tau_rel_ms def
+R7579:7584 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7562:7564 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7556:7558 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7547:7555 AxonalConduction <> d_axon_um def
+R7565:7578 AxonalConduction <> lambda_axon_um def
+R7598:7603 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7594:7596 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7585:7593 AxonalConduction <> g_axon_ms def
+R7624:7626 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7604:7623 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R7646:7648 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7627:7645 AxonalConduction <> OP_ACTION_POTENTIAL def
+R7675:7694 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R7725:7738 AxonalConduction <> d_axon_is_10um thm
+R7725:7738 AxonalConduction <> d_axon_is_10um thm
+R7756:7771 AxonalConduction <> l_axon_is_1000um thm
+R7756:7771 AxonalConduction <> l_axon_is_1000um thm
+R7789:7809 AxonalConduction <> lambda_axon_is_1000um thm
+R7789:7809 AxonalConduction <> lambda_axon_is_1000um thm
+R7827:7840 AxonalConduction <> g_axon_is_15ms thm
+R7827:7840 AxonalConduction <> g_axon_is_15ms thm
+R7858:7871 AxonalConduction <> tau_ref_is_1ms thm
+R7858:7871 AxonalConduction <> tau_ref_is_1ms thm
+R7889:7902 AxonalConduction <> tau_rel_is_3ms thm
+R7889:7902 AxonalConduction <> tau_rel_is_3ms thm
+R7920:7932 AxonalConduction <> R_axon_is_100 thm
+R7920:7932 AxonalConduction <> R_axon_is_100 thm
+R7950:7959 AxonalConduction <> C_mem_is_1 thm
+R7950:7959 AxonalConduction <> C_mem_is_1 thm
+R7977:7997 AxonalConduction <> tau_ref_less_than_rel thm
+R7977:7997 AxonalConduction <> tau_ref_less_than_rel thm
+R8015:8028 AxonalConduction <> lambda_scaling thm
+R8015:8028 AxonalConduction <> lambda_scaling thm
+R8046:8060 AxonalConduction <> g_axon_positive thm
+R8046:8060 AxonalConduction <> g_axon_positive thm
+R8072:8091 AxonalConduction <> OP_AXONAL_CONDUCTION def
+R8094:8112 AxonalConduction <> OP_ACTION_POTENTIAL def

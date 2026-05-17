@@ -1,0 +1,173 @@
+DIGEST b23ff7b404fb534460dfbad279bbbb28
+FActionPotential
+R1319:1335 Stdlib.ZArith.ZArith <> <> lib
+R1353:1369 Stdlib.micromega.Lia <> <> lib
+def 1405:1423 <> OP_ACTION_POTENTIAL
+def 1467:1490 <> OP_DENDRITIC_INTEGRATION
+def 1511:1532 <> OP_SYNAPTIC_PLASTICITY
+def 1593:1601 <> V_rest_mV
+R1607:1607 Corelib.Numbers.BinNums <> Z ind
+def 1628:1638 <> V_thresh_mV
+R1642:1642 Corelib.Numbers.BinNums <> Z ind
+def 1663:1671 <> V_peak_mV
+R1677:1677 Corelib.Numbers.BinNums <> Z ind
+def 1697:1706 <> V_reset_mV
+R1711:1711 Corelib.Numbers.BinNums <> Z ind
+def 1732:1737 <> AHP_mV
+R1746:1746 Corelib.Numbers.BinNums <> Z ind
+def 1796:1809 <> AP_upstroke_ms
+R1816:1816 Corelib.Numbers.BinNums <> Z ind
+def 1835:1854 <> AP_repolarization_ms
+R1858:1858 Corelib.Numbers.BinNums <> Z ind
+def 1877:1899 <> AP_hyperpolarization_ms
+R1903:1903 Corelib.Numbers.BinNums <> Z ind
+prf 2106:2125 <> V_rest_is_minus_70mV
+R2138:2140 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2129:2137 ActionPotential <> V_rest_mV def
+R2160:2168 ActionPotential <> V_rest_mV def
+prf 2196:2217 <> V_thresh_is_minus_55mV
+R2232:2234 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2221:2231 ActionPotential <> V_thresh_mV def
+R2254:2264 ActionPotential <> V_thresh_mV def
+prf 2292:2305 <> V_peak_is_40mV
+R2318:2320 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2309:2317 ActionPotential <> V_peak_mV def
+R2339:2347 ActionPotential <> V_peak_mV def
+prf 2375:2395 <> V_reset_is_minus_65mV
+R2409:2411 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2399:2408 ActionPotential <> V_reset_mV def
+R2431:2440 ActionPotential <> V_reset_mV def
+prf 2468:2484 <> AHP_is_minus_80mV
+R2494:2496 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2488:2493 ActionPotential <> AHP_mV def
+R2516:2521 ActionPotential <> AHP_mV def
+prf 2549:2567 <> voltage_progression
+R2596:2601 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2582:2584 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2573:2581 ActionPotential <> V_rest_mV def
+R2585:2595 ActionPotential <> V_thresh_mV def
+R2613:2615 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2602:2612 ActionPotential <> V_thresh_mV def
+R2616:2624 ActionPotential <> V_peak_mV def
+R2641:2649 ActionPotential <> V_rest_mV def
+R2652:2662 ActionPotential <> V_thresh_mV def
+R2665:2673 ActionPotential <> V_peak_mV def
+prf 2701:2714 <> reset_in_range
+R2726:2728 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2720:2725 ActionPotential <> AHP_mV def
+R2729:2738 ActionPotential <> V_reset_mV def
+R2755:2760 ActionPotential <> AHP_mV def
+R2763:2772 ActionPotential <> V_reset_mV def
+prf 2792:2809 <> V_reset_below_rest
+R2824:2826 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2815:2823 ActionPotential <> V_rest_mV def
+R2827:2836 ActionPotential <> V_reset_mV def
+R2853:2862 ActionPotential <> V_reset_mV def
+R2865:2873 ActionPotential <> V_rest_mV def
+prf 2893:2910 <> full_voltage_range
+R2934:2939 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2922:2924 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2916:2921 ActionPotential <> AHP_mV def
+R2925:2933 ActionPotential <> V_rest_mV def
+R2949:2951 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2940:2948 ActionPotential <> V_rest_mV def
+R2952:2960 ActionPotential <> V_peak_mV def
+R2977:2982 ActionPotential <> AHP_mV def
+R2985:2993 ActionPotential <> V_rest_mV def
+R2996:3004 ActionPotential <> V_peak_mV def
+prf 3032:3050 <> delta_V_AP_is_120mV
+R3072:3074 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3063:3065 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R3054:3062 ActionPotential <> V_peak_mV def
+R3066:3071 ActionPotential <> AHP_mV def
+R3094:3102 ActionPotential <> V_peak_mV def
+R3105:3110 ActionPotential <> AHP_mV def
+prf 3130:3153 <> AP_total_duration_is_6ms
+R3222:3224 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3196:3198 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R3173:3175 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R3159:3172 ActionPotential <> AP_upstroke_ms def
+R3176:3195 ActionPotential <> AP_repolarization_ms def
+R3199:3221 ActionPotential <> AP_hyperpolarization_ms def
+R3242:3255 ActionPotential <> AP_upstroke_ms def
+R3258:3277 ActionPotential <> AP_repolarization_ms def
+R3280:3302 ActionPotential <> AP_hyperpolarization_ms def
+prf 3513:3550 <> action_potential_adjacent_to_dendritic
+R3575:3577 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3556:3574 ActionPotential <> OP_ACTION_POTENTIAL def
+R3602:3604 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R3578:3601 ActionPotential <> OP_DENDRITIC_INTEGRATION def
+R3622:3640 ActionPotential <> OP_ACTION_POTENTIAL def
+R3643:3666 ActionPotential <> OP_DENDRITIC_INTEGRATION def
+prf 3686:3713 <> action_potential_in_mid_bank
+R3745:3748 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3722:3725 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R3726:3744 ActionPotential <> OP_ACTION_POTENTIAL def
+R3768:3771 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R3749:3767 ActionPotential <> OP_ACTION_POTENTIAL def
+R3791:3809 ActionPotential <> OP_ACTION_POTENTIAL def
+prf 3829:3858 <> six_consecutive_neural_opcodes
+R3873:3878 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3867:3869 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3888:3893 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3882:3884 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3903:3908 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3897:3899 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3918:3923 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3912:3914 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3927:3929 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 4250:4275 <> action_potential_composite
+R4306:4311 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4300:4302 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4281:4299 ActionPotential <> OP_ACTION_POTENTIAL def
+R4327:4332 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4321:4323 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4312:4320 ActionPotential <> V_rest_mV def
+R4350:4355 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4344:4346 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4333:4343 ActionPotential <> V_thresh_mV def
+R4370:4375 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4365:4367 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4356:4364 ActionPotential <> V_peak_mV def
+R4392:4397 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4386:4388 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4376:4385 ActionPotential <> V_reset_mV def
+R4410:4415 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4404:4406 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4398:4403 ActionPotential <> AHP_mV def
+R4439:4444 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4425:4427 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4416:4424 ActionPotential <> V_rest_mV def
+R4428:4438 ActionPotential <> V_thresh_mV def
+R4468:4473 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4456:4458 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4445:4455 ActionPotential <> V_thresh_mV def
+R4459:4467 ActionPotential <> V_peak_mV def
+R4498:4503 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4492:4494 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4483:4485 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R4474:4482 ActionPotential <> V_peak_mV def
+R4486:4491 ActionPotential <> AHP_mV def
+R4523:4525 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4504:4522 ActionPotential <> OP_ACTION_POTENTIAL def
+R4550:4552 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4526:4549 ActionPotential <> OP_DENDRITIC_INTEGRATION def
+R4579:4597 ActionPotential <> OP_ACTION_POTENTIAL def
+R4628:4647 ActionPotential <> V_rest_is_minus_70mV thm
+R4628:4647 ActionPotential <> V_rest_is_minus_70mV thm
+R4665:4686 ActionPotential <> V_thresh_is_minus_55mV thm
+R4665:4686 ActionPotential <> V_thresh_is_minus_55mV thm
+R4704:4717 ActionPotential <> V_peak_is_40mV thm
+R4704:4717 ActionPotential <> V_peak_is_40mV thm
+R4735:4755 ActionPotential <> V_reset_is_minus_65mV thm
+R4735:4755 ActionPotential <> V_reset_is_minus_65mV thm
+R4773:4789 ActionPotential <> AHP_is_minus_80mV thm
+R4773:4789 ActionPotential <> AHP_is_minus_80mV thm
+R4808:4816 ActionPotential <> V_rest_mV def
+R4819:4829 ActionPotential <> V_thresh_mV def
+R4853:4863 ActionPotential <> V_thresh_mV def
+R4866:4874 ActionPotential <> V_peak_mV def
+R4897:4915 ActionPotential <> delta_V_AP_is_120mV thm
+R4897:4915 ActionPotential <> delta_V_AP_is_120mV thm
+R4927:4945 ActionPotential <> OP_ACTION_POTENTIAL def
+R4948:4971 ActionPotential <> OP_DENDRITIC_INTEGRATION def

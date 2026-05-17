@@ -208,3 +208,7 @@
 - **Commit:** fix(bootstrap): restore working main.rs from e70bf9f7
 - **Files:** .claude/mcp/tri-ssot/manifest.json,.claude/skills/tri/skill.md,.claude/skills/wrap-up/skill.md,.cursor/rules/t27-ssot-math.mdc,.githooks/pre-commit,.github/CODEOWNERS,.github/ISSUE_TEMPLATE/audit_task.md,.github/ISSUE_TEMPLATE/backend_task.md,.github/ISSUE_TEMPLATE/benchmark_task.md,.github/ISSUE_TEMPLATE/bug.md,.github/ISSUE_TEMPLATE/epic.md,.github/ISSUE_TEMPLATE/publication_task.md,.github/ISSUE_TEMPLATE/question.md,.github/ISSUE_TEMPLATE/research_claim.md,.github/ISSUE_TEMPLATE/spec_task.md,.github/ISSUE_TEMPLATE/ux_docs_task.md,.github/PULL_REQUEST_TEMPLATE.md,.github/dependabot.yml,.github/workflows/coq-kernel.yml,.github/workflows/l1-traceability.yml
 
+## 2026-05-17T19:39:33Z — main
+- **Commit:** docs(TTSKY26b): Final deliverables checklist
+- **Files:** specs/numeric/gf128.t27,specs/numeric/gf256.t27,specs/numeric/gf64.t27,specs/numeric/goldenfloat_family.t27,specs/numeric/int4.t27,specs/numeric/int8.t27,specs/numeric/nf4.t27,trios-coq/.Makefile.d,trios-coq/.TriosCoq.aux,trios-coq/.lia.cache,trios-coq/Coq/Arithmetic.glob,trios-coq/Coq/Arithmetic.vo,trios-coq/Coq/Arithmetic.vok,trios-coq/Coq/Arithmetic.vos,trios-coq/Core/.CorePhi.aux,trios-coq/Core/CorePhi.glob,trios-coq/IGLA/.igla_invariants.aux,trios-coq/IGLA/igla_invariants.glob,trios-coq/IGLA/igla_invariants.vo,trios-coq/IGLA/igla_invariants.vok
+

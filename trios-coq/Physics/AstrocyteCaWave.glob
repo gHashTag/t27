@@ -1,0 +1,225 @@
+DIGEST ea1445097b6a3ee4798449473a6ad920
+FAstrocyteCaWave
+R1374:1390 Stdlib.ZArith.ZArith <> <> lib
+R1408:1424 Stdlib.micromega.Lia <> <> lib
+def 1691:1710 <> OP_ASTROCYTE_CA_WAVE
+def 1802:1819 <> OP_PURKINJE_ACTION
+def 1860:1869 <> OP_NULL_PE
+def 1941:1956 <> SACRED_BANK_BASE
+def 1995:2009 <> SACRED_BANK_END
+prf 2275:2314 <> astrocyte_ca_wave_distinct_from_purkinje
+R2340:2343 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2320:2339 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2344:2361 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+R2378:2397 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2400:2417 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+prf 2437:2475 <> astrocyte_ca_wave_distinct_from_null_pe
+R2501:2504 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2481:2500 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2505:2514 AstrocyteCaWave <> OP_NULL_PE def
+R2531:2550 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2553:2562 AstrocyteCaWave <> OP_NULL_PE def
+prf 2582:2619 <> astrocyte_ca_wave_adjacent_to_purkinje
+R2645:2647 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2625:2644 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2666:2668 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2648:2665 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+R2686:2705 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2708:2725 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+prf 2745:2773 <> astrocyte_ca_wave_in_mid_bank
+R2819:2822 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2795:2798 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2779:2794 AstrocyteCaWave <> SACRED_BANK_BASE def
+R2799:2818 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2843:2846 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2823:2842 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2847:2861 AstrocyteCaWave <> SACRED_BANK_END def
+R2878:2893 AstrocyteCaWave <> SACRED_BANK_BASE def
+R2896:2915 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R2918:2932 AstrocyteCaWave <> SACRED_BANK_END def
+def 3229:3238 <> Ca_rest_nM
+R3242:3242 Corelib.Numbers.BinNums <> Z ind
+def 3286:3295 <> Ca_peak_nM
+R3299:3299 Corelib.Numbers.BinNums <> Z ind
+def 3340:3355 <> delta_Ca_wave_nM
+R3359:3359 Corelib.Numbers.BinNums <> Z ind
+R3374:3376 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R3364:3373 AstrocyteCaWave <> Ca_peak_nM def
+R3377:3386 AstrocyteCaWave <> Ca_rest_nM def
+def 3430:3448 <> wave_speed_um_per_s
+R3452:3452 Corelib.Numbers.BinNums <> Z ind
+def 3545:3561 <> wave_rise_time_ms
+R3565:3565 Corelib.Numbers.BinNums <> Z ind
+def 3605:3622 <> wave_decay_time_ms
+R3626:3626 Corelib.Numbers.BinNums <> Z ind
+def 3699:3712 <> wave_radius_um
+R3716:3716 Corelib.Numbers.BinNums <> Z ind
+def 3762:3777 <> wave_diameter_um
+R3781:3781 Corelib.Numbers.BinNums <> Z ind
+prf 4093:4114 <> delta_Ca_wave_is_450nM
+R4134:4136 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4118:4133 AstrocyteCaWave <> delta_Ca_wave_nM def
+R4156:4171 AstrocyteCaWave <> delta_Ca_wave_nM def
+R4174:4183 AstrocyteCaWave <> Ca_peak_nM def
+R4186:4195 AstrocyteCaWave <> Ca_rest_nM def
+prf 4262:4279 <> Ca_rest_below_peak
+R4295:4297 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4285:4294 AstrocyteCaWave <> Ca_rest_nM def
+R4298:4307 AstrocyteCaWave <> Ca_peak_nM def
+R4324:4333 AstrocyteCaWave <> Ca_rest_nM def
+R4336:4345 AstrocyteCaWave <> Ca_peak_nM def
+prf 4404:4422 <> wave_speed_positive
+R4445:4447 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4426:4444 AstrocyteCaWave <> wave_speed_um_per_s def
+R4465:4483 AstrocyteCaWave <> wave_speed_um_per_s def
+prf 4548:4563 <> Ca_rest_positive
+R4577:4579 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4567:4576 AstrocyteCaWave <> Ca_rest_nM def
+R4597:4606 AstrocyteCaWave <> Ca_rest_nM def
+prf 4661:4676 <> Ca_peak_is_500nM
+R4690:4692 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4680:4689 AstrocyteCaWave <> Ca_peak_nM def
+R4712:4721 AstrocyteCaWave <> Ca_peak_nM def
+prf 4783:4797 <> Ca_rest_is_50nM
+R4811:4813 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4801:4810 AstrocyteCaWave <> Ca_rest_nM def
+R4832:4841 AstrocyteCaWave <> Ca_rest_nM def
+prf 4910:4933 <> wave_speed_is_10um_per_s
+R4956:4958 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4937:4955 AstrocyteCaWave <> wave_speed_um_per_s def
+R4977:4995 AstrocyteCaWave <> wave_speed_um_per_s def
+prf 5057:5074 <> wave_rise_is_100ms
+R5095:5097 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5078:5094 AstrocyteCaWave <> wave_rise_time_ms def
+R5117:5133 AstrocyteCaWave <> wave_rise_time_ms def
+prf 5196:5214 <> wave_decay_is_200ms
+R5236:5238 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5218:5235 AstrocyteCaWave <> wave_decay_time_ms def
+R5258:5275 AstrocyteCaWave <> wave_decay_time_ms def
+prf 5342:5364 <> decay_greater_than_rise
+R5388:5390 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5370:5387 AstrocyteCaWave <> wave_decay_time_ms def
+R5391:5407 AstrocyteCaWave <> wave_rise_time_ms def
+R5424:5441 AstrocyteCaWave <> wave_decay_time_ms def
+R5444:5460 AstrocyteCaWave <> wave_rise_time_ms def
+prf 5518:5543 <> wave_diameter_is_2x_radius
+R5565:5567 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5549:5564 AstrocyteCaWave <> wave_diameter_um def
+R5582:5584 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5568:5581 AstrocyteCaWave <> wave_radius_um def
+R5602:5617 AstrocyteCaWave <> wave_diameter_um def
+R5620:5633 AstrocyteCaWave <> wave_radius_um def
+prf 5686:5704 <> wave_radius_is_50um
+R5722:5724 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5708:5721 AstrocyteCaWave <> wave_radius_um def
+R5743:5756 AstrocyteCaWave <> wave_radius_um def
+prf 5820:5841 <> wave_diameter_is_100um
+R5861:5863 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5845:5860 AstrocyteCaWave <> wave_diameter_um def
+R5883:5898 AstrocyteCaWave <> wave_diameter_um def
+prf 5974:5992 <> calcium_ratio_is_10
+R5999:6001 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6004:6006 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6089:6116 <> wave_total_duration_is_300ms
+R6160:6162 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6139:6141 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6122:6138 AstrocyteCaWave <> wave_rise_time_ms def
+R6142:6159 AstrocyteCaWave <> wave_decay_time_ms def
+R6184:6200 AstrocyteCaWave <> wave_rise_time_ms def
+R6203:6220 AstrocyteCaWave <> wave_decay_time_ms def
+prf 6313:6342 <> purkinje_astrocyte_consecutive
+R6368:6370 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6348:6367 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R6389:6391 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6371:6388 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+R6411:6430 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R6433:6450 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+prf 6526:6544 <> wave_traversal_time
+R6556:6558 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6551:6553 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6627:6650 <> calcium_peak_is_10x_rest
+R6664:6666 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6654:6663 AstrocyteCaWave <> Ca_peak_nM def
+R6677:6679 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6667:6676 AstrocyteCaWave <> Ca_rest_nM def
+R6700:6709 AstrocyteCaWave <> Ca_peak_nM def
+R6712:6721 AstrocyteCaWave <> Ca_rest_nM def
+prf 6801:6816 <> both_in_mid_bank
+R6860:6865 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6838:6841 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6822:6837 AstrocyteCaWave <> SACRED_BANK_BASE def
+R6842:6859 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+R6886:6889 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6866:6885 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R6890:6904 AstrocyteCaWave <> SACRED_BANK_END def
+R6931:6946 AstrocyteCaWave <> SACRED_BANK_BASE def
+R6949:6966 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+R6977:6996 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R6999:7013 AstrocyteCaWave <> SACRED_BANK_END def
+prf 7327:7353 <> astrocyte_ca_wave_composite
+R7385:7390 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7379:7381 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7359:7378 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R7406:7411 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7401:7403 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7391:7400 AstrocyteCaWave <> Ca_rest_nM def
+R7428:7433 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7422:7424 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7412:7421 AstrocyteCaWave <> Ca_peak_nM def
+R7456:7461 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7450:7452 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7434:7449 AstrocyteCaWave <> delta_Ca_wave_nM def
+R7486:7491 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7481:7483 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7462:7480 AstrocyteCaWave <> wave_speed_um_per_s def
+R7515:7520 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7509:7511 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7492:7508 AstrocyteCaWave <> wave_rise_time_ms def
+R7545:7550 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7539:7541 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7521:7538 AstrocyteCaWave <> wave_decay_time_ms def
+R7570:7575 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7565:7567 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7551:7564 AstrocyteCaWave <> wave_radius_um def
+R7598:7603 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7592:7594 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7576:7591 AstrocyteCaWave <> wave_diameter_um def
+R7627:7632 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7614:7616 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7604:7613 AstrocyteCaWave <> Ca_rest_nM def
+R7617:7626 AstrocyteCaWave <> Ca_peak_nM def
+R7656:7661 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7652:7654 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7633:7651 AstrocyteCaWave <> wave_speed_um_per_s def
+R7676:7681 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7672:7674 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7662:7671 AstrocyteCaWave <> Ca_rest_nM def
+R7702:7704 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7682:7701 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R7723:7725 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7705:7722 AstrocyteCaWave <> OP_PURKINJE_ACTION def
+R7752:7771 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R7802:7816 AstrocyteCaWave <> Ca_rest_is_50nM thm
+R7802:7816 AstrocyteCaWave <> Ca_rest_is_50nM thm
+R7834:7849 AstrocyteCaWave <> Ca_peak_is_500nM thm
+R7834:7849 AstrocyteCaWave <> Ca_peak_is_500nM thm
+R7867:7888 AstrocyteCaWave <> delta_Ca_wave_is_450nM thm
+R7867:7888 AstrocyteCaWave <> delta_Ca_wave_is_450nM thm
+R7906:7929 AstrocyteCaWave <> wave_speed_is_10um_per_s thm
+R7906:7929 AstrocyteCaWave <> wave_speed_is_10um_per_s thm
+R7947:7964 AstrocyteCaWave <> wave_rise_is_100ms thm
+R7947:7964 AstrocyteCaWave <> wave_rise_is_100ms thm
+R7982:8000 AstrocyteCaWave <> wave_decay_is_200ms thm
+R7982:8000 AstrocyteCaWave <> wave_decay_is_200ms thm
+R8018:8036 AstrocyteCaWave <> wave_radius_is_50um thm
+R8018:8036 AstrocyteCaWave <> wave_radius_is_50um thm
+R8054:8075 AstrocyteCaWave <> wave_diameter_is_100um thm
+R8054:8075 AstrocyteCaWave <> wave_diameter_is_100um thm
+R8093:8110 AstrocyteCaWave <> Ca_rest_below_peak thm
+R8093:8110 AstrocyteCaWave <> Ca_rest_below_peak thm
+R8128:8146 AstrocyteCaWave <> wave_speed_positive thm
+R8128:8146 AstrocyteCaWave <> wave_speed_positive thm
+R8164:8179 AstrocyteCaWave <> Ca_rest_positive thm
+R8164:8179 AstrocyteCaWave <> Ca_rest_positive thm
+R8191:8210 AstrocyteCaWave <> OP_ASTROCYTE_CA_WAVE def
+R8213:8230 AstrocyteCaWave <> OP_PURKINJE_ACTION def

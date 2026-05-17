@@ -1,0 +1,222 @@
+DIGEST 50721f6cc0abfd4e743e82db794290a4
+FNeuromodulation
+R1280:1296 Stdlib.ZArith.ZArith <> <> lib
+R1314:1330 Stdlib.micromega.Lia <> <> lib
+def 1597:1614 <> OP_NEUROMODULATION
+def 1698:1715 <> OP_HOMEOSTATIC_REG
+def 1756:1773 <> OP_SYNCHRONIZATION
+def 1844:1859 <> SACRED_BANK_BASE
+def 1898:1912 <> SACRED_BANK_END
+prf 2178:2218 <> neuromodulation_distinct_from_homeostatic
+R2242:2245 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2224:2241 Neuromodulation <> OP_NEUROMODULATION def
+R2246:2263 Neuromodulation <> OP_HOMEOSTATIC_REG def
+R2280:2297 Neuromodulation <> OP_NEUROMODULATION def
+R2300:2317 Neuromodulation <> OP_HOMEOSTATIC_REG def
+prf 2337:2375 <> neuromodulation_adjacent_to_homeostatic
+R2399:2401 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2381:2398 Neuromodulation <> OP_NEUROMODULATION def
+R2420:2422 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2402:2419 Neuromodulation <> OP_HOMEOSTATIC_REG def
+R2440:2457 Neuromodulation <> OP_NEUROMODULATION def
+R2460:2477 Neuromodulation <> OP_HOMEOSTATIC_REG def
+prf 2497:2523 <> neuromodulation_in_mid_bank
+R2567:2570 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2545:2548 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2529:2544 Neuromodulation <> SACRED_BANK_BASE def
+R2549:2566 Neuromodulation <> OP_NEUROMODULATION def
+R2589:2592 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2571:2588 Neuromodulation <> OP_NEUROMODULATION def
+R2593:2607 Neuromodulation <> SACRED_BANK_END def
+R2624:2639 Neuromodulation <> SACRED_BANK_BASE def
+R2642:2659 Neuromodulation <> OP_NEUROMODULATION def
+R2662:2676 Neuromodulation <> SACRED_BANK_END def
+def 2973:2980 <> c_mod_nM
+R2984:2984 Corelib.Numbers.BinNums <> Z ind
+def 3083:3092 <> tau_mod_ms
+R3096:3096 Corelib.Numbers.BinNums <> Z ind
+def 3182:3193 <> D_mod_scaled
+R3197:3197 Corelib.Numbers.BinNums <> Z ind
+def 3281:3288 <> V_mod_mV
+R3292:3292 Corelib.Numbers.BinNums <> Z ind
+def 3376:3384 <> c_base_nM
+R3388:3388 Corelib.Numbers.BinNums <> Z ind
+def 3465:3473 <> c_peak_nM
+R3477:3477 Corelib.Numbers.BinNums <> Z ind
+prf 3771:3784 <> c_mod_is_100nM
+R3796:3798 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3788:3795 Neuromodulation <> c_mod_nM def
+R3818:3825 Neuromodulation <> c_mod_nM def
+prf 3875:3890 <> tau_mod_positive
+R3904:3906 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3894:3903 Neuromodulation <> tau_mod_ms def
+R3924:3933 Neuromodulation <> tau_mod_ms def
+prf 3986:4002 <> D_mod_less_than_1
+R4020:4022 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4008:4019 Neuromodulation <> D_mod_scaled def
+R4042:4053 Neuromodulation <> D_mod_scaled def
+prf 4093:4106 <> V_mod_negative
+R4118:4120 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4110:4117 Neuromodulation <> V_mod_mV def
+R4138:4145 Neuromodulation <> V_mod_mV def
+prf 4191:4204 <> c_base_is_10nM
+R4217:4219 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4208:4216 Neuromodulation <> c_base_nM def
+R4238:4246 Neuromodulation <> c_base_nM def
+prf 4302:4317 <> c_peak_is_1000nM
+R4330:4332 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4321:4329 Neuromodulation <> c_peak_nM def
+R4353:4361 Neuromodulation <> c_peak_nM def
+prf 4417:4432 <> tau_mod_is_500ms
+R4446:4448 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4436:4445 Neuromodulation <> tau_mod_ms def
+R4468:4477 Neuromodulation <> tau_mod_ms def
+prf 4531:4549 <> V_mod_is_minus_80mV
+R4561:4563 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4553:4560 Neuromodulation <> V_mod_mV def
+R4583:4590 Neuromodulation <> V_mod_mV def
+prf 4653:4663 <> D_mod_is_50
+R4679:4681 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4667:4678 Neuromodulation <> D_mod_scaled def
+R4700:4711 Neuromodulation <> D_mod_scaled def
+prf 4770:4783 <> c_peak_10x_mod
+R4798:4800 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4789:4797 Neuromodulation <> c_peak_nM def
+R4809:4811 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4801:4808 Neuromodulation <> c_mod_nM def
+R4830:4838 Neuromodulation <> c_peak_nM def
+R4841:4848 Neuromodulation <> c_mod_nM def
+prf 4899:4912 <> c_mod_10x_base
+R4926:4928 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4918:4925 Neuromodulation <> c_mod_nM def
+R4938:4940 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4929:4937 Neuromodulation <> c_base_nM def
+R4959:4966 Neuromodulation <> c_mod_nM def
+R4969:4977 Neuromodulation <> c_base_nM def
+prf 5042:5072 <> seven_consecutive_neuro_opcodes
+R5087:5092 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5081:5083 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5102:5107 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5096:5098 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5117:5122 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5111:5113 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5132:5137 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5126:5128 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5147:5152 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5141:5143 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5162:5167 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5156:5158 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5171:5173 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5384:5403 <> neuromod_in_mid_bank
+R5434:5439 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5412:5415 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5416:5433 Neuromodulation <> OP_NEUROMODULATION def
+R5458:5461 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5440:5457 Neuromodulation <> OP_NEUROMODULATION def
+R5481:5498 Neuromodulation <> OP_NEUROMODULATION def
+prf 5552:5573 <> all_values_physiologic
+R5586:5591 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5582:5584 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5599:5604 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5595:5597 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5611:5616 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5607:5609 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5623:5628 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5619:5621 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5633:5635 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5662:5669 Neuromodulation <> c_mod_nM def
+R5693:5702 Neuromodulation <> tau_mod_ms def
+R5726:5737 Neuromodulation <> D_mod_scaled def
+R5761:5769 Neuromodulation <> c_base_nM def
+R5786:5794 Neuromodulation <> c_peak_nM def
+prf 5836:5845 <> peak_ratio
+R5855:5857 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5861:5863 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 5913:5921 <> mod_range
+R5936:5938 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5931:5933 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+prf 5990:5999 <> D_mod_half
+R6008:6010 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6013:6015 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6072:6088 <> V_mod_physiologic
+R6097:6099 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+prf 6154:6165 <> time_scaling
+R6174:6176 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6179:6181 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6247:6271 <> concentration_progression
+R6285:6288 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6279:6281 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6292:6294 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6315:6323 Neuromodulation <> c_base_nM def
+R6326:6333 Neuromodulation <> c_mod_nM def
+R6336:6344 Neuromodulation <> c_peak_nM def
+prf 6665:6689 <> neuromodulation_composite
+R6719:6724 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6713:6715 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6695:6712 Neuromodulation <> OP_NEUROMODULATION def
+R6739:6744 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6733:6735 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6725:6732 Neuromodulation <> c_mod_nM def
+R6761:6766 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6755:6757 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6745:6754 Neuromodulation <> tau_mod_ms def
+R6784:6789 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6779:6781 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6767:6778 Neuromodulation <> D_mod_scaled def
+R6804:6809 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6798:6800 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6790:6797 Neuromodulation <> V_mod_mV def
+R6824:6829 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6819:6821 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6810:6818 Neuromodulation <> c_base_nM def
+R6846:6851 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6839:6841 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6830:6838 Neuromodulation <> c_peak_nM def
+R6866:6871 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6862:6864 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6852:6861 Neuromodulation <> tau_mod_ms def
+R6890:6895 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6884:6886 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6872:6883 Neuromodulation <> D_mod_scaled def
+R6908:6913 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6904:6906 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6896:6903 Neuromodulation <> V_mod_mV def
+R6939:6944 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6923:6925 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6914:6922 Neuromodulation <> c_peak_nM def
+R6934:6936 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6926:6933 Neuromodulation <> c_mod_nM def
+R6970:6975 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6953:6955 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6945:6952 Neuromodulation <> c_mod_nM def
+R6965:6967 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6956:6964 Neuromodulation <> c_base_nM def
+R6994:6996 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6976:6993 Neuromodulation <> OP_NEUROMODULATION def
+R7015:7017 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6997:7014 Neuromodulation <> OP_HOMEOSTATIC_REG def
+R7044:7061 Neuromodulation <> OP_NEUROMODULATION def
+R7092:7105 Neuromodulation <> c_mod_is_100nM thm
+R7092:7105 Neuromodulation <> c_mod_is_100nM thm
+R7123:7138 Neuromodulation <> tau_mod_is_500ms thm
+R7123:7138 Neuromodulation <> tau_mod_is_500ms thm
+R7156:7166 Neuromodulation <> D_mod_is_50 thm
+R7156:7166 Neuromodulation <> D_mod_is_50 thm
+R7184:7202 Neuromodulation <> V_mod_is_minus_80mV thm
+R7184:7202 Neuromodulation <> V_mod_is_minus_80mV thm
+R7220:7233 Neuromodulation <> c_base_is_10nM thm
+R7220:7233 Neuromodulation <> c_base_is_10nM thm
+R7251:7266 Neuromodulation <> c_peak_is_1000nM thm
+R7251:7266 Neuromodulation <> c_peak_is_1000nM thm
+R7284:7299 Neuromodulation <> tau_mod_positive thm
+R7284:7299 Neuromodulation <> tau_mod_positive thm
+R7317:7333 Neuromodulation <> D_mod_less_than_1 thm
+R7317:7333 Neuromodulation <> D_mod_less_than_1 thm
+R7351:7364 Neuromodulation <> V_mod_negative thm
+R7351:7364 Neuromodulation <> V_mod_negative thm
+R7382:7395 Neuromodulation <> c_peak_10x_mod thm
+R7382:7395 Neuromodulation <> c_peak_10x_mod thm
+R7413:7426 Neuromodulation <> c_mod_10x_base thm
+R7413:7426 Neuromodulation <> c_mod_10x_base thm
+R7438:7455 Neuromodulation <> OP_NEUROMODULATION def
+R7458:7475 Neuromodulation <> OP_HOMEOSTATIC_REG def

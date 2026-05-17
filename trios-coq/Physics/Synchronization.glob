@@ -1,0 +1,252 @@
+DIGEST c4f5b597b59755135eed952db65a2baa
+FSynchronization
+R1304:1320 Stdlib.ZArith.ZArith <> <> lib
+R1338:1354 Stdlib.micromega.Lia <> <> lib
+def 1621:1638 <> OP_SYNCHRONIZATION
+def 1722:1739 <> OP_NEUROMODULATION
+def 1780:1791 <> OP_ATTENTION
+def 1862:1877 <> SACRED_BANK_BASE
+def 1916:1930 <> SACRED_BANK_END
+prf 2196:2233 <> synchronization_distinct_from_neuromod
+R2257:2260 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2239:2256 Synchronization <> OP_SYNCHRONIZATION def
+R2261:2278 Synchronization <> OP_NEUROMODULATION def
+R2295:2312 Synchronization <> OP_SYNCHRONIZATION def
+R2315:2332 Synchronization <> OP_NEUROMODULATION def
+prf 2352:2387 <> synchronization_adjacent_to_neuromod
+R2411:2413 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2393:2410 Synchronization <> OP_SYNCHRONIZATION def
+R2432:2434 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2414:2431 Synchronization <> OP_NEUROMODULATION def
+R2452:2469 Synchronization <> OP_SYNCHRONIZATION def
+R2472:2489 Synchronization <> OP_NEUROMODULATION def
+prf 2509:2535 <> synchronization_in_mid_bank
+R2579:2582 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2557:2560 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2541:2556 Synchronization <> SACRED_BANK_BASE def
+R2561:2578 Synchronization <> OP_SYNCHRONIZATION def
+R2601:2604 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2583:2600 Synchronization <> OP_SYNCHRONIZATION def
+R2605:2619 Synchronization <> SACRED_BANK_END def
+R2636:2651 Synchronization <> SACRED_BANK_BASE def
+R2654:2671 Synchronization <> OP_SYNCHRONIZATION def
+R2674:2688 Synchronization <> SACRED_BANK_END def
+def 2975:2984 <> f_gamma_Hz
+R2988:2988 Corelib.Numbers.BinNums <> Z ind
+def 3030:3038 <> f_beta_Hz
+R3042:3042 Corelib.Numbers.BinNums <> Z ind
+def 3084:3093 <> f_theta_Hz
+R3097:3097 Corelib.Numbers.BinNums <> Z ind
+def 3138:3147 <> f_delta_Hz
+R3151:3151 Corelib.Numbers.BinNums <> Z ind
+def 3248:3259 <> phi_sync_num
+R3263:3263 Corelib.Numbers.BinNums <> Z ind
+def 3301:3312 <> phi_sync_den
+R3316:3316 Corelib.Numbers.BinNums <> Z ind
+def 3398:3411 <> phi_coh_scaled
+R3415:3415 Corelib.Numbers.BinNums <> Z ind
+prf 3707:3721 <> f_gamma_is_40Hz
+R3735:3737 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3725:3734 Synchronization <> f_gamma_Hz def
+R3756:3765 Synchronization <> f_gamma_Hz def
+prf 3830:3850 <> frequency_progression
+R3878:3883 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3866:3868 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3856:3865 Synchronization <> f_gamma_Hz def
+R3869:3877 Synchronization <> f_beta_Hz def
+R3893:3895 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3884:3892 Synchronization <> f_beta_Hz def
+R3896:3905 Synchronization <> f_theta_Hz def
+R3922:3931 Synchronization <> f_gamma_Hz def
+R3934:3942 Synchronization <> f_beta_Hz def
+R3945:3954 Synchronization <> f_theta_Hz def
+prf 4016:4035 <> phi_sync_less_than_1
+R4053:4055 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4041:4052 Synchronization <> phi_sync_num def
+R4056:4067 Synchronization <> phi_sync_den def
+R4084:4095 Synchronization <> phi_sync_num def
+R4098:4109 Synchronization <> phi_sync_den def
+prf 4159:4182 <> all_frequencies_positive
+R4202:4207 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4198:4200 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4188:4197 Synchronization <> f_gamma_Hz def
+R4221:4226 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4217:4219 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4208:4216 Synchronization <> f_beta_Hz def
+R4241:4246 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4237:4239 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4227:4236 Synchronization <> f_theta_Hz def
+R4257:4259 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4247:4256 Synchronization <> f_delta_Hz def
+R4277:4286 Synchronization <> f_gamma_Hz def
+R4289:4297 Synchronization <> f_beta_Hz def
+R4300:4309 Synchronization <> f_theta_Hz def
+R4312:4321 Synchronization <> f_delta_Hz def
+prf 4375:4388 <> f_beta_is_20Hz
+R4401:4403 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4392:4400 Synchronization <> f_beta_Hz def
+R4422:4430 Synchronization <> f_beta_Hz def
+prf 4484:4497 <> f_theta_is_8Hz
+R4511:4513 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4501:4510 Synchronization <> f_theta_Hz def
+R4531:4540 Synchronization <> f_theta_Hz def
+prf 4594:4607 <> f_delta_is_2Hz
+R4621:4623 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4611:4620 Synchronization <> f_delta_Hz def
+R4641:4650 Synchronization <> f_delta_Hz def
+prf 4706:4722 <> phi_sync_num_is_1
+R4738:4740 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4726:4737 Synchronization <> phi_sync_num def
+R4758:4769 Synchronization <> phi_sync_num def
+prf 4826:4843 <> phi_sync_den_is_10
+R4859:4861 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4847:4858 Synchronization <> phi_sync_den def
+R4880:4891 Synchronization <> phi_sync_den def
+prf 4957:4969 <> phi_coh_is_90
+R4987:4989 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4973:4986 Synchronization <> phi_coh_scaled def
+R5008:5021 Synchronization <> phi_coh_scaled def
+prf 5081:5093 <> gamma_2x_beta
+R5109:5111 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5099:5108 Synchronization <> f_gamma_Hz def
+R5121:5123 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5112:5120 Synchronization <> f_beta_Hz def
+R5141:5150 Synchronization <> f_gamma_Hz def
+R5153:5161 Synchronization <> f_beta_Hz def
+prf 5217:5234 <> beta_2x_theta_plus
+R5249:5251 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5240:5248 Synchronization <> f_beta_Hz def
+R5266:5268 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5262:5264 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5252:5261 Synchronization <> f_theta_Hz def
+R5286:5294 Synchronization <> f_beta_Hz def
+R5297:5306 Synchronization <> f_theta_Hz def
+prf 5371:5400 <> eight_consecutive_sync_opcodes
+R5415:5420 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5409:5411 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5430:5435 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5424:5426 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5445:5450 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5439:5441 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5460:5465 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5454:5456 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5475:5480 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5469:5471 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5490:5495 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5484:5486 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5505:5510 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5499:5501 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5514:5516 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5749:5764 <> sync_in_mid_bank
+R5795:5800 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5773:5776 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5777:5794 Synchronization <> OP_SYNCHRONIZATION def
+R5819:5822 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5801:5818 Synchronization <> OP_SYNCHRONIZATION def
+R5842:5859 Synchronization <> OP_SYNCHRONIZATION def
+prf 5910:5928 <> all_values_positive
+R5940:5945 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5936:5938 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5952:5957 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5948:5950 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5963:5968 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5959:5961 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5974:5979 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5970:5972 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5985:5990 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5981:5983 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5997:6002 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5993:5995 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6005:6007 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6034:6043 Synchronization <> f_gamma_Hz def
+R6067:6075 Synchronization <> f_beta_Hz def
+R6099:6108 Synchronization <> f_theta_Hz def
+R6132:6141 Synchronization <> f_delta_Hz def
+R6165:6176 Synchronization <> phi_sync_num def
+R6200:6211 Synchronization <> phi_sync_den def
+R6228:6241 Synchronization <> phi_coh_scaled def
+prf 6293:6309 <> gamma_theta_ratio
+R6317:6319 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6321:6323 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6382:6397 <> beta_delta_ratio
+R6405:6407 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6409:6411 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6470:6481 <> phi_coh_high
+R6489:6491 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+prf 6547:6560 <> frequency_span
+R6572:6574 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6568:6570 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+prf 6635:6654 <> phi_sync_denominator
+R6662:6664 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6666:6668 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6990:7014 <> synchronization_composite
+R7044:7049 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7038:7040 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7020:7037 Synchronization <> OP_SYNCHRONIZATION def
+R7065:7070 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7060:7062 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7050:7059 Synchronization <> f_gamma_Hz def
+R7085:7090 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7080:7082 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7071:7079 Synchronization <> f_beta_Hz def
+R7105:7110 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7101:7103 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7091:7100 Synchronization <> f_theta_Hz def
+R7125:7130 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7121:7123 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7111:7120 Synchronization <> f_delta_Hz def
+R7147:7152 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7143:7145 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7131:7142 Synchronization <> phi_sync_num def
+R7170:7175 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7165:7167 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7153:7164 Synchronization <> phi_sync_den def
+R7195:7200 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7190:7192 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7176:7189 Synchronization <> phi_coh_scaled def
+R7223:7228 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7211:7213 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7201:7210 Synchronization <> f_gamma_Hz def
+R7214:7222 Synchronization <> f_beta_Hz def
+R7251:7256 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7238:7240 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7229:7237 Synchronization <> f_beta_Hz def
+R7241:7250 Synchronization <> f_theta_Hz def
+R7284:7289 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7269:7271 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7257:7268 Synchronization <> phi_sync_num def
+R7272:7283 Synchronization <> phi_sync_den def
+R7316:7321 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7300:7302 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7290:7299 Synchronization <> f_gamma_Hz def
+R7312:7314 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7303:7311 Synchronization <> f_beta_Hz def
+R7340:7342 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7322:7339 Synchronization <> OP_SYNCHRONIZATION def
+R7361:7363 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7343:7360 Synchronization <> OP_NEUROMODULATION def
+R7390:7407 Synchronization <> OP_SYNCHRONIZATION def
+R7438:7452 Synchronization <> f_gamma_is_40Hz thm
+R7438:7452 Synchronization <> f_gamma_is_40Hz thm
+R7470:7483 Synchronization <> f_beta_is_20Hz thm
+R7470:7483 Synchronization <> f_beta_is_20Hz thm
+R7501:7514 Synchronization <> f_theta_is_8Hz thm
+R7501:7514 Synchronization <> f_theta_is_8Hz thm
+R7532:7545 Synchronization <> f_delta_is_2Hz thm
+R7532:7545 Synchronization <> f_delta_is_2Hz thm
+R7563:7579 Synchronization <> phi_sync_num_is_1 thm
+R7563:7579 Synchronization <> phi_sync_num_is_1 thm
+R7597:7614 Synchronization <> phi_sync_den_is_10 thm
+R7597:7614 Synchronization <> phi_sync_den_is_10 thm
+R7632:7644 Synchronization <> phi_coh_is_90 thm
+R7632:7644 Synchronization <> phi_coh_is_90 thm
+R7663:7672 Synchronization <> f_gamma_Hz def
+R7675:7683 Synchronization <> f_beta_Hz def
+R7707:7715 Synchronization <> f_beta_Hz def
+R7718:7727 Synchronization <> f_theta_Hz def
+R7750:7769 Synchronization <> phi_sync_less_than_1 thm
+R7750:7769 Synchronization <> phi_sync_less_than_1 thm
+R7787:7799 Synchronization <> gamma_2x_beta thm
+R7787:7799 Synchronization <> gamma_2x_beta thm
+R7811:7828 Synchronization <> OP_SYNCHRONIZATION def
+R7831:7848 Synchronization <> OP_NEUROMODULATION def

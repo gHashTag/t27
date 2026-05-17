@@ -1,0 +1,262 @@
+DIGEST 7ca98fd85b53a73d7102a984849d0b2a
+FDendriticIntegration
+R1390:1406 Stdlib.ZArith.ZArith <> <> lib
+R1424:1440 Stdlib.micromega.Lia <> <> lib
+def 1707:1730 <> OP_DENDRITIC_INTEGRATION
+def 1820:1841 <> OP_SYNAPTIC_PLASTICITY
+def 1882:1901 <> OP_ASTROCYTE_CA_WAVE
+def 1945:1962 <> OP_PURKINJE_ACTION
+def 2038:2053 <> SACRED_BANK_BASE
+def 2092:2106 <> SACRED_BANK_END
+prf 2372:2415 <> dendritic_integration_distinct_from_synaptic
+R2445:2448 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2421:2444 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R2449:2470 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+R2487:2510 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R2513:2534 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+prf 2554:2598 <> dendritic_integration_distinct_from_astrocyte
+R2628:2631 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2604:2627 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R2632:2651 DendriticIntegration <> OP_ASTROCYTE_CA_WAVE def
+R2668:2691 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R2694:2713 DendriticIntegration <> OP_ASTROCYTE_CA_WAVE def
+prf 2733:2776 <> dendritic_integration_distinct_from_purkinje
+R2806:2809 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2782:2805 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R2810:2827 DendriticIntegration <> OP_PURKINJE_ACTION def
+R2844:2867 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R2870:2887 DendriticIntegration <> OP_PURKINJE_ACTION def
+prf 2907:2948 <> dendritic_integration_adjacent_to_synaptic
+R2978:2980 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2954:2977 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R3003:3005 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2981:3002 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+R3023:3046 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R3049:3070 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+prf 3090:3122 <> dendritic_integration_in_mid_bank
+R3172:3175 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R3144:3147 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R3128:3143 DendriticIntegration <> SACRED_BANK_BASE def
+R3148:3171 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R3200:3203 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R3176:3199 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R3204:3218 DendriticIntegration <> SACRED_BANK_END def
+R3235:3250 DendriticIntegration <> SACRED_BANK_BASE def
+R3253:3276 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R3279:3293 DendriticIntegration <> SACRED_BANK_END def
+def 3584:3594 <> R_soma_kOhm
+R3598:3598 Corelib.Numbers.BinNums <> Z ind
+def 3668:3678 <> R_dend_kOhm
+R3682:3682 Corelib.Numbers.BinNums <> Z ind
+def 3790:3797 <> C_mem_pF
+R3801:3801 Corelib.Numbers.BinNums <> Z ind
+def 3898:3912 <> tau_mem_dend_ms
+R3916:3916 Corelib.Numbers.BinNums <> Z ind
+def 3973:3987 <> tau_mem_soma_ms
+R3991:3991 Corelib.Numbers.BinNums <> Z ind
+def 4090:4103 <> lambda_dend_um
+R4107:4107 Corelib.Numbers.BinNums <> Z ind
+def 4168:4181 <> lambda_soma_um
+R4185:4185 Corelib.Numbers.BinNums <> Z ind
+prf 4506:4525 <> tau_mem_dend_is_20ms
+R4544:4546 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4529:4543 DendriticIntegration <> tau_mem_dend_ms def
+R4565:4579 DendriticIntegration <> tau_mem_dend_ms def
+prf 4662:4687 <> R_dend_greater_than_R_soma
+R4704:4706 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4693:4703 DendriticIntegration <> R_dend_kOhm def
+R4707:4717 DendriticIntegration <> R_soma_kOhm def
+R4734:4744 DendriticIntegration <> R_dend_kOhm def
+R4747:4757 DendriticIntegration <> R_soma_kOhm def
+prf 4823:4836 <> C_mem_positive
+R4848:4850 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4840:4847 DendriticIntegration <> C_mem_pF def
+R4868:4875 DendriticIntegration <> C_mem_pF def
+prf 4941:4966 <> tau_dend_greater_than_soma
+R4987:4989 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4972:4986 DendriticIntegration <> tau_mem_dend_ms def
+R4990:5004 DendriticIntegration <> tau_mem_soma_ms def
+R5021:5035 DendriticIntegration <> tau_mem_dend_ms def
+R5038:5052 DendriticIntegration <> tau_mem_soma_ms def
+prf 5110:5122 <> R_soma_is_100
+R5137:5139 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5126:5136 DendriticIntegration <> R_soma_kOhm def
+R5159:5169 DendriticIntegration <> R_soma_kOhm def
+prf 5235:5247 <> R_dend_is_200
+R5262:5264 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5251:5261 DendriticIntegration <> R_dend_kOhm def
+R5284:5294 DendriticIntegration <> R_dend_kOhm def
+prf 5356:5369 <> C_mem_is_100pF
+R5381:5383 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5373:5380 DendriticIntegration <> C_mem_pF def
+R5403:5410 DendriticIntegration <> C_mem_pF def
+prf 5472:5487 <> tau_soma_is_10ms
+R5506:5508 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5491:5505 DendriticIntegration <> tau_mem_soma_ms def
+R5527:5541 DendriticIntegration <> tau_mem_soma_ms def
+prf 5606:5625 <> lambda_dend_is_200um
+R5643:5645 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5629:5642 DendriticIntegration <> lambda_dend_um def
+R5665:5678 DendriticIntegration <> lambda_dend_um def
+prf 5744:5763 <> lambda_soma_is_100um
+R5781:5783 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5767:5780 DendriticIntegration <> lambda_soma_um def
+R5803:5816 DendriticIntegration <> lambda_soma_um def
+prf 5891:5909 <> R_dend_is_2x_R_soma
+R5924:5926 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5913:5923 DendriticIntegration <> R_dend_kOhm def
+R5938:5940 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5927:5937 DendriticIntegration <> R_soma_kOhm def
+R5960:5970 DendriticIntegration <> R_dend_kOhm def
+R5973:5983 DendriticIntegration <> R_soma_kOhm def
+prf 6057:6079 <> tau_dend_is_2x_tau_soma
+R6100:6102 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6085:6099 DendriticIntegration <> tau_mem_dend_ms def
+R6118:6120 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6103:6117 DendriticIntegration <> tau_mem_soma_ms def
+R6140:6154 DendriticIntegration <> tau_mem_dend_ms def
+R6157:6171 DendriticIntegration <> tau_mem_soma_ms def
+prf 6247:6275 <> lambda_dend_is_2x_lambda_soma
+R6295:6297 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6281:6294 DendriticIntegration <> lambda_dend_um def
+R6312:6314 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6298:6311 DendriticIntegration <> lambda_soma_um def
+R6334:6347 DendriticIntegration <> lambda_dend_um def
+R6350:6363 DendriticIntegration <> lambda_soma_um def
+prf 6430:6443 <> all_2x_scaling
+R6462:6467 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6452:6454 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6458:6460 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6479:6484 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6470:6472 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6475:6477 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6488:6490 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6494:6496 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6600:6630 <> four_consecutive_neural_opcodes
+R6660:6665 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6654:6656 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6636:6653 DendriticIntegration <> OP_PURKINJE_ACTION def
+R6692:6697 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6686:6688 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6666:6685 DendriticIntegration <> OP_ASTROCYTE_CA_WAVE def
+R6726:6731 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6720:6722 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6698:6719 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+R6756:6758 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6732:6755 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R6787:6804 DendriticIntegration <> OP_PURKINJE_ACTION def
+R6836:6855 DendriticIntegration <> OP_ASTROCYTE_CA_WAVE def
+R6887:6908 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+R6933:6956 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+prf 7031:7051 <> dendrite_soma_R_ratio
+R7062:7064 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7056:7058 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 7134:7156 <> dendrite_soma_tau_ratio
+R7166:7168 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7161:7163 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 7240:7265 <> dendrite_soma_lambda_ratio
+R7276:7278 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7270:7272 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 7361:7376 <> all_ratios_equal
+R7395:7400 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7389:7391 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7383:7385 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7412:7417 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7407:7409 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7402:7404 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7425:7427 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7419:7421 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 7520:7538 <> all_values_positive
+R7551:7556 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7547:7549 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7564:7569 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7560:7562 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7577:7582 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7573:7575 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7589:7594 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7585:7587 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7598:7600 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+prf 7983:8013 <> dendritic_integration_composite
+R8049:8054 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8043:8045 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8019:8042 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R8072:8077 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8066:8068 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8055:8065 DendriticIntegration <> R_soma_kOhm def
+R8095:8100 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8089:8091 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8078:8088 DendriticIntegration <> R_dend_kOhm def
+R8115:8120 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8109:8111 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8101:8108 DendriticIntegration <> C_mem_pF def
+R8141:8146 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8136:8138 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8121:8135 DendriticIntegration <> tau_mem_dend_ms def
+R8167:8172 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8162:8164 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8147:8161 DendriticIntegration <> tau_mem_soma_ms def
+R8193:8198 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8187:8189 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8173:8186 DendriticIntegration <> lambda_dend_um def
+R8219:8224 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8213:8215 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8199:8212 DendriticIntegration <> lambda_soma_um def
+R8250:8255 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8236:8238 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8225:8235 DendriticIntegration <> R_dend_kOhm def
+R8239:8249 DendriticIntegration <> R_soma_kOhm def
+R8268:8273 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8264:8266 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8256:8263 DendriticIntegration <> C_mem_pF def
+R8307:8312 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8289:8291 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8274:8288 DendriticIntegration <> tau_mem_dend_ms def
+R8292:8306 DendriticIntegration <> tau_mem_soma_ms def
+R8342:8347 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8324:8326 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8313:8323 DendriticIntegration <> R_dend_kOhm def
+R8338:8340 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R8327:8337 DendriticIntegration <> R_soma_kOhm def
+R8385:8390 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8363:8365 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8348:8362 DendriticIntegration <> tau_mem_dend_ms def
+R8381:8383 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R8366:8380 DendriticIntegration <> tau_mem_soma_ms def
+R8426:8431 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8405:8407 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8391:8404 DendriticIntegration <> lambda_dend_um def
+R8422:8424 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R8408:8421 DendriticIntegration <> lambda_soma_um def
+R8456:8458 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8432:8455 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R8481:8483 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R8459:8480 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def
+R8510:8533 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R8564:8576 DendriticIntegration <> R_soma_is_100 thm
+R8564:8576 DendriticIntegration <> R_soma_is_100 thm
+R8594:8606 DendriticIntegration <> R_dend_is_200 thm
+R8594:8606 DendriticIntegration <> R_dend_is_200 thm
+R8624:8637 DendriticIntegration <> C_mem_is_100pF thm
+R8624:8637 DendriticIntegration <> C_mem_is_100pF thm
+R8655:8674 DendriticIntegration <> tau_mem_dend_is_20ms thm
+R8655:8674 DendriticIntegration <> tau_mem_dend_is_20ms thm
+R8692:8707 DendriticIntegration <> tau_soma_is_10ms thm
+R8692:8707 DendriticIntegration <> tau_soma_is_10ms thm
+R8725:8744 DendriticIntegration <> lambda_dend_is_200um thm
+R8725:8744 DendriticIntegration <> lambda_dend_is_200um thm
+R8762:8781 DendriticIntegration <> lambda_soma_is_100um thm
+R8762:8781 DendriticIntegration <> lambda_soma_is_100um thm
+R8799:8824 DendriticIntegration <> R_dend_greater_than_R_soma thm
+R8799:8824 DendriticIntegration <> R_dend_greater_than_R_soma thm
+R8842:8855 DendriticIntegration <> C_mem_positive thm
+R8842:8855 DendriticIntegration <> C_mem_positive thm
+R8873:8898 DendriticIntegration <> tau_dend_greater_than_soma thm
+R8873:8898 DendriticIntegration <> tau_dend_greater_than_soma thm
+R8916:8934 DendriticIntegration <> R_dend_is_2x_R_soma thm
+R8916:8934 DendriticIntegration <> R_dend_is_2x_R_soma thm
+R8952:8974 DendriticIntegration <> tau_dend_is_2x_tau_soma thm
+R8952:8974 DendriticIntegration <> tau_dend_is_2x_tau_soma thm
+R8992:9020 DendriticIntegration <> lambda_dend_is_2x_lambda_soma thm
+R8992:9020 DendriticIntegration <> lambda_dend_is_2x_lambda_soma thm
+R9032:9055 DendriticIntegration <> OP_DENDRITIC_INTEGRATION def
+R9058:9079 DendriticIntegration <> OP_SYNAPTIC_PLASTICITY def

@@ -1,0 +1,5 @@
+DIGEST a0b33702473f530a978e065ae0e5f78e
+FTrios.TriosCoq
+R1562:1572 Stdlib.Reals.Reals <> <> lib
+R1590:1595 Stdlib.ZArith.ZArith <> <> lib
+R1613:1616 Stdlib.Lists.List <> <> lib

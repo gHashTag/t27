@@ -1,0 +1,236 @@
+DIGEST 5e213660a443a2748f8f145e1c0d7eda
+FSleepDynamics
+R1301:1317 Stdlib.ZArith.ZArith <> <> lib
+R1335:1351 Stdlib.micromega.Lia <> <> lib
+def 1618:1634 <> OP_SLEEP_DYNAMICS
+def 1717:1732 <> OP_MEMORY_REPLAY
+def 1773:1784 <> OP_CIRCADIAN
+def 1855:1870 <> SACRED_BANK_BASE
+def 1909:1923 <> SACRED_BANK_END
+prf 2189:2223 <> sleep_dynamics_distinct_from_replay
+R2246:2249 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2229:2245 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2250:2265 SleepDynamics <> OP_MEMORY_REPLAY def
+R2282:2298 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2301:2316 SleepDynamics <> OP_MEMORY_REPLAY def
+prf 2336:2368 <> sleep_dynamics_adjacent_to_replay
+R2391:2393 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2374:2390 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2410:2412 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2394:2409 SleepDynamics <> OP_MEMORY_REPLAY def
+R2430:2446 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2449:2464 SleepDynamics <> OP_MEMORY_REPLAY def
+prf 2484:2509 <> sleep_dynamics_in_mid_bank
+R2552:2555 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2531:2534 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2515:2530 SleepDynamics <> SACRED_BANK_BASE def
+R2535:2551 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2573:2576 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2556:2572 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2577:2591 SleepDynamics <> SACRED_BANK_END def
+R2608:2623 SleepDynamics <> SACRED_BANK_BASE def
+R2626:2642 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R2645:2659 SleepDynamics <> SACRED_BANK_END def
+def 2949:2957 <> t_NREM_ms
+R2961:2961 Corelib.Numbers.BinNums <> Z ind
+def 3053:3060 <> t_REM_ms
+R3064:3064 Corelib.Numbers.BinNums <> Z ind
+def 3165:3174 <> t_cycle_ms
+R3178:3178 Corelib.Numbers.BinNums <> Z ind
+def 3274:3284 <> tau_circ_ms
+R3288:3288 Corelib.Numbers.BinNums <> Z ind
+def 3379:3390 <> t_latency_ms
+R3394:3394 Corelib.Numbers.BinNums <> Z ind
+def 3485:3498 <> deep_sleep_pct
+R3502:3502 Corelib.Numbers.BinNums <> Z ind
+prf 3806:3822 <> cycle_from_stages
+R3838:3840 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3828:3837 SleepDynamics <> t_cycle_ms def
+R3850:3852 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R3841:3849 SleepDynamics <> t_NREM_ms def
+R3853:3860 SleepDynamics <> t_REM_ms def
+R3877:3886 SleepDynamics <> t_cycle_ms def
+R3889:3897 SleepDynamics <> t_NREM_ms def
+R3900:3907 SleepDynamics <> t_REM_ms def
+prf 3948:3962 <> t_NREM_positive
+R3975:3977 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3966:3974 SleepDynamics <> t_NREM_ms def
+R3995:4003 SleepDynamics <> t_NREM_ms def
+prf 4043:4056 <> t_REM_positive
+R4068:4070 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4060:4067 SleepDynamics <> t_REM_ms def
+R4088:4095 SleepDynamics <> t_REM_ms def
+prf 4144:4170 <> circadian_longer_than_cycle
+R4187:4189 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4176:4186 SleepDynamics <> tau_circ_ms def
+R4190:4199 SleepDynamics <> t_cycle_ms def
+R4216:4226 SleepDynamics <> tau_circ_ms def
+R4229:4238 SleepDynamics <> t_cycle_ms def
+prf 4288:4302 <> t_NREM_is_10min
+R4315:4317 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4306:4314 SleepDynamics <> t_NREM_ms def
+R4340:4348 SleepDynamics <> t_NREM_ms def
+prf 4405:4418 <> t_REM_is_10min
+R4430:4432 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4422:4429 SleepDynamics <> t_REM_ms def
+R4455:4462 SleepDynamics <> t_REM_ms def
+prf 4522:4537 <> t_cycle_is_20min
+R4551:4553 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4541:4550 SleepDynamics <> t_cycle_ms def
+R4577:4586 SleepDynamics <> t_cycle_ms def
+prf 4648:4666 <> tau_circ_is_24hours
+R4681:4683 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4670:4680 SleepDynamics <> tau_circ_ms def
+R4708:4718 SleepDynamics <> tau_circ_ms def
+prf 4779:4795 <> t_latency_is_2min
+R4811:4813 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4799:4810 SleepDynamics <> t_latency_ms def
+R4836:4847 SleepDynamics <> t_latency_ms def
+prf 4907:4926 <> deep_sleep_pct_is_25
+R4944:4946 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4930:4943 SleepDynamics <> deep_sleep_pct def
+R4965:4978 SleepDynamics <> deep_sleep_pct def
+prf 5038:5050 <> cycle_2x_NREM
+R5066:5068 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5056:5065 SleepDynamics <> t_cycle_ms def
+R5078:5080 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5069:5077 SleepDynamics <> t_NREM_ms def
+R5098:5107 SleepDynamics <> t_cycle_ms def
+R5110:5118 SleepDynamics <> t_NREM_ms def
+prf 5186:5219 <> thirteen_consecutive_sleep_opcodes
+R5234:5239 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5228:5230 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5249:5254 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5243:5245 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5264:5269 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5258:5260 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5279:5284 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5273:5275 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5294:5299 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5288:5290 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5309:5314 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5303:5305 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5324:5329 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5318:5320 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5339:5344 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5333:5335 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5354:5359 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5348:5350 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5369:5374 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5363:5365 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5384:5389 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5378:5380 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5399:5404 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5393:5395 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5408:5410 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5752:5772 <> sleep_mid_bank_bounds
+R5802:5807 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5781:5784 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5785:5801 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R5825:5828 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5808:5824 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R5848:5864 SleepDynamics <> OP_SLEEP_DYNAMICS def
+prf 5915:5933 <> all_values_positive
+R5949:5954 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5945:5947 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5965:5970 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5961:5963 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5982:5987 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5978:5980 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6000:6005 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5996:5998 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6016:6021 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6012:6014 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6024:6026 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6053:6061 SleepDynamics <> t_NREM_ms def
+R6085:6092 SleepDynamics <> t_REM_ms def
+R6116:6125 SleepDynamics <> t_cycle_ms def
+R6149:6159 SleepDynamics <> tau_circ_ms def
+R6183:6194 SleepDynamics <> t_latency_ms def
+R6211:6224 SleepDynamics <> deep_sleep_pct def
+prf 6270:6283 <> stage_equality
+R6295:6297 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 6355:6367 <> latency_ratio
+R6379:6381 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6388:6390 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6447:6463 <> circadian_scaling
+R6477:6479 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6487:6489 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6548:6565 <> deep_sleep_quarter
+R6574:6576 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6579:6581 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6638:6654 <> cycle_composition
+R6667:6669 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6676:6678 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+prf 7004:7027 <> sleep_dynamics_composite
+R7056:7061 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7050:7052 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7033:7049 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R7080:7085 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7071:7073 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7062:7070 SleepDynamics <> t_NREM_ms def
+R7103:7108 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7094:7096 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7086:7093 SleepDynamics <> t_REM_ms def
+R7129:7134 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7119:7121 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7109:7118 SleepDynamics <> t_cycle_ms def
+R7157:7162 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7146:7148 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7135:7145 SleepDynamics <> tau_circ_ms def
+R7184:7189 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7175:7177 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7163:7174 SleepDynamics <> t_latency_ms def
+R7209:7214 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7204:7206 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7190:7203 SleepDynamics <> deep_sleep_pct def
+R7228:7233 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7224:7226 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7215:7223 SleepDynamics <> t_NREM_ms def
+R7246:7251 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7242:7244 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7234:7241 SleepDynamics <> t_REM_ms def
+R7276:7281 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7263:7265 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7252:7262 SleepDynamics <> tau_circ_ms def
+R7266:7275 SleepDynamics <> t_cycle_ms def
+R7315:7320 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7292:7294 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7282:7291 SleepDynamics <> t_cycle_ms def
+R7304:7306 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7295:7303 SleepDynamics <> t_NREM_ms def
+R7307:7314 SleepDynamics <> t_REM_ms def
+R7347:7352 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7331:7333 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7321:7330 SleepDynamics <> t_cycle_ms def
+R7343:7345 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7334:7342 SleepDynamics <> t_NREM_ms def
+R7370:7372 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7353:7369 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R7389:7391 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7373:7388 SleepDynamics <> OP_MEMORY_REPLAY def
+R7418:7434 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R7465:7479 SleepDynamics <> t_NREM_is_10min thm
+R7465:7479 SleepDynamics <> t_NREM_is_10min thm
+R7497:7510 SleepDynamics <> t_REM_is_10min thm
+R7497:7510 SleepDynamics <> t_REM_is_10min thm
+R7528:7543 SleepDynamics <> t_cycle_is_20min thm
+R7528:7543 SleepDynamics <> t_cycle_is_20min thm
+R7561:7579 SleepDynamics <> tau_circ_is_24hours thm
+R7561:7579 SleepDynamics <> tau_circ_is_24hours thm
+R7597:7613 SleepDynamics <> t_latency_is_2min thm
+R7597:7613 SleepDynamics <> t_latency_is_2min thm
+R7631:7650 SleepDynamics <> deep_sleep_pct_is_25 thm
+R7631:7650 SleepDynamics <> deep_sleep_pct_is_25 thm
+R7668:7682 SleepDynamics <> t_NREM_positive thm
+R7668:7682 SleepDynamics <> t_NREM_positive thm
+R7700:7713 SleepDynamics <> t_REM_positive thm
+R7700:7713 SleepDynamics <> t_REM_positive thm
+R7731:7757 SleepDynamics <> circadian_longer_than_cycle thm
+R7731:7757 SleepDynamics <> circadian_longer_than_cycle thm
+R7775:7791 SleepDynamics <> cycle_from_stages thm
+R7775:7791 SleepDynamics <> cycle_from_stages thm
+R7809:7821 SleepDynamics <> cycle_2x_NREM thm
+R7809:7821 SleepDynamics <> cycle_2x_NREM thm
+R7833:7849 SleepDynamics <> OP_SLEEP_DYNAMICS def
+R7852:7867 SleepDynamics <> OP_MEMORY_REPLAY def

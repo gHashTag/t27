@@ -1,0 +1,250 @@
+DIGEST a4e8b279c0450bb90d3a070e769337b7
+FHomeostaticReg
+R1270:1286 Stdlib.ZArith.ZArith <> <> lib
+R1304:1320 Stdlib.micromega.Lia <> <> lib
+def 1587:1604 <> OP_HOMEOSTATIC_REG
+def 1695:1715 <> OP_NETWORK_PLASTICITY
+def 1756:1773 <> OP_NEUROMODULATION
+def 1844:1859 <> SACRED_BANK_BASE
+def 1898:1912 <> SACRED_BANK_END
+prf 2178:2217 <> homeostatic_reg_distinct_from_plasticity
+R2241:2244 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2223:2240 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2245:2265 HomeostaticReg <> OP_NETWORK_PLASTICITY def
+R2282:2299 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2302:2322 HomeostaticReg <> OP_NETWORK_PLASTICITY def
+prf 2342:2379 <> homeostatic_reg_adjacent_to_plasticity
+R2403:2405 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2385:2402 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2427:2429 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2406:2426 HomeostaticReg <> OP_NETWORK_PLASTICITY def
+R2447:2464 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2467:2487 HomeostaticReg <> OP_NETWORK_PLASTICITY def
+prf 2507:2533 <> homeostatic_reg_in_mid_bank
+R2577:2580 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2555:2558 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2539:2554 HomeostaticReg <> SACRED_BANK_BASE def
+R2559:2576 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2599:2602 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2581:2598 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2603:2617 HomeostaticReg <> SACRED_BANK_END def
+R2634:2649 HomeostaticReg <> SACRED_BANK_BASE def
+R2652:2669 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R2672:2686 HomeostaticReg <> SACRED_BANK_END def
+def 2974:2981 <> r_set_Hz
+R2985:2985 Corelib.Numbers.BinNums <> Z ind
+def 3079:3086 <> tau_h_ms
+R3090:3090 Corelib.Numbers.BinNums <> Z ind
+def 3184:3192 <> alpha_num
+R3196:3196 Corelib.Numbers.BinNums <> Z ind
+def 3235:3243 <> alpha_den
+R3247:3247 Corelib.Numbers.BinNums <> Z ind
+def 3315:3324 <> delta_r_Hz
+R3328:3328 Corelib.Numbers.BinNums <> Z ind
+def 3397:3404 <> r_min_Hz
+R3408:3408 Corelib.Numbers.BinNums <> Z ind
+def 3476:3483 <> r_max_Hz
+R3487:3487 Corelib.Numbers.BinNums <> Z ind
+prf 3780:3792 <> r_set_is_10Hz
+R3804:3806 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3796:3803 HomeostaticReg <> r_set_Hz def
+R3825:3832 HomeostaticReg <> r_set_Hz def
+prf 3880:3893 <> tau_h_positive
+R3905:3907 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3897:3904 HomeostaticReg <> tau_h_ms def
+R3925:3932 HomeostaticReg <> tau_h_ms def
+prf 3983:3999 <> alpha_less_than_1
+R4014:4016 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4005:4013 HomeostaticReg <> alpha_num def
+R4017:4025 HomeostaticReg <> alpha_den def
+R4042:4050 HomeostaticReg <> alpha_num def
+R4053:4061 HomeostaticReg <> alpha_den def
+prf 4107:4129 <> delta_r_less_than_r_set
+R4145:4147 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4135:4144 HomeostaticReg <> delta_r_Hz def
+R4148:4155 HomeostaticReg <> r_set_Hz def
+R4172:4181 HomeostaticReg <> delta_r_Hz def
+R4184:4191 HomeostaticReg <> r_set_Hz def
+prf 4236:4249 <> alpha_num_is_1
+R4262:4264 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4253:4261 HomeostaticReg <> alpha_num def
+R4282:4290 HomeostaticReg <> alpha_num def
+prf 4344:4358 <> alpha_den_is_10
+R4371:4373 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4362:4370 HomeostaticReg <> alpha_den def
+R4392:4400 HomeostaticReg <> alpha_den def
+prf 4454:4467 <> delta_r_is_5Hz
+R4481:4483 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4471:4480 HomeostaticReg <> delta_r_Hz def
+R4501:4510 HomeostaticReg <> delta_r_Hz def
+prf 4562:4573 <> r_min_is_5Hz
+R4585:4587 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4577:4584 HomeostaticReg <> r_min_Hz def
+R4605:4612 HomeostaticReg <> r_min_Hz def
+prf 4665:4677 <> r_max_is_15Hz
+R4689:4691 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4681:4688 HomeostaticReg <> r_max_Hz def
+R4710:4717 HomeostaticReg <> r_max_Hz def
+prf 4780:4799 <> r_min_from_tolerance
+R4813:4815 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4805:4812 HomeostaticReg <> r_min_Hz def
+R4824:4826 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R4816:4823 HomeostaticReg <> r_set_Hz def
+R4827:4836 HomeostaticReg <> delta_r_Hz def
+R4853:4860 HomeostaticReg <> r_min_Hz def
+R4863:4870 HomeostaticReg <> r_set_Hz def
+R4873:4882 HomeostaticReg <> delta_r_Hz def
+prf 4937:4956 <> r_max_from_tolerance
+R4970:4972 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4962:4969 HomeostaticReg <> r_max_Hz def
+R4981:4983 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4973:4980 HomeostaticReg <> r_set_Hz def
+R4984:4993 HomeostaticReg <> delta_r_Hz def
+R5010:5017 HomeostaticReg <> r_max_Hz def
+R5020:5027 HomeostaticReg <> r_set_Hz def
+R5030:5039 HomeostaticReg <> delta_r_Hz def
+prf 5092:5109 <> rate_range_is_10Hz
+R5134:5136 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5123:5125 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R5115:5122 HomeostaticReg <> r_max_Hz def
+R5126:5133 HomeostaticReg <> r_min_Hz def
+R5155:5162 HomeostaticReg <> r_max_Hz def
+R5165:5172 HomeostaticReg <> r_min_Hz def
+prf 5235:5269 <> six_consecutive_homeostatic_opcodes
+R5284:5289 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5278:5280 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5299:5304 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5293:5295 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5314:5319 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5308:5310 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5329:5334 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5323:5325 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5344:5349 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5338:5340 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5353:5355 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5551:5573 <> homeostatic_in_mid_bank
+R5604:5609 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5582:5585 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5586:5603 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R5628:5631 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5610:5627 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R5651:5668 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+prf 5719:5737 <> all_values_positive
+R5749:5754 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5745:5747 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5763:5768 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5759:5761 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5774:5779 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5770:5772 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5786:5791 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5782:5784 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5797:5802 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5793:5795 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5808:5813 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5804:5806 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5816:5818 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5845:5852 HomeostaticReg <> r_set_Hz def
+R5876:5883 HomeostaticReg <> tau_h_ms def
+R5907:5915 HomeostaticReg <> alpha_num def
+R5939:5947 HomeostaticReg <> alpha_den def
+R5971:5980 HomeostaticReg <> delta_r_Hz def
+R6004:6011 HomeostaticReg <> r_min_Hz def
+R6028:6035 HomeostaticReg <> r_max_Hz def
+prf 6088:6103 <> bounds_symmetric
+R6116:6118 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6111:6113 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R6121:6123 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+prf 6175:6186 <> gain_scaling
+R6194:6196 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6198:6200 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6256:6270 <> tolerance_ratio
+R6278:6280 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6282:6284 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6338:6351 <> rate_at_center
+R6359:6361 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6363:6365 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+prf 6419:6432 <> alpha_rational
+R6447:6449 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6438:6446 HomeostaticReg <> alpha_den def
+R6459:6461 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6450:6458 HomeostaticReg <> alpha_num def
+R6480:6488 HomeostaticReg <> alpha_den def
+R6491:6499 HomeostaticReg <> alpha_num def
+prf 6812:6836 <> homeostatic_reg_composite
+R6866:6871 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6860:6862 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6842:6859 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R6885:6890 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6880:6882 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6872:6879 HomeostaticReg <> r_set_Hz def
+R6906:6911 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6899:6901 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6891:6898 HomeostaticReg <> tau_h_ms def
+R6925:6930 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6921:6923 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6912:6920 HomeostaticReg <> alpha_num def
+R6945:6950 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6940:6942 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6931:6939 HomeostaticReg <> alpha_den def
+R6965:6970 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6961:6963 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6951:6960 HomeostaticReg <> delta_r_Hz def
+R6983:6988 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6979:6981 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6971:6978 HomeostaticReg <> r_min_Hz def
+R7002:7007 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6997:6999 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6989:6996 HomeostaticReg <> r_max_Hz def
+R7020:7025 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7016:7018 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7008:7015 HomeostaticReg <> tau_h_ms def
+R7047:7052 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7035:7037 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7026:7034 HomeostaticReg <> alpha_num def
+R7038:7046 HomeostaticReg <> alpha_den def
+R7074:7079 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7063:7065 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7053:7062 HomeostaticReg <> delta_r_Hz def
+R7066:7073 HomeostaticReg <> r_set_Hz def
+R7112:7117 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7088:7090 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7080:7087 HomeostaticReg <> r_min_Hz def
+R7099:7101 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R7091:7098 HomeostaticReg <> r_set_Hz def
+R7102:7111 HomeostaticReg <> delta_r_Hz def
+R7150:7155 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7126:7128 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7118:7125 HomeostaticReg <> r_max_Hz def
+R7137:7139 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7129:7136 HomeostaticReg <> r_set_Hz def
+R7140:7149 HomeostaticReg <> delta_r_Hz def
+R7174:7176 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7156:7173 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R7198:7200 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7177:7197 HomeostaticReg <> OP_NETWORK_PLASTICITY def
+R7227:7244 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R7275:7287 HomeostaticReg <> r_set_is_10Hz thm
+R7275:7287 HomeostaticReg <> r_set_is_10Hz thm
+R7306:7313 HomeostaticReg <> tau_h_ms def
+R7344:7357 HomeostaticReg <> alpha_num_is_1 thm
+R7344:7357 HomeostaticReg <> alpha_num_is_1 thm
+R7375:7389 HomeostaticReg <> alpha_den_is_10 thm
+R7375:7389 HomeostaticReg <> alpha_den_is_10 thm
+R7407:7420 HomeostaticReg <> delta_r_is_5Hz thm
+R7407:7420 HomeostaticReg <> delta_r_is_5Hz thm
+R7438:7449 HomeostaticReg <> r_min_is_5Hz thm
+R7438:7449 HomeostaticReg <> r_min_is_5Hz thm
+R7467:7479 HomeostaticReg <> r_max_is_15Hz thm
+R7467:7479 HomeostaticReg <> r_max_is_15Hz thm
+R7497:7510 HomeostaticReg <> tau_h_positive thm
+R7497:7510 HomeostaticReg <> tau_h_positive thm
+R7528:7544 HomeostaticReg <> alpha_less_than_1 thm
+R7528:7544 HomeostaticReg <> alpha_less_than_1 thm
+R7562:7584 HomeostaticReg <> delta_r_less_than_r_set thm
+R7562:7584 HomeostaticReg <> delta_r_less_than_r_set thm
+R7602:7621 HomeostaticReg <> r_min_from_tolerance thm
+R7602:7621 HomeostaticReg <> r_min_from_tolerance thm
+R7639:7658 HomeostaticReg <> r_max_from_tolerance thm
+R7639:7658 HomeostaticReg <> r_max_from_tolerance thm
+R7670:7687 HomeostaticReg <> OP_HOMEOSTATIC_REG def
+R7690:7710 HomeostaticReg <> OP_NETWORK_PLASTICITY def

@@ -1,0 +1,219 @@
+DIGEST fe6394ea3e37d8c7d8ff2e337e311859
+FLongTermMemory
+R1321:1337 Stdlib.ZArith.ZArith <> <> lib
+R1355:1371 Stdlib.micromega.Lia <> <> lib
+def 1638:1656 <> OP_LONG_TERM_MEMORY
+def 1741:1757 <> OP_WORKING_MEMORY
+def 1798:1813 <> OP_MEMORY_REPLAY
+def 1884:1899 <> SACRED_BANK_BASE
+def 1938:1952 <> SACRED_BANK_END
+prf 2218:2250 <> long_term_memory_distinct_from_WM
+R2275:2278 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2256:2274 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2279:2295 LongTermMemory <> OP_WORKING_MEMORY def
+R2312:2330 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2333:2349 LongTermMemory <> OP_WORKING_MEMORY def
+prf 2369:2399 <> long_term_memory_adjacent_to_WM
+R2424:2426 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2405:2423 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2444:2446 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2427:2443 LongTermMemory <> OP_WORKING_MEMORY def
+R2464:2482 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2485:2501 LongTermMemory <> OP_WORKING_MEMORY def
+prf 2521:2548 <> long_term_memory_in_mid_bank
+R2593:2596 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2570:2573 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2554:2569 LongTermMemory <> SACRED_BANK_BASE def
+R2574:2592 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2616:2619 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2597:2615 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2620:2634 LongTermMemory <> SACRED_BANK_END def
+R2651:2666 LongTermMemory <> SACRED_BANK_BASE def
+R2669:2687 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R2690:2704 LongTermMemory <> SACRED_BANK_END def
+def 2986:2999 <> LTM_cap_scaled
+R3003:3003 Corelib.Numbers.BinNums <> Z ind
+def 3084:3103 <> tau_consolidation_ms
+R3107:3107 Corelib.Numbers.BinNums <> Z ind
+def 3202:3214 <> retention_num
+R3218:3218 Corelib.Numbers.BinNums <> Z ind
+def 3257:3269 <> retention_den
+R3273:3273 Corelib.Numbers.BinNums <> Z ind
+def 3350:3363 <> t_retrieval_ms
+R3367:3367 Corelib.Numbers.BinNums <> Z ind
+def 3460:3473 <> forgetting_num
+R3477:3477 Corelib.Numbers.BinNums <> Z ind
+def 3515:3528 <> forgetting_den
+R3532:3532 Corelib.Numbers.BinNums <> Z ind
+prf 3830:3842 <> LTM_cap_is_1M
+R3860:3862 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3846:3859 LongTermMemory <> LTM_cap_scaled def
+R3886:3899 LongTermMemory <> LTM_cap_scaled def
+prf 3959:3984 <> tau_consolidation_positive
+R4008:4010 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3988:4007 LongTermMemory <> tau_consolidation_ms def
+R4028:4047 LongTermMemory <> tau_consolidation_ms def
+prf 4109:4129 <> retention_less_than_1
+R4148:4150 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4135:4147 LongTermMemory <> retention_num def
+R4151:4163 LongTermMemory <> retention_den def
+R4180:4192 LongTermMemory <> retention_num def
+R4195:4207 LongTermMemory <> retention_den def
+prf 4256:4275 <> t_retrieval_positive
+R4293:4295 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4279:4292 LongTermMemory <> t_retrieval_ms def
+R4313:4326 LongTermMemory <> t_retrieval_ms def
+prf 4372:4390 <> LTM_cap_power_of_10
+R4403:4405 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4410:4412 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 4484:4508 <> tau_consolidation_is_100s
+R4534:4536 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4514:4533 LongTermMemory <> tau_consolidation_ms def
+R4559:4578 LongTermMemory <> tau_consolidation_ms def
+prf 4636:4654 <> retention_num_is_90
+R4671:4673 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4658:4670 LongTermMemory <> retention_num def
+R4692:4704 LongTermMemory <> retention_num def
+prf 4763:4782 <> retention_den_is_100
+R4799:4801 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4786:4798 LongTermMemory <> retention_den def
+R4821:4833 LongTermMemory <> retention_den def
+prf 4893:4912 <> t_retrieval_is_100ms
+R4930:4932 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4916:4929 LongTermMemory <> t_retrieval_ms def
+R4952:4965 LongTermMemory <> t_retrieval_ms def
+prf 5025:5044 <> forgetting_num_is_10
+R5062:5064 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5048:5061 LongTermMemory <> forgetting_num def
+R5083:5096 LongTermMemory <> forgetting_num def
+prf 5174:5202 <> consolidation_1000x_retrieval
+R5228:5230 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5208:5227 LongTermMemory <> tau_consolidation_ms def
+R5245:5247 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R5231:5244 LongTermMemory <> t_retrieval_ms def
+R5268:5287 LongTermMemory <> tau_consolidation_ms def
+R5290:5303 LongTermMemory <> t_retrieval_ms def
+prf 5369:5398 <> eleven_consecutive_LTM_opcodes
+R5413:5418 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5407:5409 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5428:5433 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5422:5424 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5443:5448 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5437:5439 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5458:5463 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5452:5454 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5473:5478 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5467:5469 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5488:5493 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5482:5484 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5503:5508 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5497:5499 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5518:5523 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5512:5514 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5533:5538 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5527:5529 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5548:5553 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5542:5544 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5557:5559 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5846:5864 <> LTM_mid_bank_bounds
+R5896:5901 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5873:5876 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5877:5895 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R5921:5924 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5902:5920 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R5944:5962 LongTermMemory <> OP_LONG_TERM_MEMORY def
+prf 6013:6031 <> all_values_positive
+R6048:6053 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6044:6046 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6064:6069 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6060:6062 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6076:6081 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6072:6074 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6089:6094 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6085:6087 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6102:6107 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6098:6100 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6110:6112 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6139:6152 LongTermMemory <> LTM_cap_scaled def
+R6176:6195 LongTermMemory <> tau_consolidation_ms def
+R6219:6231 LongTermMemory <> retention_num def
+R6255:6267 LongTermMemory <> retention_den def
+R6291:6304 LongTermMemory <> t_retrieval_ms def
+R6321:6334 LongTermMemory <> forgetting_num def
+prf 6382:6397 <> capacity_scaling
+R6410:6412 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6416:6418 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6474:6485 <> time_scaling
+R6497:6499 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6503:6505 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6574:6598 <> retention_plus_forgetting
+R6611:6613 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6606:6608 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+prf 6669:6682 <> large_capacity
+R6695:6697 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+prf 6760:6777 <> consolidation_long
+R6789:6791 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+prf 7114:7139 <> long_term_memory_composite
+R7170:7175 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7164:7166 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7145:7163 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R7200:7205 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7190:7192 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7176:7189 LongTermMemory <> LTM_cap_scaled def
+R7235:7240 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7226:7228 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7206:7225 LongTermMemory <> tau_consolidation_ms def
+R7259:7264 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7254:7256 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7241:7253 LongTermMemory <> retention_num def
+R7284:7289 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7278:7280 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7265:7277 LongTermMemory <> retention_den def
+R7310:7315 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7304:7306 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7290:7303 LongTermMemory <> t_retrieval_ms def
+R7335:7340 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7330:7332 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7316:7329 LongTermMemory <> forgetting_num def
+R7365:7370 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7361:7363 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7341:7360 LongTermMemory <> tau_consolidation_ms def
+R7400:7405 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7384:7386 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7371:7383 LongTermMemory <> retention_num def
+R7387:7399 LongTermMemory <> retention_den def
+R7424:7429 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7420:7422 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7406:7419 LongTermMemory <> t_retrieval_ms def
+R7474:7479 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7450:7452 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7430:7449 LongTermMemory <> tau_consolidation_ms def
+R7467:7469 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7453:7466 LongTermMemory <> t_retrieval_ms def
+R7499:7501 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7480:7498 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R7519:7521 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7502:7518 LongTermMemory <> OP_WORKING_MEMORY def
+R7548:7566 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R7597:7609 LongTermMemory <> LTM_cap_is_1M thm
+R7597:7609 LongTermMemory <> LTM_cap_is_1M thm
+R7627:7651 LongTermMemory <> tau_consolidation_is_100s thm
+R7627:7651 LongTermMemory <> tau_consolidation_is_100s thm
+R7669:7687 LongTermMemory <> retention_num_is_90 thm
+R7669:7687 LongTermMemory <> retention_num_is_90 thm
+R7705:7724 LongTermMemory <> retention_den_is_100 thm
+R7705:7724 LongTermMemory <> retention_den_is_100 thm
+R7742:7761 LongTermMemory <> t_retrieval_is_100ms thm
+R7742:7761 LongTermMemory <> t_retrieval_is_100ms thm
+R7779:7798 LongTermMemory <> forgetting_num_is_10 thm
+R7779:7798 LongTermMemory <> forgetting_num_is_10 thm
+R7816:7841 LongTermMemory <> tau_consolidation_positive thm
+R7816:7841 LongTermMemory <> tau_consolidation_positive thm
+R7859:7879 LongTermMemory <> retention_less_than_1 thm
+R7859:7879 LongTermMemory <> retention_less_than_1 thm
+R7897:7916 LongTermMemory <> t_retrieval_positive thm
+R7897:7916 LongTermMemory <> t_retrieval_positive thm
+R7934:7962 LongTermMemory <> consolidation_1000x_retrieval thm
+R7934:7962 LongTermMemory <> consolidation_1000x_retrieval thm
+R7974:7992 LongTermMemory <> OP_LONG_TERM_MEMORY def
+R7995:8011 LongTermMemory <> OP_WORKING_MEMORY def

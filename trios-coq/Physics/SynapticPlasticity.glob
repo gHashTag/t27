@@ -1,0 +1,244 @@
+DIGEST 87b643a82e5cb2a86f59f6df35edaa03
+FSynapticPlasticity
+R1442:1458 Stdlib.ZArith.ZArith <> <> lib
+R1476:1492 Stdlib.micromega.Lia <> <> lib
+def 1759:1780 <> OP_SYNAPTIC_PLASTICITY
+def 1868:1887 <> OP_ASTROCYTE_CA_WAVE
+def 1928:1945 <> OP_PURKINJE_ACTION
+def 2018:2033 <> SACRED_BANK_BASE
+def 2072:2086 <> SACRED_BANK_END
+prf 2352:2394 <> synaptic_plasticity_distinct_from_astrocyte
+R2422:2425 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2400:2421 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2426:2445 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+R2462:2483 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2486:2505 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+prf 2525:2566 <> synaptic_plasticity_distinct_from_purkinje
+R2594:2597 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2572:2593 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2598:2615 SynapticPlasticity <> OP_PURKINJE_ACTION def
+R2632:2653 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2656:2673 SynapticPlasticity <> OP_PURKINJE_ACTION def
+prf 2693:2733 <> synaptic_plasticity_adjacent_to_astrocyte
+R2761:2763 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2739:2760 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2784:2786 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2764:2783 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+R2804:2825 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2828:2847 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+prf 2867:2897 <> synaptic_plasticity_in_mid_bank
+R2945:2948 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2919:2922 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2903:2918 SynapticPlasticity <> SACRED_BANK_BASE def
+R2923:2944 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2971:2974 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2949:2970 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R2975:2989 SynapticPlasticity <> SACRED_BANK_END def
+R3006:3021 SynapticPlasticity <> SACRED_BANK_BASE def
+R3024:3045 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R3048:3062 SynapticPlasticity <> SACRED_BANK_END def
+def 3362:3370 <> w_min_bps
+R3374:3374 Corelib.Numbers.BinNums <> Z ind
+def 3421:3429 <> w_max_bps
+R3433:3433 Corelib.Numbers.BinNums <> Z ind
+def 3510:3524 <> delta_w_LTP_bps
+R3528:3528 Corelib.Numbers.BinNums <> Z ind
+def 3575:3589 <> delta_w_LTD_bps
+R3593:3593 Corelib.Numbers.BinNums <> Z ind
+def 3679:3693 <> dt_induction_ms
+R3697:3697 Corelib.Numbers.BinNums <> Z ind
+def 3746:3764 <> dt_consolidation_ms
+R3768:3768 Corelib.Numbers.BinNums <> Z ind
+def 3852:3868 <> pre_threshold_bps
+R3872:3872 Corelib.Numbers.BinNums <> Z ind
+def 3927:3944 <> post_threshold_bps
+R3948:3948 Corelib.Numbers.BinNums <> Z ind
+prf 4278:4296 <> weight_bounds_valid
+R4312:4317 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4303:4306 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R4327:4332 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4319:4322 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R4337:4340 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+prf 4439:4458 <> delta_w_LTP_positive
+R4477:4479 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4462:4476 SynapticPlasticity <> delta_w_LTP_bps def
+R4497:4511 SynapticPlasticity <> delta_w_LTP_bps def
+prf 4566:4585 <> delta_w_LTD_negative
+R4604:4606 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4589:4603 SynapticPlasticity <> delta_w_LTD_bps def
+R4624:4638 SynapticPlasticity <> delta_w_LTD_bps def
+prf 4694:4709 <> LTP_LTD_sum_zero
+R4748:4750 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4730:4732 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4715:4729 SynapticPlasticity <> delta_w_LTP_bps def
+R4733:4747 SynapticPlasticity <> delta_w_LTD_bps def
+R4770:4784 SynapticPlasticity <> delta_w_LTP_bps def
+R4787:4801 SynapticPlasticity <> delta_w_LTD_bps def
+prf 4877:4899 <> LTP_LTD_equal_magnitude
+R4920:4922 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4905:4919 SynapticPlasticity <> delta_w_LTP_bps def
+R4923:4923 Stdlib.ZArith.BinInt <> ::Z_scope:'-'_x not
+R4924:4938 SynapticPlasticity <> delta_w_LTD_bps def
+R4957:4971 SynapticPlasticity <> delta_w_LTP_bps def
+R4974:4988 SynapticPlasticity <> delta_w_LTD_bps def
+prf 5041:5050 <> w_min_is_0
+R5063:5065 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5054:5062 SynapticPlasticity <> w_min_bps def
+R5083:5091 SynapticPlasticity <> w_min_bps def
+prf 5162:5171 <> w_max_is_1
+R5184:5186 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5175:5183 SynapticPlasticity <> w_max_bps def
+R5208:5216 SynapticPlasticity <> w_max_bps def
+prf 5288:5306 <> delta_w_LTP_is_0pt1
+R5325:5327 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5310:5324 SynapticPlasticity <> delta_w_LTP_bps def
+R5348:5362 SynapticPlasticity <> delta_w_LTP_bps def
+prf 5436:5460 <> delta_w_LTD_is_minus_0pt1
+R5479:5481 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5464:5478 SynapticPlasticity <> delta_w_LTD_bps def
+R5503:5517 SynapticPlasticity <> delta_w_LTD_bps def
+prf 5580:5600 <> dt_induction_is_100ms
+R5619:5621 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5604:5618 SynapticPlasticity <> dt_induction_ms def
+R5641:5655 SynapticPlasticity <> dt_induction_ms def
+prf 5728:5753 <> dt_consolidation_is_1000ms
+R5776:5778 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5757:5775 SynapticPlasticity <> dt_consolidation_ms def
+R5799:5817 SynapticPlasticity <> dt_consolidation_ms def
+prf 5882:5916 <> consolidation_longer_than_induction
+R5941:5943 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5922:5940 SynapticPlasticity <> dt_consolidation_ms def
+R5944:5958 SynapticPlasticity <> dt_induction_ms def
+R5977:5995 SynapticPlasticity <> dt_consolidation_ms def
+R5998:6012 SynapticPlasticity <> dt_induction_ms def
+prf 6080:6099 <> both_thresholds_0pt5
+R6129:6134 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6122:6124 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6105:6121 SynapticPlasticity <> pre_threshold_bps def
+R6153:6155 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6135:6152 SynapticPlasticity <> post_threshold_bps def
+R6186:6202 SynapticPlasticity <> pre_threshold_bps def
+R6213:6230 SynapticPlasticity <> post_threshold_bps def
+prf 6302:6318 <> weight_range_is_1
+R6345:6347 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6333:6335 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R6324:6332 SynapticPlasticity <> w_max_bps def
+R6336:6344 SynapticPlasticity <> w_min_bps def
+R6371:6379 SynapticPlasticity <> w_max_bps def
+R6382:6390 SynapticPlasticity <> w_min_bps def
+prf 6456:6477 <> LTP_events_to_saturate
+R6492:6494 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6485:6487 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6571:6588 <> LTD_events_to_zero
+R6603:6605 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6596:6598 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6684:6706 <> weight_after_LTP_from_0
+R6729:6731 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6711:6713 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6714:6728 SynapticPlasticity <> delta_w_LTP_bps def
+R6752:6766 SynapticPlasticity <> delta_w_LTP_bps def
+prf 6844:6868 <> weight_after_LTD_from_max
+R6901:6903 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6883:6885 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6874:6882 SynapticPlasticity <> w_max_bps def
+R6886:6900 SynapticPlasticity <> delta_w_LTD_bps def
+R6926:6934 SynapticPlasticity <> w_max_bps def
+R6937:6951 SynapticPlasticity <> delta_w_LTD_bps def
+prf 7031:7051 <> hebbian_LTP_condition
+R7081:7086 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7061:7063 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7064:7080 SynapticPlasticity <> pre_threshold_bps def
+R7091:7093 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7094:7111 SynapticPlasticity <> post_threshold_bps def
+R7138:7154 SynapticPlasticity <> pre_threshold_bps def
+R7165:7182 SynapticPlasticity <> post_threshold_bps def
+prf 7255:7286 <> three_consecutive_neural_opcodes
+R7316:7321 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7310:7312 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7292:7309 SynapticPlasticity <> OP_PURKINJE_ACTION def
+R7348:7353 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7342:7344 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7322:7341 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+R7376:7378 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7354:7375 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R7407:7424 SynapticPlasticity <> OP_PURKINJE_ACTION def
+R7456:7475 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+R7500:7521 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+prf 7842:7870 <> synaptic_plasticity_composite
+R7904:7909 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7898:7900 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7876:7897 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R7923:7928 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7919:7921 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7910:7918 SynapticPlasticity <> w_min_bps def
+R7946:7951 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7938:7940 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7929:7937 SynapticPlasticity <> w_max_bps def
+R7974:7979 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7967:7969 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7952:7966 SynapticPlasticity <> delta_w_LTP_bps def
+R8003:8008 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7995:7997 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7980:7994 SynapticPlasticity <> delta_w_LTD_bps def
+R8030:8035 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8024:8026 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8009:8023 SynapticPlasticity <> dt_induction_ms def
+R8062:8067 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8055:8057 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8036:8054 SynapticPlasticity <> dt_consolidation_ms def
+R8092:8097 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8085:8087 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8068:8084 SynapticPlasticity <> pre_threshold_bps def
+R8123:8128 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8116:8118 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8098:8115 SynapticPlasticity <> post_threshold_bps def
+R8151:8156 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8138:8141 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R8129:8137 SynapticPlasticity <> w_min_bps def
+R8142:8150 SynapticPlasticity <> w_max_bps def
+R8176:8181 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8172:8174 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8157:8171 SynapticPlasticity <> delta_w_LTP_bps def
+R8201:8206 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8197:8199 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R8182:8196 SynapticPlasticity <> delta_w_LTD_bps def
+R8244:8249 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8240:8242 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8222:8224 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R8207:8221 SynapticPlasticity <> delta_w_LTP_bps def
+R8225:8239 SynapticPlasticity <> delta_w_LTD_bps def
+R8287:8292 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R8269:8271 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R8250:8268 SynapticPlasticity <> dt_consolidation_ms def
+R8272:8286 SynapticPlasticity <> dt_induction_ms def
+R8315:8317 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R8293:8314 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R8338:8340 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R8318:8337 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def
+R8367:8388 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R8419:8428 SynapticPlasticity <> w_min_is_0 thm
+R8419:8428 SynapticPlasticity <> w_min_is_0 thm
+R8446:8455 SynapticPlasticity <> w_max_is_1 thm
+R8446:8455 SynapticPlasticity <> w_max_is_1 thm
+R8473:8491 SynapticPlasticity <> delta_w_LTP_is_0pt1 thm
+R8473:8491 SynapticPlasticity <> delta_w_LTP_is_0pt1 thm
+R8509:8533 SynapticPlasticity <> delta_w_LTD_is_minus_0pt1 thm
+R8509:8533 SynapticPlasticity <> delta_w_LTD_is_minus_0pt1 thm
+R8551:8571 SynapticPlasticity <> dt_induction_is_100ms thm
+R8551:8571 SynapticPlasticity <> dt_induction_is_100ms thm
+R8589:8614 SynapticPlasticity <> dt_consolidation_is_1000ms thm
+R8589:8614 SynapticPlasticity <> dt_consolidation_is_1000ms thm
+R8633:8649 SynapticPlasticity <> pre_threshold_bps def
+R8681:8698 SynapticPlasticity <> post_threshold_bps def
+R8729:8747 SynapticPlasticity <> weight_bounds_valid thm
+R8729:8747 SynapticPlasticity <> weight_bounds_valid thm
+R8765:8784 SynapticPlasticity <> delta_w_LTP_positive thm
+R8765:8784 SynapticPlasticity <> delta_w_LTP_positive thm
+R8802:8821 SynapticPlasticity <> delta_w_LTD_negative thm
+R8802:8821 SynapticPlasticity <> delta_w_LTD_negative thm
+R8839:8854 SynapticPlasticity <> LTP_LTD_sum_zero thm
+R8839:8854 SynapticPlasticity <> LTP_LTD_sum_zero thm
+R8872:8906 SynapticPlasticity <> consolidation_longer_than_induction thm
+R8872:8906 SynapticPlasticity <> consolidation_longer_than_induction thm
+R8918:8939 SynapticPlasticity <> OP_SYNAPTIC_PLASTICITY def
+R8942:8961 SynapticPlasticity <> OP_ASTROCYTE_CA_WAVE def

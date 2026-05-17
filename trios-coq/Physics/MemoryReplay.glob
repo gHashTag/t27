@@ -1,0 +1,213 @@
+DIGEST 5e5059f7440696314ee830c1a15576c7
+FMemoryReplay
+R1338:1354 Stdlib.ZArith.ZArith <> <> lib
+R1372:1388 Stdlib.micromega.Lia <> <> lib
+def 1655:1670 <> OP_MEMORY_REPLAY
+def 1752:1770 <> OP_LONG_TERM_MEMORY
+def 1811:1827 <> OP_SLEEP_DYNAMICS
+def 1898:1913 <> SACRED_BANK_BASE
+def 1952:1966 <> SACRED_BANK_END
+prf 2232:2262 <> memory_replay_distinct_from_LTM
+R2284:2287 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2268:2283 MemoryReplay <> OP_MEMORY_REPLAY def
+R2288:2306 MemoryReplay <> OP_LONG_TERM_MEMORY def
+R2323:2338 MemoryReplay <> OP_MEMORY_REPLAY def
+R2341:2359 MemoryReplay <> OP_LONG_TERM_MEMORY def
+prf 2379:2407 <> memory_replay_adjacent_to_LTM
+R2429:2431 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2413:2428 MemoryReplay <> OP_MEMORY_REPLAY def
+R2451:2453 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2432:2450 MemoryReplay <> OP_LONG_TERM_MEMORY def
+R2471:2486 MemoryReplay <> OP_MEMORY_REPLAY def
+R2489:2507 MemoryReplay <> OP_LONG_TERM_MEMORY def
+prf 2527:2551 <> memory_replay_in_mid_bank
+R2593:2596 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2573:2576 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2557:2572 MemoryReplay <> SACRED_BANK_BASE def
+R2577:2592 MemoryReplay <> OP_MEMORY_REPLAY def
+R2613:2616 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2597:2612 MemoryReplay <> OP_MEMORY_REPLAY def
+R2617:2631 MemoryReplay <> SACRED_BANK_END def
+R2648:2663 MemoryReplay <> SACRED_BANK_BASE def
+R2666:2681 MemoryReplay <> OP_MEMORY_REPLAY def
+R2684:2698 MemoryReplay <> SACRED_BANK_END def
+def 2977:2990 <> replay_rate_Hz
+R2994:2994 Corelib.Numbers.BinNums <> Z ind
+def 3090:3100 <> t_replay_ms
+R3104:3104 Corelib.Numbers.BinNums <> Z ind
+def 3190:3209 <> replay_cycles_scaled
+R3213:3213 Corelib.Numbers.BinNums <> Z ind
+def 3299:3316 <> theta_phase_scaled
+R3320:3320 Corelib.Numbers.BinNums <> Z ind
+def 3399:3408 <> t_sleep_ms
+R3412:3412 Corelib.Numbers.BinNums <> Z ind
+def 3506:3516 <> f_ripple_Hz
+R3520:3520 Corelib.Numbers.BinNums <> Z ind
+prf 3820:3837 <> replay_rate_is_5Hz
+R3855:3857 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3841:3854 MemoryReplay <> replay_rate_Hz def
+R3875:3888 MemoryReplay <> replay_rate_Hz def
+prf 3939:3955 <> t_replay_positive
+R3970:3972 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3959:3969 MemoryReplay <> t_replay_ms def
+R3990:4000 MemoryReplay <> t_replay_ms def
+prf 4048:4069 <> replay_cycles_positive
+R4093:4095 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4073:4092 MemoryReplay <> replay_cycles_scaled def
+R4113:4132 MemoryReplay <> replay_cycles_scaled def
+prf 4191:4214 <> replay_rate_time_product
+R4240:4242 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4234:4236 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4220:4233 MemoryReplay <> replay_rate_Hz def
+R4262:4275 MemoryReplay <> replay_rate_Hz def
+prf 4324:4340 <> t_replay_is_100ms
+R4355:4357 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4344:4354 MemoryReplay <> t_replay_ms def
+R4377:4387 MemoryReplay <> t_replay_ms def
+prf 4446:4465 <> replay_cycles_is_100
+R4489:4491 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4469:4488 MemoryReplay <> replay_cycles_scaled def
+R4511:4530 MemoryReplay <> replay_cycles_scaled def
+prf 4585:4600 <> theta_phase_is_0
+R4622:4624 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4604:4621 MemoryReplay <> theta_phase_scaled def
+R4642:4659 MemoryReplay <> theta_phase_scaled def
+prf 4716:4732 <> f_ripple_is_200Hz
+R4747:4749 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4736:4746 MemoryReplay <> f_ripple_Hz def
+R4769:4779 MemoryReplay <> f_ripple_Hz def
+prf 4836:4852 <> t_sleep_is_8hours
+R4866:4868 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4856:4865 MemoryReplay <> t_sleep_ms def
+R4893:4902 MemoryReplay <> t_sleep_ms def
+prf 4966:4983 <> cycles_equals_time
+R5009:5011 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4989:5008 MemoryReplay <> replay_cycles_scaled def
+R5012:5022 MemoryReplay <> t_replay_ms def
+R5039:5058 MemoryReplay <> replay_cycles_scaled def
+R5061:5071 MemoryReplay <> t_replay_ms def
+prf 5137:5169 <> twelve_consecutive_replay_opcodes
+R5184:5189 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5178:5180 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5199:5204 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5193:5195 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5214:5219 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5208:5210 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5229:5234 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5223:5225 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5244:5249 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5238:5240 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5259:5264 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5253:5255 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5274:5279 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5268:5270 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5289:5294 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5283:5285 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5304:5309 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5298:5300 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5319:5324 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5313:5315 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5334:5339 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5328:5330 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5343:5345 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5664:5685 <> replay_mid_bank_bounds
+R5714:5719 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5694:5697 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5698:5713 MemoryReplay <> OP_MEMORY_REPLAY def
+R5736:5739 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5720:5735 MemoryReplay <> OP_MEMORY_REPLAY def
+R5759:5774 MemoryReplay <> OP_MEMORY_REPLAY def
+prf 5828:5849 <> all_values_nonnegative
+R5860:5865 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5856:5858 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5873:5878 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5869:5871 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5886:5891 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5882:5884 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5898:5903 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5893:5896 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R5911:5916 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5907:5909 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5925:5927 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5954:5967 MemoryReplay <> replay_rate_Hz def
+R5991:6001 MemoryReplay <> t_replay_ms def
+R6025:6044 MemoryReplay <> replay_cycles_scaled def
+R6068:6085 MemoryReplay <> theta_phase_scaled def
+R6109:6119 MemoryReplay <> f_ripple_Hz def
+R6136:6145 MemoryReplay <> t_sleep_ms def
+prf 6199:6217 <> ripple_replay_ratio
+R6226:6228 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6230:6232 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6283:6292 <> sleep_long
+R6306:6308 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+prf 6360:6369 <> cycle_time
+R6378:6380 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6383:6385 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6443:6459 <> total_replay_time
+R6470:6472 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6476:6478 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6535:6549 <> frequency_spans
+R6558:6560 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+prf 6881:6903 <> memory_replay_composite
+R6931:6936 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6925:6927 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6909:6924 MemoryReplay <> OP_MEMORY_REPLAY def
+R6955:6960 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6951:6953 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6937:6950 MemoryReplay <> replay_rate_Hz def
+R6978:6983 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6972:6974 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6961:6971 MemoryReplay <> t_replay_ms def
+R7010:7015 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7004:7006 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6984:7003 MemoryReplay <> replay_cycles_scaled def
+R7038:7043 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7034:7036 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7016:7033 MemoryReplay <> theta_phase_scaled def
+R7061:7066 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7055:7057 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7044:7054 MemoryReplay <> f_ripple_Hz def
+R7088:7093 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7077:7079 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7067:7076 MemoryReplay <> t_sleep_ms def
+R7109:7114 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7105:7107 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7094:7104 MemoryReplay <> t_replay_ms def
+R7139:7144 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7135:7137 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7115:7134 MemoryReplay <> replay_cycles_scaled def
+R7171:7176 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7165:7167 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7159:7161 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R7145:7158 MemoryReplay <> replay_rate_Hz def
+R7211:7216 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7197:7199 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7177:7196 MemoryReplay <> replay_cycles_scaled def
+R7200:7210 MemoryReplay <> t_replay_ms def
+R7233:7235 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7217:7232 MemoryReplay <> OP_MEMORY_REPLAY def
+R7255:7257 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7236:7254 MemoryReplay <> OP_LONG_TERM_MEMORY def
+R7284:7299 MemoryReplay <> OP_MEMORY_REPLAY def
+R7330:7347 MemoryReplay <> replay_rate_is_5Hz thm
+R7330:7347 MemoryReplay <> replay_rate_is_5Hz thm
+R7365:7381 MemoryReplay <> t_replay_is_100ms thm
+R7365:7381 MemoryReplay <> t_replay_is_100ms thm
+R7399:7418 MemoryReplay <> replay_cycles_is_100 thm
+R7399:7418 MemoryReplay <> replay_cycles_is_100 thm
+R7436:7451 MemoryReplay <> theta_phase_is_0 thm
+R7436:7451 MemoryReplay <> theta_phase_is_0 thm
+R7469:7485 MemoryReplay <> f_ripple_is_200Hz thm
+R7469:7485 MemoryReplay <> f_ripple_is_200Hz thm
+R7503:7519 MemoryReplay <> t_sleep_is_8hours thm
+R7503:7519 MemoryReplay <> t_sleep_is_8hours thm
+R7537:7553 MemoryReplay <> t_replay_positive thm
+R7537:7553 MemoryReplay <> t_replay_positive thm
+R7571:7592 MemoryReplay <> replay_cycles_positive thm
+R7571:7592 MemoryReplay <> replay_cycles_positive thm
+R7610:7633 MemoryReplay <> replay_rate_time_product thm
+R7610:7633 MemoryReplay <> replay_rate_time_product thm
+R7651:7668 MemoryReplay <> cycles_equals_time thm
+R7651:7668 MemoryReplay <> cycles_equals_time thm
+R7680:7695 MemoryReplay <> OP_MEMORY_REPLAY def
+R7698:7716 MemoryReplay <> OP_LONG_TERM_MEMORY def

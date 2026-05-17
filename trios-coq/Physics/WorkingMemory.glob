@@ -1,0 +1,218 @@
+DIGEST 7856f3de71d0be428d358674f23edbc2
+FWorkingMemory
+R1263:1279 Stdlib.ZArith.ZArith <> <> lib
+R1297:1313 Stdlib.micromega.Lia <> <> lib
+def 1580:1596 <> OP_WORKING_MEMORY
+def 1679:1690 <> OP_ATTENTION
+def 1731:1749 <> OP_LONG_TERM_MEMORY
+def 1820:1835 <> SACRED_BANK_BASE
+def 1874:1888 <> SACRED_BANK_END
+prf 2154:2191 <> working_memory_distinct_from_attention
+R2214:2217 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2197:2213 WorkingMemory <> OP_WORKING_MEMORY def
+R2218:2229 WorkingMemory <> OP_ATTENTION def
+R2246:2262 WorkingMemory <> OP_WORKING_MEMORY def
+R2265:2276 WorkingMemory <> OP_ATTENTION def
+prf 2296:2331 <> working_memory_adjacent_to_attention
+R2354:2356 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2337:2353 WorkingMemory <> OP_WORKING_MEMORY def
+R2369:2371 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2357:2368 WorkingMemory <> OP_ATTENTION def
+R2389:2405 WorkingMemory <> OP_WORKING_MEMORY def
+R2408:2419 WorkingMemory <> OP_ATTENTION def
+prf 2439:2464 <> working_memory_in_mid_bank
+R2507:2510 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2486:2489 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2470:2485 WorkingMemory <> SACRED_BANK_BASE def
+R2490:2506 WorkingMemory <> OP_WORKING_MEMORY def
+R2528:2531 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2511:2527 WorkingMemory <> OP_WORKING_MEMORY def
+R2532:2546 WorkingMemory <> SACRED_BANK_END def
+R2563:2578 WorkingMemory <> SACRED_BANK_BASE def
+R2581:2597 WorkingMemory <> OP_WORKING_MEMORY def
+R2600:2614 WorkingMemory <> SACRED_BANK_END def
+def 2896:2910 <> WM_items_scaled
+R2914:2914 Corelib.Numbers.BinNums <> Z ind
+def 3001:3009 <> tau_WM_ms
+R3013:3013 Corelib.Numbers.BinNums <> Z ind
+def 3127:3138 <> decay_WM_num
+R3142:3142 Corelib.Numbers.BinNums <> Z ind
+def 3182:3193 <> decay_WM_den
+R3197:3197 Corelib.Numbers.BinNums <> Z ind
+def 3264:3279 <> n_buffers_scaled
+R3283:3283 Corelib.Numbers.BinNums <> Z ind
+def 3354:3364 <> t_update_ms
+R3368:3368 Corelib.Numbers.BinNums <> Z ind
+prf 3665:3677 <> WM_items_is_7
+R3696:3698 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3681:3695 WorkingMemory <> WM_items_scaled def
+R3716:3730 WorkingMemory <> WM_items_scaled def
+prf 3779:3793 <> tau_WM_positive
+R3806:3808 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3797:3805 WorkingMemory <> tau_WM_ms def
+R3826:3834 WorkingMemory <> tau_WM_ms def
+prf 3889:3908 <> decay_WM_less_than_1
+R3926:3928 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3914:3925 WorkingMemory <> decay_WM_num def
+R3929:3940 WorkingMemory <> decay_WM_den def
+R3957:3968 WorkingMemory <> decay_WM_num def
+R3971:3982 WorkingMemory <> decay_WM_den def
+prf 4026:4043 <> n_buffers_positive
+R4063:4065 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4047:4062 WorkingMemory <> n_buffers_scaled def
+R4083:4098 WorkingMemory <> n_buffers_scaled def
+prf 4146:4161 <> tau_WM_is_2000ms
+R4174:4176 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4165:4173 WorkingMemory <> tau_WM_ms def
+R4197:4205 WorkingMemory <> tau_WM_ms def
+prf 4261:4277 <> decay_WM_num_is_1
+R4293:4295 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4281:4292 WorkingMemory <> decay_WM_num def
+R4313:4324 WorkingMemory <> decay_WM_num def
+prf 4382:4400 <> decay_WM_den_is_100
+R4416:4418 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4404:4415 WorkingMemory <> decay_WM_den def
+R4438:4449 WorkingMemory <> decay_WM_den def
+prf 4502:4515 <> n_buffers_is_3
+R4535:4537 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4519:4534 WorkingMemory <> n_buffers_scaled def
+R4555:4570 WorkingMemory <> n_buffers_scaled def
+prf 4627:4643 <> t_update_is_500ms
+R4658:4660 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4647:4657 WorkingMemory <> t_update_ms def
+R4680:4690 WorkingMemory <> t_update_ms def
+prf 4751:4763 <> tau_4x_update
+R4778:4780 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4769:4777 WorkingMemory <> tau_WM_ms def
+R4792:4794 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4781:4791 WorkingMemory <> t_update_ms def
+R4812:4820 WorkingMemory <> tau_WM_ms def
+R4823:4833 WorkingMemory <> t_update_ms def
+prf 4896:4921 <> ten_consecutive_WM_opcodes
+R4936:4941 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4930:4932 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4951:4956 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4945:4947 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4966:4971 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4960:4962 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4981:4986 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4975:4977 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4996:5001 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R4990:4992 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5011:5016 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5005:5007 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5026:5031 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5020:5022 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5041:5046 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5035:5037 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5056:5061 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5050:5052 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5065:5067 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5343:5360 <> WM_mid_bank_bounds
+R5390:5395 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5369:5372 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5373:5389 WorkingMemory <> OP_WORKING_MEMORY def
+R5413:5416 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5396:5412 WorkingMemory <> OP_WORKING_MEMORY def
+R5436:5452 WorkingMemory <> OP_WORKING_MEMORY def
+prf 5503:5521 <> all_values_positive
+R5532:5537 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5528:5530 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5546:5551 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5542:5544 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5557:5562 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5553:5555 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5570:5575 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5566:5568 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5581:5586 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5577:5579 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5590:5592 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5619:5633 WorkingMemory <> WM_items_scaled def
+R5657:5665 WorkingMemory <> tau_WM_ms def
+R5689:5700 WorkingMemory <> decay_WM_num def
+R5724:5735 WorkingMemory <> decay_WM_den def
+R5759:5774 WorkingMemory <> n_buffers_scaled def
+R5791:5801 WorkingMemory <> t_update_ms def
+prf 5849:5864 <> items_per_buffer
+R5871:5873 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R5875:5877 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 5934:5950 <> decay_denominator
+R5959:5961 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5963:5965 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6019:6030 <> time_scaling
+R6040:6042 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6046:6048 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6103:6117 <> buffer_capacity
+R6124:6126 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6128:6130 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+prf 6184:6197 <> decay_rational
+R6215:6217 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6203:6214 WorkingMemory <> decay_WM_den def
+R6230:6232 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6218:6229 WorkingMemory <> decay_WM_num def
+R6252:6263 WorkingMemory <> decay_WM_den def
+R6266:6277 WorkingMemory <> decay_WM_num def
+prf 6590:6613 <> working_memory_composite
+R6642:6647 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6636:6638 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6619:6635 WorkingMemory <> OP_WORKING_MEMORY def
+R6667:6672 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6663:6665 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6648:6662 WorkingMemory <> WM_items_scaled def
+R6689:6694 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6682:6684 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6673:6681 WorkingMemory <> tau_WM_ms def
+R6711:6716 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6707:6709 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6695:6706 WorkingMemory <> decay_WM_num def
+R6735:6740 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6729:6731 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6717:6728 WorkingMemory <> decay_WM_den def
+R6761:6766 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6757:6759 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6741:6756 WorkingMemory <> n_buffers_scaled def
+R6784:6789 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6778:6780 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6767:6777 WorkingMemory <> t_update_ms def
+R6803:6808 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6799:6801 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6790:6798 WorkingMemory <> tau_WM_ms def
+R6836:6841 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6821:6823 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6809:6820 WorkingMemory <> decay_WM_num def
+R6824:6835 WorkingMemory <> decay_WM_den def
+R6862:6867 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6858:6860 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6842:6857 WorkingMemory <> n_buffers_scaled def
+R6895:6900 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6877:6879 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6868:6876 WorkingMemory <> tau_WM_ms def
+R6891:6893 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6880:6890 WorkingMemory <> t_update_ms def
+R6918:6920 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6901:6917 WorkingMemory <> OP_WORKING_MEMORY def
+R6933:6935 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6921:6932 WorkingMemory <> OP_ATTENTION def
+R6962:6978 WorkingMemory <> OP_WORKING_MEMORY def
+R7009:7021 WorkingMemory <> WM_items_is_7 thm
+R7009:7021 WorkingMemory <> WM_items_is_7 thm
+R7039:7054 WorkingMemory <> tau_WM_is_2000ms thm
+R7039:7054 WorkingMemory <> tau_WM_is_2000ms thm
+R7072:7088 WorkingMemory <> decay_WM_num_is_1 thm
+R7072:7088 WorkingMemory <> decay_WM_num_is_1 thm
+R7106:7124 WorkingMemory <> decay_WM_den_is_100 thm
+R7106:7124 WorkingMemory <> decay_WM_den_is_100 thm
+R7142:7155 WorkingMemory <> n_buffers_is_3 thm
+R7142:7155 WorkingMemory <> n_buffers_is_3 thm
+R7173:7189 WorkingMemory <> t_update_is_500ms thm
+R7173:7189 WorkingMemory <> t_update_is_500ms thm
+R7207:7221 WorkingMemory <> tau_WM_positive thm
+R7207:7221 WorkingMemory <> tau_WM_positive thm
+R7239:7258 WorkingMemory <> decay_WM_less_than_1 thm
+R7239:7258 WorkingMemory <> decay_WM_less_than_1 thm
+R7276:7293 WorkingMemory <> n_buffers_positive thm
+R7276:7293 WorkingMemory <> n_buffers_positive thm
+R7311:7323 WorkingMemory <> tau_4x_update thm
+R7311:7323 WorkingMemory <> tau_4x_update thm
+R7335:7351 WorkingMemory <> OP_WORKING_MEMORY def
+R7354:7365 WorkingMemory <> OP_ATTENTION def

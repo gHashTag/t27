@@ -1,0 +1,234 @@
+DIGEST 47d8333f672580eca909e39a7308da21
+FCircadian
+R1246:1262 Stdlib.ZArith.ZArith <> <> lib
+R1280:1296 Stdlib.micromega.Lia <> <> lib
+def 1563:1574 <> OP_CIRCADIAN
+def 1659:1675 <> OP_SLEEP_DYNAMICS
+def 1716:1728 <> OP_METABOLISM
+def 1799:1814 <> SACRED_BANK_BASE
+def 1853:1867 <> SACRED_BANK_END
+prf 2133:2161 <> circadian_distinct_from_sleep
+R2179:2182 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2167:2178 Circadian <> OP_CIRCADIAN def
+R2183:2199 Circadian <> OP_SLEEP_DYNAMICS def
+R2216:2227 Circadian <> OP_CIRCADIAN def
+R2230:2246 Circadian <> OP_SLEEP_DYNAMICS def
+prf 2266:2292 <> circadian_adjacent_to_sleep
+R2310:2312 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2298:2309 Circadian <> OP_CIRCADIAN def
+R2330:2332 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2313:2329 Circadian <> OP_SLEEP_DYNAMICS def
+R2350:2361 Circadian <> OP_CIRCADIAN def
+R2364:2380 Circadian <> OP_SLEEP_DYNAMICS def
+prf 2400:2420 <> circadian_in_mid_bank
+R2458:2461 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2442:2445 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2426:2441 Circadian <> SACRED_BANK_BASE def
+R2446:2457 Circadian <> OP_CIRCADIAN def
+R2474:2477 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2462:2473 Circadian <> OP_CIRCADIAN def
+R2478:2492 Circadian <> SACRED_BANK_END def
+R2509:2524 Circadian <> SACRED_BANK_BASE def
+R2527:2538 Circadian <> OP_CIRCADIAN def
+R2541:2555 Circadian <> SACRED_BANK_END def
+def 2844:2851 <> T_circ_s
+R2855:2855 Corelib.Numbers.BinNums <> Z ind
+def 2943:2957 <> phase_morning_h
+R2961:2961 Corelib.Numbers.BinNums <> Z ind
+def 3022:3036 <> phase_evening_h
+R3040:3040 Corelib.Numbers.BinNums <> Z ind
+def 3115:3127 <> amplitude_num
+R3131:3131 Corelib.Numbers.BinNums <> Z ind
+def 3170:3182 <> amplitude_den
+R3186:3186 Corelib.Numbers.BinNums <> Z ind
+def 3255:3268 <> phase_offset_h
+R3272:3272 Corelib.Numbers.BinNums <> Z ind
+def 3338:3353 <> n_cycles_per_day
+R3357:3357 Corelib.Numbers.BinNums <> Z ind
+prf 3651:3667 <> T_circ_is_24hours
+R3679:3681 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3671:3678 Circadian <> T_circ_s def
+R3703:3710 Circadian <> T_circ_s def
+prf 3778:3798 <> evening_after_morning
+R3819:3821 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R3804:3818 Circadian <> phase_evening_h def
+R3822:3836 Circadian <> phase_morning_h def
+R3853:3867 Circadian <> phase_evening_h def
+R3870:3884 Circadian <> phase_morning_h def
+prf 3943:3956 <> amplitude_is_1
+R3975:3977 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3962:3974 Circadian <> amplitude_num def
+R3978:3990 Circadian <> amplitude_den def
+R4007:4019 Circadian <> amplitude_num def
+R4022:4034 Circadian <> amplitude_den def
+prf 4075:4089 <> T_circ_positive
+R4101:4103 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R4093:4100 Circadian <> T_circ_s def
+R4121:4128 Circadian <> T_circ_s def
+prf 4183:4201 <> phase_morning_is_8h
+R4220:4222 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4205:4219 Circadian <> phase_morning_h def
+R4240:4254 Circadian <> phase_morning_h def
+prf 4318:4337 <> phase_evening_is_20h
+R4356:4358 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4341:4355 Circadian <> phase_evening_h def
+R4377:4391 Circadian <> phase_evening_h def
+prf 4450:4469 <> amplitude_num_is_100
+R4486:4488 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4473:4485 Circadian <> amplitude_num def
+R4508:4520 Circadian <> amplitude_num def
+prf 4579:4598 <> amplitude_den_is_100
+R4615:4617 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4602:4614 Circadian <> amplitude_den def
+R4637:4649 Circadian <> amplitude_den def
+prf 4705:4721 <> phase_offset_is_0
+R4739:4741 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4725:4738 Circadian <> phase_offset_h def
+R4759:4772 Circadian <> phase_offset_h def
+prf 4825:4837 <> n_cycles_is_1
+R4857:4859 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4841:4856 Circadian <> n_cycles_per_day def
+R4877:4892 Circadian <> n_cycles_per_day def
+prf 4972:4985 <> day_phase_span
+R5024:5026 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5006:5008 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R4991:5005 Circadian <> phase_evening_h def
+R5009:5023 Circadian <> phase_morning_h def
+R5045:5059 Circadian <> phase_evening_h def
+R5062:5076 Circadian <> phase_morning_h def
+prf 5144:5181 <> fourteen_consecutive_circadian_opcodes
+R5196:5201 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5190:5192 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5211:5216 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5205:5207 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5226:5231 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5220:5222 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5241:5246 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5235:5237 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5256:5261 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5250:5252 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5271:5276 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5265:5267 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5286:5291 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5280:5282 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5301:5306 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5295:5297 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5316:5321 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5310:5312 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5331:5336 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5325:5327 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5346:5351 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5340:5342 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5361:5366 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5355:5357 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5376:5381 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5370:5372 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5385:5387 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 5746:5770 <> circadian_mid_bank_bounds
+R5795:5800 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5779:5782 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5783:5794 Circadian <> OP_CIRCADIAN def
+R5813:5816 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5801:5812 Circadian <> OP_CIRCADIAN def
+R5836:5847 Circadian <> OP_CIRCADIAN def
+prf 5906:5924 <> all_values_positive
+R5939:5944 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5935:5937 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5950:5955 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5946:5948 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5962:5967 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5958:5960 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5975:5980 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5971:5973 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R5987:5992 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R5982:5985 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R5994:5996 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R6023:6030 Circadian <> T_circ_s def
+R6054:6068 Circadian <> phase_morning_h def
+R6092:6106 Circadian <> phase_evening_h def
+R6130:6142 Circadian <> amplitude_num def
+R6166:6179 Circadian <> phase_offset_h def
+R6196:6211 Circadian <> n_cycles_per_day def
+prf 6258:6269 <> day_24_hours
+R6277:6279 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6282:6284 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+prf 6339:6352 <> phase_symmetry
+R6364:6366 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6359:6361 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+prf 6422:6433 <> T_circ_hours
+R6444:6446 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6451:6453 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 6509:6523 <> amplitude_unity
+R6532:6534 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 6588:6599 <> single_cycle
+R6606:6608 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+prf 6929:6947 <> circadian_composite
+R6971:6976 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6965:6967 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6953:6964 Circadian <> OP_CIRCADIAN def
+R6993:6998 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6985:6987 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6977:6984 Circadian <> T_circ_s def
+R7018:7023 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7014:7016 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6999:7013 Circadian <> phase_morning_h def
+R7044:7049 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7039:7041 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7024:7038 Circadian <> phase_evening_h def
+R7069:7074 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7063:7065 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7050:7062 Circadian <> amplitude_num def
+R7094:7099 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7088:7090 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7075:7087 Circadian <> amplitude_den def
+R7118:7123 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7114:7116 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7100:7113 Circadian <> phase_offset_h def
+R7144:7149 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7140:7142 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7124:7139 Circadian <> n_cycles_per_day def
+R7183:7188 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7165:7167 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7150:7164 Circadian <> phase_evening_h def
+R7168:7182 Circadian <> phase_morning_h def
+R7218:7223 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7202:7204 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7189:7201 Circadian <> amplitude_num def
+R7205:7217 Circadian <> amplitude_den def
+R7236:7241 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7232:7234 Stdlib.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R7224:7231 Circadian <> T_circ_s def
+R7280:7285 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7275:7277 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7257:7259 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R7242:7256 Circadian <> phase_evening_h def
+R7260:7274 Circadian <> phase_morning_h def
+R7298:7300 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R7286:7297 Circadian <> OP_CIRCADIAN def
+R7318:7320 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7301:7317 Circadian <> OP_SLEEP_DYNAMICS def
+R7347:7358 Circadian <> OP_CIRCADIAN def
+R7389:7405 Circadian <> T_circ_is_24hours thm
+R7389:7405 Circadian <> T_circ_is_24hours thm
+R7423:7441 Circadian <> phase_morning_is_8h thm
+R7423:7441 Circadian <> phase_morning_is_8h thm
+R7459:7478 Circadian <> phase_evening_is_20h thm
+R7459:7478 Circadian <> phase_evening_is_20h thm
+R7496:7515 Circadian <> amplitude_num_is_100 thm
+R7496:7515 Circadian <> amplitude_num_is_100 thm
+R7533:7552 Circadian <> amplitude_den_is_100 thm
+R7533:7552 Circadian <> amplitude_den_is_100 thm
+R7570:7586 Circadian <> phase_offset_is_0 thm
+R7570:7586 Circadian <> phase_offset_is_0 thm
+R7604:7616 Circadian <> n_cycles_is_1 thm
+R7604:7616 Circadian <> n_cycles_is_1 thm
+R7634:7654 Circadian <> evening_after_morning thm
+R7634:7654 Circadian <> evening_after_morning thm
+R7672:7685 Circadian <> amplitude_is_1 thm
+R7672:7685 Circadian <> amplitude_is_1 thm
+R7703:7717 Circadian <> T_circ_positive thm
+R7703:7717 Circadian <> T_circ_positive thm
+R7735:7748 Circadian <> day_phase_span thm
+R7735:7748 Circadian <> day_phase_span thm
+R7760:7771 Circadian <> OP_CIRCADIAN def
+R7774:7790 Circadian <> OP_SLEEP_DYNAMICS def

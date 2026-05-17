@@ -1,0 +1,498 @@
+DIGEST a13b5a0dc5f15890fe8e77e0b5acdf98
+FTrios.Coq.Arithmetic
+R170:174 Stdlib.Reals.Reals <> <> lib
+R204:209 Stdlib.ZArith.ZArith <> <> lib
+R239:241 Stdlib.micromega.Lia <> <> lib
+R251:256 Stdlib.ZArith.ZArith <> <> mod
+def 574:577 <> GF16
+R589:589 Corelib.Numbers.BinNums <> Z ind
+def 642:649 <> gf16_add
+R658:661 Trios.Coq.Arithmetic <> GF16 def
+binder 652:652 <> a:1
+binder 654:654 <> b:2
+R666:669 Trios.Coq.Arithmetic <> GF16 def
+R676:676 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R682:687 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R678:680 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R677:677 Trios.Coq.Arithmetic <> a:1 var
+R681:681 Trios.Coq.Arithmetic <> b:2 var
+def 757:764 <> gf16_mul
+R773:776 Trios.Coq.Arithmetic <> GF16 def
+binder 767:767 <> a:3
+binder 769:769 <> b:4
+R781:784 Trios.Coq.Arithmetic <> GF16 def
+R791:791 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R797:802 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R793:795 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R792:792 Trios.Coq.Arithmetic <> a:3 var
+R796:796 Trios.Coq.Arithmetic <> b:4 var
+def 866:873 <> gf16_sub
+R882:885 Trios.Coq.Arithmetic <> GF16 def
+binder 876:876 <> a:5
+binder 878:878 <> b:6
+R890:893 Trios.Coq.Arithmetic <> GF16 def
+R900:900 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R906:911 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R902:904 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R901:901 Trios.Coq.Arithmetic <> a:5 var
+R905:905 Trios.Coq.Arithmetic <> b:6 var
+def 960:968 <> gf16_zero
+R972:975 Trios.Coq.Arithmetic <> GF16 def
+def 994:1001 <> gf16_one
+R1005:1008 Trios.Coq.Arithmetic <> GF16 def
+def 1296:1298 <> TF3
+R1310:1310 Corelib.Numbers.BinNums <> Z ind
+def 1371:1377 <> tf3_add
+R1386:1388 Trios.Coq.Arithmetic <> TF3 def
+binder 1380:1380 <> a:7
+binder 1382:1382 <> b:8
+R1393:1395 Trios.Coq.Arithmetic <> TF3 def
+R1402:1402 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R1408:1413 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R1404:1406 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R1403:1403 Trios.Coq.Arithmetic <> a:7 var
+R1407:1407 Trios.Coq.Arithmetic <> b:8 var
+def 1487:1493 <> tf3_mul
+R1502:1504 Trios.Coq.Arithmetic <> TF3 def
+binder 1496:1496 <> a:9
+binder 1498:1498 <> b:10
+R1509:1511 Trios.Coq.Arithmetic <> TF3 def
+R1518:1518 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R1524:1529 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R1520:1522 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1519:1519 Trios.Coq.Arithmetic <> a:9 var
+R1523:1523 Trios.Coq.Arithmetic <> b:10 var
+def 1573:1580 <> tf3_zero
+R1584:1586 Trios.Coq.Arithmetic <> TF3 def
+def 1605:1611 <> tf3_one
+R1615:1617 Trios.Coq.Arithmetic <> TF3 def
+prf 1861:1880 <> gf16_add_commutative
+R1897:1900 Trios.Coq.Arithmetic <> GF16 def
+binder 1891:1891 <> a:11
+binder 1893:1893 <> b:12
+R1917:1919 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R1905:1912 Trios.Coq.Arithmetic <> gf16_add def
+R1914:1914 Trios.Coq.Arithmetic <> a:11 var
+R1916:1916 Trios.Coq.Arithmetic <> b:12 var
+R1920:1927 Trios.Coq.Arithmetic <> gf16_add def
+R1929:1929 Trios.Coq.Arithmetic <> b:12 var
+R1931:1931 Trios.Coq.Arithmetic <> a:11 var
+R1964:1971 Trios.Coq.Arithmetic <> gf16_add def
+R1991:2000 Stdlib.ZArith.BinInt <> Zplus_comm abbrev
+R1991:2000 Stdlib.ZArith.BinInt <> Zplus_comm abbrev
+prf 2017:2036 <> gf16_mul_commutative
+R2053:2056 Trios.Coq.Arithmetic <> GF16 def
+binder 2047:2047 <> a:13
+binder 2049:2049 <> b:14
+R2073:2075 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2061:2068 Trios.Coq.Arithmetic <> gf16_mul def
+R2070:2070 Trios.Coq.Arithmetic <> a:13 var
+R2072:2072 Trios.Coq.Arithmetic <> b:14 var
+R2076:2083 Trios.Coq.Arithmetic <> gf16_mul def
+R2085:2085 Trios.Coq.Arithmetic <> b:14 var
+R2087:2087 Trios.Coq.Arithmetic <> a:13 var
+R2120:2127 Trios.Coq.Arithmetic <> gf16_mul def
+R2147:2156 Stdlib.ZArith.BinInt <> Zmult_comm abbrev
+R2147:2156 Stdlib.ZArith.BinInt <> Zmult_comm abbrev
+prf 2173:2202 <> gf16_zero_is_additive_identity
+R2217:2220 Trios.Coq.Arithmetic <> GF16 def
+binder 2213:2213 <> a:15
+R2239:2244 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R2226:2229 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2231:2233 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2230:2230 Trios.Coq.Arithmetic <> a:15 var
+R2230:2230 Trios.Coq.Arithmetic <> a:15 var
+R2265:2267 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2245:2252 Trios.Coq.Arithmetic <> gf16_add def
+R2254:2254 Trios.Coq.Arithmetic <> a:15 var
+R2256:2264 Trios.Coq.Arithmetic <> gf16_zero def
+R2268:2268 Trios.Coq.Arithmetic <> a:15 var
+R2301:2308 Trios.Coq.Arithmetic <> gf16_add def
+R2311:2319 Trios.Coq.Arithmetic <> gf16_zero def
+R2332:2340 Stdlib.ZArith.BinInt <> Zplus_0_r abbrev
+R2332:2340 Stdlib.ZArith.BinInt <> Zplus_0_r abbrev
+R2332:2340 Stdlib.ZArith.BinInt <> Zplus_0_r abbrev
+prf 2394:2428 <> gf16_one_is_multiplicative_identity
+R2443:2446 Trios.Coq.Arithmetic <> GF16 def
+binder 2439:2439 <> a:16
+R2465:2470 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R2452:2455 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2457:2459 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2456:2456 Trios.Coq.Arithmetic <> a:16 var
+R2456:2456 Trios.Coq.Arithmetic <> a:16 var
+R2490:2492 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2471:2478 Trios.Coq.Arithmetic <> gf16_mul def
+R2480:2480 Trios.Coq.Arithmetic <> a:16 var
+R2482:2489 Trios.Coq.Arithmetic <> gf16_one def
+R2493:2493 Trios.Coq.Arithmetic <> a:16 var
+R2526:2533 Trios.Coq.Arithmetic <> gf16_mul def
+R2536:2543 Trios.Coq.Arithmetic <> gf16_one def
+R2556:2564 Stdlib.ZArith.BinInt <> Zmult_1_r abbrev
+R2556:2564 Stdlib.ZArith.BinInt <> Zmult_1_r abbrev
+R2556:2564 Stdlib.ZArith.BinInt <> Zmult_1_r abbrev
+prf 2618:2633 <> gf16_mul_by_zero
+R2648:2651 Trios.Coq.Arithmetic <> GF16 def
+binder 2644:2644 <> a:17
+R2676:2678 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2656:2663 Trios.Coq.Arithmetic <> gf16_mul def
+R2665:2665 Trios.Coq.Arithmetic <> a:17 var
+R2667:2675 Trios.Coq.Arithmetic <> gf16_zero def
+R2679:2687 Trios.Coq.Arithmetic <> gf16_zero def
+R2718:2725 Trios.Coq.Arithmetic <> gf16_mul def
+R2728:2736 Trios.Coq.Arithmetic <> gf16_zero def
+R2749:2757 Stdlib.ZArith.BinInt <> Zmult_0_r abbrev
+R2749:2757 Stdlib.ZArith.BinInt <> Zmult_0_r abbrev
+R2749:2757 Stdlib.ZArith.BinInt <> Zmult_0_r abbrev
+R2770:2777 Stdlib.ZArith.Zdiv <> Zmod_0_l thm
+R2770:2777 Stdlib.ZArith.Zdiv <> Zmod_0_l thm
+R2770:2777 Stdlib.ZArith.Zdiv <> Zmod_0_l thm
+prf 2809:2821 <> gf16_add_self
+R2836:2839 Trios.Coq.Arithmetic <> GF16 def
+binder 2832:2832 <> a:18
+R2856:2858 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2844:2851 Trios.Coq.Arithmetic <> gf16_add def
+R2853:2853 Trios.Coq.Arithmetic <> a:18 var
+R2855:2855 Trios.Coq.Arithmetic <> a:18 var
+R2859:2859 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R2865:2870 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R2861:2863 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2860:2860 Trios.Coq.Arithmetic <> a:18 var
+R2864:2864 Trios.Coq.Arithmetic <> a:18 var
+R2906:2913 Trios.Coq.Arithmetic <> gf16_add def
+prf 2945:2957 <> gf16_mul_self
+R2972:2975 Trios.Coq.Arithmetic <> GF16 def
+binder 2968:2968 <> a:19
+R2992:2994 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R2980:2987 Trios.Coq.Arithmetic <> gf16_mul def
+R2989:2989 Trios.Coq.Arithmetic <> a:19 var
+R2991:2991 Trios.Coq.Arithmetic <> a:19 var
+R2995:2995 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R3001:3006 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R2997:2999 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2996:2996 Trios.Coq.Arithmetic <> a:19 var
+R3000:3000 Trios.Coq.Arithmetic <> a:19 var
+R3042:3049 Trios.Coq.Arithmetic <> gf16_mul def
+prf 3102:3120 <> tf3_add_commutative
+R3137:3139 Trios.Coq.Arithmetic <> TF3 def
+binder 3131:3131 <> a:20
+binder 3133:3133 <> b:21
+R3155:3157 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3144:3150 Trios.Coq.Arithmetic <> tf3_add def
+R3152:3152 Trios.Coq.Arithmetic <> a:20 var
+R3154:3154 Trios.Coq.Arithmetic <> b:21 var
+R3158:3164 Trios.Coq.Arithmetic <> tf3_add def
+R3166:3166 Trios.Coq.Arithmetic <> b:21 var
+R3168:3168 Trios.Coq.Arithmetic <> a:20 var
+R3201:3207 Trios.Coq.Arithmetic <> tf3_add def
+R3227:3236 Stdlib.ZArith.BinInt <> Zplus_comm abbrev
+R3227:3236 Stdlib.ZArith.BinInt <> Zplus_comm abbrev
+prf 3253:3271 <> tf3_mul_commutative
+R3288:3290 Trios.Coq.Arithmetic <> TF3 def
+binder 3282:3282 <> a:22
+binder 3284:3284 <> b:23
+R3306:3308 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3295:3301 Trios.Coq.Arithmetic <> tf3_mul def
+R3303:3303 Trios.Coq.Arithmetic <> a:22 var
+R3305:3305 Trios.Coq.Arithmetic <> b:23 var
+R3309:3315 Trios.Coq.Arithmetic <> tf3_mul def
+R3317:3317 Trios.Coq.Arithmetic <> b:23 var
+R3319:3319 Trios.Coq.Arithmetic <> a:22 var
+R3352:3358 Trios.Coq.Arithmetic <> tf3_mul def
+R3378:3387 Stdlib.ZArith.BinInt <> Zmult_comm abbrev
+R3378:3387 Stdlib.ZArith.BinInt <> Zmult_comm abbrev
+prf 3404:3432 <> tf3_zero_is_additive_identity
+R3447:3449 Trios.Coq.Arithmetic <> TF3 def
+binder 3443:3443 <> a:24
+R3464:3469 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R3455:3458 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R3460:3462 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R3459:3459 Trios.Coq.Arithmetic <> a:24 var
+R3459:3459 Trios.Coq.Arithmetic <> a:24 var
+R3488:3490 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3470:3476 Trios.Coq.Arithmetic <> tf3_add def
+R3478:3478 Trios.Coq.Arithmetic <> a:24 var
+R3480:3487 Trios.Coq.Arithmetic <> tf3_zero def
+R3491:3491 Trios.Coq.Arithmetic <> a:24 var
+R3524:3530 Trios.Coq.Arithmetic <> tf3_add def
+R3533:3540 Trios.Coq.Arithmetic <> tf3_zero def
+R3553:3561 Stdlib.ZArith.BinInt <> Zplus_0_r abbrev
+R3553:3561 Stdlib.ZArith.BinInt <> Zplus_0_r abbrev
+R3553:3561 Stdlib.ZArith.BinInt <> Zplus_0_r abbrev
+prf 3615:3648 <> tf3_one_is_multiplicative_identity
+R3663:3665 Trios.Coq.Arithmetic <> TF3 def
+binder 3659:3659 <> a:25
+R3680:3685 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R3671:3674 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R3676:3678 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R3675:3675 Trios.Coq.Arithmetic <> a:25 var
+R3675:3675 Trios.Coq.Arithmetic <> a:25 var
+R3703:3705 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3686:3692 Trios.Coq.Arithmetic <> tf3_mul def
+R3694:3694 Trios.Coq.Arithmetic <> a:25 var
+R3696:3702 Trios.Coq.Arithmetic <> tf3_one def
+R3706:3706 Trios.Coq.Arithmetic <> a:25 var
+R3739:3745 Trios.Coq.Arithmetic <> tf3_mul def
+R3748:3754 Trios.Coq.Arithmetic <> tf3_one def
+R3767:3775 Stdlib.ZArith.BinInt <> Zmult_1_r abbrev
+R3767:3775 Stdlib.ZArith.BinInt <> Zmult_1_r abbrev
+R3767:3775 Stdlib.ZArith.BinInt <> Zmult_1_r abbrev
+prf 3829:3843 <> tf3_mul_by_zero
+R3858:3860 Trios.Coq.Arithmetic <> TF3 def
+binder 3854:3854 <> a:26
+R3883:3885 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3865:3871 Trios.Coq.Arithmetic <> tf3_mul def
+R3873:3873 Trios.Coq.Arithmetic <> a:26 var
+R3875:3882 Trios.Coq.Arithmetic <> tf3_zero def
+R3886:3893 Trios.Coq.Arithmetic <> tf3_zero def
+R3924:3930 Trios.Coq.Arithmetic <> tf3_mul def
+R3933:3940 Trios.Coq.Arithmetic <> tf3_zero def
+R3953:3961 Stdlib.ZArith.BinInt <> Zmult_0_r abbrev
+R3953:3961 Stdlib.ZArith.BinInt <> Zmult_0_r abbrev
+R3953:3961 Stdlib.ZArith.BinInt <> Zmult_0_r abbrev
+R3974:3981 Stdlib.ZArith.Zdiv <> Zmod_0_l thm
+R3974:3981 Stdlib.ZArith.Zdiv <> Zmod_0_l thm
+R3974:3981 Stdlib.ZArith.Zdiv <> Zmod_0_l thm
+prf 4013:4024 <> tf3_add_self
+R4039:4041 Trios.Coq.Arithmetic <> TF3 def
+binder 4035:4035 <> a:27
+R4057:4059 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4046:4052 Trios.Coq.Arithmetic <> tf3_add def
+R4054:4054 Trios.Coq.Arithmetic <> a:27 var
+R4056:4056 Trios.Coq.Arithmetic <> a:27 var
+R4060:4060 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4066:4071 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4062:4064 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4061:4061 Trios.Coq.Arithmetic <> a:27 var
+R4065:4065 Trios.Coq.Arithmetic <> a:27 var
+R4103:4109 Trios.Coq.Arithmetic <> tf3_add def
+prf 4141:4152 <> tf3_mul_self
+R4167:4169 Trios.Coq.Arithmetic <> TF3 def
+binder 4163:4163 <> a:28
+R4185:4187 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4174:4180 Trios.Coq.Arithmetic <> tf3_mul def
+R4182:4182 Trios.Coq.Arithmetic <> a:28 var
+R4184:4184 Trios.Coq.Arithmetic <> a:28 var
+R4188:4188 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4194:4199 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4190:4192 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4189:4189 Trios.Coq.Arithmetic <> a:28 var
+R4193:4193 Trios.Coq.Arithmetic <> a:28 var
+R4231:4237 Trios.Coq.Arithmetic <> tf3_mul def
+prf 4483:4504 <> gf16_distributive_expr
+R4523:4526 Trios.Coq.Arithmetic <> GF16 def
+binder 4515:4515 <> a:29
+binder 4517:4517 <> b:30
+binder 4519:4519 <> c:31
+R4542:4542 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4566:4571 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4544:4547 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4565:4565 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4543:4543 Trios.Coq.Arithmetic <> a:29 var
+R4548:4548 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4554:4559 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4550:4552 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4549:4549 Trios.Coq.Arithmetic <> b:30 var
+R4553:4553 Trios.Coq.Arithmetic <> c:31 var
+binder 4535:4537 <> lhs:32
+R4594:4594 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4632:4637 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4612:4614 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4595:4595 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4601:4606 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4597:4599 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4596:4596 Trios.Coq.Arithmetic <> a:29 var
+R4600:4600 Trios.Coq.Arithmetic <> b:30 var
+R4615:4615 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4621:4626 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4617:4619 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4616:4616 Trios.Coq.Arithmetic <> a:29 var
+R4620:4620 Trios.Coq.Arithmetic <> c:31 var
+binder 4587:4589 <> rhs:33
+R4658:4661 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R4652:4654 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4649:4651 Trios.Coq.Arithmetic <> lhs:32 var
+R4655:4657 Trios.Coq.Arithmetic <> rhs:33 var
+R4662:4665 Corelib.Init.Logic <> True ind
+R4707:4707 Corelib.Init.Logic <> I constr
+R4707:4707 Corelib.Init.Logic <> I constr
+prf 4724:4744 <> tf3_distributive_expr
+R4763:4765 Trios.Coq.Arithmetic <> TF3 def
+binder 4755:4755 <> a:34
+binder 4757:4757 <> b:35
+binder 4759:4759 <> c:36
+R4781:4781 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4801:4806 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4783:4786 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4800:4800 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4782:4782 Trios.Coq.Arithmetic <> a:34 var
+R4787:4787 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4793:4798 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4789:4791 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4788:4788 Trios.Coq.Arithmetic <> b:35 var
+R4792:4792 Trios.Coq.Arithmetic <> c:36 var
+binder 4774:4776 <> lhs:37
+R4825:4825 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4855:4860 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4839:4841 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4826:4826 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4832:4837 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4828:4830 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4827:4827 Trios.Coq.Arithmetic <> a:34 var
+R4831:4831 Trios.Coq.Arithmetic <> b:35 var
+R4842:4842 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4848:4853 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R4844:4846 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4843:4843 Trios.Coq.Arithmetic <> a:34 var
+R4847:4847 Trios.Coq.Arithmetic <> c:36 var
+binder 4818:4820 <> rhs:38
+R4877:4880 Corelib.Init.Logic <> ::type_scope:x_'->'_x not
+R4871:4873 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4868:4870 Trios.Coq.Arithmetic <> lhs:37 var
+R4874:4876 Trios.Coq.Arithmetic <> rhs:38 var
+R4881:4884 Corelib.Init.Logic <> True ind
+R4926:4926 Corelib.Init.Logic <> I constr
+R4926:4926 Corelib.Init.Logic <> I constr
+def 5177:5184 <> gf16_pow
+R5191:5193 Corelib.Init.Datatypes <> nat ind
+binder 5187:5187 <> n:39
+R5201:5204 Trios.Coq.Arithmetic <> GF16 def
+binder 5197:5197 <> x:40
+R5209:5212 Trios.Coq.Arithmetic <> GF16 def
+R5225:5225 Trios.Coq.Arithmetic <> n:39 var
+R5236:5236 Corelib.Init.Datatypes <> O constr
+R5241:5248 Trios.Coq.Arithmetic <> gf16_one def
+R5254:5254 Corelib.Init.Datatypes <> S constr
+R5261:5268 Trios.Coq.Arithmetic <> gf16_mul def
+R5270:5270 Trios.Coq.Arithmetic <> x:40 var
+R5273:5280 Trios.Coq.Arithmetic <> gf16_pow:41 def
+R5284:5284 Trios.Coq.Arithmetic <> x:40 var
+R5282:5282 Trios.Coq.Arithmetic <> n:39 var
+def 5329:5335 <> tf3_pow
+R5342:5344 Corelib.Init.Datatypes <> nat ind
+binder 5338:5338 <> n:43
+R5352:5354 Trios.Coq.Arithmetic <> TF3 def
+binder 5348:5348 <> x:44
+R5359:5361 Trios.Coq.Arithmetic <> TF3 def
+R5374:5374 Trios.Coq.Arithmetic <> n:43 var
+R5385:5385 Corelib.Init.Datatypes <> O constr
+R5390:5396 Trios.Coq.Arithmetic <> tf3_one def
+R5402:5402 Corelib.Init.Datatypes <> S constr
+R5409:5415 Trios.Coq.Arithmetic <> tf3_mul def
+R5417:5417 Trios.Coq.Arithmetic <> x:44 var
+R5420:5426 Trios.Coq.Arithmetic <> tf3_pow:45 def
+R5430:5430 Trios.Coq.Arithmetic <> x:44 var
+R5428:5428 Trios.Coq.Arithmetic <> n:43 var
+prf 5449:5461 <> gf16_pow_zero
+R5476:5479 Trios.Coq.Arithmetic <> GF16 def
+binder 5472:5472 <> x:47
+R5494:5496 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5482:5489 Trios.Coq.Arithmetic <> gf16_pow def
+R5493:5493 Trios.Coq.Arithmetic <> x:47 var
+R5497:5504 Trios.Coq.Arithmetic <> gf16_one def
+prf 5553:5564 <> gf16_pow_one
+R5579:5582 Trios.Coq.Arithmetic <> GF16 def
+binder 5575:5575 <> x:48
+R5597:5599 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5585:5592 Trios.Coq.Arithmetic <> gf16_pow def
+R5596:5596 Trios.Coq.Arithmetic <> x:48 var
+R5600:5600 Trios.Coq.Arithmetic <> x:48 var
+R5631:5638 Trios.Coq.Arithmetic <> gf16_pow def
+R5650:5657 Trios.Coq.Arithmetic <> gf16_mul def
+prf 5688:5699 <> gf16_pow_add
+R5717:5719 Corelib.Init.Datatypes <> nat ind
+binder 5711:5711 <> n:49
+binder 5713:5713 <> m:50
+R5727:5730 Trios.Coq.Arithmetic <> GF16 def
+binder 5723:5723 <> x:51
+R5754:5756 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5736:5743 Trios.Coq.Arithmetic <> gf16_pow def
+R5747:5749 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R5746:5746 Trios.Coq.Arithmetic <> n:49 var
+R5750:5750 Trios.Coq.Arithmetic <> m:50 var
+R5753:5753 Trios.Coq.Arithmetic <> x:51 var
+R5757:5764 Trios.Coq.Arithmetic <> gf16_mul def
+R5767:5774 Trios.Coq.Arithmetic <> gf16_pow def
+R5776:5776 Trios.Coq.Arithmetic <> n:49 var
+R5778:5778 Trios.Coq.Arithmetic <> x:51 var
+R5782:5789 Trios.Coq.Arithmetic <> gf16_pow def
+R5791:5791 Trios.Coq.Arithmetic <> m:50 var
+R5793:5793 Trios.Coq.Arithmetic <> x:51 var
+R5847:5859 Trios.Coq.Arithmetic <> gf16_pow_zero thm
+R5847:5859 Trios.Coq.Arithmetic <> gf16_pow_zero thm
+R5847:5859 Trios.Coq.Arithmetic <> gf16_pow_zero thm
+R5873:5880 Trios.Coq.Arithmetic <> gf16_mul def
+R5933:5940 Trios.Coq.Arithmetic <> gf16_mul def
+prf 5973:5984 <> tf3_pow_zero
+R5999:6001 Trios.Coq.Arithmetic <> TF3 def
+binder 5995:5995 <> x:52
+R6015:6017 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6004:6010 Trios.Coq.Arithmetic <> tf3_pow def
+R6014:6014 Trios.Coq.Arithmetic <> x:52 var
+R6018:6024 Trios.Coq.Arithmetic <> tf3_one def
+prf 6073:6083 <> tf3_pow_one
+R6098:6100 Trios.Coq.Arithmetic <> TF3 def
+binder 6094:6094 <> x:53
+R6114:6116 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6103:6109 Trios.Coq.Arithmetic <> tf3_pow def
+R6113:6113 Trios.Coq.Arithmetic <> x:53 var
+R6117:6117 Trios.Coq.Arithmetic <> x:53 var
+R6148:6154 Trios.Coq.Arithmetic <> tf3_pow def
+R6166:6172 Trios.Coq.Arithmetic <> tf3_mul def
+prf 6203:6213 <> tf3_pow_add
+R6231:6233 Corelib.Init.Datatypes <> nat ind
+binder 6225:6225 <> n:54
+binder 6227:6227 <> m:55
+R6241:6243 Trios.Coq.Arithmetic <> TF3 def
+binder 6237:6237 <> x:56
+R6266:6268 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6249:6255 Trios.Coq.Arithmetic <> tf3_pow def
+R6259:6261 Corelib.Init.Peano <> ::nat_scope:x_'+'_x not
+R6258:6258 Trios.Coq.Arithmetic <> n:54 var
+R6262:6262 Trios.Coq.Arithmetic <> m:55 var
+R6265:6265 Trios.Coq.Arithmetic <> x:56 var
+R6269:6275 Trios.Coq.Arithmetic <> tf3_mul def
+R6278:6284 Trios.Coq.Arithmetic <> tf3_pow def
+R6286:6286 Trios.Coq.Arithmetic <> n:54 var
+R6288:6288 Trios.Coq.Arithmetic <> x:56 var
+R6292:6298 Trios.Coq.Arithmetic <> tf3_pow def
+R6300:6300 Trios.Coq.Arithmetic <> m:55 var
+R6302:6302 Trios.Coq.Arithmetic <> x:56 var
+R6356:6367 Trios.Coq.Arithmetic <> tf3_pow_zero thm
+R6356:6367 Trios.Coq.Arithmetic <> tf3_pow_zero thm
+R6356:6367 Trios.Coq.Arithmetic <> tf3_pow_zero thm
+R6381:6387 Trios.Coq.Arithmetic <> tf3_mul def
+R6440:6446 Trios.Coq.Arithmetic <> tf3_mul def
+prf 6697:6717 <> gf16_zero_eq_tf3_zero
+R6730:6732 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6721:6729 Trios.Coq.Arithmetic <> gf16_zero def
+R6733:6740 Trios.Coq.Arithmetic <> tf3_zero def
+prf 6779:6797 <> gf16_one_eq_tf3_one
+R6809:6811 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6801:6808 Trios.Coq.Arithmetic <> gf16_one def
+R6812:6818 Trios.Coq.Arithmetic <> tf3_one def
+prf 6857:6877 <> gf16_modulo_structure
+R6892:6895 Trios.Coq.Arithmetic <> GF16 def
+binder 6888:6888 <> x:57
+R6916:6919 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6901:6904 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6906:6910 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R6905:6905 Trios.Coq.Arithmetic <> x:57 var
+R6931:6933 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6921:6925 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R6920:6920 Trios.Coq.Arithmetic <> x:57 var
+R6968:6975 Stdlib.ZArith.BinInt Z modulo def
+R6995:7004 Stdlib.ZArith.BinInt Z div_eucl def
+R6995:7004 Stdlib.ZArith.BinInt Z div_eucl def
+prf 7079:7098 <> tf3_modulo_structure
+R7113:7115 Trios.Coq.Arithmetic <> TF3 def
+binder 7109:7109 <> x:58
+R7132:7135 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R7121:7124 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R7126:7130 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R7125:7125 Trios.Coq.Arithmetic <> x:58 var
+R7143:7145 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7137:7141 Stdlib.ZArith.BinInt <> ::Z_scope:x_'mod'_x not
+R7136:7136 Trios.Coq.Arithmetic <> x:58 var
+R7176:7183 Stdlib.ZArith.BinInt Z modulo def
+R7203:7212 Stdlib.ZArith.BinInt Z div_eucl def
+R7203:7212 Stdlib.ZArith.BinInt Z div_eucl def

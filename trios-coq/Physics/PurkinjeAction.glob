@@ -1,0 +1,181 @@
+DIGEST ff9776966e3ea09b9700fe4a1a4fb142
+FPurkinjeAction
+R1389:1405 Stdlib.ZArith.ZArith <> <> lib
+R1423:1439 Stdlib.micromega.Lia <> <> lib
+def 1706:1723 <> OP_PURKINJE_ACTION
+def 1826:1844 <> OP_PURKINJE_THERMAL
+def 1905:1914 <> OP_NULL_PE
+def 1985:2000 <> SACRED_BANK_BASE
+def 2039:2053 <> SACRED_BANK_END
+def 2092:2108 <> SACRED_BANK_COUNT
+prf 2384:2420 <> purkinje_action_distinct_from_null_pe
+R2444:2447 Corelib.Init.Logic <> ::type_scope:x_'<>'_x not
+R2426:2443 PurkinjeAction <> OP_PURKINJE_ACTION def
+R2448:2457 PurkinjeAction <> OP_NULL_PE def
+R2474:2491 PurkinjeAction <> OP_PURKINJE_ACTION def
+R2494:2503 PurkinjeAction <> OP_NULL_PE def
+prf 2523:2549 <> purkinje_action_in_mid_bank
+R2593:2596 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R2571:2574 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2555:2570 PurkinjeAction <> SACRED_BANK_BASE def
+R2575:2592 PurkinjeAction <> OP_PURKINJE_ACTION def
+R2615:2618 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2597:2614 PurkinjeAction <> OP_PURKINJE_ACTION def
+R2619:2633 PurkinjeAction <> SACRED_BANK_END def
+R2650:2665 PurkinjeAction <> SACRED_BANK_BASE def
+R2668:2685 PurkinjeAction <> OP_PURKINJE_ACTION def
+R2688:2702 PurkinjeAction <> SACRED_BANK_END def
+def 3011:3019 <> V_rest_mV
+R3026:3026 Corelib.Numbers.BinNums <> Z ind
+def 3072:3082 <> V_thresh_mV
+R3087:3087 Corelib.Numbers.BinNums <> Z ind
+def 3132:3140 <> V_peak_mV
+R3147:3147 Corelib.Numbers.BinNums <> Z ind
+def 3190:3206 <> delta_V_action_mV
+R3210:3210 Corelib.Numbers.BinNums <> Z ind
+R3224:3226 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R3215:3223 PurkinjeAction <> V_peak_mV def
+R3227:3235 PurkinjeAction <> V_rest_mV def
+def 3288:3305 <> action_duration_us
+R3309:3309 Corelib.Numbers.BinNums <> Z ind
+def 3359:3378 <> refractory_period_us
+R3382:3382 Corelib.Numbers.BinNums <> Z ind
+def 3462:3481 <> depolarization_slope
+R3485:3485 Corelib.Numbers.BinNums <> Z ind
+def 3530:3549 <> repolarization_slope
+R3553:3553 Corelib.Numbers.BinNums <> Z ind
+prf 3862:3884 <> delta_V_action_is_110mV
+R3905:3907 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R3888:3904 PurkinjeAction <> delta_V_action_mV def
+R3927:3943 PurkinjeAction <> delta_V_action_mV def
+R3946:3954 PurkinjeAction <> V_peak_mV def
+R3957:3965 PurkinjeAction <> V_rest_mV def
+prf 4041:4059 <> V_rest_below_thresh
+R4074:4076 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4065:4073 PurkinjeAction <> V_rest_mV def
+R4077:4087 PurkinjeAction <> V_thresh_mV def
+R4104:4112 PurkinjeAction <> V_rest_mV def
+R4115:4125 PurkinjeAction <> V_thresh_mV def
+prf 4193:4211 <> V_thresh_below_peak
+R4228:4230 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4217:4227 PurkinjeAction <> V_thresh_mV def
+R4231:4239 PurkinjeAction <> V_peak_mV def
+R4256:4266 PurkinjeAction <> V_thresh_mV def
+R4269:4277 PurkinjeAction <> V_peak_mV def
+prf 4347:4363 <> V_rest_below_peak
+R4378:4380 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4369:4377 PurkinjeAction <> V_rest_mV def
+R4381:4389 PurkinjeAction <> V_peak_mV def
+R4406:4414 PurkinjeAction <> V_rest_mV def
+R4417:4425 PurkinjeAction <> V_peak_mV def
+prf 4488:4509 <> action_duration_is_1ms
+R4531:4533 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4513:4530 PurkinjeAction <> action_duration_us def
+R4554:4571 PurkinjeAction <> action_duration_us def
+prf 4638:4663 <> refractory_period_is_200us
+R4687:4689 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R4667:4686 PurkinjeAction <> refractory_period_us def
+R4709:4728 PurkinjeAction <> refractory_period_us def
+prf 4818:4846 <> refractory_less_than_duration
+R4872:4874 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4852:4871 PurkinjeAction <> refractory_period_us def
+R4875:4892 PurkinjeAction <> action_duration_us def
+R4909:4928 PurkinjeAction <> refractory_period_us def
+R4931:4948 PurkinjeAction <> action_duration_us def
+prf 5015:5042 <> depolarization_slope_matches
+R5058:5060 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5051:5053 Stdlib.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+prf 5147:5183 <> repolarization_matches_depolarization
+R5209:5211 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5189:5208 PurkinjeAction <> repolarization_slope def
+R5212:5231 PurkinjeAction <> depolarization_slope def
+R5248:5267 PurkinjeAction <> repolarization_slope def
+R5270:5289 PurkinjeAction <> depolarization_slope def
+prf 5353:5372 <> V_rest_is_minus_70mV
+R5385:5387 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5376:5384 PurkinjeAction <> V_rest_mV def
+R5407:5415 PurkinjeAction <> V_rest_mV def
+prf 5481:5502 <> V_thresh_is_minus_55mV
+R5517:5519 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5506:5516 PurkinjeAction <> V_thresh_mV def
+R5539:5549 PurkinjeAction <> V_thresh_mV def
+prf 5613:5631 <> V_peak_is_plus_40mV
+R5644:5646 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5635:5643 PurkinjeAction <> V_peak_mV def
+R5665:5673 PurkinjeAction <> V_peak_mV def
+prf 5749:5770 <> delta_V_thresh_to_rest
+R5799:5801 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5787:5789 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R5776:5786 PurkinjeAction <> V_thresh_mV def
+R5790:5798 PurkinjeAction <> V_rest_mV def
+R5820:5830 PurkinjeAction <> V_thresh_mV def
+R5833:5841 PurkinjeAction <> V_rest_mV def
+prf 5909:5930 <> delta_V_peak_to_thresh
+R5959:5961 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R5945:5947 Stdlib.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R5936:5944 PurkinjeAction <> V_peak_mV def
+R5948:5958 PurkinjeAction <> V_thresh_mV def
+R5980:5988 PurkinjeAction <> V_peak_mV def
+R5991:6001 PurkinjeAction <> V_thresh_mV def
+prf 6085:6112 <> delta_V_action_decomposition
+R6121:6123 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6126:6128 Stdlib.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+prf 6215:6238 <> purkinje_action_mid_bank
+R6269:6274 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6247:6250 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6251:6268 PurkinjeAction <> OP_PURKINJE_ACTION def
+R6293:6296 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6275:6292 PurkinjeAction <> OP_PURKINJE_ACTION def
+R6316:6333 PurkinjeAction <> OP_PURKINJE_ACTION def
+prf 6646:6670 <> purkinje_action_composite
+R6700:6705 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6694:6696 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6676:6693 PurkinjeAction <> OP_PURKINJE_ACTION def
+R6721:6726 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6715:6717 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6706:6714 PurkinjeAction <> V_rest_mV def
+R6744:6749 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6738:6740 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6727:6737 PurkinjeAction <> V_thresh_mV def
+R6764:6769 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6759:6761 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6750:6758 PurkinjeAction <> V_peak_mV def
+R6793:6798 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6787:6789 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6770:6786 PurkinjeAction <> delta_V_action_mV def
+R6824:6829 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6817:6819 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6799:6816 PurkinjeAction <> action_duration_us def
+R6856:6861 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6850:6852 Corelib.Init.Logic <> ::type_scope:x_'='_x not
+R6830:6849 PurkinjeAction <> refractory_period_us def
+R6885:6890 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6871:6873 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6862:6870 PurkinjeAction <> V_rest_mV def
+R6874:6884 PurkinjeAction <> V_thresh_mV def
+R6914:6919 Corelib.Init.Logic <> ::type_scope:x_'/\'_x not
+R6902:6904 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6891:6901 PurkinjeAction <> V_thresh_mV def
+R6905:6913 PurkinjeAction <> V_peak_mV def
+R6940:6942 Stdlib.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6920:6939 PurkinjeAction <> refractory_period_us def
+R6943:6960 PurkinjeAction <> action_duration_us def
+R6986:7003 PurkinjeAction <> OP_PURKINJE_ACTION def
+R7034:7053 PurkinjeAction <> V_rest_is_minus_70mV thm
+R7034:7053 PurkinjeAction <> V_rest_is_minus_70mV thm
+R7071:7092 PurkinjeAction <> V_thresh_is_minus_55mV thm
+R7071:7092 PurkinjeAction <> V_thresh_is_minus_55mV thm
+R7110:7128 PurkinjeAction <> V_peak_is_plus_40mV thm
+R7110:7128 PurkinjeAction <> V_peak_is_plus_40mV thm
+R7146:7168 PurkinjeAction <> delta_V_action_is_110mV thm
+R7146:7168 PurkinjeAction <> delta_V_action_is_110mV thm
+R7186:7207 PurkinjeAction <> action_duration_is_1ms thm
+R7186:7207 PurkinjeAction <> action_duration_is_1ms thm
+R7225:7250 PurkinjeAction <> refractory_period_is_200us thm
+R7225:7250 PurkinjeAction <> refractory_period_is_200us thm
+R7268:7286 PurkinjeAction <> V_rest_below_thresh thm
+R7268:7286 PurkinjeAction <> V_rest_below_thresh thm
+R7304:7322 PurkinjeAction <> V_thresh_below_peak thm
+R7304:7322 PurkinjeAction <> V_thresh_below_peak thm
+R7334:7353 PurkinjeAction <> refractory_period_us def
+R7356:7373 PurkinjeAction <> action_duration_us def
