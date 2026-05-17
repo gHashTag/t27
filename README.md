@@ -16,6 +16,32 @@ The canonical source of truth for Trinity S3AI.
 
 ---
 
+## What this repo is
+
+**t27** is the **spec-first toolchain and numeric format registry** for the
+**TRI-NET line** of open high-assurance ternary AI silicon. The primary
+product of t27 is the path `.t27 → Verilog RTL → Tiny Tapeout` with sealed,
+inspectable artefacts at every step.
+
+- **How to verify:** `cd bootstrap && cargo build --release && cd .. && ./scripts/tri test`
+  (full Quick Start below). Validators: `./scripts/tri validate-conformance` and `validate-gen-headers`.
+- **Primary numeric path:** GoldenFloat **GF16** (default), with the family
+  GF4–GF32 registered in [`conformance/FORMAT-SPEC-001.json`](conformance/FORMAT-SPEC-001.json).
+  FP8 compat and NF4 / INT4 / INT8 quant bridges are **planned**, not shipped.
+  Full details: [`FORMAT_REGISTRY.md`](FORMAT_REGISTRY.md).
+- **Readiness:** [`STATUS.md`](STATUS.md) records what is at SPEC / RTL / SIM /
+  SYNTH / GDS / SILICON, conservatively, from this repo's own evidence only.
+- **Sibling chip repos (separate):** `tt-trinity-phi` (1×1 φ-anchor),
+  `tt-trinity-euler` (8×2 e-engine, safety/control), `tt-trinity-gamma`
+  (8×4 γ-surface 32-PE ternary mesh). Tape-out target:
+  [Tiny Tapeout](https://tinytapeout.com/chips/). See [`LINEUP.md`](LINEUP.md).
+- **Positioning:** [`COMPETITORS.md`](COMPETITORS.md) — we do not race
+  commercial NPUs on TOPS or SDK breadth; we own the inspectable open silicon
+  and formal / assurance corner. Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
+- **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
+
+---
+
 ## System Status
 
 | Domain | Component | Status | Details |
