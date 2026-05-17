@@ -224,3 +224,11 @@
 - **Commit:** feat(complete): sync all improvements from Trinity chips work
 - **Files:** trios-coq/Physics/Sentinel.v
 
+## 2026-05-17T13:50:43Z — feat/all-improvements-v1.1
+- **Commit:** feat(wave-61): Complete extended sacred bank with sentinel opcode
+- **Files:** trios-coq/Physics/AstrocyteCaWave.v,trios-coq/Physics/PurkinjeAction.v
+
+## 2026-05-17T13:51:01Z — feat/all-improvements-v1.1
+- **Commit:** feat(wave-62-63): Add Purkinje and Astrocyte neural physics modules
+- **Files:** .trinity/current_task/activity.md,trios-coq/Physics/AstrocyteCaWave.v,trios-coq/Physics/PurkinjeAction.v
+
