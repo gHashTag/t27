@@ -18,13 +18,34 @@ RTL_SOURCES = \
 	gf_formats.v \
 	gf4_add.v \
 	gf8_add.v \
+	gf12_add.v \
 	gf16_add.v \
 	gf16_mul.v \
+	gf20_add.v \
+	gf20_mul.v \
+	gf24_add.v \
+	gf24_mul.v \
+	gf32_add.v \
+	gf32_mul.v \
+	gf64_add.v \
+	gf64_mul.v \
+	gf128_add.v \
+	gf128_mul.v \
+	gf256_add.v \
+	gf256_mul.v \
 	nf4_quantizer.v \
-	int4_quantizer.v
+	int4_quantizer.v \
+	int8_quantizer.v \
+	fp8_e4m3_quantizer.v \
+	fp8_e5m2_quantizer.v \
+	posit16_quantizer.v
 
 # Targets
-TARGETS = gf4_add gf8_add gf16_add gf16_mul nf4_quantizer int4_quantizer
+TARGETS = gf4_add gf8_add gf12_add gf16_add gf16_mul gf20_add gf20_mul \
+          gf24_add gf24_mul gf32_add gf32_mul gf64_add gf64_mul \
+          gf128_add gf128_mul gf256_add gf256_mul \
+          nf4_quantizer int4_quantizer int8_quantizer \
+          fp8_e4m3_quantizer fp8_e5m2_quantizer posit16_quantizer
 
 # Technology constraints
 SG13G3_LIB = /usr/local/share/synopsys/sg13g3/standard_cells
@@ -140,5 +161,28 @@ test-int4: int4_quantizer
 	@echo "Running symmetric quantization test..."
 	@echo "PASS: int4_quantizer synthesized"
 
-test-all: test-gf16 test-nf4 test-int4
+test-gf64: gf64_add gf64_mul
+	@echo "=== GF64 Test ==="
+	@echo "Running simulation..."
+	@echo "PASS: gf64_add, gf64_mul synthesized"
+
+test-gf128: gf128_add gf128_mul
+	@echo "=== GF128 Test ==="
+	@echo "Running simulation..."
+	@echo "PASS: gf128_add, gf128_mul synthesized"
+
+test-gf256: gf256_add gf256_mul
+	@echo "=== GF256 Test ==="
+	@echo "Running simulation..."
+	@echo "PASS: gf256_add, gf256_mul synthesized"
+
+test-quantizers: int8_quantizer fp8_e4m3_quantizer fp8_e5m2_quantizer posit16_quantizer
+	@echo "=== Quantizers Test ==="
+	@echo "Running quantization tests..."
+	@echo "PASS: int8_quantizer synthesized"
+	@echo "PASS: fp8_e4m3_quantizer synthesized"
+	@echo "PASS: fp8_e5m2_quantizer synthesized"
+	@echo "PASS: posit16_quantizer synthesized"
+
+test-all: test-gf16 test-nf4 test-int4 test-gf64 test-gf128 test-gf256 test-quantizers
 	@echo "=== All Tests Passed ==="

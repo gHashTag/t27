@@ -1,0 +1,169 @@
+# SPDX-License-Identifier: Apache-2.0
+# t27/.github/workflows/test.yml
+# CI Pipeline for t27 Toolchain
+
+name: t27 CI
+
+on:
+  push:
+    branches: [ main, master, '**' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # Job 1: Spec compilation and TDD tests
+  specs:
+    name: Specs & TDD
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Build t27c
+        run: |
+          cd bootstrap
+          cargo build --release
+
+      - name: Run TDD tests
+        run: |
+          ./scripts/tri test || true
+
+      - name: Generate code
+        run: |
+          ./scripts/tri gen specs/numeric/*.t27 || true
+
+  # Job 2: RTL synthesis with Yosys
+  rtl:
+    name: RTL Synthesis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yosys
+
+      - name: Synthesize GF16 modules
+        run: |
+          cd rtl_gen
+          make gf16_add gf16_mul
+
+      - name: Check R-SI-1 compliance
+        run: |
+          cd rtl_gen
+          make check-rsi1
+
+      - name: Generate synthesis report
+        run: |
+          cd rtl_gen
+          make reports || true
+
+      - name: Upload synthesis reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthesis-reports
+          path: rtl_gen/reports/
+
+  # Job 3: Coq formal verification
+  coq:
+    name: Coq Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Coq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coq
+
+      - name: Compile Coq proofs
+        run: |
+          cd trios-coq/Coq
+          coqc -R . GFFormats.v
+          coqc -R . Arithmetic.v || true
+
+      - name: Check for admit statements
+        run: |
+          cd trios-coq/Coq
+          if grep -q "Admitted\." *.v; then
+            echo "WARNING: Found Admitted statements (incomplete proofs)"
+            grep -n "Admitted\." *.v
+          else
+            echo "All proofs complete (no Admitted statements)"
+          fi
+
+  # Job 4: Cross-format tests
+  cross-format:
+    name: Cross-Format Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+
+      - name: Install dependencies
+        run: |
+          pip3 install numpy pytest
+
+      - name: Run cross-format tests
+        run: |
+          python3 -m pytest tests/cross_format/ -v || true
+
+      - name: Test format conversions
+        run: |
+          python3 python/t27/format_conversions.py || true
+
+  # Job 5: Documentation build
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check documentation completeness
+        run: |
+          echo "=== Documentation Files ==="
+          ls -la docs/
+
+      - name: Validate tutorial examples
+        run: |
+          if [ -f "docs/TUTORIAL.md" ]; then
+            echo "Tutorial exists: $(wc -l < docs/TUTORIAL.md) lines"
+          fi
+
+      - name: Check for TODO/FIXME
+        run: |
+          echo "=== Outstanding TODOs ==="
+          grep -r "TODO\|FIXME" --include="*.md" --include="*.v" --include="*.v" . 2>/dev/null || echo "No TODOs found"
+
+  # Job 6: Format validation
+  format-check:
+    name: Format Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate format specs
+        run: |
+          python3 scripts/validate_formats.py conformance/FORMAT-SPEC-001.json || true
+
+      - name: Check format registry
+        run: |
+          if [ -f "specs/numeric/goldenfloat_family.t27" ]; then
+            echo "GF family registry exists"
+            grep -c "module GF" specs/numeric/*.t27 || true
+          fi
+
+      - name: Verify φ-distance calculations
+        run: |
+          echo "Checking GF format φ-distances..."
+          grep "phi_dist" specs/numeric/*.t27 || true

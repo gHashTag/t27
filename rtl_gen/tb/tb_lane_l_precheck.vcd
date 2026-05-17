@@ -1,0 +1,85 @@
+$date
+	Sun May 17 21:58:08 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module tb_lane_l_precheck $end
+$var parameter 12 ! DELAY_RED_CENTER_BPS $end
+$var parameter 12 " DELAY_RED_HI_BPS $end
+$var parameter 12 # DELAY_RED_LO_BPS $end
+$var parameter 12 $ FCLK_SCALE_MAX_BPS $end
+$var parameter 8 % GAMMA4_BPS $end
+$var parameter 12 & LEAK_OVH_MAX_BPS $end
+$var parameter 12 ' NET_DELAY_SAVE_MIN_BPS $end
+$var parameter 9 ( OP_FBB_ACTIVE $end
+$var parameter 9 ) OP_RBB $end
+$var parameter 9 * SACRED_BANK_HI $end
+$var parameter 9 + SACRED_BANK_LO $end
+$var parameter 8 , SACRED_BANK_SIZE $end
+$var parameter 16 - TOPS_W_TARGET $end
+$var parameter 16 . TOPS_W_W47_POST $end
+$var parameter 16 / TOPS_W_W48_POST $end
+$var parameter 8 0 V_BS_ACTIVE_DECIMV $end
+$var parameter 8 1 V_BS_MAG_MAX_DECIMV $end
+$var parameter 8 2 V_BS_MAG_MIN_DECIMV $end
+$var reg 16 3 baseline_power [15:0] $end
+$var reg 1 4 clk $end
+$var reg 16 5 expected_reduction [15:0] $end
+$var reg 1 6 rst_n $end
+$var integer 32 7 fail_count [31:0] $end
+$var integer 32 8 pass_count [31:0] $end
+$var integer 32 9 test_count [31:0] $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+b10110 2
+b11100 1
+b11001 0
+b10000111011 /
+b10000100111 .
+b1001011 -
+b100000 ,
+b11100000 +
+b11111111 *
+b11110001 )
+b11110010 (
+b1100100000 '
+b1100100000 &
+b11111 %
+b1001011000 $
+b1100100000 #
+b11100001000 "
+b10010110000 !
+$end
+#0
+$dumpvars
+b0 9
+b0 8
+b0 7
+06
+bx 5
+04
+bx 3
+$end
+#5000
+14
+#10000
+04
+#15000
+14
+#20000
+04
+b110 5
+b110111 3
+b1111 9
+b1111 8
+16
+#25000
+14
+#30000
+04

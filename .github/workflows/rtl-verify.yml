@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: Apache-2.0
+# GitHub Actions workflow for Trinity RTL verification
+
+name: RTL Verification
+
+on:
+  push:
+    branches: [ main, master, publication/* ]
+  pull_request:
+    branches: [ main, master, publication/* ]
+  workflow_dispatch:
+
+jobs:
+  syntax-check:
+    name: Syntax Check (iverilog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog
+
+      - name: Check GF Add Modules
+        run: |
+          cd rtl_gen
+          iverilog -t null gf*_add.v 2>&1 | tee syntax_errors.log
+          if grep -q "error" syntax_errors.log; then exit 1; fi
+
+      - name: Check GF Mul Modules
+        run: |
+          cd rtl_gen
+          iverilog -t null gf*_mul.v 2>&1 | tee syntax_errors.log
+          if grep -q "error" syntax_errors.log; then exit 1; fi
+
+      - name: Check Special Modules
+        run: |
+          cd rtl_gen
+          iverilog -t null avs_controller_*.v purkinje_thermal_gate.v fbb_active_path.v lane_l_precheck.v 2>&1 | tee syntax_errors.log
+          if grep -q "error" syntax_errors.log; then exit 1; fi
+
+  synthesis-check:
+    name: Synthesis Check (Yosys)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: sudo apt-get update && sudo apt-get install -y yosys
+
+      - name: Run GF16 Synthesis
+        run: |
+          cd rtl_gen
+          yosys synth.ys 2>&1 | tee synth.log
+
+      - name: Check Synthesis Results
+        run: |
+          cd rtl_gen
+          if [ -f synth_report.txt ]; then
+            echo "Synthesis Report:"
+            cat synth_report.txt
+          fi
+
+  l1-traceability:
+    name: L1 Traceability Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Closes #N pattern
+        run: |
+          # Check recent commits for traceability
+          for commit in $(git log --oneline -10); do
+            if echo "$commit" | grep -q "Closes"; then
+              echo "PASS: Found traceability: $commit"
+            fi
+          done
+
+  l2-generation:
+    name: L2 Generation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify gen/ directory structure
+        run: |
+          if [ -d gen ]; then
+            echo "PASS: gen/ directory exists"
+            ls -la gen/ | head -10
+          else
+            echo "INFO: gen/ directory not yet created"
+          fi
+
+  l3-purity:
+    name: L3 Purity Check (ASCII-only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for non-ASCII in RTL
+        run: |
+          # Check RTL files for non-ASCII characters
+          if find rtl_gen -name "*.v" -exec file {} + | grep -v ASCII; then
+            echo "FAIL: Non-ASCII files found"
+            exit 1
+          else
+            echo "PASS: All RTL files are ASCII"
+          fi
+
+  l6-ssot-numeric:
+    name: L6 SSOT Numeric Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify FORMAT-SPEC-001.json
+        run: |
+          if [ -f conformance/FORMAT-SPEC-001.json ]; then
+            echo "PASS: FORMAT-SPEC-001.json exists"
+            cat conformance/FORMAT-SPEC-001.json | python3 -m json.tool > /dev/null
+          else
+            echo "FAIL: FORMAT-SPEC-001.json not found"
+            exit 1
+          fi
+
+  compliance-summary:
+    name: Compliance Summary
+    runs-on: ubuntu-latest
+    needs: [syntax-check, synthesis-check, l1-traceability, l3-purity, l6-ssot-numeric]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Compliance Report
+        run: |
+          echo "=== Trinity RTL Compliance Report ===" > compliance_report.txt
+          echo "" >> compliance_report.txt
+          echo "L1 (Traceability): ${{ needs.l1-traceability.result }}" >> compliance_report.txt
+          echo "L2 (Generation): ${{ needs.l2-generation.result }}" >> compliance_report.txt
+          echo "L3 (Purity): ${{ needs.l3-purity.result }}" >> compliance_report.txt
+          echo "L6 (SSOT-Numeric): ${{ needs.l6-ssot-numeric.result }}" >> compliance_report.txt
+          echo "" >> compliance_report.txt
+          echo "Syntax Check: ${{ needs.syntax-check.result }}" >> compliance_report.txt
+          echo "Synthesis Check: ${{ needs.synthesis-check.result }}" >> compliance_report.txt
+          cat compliance_report.txt
+
+      - name: Upload Compliance Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-report
+          path: compliance_report.txt

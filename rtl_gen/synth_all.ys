@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: Apache-2.0
+# t27/rtl_gen/synth_all.ys
+# Batch synthesis for all GF formats
+
+# Read all GF addition modules
+read_verilog -sv gf4_add.v
+read_verilog -sv gf8_add.v
+read_verilog -sv gf12_add.v
+read_verilog -sv gf16_add.v
+read_verilog -sv gf20_add.v
+read_verilog -sv gf24_add.v
+read_verilog -sv gf32_add.v
+read_verilog -sv gf64_add.v
+read_verilog -sv gf128_add.v
+read_verilog -sv gf256_add.v
+
+# Synthesis command
+set modules {gf4_add gf8_add gf12_add gf16_add gf20_add gf24_add gf32_add gf64_add gf128_add gf256_add}
+
+foreach mod $modules {
+    echo "Synthesizing $mod"
+    hierarchy -check -top $mod
+    proc
+    opt_clean -purge
+    techmap
+    opt_clean -purge
+    opt
+    tee -a synth_report.txt "=== $mod ===" stat
+    write_verilog ${mod}_synth.v
+    design -reset
+}
+
+echo "=== GF Multiplication Modules ==="
+
+# Read all GF multiplication modules
+read_verilog -sv gf4_mul.v
+read_verilog -sv gf8_mul.v
+read_verilog -sv gf12_mul.v
+read_verilog -sv gf16_mul.v
+read_verilog -sv gf20_mul.v
+read_verilog -sv gf24_mul.v
+read_verilog -sv gf32_mul.v
+read_verilog -sv gf64_mul.v
+read_verilog -sv gf128_mul.v
+read_verilog -sv gf256_mul.v
+
+# Synthesis command
+set mul_modules {gf4_mul gf8_mul gf12_mul gf16_mul gf20_mul gf24_mul gf32_mul gf64_mul gf128_mul gf256_mul}
+
+foreach mod $mul_modules {
+    echo "Synthesizing $mod"
+    hierarchy -check -top $mod
+    proc
+    opt_clean -purge
+    techmap
+    opt_clean -purge
+    opt
+    tee -a synth_report.txt "=== $mod ===" stat
+    write_verilog ${mod}_synth.v
+    design -reset
+}
+
+echo "=== Special Modules ==="
+
+# AVS controllers
+read_verilog -sv avs_controller_48.v
+hierarchy -check -top avs_controller_48
+proc
+opt_clean -purge
+techmap
+opt_clean -purge
+opt
+tee -a synth_report.txt "=== avs_controller_48 ===" stat
+write_verilog avs_controller_48_synth.v
+design -reset
+
+read_verilog -sv avs_controller_96.v
+hierarchy -check -top avs_controller_96
+proc
+opt_clean -purge
+techmap
+opt_clean -purge
+opt
+tee -a synth_report.txt "=== avs_controller_96 ===" stat
+write_verilog avs_controller_96_synth.v
+design -reset
+
+# Purkinje thermal gate
+read_verilog -sv purkinje_thermal_gate.v
+hierarchy -check -top purkinje_thermal_gate
+proc
+opt_clean -purge
+techmap
+opt_clean -purge
+opt
+tee -a synth_report.txt "=== purkinje_thermal_gate ===" stat
+write_verilog purkinje_thermal_gate_synth.v
+design -reset
+
+# FBB active path
+read_verilog -sv fbb_active_path.v
+hierarchy -check -top fbb_active_path
+proc
+opt_clean -purge
+techmap
+opt_clean -purge
+opt
+tee -a synth_report.txt "=== fbb_active_path ===" stat
+write_verilog fbb_active_path_synth.v
+design -reset
+
+echo "=== Synthesis Complete ==="

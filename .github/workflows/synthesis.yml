@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: Apache-2.0
+# GitHub Actions workflow for RTL Synthesis
+
+name: RTL Synthesis
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  yosys-synthesis:
+    name: Yosys Synthesis
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [gf4_add, gf8_add, gf12_add, gf16_add, gf20_add, gf24_add, gf32_add, gf64_add]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Yosys
+        run: sudo apt-get update && sudo apt-get install -y yosys
+
+      - name: Synthesize ${{ matrix.target }}
+        run: |
+          cd rtl_gen
+          echo "read_verilog -sv ${{ matrix.target }}.v" > temp_synth.ys
+          echo "hierarchy -check -top ${{ matrix.target }}" >> temp_synth.ys
+          echo "proc" >> temp_synth.ys
+          echo "opt_clean -purge" >> temp_synth.ys
+          echo "techmap" >> temp_synth.ys
+          echo "opt_clean -purge" >> temp_synth.ys
+          echo "opt" >> temp_synth.ys
+          echo "stat" >> temp_synth.ys
+          echo "write_verilog ${{ matrix.target }}_synth.v" >> temp_synth.ys
+          yosys temp_synth.ys 2>&1 | tee ${{ matrix.target }}_synth.log
+
+      - name: Extract Resources
+        run: |
+          cd rtl_gen
+          echo "=== ${{ matrix.target }} Resources ===" >> resources.txt
+          grep "Number of cells" ${{ matrix.target }}_synth.log >> resources.txt || echo "Parse error" >> resources.txt
+          cat resources.txt
+
+      - name: Upload Synthesis Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-synthesis
+          path: |
+            rtl_gen/${{ matrix.target }}_synth.log
+            rtl_gen/${{ matrix.target }}_synth.v
+
+  aggregate-results:
+    name: Aggregate Results
+    runs-on: ubuntu-latest
+    needs: [yosys-synthesis]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate Resource Report
+        run: |
+          echo "=== Trinity RTL Synthesis Report ===" > synthesis_summary.txt
+          echo "Generated: $(date)" >> synthesis_summary.txt
+          echo "" >> synthesis_summary.txt
+          echo "Modules synthesized:" >> synthesis_summary.txt
+          ls -1 artifacts/ >> synthesis_summary.txt
+          cat synthesis_summary.txt
+
+      - name: Upload Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthesis-summary
+          path: synthesis_summary.txt

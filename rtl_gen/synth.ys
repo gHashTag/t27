@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+# t27/rtl_gen/synth.ys
+# Yosys synthesis script for Trinity RTL
+
+# Read Verilog files
+read_verilog -sv gf4_add.v
+read_verilog -sv gf8_add.v
+read_verilog -sv gf12_add.v
+read_verilog -sv gf16_add.v
+read_verilog -sv gf20_add.v
+read_verilog -sv gf24_add.v
+read_verilog -sv gf32_add.v
+read_verilog -sv gf64_add.v
+
+# Synthesis hierarchy
+hierarchy -check -top gf16_add
+
+# Generic synthesis
+proc
+
+# Optimize
+opt_clean -purge
+
+# Technology mapping (generic)
+techmap
+
+# Optimize again
+opt_clean -purge
+opt
+
+# Show statistics
+stat
+
+# Generate BLIF
+write_blif -attr -cname -param gf16_add.blif
+
+# Generate Verilog netlist
+write_verilog gf16_add_synth.v
+
+# Report
+tee -a report.txt stat

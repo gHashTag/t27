@@ -236,3 +236,7 @@
 - **Commit:** feat(neural-phys): Add Purkinje and Astrocyte neural physics modules
 - **Files:** trios-coq/Physics/DendriticIntegration.v,trios-coq/Physics/SynapticPlasticity.v
 
+## 2026-05-17T16:23:17Z — feat/all-improvements-v1.1
+- **Commit:** feat(neural-phys): Add SynapticPlasticity and DendriticIntegration modules
+- **Files:** .github/workflows/rtl-verify.yml,.github/workflows/synthesis.yml,.github/workflows/test.yml,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/issues/LANE_L_PRECHECK_TTSKY26b.md,.trinity/lane_l_precheck_report.md,docs/TUTORIAL.md,python/t27/README.md,python/t27/__init__.py,python/t27/benchmarks.py,python/t27/conversions.py,python/t27/formats.py,python/t27/phi.py,python/t27/quantizers.py,rtl_gen/Makefile,rtl_gen/README.md,rtl_gen/avs_controller_48.v,rtl_gen/avs_controller_96.v,rtl_gen/avs_reconf.v
+
