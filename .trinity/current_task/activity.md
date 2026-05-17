@@ -232,3 +232,7 @@
 - **Commit:** feat(wave-62-63): Add Purkinje and Astrocyte neural physics modules
 - **Files:** .trinity/current_task/activity.md,trios-coq/Physics/AstrocyteCaWave.v,trios-coq/Physics/PurkinjeAction.v
 
+## 2026-05-17T14:04:16Z — feat/all-improvements-v1.1
+- **Commit:** feat(neural-phys): Add Purkinje and Astrocyte neural physics modules
+- **Files:** trios-coq/Physics/DendriticIntegration.v,trios-coq/Physics/SynapticPlasticity.v
+
