@@ -40,6 +40,14 @@ jobs:
 
           echo "" >> /tmp/pr_dashboard.md
 
+          # Compute summary counts BEFORE rendering the table.
+          # Prior version referenced $TOTAL / $FAILING before they were assigned,
+          # which crashed under `set -u` with "unbound variable" on every PR.
+          TOTAL=$(echo "$PR_DATA"   | jq -r 'length')
+          FAILING=$(echo "$PR_DATA" | jq -r '[.[] | select((.statusCheckRollup // []) | any(.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT"))] | length')
+          READY=$(echo "$PR_DATA"   | jq -r '[.[] | select((.statusCheckRollup // []) | all(.conclusion == "SUCCESS" or .conclusion == "SKIPPED" or .conclusion == null))] | length')
+          PENDING=$(echo "$PR_DATA" | jq -r '[.[] | select((.statusCheckRollup // []) | any(.conclusion == null))] | length')
+
           # Summary table
           echo "## Summary" >> /tmp/pr_dashboard.md
           echo "" >> /tmp/pr_dashboard.md
@@ -49,12 +57,8 @@ jobs:
           echo "| PRs with Failing Checks | $FAILING |" >> /tmp/pr_dashboard.md
           echo "| PRs with All Checks Green | $((TOTAL - FAILING)) |" >> /tmp/pr_dashboard.md
 
-          READY=$(echo "$PR_DATA"   | jq -r '[.[] | select((.statusCheckRollup // []) | all(.conclusion == "SUCCESS" or .conclusion == "SKIPPED" or .conclusion == null))] | length')
-          FAILED=$(echo "$PR_DATA"  | jq -r '[.[] | select((.statusCheckRollup // []) | any(.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT"))] | length')
-          PENDING=$(echo "$PR_DATA" | jq -r '[.[] | select((.statusCheckRollup // []) | any(.conclusion == null))] | length')
-
           echo "| READY   | $READY |"   >> /tmp/pr_dashboard.md
-          echo "| FAILING | $FAILED |"  >> /tmp/pr_dashboard.md
+          echo "| FAILING | $FAILING |" >> /tmp/pr_dashboard.md
           echo "| PENDING | $PENDING |" >> /tmp/pr_dashboard.md
 
       - name: Post PR Comment
