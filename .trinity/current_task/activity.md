@@ -252,3 +252,7 @@
 - **Commit:** feat(v1.0.0): Add GF4-GF256, quantizers, power modules, sacred opcodes
 - **Files:** .trinity/TTSKY26b_COMPLETE.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,rtl_gen/README.md,rtl_gen/check_rsi1.py,rtl_gen/dfs_gate.v,rtl_gen/drowsy_ret.v,rtl_gen/final_synthesis.sh,rtl_gen/holo_mux_x4.v,rtl_gen/lane_l_precheck.v,rtl_gen/null_pe.v,rtl_gen/reports/TTSKY26b_final_report.md,rtl_gen/reports/gf128_add.rpt,rtl_gen/reports/gf128_mul.rpt,rtl_gen/reports/gf12_add.rpt,rtl_gen/reports/gf16_add.rpt,rtl_gen/reports/gf16_mul.rpt,rtl_gen/reports/gf20_add.rpt,rtl_gen/reports/gf20_mul.rpt
 
+## 2026-05-17T18:41:15Z — feat/all-improvements-v1.1
+- **Commit:** feat(chips): Add v1.0.0 modules to tt-trinity-phi
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
