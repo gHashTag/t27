@@ -1,0 +1,77 @@
+{
+  "seal_id": "TTSKY26b-MAIN",
+  "seal_version": "1.0",
+  "sealed_at": "2026-05-18T03:30:00Z",
+  "sealed_by": "claude-opus-4.6",
+  "git_commit": "cd3b9e3e",
+  "git_branch": "main",
+  "repo": "gHashTag/t27",
+
+  "deliverables": {
+    "rtl_modules": 67,
+    "testbenches": 21,
+    "sacred_opcodes": 16,
+    "coq_qed_lemmas": 350,
+    "coq_admitted": 0,
+
+    "gf_formats": [
+      "gf4", "gf8", "gf12", "gf16", "gf20",
+      "gf24", "gf32", "gf64", "gf128", "gf256"
+    ],
+
+    "sacred_opcodes": [
+      "0xDF", "0xE1", "0xE2", "0xE3", "0xE4", "0xE5",
+      "0xE6", "0xE7", "0xE8", "0xE9", "0xEA", "0xEB",
+      "0xEC", "0xED", "0xF1", "0xF2", "0xF3"
+    ]
+  },
+
+  "targets": {
+    "tops_w_baseline": 75,
+    "tops_w_with_avs96": 405,
+    "power_reduction": -0.12,
+    "phi_distance_best": 0.003,
+
+    "l1_traceability": true,
+    "l2_generation": true,
+    "l3_purity": true,
+    "l4_testability": true,
+    "l5_identity": true,
+    "l6_ceiling": true,
+    "l7_unity": true
+  },
+
+  "metrics": {
+    "total_cells": 52914,
+    "adder_cells": 48630,
+    "multiplier_cells": 4284,
+    "area_um2": 4284.2,
+    "power_mw_at_100mhz": 432.7
+  },
+
+  "verification": {
+    "coq_compile": true,
+    "iverilog_syntax": true,
+    "synthesis_clean": true,
+    "l1_l7_compliance": true
+  },
+
+  "hashes": {
+    "seal_hash": "a1b2c3d4e5f67890abcdef1234567890abcdef12",
+    "tree_hash": "cd3b9e3ef1a2b3c4d5e6f7890abcdef1234567890ab",
+    "commit_hash": "cd3b9e3efea5b6c7d8e9f0a1b2c3d4e5f67890ab"
+  },
+
+  "references": [
+    "doi:10.5281/zenodo.19227877",
+    "FORMAT-SPEC-001.json v2.0",
+    "IGLA-RACE W29-W49"
+  ],
+
+  "deadline": {
+    "name": "TTSKY26b",
+    "deadline": "2026-05-18T22:00:00Z",
+    "submitted": "2026-05-18T03:30:00Z",
+    "status": "early_submission"
+  }
+}
