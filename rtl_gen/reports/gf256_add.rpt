@@ -1,0 +1,16 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.63 (git sha1 70a11c6bf0e8dd669f56c7da3587f78b405138e2, clang++ 16.0.0 -fPIC -O3)
+
+-- Executing script file `syn_gf256_add.ys' --
+
+1. Executing Verilog-2005 frontend: gf256_add.v
+Parsing Verilog input from `gf256_add.v' to AST representation.
+gf256_add.v:14: Warning: Literal has a width of 97 bit, but value requires 98 bit.
+Generating RTLIL representation for module `\gf256_add'.
+Successfully finished Verilog frontend.
+ERROR: No such command: if (type 'help' for a command overview)

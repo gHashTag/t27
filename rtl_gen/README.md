@@ -48,7 +48,7 @@ This directory contains Verilog-2005 compatible RTL for Trinity S³AI chip:
 | Lane L Precheck | ✅ Spec | Wave-42, 75 TOPS/W baseline |
 | Quantizers | ✅ Complete | NF4, Int4/8, FP8, Posit16 |
 | Converters | ✅ Complete | GF↔FP, GF↔Posit |
-| Sacred Opcodes | ✅ Complete | 0xE1, 0xE3, 0xE4, 0xE5, 0xF2, 0xDF |
+| Sacred Opcodes | ✅ Complete | 0xDF, 0xE1-0xED, 0xF1-0xF3 |
 
 ## Sacred Opcodes
 
@@ -59,7 +59,23 @@ This directory contains Verilog-2005 compatible RTL for Trinity S³AI chip:
 | 0xE3 | LUT_NPU | lut_npu_81_entry.v | Ternary inference lookup |
 | 0xE4 | AVS_RECONF | avs_reconf.v | Dynamic voltage scaling |
 | 0xE5 | SUBTH_CLK | subth_clk.v | Subthreshold clock control |
-| 0xF2 | FBB | fbb_active_path.v | Forward Body Bias |
+| 0xE6 | HOLO_MUX_X4 | holo_mux_x4.v | Holographic 4:1 multiplexer |
+| 0xE7 | DFS_GATE | dfs_gate.v | Depth-First Search skip gate |
+| 0xE8 | SPARSE_SKIP | sparse_gate.v | Sparse-Activation Gating (Wave-41) |
+| 0xE9 | STOCH_ROUND | stoch_round.v | Stochastic rounding |
+| 0xEA | NULL_PE | null_pe.v | Null PE power gating |
+| 0xEB | SPEC_EXIT | spec_exit.v | Speculative exit control |
+| 0xEC | DROWSY_RET | drowsy_ret.v | Drowsy retention mode |
+| 0xED | SPARSE_MASK | sparse_mask.v | Sparsity mask application (27 Coptic) |
+| 0xF1 | RBB | rbb.v | Reverse Body Bias (leakage well) |
+| 0xF2 | FBB | fbb_active_path.v | Forward Body Bias (active well) |
+| 0xF3 | CAP_BOOST | cap_boost.v | Capacitive decoupling burst |
+
+## Sacred Bank Extension (0xD0..0xFF)
+
+- **32 slots total**: Extended from 16 (0xD0..0xEF) to 32 (0xD0..0xFF)
+- **R18 preserved**: No Sacred ROM cells added, opcode-space only
+- **Triple-Decker** (W47-W49): RBB (0xF1) → FBB (0xF2) → CAP_BOOST (0xF3)
 
 ## Lane L Precheck (Wave-42)
 

@@ -240,3 +240,15 @@
 - **Commit:** feat(neural-phys): Add SynapticPlasticity and DendriticIntegration modules
 - **Files:** .github/workflows/rtl-verify.yml,.github/workflows/synthesis.yml,.github/workflows/test.yml,.trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,.trinity/issues/LANE_L_PRECHECK_TTSKY26b.md,.trinity/lane_l_precheck_report.md,docs/TUTORIAL.md,python/t27/README.md,python/t27/__init__.py,python/t27/benchmarks.py,python/t27/conversions.py,python/t27/formats.py,python/t27/phi.py,python/t27/quantizers.py,rtl_gen/Makefile,rtl_gen/README.md,rtl_gen/avs_controller_48.v,rtl_gen/avs_controller_96.v,rtl_gen/avs_reconf.v
 
+## 2026-05-17T18:03:30Z — feat/all-improvements-v1.1
+- **Commit:** feat(TTSKY26b): Add Lane L Precheck (Wave-42) for 75 TOPS/W baseline
+- **Files:** .trinity/TTSKY26b_COMPLETE.md
+
+## 2026-05-17T18:40:09Z — feat/all-improvements-v1.1
+- **Commit:** docs(TTSKY26b): Mark complete - all deliverables done
+- **Files:** .trinity/TTSKY26b_COMPLETE.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,rtl_gen/README.md,rtl_gen/check_rsi1.py,rtl_gen/dfs_gate.v,rtl_gen/drowsy_ret.v,rtl_gen/final_synthesis.sh,rtl_gen/holo_mux_x4.v,rtl_gen/lane_l_precheck.v,rtl_gen/null_pe.v,rtl_gen/reports/TTSKY26b_final_report.md,rtl_gen/reports/gf128_add.rpt,rtl_gen/reports/gf128_mul.rpt,rtl_gen/reports/gf12_add.rpt,rtl_gen/reports/gf16_add.rpt,rtl_gen/reports/gf16_mul.rpt,rtl_gen/reports/gf20_add.rpt,rtl_gen/reports/gf20_mul.rpt
+
+## 2026-05-17T18:40:44Z — feat/all-improvements-v1.1
+- **Commit:** feat(v1.0.0): Add GF4-GF256, quantizers, power modules, sacred opcodes
+- **Files:** .trinity/TTSKY26b_COMPLETE.md,.trinity/current_task/.commit_count,.trinity/current_task/activity.md,.trinity/current_task/session_log.jsonl,rtl_gen/README.md,rtl_gen/check_rsi1.py,rtl_gen/dfs_gate.v,rtl_gen/drowsy_ret.v,rtl_gen/final_synthesis.sh,rtl_gen/holo_mux_x4.v,rtl_gen/lane_l_precheck.v,rtl_gen/null_pe.v,rtl_gen/reports/TTSKY26b_final_report.md,rtl_gen/reports/gf128_add.rpt,rtl_gen/reports/gf128_mul.rpt,rtl_gen/reports/gf12_add.rpt,rtl_gen/reports/gf16_add.rpt,rtl_gen/reports/gf16_mul.rpt,rtl_gen/reports/gf20_add.rpt,rtl_gen/reports/gf20_mul.rpt
+

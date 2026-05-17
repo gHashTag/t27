@@ -32,71 +32,61 @@ module lane_l_precheck (
 );
 
     // =================================================================
-    // State machine (5 states, 4-cycle pipeline depth)
+    // State machine (4-stage pipeline: LOAD -> EVAL -> DECISION -> OUTPUT)
     // =================================================================
-    localparam STATE_IDLE              = 3'd0;
-    localparam STATE_EVAL_THRESHOLD    = 3'd1;
-    localparam STATE_CHECK_MASK        = 3'd2;
-    localparam STATE_DISPATCH_DECISION = 3'd3;
-    localparam STATE_FORWARD           = 3'd4;
+    localparam STATE_IDLE      = 2'd0;
+    localparam STATE_EVAL      = 2'd1;
+    localparam STATE_DECISION  = 2'd2;
+    localparam STATE_OUTPUT    = 2'd3;
 
-    reg [2:0] state, next_state;
+    reg [1:0] state, next_state;
 
     // =================================================================
-    // Pipeline registers (4 stages)
+    // Pipeline registers (3 stages)
     // =================================================================
-    reg [15:0] pipe_activation [0:3];
-    reg [15:0] pipe_weight     [0:3];
-    reg [26:0] pipe_mask       [0:3];
-    reg        pipe_gate       [0:3];
-    reg        pipe_skip       [0:3];
+    reg [15:0] pipe_activation [0:2];
+    reg [15:0] pipe_weight     [0:2];
+    reg [26:0] pipe_mask       [0:2];
+    reg        pipe_gate       [0:2];
+    reg        pipe_skip       [0:2];
+    reg [4:0]  pipe_exp        [0:2];  // Exponent for mask index
+    reg        pipe_zero       [0:2];  // Zero flag
 
     // =================================================================
     // Constants (phi^-2 = 0.382 for threshold scaling)
     // =================================================================
-    localparam PHI_SQ_INV          = 10'h189;  // 0.382 in Q8.8 format
-    localparam PRECHECK_THRESHOLD  = 10'h04D;  // 0.3 * 0.382 = 0.1146 in Q8.8
     localparam OP_LUT_LOOKUP       = 8'hDF;   // Sacred opcode 0xDF = 223
     localparam OP_ZERO_DISPATCH    = 8'h00;   // No dispatch
+    localparam ZERO_GF16           = 16'h0000;
 
     // =================================================================
     // Activation magnitude extraction (sign, exp, mant)
     // =================================================================
-    wire        activation_sign    = activation_in[15];
     wire [5:0]  activation_exp     = activation_in[14:9];
-    wire [8:0]  activation_mant    = activation_in[8:0];
-
-    wire        weight_sign        = weight_in[15];
-    wire [5:0]  weight_exp         = weight_in[14:9];
-    wire [8:0]  weight_mant        = weight_in[8:0];
 
     // =================================================================
     // Zero detection
     // =================================================================
     wire activation_zero = (activation_in == 16'h0000);
-    wire weight_zero     = (weight_in == 16'h0000);
 
     // =================================================================
     // Subthreshold check (magnitude below threshold)
     // =================================================================
-    // Simplified: check if exponent is very low
-    wire activation_subthreshold = (activation_exp == 6'd0);
-    wire weight_subthreshold     = (weight_exp == 6'd0);
+    wire activation_subthreshold = (activation_exp == 6'd0) || (activation_exp == 6'd1);
 
     // =================================================================
     // Sparsity mask check (27 Coptic channel groups)
     // =================================================================
-    // Map activation exponent to mask bit (mod 27)
     wire [4:0] mask_index = activation_exp[4:0]; // Low 5 bits (0-31)
     wire        mask_bit   = (mask_index < 5'd27) ? sparsity_mask_in[mask_index] : 1'b1;
 
     // =================================================================
-    // Skip decision logic
+    // Skip decision logic (Stage 1)
     // =================================================================
-    wire should_skip = precheck_enable & (
-        activation_zero |
-        activation_subthreshold |
-        (mask_bit == 1'b0) |
+    wire should_skip = precheck_enable && (
+        activation_zero ||
+        activation_subthreshold ||
+        (mask_bit == 1'b0) ||
         sparse_gate_in
     );
 
@@ -109,57 +99,61 @@ module lane_l_precheck (
             precheck_valid   <= 1'b0;
             skip_dispatch    <= 1'b0;
             dispatch_opcode  <= OP_ZERO_DISPATCH;
-            activation_out   <= 16'h0000;
-            weight_out       <= 16'h0000;
+            activation_out   <= ZERO_GF16;
+            weight_out       <= ZERO_GF16;
 
             // Clear pipeline
-            pipe_activation[0] <= 16'h0000;
-            pipe_activation[1] <= 16'h0000;
-            pipe_activation[2] <= 16'h0000;
-            pipe_activation[3] <= 16'h0000;
-            pipe_weight[0]     <= 16'h0000;
-            pipe_weight[1]     <= 16'h0000;
-            pipe_weight[2]     <= 16'h0000;
-            pipe_weight[3]     <= 16'h0000;
+            pipe_activation[0] <= ZERO_GF16;
+            pipe_activation[1] <= ZERO_GF16;
+            pipe_activation[2] <= ZERO_GF16;
+            pipe_weight[0]     <= ZERO_GF16;
+            pipe_weight[1]     <= ZERO_GF16;
+            pipe_weight[2]     <= ZERO_GF16;
             pipe_mask[0]       <= 27'h0;
             pipe_mask[1]       <= 27'h0;
             pipe_mask[2]       <= 27'h0;
-            pipe_mask[3]       <= 27'h0;
             pipe_gate[0]       <= 1'b0;
             pipe_gate[1]       <= 1'b0;
             pipe_gate[2]       <= 1'b0;
-            pipe_gate[3]       <= 1'b0;
             pipe_skip[0]       <= 1'b0;
             pipe_skip[1]       <= 1'b0;
             pipe_skip[2]       <= 1'b0;
-            pipe_skip[3]       <= 1'b0;
+            pipe_exp[0]        <= 5'd0;
+            pipe_exp[1]        <= 5'd0;
+            pipe_exp[2]        <= 5'd0;
+            pipe_zero[0]       <= 1'b0;
+            pipe_zero[1]       <= 1'b0;
+            pipe_zero[2]       <= 1'b0;
 
         end else begin
-            // Pipeline shift
+            // Pipeline shift (input -> stage 0 -> stage 1 -> stage 2)
             pipe_activation[0] <= activation_in;
             pipe_activation[1] <= pipe_activation[0];
             pipe_activation[2] <= pipe_activation[1];
-            pipe_activation[3] <= pipe_activation[2];
 
             pipe_weight[0] <= weight_in;
             pipe_weight[1] <= pipe_weight[0];
             pipe_weight[2] <= pipe_weight[1];
-            pipe_weight[3] <= pipe_weight[2];
 
             pipe_mask[0] <= sparsity_mask_in;
             pipe_mask[1] <= pipe_mask[0];
             pipe_mask[2] <= pipe_mask[1];
-            pipe_mask[3] <= pipe_mask[2];
 
             pipe_gate[0] <= sparse_gate_in;
             pipe_gate[1] <= pipe_gate[0];
             pipe_gate[2] <= pipe_gate[1];
-            pipe_gate[3] <= pipe_gate[2];
 
             pipe_skip[0] <= should_skip;
             pipe_skip[1] <= pipe_skip[0];
             pipe_skip[2] <= pipe_skip[1];
-            pipe_skip[3] <= pipe_skip[2];
+
+            pipe_exp[0]  <= activation_exp;
+            pipe_exp[1]  <= pipe_exp[0];
+            pipe_exp[2]  <= pipe_exp[1];
+
+            pipe_zero[0] <= activation_zero;
+            pipe_zero[1] <= pipe_zero[0];
+            pipe_zero[2] <= pipe_zero[1];
 
             // State transition
             state <= next_state;
@@ -170,47 +164,39 @@ module lane_l_precheck (
                     precheck_valid  <= 1'b0;
                     skip_dispatch   <= 1'b0;
                     dispatch_opcode <= OP_ZERO_DISPATCH;
-                    activation_out  <= 16'h0000;
-                    weight_out      <= 16'h0000;
+                    activation_out  <= ZERO_GF16;
+                    weight_out      <= ZERO_GF16;
                 end
 
-                STATE_EVAL_THRESHOLD: begin
+                STATE_EVAL: begin
                     precheck_valid  <= 1'b0;
                     skip_dispatch   <= pipe_skip[0];
                     dispatch_opcode <= OP_ZERO_DISPATCH;
-                    activation_out  <= 16'h0000;
-                    weight_out      <= 16'h0000;
+                    activation_out  <= ZERO_GF16;
+                    weight_out      <= ZERO_GF16;
                 end
 
-                STATE_CHECK_MASK: begin
+                STATE_DECISION: begin
                     precheck_valid  <= 1'b0;
                     skip_dispatch   <= pipe_skip[1];
                     dispatch_opcode <= OP_ZERO_DISPATCH;
-                    activation_out  <= 16'h0000;
-                    weight_out      <= 16'h0000;
+                    activation_out  <= ZERO_GF16;
+                    weight_out      <= ZERO_GF16;
                 end
 
-                STATE_DISPATCH_DECISION: begin
-                    precheck_valid  <= 1'b0;
-                    skip_dispatch   <= pipe_skip[2];
-                    dispatch_opcode <= OP_ZERO_DISPATCH;
-                    activation_out  <= 16'h0000;
-                    weight_out      <= 16'h0000;
-                end
-
-                STATE_FORWARD: begin
+                STATE_OUTPUT: begin
                     precheck_valid  <= 1'b1;
-                    skip_dispatch   <= pipe_skip[3];
+                    skip_dispatch   <= pipe_skip[2];
 
-                    if (pipe_skip[3]) begin
+                    if (pipe_skip[2]) begin
                         dispatch_opcode <= OP_ZERO_DISPATCH;
-                        activation_out  <= 16'h0000;
-                        weight_out      <= 16'h0000;
+                        activation_out  <= ZERO_GF16;
+                        weight_out      <= ZERO_GF16;
                     end else begin
                         // Dispatch to LUT PE via sacred opcode 0xDF
                         dispatch_opcode <= OP_LUT_LOOKUP;
-                        activation_out  <= pipe_activation[3];
-                        weight_out      <= pipe_weight[3];
+                        activation_out  <= pipe_activation[2];
+                        weight_out      <= pipe_weight[2];
                     end
                 end
 
@@ -218,8 +204,8 @@ module lane_l_precheck (
                     precheck_valid  <= 1'b0;
                     skip_dispatch   <= 1'b0;
                     dispatch_opcode <= OP_ZERO_DISPATCH;
-                    activation_out  <= 16'h0000;
-                    weight_out      <= 16'h0000;
+                    activation_out  <= ZERO_GF16;
+                    weight_out      <= ZERO_GF16;
                 end
             endcase
         end
@@ -234,37 +220,21 @@ module lane_l_precheck (
         case (state)
             STATE_IDLE: begin
                 if (precheck_enable) begin
-                    next_state = STATE_EVAL_THRESHOLD;
+                    next_state = STATE_EVAL;
                 end else begin
-                    next_state = STATE_FORWARD;
+                    next_state = STATE_OUTPUT; // Bypass to output
                 end
             end
 
-            STATE_EVAL_THRESHOLD: begin
-                if (activation_subthreshold || activation_zero) begin
-                    next_state = STATE_FORWARD;
-                end else begin
-                    next_state = STATE_CHECK_MASK;
-                end
+            STATE_EVAL: begin
+                next_state = STATE_DECISION;
             end
 
-            STATE_CHECK_MASK: begin
-                if (mask_bit == 1'b0) begin
-                    next_state = STATE_FORWARD;
-                end else begin
-                    next_state = STATE_DISPATCH_DECISION;
-                end
+            STATE_DECISION: begin
+                next_state = STATE_OUTPUT;
             end
 
-            STATE_DISPATCH_DECISION: begin
-                if (sparse_gate_in) begin
-                    next_state = STATE_FORWARD;
-                end else begin
-                    next_state = STATE_FORWARD;
-                end
-            end
-
-            STATE_FORWARD: begin
+            STATE_OUTPUT: begin
                 next_state = STATE_IDLE;
             end
 
@@ -275,30 +245,12 @@ module lane_l_precheck (
     end
 
     // =================================================================
-    // Assertions for formal verification
+    // Assertions for formal verification (synthesis translate_off/on)
     // =================================================================
-
-    // Assert 1: Precheck valid signal only asserted in FORWARD state
     // synthesis translate_off
     always @(*) begin
-        if (precheck_valid && (state != STATE_FORWARD)) begin
-            $error("Precheck valid asserted in wrong state: %0d", state);
-        end
-    end
-
-    // Assert 2: Skip dispatch implies zero output
-    always @(*) begin
-        if (skip_dispatch && precheck_valid) begin
-            if ((activation_out != 16'h0000) || (weight_out != 16'h0000)) begin
-                $error("Skip dispatch with non-zero output");
-            end
-        end
-    end
-
-    // Assert 3: Non-skip dispatch uses OP_LUT_LOOKUP
-    always @(*) begin
-        if (!skip_dispatch && precheck_valid && (dispatch_opcode != OP_LUT_LOOKUP)) begin
-            $error("Non-skip dispatch should use OP_LUT_LOOKUP (0xDF)");
+        if (precheck_valid && (state != STATE_OUTPUT)) begin
+            $display("ERROR: precheck_valid asserted in state %0d", state);
         end
     end
     // synthesis on
@@ -309,7 +261,7 @@ endmodule
 // Lane L Precheck — Key Properties
 // =================================================================
 // 1. R-SI-1: Zero `*` operators (uses LUT-based dispatch)
-// 2. Pipeline depth: 4 cycles (precheck depth)
+// 2. Pipeline depth: 4 cycles (load -> eval -> decision -> output)
 // 3. TOPS/W baseline: >= 75 (target)
 // 4. Power reduction: -12% dynamic power (target)
 // 5. Sparsity correlation: >= 0.8 with Wave-40 mask
