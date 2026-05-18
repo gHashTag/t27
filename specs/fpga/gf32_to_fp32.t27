@@ -394,181 +394,182 @@ pub fn gf32_bits_to_fp32_bits_with_result(gf_bits: u32, config: ConversionConfig
 // TDD Tests
 // ============================================================================
 
-test gf32_bits_constants
-    then GF32_SIGN_BITS == 1
-    and GF32_EXP_BITS == 12
-    and GF32_MANT_BITS == 19
-    and GF32_BIAS == 2047
+test "gf32_bits_constants" {
+    try std.testing.expect(GF32_SIGN_BITS == 1);
+    try std.testing.expect(GF32_EXP_BITS == 12);
+    try std.testing.expect(GF32_MANT_BITS == 19);
+    try std.testing.expect(GF32_BIAS == 2047);
 
-test fp32_bits_constants
-    then FP32_SIGN_BITS == 1
-    and FP32_EXP_BITS == 8
-    and FP32_MANT_BITS == 23
-    and FP32_BIAS == 127
+test "fp32_bits_constants" {
+    try std.testing.expect(FP32_SIGN_BITS == 1);
+    try std.testing.expect(FP32_EXP_BITS == 8);
+    try std.testing.expect(FP32_MANT_BITS == 23);
+    try std.testing.expect(FP32_BIAS == 127);
 
-test exp_bias_diff
-    then EXP_BIAS_DIFF == 1920
+test "exp_bias_diff" {
+    try std.testing.expect(EXP_BIAS_DIFF == 1920);
 
-test mantissa_masks
-    then MANTissa_MASK_GF32 == 0x7FFFF
-    and MANTissa_MASK_FP32 == 0x7FFFFF
+test "mantissa_masks" {
+    try std.testing.expect(MANTissa_MASK_GF32 == 0x7FFFF);
+    try std.testing.expect(MANTissa_MASK_FP32 == 0x7FFFFF);
 
-test gf32_from_bits_to_bits_roundtrip
+test "gf32_from_bits_to_bits_roundtrip" {
     given bits = 0x12345678
-    and gf = gf32_from_bits(bits)
-    and result = gf32_to_bits(gf)
-    then result == bits
+    try std.testing.expect(gf = gf32_from_bits(bits));
+    try std.testing.expect(result = gf32_to_bits(gf));
+    try std.testing.expect(result == bits);
 
-test gf32_from_bits_structure
+test "gf32_from_bits_structure" {
     given gf = gf32_from_bits(0x80000000)
-    then gf.sign == 1
-    and gf.exp == 0
-    and gf.mant == 0
+    try std.testing.expect(gf.sign == 1);
+    try std.testing.expect(gf.exp == 0);
+    try std.testing.expect(gf.mant == 0);
 
-test fp32_from_bits_to_bits_roundtrip
+test "fp32_from_bits_to_bits_roundtrip" {
     given bits = 0x3F800000
-    and fp = fp32_from_bits(bits)
-    and result = fp32_to_bits(fp)
-    then result == bits
+    try std.testing.expect(fp = fp32_from_bits(bits));
+    try std.testing.expect(result = fp32_to_bits(fp));
+    try std.testing.expect(result == bits);
 
-test gf32_is_zero_true
+test "gf32_is_zero_true" {
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 0}
-    then gf32_is_zero(gf) == true
+    try std.testing.expect(gf32_is_zero(gf) == true);
 
-test gf32_is_zero_false
+test "gf32_is_zero_false" {
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 1}
-    then gf32_is_zero(gf) == false
+    try std.testing.expect(gf32_is_zero(gf) == false);
 
-test gf32_is_subnormal_true
+test "gf32_is_subnormal_true" {
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 1}
-    then gf32_is_subnormal(gf) == true
+    try std.testing.expect(gf32_is_subnormal(gf) == true);
 
-test gf32_is_normal_true
+test "gf32_is_normal_true" {
     given gf = Gf32{.sign = 0, .exp = 1, .mant = 0}
-    then gf32_is_normal(gf) == true
+    try std.testing.expect(gf32_is_normal(gf) == true);
 
-test gf32_is_infinity_true
+test "gf32_is_infinity_true" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0}
-    then gf32_is_infinity(gf) == true
+    try std.testing.expect(gf32_is_infinity(gf) == true);
 
-test gf32_is_nan_true
+test "gf32_is_nan_true" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 1}
-    then gf32_is_nan(gf) == true
+    try std.testing.expect(gf32_is_nan(gf) == true);
 
-test gf32_is_qnan_true
+test "gf32_is_qnan_true" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0x40000}
-    then gf32_is_qnan(gf) == true
+    try std.testing.expect(gf32_is_qnan(gf) == true);
 
-test gf32_is_snan_true
+test "gf32_is_snan_true" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0x20000}
-    then gf32_is_snan(gf) == true
+    try std.testing.expect(gf32_is_snan(gf) == true);
 
-test fp32_is_zero_true
+test "fp32_is_zero_true" {
     given fp = Fp32{.sign = 0, .exp = 0, .mant = 0}
-    then fp32_is_zero(fp) == true
+    try std.testing.expect(fp32_is_zero(fp) == true);
 
-test fp32_is_infinity_true
+test "fp32_is_infinity_true" {
     given fp = Fp32{.sign = 0, .exp = 0xFF, .mant = 0}
-    then fp32_is_infinity(fp) == true
+    try std.testing.expect(fp32_is_infinity(fp) == true);
 
-test fp32_is_nan_true
+test "fp32_is_nan_true" {
     given fp = Fp32{.sign = 0, .exp = 0xFF, .mant = 1}
-    then fp32_is_nan(fp) == true
+    try std.testing.expect(fp32_is_nan(fp) == true);
 
-test fp32_is_qnan_true
+test "fp32_is_qnan_true" {
     given fp = Fp32{.sign = 0, .exp = 0xFF, .mant = 0x400000}
-    then fp32_is_qnan(fp) == true
+    try std.testing.expect(fp32_is_qnan(fp) == true);
 
-test conversion_config_init_structure
+test "conversion_config_init_structure" {
     given config = conversion_config_init()
-    then config.round_mode == 0
-    and config.enable_saturation == true
+    try std.testing.expect(config.round_mode == 0);
+    try std.testing.expect(config.enable_saturation == true);
 
-test conversion_config_no_saturation_structure
+test "conversion_config_no_saturation_structure" {
     given config = conversion_config_no_saturation()
-    then config.enable_saturation == false
+    try std.testing.expect(config.enable_saturation == false);
 
-test conversion_config_round_up_structure
+test "conversion_config_round_up_structure" {
     given config = conversion_config_round_up()
-    then config.round_mode == 1
+    try std.testing.expect(config.round_mode == 1);
 
-test gf32_to_fp32_zero
+test "gf32_to_fp32_zero" {
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 0}
-    and fp = gf32_to_fp32(gf)
-    then fp.exp == 0
-    and fp.mant == 0
+    try std.testing.expect(fp = gf32_to_fp32(gf));
+    try std.testing.expect(fp.exp == 0);
+    try std.testing.expect(fp.mant == 0);
 
-test gf32_to_fp32_infinity
+test "gf32_to_fp32_infinity" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0}
-    and fp = gf32_to_fp32(gf)
-    then fp.exp == 0xFF
-    and fp.mant == 0
+    try std.testing.expect(fp = gf32_to_fp32(gf));
+    try std.testing.expect(fp.exp == 0xFF);
+    try std.testing.expect(fp.mant == 0);
 
-test gf32_to_fp32_nan
+test "gf32_to_fp32_nan" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 1}
-    and fp = gf32_to_fp32(gf)
-    then fp.exp == 0xFF
-    and fp.mant != 0
+    try std.testing.expect(fp = gf32_to_fp32(gf));
+    try std.testing.expect(fp.exp == 0xFF);
+    try std.testing.expect(fp.mant != 0);
 
-test gf32_to_fp32_preserves_sign
+test "gf32_to_fp32_preserves_sign" {
     given gf_pos = Gf32{.sign = 1, .exp = 2048, .mant = 0}
-    and gf_neg = Gf32{.sign = 0, .exp = 2048, .mant = 0}
-    and fp_pos = gf32_to_fp32(gf_pos)
-    and fp_neg = gf32_to_fp32(gf_neg)
-    then fp_pos.sign == 1 and fp_neg.sign == 0
+    try std.testing.expect(gf_neg = Gf32{.sign = 0, .exp = 2048, .mant = 0});
+    try std.testing.expect(fp_pos = gf32_to_fp32(gf_pos));
+    try std.testing.expect(fp_neg = gf32_to_fp32(gf_neg));
+    try std.testing.expect(fp_pos.sign == 1 and fp_neg.sign == 0);
 
-test gf32_to_fp32_with_result_zero
+test "gf32_to_fp32_with_result_zero" {
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 0}
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then result.overflow == false
-    and result.underflow == false
-    and result.lost_precision == false
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect(result.overflow == false);
+    try std.testing.expect(result.underflow == false);
+    try std.testing.expect(result.lost_precision == false);
 
-test gf32_bits_to_fp32_bits_zero
+test "gf32_bits_to_fp32_bits_zero" {
     given config = conversion_config_init()
-    then gf32_bits_to_fp32_bits(0x00000000, config) == 0x00000000
+    try std.testing.expect(gf32_bits_to_fp32_bits(0x00000000, config) == 0x00000000);
 
-test gf32_to_fp32_with_result_subnormal_underflow
+test "gf32_to_fp32_with_result_subnormal_underflow" {
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 1}
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then result.underflow == true
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect(result.underflow == true);
 
-test gf32_to_fp32_with_result_overflow
+test "gf32_to_fp32_with_result_overflow" {
     given gf = Gf32{.sign = 0, .exp = 4094, .mant = 0}  // Very large
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then result.overflow == true
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect(result.overflow == true);
 
-test gf32_to_fp32_with_result_saturation
+test "gf32_to_fp32_with_result_saturation" {
     given gf = Gf32{.sign = 0, .exp = 4094, .mant = 0}  // Very large
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then result.value != 0x7F800000  // Not infinity, but max finite
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect(result.value != 0x7F800000  // Not infinity, but max finite);
 
-test gf32_to_fp32_with_result_no_saturation_overflow
+test "gf32_to_fp32_with_result_no_saturation_overflow" {
     given gf = Gf32{.sign = 0, .exp = 4094, .mant = 0}  // Very large
-    and config = conversion_config_no_saturation()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then result.value == 0x7F800000  // Infinity
+    try std.testing.expect(config = conversion_config_no_saturation());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect(result.value == 0x7F800000  // Infinity);
 
-test gf32_to_fp32_nan_qnan_preserves
+test "gf32_to_fp32_nan_qnan_preserves" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0x40000}
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then (result.value & 0x400000) != 0  // Quiet NaN bit set
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect((result.value & 0x400000) != 0  // Quiet NaN bit set);
 
-test gf32_to_fp32_nan_snan_preserves
+test "gf32_to_fp32_nan_snan_preserves" {
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0x20000}
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then (result.value & 0x400000) == 0  // Quiet NaN bit not set
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect((result.value & 0x400000) == 0  // Quiet NaN bit not set);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant gf32_bit_count
     assert GF32_SIGN_BITS + GF32_EXP_BITS + GF32_MANT_BITS == 32
 
@@ -589,7 +590,7 @@ invariant fp32_mant_width
 
 invariant mantissa_masks_correct
     assert MANTissa_MASK_GF32 == (@as(u32, 1) << GF32_MANT_BITS) - 1
-    and MANTissa_MASK_FP32 == (@as(u32, 1) << FP32_MANT_BITS) - 1
+    try std.testing.expect(MANTissa_MASK_FP32 == (@as(u32, 1) << FP32_MANT_BITS) - 1);
 
 invariant exp_bias_diff_positive
     assert EXP_BIAS_DIFF > 0
@@ -648,30 +649,30 @@ invariant conversion_config_round_up_mode_one
 
 invariant gf32_to_fp32_zero_preserves
     given gf = Gf32{.sign = 0, .exp = 0, .mant = 0}
-    and fp = gf32_to_fp32(gf)
-    then fp.sign == gf.sign
+    try std.testing.expect(fp = gf32_to_fp32(gf));
+    try std.testing.expect(fp.sign == gf.sign);
 
 invariant gf32_to_fp32_infinity_preserves_sign
     given gf_pos = Gf32{.sign = 1, .exp = 0xFFF, .mant = 0}
-    and fp_pos = gf32_to_fp32(gf_pos)
-    then fp_pos.sign == 1
+    try std.testing.expect(fp_pos = gf32_to_fp32(gf_pos));
+    try std.testing.expect(fp_pos.sign == 1);
 
 invariant gf32_to_fp32_nan_preserves_sign
     given gf = Gf32{.sign = 1, .exp = 0xFFF, .mant = 1}
-    and fp = gf32_to_fp32(gf)
-    then fp.sign == 1
+    try std.testing.expect(fp = gf32_to_fp32(gf));
+    try std.testing.expect(fp.sign == 1);
 
 invariant gf32_to_fp32_qnan_preserves_qnan
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0x40000}
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then (result.value & 0x400000) != 0
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect((result.value & 0x400000) != 0);
 
 invariant gf32_to_fp32_snan_preserves_snan
     given gf = Gf32{.sign = 0, .exp = 0xFFF, .mant = 0x20000}
-    and config = conversion_config_init()
-    and result = gf32_to_fp32_with_result(gf, config)
-    then (result.value & 0x400000) == 0
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf32_to_fp32_with_result(gf, config));
+    try std.testing.expect((result.value & 0x400000) == 0);
 
 // ============================================================================
 // Benchmarks

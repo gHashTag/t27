@@ -272,158 +272,159 @@ pub fn decode_sparse_mask(encoded: u16) struct { mode: u8, mask_type: u8, seed: 
 // TDD Tests
 // ============================================================================
 
-test mask_size_sixteen
-    then MASK_SIZE == 16
+test "mask_size_sixteen" {
+    try std.testing.expect(MASK_SIZE == 16);
 
-test sparse_threshold_fifty
-    then SPARSE_THRESHOLD_RATIO == 50
+test "sparse_threshold_fifty" {
+    try std.testing.expect(SPARSE_THRESHOLD_RATIO == 50);
 
-test mask_mode_gen
+test "mask_mode_gen" {
     assert MASK_MODE_GEN == 0
 
-test mask_mode_apply
+test "mask_mode_apply" {
     assert MASK_MODE_APPLY == 1
 
-test mask_type_phi
+test "mask_type_phi" {
     assert MASK_TYPE_PHI == 3
 
-test mask_count_set_bits_all
-    then mask_count_set_bits(0xFFFF) == 16
+test "mask_count_set_bits_all" {
+    try std.testing.expect(mask_count_set_bits(0xFFFF) == 16);
 
-test mask_count_set_bits_none
-    then mask_count_set_bits(0x0000) == 0
+test "mask_count_set_bits_none" {
+    try std.testing.expect(mask_count_set_bits(0x0000) == 0);
 
-test mask_count_set_bits_half
-    then mask_count_set_bits(0x00FF) == 8
+test "mask_count_set_bits_half" {
+    try std.testing.expect(mask_count_set_bits(0x00FF) == 8);
 
-test mask_count_clear_bits_all
-    then mask_count_clear_bits(0xFFFF) == 0
+test "mask_count_clear_bits_all" {
+    try std.testing.expect(mask_count_clear_bits(0xFFFF) == 0);
 
-test mask_count_clear_bits_none
-    then mask_count_clear_bits(0x0000) == 16
+test "mask_count_clear_bits_none" {
+    try std.testing.expect(mask_count_clear_bits(0x0000) == 16);
 
-test mask_density_zero
-    then mask_density(0x0000) == 0
+test "mask_density_zero" {
+    try std.testing.expect(mask_density(0x0000) == 0);
 
-test mask_density_fifty
-    then mask_density(0x00FF) == 50
+test "mask_density_fifty" {
+    try std.testing.expect(mask_density(0x00FF) == 50);
 
-test mask_density_full
-    then mask_density(0xFFFF) == 100
+test "mask_density_full" {
+    try std.testing.expect(mask_density(0xFFFF) == 100);
 
-test mask_is_sparse_true
-    then mask_is_sparse(0x000F) == true
-    and mask_is_sparse(0x003F) == true
+test "mask_is_sparse_true" {
+    try std.testing.expect(mask_is_sparse(0x000F) == true);
+    try std.testing.expect(mask_is_sparse(0x003F) == true);
 
-test mask_is_sparse_false
-    then mask_is_sparse(0x00FF) == false
-    and mask_is_sparse(0xFFFF) == false
+test "mask_is_sparse_false" {
+    try std.testing.expect(mask_is_sparse(0x00FF) == false);
+    try std.testing.expect(mask_is_sparse(0xFFFF) == false);
 
-test mask_is_dense_true
-    then mask_is_dense(0x00FF) == true
-    and mask_is_dense(0xFFFF) == true
+test "mask_is_dense_true" {
+    try std.testing.expect(mask_is_dense(0x00FF) == true);
+    try std.testing.expect(mask_is_dense(0xFFFF) == true);
 
-test mask_is_dense_false
-    then mask_is_dense(0x000F) == false
-    and mask_is_dense(0x003F) == false
+test "mask_is_dense_false" {
+    try std.testing.expect(mask_is_dense(0x000F) == false);
+    try std.testing.expect(mask_is_dense(0x003F) == false);
 
-test mask_generate_density_zero
-    then mask_generate_density(0) == 0
+test "mask_generate_density_zero" {
+    try std.testing.expect(mask_generate_density(0) == 0);
 
-test mask_generate_density_full
-    then mask_generate_density(100) == 0xFFFF
+test "mask_generate_density_full" {
+    try std.testing.expect(mask_generate_density(100) == 0xFFFF);
 
-test mask_generate_density_fifty
-    then mask_count_set_bits(mask_generate_density(50)) == 8
+test "mask_generate_density_fifty" {
+    try std.testing.expect(mask_count_set_bits(mask_generate_density(50)) == 8);
 
-test mask_generate_phi
+test "mask_generate_phi" {
     given mask = mask_generate_phi()
-    then mask_count_set_bits(mask) == 7
-    and mask_density(mask) == 43  // 7/16 ≈ 43%
+    try std.testing.expect(mask_count_set_bits(mask) == 7);
+    try std.testing.expect(mask_density(mask) == 43  // 7/16 ≈ 43%);
 
-test mask_generate_pattern_alternating
-    then mask_generate_pattern(0x05) == 0xAAAA
+test "mask_generate_pattern_alternating" {
+    try std.testing.expect(mask_generate_pattern(0x05) == 0xAAAA);
 
-test mask_generate_pattern_ones
-    then mask_generate_pattern(0x0F) == 0xFFFF
+test "mask_generate_pattern_ones" {
+    try std.testing.expect(mask_generate_pattern(0x0F) == 0xFFFF);
 
-test mask_generate_pattern_zeros
-    then mask_generate_pattern(0x00) == 0x0000
+test "mask_generate_pattern_zeros" {
+    try std.testing.expect(mask_generate_pattern(0x00) == 0x0000);
 
-test mask_generate_random_seeded
+test "mask_generate_random_seeded" {
     given mask1 = mask_generate_random(0x1234)
-    and mask2 = mask_generate_random(0x1234)
-    then mask1 == mask2
+    try std.testing.expect(mask2 = mask_generate_random(0x1234));
+    try std.testing.expect(mask1 == mask2);
 
-test mask_generate_random_different
+test "mask_generate_random_different" {
     given mask1 = mask_generate_random(0x1234)
-    and mask2 = mask_generate_random(0x4321)
-    then mask1 != mask2
+    try std.testing.expect(mask2 = mask_generate_random(0x4321));
+    try std.testing.expect(mask1 != mask2);
 
-test mask_generate_dense
+test "mask_generate_dense" {
     given config = MaskConfig{.mode = MASK_MODE_GEN, .mask_type = MASK_TYPE_DENSITY, .threshold = 80, .phi_optimized = false}
-    and mask = mask_generate(config, 0)
-    then mask.density >= 75
+    try std.testing.expect(mask = mask_generate(config, 0));
+    try std.testing.expect(mask.density >= 75);
 
-test mask_generate_sparse
+test "mask_generate_sparse" {
     given config = MaskConfig{.mode = MASK_MODE_GEN, .mask_type = MASK_TYPE_DENSITY, .threshold = 20, .phi_optimized = false}
-    and mask = mask_generate(config, 0)
-    then mask.density <= 30
+    try std.testing.expect(mask = mask_generate(config, 0));
+    try std.testing.expect(mask.density <= 30);
 
-test mask_apply_zero_mask
+test "mask_apply_zero_mask" {
     given vector = Vector16{.values = [_]i8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, .mask = 0xFFFF}
-    and mask_obj = SparseMask{.bits = 0x0000, .density = 0, .pattern_type = 0}
-    and result = mask_apply(vector, mask_obj)
-    then result.values[0] == 0
-    and result.values[15] == 0
+    try std.testing.expect(mask_obj = SparseMask{.bits = 0x0000, .density = 0, .pattern_type = 0});
+    try std.testing.expect(result = mask_apply(vector, mask_obj));
+    try std.testing.expect(result.values[0] == 0);
+    try std.testing.expect(result.values[15] == 0);
 
-test mask_apply_full_mask
+test "mask_apply_full_mask" {
     given vector = Vector16{.values = [_]i8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, .mask = 0x0000}
-    and mask_obj = SparseMask{.bits = 0xFFFF, .density = 100, .pattern_type = 0}
-    and result = mask_apply(vector, mask_obj)
-    then result.values[0] == 1
-    and result.values[15] == 16
+    try std.testing.expect(mask_obj = SparseMask{.bits = 0xFFFF, .density = 100, .pattern_type = 0});
+    try std.testing.expect(result = mask_apply(vector, mask_obj));
+    try std.testing.expect(result.values[0] == 1);
+    try std.testing.expect(result.values[15] == 16);
 
-test mask_combine_and
-    then mask_combine(0xFF00, 0xF0F0, 0) == 0xF000
+test "mask_combine_and" {
+    try std.testing.expect(mask_combine(0xFF00, 0xF0F0, 0) == 0xF000);
 
-test mask_combine_or
-    then mask_combine(0xFF00, 0xF0F0, 1) == 0xFFF0
+test "mask_combine_or" {
+    try std.testing.expect(mask_combine(0xFF00, 0xF0F0, 1) == 0xFFF0);
 
-test mask_combine_xor
-    then mask_combine(0xFF00, 0xF0F0, 2) == 0x0FF0
+test "mask_combine_xor" {
+    try std.testing.expect(mask_combine(0xFF00, 0xF0F0, 2) == 0x0FF0);
 
-test mask_combine_nand
-    then mask_combine(0xFF00, 0xF0F0, 3) == 0x0FFF
+test "mask_combine_nand" {
+    try std.testing.expect(mask_combine(0xFF00, 0xF0F0, 3) == 0x0FFF);
 
-test mask_invert_full
-    then mask_invert(0xFFFF) == 0
+test "mask_invert_full" {
+    try std.testing.expect(mask_invert(0xFFFF) == 0);
 
-test mask_invert_zero
-    then mask_invert(0) == 0xFFFF
+test "mask_invert_zero" {
+    try std.testing.expect(mask_invert(0) == 0xFFFF);
 
-test mask_complement_sparse_to_dense
+test "mask_complement_sparse_to_dense" {
     given mask = SparseMask{.bits = 0x000F, .density = 25, .pattern_type = 0}
-    and result = mask_complement(mask)
-    then result.density == 75
+    try std.testing.expect(result = mask_complement(mask));
+    try std.testing.expect(result.density == 75);
 
-test encode_sparse_mask
+test "encode_sparse_mask" {
     given encoded = encode_sparse_mask(1, 2, 0x0A)
-    then (encoded >> 8) == OP_SPARSE_MASK
+    try std.testing.expect((encoded >> 8) == OP_SPARSE_MASK);
 
-test decode_sparse_mask
+test "decode_sparse_mask" {
     given decoded = decode_sparse_mask(0xE86A)
-    then decoded.mode == 1
-    and decoded.mask_type == 2
-    and decoded.seed == 0x0A
+    try std.testing.expect(decoded.mode == 1);
+    try std.testing.expect(decoded.mask_type == 2);
+    try std.testing.expect(decoded.seed == 0x0A);
 
-test opcode_constant
-    then OP_SPARSE_MASK == 0xE8
+test "opcode_constant" {
+    try std.testing.expect(OP_SPARSE_MASK == 0xE8);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant mask_size_sixteen
     assert MASK_SIZE == 16
 
@@ -435,7 +436,7 @@ invariant mask_count_bits_sum
     assert mask_count_set_bits(mask) + mask_count_clear_bits(mask) == MASK_SIZE
 
 invariant mask_density_range
-    then mask_density(0) == 0 and mask_density(0xFFFF) == 100
+    try std.testing.expect(mask_density(0) == 0 and mask_density(0xFFFF) == 100);
 
 invariant mask_is_sparse_inverse_dense
     given mask = 0x0F0F
@@ -443,44 +444,44 @@ invariant mask_is_sparse_inverse_dense
 
 invariant mask_is_complement_inverse
     given mask = 0x1234
-    and inverted = mask_invert(mask)
-    then mask_invert(inverted) == mask
+    try std.testing.expect(inverted = mask_invert(mask));
+    try std.testing.expect(mask_invert(inverted) == mask);
 
 invariant mask_complement_density
     given mask = SparseMask{.bits = 0x0F0F, .density = 50, .pattern_type = 0}
-    and result = mask_complement(mask)
-    then result.density + mask.density == 100
+    try std.testing.expect(result = mask_complement(mask));
+    try std.testing.expect(result.density + mask.density == 100);
 
 invariant mask_combine_and_less_than_or
     given m1 = 0xAAAA
-    and m2 = 0x5555
-    and combined_and = mask_combine(m1, m2, 0)
-    and combined_or = mask_combine(m1, m2, 1)
-    then combined_and <= m1 and combined_and <= m2
-    and combined_or >= m1 and combined_or >= m2
+    try std.testing.expect(m2 = 0x5555);
+    try std.testing.expect(combined_and = mask_combine(m1, m2, 0));
+    try std.testing.expect(combined_or = mask_combine(m1, m2, 1));
+    try std.testing.expect(combined_and <= m1 and combined_and <= m2);
+    try std.testing.expect(combined_or >= m1 and combined_or >= m2);
 
 invariant mask_generate_phi_consistent
     given mask1 = mask_generate_phi()
-    and mask2 = mask_generate_phi()
-    then mask1 == mask2
+    try std.testing.expect(mask2 = mask_generate_phi());
+    try std.testing.expect(mask1 == mask2);
 
 invariant mask_generate_density_range
-    then mask_density(mask_generate_density(0)) == 0
-    and mask_density(mask_generate_density(100)) == 100
+    try std.testing.expect(mask_density(mask_generate_density(0)) == 0);
+    try std.testing.expect(mask_density(mask_generate_density(100)) == 100);
 
 invariant mask_apply_preserves_unmasked
     given vector = Vector16{.values = [_]i8{1, 2, 3, 4} ** 4, .mask = 0x0000}
-    and mask_obj = SparseMask{.bits = 0x00FF, .density = 50, .pattern_type = 0}
-    and result = mask_apply(vector, mask_obj)
-    then result.values[0] == 1
-    and result.values[7] == 8
+    try std.testing.expect(mask_obj = SparseMask{.bits = 0x00FF, .density = 50, .pattern_type = 0});
+    try std.testing.expect(result = mask_apply(vector, mask_obj));
+    try std.testing.expect(result.values[0] == 1);
+    try std.testing.expect(result.values[7] == 8);
 
 invariant mask_apply_masks_zero
     given vector = Vector16{.values = [_]i8{1, 2, 3, 4} ** 4, .mask = 0x0000}
-    and mask_obj = SparseMask{.bits = 0xFF00, .density = 50, .pattern_type = 0}
-    and result = mask_apply(vector, mask_obj)
-    then result.values[0] == 0
-    and result.values[8] == 0
+    try std.testing.expect(mask_obj = SparseMask{.bits = 0xFF00, .density = 50, .pattern_type = 0});
+    try std.testing.expect(result = mask_apply(vector, mask_obj));
+    try std.testing.expect(result.values[0] == 0);
+    try std.testing.expect(result.values[8] == 0);
 
 // ============================================================================
 // Benchmarks

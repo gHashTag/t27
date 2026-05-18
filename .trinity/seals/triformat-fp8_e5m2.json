@@ -1,0 +1,11 @@
+{
+  "gen_hash_c": "sha256:1e5808227532d4f85259d2f4b13dfcf71c790d95b85fe5f368d49e5968a693eb",
+  "gen_hash_rust": "sha256:32bdcf26c67e367f4b9efd9838689a6fd5c518a0bbd27dc440db054cc8e779be",
+  "gen_hash_verilog": "sha256:f69e182a3443b8fdcfe853b2ad01f3cde2588132cba7341a79f623a02a550eb9",
+  "gen_hash_zig": "sha256:d1a73ba18d8bde48ad84462fe55bb80527c75bb4ce53696eb6e6f5bae85e1e58",
+  "module": "triformat-fp8_e5m2",
+  "ring": 12,
+  "sealed_at": "2026-05-18T03:53:53Z",
+  "spec_hash": "sha256:ede01a2bcd3ef3c4eddc752465245294d6dd99f611c19551d68753e0e208f4a8",
+  "spec_path": "specs/numeric/fp8_e5m2.t27"
+}

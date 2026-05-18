@@ -359,209 +359,210 @@ pub fn decode_drowsy_ret(encoded: u32) -> struct { reason: u8, state: u8, durati
 // TDD Tests
 // ============================================================================
 
-test drowsy_state_constants
-    then DROWSY_ACTIVE == 0
-    and DROWSY_LIGHT == 1
-    and DROWSY_DEEP == 2
+test "drowsy_state_constants" {
+    try std.testing.expect(DROWSY_ACTIVE == 0);
+    try std.testing.expect(DROWSY_LIGHT == 1);
+    try std.testing.expect(DROWSY_DEEP == 2);
 
-test ret_reason_constants
-    then RET_WAKE == 0
-    and RET_TIMER == 1
-    and RET_INTERRUPT == 2
-    and RET_ERROR == 3
+test "ret_reason_constants" {
+    try std.testing.expect(RET_WAKE == 0);
+    try std.testing.expect(RET_TIMER == 1);
+    try std.testing.expect(RET_INTERRUPT == 2);
+    try std.testing.expect(RET_ERROR == 3);
 
-test wake_cycles_constants
-    then WAKE_CYCLES == 100
-    and DEEP_WAKE_CYCLES == 1000
+test "wake_cycles_constants" {
+    try std.testing.expect(WAKE_CYCLES == 100);
+    try std.testing.expect(DEEP_WAKE_CYCLES == 1000);
 
-test drowsy_is_active_true
-    then drowsy_is_active(DrowsyState.active) == true
+test "drowsy_is_active_true" {
+    try std.testing.expect(drowsy_is_active(DrowsyState.active) == true);
 
-test drowsy_is_active_false
-    then drowsy_is_active(DrowsyState.light) == false
+test "drowsy_is_active_false" {
+    try std.testing.expect(drowsy_is_active(DrowsyState.light) == false);
 
-test drowsy_is_drowsy_true
-    then drowsy_is_drowsy(DrowsyState.light) == true
-    and drowsy_is_drowsy(DrowsyState.deep) == true
+test "drowsy_is_drowsy_true" {
+    try std.testing.expect(drowsy_is_drowsy(DrowsyState.light) == true);
+    try std.testing.expect(drowsy_is_drowsy(DrowsyState.deep) == true);
 
-test drowsy_is_drowsy_false
-    then drowsy_is_drowsy(DrowsyState.active) == false
-    and drowsy_is_drowsy(DrowsyState.off) == false
+test "drowsy_is_drowsy_false" {
+    try std.testing.expect(drowsy_is_drowsy(DrowsyState.active) == false);
+    try std.testing.expect(drowsy_is_drowsy(DrowsyState.off) == false);
 
-test drowsy_is_off_true
-    then drowsy_is_off(DrowsyState.off) == true
-    and drowsy_is_off(DrowsyState.hibernate) == true
+test "drowsy_is_off_true" {
+    try std.testing.expect(drowsy_is_off(DrowsyState.off) == true);
+    try std.testing.expect(drowsy_is_off(DrowsyState.hibernate) == true);
 
-test drowsy_is_off_false
-    then drowsy_is_off(DrowsyState.active) == false
-    and drowsy_is_off(DrowsyState.light) == false
+test "drowsy_is_off_false" {
+    try std.testing.expect(drowsy_is_off(DrowsyState.active) == false);
+    try std.testing.expect(drowsy_is_off(DrowsyState.light) == false);
 
-test drowsy_is_critical_true
-    then drowsy_is_critical(DrowsyState.critical) == true
+test "drowsy_is_critical_true" {
+    try std.testing.expect(drowsy_is_critical(DrowsyState.critical) == true);
 
-test drowsy_is_critical_false
-    then drowsy_is_critical(DrowsyState.active) == false
+test "drowsy_is_critical_false" {
+    try std.testing.expect(drowsy_is_critical(DrowsyState.active) == false);
 
-test drowsy_can_enter_light_true
-    then drowsy_can_enter_light(DrowsyState.active) == true
+test "drowsy_can_enter_light_true" {
+    try std.testing.expect(drowsy_can_enter_light(DrowsyState.active) == true);
 
-test drowsy_can_enter_light_false
-    then drowsy_can_enter_light(DrowsyState.light) == false
+test "drowsy_can_enter_light_false" {
+    try std.testing.expect(drowsy_can_enter_light(DrowsyState.light) == false);
 
-test drowsy_can_enter_deep_true
-    then drowsy_can_enter_deep(DrowsyState.light) == true
+test "drowsy_can_enter_deep_true" {
+    try std.testing.expect(drowsy_can_enter_deep(DrowsyState.light) == true);
 
-test drowsy_can_enter_deep_false
-    then drowsy_can_enter_deep(DrowsyState.active) == false
-    and drowsy_can_enter_deep(DrowsyState.deep) == false
+test "drowsy_can_enter_deep_false" {
+    try std.testing.expect(drowsy_can_enter_deep(DrowsyState.active) == false);
+    try std.testing.expect(drowsy_can_enter_deep(DrowsyState.deep) == false);
 
-test drowsy_wake_cycles_light
-    then drowsy_wake_cycles(DrowsyState.light) == WAKE_CYCLES
+test "drowsy_wake_cycles_light" {
+    try std.testing.expect(drowsy_wake_cycles(DrowsyState.light) == WAKE_CYCLES);
 
-test drowsy_wake_cycles_deep
-    then drowsy_wake_cycles(DrowsyState.deep) == DEEP_WAKE_CYCLES
+test "drowsy_wake_cycles_deep" {
+    try std.testing.expect(drowsy_wake_cycles(DrowsyState.deep) == DEEP_WAKE_CYCLES);
 
-test drowsy_config_init_structure
+test "drowsy_config_init_structure" {
     given config = drowsy_config_init()
-    then config.enable_light == true
-    and config.enable_deep == true
-    and config.wake_irq_enable == true
+    try std.testing.expect(config.enable_light == true);
+    try std.testing.expect(config.enable_deep == true);
+    try std.testing.expect(config.wake_irq_enable == true);
 
-test drowsy_config_disable_structure
+test "drowsy_config_disable_structure" {
     given config = drowsy_config_disable()
-    then config.enable_light == false
-    and config.enable_deep == false
-    and config.wake_irq_enable == false
+    try std.testing.expect(config.enable_light == false);
+    try std.testing.expect(config.enable_deep == false);
+    try std.testing.expect(config.wake_irq_enable == false);
 
-test drowsy_config_light_only_structure
+test "drowsy_config_light_only_structure" {
     given config = drowsy_config_light_only(50)
-    then config.enable_light == true
-    and config.enable_deep == false
-    and config.light_threshold_ms == 50
+    try std.testing.expect(config.enable_light == true);
+    try std.testing.expect(config.enable_deep == false);
+    try std.testing.expect(config.light_threshold_ms == 50);
 
-test drowsy_status_init_structure
+test "drowsy_status_init_structure" {
     given status = drowsy_status_init()
-    then status.state == DrowsyState.active
-    and status.wake_count == 0
+    try std.testing.expect(status.state == DrowsyState.active);
+    try std.testing.expect(status.wake_count == 0);
 
-test drowsy_status_enter_light
+test "drowsy_status_enter_light" {
     given status = drowsy_status_init()
-    and result = drowsy_status_enter_light(status, 100)
-    then result.state == DrowsyState.light
+    try std.testing.expect(result = drowsy_status_enter_light(status, 100));
+    try std.testing.expect(result.state == DrowsyState.light);
 
-test drowsy_status_enter_light_reject
+test "drowsy_status_enter_light_reject" {
     given status = DrowsyStatus{.state = DrowsyState.deep, .last_wake_cycle = 0, .drowsy_duration = 0, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and result = drowsy_status_enter_light(status, 100)
-    then result.state == DrowsyState.deep
+    try std.testing.expect(result = drowsy_status_enter_light(status, 100));
+    try std.testing.expect(result.state == DrowsyState.deep);
 
-test drowsy_status_enter_deep
+test "drowsy_status_enter_deep" {
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 0, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and result = drowsy_status_enter_deep(status, 100)
-    then result.state == DrowsyState.deep
+    try std.testing.expect(result = drowsy_status_enter_deep(status, 100));
+    try std.testing.expect(result.state == DrowsyState.deep);
 
-test drowsy_status_wake
+test "drowsy_status_wake" {
     given status = drowsy_status_init()
-    and result = drowsy_status_wake(status, RetReason.interrupt, 200)
-    then result.state == DrowsyState.active
-    and result.wake_count == 1
-    and result.last_ret_reason == RetReason.interrupt
+    try std.testing.expect(result = drowsy_status_wake(status, RetReason.interrupt, 200));
+    try std.testing.expect(result.state == DrowsyState.active);
+    try std.testing.expect(result.wake_count == 1);
+    try std.testing.expect(result.last_ret_reason == RetReason.interrupt);
 
-test drowsy_status_enter_critical
+test "drowsy_status_enter_critical" {
     given status = drowsy_status_init()
-    and result = drowsy_status_enter_critical(status)
-    then result.state == DrowsyState.critical
-    and result.last_ret_reason == RetReason.error
+    try std.testing.expect(result = drowsy_status_enter_critical(status));
+    try std.testing.expect(result.state == DrowsyState.critical);
+    try std.testing.expect(result.last_ret_reason == RetReason.error);
 
-test drowsy_status_enter_off
+test "drowsy_status_enter_off" {
     given status = drowsy_status_init()
-    and result = drowsy_status_enter_off(status)
-    then result.state == DrowsyState.off
-    and result.last_ret_reason == RetReason.power
+    try std.testing.expect(result = drowsy_status_enter_off(status));
+    try std.testing.expect(result.state == DrowsyState.off);
+    try std.testing.expect(result.last_ret_reason == RetReason.power);
 
-test drowsy_wake_condition_init
+test "drowsy_wake_condition_init" {
     given cond = drowsy_wake_condition_init()
-    then cond.irq_pending == false
-    and cond.power_good == true
+    try std.testing.expect(cond.irq_pending == false);
+    try std.testing.expect(cond.power_good == true);
 
-test drowsy_should_wake_irq
+test "drowsy_should_wake_irq" {
     given cond = WakeCondition{.irq_pending = true, .timer_expired = false, .power_good = true, .manual_wake = false}
-    then drowsy_should_wake(cond) == true
+    try std.testing.expect(drowsy_should_wake(cond) == true);
 
-test drowsy_should_wake_none
+test "drowsy_should_wake_none" {
     given cond = drowsy_wake_condition_init()
-    then drowsy_should_wake(cond) == false
+    try std.testing.expect(drowsy_should_wake(cond) == false);
 
-test drowsy_can_wake_critical_true
+test "drowsy_can_wake_critical_true" {
     given cond = WakeCondition{.irq_pending = false, .timer_expired = false, .power_good = true, .manual_wake = true}
-    then drowsy_can_wake_critical(cond) == true
+    try std.testing.expect(drowsy_can_wake_critical(cond) == true);
 
-test drowsy_can_wake_critical_no_power
+test "drowsy_can_wake_critical_no_power" {
     given cond = WakeCondition{.irq_pending = false, .timer_expired = false, .power_good = false, .manual_wake = true}
-    then drowsy_can_wake_critical(cond) == false
+    try std.testing.expect(drowsy_can_wake_critical(cond) == false);
 
-test drowsy_wake_from_condition_irq
+test "drowsy_wake_from_condition_irq" {
     given cond = WakeCondition{.irq_pending = true, .timer_expired = false, .power_good = true, .manual_wake = false}
-    and reason = drowsy_wake_from_condition(cond)
-    then reason == RetReason.interrupt
+    try std.testing.expect(reason = drowsy_wake_from_condition(cond));
+    try std.testing.expect(reason == RetReason.interrupt);
 
-test drowsy_wake_from_condition_timer
+test "drowsy_wake_from_condition_timer" {
     given cond = WakeCondition{.irq_pending = false, .timer_expired = true, .power_good = true, .manual_wake = false}
-    and reason = drowsy_wake_from_condition(cond)
-    then reason == RetReason.timer
+    try std.testing.expect(reason = drowsy_wake_from_condition(cond));
+    try std.testing.expect(reason == RetReason.timer);
 
-test drowsy_update_duration_active
+test "drowsy_update_duration_active" {
     given status = drowsy_status_init()
-    and result = drowsy_update_duration(status, 100)
-    then result.drowsy_duration == 0
+    try std.testing.expect(result = drowsy_update_duration(status, 100));
+    try std.testing.expect(result.drowsy_duration == 0);
 
-test drowsy_update_duration_light
+test "drowsy_update_duration_light" {
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 0, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and result = drowsy_update_duration(status, 100)
-    then result.drowsy_duration == 1
+    try std.testing.expect(result = drowsy_update_duration(status, 100));
+    try std.testing.expect(result.drowsy_duration == 1);
 
-test drowsy_update_duration_accumulates
+test "drowsy_update_duration_accumulates" {
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 5, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and result = drowsy_update_duration(status, 100)
-    then result.drowsy_duration == 6
+    try std.testing.expect(result = drowsy_update_duration(status, 100));
+    try std.testing.expect(result.drowsy_duration == 6);
 
-test drowsy_update_duration_resets_on_active
+test "drowsy_update_duration_resets_on_active" {
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 10, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and active_status = DrowsyStatus{.state = DrowsyState.active, .last_wake_cycle = 0, .drowsy_duration = 5, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and result = drowsy_update_duration(active_status, 100)
-    then result.drowsy_duration == 0
+    try std.testing.expect(active_status = DrowsyStatus{.state = DrowsyState.active, .last_wake_cycle = 0, .drowsy_duration = 5, .wake_count = 0, .last_ret_reason = RetReason.manual});
+    try std.testing.expect(result = drowsy_update_duration(active_status, 100));
+    try std.testing.expect(result.drowsy_duration == 0);
 
-test drowsy_check_threshold_not_reached
+test "drowsy_check_threshold_not_reached" {
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 5, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and config = drowsy_config_init()
-    then drowsy_check_threshold(status, config) == false
+    try std.testing.expect(config = drowsy_config_init());
+    try std.testing.expect(drowsy_check_threshold(status, config) == false);
 
-test drowsy_check_threshold_reached
+test "drowsy_check_threshold_reached" {
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 500, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and config = drowsy_config_init()
-    then drowsy_check_threshold(status, config) == true
+    try std.testing.expect(config = drowsy_config_init());
+    try std.testing.expect(drowsy_check_threshold(status, config) == true);
 
-test encode_drowsy_ret
+test "encode_drowsy_ret" {
     given encoded = encode_drowsy_ret(1, 2, 0x1234)
-    then (encoded >> 24) == OP_DROWSY_RET
+    try std.testing.expect((encoded >> 24) == OP_DROWSY_RET);
 
-test decode_drowsy_ret
+test "decode_drowsy_ret" {
     given decoded = decode_drowsy_ret(0xEC481234)
-    then decoded.reason == 1
-    and decoded.state == 2
-    and decoded.duration == 0x1234
+    try std.testing.expect(decoded.reason == 1);
+    try std.testing.expect(decoded.state == 2);
+    try std.testing.expect(decoded.duration == 0x1234);
 
-test opcode_constant
-    then OP_DROWSY_RET == 0xEC
+test "opcode_constant" {
+    try std.testing.expect(OP_DROWSY_RET == 0xEC);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant drowsy_state_range
-    then DROWSY_ACTIVE >= 0 and DROWSY_CRITICAL <= 5
+    try std.testing.expect(DROWSY_ACTIVE >= 0 and DROWSY_CRITICAL <= 5);
 
 invariant ret_reason_range
-    then RET_WAKE >= 0 and RET_MAX <= 6
+    try std.testing.expect(RET_WAKE >= 0 and RET_MAX <= 6);
 
 invariant wake_cycles_positive
     assert WAKE_CYCLES > 0 and DEEP_WAKE_CYCLES > 0
@@ -572,59 +573,59 @@ invariant deep_wake_larger_than_light
 invariant drowsy_is_drowsy_excludes_active_off
     given state = DrowsyState.active
     assert drowsy_is_drowsy(state) == false
-    and drowsy_is_off(DrowsyState.light) == false
+    try std.testing.expect(drowsy_is_off(DrowsyState.light) == false);
 
 invariant drowsy_is_off_excludes_active_drowsy
     given state = DrowsyState.active
     assert drowsy_is_off(state) == false
-    and drowsy_is_off(DrowsyState.light) == false
+    try std.testing.expect(drowsy_is_off(DrowsyState.light) == false);
 
 invariant drowsy_config_init_enables_light
     given config = drowsy_config_init()
-    then config.enable_light == true
+    try std.testing.expect(config.enable_light == true);
 
 invariant drowsy_config_enable_both_or_neither
     given config1 = drowsy_config_init()
-    and config2 = drowsy_config_light_only(100)
-    then (config1.enable_light and config1.enable_deep) or (not config1.enable_light and not config1.enable_deep)
+    try std.testing.expect(config2 = drowsy_config_light_only(100));
+    try std.testing.expect((config1.enable_light and config1.enable_deep) or (not config1.enable_light and not config1.enable_deep));
     or (config2.enable_light and not config2.enable_deep)
 
 invariant drowsy_status_init_active
     given status = drowsy_status_init()
-    then status.state == DrowsyState.active
+    try std.testing.expect(status.state == DrowsyState.active);
 
 invariant drowsy_status_wake_increases_count
     given status = drowsy_status_init()
-    and result = drowsy_status_wake(status, RetReason.manual, 100)
-    then result.wake_count == status.wake_count + 1
+    try std.testing.expect(result = drowsy_status_wake(status, RetReason.manual, 100));
+    try std.testing.expect(result.wake_count == status.wake_count + 1);
 
 invariant drowsy_status_wake_sets_active
     given status = DrowsyStatus{.state = DrowsyState.light, .last_wake_cycle = 0, .drowsy_duration = 100, .wake_count = 5, .last_ret_reason = RetReason.timer}
-    and result = drowsy_status_wake(status, RetReason.interrupt, 200)
-    then result.state == DrowsyState.active
+    try std.testing.expect(result = drowsy_status_wake(status, RetReason.interrupt, 200));
+    try std.testing.expect(result.state == DrowsyState.active);
 
 invariant drowsy_status_enter_critical_reason
     given status = drowsy_status_init()
-    and result = drowsy_status_enter_critical(status)
-    then result.last_ret_reason == RetReason.error
+    try std.testing.expect(result = drowsy_status_enter_critical(status));
+    try std.testing.expect(result.last_ret_reason == RetReason.error);
 
 invariant drowsy_wake_condition_init_defaults
     given cond = drowsy_wake_condition_init()
-    then cond.irq_pending == false and cond.timer_expired == false and cond.manual_wake == false
+    try std.testing.expect(cond.irq_pending == false and cond.timer_expired == false and cond.manual_wake == false);
 
 invariant drowsy_should_wake_false_for_default
     given cond = drowsy_wake_condition_init()
-    then drowsy_should_wake(cond) == false
+    try std.testing.expect(drowsy_should_wake(cond) == false);
 
 invariant drowsy_wake_from_condition_no_match
     given cond = drowsy_wake_condition_init()
-    and reason = drowsy_wake_from_condition(cond)
-    then reason == RetReason.wake
+    try std.testing.expect(reason = drowsy_wake_from_condition(cond));
+    try std.testing.expect(reason == RetReason.wake);
 
 invariant drowsy_update_duration_zero_for_non_drowsy
     given status = DrowsyStatus{.state = DrowsyState.active, .last_wake_cycle = 0, .drowsy_duration = 10, .wake_count = 0, .last_ret_reason = RetReason.manual}
-    and result = drowsy_update_duration(status, 100)
-    then result.drowsy_duration == 0
+    try std.testing.expect(result = drowsy_update_duration(status, 100));
+    try std.testing.expect(result.drowsy_duration == 0);
 
 // ============================================================================
 // Benchmarks

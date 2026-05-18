@@ -373,8 +373,8 @@ pub fn fbb_bandwidth_valid(bandwidth: u32) -> bool {
 // Check if path config is valid
 pub fn fbb_path_config_valid(config: FbbPathConfig) -> bool {
     return fbb_path_index_valid(config.path_index)
-        and fbb_latency_valid(config.latency_cycles)
-        and fbb_bandwidth_valid(config.bandwidth_mbps);
+    try std.testing.expect(fbb_latency_valid(config.latency_cycles));
+    try std.testing.expect(fbb_bandwidth_valid(config.bandwidth_mbps););
 }
 
 // ============================================================================
@@ -406,188 +406,189 @@ pub fn decode_fbb_cmd(encoded: u32) -> struct { op: u8, path: u8, param1: u8, pa
 // TDD Tests
 // ============================================================================
 
-test fbb_opcode_base
-    then FBB_OPCODE_BASE == 0xD0
+test "fbb_opcode_base" {
+    try std.testing.expect(FBB_OPCODE_BASE == 0xD0);
 
-test fbb_op_constants
-    then FBB_OP_PATH_SELECT == 0
-    and FBB_OP_PATH_ENABLE == 1
-    and FBB_OP_PATH_DISABLE == 2
-    and FBB_OP_PATH_BYPASS == 5
+test "fbb_op_constants" {
+    try std.testing.expect(FBB_OP_PATH_SELECT == 0);
+    try std.testing.expect(FBB_OP_PATH_ENABLE == 1);
+    try std.testing.expect(FBB_OP_PATH_DISABLE == 2);
+    try std.testing.expect(FBB_OP_PATH_BYPASS == 5);
 
-test fbb_path_state_constants
-    then FBB_PATH_STATE_DISABLED == 0
-    and FBB_PATH_STATE_ENABLED == 1
-    and FBB_PATH_STATE_ACTIVE == 2
-    and FBB_PATH_STATE_BYPASSED == 4
+test "fbb_path_state_constants" {
+    try std.testing.expect(FBB_PATH_STATE_DISABLED == 0);
+    try std.testing.expect(FBB_PATH_STATE_ENABLED == 1);
+    try std.testing.expect(FBB_PATH_STATE_ACTIVE == 2);
+    try std.testing.expect(FBB_PATH_STATE_BYPASSED == 4);
 
-test fbb_path_count
-    then FBB_PATH_COUNT == 8
-    and FBB_MAX_PATHS == 8
+test "fbb_path_count" {
+    try std.testing.expect(FBB_PATH_COUNT == 8);
+    try std.testing.expect(FBB_MAX_PATHS == 8);
 
-test latency_constants
-    then FBB_LATENCY_MIN_CYCLES == 1
-    and FBB_LATENCY_MAX_CYCLES == 16
-    and FBB_DEFAULT_LATENCY == 4
+test "latency_constants" {
+    try std.testing.expect(FBB_LATENCY_MIN_CYCLES == 1);
+    try std.testing.expect(FBB_LATENCY_MAX_CYCLES == 16);
+    try std.testing.expect(FBB_DEFAULT_LATENCY == 4);
 
-test bandwidth_constants
-    then FBB_BANDWIDTH_MIN_MBPS == 100
-    and FBB_BANDWIDTH_MAX_MBPS == 10000
-    and FBB_DEFAULT_BANDWIDTH == 1000
+test "bandwidth_constants" {
+    try std.testing.expect(FBB_BANDWIDTH_MIN_MBPS == 100);
+    try std.testing.expect(FBB_BANDWIDTH_MAX_MBPS == 10000);
+    try std.testing.expect(FBB_DEFAULT_BANDWIDTH == 1000);
 
-test fbb_path_config_init_structure
+test "fbb_path_config_init_structure" {
     given config = fbb_path_config_init(0)
-    then config.path_index == 0
-    and config.enabled == false
-    and config.latency_cycles == FBB_DEFAULT_LATENCY
+    try std.testing.expect(config.path_index == 0);
+    try std.testing.expect(config.enabled == false);
+    try std.testing.expect(config.latency_cycles == FBB_DEFAULT_LATENCY);
 
-test fbb_path_config_low_latency_structure
+test "fbb_path_config_low_latency_structure" {
     given config = fbb_path_config_low_latency(1)
-    then config.path_index == 1
-    and config.latency_cycles == FBB_LATENCY_MIN_CYCLES
-    and config.priority == 7
+    try std.testing.expect(config.path_index == 1);
+    try std.testing.expect(config.latency_cycles == FBB_LATENCY_MIN_CYCLES);
+    try std.testing.expect(config.priority == 7);
 
-test fbb_path_config_high_bandwidth_structure
+test "fbb_path_config_high_bandwidth_structure" {
     given config = fbb_path_config_high_bandwidth(2)
-    then config.path_index == 2
-    and config.bandwidth_mbps == FBB_BANDWIDTH_MAX_MBPS
+    try std.testing.expect(config.path_index == 2);
+    try std.testing.expect(config.bandwidth_mbps == FBB_BANDWIDTH_MAX_MBPS);
 
-test fbb_path_config_enable
+test "fbb_path_config_enable" {
     given config = fbb_path_config_init(0)
-    and result = fbb_path_config_enable(config)
-    then result.enabled == true
+    try std.testing.expect(result = fbb_path_config_enable(config));
+    try std.testing.expect(result.enabled == true);
 
-test fbb_path_status_init_structure
+test "fbb_path_status_init_structure" {
     given status = fbb_path_status_init(0)
-    then status.path_index == 0
-    and status.state == FbbPathState.disabled
-    and status.active == false
+    try std.testing.expect(status.path_index == 0);
+    try std.testing.expect(status.state == FbbPathState.disabled);
+    try std.testing.expect(status.active == false);
 
-test fbb_path_status_enable
+test "fbb_path_status_enable" {
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_enable(status)
-    then result.state == FbbPathState.enabled
-    and result.active == false
+    try std.testing.expect(result = fbb_path_status_enable(status));
+    try std.testing.expect(result.state == FbbPathState.enabled);
+    try std.testing.expect(result.active == false);
 
-test fbb_path_status_activate
+test "fbb_path_status_activate" {
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_activate(status)
-    then result.state == FbbPathState.active
-    and result.active == true
+    try std.testing.expect(result = fbb_path_status_activate(status));
+    try std.testing.expect(result.state == FbbPathState.active);
+    try std.testing.expect(result.active == true);
 
-test fbb_path_status_bypass
+test "fbb_path_status_bypass" {
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_bypass(status)
-    then result.state == FbbPathState.bypassed
-    and result.active == false
+    try std.testing.expect(result = fbb_path_status_bypass(status));
+    try std.testing.expect(result.state == FbbPathState.bypassed);
+    try std.testing.expect(result.active == false);
 
-test fbb_path_status_error
+test "fbb_path_status_error" {
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_error(status, 1)
-    then result.state == FbbPathState.error
-    and result.error_code == 1
+    try std.testing.expect(result = fbb_path_status_error(status, 1));
+    try std.testing.expect(result.state == FbbPathState.error);
+    try std.testing.expect(result.error_code == 1);
 
-test fbb_path_status_update_metrics
+test "fbb_path_status_update_metrics" {
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_update_metrics(status, 5000, 100)
-    then result.throughput_mbps == 5000
-    and result.latency_measured == 100
+    try std.testing.expect(result = fbb_path_status_update_metrics(status, 5000, 100));
+    try std.testing.expect(result.throughput_mbps == 5000);
+    try std.testing.expect(result.latency_measured == 100);
 
-test fbb_active_path_init_structure
+test "fbb_active_path_init_structure" {
     given active = fbb_active_path_init()
-    then active.active_path == 0
-    and active.bypass_path == 0xFF
-    and active.loopback_enabled == false
+    try std.testing.expect(active.active_path == 0);
+    try std.testing.expect(active.bypass_path == 0xFF);
+    try std.testing.expect(active.loopback_enabled == false);
 
-test fbb_active_path_select
+test "fbb_active_path_select" {
     given active = fbb_active_path_init()
-    and result = fbb_active_path_select(active, 3)
-    then result.active_path == 3
-    and result.paths[3].active == true
+    try std.testing.expect(result = fbb_active_path_select(active, 3));
+    try std.testing.expect(result.active_path == 3);
+    try std.testing.expect(result.paths[3].active == true);
 
-test fbb_active_path_enable_bypass
+test "fbb_active_path_enable_bypass" {
     given active = fbb_active_path_init()
-    and result = fbb_active_path_enable_bypass(active, 5)
-    then result.bypass_path == 5
-    and result.paths[5].state == FbbPathState.bypassed
+    try std.testing.expect(result = fbb_active_path_enable_bypass(active, 5));
+    try std.testing.expect(result.bypass_path == 5);
+    try std.testing.expect(result.paths[5].state == FbbPathState.bypassed);
 
-test fbb_active_path_disable_bypass
+test "fbb_active_path_disable_bypass" {
     given active = fbb_active_path_init()
-    and with_bypass = fbb_active_path_enable_bypass(active, 5)
-    and result = fbb_active_path_disable_bypass(with_bypass)
-    then result.bypass_path == 0xFF
+    try std.testing.expect(with_bypass = fbb_active_path_enable_bypass(active, 5));
+    try std.testing.expect(result = fbb_active_path_disable_bypass(with_bypass));
+    try std.testing.expect(result.bypass_path == 0xFF);
 
-test fbb_active_path_enable_loopback
+test "fbb_active_path_enable_loopback" {
     given active = fbb_active_path_init()
-    and result = fbb_active_path_enable_loopback(active)
-    then result.loopback_enabled == true
+    try std.testing.expect(result = fbb_active_path_enable_loopback(active));
+    try std.testing.expect(result.loopback_enabled == true);
 
-test fbb_active_path_disable_loopback
+test "fbb_active_path_disable_loopback" {
     given active = fbb_active_path_init()
-    and with_loopback = fbb_active_path_enable_loopback(active)
-    and result = fbb_active_path_disable_loopback(with_loopback)
-    then result.loopback_enabled == false
+    try std.testing.expect(with_loopback = fbb_active_path_enable_loopback(active));
+    try std.testing.expect(result = fbb_active_path_disable_loopback(with_loopback));
+    try std.testing.expect(result.loopback_enabled == false);
 
-test fbb_active_path_get_path
+test "fbb_active_path_get_path" {
     given active = fbb_active_path_init()
-    and result = fbb_active_path_get_path(active, 2)
-    then result.path_index == 2
+    try std.testing.expect(result = fbb_active_path_get_path(active, 2));
+    try std.testing.expect(result.path_index == 2);
 
-test fbb_active_path_update_path_metrics
+test "fbb_active_path_update_path_metrics" {
     given active = fbb_active_path_init()
-    and result = fbb_active_path_update_path_metrics(active, 2, 3000, 50)
-    then result.paths[2].throughput_mbps == 3000
+    try std.testing.expect(result = fbb_active_path_update_path_metrics(active, 2, 3000, 50));
+    try std.testing.expect(result.paths[2].throughput_mbps == 3000);
 
-test fbb_path_index_valid_true
-    then fbb_path_index_valid(0) == true
-    and fbb_path_index_valid(7) == true
+test "fbb_path_index_valid_true" {
+    try std.testing.expect(fbb_path_index_valid(0) == true);
+    try std.testing.expect(fbb_path_index_valid(7) == true);
 
-test fbb_path_index_valid_false
-    then fbb_path_index_valid(8) == false
-    and fbb_path_index_valid(255) == false
+test "fbb_path_index_valid_false" {
+    try std.testing.expect(fbb_path_index_valid(8) == false);
+    try std.testing.expect(fbb_path_index_valid(255) == false);
 
-test fbb_latency_valid_true
-    then fbb_latency_valid(1) == true
-    and fbb_latency_valid(10) == true
-    and fbb_latency_valid(16) == true
+test "fbb_latency_valid_true" {
+    try std.testing.expect(fbb_latency_valid(1) == true);
+    try std.testing.expect(fbb_latency_valid(10) == true);
+    try std.testing.expect(fbb_latency_valid(16) == true);
 
-test fbb_latency_valid_false
-    then fbb_latency_valid(0) == false
-    and fbb_latency_valid(17) == false
+test "fbb_latency_valid_false" {
+    try std.testing.expect(fbb_latency_valid(0) == false);
+    try std.testing.expect(fbb_latency_valid(17) == false);
 
-test fbb_bandwidth_valid_true
-    then fbb_bandwidth_valid(100) == true
-    and fbb_bandwidth_valid(5000) == true
-    and fbb_bandwidth_valid(10000) == true
+test "fbb_bandwidth_valid_true" {
+    try std.testing.expect(fbb_bandwidth_valid(100) == true);
+    try std.testing.expect(fbb_bandwidth_valid(5000) == true);
+    try std.testing.expect(fbb_bandwidth_valid(10000) == true);
 
-test fbb_bandwidth_valid_false
-    then fbb_bandwidth_valid(50) == false
-    and fbb_bandwidth_valid(20000) == false
+test "fbb_bandwidth_valid_false" {
+    try std.testing.expect(fbb_bandwidth_valid(50) == false);
+    try std.testing.expect(fbb_bandwidth_valid(20000) == false);
 
-test fbb_path_config_valid_true
+test "fbb_path_config_valid_true" {
     given config = fbb_path_config_init(0)
-    then fbb_path_config_valid(config) == true
+    try std.testing.expect(fbb_path_config_valid(config) == true);
 
-test fbb_path_config_valid_false_invalid_latency
+test "fbb_path_config_valid_false_invalid_latency" {
     given config = FbbPathConfig{.path_index = 0, .enabled = false, .latency_cycles = 0, .bandwidth_mbps = 1000, .priority = 4, .auto_bypass = false}
-    then fbb_path_config_valid(config) == false
+    try std.testing.expect(fbb_path_config_valid(config) == false);
 
-test encode_fbb_cmd
+test "encode_fbb_cmd" {
     given encoded = encode_fbb_cmd(0x00, 3, 10, 20)
-    then (encoded >> 24) == 0x00
+    try std.testing.expect((encoded >> 24) == 0x00);
 
-test decode_fbb_cmd
+test "decode_fbb_cmd" {
     given decoded = decode_fbb_cmd(0x001A14A0)
-    then decoded.op == 0
-    and decoded.path == 3
+    try std.testing.expect(decoded.op == 0);
+    try std.testing.expect(decoded.path == 3);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant fbb_path_count_positive
     assert FBB_PATH_COUNT > 0
-    and FBB_MAX_PATHS == FBB_PATH_COUNT
+    try std.testing.expect(FBB_MAX_PATHS == FBB_PATH_COUNT);
 
 invariant latency_range_positive
     assert FBB_LATENCY_MIN_CYCLES > 0 and FBB_LATENCY_MAX_CYCLES >= FBB_LATENCY_MIN_CYCLES
@@ -615,50 +616,50 @@ invariant fbb_path_config_high_bandwidth_max_bandwidth
 
 invariant fbb_path_status_init_disabled
     given status = fbb_path_status_init(0)
-    then status.state == FbbPathState.disabled
+    try std.testing.expect(status.state == FbbPathState.disabled);
 
 invariant fbb_path_status_enable_enabled_not_active
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_enable(status)
-    then result.state == FbbPathState.enabled and result.active == false
+    try std.testing.expect(result = fbb_path_status_enable(status));
+    try std.testing.expect(result.state == FbbPathState.enabled and result.active == false);
 
 invariant fbb_path_status_activate_active
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_activate(status)
-    then result.state == FbbPathState.active and result.active == true
+    try std.testing.expect(result = fbb_path_status_activate(status));
+    try std.testing.expect(result.state == FbbPathState.active and result.active == true);
 
 invariant fbb_path_status_bypass_bypassed_not_active
     given status = fbb_path_status_init(0)
-    and result = fbb_path_status_bypass(status)
-    then result.state == FbbPathState.bypassed and result.active == false
+    try std.testing.expect(result = fbb_path_status_bypass(status));
+    try std.testing.expect(result.state == FbbPathState.bypassed and result.active == false);
 
 invariant fbb_active_path_init_no_bypass
     given active = fbb_active_path_init()
-    then active.bypass_path == 0xFF
+    try std.testing.expect(active.bypass_path == 0xFF);
 
 invariant fbb_active_path_select_updates_active
     given active = fbb_active_path_init()
-    and result = fbb_active_path_select(active, 5)
-    then result.active_path == 5
+    try std.testing.expect(result = fbb_active_path_select(active, 5));
+    try std.testing.expect(result.active_path == 5);
 
 invariant fbb_active_path_enable_loopback_sets_flag
     given active = fbb_active_path_init()
-    and result = fbb_active_path_enable_loopback(active)
-    then result.loopback_enabled == true
+    try std.testing.expect(result = fbb_active_path_enable_loopback(active));
+    try std.testing.expect(result.loopback_enabled == true);
 
 invariant fbb_active_path_disable_loopback_clears_flag
     given active = fbb_active_path_init()
-    and with_loopback = fbb_active_path_enable_loopback(active)
-    and result = fbb_active_path_disable_loopback(with_loopback)
-    then result.loopback_enabled == false
+    try std.testing.expect(with_loopback = fbb_active_path_enable_loopback(active));
+    try std.testing.expect(result = fbb_active_path_disable_loopback(with_loopback));
+    try std.testing.expect(result.loopback_enabled == false);
 
 invariant fbb_path_index_valid_range
     assert fbb_path_index_valid(0) and not fbb_path_index_valid(FBB_PATH_COUNT)
 
 invariant fbb_latency_valid_range
     assert fbb_latency_valid(FBB_LATENCY_MIN_CYCLES)
-    and fbb_latency_valid(FBB_LATENCY_MAX_CYCLES)
-    and not fbb_latency_valid(FBB_LATENCY_MAX_CYCLES + 1)
+    try std.testing.expect(fbb_latency_valid(FBB_LATENCY_MAX_CYCLES));
+    try std.testing.expect(not fbb_latency_valid(FBB_LATENCY_MAX_CYCLES + 1));
 
 // ============================================================================
 // Benchmarks

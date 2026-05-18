@@ -265,344 +265,345 @@ pub fn int4_abs_diff(a: Int4, b: Int4) Int4 {
 // TDD Tests
 // ============================================================================
 
-test int4_from_i8_in_range
+test "int4_from_i8_in_range" {
     given value = 5
-    and result = int4_from_i8(value)
-    then result == 5
+    try std.testing.expect(result = int4_from_i8(value));
+    try std.testing.expect(result == 5);
 
-test int4_from_i8_above_max
+test "int4_from_i8_above_max" {
     given value = 10
-    and result = int4_from_i8(value)
-    then result == MAX
+    try std.testing.expect(result = int4_from_i8(value));
+    try std.testing.expect(result == MAX);
 
-test int4_from_i8_below_min
+test "int4_from_i8_below_min" {
     given value = -10
-    and result = int4_from_i8(value)
-    then result == MIN
+    try std.testing.expect(result = int4_from_i8(value));
+    try std.testing.expect(result == MIN);
 
-test int4_from_i8_at_max
+test "int4_from_i8_at_max" {
     given value = 7
-    and result = int4_from_i8(value)
-    then result == MAX
+    try std.testing.expect(result = int4_from_i8(value));
+    try std.testing.expect(result == MAX);
 
-test int4_from_i8_at_min
+test "int4_from_i8_at_min" {
     given value = -8
-    and result = int4_from_i8(value)
-    then result == MIN
+    try std.testing.expect(result = int4_from_i8(value));
+    try std.testing.expect(result == MIN);
 
-test int4_from_i16_positive
+test "int4_from_i16_positive" {
     given value = 100
-    and result = int4_from_i16(value)
-    then result == MAX
+    try std.testing.expect(result = int4_from_i16(value));
+    try std.testing.expect(result == MAX);
 
-test int4_from_i16_negative
+test "int4_from_i16_negative" {
     given value = -100
-    and result = int4_from_i16(value)
-    then result == MIN
+    try std.testing.expect(result = int4_from_i16(value));
+    try std.testing.expect(result == MIN);
 
-test int4_from_i16_in_range
+test "int4_from_i16_in_range" {
     given value = 3
-    and result = int4_from_i16(value)
-    then result == 3
+    try std.testing.expect(result = int4_from_i16(value));
+    try std.testing.expect(result == 3);
 
-test int4_from_i32_positive
+test "int4_from_i32_positive" {
     given value = 1000
-    and result = int4_from_i32(value)
-    then result == MAX
+    try std.testing.expect(result = int4_from_i32(value));
+    try std.testing.expect(result == MAX);
 
-test int4_from_i32_negative
+test "int4_from_i32_negative" {
     given value = -1000
-    and result = int4_from_i32(value)
-    then result == MIN
+    try std.testing.expect(result = int4_from_i32(value));
+    try std.testing.expect(result == MIN);
 
-test int4_from_f32_zero
+test "int4_from_f32_zero" {
     given value = 0.0
-    and result = int4_from_f32(value)
-    then result == 0
+    try std.testing.expect(result = int4_from_f32(value));
+    try std.testing.expect(result == 0);
 
-test int4_from_f32_one
+test "int4_from_f32_one" {
     given value = 1.0
-    and result = int4_from_f32(value)
-    then result == 1
+    try std.testing.expect(result = int4_from_f32(value));
+    try std.testing.expect(result == 1);
 
-test int4_from_f32_negative
+test "int4_from_f32_negative" {
     given value = -1.5
-    and result = int4_from_f32(value)
-    then result == -2
+    try std.testing.expect(result = int4_from_f32(value));
+    try std.testing.expect(result == -2);
 
-test int4_from_f32_nan
+test "int4_from_f32_nan" {
     given result = int4_from_f32(std.math.nan(f32))
-    then result == 0
+    try std.testing.expect(result == 0);
 
-test int4_from_f32_round_up
+test "int4_from_f32_round_up" {
     given value = 1.6
-    and result = int4_from_f32(value)
-    then result == 2
+    try std.testing.expect(result = int4_from_f32(value));
+    try std.testing.expect(result == 2);
 
-test int4_from_f32_round_down
+test "int4_from_f32_round_down" {
     given value = 1.4
-    and result = int4_from_f32(value)
-    then result == 1
+    try std.testing.expect(result = int4_from_f32(value));
+    try std.testing.expect(result == 1);
 
-test int4_to_i8_identity
+test "int4_to_i8_identity" {
     given value: Int4 = 5
-    and result = int4_to_i8(value)
-    then result == value
+    try std.testing.expect(result = int4_to_i8(value));
+    try std.testing.expect(result == value);
 
-test int4_to_i16_sign_extend
+test "int4_to_i16_sign_extend" {
     given value: Int4 = -1
-    and result = int4_to_i16(value)
-    then result == -1
+    try std.testing.expect(result = int4_to_i16(value));
+    try std.testing.expect(result == -1);
 
-test int4_to_i32_sign_extend
+test "int4_to_i32_sign_extend" {
     given value: Int4 = -1
-    and result = int4_to_i32(value)
-    then result == -1
+    try std.testing.expect(result = int4_to_i32(value));
+    try std.testing.expect(result == -1);
 
-test int4_to_f32_positive
+test "int4_to_f32_positive" {
     given value: Int4 = 5
-    and result = int4_to_f32(value)
-    then abs(result - 5.0) < 0.001
+    try std.testing.expect(result = int4_to_f32(value));
+    try std.testing.expect(abs(result - 5.0) < 0.001);
 
-test int4_to_f32_negative
+test "int4_to_f32_negative" {
     given value: Int4 = -3
-    and result = int4_to_f32(value)
-    then abs(result + 3.0) < 0.001
+    try std.testing.expect(result = int4_to_f32(value));
+    try std.testing.expect(abs(result + 3.0) < 0.001);
 
-test int4_add_simple
+test "int4_add_simple" {
     given a: Int4 = 3
-    and b: Int4 = 4
-    and result = int4_add(a, b)
-    then result == MAX  // 3 + 4 = 7 = MAX
+    try std.testing.expect(b: Int4 = 4);
+    try std.testing.expect(result = int4_add(a, b));
+    try std.testing.expect(result == MAX  // 3 + 4 = 7 = MAX);
 
-test int4_add_overflow
+test "int4_add_overflow" {
     given a: Int4 = 5
-    and b: Int4 = 5
-    and result = int4_add(a, b)
-    then result == MAX  // 5 + 5 = 10 -> 7
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_add(a, b));
+    try std.testing.expect(result == MAX  // 5 + 5 = 10 -> 7);
 
-test int4_add_underflow
+test "int4_add_underflow" {
     given a: Int4 = -5
-    and b: Int4 = -5
-    and result = int4_add(a, b)
-    then result == MIN  // -5 + -5 = -10 -> -8
+    try std.testing.expect(b: Int4 = -5);
+    try std.testing.expect(result = int4_add(a, b));
+    try std.testing.expect(result == MIN  // -5 + -5 = -10 -> -8);
 
-test int4_sub_simple
+test "int4_sub_simple" {
     given a: Int4 = 7
-    and b: Int4 = 3
-    and result = int4_sub(a, b)
-    then result == 4
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(result = int4_sub(a, b));
+    try std.testing.expect(result == 4);
 
-test int4_sub_negative
+test "int4_sub_negative" {
     given a: Int4 = 3
-    and b: Int4 = 7
-    and result = int4_sub(a, b)
-    then result == -4
+    try std.testing.expect(b: Int4 = 7);
+    try std.testing.expect(result = int4_sub(a, b));
+    try std.testing.expect(result == -4);
 
-test int4_mul_positive
+test "int4_mul_positive" {
     given a: Int4 = 2
-    and b: Int4 = 3
-    and result = int4_mul(a, b)
-    then result == 6
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(result = int4_mul(a, b));
+    try std.testing.expect(result == 6);
 
-test int4_mul_negative
+test "int4_mul_negative" {
     given a: Int4 = -2
-    and b: Int4 = 3
-    and result = int4_mul(a, b)
-    then result == -6
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(result = int4_mul(a, b));
+    try std.testing.expect(result == -6);
 
-test int4_mul_overflow
+test "int4_mul_overflow" {
     given a: Int4 = 4
-    and b: Int4 = 4
-    and result = int4_mul(a, b)
-    then result == MAX  // 4 * 4 = 16 -> 7
+    try std.testing.expect(b: Int4 = 4);
+    try std.testing.expect(result = int4_mul(a, b));
+    try std.testing.expect(result == MAX  // 4 * 4 = 16 -> 7);
 
-test int4_div_simple
+test "int4_div_simple" {
     given a: Int4 = 6
-    and b: Int4 = 2
-    and result = int4_div(a, b)
-    then result == 3
+    try std.testing.expect(b: Int4 = 2);
+    try std.testing.expect(result = int4_div(a, b));
+    try std.testing.expect(result == 3);
 
-test int4_div_by_zero_positive
+test "int4_div_by_zero_positive" {
     given a: Int4 = 5
-    and b: Int4 = 0
-    and result = int4_div(a, b)
-    then result == MAX
+    try std.testing.expect(b: Int4 = 0);
+    try std.testing.expect(result = int4_div(a, b));
+    try std.testing.expect(result == MAX);
 
-test int4_div_by_zero_negative
+test "int4_div_by_zero_negative" {
     given a: Int4 = -5
-    and b: Int4 = 0
-    and result = int4_div(a, b)
-    then result == MIN
+    try std.testing.expect(b: Int4 = 0);
+    try std.testing.expect(result = int4_div(a, b));
+    try std.testing.expect(result == MIN);
 
-test int4_abs_positive
+test "int4_abs_positive" {
     given value: Int4 = 5
-    and result = int4_abs(value)
-    then result == 5
+    try std.testing.expect(result = int4_abs(value));
+    try std.testing.expect(result == 5);
 
-test int4_abs_negative
+test "int4_abs_negative" {
     given value: Int4 = -5
-    and result = int4_abs(value)
-    then result == 5
+    try std.testing.expect(result = int4_abs(value));
+    try std.testing.expect(result == 5);
 
-test int4_abs_min
+test "int4_abs_min" {
     given value: Int4 = MIN
-    and result = int4_abs(value)
-    then result == MAX  // |-8| = 7 (saturated)
+    try std.testing.expect(result = int4_abs(value));
+    try std.testing.expect(result == MAX  // |-8| = 7 (saturated));
 
-test int4_neg_positive
+test "int4_neg_positive" {
     given value: Int4 = 5
-    and result = int4_neg(value)
-    then result == -5
+    try std.testing.expect(result = int4_neg(value));
+    try std.testing.expect(result == -5);
 
-test int4_neg_negative
+test "int4_neg_negative" {
     given value: Int4 = -5
-    and result = int4_neg(value)
-    then result == 5
+    try std.testing.expect(result = int4_neg(value));
+    try std.testing.expect(result == 5);
 
-test int4_neg_min
+test "int4_neg_min" {
     given value: Int4 = MIN
-    and result = int4_neg(value)
-    then result == MAX  // -(-8) = 7 (saturated)
+    try std.testing.expect(result = int4_neg(value));
+    try std.testing.expect(result == MAX  // -(-8) = 7 (saturated));
 
-test int4_is_equal_true
+test "int4_is_equal_true" {
     given a: Int4 = 3
-    and b: Int4 = 3
-    then int4_is_equal(a, b) == true
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(int4_is_equal(a, b) == true);
 
-test int4_is_equal_false
+test "int4_is_equal_false" {
     given a: Int4 = 3
-    and b: Int4 = 5
-    then int4_is_equal(a, b) == false
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(int4_is_equal(a, b) == false);
 
-test int4_is_greater_true
+test "int4_is_greater_true" {
     given a: Int4 = 5
-    and b: Int4 = 3
-    then int4_is_greater(a, b) == true
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(int4_is_greater(a, b) == true);
 
-test int4_is_greater_false
+test "int4_is_greater_false" {
     given a: Int4 = 3
-    and b: Int4 = 5
-    then int4_is_greater(a, b) == false
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(int4_is_greater(a, b) == false);
 
-test int4_min_smaller
+test "int4_min_smaller" {
     given a: Int4 = 3
-    and b: Int4 = 5
-    and result = int4_min(a, b)
-    then result == 3
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_min(a, b));
+    try std.testing.expect(result == 3);
 
-test int4_min_larger
+test "int4_min_larger" {
     given a: Int4 = 5
-    and b: Int4 = 3
-    and result = int4_min(a, b)
-    then result == 3
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(result = int4_min(a, b));
+    try std.testing.expect(result == 3);
 
-test int4_max_smaller
+test "int4_max_smaller" {
     given a: Int4 = 3
-    and b: Int4 = 5
-    and result = int4_max(a, b)
-    then result == 5
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_max(a, b));
+    try std.testing.expect(result == 5);
 
-test int4_max_larger
+test "int4_max_larger" {
     given a: Int4 = 5
-    and b: Int4 = 3
-    and result = int4_max(a, b)
-    then result == 5
+    try std.testing.expect(b: Int4 = 3);
+    try std.testing.expect(result = int4_max(a, b));
+    try std.testing.expect(result == 5);
 
-test int4_clamp_in_range
+test "int4_clamp_in_range" {
     given value: Int4 = 5
-    and min: Int4 = 0
-    and max: Int4 = MAX
-    and result = int4_clamp(value, min, max)
-    then result == 5
+    try std.testing.expect(min: Int4 = 0);
+    try std.testing.expect(max: Int4 = MAX);
+    try std.testing.expect(result = int4_clamp(value, min, max));
+    try std.testing.expect(result == 5);
 
-test int4_clamp_below_min
+test "int4_clamp_below_min" {
     given value: Int4 = -10
-    and min: Int4 = -5
-    and max: Int4 = MAX
-    and result = int4_clamp(value, min, max)
-    then result == -5
+    try std.testing.expect(min: Int4 = -5);
+    try std.testing.expect(max: Int4 = MAX);
+    try std.testing.expect(result = int4_clamp(value, min, max));
+    try std.testing.expect(result == -5);
 
-test int4_clamp_above_max
+test "int4_clamp_above_max" {
     given value: Int4 = 10
-    and min: Int4 = MIN
-    and max: Int4 = 5
-    and result = int4_clamp(value, min, max)
-    then result == 5
+    try std.testing.expect(min: Int4 = MIN);
+    try std.testing.expect(max: Int4 = 5);
+    try std.testing.expect(result = int4_clamp(value, min, max));
+    try std.testing.expect(result == 5);
 
-test int4_is_in_range_true
-    then int4_is_in_range(5) == true
+test "int4_is_in_range_true" {
+    try std.testing.expect(int4_is_in_range(5) == true);
 
-test int4_is_in_range_false_high
-    then int4_is_in_range(10) == false
+test "int4_is_in_range_false_high" {
+    try std.testing.expect(int4_is_in_range(10) == false);
 
-test int4_is_in_range_false_low
-    then int4_is_in_range(-10) == false
+test "int4_is_in_range_false_low" {
+    try std.testing.expect(int4_is_in_range(-10) == false);
 
-test int4_is_in_range_at_max
-    then int4_is_in_range(MAX) == true
+test "int4_is_in_range_at_max" {
+    try std.testing.expect(int4_is_in_range(MAX) == true);
 
-test int4_is_in_range_at_min
-    then int4_is_in_range(MIN) == true
+test "int4_is_in_range_at_min" {
+    try std.testing.expect(int4_is_in_range(MIN) == true);
 
-test int4_lerp_zero
+test "int4_lerp_zero" {
     given a: Int4 = 1
-    and b: Int4 = 5
-    and t = 0.0
-    and result = int4_lerp(a, b, t)
-    then result == 1
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(t = 0.0);
+    try std.testing.expect(result = int4_lerp(a, b, t));
+    try std.testing.expect(result == 1);
 
-test int4_lerp_one
+test "int4_lerp_one" {
     given a: Int4 = 1
-    and b: Int4 = 5
-    and t = 1.0
-    and result = int4_lerp(a, b, t)
-    then result == 5
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(t = 1.0);
+    try std.testing.expect(result = int4_lerp(a, b, t));
+    try std.testing.expect(result == 5);
 
-test int4_lerp_half
+test "int4_lerp_half" {
     given a: Int4 = 0
-    and b: Int4 = 4
-    and t = 0.5
-    and result = int4_lerp(a, b, t)
-    then result == 2
+    try std.testing.expect(b: Int4 = 4);
+    try std.testing.expect(t = 0.5);
+    try std.testing.expect(result = int4_lerp(a, b, t));
+    try std.testing.expect(result == 2);
 
-test int4_sq_positive
+test "int4_sq_positive" {
     given value: Int4 = 3
-    and result = int4_sq(value)
-    then result == 9  // saturates to 7
+    try std.testing.expect(result = int4_sq(value));
+    try std.testing.expect(result == 9  // saturates to 7);
 
-test int4_sq_negative
+test "int4_sq_negative" {
     given value: Int4 = -3
-    and result = int4_sq(value)
-    then result == 9  // saturates to 7
+    try std.testing.expect(result = int4_sq(value));
+    try std.testing.expect(result == 9  // saturates to 7);
 
-test int4_sq_zero
+test "int4_sq_zero" {
     given value: Int4 = 0
-    and result = int4_sq(value)
-    then result == 0
+    try std.testing.expect(result = int4_sq(value));
+    try std.testing.expect(result == 0);
 
-test int4_abs_diff_same
+test "int4_abs_diff_same" {
     given a: Int4 = 5
-    and b: Int4 = 5
-    and result = int4_abs_diff(a, b)
-    then result == 0
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_abs_diff(a, b));
+    try std.testing.expect(result == 0);
 
-test int4_abs_diff_positive
+test "int4_abs_diff_positive" {
     given a: Int4 = 5
-    and b: Int4 = 2
-    and result = int4_abs_diff(a, b)
-    then result == 3
+    try std.testing.expect(b: Int4 = 2);
+    try std.testing.expect(result = int4_abs_diff(a, b));
+    try std.testing.expect(result == 3);
 
-test int4_abs_diff_negative
+test "int4_abs_diff_negative" {
     given a: Int4 = 2
-    and b: Int4 = 5
-    and result = int4_abs_diff(a, b)
-    then result == 3
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_abs_diff(a, b));
+    try std.testing.expect(result == 3);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant int4_bits_constant
     assert BITS == 4
 
@@ -657,20 +658,20 @@ invariant int4_abs_non_negative
 
 invariant int4_neg_twice_original
     given value: Int4 = 5
-    and neg = int4_neg(value)
-    and neg_again = int4_neg(neg)
+    try std.testing.expect(neg = int4_neg(value));
+    try std.testing.expect(neg_again = int4_neg(neg));
     assert neg_again == value or value == MIN  // MIN saturates
 
 invariant int4_min_le_both
     given a: Int4 = 3
-    and b: Int4 = 5
-    and result = int4_min(a, b)
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_min(a, b));
     assert result <= a and result <= b
 
 invariant int4_max_ge_both
     given a: Int4 = 3
-    and b: Int4 = 5
-    and result = int4_max(a, b)
+    try std.testing.expect(b: Int4 = 5);
+    try std.testing.expect(result = int4_max(a, b));
     assert result >= a and result >= b
 
 invariant int4_clamp_result_in_range

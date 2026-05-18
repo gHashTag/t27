@@ -269,116 +269,117 @@ pub fn decode_sparse_skip(encoded: u16) struct { mode: u8, vector_addr: u8 } {
 // TDD Tests
 // ============================================================================
 
-test is_zero_true
-    then is_zero(0) == true
+test "is_zero_true" {
+    try std.testing.expect(is_zero(0) == true);
 
-test is_zero_false
-    then is_zero(1) == false
-    and is_zero(-1) == false
+test "is_zero_false" {
+    try std.testing.expect(is_zero(1) == false);
+    try std.testing.expect(is_zero(-1) == false);
 
-test is_below_threshold_positive
-    then is_below_threshold(3, 5) == true
-    and is_below_threshold(7, 5) == false
+test "is_below_threshold_positive" {
+    try std.testing.expect(is_below_threshold(3, 5) == true);
+    try std.testing.expect(is_below_threshold(7, 5) == false);
 
-test is_below_threshold_negative
-    then is_below_threshold(-3, 5) == true
-    and is_below_threshold(-7, 5) == false
+test "is_below_threshold_negative" {
+    try std.testing.expect(is_below_threshold(-3, 5) == true);
+    try std.testing.expect(is_below_threshold(-7, 5) == false);
 
-test count_zeros_empty
+test "count_zeros_empty" {
     given vector = [_]i8{0} ** 16
-    then count_zeros(vector) == 16
+    try std.testing.expect(count_zeros(vector) == 16);
 
-test count_zeros_none
+test "count_zeros_none" {
     given vector = [_]i8{1} ** 16
-    then count_zeros(vector) == 0
+    try std.testing.expect(count_zeros(vector) == 0);
 
-test count_zeros_mixed
+test "count_zeros_mixed" {
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0}
-    then count_zeros(vector) == 8
+    try std.testing.expect(count_zeros(vector) == 8);
 
-test count_non_zeros_mixed
+test "count_non_zeros_mixed" {
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0}
-    then count_non_zeros(vector) == 8
+    try std.testing.expect(count_non_zeros(vector) == 8);
 
-test analyze_sparsity_dense
+test "analyze_sparsity_dense" {
     given vector = [_]i8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-    and pattern = analyze_sparsity(vector)
-    then pattern.is_sparse == false
-    and pattern.zero_count == 0
+    try std.testing.expect(pattern = analyze_sparsity(vector));
+    try std.testing.expect(pattern.is_sparse == false);
+    try std.testing.expect(pattern.zero_count == 0);
 
-test analyze_sparsity_sparse
+test "analyze_sparsity_sparse" {
     given vector = [_]i8{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-    and pattern = analyze_sparsity(vector)
-    then pattern.is_sparse == true
-    and pattern.zero_count == 15
+    try std.testing.expect(pattern = analyze_sparsity(vector));
+    try std.testing.expect(pattern.is_sparse == true);
+    try std.testing.expect(pattern.zero_count == 15);
 
-test should_skip_sparsity_true
+test "should_skip_sparsity_true" {
     given vector = [_]i8{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-    and pattern = analyze_sparsity(vector)
-    then should_skip_sparsity(pattern) == true
+    try std.testing.expect(pattern = analyze_sparsity(vector));
+    try std.testing.expect(should_skip_sparsity(pattern) == true);
 
-test should_skip_sparsity_false
+test "should_skip_sparsity_false" {
     given vector = [_]i8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-    and pattern = analyze_sparsity(vector)
-    then should_skip_sparsity(pattern) == false
+    try std.testing.expect(pattern = analyze_sparsity(vector));
+    try std.testing.expect(should_skip_sparsity(pattern) == false);
 
-test skip_zeros_mixed
+test "skip_zeros_mixed" {
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0}
-    and result = skip_zeros(vector)
-    then result.skipped_count == 8
-    and result.processed_count == 8
-    and result.mask == 0xAAAA
+    try std.testing.expect(result = skip_zeros(vector));
+    try std.testing.expect(result.skipped_count == 8);
+    try std.testing.expect(result.processed_count == 8);
+    try std.testing.expect(result.mask == 0xAAAA);
 
-test skip_threshold_mixed
+test "skip_threshold_mixed" {
     given vector = [_]i8{1, 0, 2, 0, 10, 0, 4, 0, 5, 0, 20, 0, 7, 0, 8, 0}
-    and result = skip_threshold(vector, 5)
-    then result.skipped_count == 5
+    try std.testing.expect(result = skip_threshold(vector, 5));
+    try std.testing.expect(result.skipped_count == 5);
 
-test skip_all
+test "skip_all" {
     given vector = [_]i8{1} ** 16
-    and result = skip_all(vector)
-    then result.skipped_count == 16
-    and result.processed_count == 0
-    and result.mask == 0
+    try std.testing.expect(result = skip_all(vector));
+    try std.testing.expect(result.skipped_count == 16);
+    try std.testing.expect(result.processed_count == 0);
+    try std.testing.expect(result.mask == 0);
 
-test skip_none
+test "skip_none" {
     given vector = [_]i8{1} ** 16
-    and result = skip_none(vector)
-    then result.skipped_count == 0
-    and result.processed_count == 16
-    and result.mask == 0xFFFF
+    try std.testing.expect(result = skip_none(vector));
+    try std.testing.expect(result.skipped_count == 0);
+    try std.testing.expect(result.processed_count == 16);
+    try std.testing.expect(result.mask == 0xFFFF);
 
-test create_sparse_vector
+test "create_sparse_vector" {
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0}
-    and sparse = create_sparse_vector(vector)
-    then sparse.mask == 0xAAAA
-    and sparse.zero_count == 8
+    try std.testing.expect(sparse = create_sparse_vector(vector));
+    try std.testing.expect(sparse.mask == 0xAAAA);
+    try std.testing.expect(sparse.zero_count == 8);
 
-test get_non_zero_elements
+test "get_non_zero_elements" {
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0}
-    and sparse = create_sparse_vector(vector)
-    and non_zeros = get_non_zero_elements(sparse)
-    then non_zeros[0] == 1
-    and non_zeros[1] == 2
-    and non_zeros[2] == 3
-    and non_zeros[7] == 0
+    try std.testing.expect(sparse = create_sparse_vector(vector));
+    try std.testing.expect(non_zeros = get_non_zero_elements(sparse));
+    try std.testing.expect(non_zeros[0] == 1);
+    try std.testing.expect(non_zeros[1] == 2);
+    try std.testing.expect(non_zeros[2] == 3);
+    try std.testing.expect(non_zeros[7] == 0);
 
-test encode_sparse_skip
+test "encode_sparse_skip" {
     given encoded = encode_sparse_skip(1, 0x20)
-    then (encoded >> 8) == OP_SPARSE_SKIP
+    try std.testing.expect((encoded >> 8) == OP_SPARSE_SKIP);
 
-test decode_sparse_skip
+test "decode_sparse_skip" {
     given decoded = decode_sparse_skip(0xE150)
-    then decoded.mode == 1
-    and decoded.vector_addr == 0x10
+    try std.testing.expect(decoded.mode == 1);
+    try std.testing.expect(decoded.vector_addr == 0x10);
 
-test opcode_constant
-    then OP_SPARSE_SKIP == 0xE1
+test "opcode_constant" {
+    try std.testing.expect(OP_SPARSE_SKIP == 0xE1);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant vector_size_sixteen
     assert VECTOR_SIZE == 16
 
@@ -399,24 +400,24 @@ invariant zero_count_plus_non_zero_equals_size
     assert count_zeros(vector) + count_non_zeros(vector) == VECTOR_SIZE
 
 invariant skip_all_skips_all
-    then skip_all([_]i8{1} ** 16).skipped_count == VECTOR_SIZE
+    try std.testing.expect(skip_all([_]i8{1} ** 16).skipped_count == VECTOR_SIZE);
 
 invariant skip_none_skips_none
-    then skip_none([_]i8{1} ** 16).skipped_count == 0
+    try std.testing.expect(skip_none([_]i8{1} ** 16).skipped_count == 0);
 
 invariant processed_plus_skipped_equals_size
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0}
-    and result = skip_zeros(vector)
+    try std.testing.expect(result = skip_zeros(vector));
     assert result.skipped_count + result.processed_count == VECTOR_SIZE
 
 invariant sparsity_ratio_bound
     given vector = [_]i8{1} ** 16
-    and pattern = analyze_sparsity(vector)
-    then pattern.sparsity_ratio <= 100
+    try std.testing.expect(pattern = analyze_sparsity(vector));
+    try std.testing.expect(pattern.sparsity_ratio <= 100);
 
 invariant mask_bits_processed_equals_processed_count
     given vector = [_]i8{1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0}
-    and result = skip_zeros(vector)
+    try std.testing.expect(result = skip_zeros(vector));
     var mask_bits : u8 = 0
     for (0..VECTOR_SIZE) |i| {
         if ((result.mask >> i) & 1 != 0) {

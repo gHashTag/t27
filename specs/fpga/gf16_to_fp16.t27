@@ -305,149 +305,150 @@ pub fn gf16_bits_to_fp16_bits_with_result(gf_bits: u16, config: ConversionConfig
 // TDD Tests
 // ============================================================================
 
-test gf16_bits_constants
-    then GF16_SIGN_BITS == 1
-    and GF16_EXP_BITS == 6
-    and GF16_MANT_BITS == 9
-    and GF16_BIAS == 31
+test "gf16_bits_constants" {
+    try std.testing.expect(GF16_SIGN_BITS == 1);
+    try std.testing.expect(GF16_EXP_BITS == 6);
+    try std.testing.expect(GF16_MANT_BITS == 9);
+    try std.testing.expect(GF16_BIAS == 31);
 
-test fp16_bits_constants
-    then FP16_SIGN_BITS == 1
-    and FP16_EXP_BITS == 5
-    and FP16_MANT_BITS == 10
-    and FP16_BIAS == 15
+test "fp16_bits_constants" {
+    try std.testing.expect(FP16_SIGN_BITS == 1);
+    try std.testing.expect(FP16_EXP_BITS == 5);
+    try std.testing.expect(FP16_MANT_BITS == 10);
+    try std.testing.expect(FP16_BIAS == 15);
 
-test mantissa_masks
-    then MANTissa_MASK_GF16 == 0x01FF
-    and MANTissa_MASK_FP16 == 0x03FF
+test "mantissa_masks" {
+    try std.testing.expect(MANTissa_MASK_GF16 == 0x01FF);
+    try std.testing.expect(MANTissa_MASK_FP16 == 0x03FF);
 
-test gf16_from_bits_to_bits_roundtrip
+test "gf16_from_bits_to_bits_roundtrip" {
     given bits = 0x1234
-    and gf = gf16_from_bits(bits)
-    and result = gf16_to_bits(gf)
-    then result == bits
+    try std.testing.expect(gf = gf16_from_bits(bits));
+    try std.testing.expect(result = gf16_to_bits(gf));
+    try std.testing.expect(result == bits);
 
-test gf16_from_bits_structure
+test "gf16_from_bits_structure" {
     given gf = gf16_from_bits(0x8000)
-    then gf.sign == 1
-    and gf.exp == 0
-    and gf.mant == 0
+    try std.testing.expect(gf.sign == 1);
+    try std.testing.expect(gf.exp == 0);
+    try std.testing.expect(gf.mant == 0);
 
-test fp16_from_bits_to_bits_roundtrip
+test "fp16_from_bits_to_bits_roundtrip" {
     given bits = 0x3C00
-    and fp = fp16_from_bits(bits)
-    and result = fp16_to_bits(fp)
-    then result == bits
+    try std.testing.expect(fp = fp16_from_bits(bits));
+    try std.testing.expect(result = fp16_to_bits(fp));
+    try std.testing.expect(result == bits);
 
-test gf16_is_zero_true
+test "gf16_is_zero_true" {
     given gf = Gf16{.sign = 0, .exp = 0, .mant = 0}
-    then gf16_is_zero(gf) == true
+    try std.testing.expect(gf16_is_zero(gf) == true);
 
-test gf16_is_zero_false
+test "gf16_is_zero_false" {
     given gf = Gf16{.sign = 0, .exp = 0, .mant = 1}
-    then gf16_is_zero(gf) == false
+    try std.testing.expect(gf16_is_zero(gf) == false);
 
-test gf16_is_infinity_true
+test "gf16_is_infinity_true" {
     given gf = Gf16{.sign = 0, .exp = 0x3F, .mant = 0}
-    then gf16_is_infinity(gf) == true
+    try std.testing.expect(gf16_is_infinity(gf) == true);
 
-test gf16_is_infinity_false
+test "gf16_is_infinity_false" {
     given gf = Gf16{.sign = 0, .exp = 0x3E, .mant = 0}
-    then gf16_is_infinity(gf) == false
+    try std.testing.expect(gf16_is_infinity(gf) == false);
 
-test gf16_is_nan_true
+test "gf16_is_nan_true" {
     given gf = Gf16{.sign = 0, .exp = 0x3F, .mant = 1}
-    then gf16_is_nan(gf) == true
+    try std.testing.expect(gf16_is_nan(gf) == true);
 
-test fp16_is_zero_true
+test "fp16_is_zero_true" {
     given fp = Fp16{.sign = 0, .exp = 0, .mant = 0}
-    then fp16_is_zero(fp) == true
+    try std.testing.expect(fp16_is_zero(fp) == true);
 
-test fp16_is_infinity_true
+test "fp16_is_infinity_true" {
     given fp = Fp16{.sign = 0, .exp = 0x1F, .mant = 0}
-    then fp16_is_infinity(fp) == true
+    try std.testing.expect(fp16_is_infinity(fp) == true);
 
-test conversion_config_init_structure
+test "conversion_config_init_structure" {
     given config = conversion_config_init()
-    then config.round_mode == 0
-    and config.enable_saturation == true
+    try std.testing.expect(config.round_mode == 0);
+    try std.testing.expect(config.enable_saturation == true);
 
-test conversion_config_no_saturation_structure
+test "conversion_config_no_saturation_structure" {
     given config = conversion_config_no_saturation()
-    then config.enable_saturation == false
+    try std.testing.expect(config.enable_saturation == false);
 
-test gf16_to_fp16_zero
+test "gf16_to_fp16_zero" {
     given gf = Gf16{.sign = 0, .exp = 0, .mant = 0}
-    and fp = gf16_to_fp16(gf)
-    then fp.exp == 0
-    and fp.mant == 0
+    try std.testing.expect(fp = gf16_to_fp16(gf));
+    try std.testing.expect(fp.exp == 0);
+    try std.testing.expect(fp.mant == 0);
 
-test gf16_to_fp16_infinity
+test "gf16_to_fp16_infinity" {
     given gf = Gf16{.sign = 0, .exp = 0x3F, .mant = 0}
-    and fp = gf16_to_fp16(gf)
-    then fp.exp == 0x1F
-    and fp.mant == 0
+    try std.testing.expect(fp = gf16_to_fp16(gf));
+    try std.testing.expect(fp.exp == 0x1F);
+    try std.testing.expect(fp.mant == 0);
 
-test gf16_to_fp16_nan
+test "gf16_to_fp16_nan" {
     given gf = Gf16{.sign = 0, .exp = 0x3F, .mant = 1}
-    and fp = gf16_to_fp16(gf)
-    then fp.exp == 0x1F
-    and fp.mant == 1
+    try std.testing.expect(fp = gf16_to_fp16(gf));
+    try std.testing.expect(fp.exp == 0x1F);
+    try std.testing.expect(fp.mant == 1);
 
-test gf16_to_fp16_preserves_sign
+test "gf16_to_fp16_preserves_sign" {
     given gf_pos = Gf16{.sign = 1, .exp = 1, .mant = 0}
-    and gf_neg = Gf16{.sign = 0, .exp = 1, .mant = 0}
-    and fp_pos = gf16_to_fp16(gf_pos)
-    and fp_neg = gf16_to_fp16(gf_neg)
-    then fp_pos.sign == 1 and fp_neg.sign == 0
+    try std.testing.expect(gf_neg = Gf16{.sign = 0, .exp = 1, .mant = 0});
+    try std.testing.expect(fp_pos = gf16_to_fp16(gf_pos));
+    try std.testing.expect(fp_neg = gf16_to_fp16(gf_neg));
+    try std.testing.expect(fp_pos.sign == 1 and fp_neg.sign == 0);
 
-test gf16_to_fp16_with_result_zero
+test "gf16_to_fp16_with_result_zero" {
     given gf = Gf16{.sign = 0, .exp = 0, .mant = 0}
-    and config = conversion_config_init()
-    and result = gf16_to_fp16_with_result(gf, config)
-    then result.overflow == false
-    and result.underflow == false
-    and result.lost_precision == false
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf16_to_fp16_with_result(gf, config));
+    try std.testing.expect(result.overflow == false);
+    try std.testing.expect(result.underflow == false);
+    try std.testing.expect(result.lost_precision == false);
 
-test gf16_bits_to_fp16_bits_zero
+test "gf16_bits_to_fp16_bits_zero" {
     given config = conversion_config_init()
-    then gf16_bits_to_fp16_bits(0x0000, config) == 0x0000
+    try std.testing.expect(gf16_bits_to_fp16_bits(0x0000, config) == 0x0000);
 
-test gf16_bits_to_fp16_bits_roundtrip
+test "gf16_bits_to_fp16_bits_roundtrip" {
     given config = conversion_config_init()
     // Normal value
-    and gf_bits = 0x2000  // exp=32, mant=0 -> value ~1.0 in GF16
-    and fp_bits = gf16_bits_to_fp16_bits(gf_bits)
-    then (fp_bits & 0x8000) == (gf_bits & 0x8000)  // Sign preserved
+    try std.testing.expect(gf_bits = 0x2000  // exp=32, mant=0 -> value ~1.0 in GF16);
+    try std.testing.expect(fp_bits = gf16_bits_to_fp16_bits(gf_bits));
+    try std.testing.expect((fp_bits & 0x8000) == (gf_bits & 0x8000)  // Sign preserved);
 
-test gf16_to_fp16_with_result_underflow
+test "gf16_to_fp16_with_result_underflow" {
     given gf = Gf16{.sign = 0, .exp = 0, .mant = 1}  // Very small value
-    and config = conversion_config_init()
-    and result = gf16_to_fp16_with_result(gf, config)
-    then result.underflow == true or result.lost_precision == true
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf16_to_fp16_with_result(gf, config));
+    try std.testing.expect(result.underflow == true or result.lost_precision == true);
 
-test gf16_to_fp16_with_result_overflow
+test "gf16_to_fp16_with_result_overflow" {
     given gf = Gf16{.sign = 0, .exp = 62, .mant = 0}  // Very large value
-    and config = conversion_config_init()
-    and result = gf16_to_fp16_with_result(gf, config)
-    then result.overflow == true
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf16_to_fp16_with_result(gf, config));
+    try std.testing.expect(result.overflow == true);
 
-test gf16_to_fp16_with_result_saturation
+test "gf16_to_fp16_with_result_saturation" {
     given gf = Gf16{.sign = 0, .exp = 62, .mant = 0}  // Very large value
-    and config = conversion_config_init()
-    and result = gf16_to_fp16_with_result(gf, config)
-    then result.value != 0x7C00  // Not infinity, but max finite
+    try std.testing.expect(config = conversion_config_init());
+    try std.testing.expect(result = gf16_to_fp16_with_result(gf, config));
+    try std.testing.expect(result.value != 0x7C00  // Not infinity, but max finite);
 
-test gf16_to_fp16_with_result_no_saturation_overflow
+test "gf16_to_fp16_with_result_no_saturation_overflow" {
     given gf = Gf16{.sign = 0, .exp = 62, .mant = 0}  // Very large value
-    and config = conversion_config_no_saturation()
-    and result = gf16_to_fp16_with_result(gf, config)
-    then result.value == 0x7C00  // Infinity
+    try std.testing.expect(config = conversion_config_no_saturation());
+    try std.testing.expect(result = gf16_to_fp16_with_result(gf, config));
+    try std.testing.expect(result.value == 0x7C00  // Infinity);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant gf16_bit_count
     assert GF16_SIGN_BITS + GF16_EXP_BITS + GF16_MANT_BITS == 16
 
@@ -468,7 +469,7 @@ invariant fp16_mant_width
 
 invariant mantissa_masks_correct
     assert MANTissa_MASK_GF16 == (@as(u16, 1) << GF16_MANT_BITS) - 1
-    and MANTissa_MASK_FP16 == (@as(u16, 1) << FP16_MANT_BITS) - 1
+    try std.testing.expect(MANTissa_MASK_FP16 == (@as(u16, 1) << FP16_MANT_BITS) - 1);
 
 invariant gf16_from_bits_roundtrip
     given bits = 0x5678
@@ -500,18 +501,18 @@ invariant conversion_config_no_saturation_disabled
 
 invariant gf16_to_fp16_zero_preserves
     given gf = Gf16{.sign = 0, .exp = 0, .mant = 0}
-    and fp = gf16_to_fp16(gf)
-    then fp.sign == gf.sign
+    try std.testing.expect(fp = gf16_to_fp16(gf));
+    try std.testing.expect(fp.sign == gf.sign);
 
 invariant gf16_to_fp16_infinity_preserves_sign
     given gf_pos = Gf16{.sign = 1, .exp = 0x3F, .mant = 0}
-    and fp_pos = gf16_to_fp16(gf_pos)
-    then fp_pos.sign == 1
+    try std.testing.expect(fp_pos = gf16_to_fp16(gf_pos));
+    try std.testing.expect(fp_pos.sign == 1);
 
 invariant gf16_to_fp16_nan_preserves_sign
     given gf = Gf16{.sign = 1, .exp = 0x3F, .mant = 1}
-    and fp = gf16_to_fp16(gf)
-    then fp.sign == gf.sign
+    try std.testing.expect(fp = gf16_to_fp16(gf));
+    try std.testing.expect(fp.sign == gf.sign);
 
 // ============================================================================
 // Benchmarks

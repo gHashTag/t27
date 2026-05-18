@@ -268,137 +268,138 @@ pub fn decode_lut_lookup(encoded: u16) struct { lane_bits: u8, lut_addr: u8 } {
 // TDD Tests
 // ============================================================================
 
-test lane_is_valid_true
-    then lane_is_valid(0) == true
-    and lane_is_valid(7) == true
+test "lane_is_valid_true" {
+    try std.testing.expect(lane_is_valid(0) == true);
+    try std.testing.expect(lane_is_valid(7) == true);
 
-test lane_is_valid_false
-    then lane_is_valid(8) == false
-    and lane_is_valid(255) == false
+test "lane_is_valid_false" {
+    try std.testing.expect(lane_is_valid(8) == false);
+    try std.testing.expect(lane_is_valid(255) == false);
 
-test lane_is_ready_true
-    then lane_is_ready(LaneStatus.ready) == true
+test "lane_is_ready_true" {
+    try std.testing.expect(lane_is_ready(LaneStatus.ready) == true);
 
-test lane_is_ready_false
-    then lane_is_ready(LaneStatus.idle) == false
-    and lane_is_ready(LaneStatus.busy) == false
-    and lane_is_ready(LaneStatus.error) == false
+test "lane_is_ready_false" {
+    try std.testing.expect(lane_is_ready(LaneStatus.idle) == false);
+    try std.testing.expect(lane_is_ready(LaneStatus.busy) == false);
+    try std.testing.expect(lane_is_ready(LaneStatus.error) == false);
 
-test lane_is_busy_true
-    then lane_is_busy(LaneStatus.busy) == true
+test "lane_is_busy_true" {
+    try std.testing.expect(lane_is_busy(LaneStatus.busy) == true);
 
-test lane_is_error_true
-    then lane_is_error(LaneStatus.error) == true
+test "lane_is_error_true" {
+    try std.testing.expect(lane_is_error(LaneStatus.error) == true);
 
-test precheck_lane_pass
+test "precheck_lane_pass" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    and result = precheck_lane(0, 128, config)
-    then precheck_pass(result) == true
-    and result.error_code == 0
+    try std.testing.expect(result = precheck_lane(0, 128, config));
+    try std.testing.expect(precheck_pass(result) == true);
+    try std.testing.expect(result.error_code == 0);
 
-test precheck_lane_invalid_lane
+test "precheck_lane_invalid_lane" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    and result = precheck_lane(8, 128, config)
-    then precheck_fail(result) == true
-    and result.error_code == 1
+    try std.testing.expect(result = precheck_lane(8, 128, config));
+    try std.testing.expect(precheck_fail(result) == true);
+    try std.testing.expect(result.error_code == 1);
 
-test precheck_lane_invalid_address
+test "precheck_lane_invalid_address" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    and result = precheck_lane(0, 256, config)
-    then precheck_fail(result) == true
-    and result.error_code == 2
+    try std.testing.expect(result = precheck_lane(0, 256, config));
+    try std.testing.expect(precheck_fail(result) == true);
+    try std.testing.expect(result.error_code == 2);
 
-test precheck_lane_permission_denied
+test "precheck_lane_permission_denied" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 0x0F, .priority = 0}
-    and result = precheck_lane(0, 0x80, config)
-    then precheck_fail(result) == true
-    and result.error_code == 3
+    try std.testing.expect(result = precheck_lane(0, 0x80, config));
+    try std.testing.expect(precheck_fail(result) == true);
+    try std.testing.expect(result.error_code == 3);
 
-test precheck_lane_lut_disabled
+test "precheck_lane_lut_disabled" {
     given config = LaneConfig{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    and result = precheck_lane(0, 128, config)
-    then precheck_fail(result) == true
-    and result.error_code == 4
+    try std.testing.expect(result = precheck_lane(0, 128, config));
+    try std.testing.expect(precheck_fail(result) == true);
+    try std.testing.expect(result.error_code == 4);
 
-test precheck_any_pass_true
+test "precheck_any_pass_true" {
     given configs = [_]LaneConfig{
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
     }
-    and results = precheck_all_lanes(0b00000011, 128, configs)
-    then precheck_any_pass(results) == true
+    try std.testing.expect(results = precheck_all_lanes(0b00000011, 128, configs));
+    try std.testing.expect(precheck_any_pass(results) == true);
 
-test precheck_any_pass_false
+test "precheck_any_pass_false" {
     given configs = [_]LaneConfig{
         .{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0},
     }
-    and results = precheck_all_lanes(0b00000011, 128, configs)
-    then precheck_any_pass(results) == false
+    try std.testing.expect(results = precheck_all_lanes(0b00000011, 128, configs));
+    try std.testing.expect(precheck_any_pass(results) == false);
 
-test precheck_all_pass_true
+test "precheck_all_pass_true" {
     given configs = [_]LaneConfig{
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
     }
-    and results = precheck_all_lanes(0b00000011, 128, configs)
-    then precheck_all_pass(results) == true
+    try std.testing.expect(results = precheck_all_lanes(0b00000011, 128, configs));
+    try std.testing.expect(precheck_all_pass(results) == true);
 
-test precheck_count_passed
-    given configs = [_]LaneConfig{
-        .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
-        .{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0},
-        .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
-    }
-    and results = precheck_all_lanes(0b00000111, 128, configs)
-    then precheck_count_passed(results) == 2
-
-test precheck_get_ready_lanes
+test "precheck_count_passed" {
     given configs = [_]LaneConfig{
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
     }
-    and results = precheck_all_lanes(0b00000111, 128, configs)
-    then precheck_get_ready_lanes(results) == 0b00000101
+    try std.testing.expect(results = precheck_all_lanes(0b00000111, 128, configs));
+    try std.testing.expect(precheck_count_passed(results) == 2);
 
-test lut_address_valid_true
+test "precheck_get_ready_lanes" {
+    given configs = [_]LaneConfig{
+        .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
+        .{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0},
+        .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
+    }
+    try std.testing.expect(results = precheck_all_lanes(0b00000111, 128, configs));
+    try std.testing.expect(precheck_get_ready_lanes(results) == 0b00000101);
+
+test "lut_address_valid_true" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    then lut_address_valid(128, config) == true
+    try std.testing.expect(lut_address_valid(128, config) == true);
 
-test lut_address_valid_disabled
+test "lut_address_valid_disabled" {
     given config = LaneConfig{.enabled = false, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    then lut_address_valid(128, config) == false
+    try std.testing.expect(lut_address_valid(128, config) == false);
 
-test lut_address_valid_masked
+test "lut_address_valid_masked" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 0x0F, .priority = 0}
-    then lut_address_valid(0x08, config) == true
-    and lut_address_valid(0x80, config) == false
+    try std.testing.expect(lut_address_valid(0x08, config) == true);
+    try std.testing.expect(lut_address_valid(0x80, config) == false);
 
-test lut_address_masked_value
+test "lut_address_masked_value" {
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 0x0F, .priority = 0}
-    then lut_address_masked(0xAB, config) == 0x0B
+    try std.testing.expect(lut_address_masked(0xAB, config) == 0x0B);
 
-test lut_address_offset
-    then lut_address_offset(20, 10) == 10
-    and lut_address_offset(5, 10) == 0
+test "lut_address_offset" {
+    try std.testing.expect(lut_address_offset(20, 10) == 10);
+    try std.testing.expect(lut_address_offset(5, 10) == 0);
 
-test encode_lut_lookup
+test "encode_lut_lookup" {
     given encoded = encode_lut_lookup(0b00000101, 0x10)
-    then (encoded >> 8) == OP_LUT_LOOKUP
+    try std.testing.expect((encoded >> 8) == OP_LUT_LOOKUP);
 
-test decode_lut_lookup
+test "decode_lut_lookup" {
     given decoded = decode_lut_lookup(0xDF50)
-    then decoded.lane_bits == 0b00000010
-    and decoded.lut_addr == 0x10
+    try std.testing.expect(decoded.lane_bits == 0b00000010);
+    try std.testing.expect(decoded.lut_addr == 0x10);
 
-test opcode_constant
-    then OP_LUT_LOOKUP == 0xDF
+test "opcode_constant" {
+    try std.testing.expect(OP_LUT_LOOKUP == 0xDF);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant lane_count_eight
     assert LANE_COUNT == 8
 
@@ -422,21 +423,21 @@ invariant lane_valid_range
 
 invariant precheck_pass_and_fail_opposite
     given config = LaneConfig{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0}
-    and result = precheck_lane(0, 128, config)
+    try std.testing.expect(result = precheck_lane(0, 128, config));
     assert precheck_pass(result) != precheck_fail(result)
 
 invariant ready_lane_not_busy
-    then lane_is_ready(LaneStatus.ready) != lane_is_busy(LaneStatus.ready)
+    try std.testing.expect(lane_is_ready(LaneStatus.ready) != lane_is_busy(LaneStatus.ready));
 
 invariant error_lane_not_ready
-    then lane_is_error(LaneStatus.error) != lane_is_ready(LaneStatus.error)
+    try std.testing.expect(lane_is_error(LaneStatus.error) != lane_is_ready(LaneStatus.error));
 
 invariant precheck_count_bound
     given configs = [_]LaneConfig{
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
     }
-    and results = precheck_all_lanes(0xFF, 128, configs)
+    try std.testing.expect(results = precheck_all_lanes(0xFF, 128, configs));
     assert precheck_count_passed(results) <= LANE_COUNT
 
 invariant ready_mask_bound
@@ -444,8 +445,8 @@ invariant ready_mask_bound
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
         .{.enabled = true, .lut_base = 0, .lut_mask = 255, .priority = 0},
     }
-    and results = precheck_all_lanes(0xFF, 128, configs)
-    then precheck_get_ready_lanes(results) < (@as(u8, 1) << LANE_COUNT)
+    try std.testing.expect(results = precheck_all_lanes(0xFF, 128, configs));
+    try std.testing.expect(precheck_get_ready_lanes(results) < (@as(u8, 1) << LANE_COUNT));
 
 // ============================================================================
 // Benchmarks

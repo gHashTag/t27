@@ -314,131 +314,132 @@ pub fn decode_stoch_round(encoded: u16) struct { mode: u8, target_bits: u8, seed
 // TDD Tests
 // ============================================================================
 
-test round_mode_constants
-    then ROUND_MODE_NEAREST == 0
-    and ROUND_MODE_STOCHASTIC == 1
-    and ROUND_MODE_TRUNCATE == 2
-    and ROUND_MODE_CEIL == 3
+test "round_mode_constants" {
+    try std.testing.expect(ROUND_MODE_NEAREST == 0);
+    try std.testing.expect(ROUND_MODE_STOCHASTIC == 1);
+    try std.testing.expect(ROUND_MODE_TRUNCATE == 2);
+    try std.testing.expect(ROUND_MODE_CEIL == 3);
 
-test int4_bounds
-    then INT4_MAX == 7 and INT4_MIN == -8
+test "int4_bounds" {
+    try std.testing.expect(INT4_MAX == 7 and INT4_MIN == -8);
 
-test int8_bounds
-    then INT8_MAX == 127 and INT8_MIN == -128
+test "int8_bounds" {
+    try std.testing.expect(INT8_MAX == 127 and INT8_MIN == -128);
 
-test round_nearest_basic
+test "round_nearest_basic" {
     given result = round_nearest(10, 4)
-    then result.value == 1
+    try std.testing.expect(result.value == 1);
 
-test round_nearest_negative
+test "round_nearest_negative" {
     given result = round_nearest(-10, 4)
-    then result.value == -1
+    try std.testing.expect(result.value == -1);
 
-test round_nearest_overflow
+test "round_nearest_overflow" {
     given result = round_nearest(0x7FFF, 8)
-    then result.value == INT8_MAX
-    and result.overflow == true
+    try std.testing.expect(result.value == INT8_MAX);
+    try std.testing.expect(result.overflow == true);
 
-test round_nearest_underflow
+test "round_nearest_underflow" {
     given result = round_nearest(-0x8000, 8)
-    then result.value == INT8_MIN
-    and result.overflow == true
+    try std.testing.expect(result.value == INT8_MIN);
+    try std.testing.expect(result.overflow == true);
 
-test round_nearest_no_change
+test "round_nearest_no_change" {
     given result = round_nearest(0x1000, 8)
-    then result.value == 0x10
-    and result.rounded == false
+    try std.testing.expect(result.value == 0x10);
+    try std.testing.expect(result.rounded == false);
 
-test round_truncate_basic
+test "round_truncate_basic" {
     given result = round_truncate(10, 4)
-    then result.value == 0
+    try std.testing.expect(result.value == 0);
 
-test round_truncate_negative
+test "round_truncate_negative" {
     given result = round_truncate(-10, 4)
-    then result.value == 0
+    try std.testing.expect(result.value == 0);
 
-test round_truncate_fractional
+test "round_truncate_fractional" {
     given result = round_truncate(15, 4)
-    then result.value == 0
+    try std.testing.expect(result.value == 0);
 
-test round_ceil_basic
+test "round_ceil_basic" {
     given result = round_ceil(10, 4)
-    then result.value == 1
+    try std.testing.expect(result.value == 1);
 
-test round_ceil_negative
+test "round_ceil_negative" {
     given result = round_ceil(-10, 4)
-    then result.value == 0
+    try std.testing.expect(result.value == 0);
 
-test round_ceil_fractional
+test "round_ceil_fractional" {
     given result = round_ceil(1, 4)
-    then result.value == 1
+    try std.testing.expect(result.value == 1);
 
-test round_stochastic_seeded
+test "round_stochastic_seeded" {
     given state = RngState{.state = 0x1234}
-    and round1 = round_stochastic(10, 4, state)
-    and state2 = RngState{.state = 0x1234}
-    and round2 = round_stochastic(10, 4, state2)
-    then round1.result.value == round2.result.value
-    and round1.new_state == round2.new_state
+    try std.testing.expect(round1 = round_stochastic(10, 4, state));
+    try std.testing.expect(state2 = RngState{.state = 0x1234});
+    try std.testing.expect(round2 = round_stochastic(10, 4, state2));
+    try std.testing.expect(round1.result.value == round2.result.value);
+    try std.testing.expect(round1.new_state == round2.new_state);
 
-test round_stochastic_reproducible
+test "round_stochastic_reproducible" {
     given state = RngState{.state = 0x1234}
-    and round1 = round_stochastic(10, 4, state)
-    and round2 = round_stochastic(10, 4, round1.new_state)
-    then round2.result.value != round1.result.value or round2.new_state != round1.new_state
+    try std.testing.expect(round1 = round_stochastic(10, 4, state));
+    try std.testing.expect(round2 = round_stochastic(10, 4, round1.new_state));
+    try std.testing.expect(round2.result.value != round1.result.value or round2.new_state != round1.new_state);
 
-test round_vector_nearest
+test "round_vector_nearest" {
     given results = round_vector_nearest([_]i16{10, 20, 30, 40, 50, 60, 70, 80}, 4)
-    then results[0].value == 1
-    and results[7].value == 5
+    try std.testing.expect(results[0].value == 1);
+    try std.testing.expect(results[7].value == 5);
 
-test round_vector_stochastic
+test "round_vector_stochastic" {
     given state = RngState{.state = 0x1234}
-    and round_result = round_vector_stochastic([_]i16{10, 20, 30, 40}, 4, state)
-    then round_result.new_state.state != 0x1234
+    try std.testing.expect(round_result = round_vector_stochastic([_]i16{10, 20, 30, 40}, 4, state));
+    try std.testing.expect(round_result.new_state.state != 0x1234);
 
-test rng_init_default
+test "rng_init_default" {
     given state = rng_init(0)
-    then state.state == 1
+    try std.testing.expect(state.state == 1);
 
-test rng_init_with_seed
+test "rng_init_with_seed" {
     given state = rng_init(0x1234)
-    then state.state == 0x1234
+    try std.testing.expect(state.state == 0x1234);
 
-test rng_next_range
+test "rng_next_range" {
     given state = rng_init(0x1234)
-    and result = rng_next_range(state, 100)
-    then result.value <= 100
+    try std.testing.expect(result = rng_next_range(state, 100));
+    try std.testing.expect(result.value <= 100);
 
-test round_with_config_nearest
+test "round_with_config_nearest" {
     given config = RoundConfig{.mode = ROUND_MODE_NEAREST, .target_bits = 8, .seed = 0}
-    and state = RngState{.state = 1}
-    and result = round_with_config(10, config, state)
-    then result.result.value == 10
+    try std.testing.expect(state = RngState{.state = 1});
+    try std.testing.expect(result = round_with_config(10, config, state));
+    try std.testing.expect(result.result.value == 10);
 
-test round_with_config_stochastic
+test "round_with_config_stochastic" {
     given config = RoundConfig{.mode = ROUND_MODE_STOCHASTIC, .target_bits = 4, .seed = 0}
-    and state = RngState{.state = 1}
-    and result = round_with_config(10, config, state)
-    then result.result.value <= INT4_MAX
+    try std.testing.expect(state = RngState{.state = 1});
+    try std.testing.expect(result = round_with_config(10, config, state));
+    try std.testing.expect(result.result.value <= INT4_MAX);
 
-test encode_stoch_round
+test "encode_stoch_round" {
     given encoded = encode_stoch_round(1, 4, 2)
-    then (encoded >> 8) == OP_STOCH_ROUND
+    try std.testing.expect((encoded >> 8) == OP_STOCH_ROUND);
 
-test decode_stoch_round
+test "decode_stoch_round" {
     given decoded = decode_stoch_round(0xE932)
-    then decoded.mode == 1
-    and decoded.target_bits == 4
-    and decoded.seed == 2
+    try std.testing.expect(decoded.mode == 1);
+    try std.testing.expect(decoded.target_bits == 4);
+    try std.testing.expect(decoded.seed == 2);
 
-test opcode_constant
-    then OP_STOCH_ROUND == 0xE9
+test "opcode_constant" {
+    try std.testing.expect(OP_STOCH_ROUND == 0xE9);
 
 // ============================================================================
 // Invariants
 // ============================================================================
 
+}
 invariant random_bits_eight
     assert RANDOM_BITS == 8
 
@@ -449,63 +450,63 @@ invariant int8_bits_eight
     assert INT8_BITS == 8
 
 invariant int4_max_min_relation
-    then INT4_MAX == -INT4_MIN - 1
+    try std.testing.expect(INT4_MAX == -INT4_MIN - 1);
 
 invariant int8_max_min_relation
-    then INT8_MAX == -INT8_MIN - 1
+    try std.testing.expect(INT8_MAX == -INT8_MIN - 1);
 
 invariant round_mode_values
-    then ROUND_MODE_NEAREST >= 0 and ROUND_MODE_CEIL <= 3
+    try std.testing.expect(ROUND_MODE_NEAREST >= 0 and ROUND_MODE_CEIL <= 3);
 
 invariant round_nearest_range
     given result = round_nearest(0, 4)
-    then result.value >= -8 and result.value <= 7
+    try std.testing.expect(result.value >= -8 and result.value <= 7);
 
 invariant round_truncate_range
     given result = round_truncate(0, 4)
-    then result.value >= -8 and result.value <= 7
+    try std.testing.expect(result.value >= -8 and result.value <= 7);
 
 invariant round_ceil_range
     given result = round_ceil(0, 4)
-    then result.value >= -8 and result.value <= 7
+    try std.testing.expect(result.value >= -8 and result.value <= 7);
 
 invariant round_stochastic_range
     given state = RngState{.state = 1}
-    and result = round_stochastic(0, 4, state)
-    then result.result.value >= INT4_MIN and result.result.value <= INT4_MAX
+    try std.testing.expect(result = round_stochastic(0, 4, state));
+    try std.testing.expect(result.result.value >= INT4_MIN and result.result.value <= INT4_MAX);
 
 invariant round_nearest_preserves_sign
     given result_pos = round_nearest(100, 4)
-    and result_neg = round_nearest(-100, 4)
-    then result_pos.value >= 0 and result_neg.value <= 0
+    try std.testing.expect(result_neg = round_nearest(-100, 4));
+    try std.testing.expect(result_pos.value >= 0 and result_neg.value <= 0);
 
 invariant round_truncate_preserves_sign
     given result_pos = round_truncate(100, 4)
-    and result_neg = round_truncate(-100, 4)
-    then result_pos.value >= 0 and result_neg.value <= 0
+    try std.testing.expect(result_neg = round_truncate(-100, 4));
+    try std.testing.expect(result_pos.value >= 0 and result_neg.value <= 0);
 
 invariant round_ceil_non_negative
     given result = round_ceil(0, 4)
-    then result.value >= 0
+    try std.testing.expect(result.value >= 0);
 
 invariant rng_next_state_changes
     given state = RngState{.state = 0x1234}
-    and result = rng_next(state)
-    then result.state.state != state.state
+    try std.testing.expect(result = rng_next(state));
+    try std.testing.expect(result.state.state != state.state);
 
 invariant rng_next_range_value_bound
     given state = RngState{.state = 1}
-    and result = rng_next_range(state, 100)
-    then result.value <= 100
+    try std.testing.expect(result = rng_next_range(state, 100));
+    try std.testing.expect(result.value <= 100);
 
 invariant round_vector_nearest_length
     given results = round_vector_nearest([_]i16{0} ** 8, 4)
-    then results.len == 8
+    try std.testing.expect(results.len == 8);
 
 invariant round_vector_stochastic_length
     given state = RngState{.state = 1}
-    and result = round_vector_stochastic([_]i16{0} ** 8, 4, state)
-    then result.results.len == 8
+    try std.testing.expect(result = round_vector_stochastic([_]i16{0} ** 8, 4, state));
+    try std.testing.expect(result.results.len == 8);
 
 // ============================================================================
 // Benchmarks
