@@ -240,3 +240,7 @@
 - **Commit:** docs(readme): Add TTSKY26b TinyTapeout submission results
 - **Files:** .trinity/seals/avs-controller-48.json,.trinity/seals/avs-controller-96.json,.trinity/seals/avs-reconf.json,.trinity/seals/fbb-active-path.json,.trinity/seals/gf16-to-fp16.json,.trinity/seals/gf16-to-posit16.json,.trinity/seals/gf32-to-fp32.json,.trinity/seals/purkinje-thermal-gate.json,.trinity/seals/sacred-dfs_gate.json,.trinity/seals/sacred-drowsy_ret.json,.trinity/seals/sacred-holo_mux_x4.json,.trinity/seals/sacred-lane_precheck.json,.trinity/seals/sacred-lut_npu_81_entry.json,.trinity/seals/sacred-null_pe.json,.trinity/seals/sacred-sparse_mask.json,.trinity/seals/sacred-sparse_skip.json,.trinity/seals/sacred-spec_exit.json,.trinity/seals/sacred-stoch_round.json,.trinity/seals/sacred-subth_clk.json,.trinity/seals/triformat-fp8_e4m3.json
 
+## 2026-05-18T03:58:49Z — main
+- **Commit:** feat(specs): Add sacred opcodes and format conversion specs
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl
+
