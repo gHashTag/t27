@@ -154,6 +154,8 @@ A third-party auditor wants to verify a claimed GF16-vs-BF16 result:
 - Sibling chip repos: `LINEUP.md` (the four-product map)
 - Chip-side D2D protocol (out of scope here, handled in
   `tt-trinity-euler` / `tt-trinity-gamma`).
+- Roadmap: `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` -- OS-01 names the
+  Python SDK target that consumes this API's schemas read-only.
 
 ---
 

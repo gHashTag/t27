@@ -154,6 +154,8 @@ document, that is a misreading and should be reported as an issue.
 - `docs/TRI_NET_WHITEPAPER.md` -- the line's positioning.
 - `tt-trinity-euler` / `tt-trinity-gamma` (chip repos) -- silicon
   targeting decisions live there, not here.
+- `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` -- EN-02 names this projection
+  table as the t27-side toolchain deliverable for energy work.
 
 ---
 

@@ -211,6 +211,7 @@ Zenodo bundles plan: `docs/ZENODO_BUNDLES.md` (this package).
 - `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md` -- numeric comparison protocol
 - `docs/22FDX_TOPS_W_PROJECTION.md` -- silicon energy projection
 - `docs/ZENODO_BUNDLES.md` -- DOI bundle plan
+- `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` -- 2026 t27-side roadmap (CL / EN / SN / PUB / OS)
 
 ---
 

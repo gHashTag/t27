@@ -4,7 +4,7 @@ Last updated: 2026-05-18
 
 ## docs(TRI-NET) -- cross-line package P0 NMSE / P1 API+whitepaper / P2 22FDX + Zenodo (this PR, Closes #696)
 
-- **NEW** (docs-only, additive): `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md`, `docs/TRI_NET_API.md`, `docs/TRI_NET_WHITEPAPER.md`, `docs/22FDX_TOPS_W_PROJECTION.md`, `docs/ZENODO_BUNDLES.md`
+- **NEW** (docs-only, additive): `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md`, `docs/TRI_NET_API.md`, `docs/TRI_NET_WHITEPAPER.md`, `docs/22FDX_TOPS_W_PROJECTION.md`, `docs/ZENODO_BUNDLES.md`, `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` (2026 t27-side roadmap: CL-01..04 DARPA-CLARA alignment, EN-01..03 energy, SN-01..03 SNN-TRI fusion, PUB-01..03 publication, OS-01..03 open-source SDK / Coq export / contribution path; every row labelled `VERIFY`, `projection`, or `target` -- no funding / silicon-date / paper-acceptance / `1000x` / `4000 TOPS/W` / new-DOI claim)
 - **NEW** machine-readable specs: `specs/benchmarks/gf16_bfloat16_nmse.t27` (L4 TESTABILITY: `test` + `invariant` + `bench`), `specs/api/tri_net_api.t27` (L4 TESTABILITY: `test` + `invariant` + `bench`)
 - **NEW** JSON schemas: `schemas/nmse-protocol-v1.json` (draft-07, results manifest), `schemas/tri-net-api-v1.json` (draft-07, RepoIdentity / Readiness / ArtefactIndex shapes)
 - **P0** GF16 vs bfloat16 NMSE: distribution-explicit (D_NORM, D_LOG, D_RELU, D_PHI, D_DEEP); no silicon number asserted; L5 IDENTITY witness gates every run (`phi^2 + 1/phi^2 = 3` to 1e-15 in f64); BF16 subnormal policy must be declared; seal hash must match `bootstrap/stage0/FROZEN_HASH` or manifest is informational only

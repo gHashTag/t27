@@ -4,7 +4,7 @@ Last updated: 2026-05-18
 
 ## docs(TRI-NET) -- cross-line package P0/P1/P2 (this PR, Closes #696)
 
-- **NEW** docs: `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md`, `docs/TRI_NET_API.md`, `docs/TRI_NET_WHITEPAPER.md`, `docs/22FDX_TOPS_W_PROJECTION.md`, `docs/ZENODO_BUNDLES.md`
+- **NEW** docs: `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md`, `docs/TRI_NET_API.md`, `docs/TRI_NET_WHITEPAPER.md`, `docs/22FDX_TOPS_W_PROJECTION.md`, `docs/ZENODO_BUNDLES.md`, `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` (2026 t27-side roadmap, R5-honest labels)
 - **NEW** specs: `specs/benchmarks/gf16_bfloat16_nmse.t27`, `specs/api/tri_net_api.t27` (both contain `test`+`invariant`+`bench` per L4)
 - **NEW** schemas: `schemas/nmse-protocol-v1.json`, `schemas/tri-net-api-v1.json` (draft-07)
 - Docs-only; no `gen/`/`coq/`/`bootstrap/` edits; no new `*.sh`; R5-HONEST preserved (projections labelled; no DOIs quoted before upload)

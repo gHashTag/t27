@@ -190,6 +190,9 @@ Each upload is its own issue with `Closes #N` discipline.
 - Readiness: `STATUS.md`
 - Chip repos: `LINEUP.md` (the four-product map)
 - `CITATION.cff` DOI gate: issue #653
+- Roadmap: `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` -- OS-02 names the
+  Coq export consumed by v3; PUB-02 names the sealed NMSE manifest
+  whose existence is a v1 / v3 pre-upload signal.
 
 ---
 

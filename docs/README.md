@@ -49,6 +49,17 @@ TDD, bootstrap/testing plans, math/physics test framework charter, PHI loop, tec
 |---------|-------------|-------|
 | **CLARA DARPA PA-25-07-02** | DARPA CLARA submission package (moved 2026-04-15) | [ghashTag/trinity-clara](https://github.com/gHashTag/trinity-clara) |
 
+## TRI-NET cross-line package (docs-only)
+
+| Path | Role |
+|------|------|
+| [`TRI_NET_WHITEPAPER.md`](TRI_NET_WHITEPAPER.md) | Position paper -- open high-assurance ternary AI silicon substrate. |
+| [`TRI_NET_API.md`](TRI_NET_API.md) | File-based, read-only external integration contract (schema MAJOR=1). |
+| [`GF16_BFLOAT16_NMSE_PROTOCOL.md`](GF16_BFLOAT16_NMSE_PROTOCOL.md) | Distribution-explicit NMSE comparison protocol; L5 identity-witness-gated. |
+| [`22FDX_TOPS_W_PROJECTION.md`](22FDX_TOPS_W_PROJECTION.md) | Energy projection methodology with C1..C5 confidence bands (projection, not measured). |
+| [`ZENODO_BUNDLES.md`](ZENODO_BUNDLES.md) | v1 / v2 / v3 Zenodo bundle plan -- no DOI quoted before upload. |
+| [`SCIENTIFIC_IMPROVEMENT_PLAN.md`](SCIENTIFIC_IMPROVEMENT_PLAN.md) | 2026 t27-side roadmap (CL-01..04, EN-01..03, SN-01..03, PUB-01..03, OS-01..03). |
+
 ---
 
 **φ² + 1/φ² = 3 | TRINITY**

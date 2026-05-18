@@ -184,6 +184,8 @@ When a chip-repo or third-party result is cited:
   - `tt-trinity-gamma` (8x4, 32-PE mesh) -- `D_DEEP` is the headline.
 - TRI-NET API doc: `docs/TRI_NET_API.md` -- how an external integrator
   reads NMSE manifests programmatically.
+- Roadmap: `docs/SCIENTIFIC_IMPROVEMENT_PLAN.md` -- PUB-02 names "one
+  sealed-toolchain NMSE manifest" as a 2026 target deliverable.
 
 ---
 
