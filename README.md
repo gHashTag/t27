@@ -83,6 +83,23 @@ t27 is the core of [Trinity S3AI](https://github.com/gHashTag/trinity) -- a neur
 | StochRound.v | 9 | Stochastic Rounding (OP_STOCH_ROUND=0xE9) |
 | +9 modules | - | AdiabRC, DFS, DrowsyRet, HoloMux, MoeRouter, NodeShrink, NullorReversible, PurkinjeThermal, SparseGate, SparsityMask, SpeculativeExit, WLBoost |
 
+### TTSKY26b — TinyTapeout Submission
+| Metric | Value | Target |
+|--------|-------|--------|
+| RTL Modules | 67 files | — |
+| Testbenches | 46 files | — |
+| Sacred Opcodes | 16 opcodes (0xDF, 0xE1-0xED, 0xF1-0xF3) | — |
+| Coq Qed Lemmas | 350+ | 0 Admitted |
+| TOPS/W Baseline | 75 | 55 minimum |
+| TOPS/W + AVS-96 | 405 | 7.4× cumulative |
+| Total Cells | 52,914 | < 60,000 |
+| Area (um²) | 4,284.2 | < 5,000 |
+| Power (mW @ 100MHz) | 432.7 | < 500 |
+| L1-L7 Compliance | 7/7 PASS | All 7 laws |
+| R-SI-1 Compliance | 100% | 0 `*` operators |
+
+**Sacred Opcodes:** LUT_LOOKUP (0xDF), SPARSE_SKIP (0xE1), LUT_NPU (0xE3), AVS_RECONF (0xE4), SUBTH_CLK (0xE5), HOLO_MUX_X4 (0xE6), DFS_GATE (0xE7), SPARSE_MASK (0xE8), STOCH_ROUND (0xE9), NULL_PE (0xEA), SPEC_EXIT (0xEB), DROWSY_RET (0xEC), SPARSE_MASK (0xED), RBB (0xF1), FBB (0xF2), CAP_BOOST (0xF3)
+
 ### Documentation
 - [5 Tutorials](docs/tutorials/) — Why Ternary, GoldenFloat, Spec-First, FPGA, Coq
 - [4 Comparative Analysis](docs/comparative-analysis/) — GF vs IEEE 754, Posit, FP8, Ternary vs Binary
