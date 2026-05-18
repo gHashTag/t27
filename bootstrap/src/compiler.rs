@@ -3452,6 +3452,9 @@ pub struct VerilogCodegen {
     indent: u32,
     module_name: String,
     current_fn_name: String,
+    // R-VLG-2005-2: when true, gen_verilog_stmt::StmtLocal skips the `reg [W]` prefix
+    // because the declaration has already been hoisted to module/function scope.
+    locals_hoisted: bool,
 }
 
 impl VerilogCodegen {
@@ -3461,6 +3464,19 @@ impl VerilogCodegen {
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            locals_hoisted: false,
+        }
+    }
+
+    /// R-VLG-2005-2: recursively collect all StmtLocal declarations from a function body
+    /// so we can hoist their `reg [W] name;` declarations BEFORE the `begin` block
+    /// (Verilog-2005 forbids initialized reg decls inside unnamed begin..end).
+    fn collect_locals<'a>(node: &'a Node, out: &mut Vec<&'a Node>) {
+        if node.kind == NodeKind::StmtLocal {
+            out.push(node);
+        }
+        for child in &node.children {
+            Self::collect_locals(child, out);
         }
     }
 
@@ -3694,10 +3710,13 @@ impl VerilogCodegen {
                     Self::sanitize_identifier(&b.name)
                 ));
                 self.indent();
+                // R-VLG-2005-3: declarations MUST precede statements in a named block.
+                self.write_indent();
+                self.write_line("integer _bench_cycles;");
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
                 self.write_indent();
-                self.write_line("integer _bench_cycles = 0;");
+                self.write_line("_bench_cycles = 0;");
                 for child in &b.children {
                     self.gen_verilog_test_stmt(child, &b.name);
                     self.write_indent();
@@ -3902,6 +3921,12 @@ impl VerilogCodegen {
         self.indent();
 
         // Emit parameters as input declarations
+        // R-VLG-FN-DUMMY-PORT: Verilog-2005 requires functions to have at least one input.
+        // For zero-arg functions, emit a dummy 1-bit input that callers can pass 1'b0.
+        if node.extra_return_type != "void" && node.params.is_empty() {
+            self.write_indent();
+            self.write_line("input _unused_dummy; // R-VLG-FN-DUMMY-PORT");
+        }
         for (pname, ptype) in &node.params {
             self.write_indent();
             let pw = Self::type_to_width(ptype);
@@ -3921,6 +3946,33 @@ impl VerilogCodegen {
             self.write_indent();
             self.write_line("// TODO: implement");
         } else {
+            // R-VLG-2005-2: hoist local reg declarations BEFORE `begin`.
+            // Verilog-2005 §10.1.1: variable declarations may appear in the
+            // function declaration but NOT inside unnamed begin..end blocks.
+            let mut locals: Vec<&Node> = Vec::new();
+            for stmt in &node.children {
+                Self::collect_locals(stmt, &mut locals);
+            }
+            // Deduplicate by name (multiple StmtLocal with same name across branches).
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for lcl in &locals {
+                if !seen.insert(lcl.name.clone()) {
+                    continue;
+                }
+                let width = Self::type_to_width(&lcl.extra_type);
+                let signed = Self::type_is_signed(&lcl.extra_type);
+                let signed_str = if signed { "signed " } else { "" };
+                let range = Self::range_decl(width);
+                let range_str = if range.is_empty() {
+                    String::new()
+                } else {
+                    format!("{} ", range)
+                };
+                self.write_indent();
+                self.write_line(&format!("reg {}{}{};", signed_str, range_str, lcl.name));
+            }
+            let saved_hoisted = self.locals_hoisted;
+            self.locals_hoisted = true;
             self.write_indent();
             self.write_line("begin");
             self.indent();
@@ -3930,6 +3982,7 @@ impl VerilogCodegen {
             self.dedent();
             self.write_indent();
             self.write_line("end");
+            self.locals_hoisted = saved_hoisted;
         }
 
         self.dedent();
@@ -4028,28 +4081,41 @@ impl VerilogCodegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                let kw = if node.extra_mutable { "reg" } else { "reg" };
-                let width = Self::type_to_width(&node.extra_type);
-                let signed = Self::type_is_signed(&node.extra_type);
-                let signed_str = if signed { "signed " } else { "" };
-                let range = Self::range_decl(width);
-                let range_str = if range.is_empty() {
-                    String::new()
+                // R-VLG-2005-2: when locals have been hoisted to function scope,
+                // emit ONLY the assignment (declaration is already at scope top).
+                if self.locals_hoisted {
+                    if !node.children.is_empty() {
+                        self.write(&format!("{} = ", node.name));
+                        self.gen_verilog_expr(&node.children[0]);
+                    } else {
+                        // Declaration without initializer -- emit no-op comment.
+                        self.write(&format!("/* {} declared */", node.name));
+                    }
+                    self.write_line(";");
                 } else {
-                    format!("{} ", range)
-                };
+                    let kw = if node.extra_mutable { "reg" } else { "reg" };
+                    let width = Self::type_to_width(&node.extra_type);
+                    let signed = Self::type_is_signed(&node.extra_type);
+                    let signed_str = if signed { "signed " } else { "" };
+                    let range = Self::range_decl(width);
+                    let range_str = if range.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", range)
+                    };
 
-                if node.extra_mutable {
-                    self.write(&format!("{} {}{}{}", kw, signed_str, range_str, node.name));
-                } else {
-                    // const → localparam-like or wire
-                    self.write(&format!("{} {}{}{}", kw, signed_str, range_str, node.name));
+                    if node.extra_mutable {
+                        self.write(&format!("{} {}{}{}", kw, signed_str, range_str, node.name));
+                    } else {
+                        // const → localparam-like or wire
+                        self.write(&format!("{} {}{}{}", kw, signed_str, range_str, node.name));
+                    }
+                    if !node.children.is_empty() {
+                        self.write(" = ");
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
+                    self.write_line(";");
                 }
-                if !node.children.is_empty() {
-                    self.write(" = ");
-                    self.gen_verilog_expr(&node.children[0]);
-                }
-                self.write_line(";");
             }
             NodeKind::StmtAssign => {
                 self.write_indent();
@@ -4417,8 +4483,12 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
+                // R-ARR-INIT: emit a valid Verilog RHS (0) with the array literal
+                // captured in a trailing comment. Verilog-2005 has no array literal
+                // syntax; full unpacked-array initialization belongs in an `initial` block.
+                self.write("0");
                 self.write(&format!(
-                    "/* array [{}]{}{{",
+                    " /* array [{}]{}{{",
                     node.extra_size, node.extra_type
                 ));
                 for elem in &node.children {
