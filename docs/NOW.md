@@ -1,6 +1,21 @@
-# NOW — Trinity t27 sync
+# NOW -- Trinity t27 sync
 
 Last updated: 2026-05-18
+
+## docs(TRI-NET) -- cross-line package P0 NMSE / P1 API+whitepaper / P2 22FDX + Zenodo (this PR, Closes #696)
+
+- **NEW** (docs-only, additive): `docs/GF16_BFLOAT16_NMSE_PROTOCOL.md`, `docs/TRI_NET_API.md`, `docs/TRI_NET_WHITEPAPER.md`, `docs/22FDX_TOPS_W_PROJECTION.md`, `docs/ZENODO_BUNDLES.md`
+- **NEW** machine-readable specs: `specs/benchmarks/gf16_bfloat16_nmse.t27` (L4 TESTABILITY: `test` + `invariant` + `bench`), `specs/api/tri_net_api.t27` (L4 TESTABILITY: `test` + `invariant` + `bench`)
+- **NEW** JSON schemas: `schemas/nmse-protocol-v1.json` (draft-07, results manifest), `schemas/tri-net-api-v1.json` (draft-07, RepoIdentity / Readiness / ArtefactIndex shapes)
+- **P0** GF16 vs bfloat16 NMSE: distribution-explicit (D_NORM, D_LOG, D_RELU, D_PHI, D_DEEP); no silicon number asserted; L5 IDENTITY witness gates every run (`phi^2 + 1/phi^2 = 3` to 1e-15 in f64); BF16 subnormal policy must be declared; seal hash must match `bootstrap/stage0/FROZEN_HASH` or manifest is informational only
+- **P1** TRI-NET API: file-based, read-only; explicitly NOT a hosted endpoint; schema MAJOR=1; fail-closed validation; extensions under `x_extension`
+- **P1** Whitepaper: position paper only; mirrors `STATUS.md` readiness ladder; no parity claim against commercial NPUs (see `COMPETITORS.md`); cross-links chip repos `tt-trinity-phi`, `tt-trinity-euler`, `tt-trinity-gamma`
+- **P2** 22FDX TOPS/W: every row tagged with confidence band C1..C5; C1 rows trace to existing Coq lemmas (W34..W49 in `trios-coq/Physics/`); no measured silicon number; falsification policy enumerated; no tape-out date claimed
+- **P2** Zenodo bundles plan: v1 toolchain / v2 silicon-substrate / v3 proofs+conformance; **no DOI quoted before upload**; existing canonical B001..B007 + v5.0 parent (cited in `docs/ZENODO.md`) are predecessor records, not v1/v2/v3
+- **Cross-links** to chip repos: D2D protocol spec is owned by `tt-trinity-euler` / `tt-trinity-gamma`; t27 surfaces only the toolchain-side hooks. Triple-Deck (W47 RBB + W48 FBB-active + W49 CapBoost) Coq lemmas already in `trios-coq/Physics/` per existing NOW entries; chip-side implementation lives in chip repos.
+- **L1 TRACEABILITY**: PR cites `Closes #696`. **L2 GENERATION**: zero edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `bootstrap/`. **L3 PURITY**: all new files ASCII / English (verifiable via `scripts/check_first_party_doc_language.py`). **L4 TESTABILITY**: both new `.t27` specs contain `test` + `invariant` + `bench`. **L5 IDENTITY**: `phi^2 + 1/phi^2 = 3` cited verbatim in every new doc and witnessed in NMSE protocol. **L6 CEILING**: `FORMAT-SPEC-001.json` + `specs/numeric/gf16.t27` referenced as SSOT; no numeric kernel changes. **L7 UNITY**: zero new `*.sh`.
+- **R5-HONEST**: every projection in `docs/22FDX_TOPS_W_PROJECTION.md` labelled "projection, not measured silicon"; every Zenodo row tagged `pending`; whitepaper claims strictly bounded by `STATUS.md` ladder
+- Closes #696
 
 ## ci(notebook-sync) — repair workflow syntax causing instant failures (this PR, #694, Closes #695)
 
