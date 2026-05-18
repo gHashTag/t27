@@ -4265,7 +4265,86 @@ impl VerilogCodegen {
             }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
-                    // Map operators
+                    // R-SI-1: rewrite `x * const_pow2` -> `x << log2(const)`
+                    // R-SI-1: rewrite `x * 3` -> `((x<<1) + x)` (small-const shift-add)
+                    // R-SI-1: other `*` falls through to `*` with a synthesis-warn comment
+                    //         (OpenLane SKY130A will reject; surfaces in iverilog gate)
+                    if node.extra_op == "*" {
+                        // Try right-operand const-fold first, then left.
+                        let rhs = &node.children[1];
+                        let lhs = &node.children[0];
+                        let parse_lit = |n: &Node| -> Option<u64> {
+                            if n.kind == NodeKind::ExprLiteral {
+                                let s = n.value.trim();
+                                // Accept decimal int; ignore floats/hex for safety.
+                                s.parse::<u64>().ok()
+                            } else { None }
+                        };
+                        let (var_side, const_val) = match (parse_lit(rhs), parse_lit(lhs)) {
+                            (Some(c), _) => (Some(lhs), Some(c)),
+                            (None, Some(c)) => (Some(rhs), Some(c)),
+                            _ => (None, None),
+                        };
+                        if let (Some(v), Some(c)) = (var_side, const_val) {
+                            // Power of two: 1, 2, 4, 8, ...
+                            if c > 0 && (c & (c - 1)) == 0 {
+                                let shift = c.trailing_zeros();
+                                if shift == 0 {
+                                    // *1 -> just emit variable
+                                    self.write("(");
+                                    self.gen_verilog_expr(v);
+                                    self.write(")");
+                                } else {
+                                    self.write("(");
+                                    self.gen_verilog_expr(v);
+                                    self.write(&format!(" << {}", shift));
+                                    self.write(")");
+                                }
+                                return;
+                            }
+                            // Small odd const: 3 -> (x<<1)+x ; 5 -> (x<<2)+x ; 7 -> (x<<3)-x ; 9 -> (x<<3)+x
+                            if c == 3 {
+                                self.write("((");
+                                self.gen_verilog_expr(v);
+                                self.write(" << 1) + ");
+                                self.gen_verilog_expr(v);
+                                self.write(")");
+                                return;
+                            }
+                            if c == 5 {
+                                self.write("((");
+                                self.gen_verilog_expr(v);
+                                self.write(" << 2) + ");
+                                self.gen_verilog_expr(v);
+                                self.write(")");
+                                return;
+                            }
+                            if c == 7 {
+                                self.write("((");
+                                self.gen_verilog_expr(v);
+                                self.write(" << 3) - ");
+                                self.gen_verilog_expr(v);
+                                self.write(")");
+                                return;
+                            }
+                            if c == 9 {
+                                self.write("((");
+                                self.gen_verilog_expr(v);
+                                self.write(" << 3) + ");
+                                self.gen_verilog_expr(v);
+                                self.write(")");
+                                return;
+                            }
+                        }
+                        // Fallback: emit `*` with R-SI-1 marker so iverilog/lint catches it.
+                        self.write("/* R-SI-1: non-synth mul */ (");
+                        self.gen_verilog_expr(lhs);
+                        self.write(" * ");
+                        self.gen_verilog_expr(rhs);
+                        self.write(")");
+                        return;
+                    }
+                    // Map operators (R-SI-1 rewrites `*` above)
                     let op = match node.extra_op.as_str() {
                         "&&" | "and" => "&&",
                         "||" | "or" => "||",
@@ -4277,7 +4356,6 @@ impl VerilogCodegen {
                         "<" => "<",
                         "+" => "+",
                         "-" => "-",
-                        "*" => "*",
                         "/" => "/",
                         "%" => "%",
                         "&" => "&",
@@ -4314,7 +4392,8 @@ impl VerilogCodegen {
                             NodeKind::ExprIdentifier => child.children[0].name.clone(),
                             _ => String::new(),
                         };
-                        let flat_name = format!("{}{}", base_name, node.name);
+                        // R-NAME: separator underscore between base and field (Verilog ident hygiene)
+                        let flat_name = format!("{}_{}", base_name, node.name);
                         self.write(&flat_name);
                     } else if child.kind == NodeKind::ExprIdentifier {
                         self.write(&child.name);
