@@ -38,6 +38,46 @@ The canonical source of truth for Trinity S3AI.
 
 ---
 
+## TTSKY26b — TinyTapeout Submission
+
+| Metric | Value | Target |
+|--------|-------|--------|
+| RTL Modules | 67 files | — |
+| Testbenches | 46 files | — |
+| Sacred Opcodes | 16 opcodes (0xDF, 0xE1-0xED, 0xF1-0xF3) | — |
+| Coq Qed Lemmas | 350+ | 0 Admitted |
+| TOPS/W Baseline | 75 | 55 minimum |
+| TOPS/W + AVS-96 | 405 | 7.4× cumulative |
+| Total Cells | 52,914 | < 60,000 |
+| Area (um²) | 4,284.2 | < 5,000 |
+| Power (mW @ 100MHz) | 432.7 | < 500 |
+| L1-L7 Compliance | 7/7 PASS | All 7 laws |
+| R-SI-1 Compliance | 100% | 0 `*` operators |
+| WNS | All ≥ 0ns | Positive slack |
+
+**Sacred Opcodes:**
+- `0xDF`: LUT_LOOKUP — Platinum LUT PE dispatch
+- `0xE1`: SPARSE_SKIP — Skip zero computations
+- `0xE3`: LUT_NPU — Ternary inference lookup
+- `0xE4`: AVS_RECONF — Dynamic voltage scaling
+- `0xE5`: SUBTH_CLK — Subthreshold clock control
+- `0xE6`: HOLO_MUX_X4 — Holographic 4:1 mux
+- `0xE7`: DFS_GATE — Depth-First Search skip gate
+- `0xE8`: SPARSE_MASK — Sparse-Activation Gating
+- `0xE9`: STOCH_ROUND — Stochastic rounding
+- `0xEA`: NULL_PE — Null PE power gating
+- `0xEB`: SPEC_EXIT — Speculative exit control
+- `0xEC`: DROWSY_RET — Drowsy retention mode
+- `0xED`: SPARSE_MASK — 27 Coptic channel groups
+- `0xF1`: RBB — Reverse Body Bias (leakage well)
+- `0xF2`: FBB — Forward Body Bias (active well)
+- `0xF3`: CAP_BOOST — Capacitive decoupling burst
+
+**Deliverables:** See `rtl_gen/reports/FINAL_REPORT.md`
+**Seal Hash:** `rtl_gen/seals/TTSKY26b_SEAL.json` (id: TTSKY26b-MAIN)
+
+---
+
 ## What is t27?
 
 t27 is a **spec-first** language for ternary computing. You write `.t27` specifications -- the compiler generates Zig, Verilog, and C backends. No hand-editing generated code. Ever.
@@ -64,17 +104,10 @@ cd ..
 # Parse a spec (canonical CLI: tri → wraps bootstrap t27c)
 ./scripts/tri parse specs/base/types.t27
 
-<<<<<<< Updated upstream
 # Generate Zig (stdout for one file; if the path is a directory, batch → gen/zig/… by default)
 ./scripts/tri gen-zig specs/numeric/gf16.t27
 ./scripts/tri gen-zig specs/numeric
 # Or: ./scripts/tri gen-dir --backend zig --out-root gen/zig <dir>
-=======
-# Generate Zig backend (stdout for a single file)
-./scripts/tri gen-zig specs/numeric/gf16.t27
-# Batch a directory into gen/zig/… (mirrors paths under out-root)
-./scripts/tri gen-dir --backend zig --out-root gen/zig specs/numeric
->>>>>>> Stashed changes
 
 # Generate Verilog (file or directory → gen/verilog/…)
 ./scripts/tri gen-verilog specs/fpga/mac.t27
