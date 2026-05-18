@@ -35,6 +35,42 @@ See **`docs/ARCHITECTURE.md`** for the strand decomposition and repository map.
 
 ---
 
+## Hardware Realization: TRI-NET Three-Chip Stack
+
+TRI-NET is the **silicon embodiment** of the PhD program's central verifiable-AI thesis. Three chips submitted on the TTSKY26b shuttle (TinyTapeout SKY130A, 2026-05-19) instantiate the three-strand architecture (φ²+φ⁻²=3) as fabricated RTL.
+
+**DOI:** [10.5281/zenodo.19227877](https://doi.org/10.5281/zenodo.19227877)  
+**Total RTL modules:** 246 (Phi 51 + Euler 90 + Gamma 105)
+
+### Chip-to-chapter traceability
+
+| Chip | Strand | PhD chapter alignment |
+|------|--------|-----------------------|
+| **Φ Phi** (#4914, 51 modules, 1×1 tile) | Strand I — Identity | Chapter 4 (identity / attestation): silicon root-of-trust, die-unique HWRNG, Lucas POST as constructive proof of φ²+φ⁻²=3. Chapter 8 (governance / integrity): attestable boot as engineering-ethics primitive. |
+| **E Euler** (#4915, 90 modules, 8×2 tile) | Strand II — Verification | Chapter 6 (AR / CLARA pipeline): the only known hardware implementation of all 10 DARPA CLARA AI Safety Gaps (Kleene K3 ALU, mini-Datalog, SAT/ASP solvers, proof-trace audit, BLAKE3 receipts). Chapter 7 (hardware & numerics in silicon): wishbone host bus, ternary VSA matmul 8×8 and 16×16. |
+| **Γ Gamma** (#4913, 105 modules, 8×4 tile) | Strand III — Inference | Chapter 7 (hardware & numerics in silicon): 8 cortical LIF columns, 20-PE GF16 mesh, FHRR holographic binding (Chapter 32 VSA), full GF4–GF256 multiplier portfolio, dual-library zoning. Chapter 3 (ternary logic): on-chip ternary ALU and BitNet b1.58 MLP as silicon artifact of K3 theory. |
+
+### Theorem 36.1 as silicon witness
+
+The **cross-die canonical anchor** `{uio_out, uo_out} = 0x47C0` — present on reset in all three chips — constitutes the **silicon witness of Theorem 36.1 (TG-TRIAD-X)**. The derivation chain:
+
+```
+φ²+φ⁻²=3  →  Lucas L₂=3  →  GF16 dot4(1,2,3,4)=0x47C0
+```
+
+This transforms WP2 (GoldenFloat & sacred-physics numerics) and WP4 (CLARA-style AR in ternary logic) from paper theorems into **independently reproducible fabricated evidence**. Any examiner can clone the Apache-2.0 RTL and verify the chain from gate-level simulation to physical silicon.
+
+### Academic significance
+
+- **WP1** (formal semantics): TRI-NET’s 246-module RTL corpus is the largest single-author open-silicon artifact implementing K3 ternary semantics; it provides a concrete formal substrate for the type-system and invariant chapters.
+- **WP4** (CLARA): Euler chip’s 10-gap hardware lattice is novel evidence that bounded-trace AI safety constraints are **implementable at sub-1 W** in open silicon, not just as software libraries.
+- **WP5** (FPGA / MAC / ISA bridge): Gamma chip’s 8-column LIF cortex and full GF multiplier set supply the measurement and resource-bound data required by Chapter 7; target ~1 GOPS @ ~50 MHz @ ~1 W ternary (projected).
+- **WP6** (governance): all three chips carry the same 0x47C0 anchor, making the three-chip stack a physical instantiation of the PHI LOOP seal discipline — every tapeout commit is traceable to a ring-gated PR.
+
+See **`docs/ARCHITECTURE.md`** section “TRI-NET: Unified Positioning (TRI-17)” and **`docs/TRI_NET_WHITEPAPER.md`** for full technical detail.
+
+---
+
 ## 2. Central hypothesis (defensible PhD spine)
 
 **Hypothesis (working):** A **spec-first** pipeline combining **ternary (K3) logical structure**, **GoldenFloat-class numerics**, and **machine-checked conformance vectors** yields **more auditable and safer** neurosymbolic AI stacks than ad-hoc binary toolchains where semantics live in scattered scripts and notebooks.

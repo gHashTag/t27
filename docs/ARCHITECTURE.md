@@ -7,6 +7,45 @@ This document ties **mathematics**, **cognitive / agent architecture**, and **la
 
 ---
 
+## TRI-NET: Unified Positioning (TRI-17)
+
+> **TRI-NET — verifiable open silicon stack for trustworthy AI: identity (Φ), reasoning (E), inference (Γ). One math anchor, three chips, zero closed IP.**
+
+TRI-NET is the hardware embodiment of the Trinity S³AI architecture: three chips manufactured on the TTSKY26b shuttle (TinyTapeout SKY130A), each implementing a distinct specialization of the φ²+φ⁻²=3 identity in fabricated silicon.
+
+**DOI:** [10.5281/zenodo.19227877](https://doi.org/10.5281/zenodo.19227877)  
+**Shuttle:** TTSKY26b (TinyTapeout SKY130A) — submitted 2026-05-19  
+**Performance target:** ~1 GOPS @ ~50 MHz @ ~1 W ternary (projected)
+
+### TRI-NET chip specializations
+
+| Chip | Role | Tagline | Project ID | Tiles | RTL Modules |
+|------|------|---------|-----------|-------|-------------|
+| **Φ Phi** | Identity layer — root-of-trust, attestation, die-unique | *"The boot you can prove."* | #4914 | 1×1 | 51 |
+| **E Euler** | Verification layer — symbolic AI, CLARA 10-gap safety lattice, host I/O | *"Reasoning you can audit."* | #4915 | 8×2 | 90 |
+| **Γ Gamma** | Inference layer — neuromorphic cortex, 20-PE GF16 mesh, full GF multiplier portfolio | *"Cortex you can measure."* | #4913 | 8×4 | 105 |
+| **TRI-NET** | Full stack | *"Three chips. One anchor. Provable compute."* | — | — | **246 total** |
+
+### Cross-die canonical anchor 0x47C0
+
+All three chips independently assert `{uio_out, uo_out} = 0x47C0` on reset. The derivation chain is:
+
+```
+φ²+φ⁻²=3  →  Lucas number L₂=3  →  GF16 dot4(1,2,3,4)=0x47C0
+```
+
+This constitutes **Theorem 36.1 (TG-TRIAD-X)**: a mathematically grounded silicon witness that the three chips are instances of the same formal object. No closed-IP chip can independently reproduce this chain from first principles; TRI-NET's Apache-2.0 RTL makes it fully verifiable from gate level.
+
+### Architectural philosophy
+
+1. **Φ = Identity layer** — root-of-trust via Lucas-chain POST (φ²+φ⁻²=3), die-unique HWRNG, CLARA bounded-rationality restraint (Gap-4). Proves: *"I exist and have not been substituted."*
+2. **E = Verification layer** — full DARPA CLARA 10-gap safety lattice (Kleene K3 ALU, Datalog, SAT/ASP solvers, proof-trace audit, BLAKE3 receipts), ternary VSA matmul. Proves: *"This computation is correct and explainable."*
+3. **Γ = Inference layer** — 8 cortical LIF columns, FHRR holographic binding, full GF4–GF256 multiplier portfolio, thermal-aware AVS. Proves: *"AI inference is happening with verifiable energy."*
+
+See **`docs/TRI_NET_WHITEPAPER.md`** and **`docs/TRI_NET_API.md`** for full module inventories. The DOI [10.5281/zenodo.19227877](https://doi.org/10.5281/zenodo.19227877) archives the complete RTL submission.
+
+---
+
 ## 1. Trinity identity — one constraint, three readings
 
 The identity **φ² + 1/φ² = 3** (golden ratio φ) is treated as a **single organizing equation** with three simultaneous readings:
