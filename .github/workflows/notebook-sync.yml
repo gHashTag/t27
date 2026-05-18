@@ -18,23 +18,22 @@ on:
     types: [submitted, edited]
   push:
     branches: ['feature/**', 'fix/**', 'ring-*/**', 'issue-*/**']
-
-# Allow manual trigger
-workflow_dispatch:
-  inputs:
-    issue_number:
-      description: 'Issue number to sync'
-      required: true
-      type: number
-    sync_type:
-      description: 'Type of sync'
-      required: false
-      type: choice
-      default: 'push'
-      options:
-        - push
-        - comment
-        - activity
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to sync'
+        required: true
+        type: number
+      sync_type:
+        description: 'Type of sync'
+        required: false
+        type: choice
+        default: 'push'
+        options:
+          - push
+          - comment
+          - activity
 
 jobs:
   # Extract issue number from event
@@ -44,7 +43,7 @@ jobs:
     outputs:
       issue_number: ${{ steps.issue.outputs.number }}
       issue_title: ${{ steps.issue.outputs.title }}
-      event_type: ${{ steps.event.outputs.type }}
+      event_type: ${{ steps.event_type.outputs.type }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -72,12 +71,6 @@ jobs:
               echo "type=pr" >> $GITHUB_OUTPUT
               ;;
             pull_request_review)
-              ISSUE_NUM="${{ github.event.pull_request.number }}"
-              ISSUE_TITLE="${{ github.event.pull_request.title }}"
-              echo "type=pr" >> $GITHUB_OUTPUT
-              ;;
-            pull_request_review)
-              # Extract issue number from PR body or branch
               ISSUE_NUM="${{ github.event.pull_request.number }}"
               ISSUE_TITLE="${{ github.event.pull_request.title }}"
               echo "type=pr" >> $GITHUB_OUTPUT
@@ -123,6 +116,8 @@ jobs:
     needs: extract-issue
     if: needs.extract-issue.outputs.issue_number != ''
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -177,19 +172,65 @@ jobs:
             exit 0
           }
 
-      - name: Update sync status as commit
+      - name: Update sync status as commit (best-effort)
         if: github.event_name == 'issues' || github.event_name == 'pull_request'
-        uses: peter-evans/create-or-update-file@v3
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          SYNC_TIME: ${{ github.event.repository.updated_at }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUM: ${{ needs.extract-issue.outputs.issue_number }}
         with:
-          path: .trinity/notebook_sync_status.json
-          content: |
-            {
-              "last_sync": "${{ github.event.repository.updated_at }}",
-              "last_event": "${{ github.event_name }}",
-              "last_issue": ${{ needs.extract-issue.outputs.issue_number }},
-              "synced_at": "${{ github.event.repository.updated_at }}"
+          script: |
+            const path = '.trinity/notebook_sync_status.json';
+            const content = JSON.stringify({
+              last_sync: process.env.SYNC_TIME,
+              last_event: process.env.EVENT_NAME,
+              last_issue: Number(process.env.ISSUE_NUM),
+              synced_at: process.env.SYNC_TIME,
+            }, null, 2) + '\n';
+            const contentB64 = Buffer.from(content).toString('base64');
+
+            // On 'issues' and 'pull_request' events the workflow has no
+            // single canonical branch to commit to (PRs from forks have a
+            // read-only token; 'issues' has no ref at all). Resolve the
+            // repository's default branch and commit there as best-effort.
+            const repoInfo = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const branch = repoInfo.data.default_branch;
+
+            let sha;
+            try {
+              const { data } = await github.rest.repos.getContent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path,
+                ref: branch,
+              });
+              sha = data.sha;
+            } catch (e) {
+              if (e.status !== 404) throw e;
             }
-          message: "Update NotebookLM sync status [skip ci]"
+
+            try {
+              await github.rest.repos.createOrUpdateFileContents({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path,
+                message: 'Update NotebookLM sync status [skip ci]',
+                content: contentB64,
+                branch,
+                ...(sha ? { sha } : {}),
+              });
+              core.info(`Wrote ${path} on ${branch}`);
+            } catch (e) {
+              // 403/422 are expected when the workflow runs from a fork or
+              // when branch protection blocks the write. This step is a
+              // book-keeping nicety, not a correctness gate — log and pass.
+              core.warning(`Status commit skipped (${e.status} ${e.message})`);
+            }
 
   # Sync activity.md periodically
   sync-activity:
