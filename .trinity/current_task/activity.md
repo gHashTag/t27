@@ -224,3 +224,7 @@
 - **Commit:** chore(session): Update session after TTSKY26b completion
 - **Files:** README.md
 
+## 2026-05-18T04:12:12Z — publication/v1.0.0-toolchain
+- **Commit:** docs(readme): Add TTSKY26b TinyTapeout submission metrics to v1.0.0
+- **Files:** .trinity/current_task/.commit_count,.trinity/current_task/session_log.jsonl,specs/fpga/avs_controller_48.t27,specs/fpga/avs_controller_96.t27,specs/fpga/avs_reconf.t27,specs/fpga/dfs_gate.t27,specs/fpga/drowsy_ret.t27,specs/fpga/fbb_active_path.t27,specs/fpga/gf16_to_fp16.t27,specs/fpga/gf16_to_posit16.t27,specs/fpga/gf32_to_fp32.t27,specs/fpga/holo_mux_x4.t27,specs/fpga/lane_l_precheck.t27,specs/fpga/lut_npu_81_entry.t27,specs/fpga/null_pe.t27,specs/fpga/purkinje_thermal_gate.t27,specs/fpga/sparse_mask.t27,specs/fpga/sparse_skip.t27,specs/fpga/spec_exit.t27,specs/fpga/stoch_round.t27
+
