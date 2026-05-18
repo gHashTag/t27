@@ -1,6 +1,18 @@
 # NOW — Trinity t27 sync
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
+
+## docs(TRI-NET) — positioning package (this PR, #693, Closes #627)
+
+- **NEW** (root-level, docs-only): `STATUS.md`, `LINEUP.md`, `FORMAT_REGISTRY.md`, `COMPETITORS.md`, `BENCHMARKS.md`, `CLARA_TRACEABILITY.md`
+- **README.md first screen**: additive "What this repo is" block linking to the six new docs; rest of README unchanged
+- **Positioning**: t27 framed as the fourth product of the TRI-NET line — spec-first toolchain + numeric format registry; chip siblings `tt-trinity-phi` (1×1 phi-anchor), `tt-trinity-euler` (8×2 e-engine), `tt-trinity-gamma` (8×4 32-PE ternary mesh)
+- **Readiness ladder**: SPEC / RTL / SIM / SYNTH / GDS-TAPEOUT / SILICON; conservative — no SILICON or GDS claim in t27, GF16 at SIM only, CLARA bridge demo/draft, Coq partial
+- **Numeric SSOT** kept: `conformance/FORMAT-SPEC-001.json` (primary = GF16), FP8 + NF4/INT4/INT8 bridges marked PLANNED (no spec yet)
+- **No code touched**: zero changes under `gen/`, `specs/`, `bootstrap/`, `coq/`. R-SI-1 and L2 GENERATION held
+- **Validation**: `scripts/check_first_party_doc_language.py` PASS; `FORMAT-SPEC-001.json` sanity PASS; full `./scripts/tri test` not run locally (no cargo in env) — CI is authoritative
+- **External sources cited in docs**: DARPA CLARA (darpa.mil/research/programs/clara), Qualcomm Cloud AI 100 Ultra brief, Hailo-8, Axelera Metis, Coral Edge TPU benchmarks, MediaTek Dimensity 9400+, BitNet b1.58 (arxiv 2402.17764), Tiny Tapeout chip catalogue
+- Closes #627
 
 ## Wave-45 Lane PP — Avs96Safe.v AVS-96 Dopamine Safety Coq (NEW, this PR)
 
