@@ -1,8 +1,20 @@
 # NOW — Trinity t27 sync
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
-## docs(TRI-NET) — positioning package (this PR, #693, Closes #627)
+## ci(notebook-sync) — repair workflow syntax causing instant failures (this PR, #694, Closes #695)
+
+- **Fixed**: `.github/workflows/notebook-sync.yml` was failing instantly on every push since #693 merged — runs completed in seconds with `conclusion=failure`, zero jobs dispatched, `gh run view --log-failed` reported *log not found*.
+- **Root cause (three combined defects)**:
+  1. `workflow_dispatch:` was declared at the top level instead of nested under `on:` — Actions rejected the file at parse time (bare `on` is interpreted as YAML `True`).
+  2. `extract-issue.outputs.event_type` referenced `steps.event.outputs.type` while the step id is `event_type`.
+  3. Duplicate `pull_request_review)` case in the bash event dispatch.
+- **Latent runtime defect surfaced once jobs began dispatching**: `sync-notebook` referenced `peter-evans/create-or-update-file@v3`, which does not exist on github.com (404). Replaced with `actions/github-script@v7` using `github.rest.repos.createOrUpdateFileContents`; added `permissions.contents: write` on the `sync-notebook` job. Step targets the repo's default branch (resolved via `repos.get`) because on `issues` / `pull_request` events there is no canonical branch to commit to, and is wrapped in `continue-on-error` + internal `try/catch` so a 403/422 from fork PRs or branch protection logs a warning instead of failing the sync job — matches the existing best-effort pattern around the `python sync.py || warnings; exit 0` block immediately above.
+- **Validation**: `actionlint 1.7.12` — all syntax-check and expression errors cleared. `yaml.safe_load` confirms `on:` contains all 6 triggers including `workflow_dispatch` with `inputs: [issue_number, sync_type]`.
+- **L7 UNITY held**: YAML/actions-side repair only — no `*.sh` added, no `gen/` edits, no spec changes. RTL/GDS/`verdict.json` gates untouched. TRI-NET docs package from #693 untouched.
+- Closes #695
+
+## docs(TRI-NET) — positioning package (#693, Closes #627)
 
 - **NEW** (root-level, docs-only): `STATUS.md`, `LINEUP.md`, `FORMAT_REGISTRY.md`, `COMPETITORS.md`, `BENCHMARKS.md`, `CLARA_TRACEABILITY.md`
 - **README.md first screen**: additive "What this repo is" block linking to the six new docs; rest of README unchanged
