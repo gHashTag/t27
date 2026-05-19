@@ -1,0 +1,16 @@
+-R . Trinity
+
+CorePhi.v
+AlphaPhi.v
+FormulaEval.v
+Tolerances.v
+Bounds_Gauge.v
+Bounds_Mixing.v
+Bounds_Masses.v
+Bounds_QuarkMasses.v
+Bounds_LeptonMasses.v
+ConsistencyChecks.v
+Catalog42.v
+DerivationLevels.v
+ExactIdentities.v
+Unitarity.v

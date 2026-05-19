@@ -24,17 +24,17 @@ Lemma alpha_phi_pos : 0 < alpha_phi < 1.
 Proof.
   unfold alpha_phi.
   split.
-  - apply Rmult_lt_pos_pos.
-    + apply Rinv_lt_pos.
-      apply Rgt_not_eq.
-      apply Rlt_gt.
-      apply phi_pos.
+  - apply Rmult_lt_0_compat.
+    + apply Rinv_0_lt_compat.
+      apply pow_lt.
+      exact phi_pos.
     + lra.
   - rewrite <- alpha_phi_closed_form.
-    (* (√5 - 2)/2 < 1 iff √5 - 2 < 2 iff √5 < 4 *)
     unfold Rdiv.
-    apply Rlt_lt_1.
-    lra.
+    apply Rmult_lt_reg_r with (r := 2).
+    + lra.
+    + assert (sqrt 5 < 4) by (apply sqrt_lt_Rlt; lra).
+      lra.
 Qed.
 
 (** α_φ is small: less than 1/8 *)
@@ -42,10 +42,10 @@ Lemma alpha_phi_small : alpha_phi < 1/8.
 Proof.
   rewrite <- alpha_phi_closed_form.
   unfold Rdiv.
-  apply Rlt_lt_1.
-  (* Need: √5 - 2 < 1/4, i.e., √5 < 2.25 *)
-  assert (sqrt(5) < 2.25) by (apply sqrt_lt_cancel; lra).
-  lra.
+  apply Rmult_lt_reg_r with (r := 2).
+  - lra.
+  - assert (sqrt 5 < 2.25) by (apply sqrt_lt_Rlt; lra).
+    lra.
 Qed.
 
 (** α_φ * φ³ = 1/2 (inverse relationship) *)
@@ -71,14 +71,14 @@ Proof.
   rewrite <- alpha_phi_closed_form.
   unfold Rdiv at 1.
   split.
-  - (* Lower bound: (√5 - 2)/2 > 0.1180339887 *)
-    apply Rlt_lt_1.
-    assert (sqrt(5) > 2.2360679775) by (apply sqrt_lt_cancel; lra).
-    lra.
-  - (* Upper bound: (√5 - 2)/2 < 0.1180339888 *)
-    apply Rlt_lt_1.
-    assert (sqrt(5) < 2.2360679776) by (apply sqrt_lt_cancel; lra).
-    lra.
+  - apply Rmult_lt_reg_r with (r := 2).
+    + lra.
+    + assert (sqrt 5 > 2.2360679774) by (apply sqrt_lt_cancel; lra).
+      lra.
+  - apply Rmult_lt_reg_r with (r := 2).
+    + lra.
+    + assert (sqrt 5 < 2.2360679776) by (apply sqrt_lt_cancel; lra).
+      lra.
 Qed.
 
 (** 50-digit certification: α_φ = 0.1180339887498948482045868343656381177203... *)
@@ -90,23 +90,27 @@ Proof.
   rewrite <- alpha_phi_closed_form.
   unfold Rdiv at 1.
   split.
-  - apply Rlt_lt_1.
-    assert (sqrt(5) > 2.23606797749978) by (apply sqrt_lt_cancel; lra).
-    lra.
-  - apply Rlt_lt_1.
-    assert (sqrt(5) < 2.23606797749979) by (apply sqrt_lt_cancel; lra).
-    lra.
+  - apply Rmult_lt_reg_r with (r := 2).
+    + lra.
+    + assert (sqrt 5 > 2.23606797749978) by (apply sqrt_lt_cancel; lra).
+      lra.
+  - apply Rmult_lt_reg_r with (r := 2).
+    + lra.
+    + assert (sqrt 5 < 2.23606797749979) by (apply sqrt_lt_cancel; lra).
+      lra.
 Qed.
 
-(** α_φ² = (3 - √5)/8 (square of α_φ) *)
+(** α_φ² = (9 - 4√5)/4 (square of α_φ) *)
+(** CRITICAL FIX: Was (3 - √5)/8, corrected to (9 - 4√5)/4 *)
 Lemma alpha_phi_squared :
-  alpha_phi^2 = (3 - sqrt(5)) / 8.
+  alpha_phi^2 = (9 - 4 * sqrt(5)) / 4.
 Proof.
   rewrite <- alpha_phi_closed_form.
   unfold Rdiv at 1.
-  field.
-  assert (sqrt(5) <> 0) by (apply Rgt_not_eq, Rlt_gt; apply sqrt_pos; lra).
-  lra.
+  field_simplify.
+  - assert (sqrt 5 ^ 2 = 5) by apply Rsqr_sqrt; lra.
+  - assert (sqrt 5 <> 0) by (apply Rgt_not_eq, Rlt_gt; apply sqrt_pos; lra).
+    lra.
 Qed.
 
 (** 1/α_φ = 2φ³ (inverse of α_φ) *)
@@ -118,12 +122,12 @@ Proof.
   apply alpha_phi_pos.
 Qed.
 
-(** 1/α_φ ≈ 8.47213595 (closed form: 4√5 + 6) *)
-Lemma inv_alpha_phi_closed_form : /alpha_phi = 4 * sqrt(5) + 6.
+(** 1/α_φ ≈ 8.47213595 (closed form: 4 + 2√5) *)
+(** CRITICAL FIX: Was 4√5 + 6 (≈14.94), corrected to 4 + 2√5 (≈8.472) *)
+Lemma inv_alpha_phi_closed_form : /alpha_phi = 4 + 2 * sqrt(5).
 Proof.
   rewrite inv_alpha_phi.
   rewrite phi_cubed.
-  unfold phi at 1.
   field.
 Qed.
 
@@ -135,11 +139,14 @@ Proof.
   exact phi_nonzero.
 Qed.
 
-(** α_φ in simplest radical form: α_φ = (3 - √5)/2 * α_φ *)
-Lemma alpha_phi_alternative_form :
-  alpha_phi = (3 - sqrt(5)) / 2 * alpha_phi^2.
+(** α_φ satisfies quadratic: 4α_φ² + 8α_φ - 1 = 0 *)
+(** Derived from α_φ = (√5 - 2)/2 *)
+Lemma alpha_phi_quadratic : 4 * alpha_phi^2 + 8 * alpha_phi - 1 = 0.
 Proof.
-  rewrite alpha_phi_squared.
+  rewrite <- alpha_phi_closed_form.
   unfold Rdiv.
-  field.
+  field_simplify.
+  - assert (sqrt 5 ^ 2 = 5) by apply Rsqr_sqrt; lra.
+  - assert (sqrt 5 <> 0) by (apply Rgt_not_eq, Rlt_gt; apply sqrt_pos; lra).
+    lra.
 Qed.

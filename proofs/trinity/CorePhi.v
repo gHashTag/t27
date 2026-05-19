@@ -11,7 +11,7 @@ Definition phi : R := (1 + sqrt(5)) / 2.
 Lemma phi_pos : 0 < phi.
 Proof.
   unfold phi.
-  apply Rmult_lt_pos_pos.
+  apply Rmult_lt_0_compat.
   - apply (Rlt_trans 0 2). lra.
   - apply Rle_lt_trans with (sqrt(5) + 0).
     + apply sqrt_pos.
@@ -35,53 +35,75 @@ Qed.
 (** φ² = φ + 1 (fundamental golden ratio identity) *)
 Lemma phi_square : phi^2 = phi + 1.
 Proof.
-  apply phi_quadratic; ring.
+  assert (phi^2 - phi - 1 = 0) by apply phi_quadratic.
+  lra.
 Qed.
 
 (** φ⁻¹ = φ - 1 (reciprocal identity) *)
 Lemma phi_inv : / phi = phi - 1.
 Proof.
-  apply phi_square; ring.
+  field_simplify_eq.
+  - rewrite phi_square; field.
+  - apply Rgt_not_eq, Rlt_gt; exact phi_pos.
 Qed.
 
 (** φ⁻² = 2 - φ (squared reciprocal) *)
 Lemma phi_inv_sq : /phi^2 = 2 - phi.
 Proof.
-  apply phi_inv; ring.
+  rewrite <- Rinv_pow.
+  - field_simplify_eq.
+    + rewrite phi_square; field.
+    + apply pow_nonzero.
+      apply Rgt_not_eq, Rlt_gt; exact phi_pos.
+  - apply Rgt_not_eq, Rlt_gt; exact phi_pos.
 Qed.
 
 (** Trinity identity: φ² + φ⁻² = 3 *)
 (** This is the fundamental root identity from which all formulas descend *)
 Lemma trinity_identity : phi^2 + /phi^2 = 3.
 Proof.
-  apply phi_square, phi_inv_sq; ring.
+  rewrite phi_square, phi_inv_sq.
+  lra.
 Qed.
 
 (** φ⁻³ = √5 - 2 (negative cubic power) *)
 Lemma phi_neg3 : /phi^3 = sqrt(5) - 2.
 Proof.
-  unfold phi; field.
+  rewrite <- Rinv_pow.
+  - field_simplify_eq.
+    + rewrite phi_square, phi_cubed; field.
+    + apply pow_nonzero.
+      apply Rgt_not_eq, Rlt_gt; exact phi_pos.
+  - apply Rgt_not_eq, Rlt_gt; exact phi_pos.
 Qed.
 
-(** φ³ = 2√5 + 3 (positive cubic power) *)
-Lemma phi_cubed : phi^3 = 2 * sqrt(5) + 3.
+(** φ³ = 2 + √5 (positive cubic power) *)
+(** CRITICAL FIX: Was 2*sqrt(5)+3 (≈7.47), corrected to 2+sqrt(5) (≈4.236) *)
+Lemma phi_cubed : phi^3 = 2 + sqrt(5).
 Proof.
-  unfold phi; field.
-Qed.
-
-(** φ⁴ = 3√5 + 5 (fourth power) *)
-Lemma phi_fourth : phi^4 = 3 * sqrt(5) + 5.
-Proof.
-  rewrite phi_cubed, phi_square.
-  unfold phi at 1.
+  assert (H: phi^3 = phi^2 * phi) by ring.
+  rewrite H, phi_square.
+  unfold phi.
   field.
 Qed.
 
-(** φ⁵ = 5√5 + 8 (fifth power, Fibonacci pattern) *)
-Lemma phi_fifth : phi^5 = 5 * sqrt(5) + 8.
+(** φ⁴ = (7 + 3√5) / 2 (fourth power) *)
+(** CRITICAL FIX: Was 3*sqrt(5)+5 (≈11.7), corrected to (7+3*sqrt(5))/2 (≈6.85) *)
+Lemma phi_fourth : phi^4 = (7 + 3 * sqrt(5)) / 2.
 Proof.
-  rewrite phi_fourth, phi_square.
-  unfold phi at 1.
+  assert (H: phi^4 = phi^3 * phi) by ring.
+  rewrite H, phi_cubed.
+  unfold phi.
+  field.
+Qed.
+
+(** φ⁵ = (11 + 5√5) / 2 (fifth power, Fibonacci pattern) *)
+(** CRITICAL FIX: Was 5*sqrt(5)+8 (≈19.2), corrected to (11+5*sqrt(5))/2 (≈11.09) *)
+Lemma phi_fifth : phi^5 = (11 + 5 * sqrt(5)) / 2.
+Proof.
+  assert (H: phi^5 = phi^4 * phi) by ring.
+  rewrite H, phi_fourth.
+  unfold phi.
   field.
 Qed.
 
@@ -91,17 +113,15 @@ Lemma phi_between_1_618_and_1_619 :
 Proof.
   unfold phi.
   split.
-  - apply Rlt_lt_1.
-    unfold Rdiv.
-    (* sqrt(5) > 2.23606 *)
-    assert (sqrt(5) > 2.23606) by (apply sqrt_lt_cancel; lra).
-    (* (1 + sqrt(5))/2 > (1 + 2.23606)/2 = 1.61803 *)
+  - apply Rmult_lt_reg_l with (r := 2).
     lra.
-  - apply Rlt_lt_1.
     unfold Rdiv.
-    (* sqrt(5) < 2.23607 *)
+    assert (sqrt(5) > 2.23606) by (apply sqrt_lt_cancel; lra).
+    lra.
+  - apply Rmult_lt_reg_l with (r := 2).
+    lra.
+    unfold Rdiv.
     assert (sqrt(5) < 2.23607) by (apply sqrt_lt_cancel; lra).
-    (* (1 + sqrt(5))/2 < (1 + 2.23607)/2 = 1.618035 < 1.619 *)
     lra.
 Qed.
 
