@@ -15,3 +15,6 @@ DerivationLevels.v
 ExactIdentities.v
 Unitarity.v
 H4Derivations.v
+Koide.v
+H4GaugeEmbedding.v
+Predictions.v
