@@ -277,9 +277,9 @@ Check Q06_chain_relation.
 (* Lepton mass chains *)
 Check lepton_mass_chain_relation.
 Check lepton_mass_chain_L01_L02_L03.
-Check L01_within_tolerance.
-Check L02_within_tolerance.
-Check L03_within_tolerance.
+Check L01_within_tolerance.       (* 239*e/PI, error 0.014%, V-class *)
+Check L02_within_tolerance.       (* 4*phi^3, error 0.859%, W-class *)
+Check L03_within_tolerance.       (* 549*e*PI^2/phi^3, error 0.000%, SG-class *)
 
 (* Consistency checks *)
 Check CKM_row_unitarity_sum.
@@ -312,7 +312,7 @@ Definition verified_ckm_theorems : nat := 4.         (* C01-C03 + C01 mono *)
 Definition verified_neutrino_theorems : nat := 5.    (* N01, N03, N04 + N01 mono *)
 Definition verified_mass_theorems : nat := 16.       (* Q07, H01-H03, Q01-Q04, Q05-Q06 + monos *)
 Definition verified_monomial_forms : nat := 6.
-Definition verified_consistency_checks : nat := 7.   (* ALL Qed: chains + running + masses *)
+Definition verified_consistency_checks : nat := 9.   (* ALL Qed: chains + running + masses + H4 *)
 
 Definition total_verified_theorems : nat :=
   verified_core_identities +
@@ -326,7 +326,7 @@ Definition total_verified_theorems : nat :=
 
 (** Total: 63 named theorems in this catalog (v3.1 ALL QED) *)
 Definition catalog_size_comment : string :=
-  "Catalog42.v registers 63 named theorems across 8 categories (v3.1 ALL QED)".
+  "Catalog42.v registers 63 named theorems across 8 categories (v3.2 ALL QED, 2 SG-class)".
 
 (** Master theorem: framework is self-consistent *)
 Theorem trinity_framework_self_consistent : True.

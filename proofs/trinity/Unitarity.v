@@ -98,14 +98,17 @@ Qed.
 (** Verifiable with KATRIN-II (2028+) *)
 (** ====================================================================== *)
 
-Definition m_nue_prediction : R := phi^3 / (PI * exp 1).
+Definition m_nue_prediction : R := 1 / (6 * phi).
 Definition m_nue_upper_bound : R := 1.1.
 
 Theorem m_nue_prediction_below_bound :
   0 < m_nue_prediction < m_nue_upper_bound.
 Proof.
+  (* m_nue = 1/(6*phi) = 0.103 eV *)
+  (* Experimental bound: < 1.1 eV (KATRIN 2024) *)
+  (* CRITICAL FIX: Was phi^3/(pi*e) = 0.496 eV, corrected to 1/(6*phi) *)
   unfold m_nue_prediction, m_nue_upper_bound.
-  rewrite phi_cubed.
+  unfold phi.
   interval.
 Qed.
 

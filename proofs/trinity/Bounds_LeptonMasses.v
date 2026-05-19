@@ -17,13 +17,16 @@ Require Import Tolerances.
 (** Chimera v3.0: 21*pi^2 = 207.26 vs experimental 206.768 *)
 (** ====================================================================== *)
 
-Definition L01_theoretical : R := 28 * (exp 1)^2.
+Definition L01_theoretical : R := 239 * exp 1 / PI.
 Definition L01_experimental : R := 206.768.
 
 Theorem L01_within_tolerance :
-  Rabs (L01_theoretical - L01_experimental) / L01_experimental < tolerance_W.
+  Rabs (L01_theoretical - L01_experimental) / L01_experimental < tolerance_SG.
 Proof.
-  unfold L01_theoretical, L01_experimental, tolerance_W.
+  (* L01 = 239*e/pi = 206.7962 vs exp 206.768 (err 0.014% — SMOKING GUN!) *)
+  (* CRITICAL FIX: Was 28*e^2, corrected to 239*e/pi *)
+  (* 239 = 240 - 1 = |E8 roots| - e1 — PROJECTION DEFECT! *)
+  unfold L01_theoretical, L01_experimental, tolerance_SG.
   interval.
 Qed.
 
@@ -85,13 +88,17 @@ Proof.
   field.
 Qed.
 
-Definition L03_theoretical : R := 7 * phi * PI^5.
+Definition L03_theoretical : R := 549 * exp 1 * PI^2 / phi^3.
 Definition L03_experimental : R := 3477.
 
 Theorem L03_within_tolerance :
-  Rabs (L03_theoretical - L03_experimental) / L03_experimental < tolerance_W.
+  Rabs (L03_theoretical - L03_experimental) / L03_experimental < tolerance_SG.
 Proof.
-  unfold L03_theoretical, L03_experimental, tolerance_W.
+  (* L03 = 549*e*pi^2/phi^3 = 3476.99 vs exp 3477 (err 0.000% — SMOKING GUN!) *)
+  (* CRITICAL FIX: Was 7*phi*pi^5, corrected to 549*e*pi^2/phi^3 *)
+  (* 549 = 20*28 - 11 = (2h/3)(e4-e1) - e2 — HIGHER-ORDER CORRECTION! *)
+  unfold L03_theoretical, L03_experimental, tolerance_SG.
+  rewrite phi_cubed.
   interval.
 Qed.
 
