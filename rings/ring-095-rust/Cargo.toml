@@ -1,0 +1,11 @@
+[package]
+name = "ring-095-phi-adam"
+version = "0.1.0"
+edition = "2021"
+description = "phi-Adam optimizer (AdamW with phi-damped betas) for T27"
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
