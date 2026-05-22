@@ -583,4 +583,6 @@ MIT
 
 **Wave 15 (2026-05-22):** Canonical GF16 import — [`rings/ring-088-rust`](rings/ring-088-rust) lands as the first **honestly-authored** Wave-11 crate (439 LOC, 13 tests, including the first cross-kernel `mac_dot([phi,1/phi],[phi,1/phi]) ~= 3` identity check). R5-HONEST reclassification: the other 11 Wave-11 rings move from `off-disk` to `claimed-only` until they receive the same real-source treatment. See [COMPILE_STATUS](rings/COMPILE_STATUS.md).
 
+**Wave 16 (2026-05-22):** TNN ISA import — [`rings/ring-089-rust`](rings/ring-089-rust) lands the second honestly-authored Wave-11 crate (635 LOC, 15 tests). Includes `Trit`, `Word27`, balanced-ternary `trit_add` / `word_add` / `word_sub` per `specs/isa/ternary_arithmetic.t27`, a 9-opcode subset (`NOP`/`MOV`/`ADDI`/`ADD`/`SUB`/`NEG`/`LOAD`/`STORE`/`HALT`), and a `Cpu` fetch/decode/execute model with 27 registers (R0 hardwired to zero). `cpu_phi_identity_integer_projection` is the second cross-kernel anchor test, running `floor(phi) + floor(1/phi) + ceil(phi^2 - 2) = 3` through the CPU. `#![no_std]`, zero deps, verified locally on Rust 1.83.0. See [COMPILE_STATUS](rings/COMPILE_STATUS.md).
+
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)

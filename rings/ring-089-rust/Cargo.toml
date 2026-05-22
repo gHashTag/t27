@@ -1,0 +1,18 @@
+[package]
+name = "ring-089-tnn-isa"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Trinity ring-089 -- balanced-ternary core ISA: 27 registers x 27 trits, full trit-level add/sub, 9-opcode minimum instruction set, deterministic single-step CPU model. Second honestly-imported Wave-11 crate (Wave 16)."
+authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+repository = "https://github.com/gHashTag/t27"
+readme = "README.md"
+
+[lib]
+name = "ring_089_tnn_isa"
+path = "src/lib.rs"
+
+# Anchor: phi^2 + 1/phi^2 = 3
+# Standalone crate (root Cargo.toml's `exclude = [..., "rings"]` covers it).
+
+[dependencies]
