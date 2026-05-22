@@ -1,0 +1,18 @@
+[package]
+name = "ring-091-stochastic-rounding"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+description = "ring-091 -- Stochastic Rounding (SR) primitives + SplitMix64 PRNG"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+# Standalone crate -- intentionally NOT in the root workspace.
+# Wave 14 added "rings" to the root Cargo.toml exclude list.
+# Wave 13 rings-rust.yml matrix discovers this crate via scripts/ci/rings_matrix.py.
+
+[dependencies]
+# Zero external dependencies. Test cfg pulls std for the harness only.
