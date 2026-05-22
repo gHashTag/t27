@@ -1,0 +1,15 @@
+[package]
+name = "ring-093-rust"
+version = "0.1.0"
+edition = "2021"
+description = "ring-093 Sparse MoE -- top-k gating + ternary expert FFN"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+
+[features]
+default = []
