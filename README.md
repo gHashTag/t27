@@ -334,8 +334,24 @@ The compiler grows ring-by-ring. Each ring adds exactly one capability, sealed w
 
 - **Track A — Compile fix:** run `cargo check` per crate, triage errors (missing deps, lifetime, type mismatches), submit one PR per crate with `Closes #<ring>`.
 - **Track B — Simulator finish:** complete the missing execution units in `ring-090-rust` (decode → issue → writeback), add property tests against `conformance/*.json`.
-- **Track C — New rings:** spec → crate scaffolding for `ring-100` Multi-Chip Mesh, `ring-101` Analog GF16, `ring-102` Photonic MAC, `ring-103` On-Chip Learning, `ring-104` Telemetry Bus.
+- **Track C — New rings:** spec → crate scaffolding for `ring-100` Multi-Chip Mesh, `ring-101` Analog GF16, `ring-102` Photonic MAC, `ring-103` On-Chip Learning, `ring-104` Telemetry Bus. **Status: scaffolded — 5 crates landed on disk (see table below).**
 - **Track D — Toolchain:** `Dockerfile.rust` based on `rust:1.83-bookworm`, GitHub Actions matrix building all `ring-0**-rust` crates, artifact upload on failure.
+
+### Wave 12 / Track C — ring-100..ring-104 (scaffolded 2026-05-22, Closes #711)
+
+> **Honest status:** all 5 crates **written on disk** with `Cargo.toml` + `src/lib.rs` + per-crate `README.md` and `#[test]` coverage (28 tests total). `cargo check` / `cargo test` **still not run** — toolchain hookup is Track D. Crates are intentionally **not** added to `[workspace].members` until Track D Docker image is in place.
+
+| Crate                          | Files | Rust LOC | Tests | Domain                                                                |
+|:-------------------------------|------:|---------:|------:|:----------------------------------------------------------------------|
+| `rings/ring-100-rust`          |   3   |   205    |   5   | Multi-Chip Mesh — Phi+Euler+Gamma triad fabric, XY routing             |
+| `rings/ring-101-rust`          |   3   |   144    |   5   | Analog GF16 — quantize/dequantize + reproducible noise channel        |
+| `rings/ring-102-rust`          |   3   |   157    |   5   | Photonic MAC — wavelength-multiplexed dot product w/ insertion loss   |
+| `rings/ring-103-rust`          |   3   |   131    |   6   | On-Chip Learning — φ-tempered SGD step                                |
+| `rings/ring-104-rust`          |   3   |   185    |   7   | Telemetry Bus — bounded lossy ring buffer of (ts, tag, value)         |
+
+**Totals:** 5 crates · 15 files · 822 Rust LOC · 28 `#[test]`s.
+
+Every crate exposes `identity_witness()` (or `Mesh::identity_witness` in ring-100) asserting `phi^2 + 1/phi^2 == 3` to f64 1e-15.
 
 ## GoldenFloat Family
 
@@ -529,5 +545,7 @@ MIT
 **Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced.
 
 **Wave 11 (2026-05-22):** 12 Rust crates `ring-088`..`ring-099` written (≈ 9 930 LOC, 33 `Cargo.toml`), **compilation not yet verified** — toolchain unavailable in sandbox; verification deferred to Wave 12. See the *Wave 11 / Wave 12* sections above for the honest status table and the four-track plan.
+
+**Wave 12 / Track C (2026-05-22):** 5 new crates `ring-100`..`ring-104` scaffolded (Multi-Chip / Analog GF16 / Photonic MAC / On-Chip Learning / Telemetry Bus) — 15 files, 822 Rust LOC, 28 `#[test]`s. `cargo` gate handed off to Track D.
 
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)
