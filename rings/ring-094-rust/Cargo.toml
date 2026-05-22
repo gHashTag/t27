@@ -1,0 +1,11 @@
+[package]
+name = "ring-094-agi-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "AGI Runtime: scheduler, processes and instance registry for T27"
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
