@@ -1,0 +1,10 @@
+[package]
+name = "ring-099-integration"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "ring-099 Integration -- 10-stage E2E pipeline state machine. Mirrors specs/pipeline/e2e_test.t27 byte-for-byte. Anchor: phi^2 + 1/phi^2 = 3. Final import of the Wave-11 series."
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
