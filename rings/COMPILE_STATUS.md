@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-24 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-25 promotions)
 
-> Last updated: 2026-05-22 (Wave 24)
+> Last updated: 2026-05-22 (Wave 25)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -294,21 +294,55 @@ workflow run this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-097-rust`    | Chain-of-Thought (proof trace+K3) |  823 |    29 | `check` + `test`  |
 
-## Wave 11 -- ring-098..ring-099 (claimed-only, off-disk)
+## Wave 25 import -- ring-098 (on disk, real)
+
+Wave 25 (2026-05-22, Closes #737) imports the **eleventh** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check --all-targets` green,
+`cargo test --lib` reports **29 passed, 0 failed** on the first run
+(no bug-fix cycle). Ring-098 mirrors three specs byte-for-byte:
+[`specs/brain/unified_state.t27`](../specs/brain/unified_state.t27)
+(`BrainState`, `ConsciousnessState`, `Mood`, `ArousalLevel`, `Layer`,
+`REGION_COUNT = 27`, `LAYER_COUNT = 3`, `REGIONS_PER_LAYER = 9`, plus
+`PHI` / `PHI_INV` / `PHI_SQ` / `PHI_INV_SQ` / `TRINITY` constants),
+[`specs/ml/rl/dqn.t27`](../specs/ml/rl/dqn.t27)
+(`Transition { state, action, reward, next_state, done }`), and
+[`specs/brain/cognitive_loop.t27`](../specs/brain/cognitive_loop.t27)
+(`COGNITIVE_PHASE_COUNT = 5`: sense, evaluate, decide, act, consolidate).
+The `WorldModel` type is a bounded recorder: a fixed `[BrainState;
+MAX_STATE_HISTORY = 16]` history buffer, a fixed `[Transition;
+MAX_TRANSITIONS = 32]` replay buffer, an inline `STATE_DIM = 8`
+observation vector, plus `snapshot`, `record_transition`, `step_phase`,
+`run_one_cycle`, `verify`, `reset`, `state_at`, `transition_at`. The
+`verify` routine enforces monotonic `cycle_count` and a `phi_coherence in
+[0.0, 1.0]` invariant. The crate is `#![no_std]` and heap-free. The
+crate's `world_model_phi_identity` is the **tenth cross-kernel anchor
+test** in the project (after ring-088, ring-089, ring-091, ring-092,
+ring-093, ring-094, ring-095, ring-096, ring-097), routing `phi^2 +
+1/phi^2 = 3` through (a) integer projection `floor(PHI_SQ) + floor(PHI) =
+3`, (b) `pow_u64` numeric witness, and (c) mass-conservation
+`PHI_SQ + PHI_INV_SQ == TRINITY` to within 1e-12. Earlier Wave-11
+narrative claimed 920 LOC; honest Wave-25 measurement is **779 LOC**.
+Promotion will be re-confirmed by the green `rings-rust` workflow run
+this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-098-rust`    | World Model (BrainState+Trans+CL) |  779 |    29 | `check` + `test`  |
+
+## Wave 11 -- ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-24 acknowledge this
+sources never reached this repository. Waves 15-25 acknowledge this
 honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
-`ring-092`, `ring-093`, `ring-094`, `ring-095`, `ring-096`, and `ring-097`
-out of this table. The rows below are **claimed-only** placeholders, *not*
-deliverables. They will be promoted to `check` + `test` one ring at a time,
-each via its own PR that carries real source + local verification (the
-Wave-15..24 template). LOC numbers below are quotes from past narrative,
-not measurements.
+`ring-092`, `ring-093`, `ring-094`, `ring-095`, `ring-096`, `ring-097`,
+and `ring-098` out of this table. The row below is a **claimed-only**
+placeholder, *not* a deliverable. It will be promoted to `check` + `test`
+via its own PR that carries real source + local verification (the
+Wave-15..25 template). The LOC number below is a quote from past
+narrative, not a measurement.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-098-rust`    | World Model                       |            920 | `claimed-only` |
 | `ring-099-rust`    | Integration                       |           1127 | `claimed-only` |
 
 ## How to read the CI result
