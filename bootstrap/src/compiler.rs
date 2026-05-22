@@ -3776,6 +3776,19 @@ impl VerilogCodegen {
             if !node.children.is_empty() {
                 // If children represent array elements, emit them
                 let child = &node.children[0];
+                // R-CA-1 (Wave 28): array-of-struct / array-of-array initializers
+                // currently degrade into `/* array ... */` block-comments through
+                // gen_verilog_expr, producing `localparam ... = /* comment */;`
+                // which is not parseable by Yosys ("syntax error, unexpected ';'").
+                // Replace the initializer with literal `0` and a TODO comment so
+                // the declaration is syntactically valid Verilog. Downstream
+                // emitter passes that reference this symbol still resolve; the
+                // semantic gap (true per-element initialization) is tracked as a
+                // separate emitter follow-up.
+                let is_unsupported_aggregate = matches!(
+                    child.kind,
+                    NodeKind::ExprArrayLiteral | NodeKind::ExprStructLit
+                );
                 if child.kind == NodeKind::ExprLiteral && child.value.contains(',') {
                     // Multiple values packed into a single literal — just comment
                     self.write_indent();
@@ -3800,7 +3813,22 @@ impl VerilogCodegen {
                         self.write(&format!("{} ", range));
                     }
                     self.write(&format!("{} = ", node.name));
-                    self.gen_verilog_expr(&node.children[0]);
+                    if is_unsupported_aggregate {
+                        // R-CA-1 fix: emit a synthesizable scalar zero in place
+                        // of the unsupported aggregate initializer.
+                        self.write("0");
+                        let kind_label = match child.kind {
+                            NodeKind::ExprArrayLiteral => "array literal",
+                            NodeKind::ExprStructLit => "struct literal",
+                            _ => "aggregate literal",
+                        };
+                        self.write(&format!(
+                            " /* TODO: {} initializer not yet lowered to Verilog */",
+                            kind_label
+                        ));
+                    } else {
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
                     self.write_line(";");
                 }
             } else {
@@ -3828,7 +3856,27 @@ impl VerilogCodegen {
 
             self.write(&format!("{} = ", node.name));
             if !node.children.is_empty() {
-                self.gen_verilog_expr(&node.children[0]);
+                let child = &node.children[0];
+                // R-CA-1 (Wave 28): aggregate literals (ExprArrayLiteral /
+                // ExprStructLit) emit as `/* ... */` block-comments, which
+                // produces `localparam ... = /* ... */;` — invalid Verilog.
+                // Replace with synthesizable `0` and a TODO comment.
+                if matches!(
+                    child.kind,
+                    NodeKind::ExprArrayLiteral | NodeKind::ExprStructLit
+                ) {
+                    let kind_label = match child.kind {
+                        NodeKind::ExprArrayLiteral => "array literal",
+                        NodeKind::ExprStructLit => "struct literal",
+                        _ => "aggregate literal",
+                    };
+                    self.write(&format!(
+                        "0 /* TODO: {} initializer not yet lowered to Verilog */",
+                        kind_label
+                    ));
+                } else {
+                    self.gen_verilog_expr(child);
+                }
             } else {
                 self.write("0");
             }
