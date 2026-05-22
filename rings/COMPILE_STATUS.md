@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-20 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-21 promotions)
 
-> Last updated: 2026-05-22 (Wave 20)
+> Last updated: 2026-05-22 (Wave 21)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -166,20 +166,49 @@ is **950 LOC**. Promotion will be re-confirmed by the green
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-093-rust`    | Sparse MoE (top-k + ternary FFN)  |  950 |    28 | `check` + `test`  |
 
-## Wave 11 -- ring-094..ring-099 (claimed-only, off-disk)
+## Wave 21 import -- ring-094 (on disk, real)
+
+Wave 21 (2026-05-22, Closes #729) imports the **seventh** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check` green, `cargo test --lib`
+reports **32 passed, 0 failed** on the first run. Ring-094 mirrors
+`specs/runtime/{execute, instance, process}.t27`: spec constants
+byte-for-byte (`DEFAULT_TIMEOUT_MS = 30_000`, `MAX_CONCURRENT_EXECUTIONS = 16`,
+`POLL_INTERVAL_MS = 100`, `TASK_ID_LENGTH = 32`, `MAX_INSTANCES = 256`,
+`INSTANCE_NAME_LENGTH = 128`, `LOOKUP_TIMEOUT_MS = 100`,
+`SPAWN_TIMEOUT_MS = 5_000`, `PTY_COLS_DEFAULT = 80`, `PTY_ROWS_DEFAULT = 24`,
+`MAX_PIPE_BUFFER = 65_536`); all nine spec enums (`ExecResultType`,
+`TaskState`, `CancelReason`, `ProcessSignal`, `ProcessState`, `PTYMode`,
+`InstanceState`, `InstanceType`, `TerminationReason`); pure-state-machine
+`Promise`; fixed-capacity `Registry` (capped at `MAX_INSTANCES = 256`);
+and a Trinity-priority `Scheduler` (capped at `MAX_CONCURRENT_EXECUTIONS =
+16`) with a phi-weighted credit policy: `Trit::Pos -> phi^2`,
+`Trit::Zero -> 1.0`, `Trit::Neg -> phi^-2`. The crate's
+`runtime_phi_identity_via_scheduler_credits` is the **sixth cross-kernel
+anchor test** in the project (after ring-088, ring-089, ring-091,
+ring-092, ring-093), routing `phi^2 + 1/phi^2 = 3` through the scheduler's
+credit accumulator. Real syscalls (`spawn`, `kill`, PTY I/O), heap-backed
+containers, and future-executor wakers are explicitly out of scope
+(R5-HONEST). Earlier Wave-11 narrative claimed 774 LOC; honest Wave-21
+measurement is **1210 LOC**. Promotion will be re-confirmed by the green
+`rings-rust` workflow run this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-094-rust`    | AGI Runtime (scheduler + registry)| 1210 |    32 | `check` + `test`  |
+
+## Wave 11 -- ring-095..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-20 acknowledge this
+sources never reached this repository. Waves 15-21 acknowledge this
 honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
-`ring-092`, and `ring-093` out of this table. The rows below are
-**claimed-only** placeholders, *not* deliverables. They will be promoted
-to `check` + `test` one ring at a time, each via its own PR that carries
-real source + local verification (the Wave-15..20 template). LOC numbers
-below are quotes from past narrative, not measurements.
+`ring-092`, `ring-093`, and `ring-094` out of this table. The rows below
+are **claimed-only** placeholders, *not* deliverables. They will be
+promoted to `check` + `test` one ring at a time, each via its own PR that
+carries real source + local verification (the Wave-15..21 template). LOC
+numbers below are quotes from past narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-094-rust`    | AGI Runtime                       |            774 | `claimed-only` |
 | `ring-095-rust`    | phi-Adam                          |            659 | `claimed-only` |
 | `ring-096-rust`    | Quantization                      |            464 | `claimed-only` |
 | `ring-097-rust`    | Chain-of-Thought                  |            624 | `claimed-only` |
