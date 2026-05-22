@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-16 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-17 promotions)
 
-> Last updated: 2026-05-22 (Wave 16)
+> Last updated: 2026-05-22 (Wave 17)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -69,19 +69,39 @@ re-confirmed by the green `rings-rust` workflow run this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-089-rust`    | TNN ISA (27-reg balanced ternary) |  635 |    15 | `check` + `test`  |
 
-## Wave 11 -- ring-090..ring-099 (claimed-only, off-disk)
+## Wave 17 import -- ring-090 (on disk, real)
+
+Wave 17 (2026-05-22, Closes #721) imports the **third** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check --all-targets` green,
+`cargo test --lib` reports **19 passed, 0 failed** on the first run
+(no bug-fix cycle this time). Ring-090 mirrors
+[`specs/fpga/simulator.t27`](../specs/fpga/simulator.t27) byte-for-byte:
+`SimState`, `SimConfig`, `SimResult`, `ProbePoint`, `TraceEntry`, all the
+spec's constructor / query / time-conversion / validation helpers, plus
+the universal anchor. The 19 tests cover all 13 `test` blocks and all 4
+`invariant` blocks in the spec, plus `identity_witness_holds` and a
+`sim_state_tag_roundtrip` type-safety check. Earlier Wave-11 narrative
+claimed 2143 LOC; honest Wave-17 measurement is **547 LOC** (R5-HONEST).
+Promotion will be re-confirmed by the green `rings-rust` workflow run this
+PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-090-rust`    | Simulator (HIR cycle-accurate)    |  547 |    19 | `check` + `test`  |
+
+## Wave 11 -- ring-091..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Wave 15 acknowledged this honestly;
-Wave 16 has now promoted `ring-089-rust` out of this table. The rows below
-are **claimed-only** placeholders, *not* deliverables. They will be promoted
-to `check` + `test` one ring at a time, each via its own PR that carries
-real source + local verification (the Wave-15/16 template). LOC numbers
-below are quotes from past narrative, not measurements.
+sources never reached this repository. Waves 15, 16, and 17 acknowledge
+this honestly and have promoted `ring-088`, `ring-089`, and `ring-090` out
+of this table. The rows below are **claimed-only** placeholders, *not*
+deliverables. They will be promoted to `check` + `test` one ring at a
+time, each via its own PR that carries real source + local verification
+(the Wave-15/16/17 template). LOC numbers below are quotes from past
+narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-090-rust`    | Simulator                         |           2143 | `claimed-only` |
 | `ring-091-rust`    | Stochastic Rounding               |            409 | `claimed-only` |
 | `ring-092-rust`    | Attention                         |            847 | `claimed-only` |
 | `ring-093-rust`    | Sparse MoE                        |            668 | `claimed-only` |
