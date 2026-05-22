@@ -1,0 +1,12 @@
+[package]
+name = "ring-104-telemetry-bus"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Trinity ring-104 — Telemetry Bus (bounded, lossy ring buffer for chip-side counters). Wave 12 / Track C / spec-first scaffolding."
+authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+repository = "https://github.com/gHashTag/t27"
+
+[lib]
+name = "ring_104_telemetry_bus"
+path = "src/lib.rs"

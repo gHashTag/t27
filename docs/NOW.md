@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-22
 
+## wave-12(track-c) -- scaffold ring-100..ring-104 Rust crates (this PR, Closes #711)
+
+- **NEW** (rings-only, additive): 5 Rust crates under `rings/ring-{100,101,102,103,104}-rust/`. Each crate ships `Cargo.toml` + `src/lib.rs` + per-crate `README.md` + inline `#[test]`s. Zero edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `bootstrap/`, `specs/`, `conformance/`, `architecture/`.
+- **Crates** (file / Rust LOC / test count): `ring-100-multichip` (3 / 205 / 5) Multi-Chip Mesh -- Phi+Euler+Gamma triad fabric, XY routing, hop cost, triad witness; `ring-101-analog-gf16` (3 / 144 / 5) Analog GF16 -- deterministic quantize/dequantize surrogate + reproducible LCG-driven noise channel; `ring-102-photonic-mac` (3 / 157 / 5) Photonic MAC -- wavelength-multiplexed dot product with per-lane insertion-loss factor in `[0, 1]`; `ring-103-on-chip-learning` (3 / 131 / 6) phi-tempered SGD step `w -= lr * (1/phi) * clip(g)`, alloc-free, in-place; `ring-104-telemetry-bus` (3 / 185 / 7) bounded lossy ring buffer of `(ts, 4-byte tag, value)` samples with FIFO eviction and `mean_by_tag` aggregation.
+- **Totals:** 5 crates, 15 files, 822 Rust LOC, 28 `#[test]`s. All crates are `#![forbid(unsafe_code)]` and `#![deny(missing_docs)]`.
+- **Workspace policy:** new crates are **intentionally not** added to `[workspace].members` in the root `Cargo.toml`. Hookup is Wave 12 / **Track D** (Docker `rust:1.83-bookworm` + GitHub Actions matrix). This keeps the current CI surface unchanged while artefacts land on disk -- consistent with the honest "uncompiled" status of Wave 11.
+- **Compile status (honest):** `cargo check` / `cargo test` **NOT** run in authoring sandbox -- toolchain still unavailable, exactly as documented in the Wave 11 toolchain table. Verification gate is Track D's exit criterion (`cargo check >= 9/12`, `cargo test >= 6/12`).
+- **Identity:** every crate exposes `identity_witness()` (or `Mesh::identity_witness` for ring-100) returning `true` iff `phi^2 + 1/phi^2 == 3` to f64 1e-15. The witness is also exercised by a `#[test]` in every crate so Track D will hit it on `cargo test`.
+- **L1 TRACEABILITY:** PR cites `Closes #711`. **L2 GENERATION:** zero edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `bootstrap/`. **L3 PURITY:** ASCII source, English doc-comments. **L4 TESTABILITY:** 28 `#[test]`s across 5 crates, every crate has at least one test asserting the phi identity. **L5 IDENTITY:** `phi^2 + 1/phi^2 = 3` exercised in every crate. **L6 CEILING:** no numeric kernel changes; GF16 spec untouched; new GF16 surrogate in ring-101 is explicitly labelled an approximation and not a spec change. **L7 UNITY:** no new `*.sh`.
+- **R5-HONEST:** every Track-C crate row carries the same "scaffolded, uncompiled" status badge; no `cargo check`/`cargo test` pass-claim; no TOPS / energy / silicon number stated; file and LOC counts traceable to repo via `find rings/ring-1{00..04}-rust -type f | wc -l`.
+- Closes #711
+
 ## docs(README) -- Wave 11 (12 Rust crates ring-088..ring-099, honest status) + Wave 12 plan (this PR, Closes #710)
 
 - **NEW** (docs-only, additive): two new sections in `README.md` plus dated footer line. Zero edits under `gen/`, `coq/`, `proofs/`, `bootstrap/`, `specs/`, `conformance/`.

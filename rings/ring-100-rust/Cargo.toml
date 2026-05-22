@@ -1,0 +1,16 @@
+[package]
+name = "ring-100-multichip"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Trinity ring-100 — Multi-Chip Mesh routing (Phi + Euler + Gamma triad fabric). Wave 12 / Track C / spec-first scaffolding."
+authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+repository = "https://github.com/gHashTag/t27"
+readme = "README.md"
+
+[lib]
+name = "ring_100_multichip"
+path = "src/lib.rs"
+
+# Workspace inclusion is intentionally deferred to Wave 12 / Track D
+# (Docker + cargo CI hookup). See README.md → "Wave 11 — honest status".

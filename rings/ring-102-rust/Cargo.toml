@@ -1,0 +1,12 @@
+[package]
+name = "ring-102-photonic-mac"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Trinity ring-102 — Photonic MAC unit model (wavelength-multiplexed dot product, insertion loss). Wave 12 / Track C / spec-first scaffolding."
+authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+repository = "https://github.com/gHashTag/t27"
+
+[lib]
+name = "ring_102_photonic_mac"
+path = "src/lib.rs"

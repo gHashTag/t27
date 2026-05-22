@@ -1,0 +1,12 @@
+[package]
+name = "ring-101-analog-gf16"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Trinity ring-101 — Analog GF16 numeric kernel model (quantize / dequantize, noise injection). Wave 12 / Track C / spec-first scaffolding."
+authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+repository = "https://github.com/gHashTag/t27"
+
+[lib]
+name = "ring_101_analog_gf16"
+path = "src/lib.rs"
