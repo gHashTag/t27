@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-15 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-16 promotions)
 
-> Last updated: 2026-05-22 (Wave 15)
+> Last updated: 2026-05-22 (Wave 16)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -52,18 +52,35 @@ workflow run that this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-088-rust`    | GF16 codec + MAC (`mac_dot`)      |  439 |    13 | `check` + `test`  |
 
-## Wave 11 -- ring-089..ring-099 (claimed-only, off-disk)
+## Wave 16 import -- ring-089 (on disk, real)
+
+Wave 16 (2026-05-22, Closes #719) imports the **second** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check --all-targets` green,
+`cargo test --lib` reports **15 passed, 0 failed**. Includes
+`cpu_phi_identity_integer_projection` -- the second cross-kernel anchor
+test in the project (after Wave 15's `mac_dot_phi_identity`), exercising
+`phi^2 + 1/phi^2 = 3` through the CPU's fetch/decode/execute loop via an
+integer projection (`floor(phi) + floor(1/phi) + ceil(phi^2 - 2) = 3`).
+The earlier Wave-11 narrative claimed 334 LOC for this ring; the honest
+Wave-16 number is **635 LOC** (R5-HONEST correction). Promotion will be
+re-confirmed by the green `rings-rust` workflow run this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-089-rust`    | TNN ISA (27-reg balanced ternary) |  635 |    15 | `check` + `test`  |
+
+## Wave 11 -- ring-090..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Wave 15 acknowledges this honestly: the
-rows below are **claimed-only** placeholders, *not* deliverables. They will be
-promoted to `check` + `test` one ring at a time, each via its own PR that
-carries real source + local verification (the Wave-15 template). LOC numbers
+sources never reached this repository. Wave 15 acknowledged this honestly;
+Wave 16 has now promoted `ring-089-rust` out of this table. The rows below
+are **claimed-only** placeholders, *not* deliverables. They will be promoted
+to `check` + `test` one ring at a time, each via its own PR that carries
+real source + local verification (the Wave-15/16 template). LOC numbers
 below are quotes from past narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-089-rust`    | TNN ISA                           |            334 | `claimed-only` |
 | `ring-090-rust`    | Simulator                         |           2143 | `claimed-only` |
 | `ring-091-rust`    | Stochastic Rounding               |            409 | `claimed-only` |
 | `ring-092-rust`    | Attention                         |            847 | `claimed-only` |
