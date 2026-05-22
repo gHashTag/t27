@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-17 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-18 promotions)
 
-> Last updated: 2026-05-22 (Wave 17)
+> Last updated: 2026-05-22 (Wave 18)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -89,20 +89,42 @@ PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-090-rust`    | Simulator (HIR cycle-accurate)    |  547 |    19 | `check` + `test`  |
 
-## Wave 11 -- ring-091..ring-099 (claimed-only, off-disk)
+## Wave 18 import -- ring-091 (on disk, real)
+
+Wave 18 (2026-05-22, Closes #723) imports the **fourth** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check --all-targets` green,
+`cargo test --lib` reports **19 passed, 0 failed** on the first run.
+Ring-091 implements **stochastic rounding** (SR) over `f32` integer and
+uniform-grid targets, backed by a deterministic seedable `SplitMix64`
+PRNG (Vigna 2014). The crate's `splitmix_first_value_with_seed_0` test
+checks the published reference value `0xE220A8397B1DCDAF`; the two
+statistical tests (`sr_is_unbiased`, `sr_quantize_phi_unbiased`) verify
+unbiasedness empirically against a 3-sigma bound on 10 000 draws each.
+`sr_quantize_phi_unbiased` is the **third cross-kernel anchor test** in
+the project (after Wave 15's `mac_dot_phi_identity` and Wave 16's
+`cpu_phi_identity_integer_projection`): it exercises `phi` through
+SR-quantization. Earlier Wave-11 narrative claimed 409 LOC; honest
+Wave-18 measurement is **462 LOC** (the first ring whose honest LOC
+modestly *exceeds* the claim). Promotion will be re-confirmed by the
+green `rings-rust` workflow run this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-091-rust`    | Stochastic Rounding + SplitMix64  |  462 |    19 | `check` + `test`  |
+
+## Wave 11 -- ring-092..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15, 16, and 17 acknowledge
-this honestly and have promoted `ring-088`, `ring-089`, and `ring-090` out
-of this table. The rows below are **claimed-only** placeholders, *not*
-deliverables. They will be promoted to `check` + `test` one ring at a
-time, each via its own PR that carries real source + local verification
-(the Wave-15/16/17 template). LOC numbers below are quotes from past
-narrative, not measurements.
+sources never reached this repository. Waves 15-18 acknowledge this
+honestly and have promoted `ring-088`, `ring-089`, `ring-090`, and
+`ring-091` out of this table. The rows below are **claimed-only**
+placeholders, *not* deliverables. They will be promoted to `check` +
+`test` one ring at a time, each via its own PR that carries real source
++ local verification (the Wave-15/16/17/18 template). LOC numbers below
+are quotes from past narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-091-rust`    | Stochastic Rounding               |            409 | `claimed-only` |
 | `ring-092-rust`    | Attention                         |            847 | `claimed-only` |
 | `ring-093-rust`    | Sparse MoE                        |            668 | `claimed-only` |
 | `ring-094-rust`    | AGI Runtime                       |            774 | `claimed-only` |
