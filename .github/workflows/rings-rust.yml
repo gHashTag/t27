@@ -1,0 +1,94 @@
+# Wave 13 -- Toolchain & Compilation Gate
+# Builds every rings/ring-*-rust crate in a matrix using the pinned Rust 1.83
+# toolchain. Each crate runs `cargo check` and `cargo test`. The job is
+# non-blocking (continue-on-error: true) on purpose: this is an *honesty gate*
+# that surfaces real per-crate compile state without yet enforcing it.
+#
+# Anchor: phi^2 + 1/phi^2 = 3
+name: rings-rust
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "rings/ring-*-rust/**"
+      - ".github/workflows/rings-rust.yml"
+      - "scripts/ci/rings_matrix.py"
+      - "Dockerfile.rust"
+  pull_request:
+    paths:
+      - "rings/ring-*-rust/**"
+      - ".github/workflows/rings-rust.yml"
+      - "scripts/ci/rings_matrix.py"
+      - "Dockerfile.rust"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rings-rust-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Discover ring-*-rust crates
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.gen.outputs.matrix }}
+      count: ${{ steps.gen.outputs.count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate matrix
+        id: gen
+        run: |
+          MATRIX="$(python3 scripts/ci/rings_matrix.py)"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          COUNT="$(python3 -c 'import json,sys;d=json.loads(sys.stdin.read());print(len(d["include"]))' <<< "$MATRIX")"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Discovered $COUNT ring-*-rust crate(s)."
+          echo "$MATRIX" | python3 -m json.tool
+
+  build:
+    name: ${{ matrix.crate }}
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1.83-bookworm
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: cargo check
+        working-directory: ${{ matrix.path }}
+        run: cargo check --all-targets --locked || cargo check --all-targets
+
+      - name: cargo test
+        working-directory: ${{ matrix.path }}
+        run: cargo test --locked || cargo test
+
+  summary:
+    name: Compile gate summary
+    needs: [discover, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "## rings-rust compile gate" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Discovered crates: ${{ needs.discover.outputs.count }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "This is a non-blocking honesty gate (Wave 13)." >> "$GITHUB_STEP_SUMMARY"
+          echo "See rings/COMPILE_STATUS.md for the living per-crate table." >> "$GITHUB_STEP_SUMMARY"

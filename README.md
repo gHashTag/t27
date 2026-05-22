@@ -353,6 +353,35 @@ The compiler grows ring-by-ring. Each ring adds exactly one capability, sealed w
 
 Every crate exposes `identity_witness()` (or `Mesh::identity_witness` in ring-100) asserting `phi^2 + 1/phi^2 == 3` to f64 1e-15.
 
+## Wave 13 — Toolchain & Compilation Gate (2026-05-22, Closes #713)
+
+> **Why this wave:** Waves 11 and 12/Track-C produced 17 Rust crates on disk (≈ 10 750 LOC, 60+ tests), but `cargo check` and `cargo test` were **never** actually executed in CI. Wave 13 lands the missing infrastructure — pinned Rust toolchain, a generated GHA matrix that builds every `rings/ring-*-rust/` crate, and a living per-crate status table. The gate is **non-blocking on purpose**: it surfaces real per-crate compile state without yet enforcing it, so the project can finally distinguish *scaffolded* from *compiles* from *tested*.
+
+```
+╔═══════════════════════════════════════════════════════════════════════╗
+║  WAVE 13 — TOOLCHAIN & COMPILATION GATE                               ║
+╠═══════════════════════════════════════════════════════════════════════╣
+║  Dockerfile.rust            rust:1.83-bookworm, pkg-config, rustup    ║
+║  scripts/ci/rings_matrix.py pure-stdlib GHA matrix generator          ║
+║  .github/workflows/         rings-rust.yml — matrix cargo check+test  ║
+║  rings/COMPILE_STATUS.md    living per-crate status (legend below)    ║
+╠═══════════════════════════════════════════════════════════════════════╣
+║  Legend:  scaffold  →  check  →  test  →  (off-disk for ring-088..099)║
+║  Gate is `continue-on-error: true` — honesty surface, not enforcer.   ║
+╚═══════════════════════════════════════════════════════════════════════╝
+```
+
+**Deliverables**
+
+| Artifact                                  | Role                                                                |
+|:------------------------------------------|:--------------------------------------------------------------------|
+| `Dockerfile.rust`                         | Pinned `rust:1.83-bookworm` image — `rustc`, `cargo`, `rustfmt`, `clippy` |
+| `scripts/ci/rings_matrix.py`              | Discovers `rings/ring-*-rust/` crates → emits GHA matrix JSON       |
+| `.github/workflows/rings-rust.yml`        | `discover` → matrix `cargo check` + `cargo test` → step-summary     |
+| `rings/COMPILE_STATUS.md`                 | Living per-crate status table (`scaffold` / `check` / `test` / `off-disk`) |
+
+**Honest status at landing:** all 5 Wave-12 Track-C crates start as `scaffold` in the table; the 12 Wave-11 crates remain `off-disk` until imported. No row will be promoted past `scaffold` without a CI log to prove it (**R5-HONEST**).
+
 ## GoldenFloat Family
 
 phi-structured floating-point formats where `exp/mant ~ 1/phi`:
@@ -547,5 +576,7 @@ MIT
 **Wave 11 (2026-05-22):** 12 Rust crates `ring-088`..`ring-099` written (≈ 9 930 LOC, 33 `Cargo.toml`), **compilation not yet verified** — toolchain unavailable in sandbox; verification deferred to Wave 12. See the *Wave 11 / Wave 12* sections above for the honest status table and the four-track plan.
 
 **Wave 12 / Track C (2026-05-22):** 5 new crates `ring-100`..`ring-104` scaffolded (Multi-Chip / Analog GF16 / Photonic MAC / On-Chip Learning / Telemetry Bus) — 15 files, 822 Rust LOC, 28 `#[test]`s. `cargo` gate handed off to Track D.
+
+**Wave 13 (2026-05-22):** Toolchain & Compilation Gate landed — `Dockerfile.rust` (`rust:1.83-bookworm`), `scripts/ci/rings_matrix.py`, `.github/workflows/rings-rust.yml` matrix build, `rings/COMPILE_STATUS.md` living per-crate status. Non-blocking honesty gate — see [COMPILE_STATUS](rings/COMPILE_STATUS.md).
 
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)
