@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-23 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-24 promotions)
 
-> Last updated: 2026-05-22 (Wave 23)
+> Last updated: 2026-05-22 (Wave 24)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -257,21 +257,57 @@ re-confirmed by the green `rings-rust` workflow run this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-096-rust`    | Quantization (GF16 codec+ternary) |  641 |    42 | `check` + `test`  |
 
-## Wave 11 -- ring-097..ring-099 (claimed-only, off-disk)
+## Wave 24 import -- ring-097 (on disk, real)
+
+Wave 24 (2026-05-22, Closes #735) imports the **tenth** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check` green, `cargo test --lib`
+reports **29 passed, 0 failed** on the first run. Ring-097 mirrors
+[`specs/ar/proof_trace.t27`](../specs/ar/proof_trace.t27) byte-for-byte:
+`MAX_STEPS = 10` (DARPA CLARA bound); K3 ternary logic
+(`Trit::{True = 1, Unknown = 0, False = -1, Null = 2}` with `Null` reserved
+for "output not yet produced"); K3 connectives `k3_and` (min lattice),
+`k3_or` (max lattice), `k3_not`; `ProofStep` with `step_id`, interned ASCII
+`operation` (up to 24 chars), fixed-arity `inputs` (up to 3 trits), `output`,
+`timestamp_us`; `ProofTrace` with fixed `[ProofStep; MAX_STEPS]` buffer plus
+`start_timestamp_us` / `end_timestamp_us` / `verified` flag; operations
+`new_proof_trace`, `add_step`, `verify_trace`, `trace_length`,
+`is_at_capacity`, `finalize_trace`, `step_at`, `format_trace`,
+`trit_to_string`; and `VerifyStatus::{Valid, Empty, TooManySteps,
+NullOutput(usize)}`. `verify_trace` enforces all three spec invariants:
+`empty_trace_fails`, `trace_verification_catches_overflow`, and
+`valid_trace_passes` (every step must have a non-`Null` output). The crate
+is `#![no_std]` and heap-free -- the rendering helper `format_trace` writes
+into a caller-supplied buffer (`FORMAT_TRACE_BUFFER`). The crate's
+`cot_phi_identity` is the **ninth cross-kernel anchor test** in the project
+(after ring-088, ring-089, ring-091, ring-092, ring-093, ring-094,
+ring-095, ring-096), routing `phi^2 + 1/phi^2 = 3` through a 6-step bounded
+reasoning chain: symbolic premises, `k3_and`, a numeric-witness step that
+evaluates `pow_u64(phi, 2) + pow_u64(phi, -2)` and produces `True` iff the
+result is within 1e-9 of 3.0, a `k3_or` alternative-path step, and a
+conclusion -- then verifies and finalises the trace, with a separate
+mass-conservation hook for φ²-weighted Pos and φ⁻²-weighted Neg priorities.
+Earlier Wave-11 narrative claimed 624 LOC; honest Wave-24 measurement is
+**823 LOC**. Promotion will be re-confirmed by the green `rings-rust`
+workflow run this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-097-rust`    | Chain-of-Thought (proof trace+K3) |  823 |    29 | `check` + `test`  |
+
+## Wave 11 -- ring-098..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-23 acknowledge this
+sources never reached this repository. Waves 15-24 acknowledge this
 honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
-`ring-092`, `ring-093`, `ring-094`, `ring-095`, and `ring-096` out of this
-table. The rows below are **claimed-only** placeholders, *not* deliverables.
-They will be promoted to `check` + `test` one ring at a time, each via its
-own PR that carries real source + local verification (the Wave-15..23
-template). LOC numbers below are quotes from past narrative, not
-measurements.
+`ring-092`, `ring-093`, `ring-094`, `ring-095`, `ring-096`, and `ring-097`
+out of this table. The rows below are **claimed-only** placeholders, *not*
+deliverables. They will be promoted to `check` + `test` one ring at a time,
+each via its own PR that carries real source + local verification (the
+Wave-15..24 template). LOC numbers below are quotes from past narrative,
+not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-097-rust`    | Chain-of-Thought                  |            624 | `claimed-only` |
 | `ring-098-rust`    | World Model                       |            920 | `claimed-only` |
 | `ring-099-rust`    | Integration                       |           1127 | `claimed-only` |
 

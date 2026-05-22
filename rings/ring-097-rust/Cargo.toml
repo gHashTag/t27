@@ -1,0 +1,9 @@
+[package]
+name = "ring-097-chain-of-thought"
+version = "0.1.0"
+edition = "2021"
+description = "ring-097: Bounded Chain-of-Thought reasoning primitives (K3 ternary logic + proof trace) mirroring specs/ar/proof_trace.t27"
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
