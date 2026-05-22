@@ -1,0 +1,15 @@
+[package]
+name = "ring-092-rust"
+version = "0.1.0"
+edition = "2021"
+description = "ring-092 Attention -- Sacred Attention primitives (TNN-backed, sacred scaling)"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+
+[features]
+default = []
