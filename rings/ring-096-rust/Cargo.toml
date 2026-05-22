@@ -1,0 +1,9 @@
+[package]
+name = "ring-096-quantization"
+version = "0.1.0"
+edition = "2021"
+description = "ring-096: Format quantization primitives (GF16 codec, ternary, Format enum) mirroring specs/numeric/formats.t27"
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
