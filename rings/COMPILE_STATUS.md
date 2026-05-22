@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate)
+# rings/ -- Living Compile Status (Wave 13 gate, Wave 14 promotion)
 
-> Last updated: 2026-05-22
+> Last updated: 2026-05-22 (Wave 14)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -22,13 +22,23 @@ as crates graduate from "scaffolded" to "compiles" to "tested".
 
 ## Wave 12 Track C -- ring-100..ring-104 (on disk)
 
-| Crate                  | Domain                  | LOC | Tests | Status     |
-|------------------------|-------------------------|----:|------:|------------|
-| `ring-100-rust`        | Multi-Chip Mesh         | 205 |     5 | `scaffold` |
-| `ring-101-rust`        | Analog GF16             | 144 |     5 | `scaffold` |
-| `ring-102-rust`        | Photonic MAC            | 157 |     5 | `scaffold` |
-| `ring-103-rust`        | On-Chip Learning phi-SGD| 131 |     6 | `scaffold` |
-| `ring-104-rust`        | Telemetry Bus           | 185 |     7 | `scaffold` |
+All 5 crates were promoted from `scaffold` to `check` + `test` in **Wave 14**
+(2026-05-22, Closes #715) once the root `Cargo.toml` `exclude` list was extended
+to cover `rings/`. Test counts below are the **actual** numbers reported by
+`cargo test` on Rust 1.83.0 -- the Wave-12 NOW entry's claim of 28 total tests
+was off by two; the honest total is **26** (R5-HONEST correction).
+
+| Crate                  | Domain                  | LOC | Tests | Status            |
+|------------------------|-------------------------|----:|------:|-------------------|
+| `ring-100-rust`        | Multi-Chip Mesh         | 205 |     4 | `check` + `test`  |
+| `ring-101-rust`        | Analog GF16             | 144 |     5 | `check` + `test`  |
+| `ring-102-rust`        | Photonic MAC            | 157 |     5 | `check` + `test`  |
+| `ring-103-rust`        | On-Chip Learning phi-SGD| 131 |     6 | `check` + `test`  |
+| `ring-104-rust`        | Telemetry Bus           | 185 |     6 | `check` + `test`  |
+
+**Track-C totals (verified):** 5 crates `cargo check` green, 26 tests pass,
+0 fail. Verified locally on Rust 1.83.0; promotion will be re-confirmed by
+the first green `rings-rust` workflow run on this PR.
 
 ## Wave 11 -- ring-088..ring-099 (authored off-disk)
 
