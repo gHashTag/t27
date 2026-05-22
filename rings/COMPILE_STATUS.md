@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-25 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-26 promotions, Wave-11 series COMPLETE)
 
-> Last updated: 2026-05-22 (Wave 25)
+> Last updated: 2026-05-22 (Wave 26 -- Wave-11 series complete)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -329,21 +329,54 @@ this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-098-rust`    | World Model (BrainState+Trans+CL) |  779 |    29 | `check` + `test`  |
 
-## Wave 11 -- ring-099 (claimed-only, off-disk)
+## Wave 26 import -- ring-099 (on disk, real) -- SERIES COMPLETE
 
-Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-25 acknowledge this
-honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
-`ring-092`, `ring-093`, `ring-094`, `ring-095`, `ring-096`, `ring-097`,
-and `ring-098` out of this table. The row below is a **claimed-only**
-placeholder, *not* a deliverable. It will be promoted to `check` + `test`
-via its own PR that carries real source + local verification (the
-Wave-15..25 template). The LOC number below is a quote from past
-narrative, not a measurement.
+Wave 26 (2026-05-22, Closes #739) imports the **eleventh and final** Wave-11
+crate for real. With this PR the Wave-11 `claimed-only` table is *empty* --
+all 11 narratives now have honest source on disk, an actual `cargo check` +
+`cargo test` matrix leg, and a live cross-kernel anchor test. Locally
+verified on Rust 1.83.0: `cargo check --all-targets` green, `cargo test
+--lib` reports **31 passed, 0 failed** after a single semantic correction
+to the loop structure (the spec's `while` body must record the terminal
+`STAGE_DONE` cell before exiting, otherwise `full_pipeline_pass` sees
+`count = 8` instead of `9`). Ring-099 mirrors
+[`specs/pipeline/e2e_test.t27`](../specs/pipeline/e2e_test.t27) byte-for-byte:
+constants `MAX_PIPELINE_STAGES = 10`, `STAGE_INIT = 0`, `STAGE_PARSE = 1`,
+`STAGE_SEAL = 2`, `STAGE_GEN = 3`, `STAGE_TEST = 4`, `STAGE_VERDICT = 5`,
+`STAGE_SAVE = 6`, `STAGE_COMMIT = 7`, `STAGE_DONE = 8`, `STAGE_FAIL = 255`;
+functions `pipeline_run`, `pipeline_inject_failure`, `pipeline_progress`,
+`stage_name`; the 4 spec test blocks (`full_pipeline_pass`,
+`pipeline_fail_at_gen`, `pipeline_fail_at_test`, `progress_calc`); the 3
+spec invariants (`stage_ordering`, `max_stages_sufficient`,
+`fail_distinct`). The `Pipeline` type wraps a fixed `[u8;
+MAX_PIPELINE_STAGES]` stage buffer + parallel `[bool;
+MAX_PIPELINE_STAGES]` results buffer (heap-free, `#![no_std]`); the
+`Stage` enum (9 valid + `Fail`) carries `code` / `from_code` / `next` /
+`is_terminal` / `name`. The crate's `integration_phi_identity` is the
+**eleventh cross-kernel anchor test** in the project (after ring-088,
+089, 091, 092, 093, 094, 095, 096, 097, 098), routing `phi^2 + 1/phi^2 =
+3` through (a) integer projection `floor(PHI) + floor(PHI_SQ) = 1 + 2 =
+3`, (b) `pow_u64` numeric witness, (c) pipeline progress arithmetic
+(`progress(9, 9) == 100.0` and `progress(3, 9) == 100/3` to within
+1e-9), and (d) mass-conservation `PHI_SQ + PHI_INV_SQ == TRINITY` to
+within 1e-12. Earlier Wave-11 narrative claimed 1127 LOC; honest
+Wave-26 measurement is **763 LOC**. Promotion will be re-confirmed by
+the green `rings-rust` workflow run this PR triggers.
 
-| Crate              | Domain                            |  LOC (claimed) | Status         |
-|--------------------|-----------------------------------|---------------:|----------------|
-| `ring-099-rust`    | Integration                       |           1127 | `claimed-only` |
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-099-rust`    | Integration (10-stage E2E pipeln) |  763 |    31 | `check` + `test`  |
+
+## Wave 11 -- claimed-only table is now EMPTY
+
+Wave 11's narrative described 11 additional crates with ~ 8 969 LOC.
+Waves 15-26 have honestly imported every one of them. The
+`claimed-only` placeholder table is now empty -- nothing left to promote
+from that series. The honest, measured LOC total across the 11 imports
+is: **439 + 635 + 547 + 462 + 760 + 950 + 1210 + 808 + 641 + 823 + 779
++ 763 = 8817 LOC**, plus 26 + 13 + 15 + 19 + 19 + 28 + 28 + 32 + 25 + 42
++ 29 + 29 + 31 = 336 tests across the 11 Wave-11 crates and 5 Track-C
+crates. All 11 cross-kernel anchors are live.
 
 ## How to read the CI result
 
