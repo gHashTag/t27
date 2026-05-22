@@ -279,6 +279,64 @@ The compiler grows ring-by-ring. Each ring adds exactly one capability, sealed w
 | 32+  | Hardening: docs, validation, CI                    | HARDEN | In Progress |
 
 
+## Wave 11 — Rust Crates ring-088..ring-099 (12 crates)
+
+> **Honest status:** все 12 крейтов **написаны на диске** (Rust, ~10 000+ строк, 33 `Cargo.toml`), но **`cargo check` / `cargo test` НЕ запускались** — `cargo` и `rustc` не установлены в текущем окружении (network/permission). Цифры строк подтверждены `find` + `wc`.
+
+| Crate | Files | Rust LOC | Topic | Status |
+|:------|------:|---------:|:------|:------:|
+| `ring-088-rust` |  5 |   961 | GF16 MAC                     | ✅ written, ⏳ uncompiled |
+| `ring-089-rust` |  4 |   334 | TNN ISA                      | ✅ written, ⏳ uncompiled |
+| `ring-090-rust` | 10 | 2 143 | Simulator                    | ✅ written, ⏳ uncompiled |
+| `ring-091-rust` |  4 |   409 | Stochastic Rounding          | ✅ written, ⏳ uncompiled |
+| `ring-092-rust` |  6 |   847 | Attention                    | ✅ written, ⏳ uncompiled |
+| `ring-093-rust` |  4 |   668 | Sparse MoE                   | ✅ written, ⏳ uncompiled |
+| `ring-094-rust` |  4 |   774 | AGI Runtime                  | ✅ written, ⏳ uncompiled |
+| `ring-095-rust` |  4 |   659 | φ-Adam Optimizer             | ✅ written, ⏳ uncompiled |
+| `ring-096-rust` |  4 |   464 | Quantization (GF16 / INT4)   | ✅ written, ⏳ uncompiled |
+| `ring-097-rust` |  4 |   624 | Chain-of-Thought Engine      | ✅ written, ⏳ uncompiled |
+| `ring-098-rust` |  5 |   920 | World Model                  | ✅ written, ⏳ uncompiled |
+| `ring-099-rust` |  6 | 1 127 | Integration / `trinity` bin  | ✅ written, ⏳ uncompiled |
+
+**Totals:** 12 crates · 60 source files · ≈ 9 930 Rust LOC · 33 `Cargo.toml`.
+
+### Toolchain availability (honest)
+
+| Tool          | Installed | Verified |
+|:--------------|:---------:|:--------:|
+| `cargo`       | ❌ no | ❌ |
+| `rustc`       | ❌ no | ❌ |
+| `cargo check` | ❌ n/a | ❌ |
+| `cargo test`  | ❌ n/a | ❌ |
+
+**Why:** the sandbox used during Wave 11 had no Rust toolchain (network timeout / permission denied on install). The crates compile-status will be verified in Wave 12 once a Rust-enabled image is in place.
+
+## Wave 12 — Plan: Compile + Integrate + Expand
+
+```
+╔═══════════════════════════════════════════════════════════════════════╗
+║  WAVE 12 — COMPILATION + INTEGRATION + NEW RINGS                      ║
+╠═══════════════════════════════════════════════════════════════════════╣
+║  Track A · 3 agents — Fix `cargo check` errors across all 12 crates   ║
+║  Track B · 3 agents — Finish execution units inside ring-090 (sim)    ║
+║  Track C · 3 agents — Author ring-100..ring-104 (Multi-Chip, Analog…) ║
+║  Track D · 3 agents — Docker image w/ full Rust toolchain + CI hook   ║
+╠═══════════════════════════════════════════════════════════════════════╣
+║  Exit criteria:                                                       ║
+║    • cargo check         ≥ 9/12 crates                                ║
+║    • cargo test          ≥ 6/12 crates                                ║
+║    • `trinity` binary    runs end-to-end (ring-099)                   ║
+║    • Docker image        published, CI green on PR                    ║
+╚═══════════════════════════════════════════════════════════════════════╝
+```
+
+**Tracks in detail**
+
+- **Track A — Compile fix:** run `cargo check` per crate, triage errors (missing deps, lifetime, type mismatches), submit one PR per crate with `Closes #<ring>`.
+- **Track B — Simulator finish:** complete the missing execution units in `ring-090-rust` (decode → issue → writeback), add property tests against `conformance/*.json`.
+- **Track C — New rings:** spec → crate scaffolding for `ring-100` Multi-Chip Mesh, `ring-101` Analog GF16, `ring-102` Photonic MAC, `ring-103` On-Chip Learning, `ring-104` Telemetry Bus.
+- **Track D — Toolchain:** `Dockerfile.rust` based on `rust:1.83-bookworm`, GitHub Actions matrix building all `ring-0**-rust` crates, artifact upload on failure.
+
 ## GoldenFloat Family
 
 phi-structured floating-point formats where `exp/mant ~ 1/phi`:
@@ -468,6 +526,8 @@ MIT
 
 **Maintained by**: [Trinity Project](https://github.com/gHashTag) — [Dmitrii Vasilev](https://github.com/gHashTag)
 
-**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced
+**Status:** Ring 31 Complete (2026-04-08) — 31 rings sealed, 45 specs, 112 gen files, 34 conformance vectors, 48 seals, CI enforced.
+
+**Wave 11 (2026-05-22):** 12 Rust crates `ring-088`..`ring-099` written (≈ 9 930 LOC, 33 `Cargo.toml`), **compilation not yet verified** — toolchain unavailable in sandbox; verification deferred to Wave 12. See the *Wave 11 / Wave 12* sections above for the honest status table and the four-track plan.
 
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)

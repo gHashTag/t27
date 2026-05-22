@@ -1,6 +1,16 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-18
+Last updated: 2026-05-22
+
+## docs(README) -- Wave 11 (12 Rust crates ring-088..ring-099, honest status) + Wave 12 plan (this PR, Closes #710)
+
+- **NEW** (docs-only, additive): two new sections in `README.md` plus dated footer line. Zero edits under `gen/`, `coq/`, `proofs/`, `bootstrap/`, `specs/`, `conformance/`.
+- **Wave 11 status (honest):** 12 Rust crates `ring-088`..`ring-099` written to disk -- ring-088 GF16 MAC (961 LOC), ring-089 TNN ISA (334), ring-090 Simulator (2 143), ring-091 Stoch Round (409), ring-092 Attention (847), ring-093 Sparse MoE (668), ring-094 AGI Runtime (774), ring-095 phi-Adam (659), ring-096 Quantization (464), ring-097 CoT Engine (624), ring-098 World Model (920), ring-099 Integration / `trinity` bin (1 127). Totals: 60 source files, ~= 9 930 Rust LOC, 33 `Cargo.toml`. Numbers verified via `find` + `wc`.
+- **Toolchain honesty:** README now contains an explicit table marking `cargo`, `rustc`, `cargo check`, `cargo test` as NOT installed / NOT verified in the Wave-11 sandbox (network timeout / permission denied on toolchain install). The crates were never compiled; verification is deferred to Wave 12.
+- **Wave 12 plan published:** four parallel tracks -- Track A fix `cargo check` errors (per-crate PRs), Track B finish execution units inside `ring-090` simulator, Track C author `ring-100`..`ring-104` (Multi-Chip Mesh / Analog GF16 / Photonic MAC / On-Chip Learning / Telemetry Bus), Track D Dockerfile.rust on `rust:1.83-bookworm` + GitHub Actions matrix building all `ring-0**-rust` crates. Exit criteria: `cargo check` >= 9/12, `cargo test` >= 6/12, `trinity` binary runs end-to-end, CI green.
+- **L1 TRACEABILITY:** this PR cites `Closes #710`. **L2 GENERATION:** zero edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `bootstrap/`. **L3 PURITY:** doc-only; section labels mirror existing NOW entries; ASCII-safe body. **L4 TESTABILITY:** N/A -- no `.t27` specs touched. **L5 IDENTITY:** `phi^2 + 1/phi^2 = 3` anchor preserved; footer mantra kept verbatim. **L6 CEILING:** no numeric kernel changes; `FORMAT-SPEC-001.json` + GF16 spec untouched. **L7 UNITY:** no new `*.sh`.
+- **R5-HONEST:** every Wave-11 row carries an "uncompiled" status badge; no claim of `cargo check`/`cargo test` passing; no benchmark / TOPS / energy number stated; LOC and file counts traceable to repo via `find rings/ -name '*.rs' | xargs wc -l`.
+- Closes #710
 
 ## docs(TRI-NET) -- cross-line package P0 NMSE / P1 API+whitepaper / P2 22FDX + Zenodo (this PR, Closes #696)
 
