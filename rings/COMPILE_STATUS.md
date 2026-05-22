@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-21 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-22 promotions)
 
-> Last updated: 2026-05-22 (Wave 21)
+> Last updated: 2026-05-22 (Wave 22)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -196,20 +196,51 @@ measurement is **1210 LOC**. Promotion will be re-confirmed by the green
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-094-rust`    | AGI Runtime (scheduler + registry)| 1210 |    32 | `check` + `test`  |
 
-## Wave 11 -- ring-095..ring-099 (claimed-only, off-disk)
+## Wave 22 import -- ring-095 (on disk, real)
+
+Wave 22 (2026-05-22, Closes #731) imports the **eighth** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check` green, `cargo test --lib`
+reports **25 passed, 0 failed**. Ring-095 mirrors
+`specs/ml/optimizer/{adam, adamw}.t27`: spec constants byte-for-byte
+(`DEFAULT_LEARNING_RATE = 1e-3`, `DEFAULT_BETA1 = 0.9`,
+`DEFAULT_BETA2 = 0.999`, `DEFAULT_WEIGHT_DECAY = 0.01`,
+`DEFAULT_EPSILON = 1e-8`, `DEFAULT_AMSGRAD = false`,
+`PHI_BETA1 = 0.9 / phi ~= 0.556`, `PHI_BETA2 = 0.999 / phi ~= 0.617`);
+`AdamWConfig` with `defaults()` and `phi_preset()` constructors;
+caller-owned `AdamWState<'_>` (no allocation); helper functions named
+after the spec (`compute_bias_correction`, `update_first_moment`,
+`update_second_moment`, `apply_weight_decay`, `compute_update`); and a
+full `step()` orchestrator implementing decoupled weight decay,
+bias-corrected lr_t = lr * sqrt(1 - beta2^t) / (1 - beta1^t), the moment
+recurrences, AMSGrad max-of-v scratch, and the parameter update.
+Private no_std math helpers: `pow_u64` (fast exponentiation) and
+`sqrt_newton` (Newton-Raphson square root) bypass libm. The crate's
+`phi_adam_phi_identity_via_betas` is the **seventh cross-kernel anchor
+test** in the project (after ring-088, ring-089, ring-091, ring-092,
+ring-093, ring-094), routing `phi^2 + 1/phi^2 = 3` through the
+optimizer's `pow_u64` helper and through the phi-damped first-moment
+update `m_1 = (1 - 0.9/phi) * phi = phi - 0.9`. Earlier Wave-11
+narrative claimed 659 LOC; honest Wave-22 measurement is **808 LOC**.
+Promotion will be re-confirmed by the green `rings-rust` workflow run
+this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-095-rust`    | phi-Adam optimizer (AdamW + phi)  |  808 |    25 | `check` + `test`  |
+
+## Wave 11 -- ring-096..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-21 acknowledge this
+sources never reached this repository. Waves 15-22 acknowledge this
 honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
-`ring-092`, `ring-093`, and `ring-094` out of this table. The rows below
-are **claimed-only** placeholders, *not* deliverables. They will be
-promoted to `check` + `test` one ring at a time, each via its own PR that
-carries real source + local verification (the Wave-15..21 template). LOC
-numbers below are quotes from past narrative, not measurements.
+`ring-092`, `ring-093`, `ring-094`, and `ring-095` out of this table. The
+rows below are **claimed-only** placeholders, *not* deliverables. They will
+be promoted to `check` + `test` one ring at a time, each via its own PR
+that carries real source + local verification (the Wave-15..22 template).
+LOC numbers below are quotes from past narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-095-rust`    | phi-Adam                          |            659 | `claimed-only` |
 | `ring-096-rust`    | Quantization                      |            464 | `claimed-only` |
 | `ring-097-rust`    | Chain-of-Thought                  |            624 | `claimed-only` |
 | `ring-098-rust`    | World Model                       |            920 | `claimed-only` |
