@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-19 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-20 promotions)
 
-> Last updated: 2026-05-22 (Wave 19)
+> Last updated: 2026-05-22 (Wave 20)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -138,20 +138,47 @@ the green `rings-rust` workflow run this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-092-rust`    | Attention (Sacred primitives)     |  760 |    28 | `check` + `test`  |
 
-## Wave 11 -- ring-093..ring-099 (claimed-only, off-disk)
+## Wave 20 import -- ring-093 (on disk, real)
+
+Wave 20 (2026-05-22, Closes #727) imports the **sixth** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check` green, `cargo test --lib`
+reports **28 passed, 0 failed** on the first run. Ring-093 has no
+backing file under `specs/` (textbook algorithm, like ring-091's SR);
+the design follows the canonical Shazeer-2017 / Switch-Transformer
+top-k routing structure with ternary (`Trit`) expert weights and
+Trinity defaults (`NUM_EXPERTS = 3`, `DEFAULT_TOP_K = 1`,
+`DEFAULT_EMBED_DIM = 243`, `DEFAULT_EXPERT_HIDDEN_DIM = 729 = 3^6`).
+Exposes `MoEConfig`, `gate_top_k` (top-k selection + max-subtract
+softmax over selected logits, numerically stable), `expert_ffn` (two-layer
+ternary FFN with ReLU), `moe_forward` (composes gating with per-expert
+FFNs into a single token's MoE output, fully allocation-free), `relu_inplace`,
+`load_balance_loss` (Switch-Transformer importance balance), and the
+universal anchor. A private `exp_f64` (range-reduced Taylor series)
+makes the gating softmax viable in `no_std` without libm. The crate's
+`moe_phi_identity_via_gating_and_ffn` is the **fifth cross-kernel
+anchor test** in the project (after ring-088, ring-089, ring-091, and
+ring-092), routing `phi^2 + 1/phi^2 = 3` through MoE gating + ternary
+FFN. The Wave-11 narrative quoted 668 LOC; honest Wave-20 measurement
+is **950 LOC**. Promotion will be re-confirmed by the green
+`rings-rust` workflow run this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-093-rust`    | Sparse MoE (top-k + ternary FFN)  |  950 |    28 | `check` + `test`  |
+
+## Wave 11 -- ring-094..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-19 acknowledge this
+sources never reached this repository. Waves 15-20 acknowledge this
 honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
-and `ring-092` out of this table. The rows below are **claimed-only**
-placeholders, *not* deliverables. They will be promoted to `check` +
-`test` one ring at a time, each via its own PR that carries real source
-+ local verification (the Wave-15/16/17/18/19 template). LOC numbers below
-are quotes from past narrative, not measurements.
+`ring-092`, and `ring-093` out of this table. The rows below are
+**claimed-only** placeholders, *not* deliverables. They will be promoted
+to `check` + `test` one ring at a time, each via its own PR that carries
+real source + local verification (the Wave-15..20 template). LOC numbers
+below are quotes from past narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-093-rust`    | Sparse MoE                        |            668 | `claimed-only` |
 | `ring-094-rust`    | AGI Runtime                       |            774 | `claimed-only` |
 | `ring-095-rust`    | phi-Adam                          |            659 | `claimed-only` |
 | `ring-096-rust`    | Quantization                      |            464 | `claimed-only` |
