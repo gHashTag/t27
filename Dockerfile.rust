@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.6
+# Wave 13 -- Toolchain & Compilation Gate
+# Pinned Rust image for reproducible builds of rings/ring-*-rust crates.
+# Anchor: phi^2 + 1/phi^2 = 3
+FROM rust:1.83-bookworm
+
+LABEL org.opencontainers.image.title="t27-rust-toolchain"
+LABEL org.opencontainers.image.description="Pinned Rust 1.83 toolchain for t27 ring-*-rust crate compilation gate"
+LABEL org.opencontainers.image.source="https://github.com/gHashTag/t27"
+
+ENV CARGO_TERM_COLOR=always \
+    RUST_BACKTRACE=1 \
+    CARGO_INCREMENTAL=0
+
+# Minimal system deps for `cargo check`/`cargo test` on no_std + alloc crates.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        pkg-config \
+        ca-certificates \
+        git \
+ && rm -rf /var/lib/apt/lists/*
+
+# Pre-install rustfmt/clippy components (idempotent on the base image).
+RUN rustup component add rustfmt clippy
+
+WORKDIR /workspace
+
+# Default command prints the toolchain version -- callers override with cargo cmds.
+CMD ["bash", "-lc", "rustc --version && cargo --version"]
