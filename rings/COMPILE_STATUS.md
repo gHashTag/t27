@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-18 promotions)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-19 promotions)
 
-> Last updated: 2026-05-22 (Wave 18)
+> Last updated: 2026-05-22 (Wave 19)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -112,20 +112,45 @@ green `rings-rust` workflow run this PR triggers.
 |--------------------|-----------------------------------|-----:|------:|-------------------|
 | `ring-091-rust`    | Stochastic Rounding + SplitMix64  |  462 |    19 | `check` + `test`  |
 
-## Wave 11 -- ring-092..ring-099 (claimed-only, off-disk)
+## Wave 19 import -- ring-092 (on disk, real)
+
+Wave 19 (2026-05-22, Closes #725) imports the **fifth** Wave-11 crate for real.
+Locally verified on Rust 1.83.0: `cargo check` green, `cargo test --lib`
+reports **28 passed, 0 failed** on the first run. Ring-092 mirrors the
+realizable subset of [`specs/nn/attention.t27`](../specs/nn/attention.t27)
+(SacredAttention): sacred constants byte-for-byte (`NUM_HEADS=3`,
+`HEAD_DIM=81`, `EMBED_DIM=243`, `CONTEXT_LEN=81`, `ROPE_PAIRS=40`,
+`SACRED_GAMMA = phi^-3`, `SACRED_SCALE = 81^(-SACRED_GAMMA)`); `Trit`
+enum; and the primitives `ternary_matmul`, `add_residual`, `apply_softmax`
+(numerically stable max-subtract, per-head), `compute_scores` (Q.K^T with
+causal mask + sacred scaling), `weighted_values`, `cache_kv`. A private
+`exp_f64` (range-reduction + Taylor series) makes softmax viable in
+`no_std` without libm. The crate's `attention_phi_identity_via_softmax_matmul`
+is the **fourth cross-kernel anchor test** in the project (after
+ring-088, ring-089, ring-091), routing `phi^2 + 1/phi^2 = 3` through
+softmax-style normalization and ternary matmul. RoPE table init (cos/sin)
+and the full `sacred_attention_kernel` orchestrator are explicitly out of
+scope (R5-HONEST). Earlier Wave-11 narrative claimed 847 LOC; honest
+Wave-19 measurement is **760 LOC**. Promotion will be re-confirmed by
+the green `rings-rust` workflow run this PR triggers.
+
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-092-rust`    | Attention (Sacred primitives)     |  760 |    28 | `check` + `test`  |
+
+## Wave 11 -- ring-093..ring-099 (claimed-only, off-disk)
 
 Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
-sources never reached this repository. Waves 15-18 acknowledge this
-honestly and have promoted `ring-088`, `ring-089`, `ring-090`, and
-`ring-091` out of this table. The rows below are **claimed-only**
+sources never reached this repository. Waves 15-19 acknowledge this
+honestly and have promoted `ring-088`, `ring-089`, `ring-090`, `ring-091`,
+and `ring-092` out of this table. The rows below are **claimed-only**
 placeholders, *not* deliverables. They will be promoted to `check` +
 `test` one ring at a time, each via its own PR that carries real source
-+ local verification (the Wave-15/16/17/18 template). LOC numbers below
++ local verification (the Wave-15/16/17/18/19 template). LOC numbers below
 are quotes from past narrative, not measurements.
 
 | Crate              | Domain                            |  LOC (claimed) | Status         |
 |--------------------|-----------------------------------|---------------:|----------------|
-| `ring-092-rust`    | Attention                         |            847 | `claimed-only` |
 | `ring-093-rust`    | Sparse MoE                        |            668 | `claimed-only` |
 | `ring-094-rust`    | AGI Runtime                       |            774 | `claimed-only` |
 | `ring-095-rust`    | phi-Adam                          |            659 | `claimed-only` |
