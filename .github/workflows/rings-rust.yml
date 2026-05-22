@@ -15,12 +15,14 @@ on:
       - ".github/workflows/rings-rust.yml"
       - "scripts/ci/rings_matrix.py"
       - "Dockerfile.rust"
+      - "Cargo.toml"
   pull_request:
     paths:
       - "rings/ring-*-rust/**"
       - ".github/workflows/rings-rust.yml"
       - "scripts/ci/rings_matrix.py"
       - "Dockerfile.rust"
+      - "Cargo.toml"
   workflow_dispatch:
 
 permissions:

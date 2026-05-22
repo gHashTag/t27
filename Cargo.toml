@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["bootstrap", "bindings/javascript", "cli/tri", "cli/trios-bridge", "cli/flash-spi", "cli/dlc10"]
-exclude = ["bindings/python", "tools/converter", "gen"]
+exclude = ["bindings/python", "tools/converter", "gen", "rings"]
 
 [workspace.package]
 version = "0.1.0"

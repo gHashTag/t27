@@ -579,4 +579,6 @@ MIT
 
 **Wave 13 (2026-05-22):** Toolchain & Compilation Gate landed — `Dockerfile.rust` (`rust:1.83-bookworm`), `scripts/ci/rings_matrix.py`, `.github/workflows/rings-rust.yml` matrix build, `rings/COMPILE_STATUS.md` living per-crate status. Non-blocking honesty gate — see [COMPILE_STATUS](rings/COMPILE_STATUS.md).
 
+**Wave 14 (2026-05-22):** Rings compile green — root `Cargo.toml` `exclude` extended with `rings/`. All 5 Track-C crates (`ring-100`..`ring-104`) promoted from `scaffold` to `check` + `test` in [COMPILE_STATUS](rings/COMPILE_STATUS.md). Verified locally on Rust 1.83.0: 26 tests pass, 0 fail (honest count; Wave-12 NOW's claim of 28 was off by two — corrected).
+
 **DOI:** [10.5281/zenodo.19456875](https://doi.org/10.5281/zenodo.19456875)
