@@ -1,6 +1,6 @@
-# rings/ -- Living Compile Status (Wave 13 gate, Wave 14 promotion)
+# rings/ -- Living Compile Status (Wave 13 gate, Waves 14-15 promotions)
 
-> Last updated: 2026-05-22 (Wave 14)
+> Last updated: 2026-05-22 (Wave 15)
 > Anchor: phi^2 + 1/phi^2 = 3
 > CI workflow: [`.github/workflows/rings-rust.yml`](../.github/workflows/rings-rust.yml)
 > Toolchain: pinned via [`Dockerfile.rust`](../Dockerfile.rust) -- `rust:1.83-bookworm`
@@ -13,12 +13,12 @@ as crates graduate from "scaffolded" to "compiles" to "tested".
 
 ## Legend
 
-| Symbol      | Meaning                                                     |
-|-------------|-------------------------------------------------------------|
-| `scaffold`  | Files present on disk, never compiled in CI                 |
-| `check`     | `cargo check --all-targets` passes in CI                    |
-| `test`      | `cargo test` passes in CI                                   |
-| `off-disk`  | Authored in another sandbox; not yet imported into this repo|
+| Symbol           | Meaning                                                              |
+|------------------|----------------------------------------------------------------------|
+| `scaffold`       | Files present on disk, never compiled in CI                          |
+| `check`          | `cargo check --all-targets` passes in CI                             |
+| `test`           | `cargo test` passes in CI                                            |
+| `claimed-only`   | Earlier narrative referenced this crate; **no source in this repo**. |
 
 ## Wave 12 Track C -- ring-100..ring-104 (on disk)
 
@@ -40,26 +40,40 @@ was off by two; the honest total is **26** (R5-HONEST correction).
 0 fail. Verified locally on Rust 1.83.0; promotion will be re-confirmed by
 the first green `rings-rust` workflow run on this PR.
 
-## Wave 11 -- ring-088..ring-099 (authored off-disk)
+## Wave 15 import -- ring-088 (on disk, real)
 
-These crates were authored in a prior sandbox and are documented in the
-Wave 11 README section, but their sources are **not** yet present in this
-repository. They will be imported and pass the Wave 13 gate incrementally.
+Wave 15 (2026-05-22, Closes #717) imports the first Wave-11 crate **for real**.
+Locally verified on Rust 1.83.0: `cargo check` green, `cargo test` reports
+**13 passed, 0 failed** (mandatory-8 from `specs/02-gf16-format.tri` plus 5 MAC
+and identity tests). Promotion will be re-confirmed by the green `rings-rust`
+workflow run that this PR triggers.
 
-| Crate              | Domain                            |  LOC | Status     |
-|--------------------|-----------------------------------|-----:|------------|
-| `ring-088-rust`    | GF16 MAC                          |  961 | `off-disk` |
-| `ring-089-rust`    | TNN ISA                           |  334 | `off-disk` |
-| `ring-090-rust`    | Simulator                         | 2143 | `off-disk` |
-| `ring-091-rust`    | Stochastic Rounding               |  409 | `off-disk` |
-| `ring-092-rust`    | Attention                         |  847 | `off-disk` |
-| `ring-093-rust`    | Sparse MoE                        |  668 | `off-disk` |
-| `ring-094-rust`    | AGI Runtime                       |  774 | `off-disk` |
-| `ring-095-rust`    | phi-Adam                          |  659 | `off-disk` |
-| `ring-096-rust`    | Quantization                      |  464 | `off-disk` |
-| `ring-097-rust`    | Chain-of-Thought                  |  624 | `off-disk` |
-| `ring-098-rust`    | World Model                       |  920 | `off-disk` |
-| `ring-099-rust`    | Integration                       | 1127 | `off-disk` |
+| Crate              | Domain                            |  LOC | Tests | Status            |
+|--------------------|-----------------------------------|-----:|------:|-------------------|
+| `ring-088-rust`    | GF16 codec + MAC (`mac_dot`)      |  439 |    13 | `check` + `test`  |
+
+## Wave 11 -- ring-089..ring-099 (claimed-only, off-disk)
+
+Wave 11's narrative described 11 additional crates with ~ 8 969 LOC. Their
+sources never reached this repository. Wave 15 acknowledges this honestly: the
+rows below are **claimed-only** placeholders, *not* deliverables. They will be
+promoted to `check` + `test` one ring at a time, each via its own PR that
+carries real source + local verification (the Wave-15 template). LOC numbers
+below are quotes from past narrative, not measurements.
+
+| Crate              | Domain                            |  LOC (claimed) | Status         |
+|--------------------|-----------------------------------|---------------:|----------------|
+| `ring-089-rust`    | TNN ISA                           |            334 | `claimed-only` |
+| `ring-090-rust`    | Simulator                         |           2143 | `claimed-only` |
+| `ring-091-rust`    | Stochastic Rounding               |            409 | `claimed-only` |
+| `ring-092-rust`    | Attention                         |            847 | `claimed-only` |
+| `ring-093-rust`    | Sparse MoE                        |            668 | `claimed-only` |
+| `ring-094-rust`    | AGI Runtime                       |            774 | `claimed-only` |
+| `ring-095-rust`    | phi-Adam                          |            659 | `claimed-only` |
+| `ring-096-rust`    | Quantization                      |            464 | `claimed-only` |
+| `ring-097-rust`    | Chain-of-Thought                  |            624 | `claimed-only` |
+| `ring-098-rust`    | World Model                       |            920 | `claimed-only` |
+| `ring-099-rust`    | Integration                       |           1127 | `claimed-only` |
 
 ## How to read the CI result
 

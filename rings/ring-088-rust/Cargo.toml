@@ -1,0 +1,20 @@
+[package]
+name = "ring-088-gf16-mac"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Trinity ring-088 -- GF16 numeric codec + multiply-accumulate kernel. First honestly-imported Wave-11 crate (Wave 15)."
+authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+repository = "https://github.com/gHashTag/t27"
+readme = "README.md"
+
+[lib]
+name = "ring_088_gf16_mac"
+path = "src/lib.rs"
+
+# Anchor: phi^2 + 1/phi^2 = 3
+# This crate is intentionally NOT in the root [workspace].members table.
+# The root Cargo.toml's `exclude = ["rings", ...]` (added in Wave 14) keeps it
+# standalone, matching the rings/COMPILE_STATUS.md gate semantics.
+
+[dependencies]
