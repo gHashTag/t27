@@ -3615,6 +3615,45 @@ impl VerilogCodegen {
             self.write_line("");
         }
 
+        // Section: R-SI-1 compliant multiplication helper.
+        // OpenLane R-SI-1 forbids the `*` operator in synthesizable RTL.
+        // t27c emits `__mul_noop(a, b)` instead of `a * b`; this 32-bit
+        // shift-and-add ladder is unconditionally injected so any module is
+        // self-contained.
+        self.write_indent();
+        self.write_line("// -------------------------------------------------------");
+        self.write_indent();
+        self.write_line("// R-SI-1: multiplication helper (no `*` operator)");
+        self.write_indent();
+        self.write_line("// -------------------------------------------------------");
+        self.write_indent();
+        self.write_line("function [31:0] __mul_noop;");
+        self.write_indent();
+        self.write_line("    input [31:0] a;");
+        self.write_indent();
+        self.write_line("    input [31:0] b;");
+        self.write_indent();
+        self.write_line("    integer i;");
+        self.write_indent();
+        self.write_line("    reg [63:0] acc;");
+        self.write_indent();
+        self.write_line("    begin");
+        self.write_indent();
+        self.write_line("        acc = 64'd0;");
+        self.write_indent();
+        self.write_line("        for (i = 0; i < 32; i = i + 1) begin");
+        self.write_indent();
+        self.write_line("            if (b[i]) acc = acc + ({32'd0, a} << i);");
+        self.write_indent();
+        self.write_line("        end");
+        self.write_indent();
+        self.write_line("        __mul_noop = acc[31:0];");
+        self.write_indent();
+        self.write_line("    end");
+        self.write_indent();
+        self.write_line("endfunction");
+        self.write_line("");
+
         // Section: Struct → register/signal declarations
         if !structs.is_empty() {
             self.write_indent();
@@ -4265,33 +4304,43 @@ impl VerilogCodegen {
             }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
-                    // Map operators
-                    let op = match node.extra_op.as_str() {
-                        "&&" | "and" => "&&",
-                        "||" | "or" => "||",
-                        "==" => "==",
-                        "!=" => "!=",
-                        ">=" => ">=",
-                        "<=" => "<=",
-                        ">" => ">",
-                        "<" => "<",
-                        "+" => "+",
-                        "-" => "-",
-                        "*" => "*",
-                        "/" => "/",
-                        "%" => "%",
-                        "&" => "&",
-                        "|" => "|",
-                        "^" => "^",
-                        "<<" => "<<",
-                        ">>" => ">>",
-                        other => other,
-                    };
-                    self.write("(");
-                    self.gen_verilog_expr(&node.children[0]);
-                    self.write(&format!(" {} ", op));
-                    self.gen_verilog_expr(&node.children[1]);
-                    self.write(")");
+                    // R-SI-1: Multiplication must not appear as `*` operator in
+                    // synthesizable RTL. Emit `__mul_noop(a, b)` instead — the
+                    // function definition is injected once per module preamble.
+                    if node.extra_op.as_str() == "*" {
+                        self.write("__mul_noop(");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(", ");
+                        self.gen_verilog_expr(&node.children[1]);
+                        self.write(")");
+                    } else {
+                        // Map operators
+                        let op = match node.extra_op.as_str() {
+                            "&&" | "and" => "&&",
+                            "||" | "or" => "||",
+                            "==" => "==",
+                            "!=" => "!=",
+                            ">=" => ">=",
+                            "<=" => "<=",
+                            ">" => ">",
+                            "<" => "<",
+                            "+" => "+",
+                            "-" => "-",
+                            "/" => "/",
+                            "%" => "%",
+                            "&" => "&",
+                            "|" => "|",
+                            "^" => "^",
+                            "<<" => "<<",
+                            ">>" => ">>",
+                            other => other,
+                        };
+                        self.write("(");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(&format!(" {} ", op));
+                        self.gen_verilog_expr(&node.children[1]);
+                        self.write(")");
+                    }
                 }
             }
             NodeKind::ExprUnary => {
