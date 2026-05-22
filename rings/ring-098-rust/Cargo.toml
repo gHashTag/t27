@@ -1,0 +1,10 @@
+[package]
+name = "ring-098-world-model"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "ring-098 World Model -- bounded internal state model (BrainState + Transition + 5-phase cognitive loop). Mirrors specs/brain/unified_state.t27 + specs/ml/rl/dqn.t27 + specs/brain/cognitive_loop.t27. Anchor: phi^2 + 1/phi^2 = 3."
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
