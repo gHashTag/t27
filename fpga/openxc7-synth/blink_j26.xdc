@@ -1,0 +1,6 @@
+set_property LOC J26 [get_ports led]
+set_property IOSTANDARD LVCMOS33 [get_ports {led}]
+set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+set_property BITSTREAM.CONFIG.UNUSEDPIN PULLDOWN [current_design]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets osc]
+set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets osc]

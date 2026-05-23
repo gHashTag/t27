@@ -1,0 +1,12 @@
+/Users/playom/Library/Python/3.14/lib/python/site-packages/fasm/parser/__init__.py:30: RuntimeWarning: Unable to import fast Antlr4 parser implementation.
+  ImportError: cannot import name 'antlr_to_tuple' from partially initialized module 'fasm.parser' (most likely due to a circular import) (/Users/playom/Library/Python/3.14/lib/python/site-packages/fasm/parser/__init__.py)
+
+  Falling back to the much slower pure Python textX based parser
+  implementation.
+
+  Getting the faster antlr parser can normally be done by installing the
+  required dependencies and then reinstalling the fasm package with:
+    pip uninstall
+    pip install -v fasm
+
+  warn(
