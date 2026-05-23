@@ -20,6 +20,7 @@ pub mod irq;
 pub mod json_output;
 pub mod mmio;
 pub mod perf;
+pub mod ternary;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use engine::{InferenceEngine, InferenceReport};
@@ -27,3 +28,4 @@ pub use irq::{IrqDrivenDriver, IrqHandler, IrqSource};
 pub use json_output::{HostSmokeJson, HostPollVsIrqJson, HostInferenceJson, HostPerfJson};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
 pub use perf::{EngineConfig, PerformanceEstimate};
+pub use ternary::{Trit, pack_word, unpack_word, pack_words, unpack_words, parse_trit_string, format_trits};

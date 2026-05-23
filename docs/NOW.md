@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-23
 
+## wave-44 -- t27c host-pack/host-unpack -- ternary weight packer/unpacker (R-HT-1, Closes #797)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/ternary.rs` (`Trit` enum, `pack_word`/`unpack_word`/`pack_words`/`unpack_words`/`parse_trit_string`/`format_trits`; 17 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostPack` + `Commands::HostUnpack`; new test file `bootstrap/tests/host_ternary.rs` (19 integration tests).
+- **Why** (R-HT-1): W36a weight BRAM uses packed-trit format (27 trits × 2 bits/trit = 54 bits per word). This wave adds the host-side packer/unpacker bridging human-readable `[-1, 0, +1]` arrays and the hardware hex-word format. Enables realistic weight generation for the InferenceEngine and DMA content verification.
+- **Encoding**: 2'b00 = -1 (TRIT_N), 2'b01 = 0 (TRIT_Z), 2'b10 = +1 (TRIT_P), LSB-first. Matches trit_stdlib.rs.
+- **Tests**: 36 new (17 inline + 19 integration). All pass. Zero regressions.
+
 ## wave-43 -- t27c --json flag for host CLI commands (R-HS-5, Closes #795)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/json_output.rs` (`HostSmokeJson`, `HostPollVsIrqJson`, `HostInferenceJson`, `HostPerfJson` structs, `print_json` helper); updated `bootstrap/src/host/mod.rs`; added `--json` flag to all 4 host commands in `main.rs`; new test file `bootstrap/tests/host_json.rs` (23 integration tests).

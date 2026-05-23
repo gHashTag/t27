@@ -457,6 +457,28 @@ enum Commands {
         json: bool,
     },
 
+    /// Pack comma-separated trit values into 54-bit words (Wave 44, R-HT-1).
+    ///
+    /// Reads trit values from --trits (e.g., "-1,0,1,0,-1") and prints
+    /// one hex word per line. Encoding: 2'b00=-1, 2'b01=0, 2'b10=+1,
+    /// LSB-first, 27 trits per 54-bit word.
+    #[command(name = "host-pack")]
+    HostPack {
+        /// Comma-separated trit values (-1, 0, +1).
+        #[arg(long)]
+        trits: String,
+    },
+
+    /// Unpack hex words into comma-separated trit values (Wave 44, R-HT-1).
+    ///
+    /// Reads hex words from --words (comma-separated) and prints trit values.
+    #[command(name = "host-unpack")]
+    HostUnpack {
+        /// Comma-separated hex words (e.g., "0x3,0x0").
+        #[arg(long)]
+        words: String,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3312,6 +3334,36 @@ fn run_host_perf(
             clock_mhz,
         );
     }
+    Ok(())
+}
+
+fn run_host_pack(trits_str: &str) -> anyhow::Result<()> {
+    let trits = host::ternary::parse_trit_string(trits_str)
+        .ok_or_else(|| anyhow::anyhow!("invalid trit string: expected comma-separated -1, 0, +1"))?;
+    if trits.is_empty() {
+        anyhow::bail!("no trits provided");
+    }
+    let words = host::ternary::pack_words(&trits);
+    for w in &words {
+        println!("0x{:016x}", w);
+    }
+    Ok(())
+}
+
+fn run_host_unpack(words_str: &str) -> anyhow::Result<()> {
+    let words: Vec<u64> = words_str
+        .split(',')
+        .map(|tok| {
+            let tok = tok.trim().trim_start_matches("0x").trim_start_matches("0X");
+            u64::from_str_radix(tok, 16)
+                .map_err(|e| anyhow::anyhow!("invalid hex word '{}': {}", tok.trim(), e))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if words.is_empty() {
+        anyhow::bail!("no words provided");
+    }
+    let trits = host::ternary::unpack_words(&words);
+    println!("{}", host::ternary::format_trits(&trits));
     Ok(())
 }
 
@@ -8132,6 +8184,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostPerf { num_layers, neurons, chunks, clock_mhz, json } => {
             run_host_perf(num_layers, neurons, chunks, clock_mhz, json)?
         }
+        Commands::HostPack { trits } => {
+            run_host_pack(&trits)?
+        }
+        Commands::HostUnpack { words } => {
+            run_host_unpack(&words)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8378,6 +8436,12 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostPerf { num_layers, neurons, chunks, clock_mhz, json } => {
             run_host_perf(num_layers, neurons, chunks, clock_mhz, json)?
+        }
+        Commands::HostPack { trits } => {
+            run_host_pack(&trits)?
+        }
+        Commands::HostUnpack { words } => {
+            run_host_unpack(&words)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
