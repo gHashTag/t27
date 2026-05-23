@@ -231,7 +231,7 @@ pub async fn check_container_health(service_id: &str) -> anyhow::Result<bool> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "server"))]
 mod tests {
     use super::*;
 
