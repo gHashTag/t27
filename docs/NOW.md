@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-23
 
+## wave-42 -- t27c host-perf -- performance model and cycle estimator (R-HS-4, Closes #791)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/perf.rs` (`EngineConfig`, `PerformanceEstimate`, `LayerEstimate`; cycle/DMA/BRAM/throughput estimation; 19 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostPerf` + `run_host_perf()`; new test file `bootstrap/tests/host_perf.rs` (23 integration tests).
+- **Why** (R-HS-4): W41 gave us the full inference engine. W42 adds the analytical performance model: given engine config (layers, neurons, chunks), compute per-layer DMA beats, compute cycles, BRAM utilization, total inference cycles, and throughput at a given clock frequency. Pure arithmetic, no hardware dependency. Essential for FPGA bringup (compare estimated vs actual CYCLES counter from W36f).
+- **Tests**: 42 new (19 inline + 23 integration). All pass. Zero regressions.
+
 ## wave-41 -- t27c host-inference -- DMA-driven multi-layer BitNet inference flow (R-HS-3, Closes #789)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/engine.rs` (`InferenceEngine`, `InferenceReport`, per-layer DMA prefetch → inference → DMA drain cycle; 16 inline unit tests); updated `bootstrap/src/host/irq.rs` (`wait_irq_mask` generic IRQ wait, refactored from `wait_done_irq`); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostInference` + `run_host_inference()`; new test file `bootstrap/tests/host_engine.rs` (20 integration tests).

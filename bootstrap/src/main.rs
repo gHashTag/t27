@@ -416,6 +416,31 @@ enum Commands {
         max_rounds: u32,
     },
 
+    /// Estimate BitNet inference performance from engine configuration
+    /// (Wave 42, R-HS-4).
+    ///
+    /// Prints cycle counts, DMA beats, BRAM utilization, and throughput
+    /// estimates. No hardware required — pure arithmetic model.
+    #[command(name = "host-perf")]
+    HostPerf {
+        /// Number of layers (default: 2).
+        #[arg(long, default_value_t = 2)]
+        num_layers: u32,
+
+        /// Neurons per layer (default: 16).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (default: 4).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Clock frequency in MHz for throughput estimate (default: 66.0,
+        /// matching STARTUPE2.CFGMCLK on Wukong V1).
+        #[arg(long, default_value_t = 66.0)]
+        clock_mhz: f64,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3194,6 +3219,32 @@ fn run_host_inference(
     println!(
         "OK layers={} completed={} writes={} reads={}",
         report.total_layers, report.layers_completed, report.total_writes, report.total_reads
+    );
+    Ok(())
+}
+
+fn run_host_perf(
+    num_layers: u32,
+    neurons: u32,
+    chunks: u32,
+    clock_mhz: f64,
+) -> anyhow::Result<()> {
+    use host::perf::EngineConfig;
+    let cfg = EngineConfig::new(num_layers, neurons, chunks)
+        .ok_or_else(|| anyhow::anyhow!("invalid config: layers, neurons, and chunks must be > 0"))?;
+    let est = cfg.estimate();
+    let throughput = cfg.throughput_inf_per_sec(clock_mhz);
+    println!(
+        "OK layers={} neurons={} chunks={} total_cycles={} total_weight_words={} bram_pct={:.1}% dma_beats={} throughput={:.1} inf/s @ {:.1} MHz",
+        est.config.num_layers,
+        est.config.neurons,
+        est.config.chunks,
+        est.total_inference_cycles,
+        est.total_weight_words,
+        est.bram_utilization_pct,
+        est.total_dma_beats,
+        throughput,
+        clock_mhz,
     );
     Ok(())
 }
@@ -8012,6 +8063,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds } => {
             run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds)?
         }
+        Commands::HostPerf { num_layers, neurons, chunks, clock_mhz } => {
+            run_host_perf(num_layers, neurons, chunks, clock_mhz)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8255,6 +8309,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds } => {
             run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds)?
+        }
+        Commands::HostPerf { num_layers, neurons, chunks, clock_mhz } => {
+            run_host_perf(num_layers, neurons, chunks, clock_mhz)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
