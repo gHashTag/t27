@@ -31,6 +31,7 @@ mod weight_bram;
 mod bitnet_pipeline;
 mod bitnet_buffers;
 mod bitnet_axi;
+mod bitnet_dma;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -231,6 +232,27 @@ enum Commands {
         /// AXI data-bus width in bits (clamped to 1..=64).
         #[arg(long, default_value_t = 32)]
         data_width: u32,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `dma_controller` SystemVerilog module
+    /// (Wave 36e, R-BN-5).
+    ///
+    /// AXI4 master DMA engine that streams 64-bit beats between an
+    /// off-chip DDR backing store and an on-chip local memory.
+    /// Six-state FSM (IDLE -> READ_ADDR|WRITE_ADDR -> READ_DATA|
+    /// WRITE_DATA -> DONE_ST -> IDLE). `direction` selects the
+    /// transfer sense (0 = read DDR into local, 1 = write local
+    /// out to DDR); `length` is the byte count.
+    #[command(name = "gen-dma-controller")]
+    GenDmaController {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `dma_controller`.
+        #[arg(long, default_value = "dma_controller")]
+        module_name: String,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -2741,6 +2763,14 @@ fn run_gen_axi_lite_slave(
 ) -> anyhow::Result<()> {
     let verilog = bitnet_axi::build_axi_lite_slave(module_name, addr_width, data_width);
     write_verilog_to_output(&verilog, output, "axi_lite_slave")
+}
+
+fn run_gen_dma_controller(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_dma::build_dma_controller(module_name);
+    write_verilog_to_output(&verilog, output, "dma_controller")
 }
 
 fn run_gen_layer_sequencer(
@@ -7530,6 +7560,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenAxiLiteSlave { module_name, addr_width, data_width, output } => {
             run_gen_axi_lite_slave(&module_name, addr_width, data_width, output.as_deref())?
         }
+        Commands::GenDmaController { module_name, output } => {
+            run_gen_dma_controller(&module_name, output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7718,6 +7751,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenAxiLiteSlave { module_name, addr_width, data_width, output } => {
             run_gen_axi_lite_slave(&module_name, addr_width, data_width, output.as_deref())?
+        }
+        Commands::GenDmaController { module_name, output } => {
+            run_gen_dma_controller(&module_name, output.as_deref())?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
