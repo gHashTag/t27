@@ -27,6 +27,7 @@ mod memory;
 mod trit_stdlib;
 mod behavior_sva;
 mod phi_selfcheck;
+mod weight_bram;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -126,6 +127,38 @@ enum Commands {
         /// `cover_<index>_<name>`. Defaults to 0.
         #[arg(long, default_value_t = 0)]
         index: usize,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `weight_bram` dual-port BRAM SystemVerilog module
+    /// (Wave 36a, R-BN-1).
+    ///
+    /// Generates a self-contained `module <name> #(parameter DEPTH, ADDR_WIDTH)
+    /// (...) ... endmodule` with one synchronous read port (1-cycle latency)
+    /// and one synchronous write port guarded by `wr_en`. Defaults match the
+    /// upstream vibee-lang emitter: DEPTH=4096, ADDR_WIDTH=12, DATA_WIDTH=54
+    /// (27 ternary trits packed 2 bits/trit).
+    #[command(name = "gen-weight-bram")]
+    GenWeightBram {
+        /// Number of storage words. Zero falls back to 4096.
+        #[arg(long, default_value_t = 4096)]
+        depth: u32,
+
+        /// Address bus width in bits. Zero falls back to 12.
+        #[arg(long, default_value_t = 12)]
+        addr_width: u32,
+
+        /// Word width in bits. Zero falls back to 54.
+        #[arg(long, default_value_t = 54)]
+        data_width: u32,
+
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `weight_bram`.
+        #[arg(long, default_value = "weight_bram")]
+        module_name: String,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -2566,6 +2599,37 @@ fn run_gen_behavior_sva(
             fs::write(path, &verilog)
                 .with_context(|| format!("failed to write behavior SVA to {}", path))?;
             eprintln!("behavior SVA written to {} ({} bytes)", path, verilog.len());
+        }
+        None => print!("{}", verilog),
+    }
+    Ok(())
+}
+
+fn run_gen_weight_bram(
+    depth: u32,
+    addr_width: u32,
+    data_width: u32,
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = weight_bram::build_weight_bram(weight_bram::WeightBramConfig {
+        depth,
+        addr_width,
+        data_width,
+        module_name,
+    });
+    match output {
+        Some(path) => {
+            if let Some(parent) = Path::new(path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("failed to create parent directory for {}", path)
+                    })?;
+                }
+            }
+            fs::write(path, &verilog)
+                .with_context(|| format!("failed to write weight_bram to {}", path))?;
+            eprintln!("weight_bram written to {} ({} bytes)", path, verilog.len());
         }
         None => print!("{}", verilog),
     }
@@ -7275,6 +7339,13 @@ async fn main() -> anyhow::Result<()> {
             wrap,
             output,
         } => run_gen_phi_selfcheck(tolerance, wrap.as_deref(), output.as_deref())?,
+        Commands::GenWeightBram {
+            depth,
+            addr_width,
+            data_width,
+            module_name,
+            output,
+        } => run_gen_weight_bram(depth, addr_width, data_width, &module_name, output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7442,6 +7513,13 @@ fn main() -> anyhow::Result<()> {
             wrap,
             output,
         } => run_gen_phi_selfcheck(tolerance, wrap.as_deref(), output.as_deref())?,
+        Commands::GenWeightBram {
+            depth,
+            addr_width,
+            data_width,
+            module_name,
+            output,
+        } => run_gen_weight_bram(depth, addr_width, data_width, &module_name, output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
