@@ -1,4 +1,5 @@
 //! Wave 32 -- R-TS-1 regression tests for the trit stdlib emitter.
+//! Wave 33 -- R-TS-2 extends with 27-trit MAC primitives.
 //!
 //! Strategy: shell out to the built t27c binary via `CARGO_BIN_EXE_t27c`,
 //! run `gen-trit-stdlib`, capture stdout, and assert structural truth-table
@@ -8,7 +9,7 @@
 //! is later wired into any spec emit. For now, these tests guarantee that the
 //! emitter produces canonical, structurally correct Verilog.
 //!
-//! Closes #751.
+//! Closes #751 (Wave 32). Closes #754 (Wave 33).
 
 use std::process::Command;
 
@@ -28,9 +29,10 @@ fn run_gen_trit_stdlib() -> String {
 }
 
 #[test]
-fn emits_all_seven_modules_via_cli() {
+fn emits_all_eleven_modules_via_cli() {
     let v = run_gen_trit_stdlib();
     for name in [
+        // Wave 32 base primitives (7)
         "module trit_not (",
         "module trit_and (",
         "module trit_or (",
@@ -38,6 +40,11 @@ fn emits_all_seven_modules_via_cli() {
         "module trit_full_adder (",
         "module trit_multiply (",
         "module trit3_add (",
+        // Wave 33 MAC primitives (4)
+        "module trit_compare (",
+        "module trit27_parallel_multiply (",
+        "module adder_tree_27 (",
+        "module trit27_dot_product (",
     ] {
         assert!(v.contains(name), "missing module header: {}", name);
     }
@@ -211,14 +218,127 @@ fn output_is_self_contained_and_balanced() {
     assert!(v.contains("`default_nettype wire"), "must restore implicit nets at bottom");
     // No syntactic refs to unknown sigs/specs -- the stdlib is hermetic.
     // (It only depends on its own module names: trit_not/and/or used by full_adder, etc.)
-    // Module count: exactly 7.
+    // Module count: exactly 11 (7 base + 4 MAC).
     let module_count = v.matches("\nmodule ").count() + if v.starts_with("module ") { 1 } else { 0 };
-    assert_eq!(module_count, 7, "expected exactly 7 modules, got {}", module_count);
+    assert_eq!(module_count, 11, "expected exactly 11 modules, got {}", module_count);
     let endmodule_count = v.matches("endmodule").count();
     assert_eq!(
-        endmodule_count, 7,
-        "expected exactly 7 endmodule keywords, got {}",
+        endmodule_count, 11,
+        "expected exactly 11 endmodule keywords, got {}",
         endmodule_count
+    );
+}
+
+// ============================================================================
+// Wave 33 (R-TS-2) -- MAC primitive regression tests
+// ============================================================================
+
+#[test]
+fn trit_compare_uses_direct_unsigned_ordering() {
+    let v = run_gen_trit_stdlib();
+    let body = extract_module(&v, "trit_compare").expect("trit_compare module not found");
+    // The encoding N(00) < Z(01) < P(10) matches balanced-ternary ordering
+    // exactly, so trit_compare uses a direct unsigned `<` -- no LUT-heavy
+    // sign decode is necessary.
+    assert!(
+        body.contains("(a == b) ? TRIT_Z"),
+        "trit_compare must produce TRIT_Z when a == b: {}",
+        body
+    );
+    assert!(
+        body.contains("(a <  b) ? TRIT_N"),
+        "trit_compare must produce TRIT_N when a < b (encoding ordering): {}",
+        body
+    );
+    // No arithmetic decode -- compare must not contain any signed `'sd` literal.
+    assert!(
+        !body.contains("'sd"),
+        "trit_compare must use pure encoding-comparison, no signed arithmetic: {}",
+        body
+    );
+}
+
+#[test]
+fn trit27_parallel_multiply_is_27_lane_simd() {
+    let v = run_gen_trit_stdlib();
+    let body = extract_module(&v, "trit27_parallel_multiply")
+        .expect("trit27_parallel_multiply module not found");
+    // 54-bit ports (27 trits * 2 bits per trit).
+    assert!(body.contains("input  wire [53:0] a"));
+    assert!(body.contains("input  wire [53:0] b"));
+    assert!(body.contains("output wire [53:0] result"));
+    // Genvar-driven SIMD with +: part-select.
+    assert!(body.contains("genvar i;"), "must use genvar i for SIMD generation");
+    assert!(
+        body.contains("for (i = 0; i < 27; i = i + 1) begin : mult_gen"),
+        "must iterate exactly 27 lanes"
+    );
+    assert!(body.contains("a[i*2 +: 2]"), "must use +: part-select on a");
+    assert!(body.contains("b[i*2 +: 2]"), "must use +: part-select on b");
+    assert!(body.contains("result[i*2 +: 2]"), "must use +: part-select on result");
+    // No real multipliers -- pure sign comparison per lane.
+    assert!(
+        !body.contains(" * "),
+        "trit27_parallel_multiply must not use the `*` operator: {}",
+        body
+    );
+    assert!(body.contains("same_sign"), "must derive lane result from sign comparison");
+}
+
+#[test]
+fn adder_tree_27_has_three_reduction_levels() {
+    let v = run_gen_trit_stdlib();
+    let body =
+        extract_module(&v, "adder_tree_27").expect("adder_tree_27 module not found");
+    // 3-level tree: decode (27 trits to signed [1:0]), then 27 -> 9 -> 3 -> 1.
+    assert!(
+        body.contains("wire signed [1:0] val [0:26];"),
+        "adder_tree_27 must decode to a 27-entry signed [1:0] array"
+    );
+    assert!(
+        body.contains("wire signed [2:0] l1 [0:8];"),
+        "adder_tree_27 must have a 9-entry signed [2:0] level1 array"
+    );
+    assert!(
+        body.contains("wire signed [3:0] l2 [0:2];"),
+        "adder_tree_27 must have a 3-entry signed [3:0] level2 array"
+    );
+    // Three explicit level-2 reductions and one final level-3 sum.
+    assert!(body.contains("assign l2[0] = l1[0] + l1[1] + l1[2];"));
+    assert!(body.contains("assign l2[1] = l1[3] + l1[4] + l1[5];"));
+    assert!(body.contains("assign l2[2] = l1[6] + l1[7] + l1[8];"));
+    assert!(body.contains("assign sum = l2[0] + l2[1] + l2[2];"));
+    // Output width: signed [5:0] (range -27..+27 fits in 6 bits signed).
+    assert!(body.contains("output wire signed [5:0] sum"));
+}
+
+#[test]
+fn trit27_dot_product_composes_mac_pipeline() {
+    let v = run_gen_trit_stdlib();
+    let body = extract_module(&v, "trit27_dot_product")
+        .expect("trit27_dot_product module not found");
+    // Step 1: parallel multiply (named `mult_unit`).
+    assert!(
+        body.contains("trit27_parallel_multiply mult_unit"),
+        "trit27_dot_product must instantiate trit27_parallel_multiply as mult_unit"
+    );
+    // Step 2: adder tree (named `tree`).
+    assert!(
+        body.contains("adder_tree_27 tree"),
+        "trit27_dot_product must instantiate adder_tree_27 as tree"
+    );
+    // Port wiring: input_vec and weight_vec feed mult_unit; products feed tree.
+    assert!(body.contains(".a(input_vec)"));
+    assert!(body.contains(".b(weight_vec)"));
+    assert!(body.contains(".trits(products)"));
+    assert!(body.contains(".sum(result)"));
+    // Output is signed [5:0] -- final MAC result.
+    assert!(body.contains("output wire signed [5:0] result"));
+    // The dot product must NOT use the Verilog `*` operator anywhere.
+    assert!(
+        !body.contains(" * "),
+        "trit27_dot_product must remain multiplier-free: {}",
+        body
     );
 }
 
