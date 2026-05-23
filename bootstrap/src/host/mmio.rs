@@ -155,7 +155,15 @@ impl Mmio for MockMmio {
 
     fn write32(&mut self, addr: u32, value: u32) {
         debug_assert_eq!(addr % 4, 0, "MMIO write addr {addr:#x} not word-aligned");
-        self.regs.insert(addr, value);
+        if addr == csr_map::IRQ_STAT {
+            // Mirror the W36d slave: IRQ_STAT is write-1-to-clear.  A bit
+            // written as 1 clears the corresponding sticky latch; bits
+            // written as 0 are left untouched.
+            let cur = *self.regs.get(&addr).unwrap_or(&0);
+            self.regs.insert(addr, cur & !value);
+        } else {
+            self.regs.insert(addr, value);
+        }
         self.log.push(MmioRecord {
             op: MmioOp::Write,
             addr,
