@@ -13,6 +13,14 @@ Last updated: 2026-05-23
   - Zero edits to existing VerilogCodegen or HirVerilogEmitter internals.
 - **Tests**: 6 new inline unit tests in `behavior_sva_v2.rs` (bind block: empty/single/delay/eventually/multi/name) + 8 new integration tests (gen-verilog --with-sva: bind block appended, without-sva no append, no-behaviors no-op, multi-behavior, eventually, conjunction, ASCII-only, gen-verilog-hir --with-sva). V1 regression: 20/20 pass. **Total new: 14. Total v2 tests: 66 (34 inline + 32 integration).**
 
+## wave-38 -- t27c gen-bitnet-bundle: compose all 9 BitNet HLS modules + v2 SVA properties into one output directory (R-SI-1, Closes #781)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/bitnet_bundle.rs` (`BundleConfig` struct + defaults, `BundleEntry` struct, `BUNDLE_ORDER` const, `canonical_behaviors()` returning the 4 invariant `Behavior` values, `build_manifest` / `build_sv_entries` / `build_bundle_entries` / `write_bundle` functions + 22 inline unit tests); one new `mod bitnet_bundle;` declaration in `bootstrap/src/main.rs`; one new CLI subcommand `Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_bitnet_bundle(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/bitnet_bundle.rs` (21 integration tests).
+- **Why** (R-SI-1): with the BitNet HLS pipeline closed at 9/9 (W36a-f) and the behavior-DSL extended through v2 (W37), the program needs a single composition point that produces a self-consistent, verifiable BitNet HLS deliverable in one command.
+- **Tests**: 43 new tests (21 integration + 22 inline). All pass.
+
+## chore(deps): bump axum 0.8, jsonwebtoken 10, tower-http 0.6, gethostname 1.1, serde-wasm-bindgen 0.6
+
 ## wave-37 -- t27c gen-behavior-sva-v2 -- multi-clause antecedents, ##N delay, s_eventually (R-BV-1, Closes #775)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/behavior_sva_v2.rs` (extended SVA emitter + 28 inline unit tests); new `mod behavior_sva_v2;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenBehaviorSvaV2 { behaviors_json, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_behavior_sva_v2(...)`. Bugfix: `behavior_sva.rs` v1 keyword priority (inactive/active collision, counter/running collision). Bugfix: `proxy.rs` test module gated behind `#[cfg(all(test, feature = "server"))]`. New test file `bootstrap/tests/behavior_sva_v2.rs` (24 integration tests).

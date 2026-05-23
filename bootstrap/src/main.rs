@@ -35,6 +35,7 @@ mod bitnet_axi;
 mod bitnet_dma;
 mod bitnet_irq;
 mod bitnet_top;
+mod bitnet_bundle;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -313,6 +314,32 @@ enum Commands {
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
         output: Option<String>,
+    },
+
+    /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
+    ///
+    /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
+    /// behavior-DSL v2 SVA emitter (W37) into a single output directory.
+    /// Writes 11 files: 9 SystemVerilog modules, 1 SVA property file,
+    /// and 1 ASCII `manifest.txt` listing file sizes. Pure composition
+    /// over existing `pub fn build_*` emitters -- no new RTL surface.
+    #[command(name = "gen-bitnet-bundle")]
+    GenBitnetBundle {
+        /// Engine-top module identifier (default: `bitnet_engine_top`).
+        #[arg(long, default_value = "bitnet_engine_top")]
+        top_name: String,
+
+        /// AXI-Lite slave address width in bits (default: 32).
+        #[arg(long, default_value_t = 32)]
+        axi_addr_width: u32,
+
+        /// AXI-Lite slave data width in bits (default: 32).
+        #[arg(long, default_value_t = 32)]
+        axi_data_width: u32,
+
+        /// Output directory. Created if missing.
+        #[arg(long)]
+        output_dir: String,
     },
 
     /// Emit a BitNet `dma_controller` SystemVerilog module
@@ -2925,6 +2952,31 @@ fn run_gen_bitnet_engine_top(
 ) -> anyhow::Result<()> {
     let verilog = bitnet_top::build_bitnet_engine_top(module_name);
     write_verilog_to_output(&verilog, output, "bitnet_engine_top")
+}
+
+fn run_gen_bitnet_bundle(
+    top_name: &str,
+    axi_addr_width: u32,
+    axi_data_width: u32,
+    output_dir: &str,
+) -> anyhow::Result<()> {
+    let cfg = bitnet_bundle::BundleConfig {
+        top_name,
+        axi_addr_width,
+        axi_data_width,
+    };
+    let dir = std::path::Path::new(output_dir);
+    let written = bitnet_bundle::write_bundle(&cfg, dir)
+        .with_context(|| format!("failed to write BitNet HLS bundle to {}", output_dir))?;
+    eprintln!(
+        "BitNet HLS bundle: wrote {} files to {}",
+        written.len(),
+        output_dir
+    );
+    for path in &written {
+        eprintln!("  {}", path.display());
+    }
+    Ok(())
 }
 
 fn run_gen_layer_sequencer(
@@ -7729,6 +7781,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenBitnetEngineTop { module_name, output } => {
             run_gen_bitnet_engine_top(&module_name, output.as_deref())?
         }
+        Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
+            run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7960,6 +8015,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenBitnetEngineTop { module_name, output } => {
             run_gen_bitnet_engine_top(&module_name, output.as_deref())?
+        }
+        Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
+            run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
