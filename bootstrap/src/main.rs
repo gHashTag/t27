@@ -349,6 +349,40 @@ enum Commands {
         max_polls: u32,
     },
 
+    /// Run a side-by-side poll-vs-IRQ comparison on MockMmio (Wave 40, R-HS-2).
+    ///
+    /// Executes the same configure -> start -> complete flow twice: once via
+    /// the poll-mode `wait_done` path (W39) and once via the interrupt-driven
+    /// `IrqDrivenDriver::wait_done_irq` path (W40). Prints a single comparison
+    /// line: `OK poll=Nw/Mr irq=Nw/Mr writes_match=<bool> irq_stat_poll=0x..
+    /// irq_stat_irq=0x..`.
+    #[command(name = "host-poll-vs-irq")]
+    HostPollVsIrq {
+        /// Number of layers to program (default: 2).
+        #[arg(long, default_value_t = 2)]
+        num_layers: u32,
+
+        /// Neurons per layer (default: 16).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (default: 4).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Signed threshold value (default: 1).
+        #[arg(long, default_value_t = 1)]
+        threshold: u32,
+
+        /// 64-bit weight base address as decimal (default: 0).
+        #[arg(long, default_value_t = 0)]
+        weight_addr: u64,
+
+        /// Maximum poll iterations before timeout (default: 16).
+        #[arg(long, default_value_t = 16)]
+        max_polls: u32,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3047,6 +3081,64 @@ fn run_host_smoke(
         snap.threshold,
         snap.weight_addr_64(),
         snap.irq_stat
+    );
+    Ok(())
+}
+
+fn run_host_poll_vs_irq(
+    num_layers: u32,
+    neurons: u32,
+    chunks: u32,
+    threshold: u32,
+    weight_addr: u64,
+    max_polls: u32,
+) -> anyhow::Result<()> {
+    use host::{BitnetDriver, IrqDrivenDriver, MockMmio};
+    let poll_writes;
+    let poll_reads;
+    let irq_stat_poll;
+    {
+        let mut driver = BitnetDriver::new(MockMmio::with_csrs_zeroed());
+        driver
+            .configure(num_layers, neurons, chunks, threshold, weight_addr)
+            .map_err(|e| anyhow::anyhow!("poll configure failed: {:?}", e))?;
+        driver.enable_irqs(host::csr_map::IRQ_ALL_MASK);
+        driver.start();
+        driver.mmio_mut().set_done(true);
+        driver.mmio_mut().latch_irq(host::csr_map::IRQ_INFERENCE_DONE_MASK);
+        driver
+            .wait_done(max_polls)
+            .map_err(|e| anyhow::anyhow!("poll wait_done failed: {:?}", e))?;
+        poll_writes = driver.mmio().write_count();
+        poll_reads = driver.mmio().read_count();
+        irq_stat_poll = driver.dump().irq_stat;
+    }
+    let irq_writes;
+    let irq_reads;
+    let irq_stat_irq;
+    {
+        let mut idd = IrqDrivenDriver::new(BitnetDriver::new(MockMmio::with_csrs_zeroed()));
+        idd.handler_mut()
+            .driver_mut()
+            .configure(num_layers, neurons, chunks, threshold, weight_addr)
+            .map_err(|e| anyhow::anyhow!("irq configure failed: {:?}", e))?;
+        idd.handler_mut().driver_mut().enable_irqs(host::csr_map::IRQ_ALL_MASK);
+        idd.handler_mut().driver_mut().start();
+        idd.handler_mut().driver_mut().mmio_mut().set_done(true);
+        idd.handler_mut()
+            .driver_mut()
+            .mmio_mut()
+            .latch_irq(host::csr_map::IRQ_INFERENCE_DONE_MASK);
+        idd.wait_done_irq(max_polls)
+            .map_err(|e| anyhow::anyhow!("irq wait_done_irq failed: {:?}", e))?;
+        irq_writes = idd.handler().driver().mmio().write_count();
+        irq_reads = idd.handler().driver().mmio().read_count();
+        irq_stat_irq = idd.handler_mut().driver_mut().dump().irq_stat;
+    }
+    let writes_match = poll_writes == irq_writes;
+    println!(
+        "OK poll={}w/{}r irq={}w/{}r writes_match={} irq_stat_poll=0x{:08x} irq_stat_irq=0x{:08x}",
+        poll_writes, poll_reads, irq_writes, irq_reads, writes_match, irq_stat_poll, irq_stat_irq
     );
     Ok(())
 }
@@ -7859,6 +7951,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
             run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
         }
+        Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
+            run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8096,6 +8191,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
             run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        }
+        Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
+            run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {

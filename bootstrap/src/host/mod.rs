@@ -15,7 +15,9 @@
 
 pub mod csr_map;
 pub mod driver;
+pub mod irq;
 pub mod mmio;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use irq::{IrqDrivenDriver, IrqHandler, IrqSource};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};

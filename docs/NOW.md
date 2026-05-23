@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-23
 
+## wave-40 -- t27c host-poll-vs-irq -- IRQ-handler harness + poll-vs-IRQ comparison (R-HS-2, Closes #786)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/irq.rs` (`IrqSource` enum, `IrqHandler<M>` callback registry, `IrqDrivenDriver<M>` with `wait_done_irq`; 11 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostPollVsIrq` + `run_host_poll_vs_irq()`; new test file `bootstrap/tests/host_irq.rs` (21 integration tests).
+- **Why** (R-HS-2): W39 added poll-mode driver. W40 adds interrupt-driven completion path with callback dispatch and side-by-side poll-vs-IRQ comparison on MockMmio.
+- **Tests**: 32 new (11 inline + 21 integration). All pass.
+
 ## wave-39 -- t27c host-side Rust driver module: BitNet AXI-Lite CSR aperture (R-HS-1, Closes #784)
 
 - **WHERE** (bootstrap-only, additive): new directory `bootstrap/src/host/` with four files -- `mod.rs` (re-exports), `csr_map.rs` (10 CSR offset constants + status/IRQ bit masks + 10 inline unit tests), `mmio.rs` (`Mmio` trait + `MockMmio` deterministic BTreeMap backend + transaction log + 10 inline unit tests), `driver.rs` (`BitnetDriver<M: Mmio>` orchestrator with configure / start / poll / IRQ / dump methods + `CsrSnapshot` struct + `DriverError` enum + 11 inline unit tests). One new `mod host;` declaration in `bootstrap/src/main.rs`. One new CLI subcommand `Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_host_smoke(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/host_driver.rs` (25 integration tests via `CARGO_BIN_EXE_t27c`).
