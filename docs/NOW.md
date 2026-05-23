@@ -1,6 +1,39 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
+
+## wave-29 -- t27c gen-verilog: hoist bench `integer` counter out of `initial begin` (R-VD-1 fix, Closes #745)
+
+- **WHERE** (bootstrap-only, surgical): `bootstrap/src/compiler.rs` -- single edit in the bench section of `VerilogCodegen::gen_verilog`. **Zero edits** under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/verilog_initial_decl.rs` (additive).
+- **Why** (R-VD-1): Verilog-2005 forbids variable declarations inside procedural blocks. The previous emitter wrote `integer _bench_cycles = 0;` between `initial begin` and `end`, which Yosys/iverilog reject with `syntax error, unexpected TOK_INITIAL` (observed on `uart.v:213` in the CI log of PR #744). This blocked the `fpga-synthesis` gate from going green even after the Wave 28 R-CA-1 fix unblocked `mac.v`.
+- **What changed:** the bench-section loop now (i) emits a module-scope `// synthesis translate_off` / `// synthesis translate_on` band that contains one `integer _bench_<sanitized_name>_cycles = 0;` declaration per bench BEFORE any `initial begin`, and (ii) inside each `initial begin ... end` block, only assigns/uses that already-declared counter -- never re-declares it. Each counter gets a unique per-bench name to avoid collisions when a module has multiple benches.
+- **Before / after on uart.v line 213**:
+  ```verilog
+  // BEFORE (broken: integer decl inside initial block)
+  initial begin : uart_tx_ready_latency_bench // synthesis translate_off
+      $display("[BENCH] uart_tx_ready_latency : starting");
+      integer _bench_cycles = 0;        // <-- Yosys rejects
+      $display("[BENCH] uart_tx_ready_latency : %%0d cycles", _bench_cycles);
+      $display("[BENCH] uart_tx_ready_latency : DONE");
+  end // synthesis translate_on
+
+  // AFTER (hoisted to module scope, valid Verilog-2005)
+  // synthesis translate_off
+  integer _bench_uart_tx_ready_latency_cycles = 0;
+  integer _bench_uart_rx_ready_latency_cycles = 0;
+  integer _bench_uart_reset_latency_cycles    = 0;
+  // synthesis translate_on
+  initial begin : uart_tx_ready_latency_bench // synthesis translate_off
+      $display("[BENCH] uart_tx_ready_latency : starting");
+      _bench_uart_tx_ready_latency_cycles = 0;
+      $display("[BENCH] uart_tx_ready_latency : %%0d cycles", _bench_uart_tx_ready_latency_cycles);
+      $display("[BENCH] uart_tx_ready_latency : DONE");
+  end // synthesis translate_on
+  ```
+- **New integration tests** (`bootstrap/tests/verilog_initial_decl.rs`, 2 `#[test]`s, both green): shells out to the built `t27c` via `env!("CARGO_BIN_EXE_t27c")`. (i) Synthetic spec with two `bench` blocks -- asserts no `integer ...;` line is ever emitted inside an `initial begin ... end` block, and asserts exactly 2 module-scope `_bench_<name>_cycles` counter declarations are present, one per bench. (ii) Real `specs/fpga/uart.t27` regression -- runs the emitter on the spec that broke CI on PR #744 and asserts the same two properties (>= 3 counters because `uart.t27` has 3 benches).
+- **Local result**: `cargo test -p t27c --release --test verilog_initial_decl` -> **2 passed; 0 failed**. `cargo test -p t27c --release --test verilog_r_si_1` (Wave 27 regression) -> **2 passed; 0 failed**.
+- **Constitution checklist**: L1 `Closes #745` in title + body + commit; L2 edits only in `bootstrap/` + this NOW.md + new `bootstrap/tests/`; L3 ASCII source, English doc-comments; L4 2 new tests, passing; L5 numeric kernel untouched, trinity invariant preserved; L6 zero spec/kernel changes; L7 no new `*.sh`.
+- **Out of scope (explicit, honest)**: (a) `fpga-formal` inherited infra failure (`pip install sby` no matching distribution) is not addressed; (b) `fpga-synthesis-arty` inherited CLI drift (`error: unexpected argument '--board' found`) is not addressed; (c) full lowering of aggregate-literal const initializers (the Wave 28 fix is still a TODO placeholder) is not addressed -- a future wave can land real lowering once an HIR-level refactor is scoped.
 
 ## wave-28 -- t27c gen-verilog const-array aggregate initializer no longer emits unparseable `localparam = /* ... */;` (this PR, Closes #743)
 
