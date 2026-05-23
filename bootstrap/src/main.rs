@@ -26,6 +26,7 @@ mod ternary;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
+mod behavior_sva_v2;
 mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -126,6 +127,44 @@ enum Commands {
         when: String,
 
         /// Free-form "then" clause -> SVA consequent.
+        #[arg(long)]
+        then: String,
+
+        /// Integer suffix used in `assert_<index>_<name>` and
+        /// `cover_<index>_<name>`. Defaults to 0.
+        #[arg(long, default_value_t = 0)]
+        index: usize,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a behavior-DSL v2 SVA block (Wave 37, R-BV-1).
+    ///
+    /// Extends `gen-behavior-sva` (W34) with: multi-clause antecedents
+    /// joined by `and` / `,` / `&&`, `##N` delayed implication parsed
+    /// from `after N cycles ...` or `##N ...` in the `then` clause, and
+    /// `s_eventually <expr>` for `then` clauses containing `eventually`
+    /// or `liveness`.
+    #[command(name = "gen-behavior-sva-v2")]
+    GenBehaviorSvaV2 {
+        /// Behavior identifier. Must be a valid Verilog identifier.
+        #[arg(long)]
+        name: String,
+
+        /// Free-form "given" clause. May contain multiple sub-clauses
+        /// joined by `and` / `,` / `&&`.
+        #[arg(long)]
+        given: String,
+
+        /// Free-form "when" clause -- SVA clock-edge timing.
+        #[arg(long)]
+        when: String,
+
+        /// Free-form "then" clause. May include `after N cycles ...` /
+        /// `##N ...` for delayed implication, or `eventually ...` /
+        /// `liveness ...` for `s_eventually`.
         #[arg(long)]
         then: String,
 
@@ -2730,6 +2769,31 @@ fn run_gen_trit_stdlib(output: Option<&str>) -> anyhow::Result<()> {
         None => print!("{}", verilog),
     }
     Ok(())
+}
+
+fn run_gen_behavior_sva_v2(
+    name: &str,
+    given: &str,
+    when: &str,
+    then: &str,
+    index: usize,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let behavior = behavior_sva_v2::BehaviorV2 {
+        name,
+        given,
+        when,
+        then,
+    };
+    // Splice the user-indexed block into the timescale-banded file the
+    // same way v1 does so the per-call index is honoured while still
+    // emitting the full file wrapper.
+    let wrapped =
+        behavior_sva_v2::build_behavior_sva_v2_file(std::slice::from_ref(&behavior));
+    let auto_block = behavior_sva_v2::build_behavior_sva_v2_block(&behavior, 0);
+    let user_block = behavior_sva_v2::build_behavior_sva_v2_block(&behavior, index);
+    let verilog = wrapped.replace(&auto_block, &user_block);
+    write_verilog_to_output(&verilog, output, "behavior_sva_v2")
 }
 
 fn run_gen_behavior_sva(
@@ -7589,6 +7653,14 @@ async fn main() -> anyhow::Result<()> {
             index,
             output,
         } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
+        Commands::GenBehaviorSvaV2 {
+            name,
+            given,
+            when,
+            then,
+            index,
+            output,
+        } => run_gen_behavior_sva_v2(&name, &given, &when, &then, index, output.as_deref())?,
         Commands::GenPhiSelfcheck {
             tolerance,
             wrap,
@@ -7787,6 +7859,14 @@ fn main() -> anyhow::Result<()> {
             index,
             output,
         } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
+        Commands::GenBehaviorSvaV2 {
+            name,
+            given,
+            when,
+            then,
+            index,
+            output,
+        } => run_gen_behavior_sva_v2(&name, &given, &when, &then, index, output.as_deref())?,
         Commands::GenPhiSelfcheck {
             tolerance,
             wrap,
