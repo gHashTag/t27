@@ -26,6 +26,7 @@ mod ternary;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
+mod phi_selfcheck;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -125,6 +126,34 @@ enum Commands {
         /// `cover_<index>_<name>`. Defaults to 0.
         #[arg(long, default_value_t = 0)]
         index: usize,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a phi-invariant golden-identity self-check SystemVerilog snippet
+    /// (Wave 35, R-SC-1).
+    ///
+    /// Generates a `localparam real PHI` / `localparam real GOLDEN_IDENTITY`
+    /// pair plus an `initial begin ... if (...) $fatal(1, ...); end` block
+    /// that verifies the sacred trinity identity `phi^2 + 1/phi^2 = 3` at
+    /// elaboration time. With `--wrap` the snippet is enclosed in a formal-
+    /// guarded `module <name> (); ... endmodule` wrapper. Algorithm ported
+    /// from gHashTag/vibee-lang.
+    #[command(name = "gen-phi-selfcheck")]
+    GenPhiSelfcheck {
+        /// Symmetric tolerance window around 3.0. Non-finite or non-positive
+        /// values fall back to the upstream default (0.01).
+        #[arg(long, default_value_t = 0.01)]
+        tolerance: f64,
+
+        /// When set, emit a self-contained `\`ifdef FORMAL` module wrapper
+        /// using this identifier as the module name. Otherwise only the
+        /// bare snippet is emitted (intended to be pasted inside an existing
+        /// module body).
+        #[arg(long)]
+        wrap: Option<String>,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -2537,6 +2566,33 @@ fn run_gen_behavior_sva(
             fs::write(path, &verilog)
                 .with_context(|| format!("failed to write behavior SVA to {}", path))?;
             eprintln!("behavior SVA written to {} ({} bytes)", path, verilog.len());
+        }
+        None => print!("{}", verilog),
+    }
+    Ok(())
+}
+
+fn run_gen_phi_selfcheck(
+    tolerance: f64,
+    wrap: Option<&str>,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = match wrap {
+        Some(module_name) => phi_selfcheck::build_phi_selfcheck_module(module_name, tolerance),
+        None => phi_selfcheck::build_phi_selfcheck(tolerance),
+    };
+    match output {
+        Some(path) => {
+            if let Some(parent) = Path::new(path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("failed to create parent directory for {}", path)
+                    })?;
+                }
+            }
+            fs::write(path, &verilog)
+                .with_context(|| format!("failed to write phi selfcheck to {}", path))?;
+            eprintln!("phi selfcheck written to {} ({} bytes)", path, verilog.len());
         }
         None => print!("{}", verilog),
     }
@@ -7214,6 +7270,11 @@ async fn main() -> anyhow::Result<()> {
             index,
             output,
         } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
+        Commands::GenPhiSelfcheck {
+            tolerance,
+            wrap,
+            output,
+        } => run_gen_phi_selfcheck(tolerance, wrap.as_deref(), output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7376,6 +7437,11 @@ fn main() -> anyhow::Result<()> {
             index,
             output,
         } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
+        Commands::GenPhiSelfcheck {
+            tolerance,
+            wrap,
+            output,
+        } => run_gen_phi_selfcheck(tolerance, wrap.as_deref(), output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
