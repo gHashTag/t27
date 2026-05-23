@@ -29,6 +29,7 @@ mod behavior_sva;
 mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
+mod bitnet_buffers;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -164,6 +165,43 @@ enum Commands {
         /// Verilog module identifier. Invalid identifiers fall back to
         /// `layer_sequencer`.
         #[arg(long, default_value = "layer_sequencer")]
+        module_name: String,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `double_buffer_ctrl` ping-pong activation buffer
+    /// controller (Wave 36c, R-BN-3).
+    ///
+    /// Toggles `use_buffer_a` on every `layer_done` strobe so even
+    /// layers read buffer A / write buffer B, and odd layers read B /
+    /// write A. Forwards `neuron_id` to both read and write address.
+    #[command(name = "gen-double-buffer-ctrl")]
+    GenDoubleBufferCtrl {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `double_buffer_ctrl`.
+        #[arg(long, default_value = "double_buffer_ctrl")]
+        module_name: String,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `weight_prefetch_ctrl` DDR-to-BRAM weight streaming
+    /// FSM (Wave 36c, R-BN-3).
+    ///
+    /// Three-state FSM (IDLE / FETCH / DONE_ST). Issues AXI read
+    /// transactions, truncates 64-bit AXI words to the BitNet 54-bit
+    /// packed-trit format, and streams them into the on-chip weight
+    /// BRAM at consecutive addresses.
+    #[command(name = "gen-weight-prefetch-ctrl")]
+    GenWeightPrefetchCtrl {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `weight_prefetch_ctrl`.
+        #[arg(long, default_value = "weight_prefetch_ctrl")]
         module_name: String,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
@@ -2649,6 +2687,22 @@ fn run_gen_pipeline_stage2(
 ) -> anyhow::Result<()> {
     let verilog = bitnet_pipeline::build_pipeline_stage2(module_name);
     write_verilog_to_output(&verilog, output, "pipeline_stage2")
+}
+
+fn run_gen_double_buffer_ctrl(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_buffers::build_double_buffer_ctrl(module_name);
+    write_verilog_to_output(&verilog, output, "double_buffer_ctrl")
+}
+
+fn run_gen_weight_prefetch_ctrl(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_buffers::build_weight_prefetch_ctrl(module_name);
+    write_verilog_to_output(&verilog, output, "weight_prefetch_ctrl")
 }
 
 fn run_gen_layer_sequencer(
@@ -7429,6 +7483,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenLayerSequencer { module_name, output } => {
             run_gen_layer_sequencer(&module_name, output.as_deref())?
         }
+        Commands::GenDoubleBufferCtrl { module_name, output } => {
+            run_gen_double_buffer_ctrl(&module_name, output.as_deref())?
+        }
+        Commands::GenWeightPrefetchCtrl { module_name, output } => {
+            run_gen_weight_prefetch_ctrl(&module_name, output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7608,6 +7668,12 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenLayerSequencer { module_name, output } => {
             run_gen_layer_sequencer(&module_name, output.as_deref())?
+        }
+        Commands::GenDoubleBufferCtrl { module_name, output } => {
+            run_gen_double_buffer_ctrl(&module_name, output.as_deref())?
+        }
+        Commands::GenWeightPrefetchCtrl { module_name, output } => {
+            run_gen_weight_prefetch_ctrl(&module_name, output.as_deref())?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
