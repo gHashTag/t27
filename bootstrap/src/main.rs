@@ -36,6 +36,7 @@ mod bitnet_dma;
 mod bitnet_irq;
 mod bitnet_top;
 mod bitnet_bundle;
+mod host;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -314,6 +315,38 @@ enum Commands {
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
         output: Option<String>,
+    },
+
+    /// Run a host-side BitNet driver smoke test against an in-memory MockMmio.
+    ///
+    /// Wave 39 (R-HS-1): exercises configure -> start -> wait_done -> dump
+    /// using `host::BitnetDriver<MockMmio>`. Prints `OK <num_writes>w/<num_reads>r`
+    /// on success or a structured error line.
+    #[command(name = "host-smoke")]
+    HostSmoke {
+        /// Number of layers to program (default: 2).
+        #[arg(long, default_value_t = 2)]
+        num_layers: u32,
+
+        /// Neurons per layer (default: 16).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (default: 4).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Signed threshold value (default: 1).
+        #[arg(long, default_value_t = 1)]
+        threshold: u32,
+
+        /// 64-bit weight base address as decimal (default: 0).
+        #[arg(long, default_value_t = 0)]
+        weight_addr: u64,
+
+        /// Maximum poll iterations before timeout (default: 16).
+        #[arg(long, default_value_t = 16)]
+        max_polls: u32,
     },
 
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
@@ -2976,6 +3009,45 @@ fn run_gen_bitnet_bundle(
     for path in &written {
         eprintln!("  {}", path.display());
     }
+    Ok(())
+}
+
+fn run_host_smoke(
+    num_layers: u32,
+    neurons: u32,
+    chunks: u32,
+    threshold: u32,
+    weight_addr: u64,
+    max_polls: u32,
+) -> anyhow::Result<()> {
+    use host::{BitnetDriver, MockMmio};
+    let mut driver = BitnetDriver::new(MockMmio::with_csrs_zeroed());
+    driver
+        .configure(num_layers, neurons, chunks, threshold, weight_addr)
+        .map_err(|e| anyhow::anyhow!("configure failed: {:?}", e))?;
+    driver.enable_irqs(host::csr_map::IRQ_ALL_MASK);
+    driver.start();
+    // Simulate hardware completing the inference immediately for the smoke
+    // test: latch `done` and the inference_done IRQ before polling.
+    driver.mmio_mut().set_done(true);
+    driver.mmio_mut().latch_irq(host::csr_map::IRQ_INFERENCE_DONE_MASK);
+    driver
+        .wait_done(max_polls)
+        .map_err(|e| anyhow::anyhow!("wait_done failed: {:?}", e))?;
+    let snap = driver.dump();
+    let w = driver.mmio().write_count();
+    let r = driver.mmio().read_count();
+    println!(
+        "OK {}w/{}r layers={} neurons={} chunks={} threshold={} weight_addr=0x{:016x} irq_stat=0x{:08x}",
+        w,
+        r,
+        snap.num_layers,
+        snap.neurons,
+        snap.chunks,
+        snap.threshold,
+        snap.weight_addr_64(),
+        snap.irq_stat
+    );
     Ok(())
 }
 
@@ -7784,6 +7856,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
             run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
         }
+        Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
+            run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8018,6 +8093,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
             run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
+        }
+        Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
+            run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
