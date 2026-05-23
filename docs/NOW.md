@@ -2,6 +2,34 @@
 
 Last updated: 2026-05-23
 
+## wave-30 -- t27c gen-verilog: emit standalone `// synthesis translate_off` and `translate_on` (R-TR-1 fix, Closes #747)
+
+- **WHERE** (bootstrap-only, surgical): `bootstrap/src/compiler.rs` -- single hunk in the bench-section loop of `VerilogCodegen::gen_verilog` (around line 3748). **Zero edits** under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/verilog_translate_off.rs` (additive).
+- **Why** (R-TR-1): after Wave 28 (R-CA-1) and Wave 29 (R-VD-1) landed on master, `fpga-synthesis` CI advanced further but still failed on `uart.v:218` with `syntax error, unexpected TOK_INITIAL`. Root cause: the bench-block emitter placed `// synthesis translate_off` and `// synthesis translate_on` **inline** on the same line as `initial begin :NAME` and `end`. Yosys treats `translate_off` as a line-range skip directive: when the skip starts on the same line as `initial begin :NAME`, the matching `end` keyword is consumed inside the skipped region. The parser is left mid-`initial begin`, hits the next `initial begin`, and emits `unexpected TOK_INITIAL`.
+- **What changed**: the bench-section loop now writes the translate markers as **standalone comment lines** wrapping the full `initial begin ... end` block, never inline. The pre-existing module-scope `// synthesis translate_off ... translate_on` band around the Wave 29 counter declarations is unchanged (it was already on its own lines).
+- **Before / after on the bench block**:
+  ```verilog
+  // BEFORE (broken: inline translate markers split initial-block tokens)
+  initial begin : uart_tx_ready_latency_bench // synthesis translate_off
+      $display("[BENCH] uart_tx_ready_latency : starting");
+      _bench_uart_tx_ready_latency_cycles = 0;
+      ...
+  end // synthesis translate_on
+
+  // AFTER (standalone translate markers wrapping the full block)
+  // synthesis translate_off
+  initial begin : uart_tx_ready_latency_bench
+      $display("[BENCH] uart_tx_ready_latency : starting");
+      _bench_uart_tx_ready_latency_cycles = 0;
+      ...
+  end
+  // synthesis translate_on
+  ```
+- **New integration tests** (`bootstrap/tests/verilog_translate_off.rs`, 2 `#[test]`s, both green): shells out to the built `t27c` via `env!("CARGO_BIN_EXE_t27c")`. (i) Synthetic spec with two `bench` blocks -- asserts no line that starts with `initial begin` or `end` carries a trailing `translate_off`/`translate_on` marker, AND asserts at least 3 standalone `// synthesis translate_off` and 3 standalone `// synthesis translate_on` lines (one band around the Wave 29 counter declarations + one wrapper per bench). (ii) Real `specs/fpga/uart.t27` regression (the spec that blocked CI in PR #746) -- same assertions, expects >= 4 of each marker because `uart.t27` has 3 benches.
+- **Local result**: `cargo test -p t27c --release --test verilog_translate_off` -> **2 passed; 0 failed**. Cross-wave regression: Wave 27 (`verilog_r_si_1`), Wave 28 (`verilog_const_array`), Wave 29 (`verilog_initial_decl`) all still **2 passed; 0 failed**.
+- **Constitution checklist**: L1 `Closes #747` in title + body + commit; L2 edits only in `bootstrap/` + this NOW.md + new `bootstrap/tests/`; L3 ASCII source, English doc-comments; L4 2 new tests, passing; L5 numeric kernel untouched, trinity invariant preserved; L6 zero spec/kernel changes; L7 no new `*.sh`.
+- **Out of scope (explicit, honest)**: (a) `fpga-formal` inherited infra failure (`pip install sby` no matching distribution) is not addressed; (b) `fpga-synthesis-arty` inherited CLI drift (`error: unexpected argument '--board' found`) is not addressed; (c) any further downstream emitter bugs that may surface in `fpga-synthesis` once `uart.v` parses cleanly past line 218 will get their own wave.
+
 ## wave-29 -- t27c gen-verilog: hoist bench `integer` counter out of `initial begin` (R-VD-1 fix, Closes #745)
 
 - **WHERE** (bootstrap-only, surgical): `bootstrap/src/compiler.rs` -- single edit in the bench section of `VerilogCodegen::gen_verilog`. **Zero edits** under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/verilog_initial_decl.rs` (additive).
