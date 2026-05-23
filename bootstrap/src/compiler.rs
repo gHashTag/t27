@@ -3750,9 +3750,18 @@ impl VerilogCodegen {
                     "_bench_{}_cycles",
                     Self::sanitize_identifier(&b.name)
                 );
+                // R-TR-1 (wave-30): emit `// synthesis translate_off` and
+                // `// synthesis translate_on` on STANDALONE comment lines
+                // wrapping the full `initial begin ... end` block. Inline
+                // placement (on the same line as `initial begin :NAME` or
+                // `end`) causes Yosys to consume the matching `end` inside
+                // the skipped region and emit `unexpected TOK_INITIAL` at
+                // the next initial block.
+                self.write_indent();
+                self.write_line("// synthesis translate_off");
                 self.write_indent();
                 self.write_line(&format!(
-                    "initial begin : {}_bench // synthesis translate_off",
+                    "initial begin : {}_bench",
                     Self::sanitize_identifier(&b.name)
                 ));
                 self.indent();
@@ -3774,7 +3783,9 @@ impl VerilogCodegen {
                 self.write_line(&format!("$display(\"[BENCH] {} : DONE\");", b.name));
                 self.dedent();
                 self.write_indent();
-                self.write_line("end // synthesis translate_on");
+                self.write_line("end");
+                self.write_indent();
+                self.write_line("// synthesis translate_on");
             }
             self.write_line("");
         }
