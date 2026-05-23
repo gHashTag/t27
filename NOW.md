@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-18
+Last updated: 2026-05-24
 
 ## docs(TRI-NET) -- cross-line package P0/P1/P2 (this PR, Closes #696)
 

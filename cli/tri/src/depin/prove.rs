@@ -1,4 +1,7 @@
-use crate::depin::phi_challenge::{compute_epoch_hash, derive_phi_challenge, verify_phi_response};
+use crate::depin::phi_challenge::{
+    compute_epoch_hash, derive_phi_challenge, verify_phi_response,
+    derive_phi_challenge_v2, verify_phi_response_v2, pack_gf16_matrix,
+};
 use crate::depin::types::{AppState, EpochChallengeResponse, ProveRequest, ProveResponse};
 use crate::depin::types::sha2_hash;
 
@@ -20,22 +23,47 @@ pub async fn post_prove(
         }
     };
 
-    let phi_response = match hex::decode(&req.phi_response) {
-        Ok(v) if v.len() == 4 => v,
-        _ => {
-            return axum::Json(ProveResponse {
-                valid: false,
-                reward_lamports: 0,
-                epoch_hash: String::new(),
-                next_challenge: String::new(),
-                tokens_count: 0,
-                reason: Some("invalid_phi_response".into()),
-            });
-        }
+    let phi_version = req.version;
+
+    let phi_valid = if phi_version == 2 {
+        let phi_response = match hex::decode(&req.phi_response) {
+            Ok(v) if v.len() == 32 => v,
+            _ => {
+                return axum::Json(ProveResponse {
+                    valid: false,
+                    reward_lamports: 0,
+                    epoch_hash: String::new(),
+                    next_challenge: String::new(),
+                    tokens_count: 0,
+                    reason: Some("invalid_phi_response_v2".into()),
+                });
+            }
+        };
+        let mut node_id_32 = [0u8; 32];
+        node_id_32.copy_from_slice(&node_id);
+        let challenge = derive_phi_challenge_v2(req.epoch, &node_id_32);
+        let mut resp_32 = [0u8; 32];
+        resp_32.copy_from_slice(&phi_response);
+        verify_phi_response_v2(&challenge, &resp_32, &node_id_32)
+    } else {
+        let phi_response = match hex::decode(&req.phi_response) {
+            Ok(v) if v.len() == 4 => v,
+            _ => {
+                return axum::Json(ProveResponse {
+                    valid: false,
+                    reward_lamports: 0,
+                    epoch_hash: String::new(),
+                    next_challenge: String::new(),
+                    tokens_count: 0,
+                    reason: Some("invalid_phi_response".into()),
+                });
+            }
+        };
+        let challenge = derive_phi_challenge(req.epoch, &node_id);
+        verify_phi_response(&challenge, &phi_response, &node_id)
     };
 
-    let challenge = derive_phi_challenge(req.epoch, &node_id);
-    if !verify_phi_response(&challenge, &phi_response, &node_id) {
+    if !phi_valid {
         return axum::Json(ProveResponse {
             valid: false,
             reward_lamports: 0,
@@ -120,7 +148,8 @@ pub async fn post_prove(
         });
     }
 
-    if !verify_ed25519_signature(&node_id, &phi_response, &req.peer_sample_sig) {
+    let phi_response_bytes = hex::decode(&req.phi_response).unwrap_or_default();
+    if !verify_ed25519_signature(&node_id, &phi_response_bytes, &req.peer_sample_sig, phi_version) {
         return axum::Json(ProveResponse {
             valid: false,
             reward_lamports: 0,
@@ -135,14 +164,31 @@ pub async fn post_prove(
     let epoch = &guard.epoch;
     let reward = epoch.block_reward;
 
-    let epoch_hash = compute_epoch_hash(req.epoch, &node_id, &phi_response);
-    let next = derive_phi_challenge(req.epoch + 1, &node_id);
+    let epoch_hash = if phi_version == 2 {
+        sha2_hash(&[
+            b"EPOCH_HASH_V2",
+            &req.epoch.to_le_bytes(),
+            &node_id,
+            &phi_response_bytes,
+        ])
+    } else {
+        compute_epoch_hash(req.epoch, &node_id, &phi_response_bytes)
+    };
+
+    let next_challenge = if phi_version == 2 {
+        let mut node_id_32 = [0u8; 32];
+        node_id_32.copy_from_slice(&node_id);
+        let next = derive_phi_challenge_v2(req.epoch + 1, &node_id_32);
+        hex::encode(pack_gf16_matrix(&next))
+    } else {
+        hex::encode(derive_phi_challenge(req.epoch + 1, &node_id))
+    };
 
     axum::Json(ProveResponse {
         valid: true,
         reward_lamports: reward,
         epoch_hash: hex::encode(epoch_hash),
-        next_challenge: hex::encode(next),
+        next_challenge,
         tokens_count: reward / 1000,
         reason: None,
     })
@@ -169,7 +215,7 @@ pub async fn get_epoch_challenge(
     })
 }
 
-fn verify_ed25519_signature(node_id: &[u8], phi_response: &[u8], sig_hex: &str) -> bool {
+fn verify_ed25519_signature(node_id: &[u8], phi_response: &[u8], sig_hex: &str, version: u8) -> bool {
     let sig_bytes = match hex::decode(sig_hex) {
         Ok(v) => v,
         Err(_) => return false,
@@ -178,8 +224,9 @@ fn verify_ed25519_signature(node_id: &[u8], phi_response: &[u8], sig_hex: &str) 
         return false;
     }
 
+    let domain = if version == 2 { b"TRI_PROVE_V2" } else { b"TRI_PROVE_V1" };
     let mut message = Vec::new();
-    message.extend_from_slice(b"TRI_PROVE_V1");
+    message.extend_from_slice(domain);
     message.extend_from_slice(node_id);
     message.extend_from_slice(phi_response);
 
@@ -208,7 +255,7 @@ pub async fn health_check() -> &'static str {
 mod tests {
     use super::*;
     use crate::depin::merkle::merkle_root;
-    use crate::depin::phi_challenge::{derive_phi_challenge, gf16_dot4};
+    use crate::depin::phi_challenge::{derive_phi_challenge, gf16_dot4, compute_phi_response_v2, derive_phi_challenge_v2};
     use crate::depin::types::{AppState, ProveRequest, MerkleProof};
     use axum::body::Body;
     use axum::routing::{get, post};
@@ -277,6 +324,7 @@ mod tests {
             },
             merkle_leaf_index: 0,
             peer_sample_sig: hex::encode(sig.to_bytes()),
+            version: 0,
         }
     }
 
@@ -374,9 +422,92 @@ mod tests {
             },
             merkle_leaf_index: 2,
             peer_sample_sig: hex::encode(sig.to_bytes()),
+            version: 0,
         };
         let resp = call_prove(&app, req).await;
         assert!(resp.valid, "expected valid proof with 4-leaf merkle tree, got reason: {:?}", resp.reason);
+    }
+
+    #[tokio::test]
+    async fn test_e2e_v2_valid_proof() {
+        let signing_key_bytes = [0xCC; 32];
+        let signing_key = SigningKey::from_bytes(&signing_key_bytes);
+        let verifying_key = signing_key.verifying_key();
+        let node_id = verifying_key.to_bytes();
+        let epoch: u64 = 0;
+
+        let mut node_id_32 = [0u8; 32];
+        node_id_32.copy_from_slice(&node_id);
+        let challenge = derive_phi_challenge_v2(epoch, &node_id_32);
+        let phi_response = compute_phi_response_v2(&challenge);
+
+        let leaf = crate::depin::types::sha2_hash(&[&node_id, &phi_response]);
+        let leaves = vec![leaf];
+        let root = merkle_root(&leaves);
+
+        let mut message = Vec::new();
+        message.extend_from_slice(b"TRI_PROVE_V2");
+        message.extend_from_slice(&node_id);
+        message.extend_from_slice(&phi_response);
+        let sig = signing_key.sign(&message);
+
+        let app = build_test_app();
+        let req = ProveRequest {
+            node_id: hex::encode(node_id),
+            epoch,
+            phi_response: hex::encode(phi_response),
+            merkle_proof: MerkleProof {
+                root: hex::encode(root),
+                leaf: hex::encode(leaf),
+                siblings: vec![],
+            },
+            merkle_leaf_index: 0,
+            peer_sample_sig: hex::encode(sig.to_bytes()),
+            version: 2,
+        };
+        let resp = call_prove(&app, req).await;
+        assert!(resp.valid, "expected valid V2 proof, got reason: {:?}", resp.reason);
+        assert_eq!(resp.reward_lamports, 50_000_000);
+        assert!(!resp.epoch_hash.is_empty());
+        assert!(!resp.next_challenge.is_empty());
+        assert_eq!(resp.tokens_count, 50_000);
+    }
+
+    #[tokio::test]
+    async fn test_e2e_v2_wrong_response() {
+        let signing_key_bytes = [0xCC; 32];
+        let signing_key = SigningKey::from_bytes(&signing_key_bytes);
+        let verifying_key = signing_key.verifying_key();
+        let node_id = verifying_key.to_bytes();
+        let epoch: u64 = 0;
+
+        let mut message = Vec::new();
+        message.extend_from_slice(b"TRI_PROVE_V2");
+        message.extend_from_slice(&node_id);
+        message.extend_from_slice(&[0xFF; 32]);
+        let sig = signing_key.sign(&message);
+
+        let leaf = crate::depin::types::sha2_hash(&[&node_id, &[0xFF; 32]]);
+        let leaves = vec![leaf];
+        let root = merkle_root(&leaves);
+
+        let app = build_test_app();
+        let req = ProveRequest {
+            node_id: hex::encode(node_id),
+            epoch,
+            phi_response: hex::encode([0xFF; 32]),
+            merkle_proof: MerkleProof {
+                root: hex::encode(root),
+                leaf: hex::encode(leaf),
+                siblings: vec![],
+            },
+            merkle_leaf_index: 0,
+            peer_sample_sig: hex::encode(sig.to_bytes()),
+            version: 2,
+        };
+        let resp = call_prove(&app, req).await;
+        assert!(!resp.valid);
+        assert_eq!(resp.reason.as_deref(), Some("phi_challenge_mismatch"));
     }
 
     fn get_siblings(leaves: &[[u8; 32]], index: usize) -> Vec<[u8; 32]> {
