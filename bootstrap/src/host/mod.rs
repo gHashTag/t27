@@ -21,6 +21,7 @@ pub mod json_output;
 pub mod mmio;
 pub mod perf;
 pub mod ternary;
+pub mod weights;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use engine::{InferenceEngine, InferenceReport};
@@ -29,3 +30,4 @@ pub use json_output::{HostSmokeJson, HostPollVsIrqJson, HostInferenceJson, HostP
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
 pub use perf::{EngineConfig, PerformanceEstimate};
 pub use ternary::{Trit, pack_word, unpack_word, pack_words, unpack_words, parse_trit_string, format_trits};
+pub use weights::{WeightPattern, WeightConfig, generate_pattern, generate_weights, pattern_name, parse_pattern};

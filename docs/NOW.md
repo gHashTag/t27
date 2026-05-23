@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-23
 
+## wave-45 -- t27c host-weight-gen -- deterministic weight pattern generator (R-HT-2, Closes #799)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/weights.rs` (`WeightPattern` enum, `WeightConfig`, `generate_pattern`, `generate_weights`, `parse_pattern`; 16 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostWeightGen` + `run_host_weight_gen()`; new test file `bootstrap/tests/host_weights.rs` (19 integration tests).
+- **Why** (R-HT-2): W44 gave us the ternary packer. W45 generates deterministic packed-trit weight patterns (all-N, all-Z, all-P, alternating, phi-sequence, seeded-random) for a given (neurons, chunks) config. Bridges W44 with W41 InferenceEngine for realistic weight initialization.
+- **Tests**: 35 new (16 inline + 19 integration). All pass. Zero regressions.
+
 ## wave-44 -- t27c host-pack/host-unpack -- ternary weight packer/unpacker (R-HT-1, Closes #797)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/ternary.rs` (`Trit` enum, `pack_word`/`unpack_word`/`pack_words`/`unpack_words`/`parse_trit_string`/`format_trits`; 17 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostPack` + `Commands::HostUnpack`; new test file `bootstrap/tests/host_ternary.rs` (19 integration tests).

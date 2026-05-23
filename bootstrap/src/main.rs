@@ -479,6 +479,27 @@ enum Commands {
         words: String,
     },
 
+    /// Generate deterministic packed-trit weight patterns (Wave 45, R-HT-2).
+    ///
+    /// Generates weight words in packed-trit format (54 bits/word) for a
+    /// given (neurons, chunks) configuration. Patterns: all-n, all-z,
+    /// all-p, alternating, phi-sequence, seeded-random:SEED.
+    #[command(name = "host-weight-gen")]
+    HostWeightGen {
+        /// Number of neurons (default: 16).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (default: 4).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Weight pattern: all-n, all-z, all-p, alternating, phi-sequence,
+        /// seeded-random:SEED (default: alternating).
+        #[arg(long, default_value = "alternating")]
+        pattern: String,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3364,6 +3385,20 @@ fn run_host_unpack(words_str: &str) -> anyhow::Result<()> {
     }
     let trits = host::ternary::unpack_words(&words);
     println!("{}", host::ternary::format_trits(&trits));
+    Ok(())
+}
+
+fn run_host_weight_gen(neurons: u32, chunks: u32, pattern_str: &str) -> anyhow::Result<()> {
+    let pattern = host::weights::parse_pattern(pattern_str)
+        .ok_or_else(|| anyhow::anyhow!("invalid pattern '{}': expected all-n, all-z, all-p, alternating, phi-sequence, or seeded-random:SEED", pattern_str))?;
+    let config = host::weights::WeightConfig { neurons, chunks, pattern };
+    let words = host::weights::generate_weights(&config);
+    if words.is_empty() {
+        anyhow::bail!("no words generated: neurons and chunks must be > 0");
+    }
+    for w in &words {
+        println!("0x{:016x}", w);
+    }
     Ok(())
 }
 
@@ -8190,6 +8225,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostUnpack { words } => {
             run_host_unpack(&words)?
         }
+        Commands::HostWeightGen { neurons, chunks, pattern } => {
+            run_host_weight_gen(neurons, chunks, &pattern)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8442,6 +8480,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostUnpack { words } => {
             run_host_unpack(&words)?
+        }
+        Commands::HostWeightGen { neurons, chunks, pattern } => {
+            run_host_weight_gen(neurons, chunks, &pattern)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
