@@ -32,6 +32,8 @@ mod bitnet_pipeline;
 mod bitnet_buffers;
 mod bitnet_axi;
 mod bitnet_dma;
+mod bitnet_irq;
+mod bitnet_top;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -232,6 +234,44 @@ enum Commands {
         /// AXI data-bus width in bits (clamped to 1..=64).
         #[arg(long, default_value_t = 32)]
         data_width: u32,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `interrupt_controller` SystemVerilog module
+    /// (Wave 36f, R-BN-6).
+    ///
+    /// Three sticky IRQ sources (inference_done, dma_done, error)
+    /// gated by a 3-bit `irq_enable` mask. `status_read` clears the
+    /// `irq_status` latch (read-to-clear). `irq_out` is the OR of
+    /// `irq_status & irq_enable`.
+    #[command(name = "gen-interrupt-controller")]
+    GenInterruptController {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `interrupt_controller`.
+        #[arg(long, default_value = "interrupt_controller")]
+        module_name: String,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `bitnet_engine_top` SystemVerilog module
+    /// (Wave 36f, R-BN-6).
+    ///
+    /// Top-level wrapper that instantiates `multilayer_sequencer` +
+    /// `double_buffer_ctrl` and exposes a host-startable multi-layer
+    /// BitNet inference engine with a 32-bit free-running cycle
+    /// counter gated by `busy`.
+    #[command(name = "gen-bitnet-engine-top")]
+    GenBitnetEngineTop {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `bitnet_engine_top`.
+        #[arg(long, default_value = "bitnet_engine_top")]
+        module_name: String,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -2771,6 +2811,22 @@ fn run_gen_dma_controller(
 ) -> anyhow::Result<()> {
     let verilog = bitnet_dma::build_dma_controller(module_name);
     write_verilog_to_output(&verilog, output, "dma_controller")
+}
+
+fn run_gen_interrupt_controller(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_irq::build_interrupt_controller(module_name);
+    write_verilog_to_output(&verilog, output, "interrupt_controller")
+}
+
+fn run_gen_bitnet_engine_top(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_top::build_bitnet_engine_top(module_name);
+    write_verilog_to_output(&verilog, output, "bitnet_engine_top")
 }
 
 fn run_gen_layer_sequencer(
@@ -7563,6 +7619,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenDmaController { module_name, output } => {
             run_gen_dma_controller(&module_name, output.as_deref())?
         }
+        Commands::GenInterruptController { module_name, output } => {
+            run_gen_interrupt_controller(&module_name, output.as_deref())?
+        }
+        Commands::GenBitnetEngineTop { module_name, output } => {
+            run_gen_bitnet_engine_top(&module_name, output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7754,6 +7816,12 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenDmaController { module_name, output } => {
             run_gen_dma_controller(&module_name, output.as_deref())?
+        }
+        Commands::GenInterruptController { module_name, output } => {
+            run_gen_interrupt_controller(&module_name, output.as_deref())?
+        }
+        Commands::GenBitnetEngineTop { module_name, output } => {
+            run_gen_bitnet_engine_top(&module_name, output.as_deref())?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
