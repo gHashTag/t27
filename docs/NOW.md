@@ -2,6 +2,24 @@
 
 Last updated: 2026-05-23
 
+## wave-31 -- t27c gen-verilog: ExprArrayLiteral in expression context emits parseable placeholder (R-CA-2 fix, Closes #749)
+
+- **WHERE** (bootstrap-only, surgical): `bootstrap/src/compiler.rs` -- single hunk in `VerilogCodegen::gen_verilog_expr` for `NodeKind::ExprArrayLiteral` (around line 4471). **Zero edits** under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/verilog_array_literal_expr.rs` (additive).
+- **Why** (R-CA-2): after Wave 30 (R-TR-1) landed on master, `fpga-synthesis` CI advanced further but still failed on `bridge.v:166` with `syntax error, unexpected ','`. Root cause: `gen_verilog_expr` for `ExprArrayLiteral` emitted a **comment-only token** of the form `/* array [...]{} */`. When such a literal appears as a function-call argument (e.g. `mac_dot_product(/* array [operand_a]{} */, /* array [operand_b]{} */, 1, unit_byte)`), Yosys strips the comments leaving `mac_dot_product(, , 1, unit_byte)` -- the bare commas trigger the parse error. Sibling of Wave 28's R-CA-1 fix, which addressed the same bug class in `gen_verilog_const` (declaration position); R-CA-2 addresses the **expression position** code path.
+- **What changed**: `ExprArrayLiteral` now writes a parseable placeholder `0 /* TODO: array literal [<size>]<type> not yet lowered to Verilog */`. The leading `0` makes the expression a valid Verilog integer literal that can stand in any expression context (call argument, RHS of assignment, operand of arithmetic, etc.); the trailing block comment preserves the original metadata for future lowering work. No semantic regression: array-literal lowering was already a stub.
+- **Before / after on bridge.v:166**:
+  ```verilog
+  // BEFORE (broken: comment-only call arguments collapse to bare commas)
+  mac_dot_product(/* array [operand_a]{} */, /* array [operand_b]{} */, 1, unit_byte);
+
+  // AFTER (valid Verilog: each argument is a literal integer with a trailing TODO comment)
+  mac_dot_product(0 /* TODO: array literal [operand_a] not yet lowered to Verilog */, 0 /* TODO: array literal [operand_b] not yet lowered to Verilog */, 1, unit_byte);
+  ```
+- **New integration tests** (`bootstrap/tests/verilog_array_literal_expr.rs`, 2 `#[test]`s, both green): shells out to the built `t27c` via `env!("CARGO_BIN_EXE_t27c")` and asserts that, after stripping all `/* ... */` block comments from the emitted Verilog, no function-call argument list contains an empty slot (no `(,`, `,,`, `,)`, or `()` where a non-empty argument list is expected). (i) Synthetic spec with a `consume([1,2,3,4])` call. (ii) Real `specs/fpga/bridge.t27` regression (the spec that blocked CI after PR #748).
+- **Local result**: `cargo test -p t27c --release --test verilog_array_literal_expr` -> **2 passed; 0 failed**. Cross-wave regression: Wave 27 (`verilog_r_si_1`), Wave 28 (`verilog_const_array`), Wave 29 (`verilog_initial_decl`), Wave 30 (`verilog_translate_off`) all still **2 passed; 0 failed** = **10/10 across W27-W31**.
+- **Constitution checklist**: L1 `Closes #749` in title + body + commit; L2 edits only in `bootstrap/` + this NOW.md + new `bootstrap/tests/`; L3 ASCII source, English doc-comments; L4 2 new tests, passing; L5 numeric kernel untouched, trinity invariant preserved; L6 zero spec/kernel changes; L7 no new `*.sh`.
+- **Out of scope (explicit, honest)**: (a) `fpga-formal` inherited infra failure (`pip install sby` no matching distribution) is not addressed; (b) `fpga-synthesis-arty` inherited CLI drift (`error: unexpected argument '--board' found`) is not addressed; (c) bare `as;` / `u8;` statements visible at bridge.v:170-178 (from `as`-cast emitter lowering a cast to two bare statements) are a separate bug class and will be a future wave; (d) any further downstream emitter bugs that may surface once `bridge.v` parses cleanly past line 166 will get their own wave.
+
 ## wave-30 -- t27c gen-verilog: emit standalone `// synthesis translate_off` and `translate_on` (R-TR-1 fix, Closes #747)
 
 - **WHERE** (bootstrap-only, surgical): `bootstrap/src/compiler.rs` -- single hunk in the bench-section loop of `VerilogCodegen::gen_verilog` (around line 3748). **Zero edits** under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/verilog_translate_off.rs` (additive).
