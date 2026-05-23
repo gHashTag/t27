@@ -24,6 +24,7 @@ mod runtime;
 mod neural;
 mod ternary;
 mod memory;
+mod trit_stdlib;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -77,6 +78,19 @@ enum Commands {
     GenVerilogHir {
         /// Input file path
         input: String,
+    },
+
+    /// Emit the balanced-ternary HW primitive library (trit stdlib) as one
+    /// self-contained Verilog file. No input spec required.
+    ///
+    /// Modules emitted: trit_not, trit_and, trit_or, trit_half_adder,
+    /// trit_full_adder, trit_multiply, trit3_add. Encoding: 2'b00 = -1,
+    /// 2'b01 = 0, 2'b10 = +1. See bootstrap/src/trit_stdlib.rs.
+    #[command(name = "gen-trit-stdlib")]
+    GenTritStdlib {
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
     },
 
     /// Assemble ternary assembly source into machine code
@@ -2422,6 +2436,32 @@ fn run_gen_verilog_hir(input_path: &str) -> anyhow::Result<()> {
     match compiler::Compiler::compile_verilog_hir(&source) {
         Ok(verilog) => print!("{}", verilog),
         Err(e) => anyhow::bail!("HIR Verilog generation error: {}", e),
+    }
+    Ok(())
+}
+
+/// Wave 32 (R-TS-1): emit the balanced-ternary HW primitive library.
+///
+/// Writes the full trit stdlib (7 modules) to `output` if provided, otherwise
+/// to stdout. Pure additive surface -- does not parse or touch any .t27 spec.
+///
+/// See bootstrap/src/trit_stdlib.rs for the emitter and per-module truth tables.
+fn run_gen_trit_stdlib(output: Option<&str>) -> anyhow::Result<()> {
+    let verilog = trit_stdlib::build_trit_stdlib_verilog();
+    match output {
+        Some(path) => {
+            if let Some(parent) = Path::new(path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("failed to create parent directory for {}", path)
+                    })?;
+                }
+            }
+            fs::write(path, &verilog)
+                .with_context(|| format!("failed to write trit stdlib to {}", path))?;
+            eprintln!("trit stdlib written to {} ({} bytes)", path, verilog.len());
+        }
+        None => print!("{}", verilog),
     }
     Ok(())
 }
@@ -7088,6 +7128,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
+        Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7241,6 +7282,7 @@ fn main() -> anyhow::Result<()> {
         Commands::GenVerilog { input } => run_gen_verilog(&input)?,
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
+        Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
