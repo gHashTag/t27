@@ -1,0 +1,9 @@
+[submodule "chips/phi"]
+	path = chips/phi
+	url = https://github.com/gHashTag/tt-trinity-phi.git
+[submodule "chips/euler"]
+	path = chips/euler
+	url = https://github.com/gHashTag/tt-trinity-euler.git
+[submodule "chips/gamma"]
+	path = chips/gamma
+	url = https://github.com/gHashTag/tt-trinity-gamma.git
