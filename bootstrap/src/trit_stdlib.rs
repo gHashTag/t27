@@ -1,21 +1,29 @@
 //! Wave 32 -- R-TS-1 (Trit Stdlib #1)
+//! Wave 33 -- R-TS-2 (Trit Stdlib #2: 27-trit MAC primitives)
 //!
 //! Synthesizable balanced-ternary HW primitive library.
 //!
-//! Emits one self-contained Verilog file with 7 modules:
-//!     trit_not, trit_and, trit_or,
-//!     trit_half_adder, trit_full_adder, trit_multiply,
-//!     trit3_add
+//! Emits one self-contained Verilog file with 11 modules:
+//!     Wave 32 (R-TS-1, base 7):
+//!         trit_not, trit_and, trit_or,
+//!         trit_half_adder, trit_full_adder, trit_multiply,
+//!         trit3_add
+//!     Wave 33 (R-TS-2, MAC 4):
+//!         trit_compare, trit27_parallel_multiply, adder_tree_27,
+//!         trit27_dot_product
 //!
 //! Encoding (all modules): 2'b00 = -1 (TRIT_N), 2'b01 = 0 (TRIT_Z), 2'b10 = +1 (TRIT_P).
 //! 2'b11 is reserved/invalid and falls through to TRIT_Z in muxes (safe default).
+//!
+//! With this encoding the unsigned 2-bit comparison N(00) < Z(01) < P(10) yields
+//! the natural balanced-ternary ordering, so trit_compare uses a direct `<` op.
 //!
 //! Algorithms and truth-tables ported from gHashTag/vibee-lang
 //! src/vibeec/verilog_codegen.zig (Zig). Original author: Dmitrii Vasilev.
 //!
 //! Zero dependencies on other bootstrap modules. Pure string emission.
 //!
-//! Closes #751.
+//! Closes #751 (Wave 32). Closes #754 (Wave 33).
 
 /// Build the complete trit-stdlib Verilog source as one string.
 ///
@@ -23,8 +31,9 @@
 /// All modules use only `wire` ports and `assign` statements (combinational),
 /// except `trit3_add` which is structural (3 x trit_full_adder instances).
 pub fn build_trit_stdlib_verilog() -> String {
-    let mut out = String::with_capacity(8192);
+    let mut out = String::with_capacity(16384);
     out.push_str(HEADER);
+    // Wave 32 base primitives (R-TS-1)
     out.push_str(MOD_TRIT_NOT);
     out.push_str(MOD_TRIT_AND);
     out.push_str(MOD_TRIT_OR);
@@ -32,6 +41,11 @@ pub fn build_trit_stdlib_verilog() -> String {
     out.push_str(MOD_TRIT_FULL_ADDER);
     out.push_str(MOD_TRIT_MULTIPLY);
     out.push_str(MOD_TRIT3_ADD);
+    // Wave 33 MAC primitives (R-TS-2)
+    out.push_str(MOD_TRIT_COMPARE);
+    out.push_str(MOD_TRIT27_PARALLEL_MULTIPLY);
+    out.push_str(MOD_ADDER_TREE_27);
+    out.push_str(MOD_TRIT27_DOT_PRODUCT);
     out.push_str(FOOTER);
     out
 }
@@ -57,7 +71,7 @@ const HEADER: &str = "\
 const FOOTER: &str = "\
 `default_nettype wire
 // ============================================================================
-// End of trit stdlib (7 modules).
+// End of trit stdlib (11 modules: 7 base + 4 MAC).
 // ============================================================================
 ";
 
@@ -252,16 +266,151 @@ endmodule
 
 ";
 
+// ============================================================================
+// Wave 33 (R-TS-2) -- 27-trit MAC primitives
+// ============================================================================
+
+const MOD_TRIT_COMPARE: &str = "\
+// ----------------------------------------------------------------------------
+// trit_compare -- Ternary comparison
+//   Returns TRIT_N (-1) if a<b, TRIT_Z (0) if a==b, TRIT_P (+1) if a>b.
+//   The unsigned 2-bit ordering of the encoding N(00) < Z(01) < P(10) matches
+//   the balanced-ternary ordering exactly, so a single `<` operator suffices.
+//   (Invalid 2'b11 inputs are excluded by construction.)
+// ----------------------------------------------------------------------------
+module trit_compare (
+    input  wire [1:0] a,
+    input  wire [1:0] b,
+    output wire [1:0] result
+);
+    localparam [1:0] TRIT_N = 2'b00;
+    localparam [1:0] TRIT_Z = 2'b01;
+    localparam [1:0] TRIT_P = 2'b10;
+
+    assign result = (a == b) ? TRIT_Z :
+                    (a <  b) ? TRIT_N :
+                               TRIT_P;
+endmodule
+
+";
+
+const MOD_TRIT27_PARALLEL_MULTIPLY: &str = "\
+// ----------------------------------------------------------------------------
+// trit27_parallel_multiply -- 27-way SIMD ternary multiplication.
+//   Vector layout: bits [i*2 +: 2] hold trit i (i = 0..26), so total width 54.
+//   BitNet core operation: no real multipliers -- pure sign comparison per lane.
+// ----------------------------------------------------------------------------
+module trit27_parallel_multiply (
+    input  wire [53:0] a,
+    input  wire [53:0] b,
+    output wire [53:0] result
+);
+    localparam [1:0] TRIT_Z = 2'b01;
+    localparam [1:0] TRIT_P = 2'b10;
+    localparam [1:0] TRIT_N = 2'b00;
+
+    genvar i;
+    generate
+        for (i = 0; i < 27; i = i + 1) begin : mult_gen
+            wire [1:0] ai        = a[i*2 +: 2];
+            wire [1:0] bi        = b[i*2 +: 2];
+            wire       a_zero    = (ai == TRIT_Z);
+            wire       b_zero    = (bi == TRIT_Z);
+            wire       same_sign = (ai == bi);
+
+            assign result[i*2 +: 2] = (a_zero || b_zero) ? TRIT_Z :
+                                      same_sign          ? TRIT_P :
+                                                           TRIT_N;
+        end
+    endgenerate
+endmodule
+
+";
+
+const MOD_ADDER_TREE_27: &str = "\
+// ----------------------------------------------------------------------------
+// adder_tree_27 -- Reduce 27 trits to a single signed sum in [-27, +27].
+//   3-level structural tree: 27 -> 9 -> 3 -> 1.
+//   Each trit is first decoded to signed {-1, 0, +1}; then ordinary signed
+//   integer addition combines them. The output is signed [5:0].
+// ----------------------------------------------------------------------------
+module adder_tree_27 (
+    input  wire [53:0]       trits,
+    output wire signed [5:0] sum
+);
+    localparam [1:0] TRIT_N = 2'b00;
+    localparam [1:0] TRIT_P = 2'b10;
+
+    // Decode each trit to signed {-1, 0, +1} (2-bit signed, range [-1, +1]).
+    wire signed [1:0] val [0:26];
+    genvar i;
+    generate
+        for (i = 0; i < 27; i = i + 1) begin : convert
+            wire [1:0] t = trits[i*2 +: 2];
+            assign val[i] = (t == TRIT_N) ? -2'sd1 :
+                            (t == TRIT_P) ?  2'sd1 :
+                                             2'sd0;
+        end
+    endgenerate
+
+    // Level 1: 9 groups of 3, range [-3, +3] -> signed [2:0].
+    wire signed [2:0] l1 [0:8];
+    generate
+        for (i = 0; i < 9; i = i + 1) begin : level1
+            assign l1[i] = val[i*3] + val[i*3+1] + val[i*3+2];
+        end
+    endgenerate
+
+    // Level 2: 3 groups of 3, range [-9, +9] -> signed [3:0].
+    wire signed [3:0] l2 [0:2];
+    assign l2[0] = l1[0] + l1[1] + l1[2];
+    assign l2[1] = l1[3] + l1[4] + l1[5];
+    assign l2[2] = l1[6] + l1[7] + l1[8];
+
+    // Level 3: final sum, range [-27, +27] -> signed [5:0].
+    assign sum = l2[0] + l2[1] + l2[2];
+endmodule
+
+";
+
+const MOD_TRIT27_DOT_PRODUCT: &str = "\
+// ----------------------------------------------------------------------------
+// trit27_dot_product -- Complete BitNet MAC: 27-element trit dot product.
+//   Step 1: 27 parallel sign-only multiplies (trit27_parallel_multiply).
+//   Step 2: 3-level reduction (adder_tree_27).
+//   Output: signed [5:0] in [-27, +27].
+// ----------------------------------------------------------------------------
+module trit27_dot_product (
+    input  wire [53:0]       input_vec,
+    input  wire [53:0]       weight_vec,
+    output wire signed [5:0] result
+);
+    wire [53:0] products;
+
+    trit27_parallel_multiply mult_unit (
+        .a(input_vec),
+        .b(weight_vec),
+        .result(products)
+    );
+
+    adder_tree_27 tree (
+        .trits(products),
+        .sum(result)
+    );
+endmodule
+
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Basic structural sanity: emitted text contains all 7 module headers and
+    /// Basic structural sanity: emitted text contains all 11 module headers and
     /// the shared encoding constants. These are the same invariants that the
     /// integration test (bootstrap/tests/trit_stdlib.rs) checks against the
     /// CLI output.
     #[test]
-    fn emits_all_seven_modules() {
+    fn emits_all_eleven_modules() {
         let v = build_trit_stdlib_verilog();
         for name in [
             "module trit_not (",
@@ -271,6 +420,10 @@ mod tests {
             "module trit_full_adder (",
             "module trit_multiply (",
             "module trit3_add (",
+            "module trit_compare (",
+            "module trit27_parallel_multiply (",
+            "module adder_tree_27 (",
+            "module trit27_dot_product (",
         ] {
             assert!(v.contains(name), "missing module header: {}", name);
         }
@@ -298,6 +451,46 @@ mod tests {
         let v = build_trit_stdlib_verilog();
         let count = v.matches("trit_full_adder fa").count();
         assert_eq!(count, 3, "trit3_add must instantiate exactly 3 full adders, got {}", count);
+    }
+
+    #[test]
+    fn dot_product_composes_parallel_multiply_and_adder_tree() {
+        let v = build_trit_stdlib_verilog();
+        assert!(
+            v.contains("trit27_parallel_multiply mult_unit"),
+            "trit27_dot_product must instantiate trit27_parallel_multiply as mult_unit"
+        );
+        assert!(
+            v.contains("adder_tree_27 tree"),
+            "trit27_dot_product must instantiate adder_tree_27 as tree"
+        );
+    }
+
+    #[test]
+    fn parallel_multiply_uses_part_select_loop() {
+        let v = build_trit_stdlib_verilog();
+        // 27-lane SIMD requires a genvar loop with +: part-select.
+        assert!(v.contains("for (i = 0; i < 27; i = i + 1) begin : mult_gen"));
+        assert!(v.contains("a[i*2 +: 2]"));
+        assert!(v.contains("b[i*2 +: 2]"));
+    }
+
+    #[test]
+    fn adder_tree_has_three_levels() {
+        let v = build_trit_stdlib_verilog();
+        // Level 1 generate-loop, level 2 explicit triples, level 3 single line.
+        assert!(v.contains("begin : convert"), "adder_tree_27 must have decode loop");
+        assert!(v.contains("begin : level1"), "adder_tree_27 must have level1 loop");
+        assert!(v.contains("assign l2[0] = l1[0] + l1[1] + l1[2];"));
+        assert!(v.contains("assign sum = l2[0] + l2[1] + l2[2];"));
+    }
+
+    #[test]
+    fn trit_compare_uses_direct_ordering() {
+        let v = build_trit_stdlib_verilog();
+        // Direct < op relies on the encoding ordering N(00)<Z(01)<P(10).
+        assert!(v.contains("(a == b) ? TRIT_Z :"));
+        assert!(v.contains("(a <  b) ? TRIT_N :"));
     }
 
     #[test]
