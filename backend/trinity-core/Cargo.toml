@@ -9,8 +9,8 @@ description = "Trinity Core - Session & Message management for Trinity Orchestra
 tokio = { version = "1", features = ["full"] }
 
 # HTTP server
-axum = { version = "0.7", features = ["tokio", "macros", "http1", "http2", "json"] }
-tower-http = { version = "0.5", features = ["cors"] }
+axum = { version = "0.8", features = ["tokio", "macros", "http1", "http2", "json"] }
+tower-http = { version = "0.6", features = ["cors"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
