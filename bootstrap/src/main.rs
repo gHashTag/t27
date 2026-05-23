@@ -30,6 +30,7 @@ mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
 mod bitnet_buffers;
+mod bitnet_axi;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -203,6 +204,33 @@ enum Commands {
         /// `weight_prefetch_ctrl`.
         #[arg(long, default_value = "weight_prefetch_ctrl")]
         module_name: String,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `axi_lite_slave` AMBA AXI4-Lite CSR aperture
+    /// (Wave 36d, R-BN-4).
+    ///
+    /// 16-entry control/status register map (CTRL, STATUS, IRQ_EN,
+    /// IRQ_STAT, NUM_LAYERS, NEURONS, CHUNKS, THRESHOLD, plus 64-bit
+    /// WEIGHT/INPUT/OUTPUT DDR addresses and 64-bit CYCLES counter).
+    /// Unmapped reads return `32'hDEADBEEF`; all responses OKAY.
+    #[command(name = "gen-axi-lite-slave")]
+    GenAxiLiteSlave {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `axi_lite_slave`.
+        #[arg(long, default_value = "axi_lite_slave")]
+        module_name: String,
+
+        /// AXI address-bus width in bits (clamped to 1..=16).
+        #[arg(long, default_value_t = 8)]
+        addr_width: u32,
+
+        /// AXI data-bus width in bits (clamped to 1..=64).
+        #[arg(long, default_value_t = 32)]
+        data_width: u32,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -2703,6 +2731,16 @@ fn run_gen_weight_prefetch_ctrl(
 ) -> anyhow::Result<()> {
     let verilog = bitnet_buffers::build_weight_prefetch_ctrl(module_name);
     write_verilog_to_output(&verilog, output, "weight_prefetch_ctrl")
+}
+
+fn run_gen_axi_lite_slave(
+    module_name: &str,
+    addr_width: u32,
+    data_width: u32,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_axi::build_axi_lite_slave(module_name, addr_width, data_width);
+    write_verilog_to_output(&verilog, output, "axi_lite_slave")
 }
 
 fn run_gen_layer_sequencer(
@@ -7489,6 +7527,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenWeightPrefetchCtrl { module_name, output } => {
             run_gen_weight_prefetch_ctrl(&module_name, output.as_deref())?
         }
+        Commands::GenAxiLiteSlave { module_name, addr_width, data_width, output } => {
+            run_gen_axi_lite_slave(&module_name, addr_width, data_width, output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7674,6 +7715,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenWeightPrefetchCtrl { module_name, output } => {
             run_gen_weight_prefetch_ctrl(&module_name, output.as_deref())?
+        }
+        Commands::GenAxiLiteSlave { module_name, addr_width, data_width, output } => {
+            run_gen_axi_lite_slave(&module_name, addr_width, data_width, output.as_deref())?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
