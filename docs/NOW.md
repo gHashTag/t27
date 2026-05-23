@@ -2,6 +2,15 @@
 
 Last updated: 2026-05-24
 
+## L-TRI-3 V2 + Verilog codegen fixes (synced from main branch)
+
+- **L-TRI-3 V2**: SHA256 response integrated into POST /prove + Solana Anchor program.
+  prove.rs: version field, V1/V2 routing, 33/33 tri tests.
+  Solana: submit_proof_v2 instruction, NodeProofV2 account.
+  Spec: prove.t27 with V2 types/tests/invariants.
+- **Verilog codegen** (#692): struct field access underscore fix, reg/init separation,
+  ExprCast passthrough, mutable var emission. 19/19 tests pass.
+
 ## wave-36f -- t27c gen-interrupt-controller + gen-bitnet-engine-top: closing BitNet HLS at 9/9 (R-BN-6, Closes #770)
 
 - **WHERE** (bootstrap-only, additive): new files `bootstrap/src/bitnet_irq.rs` (`interrupt_controller` emitter + 11 inline unit tests) and `bootstrap/src/bitnet_top.rs` (`bitnet_engine_top` emitter + 14 inline unit tests); two new `mod` declarations (`mod bitnet_irq; mod bitnet_top;`) in `bootstrap/src/main.rs`; two new CLI subcommands `Commands::GenInterruptController { module_name, output }` and `Commands::GenBitnetEngineTop { module_name, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_interrupt_controller(...)` / `run_gen_bitnet_engine_top(...)` (routed through the shared `write_verilog_to_output(...)` helper introduced in Wave 36b). **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test files `bootstrap/tests/bitnet_irq.rs` (16 integration tests) and `bootstrap/tests/bitnet_top.rs` (17 integration tests).
