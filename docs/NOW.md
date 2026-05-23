@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-23
 
+## wave-43 -- t27c --json flag for host CLI commands (R-HS-5, Closes #795)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/json_output.rs` (`HostSmokeJson`, `HostPollVsIrqJson`, `HostInferenceJson`, `HostPerfJson` structs, `print_json` helper); updated `bootstrap/src/host/mod.rs`; added `--json` flag to all 4 host commands in `main.rs`; new test file `bootstrap/tests/host_json.rs` (23 integration tests).
+- **Why** (R-HS-5): host commands emit human-readable single-line output by default. `--json` enables structured JSON for CI pipelines, trios-bridge, and downstream tooling. Additive — default output unchanged.
+- **Tests**: 23 new integration tests. All pass. Zero regressions.
+
 ## wave-42 -- t27c host-perf -- performance model and cycle estimator (R-HS-4, Closes #791)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/perf.rs` (`EngineConfig`, `PerformanceEstimate`, `LayerEstimate`; cycle/DMA/BRAM/throughput estimation; 19 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostPerf` + `run_host_perf()`; new test file `bootstrap/tests/host_perf.rs` (23 integration tests).

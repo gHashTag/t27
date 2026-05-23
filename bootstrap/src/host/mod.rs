@@ -17,11 +17,13 @@ pub mod csr_map;
 pub mod driver;
 pub mod engine;
 pub mod irq;
+pub mod json_output;
 pub mod mmio;
 pub mod perf;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use engine::{InferenceEngine, InferenceReport};
 pub use irq::{IrqDrivenDriver, IrqHandler, IrqSource};
+pub use json_output::{HostSmokeJson, HostPollVsIrqJson, HostInferenceJson, HostPerfJson};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
 pub use perf::{EngineConfig, PerformanceEstimate};

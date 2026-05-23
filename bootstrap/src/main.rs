@@ -347,6 +347,10 @@ enum Commands {
         /// Maximum poll iterations before timeout (default: 16).
         #[arg(long, default_value_t = 16)]
         max_polls: u32,
+
+        /// Emit structured JSON instead of human-readable output.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Run a side-by-side poll-vs-IRQ comparison on MockMmio (Wave 40, R-HS-2).
@@ -381,6 +385,10 @@ enum Commands {
         /// Maximum poll iterations before timeout (default: 16).
         #[arg(long, default_value_t = 16)]
         max_polls: u32,
+
+        /// Emit structured JSON instead of human-readable output.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Run a multi-layer DMA-driven BitNet inference flow on MockMmio
@@ -414,6 +422,10 @@ enum Commands {
         /// Maximum IRQ-service rounds per stage (default: 16).
         #[arg(long, default_value_t = 16)]
         max_rounds: u32,
+
+        /// Emit structured JSON instead of human-readable output.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Estimate BitNet inference performance from engine configuration
@@ -439,6 +451,10 @@ enum Commands {
         /// matching STARTUPE2.CFGMCLK on Wukong V1).
         #[arg(long, default_value_t = 66.0)]
         clock_mhz: f64,
+
+        /// Emit structured JSON instead of human-readable output.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
@@ -3111,6 +3127,7 @@ fn run_host_smoke(
     threshold: u32,
     weight_addr: u64,
     max_polls: u32,
+    json: bool,
 ) -> anyhow::Result<()> {
     use host::{BitnetDriver, MockMmio};
     let mut driver = BitnetDriver::new(MockMmio::with_csrs_zeroed());
@@ -3119,8 +3136,6 @@ fn run_host_smoke(
         .map_err(|e| anyhow::anyhow!("configure failed: {:?}", e))?;
     driver.enable_irqs(host::csr_map::IRQ_ALL_MASK);
     driver.start();
-    // Simulate hardware completing the inference immediately for the smoke
-    // test: latch `done` and the inference_done IRQ before polling.
     driver.mmio_mut().set_done(true);
     driver.mmio_mut().latch_irq(host::csr_map::IRQ_INFERENCE_DONE_MASK);
     driver
@@ -3129,17 +3144,24 @@ fn run_host_smoke(
     let snap = driver.dump();
     let w = driver.mmio().write_count();
     let r = driver.mmio().read_count();
-    println!(
-        "OK {}w/{}r layers={} neurons={} chunks={} threshold={} weight_addr=0x{:016x} irq_stat=0x{:08x}",
-        w,
-        r,
-        snap.num_layers,
-        snap.neurons,
-        snap.chunks,
-        snap.threshold,
-        snap.weight_addr_64(),
-        snap.irq_stat
-    );
+    if json {
+        host::json_output::print_json(&host::json_output::HostSmokeJson {
+            ok: true,
+            writes: w,
+            reads: r,
+            layers: snap.num_layers,
+            neurons: snap.neurons,
+            chunks: snap.chunks,
+            threshold: snap.threshold,
+            weight_addr: format!("0x{:016x}", snap.weight_addr_64()),
+            irq_stat: format!("0x{:08x}", snap.irq_stat),
+        })?;
+    } else {
+        println!(
+            "OK {}w/{}r layers={} neurons={} chunks={} threshold={} weight_addr=0x{:016x} irq_stat=0x{:08x}",
+            w, r, snap.num_layers, snap.neurons, snap.chunks, snap.threshold, snap.weight_addr_64(), snap.irq_stat
+        );
+    }
     Ok(())
 }
 
@@ -3150,6 +3172,7 @@ fn run_host_poll_vs_irq(
     threshold: u32,
     weight_addr: u64,
     max_polls: u32,
+    json: bool,
 ) -> anyhow::Result<()> {
     use host::{BitnetDriver, IrqDrivenDriver, MockMmio};
     let poll_writes;
@@ -3194,10 +3217,23 @@ fn run_host_poll_vs_irq(
         irq_stat_irq = idd.handler_mut().driver_mut().dump().irq_stat;
     }
     let writes_match = poll_writes == irq_writes;
-    println!(
-        "OK poll={}w/{}r irq={}w/{}r writes_match={} irq_stat_poll=0x{:08x} irq_stat_irq=0x{:08x}",
-        poll_writes, poll_reads, irq_writes, irq_reads, writes_match, irq_stat_poll, irq_stat_irq
-    );
+    if json {
+        host::json_output::print_json(&host::json_output::HostPollVsIrqJson {
+            ok: true,
+            poll_writes,
+            poll_reads,
+            irq_writes,
+            irq_reads,
+            writes_match,
+            irq_stat_poll: format!("0x{:08x}", irq_stat_poll),
+            irq_stat_irq: format!("0x{:08x}", irq_stat_irq),
+        })?;
+    } else {
+        println!(
+            "OK poll={}w/{}r irq={}w/{}r writes_match={} irq_stat_poll=0x{:08x} irq_stat_irq=0x{:08x}",
+            poll_writes, poll_reads, irq_writes, irq_reads, writes_match, irq_stat_poll, irq_stat_irq
+        );
+    }
     Ok(())
 }
 
@@ -3208,18 +3244,31 @@ fn run_host_inference(
     threshold: u32,
     weight_addr: u64,
     max_rounds: u32,
+    json: bool,
 ) -> anyhow::Result<()> {
     use host::{BitnetDriver, InferenceEngine, MockMmio};
-    let mut engine = InferenceEngine::new(BitnetDriver::new(MockMmio::with_csrs_zeroed()));    engine
+    let mut engine = InferenceEngine::new(BitnetDriver::new(MockMmio::with_csrs_zeroed()));
+    engine
         .configure(num_layers, neurons, chunks, threshold, weight_addr)
         .map_err(|e| anyhow::anyhow!("configure failed: {:?}", e))?;
     let report = engine
         .run(max_rounds)
         .map_err(|e| anyhow::anyhow!("inference failed: {:?}", e))?;
-    println!(
-        "OK layers={} completed={} writes={} reads={}",
-        report.total_layers, report.layers_completed, report.total_writes, report.total_reads
-    );
+    if json {
+        host::json_output::print_json(&host::json_output::HostInferenceJson {
+            ok: true,
+            total_layers: report.total_layers,
+            layers_completed: report.layers_completed,
+            error_layer: report.error_layer,
+            total_writes: report.total_writes,
+            total_reads: report.total_reads,
+        })?;
+    } else {
+        println!(
+            "OK layers={} completed={} writes={} reads={}",
+            report.total_layers, report.layers_completed, report.total_writes, report.total_reads
+        );
+    }
     Ok(())
 }
 
@@ -3228,24 +3277,41 @@ fn run_host_perf(
     neurons: u32,
     chunks: u32,
     clock_mhz: f64,
+    json: bool,
 ) -> anyhow::Result<()> {
     use host::perf::EngineConfig;
     let cfg = EngineConfig::new(num_layers, neurons, chunks)
         .ok_or_else(|| anyhow::anyhow!("invalid config: layers, neurons, and chunks must be > 0"))?;
     let est = cfg.estimate();
     let throughput = cfg.throughput_inf_per_sec(clock_mhz);
-    println!(
-        "OK layers={} neurons={} chunks={} total_cycles={} total_weight_words={} bram_pct={:.1}% dma_beats={} throughput={:.1} inf/s @ {:.1} MHz",
-        est.config.num_layers,
-        est.config.neurons,
-        est.config.chunks,
-        est.total_inference_cycles,
-        est.total_weight_words,
-        est.bram_utilization_pct,
-        est.total_dma_beats,
-        throughput,
-        clock_mhz,
-    );
+    if json {
+        host::json_output::print_json(&host::json_output::HostPerfJson {
+            ok: true,
+            layers: est.config.num_layers,
+            neurons: est.config.neurons,
+            chunks: est.config.chunks,
+            total_cycles: est.total_inference_cycles,
+            total_weight_words: est.total_weight_words,
+            total_weight_bytes: est.total_weight_bytes,
+            bram_utilization_pct: est.bram_utilization_pct,
+            total_dma_beats: est.total_dma_beats,
+            throughput_inf_per_sec: throughput,
+            clock_mhz,
+        })?;
+    } else {
+        println!(
+            "OK layers={} neurons={} chunks={} total_cycles={} total_weight_words={} bram_pct={:.1}% dma_beats={} throughput={:.1} inf/s @ {:.1} MHz",
+            est.config.num_layers,
+            est.config.neurons,
+            est.config.chunks,
+            est.total_inference_cycles,
+            est.total_weight_words,
+            est.bram_utilization_pct,
+            est.total_dma_beats,
+            throughput,
+            clock_mhz,
+        );
+    }
     Ok(())
 }
 
@@ -8054,17 +8120,17 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
             run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
         }
-        Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
-            run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls, json } => {
+            run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls, json)?
         }
-        Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
-            run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls, json } => {
+            run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls, json)?
         }
-        Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds } => {
-            run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds)?
+        Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds, json } => {
+            run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds, json)?
         }
-        Commands::HostPerf { num_layers, neurons, chunks, clock_mhz } => {
-            run_host_perf(num_layers, neurons, chunks, clock_mhz)?
+        Commands::HostPerf { num_layers, neurons, chunks, clock_mhz, json } => {
+            run_host_perf(num_layers, neurons, chunks, clock_mhz, json)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
@@ -8301,17 +8367,17 @@ fn main() -> anyhow::Result<()> {
         Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
             run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
         }
-        Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
-            run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls, json } => {
+            run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls, json)?
         }
-        Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
-            run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls, json } => {
+            run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls, json)?
         }
-        Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds } => {
-            run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds)?
+        Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds, json } => {
+            run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds, json)?
         }
-        Commands::HostPerf { num_layers, neurons, chunks, clock_mhz } => {
-            run_host_perf(num_layers, neurons, chunks, clock_mhz)?
+        Commands::HostPerf { num_layers, neurons, chunks, clock_mhz, json } => {
+            run_host_perf(num_layers, neurons, chunks, clock_mhz, json)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
