@@ -35,6 +35,7 @@ pub enum NodeKind {
     ExprIf,
     ExprStructLit,
     ExprArrayLiteral,
+    ExprCast,
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -3799,6 +3800,11 @@ impl VerilogCodegen {
     fn gen_verilog_const(&mut self, node: &Node) {
         self.write_indent();
 
+        if node.extra_mutable {
+            self.gen_verilog_var(node);
+            return;
+        }
+
         // Determine if this is an array constant (LUT)
         let is_array = !node.extra_size.is_empty();
 
@@ -3916,6 +3922,68 @@ impl VerilogCodegen {
             }
             self.write_line(";");
         }
+    }
+
+    fn gen_verilog_var(&mut self, node: &Node) {
+        let width = Self::type_to_width(&node.extra_type);
+        let signed = Self::type_is_signed(&node.extra_type);
+        let signed_str = if signed { "signed " } else { "" };
+        let range = Self::range_decl(width);
+        let range_str = if range.is_empty() {
+            String::new()
+        } else {
+            format!("{} ", range)
+        };
+        let is_array = !node.extra_size.is_empty();
+
+        if is_array {
+            self.write_line(&format!("// var: {} [{}]", node.name, node.extra_size));
+            let array_size: usize = node.extra_size.parse().unwrap_or(1);
+            for i in 0..array_size {
+                self.write_indent();
+                self.write_line(&format!("reg {}{}{}_{};", signed_str, range_str, node.name, i));
+            }
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                let child = &node.children[0];
+                if child.kind == NodeKind::ExprArrayLiteral {
+                    for (i, elem) in child.children.iter().enumerate() {
+                        if i < array_size {
+                            self.write_indent();
+                            self.write(&format!("{}_{} = ", node.name, i));
+                            self.gen_verilog_expr(elem);
+                            self.write_line(";");
+                        }
+                    }
+                } else {
+                    self.write_indent();
+                    self.write(&format!("// initializer: "));
+                    self.gen_verilog_expr(child);
+                    self.write_line("");
+                }
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        } else {
+            self.write(&format!("reg {}{}{};", signed_str, range_str, node.name));
+            self.write_line("");
+            if !node.children.is_empty() {
+                self.write_indent();
+                self.write_line("initial begin");
+                self.indent();
+                self.write_indent();
+                self.write(&format!("{} = ", node.name));
+                self.gen_verilog_expr(&node.children[0]);
+                self.write_line(";");
+                self.dedent();
+                self.write_indent();
+                self.write_line("end");
+            }
+        }
+        self.write_line("");
     }
 
     fn gen_verilog_enum(&mut self, node: &Node) {
@@ -4149,7 +4217,7 @@ impl VerilogCodegen {
             }
             NodeKind::StmtLocal => {
                 self.write_indent();
-                let kw = if node.extra_mutable { "reg" } else { "reg" };
+                let kw = "reg";
                 let width = Self::type_to_width(&node.extra_type);
                 let signed = Self::type_is_signed(&node.extra_type);
                 let signed_str = if signed { "signed " } else { "" };
@@ -4160,17 +4228,17 @@ impl VerilogCodegen {
                     format!("{} ", range)
                 };
 
-                if node.extra_mutable {
-                    self.write(&format!("{} {}{}{}", kw, signed_str, range_str, node.name));
-                } else {
-                    // const → localparam-like or wire
-                    self.write(&format!("{} {}{}{}", kw, signed_str, range_str, node.name));
-                }
+                self.write(&format!("{} {}{}{};", kw, signed_str, range_str, node.name));
                 if !node.children.is_empty() {
+                    self.write_line("");
+                    self.write_indent();
+                    self.write(&node.name);
                     self.write(" = ");
                     self.gen_verilog_expr(&node.children[0]);
+                    self.write_line(";");
+                } else {
+                    self.write_line("");
                 }
-                self.write_line(";");
             }
             NodeKind::StmtAssign => {
                 self.write_indent();
@@ -4445,7 +4513,7 @@ impl VerilogCodegen {
                             NodeKind::ExprIdentifier => child.children[0].name.clone(),
                             _ => String::new(),
                         };
-                        let flat_name = format!("{}{}", base_name, node.name);
+                        let flat_name = format!("{}_{}", base_name, node.name);
                         self.write(&flat_name);
                     } else if child.kind == NodeKind::ExprIdentifier {
                         self.write(&child.name);
@@ -4552,6 +4620,11 @@ impl VerilogCodegen {
                     self.write("0");
                 }
                 self.write(")");
+            }
+            NodeKind::ExprCast => {
+                if !node.children.is_empty() {
+                    self.gen_verilog_expr(&node.children[0]);
+                }
             }
             _ => {
                 self.write(&format!("/* unsupported expr: {:?} */", node.kind));
@@ -18794,6 +18867,50 @@ mod tests_hir_pipeline_parity {
         assert!(hir.contains("module ParityTest5"));
         assert!(direct.contains("endmodule"));
         assert!(hir.contains("endmodule"));
+    }
+
+    #[test]
+    fn test_verilog_struct_field_access_indexed() {
+        let src = r#"module FieldAccessTest {
+    pub struct Pair { a : u8, b : u8 }
+    pub fn get_a(idx: u32) -> u8 {
+        var pairs : [2]Pair = [Pair{a: 1, b: 2}, Pair{a: 3, b: 4}]
+        return pairs[idx].a
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(!v.contains("pairsa"), "indexed field access must use underscore: got 'pairsa'");
+        assert!(v.contains("pairs_a"), "expected flattened name pairs_a");
+    }
+
+    #[test]
+    fn test_verilog_reg_no_inline_init() {
+        let src = r#"module RegInitTest {
+    pub fn compute(x: u32) -> u32 {
+        var acc : u32 = 0
+        acc = acc + x
+        return acc
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        for line in v.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("reg ") && trimmed.contains("= ") {
+                panic!("reg declaration with inline initializer found: {}", trimmed);
+            }
+        }
+    }
+
+    #[test]
+    fn test_verilog_cast_no_as_keyword() {
+        let src = r#"module CastTest {
+    pub fn cast_it(x: u8) -> u32 {
+        return x as u32
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(!v.contains(" as "), "cast should not emit 'as' keyword in Verilog");
+        assert!(!v.contains("u32;"), "cast should not emit bare type name");
     }
 
     #[test]
