@@ -28,6 +28,7 @@ mod trit_stdlib;
 mod behavior_sva;
 mod phi_selfcheck;
 mod weight_bram;
+mod bitnet_pipeline;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -127,6 +128,43 @@ enum Commands {
         /// `cover_<index>_<name>`. Defaults to 0.
         #[arg(long, default_value_t = 0)]
         index: usize,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `pipeline_stage2_compute` SIMD compute stage with
+    /// accumulator (Wave 36b, R-BN-2).
+    ///
+    /// The emitted module consumes one 54-bit input/weight chunk per cycle
+    /// and accumulates the dot-product result into a signed 16-bit
+    /// accumulator. Depends on the `trit27_dot_product` primitive emitted by
+    /// `t27c gen-trit-stdlib` (Wave 33).
+    #[command(name = "gen-pipeline-stage2")]
+    GenPipelineStage2 {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `pipeline_stage2_compute`.
+        #[arg(long, default_value = "pipeline_stage2_compute")]
+        module_name: String,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a BitNet `layer_sequencer` FSM module that walks the
+    /// `(neuron_id, chunk_id)` grid (Wave 36b, R-BN-2).
+    ///
+    /// Three-state FSM (IDLE / RUN / DONE_ST). Drives the `valid`,
+    /// `first_chunk`, `last_chunk`, `done` strobes consumed by
+    /// `pipeline_stage2_compute`.
+    #[command(name = "gen-layer-sequencer")]
+    GenLayerSequencer {
+        /// Verilog module identifier. Invalid identifiers fall back to
+        /// `layer_sequencer`.
+        #[arg(long, default_value = "layer_sequencer")]
+        module_name: String,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -2599,6 +2637,45 @@ fn run_gen_behavior_sva(
             fs::write(path, &verilog)
                 .with_context(|| format!("failed to write behavior SVA to {}", path))?;
             eprintln!("behavior SVA written to {} ({} bytes)", path, verilog.len());
+        }
+        None => print!("{}", verilog),
+    }
+    Ok(())
+}
+
+fn run_gen_pipeline_stage2(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_pipeline::build_pipeline_stage2(module_name);
+    write_verilog_to_output(&verilog, output, "pipeline_stage2")
+}
+
+fn run_gen_layer_sequencer(
+    module_name: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let verilog = bitnet_pipeline::build_layer_sequencer(module_name);
+    write_verilog_to_output(&verilog, output, "layer_sequencer")
+}
+
+fn write_verilog_to_output(
+    verilog: &str,
+    output: Option<&str>,
+    label: &str,
+) -> anyhow::Result<()> {
+    match output {
+        Some(path) => {
+            if let Some(parent) = Path::new(path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("failed to create parent directory for {}", path)
+                    })?;
+                }
+            }
+            fs::write(path, verilog)
+                .with_context(|| format!("failed to write {} to {}", label, path))?;
+            eprintln!("{} written to {} ({} bytes)", label, path, verilog.len());
         }
         None => print!("{}", verilog),
     }
@@ -7346,6 +7423,12 @@ async fn main() -> anyhow::Result<()> {
             module_name,
             output,
         } => run_gen_weight_bram(depth, addr_width, data_width, &module_name, output.as_deref())?,
+        Commands::GenPipelineStage2 { module_name, output } => {
+            run_gen_pipeline_stage2(&module_name, output.as_deref())?
+        }
+        Commands::GenLayerSequencer { module_name, output } => {
+            run_gen_layer_sequencer(&module_name, output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7520,6 +7603,12 @@ fn main() -> anyhow::Result<()> {
             module_name,
             output,
         } => run_gen_weight_bram(depth, addr_width, data_width, &module_name, output.as_deref())?,
+        Commands::GenPipelineStage2 { module_name, output } => {
+            run_gen_pipeline_stage2(&module_name, output.as_deref())?
+        }
+        Commands::GenLayerSequencer { module_name, output } => {
+            run_gen_layer_sequencer(&module_name, output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
