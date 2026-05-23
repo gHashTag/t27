@@ -3719,6 +3719,12 @@ impl VerilogCodegen {
         }
 
         // Section: Bench → initial blocks with timing
+        //
+        // R-VD-1 (wave-29): variable declarations are NOT allowed inside
+        // procedural blocks in Verilog-2005 (Yosys/iverilog reject
+        // `integer x = 0;` between `initial begin` and `end`). We therefore
+        // hoist each bench's cycle counter to module scope using a unique
+        // sanitized name, and reset/increment it inside the initial block.
         if !benches.is_empty() {
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
@@ -3726,7 +3732,24 @@ impl VerilogCodegen {
             self.write_line("// Benchmark blocks (simulation only)");
             self.write_indent();
             self.write_line("// -------------------------------------------------------");
+            // Module-scope counter declarations (R-VD-1 fix).
+            self.write_indent();
+            self.write_line("// synthesis translate_off");
             for b in &benches {
+                let counter = format!(
+                    "_bench_{}_cycles",
+                    Self::sanitize_identifier(&b.name)
+                );
+                self.write_indent();
+                self.write_line(&format!("integer {} = 0;", counter));
+            }
+            self.write_indent();
+            self.write_line("// synthesis translate_on");
+            for b in &benches {
+                let counter = format!(
+                    "_bench_{}_cycles",
+                    Self::sanitize_identifier(&b.name)
+                );
                 self.write_indent();
                 self.write_line(&format!(
                     "initial begin : {}_bench // synthesis translate_off",
@@ -3736,16 +3759,16 @@ impl VerilogCodegen {
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : starting\");", b.name));
                 self.write_indent();
-                self.write_line("integer _bench_cycles = 0;");
+                self.write_line(&format!("{} = 0;", counter));
                 for child in &b.children {
                     self.gen_verilog_test_stmt(child, &b.name);
                     self.write_indent();
-                    self.write_line("_bench_cycles = _bench_cycles + 1;");
+                    self.write_line(&format!("{} = {} + 1;", counter, counter));
                 }
                 self.write_indent();
                 self.write_line(&format!(
-                    "$display(\"[BENCH] {} : %%0d cycles\", _bench_cycles);",
-                    b.name
+                    "$display(\"[BENCH] {} : %%0d cycles\", {});",
+                    b.name, counter
                 ));
                 self.write_indent();
                 self.write_line(&format!("$display(\"[BENCH] {} : DONE\");", b.name));
