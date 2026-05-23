@@ -2,6 +2,25 @@
 
 Last updated: 2026-05-23
 
+## wave-35 -- t27c gen-phi-selfcheck: phi-invariant golden-identity self-check emitter (R-SC-1, Closes #758)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/phi_selfcheck.rs` (~210 lines, pure string emitter + 13 inline unit tests); new `mod phi_selfcheck;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenPhiSelfcheck { tolerance, wrap, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_phi_selfcheck(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/phi_selfcheck.rs` (additive, 11 integration tests).
+- **Why** (R-SC-1): the trinity numeric kernel rests on the sacred identity `phi^2 + 1/phi^2 = 3` (constitutional L5). vibee-lang's formal emitter pairs every generated module with an elaboration-time `initial begin ... $fatal(...) end` self-check that fires when a downstream simulator drifts the IEEE-754 evaluation outside a tight window around 3.0. Wave 35 ports that emitter into t27c as a standalone CLI command, so any future hardware artifact can paste-in (or `\`include`) the canonical golden-identity guard without us having to rewrite it.
+- **What changed**: new subcommand `t27c gen-phi-selfcheck [--tolerance <f>] [--wrap <module_name>] [--output <path>]` emits a self-contained snippet:
+  ```systemverilog
+  localparam real PHI = 1.6180339887498948482;
+  localparam real GOLDEN_IDENTITY = PHI * PHI + 1.0 / (PHI * PHI);
+  initial begin
+      if (GOLDEN_IDENTITY < 2.990000 || GOLDEN_IDENTITY > 3.010000)
+          $fatal(1, "Golden Identity violated: phi^2 + 1/phi^2 != 3");
+  end
+  ```
+  When `--wrap <name>` is supplied, the snippet is enclosed in a `` `ifdef FORMAL `` / `module <name> (); ... endmodule` / `` `endif // FORMAL `` wrapper, mirroring vibee-lang's formal-emit convention. Non-finite / non-positive tolerances safely fall back to the upstream default (0.01).
+- **Tests** (additive): `bootstrap/tests/phi_selfcheck.rs` (11 integration tests, shell out to `t27c gen-phi-selfcheck`) plus 13 inline unit tests in `phi_selfcheck.rs`. All 11 integration tests pass under `cargo test -p t27c --release --test phi_selfcheck`. Cross-wave regression: behavior_sva (8), trit_stdlib (14), verilog_array_literal_expr (2), verilog_const_array (2), verilog_initial_decl (2), verilog_r_si_1 (2), verilog_translate_off (2) -- all green (32/32 unchanged).
+- **Source**: algorithm ported from `gHashTag/vibee-lang` `src/vibeec/verilog_codegen.zig` lines 2388-2403 (sacred identity localparam block + initial $fatal). Original author: Dmitrii Vasilev.
+- **Status**: implementation complete, ready to land via PR linked to issue #758. **Numeric kernel untouched** (L5): the snippet only *verifies* the identity at elaboration time; it does not redefine any constant inside `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `rings/`, or `architecture/`.
+- **Roadmap to next-next wave**: W36 -- BitNet HLS pipeline scaffolding (WeightBram, PipelineStage2, LayerSequencer, AXI-Lite, DMA, IRQ controller), still bootstrap-only.
+
 ## wave-34 -- t27c gen-behavior-sva: behavior-DSL (given/when/then) to SystemVerilog Assertions (R-SV-1, Closes #756)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/behavior_sva.rs` (445 lines, pure string emitter + 12 inline unit tests); new `mod behavior_sva;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenBehaviorSva { name, given, when, then, index, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_behavior_sva(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/behavior_sva.rs` (additive).
