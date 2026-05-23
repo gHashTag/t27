@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod depin;
+mod fpga;
+mod hooks;
 
 #[derive(Parser)]
 #[command(name = "tri", about = "PHI LOOP CLI wrapper")]
@@ -50,6 +52,16 @@ enum Commands {
     Serve {
         #[arg(long, default_value = "0.0.0.0:3000")]
         addr: String,
+    },
+    /// FPGA programming via the in-tree DLC10 driver (pure Rust).
+    Fpga {
+        #[command(subcommand)]
+        action: fpga::FpgaCmd,
+    },
+    /// Pure-Rust ports of repository commit / push gates.
+    Hooks {
+        #[command(subcommand)]
+        action: hooks::HooksCmd,
     },
 }
 
@@ -642,6 +654,8 @@ fn main() -> Result<()> {
             cmd_health(&root, target.as_deref())?;
         }
         Commands::Serve { addr } => cmd_serve(addr)?,
+        Commands::Fpga { action } => fpga::run(action)?,
+        Commands::Hooks { action } => hooks::run(action)?,
     }
 
     Ok(())

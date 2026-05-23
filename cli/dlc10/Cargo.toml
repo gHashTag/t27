@@ -1,0 +1,20 @@
+[package]
+name = "dlc10"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pure-Rust driver for Xilinx Platform Cable USB II (DLC10/DLC9), supports JTAG + SPI flash via 7-series proxy"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "dlc10"
+path = "src/bin/dlc10.rs"
+
+[dependencies]
+rusb = "0.9"
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+thiserror = "1"
+hex = "0.4"
