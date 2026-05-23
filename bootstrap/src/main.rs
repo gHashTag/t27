@@ -26,6 +26,7 @@ mod ternary;
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
+mod behavior_sva_v2;
 mod phi_selfcheck;
 mod weight_bram;
 mod bitnet_pipeline;
@@ -133,6 +134,23 @@ enum Commands {
         /// `cover_<index>_<name>`. Defaults to 0.
         #[arg(long, default_value_t = 0)]
         index: usize,
+
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit extended behavior-DSL SVA blocks with multi-clause antecedents,
+    /// `##N` delay, and `s_eventually` (Wave 37, R-BV-1).
+    ///
+    /// Reads a JSON array of behavior objects and emits self-contained
+    /// SystemVerilog Assertions with IEEE 1800 temporal operators.
+    #[command(name = "gen-behavior-sva-v2")]
+    GenBehaviorSvaV2 {
+        /// Path to a JSON file containing an array of behavior objects.
+        /// Each object has fields: name, given, when, then.
+        #[arg(long)]
+        behaviors_json: String,
 
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
@@ -7589,6 +7607,10 @@ async fn main() -> anyhow::Result<()> {
             index,
             output,
         } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
+        Commands::GenBehaviorSvaV2 {
+            behaviors_json,
+            output,
+        } => run_gen_behavior_sva_v2(&behaviors_json, output.as_deref())?,
         Commands::GenPhiSelfcheck {
             tolerance,
             wrap,
@@ -7764,8 +7786,36 @@ async fn main() -> anyhow::Result<()> {
             }
         }
      }
- 
     Ok(())
+}
+
+#[derive(serde::Deserialize)]
+struct BehaviorJson {
+    name: String,
+    given: String,
+    when: String,
+    then: String,
+}
+
+fn run_gen_behavior_sva_v2(
+    behaviors_json: &str,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let json_str = fs::read_to_string(behaviors_json)
+        .with_context(|| format!("failed to read behaviors JSON from {}", behaviors_json))?;
+    let behaviors_json: Vec<BehaviorJson> = serde_json::from_str(&json_str)
+        .with_context(|| "failed to parse behaviors JSON")?;
+    let behaviors: Vec<behavior_sva::Behavior<'_>> = behaviors_json
+        .iter()
+        .map(|b| behavior_sva::Behavior {
+            name: &b.name,
+            given: &b.given,
+            when: &b.when,
+            then: &b.then,
+        })
+        .collect();
+    let verilog = behavior_sva_v2::build_behavior_sva_v2_file(&behaviors);
+    write_verilog_to_output(&verilog, output, "behavior SVA v2")
 }
 
 #[cfg(not(feature = "server"))]
@@ -7787,6 +7837,10 @@ fn main() -> anyhow::Result<()> {
             index,
             output,
         } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
+        Commands::GenBehaviorSvaV2 {
+            behaviors_json,
+            output,
+        } => run_gen_behavior_sva_v2(&behaviors_json, output.as_deref())?,
         Commands::GenPhiSelfcheck {
             tolerance,
             wrap,
