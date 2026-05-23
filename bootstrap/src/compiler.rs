@@ -4469,16 +4469,19 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprArrayLiteral => {
+                // R-CA-2 (wave-31): array literals in expression context
+                // (e.g. as function-call arguments) used to emit a
+                // comment-only token `/* array [...]{} */`, which Yosys
+                // rejects with `syntax error, unexpected ','` when the
+                // argument list reduces to whitespace + comma. We follow
+                // the precedent established by `ExprStructLit` below and
+                // emit a synthesizable scalar `0` plus an explanatory
+                // TODO comment, so the surrounding expression remains
+                // parseable Verilog.
                 self.write(&format!(
-                    "/* array [{}]{}{{",
+                    "0 /* TODO: array literal [{}]{} not yet lowered to Verilog */",
                     node.extra_size, node.extra_type
                 ));
-                for elem in &node.children {
-                    self.write(" ");
-                    self.gen_verilog_expr(elem);
-                    self.write(",");
-                }
-                self.write("} */");
             }
             NodeKind::ExprStructLit => {
                 // Verilog has no struct literals — emit as comment + value 0
