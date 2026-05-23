@@ -68,10 +68,10 @@ fn contains_ci(haystack: &str, needle: &str) -> bool {
 ///
 /// Default fallback: `1'b1` (always-true antecedent).
 pub fn parse_given_clause(given: &str) -> &'static str {
-    if contains_ci(given, "running") {
+    if contains_ci(given, "running") && !contains_ci(given, "counter") && !contains_ci(given, "count") {
         return "running";
     }
-    if contains_ci(given, "active") {
+    if contains_ci(given, "active") && !contains_ci(given, "inactive") {
         return "active";
     }
     if contains_ci(given, "valid") {

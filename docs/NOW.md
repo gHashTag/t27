@@ -2,6 +2,19 @@
 
 Last updated: 2026-05-23
 
+## wave-37 -- t27c gen-behavior-sva-v2 -- multi-clause antecedents, ##N delay, s_eventually (R-BV-1, Closes #775)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/behavior_sva_v2.rs` (extended SVA emitter + 28 inline unit tests); new `mod behavior_sva_v2;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenBehaviorSvaV2 { behaviors_json, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_behavior_sva_v2(...)`. Bugfix: `behavior_sva.rs` v1 keyword priority (inactive/active collision, counter/running collision). Bugfix: `proxy.rs` test module gated behind `#[cfg(all(test, feature = "server"))]`. New test file `bootstrap/tests/behavior_sva_v2.rs` (24 integration tests).
+- **Why** (R-BV-1): the Wave 34 v1 emitter (`gen-behavior-sva`) supports only simple `A |-> B` assertions with single-keyword antecedents and consequents. Temporal verification (multi-cycle delay, liveness) and compound guard conditions are required before the behavior-DSL can be wired into existing `gen_verilog_*` spec emits (W38+). The v2 emitter adds three IEEE 1800 SVA extensions: multi-clause conjunction antecedents (`and`/`,`/`&&`), `##N` cycle-delayed implication, and `s_eventually` strong-fairness operator. The v1 emitter and its 8 integration + 12 unit tests are untouched (backward-compatible, frozen).
+- **What changed**:
+  - `behavior_sva_v2.rs`: `parse_given_clause_v2(given)` splits on `and`/`,`/`&&` and maps each atom via keyword vocabulary, emitting `(a && b && c)` for multi-clause or bare signal for single-clause. Unknown signals passthrough verbatim.
+  - `behavior_sva_v2.rs`: `parse_then_clause_v2(then)` returns `ConsequentV2` enum: `Plain(expr)`, `Delayed { cycles, expr }` (from `after N cycles` or `##N`), `Eventually(expr)` (from `eventually`/`liveness`).
+  - `behavior_sva_v2.rs`: `build_behavior_sva_v2_block` emits `A |-> ##N B` for delayed, `A |-> s_eventually B` for liveness, `A |-> B` for plain.
+  - CLI: `t27c gen-behavior-sva-v2 --behaviors-json <path> [--output <path>]` reads JSON array of `{name, given, when, then}` objects.
+  - Bugfix v1: `parse_given_clause` now guards "active" check with `!contains_ci(given, "inactive")` and "running" check with `!contains_ci(given, "counter") && !contains_ci(given, "count")`.
+  - Bugfix proxy: test module gated behind `#[cfg(all(test, feature = "server"))]` to fix compilation without `server` feature.
+- **Tests**: 28 inline unit tests in `behavior_sva_v2.rs` (given single/multi-clause, comma/amp/and splitting, reset/fifo/unknown passthrough, then plain/delayed/eventually, block structure, file structure, delay extraction) + 24 integration tests in `behavior_sva_v2.rs` test file (multi-clause conjunction via CLI, delay `after N cycles`, delay `##N`, `s_eventually`, liveness, plain consequent, property/assert/cover structure, multi-behavior indexing, header/footer, header comments, falling edge, disable iff, file output, passthrough, reset, fifo, delay+keyword, mixed conjunction+delay, determinism, empty given, ASCII-only). V1 regression sweep: 12 unit + 8 integration = 20/20 pass. **Total new: 52 / 52. Pre-existing: 185 integration + 706 unit = 891.**
+
 ## L-TRI-3 V2 + Verilog codegen fixes (synced from main branch)
 
 - **L-TRI-3 V2**: SHA256 response integrated into POST /prove + Solana Anchor program.
