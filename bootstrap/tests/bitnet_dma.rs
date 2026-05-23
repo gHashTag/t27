@@ -1,0 +1,291 @@
+//! Integration tests for `t27c gen-dma-controller` (Wave 36e, R-BN-5).
+
+use std::process::Command;
+
+fn t27c_bin() -> String {
+    std::env::var("CARGO_BIN_EXE_t27c").expect("CARGO_BIN_EXE_t27c not set")
+}
+
+fn run(args: &[&str]) -> (String, String, bool) {
+    let out = Command::new(t27c_bin())
+        .args(args)
+        .output()
+        .expect("failed to execute t27c");
+    (
+        String::from_utf8_lossy(&out.stdout).to_string(),
+        String::from_utf8_lossy(&out.stderr).to_string(),
+        out.status.success(),
+    )
+}
+
+// ============================================================================
+// Module name handling
+// ============================================================================
+
+#[test]
+fn dma_default_emits_module() {
+    let (stdout, stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok, "stderr: {}", stderr);
+    assert!(stdout.contains("module dma_controller ("));
+    assert!(stdout.contains("endmodule"));
+}
+
+#[test]
+fn dma_custom_module_name() {
+    let (stdout, _stderr, ok) =
+        run(&["gen-dma-controller", "--module-name", "dma_ddr_to_bram"]);
+    assert!(ok);
+    assert!(stdout.contains("module dma_ddr_to_bram ("));
+    assert!(!stdout.contains("module dma_controller ("));
+}
+
+#[test]
+fn dma_invalid_module_name_falls_back() {
+    for bad in &["9bad", "has space", "dash-name", ""] {
+        let (stdout, _stderr, ok) =
+            run(&["gen-dma-controller", "--module-name", bad]);
+        assert!(ok, "command failed for invalid name `{}`", bad);
+        assert!(
+            stdout.contains("module dma_controller ("),
+            "expected fallback for `{}`",
+            bad
+        );
+    }
+}
+
+// ============================================================================
+// FSM states
+// ============================================================================
+
+#[test]
+fn dma_six_states_localparam() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    for st in [
+        "localparam IDLE",
+        "localparam READ_ADDR",
+        "localparam READ_DATA",
+        "localparam WRITE_ADDR",
+        "localparam WRITE_DATA",
+        "localparam DONE_ST",
+    ] {
+        assert!(stdout.contains(st), "missing `{}`", st);
+    }
+}
+
+#[test]
+fn dma_state_width_three_bits() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("reg [2:0]  state;"));
+}
+
+#[test]
+fn dma_idle_dispatch_on_direction() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("state           <= direction ? WRITE_ADDR : READ_ADDR;"));
+}
+
+// ============================================================================
+// AXI ports
+// ============================================================================
+
+#[test]
+fn dma_axi_read_ports() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    for port in [
+        "output reg  [63:0] m_axi_araddr,",
+        "output reg  [7:0]  m_axi_arlen,",
+        "output reg         m_axi_arvalid,",
+        "input  wire        m_axi_arready,",
+        "input  wire [63:0] m_axi_rdata,",
+        "input  wire        m_axi_rlast,",
+        "input  wire        m_axi_rvalid,",
+        "output wire        m_axi_rready,",
+    ] {
+        assert!(stdout.contains(port), "missing AXI-read port `{}`", port);
+    }
+}
+
+#[test]
+fn dma_axi_write_ports() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    for port in [
+        "output reg  [63:0] m_axi_awaddr,",
+        "output reg  [7:0]  m_axi_awlen,",
+        "output reg         m_axi_awvalid,",
+        "input  wire        m_axi_awready,",
+        "output reg  [63:0] m_axi_wdata,",
+        "output reg         m_axi_wlast,",
+        "output reg         m_axi_wvalid,",
+        "input  wire        m_axi_wready,",
+        "input  wire        m_axi_bvalid,",
+        "output wire        m_axi_bready,",
+    ] {
+        assert!(stdout.contains(port), "missing AXI-write port `{}`", port);
+    }
+}
+
+#[test]
+fn dma_local_memory_interface() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("output reg  [11:0] local_addr,"));
+    assert!(stdout.contains("output reg  [63:0] local_wdata,"));
+    assert!(stdout.contains("output reg         local_we,"));
+    assert!(stdout.contains("input  wire [63:0] local_rdata"));
+}
+
+#[test]
+fn dma_control_ports_present() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    for port in [
+        "input  wire        start,",
+        "input  wire [63:0] src_addr,",
+        "input  wire [63:0] dst_addr,",
+        "input  wire [31:0] length,",
+        "input  wire        direction,",
+        "output reg         busy,",
+        "output reg         done,",
+    ] {
+        assert!(stdout.contains(port), "missing control port `{}`", port);
+    }
+}
+
+// ============================================================================
+// Handshake & burst semantics
+// ============================================================================
+
+#[test]
+fn dma_continuous_assigns() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("assign m_axi_rready = (state == READ_DATA);"));
+    assert!(stdout.contains("assign m_axi_bready = 1'b1;"));
+}
+
+#[test]
+fn dma_burst_length_is_max() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("m_axi_arlen  <= 8'hFF;"));
+    assert!(stdout.contains("m_axi_awlen  <= 8'hFF;"));
+}
+
+#[test]
+fn dma_beat_decrement_by_eight_bytes() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    let occurrences = stdout.matches("bytes_remaining - 32'd8").count();
+    assert!(
+        occurrences >= 2,
+        "expected >=2 byte-count decrements (read + write), got {}",
+        occurrences
+    );
+}
+
+#[test]
+fn dma_wlast_on_final_beat() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("m_axi_wlast  <= (bytes_remaining <= 32'd8);"));
+}
+
+#[test]
+fn dma_rlast_or_count_terminates_read() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout
+        .contains("if (m_axi_rlast || bytes_remaining <= 32'd8) state <= DONE_ST;"));
+}
+
+#[test]
+fn dma_local_addr_autoincrement_both_paths() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    let bumps = stdout.matches("local_addr      <= local_addr + 12'd1;").count();
+    assert!(
+        bumps >= 2,
+        "expected local_addr++ on both read and write beats, got {}",
+        bumps
+    );
+}
+
+// ============================================================================
+// Reset & DONE handling
+// ============================================================================
+
+#[test]
+fn dma_reset_initializes_outputs() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    for line in [
+        "state          <= IDLE;",
+        "busy           <= 1'b0;",
+        "done           <= 1'b0;",
+        "m_axi_arvalid  <= 1'b0;",
+        "m_axi_awvalid  <= 1'b0;",
+        "m_axi_wvalid   <= 1'b0;",
+        "local_we       <= 1'b0;",
+        "local_addr     <= 12'd0;",
+        "bytes_remaining <= 32'd0;",
+    ] {
+        assert!(stdout.contains(line), "missing reset line `{}`", line);
+    }
+}
+
+#[test]
+fn dma_done_state_clears_busy_and_returns_idle() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.contains("busy     <= 1'b0;"));
+    assert!(stdout.contains("done     <= 1'b1;"));
+    assert!(stdout.contains("state    <= IDLE;"));
+    // default arm for safety
+    assert!(stdout.contains("default: state <= IDLE;"));
+}
+
+// ============================================================================
+// File output & determinism
+// ============================================================================
+
+#[test]
+fn dma_output_to_file() {
+    let path = std::env::temp_dir()
+        .join(format!("t27_dma_out_{}.sv", std::process::id()));
+    let path_s = path.to_string_lossy().to_string();
+    let (_stdout, stderr, ok) =
+        run(&["gen-dma-controller", "--module-name", "dma_x", "--output", &path_s]);
+    assert!(ok, "stderr: {}", stderr);
+    let body = std::fs::read_to_string(&path).expect("output file missing");
+    assert!(body.contains("module dma_x ("));
+    assert!(body.trim_end().ends_with("endmodule"));
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn dma_output_is_deterministic() {
+    let (a, _e1, ok1) = run(&["gen-dma-controller", "--module-name", "d1"]);
+    let (b, _e2, ok2) = run(&["gen-dma-controller", "--module-name", "d1"]);
+    assert!(ok1 && ok2);
+    assert_eq!(a, b, "same args must yield byte-identical Verilog");
+}
+
+#[test]
+fn dma_output_is_pure_ascii() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller"]);
+    assert!(ok);
+    assert!(stdout.is_ascii(), "emitted Verilog must be ASCII");
+}
+
+#[test]
+fn dma_help_lists_subcommand() {
+    let (stdout, _stderr, ok) = run(&["gen-dma-controller", "--help"]);
+    assert!(ok);
+    assert!(stdout.contains("--module-name"));
+    assert!(stdout.contains("--output"));
+}
