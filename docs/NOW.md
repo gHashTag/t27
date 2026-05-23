@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-24
+Last updated: 2026-05-23
 
 ## L-TRI-3 V2 + Verilog codegen fixes (synced from main branch)
 
