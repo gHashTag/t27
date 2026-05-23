@@ -2,6 +2,16 @@
 
 Last updated: 2026-05-23
 
+## chore(deps): bump axum 0.8, jsonwebtoken 10, tower-http 0.6, gethostname 1.1, serde-wasm-bindgen 0.6
+
+- axum 0.7→0.8 (bootstrap, tri, trios-bridge, trinity-core)
+- jsonwebtoken 9→10 (bootstrap)
+- tower-http 0.5→0.6 (trinity-core), 0.6.8→0.6.11 (bootstrap)
+- gethostname 0.5→1.1 (trios-bridge)
+- serde-wasm-bindgen 0.4→0.6 (golden-float-js)
+- All affected crates compile clean, zero test regressions.
+- Closes #700, Closes #701, Closes #702, Closes #703, Closes #704
+
 ## wave-37 -- t27c gen-behavior-sva-v2 -- multi-clause antecedents, ##N delay, s_eventually (R-BV-1, Closes #775)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/behavior_sva_v2.rs` (extended SVA emitter + 28 inline unit tests); new `mod behavior_sva_v2;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenBehaviorSvaV2 { behaviors_json, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_behavior_sva_v2(...)`. Bugfix: `behavior_sva.rs` v1 keyword priority (inactive/active collision, counter/running collision). Bugfix: `proxy.rs` test module gated behind `#[cfg(all(test, feature = "server"))]`. New test file `bootstrap/tests/behavior_sva_v2.rs` (24 integration tests).
