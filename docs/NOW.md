@@ -2,6 +2,36 @@
 
 Last updated: 2026-05-23
 
+## wave-34 -- t27c gen-behavior-sva: behavior-DSL (given/when/then) to SystemVerilog Assertions (R-SV-1, Closes #756)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/behavior_sva.rs` (445 lines, pure string emitter + 12 inline unit tests); new `mod behavior_sva;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenBehaviorSva { name, given, when, then, index, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_behavior_sva(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/behavior_sva.rs` (additive).
+- **Why** (R-SV-1): t27 already had a narrow `assert property` code path inside `gen_verilog_*`, but **no human-readable behavior DSL** -- spec authors had to write SVA literals by hand. Sister project `gHashTag/vibee-lang` provides a complete keyword-driven behavior parser (`parseGivenClause` / `parseWhenClause` / `parseThenClause`) that turns plain English-ish clauses into canonical IEEE 1800 SVA with bonus `cover_N_*` coverage points. Wave 34 ports this parser + emitter into t27c as a pure-additive CLI command, with no spec-file dependencies and no edits to existing `gen_verilog_*` paths.
+- **What changed**: new subcommand `t27c gen-behavior-sva --name <N> --given <text> --when <text> --then <text> [--index <N>] [--output <path>]` emits one self-contained SVA block wrapped in `` `timescale `` / `` `default_nettype none ... wire ``:
+  ```systemverilog
+  property p_<name>;
+      @(<timing>) disable iff (!rst_n)
+      <antecedent> |-> <consequent>;
+  endproperty
+
+  assert_<idx>_<name>: assert property (p_<name>)
+      else $error("Assertion failed: <name>");
+
+  cover_<idx>_<name>: cover property (p_<name>);
+  ```
+- **Keyword vocabulary** (case-insensitive, priority-ordered):
+  - **given** -> antecedent: `running`, `active`, `valid` -> `valid_in`, `ready`, `reset` (+ `not`/`inactive` flip -> `rst_n` vs `!rst_n`), `idle` -> `(state == IDLE)`, `process` -> `(state == PROCESS)`, `counter`/`count` (+ `max` -> `(count == MAX_VALUE)`, `zero`/`0` -> `(count == 0)`, default -> `(count > 0)`), `fifo` (+ `not full`/`not empty`/`full`/`empty`), bare `full`/`empty`/`not full`/`not empty`. Default fallback: `1'b1`.
+  - **when** -> timing: `falling`/`negedge` -> `negedge clk`, default -> `posedge clk`.
+  - **then** -> consequent: `increment`/`add` (+ `count` -> `(count == $past(count) + 1)`, default -> `($past(data_out) + 1)`), `decrement`/`subtract` (same shape with `-1`), `zero`/`clear`/`set 0` (+ `count`/`overflow`/default), `set flag` (+ `overflow`/`valid`/`done`/`full`/`empty`/default `flag`), `set full`/`set empty`, `valid output` -> `valid_out`, `wrap` -> `(count == 0)`. Default fallback: `1'b1`.
+- **`disable iff (!rst_n)`** mandatory in every emitted property -- matches the vibee-lang convention and ensures assertions cannot fire while the design is in reset.
+- **Bonus**: every assertion gets a matching `cover_<idx>_<name>: cover property (...)` for free, providing functional coverage points alongside the safety properties.
+- **Surface**: pure additive. Does not parse, touch, or depend on any `.t27` spec or any existing `gen_verilog_*` code path. Wiring the behavior emitter into existing spec emits is deferred to a future wave (would require editing `specs/` or `gen/`, forbidden by L2/L6 here).
+- **Sample output**: `./target/release/t27c gen-behavior-sva --name tick --given "system is running" --when "rising edge" --then "increment count" --index 0` -> 29-line self-contained SVA file with header banner, behavior clauses quoted as comments, `@(posedge clk) disable iff (!rst_n)` timing, `running |-> (count == $past(count) + 1);` body, paired `assert_0_tick` + `cover_0_tick`. Local CLI verified.
+- **New integration tests** (`bootstrap/tests/behavior_sva.rs`, 8 `#[test]`s, all green): shells out to the built `t27c` via `env!("CARGO_BIN_EXE_t27c")` and asserts structural invariants on the emitted SVA: (i) property + assert + cover all present with matching identifiers; (ii) given keyword dispatch covers `running`, `fifo not empty`, `counter at max`, and default `1'b1`; (iii) `when` falling vs rising edge selects `negedge clk` / `posedge clk`; (iv) `then` keyword dispatch covers increment/decrement count, clear overflow, set valid flag; (v) custom `--index` is honoured in `assert_42_*` / `cover_42_*` labels while `p_*` stays index-free; (vi) `disable iff (!rst_n)` guard is mandatory; (vii) header comments quote the original clauses verbatim; (viii) output is self-contained -- exactly 1 property / 1 assert / 1 cover, balanced `` `default_nettype `` band. Plus 12 inline `#[cfg(test)]` unit tests in `behavior_sva.rs` covering every parser branch.
+- **Local result**: `cargo test -p t27c --release --test behavior_sva` -> **8 passed; 0 failed**. Cross-wave regression: Wave 27 (`verilog_r_si_1`), Wave 28 (`verilog_const_array`), Wave 29 (`verilog_initial_decl`), Wave 30 (`verilog_translate_off`), Wave 31 (`verilog_array_literal_expr`), Wave 32+33 (`trit_stdlib`) all still green = **32/32 across W27-W34**.
+- **Constitution checklist**: L1 `Closes #756` in title + body + commit; L2 edits only in `bootstrap/src/main.rs` (CLI registration + dispatch x2) + new `bootstrap/src/behavior_sva.rs` (parser+emitter) + new `bootstrap/tests/behavior_sva.rs` (tests) + this NOW.md; L3 ASCII source, English doc-comments; L4 8 new integration tests + 12 unit tests, all passing; L5 numeric kernel untouched, trinity invariant preserved; L6 zero spec/kernel changes; L7 no new `*.sh`.
+- **Source attribution**: algorithms ported from `gHashTag/vibee-lang` `src/vibeec/verilog_codegen.zig` lines 2415-2531 (`generateSVAProperty`, `parseGivenClause`, `parseWhenClause`, `parseThenClause`). Original behavior-parser author: Dmitrii Vasilev. Zig syntax translated to Rust string-building, identifier naming and indentation aligned with W32/W33 stdlib style.
+- **Out of scope (explicit, future waves)**: (a) optional `phi^2 + 1/phi^2 = 3` golden-identity self-check via `initial begin $fatal` -> Wave 35; (b) BitNet HLS pipeline (`WeightBram`, `PipelineStage2`, `LayerSequencer`, AXI-Lite, DMA, IRQ) -> Wave 36; (c) wiring the behavior emitter into existing spec emits -> separate wave once L2/L6 zone is reconsidered; (d) richer behavior-DSL (multi-clause antecedents, temporal operators `##N`/`s_eventually`) -> Wave 37+ if requested.
+
 ## wave-33 -- t27c gen-trit-stdlib extended with 27-trit MAC primitives (R-TS-2, Closes #754)
 
 - **WHERE** (bootstrap-only, additive): extends `bootstrap/src/trit_stdlib.rs` (310 -> ~500 lines) with 4 new `const MOD_*: &str` constants and a 4-line append in `build_trit_stdlib_verilog()`. No new CLI subcommand -- the existing `t27c gen-trit-stdlib` now emits 11 modules instead of 7. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. Tests extended in `bootstrap/tests/trit_stdlib.rs` (additive, no removals).

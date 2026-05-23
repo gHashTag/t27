@@ -25,6 +25,7 @@ mod neural;
 mod ternary;
 mod memory;
 mod trit_stdlib;
+mod behavior_sva;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -88,6 +89,43 @@ enum Commands {
     /// 2'b01 = 0, 2'b10 = +1. See bootstrap/src/trit_stdlib.rs.
     #[command(name = "gen-trit-stdlib")]
     GenTritStdlib {
+        /// Output file path. If omitted, the Verilog is written to stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Emit a SystemVerilog Assertions block from a single behavior-DSL description.
+    ///
+    /// Wave 34 (R-SV-1). Consumes a behavior (name + given clause + when clause
+    /// + then clause) and emits a self-contained IEEE 1800 SVA block consisting
+    /// of `property p_<name>; ... endproperty`, `assert_<idx>_<name>: assert
+    /// property (...) else $error(...);`, and `cover_<idx>_<name>: cover
+    /// property (...);`. Vocabulary ported from gHashTag/vibee-lang.
+    #[command(name = "gen-behavior-sva")]
+    GenBehaviorSva {
+        /// Behavior identifier. Must be a valid Verilog identifier
+        /// (`[A-Za-z_][A-Za-z0-9_]*`); used as the suffix in `p_<name>`,
+        /// `assert_<idx>_<name>`, `cover_<idx>_<name>`.
+        #[arg(long)]
+        name: String,
+
+        /// Free-form "given" clause -> SVA antecedent.
+        #[arg(long)]
+        given: String,
+
+        /// Free-form "when" clause -> SVA clock-edge timing.
+        #[arg(long)]
+        when: String,
+
+        /// Free-form "then" clause -> SVA consequent.
+        #[arg(long)]
+        then: String,
+
+        /// Integer suffix used in `assert_<index>_<name>` and
+        /// `cover_<index>_<name>`. Defaults to 0.
+        #[arg(long, default_value_t = 0)]
+        index: usize,
+
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
         output: Option<String>,
@@ -2460,6 +2498,45 @@ fn run_gen_trit_stdlib(output: Option<&str>) -> anyhow::Result<()> {
             fs::write(path, &verilog)
                 .with_context(|| format!("failed to write trit stdlib to {}", path))?;
             eprintln!("trit stdlib written to {} ({} bytes)", path, verilog.len());
+        }
+        None => print!("{}", verilog),
+    }
+    Ok(())
+}
+
+fn run_gen_behavior_sva(
+    name: &str,
+    given: &str,
+    when: &str,
+    then: &str,
+    index: usize,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    let behavior = behavior_sva::Behavior {
+        name,
+        given,
+        when,
+        then,
+    };
+    // build_behavior_sva_file always uses 0-based enumerate indexing. For the
+    // CLI we honour --index by splicing the user-indexed block in place of the
+    // auto-indexed one so the timescale/nettype band is preserved.
+    let wrapped = behavior_sva::build_behavior_sva_file(std::slice::from_ref(&behavior));
+    let auto_block = behavior_sva::build_behavior_sva_block(&behavior, 0);
+    let user_block = behavior_sva::build_behavior_sva_block(&behavior, index);
+    let verilog = wrapped.replace(&auto_block, &user_block);
+    match output {
+        Some(path) => {
+            if let Some(parent) = Path::new(path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    fs::create_dir_all(parent).with_context(|| {
+                        format!("failed to create parent directory for {}", path)
+                    })?;
+                }
+            }
+            fs::write(path, &verilog)
+                .with_context(|| format!("failed to write behavior SVA to {}", path))?;
+            eprintln!("behavior SVA written to {} ({} bytes)", path, verilog.len());
         }
         None => print!("{}", verilog),
     }
@@ -7129,6 +7206,14 @@ async fn main() -> anyhow::Result<()> {
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
+        Commands::GenBehaviorSva {
+            name,
+            given,
+            when,
+            then,
+            index,
+            output,
+        } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -7283,6 +7368,14 @@ fn main() -> anyhow::Result<()> {
         Commands::DebugHir { input } => run_debug_hir(&input)?,
         Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
+        Commands::GenBehaviorSva {
+            name,
+            given,
+            when,
+            then,
+            index,
+            output,
+        } => run_gen_behavior_sva(&name, &given, &when, &then, index, output.as_deref())?,
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
