@@ -383,6 +383,39 @@ enum Commands {
         max_polls: u32,
     },
 
+    /// Run a multi-layer DMA-driven BitNet inference flow on MockMmio
+    /// (Wave 41, R-HS-3).
+    ///
+    /// Exercises the full configure -> DMA prefetch -> inference ->
+    /// DMA drain cycle per layer, using IrqDrivenDriver from W40.
+    /// Prints `OK layers=N completed=M writes=W reads=R`.
+    #[command(name = "host-inference")]
+    HostInference {
+        /// Number of layers to program (default: 2).
+        #[arg(long, default_value_t = 2)]
+        num_layers: u32,
+
+        /// Neurons per layer (default: 16).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (default: 4).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Signed threshold value (default: 1).
+        #[arg(long, default_value_t = 1)]
+        threshold: u32,
+
+        /// 64-bit weight base address as decimal (default: 0).
+        #[arg(long, default_value_t = 0)]
+        weight_addr: u64,
+
+        /// Maximum IRQ-service rounds per stage (default: 16).
+        #[arg(long, default_value_t = 16)]
+        max_rounds: u32,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3139,6 +3172,28 @@ fn run_host_poll_vs_irq(
     println!(
         "OK poll={}w/{}r irq={}w/{}r writes_match={} irq_stat_poll=0x{:08x} irq_stat_irq=0x{:08x}",
         poll_writes, poll_reads, irq_writes, irq_reads, writes_match, irq_stat_poll, irq_stat_irq
+    );
+    Ok(())
+}
+
+fn run_host_inference(
+    num_layers: u32,
+    neurons: u32,
+    chunks: u32,
+    threshold: u32,
+    weight_addr: u64,
+    max_rounds: u32,
+) -> anyhow::Result<()> {
+    use host::{BitnetDriver, InferenceEngine, MockMmio};
+    let mut engine = InferenceEngine::new(BitnetDriver::new(MockMmio::with_csrs_zeroed()));    engine
+        .configure(num_layers, neurons, chunks, threshold, weight_addr)
+        .map_err(|e| anyhow::anyhow!("configure failed: {:?}", e))?;
+    let report = engine
+        .run(max_rounds)
+        .map_err(|e| anyhow::anyhow!("inference failed: {:?}", e))?;
+    println!(
+        "OK layers={} completed={} writes={} reads={}",
+        report.total_layers, report.layers_completed, report.total_writes, report.total_reads
     );
     Ok(())
 }
@@ -7954,6 +8009,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
             run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
         }
+        Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds } => {
+            run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8194,6 +8252,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
             run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        }
+        Commands::HostInference { num_layers, neurons, chunks, threshold, weight_addr, max_rounds } => {
+            run_host_inference(num_layers, neurons, chunks, threshold, weight_addr, max_rounds)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {

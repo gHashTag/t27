@@ -110,15 +110,21 @@ impl<M: Mmio> IrqDrivenDriver<M> {
     }
 
     pub fn wait_done_irq(&mut self, max_service_rounds: u32) -> Result<(), DriverError> {
+        self.wait_irq_mask(csr_map::IRQ_INFERENCE_DONE_MASK, max_service_rounds)
+    }
+
+    pub fn wait_irq_mask(&mut self, mask: u32, max_service_rounds: u32) -> Result<(), DriverError> {
         for _ in 0..max_service_rounds {
             let serviced = self.handler.service();
             if serviced & csr_map::IRQ_ERROR_MASK != 0 {
                 return Err(DriverError::EngineError);
             }
-            if serviced & csr_map::IRQ_INFERENCE_DONE_MASK != 0 {
+            if serviced & mask != 0 {
                 return Ok(());
             }
-            if self.handler.driver_mut().is_done() {
+            if mask == csr_map::IRQ_INFERENCE_DONE_MASK
+                && self.handler.driver_mut().is_done()
+            {
                 return Ok(());
             }
         }

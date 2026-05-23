@@ -15,9 +15,11 @@
 
 pub mod csr_map;
 pub mod driver;
+pub mod engine;
 pub mod irq;
 pub mod mmio;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use engine::{InferenceEngine, InferenceReport};
 pub use irq::{IrqDrivenDriver, IrqHandler, IrqSource};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};

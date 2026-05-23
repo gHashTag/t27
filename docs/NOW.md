@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-23
 
+## wave-41 -- t27c host-inference -- DMA-driven multi-layer BitNet inference flow (R-HS-3, Closes #789)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/engine.rs` (`InferenceEngine`, `InferenceReport`, per-layer DMA prefetch → inference → DMA drain cycle; 16 inline unit tests); updated `bootstrap/src/host/irq.rs` (`wait_irq_mask` generic IRQ wait, refactored from `wait_done_irq`); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostInference` + `run_host_inference()`; new test file `bootstrap/tests/host_engine.rs` (20 integration tests).
+- **Why** (R-HS-3): W40 gave us IRQ-driven single-completion. W41 orchestrates the full multi-layer BitNet inference flow: for each layer, DMA prefetch weights (wait DmaDone IRQ), start inference (wait InferenceDone IRQ), DMA drain output (wait DmaDone IRQ). Uses `wait_irq_mask()` — a new generic IRQ-wait method on `IrqDrivenDriver` that waits for any mask, not just inference-done.
+- **Tests**: 36 new (16 inline + 20 integration). All pass. Zero regressions.
+
 ## wave-40 -- t27c host-poll-vs-irq -- IRQ-handler harness + poll-vs-IRQ comparison (R-HS-2, Closes #786)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/irq.rs` (`IrqSource` enum, `IrqHandler<M>` callback registry, `IrqDrivenDriver<M>` with `wait_done_irq`; 11 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostPollVsIrq` + `run_host_poll_vs_irq()`; new test file `bootstrap/tests/host_irq.rs` (21 integration tests).
