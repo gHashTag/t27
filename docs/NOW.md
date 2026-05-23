@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-23
 
+## wave-46 -- t27c host-e2e -- end-to-end host stack integration (R-HS-6, Closes #802)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/e2e.rs` (`E2eConfig`, `E2eResult`, `E2eJson`, `run_e2e`; 13 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostE2e` + `run_host_e2e()` with `--json` support; new test file `bootstrap/tests/host_e2e.rs` (20 integration tests).
+- **Why** (R-HS-6): Capstone wave for the host driver stack. Wires W45 weight-gen → W41 InferenceEngine → W42 PerformanceEstimate in a single `host-e2e` command. Generates weights, runs inference on MockMmio, estimates analytical performance, and prints a comparison summary. Validates the full host stack works end-to-end.
+- **Tests**: 33 new (13 inline + 20 integration). All pass. Zero regressions.
+
 ## wave-45 -- t27c host-weight-gen -- deterministic weight pattern generator (R-HT-2, Closes #799)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/weights.rs` (`WeightPattern` enum, `WeightConfig`, `generate_pattern`, `generate_weights`, `parse_pattern`; 16 inline unit tests); updated `bootstrap/src/host/mod.rs`; new CLI `Commands::HostWeightGen` + `run_host_weight_gen()`; new test file `bootstrap/tests/host_weights.rs` (19 integration tests).

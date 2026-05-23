@@ -15,6 +15,7 @@
 
 pub mod csr_map;
 pub mod driver;
+pub mod e2e;
 pub mod engine;
 pub mod irq;
 pub mod json_output;
@@ -24,6 +25,7 @@ pub mod ternary;
 pub mod weights;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use e2e::{E2eConfig, E2eResult, E2eJson};
 pub use engine::{InferenceEngine, InferenceReport};
 pub use irq::{IrqDrivenDriver, IrqHandler, IrqSource};
 pub use json_output::{HostSmokeJson, HostPollVsIrqJson, HostInferenceJson, HostPerfJson};

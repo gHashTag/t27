@@ -500,6 +500,38 @@ enum Commands {
         pattern: String,
     },
 
+    /// Run full end-to-end host stack: weight-gen + inference + perf estimate
+    /// (Wave 46, R-HS-6).
+    ///
+    /// Generates weights, runs InferenceEngine, estimates performance, and
+    /// prints a comparison summary. Capstone for the host driver stack.
+    #[command(name = "host-e2e")]
+    HostE2e {
+        /// Number of layers (default: 2).
+        #[arg(long, default_value_t = 2)]
+        num_layers: u32,
+
+        /// Neurons per layer (default: 16).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (default: 4).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Threshold (default: 1).
+        #[arg(long, default_value_t = 1)]
+        threshold: u32,
+
+        /// Weight pattern (default: alternating).
+        #[arg(long, default_value = "alternating")]
+        pattern: String,
+
+        /// Emit structured JSON.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3398,6 +3430,43 @@ fn run_host_weight_gen(neurons: u32, chunks: u32, pattern_str: &str) -> anyhow::
     }
     for w in &words {
         println!("0x{:016x}", w);
+    }
+    Ok(())
+}
+
+fn run_host_e2e(
+    num_layers: u32,
+    neurons: u32,
+    chunks: u32,
+    threshold: u32,
+    pattern_str: &str,
+    json: bool,
+) -> anyhow::Result<()> {
+    let pattern = host::weights::parse_pattern(pattern_str)
+        .ok_or_else(|| anyhow::anyhow!("invalid pattern '{}'", pattern_str))?;
+    let config = host::e2e::E2eConfig {
+        num_layers, neurons, chunks, threshold,
+        weight_addr: 0,
+        pattern,
+        max_rounds: 16,
+    };
+    let result = host::e2e::run_e2e(&config)?;
+    if json {
+        let j = host::e2e::E2eJson::from_result(&result);
+        host::json_output::print_json(&j)?;
+    } else {
+        println!(
+            "OK layers={} completed={} pattern={} weight_words={} writes={} reads={} est_cycles={} est_dma={} bram={:.1}%",
+            result.layers,
+            result.inference.layers_completed,
+            result.pattern,
+            result.weight_words,
+            result.inference.total_writes,
+            result.inference.total_reads,
+            result.estimate.total_inference_cycles,
+            result.estimate.total_dma_beats,
+            result.estimate.bram_utilization_pct,
+        );
     }
     Ok(())
 }
@@ -8228,6 +8297,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostWeightGen { neurons, chunks, pattern } => {
             run_host_weight_gen(neurons, chunks, &pattern)?
         }
+        Commands::HostE2e { num_layers, neurons, chunks, threshold, pattern, json } => {
+            run_host_e2e(num_layers, neurons, chunks, threshold, &pattern, json)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8483,6 +8555,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostWeightGen { neurons, chunks, pattern } => {
             run_host_weight_gen(neurons, chunks, &pattern)?
+        }
+        Commands::HostE2e { num_layers, neurons, chunks, threshold, pattern, json } => {
+            run_host_e2e(num_layers, neurons, chunks, threshold, &pattern, json)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
