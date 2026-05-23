@@ -38,6 +38,7 @@ mod bitnet_top;
 mod bitnet_bundle;
 mod host;
 mod tt_manifest;
+mod tt_profile;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -316,6 +317,40 @@ enum Commands {
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
         output: Option<String>,
+    },
+
+    /// Emit a canonical Tiny Tapeout platform profile (Sky130 / IHP / GF180).
+    ///
+    /// Wave 45 (R-TT-2): deterministic JSON profile of a PDK target.
+    /// If `--output` is omitted or `-`, prints to stdout.
+    #[command(name = "tt-profile")]
+    TtProfile {
+        /// Platform: sky130 | ihp | gf180.
+        #[arg(long)]
+        platform: String,
+
+        /// Output path; `-` or omitted -> stdout.
+        #[arg(long)]
+        output: Option<String>,
+    },
+
+    /// Check whether a TtManifest conforms to a TtPlatformProfile.
+    ///
+    /// Wave 45 (R-TT-2): loads both JSONs, prints
+    /// `OK conform=<bool> reasons=<N>` to stdout.  Exit code 0 if ok, 1 otherwise.
+    #[command(name = "tt-conform")]
+    TtConform {
+        /// Path to a profile JSON (as emitted by `tt-profile`).
+        #[arg(long)]
+        profile: String,
+
+        /// Path to a manifest JSON (as emitted by `tt-manifest`).
+        #[arg(long)]
+        manifest: String,
+
+        /// If set, also print the verdict JSON to stdout.
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
     },
 
     /// Emit a deterministic Tiny Tapeout manifest for one of the three
@@ -3223,6 +3258,55 @@ fn run_tt_manifest(
                 .with_context(|| format!("writing tt-manifest to {}", path))?;
             eprintln!("OK tt-manifest chip={} bytes={} -> {}", chip.slug(), json.len(), path);
         }
+    }
+    Ok(())
+}
+
+fn run_tt_profile(platform_str: &str, output: Option<&str>) -> anyhow::Result<()> {
+    use tt_profile::{TtPlatform, TtPlatformProfile};
+
+    let platform = TtPlatform::from_str(platform_str)
+        .map_err(|e| anyhow::anyhow!("--platform parse error: {}", e))?;
+    let profile = TtPlatformProfile::canonical_for(platform);
+    let json = profile
+        .to_json()
+        .map_err(|e| anyhow::anyhow!("profile serialization failed: {}", e))?;
+
+    match output {
+        None | Some("-") => println!("{}", json),
+        Some(path) => {
+            std::fs::write(path, &json)
+                .with_context(|| format!("writing tt-profile to {}", path))?;
+            eprintln!("OK tt-profile platform={} bytes={} -> {}", platform.slug(), json.len(), path);
+        }
+    }
+    Ok(())
+}
+
+fn run_tt_conform(profile_path: &str, manifest_path: &str, verbose: bool) -> anyhow::Result<()> {
+    use tt_manifest::TtManifest;
+    use tt_profile::TtPlatformProfile;
+
+    let p_text = std::fs::read_to_string(profile_path)
+        .with_context(|| format!("reading profile {}", profile_path))?;
+    let m_text = std::fs::read_to_string(manifest_path)
+        .with_context(|| format!("reading manifest {}", manifest_path))?;
+    let profile = TtPlatformProfile::from_json(&p_text)
+        .map_err(|e| anyhow::anyhow!("profile parse error: {}", e))?;
+    let manifest = TtManifest::from_json(&m_text)
+        .map_err(|e| anyhow::anyhow!("manifest parse error: {}", e))?;
+
+    let verdict = profile.check_manifest(&manifest);
+    println!("OK conform={} reasons={}", verdict.ok, verdict.reasons.len());
+    if verbose {
+        let j = verdict.to_json().map_err(|e| anyhow::anyhow!("verdict serialize failed: {}", e))?;
+        println!("{}", j);
+    }
+    if !verdict.ok {
+        for r in &verdict.reasons {
+            eprintln!("reason: {}", r);
+        }
+        std::process::exit(1);
     }
     Ok(())
 }
@@ -8041,6 +8125,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::TtManifest { chip, output, commit, build_time, sva_count } => {
             run_tt_manifest(&chip, output.as_deref(), commit.as_deref(), build_time.as_deref(), sva_count)?
         }
+        Commands::TtProfile { platform, output } => {
+            run_tt_profile(&platform, output.as_deref())?
+        }
+        Commands::TtConform { profile, manifest, verbose } => {
+            run_tt_conform(&profile, &manifest, verbose)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8284,6 +8374,12 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::TtManifest { chip, output, commit, build_time, sva_count } => {
             run_tt_manifest(&chip, output.as_deref(), commit.as_deref(), build_time.as_deref(), sva_count)?
+        }
+        Commands::TtProfile { platform, output } => {
+            run_tt_profile(&platform, output.as_deref())?
+        }
+        Commands::TtConform { profile, manifest, verbose } => {
+            run_tt_conform(&profile, &manifest, verbose)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
