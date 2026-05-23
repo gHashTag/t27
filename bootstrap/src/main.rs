@@ -37,6 +37,7 @@ mod bitnet_irq;
 mod bitnet_top;
 mod bitnet_bundle;
 mod host;
+mod tt_manifest;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
 
@@ -315,6 +316,34 @@ enum Commands {
         /// Output file path. If omitted, the Verilog is written to stdout.
         #[arg(short, long)]
         output: Option<String>,
+    },
+
+    /// Emit a deterministic Tiny Tapeout manifest for one of the three
+    /// silicon variants (phi / euler / gamma).
+    ///
+    /// Wave 42 (R-TT-1): JSON pinning t27 commit + trinity-invariant hash to
+    /// chip variant.  If `--output` is omitted or `-`, prints to stdout.
+    #[command(name = "tt-manifest")]
+    TtManifest {
+        /// Chip variant: phi | euler | gamma.
+        #[arg(long)]
+        chip: String,
+
+        /// Output path; `-` or omitted -> stdout.
+        #[arg(long)]
+        output: Option<String>,
+
+        /// Override t27 commit (default: env `T27_COMMIT` or `unknown`).
+        #[arg(long)]
+        commit: Option<String>,
+
+        /// Override build_time_utc RFC3339 string (default: now UTC).
+        #[arg(long)]
+        build_time: Option<String>,
+
+        /// SVA assertion count to record (default: 0).
+        #[arg(long, default_value_t = 0)]
+        sva_count: u32,
     },
 
     /// Compare poll-driven and IRQ-driven completion paths against MockMmio.
@@ -3147,6 +3176,54 @@ fn run_host_poll_vs_irq(
         "OK poll={}w/{}r irq={}w/{}r writes_match={} csr_match={} irq_stat_poll=0x{:08x} irq_stat_irq=0x{:08x}",
         poll_w, poll_r, irq_w, irq_r, writes_match, csr_match, snap_poll.irq_stat, snap_irq.irq_stat
     );
+    Ok(())
+}
+
+fn run_tt_manifest(
+    chip_str: &str,
+    output: Option<&str>,
+    commit: Option<&str>,
+    build_time: Option<&str>,
+    sva_count: u32,
+) -> anyhow::Result<()> {
+    use tt_manifest::{AxiWidths, TtChip, TtManifest};
+
+    let chip = TtChip::from_str(chip_str)
+        .map_err(|e| anyhow::anyhow!("--chip parse error: {}", e))?;
+
+    let commit_owned: String = match commit {
+        Some(c) => c.to_string(),
+        None => std::env::var("T27_COMMIT").unwrap_or_else(|_| "unknown".to_string()),
+    };
+
+    let build_time_owned: String = match build_time {
+        Some(t) => t.to_string(),
+        None => chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+    };
+
+    let manifest = TtManifest::new(
+        &commit_owned,
+        chip,
+        TtManifest::canonical_modules(),
+        AxiWidths::canonical(),
+        sva_count,
+        &build_time_owned,
+    );
+
+    let json = manifest
+        .to_json()
+        .map_err(|e| anyhow::anyhow!("manifest serialization failed: {}", e))?;
+
+    match output {
+        None | Some("-") => {
+            println!("{}", json);
+        }
+        Some(path) => {
+            std::fs::write(path, &json)
+                .with_context(|| format!("writing tt-manifest to {}", path))?;
+            eprintln!("OK tt-manifest chip={} bytes={} -> {}", chip.slug(), json.len(), path);
+        }
+    }
     Ok(())
 }
 
@@ -7961,6 +8038,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
             run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
         }
+        Commands::TtManifest { chip, output, commit, build_time, sva_count } => {
+            run_tt_manifest(&chip, output.as_deref(), commit.as_deref(), build_time.as_deref(), sva_count)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8201,6 +8281,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostPollVsIrq { num_layers, neurons, chunks, threshold, weight_addr, max_polls } => {
             run_host_poll_vs_irq(num_layers, neurons, chunks, threshold, weight_addr, max_polls)?
+        }
+        Commands::TtManifest { chip, output, commit, build_time, sva_count } => {
+            run_tt_manifest(&chip, output.as_deref(), commit.as_deref(), build_time.as_deref(), sva_count)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
