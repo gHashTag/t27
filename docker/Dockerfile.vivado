@@ -1,0 +1,160 @@
+# syntax=docker/dockerfile:1.6
+#
+# Dockerfile.vivado - AMD/Xilinx Vivado ML Standard container for building
+# the QMTech XC7A100T-FGG676 proxy bitstream via the openFPGALoader fork.
+#
+# Image consumed by `tri fpga build-proxy-docker`:
+#
+#   docker run --rm \
+#     --platform linux/amd64 \
+#     -v <fork>:/work -w /work/spiOverJtag \
+#     t27/vivado:webpack \
+#     make spiOverJtag_xc7a100tfgg676.bit.gz
+#
+# vivado must be on PATH and the image must include the Artix-7
+# (xc7a100t) device family. ML Standard 2025.2 covers FGG676.
+#
+# ----------------------------------------------------------------------------
+# Why we ship a Dockerfile instead of pinning a public image
+# ----------------------------------------------------------------------------
+# AMD/Xilinx does not publish Vivado on Docker Hub. Community images
+# exist but are unsigned, unpinned, and frequently many tens of GiB. The
+# clickwrap licence forbids redistributing the installer, so each user
+# builds this image once locally from the free Vivado ML Standard
+# installer they download from
+#   https://www.xilinx.com/support/download.html
+#
+# ----------------------------------------------------------------------------
+# Build context layout (everything next to this Dockerfile in docker/)
+# ----------------------------------------------------------------------------
+#   docker/
+#     Dockerfile.vivado                                  -- this file
+#     install_config.txt                                  -- module selection
+#     FPGAs_AdaptiveSoCs_Unified_SDI_2025.2_*_Lin64.bin   -- web installer stub
+#     wi_authentication_key                               -- pre-baked auth token (REQUIRED)
+#
+# The .bin installer (~360 MiB stub) downloads ~10 GiB of payload from
+# xilinx.com during `xsetup --batch Install`. To do that unattended we
+# need a Xilinx auth token at /root/.Xilinx/wi_authentication_key. The
+# build expects you to have generated it once on any Linux/x86_64 host
+# (including a one-off `docker run` of `ubuntu:22.04` with the same
+# installer bind-mounted - see docs/fpga/DOCKER_VIVADO_STATUS.md) and
+# dropped the resulting 143-byte file in docker/. The token is
+# gitignored (`docker/wi_authentication_key` in .gitignore).
+#
+# Token lifetime is ~7 days. After expiry, regenerate with:
+#
+#   docker run --rm --platform linux/amd64 \
+#       -v $PWD/docker/FPGAs_AdaptiveSoCs_Unified_SDI_2025.2_*_Lin64.bin:/tmp/i.bin:ro \
+#       ubuntu:22.04 bash -c '<extract + xsetup -b AuthTokenGen via expect>'
+#
+# ----------------------------------------------------------------------------
+# Build command
+# ----------------------------------------------------------------------------
+#   docker buildx build \
+#       --platform linux/amd64 \
+#       -t t27/vivado:webpack \
+#       -f docker/Dockerfile.vivado \
+#       --build-arg VIVADO_INSTALLER=FPGAs_AdaptiveSoCs_Unified_SDI_2025.2_1114_2157_Lin64.bin \
+#       --load \
+#       docker/
+#
+# ----------------------------------------------------------------------------
+# Disk / time budget (Apple Silicon, --platform linux/amd64, qemu)
+# ----------------------------------------------------------------------------
+#   Web installer download from xilinx.com   : ~8-12 GiB (one-time)
+#   Final installed Vivado tree (Artix-7)    : ~12-15 GiB
+#   Peak intermediate during install         : ~25-30 GiB
+#   Wall clock (image build, first time)     : 60-120 min under emulation
+#   Wall clock (proxy bitstream build)       :  15-25 min under emulation
+#
+# Make sure Docker Desktop's "Virtual disk limit" (and host data volume)
+# has > 30 GiB free before starting. The first build is the costly step;
+# subsequent `tri fpga build-proxy-docker` invocations reuse the image.
+#
+# ----------------------------------------------------------------------------
+FROM --platform=linux/amd64 ubuntu:22.04
+
+ARG VIVADO_INSTALLER=FPGAs_AdaptiveSoCs_Unified_SDI_2025.2_1114_2157_Lin64.bin
+ARG VIVADO_CONFIG=install_config.txt
+ARG VIVADO_AUTH=wi_authentication_key
+ARG VIVADO_PREFIX=/opt/Xilinx
+ARG VIVADO_VERSION=2025.2
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
+    XILINX_INSTALL_LOCATION=${VIVADO_PREFIX}
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Vivado 2025.2 + spiOverJtag Makefile runtime deps. Mirrors UG973
+# install pre-reqs for Ubuntu 22.04 plus `make`/`gzip`/`git` for the
+# spiOverJtag Makefile this container will run.
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        default-jre \
+        fakeroot \
+        git \
+        gzip \
+        libglib2.0-0 \
+        libgl1 \
+        libgomp1 \
+        libgtk2.0-0 \
+        libncurses5 \
+        libtinfo5 \
+        libxi6 \
+        libxrender1 \
+        libxtst6 \
+        locales \
+        make \
+        python3 \
+        unzip \
+    && locale-gen en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Small config files into the image.
+COPY ${VIVADO_CONFIG} /tmp/install_config.txt
+# Pre-generated AMD/Xilinx auth token. Gitignored on the host. Without
+# this file the web installer cannot download Artix-7 payloads, so the
+# build will fail in the next RUN.
+RUN mkdir -p /root/.Xilinx
+COPY ${VIVADO_AUTH} /root/.Xilinx/wi_authentication_key
+RUN chmod 600 /root/.Xilinx/wi_authentication_key
+
+# Web installer download + install. Single RUN so the ~360 MiB stub and
+# the extracted ~1 GiB installer tree never enter a committed layer.
+#
+# - mount the installer .bin from the build context (host stays SSOT)
+# - extract it to /tmp/vivado-extract/payload
+# - run xsetup --batch Install with the install_config.txt selecting
+#   only Vivado ML Standard + Artix-7 (saves ~50 GiB vs everything)
+# - drop everything except Artix-7 part data
+# hadolint ignore=DL3003
+RUN --mount=type=bind,source=${VIVADO_INSTALLER},target=/tmp/vivado-installer.bin,ro \
+    set -e \
+    && mkdir -p /tmp/vivado-extract \
+    && cp /tmp/vivado-installer.bin /tmp/vivado-extract/installer.run \
+    && chmod +x /tmp/vivado-extract/installer.run \
+    && /tmp/vivado-extract/installer.run \
+           --noexec --keep --target /tmp/vivado-extract/payload \
+    && rm /tmp/vivado-extract/installer.run \
+    && cd /tmp/vivado-extract/payload \
+    && ./xsetup \
+           --agree XilinxEULA,3rdPartyEULA \
+           --batch Install \
+           --config /tmp/install_config.txt \
+    && rm -rf /tmp/vivado-extract /tmp/install_config.txt \
+    && find ${VIVADO_PREFIX}/Vivado/${VIVADO_VERSION}/data/parts \
+           -mindepth 1 -maxdepth 1 \
+           \! -name 'xc7a*' \
+           -exec rm -rf {} + || true
+
+# Vivado on PATH for every shell invocation, so `make` inside the
+# spiOverJtag tree finds it without extra sourcing.
+ENV PATH="${VIVADO_PREFIX}/Vivado/${VIVADO_VERSION}/bin:${PATH}" \
+    XILINX_VIVADO="${VIVADO_PREFIX}/Vivado/${VIVADO_VERSION}"
+
+WORKDIR /work
+CMD ["bash", "-lc", "vivado -version && exec bash"]
