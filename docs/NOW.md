@@ -2,6 +2,34 @@
 
 Last updated: 2026-05-23
 
+## wave-36a -- t27c gen-weight-bram: BitNet dual-port BRAM emitter (R-BN-1, Closes #760)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/weight_bram.rs` (~280 lines, pure string emitter + 15 inline unit tests); new `mod weight_bram;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenWeightBram { depth, addr_width, data_width, module_name, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_weight_bram(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/weight_bram.rs` (additive, 13 integration tests).
+- **Why** (R-BN-1): the BitNet HLS pipeline in `gHashTag/vibee-lang` rests on a six-module ternary inference engine (WeightBram, PipelineStage2, LayerSequencer, DoubleBufferCtrl, AXI-Lite, DMA / IRQ). The full port is too large for a single wave; W36 is split into W36a (this -- weight storage), W36b (compute + sequencing), W36c (bus + buffering). Wave 36a delivers just the weight storage primitive so downstream waves have a stable, tested BRAM emitter to call into.
+- **What changed**: new subcommand `t27c gen-weight-bram [--depth <N>] [--addr-width <N>] [--data-width <N>] [--module-name <name>] [--output <path>]` emits a self-contained dual-port BRAM module:
+  ```systemverilog
+  module weight_bram #(
+      parameter DEPTH = 4096,
+      parameter ADDR_WIDTH = 12
+  ) (
+      input  wire                  clk,
+      input  wire [ADDR_WIDTH-1:0] rd_addr,
+      output reg  [53:0]           rd_data,
+      input  wire [ADDR_WIDTH-1:0] wr_addr,
+      input  wire [53:0]           wr_data,
+      input  wire                  wr_en
+  );
+      reg [53:0] mem [0:DEPTH-1];
+      always @(posedge clk) rd_data <= mem[rd_addr];
+      always @(posedge clk) if (wr_en) mem[wr_addr] <= wr_data;
+  endmodule
+  ```
+  Defaults match the upstream vibee-lang emitter (DEPTH=4096, ADDR_WIDTH=12, DATA_WIDTH=54 -- 27 ternary trits packed 2 bits/trit). Zero / invalid knobs safely fall back to the upstream defaults so the emitter cannot produce a broken module.
+- **Tests** (additive): `bootstrap/tests/weight_bram.rs` (13 integration tests, shell out to `t27c gen-weight-bram`) plus 15 inline unit tests in `weight_bram.rs`. All 13 integration tests pass under `cargo test -p t27c --release --test weight_bram`. Cross-wave regression: phi_selfcheck (11), behavior_sva (8), trit_stdlib (14), verilog_array_literal_expr (2), verilog_const_array (2), verilog_initial_decl (2), verilog_r_si_1 (2), verilog_translate_off (2) -- all green (43/43 unchanged).
+- **Source**: algorithm ported from `gHashTag/vibee-lang` `src/vibeec/verilog_codegen.zig` lines 1062-1097 (`writeWeightBram`). Original author: Dmitrii Vasilev.
+- **Status**: implementation complete, ready to land via PR linked to issue #760. **Numeric kernel untouched** (L5): the emitter only declares storage cells, it does not redefine any constant inside `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `rings/`, or `architecture/`.
+- **Roadmap to next wave**: W36b -- `pipeline_stage2_compute` + `layer_sequencer` (BitNet SIMD compute stage with accumulator + FSM that walks neurons/chunks).
+
 ## wave-35 -- t27c gen-phi-selfcheck: phi-invariant golden-identity self-check emitter (R-SC-1, Closes #758)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/phi_selfcheck.rs` (~210 lines, pure string emitter + 13 inline unit tests); new `mod phi_selfcheck;` declaration in `bootstrap/src/main.rs`; new CLI subcommand `Commands::GenPhiSelfcheck { tolerance, wrap, output }` registered in the `Commands` enum and dispatched in both HTTP-server and CLI match arms via `run_gen_phi_selfcheck(...)`. **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`. Doc-only update to this file. New test file `bootstrap/tests/phi_selfcheck.rs` (additive, 11 integration tests).
