@@ -1,0 +1,7 @@
+set_property -dict { PACKAGE_PIN D5 IOSTANDARD LVCMOS33 } [get_ports d5]
+set_property -dict { PACKAGE_PIN D6 IOSTANDARD LVCMOS33 } [get_ports d6]
+set_property -dict { PACKAGE_PIN J26 IOSTANDARD LVCMOS33 } [get_ports j26]
+set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+set_property BITSTREAM.CONFIG.UNUSEDPIN PULLDOWN [current_design]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets osc]
+set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets osc]
