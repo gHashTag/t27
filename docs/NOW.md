@@ -2,15 +2,16 @@
 
 Last updated: 2026-05-23
 
-## chore(deps): bump axum 0.8, jsonwebtoken 10, tower-http 0.6, gethostname 1.1, serde-wasm-bindgen 0.6
+## wave-38 -- t27c --with-sva flag on gen-verilog + gen-verilog-hir — wire behavior_sva_v2 into spec emits (R-BV-2, Closes #780)
 
-- axum 0.7→0.8 (bootstrap, tri, trios-bridge, trinity-core)
-- jsonwebtoken 9→10 (bootstrap)
-- tower-http 0.5→0.6 (trinity-core), 0.6.8→0.6.11 (bootstrap)
-- gethostname 0.5→1.1 (trios-bridge)
-- serde-wasm-bindgen 0.4→0.6 (golden-float-js)
-- All affected crates compile clean, zero test regressions.
-- Closes #700, Closes #701, Closes #702, Closes #703, Closes #704
+- **WHERE** (bootstrap-only, additive): extended `bootstrap/src/behavior_sva_v2.rs` with `build_behavior_sva_bind_block()` (emits `bind`-style SVA companion module); updated `bootstrap/src/main.rs` with `--with-sva` and `--sva-behaviors <path>` flags on `GenVerilog` and `GenVerilogHir` subcommands; new helpers `load_sva_behaviors()` and `extract_module_name_from_verilog()`. New tests in `bootstrap/tests/behavior_sva_v2.rs` (8 integration tests for --with-sva).
+- **Why** (R-BV-2): the Wave 37 `behavior_sva_v2` emitter was standalone only (`gen-behavior-sva-v2`). Wave 38 wires it into the main Verilog codegen pipeline so users can run `t27c gen-verilog --with-sva --sva-behaviors behaviors.json spec.t27` to get both synthesizable RTL and a companion SVA verification block in a single pass. The `bind` statement connects the SVA module to the DUT without modifying the module itself.
+- **What changed**:
+  - `behavior_sva_v2.rs`: `build_behavior_sva_bind_block(dut_module_name, behaviors)` — emits `module <dut>_sva` with `clk`/`rst_n` ports, all SVA properties/asserts/covers, and `bind <dut> <dut>_sva sva_inst (.*);`
+  - CLI: `t27c gen-verilog <INPUT> --with-sva [--sva-behaviors <path>]` and `t27c gen-verilog-hir <INPUT> --with-sva [--sva-behaviors <path>]`
+  - If `--with-sva` is set but no behaviors provided (empty JSON), the SVA block is omitted (no-op).
+  - Zero edits to existing VerilogCodegen or HirVerilogEmitter internals.
+- **Tests**: 6 new inline unit tests in `behavior_sva_v2.rs` (bind block: empty/single/delay/eventually/multi/name) + 8 new integration tests (gen-verilog --with-sva: bind block appended, without-sva no append, no-behaviors no-op, multi-behavior, eventually, conjunction, ASCII-only, gen-verilog-hir --with-sva). V1 regression: 20/20 pass. **Total new: 14. Total v2 tests: 66 (34 inline + 32 integration).**
 
 ## wave-37 -- t27c gen-behavior-sva-v2 -- multi-clause antecedents, ##N delay, s_eventually (R-BV-1, Closes #775)
 

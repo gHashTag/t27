@@ -76,6 +76,17 @@ enum Commands {
     GenVerilog {
         /// Input file path
         input: String,
+
+        /// Append companion SVA assertions after endmodule (Wave 38, R-BV-2).
+        /// Reads behavior blocks from the source or from --sva-behaviors JSON.
+        #[arg(long)]
+        with_sva: bool,
+
+        /// Path to a JSON file containing behavior objects for SVA generation.
+        /// Each object: {"name":"...","given":"...","when":"...","then":"..."}
+        /// Only used with --with-sva.
+        #[arg(long)]
+        sva_behaviors: Option<String>,
     },
 
     /// Debug: dump Hardware IR (HIR) from .t27 file
@@ -88,6 +99,14 @@ enum Commands {
     GenVerilogHir {
         /// Input file path
         input: String,
+
+        /// Append companion SVA assertions after endmodule (Wave 38, R-BV-2).
+        #[arg(long)]
+        with_sva: bool,
+
+        /// Path to a JSON file containing behavior objects for SVA generation.
+        #[arg(long)]
+        sva_behaviors: Option<String>,
     },
 
     /// Emit the balanced-ternary HW primitive library (trit stdlib) as one
@@ -2691,12 +2710,26 @@ fn run_gen(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_gen_verilog(input_path: &str) -> anyhow::Result<()> {
+ fn run_gen_verilog(
+    input_path: &str,
+    with_sva: bool,
+    sva_behaviors: Option<&str>,
+) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
     match compiler::Compiler::compile_verilog(&source) {
-        Ok(verilog_code) => print!("{}", verilog_code),
+        Ok(verilog_code) => {
+            print!("{}", verilog_code);
+            if with_sva {
+                let behaviors = load_sva_behaviors(sva_behaviors)?;
+                let module_name = extract_module_name_from_verilog(&verilog_code);
+                let sva_block = behavior_sva_v2::build_behavior_sva_bind_block(&module_name, &behaviors);
+                if !sva_block.is_empty() {
+                    print!("{}", sva_block);
+                }
+            }
+        }
         Err(e) => anyhow::bail!("Compile error: {}", e),
     }
     Ok(())
@@ -2713,15 +2746,62 @@ fn run_debug_hir(input_path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_gen_verilog_hir(input_path: &str) -> anyhow::Result<()> {
+fn run_gen_verilog_hir(
+    input_path: &str,
+    with_sva: bool,
+    sva_behaviors: Option<&str>,
+) -> anyhow::Result<()> {
     let path = Path::new(input_path);
     let source = fs::read_to_string(path)?;
 
     match compiler::Compiler::compile_verilog_hir(&source) {
-        Ok(verilog) => print!("{}", verilog),
+        Ok(verilog) => {
+            print!("{}", verilog);
+            if with_sva {
+                let behaviors = load_sva_behaviors(sva_behaviors)?;
+                let module_name = extract_module_name_from_verilog(&verilog);
+                let sva_block = behavior_sva_v2::build_behavior_sva_bind_block(&module_name, &behaviors);
+                if !sva_block.is_empty() {
+                    print!("{}", sva_block);
+                }
+            }
+        }
         Err(e) => anyhow::bail!("HIR Verilog generation error: {}", e),
     }
     Ok(())
+}
+
+fn load_sva_behaviors(sva_behaviors: Option<&str>) -> anyhow::Result<Vec<behavior_sva::Behavior<'static>>> {
+    match sva_behaviors {
+        Some(path) => {
+            let json_str = fs::read_to_string(path)
+                .with_context(|| format!("failed to read SVA behaviors JSON from {}", path))?;
+            let behaviors_json: Vec<BehaviorJson> = serde_json::from_str(&json_str)
+                .with_context(|| "failed to parse SVA behaviors JSON")?;
+            Ok(behaviors_json
+                .into_iter()
+                .map(|b| behavior_sva::Behavior {
+                    name: Box::leak(b.name.into_boxed_str()),
+                    given: Box::leak(b.given.into_boxed_str()),
+                    when: Box::leak(b.when.into_boxed_str()),
+                    then: Box::leak(b.then.into_boxed_str()),
+                })
+                .collect())
+        }
+        None => Ok(Vec::new()),
+    }
+}
+
+fn extract_module_name_from_verilog(verilog: &str) -> String {
+    for line in verilog.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("module ") {
+            if let Some(name) = trimmed.strip_prefix("module ").and_then(|s| s.split_whitespace().next()) {
+                return name.trim_end_matches('(').to_string();
+            }
+        }
+    }
+    "unknown".to_string()
 }
 
 /// Wave 32 (R-TS-1): emit the balanced-ternary HW primitive library.
@@ -7595,9 +7675,11 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
-        Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenVerilog { input, with_sva, sva_behaviors } =>
+            run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::DebugHir { input } => run_debug_hir(&input)?,
-        Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
+        Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
+            run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,
@@ -7825,9 +7907,11 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Parse { input } => run_parse(&input)?,
         Commands::Gen { input } => run_gen(&input)?,
-        Commands::GenVerilog { input } => run_gen_verilog(&input)?,
+        Commands::GenVerilog { input, with_sva, sva_behaviors } =>
+            run_gen_verilog(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::DebugHir { input } => run_debug_hir(&input)?,
-        Commands::GenVerilogHir { input } => run_gen_verilog_hir(&input)?,
+        Commands::GenVerilogHir { input, with_sva, sva_behaviors } =>
+            run_gen_verilog_hir(&input, with_sva, sva_behaviors.as_deref())?,
         Commands::GenTritStdlib { output } => run_gen_trit_stdlib(output.as_deref())?,
         Commands::GenBehaviorSva {
             name,

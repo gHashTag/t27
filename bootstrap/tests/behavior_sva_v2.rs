@@ -312,3 +312,196 @@ fn v2_ascii_only_output() {
     ]);
     assert!(v.is_ascii(), "emitted SVA must be ASCII-only (L3)");
 }
+
+fn write_minimal_t27_spec() -> String {
+    let dir = std::env::temp_dir().join("t27c_test_behavior_sva_v2");
+    let _ = fs::create_dir_all(&dir);
+    let counter = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path = dir.join(format!("spec_{}_{}.t27", std::process::id(), counter));
+    let spec = r#"module test_module;
+
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+test test_add {
+    assert add(1, 2) == 3;
+}
+"#;
+    fs::write(&path, spec).expect("write spec");
+    path.to_string_lossy().to_string()
+}
+
+#[test]
+fn gen_verilog_with_sva_appends_bind_block() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[
+        ("check_done", "running", "posedge clk", "after 2 cycles done"),
+    ]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog --with-sva");
+    assert!(
+        output.status.success(),
+        "t27c gen-verilog --with-sva exited with {:?}, stderr={}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("endmodule"), "must contain endmodule");
+    assert!(stdout.contains("module test_module_sva"), "must contain SVA companion module");
+    assert!(stdout.contains("bind test_module test_module_sva sva_inst"), "must contain bind statement");
+    assert!(stdout.contains("property p_check_done"), "must contain SVA property");
+    assert!(stdout.contains("##2 done"), "must contain ##2 delay");
+}
+
+#[test]
+fn gen_verilog_without_sva_no_append() {
+    let spec_path = write_minimal_t27_spec();
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("endmodule"));
+    assert!(!stdout.contains("_sva"), "should not contain SVA block without --with-sva");
+    assert!(!stdout.contains("bind"), "should not contain bind without --with-sva");
+}
+
+#[test]
+fn gen_verilog_with_sva_no_behaviors_is_noop() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog --with-sva");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("endmodule"));
+    assert!(!stdout.contains("_sva"), "empty behaviors should not emit SVA block");
+}
+
+#[test]
+fn gen_verilog_with_sva_multi_behavior() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[
+        ("a", "running", "rising", "done"),
+        ("b", "valid and ready", "posedge clk", "after 5 cycles busy"),
+        ("c", "start", "rising", "eventually done"),
+    ]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog --with-sva");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("property p_a"));
+    assert!(stdout.contains("property p_b"));
+    assert!(stdout.contains("property p_c"));
+    assert!(stdout.contains("##5 busy"));
+    assert!(stdout.contains("s_eventually done"));
+    assert!(stdout.contains("assert_0_a"));
+    assert!(stdout.contains("assert_1_b"));
+    assert!(stdout.contains("assert_2_c"));
+}
+
+#[test]
+fn gen_verilog_with_sva_eventually() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[
+        ("liveness", "start", "rising", "eventually done"),
+    ]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog --with-sva");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("s_eventually done"));
+}
+
+#[test]
+fn gen_verilog_with_sva_conjunction() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[
+        ("combo", "valid and ready and busy", "rising", "done"),
+    ]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog --with-sva");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("(valid_in && ready && busy) |-> done"));
+}
+
+#[test]
+fn gen_verilog_with_sva_ascii_only() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[
+        ("ascii_check", "running", "rising", "done"),
+    ]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog --with-sva");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.is_ascii(), "full output must be ASCII-only (L3)");
+}
+
+#[test]
+fn gen_verilog_hir_with_sva_appends_bind_block() {
+    let spec_path = write_minimal_t27_spec();
+    let json_path = write_behaviors_json(&[
+        ("check", "running", "posedge clk", "done"),
+    ]);
+    let bin = env!("CARGO_BIN_EXE_t27c");
+    let output = Command::new(bin)
+        .arg("gen-verilog-hir")
+        .arg(&spec_path)
+        .arg("--with-sva")
+        .arg("--sva-behaviors").arg(&json_path)
+        .output()
+        .expect("failed to spawn t27c gen-verilog-hir --with-sva");
+    assert!(
+        output.status.success(),
+        "exited with {:?}, stderr={}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).expect("non-UTF-8");
+    assert!(stdout.contains("endmodule"));
+    assert!(stdout.contains("module test_module_sva"));
+    assert!(stdout.contains("bind test_module test_module_sva sva_inst"));
+    assert!(stdout.contains("property p_check"));
+}
