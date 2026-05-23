@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-24
+Last updated: 2026-05-23
 
 ## wave-37 -- t27c gen-behavior-sva-v2 -- multi-clause antecedents, ##N delay, s_eventually (R-BV-1, Closes #775)
 
