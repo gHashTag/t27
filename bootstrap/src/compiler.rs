@@ -36,6 +36,7 @@ pub enum NodeKind {
     ExprStructLit,
     ExprArrayLiteral,
     ExprCast,
+    ExprReplicate,
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -2351,6 +2352,9 @@ impl Parser {
                 })
             }
 
+            // Brace expression: replication {N{expr}} or grouped {expr}
+            TokenKind::LBrace => self.parse_brace_expr(),
+
             // Array literal: [_]Type{ values } or [N]Type{ values }
             TokenKind::LBracket => self.parse_array_literal(),
 
@@ -2358,6 +2362,28 @@ impl Parser {
                 "Unexpected token in expression: {:?} ('{}') at line {}:{}",
                 self.current.kind, self.current.lexeme, self.current.line, self.current.col
             )),
+        }
+    }
+
+    fn parse_brace_expr(&mut self) -> Result<Node, String> {
+        self.advance(); // consume {
+        if self.current.kind == TokenKind::Number && self.peek.kind == TokenKind::LBrace {
+            let count_str = self.current.lexeme.clone();
+            self.advance(); // consume number
+            self.advance(); // consume inner {
+            let inner = self.parse_expr()?;
+            self.expect(TokenKind::RBrace)?; // inner }
+            self.expect(TokenKind::RBrace)?; // outer }
+            Ok(Node {
+                kind: NodeKind::ExprReplicate,
+                value: count_str,
+                children: vec![inner],
+                ..Default::default()
+            })
+        } else {
+            let inner = self.parse_expr()?;
+            self.expect(TokenKind::RBrace)?;
+            Ok(inner)
         }
     }
 
@@ -4536,6 +4562,15 @@ impl VerilogCodegen {
                     self.write("]");
                 }
             }
+            NodeKind::ExprReplicate => {
+                self.write("{");
+                self.write(&node.value);
+                self.write("{");
+                if !node.children.is_empty() {
+                    self.gen_verilog_expr(&node.children[0]);
+                }
+                self.write("}}");
+            }
             NodeKind::ExprArrayLiteral => {
                 // R-CA-2 (wave-31): array literals in expression context
                 // (e.g. as function-call arguments) used to emit a
@@ -5525,6 +5560,13 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[1]);
                     self.write("]");
                 }
+            }
+            NodeKind::ExprReplicate => {
+                self.write(&format!("/* replicate({}, ", node.value));
+                if !node.children.is_empty() {
+                    self.gen_c_expr(&node.children[0]);
+                }
+                self.write(") */ 0");
             }
             NodeKind::ExprSwitch => {
                 // C doesn't have switch expressions. Emit as nested ternary.
@@ -6831,7 +6873,7 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
                 check_expr(child, symbols, fns, result);
             }
         }
-        NodeKind::ExprFieldAccess | NodeKind::ExprIndex => {
+        NodeKind::ExprFieldAccess | NodeKind::ExprIndex | NodeKind::ExprReplicate => {
             for child in &node.children {
                 check_expr(child, symbols, fns, result);
             }
@@ -7517,6 +7559,13 @@ impl RustCodegen {
                     )
                 } else {
                     "()".to_string()
+                }
+            }
+            NodeKind::ExprReplicate => {
+                if !node.children.is_empty() {
+                    format!("/* replicate({}, {}) */ 0", node.value, Self::expr_to_rust(&node.children[0]))
+                } else {
+                    format!("/* replicate({}, ?) */ 0", node.value)
                 }
             }
             NodeKind::ExprIf => {
@@ -12932,6 +12981,13 @@ impl AstToHir {
                     }
                 } else {
                     node.name.clone()
+                }
+            }
+            NodeKind::ExprReplicate => {
+                if !node.children.is_empty() {
+                    format!("{{{}{{ {} }}}}", node.value, Self::expr_to_string(&node.children[0]))
+                } else {
+                    format!("{{{}{{?}}}}", node.value)
                 }
             }
             NodeKind::ExprBinary => {
@@ -21075,5 +21131,93 @@ mod tests_phase40_coverage {
         cm.hit("g1");
         cm.hit("g1");
         assert!(cm.is_complete());
+    }
+
+    #[test]
+    fn test_parse_replicate() {
+        let src = r#"module R {
+    pub fn pad(val: u1) -> u8 {
+        return {8{val}}
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let rep = &ret.children[0];
+        assert_eq!(rep.kind, NodeKind::ExprReplicate);
+        assert_eq!(rep.value, "8");
+        assert_eq!(rep.children.len(), 1);
+    }
+
+    #[test]
+    fn test_verilog_replicate() {
+        let src = r#"module R {
+    pub fn pad(val: u1) -> u8 {
+        return {8{val}}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{8{val}}"), "Verilog replicate: got {v}");
+    }
+
+    #[test]
+    fn test_verilog_replicate_zero() {
+        let src = r#"module R {
+    pub fn zeros() -> u8 {
+        return {8{0}}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{8{0}}"), "Verilog replicate zero: got {v}");
+    }
+
+    #[test]
+    fn test_c_replicate_comment() {
+        let src = r#"module R {
+    pub fn pad(val: u1) -> u8 {
+        return {8{val}}
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("replicate(8"), "C replicate: got {c}");
+    }
+
+    #[test]
+    fn test_rust_replicate_comment() {
+        let src = r#"module R {
+    pub fn pad(val: u1) -> u8 {
+        return {8{val}}
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains("replicate(8"), "Rust replicate: got {r}");
+    }
+
+    #[test]
+    fn test_replicate_in_assignment() {
+        let src = r#"module R {
+    pub fn build() -> u16 {
+        var w: u16 = 0
+        w = {16{1}}
+        return w
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let assign = fn_decl.children.iter().find(|c| c.kind == NodeKind::StmtAssign).unwrap();
+        let rhs = &assign.children[1];
+        assert_eq!(rhs.kind, NodeKind::ExprReplicate);
+        assert_eq!(rhs.value, "16");
+    }
+
+    #[test]
+    fn test_replicate_with_expression() {
+        let src = r#"module R {
+    pub fn expand(bit: u1) -> u4 {
+        return {4{bit}}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{4{bit}}"), "Verilog replicate expr: got {v}");
     }
 }

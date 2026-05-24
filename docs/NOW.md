@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
+
+## wave-57 -- bit replication operator {N{expr}} (R-CG-6)
+
+- **WHERE** (compiler-only, additive): `NodeKind::ExprReplicate` in compiler.rs; parser uses 2-token lookahead (Number + LBrace) to distinguish `{8{val}}` from brace-grouped expressions; Verilog emits `{N{expr}}` (native replication); C/Rust emit `/* replicate(N, expr) */ 0` (software needs width info); HIR `expr_to_string` handles replication; 7 inline tests.
+- **Why** (R-CG-6): Completes the bit manipulation trilogy: extraction `[hi:lo]` (W54), concatenation `{a,b}` (W55), replication `{N{expr}}` (W57). Replication is essential for zero-padding, sign-extension, and bus widening in Verilog.
+- **Tests**: 7 new (parse, Verilog×2, C, Rust, assignment, expression). All pass.
 
 ## wave-39 -- t27c host-side Rust driver module: BitNet AXI-Lite CSR aperture (R-HS-1, Closes #784)
 
