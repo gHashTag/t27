@@ -34,6 +34,7 @@ pub mod regmap;
 pub mod retry;
 pub mod scatter_gather;
 pub mod session;
+pub mod telemetry;
 pub mod transport;
 pub mod watchdog;
 pub mod weight_header;
@@ -59,6 +60,7 @@ pub use regmap::{ConfigSnapshot, CtrlReg, FullSnapshot, IrqEnReg, IrqStatReg, St
 pub use retry::{BackoffStrategy, RetryError, RetryPolicy, RetryState};
 pub use scatter_gather::{SgDescriptor, SgError, SgSegment};
 pub use session::{Session, SessionConfig, SessionError, SessionStats};
+pub use telemetry::{Metric, MetricKind, MetricValue, TelemetryCollector, TelemetrySnapshot};
 pub use transport::{TransportError, TransportFrame};
 pub use watchdog::{WatchdogConfig, WatchdogError, WatchdogState, WatchdogStats, WatchdogTimer};
 pub use weight_header::{HeaderError, WeightHeader, HEADER_SIZE, MAGIC, VERSION};
