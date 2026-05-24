@@ -41,6 +41,7 @@ pub mod ratelimit;
 pub mod regcache;
 pub mod regmap;
 pub mod retry;
+pub mod ring_buffer;
 pub mod scatter_gather;
 pub mod session;
 pub mod telemetry;
@@ -77,6 +78,7 @@ pub use ratelimit::{RateLimitConfig, RateLimitError, RateLimiter, RateLimitStats
 pub use regcache::{CacheError, CacheStats, RegisterCache};
 pub use regmap::{ConfigSnapshot, CtrlReg, FullSnapshot, IrqEnReg, IrqStatReg, StatusReg, WeightAddr};
 pub use retry::{BackoffStrategy, RetryError, RetryPolicy, RetryState};
+pub use ring_buffer::{RingBuffer, RingError};
 pub use scatter_gather::{SgDescriptor, SgError, SgSegment};
 pub use session::{Session, SessionConfig, SessionError, SessionStats};
 pub use telemetry::{Metric, MetricKind, MetricValue, TelemetryCollector, TelemetrySnapshot};
