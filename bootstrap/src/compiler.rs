@@ -3455,6 +3455,18 @@ impl Codegen {
                 }
                 self.write(" }");
             }
+            NodeKind::ExprCast => {
+                let target = if node.extra_type.is_empty() {
+                    "u32"
+                } else {
+                    &node.extra_type
+                };
+                self.write(&format!("@as({}, ", target));
+                if !node.children.is_empty() {
+                    self.gen_expr(&node.children[0]);
+                }
+                self.write(")");
+            }
             _ => {}
         }
     }
@@ -5608,6 +5620,18 @@ impl CCodegen {
                     self.gen_c_expr(&node.children[0]);
                 }
             }
+            NodeKind::ExprCast => {
+                let target = if node.extra_type.is_empty() {
+                    "uint32_t"
+                } else {
+                    Self::type_to_c(&node.extra_type)
+                };
+                self.write(&format!("({})(", target));
+                if !node.children.is_empty() {
+                    self.gen_c_expr(&node.children[0]);
+                }
+                self.write(")");
+            }
             _ => {
                 self.write(&format!("/* unsupported: {:?} */", node.kind));
             }
@@ -7577,6 +7601,17 @@ impl RustCodegen {
                 }
                 s.push('}');
                 s
+            }
+            NodeKind::ExprCast => {
+                if !node.children.is_empty() {
+                    format!(
+                        "({}) as {}",
+                        Self::expr_to_rust(&node.children[0]),
+                        Self::t27_type_to_rust(&node.extra_type)
+                    )
+                } else {
+                    "()".to_string()
+                }
             }
             _ => "()".to_string(),
         }
@@ -18931,6 +18966,80 @@ mod tests_hir_pipeline_parity {
         let v = Compiler::compile_verilog(src).unwrap();
         assert!(!v.contains(" as "), "cast should not emit 'as' keyword in Verilog");
         assert!(!v.contains("u32;"), "cast should not emit bare type name");
+    }
+
+    #[test]
+    fn test_verilog_cast_emits_width() {
+        let src = r#"module CastTest {
+    pub fn cast_it(x: u8) -> u32 {
+        return x as u32
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("32'("), "cast should emit width: got {v}");
+    }
+
+    #[test]
+    fn test_c_cast_emits_c_style() {
+        let src = r#"module CastTest {
+    pub fn cast_it(x: u8) -> u32 {
+        return x as u32
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("(uint32_t)("), "C cast should emit (type)(expr): got {c}");
+        assert!(!c.contains(" as "), "C should not use 'as' keyword");
+    }
+
+    #[test]
+    fn test_rust_cast_emits_as() {
+        let src = r#"module CastTest {
+    pub fn cast_it(x: u8) -> u32 {
+        return x as u32
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains(" as u32"), "Rust cast should emit 'as type': got {r}");
+    }
+
+    #[test]
+    fn test_zig_cast_emits_as_builtin() {
+        let src = r#"module CastTest {
+    pub fn cast_it(x: u8) -> u32 {
+        return x as u32
+    }
+}"#;
+        let z = Compiler::compile_verilog(src.clone()).unwrap();
+        drop(z);
+        let lexer = Lexer::new(src);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse().unwrap();
+        let mut codegen = Codegen::new();
+        codegen.gen_zig(&ast);
+        let zig = codegen.into_string();
+        assert!(zig.contains("@as(u32,"), "Zig cast should emit @as(type, expr): got {zig}");
+    }
+
+    #[test]
+    fn test_c_cast_u16_to_u32() {
+        let src = r#"module CastTest {
+    pub fn widen(x: u16) -> u32 {
+        return x as u32
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("(uint32_t)("), "got {c}");
+    }
+
+    #[test]
+    fn test_verilog_cast_u32_to_u8() {
+        let src = r#"module CastTest {
+    pub fn narrow(x: u32) -> u8 {
+        return x as u8
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("8'("), "narrowing cast should emit 8': got {v}");
     }
 
     #[test]

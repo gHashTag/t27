@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-49 -- cast operator across all backends — C/Rust/Zig/Verilog (R-CG-1)
+
+- **WHERE** (bootstrap-only, additive): updated `bootstrap/src/compiler.rs` — added `ExprCast` to Zig `gen_expr` (`@as(type, expr)`), C `gen_c_expr` (`(type)(expr)`), Rust `expr_to_rust` (`expr as type`). Verilog was done in W47. Added 7 new compiler tests covering all 4 backends + widening/narrowing.
+- **Why** (R-CG-1): Wave 47 added `KwAs` + `parse_expr_cast` but only the Verilog backend emitted casts. C, Rust, and Zig fell through to default/unsupported arms. Now all 4 backends handle `expr as Type` correctly.
+- **Tests**: 864 pass, 0 failures. 6 new compiler tests.
+
 ## wave-48 -- fix JWT test failures — jsonwebtoken crypto provider (R-TR-2)
 
 - **WHERE** (bootstrap-only, bugfix): fixed `bootstrap/Cargo.toml` — added `aws_lc_rs` feature to `jsonwebtoken = "10"` dependency.
