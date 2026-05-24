@@ -14,10 +14,12 @@
 // ============================================================================
 
 pub mod csr_map;
+pub mod dmaring;
 pub mod driver;
 pub mod irq;
 pub mod mmio;
 
+pub use dmaring::{DmaRingBuilder, DmaRingConfig, DmaSegment, RingBuildError, TransferDir};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
