@@ -37,6 +37,7 @@ pub enum NodeKind {
     ExprArrayLiteral,
     ExprCast,
     ExprConcat,
+    ExprTernary,
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -184,6 +185,7 @@ pub enum TokenKind {
     RBracket,
     Dot,
     Bang,
+    Question,
 
     // Multi-char
     Arrow,
@@ -725,6 +727,7 @@ impl Lexer {
             b']' => TokenKind::RBracket,
             b'.' => TokenKind::Dot,
             b'!' => TokenKind::Bang,
+            b'?' => TokenKind::Question,
             b'+' => TokenKind::Plus,
             b'-' => TokenKind::Minus,
             b'*' => TokenKind::Star,
@@ -1940,7 +1943,20 @@ impl Parser {
 
     /// Parse a full expression
     fn parse_expr(&mut self) -> Result<Node, String> {
-        self.parse_expr_or()
+        let expr = self.parse_expr_or()?;
+        if self.current.kind == TokenKind::Question {
+            self.advance();
+            let then_expr = self.parse_expr()?;
+            self.expect(TokenKind::Colon)?;
+            let else_expr = self.parse_expr()?;
+            Ok(Node {
+                kind: NodeKind::ExprTernary,
+                children: vec![expr, then_expr, else_expr],
+                ..Default::default()
+            })
+        } else {
+            Ok(expr)
+        }
     }
 
     /// Parse `or` expressions
@@ -3387,6 +3403,15 @@ impl Codegen {
                 }
                 self.write("}");
             }
+            NodeKind::ExprTernary => {
+                if node.children.len() >= 3 {
+                    self.gen_expr(&node.children[0]);
+                    self.write(" ? ");
+                    self.gen_expr(&node.children[1]);
+                    self.write(" : ");
+                    self.gen_expr(&node.children[2]);
+                }
+            }
             NodeKind::ExprSwitch => {
                 self.write("switch (");
                 if !node.children.is_empty() {
@@ -4580,6 +4605,15 @@ impl VerilogCodegen {
                  }
                  self.write("}");
              }
+             NodeKind::ExprTernary => {
+                 if node.children.len() >= 3 {
+                     self.gen_verilog_expr(&node.children[0]);
+                     self.write(" ? ");
+                     self.gen_verilog_expr(&node.children[1]);
+                     self.write(" : ");
+                     self.gen_verilog_expr(&node.children[2]);
+                 }
+             }
              NodeKind::ExprArrayLiteral => {
                 // R-CA-2 (wave-31): array literals in expression context
                 // (e.g. as function-call arguments) used to emit a
@@ -5579,6 +5613,15 @@ impl CCodegen {
                      self.gen_c_expr(child);
                  }
                  self.write(") */ 0");
+             }
+             NodeKind::ExprTernary => {
+                 if node.children.len() >= 3 {
+                     self.gen_c_expr(&node.children[0]);
+                     self.write(" ? ");
+                     self.gen_c_expr(&node.children[1]);
+                     self.write(" : ");
+                     self.gen_c_expr(&node.children[2]);
+                 }
              }
              NodeKind::ExprSwitch => {
                 // C doesn't have switch expressions. Emit as nested ternary.
@@ -6885,7 +6928,7 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
                 check_expr(child, symbols, fns, result);
             }
         }
-        NodeKind::ExprFieldAccess | NodeKind::ExprIndex | NodeKind::ExprConcat => {
+        NodeKind::ExprFieldAccess | NodeKind::ExprIndex | NodeKind::ExprConcat | NodeKind::ExprTernary => {
             for child in &node.children {
                 check_expr(child, symbols, fns, result);
             }
@@ -7580,6 +7623,18 @@ impl RustCodegen {
                      .map(Self::expr_to_rust)
                      .collect();
                  format!("/* concat({}) */ 0", parts.join(", "))
+             }
+             NodeKind::ExprTernary => {
+                 if node.children.len() >= 3 {
+                     format!(
+                         "if {} {{ {} }} else {{ {} }}",
+                         Self::expr_to_rust(&node.children[0]),
+                         Self::expr_to_rust(&node.children[1]),
+                         Self::expr_to_rust(&node.children[2])
+                     )
+                 } else {
+                     "()".to_string()
+                 }
              }
              NodeKind::ExprIf => {
                 let mut s = format!("if {} {{ ", Self::expr_to_rust(&node.children[0]));
@@ -13003,6 +13058,18 @@ impl AstToHir {
                      .map(Self::expr_to_string)
                      .collect();
                  format!("{{{}}}", parts.join(", "))
+             }
+             NodeKind::ExprTernary => {
+                 if node.children.len() >= 3 {
+                     format!(
+                         "{} ? {} : {}",
+                         Self::expr_to_string(&node.children[0]),
+                         Self::expr_to_string(&node.children[1]),
+                         Self::expr_to_string(&node.children[2])
+                     )
+                 } else {
+                     "()".to_string()
+                 }
              }
              NodeKind::ExprBinary => {
                 let lhs = node
@@ -21290,5 +21357,119 @@ mod tests_phase40_coverage {
 }"#;
         let v = Compiler::compile_verilog(src).unwrap();
         assert!(v.contains("{1, 0}"), "Verilog should emit {{1, 0}}: got {v}");
+    }
+
+    #[test]
+    fn test_parse_ternary() {
+        let src = r#"module T {
+    pub fn select(cond: bool, a: u8, b: u8) -> u8 {
+        return cond ? a : b
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let ternary = &ret.children[0];
+        assert_eq!(ternary.kind, NodeKind::ExprTernary);
+        assert_eq!(ternary.children.len(), 3);
+    }
+
+    #[test]
+    fn test_verilog_ternary() {
+        let src = r#"module T {
+    pub fn mux(sel: bool, a: u8, b: u8) -> u8 {
+        return sel ? a : b
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("sel ? a : b"), "Verilog ternary: got {v}");
+    }
+
+    #[test]
+    fn test_c_ternary() {
+        let src = r#"module T {
+    pub fn mux(sel: bool, a: u8, b: u8) -> u8 {
+        return sel ? a : b
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("sel ? a : b"), "C ternary: got {c}");
+    }
+
+    #[test]
+    fn test_rust_ternary() {
+        let src = r#"module T {
+    pub fn mux(sel: bool, a: u8, b: u8) -> u8 {
+        return sel ? a : b
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains("if sel"), "Rust should use if/else: got {r}");
+    }
+
+    #[test]
+    fn test_zig_ternary() {
+        let src = r#"module T {
+    pub fn mux(sel: bool, a: u8, b: u8) -> u8 {
+        return sel ? a : b
+    }
+}"#;
+        let z = Compiler::compile(src).unwrap();
+        assert!(z.contains("sel ? a : b"), "Zig ternary: got {z}");
+    }
+
+    #[test]
+    fn test_ternary_nested() {
+        let src = r#"module T {
+    pub fn priority(a: bool, b: bool, x: u8, y: u8, z: u8) -> u8 {
+        return a ? x : (b ? y : z)
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("?"), "Verilog nested ternary: got {v}");
+    }
+
+    #[test]
+    fn test_ternary_in_assignment() {
+        let src = r#"module T {
+    pub fn assign_max(a: u8, b: u8) -> u8 {
+        var m: u8 = 0
+        m = a > b ? a : b
+        return m
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let assign = fn_decl.children.iter().find(|c| c.kind == NodeKind::StmtAssign).unwrap();
+        let rhs = &assign.children[1];
+        assert_eq!(rhs.kind, NodeKind::ExprTernary);
+    }
+
+    #[test]
+    fn test_ternary_with_comparison() {
+        let src = r#"module T {
+    pub fn clamp(val: u8, lo: u8, hi: u8) -> u8 {
+        return val < lo ? lo : (val > hi ? hi : val)
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("? lo :"), "Verilog ternary with comparison: got {v}");
+        assert!(v.contains("? hi :"), "Verilog nested ternary: got {v}");
+    }
+
+    #[test]
+    fn test_ternary_right_associative() {
+        let src = r#"module T {
+    pub fn chain(a: bool, b: bool, x: u8, y: u8, z: u8) -> u8 {
+        return a ? x : b ? y : z
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let outer = &ret.children[0];
+        assert_eq!(outer.kind, NodeKind::ExprTernary);
+        let else_branch = &outer.children[2];
+        assert_eq!(else_branch.kind, NodeKind::ExprTernary);
     }
 }

@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-56 -- ternary conditional operator `cond ? a : b` (R-CG-5)
+
+- **WHERE** (compiler-only, additive): `TokenKind::Question` + `NodeKind::ExprTernary` in compiler.rs; `?` added to lexer single-char scanner; parser: `parse_expr` checks for `?` after `parse_expr_or()` and recursively parses `then : else` with right-associativity; Verilog/C/Zig emit `cond ? a : b`; Rust emits `if cond { a } else { b }`; HIR `expr_to_string` emits `cond ? a : b`; typechecker recurses into children; 9 inline tests.
+- **Why** (R-CG-5): Ternary conditional is fundamental for concise hardware expressions (mux, clamp, priority select). Without it, users must write verbose if/else statements for simple conditional logic.
+- **Tests**: 9 new (parse, Verilog, C, Rust, Zig, nested, assignment, comparison, right-associative). All pass.
+
 ## wave-55 -- bit concatenation operator {a, b, ...} (R-CG-4)
 
 - **WHERE** (compiler-only, additive): `NodeKind::ExprConcat` in compiler.rs; parser detects `{` in primary expression context as concatenation (not struct literal, which requires identifier prefix); Verilog emits `{a, b}` (native Verilog concatenation); C/Rust emit `/* concat(a, b) */ 0` (software backends need width info for proper shift+or, deferred to type inference wave); HIR `expr_to_string` emits `{a, b}`; 11 inline tests.
