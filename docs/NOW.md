@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-50 -- tt-debug wrapper -- observability layer for Tiny Tapeout silicon (R-TT-3, Closes #811)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/tt_debug.rs` (`TtManifest`, `TtDebugCsrLayout`, `TtDebugVersion`, `TtDebugErrorClass`, `emit_wrapper`; 21 inline unit tests); new CLI `Commands::GenTtDebugWrapper` + `run_tt_debug_wrapper`; new test file `bootstrap/tests/tt_debug.rs` (20 integration tests); added `tempfile = "3"` to `[dev-dependencies]`.
+- **Why** (R-TT-3): Third wave of the R-TT track. Introduces a `TtDebugWrapper` -- an additive observability layer that wraps `bitnet_engine_top` with: version CSR (packed 32-bit: commit[15:0] | chip[23:16] | phi[31:24]), 4 error counters (AXI, DMA, IRQ, CSR) with saturating increment, and a self-test trigger (write `0xDEAD_BEEF` to offset `0x5C`). CSR aperture `0x40..0x5F`.
+- **Tests**: 41 new (21 inline + 20 integration). All pass. **885 total, zero failures.**
+
 ## wave-49 -- cast operator across all backends — C/Rust/Zig/Verilog (R-CG-1)
 
 - **WHERE** (bootstrap-only, additive): updated `bootstrap/src/compiler.rs` — added `ExprCast` to Zig `gen_expr` (`@as(type, expr)`), C `gen_c_expr` (`(type)(expr)`), Rust `expr_to_rust` (`expr as type`). Verilog was done in W47. Added 7 new compiler tests covering all 4 backends + widening/narrowing.

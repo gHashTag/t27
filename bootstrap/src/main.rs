@@ -36,6 +36,7 @@ mod bitnet_dma;
 mod bitnet_irq;
 mod bitnet_top;
 mod bitnet_bundle;
+mod tt_debug;
 mod host;
 // mod runtime_minimal;
 // mod runtime_minimal_test;
@@ -556,6 +557,27 @@ enum Commands {
         /// Output directory. Created if missing.
         #[arg(long)]
         output_dir: String,
+    },
+
+    /// Emit a TT-debug wrapper around a BitNet engine module
+    /// (Wave 50, R-TT-3).
+    ///
+    /// SystemVerilog wrapper that adds version CSR, error counters, and
+    /// self-test trigger to an inner module (default `bitnet_engine_top`).
+    /// CSR aperture: 0x40..0x5F (does not collide with engine CSR space).
+    #[command(name = "gen-tt-debug-wrapper")]
+    GenTtDebugWrapper {
+        /// Path to manifest JSON (commit_hash, chip_slug, phi_invariant_hash).
+        #[arg(long)]
+        manifest: String,
+
+        /// Inner module name (default: bitnet_engine_top).
+        #[arg(long, default_value = "bitnet_engine_top")]
+        inner: String,
+
+        /// Output path (- for stdout).
+        #[arg(long)]
+        output: Option<String>,
     },
 
     /// Emit a BitNet `dma_controller` SystemVerilog module
@@ -8276,6 +8298,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
             run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
         }
+        Commands::GenTtDebugWrapper { manifest, inner, output } => {
+            tt_debug::run_tt_debug_wrapper(&manifest, Some(&inner), output.as_deref())?
+        }
         Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls, json } => {
             run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls, json)?
         }
@@ -8534,6 +8559,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::GenBitnetBundle { top_name, axi_addr_width, axi_data_width, output_dir } => {
             run_gen_bitnet_bundle(&top_name, axi_addr_width, axi_data_width, &output_dir)?
+        }
+        Commands::GenTtDebugWrapper { manifest, inner, output } => {
+            tt_debug::run_tt_debug_wrapper(&manifest, Some(&inner), output.as_deref())?
         }
         Commands::HostSmoke { num_layers, neurons, chunks, threshold, weight_addr, max_polls, json } => {
             run_host_smoke(num_layers, neurons, chunks, threshold, weight_addr, max_polls, json)?
