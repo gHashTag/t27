@@ -14,10 +14,12 @@
 // ============================================================================
 
 pub mod csr_map;
+pub mod depgraph;
 pub mod driver;
 pub mod irq;
 pub mod mmio;
 
+pub use depgraph::DepGraph;
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
