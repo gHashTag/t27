@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
+
+## wave-58 -- host CRC32 checksum for weight integrity (R-HS-8)
+
+- **WHERE** (host-only, additive): new `bootstrap/src/host/crc32.rs` with `Crc32` struct; `const fn` CRC32 lookup table (polynomial 0xEDB88320); `checksum(&[u8])`, `checksum_words(&[u64])`, `append(&[u64])`, `verify(&[u64])`; re-exported from `host/mod.rs`; 15 inline tests.
+- **Why** (R-HS-8): Transport integrity for weight words before they hit BRAM. Complements W52 weight validator (reserved bits, invalid trits) with a checksum that detects bit-flip corruption during DMA or SPI transfer. `append()` adds CRC as trailing word; `verify()` checks the trailer.
+- **Tests**: 15 new (empty, known vector "123456789"→0xCBF43926, deterministic, different inputs, words/bytes consistency, append+verify, tamper detection, table properties). All pass.
 
 ## wave-39 -- t27c host-side Rust driver module: BitNet AXI-Lite CSR aperture (R-HS-1, Closes #784)
 

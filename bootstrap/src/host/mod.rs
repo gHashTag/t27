@@ -13,9 +13,11 @@
 // write `use t27c::host::{BitnetDriver, MockMmio, DriverError};`.
 // ============================================================================
 
+pub mod crc32;
 pub mod csr_map;
 pub mod driver;
 pub mod mmio;
 
+pub use crc32::Crc32;
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
