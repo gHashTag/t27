@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
+
+## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
+
+- **WHERE** (doc-only, repo-root): updated `README.md` (+110 lines).  Added four new System Status rows (BitNet HLS / Host stack / R-TT track / Chips) and a brand-new section `## BitNet HLS Pipeline & R-TT Reproducibility Track` documenting the 9/9 RTL pipeline, the host stack CLIs (`host-smoke`, `host-poll-vs-irq`), the R-TT track CLIs (`tt-manifest`, `tt-profile`, `tt-conform`), the three chip submodules under `chips/`, and a test-coverage summary (365/366 integration).  Cross-links to `docs/NOW.md` as the live wave log.  This is a housekeeping commit between waves (W45 merged at `7f463018`, W46 R-TT-3 next).  Zero edits to code, kernel, spec, RTL, tests, `.gitmodules`, or `chips/`.
+- **Why**: README had been frozen at W13 (2026-05-22) and no longer reflected the BitNet HLS pipeline, host stack, or R-TT track.  Periodic README sync is required so the entry point for new readers tells the truth about what the toolchain actually emits.
+- **Status**: doc-only, no behavioural change.  L5 `phi^2 + 1/phi^2 = 3` invariant reaffirmed.  L6 spec frozen.  L7 no new shell scripts.
+- **Roadmap to next wave**: W46 R-TT-3 `tt_debug.rs` -- TT-debug wrapper around `bitnet_engine_top` with version CSR + error counters + self-test trigger.
 
 ## wave-45 -- tt-profile + tt-conform for Sky130 / IHP-SG13G2 / GF180MCU (R-TT-2, Closes #800)
 
