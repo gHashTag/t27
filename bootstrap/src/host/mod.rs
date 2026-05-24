@@ -13,11 +13,13 @@
 // write `use t27c::host::{BitnetDriver, MockMmio, DriverError};`.
 // ============================================================================
 
+pub mod credit;
 pub mod csr_map;
 pub mod driver;
 pub mod irq;
 pub mod mmio;
 
+pub use credit::{CreditCounter, CreditError};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
