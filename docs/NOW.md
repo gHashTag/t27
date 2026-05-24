@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-51 -- compound assignment operators across all backends (R-CG-2)
+
+- **WHERE** (bootstrap-only, additive): updated `bootstrap/src/compiler.rs` -- added 7 new TokenKinds (`MinusEquals`, `StarEquals`, `SlashEquals`, `PercentEquals`, `AmpEquals`, `PipeEquals`, `CaretEquals`), lexer recognition, parser support (generalized compound assignment check in `parse_body_stmt`), and codegen emission in all 4 backends (Zig: native `+=`, C: native `+=`, Rust: native `+=`, Verilog: expanded `x = x + y`). Also fixed a bug in `dead_store_elim` that incorrectly removed `StmtAssign` nodes by checking `s.name` (always empty for StmtAssign) instead of `s.children[0].name`. Fixed a second `StmtAssign` handler in Rust `gen_fn` that was missing compound op support. 13 new compiler tests.
+- **Why** (R-CG-2): Only `+=` was supported. Added `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`. The `dead_store_elim` fix also prevents future miscompilation of plain assignments.
+- **Tests**: 898 pass, 0 failures. 13 new tests.
+
 ## wave-50 -- tt-debug wrapper -- observability layer for Tiny Tapeout silicon (R-TT-3, Closes #811)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/tt_debug.rs` (`TtManifest`, `TtDebugCsrLayout`, `TtDebugVersion`, `TtDebugErrorClass`, `emit_wrapper`; 21 inline unit tests); new CLI `Commands::GenTtDebugWrapper` + `run_tt_debug_wrapper`; new test file `bootstrap/tests/tt_debug.rs` (20 integration tests); added `tempfile = "3"` to `[dev-dependencies]`.

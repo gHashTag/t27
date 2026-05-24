@@ -194,6 +194,13 @@ pub enum TokenKind {
     ShiftLeft,
     ShiftRight,
     PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    PercentEquals,
+    AmpEquals,
+    PipeEquals,
+    CaretEquals,
     PlusPercent,
 
     // Special
@@ -580,6 +587,83 @@ impl Lexer {
                 return Token {
                     kind: TokenKind::PlusPercent,
                     lexeme: String::from("+%"),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'-', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::MinusEquals,
+                    lexeme: String::from("-="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'*', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::StarEquals,
+                    lexeme: String::from("*="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'/', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::SlashEquals,
+                    lexeme: String::from("/="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'%', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PercentEquals,
+                    lexeme: String::from("%="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'&', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::AmpEquals,
+                    lexeme: String::from("&="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'|', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::PipeEquals,
+                    lexeme: String::from("|="),
+                    line: start_line,
+                    col: start_col,
+                };
+            }
+
+            if two == [b'^', b'='] {
+                self.advance();
+                self.advance();
+                return Token {
+                    kind: TokenKind::CaretEquals,
+                    lexeme: String::from("^="),
                     line: start_line,
                     col: start_col,
                 };
@@ -1716,16 +1800,27 @@ impl Parser {
             return Ok(assign);
         }
 
-        // Check for += assignment
-        if self.current.kind == TokenKind::PlusEquals {
-            self.advance(); // consume +=
+        // Check for compound assignment (+=, -=, *=, /=, %=, &=, |=, ^=)
+        let compound_op = match self.current.kind {
+            TokenKind::PlusEquals => Some("+="),
+            TokenKind::MinusEquals => Some("-="),
+            TokenKind::StarEquals => Some("*="),
+            TokenKind::SlashEquals => Some("/="),
+            TokenKind::PercentEquals => Some("%="),
+            TokenKind::AmpEquals => Some("&="),
+            TokenKind::PipeEquals => Some("|="),
+            TokenKind::CaretEquals => Some("^="),
+            _ => None,
+        };
+        if let Some(op) = compound_op {
+            self.advance();
             let rhs = self.parse_expr()?;
             if self.current.kind == TokenKind::Semicolon {
                 self.advance();
             }
             let mut assign = Node::new(NodeKind::StmtAssign);
             assign.line = self.current.line as u32;
-            assign.extra_op = "+=".to_string();
+            assign.extra_op = op.to_string();
             assign.children.push(expr);
             assign.children.push(rhs);
             return Ok(assign);
@@ -3089,8 +3184,9 @@ impl Codegen {
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" += ");
+                    let op = node.extra_op.as_str();
+                    if ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="].contains(&op) {
+                        self.write(&format!(" {} ", op));
                     } else {
                         self.write(" = ");
                     }
@@ -4272,12 +4368,22 @@ impl VerilogCodegen {
                 self.write_indent();
                 if node.children.len() >= 2 {
                     self.gen_verilog_expr(&node.children[0]);
-                    if node.extra_op == "+=" {
-                        self.write(" = ");
+                    let op = node.extra_op.as_str();
+                    let binary_op = match op {
+                        "+=" => Some("+"),
+                        "-=" => Some("-"),
+                        "*=" => Some("*"),
+                        "/=" => Some("/"),
+                        "%=" => Some("%"),
+                        "&=" => Some("&"),
+                        "|=" => Some("|"),
+                        "^=" => Some("^"),
+                        _ => None,
+                    };
+                    self.write(" = ");
+                    if let Some(bop) = binary_op {
                         self.gen_verilog_expr(&node.children[0]);
-                        self.write(" + ");
-                    } else {
-                        self.write(" = ");
+                        self.write(&format!(" {} ", bop));
                     }
                     self.gen_verilog_expr(&node.children[1]);
                 }
@@ -5202,8 +5308,9 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[1]);
                     } else {
                         self.gen_c_expr(&node.children[0]);
-                        if node.extra_op == "+=" {
-                            self.write(" += ");
+                        let op = node.extra_op.as_str();
+                        if ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="].contains(&op) {
+                            self.write(&format!(" {} ", op));
                         } else {
                             self.write(" = ");
                         }
@@ -6335,10 +6442,16 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && !reads.contains(&s.name) {
                 return false;
             }
-        if s.kind == NodeKind::StmtAssign && !s.children.is_empty()
-            && !reads.contains(&s.name) {
+        if s.kind == NodeKind::StmtAssign && !s.children.is_empty() {
+            let target_name = if !s.children[0].name.is_empty() {
+                &s.children[0].name
+            } else {
+                &s.name
+            };
+            if !target_name.is_empty() && !reads.contains(target_name) {
                 return false;
             }
+        }
         true
     });
     stats.dead_stores += (before - stmts.len()) as u32;
@@ -7256,7 +7369,12 @@ impl RustCodegen {
                         };
                         if child.children.len() >= 2 {
                             let val = Self::expr_to_rust(&child.children[1]);
-                            self.write_line(&format!("{} = {};", target, val));
+                            let op = child.extra_op.as_str();
+                            if ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="].contains(&op) {
+                                self.write_line(&format!("{} {} {};", target, op, val));
+                            } else {
+                                self.write_line(&format!("{} = {};", target, val));
+                            }
                         } else {
                             self.write_line(&format!("{};", target));
                         }
@@ -7370,7 +7488,12 @@ impl RustCodegen {
                 if stmt.children.len() >= 2 {
                     let target = Self::expr_to_rust(&stmt.children[0]);
                     let val = Self::expr_to_rust(&stmt.children[1]);
-                    self.write_line(&format!("{} = {};", target, val));
+                    let op = stmt.extra_op.as_str();
+                    if ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="].contains(&op) {
+                        self.write_line(&format!("{} {} {};", target, op, val));
+                    } else {
+                        self.write_line(&format!("{} = {};", target, val));
+                    }
                 }
             }
             NodeKind::StmtIf => {
@@ -19040,6 +19163,189 @@ mod tests_hir_pipeline_parity {
 }"#;
         let v = Compiler::compile_verilog(src).unwrap();
         assert!(v.contains("8'("), "narrowing cast should emit 8': got {v}");
+    }
+
+    #[test]
+    fn test_verilog_compound_plus_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc += x
+        return acc
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("= acc + x"), "Verilog += should expand to x = x + y: got {v}");
+    }
+
+    #[test]
+    fn test_verilog_compound_minus_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc -= x
+        return acc
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("= acc - x"), "got {v}");
+    }
+
+    #[test]
+    fn test_verilog_compound_mul_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc *= x
+        return acc
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("= acc * x"), "got {v}");
+    }
+
+    #[test]
+    fn test_c_compound_plus_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc += x
+        return acc
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("+= "), "C should emit +=: got {c}");
+    }
+
+    #[test]
+    fn test_c_compound_minus_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc -= x
+        return acc
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("-= "), "C should emit -=: got {c}");
+    }
+
+    #[test]
+    fn test_c_compound_bitwise_and_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, mask: u32) -> u32 {
+        acc &= mask
+        return acc
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("&= "), "C should emit &=: got {c}");
+    }
+
+    #[test]
+    fn test_c_compound_bitwise_or_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, mask: u32) -> u32 {
+        acc |= mask
+        return acc
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("|= "), "C should emit |=: got {c}");
+    }
+
+    #[test]
+    fn test_compound_assign_ast_roundtrip() {
+        let src = r#"module Test {
+    pub fn f(x: u32) -> u32 {
+        var acc: u32 = 10
+        acc += x
+        return acc
+    }
+}"#;
+        let mut ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl && c.name == "f").expect("fn f");
+        let assigns: Vec<_> = fn_decl.children.iter()
+            .filter(|c| c.kind == NodeKind::StmtAssign)
+            .collect();
+        assert_eq!(assigns.len(), 1, "expected exactly 1 StmtAssign, got {}", assigns.len());
+        assert_eq!(assigns[0].extra_op, "+=", "expected extra_op '+=' but got '{}'", assigns[0].extra_op);
+
+        optimize(&mut ast, &OptConfig::default());
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl && c.name == "f").expect("fn f");
+        let assigns: Vec<_> = fn_decl.children.iter()
+            .filter(|c| c.kind == NodeKind::StmtAssign)
+            .collect();
+        assert_eq!(assigns.len(), 1, "after optimize: expected 1 StmtAssign, got {}", assigns.len());
+        assert_eq!(assigns[0].extra_op, "+=", "after optimize: expected extra_op '+=' but got '{}'", assigns[0].extra_op);
+    }
+
+    #[test]
+    fn test_rust_compound_plus_assign() {
+        let src = r#"module Test {
+    pub fn f(x: u32) -> u32 {
+        var acc: u32 = 10
+        acc += x
+        return acc
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains("+= "), "Rust should emit +=: got {r}");
+    }
+
+    #[test]
+    fn test_rust_compound_minus_assign() {
+        let src = r#"module Test {
+    pub fn f(x: u32) -> u32 {
+        var acc: u32 = 10
+        acc -= x
+        return acc
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains("-= "), "Rust should emit -=: got {r}");
+    }
+
+    #[test]
+    fn test_rust_compound_star_assign() {
+        let src = r#"module Test {
+    pub fn f(x: u32) -> u32 {
+        var acc: u32 = 10
+        acc *= x
+        return acc
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains("*= "), "Rust should emit *=: got {r}");
+    }
+
+    #[test]
+    fn test_zig_compound_plus_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc += x
+        return acc
+    }
+}"#;
+        let lexer = Lexer::new(src);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse().unwrap();
+        let mut codegen = Codegen::new();
+        codegen.gen_zig(&ast);
+        let zig = codegen.into_string();
+        assert!(zig.contains("+= "), "Zig should emit +=: got {zig}");
+    }
+
+    #[test]
+    fn test_zig_compound_xor_assign() {
+        let src = r#"module Test {
+    pub fn f(acc: u32, x: u32) -> u32 {
+        acc ^= x
+        return acc
+    }
+}"#;
+        let lexer = Lexer::new(src);
+        let mut parser = Parser::new(lexer);
+        let ast = parser.parse().unwrap();
+        let mut codegen = Codegen::new();
+        codegen.gen_zig(&ast);
+        let zig = codegen.into_string();
+        assert!(zig.contains("^= "), "Zig should emit ^=: got {zig}");
     }
 
     #[test]
