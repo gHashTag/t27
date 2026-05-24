@@ -17,7 +17,9 @@ pub mod csr_map;
 pub mod driver;
 pub mod irq;
 pub mod mmio;
+pub mod proxyrouter;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
+pub use proxyrouter::{BackendState, ProxyError, ProxyRouter};
