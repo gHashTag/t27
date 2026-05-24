@@ -54,6 +54,12 @@ pub const WEIGHT_ADDR_LO: u32 = 0x20;
 /// Byte offset of the weight-base-address high half.
 pub const WEIGHT_ADDR_HI: u32 = 0x24;
 
+/// Byte offset of the DMA control register.
+pub const DMA_CTRL: u32 = 0x28;
+
+/// Byte offset of the DMA status register.
+pub const DMA_STAT: u32 = 0x2C;
+
 /// Sentinel value returned by the W36d slave on unmapped reads.
 pub const UNMAPPED_READ_VALUE: u32 = 0xDEAD_BEEF;
 
@@ -114,8 +120,8 @@ pub const IRQ_ERROR_MASK: u32 = 1 << IRQ_ERROR_BIT;
 /// Mask covering all three IRQ sources (`inference_done`, `dma_done`, `error`).
 pub const IRQ_ALL_MASK: u32 = IRQ_INFERENCE_DONE_MASK | IRQ_DMA_DONE_MASK | IRQ_ERROR_MASK;
 
-/// Total number of mapped CSR registers (10).
-pub const CSR_COUNT: usize = 10;
+/// Total number of mapped CSR registers (12).
+pub const CSR_COUNT: usize = 12;
 
 /// Canonical CSR offsets, in slave decode order.
 pub const CSR_OFFSETS: [u32; CSR_COUNT] = [
@@ -129,6 +135,8 @@ pub const CSR_OFFSETS: [u32; CSR_COUNT] = [
     THRESHOLD,
     WEIGHT_ADDR_LO,
     WEIGHT_ADDR_HI,
+    DMA_CTRL,
+    DMA_STAT,
 ];
 
 #[cfg(test)]
@@ -158,7 +166,7 @@ mod tests {
 
     #[test]
     fn csr_count_matches_emitter() {
-        assert_eq!(CSR_COUNT, 10);
+        assert_eq!(CSR_COUNT, 12);
         assert_eq!(CSR_OFFSETS.len(), CSR_COUNT);
     }
 
@@ -197,8 +205,8 @@ mod tests {
     }
 
     #[test]
-    fn csr_offsets_span_zero_to_0x24() {
+    fn csr_offsets_span_zero_to_0x2c() {
         assert_eq!(CSR_OFFSETS[0], 0x00);
-        assert_eq!(CSR_OFFSETS[CSR_COUNT - 1], 0x24);
+        assert_eq!(CSR_OFFSETS[CSR_COUNT - 1], 0x2C);
     }
 }
