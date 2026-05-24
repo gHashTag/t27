@@ -63,6 +63,116 @@ inspectable artefacts at every step.
 | TRI | PHI LOOP CLI | GREEN | `cli/tri/` standalone binary |
 | TRI | MCP server | GREEN | `cli/tri-mcp/` — 10 tools over JSON-RPC |
 | Spec | Phase 3 (shell/tools/file) | YELLOW | 6/8 parse; 2 file specs have parser issue (#388) |
+| BitNet HLS | RTL pipeline | GREEN | 9/9 modules (W36a-f + W38 bundle + R-BV-2 `--with-sva`) |
+| Host stack | Rust driver + IRQ harness | GREEN | 2/3 layers (W39 R-HS-1 driver, W40 R-HS-2 IRQ); host inference engine in flight (Dmitrii W41-W44 parallel) |
+| R-TT track | Tiny Tapeout reproducibility | YELLOW | 2/4 (W42 R-TT-1 `tt-manifest` + chip submodules; W45 R-TT-2 `tt-profile` + `tt-conform`); W46-W47 planned |
+| Chips | tt-trinity-{phi,euler,gamma} | GREEN | Pinned as git submodules under `chips/` at known commits (W42) |
+
+---
+
+## BitNet HLS Pipeline & R-TT Reproducibility Track
+
+The `bootstrap/src/` Rust toolchain (`t27c`) now emits a complete
+**9-module BitNet HLS pipeline** and a **Tiny Tapeout reproducibility chain**
+tying every tape-out to a specific t27 commit + trinity-invariant SHA-256.
+
+### BitNet HLS pipeline (9 / 9 modules)
+
+| # | Module | Wave | Emitter CLI |
+|---|--------|------|-------------|
+| 1 | `weight_bram` | W36a | `t27c gen-weight-bram` |
+| 2 | `pipeline_stage2_compute` | W36b | `t27c gen-pipeline-stage2` |
+| 3 | `layer_sequencer` | W36b | `t27c gen-layer-sequencer` |
+| 4 | `double_buffer_ctrl` | W36c | `t27c gen-double-buffer` |
+| 5 | `weight_prefetch_ctrl` | W36c | `t27c gen-weight-prefetch` |
+| 6 | `bitnet_axi_slave` | W36d | (in bundle) |
+| 7 | `bitnet_dma` | W36d | (in bundle) |
+| 8 | `bitnet_irq` | W36d | (in bundle) |
+| 9 | `bitnet_engine_top` | W36d | (in bundle) |
+
+All nine come together as a single emit:
+
+```
+t27c gen-bitnet-bundle --output bundle.sv [--with-sva]
+```
+
+The `--with-sva` flag (R-BV-2, Dmitrii) wraps every emit with SystemVerilog
+Assertions so the entire bundle is formal-friendly.
+
+### Host stack (W39 R-HS-1, W40 R-HS-2)
+
+A pure-Rust host driver against a MockMmio matching the W36d AXI-Lite slave
+CSR map (`CTRL`, `STATUS`, `IRQ_EN`, `IRQ_STAT` with W1C semantics, `NUM_LAYERS`,
+`NEURONS`, `CHUNKS`, `THRESHOLD`, `WEIGHT_ADDR_LO/HI`).  Two CLIs:
+
+```
+t27c host-smoke         # busy-poll path
+t27c host-poll-vs-irq   # comparison harness (poll vs IRQ-handler)
+```
+
+Dmitrii's parallel R-HS track (W41-W44) is extending this with a full
+host-side inference engine, performance cycle estimator, `--json` output,
+and ternary weight packer.
+
+### R-TT track -- Tiny Tapeout reproducibility (2 / 4)
+
+The three Tiny Tapeout silicon variants -- `tt-trinity-phi`,
+`tt-trinity-euler`, `tt-trinity-gamma` -- live as git submodules under
+`chips/` pinned to known commits.  Two CLIs make every tape-out machine-checkable:
+
+```
+t27c tt-manifest --chip <phi|euler|gamma> [--output <path>|-]
+#  -> deterministic JSON manifest:
+#     { t27_commit, phi_invariant_hash, chip, modules[], axi_widths,
+#       sva_count, build_time_utc }
+
+t27c tt-profile --platform <sky130|ihp|gf180> [--output <path>|-]
+#  -> deterministic JSON profile:
+#     { platform, process_node_nm, cell_library, max_tile_area_um2,
+#       supply_voltage_mvolts, target_clock_mhz, max_modules }
+
+t27c tt-conform --profile <p.json> --manifest <m.json> [--verbose]
+#  -> single boolean gate:
+#     OK conform=<true|false> reasons=<N>
+#  exit 0 if ok, 1 otherwise
+```
+
+The `phi_invariant_hash` is the SHA-256 of the ASCII string
+`phi^2 + 1/phi^2 = 3` (`218403e3...8f80e6b`) and is embedded in every
+manifest -- any silent change to the numeric kernel would change the hash
+and show up immediately in diff.
+
+Roadmap:
+
+- W46 R-TT-3 `tt-debug` -- TT-debug wrapper around `bitnet_engine_top` (version CSR + error counters + self-test trigger)
+- W47 R-TT-4 `tt-lockfile` -- `tt.lock` (chip-hash + commit + profile + verdict) pinned in each chip-repo via submodule
+
+### Submodule layout
+
+```
+chips/phi    -> https://github.com/gHashTag/tt-trinity-phi
+chips/euler  -> https://github.com/gHashTag/tt-trinity-euler
+chips/gamma  -> https://github.com/gHashTag/tt-trinity-gamma
+```
+
+Clone with submodules:
+
+```
+git clone --recursive https://github.com/gHashTag/t27.git
+# or, after a plain clone:
+git submodule update --init --recursive
+```
+
+### Test coverage (post-W45)
+
+- BitNet HLS suites: 9 modules x dedicated integration suite each
+- Host stack: `host_driver` (25), `host_irq` (25)
+- R-TT track: `tt_manifest` (23 + 18 inline), `tt_profile` (25 + 24 inline)
+- Regression: **20 integration suites green**, total **365 / 366** with one
+  pre-existing fail in `verilog_const_array::r_ca_1_emitter_on_real_mac_spec`
+  (predates W37).
+
+Live wave-by-wave log: [`docs/NOW.md`](docs/NOW.md).
 
 ---
 
