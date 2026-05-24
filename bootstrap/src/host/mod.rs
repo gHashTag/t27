@@ -15,9 +15,11 @@
 
 pub mod csr_map;
 pub mod driver;
+pub mod gatereg;
 pub mod irq;
 pub mod mmio;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use gatereg::{GateError, GateInfo, GateRegistry, GateState};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
