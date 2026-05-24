@@ -14,6 +14,7 @@
 // ============================================================================
 
 pub mod bitstream;
+pub mod cmdq;
 pub mod csr_map;
 pub mod dma;
 pub mod driver;
@@ -31,6 +32,7 @@ pub mod weight_header;
 pub mod weight_loader;
 
 pub use bitstream::{BitError, BitstreamReader};
+pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
 pub use dma::{DmaChannel, DmaConfig, DmaError, DmaReport, DmaState};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
