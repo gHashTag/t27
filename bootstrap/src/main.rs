@@ -533,6 +533,34 @@ enum Commands {
         json: bool,
     },
 
+    /// Validate packed weight words for ternary encoding integrity
+    /// (Wave 52, R-HS-7).
+    ///
+    /// Checks reserved bits, invalid trit encodings (0b11), round-trip
+    /// pack/unpack consistency, and word count alignment.
+    #[command(name = "host-validate")]
+    HostValidate {
+        /// Comma-separated hex words (0x...) or @file to read one word per line.
+        #[arg(long)]
+        words: Option<String>,
+
+        /// Weight pattern to validate (generates then validates).
+        #[arg(long, default_value = "alternating")]
+        pattern: String,
+
+        /// Number of neurons (for generated validation).
+        #[arg(long, default_value_t = 16)]
+        neurons: u32,
+
+        /// Chunks per neuron (for generated validation).
+        #[arg(long, default_value_t = 4)]
+        chunks: u32,
+
+        /// Emit structured JSON.
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Emit a complete BitNet HLS bundle (Wave 38, R-SI-1).
     ///
     /// Composes all 9 BitNet HLS module emitters (W36a-f) plus the
@@ -3489,6 +3517,64 @@ fn run_host_e2e(
             result.estimate.total_dma_beats,
             result.estimate.bram_utilization_pct,
         );
+    }
+    Ok(())
+}
+
+fn run_host_validate(
+    words_arg: Option<&str>,
+    pattern_str: &str,
+    neurons: u32,
+    chunks: u32,
+    json: bool,
+) -> anyhow::Result<()> {
+    let words = if let Some(w) = words_arg {
+        if w.starts_with('@') {
+            let path = &w[1..];
+            let content = std::fs::read_to_string(path)
+                .with_context(|| format!("cannot read {}", path))?;
+            content.lines()
+                .filter(|l| !l.trim().is_empty())
+                .map(|l| u64::from_str_radix(l.trim().trim_start_matches("0x").trim_start_matches("0X"), 16))
+                .collect::<Result<Vec<_>, _>>()
+                .with_context(|| "invalid hex word")?
+        } else {
+            w.split(',')
+                .map(|s| u64::from_str_radix(s.trim().trim_start_matches("0x").trim_start_matches("0X"), 16))
+                .collect::<Result<Vec<_>, _>>()
+                .with_context(|| "invalid hex word")?
+        }
+    } else {
+        let pattern = host::weights::parse_pattern(pattern_str)
+            .ok_or_else(|| anyhow::anyhow!("invalid pattern '{}'", pattern_str))?;
+        let config = host::weights::WeightConfig { neurons, chunks, pattern };
+        host::weights::generate_weights(&config)
+    };
+    let result = host::validate::validate_words(&words);
+    if json {
+        let v = serde_json::json!({
+            "ok": result.ok(),
+            "total_words": result.total_words,
+            "errors": result.errors.len(),
+            "warnings": result.warnings.len(),
+            "error_details": result.errors.iter().map(|e| &e.message).collect::<Vec<_>>(),
+            "warning_details": result.warnings.iter().map(|w| &w.message).collect::<Vec<_>>(),
+        });
+        host::json_output::print_json(&v)?;
+    } else if result.ok() {
+        println!("OK words={} errors=0 warnings={}", result.total_words, result.warning_count());
+        for w in &result.warnings {
+            println!("  WARN: {}", w.message);
+        }
+    } else {
+        println!("FAIL words={} errors={} warnings={}", result.total_words, result.error_count(), result.warning_count());
+        for e in &result.errors {
+            println!("  ERROR: {}", e.message);
+        }
+        for w in &result.warnings {
+            println!("  WARN: {}", w.message);
+        }
+        anyhow::bail!("validation failed with {} errors", result.error_count());
     }
     Ok(())
 }
@@ -8325,6 +8411,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::HostE2e { num_layers, neurons, chunks, threshold, pattern, json } => {
             run_host_e2e(num_layers, neurons, chunks, threshold, &pattern, json)?
         }
+        Commands::HostValidate { words, pattern, neurons, chunks, json } => {
+            run_host_validate(words.as_deref(), &pattern, neurons, chunks, json)?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8586,6 +8675,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::HostE2e { num_layers, neurons, chunks, threshold, pattern, json } => {
             run_host_e2e(num_layers, neurons, chunks, threshold, &pattern, json)?
+        }
+        Commands::HostValidate { words, pattern, neurons, chunks, json } => {
+            run_host_validate(words.as_deref(), &pattern, neurons, chunks, json)?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
