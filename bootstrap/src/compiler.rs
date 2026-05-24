@@ -36,6 +36,7 @@ pub enum NodeKind {
     ExprStructLit,
     ExprArrayLiteral,
     ExprCast,
+    ExprBitRange,
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -2280,12 +2281,23 @@ impl Parser {
                 }
             } else if self.current.kind == TokenKind::LBracket {
                 self.advance(); // consume [
-                let index = self.parse_expr()?;
-                self.expect(TokenKind::RBracket)?;
-                let mut idx_node = Node::new(NodeKind::ExprIndex);
-                idx_node.children.push(expr);
-                idx_node.children.push(index);
-                expr = idx_node;
+                let first = self.parse_expr()?;
+                if self.current.kind == TokenKind::Colon {
+                    self.advance(); // consume :
+                    let second = self.parse_expr()?;
+                    self.expect(TokenKind::RBracket)?;
+                    let mut br_node = Node::new(NodeKind::ExprBitRange);
+                    br_node.children.push(expr);
+                    br_node.children.push(first);
+                    br_node.children.push(second);
+                    expr = br_node;
+                } else {
+                    self.expect(TokenKind::RBracket)?;
+                    let mut idx_node = Node::new(NodeKind::ExprIndex);
+                    idx_node.children.push(expr);
+                    idx_node.children.push(first);
+                    expr = idx_node;
+                }
             } else if self.current.kind == TokenKind::LParen {
                 // Function call on an expression: shouldn't normally happen here
                 // since calls are handled in primary for ident(...) and @builtin(...)
@@ -3457,12 +3469,30 @@ impl Codegen {
                 self.write(&node.name);
             }
             NodeKind::ExprIndex => {
-                // children[0] = base, children[1] = index
                 if node.children.len() >= 2 {
                     self.gen_expr(&node.children[0]);
                     self.write("[");
                     self.gen_expr(&node.children[1]);
                     self.write("]");
+                }
+            }
+            NodeKind::ExprBitRange => {
+                if node.children.len() >= 3 {
+                    self.gen_expr(&node.children[0]);
+                    self.write(" >> ");
+                    self.gen_expr(&node.children[2]);
+                    let width = if let Some(hi) = parse_int_value(&node.children[1].value) {
+                        if let Some(lo) = parse_int_value(&node.children[2].value) {
+                            Some((hi - lo + 1) as u32)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(w) = width {
+                        self.write(&format!(" & 0x{:x}", (1u64 << w) - 1));
+                    }
                 }
             }
             NodeKind::ExprSwitch => {
@@ -4670,6 +4700,16 @@ impl VerilogCodegen {
                     self.write("]");
                 }
             }
+            NodeKind::ExprBitRange => {
+                if node.children.len() >= 3 {
+                    self.gen_verilog_expr(&node.children[0]);
+                    self.write("[");
+                    self.gen_verilog_expr(&node.children[1]);
+                    self.write(":");
+                    self.gen_verilog_expr(&node.children[2]);
+                    self.write("]");
+                }
+            }
             NodeKind::ExprArrayLiteral => {
                 // R-CA-2 (wave-31): array literals in expression context
                 // (e.g. as function-call arguments) used to emit a
@@ -5663,6 +5703,28 @@ impl CCodegen {
                     self.write("[");
                     self.gen_c_expr(&node.children[1]);
                     self.write("]");
+                }
+            }
+            NodeKind::ExprBitRange => {
+                if node.children.len() >= 3 {
+                    self.write("((");
+                    self.gen_c_expr(&node.children[0]);
+                    self.write(" >> ");
+                    self.gen_c_expr(&node.children[2]);
+                    self.write(")");
+                    let width = if let Some(hi) = parse_int_value(&node.children[1].value) {
+                        if let Some(lo) = parse_int_value(&node.children[2].value) {
+                            Some((hi - lo + 1) as u32)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(w) = width {
+                        self.write(&format!(" & 0x{:x}", (1u64 << w) - 1));
+                    }
+                    self.write(")");
                 }
             }
             NodeKind::ExprSwitch => {
@@ -6988,7 +7050,7 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
                 check_expr(child, symbols, fns, result);
             }
         }
-        NodeKind::ExprFieldAccess | NodeKind::ExprIndex => {
+        NodeKind::ExprFieldAccess | NodeKind::ExprIndex | NodeKind::ExprBitRange => {
             for child in &node.children {
                 check_expr(child, symbols, fns, result);
             }
@@ -7732,6 +7794,29 @@ impl RustCodegen {
                         Self::expr_to_rust(&node.children[0]),
                         Self::t27_type_to_rust(&node.extra_type)
                     )
+                } else {
+                    "()".to_string()
+                }
+            }
+            NodeKind::ExprBitRange => {
+                if node.children.len() >= 3 {
+                    let base = Self::expr_to_rust(&node.children[0]);
+                    let hi = &node.children[1];
+                    let lo = &node.children[2];
+                    let width = if let Some(h) = parse_int_value(&hi.value) {
+                        if let Some(l) = parse_int_value(&lo.value) {
+                            Some((h - l + 1) as u32)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    if let Some(w) = width {
+                        format!("(({} >> {}) & 0x{:x})", base, Self::expr_to_rust(lo), (1u64 << w) - 1)
+                    } else {
+                        format!("(({} >> {}))", base, Self::expr_to_rust(lo))
+                    }
                 } else {
                     "()".to_string()
                 }
@@ -13326,6 +13411,18 @@ impl AstToHir {
                     } else {
                         Self::expr_to_string(arr)
                     }
+                } else {
+                    node.name.clone()
+                }
+            }
+            NodeKind::ExprBitRange => {
+                if node.children.len() >= 3 {
+                    format!(
+                        "{}[{}:{}]",
+                        Self::expr_to_string(&node.children[0]),
+                        Self::expr_to_string(&node.children[1]),
+                        Self::expr_to_string(&node.children[2])
+                    )
                 } else {
                     node.name.clone()
                 }
@@ -19394,6 +19491,178 @@ mod tests_hir_pipeline_parity {
 }"#;
         let v = Compiler::compile_verilog(src).unwrap();
         assert!(v.contains("8'("), "narrowing cast should emit 8': got {v}");
+     }
+
+    #[test]
+    fn test_parse_bit_range() {
+        let src = r#"module BR {
+    pub fn extract(data: u32) -> u8 {
+        return data[15:8]
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let module = &ast;
+        assert_eq!(module.kind, NodeKind::Module);
+        let fn_decl = module.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let br = &ret.children[0];
+        assert_eq!(br.kind, NodeKind::ExprBitRange);
+        assert_eq!(br.children.len(), 3);
+        assert_eq!(br.children[1].value, "15");
+        assert_eq!(br.children[2].value, "8");
+    }
+
+    #[test]
+    fn test_parse_bit_range_single_digit() {
+        let src = r#"module BR {
+    pub fn lo_bit(data: u32) -> u1 {
+        return data[0:0]
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let br = &ret.children[0];
+        assert_eq!(br.kind, NodeKind::ExprBitRange);
+        assert_eq!(br.children[1].value, "0");
+        assert_eq!(br.children[2].value, "0");
+    }
+
+    #[test]
+    fn test_parse_index_not_bit_range() {
+        let src = r#"module BR {
+    pub fn get(arr: []u8, i: u32) -> u8 {
+        return arr[i]
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        assert_eq!(ret.children[0].kind, NodeKind::ExprIndex);
+    }
+
+    #[test]
+    fn test_verilog_bit_range() {
+        let src = r#"module BR {
+    pub fn extract(data: u32) -> u8 {
+        return data[15:8]
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("data[15:8]"), "Verilog should emit data[15:8]: got {v}");
+    }
+
+    #[test]
+    fn test_verilog_bit_range_single() {
+        let src = r#"module BR {
+    pub fn lo(data: u32) -> u1 {
+        return data[0:0]
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("data[0:0]"), "Verilog should emit data[0:0]: got {v}");
+    }
+
+    #[test]
+    fn test_c_bit_range() {
+        let src = r#"module BR {
+    pub fn extract(data: u32) -> u8 {
+        return data[15:8]
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains(">> 8"), "C should shift right by lo: got {c}");
+        assert!(c.contains("0xff"), "C should mask with 0xff for 8-bit range: got {c}");
+    }
+
+    #[test]
+    fn test_c_bit_range_single_bit() {
+        let src = r#"module BR {
+    pub fn bit0(data: u32) -> u1 {
+        return data[0:0]
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains(">> 0"), "C should shift by 0: got {c}");
+        assert!(c.contains("0x1"), "C should mask with 0x1 for 1-bit range: got {c}");
+    }
+
+    #[test]
+    fn test_rust_bit_range() {
+        let src = r#"module BR {
+    pub fn extract(data: u32) -> u8 {
+        return data[15:8]
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains(">> 8"), "Rust should shift right by lo: got {r}");
+        assert!(r.contains("0xff"), "Rust should mask 0xff for 8-bit: got {r}");
+    }
+
+    #[test]
+    fn test_zig_bit_range() {
+        let src = r#"module BR {
+    pub fn extract(data: u32) -> u8 {
+        return data[15:8]
+    }
+}"#;
+        let z = Compiler::compile(src).unwrap();
+        assert!(z.contains(">> 8"), "Zig should shift right by lo: got {z}");
+        assert!(z.contains("0xff"), "Zig should mask 0xff for 8-bit: got {z}");
+    }
+
+    #[test]
+    fn test_verilog_bit_range_wide() {
+        let src = r#"module BR {
+    pub fn word(data: u64) -> u32 {
+        return data[63:32]
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("data[63:32]"), "Verilog should emit data[63:32]: got {v}");
+    }
+
+    #[test]
+    fn test_c_bit_range_wide() {
+        let src = r#"module BR {
+    pub fn word(data: u64) -> u32 {
+        return data[63:32]
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains(">> 32"), "C should shift right by 32: got {c}");
+        assert!(c.contains("0xffffffff"), "C should mask 0xffffffff for 32-bit: got {c}");
+    }
+
+    #[test]
+    fn test_bit_range_field_access() {
+        let src = r#"module BR {
+    pub fn extract(pkt: u64) -> u8 {
+        return pkt[15:8]
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let br = &ret.children[0];
+        assert_eq!(br.kind, NodeKind::ExprBitRange);
+        assert_eq!(br.children[0].name, "pkt");
+    }
+
+    #[test]
+    fn test_bit_range_in_assignment() {
+        let src = r#"module BR {
+    pub fn assign(data: u32) -> u8 {
+        var lo: u8 = 0
+        lo = data[7:0]
+        return lo
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let assign = fn_decl.children.iter().find(|c| c.kind == NodeKind::StmtAssign).unwrap();
+        let rhs = &assign.children[1];
+        assert_eq!(rhs.kind, NodeKind::ExprBitRange);
     }
 
     #[test]

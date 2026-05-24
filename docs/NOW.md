@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-54 -- bit-range part-select operator `[hi:lo]` (R-CG-3)
+
+- **WHERE** (compiler-only, additive): `NodeKind::ExprBitRange` in compiler.rs; parser detects `expr[hi:lo]` (colon inside brackets); Verilog emits `name[hi:lo]`; C/Rust/Zig emit `(name >> lo) & mask` with computed width; typechecker + optimizer + HIR `expr_to_string` handle the new node kind; 13 inline tests.
+- **Why** (R-CG-3): Bit-field extraction `[15:8]` is fundamental for Verilog/FPGA work. Without it, users cannot express bus slicing in t27 source. This is the single most impactful missing language feature for hardware description.
+- **Tests**: 13 new (parse, Verilog, C, Rust, Zig, typecheck, assignment, wide ranges). **925 total, 0 failures.**
+
 ## wave-53 -- dead code warning sweep (R-HY-1)
 
 - **WHERE** (bootstrap-only, additive): `#[allow(dead_code)]` on 125 HIR structs/enums + 100 HIR impl blocks in `compiler.rs`; `#[allow(dead_code)]` mod declarations in `main.rs` for planned modules (bridge, enrichment, railway, jwt, formula_eval, chimera_engine, runtime, neural, memory); targeted `#[allow(dead_code)]` on host API surface (driver, engine, irq, mmio, csr_map, perf, weights, tt_debug, bitnet_bundle); removed duplicate match arms in `#[cfg(not(feature = "server"))]` main; `#[allow(unused_imports)]` on host/mod.rs re-exports; `#[allow(unused_assignments)]` on compiler.rs x_offset.
