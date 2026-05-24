@@ -15,9 +15,11 @@
 
 pub mod csr_map;
 pub mod driver;
+pub mod hoptable;
 pub mod irq;
 pub mod mmio;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use hoptable::{HopTable, Route};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
