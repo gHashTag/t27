@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
+
+## wave-47 -- fix pre-existing test failures — toolchain reliability (R-TR-1)
+
+- **WHERE** (bootstrap-only, bugfix): fixed `bootstrap/src/ternary/mod.rs` (test logic bug in `test_encode_decode`); fixed `bootstrap/src/compiler.rs` (added `KwAs` token, lexer recognition, `parse_expr_cast` in expression precedence chain, Verilog width-cast emission `N'(expr)` for `ExprCast`).
+- **Why** (R-TR-1): Two pre-existing test failures on master. `ternary::test_encode_decode` had a wrong assertion (compared decode result to unrelated array element). `compiler::test_verilog_cast_no_as_keyword` failed because the `as` cast operator was never implemented in the parser/codegen — now emits proper Verilog width casts like `32'(expr)`.
+- **Tests**: 855 pass (up from 853). Both previously-failing tests now green. Zero regressions. 3 remaining JWT failures are pre-existing and unrelated.
 
 ## wave-46 -- t27c host-e2e -- end-to-end host stack integration (R-HS-6, Closes #802)
 

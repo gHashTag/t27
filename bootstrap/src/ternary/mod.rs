@@ -76,7 +76,12 @@ mod tests {
         assert_eq!(decode_trits(encoded), 1);
 
         let encoded = encode_trits(5);
-        let expected = [-1, 0, 1, 0, 1, 0];
-        assert_eq!(decode_trits(encoded), expected[4]);
+        assert_eq!(decode_trits(encoded), 5);
+
+        let encoded = encode_trits(-5);
+        assert_eq!(decode_trits(encoded), -5);
+
+        let encoded = encode_trits(0);
+        assert_eq!(decode_trits(encoded), 0);
     }
 }

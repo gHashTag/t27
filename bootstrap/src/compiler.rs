@@ -147,6 +147,7 @@ pub enum TokenKind {
     KwTry,
     KwBreak,
     KwContinue,
+    KwAs,
 
     // Literals
     Ident,
@@ -350,6 +351,7 @@ impl Lexer {
             "false" => TokenKind::KwFalse,
             "break" => TokenKind::KwBreak,
             "continue" => TokenKind::KwContinue,
+            "as" => TokenKind::KwAs,
             _ => TokenKind::Ident,
         }
     }
@@ -2097,14 +2099,14 @@ impl Parser {
 
     /// Parse multiplicative expressions (*, /, %, **)
     fn parse_expr_multiplicative(&mut self) -> Result<Node, String> {
-        let mut left = self.parse_expr_unary()?;
+        let mut left = self.parse_expr_cast()?;
         while matches!(
             self.current.kind,
-            TokenKind::Star | TokenKind::Slash | TokenKind::Percent | TokenKind::Power
+            TokenKind::Star | TokenKind::Slash | TokenKind::Percent
         ) {
             let op = self.current.lexeme.clone();
             self.advance();
-            let right = self.parse_expr_unary()?;
+            let right = self.parse_expr_cast()?;
             left = Node {
                 kind: NodeKind::ExprBinary,
                 extra_op: op,
@@ -2113,6 +2115,20 @@ impl Parser {
             };
         }
         Ok(left)
+    }
+
+    fn parse_expr_cast(&mut self) -> Result<Node, String> {
+        let mut expr = self.parse_expr_unary()?;
+        while self.current.kind == TokenKind::KwAs {
+            self.advance();
+            let target_type = self.current.lexeme.clone();
+            self.advance();
+            let mut cast = Node::new(NodeKind::ExprCast);
+            cast.extra_type = target_type;
+            cast.children.push(expr);
+            expr = cast;
+        }
+        Ok(expr)
     }
 
     /// Parse unary expressions (-x, !x, ~x, &x)
@@ -4623,7 +4639,11 @@ impl VerilogCodegen {
             }
             NodeKind::ExprCast => {
                 if !node.children.is_empty() {
+                    let target_w = Self::type_to_width(&node.extra_type);
+                    self.write("(");
+                    self.write(&format!("{}'(", target_w));
                     self.gen_verilog_expr(&node.children[0]);
+                    self.write("))");
                 }
             }
             _ => {
