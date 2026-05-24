@@ -17,7 +17,9 @@ pub mod csr_map;
 pub mod driver;
 pub mod irq;
 pub mod mmio;
+pub mod paginator;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
+pub use paginator::{PgError, Page, Paginator};
