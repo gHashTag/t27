@@ -21,6 +21,7 @@ impl WeightConfig {
         (self.neurons as usize) * (self.chunks as usize) * super::ternary::TRITS_PER_WORD
     }
 
+    #[allow(dead_code)]
     pub fn total_words(&self) -> usize {
         (self.neurons as usize) * (self.chunks as usize)
     }

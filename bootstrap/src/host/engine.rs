@@ -154,10 +154,12 @@ impl InferenceEngine {
         self.driver.wait_irq_mask(csr_map::IRQ_INFERENCE_DONE_MASK, max_rounds)
     }
 
+    #[allow(dead_code)]
     pub fn driver(&self) -> &IrqDrivenDriver<MockMmio> {
         &self.driver
     }
 
+    #[allow(dead_code)]
     pub fn driver_mut(&mut self) -> &mut IrqDrivenDriver<MockMmio> {
         &mut self.driver
     }

@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-53 -- dead code warning sweep (R-HY-1)
+
+- **WHERE** (bootstrap-only, additive): `#[allow(dead_code)]` on 125 HIR structs/enums + 100 HIR impl blocks in `compiler.rs`; `#[allow(dead_code)]` mod declarations in `main.rs` for planned modules (bridge, enrichment, railway, jwt, formula_eval, chimera_engine, runtime, neural, memory); targeted `#[allow(dead_code)]` on host API surface (driver, engine, irq, mmio, csr_map, perf, weights, tt_debug, bitnet_bundle); removed duplicate match arms in `#[cfg(not(feature = "server"))]` main; `#[allow(unused_imports)]` on host/mod.rs re-exports; `#[allow(unused_assignments)]` on compiler.rs x_offset.
+- **Why** (R-HY-1): Reduced compiler warnings from 331 to 8 (remaining 8 are cosmetic: camelCase from L2-protected generated files + profile notice). Clean build output improves signal-to-noise for real issues.
+- **Tests**: 912 total, 0 failures (unchanged).
+
 ## wave-52 -- host-side weight validator (R-HS-7)
 
 - **WHERE** (bootstrap-only, additive): new file `bootstrap/src/host/validate.rs` (`WeightValidator`, `ValidationResult`, `ValidationDiag`, `ValidationKind`, `validate_words`; 14 inline unit tests); new CLI `Commands::HostValidate` + `run_host_validate` with `--words=` (hex or @file), `--pattern`, `--neurons`, `--chunks`, `--json`; new test file `bootstrap/tests/host_validate.rs` (16 integration tests).

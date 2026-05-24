@@ -10,6 +10,7 @@ pub enum IrqSource {
 }
 
 impl IrqSource {
+    #[allow(dead_code)]
     pub fn mask(self) -> u32 {
         match self {
             IrqSource::InferenceDone => csr_map::IRQ_INFERENCE_DONE_MASK,
@@ -48,6 +49,7 @@ impl<M: Mmio> IrqHandler<M> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn register(&mut self, source: IrqSource, cb: IrqCallback) {
         let idx = match source {
             IrqSource::InferenceDone => 0,
@@ -97,6 +99,7 @@ impl<M: Mmio> IrqDrivenDriver<M> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn register(&mut self, source: IrqSource, cb: IrqCallback) {
         self.handler.register(source, cb);
     }
@@ -131,6 +134,7 @@ impl<M: Mmio> IrqDrivenDriver<M> {
         Err(DriverError::Timeout)
     }
 
+    #[allow(dead_code)]
     pub fn into_handler(self) -> IrqHandler<M> {
         self.handler
     }

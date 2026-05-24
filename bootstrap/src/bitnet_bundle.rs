@@ -83,6 +83,7 @@ pub struct BundleEntry {
 ///   9. bitnet_engine_top              (W36f, top wrapper)
 ///  10. behavior_sva_v2                (W37, verification)
 ///  11. manifest.txt                   (W38, this wave)
+#[allow(dead_code)]
 pub const BUNDLE_ORDER: &[&str] = &[
     "weight_bram.sv",
     "pipeline_stage2_compute.sv",
@@ -98,6 +99,7 @@ pub const BUNDLE_ORDER: &[&str] = &[
 ];
 
 /// Total expected file count in a bundle (10 SV files + 1 manifest).
+#[allow(dead_code)]
 pub const BUNDLE_FILE_COUNT: usize = 11;
 
 /// Canonical BitNet HLS behavior set (4 properties, v2-emittable).

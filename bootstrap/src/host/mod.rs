@@ -25,13 +25,23 @@ pub mod ternary;
 pub mod validate;
 pub mod weights;
 
+#[allow(unused_imports)]
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+#[allow(unused_imports)]
 pub use e2e::{E2eConfig, E2eResult, E2eJson};
+#[allow(unused_imports)]
 pub use engine::{InferenceEngine, InferenceReport};
+#[allow(unused_imports)]
 pub use irq::{IrqDrivenDriver, IrqHandler, IrqSource};
+#[allow(unused_imports)]
 pub use json_output::{HostSmokeJson, HostPollVsIrqJson, HostInferenceJson, HostPerfJson};
+#[allow(unused_imports)]
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
+#[allow(unused_imports)]
 pub use perf::{EngineConfig, PerformanceEstimate};
+#[allow(unused_imports)]
 pub use ternary::{Trit, pack_word, unpack_word, pack_words, unpack_words, parse_trit_string, format_trits};
+#[allow(unused_imports)]
 pub use validate::{WeightValidator, ValidationResult, ValidationDiag, ValidationKind, validate_words};
+#[allow(unused_imports)]
 pub use weights::{WeightPattern, WeightConfig, generate_pattern, generate_weights, pattern_name, parse_pattern};

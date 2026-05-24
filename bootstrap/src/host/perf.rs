@@ -3,6 +3,7 @@ pub const BITS_PER_TRIT: u32 = 2;
 pub const DATA_WIDTH: u32 = TRITS_PER_WORD * BITS_PER_TRIT;
 pub const BRAM_DEPTH: u32 = 4096;
 pub const DDR_BEAT_BITS: u32 = 64;
+#[allow(dead_code)]
 pub const DDR_BEAT_BYTES: u32 = DDR_BEAT_BITS / 8;
 pub const WORDS_PER_DDR_BEAT: u32 = DDR_BEAT_BITS / DATA_WIDTH;
 

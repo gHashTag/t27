@@ -25,6 +25,7 @@ pub struct TtManifest {
     pub commit_hash: String,
     pub chip_slug: String,
     pub phi_invariant_hash: String,
+    #[allow(dead_code)]
     pub timestamp_utc: String,
 }
 
@@ -42,6 +43,7 @@ impl TtManifest {
         })
     }
 
+    #[allow(dead_code)]
     pub fn synthetic(commit: &str, chip: &str, phi: &str) -> Self {
         Self {
             commit_hash: commit.to_string(),
@@ -63,6 +65,7 @@ impl TtManifest {
         hex_lo32(&self.phi_invariant_hash)
     }
 
+    #[allow(dead_code)]
     fn version_word(&self) -> u32 {
         let c = self.commit_lo32();
         let chip = self.chip_hash8();
@@ -81,6 +84,7 @@ fn hex_lo32(s: &str) -> u32 {
 // CSR layout -- offsets 0x40..0x5F
 // ---------------------------------------------------------------------------
 
+#[allow(dead_code)]
 pub struct TtDebugCsrLayout;
 
 impl TtDebugCsrLayout {
@@ -193,6 +197,7 @@ impl TtDebugVersion {
             | ((self.phi_invariant_lo32 & 0xFF) << 24)
     }
 
+    #[allow(dead_code)]
     pub fn unpack(word: u32) -> Self {
         Self {
             commit_lo32: word & 0xFFFF,

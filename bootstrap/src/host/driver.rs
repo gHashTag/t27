@@ -85,6 +85,7 @@ impl<M: Mmio> BitnetDriver<M> {
     }
 
     /// Consume the driver and return the backend.
+    #[allow(dead_code)]
     pub fn into_mmio(self) -> M {
         self.mmio
     }
@@ -120,6 +121,7 @@ impl<M: Mmio> BitnetDriver<M> {
     }
 
     /// Read the STATUS register and test the `busy` bit.
+    #[allow(dead_code)]
     pub fn is_busy(&mut self) -> bool {
         self.mmio.read32(csr_map::STATUS) & csr_map::STATUS_BUSY_MASK != 0
     }
@@ -130,6 +132,7 @@ impl<M: Mmio> BitnetDriver<M> {
     }
 
     /// Read the STATUS register and test the `error` bit.
+    #[allow(dead_code)]
     pub fn has_error(&mut self) -> bool {
         self.mmio.read32(csr_map::STATUS) & csr_map::STATUS_ERROR_MASK != 0
     }

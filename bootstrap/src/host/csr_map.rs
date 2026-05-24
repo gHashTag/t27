@@ -72,6 +72,7 @@ pub const CTRL_START_MASK: u32 = 1 << CTRL_START_BIT;
 // ---------------------------------------------------------------------------
 
 /// STATUS bit position for `busy`.
+#[allow(dead_code)]
 pub const STATUS_BUSY_BIT: u32 = 0;
 
 /// STATUS bit position for `done`.
@@ -81,6 +82,7 @@ pub const STATUS_DONE_BIT: u32 = 1;
 pub const STATUS_ERROR_BIT: u32 = 2;
 
 /// STATUS mask for `busy`.
+#[allow(dead_code)]
 pub const STATUS_BUSY_MASK: u32 = 1 << STATUS_BUSY_BIT;
 
 /// STATUS mask for `done`.

@@ -7771,6 +7771,7 @@ pub enum HwResetPolarity {
     ActiveLow,
 }
 
+#[allow(dead_code)]
 impl HwType {
     pub fn hw_width(&self) -> u32 {
         match self {
@@ -7831,6 +7832,7 @@ pub enum HwPortDir {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwSignalKind {
     Wire,
     Reg,
@@ -7883,6 +7885,7 @@ pub enum HirAlwaysStmtKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirAlwaysStmt {
     pub kind: HirAlwaysStmtKind,
     pub target: String,
@@ -8032,6 +8035,7 @@ impl HirMemory {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwClkSrcKind {
     External,
     Pll,
@@ -8040,6 +8044,7 @@ pub enum HwClkSrcKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirClkSource {
     pub name: String,
     pub kind: HwClkSrcKind,
@@ -8049,6 +8054,7 @@ pub struct HirClkSource {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirClockDomain {
     pub name: String,
     pub source_name: String,
@@ -8056,6 +8062,7 @@ pub struct HirClockDomain {
     pub posedge: bool,
 }
 
+#[allow(dead_code)]
 impl HirClockDomain {
     pub fn new(name: &str, source: &str, freq_hz: u32) -> Self {
         HirClockDomain {
@@ -8079,6 +8086,7 @@ impl HirClockDomain {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwCrossStrategy {
     TwoFlop,
     FifoAsync,
@@ -8086,6 +8094,7 @@ pub enum HwCrossStrategy {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirClockCrossing {
     pub src_domain: String,
     pub dst_domain: String,
@@ -8094,12 +8103,14 @@ pub struct HirClockCrossing {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwFifoKind {
     Sync,
     Async,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirFifo {
     pub name: String,
     pub kind: HwFifoKind,
@@ -8111,6 +8122,7 @@ pub struct HirFifo {
     pub almost_full_threshold: u32,
 }
 
+#[allow(dead_code)]
 impl HirFifo {
     pub fn new_sync(name: &str, depth: u32, data_width: u32) -> Self {
         HirFifo {
@@ -8157,18 +8169,21 @@ impl HirFifo {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwBusKind {
     Axi4Lite,
     Axi4Full,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwBusRole {
     Master,
     Slave,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirBusPort {
     pub name: String,
     pub kind: HwBusKind,
@@ -8178,6 +8193,7 @@ pub struct HirBusPort {
     pub id_width: u32,
 }
 
+#[allow(dead_code)]
 impl HirBusPort {
     pub fn axi4_lite_slave(name: &str, addr_width: u32, data_width: u32) -> Self {
         HirBusPort {
@@ -8385,6 +8401,7 @@ impl HirBusPort {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirApbPeriphMap {
     pub name: String,
     pub base_addr: u32,
@@ -8393,6 +8410,7 @@ pub struct HirApbPeriphMap {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirApbBridge {
     pub name: String,
     pub addr_width: u32,
@@ -8403,6 +8421,7 @@ pub struct HirApbBridge {
     pub periph_maps: Vec<HirApbPeriphMap>,
 }
 
+#[allow(dead_code)]
 impl HirApbBridge {
     pub fn new(name: &str, addr_width: u32, data_width: u32, num_peripherals: u32) -> Self {
         HirApbBridge {
@@ -8485,6 +8504,7 @@ impl HirApbBridge {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Gf16OpKind {
     Mul,
     Add,
@@ -8497,6 +8517,7 @@ pub enum Gf16OpKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirGf16MacUnit {
     pub name: String,
     pub accumulator_width: u32,
@@ -8504,12 +8525,14 @@ pub struct HirGf16MacUnit {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirGf16FftConfig {
     pub name: String,
     pub num_points: u32,
     pub radix: u32,
 }
 
+#[allow(dead_code)]
 impl HirGf16FftConfig {
     pub fn fft_stages(&self) -> u32 {
         let mut n = self.num_points;
@@ -8531,6 +8554,7 @@ impl HirGf16FftConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirGf16Accel {
     pub name: String,
     pub num_multipliers: u32,
@@ -8544,6 +8568,7 @@ pub struct HirGf16Accel {
     pub fft_config: Option<HirGf16FftConfig>,
 }
 
+#[allow(dead_code)]
 impl HirGf16Accel {
     pub fn basic(name: &str, num_mult: u32) -> Self {
         HirGf16Accel {
@@ -8662,6 +8687,7 @@ impl HirGf16Accel {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwAssertKind {
     Immediate,
     Concurrent,
@@ -8670,6 +8696,7 @@ pub enum HwAssertKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwAssertSeverity {
     Info,
     Warning,
@@ -8678,6 +8705,7 @@ pub enum HwAssertSeverity {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirFormalAssert {
     pub name: String,
     pub kind: HwAssertKind,
@@ -8689,6 +8717,7 @@ pub struct HirFormalAssert {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirCoverPoint {
     pub name: String,
     pub condition: String,
@@ -8697,6 +8726,7 @@ pub struct HirCoverPoint {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirFormalAssume {
     pub name: String,
     pub condition: String,
@@ -8705,6 +8735,7 @@ pub struct HirFormalAssume {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirFormalConfig {
     pub name: String,
     pub module_name: String,
@@ -8714,6 +8745,7 @@ pub struct HirFormalConfig {
     pub timeout_cycles: u32,
 }
 
+#[allow(dead_code)]
 impl HirFormalConfig {
     pub fn new(name: &str, module_name: &str, clock: &str, reset: &str) -> Self {
         HirFormalConfig {
@@ -8757,6 +8789,7 @@ impl HirFormalConfig {
     }
 }
 
+#[allow(dead_code)]
 impl HirFormalAssert {
     pub fn immediate(
         name: &str,
@@ -8811,6 +8844,7 @@ impl HirFormalAssert {
     }
 }
 
+#[allow(dead_code)]
 impl HirCoverPoint {
     pub fn new(name: &str, condition: &str, clock: &str, description: &str) -> Self {
         HirCoverPoint {
@@ -8833,6 +8867,7 @@ impl HirCoverPoint {
     }
 }
 
+#[allow(dead_code)]
 impl HirFormalAssume {
     pub fn new(name: &str, condition: &str, clock: &str, description: &str) -> Self {
         HirFormalAssume {
@@ -8856,6 +8891,7 @@ impl HirFormalAssume {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirTernaryAluOp {
     pub name: String,
     pub opcode: u32,
@@ -8864,6 +8900,7 @@ pub struct HirTernaryAluOp {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirPipelineStage {
     pub name: String,
     pub latency: u32,
@@ -8871,6 +8908,7 @@ pub struct HirPipelineStage {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirTernaryRegFile {
     pub name: String,
     pub num_regs: u32,
@@ -8881,6 +8919,7 @@ pub struct HirTernaryRegFile {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirTernaryCore {
     pub name: String,
     pub data_width: u32,
@@ -8896,6 +8935,7 @@ pub struct HirTernaryCore {
     pub alu_ops: Vec<HirTernaryAluOp>,
 }
 
+#[allow(dead_code)]
 impl HirTernaryCore {
     pub fn basic(name: &str) -> Self {
         HirTernaryCore {
@@ -9021,6 +9061,7 @@ impl HirTernaryCore {
     }
 }
 
+#[allow(dead_code)]
 impl HirTernaryRegFile {
     pub fn new(name: &str) -> Self {
         HirTernaryRegFile {
@@ -9043,6 +9084,7 @@ impl HirTernaryRegFile {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirResourceEstimate {
     pub luts: u32,
     pub ffs: u32,
@@ -9051,6 +9093,7 @@ pub struct HirResourceEstimate {
     pub io_pins: u32,
 }
 
+#[allow(dead_code)]
 impl HirResourceEstimate {
     pub fn zero() -> Self {
         HirResourceEstimate {
@@ -9074,6 +9117,7 @@ impl HirResourceEstimate {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirIpCore {
     pub name: String,
     pub resources: HirResourceEstimate,
@@ -9082,6 +9126,7 @@ pub struct HirIpCore {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirBoardResources {
     pub name: String,
     pub luts: u32,
@@ -9091,6 +9136,7 @@ pub struct HirBoardResources {
     pub io_pins: u32,
 }
 
+#[allow(dead_code)]
 impl HirBoardResources {
     pub fn arty_a7() -> Self {
         HirBoardResources {
@@ -9116,11 +9162,13 @@ impl HirBoardResources {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirIpCatalog {
     pub name: String,
     pub cores: Vec<HirIpCore>,
 }
 
+#[allow(dead_code)]
 impl HirIpCatalog {
     pub fn new(name: &str) -> Self {
         HirIpCatalog {
@@ -9196,6 +9244,7 @@ impl HirIpCatalog {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum AsmSectionKind {
     Text,
     Data,
@@ -9203,6 +9252,7 @@ pub enum AsmSectionKind {
     Rodata,
 }
 
+#[allow(dead_code)]
 impl AsmSectionKind {
     pub fn from_i8(v: i8) -> Self {
         match v {
@@ -9224,12 +9274,14 @@ impl AsmSectionKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum AsmRelocKind {
     Abs32,
     Rel21,
     Gf16Label,
 }
 
+#[allow(dead_code)]
 impl AsmRelocKind {
     pub fn from_i8(v: i8) -> Self {
         match v {
@@ -9249,6 +9301,7 @@ impl AsmRelocKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AssembledInstr {
     pub address: u32,
     pub opcode: u32,
@@ -9260,6 +9313,7 @@ pub struct AssembledInstr {
     pub is_gf16: bool,
 }
 
+#[allow(dead_code)]
 impl AssembledInstr {
     pub fn r_type(opcode: u32, rd: u32, rs1: u32, rs2: u32) -> Self {
         AssembledInstr {
@@ -9332,6 +9386,7 @@ impl AssembledInstr {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AsmRelocEntry {
     pub offset: u32,
     pub kind: AsmRelocKind,
@@ -9339,6 +9394,7 @@ pub struct AsmRelocEntry {
     pub addend: u32,
 }
 
+#[allow(dead_code)]
 impl AsmRelocEntry {
     pub fn new(offset: u32, kind: AsmRelocKind, symbol: &str, addend: u32) -> Self {
         AsmRelocEntry {
@@ -9351,6 +9407,7 @@ impl AsmRelocEntry {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AsmSymbol {
     pub name: String,
     pub address: u32,
@@ -9359,6 +9416,7 @@ pub struct AsmSymbol {
     pub is_global: bool,
 }
 
+#[allow(dead_code)]
 impl AsmSymbol {
     pub fn new(name: &str, address: u32, section: AsmSectionKind, is_global: bool) -> Self {
         AsmSymbol {
@@ -9380,6 +9438,7 @@ impl AsmSymbol {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AsmSection {
     pub name: String,
     pub kind: AsmSectionKind,
@@ -9387,6 +9446,7 @@ pub struct AsmSection {
     pub size: u32,
 }
 
+#[allow(dead_code)]
 impl AsmSection {
     pub fn text(base: u32) -> Self {
         AsmSection {
@@ -9430,6 +9490,7 @@ impl AsmSection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct AsmConfig {
     pub name: String,
     pub text_base: u32,
@@ -9439,6 +9500,7 @@ pub struct AsmConfig {
     pub has_ternary_ext: bool,
 }
 
+#[allow(dead_code)]
 impl AsmConfig {
     pub fn new(name: &str) -> Self {
         AsmConfig {
@@ -9483,6 +9545,7 @@ pub fn align_address(addr: u32, alignment: u32) -> u32 {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirAssembler {
     pub config: AsmConfig,
     pub sections: Vec<AsmSection>,
@@ -9493,6 +9556,7 @@ pub struct HirAssembler {
     pub errors: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl HirAssembler {
     pub fn new(name: &str) -> Self {
         let config = AsmConfig::new(name);
@@ -9637,12 +9701,14 @@ impl HirAssembler {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TbClockCfg {
     pub period_ns: u32,
     pub duty_cycle: u32,
     pub phase_ns: u32,
 }
 
+#[allow(dead_code)]
 impl TbClockCfg {
     pub fn new(period_ns: u32) -> Self {
         TbClockCfg {
@@ -9658,12 +9724,14 @@ impl TbClockCfg {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TbResetCfg {
     pub active_low: bool,
     pub delay_cycles: u32,
     pub duration_cycles: u32,
 }
 
+#[allow(dead_code)]
 impl TbResetCfg {
     pub fn new(delay: u32, duration: u32) -> Self {
         TbResetCfg {
@@ -9679,12 +9747,14 @@ impl TbResetCfg {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TbStimulus {
     pub cycle: u32,
     pub signal: String,
     pub value: u32,
 }
 
+#[allow(dead_code)]
 impl TbStimulus {
     pub fn new(cycle: u32, signal: &str, value: u32) -> Self {
         TbStimulus {
@@ -9704,6 +9774,7 @@ impl TbStimulus {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TbCheck {
     pub cycle: u32,
     pub signal: String,
@@ -9711,6 +9782,7 @@ pub struct TbCheck {
     pub mask: u32,
 }
 
+#[allow(dead_code)]
 impl TbCheck {
     pub fn new(cycle: u32, signal: &str, expected: u32) -> Self {
         TbCheck {
@@ -9740,6 +9812,7 @@ impl TbCheck {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TbConfig {
     pub name: String,
     pub dut_name: String,
@@ -9749,6 +9822,7 @@ pub struct TbConfig {
     pub fail_fast: bool,
 }
 
+#[allow(dead_code)]
 impl TbConfig {
     pub fn new(dut: &str, max_cycles: u32) -> Self {
         TbConfig {
@@ -9774,6 +9848,7 @@ impl TbConfig {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirTestbench {
     pub config: TbConfig,
     pub clock: TbClockCfg,
@@ -9783,6 +9858,7 @@ pub struct HirTestbench {
     pub probe_signals: Vec<String>,
 }
 
+#[allow(dead_code)]
 impl HirTestbench {
     pub fn new(dut: &str, max_cycles: u32, clock_period_ns: u32) -> Self {
         HirTestbench {
@@ -9936,6 +10012,7 @@ impl HirTestbench {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum VcdVarKind {
     Wire,
     Reg,
@@ -9943,6 +10020,7 @@ pub enum VcdVarKind {
     Parameter,
 }
 
+#[allow(dead_code)]
 impl VcdVarKind {
     pub fn vcd_str(&self) -> &'static str {
         match self {
@@ -9955,6 +10033,7 @@ impl VcdVarKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct VcdVar {
     pub kind: VcdVarKind,
     pub size: u32,
@@ -9962,6 +10041,7 @@ pub struct VcdVar {
     pub ident: String,
 }
 
+#[allow(dead_code)]
 impl VcdVar {
     pub fn wire(size: u32, name: &str, ident: &str) -> Self {
         VcdVar {
@@ -9994,6 +10074,7 @@ impl VcdVar {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct VcdChange {
     pub timestamp_ps: u64,
     pub ident: String,
@@ -10001,6 +10082,7 @@ pub struct VcdChange {
     pub bit_width: u32,
 }
 
+#[allow(dead_code)]
 impl VcdChange {
     pub fn new(ts: u64, ident: &str, value: u32, width: u32) -> Self {
         VcdChange {
@@ -10037,6 +10119,7 @@ impl VcdChange {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct VcdHeader {
     pub date: String,
     pub version: String,
@@ -10044,6 +10127,7 @@ pub struct VcdHeader {
     pub comment: String,
 }
 
+#[allow(dead_code)]
 impl VcdHeader {
     pub fn new(version: &str, timescale: &str) -> Self {
         VcdHeader {
@@ -10056,6 +10140,7 @@ impl VcdHeader {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirVcdTrace {
     pub header: VcdHeader,
     pub variables: Vec<VcdVar>,
@@ -10063,6 +10148,7 @@ pub struct HirVcdTrace {
     pub end_time_ps: u64,
 }
 
+#[allow(dead_code)]
 impl HirVcdTrace {
     pub fn new(version: &str) -> Self {
         HirVcdTrace {
@@ -10201,6 +10287,7 @@ impl HirVcdTrace {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LinkSection {
     pub name: String,
     pub vaddr: u32,
@@ -10209,6 +10296,7 @@ pub struct LinkSection {
     pub align: u32,
 }
 
+#[allow(dead_code)]
 impl LinkSection {
     pub fn text(vaddr: u32, size: u32) -> Self {
         LinkSection {
@@ -10246,6 +10334,7 @@ impl LinkSection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LinkedSymbol {
     pub name: String,
     pub value: u32,
@@ -10255,6 +10344,7 @@ pub struct LinkedSymbol {
     pub kind: u32,
 }
 
+#[allow(dead_code)]
 impl LinkedSymbol {
     pub fn new(name: &str, value: u32, section_idx: u32) -> Self {
         LinkedSymbol {
@@ -10285,6 +10375,7 @@ impl LinkedSymbol {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LinkSegment {
     pub kind: u32,
     pub vaddr: u32,
@@ -10293,6 +10384,7 @@ pub struct LinkSegment {
     pub align: u32,
 }
 
+#[allow(dead_code)]
 impl LinkSegment {
     pub fn text(vaddr: u32, size: u32) -> Self {
         LinkSegment {
@@ -10316,6 +10408,7 @@ impl LinkSegment {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LinkerConfig {
     pub entry: String,
     pub text_base: u32,
@@ -10325,6 +10418,7 @@ pub struct LinkerConfig {
     pub output_format: i8,
 }
 
+#[allow(dead_code)]
 impl LinkerConfig {
     pub fn new(entry: &str) -> Self {
         LinkerConfig {
@@ -10357,6 +10451,7 @@ impl LinkerConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LinkResult {
     pub entry_addr: u32,
     pub total_text: u32,
@@ -10367,6 +10462,7 @@ pub struct LinkResult {
     pub errors: u32,
 }
 
+#[allow(dead_code)]
 impl LinkResult {
     pub fn ok(entry: u32, text: u32, data: u32, bss: u32) -> Self {
         LinkResult {
@@ -10404,6 +10500,7 @@ impl LinkResult {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirLinker {
     pub config: LinkerConfig,
     pub sections: Vec<LinkSection>,
@@ -10413,6 +10510,7 @@ pub struct HirLinker {
     pub merged_data: Vec<u32>,
 }
 
+#[allow(dead_code)]
 impl HirLinker {
     pub fn new(entry: &str) -> Self {
         HirLinker {
@@ -10534,6 +10632,7 @@ impl HirLinker {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum ArcKind {
     Comb,
     RegToReg,
@@ -10542,6 +10641,7 @@ pub enum ArcKind {
     InputToOutput,
 }
 
+#[allow(dead_code)]
 impl ArcKind {
     pub fn from_i8(v: i8) -> Self {
         match v {
@@ -10556,6 +10656,7 @@ impl ArcKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TimingArc {
     pub source: String,
     pub sink: String,
@@ -10563,6 +10664,7 @@ pub struct TimingArc {
     pub kind: ArcKind,
 }
 
+#[allow(dead_code)]
 impl TimingArc {
     pub fn comb(source: &str, sink: &str, delay_ps: u32) -> Self {
         TimingArc {
@@ -10591,6 +10693,7 @@ impl TimingArc {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TimingPath {
     pub startpoint: String,
     pub endpoint: String,
@@ -10599,6 +10702,7 @@ pub struct TimingPath {
     pub num_arcs: u32,
 }
 
+#[allow(dead_code)]
 impl TimingPath {
     pub fn new(start: &str, end: &str, delay: u32, slack: i64) -> Self {
         TimingPath {
@@ -10618,12 +10722,14 @@ impl TimingPath {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TimingConstraint {
     pub name: String,
     pub period_ps: u32,
     pub clock_name: String,
 }
 
+#[allow(dead_code)]
 impl TimingConstraint {
     pub fn from_period(name: &str, period_ps: u32) -> Self {
         TimingConstraint {
@@ -10653,6 +10759,7 @@ impl TimingConstraint {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TimingReport {
     pub total_paths: u32,
     pub met_paths: u32,
@@ -10663,6 +10770,7 @@ pub struct TimingReport {
     pub has_violations: bool,
 }
 
+#[allow(dead_code)]
 impl TimingReport {
     pub fn ok(critical_ps: u32, fmax: u32) -> Self {
         TimingReport {
@@ -10691,8 +10799,10 @@ impl TimingReport {
     }
 }
 
+#[allow(dead_code)]
 pub struct TimingModel;
 
+#[allow(dead_code)]
 impl TimingModel {
     pub const LUT_DELAY_PS: u32 = 100;
     pub const BRAM_DELAY_PS: u32 = 2000;
@@ -10793,6 +10903,7 @@ pub fn worst_path_delay(paths: &[TimingPath]) -> u32 {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PowerDomain {
     pub name: String,
     pub voltage_mv: u32,
@@ -10800,6 +10911,7 @@ pub struct PowerDomain {
     pub toggle_rate: u32,
 }
 
+#[allow(dead_code)]
 impl PowerDomain {
     pub fn new(name: &str, clock_mhz: u32) -> Self {
         PowerDomain {
@@ -10822,6 +10934,7 @@ impl PowerDomain {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PowerEstimate {
     pub dynamic_mw: u32,
     pub static_mw: u32,
@@ -10832,8 +10945,10 @@ pub struct PowerEstimate {
     pub dsp_power_mw: u32,
 }
 
+#[allow(dead_code)]
 pub struct PowerModel;
 
+#[allow(dead_code)]
 impl PowerModel {
     pub const LUT_POWER_UW_PER_MHZ: u32 = 10;
     pub const FF_POWER_UW_PER_MHZ: u32 = 5;
@@ -10899,6 +11014,7 @@ impl PowerModel {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum RegionKind {
     ClockRegion,
     IoBank,
@@ -10908,6 +11024,7 @@ pub enum RegionKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PlacementRegion {
     pub name: String,
     pub kind: RegionKind,
@@ -10917,6 +11034,7 @@ pub struct PlacementRegion {
     pub y1: u32,
 }
 
+#[allow(dead_code)]
 impl PlacementRegion {
     pub fn logic(name: &str, x0: u32, y0: u32, x1: u32, y1: u32) -> Self {
         PlacementRegion {
@@ -10976,12 +11094,14 @@ impl PlacementRegion {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PlacementHint {
     pub module_name: String,
     pub region_name: String,
     pub priority: u32,
 }
 
+#[allow(dead_code)]
 impl PlacementHint {
     pub fn new(module: &str, region: &str, priority: u32) -> Self {
         PlacementHint {
@@ -11003,6 +11123,7 @@ impl PlacementHint {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RouteConstraint {
     pub source: String,
     pub sink: String,
@@ -11010,6 +11131,7 @@ pub struct RouteConstraint {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Floorplan {
     pub name: String,
     pub device: String,
@@ -11018,6 +11140,7 @@ pub struct Floorplan {
     pub routes: Vec<RouteConstraint>,
 }
 
+#[allow(dead_code)]
 impl Floorplan {
     pub fn new(name: &str, device: &str) -> Self {
         Floorplan {
@@ -11060,7 +11183,10 @@ impl Floorplan {
             self.regions
                 .push(PlacementRegion::dsp_col(&name, x_offset, 0, 50));
             self.hints.push(PlacementHint::new(&gf16.name, &name, 3));
-            x_offset += 2;
+            #[allow(unused_assignments)]
+            {
+                x_offset += 2;
+            }
         }
         let has_ternary = !module.ternary_cores.is_empty();
         if has_ternary {
@@ -11070,7 +11196,10 @@ impl Floorplan {
             for tc in &module.ternary_cores {
                 self.hints.push(PlacementHint::new(&tc.name, name, 2));
             }
-            x_offset += 11;
+            #[allow(unused_assignments)]
+            {
+                x_offset += 11;
+            }
         }
         let io_ports: Vec<_> = module
             .ports
@@ -11116,6 +11245,7 @@ impl Floorplan {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BitstreamMeta {
     pub device: String,
     pub size_bytes: u32,
@@ -11125,6 +11255,7 @@ pub struct BitstreamMeta {
     pub source_hash: String,
 }
 
+#[allow(dead_code)]
 impl BitstreamMeta {
     pub fn new(device: &str, size_bytes: u32) -> Self {
         BitstreamMeta {
@@ -11169,6 +11300,7 @@ impl BitstreamMeta {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct FpgaNode {
     pub name: String,
     pub device: String,
@@ -11179,6 +11311,7 @@ pub struct FpgaNode {
     pub io_pins: u32,
 }
 
+#[allow(dead_code)]
 impl FpgaNode {
     pub fn arty_a7(name: &str) -> Self {
         FpgaNode {
@@ -11213,6 +11346,7 @@ impl FpgaNode {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct InterFpgaLink {
     pub fpga_a: u32,
     pub fpga_b: u32,
@@ -11221,6 +11355,7 @@ pub struct InterFpgaLink {
     pub max_mbps: u32,
 }
 
+#[allow(dead_code)]
 impl InterFpgaLink {
     pub fn lvds(a: u32, b: u32, width: u32) -> Self {
         InterFpgaLink {
@@ -11246,6 +11381,7 @@ impl InterFpgaLink {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PartitionAssign {
     pub module_name: String,
     pub fpga_idx: u32,
@@ -11256,6 +11392,7 @@ pub struct PartitionAssign {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PartitionResult {
     pub num_fpgas: u32,
     pub num_assignments: u32,
@@ -11265,6 +11402,7 @@ pub struct PartitionResult {
     pub errors: u32,
 }
 
+#[allow(dead_code)]
 impl PartitionResult {
     pub fn ok(fpgas: u32, assigns: u32, links: u32, bw: u32) -> Self {
         PartitionResult {
@@ -11292,12 +11430,14 @@ impl PartitionResult {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirPartitioner {
     pub fpgas: Vec<FpgaNode>,
     pub assignments: Vec<PartitionAssign>,
     pub links: Vec<InterFpgaLink>,
 }
 
+#[allow(dead_code)]
 impl HirPartitioner {
     pub fn new() -> Self {
         HirPartitioner {
@@ -11409,6 +11549,7 @@ impl HirPartitioner {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum ConnEdgeKind {
     Data,
     Clock,
@@ -11417,6 +11558,7 @@ pub enum ConnEdgeKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ConnEdge {
     pub source: String,
     pub sink: String,
@@ -11424,6 +11566,7 @@ pub struct ConnEdge {
     pub bit_width: u32,
 }
 
+#[allow(dead_code)]
 impl ConnEdge {
     pub fn data(source: &str, sink: &str, width: u32) -> Self {
         ConnEdge {
@@ -11444,12 +11587,14 @@ impl ConnEdge {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct FanoutInfo {
     pub signal: String,
     pub fanout: u32,
     pub total_bits: u32,
 }
 
+#[allow(dead_code)]
 impl FanoutInfo {
     pub fn is_high_fanout(&self) -> bool {
         self.fanout > 16
@@ -11460,6 +11605,7 @@ impl FanoutInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RouteEstimate {
     pub total_nets: u32,
     pub total_wire_length_um: u32,
@@ -11469,14 +11615,17 @@ pub struct RouteEstimate {
     pub needs_global_buf: bool,
 }
 
+#[allow(dead_code)]
 impl RouteEstimate {
     pub fn passed(&self) -> bool {
         self.congestion_score < 80
     }
 }
 
+#[allow(dead_code)]
 pub struct RouteModel;
 
+#[allow(dead_code)]
 impl RouteModel {
     pub const LOCAL_WIRE_UM: u32 = 500;
     pub const MEDIUM_WIRE_UM: u32 = 2000;
@@ -11500,11 +11649,13 @@ impl RouteModel {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirRouter {
     pub edges: Vec<ConnEdge>,
     pub fanouts: Vec<FanoutInfo>,
 }
 
+#[allow(dead_code)]
 impl HirRouter {
     pub fn new() -> Self {
         HirRouter {
@@ -11578,12 +11729,14 @@ impl HirRouter {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ScanChain {
     pub name: String,
     pub num_regs: u32,
     pub chain_length_bits: u32,
 }
 
+#[allow(dead_code)]
 impl ScanChain {
     pub fn new(name: &str, regs: u32) -> Self {
         ScanChain {
@@ -11611,6 +11764,7 @@ impl ScanChain {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum BistKind {
     Memory,
     Logic,
@@ -11618,6 +11772,7 @@ pub enum BistKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BistCtrl {
     pub name: String,
     pub kind: BistKind,
@@ -11625,6 +11780,7 @@ pub struct BistCtrl {
     pub pass_threshold: u32,
 }
 
+#[allow(dead_code)]
 impl BistCtrl {
     pub fn memory(name: &str, patterns: u32) -> Self {
         BistCtrl {
@@ -11664,6 +11820,7 @@ impl BistCtrl {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct JtagTap {
     pub name: String,
     pub ir_width: u32,
@@ -11672,6 +11829,7 @@ pub struct JtagTap {
     pub idcode: u32,
 }
 
+#[allow(dead_code)]
 impl JtagTap {
     pub fn new(name: &str, ir_width: u32, idcode: u32) -> Self {
         JtagTap {
@@ -11698,6 +11856,7 @@ impl JtagTap {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TestCoverage {
     pub scan_coverage: u32,
     pub bist_coverage: u32,
@@ -11705,6 +11864,7 @@ pub struct TestCoverage {
     pub total_coverage: u32,
 }
 
+#[allow(dead_code)]
 impl TestCoverage {
     pub fn new(scan: u32, bist: u32, atpg: u32) -> Self {
         TestCoverage {
@@ -11720,6 +11880,7 @@ impl TestCoverage {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirDft {
     pub scan_chains: Vec<ScanChain>,
     pub bist_controllers: Vec<BistCtrl>,
@@ -11727,6 +11888,7 @@ pub struct HirDft {
     pub target_coverage: u32,
 }
 
+#[allow(dead_code)]
 impl HirDft {
     pub fn new() -> Self {
         HirDft {
@@ -11796,6 +11958,7 @@ impl HirDft {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PllConfig {
     pub name: String,
     pub input_mhz: u32,
@@ -11805,6 +11968,7 @@ pub struct PllConfig {
     pub jitter_ps: u32,
 }
 
+#[allow(dead_code)]
 impl PllConfig {
     pub fn new(name: &str, input_mhz: u32, output_mhz: u32) -> Self {
         PllConfig {
@@ -11835,12 +11999,14 @@ impl PllConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ClockBuffer {
     pub name: String,
     pub delay_ps: u32,
     pub fanout: u32,
 }
 
+#[allow(dead_code)]
 impl ClockBuffer {
     pub fn bufg(name: &str) -> Self {
         ClockBuffer {
@@ -11859,6 +12025,7 @@ impl ClockBuffer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ClockTree {
     pub root: String,
     pub num_levels: u32,
@@ -11866,6 +12033,7 @@ pub struct ClockTree {
     pub max_skew_ps: u32,
 }
 
+#[allow(dead_code)]
 impl ClockTree {
     pub fn new(root: &str, levels: u32, bufs: u32) -> Self {
         ClockTree {
@@ -11884,6 +12052,7 @@ impl ClockTree {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CtsReport {
     pub num_clocks: u32,
     pub num_plls: u32,
@@ -11893,14 +12062,17 @@ pub struct CtsReport {
     pub has_violations: bool,
 }
 
+#[allow(dead_code)]
 impl CtsReport {
     pub fn passed(&self) -> bool {
         !self.has_violations
     }
 }
 
+#[allow(dead_code)]
 pub struct CtsModel;
 
+#[allow(dead_code)]
 impl CtsModel {
     pub fn est_buffers_needed(num_sinks: u32) -> u32 {
         if num_sinks <= 16 {
@@ -11921,12 +12093,14 @@ impl CtsModel {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirCts {
     pub plls: Vec<PllConfig>,
     pub trees: Vec<ClockTree>,
     pub buffers: Vec<ClockBuffer>,
 }
 
+#[allow(dead_code)]
 impl HirCts {
     pub fn new() -> Self {
         HirCts {
@@ -11978,6 +12152,7 @@ impl HirCts {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ResetSynchronizer {
     pub name: String,
     pub num_stages: u32,
@@ -11986,6 +12161,7 @@ pub struct ResetSynchronizer {
     pub async_assert: bool,
 }
 
+#[allow(dead_code)]
 impl ResetSynchronizer {
     pub fn new(name: &str, stages: u32, in_clk: &str, out_clk: &str) -> Self {
         ResetSynchronizer {
@@ -12019,6 +12195,7 @@ impl ResetSynchronizer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ResetDomain {
     pub name: String,
     pub clock_domain: String,
@@ -12026,6 +12203,7 @@ pub struct ResetDomain {
     pub sync_chains: Vec<ResetSynchronizer>,
 }
 
+#[allow(dead_code)]
 impl ResetDomain {
     pub fn new(name: &str, clk_domain: &str, active_low: bool) -> Self {
         ResetDomain {
@@ -12041,6 +12219,7 @@ impl ResetDomain {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RetimingOp {
     pub from_signal: String,
     pub to_signal: String,
@@ -12048,6 +12227,7 @@ pub struct RetimingOp {
     pub registers_moved: u32,
 }
 
+#[allow(dead_code)]
 impl RetimingOp {
     pub fn forward(from: &str, to: &str, regs: u32) -> Self {
         RetimingOp {
@@ -12068,12 +12248,14 @@ impl RetimingOp {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirRetimer {
     pub operations: Vec<RetimingOp>,
     pub original_crit_ps: u32,
     pub retimed_crit_ps: u32,
 }
 
+#[allow(dead_code)]
 impl HirRetimer {
     pub fn new() -> Self {
         HirRetimer {
@@ -12118,6 +12300,7 @@ impl HirRetimer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ConfigReg {
     pub name: String,
     pub offset: u32,
@@ -12127,6 +12310,7 @@ pub struct ConfigReg {
     pub description: String,
 }
 
+#[allow(dead_code)]
 impl ConfigReg {
     pub fn rw(name: &str, offset: u32, width: u32, reset: u32) -> Self {
         ConfigReg {
@@ -12154,12 +12338,14 @@ impl ConfigReg {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirConfigBlock {
     pub name: String,
     pub base_address: u32,
     pub registers: Vec<ConfigReg>,
 }
 
+#[allow(dead_code)]
 impl HirConfigBlock {
     pub fn new(name: &str, base: u32) -> Self {
         HirConfigBlock {
@@ -12206,6 +12392,7 @@ impl HirConfigBlock {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct IrqSource {
     pub name: String,
     pub id: u32,
@@ -12213,6 +12400,7 @@ pub struct IrqSource {
     pub edge_triggered: bool,
 }
 
+#[allow(dead_code)]
 impl IrqSource {
     pub fn level(name: &str, id: u32, priority: u32) -> Self {
         IrqSource {
@@ -12233,6 +12421,7 @@ impl IrqSource {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirInterruptCtrl {
     pub name: String,
     pub sources: Vec<IrqSource>,
@@ -12241,6 +12430,7 @@ pub struct HirInterruptCtrl {
     pub vector_table_base: u32,
 }
 
+#[allow(dead_code)]
 impl HirInterruptCtrl {
     pub fn new(name: &str, num_priorities: u32) -> Self {
         HirInterruptCtrl {
@@ -12322,6 +12512,7 @@ impl HirInterruptCtrl {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum DmaTransferKind {
     Single,
     Burst,
@@ -12329,6 +12520,7 @@ pub enum DmaTransferKind {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DmaChannel {
     pub name: String,
     pub index: u32,
@@ -12339,6 +12531,7 @@ pub struct DmaChannel {
     pub burst_size: u32,
 }
 
+#[allow(dead_code)]
 impl DmaChannel {
     pub fn single(name: &str, idx: u32, src: u32, dst: u32, len: u32) -> Self {
         DmaChannel {
@@ -12378,6 +12571,7 @@ impl DmaChannel {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirDmaEngine {
     pub name: String,
     pub channels: Vec<DmaChannel>,
@@ -12385,6 +12579,7 @@ pub struct HirDmaEngine {
     pub max_burst: u32,
 }
 
+#[allow(dead_code)]
 impl HirDmaEngine {
     pub fn new(name: &str, data_width: u32) -> Self {
         HirDmaEngine {
@@ -12446,6 +12641,7 @@ impl HirDmaEngine {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CrossOptPass {
     pub name: String,
     pub num_modules: u32,
@@ -12454,6 +12650,7 @@ pub struct CrossOptPass {
     pub instances_merged: u32,
 }
 
+#[allow(dead_code)]
 impl CrossOptPass {
     pub fn empty() -> Self {
         CrossOptPass {
@@ -12488,6 +12685,7 @@ impl CrossOptPass {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CrossOptReport {
     pub total_passes: u32,
     pub total_constants: u32,
@@ -12496,6 +12694,7 @@ pub struct CrossOptReport {
     pub total_modules: u32,
 }
 
+#[allow(dead_code)]
 impl CrossOptReport {
     pub fn new(passes: u32, consts: u32, dead: u32, merged: u32, mods: u32) -> Self {
         CrossOptReport {
@@ -12515,10 +12714,12 @@ impl CrossOptReport {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirCrossOptimizer {
     pub passes: Vec<CrossOptPass>,
 }
 
+#[allow(dead_code)]
 impl HirCrossOptimizer {
     pub fn new() -> Self {
         HirCrossOptimizer { passes: Vec::new() }
@@ -12570,6 +12771,7 @@ impl HirCrossOptimizer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BootStage {
     pub name: String,
     pub index: u32,
@@ -12577,6 +12779,7 @@ pub struct BootStage {
     pub entry_addr: u32,
 }
 
+#[allow(dead_code)]
 impl BootStage {
     pub fn new(name: &str, idx: u32, size: u32, entry: u32) -> Self {
         BootStage {
@@ -12592,6 +12795,7 @@ impl BootStage {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BootConfig {
     pub name: String,
     pub rom_base: u32,
@@ -12600,6 +12804,7 @@ pub struct BootConfig {
     pub has_chain_loader: bool,
 }
 
+#[allow(dead_code)]
 impl BootConfig {
     pub fn new(name: &str, rom_size: u32) -> Self {
         BootConfig {
@@ -12630,6 +12835,7 @@ impl BootConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WatchdogConfig {
     pub name: String,
     pub counter_width: u32,
@@ -12640,6 +12846,7 @@ pub struct WatchdogConfig {
     pub generate_interrupt: bool,
 }
 
+#[allow(dead_code)]
 impl WatchdogConfig {
     pub fn new(name: &str, timeout: u32) -> Self {
         WatchdogConfig {
@@ -12682,6 +12889,7 @@ impl WatchdogConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MemMapEntry {
     pub name: String,
     pub base: u32,
@@ -12691,6 +12899,7 @@ pub struct MemMapEntry {
     pub writable: bool,
 }
 
+#[allow(dead_code)]
 impl MemMapEntry {
     pub fn rom(name: &str, base: u32, size: u32) -> Self {
         MemMapEntry {
@@ -12731,10 +12940,12 @@ impl MemMapEntry {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirMemMap {
     pub entries: Vec<MemMapEntry>,
 }
 
+#[allow(dead_code)]
 impl HirMemMap {
     pub fn new() -> Self {
         HirMemMap {
@@ -12772,6 +12983,7 @@ impl HirMemMap {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SerDesConfig {
     pub name: String,
     pub lanes: u32,
@@ -12780,6 +12992,7 @@ pub struct SerDesConfig {
     pub encoding: String,
 }
 
+#[allow(dead_code)]
 impl SerDesConfig {
     pub fn new(name: &str, lanes: u32, rate_gbps: u32) -> Self {
         SerDesConfig {
@@ -12809,6 +13022,7 @@ impl SerDesConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BuildStep {
     pub name: String,
     pub tool: String,
@@ -12818,11 +13032,13 @@ pub struct BuildStep {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct HirBuildOrchestrator {
     pub steps: Vec<BuildStep>,
     pub total_estimated_ms: u32,
 }
 
+#[allow(dead_code)]
 impl HirBuildOrchestrator {
     pub fn new() -> Self {
         HirBuildOrchestrator {
@@ -12953,8 +13169,10 @@ impl HirModule {
     }
 }
 
+#[allow(dead_code)]
 pub struct AstToHir;
 
+#[allow(dead_code)]
 impl AstToHir {
     pub fn convert(ast: &Node) -> Result<HirModule, String> {
         let module_name = if !ast.name.is_empty() {
@@ -13399,11 +13617,13 @@ impl HirOptimizer {
 // HIR Verilog Emitter (v0.5 — minimal, alongside existing codegen)
 // ============================================================================
 
+#[allow(dead_code)]
 pub struct HirVerilogEmitter {
     output: String,
     indent: u32,
 }
 
+#[allow(dead_code)]
 impl HirVerilogEmitter {
     pub fn new() -> Self {
         HirVerilogEmitter {
@@ -16599,6 +16819,7 @@ mod tests_hir_stdlib {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HirSimState {
     Idle,
     Running,
@@ -16608,6 +16829,7 @@ pub enum HirSimState {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirSimConfig {
     pub name: String,
     pub max_cycles: u32,
@@ -16618,6 +16840,7 @@ pub struct HirSimConfig {
     pub vcd_path: String,
 }
 
+#[allow(dead_code)]
 impl HirSimConfig {
     pub fn new(name: &str, max_cycles: u32) -> Self {
         HirSimConfig {
@@ -16676,6 +16899,7 @@ impl HirSimConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct HirSimResult {
     pub cycles: u32,
     pub state: HirSimState,
@@ -16684,6 +16908,7 @@ pub struct HirSimResult {
     pub coverage_points: u32,
 }
 
+#[allow(dead_code)]
 impl HirSimResult {
     pub fn ok(cycles: u32, coverage: u32) -> Self {
         HirSimResult {
@@ -17765,6 +17990,7 @@ mod tests_hir_soc_integration {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DemoKernel {
     pub name: String,
     pub instr_count: u32,
@@ -17773,6 +17999,7 @@ pub struct DemoKernel {
     pub mem_ops: u32,
 }
 
+#[allow(dead_code)]
 impl DemoKernel {
     pub fn hello_trinity() -> Self {
         DemoKernel {
@@ -17811,6 +18038,7 @@ impl DemoKernel {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PipeResult {
     pub cycles: u32,
     pub instr_retired: u32,
@@ -17819,6 +18047,7 @@ pub struct PipeResult {
     pub errors: u32,
 }
 
+#[allow(dead_code)]
 impl PipeResult {
     pub fn ok(cycles: u32, retired: u32, gf16: u32) -> Self {
         PipeResult {
@@ -17867,6 +18096,7 @@ impl PipeResult {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DemoConfig {
     pub kernel: DemoKernel,
     pub clock_mhz: u32,
@@ -17875,6 +18105,7 @@ pub struct DemoConfig {
     pub formal_check: bool,
 }
 
+#[allow(dead_code)]
 impl DemoConfig {
     pub fn new(kernel: DemoKernel) -> Self {
         DemoConfig {

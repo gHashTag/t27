@@ -17,6 +17,7 @@ pub enum ChimeraOp {
 pub struct ChimeraCandidate {
     pub expr: String,
     pub target_name: String,
+    #[allow(dead_code)]
     pub target_value: f64,
     pub chimera_value: f64,
     pub error_pct: f64,

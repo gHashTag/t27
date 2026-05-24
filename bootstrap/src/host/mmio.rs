@@ -81,11 +81,13 @@ impl MockMmio {
     }
 
     /// Borrow the recorded transaction log.
+    #[allow(dead_code)]
     pub fn log(&self) -> &[MmioRecord] {
         &self.log
     }
 
     /// Clear the recorded transaction log.  Register state is untouched.
+    #[allow(dead_code)]
     pub fn clear_log(&mut self) {
         self.log.clear();
     }
@@ -101,6 +103,7 @@ impl MockMmio {
     }
 
     /// Force the busy bit of the STATUS register.
+    #[allow(dead_code)]
     pub fn set_busy(&mut self, busy: bool) {
         self.set_status_bit(csr_map::STATUS_BUSY_MASK, busy);
     }
@@ -111,6 +114,7 @@ impl MockMmio {
     }
 
     /// Force the error bit of the STATUS register.
+    #[allow(dead_code)]
     pub fn set_error(&mut self, err: bool) {
         self.set_status_bit(csr_map::STATUS_ERROR_MASK, err);
     }
@@ -122,6 +126,7 @@ impl MockMmio {
     }
 
     /// Inspect the current value at `addr` without recording a transaction.
+    #[allow(dead_code)]
     pub fn peek(&self, addr: u32) -> u32 {
         *self.regs.get(&addr).unwrap_or(&csr_map::UNMAPPED_READ_VALUE)
     }

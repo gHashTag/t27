@@ -10,19 +10,28 @@
 // - check-now: Gate on docs/NOW.md Last updated date
 // - serve: Start HTTP server (requires 'server' feature)
 
+#[allow(dead_code)]
 mod bridge;
 mod compiler;
+#[allow(dead_code)]
 mod enrichment;
 mod suite;
+#[allow(dead_code)]
 mod railway;
+#[allow(dead_code)]
 mod jwt;
 mod proxy;
+#[allow(dead_code)]
 mod formula_eval;
+#[allow(dead_code)]
 mod chimera_engine;
 mod sensitivity;
+#[allow(dead_code)]
 mod runtime;
+#[allow(dead_code)]
 mod neural;
 mod ternary;
+#[allow(dead_code)]
 mod memory;
 mod trit_stdlib;
 mod behavior_sva;
@@ -5118,7 +5127,7 @@ set_property -dict { PACKAGE_PIN T11   IOSTANDARD LVCMOS33 } [get_ports led[7]]
         let pj: serde_json::Value = serde_json::from_str(&part_json)?;
         let idcode = pj["idcode"].as_u64().unwrap_or(0x3631093);
         let mut yaml = format!("!<xilinx/xc7series/part>\nidcode: 0x{:08x}\nconfiguration_ranges:\n", idcode);
-        let mut offset = 0u32;
+        let _offset = 0u32;
         if let Some(gcr) = pj["global_clock_regions"].as_object() {
             for (region_name, region) in gcr {
                 let row_half = region_name;
@@ -8254,7 +8263,8 @@ fn run_synth_readiness(specs_dir: &str) -> anyhow::Result<()> {
     let mut has_benches = 0u32;
     let mut has_structs = 0u32;
     let mut has_enums = 0u32;
-    let mut warnings = 0u32;
+    #[allow(unused_variables)]
+    let mut _warnings = 0u32;
 
     for file in &files {
         let rel = file.to_string_lossy();
@@ -8279,7 +8289,7 @@ fn run_synth_readiness(specs_dir: &str) -> anyhow::Result<()> {
         let has_s = ast.children.iter().any(|c| c.kind == compiler::NodeKind::StructDecl);
         let has_e = ast.children.iter().any(|c| c.kind == compiler::NodeKind::EnumDecl);
 
-        if has_t { has_tests += 1; } else { warnings += 1; }
+        if has_t { has_tests += 1; } else { _warnings += 1; }
         if has_i { has_invariants += 1; }
         if has_b { has_benches += 1; }
         if has_s { has_structs += 1; }
@@ -8768,12 +8778,10 @@ fn main() -> anyhow::Result<()> {
         Commands::Hash { input } => run_hash(&input)?,
         Commands::Depth { input } => run_depth(&input)?,
         Commands::Orphans { input } => run_orphans(&input)?,
+        Commands::ValidateSeals { pr_files } => run_validate_seals(&pr_files)?,
          Commands::FpgaBuild { smoke, synth_only, minimal, device, top, docker, use_hir, nextpnr, chipdb, xdc, fasm2frames, frames2bit, prjxray_db, output } => {
              let repo_root = std::env::current_dir()?;
              run_fpga_build(&repo_root, smoke, synth_only, minimal, &device, &top, docker, use_hir, nextpnr.as_deref(), chipdb.as_deref(), xdc.as_deref(), fasm2frames.as_deref(), frames2bit.as_deref(), prjxray_db.as_deref(), &output)?;
-         }
-         Commands::ValidateSeals { pr_files } => {
-             run_validate_seals(&pr_files)?;
          }
          Commands::ValidatePhiIdentity => {
              run_validate_phi_identity()?;
@@ -8796,27 +8804,19 @@ fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
-        Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
-        }
-        Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
-        Commands::TriStatus => {
-            println!("TRI PHI LOOP: status pending implementation");
-        }
-        Commands::ValidateSeals { pr_files } => {
-            run_validate_seals(&pr_files)?;
-        }
-        Commands::Serve { .. } => {
+         Commands::TernaryEncode { value } => {
+             use crate::ternary::encode_trits;
+             let encoded = encode_trits(value);
+             println!("Encoded {} as ternary: {:?}", value, encoded);
+         }
+         Commands::SynthReadiness { specs_dir } => run_synth_readiness(&specs_dir)?,
+         Commands::TriStatus => {
+             println!("TRI PHI LOOP: status pending implementation");
+         }
+         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
             std::process::exit(1);
-        }
-        Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
         }
         Commands::TernaryDecode { trits } => {
             use crate::ternary::{parse_trits, decode_trits};

@@ -47,6 +47,7 @@ pub type Result<T> = std::result::Result<T, RuntimeError>;
 
 /// Function definition extracted from AST
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct FunctionDef {
     name: String,
     return_type: String,
@@ -523,21 +524,25 @@ impl FormulaRuntime {
     }
 
     /// Get list of all loaded function names
+    #[allow(dead_code)]
     pub fn get_function_names(&self) -> Vec<String> {
         self.functions.keys().cloned().collect()
     }
 
     /// Get information about a loaded function
+    #[allow(dead_code)]
     pub(crate) fn get_function_info<'a>(&'a self, name: &str) -> Option<&'a FunctionDef> {
         self.functions.get(name)
     }
 
     /// Clear the memoization cache
+    #[allow(dead_code)]
     pub fn clear_cache(&mut self) {
         self.function_cache.clear();
     }
 
     /// Get cache statistics
+    #[allow(dead_code)]
     pub fn cache_stats(&self) -> (usize, usize) {
         (self.function_cache.len(), self.functions.len())
     }
