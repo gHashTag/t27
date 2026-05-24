@@ -15,9 +15,11 @@
 
 pub mod csr_map;
 pub mod driver;
+pub mod gossip;
 pub mod irq;
 pub mod mmio;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use gossip::{GossipError, GossipMessage, GossipProtocol, GossipRound};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
