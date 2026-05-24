@@ -36,6 +36,7 @@ pub enum NodeKind {
     ExprStructLit,
     ExprArrayLiteral,
     ExprCast,
+    ExprConcat,
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
@@ -2354,6 +2355,9 @@ impl Parser {
             // Array literal: [_]Type{ values } or [N]Type{ values }
             TokenKind::LBracket => self.parse_array_literal(),
 
+            // Bit concatenation: {a, b, ...}
+            TokenKind::LBrace => self.parse_concat_expr(),
+
             _ => Err(format!(
                 "Unexpected token in expression: {:?} ('{}') at line {}:{}",
                 self.current.kind, self.current.lexeme, self.current.line, self.current.col
@@ -2477,6 +2481,25 @@ impl Parser {
             return Ok(repeat_node);
         }
 
+        Ok(node)
+    }
+
+    fn parse_concat_expr(&mut self) -> Result<Node, String> {
+        let mut node = Node::new(NodeKind::ExprConcat);
+        self.advance(); // consume {
+        if self.current.kind != TokenKind::RBrace {
+            let elem = self.parse_expr()?;
+            node.children.push(elem);
+            while self.current.kind == TokenKind::Comma {
+                self.advance();
+                if self.current.kind == TokenKind::RBrace {
+                    break;
+                }
+                let elem = self.parse_expr()?;
+                node.children.push(elem);
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
         Ok(node)
     }
 
@@ -3352,6 +3375,17 @@ impl Codegen {
                     self.gen_expr(&node.children[1]);
                     self.write("]");
                 }
+            }
+            NodeKind::ExprConcat => {
+                self.write("@as(u0, 0); /* concat */ ");
+                self.write("{");
+                for (i, child) in node.children.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.gen_expr(child);
+                }
+                self.write("}");
             }
             NodeKind::ExprSwitch => {
                 self.write("switch (");
@@ -4528,15 +4562,25 @@ impl VerilogCodegen {
                     self.write(&node.name);
                 }
             }
-            NodeKind::ExprIndex => {
-                if node.children.len() >= 2 {
-                    self.gen_verilog_expr(&node.children[0]);
-                    self.write("[");
-                    self.gen_verilog_expr(&node.children[1]);
-                    self.write("]");
-                }
-            }
-            NodeKind::ExprArrayLiteral => {
+             NodeKind::ExprIndex => {
+                 if node.children.len() >= 2 {
+                     self.gen_verilog_expr(&node.children[0]);
+                     self.write("[");
+                     self.gen_verilog_expr(&node.children[1]);
+                     self.write("]");
+                 }
+             }
+             NodeKind::ExprConcat => {
+                 self.write("{");
+                 for (i, child) in node.children.iter().enumerate() {
+                     if i > 0 {
+                         self.write(", ");
+                     }
+                     self.gen_verilog_expr(child);
+                 }
+                 self.write("}");
+             }
+             NodeKind::ExprArrayLiteral => {
                 // R-CA-2 (wave-31): array literals in expression context
                 // (e.g. as function-call arguments) used to emit a
                 // comment-only token `/* array [...]{} */`, which Yosys
@@ -5518,15 +5562,25 @@ impl CCodegen {
                 self.write(".");
                 self.write(&node.name);
             }
-            NodeKind::ExprIndex => {
-                if node.children.len() >= 2 {
-                    self.gen_c_expr(&node.children[0]);
-                    self.write("[");
-                    self.gen_c_expr(&node.children[1]);
-                    self.write("]");
-                }
-            }
-            NodeKind::ExprSwitch => {
+             NodeKind::ExprIndex => {
+                 if node.children.len() >= 2 {
+                     self.gen_c_expr(&node.children[0]);
+                     self.write("[");
+                     self.gen_c_expr(&node.children[1]);
+                     self.write("]");
+                 }
+             }
+             NodeKind::ExprConcat => {
+                 self.write("/* concat(");
+                 for (i, child) in node.children.iter().enumerate() {
+                     if i > 0 {
+                         self.write(", ");
+                     }
+                     self.gen_c_expr(child);
+                 }
+                 self.write(") */ 0");
+             }
+             NodeKind::ExprSwitch => {
                 // C doesn't have switch expressions. Emit as nested ternary.
                 if node.children.len() > 1 {
                     let cases = &node.children[1..];
@@ -6831,7 +6885,7 @@ fn check_expr(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
                 check_expr(child, symbols, fns, result);
             }
         }
-        NodeKind::ExprFieldAccess | NodeKind::ExprIndex => {
+        NodeKind::ExprFieldAccess | NodeKind::ExprIndex | NodeKind::ExprConcat => {
             for child in &node.children {
                 check_expr(child, symbols, fns, result);
             }
@@ -7508,18 +7562,26 @@ impl RustCodegen {
                     node.name.clone()
                 }
             }
-            NodeKind::ExprIndex => {
-                if node.children.len() >= 2 {
-                    format!(
-                        "{}[{}]",
-                        Self::expr_to_rust(&node.children[0]),
-                        Self::expr_to_rust(&node.children[1])
-                    )
-                } else {
-                    "()".to_string()
-                }
-            }
-            NodeKind::ExprIf => {
+             NodeKind::ExprIndex => {
+                 if node.children.len() >= 2 {
+                     format!(
+                         "{}[{}]",
+                         Self::expr_to_rust(&node.children[0]),
+                         Self::expr_to_rust(&node.children[1])
+                     )
+                 } else {
+                     "()".to_string()
+                 }
+             }
+             NodeKind::ExprConcat => {
+                 let parts: Vec<String> = node
+                     .children
+                     .iter()
+                     .map(Self::expr_to_rust)
+                     .collect();
+                 format!("/* concat({}) */ 0", parts.join(", "))
+             }
+             NodeKind::ExprIf => {
                 let mut s = format!("if {} {{ ", Self::expr_to_rust(&node.children[0]));
                 if node.children.len() > 1 {
                     s.push_str(&Self::expr_to_rust(&node.children[1]));
@@ -12919,22 +12981,30 @@ impl AstToHir {
                     node.name.clone()
                 }
             }
-            NodeKind::ExprIndex => {
-                if let Some(arr) = node.children.first() {
-                    if let Some(idx) = node.children.get(1) {
-                        format!(
-                            "{}[{}]",
-                            Self::expr_to_string(arr),
-                            Self::expr_to_string(idx)
-                        )
-                    } else {
-                        Self::expr_to_string(arr)
-                    }
-                } else {
-                    node.name.clone()
-                }
-            }
-            NodeKind::ExprBinary => {
+             NodeKind::ExprIndex => {
+                 if let Some(arr) = node.children.first() {
+                     if let Some(idx) = node.children.get(1) {
+                         format!(
+                             "{}[{}]",
+                             Self::expr_to_string(arr),
+                             Self::expr_to_string(idx)
+                         )
+                     } else {
+                         Self::expr_to_string(arr)
+                     }
+                 } else {
+                     node.name.clone()
+                 }
+             }
+             NodeKind::ExprConcat => {
+                 let parts: Vec<String> = node
+                     .children
+                     .iter()
+                     .map(Self::expr_to_string)
+                     .collect();
+                 format!("{{{}}}", parts.join(", "))
+             }
+             NodeKind::ExprBinary => {
                 let lhs = node
                     .children
                     .first()
@@ -21075,5 +21145,150 @@ mod tests_phase40_coverage {
         cm.hit("g1");
         cm.hit("g1");
         assert!(cm.is_complete());
+    }
+
+    #[test]
+    fn test_parse_concat_two() {
+        let src = r#"module CC {
+    pub fn cat(a: u8, b: u8) -> u16 {
+        return {a, b}
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let concat = &ret.children[0];
+        assert_eq!(concat.kind, NodeKind::ExprConcat);
+        assert_eq!(concat.children.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_concat_three() {
+        let src = r#"module CC {
+    pub fn cat3(a: u1, b: u1, c: u1) -> u3 {
+        return {a, b, c}
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let concat = &ret.children[0];
+        assert_eq!(concat.kind, NodeKind::ExprConcat);
+        assert_eq!(concat.children.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_concat_empty() {
+        let src = r#"module CC {
+    pub fn empty() -> u0 {
+        return {}
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let concat = &ret.children[0];
+        assert_eq!(concat.kind, NodeKind::ExprConcat);
+        assert_eq!(concat.children.len(), 0);
+    }
+
+    #[test]
+    fn test_verilog_concat() {
+        let src = r#"module CC {
+    pub fn cat(a: u8, b: u8) -> u16 {
+        return {a, b}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{a, b}"), "Verilog should emit {{a, b}}: got {v}");
+    }
+
+    #[test]
+    fn test_verilog_concat_three() {
+        let src = r#"module CC {
+    pub fn cat3(x: u1, y: u1, z: u1) -> u3 {
+        return {x, y, z}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{x, y, z}"), "Verilog should emit {{x, y, z}}: got {v}");
+    }
+
+    #[test]
+    fn test_c_concat_comment() {
+        let src = r#"module CC {
+    pub fn cat(a: u8, b: u8) -> u16 {
+        return {a, b}
+    }
+}"#;
+        let c = Compiler::compile_c(src).unwrap();
+        assert!(c.contains("concat"), "C should emit concat comment: got {c}");
+    }
+
+    #[test]
+    fn test_rust_concat_comment() {
+        let src = r#"module CC {
+    pub fn cat(a: u8, b: u8) -> u16 {
+        return {a, b}
+    }
+}"#;
+        let r = Compiler::compile_rust(src).unwrap();
+        assert!(r.contains("concat"), "Rust should emit concat comment: got {r}");
+    }
+
+    #[test]
+    fn test_concat_in_assignment() {
+        let src = r#"module CC {
+    pub fn build(lo: u8, hi: u8) -> u16 {
+        var word: u16 = 0
+        word = {hi, lo}
+        return word
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let assign = fn_decl.children.iter().find(|c| c.kind == NodeKind::StmtAssign).unwrap();
+        let rhs = &assign.children[1];
+        assert_eq!(rhs.kind, NodeKind::ExprConcat);
+    }
+
+    #[test]
+    fn test_concat_nested() {
+        let src = r#"module CC {
+    pub fn nested(a: u1, b: u1, c: u1) -> u3 {
+        return {{a, b}, c}
+    }
+}"#;
+        let ast = Compiler::parse_ast(src).unwrap();
+        let fn_decl = ast.children.iter().find(|c| c.kind == NodeKind::FnDecl).unwrap();
+        let ret = fn_decl.children.iter().find(|c| c.kind == NodeKind::ExprReturn).unwrap();
+        let outer = &ret.children[0];
+        assert_eq!(outer.kind, NodeKind::ExprConcat);
+        assert_eq!(outer.children.len(), 2);
+        let inner = &outer.children[0];
+        assert_eq!(inner.kind, NodeKind::ExprConcat);
+        assert_eq!(inner.children.len(), 2);
+    }
+
+    #[test]
+    fn test_verilog_concat_nested() {
+        let src = r#"module CC {
+    pub fn nested(a: u1, b: u1, c: u1) -> u3 {
+        return {{a, b}, c}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{{a, b}, c}"), "Verilog should emit nested concat: got {v}");
+    }
+
+    #[test]
+    fn test_concat_with_literals() {
+        let src = r#"module CC {
+    pub fn make() -> u4 {
+        return {1, 0}
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(v.contains("{1, 0}"), "Verilog should emit {{1, 0}}: got {v}");
     }
 }

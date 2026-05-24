@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
+
+## wave-55 -- bit concatenation operator {a, b, ...} (R-CG-4)
+
+- **WHERE** (compiler-only, additive): `NodeKind::ExprConcat` in compiler.rs; parser detects `{` in primary expression context as concatenation (not struct literal, which requires identifier prefix); Verilog emits `{a, b}` (native Verilog concatenation); C/Rust emit `/* concat(a, b) */ 0` (software backends need width info for proper shift+or, deferred to type inference wave); HIR `expr_to_string` emits `{a, b}`; 11 inline tests.
+- **Why** (R-CG-4): Bit concatenation is the mirror of bit-range extraction — essential for composing bus fields in Verilog. `{hi, lo}` is idiomatic Verilog and fundamental for FPGA datapath construction.
+- **Tests**: 11 new (parse 2/3/empty/nested/literal, Verilog 2/3/nested, C, Rust, assignment). All pass.
 
 ## wave-39 -- t27c host-side Rust driver module: BitNet AXI-Lite CSR aperture (R-HS-1, Closes #784)
 
