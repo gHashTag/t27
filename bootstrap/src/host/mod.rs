@@ -15,6 +15,7 @@
 
 pub mod bitstream;
 pub mod cmdq;
+pub mod config;
 pub mod csr_map;
 pub mod diag;
 pub mod dma;
@@ -36,6 +37,7 @@ pub mod weight_loader;
 
 pub use bitstream::{BitError, BitstreamReader};
 pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
+pub use config::{ConfigError, HostConfig, HostConfigBuilder};
 pub use diag::DiagCounters;
 pub use dma::{DmaChannel, DmaConfig, DmaError, DmaReport, DmaState};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
