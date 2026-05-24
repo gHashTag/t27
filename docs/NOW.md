@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-24
 
+## wave-48 -- fix JWT test failures — jsonwebtoken crypto provider (R-TR-2)
+
+- **WHERE** (bootstrap-only, bugfix): fixed `bootstrap/Cargo.toml` — added `aws_lc_rs` feature to `jsonwebtoken = "10"` dependency.
+- **Why** (R-TR-2): `jsonwebtoken 10.x` requires exactly one of `rust_crypto` or `aws_lc_rs` features to select a `CryptoProvider`. Without it, all JWT tests panicked with "Could not automatically determine the process-level CryptoProvider". Adding `aws_lc_rs` feature resolves it.
+- **Tests**: 858 pass (up from 855). All JWT tests now green. **First zero-failure test run on master.**
+
 ## wave-47 -- fix pre-existing test failures — toolchain reliability (R-TR-1)
 
 - **WHERE** (bootstrap-only, bugfix): fixed `bootstrap/src/ternary/mod.rs` (test logic bug in `test_encode_decode`); fixed `bootstrap/src/compiler.rs` (added `KwAs` token, lexer recognition, `parse_expr_cast` in expression precedence chain, Verilog width-cast emission `N'(expr)` for `ExprCast`).
