@@ -17,7 +17,9 @@ pub mod csr_map;
 pub mod driver;
 pub mod irq;
 pub mod mmio;
+pub mod varint;
 
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
 pub use irq::{IrqCallback, IrqCounters, IrqDrivenDriver, IrqHandler, IrqSource, ServiceReport};
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
+pub use varint::{VarintError, VarintReader, encode_u64, decode_u64, encode_i64, decode_i64, zigzag_encode, zigzag_decode};
