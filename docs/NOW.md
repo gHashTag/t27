@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-28
 
+## spec-gfternary -- normative 2-bit GoldenFloat ternary {-phi,0,+phi} (Closes #946)
+
+- **WHERE**: added `specs/numeric/gfternary.t27` -- a normative spec for the 2-bit golden-ratio ternary format. Representable values { -phi, 0, +phi } = phi * {-1, 0, +1}: a ternary-weight quantizer (cf. TWN / BitNet b1.58) with the scale fixed at phi rather than learned per layer. 2-bit codes (00->0, 01->+phi, 10->-phi, 11->reserved/folds-to-zero) in a u8 container; encode/decode/sign/negate + a `gft_from_f64(value, threshold)` TWN-style quantizer. 6 `test` + 2 `bench` (L4); phi^2 = phi + 1 and phi^2 + phi^-2 = 3 verified with f64 tolerance (L5); ASCII-only (L3). Promoted section 4 of `docs/NUMERIC_FORMATS_SSOT.md` from "concept; no normative spec" to spec-present.
+- **Why**: GFTernary was the one family member with no normative spec; this lands it at the same status tier as GF64 (spec present; Rust + `tri gen` codegen are a later phase). Closes #946.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## docs-numeric-ssot-sync -- GF256 row + TF3/GFTernary split + IGLA RACE bench (Closes #944)
 
 - **WHERE** (doc-only): `docs/NUMERIC_FORMATS_SSOT.md`. (1) Added the GF256 row to the section-1 verified-constants table (1+97+158, E/M 0.614, phi-distance 0.004; stored bias OPEN so geometry-only -- spec lives in tt-trinity-gamma, not this repo). (2) Rewrote section 4: TF3 is an 8-bit format [S1 E3 M4]=1:3:4 (GF8 geometry, BIAS 3) per `tf3.t27` line 3, NOT a 2-bit format; GFTernary is the separate 2-bit {-phi,0,+phi} concept. The doc previously contradicted its own linked spec. (3) Added section 7 measured comparison (IGLA RACE v2 val_bpb sweep: gf16 beats bf16 / parity-class fp16; gf8 ties posit8; honest caveats incl. E4M3 NO_EVAL), renumbered Uniqueness to section 8. (4) Fixed section 6 stale "GF64 no t27 spec" -> `gf64.t27` is present (#916), only C codegen missing.
