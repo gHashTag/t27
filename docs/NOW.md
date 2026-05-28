@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-24
+Last updated: 2026-05-28
+
+## docs-numeric-formats-ssot -- canonical SSOT for GoldenFloat family (doc-only, Closes #915)
+
+- **WHERE** (doc-only): added `docs/NUMERIC_FORMATS_SSOT.md`. Consolidates the verified GF4-GF64 constants table (BIAS, bit-budget, phi-distance), the empirical PHI_BIAS table (H_E; retracts the EXP_MAX-BIAS formula), the GF256 three-kinds disambiguation (GF(2^8) field 0x11D vs 256-bit float vs binary256-range candidate), GFTernary, candidate formats, split-revision history, and claim discipline. Links every `specs/numeric/*.t27`. The GOLDEN CHAIN brochure numeric chapter is now derived from this file.
+- **Why**: numeric-format data was scattered (specs, whitepaper, gamma FPGA, brochure) with known conflicts; this is the one source of truth. Closes #915.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
