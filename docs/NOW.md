@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-28
 
+## docs-numeric-ssot-sync -- GF256 row + TF3/GFTernary split + IGLA RACE bench (Closes #944)
+
+- **WHERE** (doc-only): `docs/NUMERIC_FORMATS_SSOT.md`. (1) Added the GF256 row to the section-1 verified-constants table (1+97+158, E/M 0.614, phi-distance 0.004; stored bias OPEN so geometry-only -- spec lives in tt-trinity-gamma, not this repo). (2) Rewrote section 4: TF3 is an 8-bit format [S1 E3 M4]=1:3:4 (GF8 geometry, BIAS 3) per `tf3.t27` line 3, NOT a 2-bit format; GFTernary is the separate 2-bit {-phi,0,+phi} concept. The doc previously contradicted its own linked spec. (3) Added section 7 measured comparison (IGLA RACE v2 val_bpb sweep: gf16 beats bf16 / parity-class fp16; gf8 ties posit8; honest caveats incl. E4M3 NO_EVAL), renumbered Uniqueness to section 8. (4) Fixed section 6 stale "GF64 no t27 spec" -> `gf64.t27` is present (#916), only C codegen missing.
+- **Why**: the canonical numeric SSOT had drifted from the per-format specs and the derived GOLDEN CHAIN brochure chapter; keeps this file and `specs/numeric/*.t27` in lockstep (L6). Closes #944.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## spec-gf64-and-gf236-resolution -- GF64 spec added, GF236 resolved (Closes #916)
 
 - **WHERE**: added `specs/numeric/gf64.t27` (24:39 split, BIAS 8388607, PHI_BIAS 8388608 = EXP_MAX-BIAS, phi-distance 0.00265 — best on the ladder); linked it in `docs/NUMERIC_FORMATS_SSOT.md` (GF64 Spec column was empty). Resolved "GF236": 236 is the mantissa width of IEEE binary256, not a format — the canonical 256-bit GoldenFloat is GF256.
