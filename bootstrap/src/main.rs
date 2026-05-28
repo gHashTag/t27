@@ -8508,18 +8508,10 @@ fn main() -> anyhow::Result<()> {
         Commands::TriStatus => {
             println!("TRI PHI LOOP: status pending implementation");
         }
-        Commands::ValidateSeals { pr_files } => {
-            run_validate_seals(&pr_files)?;
-        }
         Commands::Serve { .. } => {
             eprintln!("Error: 'serve' command requires 'server' feature");
             eprintln!("Build with: cargo build --release --features server");
             std::process::exit(1);
-        }
-        Commands::TernaryEncode { value } => {
-            use crate::ternary::encode_trits;
-            let encoded = encode_trits(value);
-            println!("Encoded {} as ternary: {:?}", value, encoded);
         }
         Commands::TernaryDecode { trits } => {
             use crate::ternary::{parse_trits, decode_trits};

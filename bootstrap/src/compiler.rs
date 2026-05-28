@@ -5501,7 +5501,9 @@ impl CCodegen {
                         self.gen_c_expr(&node.children[0]);
                     }
                     self.write(")) >> 31)");
-                } else if fname == "std.math.inf" || fname == "std.math.nan" {
+                } else if fname == "std.math.inf" {
+                    self.write("INFINITY");
+                } else if fname == "std.math.nan" {
                     self.write("NAN");
                 } else if fname == "std.math.isNan" {
                     self.write("isnan(");
@@ -7662,7 +7664,7 @@ impl RustCodegen {
                 let mut s = format!("match {} {{\n", scrutinee);
                 for i in 1..node.children.len() {
                     let arm = &node.children[i];
-                    if arm.kind == NodeKind::Module {
+                    if arm.kind == NodeKind::ConstDecl {
                         let pattern = if !arm.name.is_empty() {
                             arm.name.clone()
                         } else {
@@ -9956,7 +9958,7 @@ impl VcdChange {
 
     pub fn format_binary(&self) -> String {
         if self.bit_width == 1 {
-            format!("{}", self.value & 1)
+            format!("{}{}", self.value & 1, self.ident)
         } else {
             format!(
                 "b{:0width$b} {}",
@@ -17416,7 +17418,7 @@ mod tests_hir_vcd_trace {
     #[test]
     fn test_format_binary_single_bit() {
         let c = VcdChange::new(0, "!", 1, 1);
-        assert_eq!(c.format_binary(), "1");
+        assert_eq!(c.format_binary(), "1!");
     }
 
     #[test]
