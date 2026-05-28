@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-28
 
+## docs-ternary-rows -- TF3 + GFTernary added to NUMERIC_FORMATS_SSOT section-1 table (Closes #973)
+
+- **WHERE** (doc-only): `docs/NUMERIC_FORMATS_SSOT.md` section 1. Added two rows so the canonical verified-constants table lists all 11 specced members (was 9 floats only): **TF3** (1+3+4, 8-bit, bias 3, phi-distance 0.132 -- shares GF8 geometry; ternary-weight container) and **GFTernary** (2-bit code; E/M columns N/A; phi-distance 0.000 by construction). Added a footnote that these two are not float-ladder rungs and a note that GFTernary's 0.000 is by-construction (not an E/M split), so "closest split = GF64" is unchanged.
+- **Why**: the derived GOLDEN CHAIN brochure now lists all 11 members in one table; the canonical SSOT listed the ternary members only in section 4, a float/ternary drift. This keeps the canonical doc, the brochure, `gf-format-audit`, and `GOLDENFLOAT_FAMILY.md` mutually consistent. Closes #973.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## spec-gfternary -- normative 2-bit GoldenFloat ternary {-phi,0,+phi} (Closes #946)
 
 - **WHERE**: added `specs/numeric/gfternary.t27` -- a normative spec for the 2-bit golden-ratio ternary format. Representable values { -phi, 0, +phi } = phi * {-1, 0, +1}: a ternary-weight quantizer (cf. TWN / BitNet b1.58) with the scale fixed at phi rather than learned per layer. 2-bit codes (00->0, 01->+phi, 10->-phi, 11->reserved/folds-to-zero) in a u8 container; encode/decode/sign/negate + a `gft_from_f64(value, threshold)` TWN-style quantizer. 6 `test` + 2 `bench` (L4); phi^2 = phi + 1 and phi^2 + phi^-2 = 3 verified with f64 tolerance (L5); ASCII-only (L3). Promoted section 4 of `docs/NUMERIC_FORMATS_SSOT.md` from "concept; no normative spec" to spec-present.

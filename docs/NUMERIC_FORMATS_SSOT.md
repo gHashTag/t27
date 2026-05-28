@@ -28,15 +28,22 @@ These four columns are mathematically exact and independently re-derived.
 | GF32 | 1+12+19| 32 | 2047    | 4095     | 0.632 | 0.014 | [`gf32.t27`](../specs/numeric/gf32.t27) |
 | GF64 | 1+24+39| 64 | 8388607 | 16777215 | 0.615 | 0.003 | [`gf64.t27`](../specs/numeric/gf64.t27) |
 | GF256| 1+97+158|256| 2⁹⁶−1 †  | 2⁹⁷−1 †  | 0.614 | 0.004 | *gamma; bias OPEN* |
+| TF3  | 1+3+4  | 8  | 3       | 7        | 0.750 | 0.132 | [`tf3.t27`](../specs/numeric/tf3.t27) |
+| GFTernary | 2-bit code | 2 | — | — | — | 0.000 | [`gfternary.t27`](../specs/numeric/gfternary.t27) |
 
 † **GF256 caveat.** Its *stored* exponent-bias constant (≈ 2⁷¹) is unreconciled
 with `2^(E−1)−1 = 2⁹⁶−1`, so the bias is **OPEN** (see §3); only its geometry
 (97/158 split, φ-distance 0.004) is verified. The spec lives in
 `tt-trinity-gamma/specs/fpga/gf256.t27`, **not** this repo.
 
+The last two rows are **not** float-ladder rungs: **TF3** is an 8-bit
+ternary-weight container reusing GF8's 1:3:4 geometry (so it shares GF8's
+constants); **GFTernary** is the 2-bit {−φ, 0, +φ} limit — no exponent/mantissa
+split (columns N/A), φ-distance 0 by construction.
+
 Family base: [`goldenfloat_family.t27`](../specs/numeric/goldenfloat_family.t27).
-Closest split to 1/φ is GF64 (0.003), then GF256 (0.004); GF12 (0.047) is best
-among ≤16-bit.
+Closest *split* to 1/φ is GF64 (0.003), then GF256 (0.004); GF12 (0.047) is best
+among ≤16-bit. (GFTernary's 0.000 is by construction, not an E/M split.)
 GF64 carries `PHI_BIAS = 8388608` — the one format where it coincides with
 `EXP_MAX − BIAS = 2²³`.
 
