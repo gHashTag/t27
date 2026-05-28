@@ -77,9 +77,12 @@ Two **distinct** objects — do not conflate (the spec is authoritative):
   geometry as GF8), BIAS 3, used to encode ternary neural-network *weights*. It
   is a storage container, **not** a 2-bit format. Spec:
   [`tf3.t27`](../specs/numeric/tf3.t27) (line 3: "8-bit representation").
-- **GFTernary** — the conceptual **2-bit** limit case, values in {−φ, 0, +φ},
-  φ-distance **0.000** by construction; the {−1, 0, +1} substrate of the Three
-  Crowns. Concept only — **no normative spec**; ROADMAP.
+- **GFTernary** — the **2-bit** member, values in {−φ, 0, +φ} = φ·{−1, 0, +1}:
+  a ternary-weight quantizer with the scale fixed at φ (cf. TWN / BitNet b1.58,
+  whose scale α is learned per layer). φ-distance **0.000** by construction (its
+  nonzero magnitude is exactly the anchor φ); the {−1, 0, +1} substrate of the
+  Three Crowns. Spec: [`gfternary.t27`](../specs/numeric/gfternary.t27);
+  Rust / `tri gen` codegen ROADMAP (same tier as GF64).
 - **Candidates (no normative spec):** GF6 (φ-gap fill 4↔8), GF128
   (binary128-range φ). NOT CLAIMED.
 
