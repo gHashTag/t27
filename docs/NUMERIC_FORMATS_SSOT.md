@@ -26,10 +26,12 @@ These four columns are mathematically exact and independently re-derived.
 | GF20 | 1+7+12 | 20 | 63      | 127      | 0.583 | 0.035 | [`gf20.t27`](../specs/numeric/gf20.t27) |
 | GF24 | 1+9+14 | 24 | 255     | 511      | 0.643 | 0.025 | [`gf24.t27`](../specs/numeric/gf24.t27) |
 | GF32 | 1+12+19| 32 | 2047    | 4095     | 0.632 | 0.014 | [`gf32.t27`](../specs/numeric/gf32.t27) |
-| GF64 | 1+24+39| 64 | 8388607 | 16777215 | 0.615 | 0.003 | *(no t27 spec yet — whitepaper table only)* |
+| GF64 | 1+24+39| 64 | 8388607 | 16777215 | 0.615 | 0.003 | [`gf64.t27`](../specs/numeric/gf64.t27) |
 
 Family base: [`goldenfloat_family.t27`](../specs/numeric/goldenfloat_family.t27).
 Closest split to 1/φ is GF64 (0.003); GF12 (0.047) is best among ≤16-bit.
+GF64 carries `PHI_BIAS = 8388608` — the one format where it coincides with
+`EXP_MAX − BIAS = 2²³`.
 
 ## 2. PHI_BIAS — empirical per format (H_E), NOT a closed-form law
 
@@ -80,7 +82,10 @@ The whitepaper's latest family table matches the canonical splits above.
   (97.67% MNIST MLP, 0.00% accuracy gap vs f32).
 - **GF32 — claimed; three historical layouts** (12:19 canonical).
 - **GF4/8/12/20/24, GF64 — ROADMAP** (spec / extract-only; GF64 no t27 spec).
-- **GF256 float — ROADMAP** (bias OPEN). **GF236 — does not exist.**
+- **GF256 float — ROADMAP** (bias OPEN). **GF236 — does not exist (resolved).** `236` is the *mantissa width* of
+IEEE **binary256** (1 + 19 + 236 = 256 bits), not a GoldenFloat format. The
+name "GF236" conflated that mantissa count with a format label. The canonical
+256-bit GoldenFloat is **GF256** (see §3); there is no GF236.
 
 ## 7. Uniqueness (defensible claim)
 
