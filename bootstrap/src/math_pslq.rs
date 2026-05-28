@@ -395,23 +395,23 @@ fn run_verification(catalog_path: Option<String>, max_error: f64) -> anyhow::Res
 
         // Compute Sacred Formula value: V = n * 3^m * π^k * φ^p * e^q * 1^r
         let ln_3 = hp_ln_3(&context);
-        let ln_pi = hp_pi_pow(&context, k).ln();
-        let ln_phi = hp_phi_pow(&context, p).ln();
-        let ln_e = rug::Float::with_val(context.precision, std::f64::consts::E).ln();
+        let ln_pi_const = rug::Float::with_val(context.precision, std::f64::consts::PI).ln();
+        let ln_phi_const = rug::Float::with_val(context.precision, PHI).ln();
+        let e_val = rug::Float::with_val(context.precision, std::f64::consts::E);
 
         let value = rug::Float::with_val(context.precision, n as f64)
             * rug::Float::with_val(context.precision, 3).pow(m as i32)
             * hp_pi_pow(&context, k)
             * hp_phi_pow(&context, p)
-            * ln_e.pow(q as i32);
+            * e_val.pow(q as i32);
 
         let value_f64 = value.to_f64();
 
         // Check for relation with integer coefficients
         let test_vector = vec![
             ln_3.clone(),
-            ln_pi.clone(),
-            ln_phi.clone(),
+            ln_pi_const.clone(),
+            ln_phi_const.clone(),
             rug::Float::with_val(context.precision, 1.0),
         ];
 

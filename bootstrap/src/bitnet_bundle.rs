@@ -24,7 +24,7 @@ use crate::bitnet_axi::build_axi_lite_slave;
 use crate::bitnet_buffers::{build_double_buffer_ctrl, build_weight_prefetch_ctrl};
 use crate::bitnet_dma::build_dma_controller;
 use crate::bitnet_irq::build_interrupt_controller;
-use crate::bitnet_pipeline::{build_layer_sequencer, build_pipeline_stage2};
+use crate::bitnet_pipeline::{build_layer_sequencer, build_multilayer_sequencer, build_pipeline_stage2};
 use crate::bitnet_top::build_bitnet_engine_top;
 use crate::weight_bram::build_default_weight_bram;
 
@@ -87,6 +87,7 @@ pub const BUNDLE_ORDER: &[&str] = &[
     "weight_bram.sv",
     "pipeline_stage2_compute.sv",
     "layer_sequencer.sv",
+    "multilayer_sequencer.sv",
     "double_buffer_ctrl.sv",
     "weight_prefetch_ctrl.sv",
     "axi_lite_slave.sv",
@@ -97,8 +98,8 @@ pub const BUNDLE_ORDER: &[&str] = &[
     "manifest.txt",
 ];
 
-/// Total expected file count in a bundle (10 SV files + 1 manifest).
-pub const BUNDLE_FILE_COUNT: usize = 11;
+/// Total expected file count in a bundle (11 SV files + 1 manifest).
+pub const BUNDLE_FILE_COUNT: usize = 12;
 
 /// Canonical BitNet HLS behavior set (4 properties, v2-emittable).
 ///
@@ -196,6 +197,10 @@ pub fn build_sv_entries(config: &BundleConfig<'_>) -> Vec<BundleEntry> {
             content: build_layer_sequencer("layer_sequencer"),
         },
         BundleEntry {
+            filename: "multilayer_sequencer.sv".to_string(),
+            content: build_multilayer_sequencer("multilayer_sequencer"),
+        },
+        BundleEntry {
             filename: "double_buffer_ctrl.sv".to_string(),
             content: build_double_buffer_ctrl("double_buffer_ctrl"),
         },
@@ -278,14 +283,14 @@ mod tests {
     }
 
     #[test]
-    fn bundle_order_has_eleven_entries() {
-        assert_eq!(BUNDLE_ORDER.len(), 11);
-        assert_eq!(BUNDLE_FILE_COUNT, 11);
+    fn bundle_order_has_twelve_entries() {
+        assert_eq!(BUNDLE_ORDER.len(), 12);
+        assert_eq!(BUNDLE_FILE_COUNT, 12);
     }
 
     #[test]
     fn bundle_order_ends_with_manifest() {
-        assert_eq!(BUNDLE_ORDER[10], "manifest.txt");
+        assert_eq!(BUNDLE_ORDER[11], "manifest.txt");
     }
 
     #[test]
@@ -308,10 +313,10 @@ mod tests {
     }
 
     #[test]
-    fn build_sv_entries_returns_ten_files() {
+    fn build_sv_entries_returns_eleven_files() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        assert_eq!(entries.len(), 10);
+        assert_eq!(entries.len(), 11);
     }
 
     #[test]
@@ -340,17 +345,17 @@ mod tests {
     }
 
     #[test]
-    fn build_bundle_entries_returns_eleven() {
+    fn build_bundle_entries_returns_twelve() {
         let cfg = BundleConfig::default();
         let entries = build_bundle_entries(&cfg);
-        assert_eq!(entries.len(), 11);
+        assert_eq!(entries.len(), 12);
     }
 
     #[test]
     fn build_bundle_entries_last_is_manifest() {
         let cfg = BundleConfig::default();
         let entries = build_bundle_entries(&cfg);
-        assert_eq!(entries[10].filename, "manifest.txt");
+        assert_eq!(entries[11].filename, "manifest.txt");
     }
 
     #[test]
@@ -398,7 +403,7 @@ mod tests {
             ..BundleConfig::default()
         };
         let entries = build_sv_entries(&cfg);
-        let top = &entries[8].content;
+        let top = &entries[9].content;
         assert!(top.contains("my_engine"));
     }
 
@@ -432,7 +437,7 @@ mod tests {
     fn behavior_sva_block_present_in_bundle() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        let sva = &entries[9].content;
+        let sva = &entries[10].content;
         assert!(sva.contains("property "));
         assert!(sva.contains("assert property"));
     }
@@ -441,7 +446,7 @@ mod tests {
     fn behavior_sva_block_includes_s_eventually() {
         let cfg = BundleConfig::default();
         let entries = build_sv_entries(&cfg);
-        let sva = &entries[9].content;
+        let sva = &entries[10].content;
         // start_eventually_done uses the v2 s_eventually consequent.
         assert!(sva.contains("s_eventually"));
     }

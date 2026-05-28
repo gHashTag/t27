@@ -262,6 +262,7 @@ pub fn validate_conformance(repo_root: &Path) -> anyhow::Result<()> {
 
     let mut pass = 0usize;
     let mut fail = 0usize;
+    let mut skip = 0usize;
     let mut entries: Vec<PathBuf> = fs::read_dir(&dir)
         .with_context(|| format!("read_dir {}", dir.display()))?
         .filter_map(|e| e.ok())
@@ -301,16 +302,19 @@ pub fn validate_conformance(repo_root: &Path) -> anyhow::Result<()> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown");
             println!("WARN: {} has no vectors (module={})", p.display(), module);
+            skip += 1;
+        } else {
+            pass += 1;
         }
-        pass += 1;
     }
 
     println!();
     println!(
-        "Conformance files: {} total, {} valid, {} invalid",
-        pass + fail,
+        "Conformance files: {} total, {} valid, {} invalid, {} empty/skipped",
+        pass + fail + skip,
         pass,
-        fail
+        fail,
+        skip
     );
     if fail == 0 {
         println!("ALL CONFORMANCE VALID");

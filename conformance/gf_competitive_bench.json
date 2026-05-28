@@ -18,7 +18,7 @@
           "phi_squared_equals_phi_plus_one": true,
           "trinity_identity": true,
           "one_third_exact": true,
-          "gf32_one_third_repeats_binary": true
+          "gf32_one_third_repeats_binary": true,
         "all_passed": true
         }
       },

@@ -360,7 +360,7 @@ fn run_scan(repo_root: &Path, target_value: f64, threshold: f64) -> anyhow::Resu
         }
     }
 
-    matches.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+    matches.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
     println!("| Formula | Value | Target | Δ% | Status |");
     println!("|---------|-------|--------|-----|--------|");

@@ -193,9 +193,9 @@ endmodule
 const MOD_TRIT_FULL_ADDER: &str = "\
 // ----------------------------------------------------------------------------
 // trit_full_adder -- a + b + cin = (sum, cout)
-//   Built from two half adders + a carry-combine via trit_or (Kleene max).
-//   When both half-adder carries are nonzero they always share the same sign,
-//   so trit_or correctly combines them without overflow.
+//   Built from two half adders. The two half-adder carries are combined
+//   by a dedicated carry-add: carry1 + carry2 produces values in {-2..+2},
+//   mapped to balanced-ternary carry via sign detection.
 // ----------------------------------------------------------------------------
 module trit_full_adder (
     input  wire [1:0] a,
@@ -211,7 +211,13 @@ module trit_full_adder (
     trit_half_adder ha1 (.a(a),    .b(b),   .sum(sum1), .carry(carry1));
     trit_half_adder ha2 (.a(sum1), .b(cin), .sum(sum),  .carry(carry2));
 
-    trit_or carry_combine (.a(carry1), .b(carry2), .result(cout));
+    // carry1 + carry2 ∈ {-2, -1, 0, +1, +2}
+    // Balanced-ternary: cout = sign(carry1+carry2), encoded as TRIT_N/TRIT_Z/TRIT_P
+    // Intermediate sum remainder absorbed into final sum via half-adder chain.
+    wire signed [2:0] c1 = carry1 == 2'b10 ? 3'sd1 : (carry1 == 2'b00 ? 3'sd0 : -3'sd1);
+    wire signed [2:0] c2 = carry2 == 2'b10 ? 3'sd1 : (carry2 == 2'b00 ? 3'sd0 : -3'sd1);
+    wire signed [3:0] csum = c1 + c2;
+    assign cout = (csum > 0) ? 2'b10 : (csum < 0) ? 2'b01 : 2'b00;
 endmodule
 
 ";
@@ -440,10 +446,9 @@ mod tests {
     #[test]
     fn full_adder_uses_two_half_adders_and_or_combine() {
         let v = build_trit_stdlib_verilog();
-        // Two trit_half_adder instances inside trit_full_adder.
         let count = v.matches("trit_half_adder ha").count();
         assert_eq!(count, 2, "trit_full_adder must instantiate exactly 2 half adders, got {}", count);
-        assert!(v.contains("trit_or carry_combine"), "trit_full_adder must combine carries via trit_or");
+        assert!(v.contains("c1 + c2"), "trit_full_adder must combine carries via signed addition");
     }
 
     #[test]

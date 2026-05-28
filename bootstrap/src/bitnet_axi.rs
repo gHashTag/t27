@@ -169,6 +169,8 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("            reg_output_addr <= 64'd0;\n");
     s.push_str("            s_axi_rdata <= {DATA_WIDTH{1'b0}};\n");
     s.push_str("        end else begin\n");
+    s.push_str("            // ---- B-channel handshake clear (must precede write-accept so accept wins) ---\n");
+    s.push_str("            if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;\n");
     s.push_str("            // ---- Write channel --------------------------------------------\n");
     s.push_str("            if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin\n");
     s.push_str("                case (s_axi_awaddr[5:2])\n");
@@ -188,8 +190,9 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                endcase\n");
     s.push_str("                s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;\n");
     s.push_str("            end\n");
-    s.push_str("            if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;\n");
-    s.push_str("            // ---- Read channel ---------------------------------------------\n");
+    s.push_str("            // Read channel\n");
+    s.push_str("            // R-channel handshake clear (must precede read-accept so accept wins)\n");
+    s.push_str("            if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;\n");
     s.push_str("            if (s_axi_arvalid && s_axi_arready) begin\n");
     s.push_str("                case (s_axi_araddr[5:2])\n");
     s.push_str("                    4'h0: s_axi_rdata <= reg_ctrl;\n");
@@ -212,7 +215,6 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                endcase\n");
     s.push_str("                s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;\n");
     s.push_str("            end\n");
-    s.push_str("            if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;\n");
     s.push_str("        end\n");
     s.push_str("    end\n");
     s.push_str("\n");

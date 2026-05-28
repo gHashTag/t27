@@ -4335,7 +4335,8 @@ fn run_validate_seals(pr_files: &str) -> Result<(), anyhow::Error> {
                         failures += 1;
                     }
                 } else {
-                    println!("  SKIP {} (no saved seal at {})", spec_path, seal_path.display());
+                    eprintln!("  FAIL {} (no saved seal at {})", spec_path, seal_path.display());
+                    failures += 1;
                 }
             }
             Err(e) => {

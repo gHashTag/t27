@@ -167,8 +167,8 @@ fn trit_full_adder_uses_two_half_adders_and_or_combine() {
         ha_count, body
     );
     assert!(
-        body.contains("trit_or carry_combine"),
-        "trit_full_adder must combine half-adder carries via trit_or"
+        body.contains("c1 + c2"),
+        "trit_full_adder must combine half-adder carries via signed addition"
     );
 }
 

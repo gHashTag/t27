@@ -241,7 +241,6 @@ impl FormulaRuntime {
 
         // Restore local scope
         self.local_vars.pop();
-        self.local_vars.push(saved_vars);
 
         let value = result.ok_or_else(|| {
             RuntimeError::InvalidExpression(format!("Function {} did not return a value", formula_id))
@@ -444,6 +443,24 @@ impl FormulaRuntime {
                 // User-defined function - delegate to evaluate()
                 // But only if it's actually a function (not a constant)
                 if self.functions.contains_key(&func_name) {
+                    if let Some(func) = self.functions.get(&func_name) {
+                        if func.params.len() != args.len() {
+                            return Err(RuntimeError::InvalidArgumentCount(
+                                func_name.clone(),
+                                func.params.len(),
+                                args.len(),
+                            ));
+                        }
+                        let saved = self.local_vars.last().cloned().unwrap_or_default();
+                        let mut new_scope = saved;
+                        for (param_name, arg_val) in func.params.iter().zip(args.iter()) {
+                            new_scope.insert(param_name.clone(), *arg_val);
+                        }
+                        self.local_vars.push(new_scope);
+                        let result = self.evaluate(&func_name);
+                        self.local_vars.pop();
+                        return result;
+                    }
                     return self.evaluate(&func_name);
                 }
                 // Check symbol table (constants)

@@ -322,8 +322,9 @@ mod tests {
         let h = IrqHandler::new(); // no callbacks
         let rep = h.service(&mut m);
         assert_eq!(rep.dispatched, 0);
-        // Without a handler the bit stays latched.
-        assert_ne!(m.peek(csr_map::IRQ_STAT) & csr_map::IRQ_DMA_DONE_MASK, 0);
+        // Read-to-clear: the read in service() clears ALL bits regardless of
+        // whether a handler was registered.
+        assert_eq!(m.peek(csr_map::IRQ_STAT), 0);
     }
 
     #[test]

@@ -162,7 +162,12 @@ fn append_akashic(root: &Path, event: &AkashicEvent) {
 }
 
 fn url(root: &Path, path: &str) -> String {
-    format!("{}{}?directory={}", BASE_URL, path, root.to_string_lossy())
+    let base = format!("{}{}", BASE_URL, path);
+    if base.contains('?') {
+        format!("{}&directory={}", base, root.to_string_lossy())
+    } else {
+        format!("{}?directory={}", base, root.to_string_lossy())
+    }
 }
 
 fn cmd_status(root: &Path) {
@@ -297,7 +302,7 @@ fn cmd_watch(root: &Path, session_id: &str) {
         if let Ok(r) = client
             .get(url(
                 root,
-                &format!("/session/{}/message&limit=5", session_id),
+                &format!("/session/{}/message?limit=5", session_id),
             ))
             .send()
         {

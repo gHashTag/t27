@@ -690,7 +690,8 @@ impl Lexer {
         }
 
         // Multi-char tokens
-        if ch == b'&' && self.peek() == b'&' {
+        let next_ch = if self.pos + 1 < self.source.len() { self.source[self.pos + 1] } else { 0 };
+        if ch == b'&' && next_ch == b'&' {
             self.advance();
             self.advance();
             return Token {
@@ -700,7 +701,7 @@ impl Lexer {
                 col: start_col,
             };
         }
-        if ch == b'|' && self.peek() == b'|' {
+        if ch == b'|' && next_ch == b'|' {
             self.advance();
             self.advance();
             return Token {
@@ -4442,15 +4443,53 @@ impl VerilogCodegen {
                 self.write(&node.name);
             }
             NodeKind::ExprCall => {
-                self.write(&node.name);
-                self.write("(");
-                for (i, arg) in node.children.iter().enumerate() {
-                    if i > 0 {
-                        self.write(", ");
+                let fname = &node.name;
+                if fname == "@as" {
+                    if node.children.len() >= 2 {
+                        self.gen_verilog_expr(&node.children[1]);
+                    } else if !node.children.is_empty() {
+                        self.gen_verilog_expr(&node.children[0]);
                     }
-                    self.gen_verilog_expr(arg);
+                } else if fname == "@intCast" || fname == "@truncate" || fname == "@bitCast" || fname == "@floatFromInt" || fname == "@floatToInt" {
+                    if !node.children.is_empty() {
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
+                } else if fname == "@exp2" {
+                    if !node.children.is_empty() {
+                        self.write("2.0**");
+                        self.write("(");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(")");
+                    }
+                } else if fname == "std.math.signbit" {
+                    if !node.children.is_empty() {
+                        self.write("(");
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write("[31])");
+                    }
+                } else if fname == "std.math.inf" {
+                    self.write("32'h7F800000");
+                } else if fname == "std.math.nan" {
+                    self.write("32'h7FC00000");
+                } else if fname == "std.testing.expectEqual" || fname == "std.testing.expect" {
+                    if fname == "std.testing.expectEqual" && node.children.len() >= 2 {
+                        self.gen_verilog_expr(&node.children[0]);
+                        self.write(" == ");
+                        self.gen_verilog_expr(&node.children[1]);
+                    } else if !node.children.is_empty() {
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
+                } else {
+                    self.write(fname);
+                    self.write("(");
+                    for (i, arg) in node.children.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.gen_verilog_expr(arg);
+                    }
+                    self.write(")");
                 }
-                self.write(")");
             }
             NodeKind::ExprBinary => {
                 if node.children.len() >= 2 {
@@ -5438,13 +5477,38 @@ impl CCodegen {
                     } else if !node.children.is_empty() {
                         self.gen_c_expr(&node.children[0]);
                     }
-                } else if fname == "@intCast" || fname == "@truncate" {
-                    // Zig cast builtins → pass through the value argument
+                } else if fname == "@intCast" || fname == "@truncate" || fname == "@floatFromInt" || fname == "@floatToInt" {
                     if !node.children.is_empty() {
                         self.write("(");
                         self.gen_c_expr(&node.children[0]);
                         self.write(")");
                     }
+                } else if fname == "@bitCast" {
+                    self.write("*(uint32_t*)(&");
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                    self.write(")");
+                } else if fname == "@exp2" {
+                    self.write("exp2(");
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                    self.write(")");
+                } else if fname == "std.math.signbit" {
+                    self.write("((*(uint32_t*)(&");
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                    self.write(")) >> 31)");
+                } else if fname == "std.math.inf" || fname == "std.math.nan" {
+                    self.write("NAN");
+                } else if fname == "std.math.isNan" {
+                    self.write("isnan(");
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                    self.write(")");
                 } else if fname.starts_with("gf16_") {
                     // GF16 builtins — emit as function call
                     self.write(fname);
@@ -6148,6 +6212,19 @@ fn child_key(node: &Node) -> String {
         NodeKind::ExprLiteral => format!("LIT:{}", node.value),
         NodeKind::ExprIdentifier => format!("ID:{}", node.name),
         NodeKind::ExprBinary => expr_key(node).unwrap_or_default(),
+        NodeKind::ExprCall => {
+            let args: Vec<String> = node.children.iter().map(child_key).collect();
+            format!("CALL:{}({})", node.name, args.join(","))
+        }
+        NodeKind::ExprUnary => {
+            format!("UNARY:{}{}", node.extra_op, child_key(&node.children[0]))
+        }
+        NodeKind::ExprFieldAccess => {
+            format!("FIELD:{}.{}", child_key(&node.children[0]), node.name)
+        }
+        NodeKind::ExprIndex => {
+            format!("IDX:{}[{}]", child_key(&node.children[0]), child_key(&node.children[1]))
+        }
         _ => format!("{:?}", node.kind),
     }
 }
@@ -6291,10 +6368,16 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
             && !reads.contains(&s.name) {
                 return false;
             }
-        if s.kind == NodeKind::StmtAssign && !s.children.is_empty()
-            && !reads.contains(&s.name) {
+        if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
+            let target_name = if s.children[0].kind == NodeKind::ExprIdentifier {
+                &s.children[0].name
+            } else {
+                return true;
+            };
+            if !reads.contains(target_name) {
                 return false;
             }
+        }
         true
     });
     stats.dead_stores += (before - stmts.len()) as u32;
@@ -6559,6 +6642,22 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
             }
             for body_child in &child.children {
                 check_stmt(body_child, &fn_symbols, &fns, &mut result);
+                if body_child.kind == NodeKind::StmtLocal {
+                    let t = if body_child.extra_type.is_empty() {
+                        if body_child.children.is_empty() {
+                            TypeInfo::Unknown
+                        } else {
+                            infer_expr(&body_child.children[0], &fn_symbols, &fns)
+                        }
+                    } else {
+                        resolve_type_str(&body_child.extra_type)
+                    };
+                    fn_symbols.push(SymbolEntry {
+                        name: body_child.name.clone(),
+                        type_info: t,
+                        is_mutable: body_child.extra_mutable,
+                    });
+                }
             }
 
             let mut found_return = false;
@@ -6954,13 +7053,25 @@ fn types_compatible(target: &TypeInfo, value: &TypeInfo) -> bool {
     if target == value {
         return true;
     }
-    if *target == TypeInfo::F32 && *value == TypeInfo::F64 {
+    if *target == TypeInfo::F64 && *value == TypeInfo::F32 {
         return true;
     }
     if *target == TypeInfo::GF16 && (*value == TypeInfo::F32 || *value == TypeInfo::F64) {
         return true;
     }
-    type_rank(target) >= type_rank(value)
+    let tr = type_rank(target);
+    let vr = type_rank(value);
+    if tr >= vr {
+        if is_signed(target) != is_signed(value) && tr == vr {
+            return false;
+        }
+        return true;
+    }
+    false
+}
+
+fn is_signed(t: &TypeInfo) -> bool {
+    matches!(t, TypeInfo::I8 | TypeInfo::I16 | TypeInfo::I32 | TypeInfo::I64 | TypeInfo::F32 | TypeInfo::F64)
 }
 
 fn resolve_type_str(s: &str) -> TypeInfo {
@@ -7212,7 +7323,12 @@ impl RustCodegen {
                         };
                         if child.children.len() >= 2 {
                             let val = Self::expr_to_rust(&child.children[1]);
-                            self.write_line(&format!("{} = {};", target, val));
+                            let op = if child.extra_op == "+=" { " += " }
+                                else if child.extra_op == "-=" { " -= " }
+                                else if child.extra_op == "*=" { " *= " }
+                                else if child.extra_op == "/=" { " /= " }
+                                else { " = " };
+                            self.write_line(&format!("{}{}{};", target, op, val));
                         } else {
                             self.write_line(&format!("{};", target));
                         }
@@ -7261,7 +7377,9 @@ impl RustCodegen {
                     NodeKind::StmtFor => {
                         self.write_indent();
                         self.write("for ");
-                        if child.children.len() > 1 {
+                        if !child.params.is_empty() {
+                            self.write(&child.params[0].0);
+                        } else if child.children.len() > 1 {
                             self.write(&child.children[1].name);
                         }
                         self.write(" in ");
@@ -7278,7 +7396,10 @@ impl RustCodegen {
                         self.indent -= 1;
                         self.write_line("}");
                     }
-                    _ => {}
+                    _ => {
+                        self.write_indent();
+                        self.write_line(&format!("/* unhandled: {:?} */", child.kind));
+                    }
                 }
             }
             self.indent -= 1;
@@ -9699,7 +9820,7 @@ impl HirTestbench {
             for c in &self.checks {
                 let delay_ps = c.cycle * self.clock.period_ns * 1000;
                 tb.push_str(&format!(
-                    "        #{} assert(uut.{} & 32'h{:08X} == 32'h{:08X})\n",
+                    "        #{} assert((uut.{} & 32'h{:08X}) == 32'h{:08X})\n",
                     delay_ps, c.signal, c.mask, c.expected
                 ));
                 tb.push_str(&format!(
@@ -10539,7 +10660,7 @@ impl TimingModel {
         if delay_ps == 0 {
             return 0;
         }
-        1_000_000_000 / delay_ps
+        (1_000_000_000_000u64 / delay_ps as u64) as u32
     }
 
     pub fn analyze_module(module: &HirModule, constraint: &TimingConstraint) -> TimingReport {
@@ -18293,7 +18414,7 @@ mod tests_hir_timing {
 
     #[test]
     fn test_fmax_from_delay() {
-        assert_eq!(TimingModel::fmax_from_delay(5000), 200_000);
+        assert_eq!(TimingModel::fmax_from_delay(5000), 200_000_000);
     }
 
     #[test]

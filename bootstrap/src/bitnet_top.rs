@@ -107,10 +107,10 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
 
     s.push_str("    // Multi-layer sequencer\n");
     s.push_str("    wire [5:0] current_layer;\n");
-    s.push_str("    wire layer_start, layer_done, start_prefetch, prefetch_done;\n");
+    s.push_str("    wire layer_start, start_prefetch, prefetch_done;\n");
     s.push_str("    multilayer_sequencer seq (\n");
     s.push_str("        .clk(clk), .rst_n(rst_n), .start(start), .num_layers(num_layers),\n");
-    s.push_str("        .layer_done(layer_done), .prefetch_done(prefetch_done),\n");
+    s.push_str("        .layer_done(layer_done_pulse), .prefetch_done(prefetch_done),\n");
     s.push_str("        .current_layer(current_layer), .layer_start(layer_start),\n");
     s.push_str("        .start_prefetch(start_prefetch), .inference_done(done)\n");
     s.push_str("    );\n");
@@ -119,10 +119,28 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    // Double buffer controller\n");
     s.push_str("    wire use_buffer_a;\n");
     s.push_str("    wire [11:0] buf_read_addr, buf_write_addr;\n");
+    s.push_str("    // Per-layer sequencer drives neuron_id\n");
+    s.push_str("    wire [15:0] neuron_id;\n");
+    s.push_str("    wire first_chunk, last_chunk, layer_valid, layer_done_pulse;\n");
+    s.push_str("    layer_sequencer lseq (\n");
+    s.push_str("        .clk(clk), .rst_n(rst_n),\n");
+    s.push_str("        .start(layer_start),\n");
+    s.push_str("        .num_neurons(neurons_per_layer),\n");
+    s.push_str("        .num_chunks(chunks_per_neuron),\n");
+    s.push_str("        .neuron_id(neuron_id),\n");
+    s.push_str("        .chunk_id(),\n");
+    s.push_str("        .first_chunk(first_chunk),\n");
+    s.push_str("        .last_chunk(last_chunk),\n");
+    s.push_str("        .valid(layer_valid),\n");
+    s.push_str("        .done(layer_done_pulse)\n");
+    s.push_str("    );\n");
+    s.push_str("    // prefetch_done tied off until weight_prefetch_ctrl is wired\n");
+    s.push_str("    assign prefetch_done = 1'b1;\n");
+    s.push_str("\n");
     s.push_str("    double_buffer_ctrl dbl_buf (\n");
-    s.push_str("        .clk(clk), .rst_n(rst_n), .layer_done(layer_done),\n");
+    s.push_str("        .clk(clk), .rst_n(rst_n), .layer_done(layer_done_pulse),\n");
     s.push_str("        .current_layer(current_layer), .use_buffer_a(use_buffer_a),\n");
-    s.push_str("        .read_addr(buf_read_addr), .write_addr(buf_write_addr), .neuron_id(12'd0)\n");
+    s.push_str("        .read_addr(buf_read_addr), .write_addr(buf_write_addr), .neuron_id(neuron_id[11:0])\n");
     s.push_str("    );\n");
     s.push_str("\n");
 
@@ -224,7 +242,7 @@ mod tests {
         let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
         assert!(v.contains("double_buffer_ctrl dbl_buf ("));
         assert!(v.contains(".use_buffer_a(use_buffer_a)"));
-        assert!(v.contains(".neuron_id(12'd0)"));
+        assert!(v.contains(".neuron_id(neuron_id[11:0])"));
     }
 
     #[test]

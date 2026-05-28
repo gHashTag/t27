@@ -41,7 +41,7 @@
     {"path": "specs/numeric/phi_ratio.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/numeric/tf3.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/queen/lotus.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
-    {"path": "specs/vsa/core.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
+    {"path": "specs/vsa/vsa_core.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"},
     {"path": "specs/vsa/ops.t27", "parse": "PASS", "gen_zig": "PASS", "gen_verilog": "PASS", "seal": "PASS"}
   ],
   "summary": {

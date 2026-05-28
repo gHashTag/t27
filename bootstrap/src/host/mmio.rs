@@ -145,6 +145,9 @@ impl Mmio for MockMmio {
             Some(v) => *v,
             None => csr_map::UNMAPPED_READ_VALUE,
         };
+        if addr == csr_map::IRQ_STAT {
+            self.regs.insert(addr, 0);
+        }
         self.log.push(MmioRecord {
             op: MmioOp::Read,
             addr,
@@ -156,11 +159,8 @@ impl Mmio for MockMmio {
     fn write32(&mut self, addr: u32, value: u32) {
         debug_assert_eq!(addr % 4, 0, "MMIO write addr {addr:#x} not word-aligned");
         if addr == csr_map::IRQ_STAT {
-            // Mirror the W36d slave: IRQ_STAT is write-1-to-clear.  A bit
-            // written as 1 clears the corresponding sticky latch; bits
-            // written as 0 are left untouched.
-            let cur = *self.regs.get(&addr).unwrap_or(&0);
-            self.regs.insert(addr, cur & !value);
+            // AXI slave has no write case for offset 0x0C — writes are
+            // silently dropped (no-op on hardware).
         } else {
             self.regs.insert(addr, value);
         }

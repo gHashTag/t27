@@ -45,9 +45,7 @@ const PHI: f64 = 1.618033988749895;
 
 /// Stirling's approximation for ln(Γ(n))
 fn stirling_ln_gamma(n: f64) -> f64 {
-    // ln(Γ(z)) ≈ (z - 1/2) * ln(z) - z + (1/2) * ln(2π)
-    // For large n, ln(Γ(n/2)) ≈ (n/2 - 1) * ln(n/2) - n/2 + (1/2) * ln(2π)
-    (n - 1.0) / 2.0 * (n - 1.0).ln() - (n - 1.0) / 2.0 + 0.5 * (2.0 * PI).ln()
+    (n - 0.5) * n.ln() - n + 0.5 * (2.0 * PI).ln()
 }
 
 /// Compute Jeffreys scale marginal likelihood
@@ -317,7 +315,7 @@ fn run_bayes_compute(
 
     // Model probability (approximate)
     let delta_bic = evidence_h0.bic - evidence_h1.bic;
-    let prob_h1 = 1.0 / (1.0 + 0.5_f64.exp()).max(1.0);
+    let prob_h1 = 1.0 / (1.0 + (-delta_bic / 2.0).exp()).max(1e-300);
     if delta_bic < -10.0 {
         println!("P(H₁|D) ≈ 1 (H₁ dominates)");
     } else if delta_bic < -5.0 {
@@ -361,7 +359,7 @@ fn run_verification(experience_path: Option<String>, min_log_bf: f64) -> anyhow:
 
     // Analyze Bayes factors from history
     let mut success_count = 0;
-    let mut min_log_bf = f64::MAX;
+    let mut threshold_log_bf = min_log_bf;
 
     for entry in data.as_array().unwrap_or(&serde_json::json!([])).iter() {
         if let Some(event) = entry.get("event") {
@@ -383,7 +381,7 @@ fn run_verification(experience_path: Option<String>, min_log_bf: f64) -> anyhow:
     println!("Verification runs with Bayes analysis: {}", success_count);
 
     if success_count >= 3 {
-        println!("✓ Minimum threshold met: ln(B₁₀) ≥ {}", min_log_bf);
+        println!("Minimum threshold met: ln(B_10) >= {}", threshold_log_bf);
         println!("Bayes factor analysis demonstrates consistent performance.");
     } else {
         println!("⚠ Insufficient data for verification (need ≥3 runs)");

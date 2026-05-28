@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-24
+Last updated: 2026-05-28
 
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
