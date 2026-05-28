@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-28
 
+## spec-gf64-and-gf236-resolution -- GF64 spec added, GF236 resolved (Closes #916)
+
+- **WHERE**: added `specs/numeric/gf64.t27` (24:39 split, BIAS 8388607, PHI_BIAS 8388608 = EXP_MAX-BIAS, phi-distance 0.00265 — best on the ladder); linked it in `docs/NUMERIC_FORMATS_SSOT.md` (GF64 Spec column was empty). Resolved "GF236": 236 is the mantissa width of IEEE binary256, not a format — the canonical 256-bit GoldenFloat is GF256.
+- **Why**: GF64 appeared in the canonical family table with no backing spec; GF236 was a recurring confusion. Closes #916.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## docs-numeric-formats-ssot -- canonical SSOT for GoldenFloat family (doc-only, Closes #915)
 
 - **WHERE** (doc-only): added `docs/NUMERIC_FORMATS_SSOT.md`. Consolidates the verified GF4-GF64 constants table (BIAS, bit-budget, phi-distance), the empirical PHI_BIAS table (H_E; retracts the EXP_MAX-BIAS formula), the GF256 three-kinds disambiguation (GF(2^8) field 0x11D vs 256-bit float vs binary256-range candidate), GFTernary, candidate formats, split-revision history, and claim discipline. Links every `specs/numeric/*.t27`. The GOLDEN CHAIN brochure numeric chapter is now derived from this file.
