@@ -214,10 +214,10 @@ module trit_full_adder (
     // carry1 + carry2 ∈ {-2, -1, 0, +1, +2}
     // Balanced-ternary: cout = sign(carry1+carry2), encoded as TRIT_N/TRIT_Z/TRIT_P
     // Intermediate sum remainder absorbed into final sum via half-adder chain.
-    wire signed [2:0] c1 = carry1 == 2'b10 ? 3'sd1 : (carry1 == 2'b00 ? 3'sd0 : -3'sd1);
-    wire signed [2:0] c2 = carry2 == 2'b10 ? 3'sd1 : (carry2 == 2'b00 ? 3'sd0 : -3'sd1);
+    wire signed [2:0] c1 = carry1 == 2'b10 ? 3'sd1 : (carry1 == 2'b01 ? 3'sd0 : -3'sd1);
+    wire signed [2:0] c2 = carry2 == 2'b10 ? 3'sd1 : (carry2 == 2'b01 ? 3'sd0 : -3'sd1);
     wire signed [3:0] csum = c1 + c2;
-    assign cout = (csum > 0) ? 2'b10 : (csum < 0) ? 2'b01 : 2'b00;
+    assign cout = (csum > 0) ? 2'b10 : (csum < 0) ? 2'b00 : 2'b01;
 endmodule
 
 ";

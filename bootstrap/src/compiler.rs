@@ -10576,7 +10576,7 @@ impl TimingConstraint {
         }
     }
     pub fn from_mhz(name: &str, mhz: u32) -> Self {
-        let period = if mhz == 0 { 10000 } else { 1_000_000_000 / mhz };
+        let period = if mhz == 0 { 10000 } else { 1_000_000 / mhz };
         TimingConstraint {
             name: name.into(),
             period_ps: period,
@@ -18368,7 +18368,7 @@ mod tests_hir_timing {
     #[test]
     fn test_clock_mhz() {
         let c = TimingConstraint::from_mhz("clk_100", 100);
-        assert_eq!(c.period_ps, 10_000_000);
+        assert_eq!(c.period_ps, 10_000);
     }
 
     #[test]

@@ -98,7 +98,7 @@ pub fn build_pipeline_stage2(module_name: &str) -> String {
     out.push_str("\n");
     out.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     out.push_str("        if (!rst_n) begin\n");
-    out.push_str("            accumulator <= 0; valid_out <= 0; result_final <= 0;\n");
+    out.push_str("            accumulator <= 0; valid_out <= 0; result_final <= 0; result <= 0;\n");
     out.push_str("        end else if (valid_in) begin\n");
     out.push_str("            accumulator <= first_chunk ? dot_result : accumulator + dot_result;\n");
     out.push_str("            valid_out <= last_chunk;\n");
@@ -151,9 +151,9 @@ pub fn build_layer_sequencer(module_name: &str) -> String {
     out.push_str("\n");
     out.push_str("    always @(posedge clk or negedge rst_n) begin\n");
     out.push_str("        if (!rst_n) begin\n");
-    out.push_str("            state<=IDLE; neuron_id<=0; chunk_id<=0; valid<=0; done<=0;\n");
+    out.push_str("            state<=IDLE; neuron_id<=0; chunk_id<=0; valid<=0; done<=0; first_chunk<=0; last_chunk<=0;\n");
     out.push_str("        end else case(state)\n");
-    out.push_str("            IDLE: if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end\n");
+    out.push_str("            IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end\n");
     out.push_str("            RUN: begin\n");
     out.push_str("                if(num_chunks==0) begin state<=DONE_ST; end\n");
     out.push_str("                else begin\n");
@@ -317,7 +317,7 @@ mod tests {
         let v = build_pipeline_stage2(DEFAULT_PIPELINE_STAGE2_NAME);
         assert!(v.contains("always @(posedge clk or negedge rst_n) begin"));
         assert!(v.contains("if (!rst_n) begin"));
-        assert!(v.contains("accumulator <= 0; valid_out <= 0; result_final <= 0;"));
+        assert!(v.contains("accumulator <= 0; valid_out <= 0; result_final <= 0; result <= 0;"));
     }
 
     #[test]
@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn sequencer_idle_arms_on_start() {
         let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
-        assert!(v.contains("IDLE: if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end"));
+        assert!(v.contains("IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end"));
     }
 
     #[test]
@@ -393,7 +393,7 @@ mod tests {
     fn sequencer_resets_on_negedge_rst_n() {
         let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
         assert!(v.contains("always @(posedge clk or negedge rst_n) begin"));
-        assert!(v.contains("state<=IDLE; neuron_id<=0; chunk_id<=0; valid<=0; done<=0;"));
+        assert!(v.contains("state<=IDLE; neuron_id<=0; chunk_id<=0; valid<=0; done<=0; first_chunk<=0; last_chunk<=0;"));
     }
 
     // ---- shared invariants --------------------------------------------
