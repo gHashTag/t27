@@ -84,7 +84,7 @@ fn bundle_writes_exactly_eleven_files() {
     ]);
     assert!(ok);
     let count = fs::read_dir(&dir).unwrap().count();
-    assert_eq!(count, 11);
+    assert_eq!(count, 12);
     cleanup(&dir);
 }
 

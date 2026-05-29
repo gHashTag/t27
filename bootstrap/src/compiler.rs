@@ -2176,6 +2176,19 @@ impl Parser {
                 idx_node.children.push(expr);
                 idx_node.children.push(index);
                 expr = idx_node;
+            } else if self.current.kind == TokenKind::Ident && self.current.lexeme == "as" {
+                self.advance();
+                if self.current.kind == TokenKind::Ident {
+                    let target_type = self.current.lexeme.clone();
+                    self.advance();
+                    let mut cast_node = Node::new(NodeKind::ExprFieldAccess);
+                    cast_node.name = format!("as_{}", target_type);
+                    cast_node.extra_type = target_type;
+                    cast_node.children.push(expr);
+                    expr = cast_node;
+                } else {
+                    break;
+                }
             } else if self.current.kind == TokenKind::LParen {
                 // Function call on an expression: shouldn't normally happen here
                 // since calls are handled in primary for ident(...) and @builtin(...)
@@ -3338,12 +3351,15 @@ impl Codegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
-                // children[0] is the base expression
-                if !node.children.is_empty() {
+                if node.name.starts_with("as_") {
                     self.gen_expr(&node.children[0]);
+                } else {
+                    if !node.children.is_empty() {
+                        self.gen_expr(&node.children[0]);
+                    }
+                    self.write(".");
+                    self.write(&node.name);
                 }
-                self.write(".");
-                self.write(&node.name);
             }
             NodeKind::ExprIndex => {
                 // children[0] = base, children[1] = index
@@ -4545,7 +4561,11 @@ impl VerilogCodegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
-                if !node.children.is_empty() {
+                if node.name.starts_with("as_") {
+                    if !node.children.is_empty() {
+                        self.gen_verilog_expr(&node.children[0]);
+                    }
+                } else if !node.children.is_empty() {
                     let child = &node.children[0];
                     if child.kind == NodeKind::ExprIndex && !child.children.is_empty() {
                         let base_name = match child.children[0].kind {
@@ -5578,11 +5598,20 @@ impl CCodegen {
                 }
             }
             NodeKind::ExprFieldAccess => {
-                if !node.children.is_empty() {
-                    self.gen_c_expr(&node.children[0]);
+                if node.name.starts_with("as_") {
+                    self.write("(");
+                    self.write(&Self::type_to_c(&node.extra_type));
+                    self.write(")");
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                } else {
+                    if !node.children.is_empty() {
+                        self.gen_c_expr(&node.children[0]);
+                    }
+                    self.write(".");
+                    self.write(&node.name);
                 }
-                self.write(".");
-                self.write(&node.name);
             }
             NodeKind::ExprIndex => {
                 if node.children.len() >= 2 {

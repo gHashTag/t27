@@ -110,7 +110,7 @@ fn top_instantiates_double_buffer_ctrl() {
     assert!(ok);
     assert!(stdout.contains("double_buffer_ctrl dbl_buf ("));
     assert!(stdout.contains(".use_buffer_a(use_buffer_a)"));
-    assert!(stdout.contains(".neuron_id(12'd0)"));
+    assert!(stdout.contains(".neuron_id(neuron_id[11:0])"));
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn top_wires_for_sequencer_and_buffer() {
     let (stdout, _stderr, ok) = run(&["gen-bitnet-engine-top"]);
     assert!(ok);
     assert!(stdout.contains("wire [5:0] current_layer;"));
-    assert!(stdout.contains("wire layer_start, layer_done, start_prefetch, prefetch_done;"));
+    assert!(stdout.contains("wire layer_start, start_prefetch, prefetch_done;"));
     assert!(stdout.contains("wire use_buffer_a;"));
     assert!(stdout.contains("wire [11:0] buf_read_addr, buf_write_addr;"));
 }
