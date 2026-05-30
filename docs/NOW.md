@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-28
+Last updated: 2026-05-30
+
+## docs-readme-language-switcher -- drop stale top-of-file language line + EOF newline (Closes #995)
+
+- **WHERE** (doc-only): `README.md`. Removed the redundant `**Language:** [English](README.md) | [Russian](docs/README_RU.md)` switcher line near the top of the file and added a trailing newline after the DOI line at EOF. No content/semantic change to any spec or code.
+- **Why**: the switcher line duplicated the documented bilingual policy (the canonical bilingual block lives elsewhere) and the file was missing a final newline. PR #993 cleanup; satisfies L1 traceability via #995.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## docs-ternary-rows -- TF3 + GFTernary added to NUMERIC_FORMATS_SSOT section-1 table (Closes #973)
 
