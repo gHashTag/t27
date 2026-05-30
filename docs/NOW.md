@@ -2,6 +2,10 @@
 
 Last updated: 2026-05-30
 
+## wave-64 -- host ring buffer for DMA streaming (R-HS-12, Closes #840)
+
+- **WHERE** (host-only, additive): new `bootstrap/src/host/ring_buffer.rs` with `RingBuffer<T>` generic; push/pop single and batch; wrap-around; peek; clear; `RingError`; 16 inline tests. All pass. 832 total.
+
 ## docs-readme-language-switcher -- drop stale top-of-file language line + EOF newline (Closes #995)
 
 - **WHERE** (doc-only): `README.md`. Removed the redundant `**Language:** [English](README.md) | [Russian](docs/README_RU.md)` switcher line near the top of the file and added a trailing newline after the DOI line at EOF. No content/semantic change to any spec or code.
@@ -846,8 +850,6 @@ Last updated: 2026-05-30
 - Refs: Tschanz JSSC 2002, Mukhopadhyay 2009 (forward body bias active path)
 - Local `coqc` EXIT=0
 
-
-
 ## Wave-44 Lane NN — StochSkipSafe.v Stochastic Time-Skip Safety Coq (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/StochSkipSafe.v — 10 Qed lemmas, 0 Admitted
@@ -862,7 +864,6 @@ Last updated: 2026-05-30
 - Local `coqc` EXIT=0
 - Closes #684, Refs gHashTag/trinity-fpga#172, gHashTag/trios#929
 
-
 ## Wave-43 Lane LL — Int2QuantSafe.v INT2 Activation Codebook Coq (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/Int2QuantSafe.v — 8 Qed lemmas, 0 Admitted
@@ -872,7 +873,6 @@ Last updated: 2026-05-30
 - **INT2 density**: 2*2=4 formalizes INT2 4-level packing capacity (2 bits, 4 levels)
 - Refs gHashTag/trinity-fpga#168
 - Local `coqc` EXIT=0
-
 
 ## Wave-47 Lane QQ — RBB.v 33 Qed + 1 composite Theorem + R18 SACRED BANK EXTENSION (NEW, this PR)
 
@@ -1001,7 +1001,6 @@ Last updated: 2026-05-30
 - Sacred chain extends to depth 22 (0xD0..0xEB).
 - Companion lanes pending: RTL (rtl/nullor/nullor_pe.sv + rtl/spec_exit/*), Rust (nullor-witness + spec-exit-witness), JSON (assertions/nullor_witness.json + spec_exit_witness.json).
 
-
 ## Wave-42 Lane II — StochRound.v Stochastic Rounding Coq
 
 - OP_STOCH_ROUND = 0xE9 (decimal 233) — sacred opcode, Wave-42
@@ -1048,7 +1047,6 @@ Last updated: 2026-05-30
 - Anchor: phi^2 + phi^-2 = 3
 - DOI 10.5281/zenodo.19227877
 
-
 ## Wave-39 Lane DD — HoloMux.v 6 Qed lemmas (NEW, this PR)
 
 - **NEW**: trios-coq/Physics/HoloMux.v — 6 Qed lemmas, 0 Admitted
@@ -1060,7 +1058,6 @@ Last updated: 2026-05-30
 - Constitutional: R-SI-1 PASS · R5-HONEST PASS · Apache-2.0 · admin@t27.ai
 - Anchor: phi^2 + phi^-2 = 3
 - DOI 10.5281/zenodo.19227877
-
 
 ## Wave-38 Lane BB — NullorReversible.v 11 Qed lemmas (NEW, this PR)
 
@@ -1183,7 +1180,6 @@ DOI 10.5281/zenodo.19227877
   - subth_w104_c_witness: V=0.30 + AVS48 + LUT-NPU ⇒ TOPS/W ≥ 350
 - Predecessors: W35 LUT-NPU (0xE3), W36 AVS-48
 - Anchor: phi^2 + phi^-2 = 3
-
 
 ## Wave-41 Lane GG — SparseGate.v (OP_SPARSE_SKIP = 0xE8)
 
