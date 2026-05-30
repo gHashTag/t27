@@ -14,6 +14,7 @@
 // ============================================================================
 
 pub mod bitstream;
+pub mod checksum;
 pub mod cmdq;
 pub mod config;
 pub mod csr_map;
@@ -37,6 +38,7 @@ pub mod weight_header;
 pub mod weight_loader;
 
 pub use bitstream::{BitError, BitstreamReader};
+pub use checksum::{checksum, verify, ChecksumError, ChecksumKind, Digest};
 pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
 pub use config::{ConfigError, HostConfig, HostConfigBuilder};
 pub use diag::DiagCounters;
