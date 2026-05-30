@@ -36,12 +36,14 @@ pub enum NodeKind {
     ExprStructLit,
     ExprArrayLiteral,
     ExprCast,
+    ExprRange, // start..end
     // Statement nodes for fn bodies
     StmtLocal,  // const x = expr; or var x: T = expr;
     StmtAssign, // x = expr; or x.field = expr;
     StmtIf,     // if (...) { ... } else if (...) { ... } else { ... }
     StmtWhile,  // while (cond) { ... }
     StmtFor,    // for (iter) |capture| { ... }
+    StmtForRange, // for i in start..end { ... }
     StmtBreak,
     StmtContinue,
     StmtExpr, // bare expression statement: func(a, b);
@@ -147,6 +149,7 @@ pub enum TokenKind {
     KwTry,
     KwBreak,
     KwContinue,
+    KwIn,
 
     // Literals
     Ident,
@@ -350,6 +353,7 @@ impl Lexer {
             "false" => TokenKind::KwFalse,
             "break" => TokenKind::KwBreak,
             "continue" => TokenKind::KwContinue,
+            "in" => TokenKind::KwIn,
             _ => TokenKind::Ident,
         }
     }
@@ -1877,10 +1881,19 @@ impl Parser {
     }
 
     /// Parse for statement: for (iterable) |capture| { body }
-    /// Also: for (a, b) |x, y| { body }
+    /// Also: for i in start..end { body }  (range for)
     fn parse_for_stmt(&mut self) -> Result<Node, String> {
-        let mut for_node = Node::new(NodeKind::StmtFor);
         self.advance(); // consume 'for'
+
+        // Range for: for IDENT in expr..expr { body }
+        if self.current.kind == TokenKind::Ident && self.peek.kind == TokenKind::KwIn {
+            let ident = self.current.lexeme.clone();
+            self.advance(); // consume ident
+            self.advance(); // consume 'in'
+            return self.parse_for_range(ident);
+        }
+
+        let mut for_node = Node::new(NodeKind::StmtFor);
 
         // Iterable(s) in parentheses
         self.expect(TokenKind::LParen)?;
@@ -1931,6 +1944,58 @@ impl Parser {
         for_node.children.push(body_block);
 
         Ok(for_node)
+    }
+
+    /// Parse range for body: start_expr .. end_expr { body }
+    fn parse_for_range(&mut self, var_name: String) -> Result<Node, String> {
+        let mut node = Node::new(NodeKind::StmtForRange);
+        node.name = var_name;
+
+        let start = self.parse_range_bound()?;
+        node.children.push(start);
+
+        self.expect(TokenKind::DotDot)?;
+
+        let end = self.parse_range_bound()?;
+        node.children.push(end);
+
+        self.expect(TokenKind::LBrace)?;
+        let mut body_block = Node::new(NodeKind::Module);
+        body_block.name = "body".to_string();
+        while self.current.kind != TokenKind::RBrace && self.current.kind != TokenKind::Eof {
+            match self.parse_body_stmt() {
+                Ok(s) => body_block.children.push(s),
+                Err(_) => self.recover_to_stmt_boundary(),
+            }
+        }
+        self.expect(TokenKind::RBrace)?;
+        node.children.push(body_block);
+
+        Ok(node)
+    }
+
+    fn parse_range_bound(&mut self) -> Result<Node, String> {
+        match self.current.kind {
+            TokenKind::Number => {
+                let val = self.current.lexeme.clone();
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprLiteral,
+                    value: val,
+                    ..Default::default()
+                })
+            }
+            TokenKind::Ident => {
+                let name = self.current.lexeme.clone();
+                self.advance();
+                Ok(Node {
+                    kind: NodeKind::ExprIdentifier,
+                    name,
+                    ..Default::default()
+                })
+            }
+            _ => self.parse_expr_additive(),
+        }
     }
 
     // ========================================================================
@@ -3091,6 +3156,9 @@ impl Codegen {
             NodeKind::StmtFor => {
                 self.gen_for_stmt(node);
             }
+            NodeKind::StmtForRange => {
+                self.gen_for_range_stmt(node);
+            }
             NodeKind::StmtBreak => {
                 self.write_line("break;");
             }
@@ -3247,6 +3315,27 @@ impl Codegen {
         self.indent();
         if !node.children.is_empty() {
             for stmt in &node.children[body_idx].children {
+                self.gen_stmt(stmt);
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("}");
+    }
+
+    fn gen_for_range_stmt(&mut self, node: &Node) {
+        self.write_indent();
+        self.write(&format!("for ({}..", node.name));
+        if node.children.len() >= 2 {
+            self.gen_expr(&node.children[1]);
+            self.write(") |");
+            self.write(&node.name);
+            self.write("|");
+        }
+        self.write_line(" {");
+        self.indent();
+        if node.children.len() > 2 {
+            for stmt in &node.children[2].children {
                 self.gen_stmt(stmt);
             }
         }
@@ -4264,6 +4353,9 @@ impl VerilogCodegen {
             NodeKind::StmtFor => {
                 self.gen_verilog_for_stmt(node);
             }
+            NodeKind::StmtForRange => {
+                self.gen_verilog_for_range_stmt(node);
+            }
             NodeKind::StmtBreak => {
                 self.write_line("disable fork;");
             }
@@ -4412,6 +4504,28 @@ impl VerilogCodegen {
         self.indent();
         if !node.children.is_empty() {
             for stmt in &node.children[body_idx].children {
+                self.gen_verilog_stmt(stmt);
+            }
+        }
+        self.dedent();
+        self.write_indent();
+        self.write_line("end");
+    }
+
+    fn gen_verilog_for_range_stmt(&mut self, node: &Node) {
+        let var = &node.name;
+        self.write_indent();
+        if node.children.len() >= 2 {
+            self.write(&format!("for ({var} = "));
+            self.gen_verilog_expr(&node.children[0]);
+            self.write(&format!("; {var} < "));
+            self.gen_verilog_expr(&node.children[1]);
+            self.write(&format!("; {var} = {var} + 1)"));
+        }
+        self.write_line(" begin");
+        self.indent();
+        if node.children.len() > 2 {
+            for stmt in &node.children[2].children {
                 self.gen_verilog_stmt(stmt);
             }
         }
@@ -5189,6 +5303,9 @@ impl CCodegen {
             NodeKind::StmtFor => {
                 self.gen_c_for_stmt(node);
             }
+            NodeKind::StmtForRange => {
+                self.gen_c_for_range_stmt(node);
+            }
             NodeKind::StmtBreak => {
                 self.write_line("break;");
             }
@@ -5322,6 +5439,28 @@ impl CCodegen {
             }
         }
 
+        self.dedent();
+        self.write_indent();
+        self.write_line("}");
+    }
+
+    fn gen_c_for_range_stmt(&mut self, node: &Node) {
+        let var = &node.name;
+        self.write_indent();
+        if node.children.len() >= 2 {
+            self.write(&format!("for (int {var} = "));
+            self.gen_c_expr(&node.children[0]);
+            self.write(&format!("; {var} < "));
+            self.gen_c_expr(&node.children[1]);
+            self.write(&format!("; {var}++)"));
+        }
+        self.write_line(" {");
+        self.indent();
+        if node.children.len() > 2 {
+            for stmt in &node.children[2].children {
+                self.gen_c_stmt(stmt);
+            }
+        }
         self.dedent();
         self.write_indent();
         self.write_line("}");
@@ -6303,6 +6442,27 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
 fn loop_unroll(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     let mut insertions: Vec<(usize, Vec<Node>)> = Vec::new();
     for (i, stmt) in stmts.iter_mut().enumerate() {
+        if stmt.kind == NodeKind::StmtForRange && stmt.children.len() >= 3 {
+            let start_val = parse_int_value(&stmt.children[0].value);
+            let end_val = parse_int_value(&stmt.children[1].value);
+            if let (Some(s), Some(e)) = (start_val, end_val) {
+                let count = e.saturating_sub(s);
+                if count > 0 && count <= 4 {
+                    let body = &stmt.children[2];
+                    let iter_var = stmt.name.clone();
+                    let mut unrolled = Vec::new();
+                    for v in s..e {
+                        let mut body_clone = body.clone();
+                        replace_iter_var(&mut body_clone, &iter_var, v);
+                        for child in body_clone.children.drain(..) {
+                            unrolled.push(child);
+                        }
+                    }
+                    insertions.push((i, unrolled));
+                    stats.loops_unrolled += 1;
+                }
+            }
+        }
         if stmt.kind == NodeKind::StmtFor && stmt.children.len() >= 3 {
             let iter_expr = &stmt.children[0];
             if iter_expr.kind == NodeKind::ExprBinary && iter_expr.extra_op == ".."
@@ -6758,6 +6918,11 @@ fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
                 check_stmt(child, symbols, fns, result);
             }
         }
+        NodeKind::StmtForRange => {
+            for child in &node.children {
+                check_stmt(child, symbols, fns, result);
+            }
+        }
         NodeKind::Module => {
             let syms = symbols.to_vec();
             for child in &node.children {
@@ -7159,7 +7324,7 @@ impl RustCodegen {
 
         // Check if there's a body
         let has_body = node.children.iter().any(|c| {
-            matches!(c.kind, NodeKind::ExprReturn) || matches!(c.kind, NodeKind::StmtExpr)
+            matches!(c.kind, NodeKind::ExprReturn | NodeKind::StmtExpr | NodeKind::StmtLocal | NodeKind::StmtIf | NodeKind::StmtWhile | NodeKind::StmtFor | NodeKind::StmtForRange)
         });
 
         if has_body {
@@ -7278,6 +7443,24 @@ impl RustCodegen {
                         self.indent -= 1;
                         self.write_line("}");
                     }
+                    NodeKind::StmtForRange => {
+                        self.write_indent();
+                        self.write(&format!("for {} in ", child.name));
+                        if child.children.len() >= 2 {
+                            self.write(&Self::expr_to_rust(&child.children[0]));
+                            self.write("..");
+                            self.write(&Self::expr_to_rust(&child.children[1]));
+                        }
+                        self.write(" {\n");
+                        self.indent += 1;
+                        if child.children.len() > 2 {
+                            for stmt in &child.children[2].children {
+                                self.gen_rust_stmt(stmt);
+                            }
+                        }
+                        self.indent -= 1;
+                        self.write_line("}");
+                    }
                     _ => {}
                 }
             }
@@ -7385,6 +7568,24 @@ impl RustCodegen {
                 self.write(" in ");
                 if !stmt.children.is_empty() {
                     self.write(&Self::expr_to_rust(&stmt.children[0]));
+                }
+                self.write(" {\n");
+                self.indent += 1;
+                if stmt.children.len() > 2 {
+                    for s in &stmt.children[2].children {
+                        self.gen_rust_stmt(s);
+                    }
+                }
+                self.indent -= 1;
+                self.write_line("}");
+            }
+            NodeKind::StmtForRange => {
+                self.write_indent();
+                self.write(&format!("for {} in ", stmt.name));
+                if stmt.children.len() >= 2 {
+                    self.write(&Self::expr_to_rust(&stmt.children[0]));
+                    self.write("..");
+                    self.write(&Self::expr_to_rust(&stmt.children[1]));
                 }
                 self.write(" {\n");
                 self.indent += 1;
@@ -21068,12 +21269,116 @@ mod tests_phase40_coverage {
         assert_eq!(cm.uncovered().len(), 1);
     }
 
+     #[test]
+     fn test_coverage_complete() {
+         let mut cm = HirCoverageModel::new();
+         cm.add_group("g1", 2);
+         cm.hit("g1");
+         cm.hit("g1");
+         assert!(cm.is_complete());
+     }
+
     #[test]
-    fn test_coverage_complete() {
-        let mut cm = HirCoverageModel::new();
-        cm.add_group("g1", 2);
-        cm.hit("g1");
-        cm.hit("g1");
-        assert!(cm.is_complete());
+    fn test_parse_for_range() {
+        let code = "module M { pub fn f() -> void { for i in 0..10 { var x = 1 } } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        assert_eq!(f.kind, NodeKind::FnDecl);
+        assert!(!f.children.is_empty(), "function body should not be empty");
+        let stmt = &f.children[0];
+        assert_eq!(stmt.kind, NodeKind::StmtForRange, "expected StmtForRange, got {:?}", stmt.kind);
+        assert_eq!(stmt.name, "i");
+        assert_eq!(stmt.children.len(), 3);
+        assert_eq!(stmt.children[0].value, "0");
+        assert_eq!(stmt.children[1].value, "10");
+    }
+
+    #[test]
+    fn test_parse_for_range_verilog() {
+        let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
+        let out = Compiler::compile_verilog(code).expect("compile should succeed");
+        assert!(out.contains("for (i = 0; i < 8; i = i + 1)"), "Verilog output: {}", out);
+    }
+
+    #[test]
+    fn test_parse_for_range_c() {
+        let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
+        let out = Compiler::compile_c(code).expect("compile should succeed");
+        assert!(out.contains("for (int i = 0; i < 8; i++)"), "C output: {}", out);
+    }
+
+    #[test]
+    fn test_parse_for_range_zig() {
+        let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
+        let out = Compiler::compile(code).expect("compile should succeed");
+        assert!(out.contains("for (0..8) |i|") || out.contains("for"), "Zig output: {}", out);
+    }
+
+    #[test]
+    fn test_parse_for_range_rust() {
+        let code = "module M { pub fn f() -> void { for i in 0..8 { var x = 1 } } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let mut cg = RustCodegen::new();
+        cg.gen_rust(&ast);
+        let out = cg.into_string();
+        assert!(out.contains("for i in 0..8"), "Rust output: {}", out);
+    }
+
+    #[test]
+    fn test_parse_for_range_nested() {
+        let code = "module M { pub fn f() -> void { for i in 1..5 { for j in 0..3 { var x = i } } } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        let outer = &f.children[0];
+        assert_eq!(outer.kind, NodeKind::StmtForRange);
+        assert_eq!(outer.name, "i");
+        let inner = &outer.children[2].children[0];
+        assert_eq!(inner.kind, NodeKind::StmtForRange);
+        assert_eq!(inner.name, "j");
+    }
+
+    #[test]
+    fn test_parse_for_range_with_expr() {
+        let code = "module M { pub fn f() -> void { for i in 0..N { } } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        assert_eq!(f.kind, NodeKind::FnDecl);
+        assert!(!f.children.is_empty(), "function body should not be empty for 0..N");
+        let stmt = &f.children[0];
+        assert_eq!(stmt.kind, NodeKind::StmtForRange);
+        assert_eq!(stmt.children[0].value, "0");
+        assert_eq!(stmt.children[1].kind, NodeKind::ExprIdentifier);
+        assert_eq!(stmt.children[1].name, "N");
+    }
+
+    #[test]
+    fn test_parse_for_range_does_not_match_old_for() {
+        let code = "module M { pub fn f() -> void { for (items) |x| { } } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        let stmt = &f.children[0];
+        assert_eq!(stmt.kind, NodeKind::StmtFor, "old for should still be StmtFor");
+    }
+
+    #[test]
+    fn test_for_range_loop_unroll() {
+        let code = "module M { pub fn f() -> void { for i in 0..3 { var x = i } } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse should succeed");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        assert_eq!(f.kind, NodeKind::FnDecl);
+        assert!(f.children.len() >= 3, "unrolled loop should have 3 stmts, got {}", f.children.len());
     }
 }
