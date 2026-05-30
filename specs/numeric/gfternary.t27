@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: Apache-2.0
+; gfternary.t27 0 GFTernary Format Specification
+; 2-bit golden-ratio ternary: representable values { -phi, 0, +phi }
+; The phi-scaled limit of the ternary-weight family: GFTernary = phi * {-1,0,+1}
+; (a ternary-weight quantizer, cf. TWN / BitNet, with the scale fixed at phi).
+; phi^2 + phi^-2 = 3 | TRINITY
+
+module triformat-gfternary;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+// Golden ratio phi = (1 + sqrt(5)) / 2 and its reciprocal phi^-1 = phi - 1.
+pub const PHI : f64 = 1.6180339887498949;
+pub const PHI_INV : f64 = 0.6180339887498949;
+
+// 2-bit code points, stored in the low two bits of a u8 container.
+pub const CODE_MASK : u8 = 0x03;
+pub const GFT_ZERO : u8 = 0x00;   // 0b00 -> 0
+pub const GFT_POS  : u8 = 0x01;   // 0b01 -> +phi
+pub const GFT_NEG  : u8 = 0x02;   // 0b10 -> -phi
+pub const GFT_RSVD : u8 = 0x03;   // 0b11 -> reserved (folds to zero)
+
+// ============================================================================
+// Types
+// ============================================================================
+
+pub const GFTernary = u8;
+
+// ============================================================================
+// Core functions
+// ============================================================================
+
+// gft_canonical(code) GFTernary
+// Mask to the low two bits and fold the reserved code 0b11 onto zero.
+pub fn gft_canonical(code: GFTernary) GFTernary {
+    const c = code & CODE_MASK;
+    return if (c == GFT_RSVD) GFT_ZERO else c;
+}
+
+// gft_is_zero(code) bool
+pub fn gft_is_zero(code: GFTernary) bool {
+    return gft_canonical(code) == GFT_ZERO;
+}
+
+// gft_sign(code) i8 -> -1, 0, +1
+pub fn gft_sign(code: GFTernary) i8 {
+    const c = gft_canonical(code);
+    return if (c == GFT_POS) 1 else if (c == GFT_NEG) -1 else 0;
+}
+
+// gft_from_sign(s) GFTernary  (s in {-1, 0, +1})
+pub fn gft_from_sign(s: i8) GFTernary {
+    return if (s > 0) GFT_POS else if (s < 0) GFT_NEG else GFT_ZERO;
+}
+
+// gft_negate(code) GFTernary  -- flips +phi <-> -phi, zero is fixed.
+pub fn gft_negate(code: GFTernary) GFTernary {
+    const c = gft_canonical(code);
+    return if (c == GFT_POS) GFT_NEG else if (c == GFT_NEG) GFT_POS else GFT_ZERO;
+}
+
+// gft_to_f64(code) f64 -> { +PHI, -PHI, 0.0 }
+pub fn gft_to_f64(code: GFTernary) f64 {
+    const c = gft_canonical(code);
+    return if (c == GFT_POS) PHI else if (c == GFT_NEG) -PHI else 0.0;
+}
+
+// gft_from_f64(value, threshold) GFTernary
+// Ternary-weight quantizer with fixed phi scale (TWN with alpha = phi):
+//   |value| <= |threshold|        -> 0
+//   value   >  |threshold|        -> +phi
+//   value   < -|threshold|        -> -phi
+pub fn gft_from_f64(value: f64, threshold: f64) GFTernary {
+    const t = if (threshold < 0.0) -threshold else threshold;
+    if (value > t) return GFT_POS;
+    if (value < -t) return GFT_NEG;
+    return GFT_ZERO;
+}
+
+// ============================================================================
+// Tests (L4 TESTABILITY). f64 checks use a tolerance (L5 IDENTITY).
+// ============================================================================
+
+test "gft_three_representable_values" {
+    const dp = gft_to_f64(GFT_POS) - PHI;
+    const dn = gft_to_f64(GFT_NEG) + PHI;
+    try std.testing.expect(gft_to_f64(GFT_ZERO) == 0.0);
+    try std.testing.expect(dp > -1e-12 and dp < 1e-12);
+    try std.testing.expect(dn > -1e-12 and dn < 1e-12);
+}
+
+test "gft_reserved_code_folds_to_zero" {
+    try std.testing.expect(gft_is_zero(GFT_RSVD));
+    try std.testing.expect(gft_to_f64(GFT_RSVD) == 0.0);
+}
+
+test "gft_negate_symmetry" {
+    const d = gft_to_f64(gft_negate(GFT_POS)) + PHI;
+    try std.testing.expect(d > -1e-12 and d < 1e-12);
+    try std.testing.expect(gft_negate(GFT_ZERO) == GFT_ZERO);
+}
+
+test "gft_sign_roundtrip" {
+    try std.testing.expect(gft_from_sign(gft_sign(GFT_POS)) == GFT_POS);
+    try std.testing.expect(gft_from_sign(gft_sign(GFT_NEG)) == GFT_NEG);
+    try std.testing.expect(gft_from_sign(gft_sign(GFT_ZERO)) == GFT_ZERO);
+}
+
+test "gft_quantizer_threshold" {
+    try std.testing.expect(gft_from_f64(2.0, 0.5) == GFT_POS);
+    try std.testing.expect(gft_from_f64(-2.0, 0.5) == GFT_NEG);
+    try std.testing.expect(gft_from_f64(0.1, 0.5) == GFT_ZERO);
+}
+
+// L5 IDENTITY: phi^2 = phi + 1; phi^2 + phi^-2 = 3; phi * phi^-1 = 1.
+test "gft_phi_identity_l5" {
+    const d1 = PHI * PHI - (PHI + 1.0);
+    const d2 = PHI * PHI + PHI_INV * PHI_INV - 3.0;
+    const d3 = PHI * PHI_INV - 1.0;
+    try std.testing.expect(d1 > -1e-12 and d1 < 1e-12);
+    try std.testing.expect(d2 > -1e-12 and d2 < 1e-12);
+    try std.testing.expect(d3 > -1e-12 and d3 < 1e-12);
+}
+
+// ============================================================================
+// Bench (L4 TESTABILITY)
+// ============================================================================
+
+bench "bench_gft_decode_latency" {
+    // measure: nanoseconds to decode a code to f64
+    // target: < 20ns (mask + two compares)
+    @setEvalBranchQuota(10000);
+    var result: f64 = 0.0;
+    const code: GFTernary = GFT_NEG;
+    for (0..1000) |_| {
+        result = gft_to_f64(code);
+    }
+    _ = result;
+}
+
+bench "bench_gft_quantize_latency" {
+    // measure: nanoseconds to ternary-quantize one f64 with a threshold
+    // target: < 30ns (abs + two compares)
+    @setEvalBranchQuota(10000);
+    var result: GFTernary = 0;
+    const v: f64 = 1.3;
+    const thr: f64 = 0.5;
+    for (0..1000) |_| {
+        result = gft_from_f64(v, thr);
+    }
+    _ = result;
+}
