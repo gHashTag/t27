@@ -27,6 +27,7 @@ pub mod descring;
 pub mod diag;
 pub mod dma;
 pub mod driver;
+pub mod endpoint;
 pub mod errors;
 pub mod eventlog;
 pub mod firmware;
@@ -68,6 +69,7 @@ pub use descring::{Descriptor, DescriptorRing, DescStatus, RingError, RingStats}
 pub use diag::DiagCounters;
 pub use dma::{DmaChannel, DmaConfig, DmaError, DmaReport, DmaState};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
+pub use endpoint::{Access, Endpoint, EndpointError, EndpointRegistry};
 pub use errors::{by_domain, by_severity, lookup, CatalogEntry, ErrorCode, ErrorDomain, Severity};
 pub use eventlog::{Event, EventKind, EventLog, EventLogStats};
 pub use firmware::{FirmwareHeader, FirmwareImage, ImageError, SectionHeader};
