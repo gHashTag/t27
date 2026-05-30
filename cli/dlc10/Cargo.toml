@@ -16,5 +16,5 @@ path = "src/bin/dlc10.rs"
 rusb = "0.9"
 anyhow = "1"
 clap = { version = "4", features = ["derive", "env"] }
-thiserror = "1"
+thiserror = "2"
 hex = "0.4"
