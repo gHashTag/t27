@@ -15,6 +15,7 @@
 
 pub mod addrmap;
 pub mod bitstream;
+pub mod bufchain;
 pub mod checksum;
 pub mod cmdq;
 pub mod config;
@@ -40,6 +41,7 @@ pub mod weight_loader;
 
 pub use addrmap::{AddrMap, AddrError, MemRegion, REGION_BRAM, REGION_CSR, REGION_DDR, REGION_DMA};
 pub use bitstream::{BitError, BitstreamReader};
+pub use bufchain::{BufChain, BufSegment, ChainError, ChainStats};
 pub use checksum::{checksum, verify, ChecksumError, ChecksumKind, Digest};
 pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
 pub use config::{ConfigError, HostConfig, HostConfigBuilder};
