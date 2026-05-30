@@ -13,6 +13,7 @@
 // write `use t27c::host::{BitnetDriver, MockMmio, DriverError};`.
 // ============================================================================
 
+pub mod addrmap;
 pub mod bitstream;
 pub mod checksum;
 pub mod cmdq;
@@ -37,6 +38,7 @@ pub mod watchdog;
 pub mod weight_header;
 pub mod weight_loader;
 
+pub use addrmap::{AddrMap, AddrError, MemRegion, REGION_BRAM, REGION_CSR, REGION_DDR, REGION_DMA};
 pub use bitstream::{BitError, BitstreamReader};
 pub use checksum::{checksum, verify, ChecksumError, ChecksumKind, Digest};
 pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
