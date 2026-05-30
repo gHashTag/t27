@@ -14,6 +14,7 @@
 // ============================================================================
 
 pub mod addrmap;
+pub mod bitmask;
 pub mod bitstream;
 pub mod bufchain;
 pub mod capflags;
@@ -52,6 +53,7 @@ pub mod weight_header;
 pub mod weight_loader;
 
 pub use addrmap::{AddrMap, AddrError, MemRegion, REGION_BRAM, REGION_CSR, REGION_DDR, REGION_DMA};
+pub use bitmask::{clear_bit, extract, field_mask, insert, is_set, mask, popcount, set_bit, toggle_bit, FieldDesc};
 pub use bitstream::{BitError, BitstreamReader};
 pub use bufchain::{BufChain, BufSegment, ChainError, ChainStats};
 pub use capflags::{check_capabilities, CapFlags, CapabilityError, BASE_CAPABILITIES, FULL_CAPABILITIES};
