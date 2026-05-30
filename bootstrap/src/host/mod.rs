@@ -21,6 +21,7 @@ pub mod checksum;
 pub mod cmdq;
 pub mod config;
 pub mod csr_map;
+pub mod descring;
 pub mod diag;
 pub mod dma;
 pub mod driver;
@@ -53,6 +54,7 @@ pub use capflags::{check_capabilities, CapFlags, CapabilityError, BASE_CAPABILIT
 pub use checksum::{checksum, verify, ChecksumError, ChecksumKind, Digest};
 pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
 pub use config::{ConfigError, HostConfig, HostConfigBuilder};
+pub use descring::{Descriptor, DescriptorRing, DescStatus, RingError, RingStats};
 pub use diag::DiagCounters;
 pub use dma::{DmaChannel, DmaConfig, DmaError, DmaReport, DmaState};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
