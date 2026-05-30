@@ -67,6 +67,10 @@ Last updated: 2026-05-30
 
 - **WHERE** (host-only, additive): new `bootstrap/src/host/bitstream.rs` with `BitstreamReader<'a>`; MSB-first bit reading; `read_bit`, `read_bits(n)`, `read_u8/u16_le/u32_le`; `align_to_byte`, `skip_bits`; `bits_remaining`, `bytes_consumed`; `BitError`; 15 inline tests. All pass. 831 total.
 
+## wave-67 -- host command protocol (R-HS-15, Closes #847)
+
+- **WHERE** (host-only, additive): new `bootstrap/src/host/protocol.rs` with `Cmd` enum, `RespCode`, `CmdPacket` (8-byte header), `RespPacket` (4-byte header), encode/decode, `ProtocolError`; 16 inline tests. All pass. 832 total.
+
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
 - **WHERE** (doc-only, repo-root): updated `README.md` (+110 lines).  Added four new System Status rows (BitNet HLS / Host stack / R-TT track / Chips) and a brand-new section `## BitNet HLS Pipeline & R-TT Reproducibility Track` documenting the 9/9 RTL pipeline, the host stack CLIs (`host-smoke`, `host-poll-vs-irq`), the R-TT track CLIs (`tt-manifest`, `tt-profile`, `tt-conform`), the three chip submodules under `chips/`, and a test-coverage summary (365/366 integration).  Cross-links to `docs/NOW.md` as the live wave log.  This is a housekeeping commit between waves (W45 merged at `7f463018`, W46 R-TT-3 next).  Zero edits to code, kernel, spec, RTL, tests, `.gitmodules`, or `chips/`.
