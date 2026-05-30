@@ -45,6 +45,7 @@ pub mod regmap;
 pub mod retry;
 pub mod ring_buffer;
 pub mod scatter_gather;
+pub mod serial;
 pub mod session;
 pub mod telemetry;
 pub mod transport;
@@ -84,6 +85,7 @@ pub use regmap::{ConfigSnapshot, CtrlReg, FullSnapshot, IrqEnReg, IrqStatReg, St
 pub use retry::{BackoffStrategy, RetryError, RetryPolicy, RetryState};
 pub use ring_buffer::{RingBuffer, RingError};
 pub use scatter_gather::{SgDescriptor, SgError, SgSegment};
+pub use serial::{Deserializer, SerialError, Serializer};
 pub use session::{Session, SessionConfig, SessionError, SessionStats};
 pub use telemetry::{Metric, MetricKind, MetricValue, TelemetryCollector, TelemetrySnapshot};
 pub use transport::{TransportError, TransportFrame};
