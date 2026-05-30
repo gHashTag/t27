@@ -127,6 +127,10 @@ Last updated: 2026-05-30
 
 - **WHERE** (host-only, additive): new `bootstrap/src/host/errors.rs` with `ErrorCode` (domain+code packed u16), `ErrorDomain` (10 domains), `Severity` (Info/Warn/Error/Fatal), `CatalogEntry` (18 entries with recovery hints), `lookup`/`by_domain`/`by_severity`; 12 inline tests. All pass. 828 total.
 
+## wave-86 -- host latency histogram (R-HS-34, Closes #885)
+
+- **WHERE** (host-only, additive): new `bootstrap/src/host/histogram.rs` with `Histogram` (10 fixed bins 0–50ms+, record/percentile/p50/p99/mean/min/max/merge/reset), `HistogramSummary`; 12 inline tests. All pass. 828 total.
+
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
 - **WHERE** (doc-only, repo-root): updated `README.md` (+110 lines).  Added four new System Status rows (BitNet HLS / Host stack / R-TT track / Chips) and a brand-new section `## BitNet HLS Pipeline & R-TT Reproducibility Track` documenting the 9/9 RTL pipeline, the host stack CLIs (`host-smoke`, `host-poll-vs-irq`), the R-TT track CLIs (`tt-manifest`, `tt-profile`, `tt-conform`), the three chip submodules under `chips/`, and a test-coverage summary (365/366 integration).  Cross-links to `docs/NOW.md` as the live wave log.  This is a housekeeping commit between waves (W45 merged at `7f463018`, W46 R-TT-3 next).  Zero edits to code, kernel, spec, RTL, tests, `.gitmodules`, or `chips/`.
