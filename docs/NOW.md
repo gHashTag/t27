@@ -91,6 +91,10 @@ Last updated: 2026-05-30
 
 - **WHERE** (host-only, additive): new `bootstrap/src/host/pipeline.rs` with `InferencePipeline` (state machine: Idle→Configured→WeightsLoaded→Running→Complete/Error, configure/load_weights/start/poll/wait_complete/reset), `PipelineConfig`, `InferenceResult`, `PipelineError`; includes protocol+transport+session+regmap from W67-W70. 14 inline tests. All pass. 891 total.
 
+## wave-73 -- host watchdog timer (R-HS-21, Closes #859)
+
+- **WHERE** (host-only, additive): new `bootstrap/src/host/watchdog.rs` with `WatchdogTimer` (Idle→Running→Expired/Stopped, start/feed/check/stop/reset, missed heartbeat tracking), `WatchdogConfig` (timeout, heartbeat interval, max missed), `WatchdogStats`; 19 inline tests. All pass. 835 total.
+
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
 - **WHERE** (doc-only, repo-root): updated `README.md` (+110 lines).  Added four new System Status rows (BitNet HLS / Host stack / R-TT track / Chips) and a brand-new section `## BitNet HLS Pipeline & R-TT Reproducibility Track` documenting the 9/9 RTL pipeline, the host stack CLIs (`host-smoke`, `host-poll-vs-irq`), the R-TT track CLIs (`tt-manifest`, `tt-profile`, `tt-conform`), the three chip submodules under `chips/`, and a test-coverage summary (365/366 integration).  Cross-links to `docs/NOW.md` as the live wave log.  This is a housekeeping commit between waves (W45 merged at `7f463018`, W46 R-TT-3 next).  Zero edits to code, kernel, spec, RTL, tests, `.gitmodules`, or `chips/`.
