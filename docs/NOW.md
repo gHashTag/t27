@@ -2,6 +2,10 @@
 
 Last updated: 2026-05-30
 
+## wave-62 -- strengthen AST constant folding (R-CO-1, Closes #837)
+
+- **WHERE** (compiler optimizer): `fold_stmt` extended to recurse into `StmtExpr`, `StmtIf` condition, `StmtWhile`/`StmtFor` bodies; `eval_binary` extended with 6 comparison operators; 22 inline tests. All pass. 839 total.
+
 ## wave-64 -- host ring buffer for DMA streaming (R-HS-12, Closes #840)
 
 - **WHERE** (host-only, additive): new `bootstrap/src/host/ring_buffer.rs` with `RingBuffer<T>` generic; push/pop single and batch; wrap-around; peek; clear; `RingError`; 16 inline tests. All pass. 832 total.

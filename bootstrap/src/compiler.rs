@@ -6080,12 +6080,39 @@ fn fold_stmt(node: &mut Node, stats: &mut OptStats) {
     if node.kind == NodeKind::ExprReturn && !node.children.is_empty() {
         fold_expr(&mut node.children[0], stats);
     }
+    if node.kind == NodeKind::StmtExpr && !node.children.is_empty() {
+        fold_expr(&mut node.children[0], stats);
+    }
     if node.kind == NodeKind::StmtIf {
+        if !node.children.is_empty() {
+            fold_expr(&mut node.children[0], stats);
+        }
         for child in &mut node.children {
             if child.kind == NodeKind::Module {
                 for stmt in &mut child.children {
                     fold_stmt(stmt, stats);
                 }
+            }
+        }
+    }
+    if node.kind == NodeKind::StmtWhile {
+        if !node.children.is_empty() {
+            fold_expr(&mut node.children[0], stats);
+        }
+        if node.children.len() > 1 {
+            for stmt in &mut node.children[1].children {
+                fold_stmt(stmt, stats);
+            }
+        }
+    }
+    if node.kind == NodeKind::StmtFor {
+        let body_idx = node.children.len().saturating_sub(1);
+        if body_idx > 0 {
+            fold_expr(&mut node.children[0], stats);
+        }
+        if !node.children.is_empty() {
+            for stmt in &mut node.children[body_idx].children {
+                fold_stmt(stmt, stats);
             }
         }
     }
@@ -6536,6 +6563,12 @@ fn eval_binary(left: &str, op: &str, right: &str) -> Option<String> {
         "^" => Some(l ^ r),
         "<<" if (0..64).contains(&r) => Some(l << r),
         ">>" if (0..64).contains(&r) => Some(l >> r),
+        "==" => Some(if l == r { 1 } else { 0 }),
+        "!=" => Some(if l != r { 1 } else { 0 }),
+        "<" => Some(if l < r { 1 } else { 0 }),
+        ">" => Some(if l > r { 1 } else { 0 }),
+        "<=" => Some(if l <= r { 1 } else { 0 }),
+        ">=" => Some(if l >= r { 1 } else { 0 }),
         _ => None,
     };
     result.map(|v| v.to_string())
@@ -21380,5 +21413,235 @@ mod tests_phase40_coverage {
         let f = &ast.children[0];
         assert_eq!(f.kind, NodeKind::FnDecl);
         assert!(f.children.len() >= 3, "unrolled loop should have 3 stmts, got {}", f.children.len());
+
+    #[test]
+    fn test_fold_add() {
+        let code = "module M { pub fn f() -> i32 { return 3 + 5 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("8"), "expected folded 3+5=8, got: {}", out);
+        assert!(!out.contains("3 + 5") && !out.contains("3 + 5"), "should not contain unfolded expr");
+    }
+
+    #[test]
+    fn test_fold_sub() {
+        let code = "module M { pub fn f() -> i32 { return 10 - 3 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("7"), "expected folded 10-3=7, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_mul() {
+        let code = "module M { pub fn f() -> i32 { return 4 * 6 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("24"), "expected folded 4*6=24, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_div() {
+        let code = "module M { pub fn f() -> i32 { return 20 / 4 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("5"), "expected folded 20/4=5, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_mod() {
+        let code = "module M { pub fn f() -> i32 { return 17 % 5 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("2"), "expected folded 17%5=2, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_bitwise_and() {
+        let code = "module M { pub fn f() -> i32 { return 255 & 15 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        let inner = &ret.children[0];
+        if inner.kind == NodeKind::ExprLiteral {
+            assert_eq!(inner.value, "15");
+        }
+    }
+
+    #[test]
+    fn test_fold_bitwise_or() {
+        let code = "module M { pub fn f() -> i32 { return 240 | 15 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        let inner = &ret.children[0];
+        if inner.kind == NodeKind::ExprLiteral {
+            assert_eq!(inner.value, "255");
+        }
+    }
+
+    #[test]
+    fn test_fold_shift_left() {
+        let code = "module M { pub fn f() -> i32 { return 1 << 8 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("256"), "expected folded 1<<8=256, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_shift_right() {
+        let code = "module M { pub fn f() -> i32 { return 256 >> 4 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("16"), "expected folded 256>>4=16, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_neg() {
+        let code = "module M { pub fn f() -> i32 { return -42 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].kind, NodeKind::ExprLiteral);
+        assert_eq!(ret.children[0].value, "-42");
+    }
+
+    #[test]
+    fn test_fold_not() {
+        let code = "module M { pub fn f() -> i32 { return !0 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].kind, NodeKind::ExprLiteral);
+        assert_eq!(ret.children[0].value, "1");
+    }
+
+    #[test]
+    fn test_fold_bnot() {
+        let code = "module M { pub fn f() -> i32 { return ~0 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].kind, NodeKind::ExprLiteral);
+    }
+
+    #[test]
+    fn test_fold_nested() {
+        let code = "module M { pub fn f() -> i32 { return (2 + 3) * (4 - 1) } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("15"), "expected folded (2+3)*(4-1)=15, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_eq() {
+        let code = "module M { pub fn f() -> i32 { return 5 == 5 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].value, "1");
+    }
+
+    #[test]
+    fn test_fold_neq() {
+        let code = "module M { pub fn f() -> i32 { return 3 != 5 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].value, "1");
+    }
+
+    #[test]
+    fn test_fold_lt() {
+        let code = "module M { pub fn f() -> i32 { return 3 < 5 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].value, "1");
+    }
+
+    #[test]
+    fn test_fold_gt_false() {
+        let code = "module M { pub fn f() -> i32 { return 3 > 5 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].value, "0");
+    }
+
+    #[test]
+    fn test_no_fold_with_variable() {
+        let code = "module M { pub fn f(x: i32) -> i32 { return x + 3 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].kind, NodeKind::ExprBinary, "should not fold expr with variable");
+    }
+
+    #[test]
+    fn test_fold_in_return() {
+        let code = "module M { pub fn f() -> i32 { return 3 > 2 } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("return 1") || out.contains("return 1;"), "expected return 1, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_div_by_zero() {
+        let code = "module M { pub fn f() -> i32 { return 10 / 0 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        assert_eq!(ret.children[0].kind, NodeKind::ExprBinary, "should not fold div by zero");
+    }
+
+    #[test]
+    fn test_fold_xor() {
+        let code = "module M { pub fn f() -> i32 { return 0xFF ^ 0x0F } }";
+        let out = Compiler::compile(code).expect("compile");
+        assert!(out.contains("240"), "expected folded 0xFF^0x0F=240, got: {}", out);
+    }
+
+    #[test]
+    fn test_fold_lte() {
+        let code = "module M { pub fn f() -> i32 { return 5 <= 5 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        assert_eq!(f.children[0].children[0].value, "1");
+    }
+
+    #[test]
+    fn test_fold_gte() {
+        let code = "module M { pub fn f() -> i32 { return 5 >= 6 } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let mut ast = parser.parse().expect("parse");
+        optimize(&mut ast, &OptConfig::default());
+        let f = &ast.children[0];
+        assert_eq!(f.children[0].children[0].value, "0");
     }
 }
