@@ -21413,6 +21413,7 @@ mod tests_phase40_coverage {
         let f = &ast.children[0];
         assert_eq!(f.kind, NodeKind::FnDecl);
         assert!(f.children.len() >= 3, "unrolled loop should have 3 stmts, got {}", f.children.len());
+    }
 
     #[test]
     fn test_fold_add() {
