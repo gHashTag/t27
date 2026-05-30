@@ -32,6 +32,7 @@ pub mod mempool;
 pub mod mmio;
 pub mod pipeline;
 pub mod protocol;
+pub mod ratelimit;
 pub mod regmap;
 pub mod retry;
 pub mod scatter_gather;
@@ -61,6 +62,7 @@ pub use mempool::{MemBlock, MemPool, PoolError, PoolStats, BLOCK_SIZE, MAX_BLOCK
 pub use mmio::{MmioOp, MmioRecord, MockMmio};
 pub use pipeline::{InferencePipeline, PipelineConfig, PipelineError, PipelineState};
 pub use protocol::{Cmd, CmdPacket, ProtocolError, RespCode, RespPacket, CMD_HEADER_SIZE, RESP_HEADER_SIZE};
+pub use ratelimit::{RateLimitConfig, RateLimitError, RateLimiter, RateLimitStats};
 pub use regmap::{ConfigSnapshot, CtrlReg, FullSnapshot, IrqEnReg, IrqStatReg, StatusReg, WeightAddr};
 pub use retry::{BackoffStrategy, RetryError, RetryPolicy, RetryState};
 pub use scatter_gather::{SgDescriptor, SgError, SgSegment};
