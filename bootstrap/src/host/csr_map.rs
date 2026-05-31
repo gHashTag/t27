@@ -10,8 +10,10 @@
 //   0x00  CTRL              RW    [0] = start pulse
 //   0x04  STATUS            RO    [0] busy, [1] done, [2] error
 //   0x08  IRQ_EN            RW    [0] inference_done, [1] dma_done, [2] error
-//   0x0C  IRQ_STAT          RO    sticky latch -- write-1-to-clear via
-//                                 mirrored upstream status_read pulse
+//   0x0C  IRQ_STAT          RO    sticky latch -- READ-TO-CLEAR via
+//                                 upstream `status_read` pulse (W57).
+//                                 The AXI slave has no write case for
+//                                 this offset; writes are dropped.
 //   0x10  NUM_LAYERS        RW    layer count
 //   0x14  NEURONS           RW    neurons per layer
 //   0x18  CHUNKS            RW    chunks per neuron
