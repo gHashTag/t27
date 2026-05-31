@@ -6280,15 +6280,25 @@ fn reduce_expr(node: &mut Node, stats: &mut OptStats) {
     if node.kind == NodeKind::ExprBinary && node.children.len() >= 2 {
         reduce_expr(&mut node.children[0], stats);
         reduce_expr(&mut node.children[1], stats);
+        // W73 (CRITICAL): strength reduction is only safe in general for
+        // `*` against a power-of-two literal -- `x * 2^k == x << k` holds
+        // for both signed and unsigned 2's-complement modulo 2^n. Signed
+        // DIVISION by a power of two MUST NOT be lowered to an arithmetic
+        // right shift: signed `/` rounds toward zero (C, Rust, Zig), but
+        // `>>` rounds toward negative infinity. Example with i32:
+        //     -7 /  4  == -1
+        //     -7 >> 2  == -2
+        // The optimizer cannot prove signedness from the AST at this
+        // stage (no per-node TypeInfo is attached during the optimizer
+        // pass; see `Node` in this file -- it has no type field), so the
+        // only safe rule is to skip the `/` -> `>>` rewrite entirely.
+        // Backends are free to perform the same rewrite later, after
+        // type-checking, where signedness is known and an unsigned-only
+        // path can be selected. `*` -> `<<` remains.
         let is_mul = node.extra_op == "*";
-        let is_div = node.extra_op == "/";
-        if (is_mul || is_div) && is_power_of_two_literal(&node.children[1]) {
+        if is_mul && is_power_of_two_literal(&node.children[1]) {
             let shift_val = get_power_of_two(&node.children[1]);
-            node.extra_op = if is_mul {
-                "<<".to_string()
-            } else {
-                ">>".to_string()
-            };
+            node.extra_op = "<<".to_string();
             node.children[1].value = shift_val.to_string();
             stats.strengths_reduced += 1;
         }
@@ -22084,5 +22094,58 @@ mod tests_phase40_coverage {
             .iter()
             .any(|s| s.kind == NodeKind::StmtLocal && s.name.starts_with("_cse"));
         assert!(has_cse_local, "expected at least one _cseN local to be hoisted");
+    }
+
+    #[test]
+    fn strength_reduce_does_not_lower_division_w73() {
+        // W73 (CRITICAL): the optimizer used to rewrite `x / N` to
+        // `x >> log2(N)` for any power-of-two literal N. This is
+        // semantically wrong for signed integers because `/` rounds
+        // toward zero (-7 / 4 == -1) but `>>` rounds toward negative
+        // infinity (-7 >> 2 == -2). The optimizer cannot see types
+        // at this stage, so the only safe rule is to skip the `/`
+        // case entirely. `*` -> `<<` remains because it is safe under
+        // wrap-around for both signed and unsigned 2's-complement.
+        //
+        // This test pins the AST shape after the optimizer pass:
+        //   - `return x / 4` keeps `extra_op = "/"` and the literal `4`
+        //     in the RHS (i.e. NOT rewritten to `>> 2`).
+        //   - `strengths_reduced` counter does NOT tick.
+        let mut stmts = vec![ret(binop("/", ident("x"), lit("4")))];
+        let mut stats = fresh_stats();
+        strength_reduce(&mut stmts, &mut stats);
+        let ret_expr = &stmts[0].children[0];
+        assert_eq!(ret_expr.kind, NodeKind::ExprBinary);
+        assert_eq!(
+            ret_expr.extra_op, "/",
+            "signed division by a power of two must NOT be lowered to a shift; got `{}`",
+            ret_expr.extra_op
+        );
+        assert_eq!(
+            ret_expr.children[1].value, "4",
+            "RHS literal must remain the divisor `4`, not the shift count `2`; got `{}`",
+            ret_expr.children[1].value
+        );
+        assert_eq!(
+            stats.strengths_reduced, 0,
+            "no strength reductions should fire on `/` after W73; got {}",
+            stats.strengths_reduced
+        );
+    }
+
+    #[test]
+    fn strength_reduce_still_lowers_multiplication_w73() {
+        // Companion to the W73 test above: multiplication by a
+        // power-of-two literal is still safely rewritten to a left
+        // shift, because `x * 2^k == x << k` mod 2^n holds for both
+        // signed and unsigned 2's-complement.
+        let mut stmts = vec![ret(binop("*", ident("x"), lit("8")))];
+        let mut stats = fresh_stats();
+        strength_reduce(&mut stmts, &mut stats);
+        let ret_expr = &stmts[0].children[0];
+        assert_eq!(ret_expr.kind, NodeKind::ExprBinary);
+        assert_eq!(ret_expr.extra_op, "<<", "`*` by power of two should still lower to `<<`");
+        assert_eq!(ret_expr.children[1].value, "3", "shift count for `* 8` is 3");
+        assert_eq!(stats.strengths_reduced, 1);
     }
 }
