@@ -192,10 +192,26 @@ endmodule
 
 const MOD_TRIT_FULL_ADDER: &str = "\
 // ----------------------------------------------------------------------------
-// trit_full_adder -- a + b + cin = (sum, cout)
-//   Built from two half adders + a carry-combine via trit_or (Kleene max).
-//   When both half-adder carries are nonzero they always share the same sign,
-//   so trit_or correctly combines them without overflow.
+// trit_full_adder -- a + b + cin = (sum, cout) in balanced ternary {-1, 0, +1}
+//
+//   Built from two half adders. The half-adder carries are themselves trits
+//   in {-1, 0, +1}; we combine them by SIGNED INTEGER ADDITION, then encode.
+//
+//   It can be proven by exhaustive case analysis over the 27 (a,b,cin)
+//   triples that the two half-adder carries c1, c2 are never simultaneously
+//   nonzero with the SAME sign, hence c1+c2 is always in {-1, 0, +1} and the
+//   final cout fits in a single trit (no second-order carry).
+//
+//   Previous implementations used `trit_or` (Kleene max) for the combine.
+//   That was wrong in 6 / 27 cases:
+//     - it cannot produce -1 when either operand is 0 (Z > N in the encoding),
+//       so e.g. (a,b,cin) = (-1,-1,-1) lost the carry;
+//     - and for the two opposite-sign cases (-1,-1,+1) and (+1,+1,-1) it
+//       returned the wrong magnitude.
+//
+//   Encoding: 2'b00 = -1 (TRIT_N), 2'b01 = 0 (TRIT_Z), 2'b10 = +1 (TRIT_P).
+//
+//   Closes #936 (W64), #963 (W87), #989 (W111).
 // ----------------------------------------------------------------------------
 module trit_full_adder (
     input  wire [1:0] a,
@@ -204,6 +220,10 @@ module trit_full_adder (
     output wire [1:0] sum,
     output wire [1:0] cout
 );
+    localparam [1:0] TRIT_N = 2'b00;
+    localparam [1:0] TRIT_Z = 2'b01;
+    localparam [1:0] TRIT_P = 2'b10;
+
     wire [1:0] sum1;
     wire [1:0] carry1;
     wire [1:0] carry2;
@@ -211,7 +231,20 @@ module trit_full_adder (
     trit_half_adder ha1 (.a(a),    .b(b),   .sum(sum1), .carry(carry1));
     trit_half_adder ha2 (.a(sum1), .b(cin), .sum(sum),  .carry(carry2));
 
-    trit_or carry_combine (.a(carry1), .b(carry2), .result(cout));
+    // Decode each carry trit to a signed integer in {-1, 0, +1}.
+    wire signed [2:0] c1_val = (carry1 == TRIT_N) ? -3'sd1 :
+                               (carry1 == TRIT_P) ?  3'sd1 :
+                                                     3'sd0;
+    wire signed [2:0] c2_val = (carry2 == TRIT_N) ? -3'sd1 :
+                               (carry2 == TRIT_P) ?  3'sd1 :
+                                                     3'sd0;
+
+    // |c1+c2| <= 1 always (see header comment); no overflow case.
+    wire signed [2:0] c_total = c1_val + c2_val;
+
+    assign cout = (c_total ==  3'sd1) ? TRIT_P :
+                  (c_total == -3'sd1) ? TRIT_N :
+                                        TRIT_Z;
 endmodule
 
 ";

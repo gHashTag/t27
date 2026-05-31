@@ -155,11 +155,16 @@ fn trit_half_adder_handles_carry_overflow() {
 }
 
 #[test]
-fn trit_full_adder_uses_two_half_adders_and_or_combine() {
+fn trit_full_adder_combines_carries_with_signed_addition() {
+    // R-TS regression for the W64 / W87 / W111 carry bug. Previously the
+    // full adder combined its two half-adder carries via `trit_or` (Kleene
+    // max), which was wrong in 6 / 27 (a,b,cin) cases. The fix decodes each
+    // carry to a signed integer in {-1, 0, +1}, adds them, then encodes the
+    // result back to a trit. See bootstrap/src/trit_stdlib.rs for the proof
+    // that |c1 + c2| <= 1 always.
     let v = run_gen_trit_stdlib();
     let body =
         extract_module(&v, "trit_full_adder").expect("trit_full_adder module not found");
-    // Exactly 2 half-adder instances (`ha1`, `ha2`) and one trit_or combine.
     let ha_count = body.matches("trit_half_adder ha").count();
     assert_eq!(
         ha_count, 2,
@@ -167,8 +172,98 @@ fn trit_full_adder_uses_two_half_adders_and_or_combine() {
         ha_count, body
     );
     assert!(
-        body.contains("trit_or carry_combine"),
-        "trit_full_adder must combine half-adder carries via trit_or"
+        !body.contains("trit_or carry_combine"),
+        "trit_full_adder must NOT use trit_or to combine carries (W64/W87/W111). Body:\n{}",
+        body
+    );
+    assert!(
+        body.contains("c1_val") && body.contains("c2_val") && body.contains("c_total"),
+        "trit_full_adder must decode each carry to a signed int and add. Body:\n{}",
+        body
+    );
+    assert!(
+        body.contains("c1_val + c2_val"),
+        "trit_full_adder must add the two decoded carries. Body:\n{}",
+        body
+    );
+    // Final cout must mux back to TRIT_{P,N,Z} from the signed sum.
+    assert!(
+        body.contains("(c_total ==  3'sd1) ? TRIT_P"),
+        "trit_full_adder cout must mux c_total==+1 to TRIT_P. Body:\n{}",
+        body
+    );
+    assert!(
+        body.contains("(c_total == -3'sd1) ? TRIT_N"),
+        "trit_full_adder cout must mux c_total==-1 to TRIT_N. Body:\n{}",
+        body
+    );
+}
+
+/// Pure-Rust functional model of the half adder, kept in sync with the
+/// emitted Verilog in `MOD_TRIT_HALF_ADDER`. Used to drive the 27-case
+/// truth-table test below.
+fn half_adder_model(a: i32, b: i32) -> (i32, i32) {
+    let total = a + b;
+    match total {
+        -2 => (1, -1),  // -2 = -3 + 1
+        -1 => (-1, 0),
+        0 => (0, 0),
+        1 => (1, 0),
+        2 => (-1, 1),   //  2 =  3 - 1
+        _ => unreachable!("half adder total out of range: {}", total),
+    }
+}
+
+/// Reference: the correct full-adder truth value for a + b + cin in balanced
+/// ternary, mapped to the (sum, cout) digit pair.
+fn full_adder_truth(a: i32, b: i32, cin: i32) -> (i32, i32) {
+    let total = a + b + cin;
+    match total {
+        -3 => (0, -1),
+        -2 => (1, -1),
+        -1 => (-1, 0),
+        0 => (0, 0),
+        1 => (1, 0),
+        2 => (-1, 1),
+        3 => (0, 1),
+        _ => unreachable!("full adder total out of range: {}", total),
+    }
+}
+
+#[test]
+fn trit_full_adder_truth_table_is_correct_all_27_cases() {
+    // This test models the emitted Verilog at the algorithmic level: chain two
+    // half adders, combine the carries by SIGNED INTEGER ADDITION, and check
+    // against the canonical full-adder truth table for every (a, b, cin) in
+    // {-1, 0, +1}^3. If this passes and the Verilog-shape assertions above
+    // pass, the emitted hardware implements the same function.
+    let mut failures: Vec<String> = Vec::new();
+    for &a in &[-1i32, 0, 1] {
+        for &b in &[-1i32, 0, 1] {
+            for &cin in &[-1i32, 0, 1] {
+                let (s1, c1) = half_adder_model(a, b);
+                let (sum_model, c2) = half_adder_model(s1, cin);
+                let cout_model = c1 + c2;
+                assert!(
+                    cout_model.abs() <= 1,
+                    "INVARIANT VIOLATION: |c1+c2| must be <= 1 for inputs ({},{},{}); got c1={}, c2={}",
+                    a, b, cin, c1, c2
+                );
+                let (sum_truth, cout_truth) = full_adder_truth(a, b, cin);
+                if sum_model != sum_truth || cout_model != cout_truth {
+                    failures.push(format!(
+                        "({:>2},{:>2},{:>2}) -> model=({:>2},{:>2}) truth=({:>2},{:>2})",
+                        a, b, cin, sum_model, cout_model, sum_truth, cout_truth
+                    ));
+                }
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "trit_full_adder model disagrees with truth table for {} / 27 cases:\n{}",
+        failures.len(),
+        failures.join("\n")
     );
 }
 
