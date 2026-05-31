@@ -31,7 +31,8 @@
     },
     "GF20": { "bits": 20, "sign": 1, "exp": 7, "mant": 12, "bias": 63, "phi_dist": 0.035 },
     "GF24": { "bits": 24, "sign": 1, "exp": 9, "mant": 14, "bias": 255, "phi_dist": 0.025 },
-    "GF32": { "bits": 32, "sign": 1, "exp": 12, "mant": 19, "bias": 2047, "phi_dist": 0.014 }
+    "GF32": { "bits": 32, "sign": 1, "exp": 12, "mant": 19, "bias": 2047, "phi_dist": 0.014 },
+    "GF64": { "bits": 64, "sign": 1, "exp": 24, "mant": 39, "bias": 8388607, "phi_dist": 0.00265, "extension": true }
   },
   "sacred_constants": {
     "PHI": { "value": 1.6180339887498948482, "tolerance": 1e-15 },

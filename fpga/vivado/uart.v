@@ -11,7 +11,7 @@ module uart_rx #(
 
     reg [15:0] cnt;
     reg [3:0]  bit_cnt;
-    reg [9:0]  shift_reg;
+    reg [7:0]  shift_reg;
     reg        rx_sync;
     reg        rx_prev;
     reg [1:0]  state;
@@ -24,7 +24,10 @@ module uart_rx #(
             0: begin
                 valid <= 0;
                 if (rx_prev && !rx_sync) begin
-                    cnt <= HALF_DIV[15:0];
+                    // wait 1.5 bit-times so the first sample is the centre of d0
+                    // (skip the start bit); sampling only HALF_DIV captured the
+                    // start bit as a data bit and dropped d7.
+                    cnt <= CLK_DIV[15:0] + HALF_DIV[15:0] - 16'd1;
                     bit_cnt <= 0;
                     state <= 1;
                 end
@@ -32,11 +35,10 @@ module uart_rx #(
             1: begin
                 if (cnt == 0) begin
                     cnt <= CLK_DIV[15:0] - 16'd1;
-                    shift_reg[0] <= rx_sync;
-                    shift_reg[9:1] <= shift_reg[8:0];
+                    shift_reg <= {rx_sync, shift_reg[7:1]}; // LSB-first: new bit into MSB
                     bit_cnt <= bit_cnt + 1;
-                    if (bit_cnt == 9) begin
-                        data <= shift_reg[8:1];
+                    if (bit_cnt == 7) begin                 // 8th data bit (d7) sampled
+                        data <= {rx_sync, shift_reg[7:1]};
                         valid <= 1;
                         state <= 0;
                     end

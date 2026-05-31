@@ -142,6 +142,12 @@ module gf16_mul_tb;
         a = 16'h3C00; b = 16'h3C00;
         #10 check(0.25, "0.5*0.5");
 
+        // Regression: mantissa rounding overflow to 2.0 (was ~2x wrong when
+        // mant_rounded was [8:0] and the carry into bit 9 was lost).
+        // ~1.001953 * ~1.996094 = 1.999992 -> must round to 2.0, not 1.0.
+        a = 16'h3E01; b = 16'h3FFE;
+        #10 check(1.999992, "round-ovf 1.002*1.996");
+
         // NaN * 1.0 = NaN
         a = 16'hFE01; b = 16'h3E00;
         #10;

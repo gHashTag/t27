@@ -122,6 +122,21 @@ Load these skills when their functionality matches the task.
 
 ---
 
+## FPGA hardware & flashing (SSOT)
+
+**`[fpga/HARDWARE_SSOT.md](fpga/HARDWARE_SSOT.md)` is the single source of truth**
+for the FPGA board, JTAG cable, host toolchain, and program/flash path. Read it
+before touching anything under `fpga/`. Non-negotiables:
+
+- Target board is **QMTech Wukong V1 / XC7A100T-FGG676** (`xc7a100tfgg676-1`),
+  IDCODE `0x13631093`. Not the Arty A7 (`csg324`).
+- Flash via the in-repo Rust driver **`cli/dlc10`** (`dlc10 idcode|sram|flash|reload`).
+  **Do not use `openFPGALoader`** — it cannot drive the `0x03FD` Xilinx cable.
+- No native macOS Vivado exists. Synthesis is Vivado-in-Docker or OpenXC7 only.
+- If any other FPGA doc contradicts the SSOT, the SSOT wins — fix the other doc.
+
+---
+
 ## 6. Security and secrets
 
 - Never commit secrets. See `[SECURITY.md](SECURITY.md)`. Root `.env` patterns are gitignored; use `.env.example` patterns only in docs.
