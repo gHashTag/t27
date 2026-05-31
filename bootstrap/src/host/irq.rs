@@ -10,7 +10,8 @@
 //   3. Host CPU receives an interrupt, calls `IrqHandler::service()`, which:
 //        a. reads IRQ_STAT,
 //        b. dispatches a callback per latched source,
-//        c. write-1-to-clears every serviced bit (mirrors W36d slave).
+//        c. relies on the read-to-clear semantics of the W36d slave
+//           (the single IRQ_STAT read clears all sticky latches).  W57.
 //   4. `IrqDrivenDriver::wait_done_irq` loops over `service()` until
 //      `InferenceDone` fires or a budget is exhausted.
 //
@@ -88,7 +89,8 @@ pub struct IrqCounters {
 /// Callback registry keyed by `IrqSource`.
 ///
 /// Borrows the MMIO backend mutably during `service()` so it can read /
-/// write-1-to-clear IRQ_STAT.  Callbacks are `fn()` (stateless) by design --
+/// rely on the read-to-clear semantics of IRQ_STAT (the read inside
+/// `service` clears all sticky latches).  Callbacks are `fn()` (stateless) by design --
 /// stateful tracking is done via the borrowed `IrqCounters` returned by
 /// `take_counters` after every service round.
 pub struct IrqHandler {
@@ -134,15 +136,25 @@ impl IrqHandler {
         }
     }
 
-    /// Read IRQ_STAT, dispatch callbacks for every latched bit that has a
-    /// registered handler, and write-1-to-clear the serviced bits.
+    /// Read IRQ_STAT once and dispatch callbacks for every latched bit
+    /// that has a registered handler.
+    ///
+    /// **W57 behaviour change.** IRQ_STAT is read-to-clear on hardware --
+    /// the single read inside this function clears ALL sticky bits, not
+    /// just the serviced ones. This includes any bit that is latched but
+    /// has no registered handler: that event is consumed by the read and
+    /// reported in `raw_status` so the caller can still observe it, but
+    /// it cannot be re-read from IRQ_STAT afterwards. Previously this
+    /// function also emitted a write-1-to-clear to IRQ_STAT after
+    /// dispatch; that write was a no-op on hardware (the AXI slave has
+    /// no write case for offset 0x0C) and only added a misleading entry
+    /// to the MMIO log on the mock. It has been removed.
     pub fn service<M: Mmio>(&self, mmio: &mut M) -> ServiceReport {
         let raw = mmio.read32(csr_map::IRQ_STAT);
         let mut report = ServiceReport {
             raw_status: raw,
             ..Default::default()
         };
-        let mut to_clear: u32 = 0;
         for src in IrqSource::all() {
             let m = src.mask();
             if raw & m == 0 {
@@ -156,16 +168,12 @@ impl IrqHandler {
             if let Some(f) = cb {
                 f();
                 report.dispatched += 1;
-                to_clear |= m;
                 match src {
                     IrqSource::InferenceDone => report.inference_done = true,
                     IrqSource::Error => report.error = true,
                     _ => {}
                 }
             }
-        }
-        if to_clear != 0 {
-            mmio.write32(csr_map::IRQ_STAT, to_clear);
         }
         report
     }
@@ -311,19 +319,27 @@ mod tests {
         let rep = h.service(&mut m);
         assert_eq!(rep.dispatched, 1);
         assert!(rep.inference_done);
-        // Sticky bit was write-1-to-cleared.
+        // Sticky bit was cleared by the read-to-clear inside service().
         assert_eq!(m.peek(csr_map::IRQ_STAT) & csr_map::IRQ_INFERENCE_DONE_MASK, 0);
     }
 
     #[test]
-    fn service_skips_latched_but_unregistered_source() {
+    fn service_skips_latched_but_unregistered_source_w57() {
+        // W57: IRQ_STAT is read-to-clear on hardware. The single read
+        // inside `service` clears ALL sticky bits, including the
+        // unregistered one. The bit is reported in `raw_status` so the
+        // caller can still observe the event, but it is not redispatched
+        // and not visible in IRQ_STAT after service returns.
         let mut m = MockMmio::with_csrs_zeroed();
         m.latch_irq(csr_map::IRQ_DMA_DONE_MASK);
         let h = IrqHandler::new(); // no callbacks
         let rep = h.service(&mut m);
         assert_eq!(rep.dispatched, 0);
-        // Without a handler the bit stays latched.
-        assert_ne!(m.peek(csr_map::IRQ_STAT) & csr_map::IRQ_DMA_DONE_MASK, 0);
+        // raw_status captured the pre-clear value so the caller can see
+        // the dropped event.
+        assert_ne!(rep.raw_status & csr_map::IRQ_DMA_DONE_MASK, 0);
+        // Latch was consumed by the read.
+        assert_eq!(m.peek(csr_map::IRQ_STAT) & csr_map::IRQ_DMA_DONE_MASK, 0);
     }
 
     #[test]
