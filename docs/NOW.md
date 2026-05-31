@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-31
 
+## verilog-assert-precedence-w49 -- parenthesise masked equality in emitted Verilog asserts (Closes #921)
+
+- **WHERE** (testbench emitter): `bootstrap/src/compiler.rs` (around the masked-assert format in `HirTestbench::emit_verilog`). Verilog's `==` has higher precedence than bitwise `&`, so the previously emitted line `#delay assert(uut.signal & 32'hMASK == 32'hEXPECTED)` parses as `signal & (MASK == EXPECTED)` -- a 1-bit AND of `signal` with the (typically false, hence zero) comparison result, never the intended masked equality. The fix wraps the AND in explicit parens: `#delay assert((uut.signal & 32'hMASK) == 32'hEXPECTED)`. Added regression `test_testbench_masked_assert_parenthesises_and_before_eq_w49` that asserts the parenthesised shape is emitted and the bare-precedence shape is not.
+- **Why**: CRITICAL R-EMIT-1 audit-wave finding (W49). Every masked testbench check in the generated Verilog silently checked the wrong condition, producing false passes on real silicon. Closes #921.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## timing-from-mhz-w106 -- correct ps-per-MHz unit conversion (Closes #984)
 
 - **WHERE** (compiler timing model): `bootstrap/src/compiler.rs`. `TimingConstraint::from_mhz` now computes `period_ps = 1_000_000 / mhz` (was `1_000_000_000 / mhz`). Derivation: 1 MHz = 1e6 Hz; period = 1/(mhz * 1e6) s = 1e12/(mhz * 1e6) ps = 1_000_000/mhz ps. Previous body returned a period 1000x too large -- a 100 MHz constraint produced 10_000_000 ps (10 us) instead of 10_000 ps (10 ns), so every test that fed a clock-MHz constraint into `TimingModel::analyze_module` compared nanosecond-scale path delays against a 10-microsecond budget and passed vacuously. Fallback for `mhz == 0` raised to 1_000_000 ps (1 MHz, obviously slow but still satisfiable) instead of the prior 10000 ps which collided with the broken 100 MHz value. Updated `test_clock_mhz` to expect 10_000, added `test_clock_mhz_various_frequencies` (1/50/100/200/500 MHz spot-checks), and updated `test_clock_mhz_zero` to expect 1_000_000.

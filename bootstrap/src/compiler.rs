@@ -9978,8 +9978,14 @@ impl HirTestbench {
             tb.push_str("    initial begin\n");
             for c in &self.checks {
                 let delay_ps = c.cycle * self.clock.period_ns * 1000;
+                // W49 R-EMIT-1 (issue #921): Verilog `==` binds TIGHTER than
+                // `&`, so `signal & MASK == EXPECTED` parses as
+                // `signal & (MASK == EXPECTED)` -- a 1-bit AND of `signal`
+                // with the comparison result, not the intended masked
+                // equality. Wrap the masked load in explicit parentheses so
+                // the emitted check is `(signal & MASK) == EXPECTED`.
                 tb.push_str(&format!(
-                    "        #{} assert(uut.{} & 32'h{:08X} == 32'h{:08X})\n",
+                    "        #{} assert((uut.{} & 32'h{:08X}) == 32'h{:08X})\n",
                     delay_ps, c.signal, c.mask, c.expected
                 ));
                 tb.push_str(&format!(
@@ -17330,6 +17336,32 @@ mod tests_hir_testbench {
         let mut tb = HirTestbench::new("dut", 1000, 10);
         tb.add_check_masked(20, "status", 0xFF, 0xFF);
         assert_eq!(tb.checks[0].mask, 0xFF);
+    }
+
+    #[test]
+    fn test_testbench_masked_assert_parenthesises_and_before_eq_w49() {
+        // W49 R-EMIT-1 / issue #921 regression: in Verilog `==` has higher
+        // precedence than `&`, so a masked equality MUST be emitted as
+        // `(signal & MASK) == EXPECTED`. The previous emitter wrote
+        // `signal & MASK == EXPECTED`, which Verilog parses as
+        // `signal & (MASK == EXPECTED)` -- silently turning the check into
+        // a 1-bit AND of `signal` with the result of the comparison and
+        // producing false passes on real silicon.
+        let mut tb = HirTestbench::new("dut", 1000, 10);
+        tb.add_check_masked(50, "status", 0xABCD, 0xFFFF);
+        let verilog = tb.emit_verilog();
+        // The corrected form (with parens around the AND) must appear.
+        assert!(
+            verilog.contains("(uut.status & 32'h0000FFFF) == 32'h0000ABCD"),
+            "masked assert missing parentheses around the AND; got:\n{}",
+            verilog
+        );
+        // The broken form (no parens) must NOT appear anywhere.
+        assert!(
+            !verilog.contains("uut.status & 32'h0000FFFF == 32'h0000ABCD"),
+            "masked assert still emits the precedence-bug shape; got:\n{}",
+            verilog
+        );
     }
 
     #[test]
