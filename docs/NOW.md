@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-31
 
+## fix-conformance-gf-competitive-bench-json -- repair invalid JSON (Closes #1008)
+
+- **WHERE** (conformance fixture): `conformance/gf_competitive_bench.json`. Added the missing comma after `"gf32_one_third_repeats_binary": true` and removed a stray extra `}` after the first benchmark entry's `"created"` line. Both were pre-existing syntax errors on master that made the file unparseable, so `t27c validate-conformance` reported `101 total, 100 valid, 1 invalid` and failed the gate. After the fix the file parses (2 benchmark entries: `sacred_constants`, `cross_language_1_3`) and `validate-conformance` reports `101 total, 101 valid, 0 invalid`. No semantic change to any benchmark data (2 insertions, 3 deletions).
+- **Why**: unblock the conformance gate; the broken fixture predated and was unrelated to the phi-loop work (filed as #1008). Closes #1008.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## opt-cse-dse-fix -- sound CSE for ExprCall + correct DSE target for StmtAssign (Closes #918, #919)
 
 - **WHERE** (compiler optimizer): `bootstrap/src/compiler.rs`. (1) `child_key` now treats `ExprCall` (and any non-pure / unsupported expression kind) as un-CSE-able by returning a unique key from a process-wide `AtomicU64` counter on every visit; pure leaves (`ExprLiteral`, `ExprIdentifier`) and pure `ExprBinary` over those remain CSE-able. Previously every call produced the literal key `"ExprCall"`, so `foo()+1` and `bar()+1` collided in the CSE table and the second was rewritten to reference the first one's cached temporary -- wrong code on every side-effecting call. (2) `dead_store_elim` now reads the target name from `s.children[0].name` for `StmtAssign` (LHS lives in `children[0]`, not `.name`) and only eliminates the statement when the LHS is a simple `ExprIdentifier`; non-identifier LHSes (`arr[i] = x`, `obj.field = x`) are preserved. Previously the pass tested `reads.contains(&s.name)` on `StmtAssign` where `s.name` is always `""`, so every assignment was dropped from every optimised program. Six new inline tests in `tests_phase40_coverage` cover both regressions and a positive-CSE sanity guard.
