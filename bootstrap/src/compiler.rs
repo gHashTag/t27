@@ -693,8 +693,20 @@ impl Lexer {
             };
         }
 
-        // Multi-char tokens
-        if ch == b'&' && self.peek() == b'&' {
+        // Multi-char tokens.
+        //
+        // W65 R-CODEGEN-EMIT (issue #937) fix: `self.peek()` returns the
+        // byte at `self.pos`, which here still points at the FIRST `&` /
+        // `|` (the lookahead character is at `self.pos + 1`). The old
+        // condition `ch == b'&' && self.peek() == b'&'` was therefore
+        // tautologically true for any single `&` and produced a bogus
+        // `&&` token (lexeme "&&") for plain bitwise AND. That made the
+        // parser route every `&` into `parse_expr_and` (logical AND with
+        // `extra_op = "and"`), and the Verilog/C/Rust backends then
+        // emitted `&&` -- a 1-bit logical AND -- where the source wrote
+        // a bitwise mask. Same root cause for `||`. Use `peek_offset(1)`
+        // for true lookahead.
+        if ch == b'&' && self.peek_offset(1) == b'&' {
             self.advance();
             self.advance();
             return Token {
@@ -704,7 +716,7 @@ impl Lexer {
                 col: start_col,
             };
         }
-        if ch == b'|' && self.peek() == b'|' {
+        if ch == b'|' && self.peek_offset(1) == b'|' {
             self.advance();
             self.advance();
             return Token {
@@ -21508,6 +21520,87 @@ mod tests_phase40_coverage {
         let f = &ast.children[0];
         let stmt = &f.children[0];
         assert_eq!(stmt.kind, NodeKind::StmtFor, "old for should still be StmtFor");
+    }
+
+    /// W65 R-CODEGEN-EMIT / issue #937 regression: the lexer must distinguish
+    /// the single bitwise `&` from the logical `&&`. Before the fix the
+    /// multi-char lookahead used `self.peek()` (which returns `source[pos]`)
+    /// where it needed true lookahead at `pos+1`, so any single `&` lexed as
+    /// `&&` (and `|` as `||`) and the Verilog/C/Rust emitters then wrote a
+    /// logical AND/OR where the source wrote a bitwise mask. We assert both
+    /// shapes lex to the correct lexeme.
+    #[test]
+    fn test_lexer_distinguishes_bitwise_and_logical_w65() {
+        let mut lex = Lexer::new("x & 0xFF");
+        let t1 = lex.next_token(); // x
+        let t2 = lex.next_token(); // & or &&
+        assert_eq!(t2.kind, TokenKind::Amp);
+        assert_eq!(
+            t2.lexeme, "&",
+            "single `&` must lex as lexeme \"&\", got {:?}",
+            t2.lexeme
+        );
+        // sanity: continuation lexes as a number, not as part of a swallowed lookahead
+        let t3 = lex.next_token();
+        assert_eq!(t3.kind, TokenKind::Number);
+        assert_eq!(t3.lexeme, "0xFF");
+        let _ = t1;
+
+        let mut lex = Lexer::new("x && y");
+        let _ = lex.next_token(); // x
+        let tt = lex.next_token();
+        assert_eq!(tt.kind, TokenKind::Amp);
+        assert_eq!(tt.lexeme, "&&", "logical `&&` must still lex as \"&&\"");
+
+        let mut lex = Lexer::new("x | 0xFF");
+        let _ = lex.next_token(); // x
+        let t = lex.next_token();
+        assert_eq!(t.kind, TokenKind::Pipe);
+        assert_eq!(t.lexeme, "|");
+
+        let mut lex = Lexer::new("x || y");
+        let _ = lex.next_token(); // x
+        let t = lex.next_token();
+        assert_eq!(t.kind, TokenKind::Pipe);
+        assert_eq!(t.lexeme, "||");
+    }
+
+    /// W65 R-CODEGEN-EMIT / issue #937 regression: the parser must route
+    /// bitwise `&` into `parse_expr_bitand` (extra_op == "&"), not into
+    /// `parse_expr_and` (extra_op == "and"). Before the fix every `&` was
+    /// tagged "and" and every backend emitted `&&` (logical 1-bit AND) into
+    /// generated Verilog/C/Rust -- silently corrupting every mask operation.
+    #[test]
+    fn test_parser_tags_bitwise_and_with_amp_op_w65() {
+        let code = "module M { pub fn f(x: u16) -> u16 { return x & 0xFF; } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        // Walk: Module -> FnDecl -> ExprReturn -> ExprBinary
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        let bin = &ret.children[0];
+        assert_eq!(bin.kind, NodeKind::ExprBinary);
+        assert_eq!(
+            bin.extra_op, "&",
+            "bitwise AND must carry extra_op == \"&\", got {:?}",
+            bin.extra_op
+        );
+
+        // And the logical version still routes through parse_expr_and.
+        let code = "module M { pub fn f(x: u16, y: u16) -> bool { return x && y; } }";
+        let lex = Lexer::new(code);
+        let mut parser = Parser::new(lex);
+        let ast = parser.parse().expect("parse should succeed");
+        let f = &ast.children[0];
+        let ret = &f.children[0];
+        let bin = &ret.children[0];
+        assert_eq!(bin.kind, NodeKind::ExprBinary);
+        assert_eq!(
+            bin.extra_op, "and",
+            "logical AND must carry extra_op == \"and\", got {:?}",
+            bin.extra_op
+        );
     }
 
     #[test]
