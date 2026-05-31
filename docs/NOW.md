@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-31
 
+## timing-from-mhz-w106 -- correct ps-per-MHz unit conversion (Closes #984)
+
+- **WHERE** (compiler timing model): `bootstrap/src/compiler.rs`. `TimingConstraint::from_mhz` now computes `period_ps = 1_000_000 / mhz` (was `1_000_000_000 / mhz`). Derivation: 1 MHz = 1e6 Hz; period = 1/(mhz * 1e6) s = 1e12/(mhz * 1e6) ps = 1_000_000/mhz ps. Previous body returned a period 1000x too large -- a 100 MHz constraint produced 10_000_000 ps (10 us) instead of 10_000 ps (10 ns), so every test that fed a clock-MHz constraint into `TimingModel::analyze_module` compared nanosecond-scale path delays against a 10-microsecond budget and passed vacuously. Fallback for `mhz == 0` raised to 1_000_000 ps (1 MHz, obviously slow but still satisfiable) instead of the prior 10000 ps which collided with the broken 100 MHz value. Updated `test_clock_mhz` to expect 10_000, added `test_clock_mhz_various_frequencies` (1/50/100/200/500 MHz spot-checks), and updated `test_clock_mhz_zero` to expect 1_000_000.
+- **Why**: a CRITICAL R-COMPILER finding (W106) -- silently inflated every clock budget by 1000x, so the static timing model could not detect any real violation against typical FPGA targets (50-500 MHz -> 2-20 ns periods). Closes #984.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## phi-phase-e-accounting -- IGLA phi reproducibility capsule + falsification-ledger rows (Refs #181, Closes trios-trainer-igla#1005)
 
 - **WHERE** (additive, doc + spec): (1) `docs/nona-03-manifest/RESEARCH_CLAIMS.md` -- new section 5a tracks the phi->IGLA epic with three falsification-ledger rows (FL-001 optimizer anchors, FL-002 QK-Gain=phi^2, FL-003 GFTernary vs BitNet), each labelled `CONJECTURAL` with an explicit falsification path; an ASHA relabel note (eta=3 is Hyperband field default, NOT a phi fact) and a delta_CP=3/phi^2 retraction note. (2) `specs/ml/igla_champion_capsule.t27` -- NEW spec freezing the champion config (seed=43, ~81K steps, hidden=828, BPB=2.1919) as the control anchor; 7 `test` + 4 `invariant` + 1 `bench` (L4); asserts beta1=phi^-1, weight_decay=phi^-3=1/(2*phi+1) (NOT the stale 0.118=phi^-3/2), the L5 identity phi^2+phi^-2=3, and that the corpus is sub-Chinchilla so BPB is preliminary. ASCII-only (L3).
