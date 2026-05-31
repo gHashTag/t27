@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-31
 
+## phi-phase-e-accounting -- IGLA phi reproducibility capsule + falsification-ledger rows (Refs #181, Closes trios-trainer-igla#1005)
+
+- **WHERE** (additive, doc + spec): (1) `docs/nona-03-manifest/RESEARCH_CLAIMS.md` -- new section 5a tracks the phi->IGLA epic with three falsification-ledger rows (FL-001 optimizer anchors, FL-002 QK-Gain=phi^2, FL-003 GFTernary vs BitNet), each labelled `CONJECTURAL` with an explicit falsification path; an ASHA relabel note (eta=3 is Hyperband field default, NOT a phi fact) and a delta_CP=3/phi^2 retraction note. (2) `specs/ml/igla_champion_capsule.t27` -- NEW spec freezing the champion config (seed=43, ~81K steps, hidden=828, BPB=2.1919) as the control anchor; 7 `test` + 4 `invariant` + 1 `bench` (L4); asserts beta1=phi^-1, weight_decay=phi^-3=1/(2*phi+1) (NOT the stale 0.118=phi^-3/2), the L5 identity phi^2+phi^-2=3, and that the corpus is sub-Chinchilla so BPB is preliminary. ASCII-only (L3).
+- **Why**: Phase E (accounting / publication) of epic #181. phi is treated as a falsifiable design prior, not a proven theory -- "the method survives, phi does not (yet)." The capsule is the CONTROL ANCHOR for the equal-budget ablations, not evidence of phi superiority. Adds no code path and changes no FORMAT-SPEC-001 / gf16 numeric SSOT (L6). Refs #181; closes trios-trainer-igla#1005.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## phi-falsifiable-ablations -- additive control-ablation spec blocks for the phi->IGLA epic (Closes #181 children)
 
 - **WHERE** (specs): additive, append-only blocks across `specs/numeric/phi_ratio.t27` (Phase A3: L5 Trinity identity blocks, `phi^2 + phi^-2 = 3` as the ONLY [Verified] phi-fact, f64 tol 1e-14), new `specs/ml/optimizer/race_config.t27` (Phase A1/A2: frozen RACE config + 80/20 blind-split protocol + Chinchilla budget note), `specs/ml/optimizer/adamw.t27` (Phase B1: four-arm optimizer control -- phi-canonical beta1=phi^-1/wd=phi^-3 vs Damped vs TunedStd vs RandomRat), `specs/nn/attention.t27` (Phase B2: separate `AttentionQKGainAblation` module, gain=phi^2 vs 1.0 vs learned), `specs/numeric/gfternary.t27` (Phase C1/C2: GFTernary {-phi,0,+phi} vs BitNet {-1,0,+1}, CPU bench), `specs/numeric/gf16.t27` (Phase C3: GF16 1-6-9 split under FP8, append-only, FORMAT-SPEC-001.json untouched), new `specs/nn/gla.t27` (Phase D: Gated Linear Attention module, Yang 2023 arXiv:2312.06635).
