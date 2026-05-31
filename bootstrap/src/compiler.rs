@@ -6058,8 +6058,13 @@ fn optimize_fn_body(fn_node: &mut Node, config: &OptConfig, stats: &mut OptStats
 
 fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStats) {
     if config.enable_dce {
+        // W74 (#950): only remove an uninitialized StmtLocal if no later
+        // statement assigns to it AND no later statement reads it. Without
+        // this check the optimizer silently drops `var x: i32;` even when a
+        // subsequent `x = 5; print(x);` needs the declaration.
+        let referenced = collect_local_references(stmts);
         let before = stmts.len();
-        stmts.retain(|s| !is_dead_local(s));
+        stmts.retain(|s| !is_dead_local(s, &referenced));
         stats.dead_removed += (before - stmts.len()) as u32;
     }
     if config.enable_folding {
@@ -6075,11 +6080,55 @@ fn optimize_stmts(stmts: &mut Vec<Node>, config: &OptConfig, stats: &mut OptStat
     loop_unroll(stmts, stats);
 }
 
-fn is_dead_local(node: &Node) -> bool {
-    if node.kind == NodeKind::StmtLocal && node.children.is_empty() && !node.extra_type.is_empty() {
+fn is_dead_local(node: &Node, referenced: &std::collections::HashSet<String>) -> bool {
+    if node.kind == NodeKind::StmtLocal
+        && node.children.is_empty()
+        && !node.extra_type.is_empty()
+        && !referenced.contains(&node.name)
+    {
         return true;
     }
     false
+}
+
+// W74 (#950): collect every identifier name that is either assigned-to or
+// read by any statement in this block. Used by is_dead_local to keep
+// uninitialized declarations whose name is needed later.
+fn collect_local_references(stmts: &[Node]) -> std::collections::HashSet<String> {
+    let mut refs: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for stmt in stmts {
+        collect_refs_in(stmt, &mut refs);
+    }
+    refs
+}
+
+fn collect_refs_in(node: &Node, refs: &mut std::collections::HashSet<String>) {
+    // Do not treat a StmtLocal's own declared name as a reference to itself;
+    // walk only its initializer expression (if any).
+    if node.kind == NodeKind::StmtLocal {
+        for child in &node.children {
+            collect_refs_in(child, refs);
+        }
+        return;
+    }
+    if node.kind == NodeKind::StmtAssign && !node.children.is_empty() {
+        // LHS counts as a reference: if a later statement assigns to x, the
+        // declaration of x must survive.
+        if node.children[0].kind == NodeKind::ExprIdentifier {
+            refs.insert(node.children[0].name.clone());
+        }
+        // RHS and any LHS sub-expressions are walked normally.
+        for child in &node.children {
+            collect_refs_in(child, refs);
+        }
+        return;
+    }
+    if node.kind == NodeKind::ExprIdentifier {
+        refs.insert(node.name.clone());
+    }
+    for child in &node.children {
+        collect_refs_in(child, refs);
+    }
 }
 
 fn fold_stmt(node: &mut Node, stats: &mut OptStats) {
@@ -22147,5 +22196,84 @@ mod tests_phase40_coverage {
         assert_eq!(ret_expr.extra_op, "<<", "`*` by power of two should still lower to `<<`");
         assert_eq!(ret_expr.children[1].value, "3", "shift count for `* 8` is 3");
         assert_eq!(stats.strengths_reduced, 1);
+    }
+
+    // ---------------------------------------------------------------------
+    // W74 (#950) regression tests for is_dead_local.
+    //
+    // Before the fix, an uninitialized StmtLocal (`var x: i32;`) was dropped
+    // unconditionally by dead-code elimination, even when a later statement
+    // assigned to it or read it. The fix collects all references first and
+    // only removes locals whose name is truly unused.
+    // ---------------------------------------------------------------------
+
+    fn uninit_local(name: &str, ty: &str) -> Node {
+        let mut n = Node::new(NodeKind::StmtLocal);
+        n.name = name.to_string();
+        n.extra_type = ty.to_string();
+        // no children -> no initializer
+        n
+    }
+
+    #[test]
+    fn is_dead_local_keeps_uninit_when_later_assigned_and_read_w74() {
+        // var x: i32;
+        // x = 5;
+        // return x;
+        //
+        // Previously is_dead_local saw `var x: i32;` (typed, no init) and
+        // dropped it during DCE. That removed the declaration even though
+        // the next two statements need it. After the W74 fix the StmtLocal
+        // must remain because the name `x` is referenced by both the assign
+        // (as LHS) and the return (as ExprIdentifier read).
+        let mut stmts = vec![
+            uninit_local("x", "i32"),
+            assign("x", lit("5")),
+            ret(ident("x")),
+        ];
+        let mut stats = fresh_stats();
+        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats);
+
+        let has_decl = stmts
+            .iter()
+            .any(|s| s.kind == NodeKind::StmtLocal && s.name == "x");
+        assert!(
+            has_decl,
+            "uninitialized `var x: i32;` must survive DCE when later assigned and read (W74 / #950); got {:?}",
+            stmts.iter().map(|s| (s.kind.clone(), s.name.clone())).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn is_dead_local_keeps_uninit_when_only_read_w74() {
+        // var x: i32;
+        // return x;
+        //
+        // Even without an assignment in this block, if a later statement
+        // reads the name we must keep the declaration. The optimizer cannot
+        // know whether `x` is fed by an outer scope or by a later pass.
+        let mut stmts = vec![uninit_local("x", "i32"), ret(ident("x"))];
+        let mut stats = fresh_stats();
+        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats);
+        let has_decl = stmts
+            .iter()
+            .any(|s| s.kind == NodeKind::StmtLocal && s.name == "x");
+        assert!(
+            has_decl,
+            "uninitialized `var x: i32;` must survive DCE when later read (W74 / #950)"
+        );
+    }
+
+    #[test]
+    fn is_dead_local_still_drops_truly_unused_uninit_w74() {
+        // Sanity guard: a typed uninitialized local that is never assigned
+        // and never read remains dead. The W74 fix must not regress the
+        // original behaviour for the genuinely-dead case.
+        let mut stmts = vec![uninit_local("dead", "i32"), ret(lit("0"))];
+        let mut stats = fresh_stats();
+        optimize_stmts(&mut stmts, &OptConfig::default(), &mut stats);
+        assert_eq!(stmts.len(), 1, "truly unused uninit local must still be dropped");
+        assert_eq!(stmts[0].kind, NodeKind::ExprReturn);
+        assert!(stats.dead_removed >= 1);
     }
 }
