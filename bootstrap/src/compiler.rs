@@ -10734,8 +10734,23 @@ impl TimingConstraint {
             clock_name: "clk".into(),
         }
     }
+    /// Construct a TimingConstraint from a target frequency in megahertz.
+    ///
+    /// Unit derivation: 1 MHz = 1e6 Hz, period = 1 / f seconds = 1 / (mhz * 1e6) s.
+    /// In picoseconds (1 ps = 1e-12 s): period_ps = 1e12 / (mhz * 1e6) = 1_000_000 / mhz.
+    ///
+    /// R-COMPILER fix (W106 / #984): the previous body used `1_000_000_000 / mhz`,
+    /// which is 1000x too large -- for 100 MHz it returned 10_000_000 ps (10 us)
+    /// instead of 10_000 ps (10 ns). Every timing test that fed a 100 MHz
+    /// constraint into TimingModel::analyze_module was therefore comparing path
+    /// delays in the nanosecond range against a 10-microsecond budget, so all
+    /// such tests passed vacuously.
     pub fn from_mhz(name: &str, mhz: u32) -> Self {
-        let period = if mhz == 0 { 10000 } else { 1_000_000_000 / mhz };
+        // Fallback for mhz == 0: 1 MHz (period = 1_000_000 ps = 1 us). Picked so
+        // the constraint is still satisfiable but obviously "slow"; the
+        // validate() method will still flag period_ps != 0, so callers can
+        // detect the misuse if they want.
+        let period = if mhz == 0 { 1_000_000 } else { 1_000_000 / mhz };
         TimingConstraint {
             name: name.into(),
             period_ps: period,
@@ -18526,14 +18541,28 @@ mod tests_hir_timing {
 
     #[test]
     fn test_clock_mhz() {
+        // 100 MHz -> period = 10 ns = 10_000 ps. The pre-W106 value (10_000_000)
+        // was 10 us and made every downstream timing assertion vacuous.
         let c = TimingConstraint::from_mhz("clk_100", 100);
-        assert_eq!(c.period_ps, 10_000_000);
+        assert_eq!(c.period_ps, 10_000);
+    }
+
+    #[test]
+    fn test_clock_mhz_various_frequencies() {
+        // Spot-check the unit conversion across realistic FPGA clock targets.
+        assert_eq!(TimingConstraint::from_mhz("c", 1).period_ps, 1_000_000); // 1 MHz -> 1 us
+        assert_eq!(TimingConstraint::from_mhz("c", 50).period_ps, 20_000);   // 50 MHz -> 20 ns
+        assert_eq!(TimingConstraint::from_mhz("c", 100).period_ps, 10_000);  // 100 MHz -> 10 ns
+        assert_eq!(TimingConstraint::from_mhz("c", 200).period_ps, 5_000);   // 200 MHz -> 5 ns
+        assert_eq!(TimingConstraint::from_mhz("c", 500).period_ps, 2_000);   // 500 MHz -> 2 ns
     }
 
     #[test]
     fn test_clock_mhz_zero() {
+        // mhz == 0 must not divide by zero. The fallback period is 1_000_000 ps
+        // (1 MHz), chosen so the constraint is satisfiable but obviously slow.
         let c = TimingConstraint::from_mhz("bad", 0);
-        assert_eq!(c.period_ps, 10000);
+        assert_eq!(c.period_ps, 1_000_000);
     }
 
     #[test]

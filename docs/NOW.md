@@ -2,6 +2,12 @@
 
 Last updated: 2026-05-31
 
+## timing-from-mhz-w106 -- correct ps-per-MHz unit conversion (Closes #984)
+
+- **WHERE** (compiler timing model): `bootstrap/src/compiler.rs`. `TimingConstraint::from_mhz` now computes `period_ps = 1_000_000 / mhz` (was `1_000_000_000 / mhz`). Derivation: 1 MHz = 1e6 Hz; period = 1/(mhz * 1e6) s = 1e12/(mhz * 1e6) ps = 1_000_000/mhz ps. Previous body returned a period 1000x too large -- a 100 MHz constraint produced 10_000_000 ps (10 us) instead of 10_000 ps (10 ns), so every test that fed a clock-MHz constraint into `TimingModel::analyze_module` compared nanosecond-scale path delays against a 10-microsecond budget and passed vacuously. Fallback for `mhz == 0` raised to 1_000_000 ps (1 MHz, obviously slow but still satisfiable) instead of the prior 10000 ps which collided with the broken 100 MHz value. Updated `test_clock_mhz` to expect 10_000, added `test_clock_mhz_various_frequencies` (1/50/100/200/500 MHz spot-checks), and updated `test_clock_mhz_zero` to expect 1_000_000.
+- **Why**: a CRITICAL R-COMPILER finding (W106) -- silently inflated every clock budget by 1000x, so the static timing model could not detect any real violation against typical FPGA targets (50-500 MHz -> 2-20 ns periods). Closes #984.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## opt-cse-dse-fix -- sound CSE for ExprCall + correct DSE target for StmtAssign (Closes #918, #919)
 
 - **WHERE** (compiler optimizer): `bootstrap/src/compiler.rs`. (1) `child_key` now treats `ExprCall` (and any non-pure / unsupported expression kind) as un-CSE-able by returning a unique key from a process-wide `AtomicU64` counter on every visit; pure leaves (`ExprLiteral`, `ExprIdentifier`) and pure `ExprBinary` over those remain CSE-able. Previously every call produced the literal key `"ExprCall"`, so `foo()+1` and `bar()+1` collided in the CSE table and the second was rewritten to reference the first one's cached temporary -- wrong code on every side-effecting call. (2) `dead_store_elim` now reads the target name from `s.children[0].name` for `StmtAssign` (LHS lives in `children[0]`, not `.name`) and only eliminates the statement when the LHS is a simple `ExprIdentifier`; non-identifier LHSes (`arr[i] = x`, `obj.field = x`) are preserved. Previously the pass tested `reads.contains(&s.name)` on `StmtAssign` where `s.name` is always `""`, so every assignment was dropped from every optimised program. Six new inline tests in `tests_phase40_coverage` cover both regressions and a positive-CSE sanity guard.
