@@ -1,13 +1,16 @@
 // bootstrap/src/jwt.rs
 // JWT token generation and verification for sandbox access
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::env;
 
-/// Default JWT secret (use environment variable in production)
-const DEFAULT_JWT_SECRET: &[u8] = b"t27-sandbox-secret";
+/// Default JWT secret — TEST-ONLY. Compiled out of release builds.
+/// In any non-test build the env var `SANDBOX_JWT_SECRET` is required
+/// and `get_jwt_secret()` returns Err if it is unset or shorter than 32 bytes.
+#[cfg(any(test, debug_assertions))]
+const DEFAULT_JWT_SECRET: &[u8] = b"t27-sandbox-secret-test-only-do-not-use-in-prod";
 
 /// Sandbox JWT claims
 #[derive(Clone, Serialize, Deserialize)]
@@ -18,11 +21,29 @@ struct SandboxClaims {
     iat: usize,       // issued at timestamp
 }
 
-/// Get the JWT secret from environment or use default
-fn get_jwt_secret() -> Vec<u8> {
-    env::var("SANDBOX_JWT_SECRET")
-        .map(|s| s.into_bytes())
-        .unwrap_or_else(|_| DEFAULT_JWT_SECRET.to_vec())
+/// Get the JWT secret from the environment.
+///
+/// Release builds REQUIRE `SANDBOX_JWT_SECRET` to be set to >= 32 bytes.
+/// Debug/test builds fall back to a clearly-labelled test secret.
+fn get_jwt_secret() -> Result<Vec<u8>> {
+    match env::var("SANDBOX_JWT_SECRET") {
+        Ok(s) if s.len() >= 32 => Ok(s.into_bytes()),
+        Ok(_) => Err(anyhow!(
+            "SANDBOX_JWT_SECRET must be at least 32 bytes"
+        )),
+        Err(_) => {
+            #[cfg(any(test, debug_assertions))]
+            {
+                Ok(DEFAULT_JWT_SECRET.to_vec())
+            }
+            #[cfg(not(any(test, debug_assertions)))]
+            {
+                Err(anyhow!(
+                    "SANDBOX_JWT_SECRET environment variable is required in release builds"
+                ))
+            }
+        }
+    }
 }
 
 /// Create a JWT token for sandbox access
@@ -50,7 +71,7 @@ pub fn create_sandbox_token(session_id: &str, hours_until_expiry: Option<i64>) -
         iat: issued_at,
     };
 
-    let secret = get_jwt_secret();
+    let secret = get_jwt_secret()?;
 
     let token = encode(
         &Header::default(),
@@ -72,7 +93,7 @@ pub fn create_sandbox_token(session_id: &str, hours_until_expiry: Option<i64>) -
 /// # Errors
 /// Returns an error if the token is invalid, expired, or malformed
 pub fn verify_sandbox_token(token: &str) -> Result<String> {
-    let secret = get_jwt_secret();
+    let secret = get_jwt_secret()?;
 
     let validation = Validation::new(jsonwebtoken::Algorithm::HS256);
 
@@ -99,7 +120,7 @@ pub fn verify_sandbox_token(token: &str) -> Result<String> {
 /// # Returns
 /// The session ID from the token, or an error if malformed
 pub fn extract_session_id_unsafe(token: &str) -> Result<String> {
-    let secret = get_jwt_secret();
+    let secret = get_jwt_secret()?;
 
     let mut validation = Validation::new(jsonwebtoken::Algorithm::HS256);
     validation.validate_exp = false; // Skip expiration check
@@ -135,7 +156,7 @@ mod tests {
     fn test_token_expiry() {
         let session_id = "test_session_expiry";
         // Create token that expires in the past
-        let secret = get_jwt_secret();
+        let secret = get_jwt_secret().unwrap();
         let past_time = chrono::Utc::now()
             .checked_sub_signed(chrono::Duration::hours(1))
             .unwrap()
