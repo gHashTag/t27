@@ -649,4 +649,69 @@ module PhiRatio {
     bench compute_phi_distance_throughput
         measure: phi_distance computations per second
         target: > 1M computations/sec
+
+    // =====================================================================
+    // Phase A3 (epic #181) -- L5 Trinity runtime invariant blocks (appended)
+    // phi^2 + phi^-2 = 3 is the ONLY [Verified] phi-fact. f64 tol 1e-14.
+    // =====================================================================
+
+    test test_l5_phi_sq_equals_phi_plus_one
+        // [Verified] phi^2 = phi + 1 -- defining algebraic identity of phi.
+        // L5 canonical. f64 check, tolerance 1e-14.
+        given phi    = sacred_physics::PHI
+        and   phi_sq = PHI_SQ
+        when  diff   = abs(phi_sq - (phi + 1.0))
+        then  diff < 1e-14
+
+    test test_l5_phi_sq_plus_phi_inv_sq_equals_3
+        // [Verified] phi^2 + phi^-2 = 3 -- the ONLY [Verified] phi-fact (L5).
+        // Algebraic proof: phi^2 = phi+1, phi^-2 = 2-phi, sum = 3.
+        // f64 check, tolerance 1e-14. 50-digit audit lives in pellis_verify.t27.
+        given phi     = sacred_physics::PHI
+        and   phi_sq  = PHI_SQ
+        and   phi_inv = 1.0 / phi
+        and   phi_inv2 = phi_inv * phi_inv
+        when  lhs    = phi_sq + phi_inv2
+        and   diff   = abs(lhs - 3.0)
+        then  diff < 1e-14
+
+    test test_l5_phi_inv2_equals_2_minus_phi
+        // Verify the algebraic sub-fact: phi^-2 = 2 - phi (used in the proof above).
+        // [Verified]. f64 check, tolerance 1e-14.
+        given phi      = sacred_physics::PHI
+        and   phi_sq   = PHI_SQ
+        and   phi_inv2 = 1.0 / phi_sq
+        when  diff     = abs(phi_inv2 - (2.0 - phi))
+        then  diff < 1e-14
+
+    // -----------------------------------------------------------------------
+    // Invariants
+    // -----------------------------------------------------------------------
+
+    invariant l5_phi_sq_equals_phi_plus_one
+        // [Verified] L5 law: phi^2 = phi + 1.
+        // Tolerance 1e-14 (f64; 50-digit audit lives in pellis_verify.t27).
+        // This invariant is a RUNTIME GUARD, not the high-precision audit.
+        assert abs(PHI_SQ - (sacred_physics::PHI + 1.0)) < 1e-14
+
+    invariant l5_phi_sq_plus_phi_inv_sq_equals_3
+        // [Verified] L5 law: phi^2 + phi^-2 = 3.
+        // The ONLY [Verified] phi-fact in this codebase (GOLDEN CHAIN Law L5).
+        // All other phi claims are [Open conjecture] with a falsification path.
+        // Tolerance 1e-14 (f64 runtime guard).
+        // 50-digit arbitrary-precision checking belongs to the pellis audit path.
+        assert abs(PHI_SQ + (1.0 / PHI_SQ) - 3.0) < 1e-14
+
+    // -----------------------------------------------------------------------
+    // Benchmark
+    // -----------------------------------------------------------------------
+
+    bench bench_l5_phi_identity_check
+        // Measure cost of evaluating both L5 identities in sequence.
+        // Expected: < 50ns (pure floating-point arithmetic, no allocations).
+        given phi    = sacred_physics::PHI
+        and   phi_sq = PHI_SQ
+        when  _a = abs(phi_sq - (phi + 1.0))
+        and   _b = abs(phi_sq + (1.0 / phi_sq) - 3.0)
+        then elapsed_time_ns < 50
 }
