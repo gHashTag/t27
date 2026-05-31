@@ -6310,12 +6310,39 @@ fn expr_key(node: &Node) -> Option<String> {
 }
 
 fn child_key(node: &Node) -> String {
+    // R-OPT-2 fix (#919, W47): a previous version of this function fell
+    // through to `format!("{:?}", node.kind)` for every non-binary,
+    // non-leaf node. All `ExprCall` nodes therefore produced the literal
+    // key `"ExprCall"`, so two distinct calls like `foo() + 1` and
+    // `bar() + 1` collided in the CSE table and the second call was
+    // silently rewritten as the first one's cached temporary. For calls
+    // with side effects (IO, state mutation), that is a wrong-code bug.
+    //
+    // The safe rule: any node we cannot prove to be a pure, syntactically
+    // identical re-occurrence of an earlier expression MUST get a key
+    // that is unique per occurrence, so CSE never matches it against
+    // anything (including another instance of itself). Pure leaves
+    // (literals, identifiers) and pure binary expressions over those
+    // remain CSE-able; everything else opts out.
     match node.kind {
         NodeKind::ExprLiteral => format!("LIT:{}", node.value),
         NodeKind::ExprIdentifier => format!("ID:{}", node.name),
-        NodeKind::ExprBinary => expr_key(node).unwrap_or_default(),
-        _ => format!("{:?}", node.kind),
+        NodeKind::ExprBinary => expr_key(node).unwrap_or_else(unique_uncseable_key),
+        // ExprCall and any other unsupported kind are conservatively
+        // tagged with a fresh unique key on every call so they never
+        // participate in CSE matching.
+        _ => unique_uncseable_key(),
     }
+}
+
+/// Monotonic counter used to produce keys that are guaranteed unique
+/// per call site -- used so impure / unsupported expressions never
+/// collide in the CSE seen-table.
+fn unique_uncseable_key() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("UNCSE:{}", n)
 }
 
 fn common_subexpr_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
@@ -6453,14 +6480,33 @@ fn dead_store_elim(stmts: &mut Vec<Node>, stats: &mut OptStats) {
     }
     let before = stmts.len();
     stmts.retain(|s| {
+        // R-OPT-1 (#918, W46): for StmtLocal the target name lives on
+        // `s.name` directly, but for StmtAssign the target is the LHS
+        // expression stored in `s.children[0]` and `s.name` is the empty
+        // string. The previous code tested `reads.contains(&s.name)` on
+        // both kinds, so for *every* StmtAssign the test was
+        // `reads.contains("")`, which is always false, and the assignment
+        // was unconditionally dropped. This removed every assignment
+        // from every optimised program.
+        //
+        // Even with the right name, we must only eliminate an assignment
+        // whose LHS is a *simple identifier*: `arr[i] = x` and
+        // `s.field = x` write through a base that may be live, and
+        // dropping them is unsound. We therefore guard on the LHS kind
+        // before consulting `reads`.
         if s.kind == NodeKind::StmtLocal && !s.children.is_empty()
             && !reads.contains(&s.name) {
                 return false;
             }
-        if s.kind == NodeKind::StmtAssign && !s.children.is_empty()
-            && !reads.contains(&s.name) {
+        if s.kind == NodeKind::StmtAssign && s.children.len() >= 2 {
+            let lhs = &s.children[0];
+            if lhs.kind == NodeKind::ExprIdentifier
+                && !lhs.name.is_empty()
+                && !reads.contains(&lhs.name)
+            {
                 return false;
             }
+        }
         true
     });
     stats.dead_stores += (before - stmts.len()) as u32;
@@ -21644,5 +21690,245 @@ mod tests_phase40_coverage {
         optimize(&mut ast, &OptConfig::default());
         let f = &ast.children[0];
         assert_eq!(f.children[0].children[0].value, "0");
+    }
+
+    // ---------------------------------------------------------------------
+    // R-OPT-1 / R-OPT-2 regression tests (W46 / W47, #918 / #919).
+    //
+    // These tests construct small ASTs by hand and call the internal
+    // `optimize_stmts` / `common_subexpr_elim` / `dead_store_elim` helpers
+    // directly, so they exercise the optimiser independently of the surface
+    // syntax accepted by the parser.
+    // ---------------------------------------------------------------------
+
+    fn ident(name: &str) -> Node {
+        let mut n = Node::new(NodeKind::ExprIdentifier);
+        n.name = name.to_string();
+        n
+    }
+
+    fn lit(value: &str) -> Node {
+        let mut n = Node::new(NodeKind::ExprLiteral);
+        n.value = value.to_string();
+        n
+    }
+
+    fn binop(op: &str, lhs: Node, rhs: Node) -> Node {
+        let mut n = Node::new(NodeKind::ExprBinary);
+        n.extra_op = op.to_string();
+        n.children.push(lhs);
+        n.children.push(rhs);
+        n
+    }
+
+    fn call(name: &str, args: Vec<Node>) -> Node {
+        let mut n = Node::new(NodeKind::ExprCall);
+        n.name = name.to_string();
+        n.children = args;
+        n
+    }
+
+    fn local(name: &str, init: Node) -> Node {
+        let mut n = Node::new(NodeKind::StmtLocal);
+        n.name = name.to_string();
+        n.children.push(init);
+        n
+    }
+
+    fn assign(target: &str, rhs: Node) -> Node {
+        let mut n = Node::new(NodeKind::StmtAssign);
+        // For StmtAssign the LHS lives in children[0] (an ExprIdentifier
+        // for a simple variable) and the RHS in children[1]. This mirrors
+        // what the parser produces; see `dead_store_elim` for the
+        // matching read path.
+        n.children.push(ident(target));
+        n.children.push(rhs);
+        n
+    }
+
+    fn ret(expr: Node) -> Node {
+        let mut n = Node::new(NodeKind::ExprReturn);
+        n.children.push(expr);
+        n
+    }
+
+    fn fresh_stats() -> OptStats {
+        OptStats {
+            folds: 0,
+            dead_removed: 0,
+            copies_propagated: 0,
+            strengths_reduced: 0,
+            cse_eliminated: 0,
+            dead_stores: 0,
+            loops_unrolled: 0,
+            passes: 0,
+        }
+    }
+
+    #[test]
+    fn dead_store_elim_keeps_assignment_whose_target_is_later_read() {
+        // x = 7; return x;  -- must keep the assignment.
+        // Previously dead_store_elim tested `reads.contains(&s.name)` on
+        // StmtAssign, but `s.name` is "" for StmtAssign, so the test was
+        // `reads.contains("")` and `retain` always dropped the assign.
+        let mut stmts = vec![assign("x", lit("7")), ret(ident("x"))];
+        let mut stats = fresh_stats();
+        dead_store_elim(&mut stmts, &mut stats);
+        assert_eq!(
+            stmts.len(),
+            2,
+            "assignment to a live variable must be preserved (W46 / #918); got {:?}",
+            stmts.iter().map(|s| s.kind.clone()).collect::<Vec<_>>()
+        );
+        assert_eq!(stmts[0].kind, NodeKind::StmtAssign);
+        assert_eq!(stmts[0].children[0].name, "x");
+        assert_eq!(stats.dead_stores, 0, "no dead stores in this program");
+    }
+
+    #[test]
+    fn dead_store_elim_does_not_drop_index_or_field_assignment() {
+        // arr[i] = 1; (no read of `arr[i]` in this block) -- the LHS is
+        // not a simple identifier; dropping it is unsound because the
+        // base `arr` is effectively live in any sane caller. We require
+        // the optimiser to leave such assignments alone.
+        let mut lhs = Node::new(NodeKind::ExprIndex);
+        lhs.children.push(ident("arr"));
+        lhs.children.push(ident("i"));
+        let mut stmt = Node::new(NodeKind::StmtAssign);
+        stmt.children.push(lhs);
+        stmt.children.push(lit("1"));
+        let mut stmts = vec![stmt];
+        let mut stats = fresh_stats();
+        dead_store_elim(&mut stmts, &mut stats);
+        assert_eq!(
+            stmts.len(),
+            1,
+            "non-identifier LHS (e.g. arr[i] = 1) must NOT be dropped"
+        );
+    }
+
+    #[test]
+    fn dead_store_elim_drops_truly_dead_assignment_to_simple_identifier() {
+        // x = 1; return 0;  -- x is never read; the assign is dead.
+        let mut stmts = vec![assign("x", lit("1")), ret(lit("0"))];
+        let mut stats = fresh_stats();
+        dead_store_elim(&mut stmts, &mut stats);
+        assert_eq!(stmts.len(), 1, "truly dead assign must be removed");
+        assert_eq!(stmts[0].kind, NodeKind::ExprReturn);
+        assert_eq!(stats.dead_stores, 1);
+    }
+
+    #[test]
+    fn cse_does_not_collide_distinct_function_calls() {
+        // let a = foo() + 1;
+        // let b = bar() + 1;
+        // return a + b;
+        //
+        // Previously child_key returned the literal string "ExprCall" for
+        // every call node, so `foo() + 1` and `bar() + 1` produced the
+        // same CSE key and the second binary was rewritten as the first
+        // one's cached temporary -- silently replacing bar() with foo().
+        let mut stmts = vec![
+            local("a", binop("+", call("foo", vec![]), lit("1"))),
+            local("b", binop("+", call("bar", vec![]), lit("1"))),
+            ret(binop("+", ident("a"), ident("b"))),
+        ];
+        let mut stats = fresh_stats();
+        common_subexpr_elim(&mut stmts, &mut stats);
+
+        // Find the StmtLocal nodes named "a" and "b" again (the pass may
+        // have inserted _cseN locals before them).
+        let find = |name: &str| {
+            stmts
+                .iter()
+                .find(|s| s.kind == NodeKind::StmtLocal && s.name == name)
+                .cloned()
+                .unwrap_or_else(|| panic!("local {} not found after CSE", name))
+        };
+        let a = find("a");
+        let b = find("b");
+
+        // The RHS of each local must still be a binary expression whose
+        // left child is the original ExprCall to the matching function.
+        // i.e. CSE must NOT have rewritten either call into an identifier
+        // reference to a single shared temporary.
+        let a_rhs = &a.children[0];
+        let b_rhs = &b.children[0];
+        assert_eq!(a_rhs.kind, NodeKind::ExprBinary);
+        assert_eq!(b_rhs.kind, NodeKind::ExprBinary);
+        assert_eq!(
+            a_rhs.children[0].kind,
+            NodeKind::ExprCall,
+            "a's RHS must still call a function, not reference a CSE temp; got {:?}",
+            a_rhs.children[0].kind
+        );
+        assert_eq!(a_rhs.children[0].name, "foo");
+        assert_eq!(
+            b_rhs.children[0].kind,
+            NodeKind::ExprCall,
+            "b's RHS must still call a function, not reference a CSE temp; got {:?}",
+            b_rhs.children[0].kind
+        );
+        assert_eq!(b_rhs.children[0].name, "bar");
+    }
+
+    #[test]
+    fn cse_does_not_dedupe_repeated_calls_to_same_function() {
+        // let a = foo() + 1;
+        // let b = foo() + 1;
+        // CSE must NOT merge these: foo may have side effects.
+        let mut stmts = vec![
+            local("a", binop("+", call("foo", vec![]), lit("1"))),
+            local("b", binop("+", call("foo", vec![]), lit("1"))),
+        ];
+        let mut stats = fresh_stats();
+        common_subexpr_elim(&mut stmts, &mut stats);
+        let find = |name: &str| {
+            stmts
+                .iter()
+                .find(|s| s.kind == NodeKind::StmtLocal && s.name == name)
+                .cloned()
+                .unwrap_or_else(|| panic!("local {} not found", name))
+        };
+        let b_rhs = find("b").children[0].clone();
+        assert_eq!(
+            b_rhs.kind,
+            NodeKind::ExprBinary,
+            "second call's binary must survive intact"
+        );
+        assert_eq!(
+            b_rhs.children[0].kind,
+            NodeKind::ExprCall,
+            "call site must NOT be deduplicated even when the callee name matches"
+        );
+        assert_eq!(b_rhs.children[0].name, "foo");
+    }
+
+    #[test]
+    fn cse_still_works_on_pure_repeated_subexpression() {
+        // Sanity guard: the W47 fix must not regress legitimate CSE on a
+        // repeated binary built only from identifiers / literals.
+        //
+        //   let a = x + y;
+        //   let b = x + y;
+        //
+        // The pass should hoist `x + y` into a `_cseN` local and rewrite
+        // one of the two right-hand sides to reference it.
+        let mut stmts = vec![
+            local("a", binop("+", ident("x"), ident("y"))),
+            local("b", binop("+", ident("x"), ident("y"))),
+        ];
+        let mut stats = fresh_stats();
+        common_subexpr_elim(&mut stmts, &mut stats);
+        assert!(
+            stats.cse_eliminated >= 1,
+            "legitimate CSE on `x + y` should still fire after the W47 fix; \
+             cse_eliminated = {}",
+            stats.cse_eliminated
+        );
+        let has_cse_local = stmts
+            .iter()
+            .any(|s| s.kind == NodeKind::StmtLocal && s.name.starts_with("_cse"));
+        assert!(has_cse_local, "expected at least one _cseN local to be hoisted");
     }
 }
