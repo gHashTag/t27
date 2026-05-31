@@ -2,6 +2,13 @@
 
 Last updated: 2026-05-31
 
+## phi-falsifiable-ablations -- additive control-ablation spec blocks for the phi->IGLA epic (Closes #181 children)
+
+- **WHERE** (specs): additive, append-only blocks across `specs/numeric/phi_ratio.t27` (Phase A3: L5 Trinity identity blocks, `phi^2 + phi^-2 = 3` as the ONLY [Verified] phi-fact, f64 tol 1e-14), new `specs/ml/optimizer/race_config.t27` (Phase A1/A2: frozen RACE config + 80/20 blind-split protocol + Chinchilla budget note), `specs/ml/optimizer/adamw.t27` (Phase B1: four-arm optimizer control -- phi-canonical beta1=phi^-1/wd=phi^-3 vs Damped vs TunedStd vs RandomRat), `specs/nn/attention.t27` (Phase B2: separate `AttentionQKGainAblation` module, gain=phi^2 vs 1.0 vs learned), `specs/numeric/gfternary.t27` (Phase C1/C2: GFTernary {-phi,0,+phi} vs BitNet {-1,0,+1}, CPU bench), `specs/numeric/gf16.t27` (Phase C3: GF16 1-6-9 split under FP8, append-only, FORMAT-SPEC-001.json untouched), new `specs/nn/gla.t27` (Phase D: Gated Linear Attention module, Yang 2023 arXiv:2312.06635).
+- **Why**: the phi->IGLA epic (#181) treats phi as a falsifiable design prior, not a proven theory ("the method survives, phi does not yet"). These blocks add the referee-demanded control ablations so any phi-specificity claim has an explicit falsification path: if a non-phi control of equal tuning budget matches phi within Monte-Carlo error, phi-specificity for IGLA is falsified and recorded plainly. All phi performance claims carry [Open conjecture]; no hype words. delta_CP=3/phi^2 is [Retracted] and not cited.
+- **Seals**: refreshed via `t27c seal --save` for all 7 specs; `validate-seals --pr-files` passes for all 7. FORMAT-SPEC-001.json unchanged (L6). All 7 specs parse + typecheck with 0 errors. ASCII-only, no Cyrillic (L3).
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## fix-conformance-gf-competitive-bench-json -- repair invalid JSON (Closes #1008)
 
 - **WHERE** (conformance fixture): `conformance/gf_competitive_bench.json`. Added the missing comma after `"gf32_one_third_repeats_binary": true` and removed a stray extra `}` after the first benchmark entry's `"created"` line. Both were pre-existing syntax errors on master that made the file unparseable, so `t27c validate-conformance` reported `101 total, 100 valid, 1 invalid` and failed the gate. After the fix the file parses (2 benchmark entries: `sacred_constants`, `cross_language_1_3`) and `validate-conformance` reports `101 total, 101 valid, 0 invalid`. No semantic change to any benchmark data (2 insertions, 3 deletions).
