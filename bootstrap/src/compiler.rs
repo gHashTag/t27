@@ -3906,6 +3906,24 @@ impl VerilogCodegen {
             return;
         }
 
+        // Type alias (e.g. `const GF16 = u16;`, `const TernaryWord = [N]u8;`).
+        // Verilog has no typedef and the alias carries no runtime value, so emitting it
+        // as `parameter [31:0] GF16 = u16;` is invalid (non-numeric RHS). Emit a comment.
+        if node.children.len() == 1 && node.children[0].kind == NodeKind::ExprIdentifier {
+            let target = &node.children[0].name;
+            // A pure type (alias). NOT a value: array literals like `[32]u16{0x..}` carry
+            // a `{...}` initializer and are LUT constants, not type aliases — exclude those.
+            let looks_like_type = !target.contains('{')
+                && (target.starts_with('[')
+                    || target.chars().next().map(|c| c.is_uppercase()).unwrap_or(false)
+                    || matches!(target.as_str(),
+                        "u8"|"u16"|"u32"|"u64"|"usize"|"i8"|"i16"|"i32"|"i64"|"bool"|"trit"|"f32"|"f64"));
+            if looks_like_type {
+                self.write_line(&format!("// type alias: {} = {} (no Verilog typedef)", node.name, target));
+                return;
+            }
+        }
+
         // Determine if this is an array constant (LUT)
         let is_array = !node.extra_size.is_empty();
 
