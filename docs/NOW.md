@@ -9,6 +9,11 @@ Last updated: 2026-05-31
 - **Seals**: refreshed via `t27c seal --save` for all 7 specs; `validate-seals --pr-files` passes for all 7. FORMAT-SPEC-001.json unchanged (L6). All 7 specs parse + typecheck with 0 errors. ASCII-only, no Cyrillic (L3).
 - **Anchor**: phi^2 + phi^-2 = 3
 
+## fix-conformance-gf-competitive-bench-json -- repair invalid JSON (Closes #1008)
+
+- **WHERE** (conformance fixture): `conformance/gf_competitive_bench.json`. Added the missing comma after `"gf32_one_third_repeats_binary": true` and removed a stray extra `}` after the first benchmark entry's `"created"` line. Both were pre-existing syntax errors on master that made the file unparseable, so `t27c validate-conformance` reported `101 total, 100 valid, 1 invalid` and failed the gate. After the fix the file parses (2 benchmark entries: `sacred_constants`, `cross_language_1_3`) and `validate-conformance` reports `101 total, 101 valid, 0 invalid`. No semantic change to any benchmark data (2 insertions, 3 deletions).
+- **Why**: unblock the conformance gate; the broken fixture predated and was unrelated to the phi-loop work (filed as #1008). Closes #1008.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## opt-cse-dse-fix -- sound CSE for ExprCall + correct DSE target for StmtAssign (Closes #918, #919)
 
