@@ -109,6 +109,38 @@ These Zenodo records describe **architectures and artifacts**, not theorems. Cla
 
 ---
 
+## 5a. ML / IGLA optimizer (phi as a falsifiable design prior, Issue #181)
+
+This section tracks the phi->IGLA epic
+([gHashTag/trios-trainer-igla#181](https://github.com/gHashTag/trios-trainer-igla/issues/181)).
+The governing principle: phi is a **design prior**, not a proven theory --
+"the method survives, phi does not (yet)." Only the algebraic identity
+phi^2 + phi^-2 = 3 is `EXACT`; every phi performance claim is `CONJECTURAL`
+with an explicit falsification path.
+
+Numeric note: weight_decay = phi^-3 ~ 0.2360679774997897 (= 1/(2*phi+1)). A
+stale trainer comment reads "~0.118" (= phi^-3/2) and is wrong.
+
+| ID | Claim | Domain | Status | Falsification / rationale | Artifacts |
+|----|-------|--------|--------|---------------------------|-----------|
+| FL-001 | phi-canonical AdamW anchors (beta1=phi^-1 ~ 0.618034, weight_decay=phi^-3 ~ 0.236068, lr=phi^-3) produce lower BPB than equal-budget tuned AdamW(0.9, 0.01) on the IGLA RACE task (hidden=828, ~81K steps, seed=43; champion BPB=2.1919, sub-Chinchilla / preliminary) | ML / optimizer | `CONJECTURAL` ([Open conjecture]) | FALSIFIED if a non-phi control of equal tuning budget -- tuned-standard AdamW(0.9,0.01) OR random-rational of equal cost -- matches phi-canonical within Monte-Carlo error across N>=5 seeds. Secondary: phi-damped (0.9/phi, 0.999/phi) also matching removes any "phi-family" advantage. Identity phi^2+phi^-2=3 is `EXACT` (L5) and is unaffected by any such falsification. | `trios-trainer-igla src/optimizer.rs`; `t27 specs/ml/optimizer/adamw.t27`, `specs/ml/optimizer/race_config.t27`, `specs/ml/igla_champion_capsule.t27`; Issue #181 |
+| FL-002 | QK-Gain = phi^2 ~ 2.618 (INV-9) gives better attention quality than gain=1.0 or a learned scalar gain | ML / attention | `CONJECTURAL` ([Open conjecture]) | FALSIFIED if gain=1.0 or learned gain matches gain=phi^2 within MC error at equal budget. phi^2 = phi + 1 is `EXACT` arithmetic, but its optimality as an attention gain has no theoretical basis. | `t27 specs/nn/attention.t27` (AttentionQKGainAblation); Issue #181 |
+| FL-003 | GFTernary weights {-phi, 0, +phi} beat BitNet b1.58 integer ternary {-1, 0, +1} at equal compute | Numerics / ML | `CONJECTURAL` ([Open conjecture]) | FALSIFIED if integer-ternary matches phi-ternary BPB within MC error. Baseline: Ma et al. 2024, arXiv:2402.17764. | `t27 specs/numeric/gfternary.t27`; Issue #181 |
+
+**ASHA / Hyperband note (relabel).** The RACE scheduler uses geometric rungs
+with factor eta=3 (1k -> 3k -> 9k -> 27k). eta=3 is the **standard field
+default** (Li et al. 2018, Hyperband, arXiv:1603.06560), `EMPIRICAL_FIT`. The
+numerical coincidence eta=3 == phi^2 + phi^-2 is noted but does **NOT**
+constitute a phi derivation. Label: field default, not a phi fact.
+
+**Retraction (2026-05-31).** delta_CP = 3/phi^2 is withdrawn as a physics
+claim (`FALSIFIED_AS_EXACT`; no Standard Model derivation; ~65.7 deg vs PMNS
+~195 deg). It must not be cited as evidence in any t27 first-party document or
+spec. (Note: `specs/physics/formula_discovery.t27` uses a distinct expression
+9*phi^-2, which is a separate empirical fit, not this retracted claim.)
+
+---
+
 ## 6. Maintenance rules
 
 1. Every new paper, Zenodo release, or major benchmark adds or updates rows with a stable **ID** (`C-phi-*`, `C-gf-*`, …).  
