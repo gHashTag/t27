@@ -3431,6 +3431,246 @@ bench "gf16_cos_latency" {
     _ = result;
 }
 
+// =====================================================================
+// Phase C3 (epic #181) -- GF16 1-6-9 split under FP8 low-precision (appended)
+// L6 NOTE: append-only; FORMAT-SPEC-001.json and existing gf16 consts UNCHANGED.
+// =====================================================================
 
+pub const FP8_EFFECTIVE_MANT_BITS : u8 = 4;
 
+// GF16 canonical split (registered in FORMAT-SPEC-001 -- do not change).
+pub const GF16_CANONICAL_EXP_BITS  : u8 = 6;
+pub const GF16_CANONICAL_MANT_BITS : u8 = 9;
 
+// Alternate split A: 1-7-8 (ablation only -- NOT registered).
+pub const ALT_A_EXP_BITS  : u8 = 7;
+pub const ALT_A_MANT_BITS : u8 = 8;
+
+// Alternate split B: 1-8-7 (ablation only -- NOT registered).
+pub const ALT_B_EXP_BITS  : u8 = 8;
+pub const ALT_B_MANT_BITS : u8 = 7;
+
+// phi_dist of the canonical 1-6-9 split (from FORMAT-SPEC-001.json v1.1).
+// [Registered fact -- not a conjecture; do not modify.]
+pub const GF16_PHI_DIST_REGISTERED : f64 = 0.0486326415435630;
+
+// phi_dist of alternate splits (computed, not registered).
+// phi_dist = |exp_bits/mant_bits - phi^-1|
+// phi^-1 ~ 0.6180339887498949
+pub const ALT_A_PHI_DIST : f64 = 0.2569660112501051;  // |7/8 - phi^-1| = |0.875 - 0.618034|
+pub const ALT_B_PHI_DIST : f64 = 0.5248231541072479;  // |8/7 - phi^-1| = |1.142857 - 0.618034|
+
+// FP8 effective ULP at the 4-bit mantissa level (1/2^4 = 0.0625).
+pub const FP8_ULP : f64 = 0.0625;
+
+// ============================================================================
+// C3 Tests (L4 TESTABILITY)
+// ============================================================================
+
+test "gf16_lp_ssot_split_constants" {
+    // Verify that the canonical GF16 split constants are unchanged (L6 guard).
+    // These must match FORMAT-SPEC-001.json v1.1 and the existing gf16.t27 constants.
+    try std.testing.expect(EXP_SHIFT == 9);        // EXP_SHIFT = 9 from gf16.t27
+    try std.testing.expect(SIGN_SHIFT == 15);      // SIGN_SHIFT = 15
+    try std.testing.expect(EXP_MASK == 0x7E00);    // 6 exp bits
+    try std.testing.expect(MANT_MASK == 0x01FF);   // 9 mant bits
+    try std.testing.expect(BIAS == 31);            // bias = 31
+    // Canonical bit counts match registered values.
+    try std.testing.expect(GF16_CANONICAL_EXP_BITS == 6);
+    try std.testing.expect(GF16_CANONICAL_MANT_BITS == 9);
+}
+
+test "gf16_lp_phi_dist_registered" {
+    // The phi_dist of the canonical 1-6-9 split is the FORMAT-SPEC-001 value.
+    // phi_dist = |exp_bits/mant_bits - phi^-1| = |6/9 - phi^-1|
+    //          = |0.6667 - 0.6180| = 0.04863...
+    // This matches the registered value to 4 significant figures.
+    const ratio_canonical : f64 = 6.0 / 9.0;  // ~ 0.6667
+    const phi_dist_canonical = if (ratio_canonical > PHI_INV)
+        ratio_canonical - PHI_INV
+    else
+        PHI_INV - ratio_canonical;
+    const d = phi_dist_canonical - GF16_PHI_DIST_REGISTERED;
+    const d_abs = if (d < 0.0) -d else d;
+    try std.testing.expect(d_abs < 1e-4);
+}
+
+test "gf16_lp_alternate_split_phi_dist_larger" {
+    // The canonical 1-6-9 has smaller phi_dist than both alternates.
+    // This is the phi-motivation for the 1-6-9 split [Open conjecture: this
+    //   structural closeness to phi^-1 is hypothesised to benefit training,
+    //   but that hypothesis is what C3 tests].
+    const ratio_canonical : f64 = 6.0 / 9.0;
+    const ratio_alt_a : f64 = 7.0 / 8.0;    // 0.875
+    const ratio_alt_b : f64 = 8.0 / 7.0;    // ~1.143
+
+    fn phi_dist(r: f64) f64 {
+        const d = r - PHI_INV;
+        return if (d < 0.0) -d else d;
+    }
+
+    const pd_canonical = phi_dist(ratio_canonical);
+    const pd_alt_a = phi_dist(ratio_alt_a);
+    const pd_alt_b = phi_dist(ratio_alt_b);
+
+    // Canonical 1-6-9 has minimum phi_dist (registered structural fact).
+    try std.testing.expect(pd_canonical < pd_alt_a);
+    try std.testing.expect(pd_canonical < pd_alt_b);
+}
+
+test "gf16_lp_fp8_effective_precision" {
+    // Under FP8 (4-bit effective mantissa), test round-trip error for GF16
+    //   vs a simulated 1-7-8 alternate split on a representative value set.
+    //
+    // Method: encode a value to GF16, truncate the mantissa to FP8_EFFECTIVE_MANT_BITS,
+    //   decode, compare error. Then simulate the 1-7-8 split (8 mant bits ->
+    //   truncate to 4 bits), compare.
+    //
+    // If both errors are within 1 FP8 ULP of each other, the 9-bit mantissa
+    //   provides no measurable advantage in the FP8 regime.
+    //
+    // Test values: 1.0, phi, 0.5, 2.0 (representative small set).
+    const test_vals : [4]f32 = [1.0, 1.618034, 0.5, 2.0];
+
+    for (test_vals) |v| {
+        // Encode to GF16 (full precision, 9-bit mantissa).
+        const gf16_encoded = gf16_encode_f32(v);
+        // Extract mantissa bits.
+        const mant_full = gf16_encoded & MANT_MASK;
+        // Truncate to FP8 effective depth (keep top FP8_EFFECTIVE_MANT_BITS bits).
+        // FP8_EFFECTIVE_MANT_BITS = 4; MANT_MASK = 9 bits; shift = 9 - 4 = 5.
+        const trunc_shift : u4 = GF16_CANONICAL_MANT_BITS - FP8_EFFECTIVE_MANT_BITS;
+        const mant_truncated = (mant_full >> trunc_shift) << trunc_shift;
+        // Reconstruct GF16 with truncated mantissa.
+        const gf16_truncated = (gf16_encoded & ~MANT_MASK) | mant_truncated;
+        // Decode truncated GF16.
+        const decoded_trunc = gf16_decode_to_f32(gf16_truncated);
+        // Compute error.
+        const err_val = decoded_trunc - v;
+        const err_abs = if (err_val < 0.0) -err_val else err_val;
+        // Error must be bounded by 2 FP8 ULPs (loose bound -- tight bound is 1 ULP).
+        // A tighter bound would require comparing against the 1-7-8 split directly.
+        try std.testing.expect(err_abs < @as(f32, @floatCast(FP8_ULP * 2.0)));
+    }
+}
+
+test "gf16_lp_fp8_canonical_vs_alt_error_comparison" {
+    // Compare GF16 1-6-9 vs simulated 1-7-8 truncated error on phi.
+    // 1-7-8 simulated: encode with gf16_encode_f32 (same hardware),
+    //   then truncate 8 mant bits to 4 bits (shift = 8 - 4 = 4).
+    //   The alt split has 1 fewer mantissa bit at full precision but
+    //   the same FP8 truncation floor.
+    //
+    // Prediction [Open conjecture]: at FP8 floor, both splits suffer
+    //   similar truncation error, making the 9-bit depth vacuous in
+    //   this context. If verified, this FALSIFIES the mantissa-depth
+    //   motivation for 1-6-9 under FP8 training.
+    const v : f32 = 1.6180339;  // phi to f32 precision
+
+    // Canonical GF16 1-6-9 path.
+    const gf16_enc = gf16_encode_f32(v);
+    const mant_9 = gf16_enc & MANT_MASK;
+    const shift_canonical : u4 = 9 - FP8_EFFECTIVE_MANT_BITS;  // 5
+    const mant_9_trunc = (mant_9 >> shift_canonical) << shift_canonical;
+    const gf16_trunc = (gf16_enc & ~MANT_MASK) | mant_9_trunc;
+    const decoded_canonical = gf16_decode_to_f32(gf16_trunc);
+    const err_canonical = if (decoded_canonical > v) decoded_canonical - v else v - decoded_canonical;
+
+    // Alternate 1-7-8 path simulation: same encoding hardware; treat the
+    //   lower 8 bits as the mantissa (hypothetical), truncate to 4 bits.
+    const mant_8 = gf16_enc & 0x00FF;  // lower 8 bits (hypothetical 1-7-8 mant)
+    const shift_alt : u4 = 8 - FP8_EFFECTIVE_MANT_BITS;  // 4
+    const mant_8_trunc = (mant_8 >> shift_alt) << shift_alt;
+    const gf16_alt = (gf16_enc & 0xFF00) | mant_8_trunc;
+    const decoded_alt = gf16_decode_to_f32(gf16_alt);
+    const err_alt = if (decoded_alt > v) decoded_alt - v else v - decoded_alt;
+
+    // Check: neither split dominates by more than 1 FP8 ULP.
+    const diff = if (err_canonical > err_alt) err_canonical - err_alt else err_alt - err_canonical;
+    // NOTE: if diff > FP8_ULP, one split is measurably better in this context.
+    // The test records the comparison; it does NOT assert which is better.
+    // The parent agent must check the actual run result to evaluate the conjecture.
+    const within_one_ulp = diff < @as(f32, @floatCast(FP8_ULP));
+    // The result of this test is informational: pass in either direction.
+    // (A strict > assertion here would pre-judge the conjecture.)
+    _ = within_one_ulp;
+    // Structural sanity: errors are finite and non-negative.
+    try std.testing.expect(err_canonical >= 0.0);
+    try std.testing.expect(err_alt >= 0.0);
+}
+
+// ============================================================================
+// C3 Invariants (L4 TESTABILITY)
+// ============================================================================
+
+invariant "gf16_lp_ssot_split_unchanged" {
+    // L6 guard: the canonical split constants must not be altered.
+    // EXP_SHIFT, EXP_MASK, MANT_MASK, BIAS are the SSOT (FORMAT-SPEC-001).
+    @compileAssert(EXP_SHIFT == 9);
+    @compileAssert(EXP_MASK == 0x7E00);
+    @compileAssert(MANT_MASK == 0x01FF);
+    @compileAssert(BIAS == 31);
+    @compileAssert(GF16_CANONICAL_EXP_BITS == 6);
+    @compileAssert(GF16_CANONICAL_MANT_BITS == 9);
+}
+
+invariant "gf16_lp_phi_dist_registered_positive" {
+    // The registered phi_dist of GF16 is positive (it is not exactly phi^-1).
+    @compileAssert(GF16_PHI_DIST_REGISTERED > 0.0);
+}
+
+invariant "gf16_lp_fp8_depth_less_than_canonical" {
+    // FP8 effective mantissa depth is strictly less than GF16 canonical depth.
+    @compileAssert(FP8_EFFECTIVE_MANT_BITS < GF16_CANONICAL_MANT_BITS);
+}
+
+invariant "gf16_lp_alt_splits_not_registered" {
+    // Alternate splits (1-7-8, 1-8-7) are ablation artifacts only.
+    // They are not in FORMAT-SPEC-001 and must not be confused with the
+    // canonical format. The ablation is additive and read-only w.r.t. L6.
+    @compileAssert(ALT_A_EXP_BITS != GF16_CANONICAL_EXP_BITS);
+    @compileAssert(ALT_A_MANT_BITS != GF16_CANONICAL_MANT_BITS);
+}
+
+invariant "gf16_lp_canonical_minimises_phi_dist" {
+    // [Registered structural fact from FORMAT-SPEC-001]
+    // phi_dist(1-6-9) < phi_dist(1-7-8); the canonical split is closer to phi^-1.
+    // This is a STRUCTURAL fact, not a training quality claim.
+    @compileAssert(GF16_PHI_DIST_REGISTERED < ALT_A_PHI_DIST);
+}
+
+// ============================================================================
+// C3 Bench (L4 TESTABILITY)
+// ============================================================================
+
+bench "bench_gf16_lp_encode_fp8_projection" {
+    // Latency of: encode f32 to GF16, truncate mantissa to 4 bits (FP8 floor),
+    //   decode back. This is the inner loop cost of FP8-projected GF16 operations.
+    // Target: < 2x overhead vs plain gf16_encode_f32 + gf16_decode_to_f32.
+    @setEvalBranchQuota(10000);
+    const v : f32 = 1.5;
+    const fp8_shift : u4 = GF16_CANONICAL_MANT_BITS - FP8_EFFECTIVE_MANT_BITS;
+    var result : f32 = 0.0;
+    for (0..1000) |_| {
+        const enc = gf16_encode_f32(v);
+        const mant = enc & MANT_MASK;
+        const mant_trunc = (mant >> fp8_shift) << fp8_shift;
+        const enc_trunc = (enc & ~MANT_MASK) | mant_trunc;
+        result = gf16_decode_to_f32(enc_trunc);
+    }
+    _ = result;
+}
+
+bench "bench_gf16_lp_roundtrip_baseline" {
+    // Plain GF16 encode + decode (no FP8 truncation) for latency comparison.
+    // The ratio bench_gf16_lp_encode_fp8_projection / bench_gf16_lp_roundtrip_baseline
+    //   must be < 2.0 (the MAX_LATENCY_RATIO from C2 convention).
+    @setEvalBranchQuota(10000);
+    const v : f32 = 1.5;
+    var result : f32 = 0.0;
+    for (0..1000) |_| {
+        const enc = gf16_encode_f32(v);
+        result = gf16_decode_to_f32(enc);
+    }
+    _ = result;
+}

@@ -631,3 +631,292 @@ module SacredAttention {
         measure: nanoseconds for sacred_attention_kernel on single position
         target: < 30000ns
 }
+
+// =====================================================================
+// Phase B2 (epic #181) -- QK-Gain control ablation (appended, separate module)
+// gain=phi^2 vs gain=1.0 vs learned. phi^2 [Open conjecture]; phi^2=phi+1 [Verified].
+// =====================================================================
+
+module AttentionQKGainAblation;
+    use base::types;
+    use math::constants;
+    use numeric::gf16;
+    use nn::attention;
+
+    // =========================================================
+    // 1. Constants
+    // =========================================================
+
+    const PHI : gf16::GF16 = 1.618033988749895;
+    const PHI_SQ : gf16::GF16 = 2.618033988749895;  // phi^2 = phi + 1; [Verified arithmetic]
+    const PHI_SQ_INV : gf16::GF16 = 0.381966011250105; // phi^(-2); [Verified arithmetic]
+
+    // B2 gain variants
+    const GAIN_PHI_SQ : gf16::GF16 = PHI_SQ;      // phi^2 ~ 2.618 [Open conjecture]
+    const GAIN_STANDARD : gf16::GF16 = 1.0;        // Standard (no extra gain)
+    const GAIN_SQRT_PHI : gf16::GF16 = 1.272019649514069; // sqrt(phi) ~ 1.272 [Open conjecture]
+    const GAIN_LEARNED_INIT : gf16::GF16 = 1.0;    // Learned gain initialized at 1.0
+
+    // Attention scaling (kept separate from QK-Gain; standard 1/sqrt(d_k))
+    // Sacred scaling from attention.t27: SACRED_SCALE = 81^(-PHI^(-3)) ~ 0.354
+    // These are combined: effective_scale = SACRED_SCALE * qk_gain^2
+    // (qk_gain is applied to Q and K before dot product -- doubles in the score)
+
+    // =========================================================
+    // 2. Types
+    // =========================================================
+
+    pub const QKGainVariant = enum {
+        PhiSquared,  // gain = phi^2 ~ 2.618  [Open conjecture]
+        Standard,    // gain = 1.0 (baseline)
+        Learned,     // gain starts at 1.0, optimized by AdamW
+        SqrtPhi,     // gain = sqrt(phi) ~ 1.272  [Open conjecture]
+    };
+
+    pub const QKGainConfig = struct {
+        variant : QKGainVariant,
+        head_dim : u32,
+        initial_gain : gf16::GF16,
+        learnable : bool,          // If true, gain is a trained scalar
+        lr_gain : gf16::GF16,      // LR for gain parameter (if learnable)
+    };
+
+    pub const QKGainResult = struct {
+        gain_value : gf16::GF16,   // Effective gain applied
+        score_scale : gf16::GF16,  // Combined score scale (gain^2 / sqrt(head_dim))
+    };
+
+    // =========================================================
+    // 3. Core Functions
+    // =========================================================
+
+    // get_qk_gain(config: QKGainConfig) -> gf16::GF16
+    // Returns the effective QK gain scalar for the given variant.
+    fn get_qk_gain(config: QKGainConfig) -> gf16::GF16 {
+        // PhiSquared: return GAIN_PHI_SQ
+        // Standard:   return GAIN_STANDARD
+        // Learned:    return config.initial_gain (will be trained)
+        // SqrtPhi:    return GAIN_SQRT_PHI
+    }
+
+    // effective_score_scale(gain: gf16::GF16, head_dim: u32) -> gf16::GF16
+    // Computes the combined score scale = gain^2 / sqrt(head_dim).
+    // Standard formula uses gain=1: scale = 1/sqrt(head_dim).
+    // phi^2 formula: scale = phi^4 / sqrt(head_dim).
+    // Note: igla-peek applies gain to both Q and K, so dot product
+    // picks up gain^2 vs the standard 1 factor.
+    fn effective_score_scale(gain: gf16::GF16, head_dim: u32) -> gf16::GF16 {
+        // return gain * gain / sqrt(head_dim as gf16::GF16)
+    }
+
+    // =========================================================
+    // PHASE B2: Constant-identity tests
+    // =========================================================
+
+    // B2-CONST-1: phi^2 = phi + 1 -- [Verified] (L5 corollary)
+    test b2_phi_sq_equals_phi_plus_one
+        given phi = 1.618033988749895
+        when lhs = phi * phi
+        and  rhs = phi + 1.0
+        then approximately_equal(lhs, rhs) // tolerance 1e-12
+
+    // B2-CONST-2: GAIN_PHI_SQ matches igla-peek PHI_SQ
+    test b2_gain_phi_sq_matches_trainer_constant
+        given expected = 1.618033988749895 + 1.0  // phi + 1 = phi^2
+        when val = GAIN_PHI_SQ
+        then approximately_equal(val, expected)   // tolerance 1e-9
+
+    // B2-CONST-3: phi^2 + phi^(-2) = 3 -- [Verified] (Law L5)
+    test b2_trinity_identity_l5
+        given phi = 1.618033988749895
+        when lhs = phi * phi + 1.0 / (phi * phi)
+        then approximately_equal(lhs, 3.0) // tolerance 1e-12
+        // [Verified]: the ONLY phi-fact that is Verified in this codebase.
+
+    // B2-CONST-4: Standard gain is distinct from phi^2
+    test b2_standard_gain_distinct_from_phi_sq
+        then GAIN_PHI_SQ != GAIN_STANDARD
+        and  GAIN_PHI_SQ > 2.0
+        and  GAIN_PHI_SQ < 3.0
+
+    // B2-CONST-5: sqrt(phi) is in valid range
+    test b2_sqrt_phi_in_range
+        given phi = 1.618033988749895
+        when expected = sqrt(phi)
+        then approximately_equal(GAIN_SQRT_PHI, expected) // tolerance 1e-9
+
+    // =========================================================
+    // PHASE B2: Control-test design (QK-Gain ablation)
+    //
+    // FALSIFICATION CRITERION:
+    //   If gain=1.0 (standard) or learned gain reaches BPB within
+    //   Monte-Carlo error of gain=phi^2 on equal budget, phi-specificity
+    //   of the QK-gain design is FALSIFIED.
+    //
+    // Experimental protocol:
+    //   - Metric: BPB on held-out validation set
+    //   - Budget: equal gradient steps; equal HP tuning for lr_gain
+    //   - Baseline: standard attention (Vaswani 2017, 1/sqrt(d_k))
+    //   - Three cells: (a) phi^2, (b) 1.0, (c) learned
+    //   - Optional fourth cell: sqrt(phi) to test sqrt-phi hypothesis
+    //   - All cells use identical architecture; only gain differs
+    //   - muP QK scaling (Yang 2022, 2203.03466) is phi-independent:
+    //     use standard 1/sqrt(d_k) after muP transfer (see B3)
+    // =========================================================
+
+    // B2a: phi^2 gain  [Open conjecture]
+    test b2_variant_a_phi_sq_config
+        given config = QKGainConfig{
+            .variant = QKGainVariant.PhiSquared,
+            .head_dim = 96,
+            .initial_gain = GAIN_PHI_SQ,
+            .learnable = false,
+            .lr_gain = 0.0
+        }
+        when gain = get_qk_gain(config)
+        then approximately_equal(gain, PHI_SQ) // ~ 2.618
+
+    // B2b: standard gain = 1.0 (baseline; Vaswani 2017)
+    test b2_variant_b_standard_config
+        given config = QKGainConfig{
+            .variant = QKGainVariant.Standard,
+            .head_dim = 96,
+            .initial_gain = GAIN_STANDARD,
+            .learnable = false,
+            .lr_gain = 0.0
+        }
+        when gain = get_qk_gain(config)
+        then approximately_equal(gain, 1.0)
+
+    // B2c: learned gain (starts at 1.0, optimized jointly with model)
+    //   Represents: "let the data decide the gain"
+    test b2_variant_c_learned_init
+        given config = QKGainConfig{
+            .variant = QKGainVariant.Learned,
+            .head_dim = 96,
+            .initial_gain = GAIN_LEARNED_INIT,
+            .learnable = true,
+            .lr_gain = 1e-3
+        }
+        when gain_init = get_qk_gain(config)
+        then approximately_equal(gain_init, 1.0)  // starts at 1.0
+        // after training, gain may converge toward phi^2 or elsewhere --
+        // that outcome would be informative but is not asserted here
+
+    // B2d: Score scale is correctly computed per variant
+    test b2_score_scale_phi_sq
+        given gain = GAIN_PHI_SQ
+        and   head_dim = 96
+        when scale = effective_score_scale(gain, head_dim)
+        // phi^4 / sqrt(96) ~ 6.854 / 9.798 ~ 0.7
+        then scale > 0.5 and scale < 1.5
+
+    test b2_score_scale_standard
+        given gain = GAIN_STANDARD
+        and   head_dim = 96
+        when scale = effective_score_scale(gain, head_dim)
+        // 1 / sqrt(96) ~ 0.102
+        then approximately_equal(scale, 1.0 / sqrt(96.0)) // tolerance 1e-6
+
+    // B2e: Ablation scaffold produces finite BPB for all variants
+    test b2_control_ablation_all_variants_finite
+        given n_steps = 500     // mini-run for CI; full run uses 81000
+        and   seed = 43
+        and   bpb_a = run_attention_with_gain(QKGainVariant.PhiSquared, n_steps, seed)
+        and   bpb_b = run_attention_with_gain(QKGainVariant.Standard, n_steps, seed)
+        and   bpb_c = run_attention_with_gain(QKGainVariant.Learned, n_steps, seed)
+        then all_finite([bpb_a, bpb_b, bpb_c])
+        and  all_positive([bpb_a, bpb_b, bpb_c])
+        // NOT asserting bpb_a < bpb_b or bpb_a < bpb_c.
+        // phi-specificity is FALSIFIED if any non-phi variant
+        // matches variant (a) within Monte-Carlo error.
+
+    // =========================================================
+    // PHASE B2: Invariants
+    // =========================================================
+
+    // B2-INV-1: phi^2 gain is in (1, 4) -- plausible range for a score amplifier
+    invariant b2_phi_sq_gain_valid_range
+        then GAIN_PHI_SQ > 1.0
+        and  GAIN_PHI_SQ < 4.0
+
+    // B2-INV-2: standard gain is exactly 1.0
+    invariant b2_standard_gain_is_one
+        then GAIN_STANDARD == 1.0
+
+    // B2-INV-3: effective score scale is positive for any positive gain and head_dim
+    invariant b2_score_scale_positive
+        given gain = random_gf16_in_range(0.01, 10.0)
+        and   head_dim = 96
+        when scale = effective_score_scale(gain, head_dim)
+        then scale > 0.0
+
+    // B2-INV-4: phi^2 gain variant gives strictly higher score scale than gain=1
+    //   (This is a structural invariant -- not a performance claim)
+    invariant b2_phi_sq_scale_greater_than_standard
+        given head_dim = 96
+        when scale_a = effective_score_scale(GAIN_PHI_SQ, head_dim)
+        and  scale_b = effective_score_scale(GAIN_STANDARD, head_dim)
+        then scale_a > scale_b
+
+    // B2-INV-5: Trinity identity preserved -- [Verified] (Law L5)
+    invariant b2_trinity_l5_verified
+        given phi = 1.618033988749895
+        when lhs = phi * phi + 1.0 / (phi * phi)
+        then approximately_equal(lhs, 3.0)
+
+    // B2-INV-6: Gain variants are numerically distinct
+    invariant b2_all_gain_variants_distinct
+        then GAIN_PHI_SQ != GAIN_STANDARD
+        and  GAIN_PHI_SQ != GAIN_SQRT_PHI
+        and  GAIN_STANDARD != GAIN_SQRT_PHI
+
+    // =========================================================
+    // PHASE B2: Benchmarks
+    // =========================================================
+
+    bench b2_forward_pass_phi_sq_gain
+        given config = QKGainConfig{.variant = QKGainVariant.PhiSquared, .head_dim = 96, .initial_gain = GAIN_PHI_SQ, .learnable = false, .lr_gain = 0.0}
+        and   seq_len = 64
+        when result = attention_forward(config, seq_len)
+        then elapsed_time_ms < 5
+
+    bench b2_forward_pass_standard_gain
+        given config = QKGainConfig{.variant = QKGainVariant.Standard, .head_dim = 96, .initial_gain = GAIN_STANDARD, .learnable = false, .lr_gain = 0.0}
+        and   seq_len = 64
+        when result = attention_forward(config, seq_len)
+        then elapsed_time_ms < 5
+        // Both variants must have equal latency (same algorithm, different scalar)
+
+    bench b2_forward_pass_learned_gain
+        given config = QKGainConfig{.variant = QKGainVariant.Learned, .head_dim = 96, .initial_gain = GAIN_LEARNED_INIT, .learnable = true, .lr_gain = 1e-3}
+        and   seq_len = 64
+        when result = attention_forward(config, seq_len)
+        then elapsed_time_ms < 5
+
+    // =========================================================
+    // Mathematical Notes
+    // =========================================================
+    //
+    // QK scoring: score(q, k) = (q @ k^T) * scale
+    //   Standard scale: 1 / sqrt(head_dim)  (Vaswani 2017)
+    //   igla-peek uses: qk_gain applied to Q and K before dot product,
+    //     then 1/sqrt(head_dim) on the dot product.
+    //     Net score = (gain * q) @ (gain * k)^T / sqrt(head_dim)
+    //              = gain^2 * (q @ k^T) / sqrt(head_dim)
+    //   So QK-Gain = phi^2 is equivalent to scaling by phi^4 / sqrt(head_dim).
+    //
+    // Why [Open conjecture] and not [Verified]:
+    //   - phi^2 = phi + 1 is [Verified arithmetic] (L5).
+    //   - That phi^2 is the *optimal* gain for LLM attention is NOT derived
+    //     from any theorem. It is a hypothesis to be tested empirically.
+    //   - muP (Yang 2022, 2203.03466) provides a principled alternative:
+    //     QK scale = 1/sqrt(d_head) after muP initialization. This scale
+    //     is phi-independent (see B3 audit).
+    //
+    // Literature:
+    //   Vaswani et al. 2017: standard 1/sqrt(d_k) scaling rationale.
+    //   Yang et al. 2022 (2203.03466): muP LR transfer; QK scale is 1/d_head.
+    //   igla-peek INV-9: current codebase anchors gain to phi^2 as a hypothesis.
+    //
+    // =========================================================
