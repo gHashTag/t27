@@ -49,21 +49,24 @@ fn poll_vs_irq_reports_poll_path_with_eight_writes() {
 }
 
 #[test]
-fn poll_vs_irq_reports_irq_path_with_nine_writes() {
-    // IRQ path performs the same 8 configure/start writes plus one extra
-    // write-1-to-clear of IRQ_STAT inside service(); expect 9 writes.
+fn poll_vs_irq_reports_irq_path_with_eight_writes_w57() {
+    // W57: IRQ_STAT is read-to-clear on hardware (the AXI slave has no
+    // write case for offset 0x0C). `service()` no longer emits a W1C
+    // write -- it relies on the destructive read instead. The IRQ path
+    // now writes exactly the same configure/start sequence as the poll
+    // path: 8 writes.
     let (ok, stdout, _stderr) = run(&["host-poll-vs-irq"]);
     assert!(ok);
-    assert!(stdout.contains("irq=9w/"), "stdout = {stdout}");
+    assert!(stdout.contains("irq=8w/"), "stdout = {stdout}");
 }
 
 #[test]
-fn poll_vs_irq_writes_match_is_false_by_design() {
-    // The IRQ path intentionally performs one extra W1C write.
-    // writes_match should therefore report `false`.
+fn poll_vs_irq_writes_match_is_true_after_w57() {
+    // W57: both paths now emit the same write sequence; `writes_match`
+    // reports `true`.
     let (ok, stdout, _stderr) = run(&["host-poll-vs-irq"]);
     assert!(ok);
-    assert!(stdout.contains("writes_match=false"), "stdout = {stdout}");
+    assert!(stdout.contains("writes_match=true"), "stdout = {stdout}");
 }
 
 #[test]
@@ -225,22 +228,26 @@ fn poll_vs_irq_overrides_round_trip_through_csr_match() {
     assert!(ok);
     assert!(stdout.contains("csr_match=true"), "stdout = {stdout}");
     assert!(stdout.contains("poll=8w/"));
-    assert!(stdout.contains("irq=9w/"));
+    assert!(stdout.contains("irq=8w/"));
 }
 
 #[test]
 fn poll_vs_irq_read_counts_are_eleven_each() {
     // 1 STATUS read inside wait_done + 10 dump() reads = 11 reads per path.
+    // Poll path: STATUS poll + dump (10). IRQ path: IRQ_STAT read inside
+    // service() + dump (10). Both = 11.
     let (ok, stdout, _stderr) = run(&["host-poll-vs-irq"]);
     assert!(ok);
     assert!(stdout.contains("poll=8w/11r"), "stdout = {stdout}");
-    assert!(stdout.contains("irq=9w/11r"), "stdout = {stdout}");
+    assert!(stdout.contains("irq=8w/11r"), "stdout = {stdout}");
 }
 
 #[test]
-fn poll_vs_irq_writes_diff_is_exactly_one() {
-    // Sanity check: irq path differs from poll path by exactly one write
-    // (the W1C of IRQ_STAT inside service()).
+fn poll_vs_irq_writes_diff_is_zero_w57() {
+    // W57: with `service()` no longer writing to IRQ_STAT, the irq path
+    // emits the exact same number of writes as the poll path. The diff
+    // should be zero -- regression-pinned so a future addition of a W1C
+    // write would re-trip this test.
     let (ok, stdout, _stderr) = run(&["host-poll-vs-irq"]);
     assert!(ok);
     let line = stdout.lines().next().expect("at least one line");
@@ -256,7 +263,7 @@ fn poll_vs_irq_writes_diff_is_exactly_one() {
         .and_then(|s| s.split('w').next())
         .and_then(|s| s.parse().ok())
         .expect("irq writes");
-    assert_eq!(irq_w, poll_w + 1, "irq path should write exactly 1 more");
+    assert_eq!(irq_w, poll_w, "W57: irq path should write the same as poll");
 }
 
 #[test]

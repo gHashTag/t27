@@ -159,16 +159,36 @@ impl<M: Mmio> BitnetDriver<M> {
     }
 
     /// Read the sticky IRQ status latch.
+    ///
+    /// **DESTRUCTIVE on hardware (W57).** The W36d RTL slave generates a
+    /// `status_read` pulse on every AXI read of offset 0x0C, and the
+    /// `bitnet_irq` module clears *all* `irq_status` bits on that pulse
+    /// (see `bootstrap/src/bitnet_irq.rs` around line 103). The host
+    /// therefore cannot inspect IRQ_STAT without also clearing every
+    /// latched bit. Callers must either consume the returned value as the
+    /// authoritative snapshot of which IRQs were pending at the moment of
+    /// the read, or buffer it themselves -- the latches are gone after
+    /// the read returns. `MockMmio` mirrors this destructive behaviour.
     pub fn read_irq_status(&mut self) -> u32 {
         self.mmio.read32(csr_map::IRQ_STAT)
     }
 
-    /// Acknowledge IRQs by writing `mask` to IRQ_STAT.  The W36d slave models
-    /// a write-1-to-clear behaviour upstream, so the host writes the bits it
-    /// wants cleared and the slave squashes them on the next status_read.
-    pub fn clear_irq(&mut self, mask: u32) {
-        self.mmio
-            .write32(csr_map::IRQ_STAT, mask & csr_map::IRQ_ALL_MASK);
+    /// Deprecated W57: `clear_irq` is a no-op on hardware.
+    ///
+    /// The W36d AXI slave has no write case for offset 0x0C
+    /// (`bootstrap/src/bitnet_axi.rs`), so writes to IRQ_STAT are silently
+    /// dropped. Bits are cleared by READING IRQ_STAT (read-to-clear) via
+    /// [`Self::read_irq_status`]. This method is retained as a no-op for
+    /// source compatibility with pre-W57 callers; new code must use
+    /// `read_irq_status` for both inspection and acknowledgement.
+    #[deprecated(
+        since = "0.1.0",
+        note = "W57: IRQ_STAT is read-to-clear; a write is a no-op on hardware. Use read_irq_status() for both inspection and acknowledgement."
+    )]
+    pub fn clear_irq(&mut self, _mask: u32) {
+        // Intentionally empty: a write to IRQ_STAT is dropped by the AXI
+        // slave. We do not even emit the transaction so the host write
+        // log no longer carries the misleading W1C record.
     }
 
     /// Capture a snapshot of all 10 CSRs (10 reads).
