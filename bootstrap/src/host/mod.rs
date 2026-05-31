@@ -65,7 +65,7 @@ pub use checksum::{checksum, verify, ChecksumError, ChecksumKind, Digest};
 pub use cmdq::{CmdKind, CommandQueue, Priority, QueueError, QueueStats};
 pub use config::{ConfigError, HostConfig, HostConfigBuilder};
 pub use configreg::{ConfigRegistry, ConfigValue, RegistryError};
-pub use descring::{Descriptor, DescriptorRing, DescStatus, RingError, RingStats};
+pub use descring::{Descriptor, DescriptorRing, DescStatus, RingError as DescRingError, RingStats};
 pub use diag::DiagCounters;
 pub use dma::{DmaChannel, DmaConfig, DmaError, DmaReport, DmaState};
 pub use driver::{BitnetDriver, CsrSnapshot, DriverError};
@@ -86,7 +86,7 @@ pub use ratelimit::{RateLimitConfig, RateLimitError, RateLimiter, RateLimitStats
 pub use regcache::{CacheError, CacheStats, RegisterCache};
 pub use regmap::{ConfigSnapshot, CtrlReg, FullSnapshot, IrqEnReg, IrqStatReg, StatusReg, WeightAddr};
 pub use retry::{BackoffStrategy, RetryError, RetryPolicy, RetryState};
-pub use ring_buffer::{RingBuffer, RingError};
+pub use ring_buffer::{RingBuffer, RingError as RingBufError};
 pub use scatter_gather::{SgDescriptor, SgError, SgSegment};
 pub use serial::{Deserializer, SerialError, Serializer};
 pub use session::{Session, SessionConfig, SessionError, SessionStats};
