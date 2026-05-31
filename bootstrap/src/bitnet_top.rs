@@ -126,6 +126,22 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("    );\n");
     s.push_str("\n");
 
+    // Busy / cycle counter
+    // `busy` must be high for the entire inference, starting on `start`
+    // and dropping when the multilayer_sequencer asserts `done`. Deriving
+    // it from `(current_layer != 0) || layer_start` (the previous form)
+    // misses the first layer almost entirely: layer 0 has
+    // `current_layer == 0`, and `layer_start` is a 1-cycle pulse, so the
+    // cycle counter stalled while layer 0 was running.
+    s.push_str("    // Busy tracker: high from `start` until top-level `done`.\n");
+    s.push_str("    reg started;\n");
+    s.push_str("    always @(posedge clk or negedge rst_n) begin\n");
+    s.push_str("        if (!rst_n)      started <= 1'b0;\n");
+    s.push_str("        else if (done)   started <= 1'b0;\n");
+    s.push_str("        else if (start)  started <= 1'b1;\n");
+    s.push_str("    end\n");
+    s.push_str("    assign busy = started && !done;\n");
+    s.push_str("\n");
     s.push_str("    // Cycle counter\n");
     s.push_str("    reg [31:0] cycles;\n");
     s.push_str("    always @(posedge clk or negedge rst_n)\n");
@@ -133,7 +149,6 @@ pub fn build_bitnet_engine_top(module_name: &str) -> String {
     s.push_str("        else if (start) cycles <= 32'd0;\n");
     s.push_str("        else if (busy) cycles <= cycles + 32'd1;\n");
     s.push_str("    assign cycle_count = cycles;\n");
-    s.push_str("    assign busy = (current_layer != 6'd0) || layer_start;\n");
     s.push_str("\n");
 
     s.push_str("    // External memory port currently unused at this level; sub-modules\n");
@@ -238,10 +253,22 @@ mod tests {
     }
 
     #[test]
-    fn busy_derived_from_current_layer_or_layer_start() {
+    fn busy_tracks_start_to_done_w88() {
+        // Regression for W88: previously
+        //   assign busy = (current_layer != 6'd0) || layer_start;
+        // which missed layer 0 entirely (current_layer == 0 the whole
+        // time, layer_start is a 1-cycle pulse), so the cycle counter
+        // stalled. The fixed form latches a `started` flag from `start`
+        // and clears it on top-level `done`.
         let v = build_bitnet_engine_top(DEFAULT_BITNET_ENGINE_TOP_NAME);
-        assert!(v.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
+        assert!(v.contains("reg started;"));
+        assert!(v.contains("else if (done)   started <= 1'b0;"));
+        assert!(v.contains("else if (start)  started <= 1'b1;"));
+        assert!(v.contains("assign busy = started && !done;"));
+        // Old buggy form must be gone.
+        assert!(!v.contains("assign busy = (current_layer != 6'd0) || layer_start;"));
     }
+
 
     #[test]
     fn external_memory_outputs_tied_off() {

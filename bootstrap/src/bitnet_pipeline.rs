@@ -153,7 +153,7 @@ pub fn build_layer_sequencer(module_name: &str) -> String {
     out.push_str("        if (!rst_n) begin\n");
     out.push_str("            state<=IDLE; neuron_id<=0; chunk_id<=0; valid<=0; done<=0;\n");
     out.push_str("        end else case(state)\n");
-    out.push_str("            IDLE: if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end\n");
+    out.push_str("            IDLE: begin done<=0; if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end end\n");
     out.push_str("            RUN: begin\n");
     out.push_str("                valid<=1; first_chunk<=(chunk_id==0); last_chunk<=(chunk_id==num_chunks-1);\n");
     out.push_str("                if(chunk_id==num_chunks-1) begin chunk_id<=0;\n");
@@ -293,14 +293,35 @@ mod tests {
 
     #[test]
     fn sequencer_idle_arms_on_start() {
+        // After the W88 fix the IDLE state both clears `done` and arms
+        // the run on `start`. The transition to RUN with neuron / chunk
+        // counters zeroed is unchanged from the original form.
         let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
-        assert!(v.contains("IDLE: if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end"));
+        assert!(v.contains("if(start) begin state<=RUN; neuron_id<=0; chunk_id<=0; end"),
+            "IDLE must still arm RUN on start with counters cleared; got:\n{v}");
     }
 
     #[test]
     fn sequencer_done_st_returns_to_idle() {
         let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
         assert!(v.contains("DONE_ST: begin valid<=0; done<=1; state<=IDLE; end"));
+    }
+
+    #[test]
+    fn sequencer_idle_clears_done_w88() {
+        // Regression for W88: layer_sequencer sets `done<=1` in DONE_ST
+        // and transitions back to IDLE without clearing `done`, so the
+        // `done` output was sticky forever. The first layer always
+        // appeared finished, so multilayer_sequencer skipped layers 2..N.
+        // Fix: clear `done` unconditionally at the top of IDLE so the
+        // pulse only lives one cycle (the DONE_ST cycle) before being
+        // cleared on the very next IDLE entry.
+        let v = build_layer_sequencer(DEFAULT_LAYER_SEQUENCER_NAME);
+        assert!(v.contains("IDLE: begin done<=0;"),
+            "IDLE must clear `done` before any start handling; got:\n{v}");
+        // The buggy form (no done<=0 in IDLE) must not be present.
+        assert!(!v.contains("IDLE: if(start) begin state<=RUN;"),
+            "old buggy IDLE form must be gone; got:\n{v}");
     }
 
     #[test]
