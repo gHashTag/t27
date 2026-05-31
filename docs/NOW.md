@@ -1,6 +1,18 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-30
+Last updated: 2026-05-31
+
+## opt-cse-dse-fix -- sound CSE for ExprCall + correct DSE target for StmtAssign (Closes #918, #919)
+
+- **WHERE** (compiler optimizer): `bootstrap/src/compiler.rs`. (1) `child_key` now treats `ExprCall` (and any non-pure / unsupported expression kind) as un-CSE-able by returning a unique key from a process-wide `AtomicU64` counter on every visit; pure leaves (`ExprLiteral`, `ExprIdentifier`) and pure `ExprBinary` over those remain CSE-able. Previously every call produced the literal key `"ExprCall"`, so `foo()+1` and `bar()+1` collided in the CSE table and the second was rewritten to reference the first one's cached temporary -- wrong code on every side-effecting call. (2) `dead_store_elim` now reads the target name from `s.children[0].name` for `StmtAssign` (LHS lives in `children[0]`, not `.name`) and only eliminates the statement when the LHS is a simple `ExprIdentifier`; non-identifier LHSes (`arr[i] = x`, `obj.field = x`) are preserved. Previously the pass tested `reads.contains(&s.name)` on `StmtAssign` where `s.name` is always `""`, so every assignment was dropped from every optimised program. Six new inline tests in `tests_phase40_coverage` cover both regressions and a positive-CSE sanity guard.
+- **Why**: two CRITICAL audit-wave findings (W46 R-OPT-1, W47 R-OPT-2) producing wrong code on essentially every program through `optimize()` with the default `OptConfig`. Closes #918, #919.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## trit-full-adder-carry-fix -- signed-integer carry combine, 27-case truth table (Closes #936, #963, #989)
+
+- **WHERE** (trit stdlib emitter): `bootstrap/src/trit_stdlib.rs` and `bootstrap/tests/trit_stdlib.rs`. Replaced the body of `MOD_TRIT_FULL_ADDER`: the two half-adder carries are now decoded to signed integers in {-1, 0, +1}, summed, and re-encoded to a trit. Previously the carries were combined with `trit_or` (Kleene max), which is wrong in 6 of the 27 (a, b, cin) input cases in balanced-ternary {-1, 0, +1} (Kleene max returns 0 when either operand is 0 because the encoding has TRIT_Z > TRIT_N, dropping the negative carry; and it picks the wrong magnitude for the two opposite-sign carry pairs). Exhaustive case analysis over all 27 triples shows the two half-adder carries are never simultaneously nonzero with the same sign, so |c1 + c2| <= 1 always and the final cout fits in a single trit. The Verilog-shape regression test was replaced with `trit_full_adder_combines_carries_with_signed_addition` (asserts `c1_val + c2_val`, signed muxes, no `trit_or carry_combine`) and a new `trit_full_adder_truth_table_is_correct_all_27_cases` drives a pure-Rust functional model of the new chain against the canonical `a + b + cin` truth table for every (a, b, cin) in {-1, 0, +1}^3 and asserts the |c1 + c2| <= 1 invariant inline.
+- **Why**: a CRITICAL ternary-RTL miscompile flagged by three audit waves (W64, W87, W111). The emitted `trit_full_adder` is depended on by `trit3_add`, `trit27_dot_product`, the adder tree, and the BitNet pipeline stage; before this fix any chain wider than one half-adder hop could lose a carry. Closes #936, #963, #989.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## wave-62 -- strengthen AST constant folding (R-CO-1, Closes #837)
 
