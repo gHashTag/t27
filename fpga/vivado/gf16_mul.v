@@ -33,7 +33,7 @@ module gf16_mul (
     reg [8:0]  mant_out;
     reg [19:0] prod;
     reg        guard_bit, round_bit, sticky;
-    reg [8:0]  mant_rounded;
+    reg [9:0]  mant_rounded;
     reg [6:0]  final_exp;
     reg [8:0]  final_mant;
     reg [15:0] final_result;

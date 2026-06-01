@@ -1,0 +1,6 @@
+set_property -dict { PACKAGE_PIN E3  IOSTANDARD LVCMOS33 } [get_ports clk]
+set_property -dict { PACKAGE_PIN R23 IOSTANDARD LVCMOS33 } [get_ports led_data]
+set_property -dict { PACKAGE_PIN T23 IOSTANDARD LVCMOS33 } [get_ports led_sync]
+create_clock -period 83.333 -name sysclk [get_ports clk]
+set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+set_property BITSTREAM.CONFIG.UNUSEDPIN PULLDOWN [current_design]
