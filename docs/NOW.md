@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-05-31
+Last updated: 2026-06-01
+
+## fix-security-w105-w110-w80 -- remove committed Solana keypairs + jwt fallback + hook repair (Closes #983 #988 #956)
+
+- **WHERE** (R-SEC): four plaintext Solana keypairs in `test-ledger/` (`faucet-keypair.json`, `stake-account-keypair.json`, `validator-keypair.json`, `vote-account-keypair.json`) and 35 surrounding ledger artefacts (accounts/, snapshots/, rocksdb/, genesis.*, tower-*.bin) are deleted; `.gitignore` blocks `test-ledger/`, `*-keypair.json`, and `**/target/deploy/*-keypair.json` going forward; `.github/workflows/secret-scan.yml` adds a new CI guard that fails any PR/push that regresses those paths or re-introduces a hardcoded `/Users/playra/` absolute path. `scripts/install-git-hooks.sh:83` typo `pipefill` -> `pipefail`; `scripts/install-git-hooks.sh` pre-push hook now reads the standard stdin contract `<local_ref> <local_sha> <remote_ref> <remote_sha>` instead of the invalid `git diff --cached --origin` command that silently did nothing; `scripts/mcp-wrapper.sh:3` replaces hardcoded `cd /Users/playra/t27` with portable `cd "$(git rev-parse --show-toplevel)"`. `bootstrap/src/jwt.rs` removes the unconditional `t27-sandbox-secret` JWT fallback (W80) -- release builds now require `SANDBOX_JWT_SECRET` to be set with >= 32 bytes or error at startup; the test/debug fallback is gated behind `#[cfg(any(test, debug_assertions))]` so production cannot use it. PR #997 rebased onto master 9cf5300 -> head 74e25fcf, all gates green (check, scan, L1 TRACEABILITY, NOW, phi-loop, coverage, validate, secret-scan, GitGuardian).
+- **Why**: CRITICAL R-SEC findings -- W105 leaked 4 plaintext Solana Ed25519 secret keys + 1 broken pre-push hook + 1 non-portable wrapper; W110 confirmed the pre-push hook was silently a no-op; W80 confirmed any deployment with `SANDBOX_JWT_SECRET` unset accepted forged tokens signed with the hardcoded fallback. This PR closes the bleeding at HEAD. Git-history rewrite (`git filter-repo --invert-paths --path test-ledger/`) and key rotation on devnet are tracked as the follow-up in a separate issue -- they require force-push coordination and treat the keys as compromised in any case. L6 untouched (gf16 SSOT and conformance JSON unchanged). Closes #983, #988, #956.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## goldenfloat-ladder-extend -- GF64+GF256 rungs + corrupted-comment repair (Closes #1022)
 

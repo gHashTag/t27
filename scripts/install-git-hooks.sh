@@ -80,7 +80,7 @@ cat > "$HOOKS_DIR/pre-push" << 'EOF'
 # L4 TESTABILITY Pre-Push Hook
 # Warns if .t27 files are being pushed without test/invariant/bench
 
-set -euo pipefill
+set -euo pipefail
 
 # ANSI colors
 RED='\033[0;31m'
@@ -89,7 +89,22 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Check for .t27 files in push
-T27_FILES=$(git diff --name-only --cached --origin | grep '\.t27$' || true)
+# Compare the local tip of the push range against its remote counterpart.
+# pre-push hooks receive on stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+# We fall back to HEAD vs origin/HEAD when invoked manually.
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue  # branch deletion
+    fi
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        RANGE="$local_sha"  # new branch — diff everything
+    else
+        RANGE="${remote_sha}..${local_sha}"
+    fi
+    T27_FILES=$(git diff --name-only "$RANGE" | grep '\.t27$' || true)
+    if [ -n "$T27_FILES" ]; then break; fi
+done
+T27_FILES="${T27_FILES:-}"
 
 if [ -n "$T27_FILES" ]; then
     echo -e "${YELLOW}⚠️  Pushing .t27 files. Please ensure they contain test/invariant/bench blocks (L4 TESTABILITY)${NC}"
