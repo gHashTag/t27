@@ -1,0 +1,364 @@
+// SPDX-License-Identifier: Apache-2.0
+// t27/specs/numeric/formats_catalog.t27
+//
+// Universal Numeric Format Catalog (SSOT)
+//
+// Single source of truth for every numeric format relevant to ML,
+// scientific computing, historical hardware, and the GoldenFloat (GF)
+// family. Codegen targets (Markdown / JSON / Python / Rust / C / TS) MUST be
+// derived from this file via tools/gen_formats_catalog.py (bootstrap
+// codegen, Python stop-gap until t27c is self-hosting). Do not hand-edit
+// emitted files in gen/numeric/.
+//
+// Bootstrap grammar note: this file deliberately uses ONLY constructs that
+// bootstrap/t27c.py can parse today (const + fn). Struct literals
+// (Format { ... }) are NOT yet supported by t27c parse, so per-format
+// records live as fn getters that the codegen reads from the AST. When
+// t27c gains struct literals this file can be re-expressed as a const
+// array of Format records without changing the codegen contract.
+//
+// Status labels (mandatory; see skills/user/goldenfloat-ladder +
+// igla-phi-architecture):
+//   Verified        - exact-by-construction or directly measured.
+//   EmpiricalFit    - matches data but a parameter is chosen post-hoc.
+//   Open            - plausible conjecture; carries a falsification path.
+//   Risk            - weak venue, look-elsewhere, or already-matching control.
+//   Retracted       - withdrawn; recorded, never used as evidence.
+//   Experimental    - design exists on paper; not implemented or measured.
+//   Historical      - shipped hardware, no longer current standard.
+//
+// Phi-distance metric:
+//   phi_distance(E, M) = abs(E / M - 1/phi)   where 1/phi = 0.61803398874989
+//   Lower is more phi-aligned. Only defined for radix-2 floats with
+//   separate E and M. Sentinel -1.0 means undefined.
+//
+// Anti-hype guardrails (inherited; CI-enforced):
+//   - English-only, ASCII-only.
+//   - No banned words: breakthrough / nobel / revolution / proves /
+//     first-ever / world-first / industry-leading / prize.
+//   - GFTernary 0.000 and GF64 0.003 are Verified arithmetic; the moat
+//     (per-rung quality beating posit / takum / OCP-MX / LNS) stays Open
+//     conjecture and lives ONLY in the FL-002 ledger with Fpath F1/F2/F3.
+//   - takum (arXiv:2412.20273), posit, OCP-MX, LNS are ALLIES and
+//     falsification targets, never "competitors to dismiss" and never
+//     "the only" formats.
+
+module FormatsCatalog {
+
+  // ----------------------------------------------------------------------
+  // Anchor constants.
+  // ----------------------------------------------------------------------
+
+  // Trinity identity (Lucas L2, 1878 -- Binet corollary). Verified.
+  const TRINITY: f64 = 3.0;
+
+  // ----------------------------------------------------------------------
+  // Per-format records. Codegen parses these fn bodies for field values.
+  // Field order is fixed: bits, s, e, m, bias, phi_distance, storage,
+  // cluster, status, standard, use_case, gf_relation, source.
+  //
+  // CATALOG line in the trailing comment is the canonical machine-readable
+  // record: the bootstrap codegen reads it. When t27c gains struct
+  // literals this drops out and the codegen reads the AST directly.
+  // ----------------------------------------------------------------------
+
+  // ============================================================
+  // 12.2.1 IEEE 754 binary (radix-2)
+  // ============================================================
+
+  // CATALOG: id=binary16 name="binary16 (fp16, half)" bits=16 s=1 e=5 m=10 bias=15 phi_distance=0.118 storage=u16 cluster=Ieee754Binary status=Verified standard="IEEE 754-2008" use_case="GPU activations, inference" gf_relation=competitor source="IEEE 754-2008"
+  fn binary16() -> str { return "binary16"; }
+
+  // CATALOG: id=binary32 name="binary32 (fp32, single)" bits=32 s=1 e=8 m=23 bias=127 phi_distance=0.270 storage=u32 cluster=Ieee754Binary status=Verified standard="IEEE 754-1985" use_case="industry default" gf_relation=competitor source="IEEE 754-1985"
+  fn binary32() -> str { return "binary32"; }
+
+  // CATALOG: id=binary64 name="binary64 (fp64, double)" bits=64 s=1 e=11 m=52 bias=1023 phi_distance=0.406 storage=u64 cluster=Ieee754Binary status=Verified standard="IEEE 754-1985" use_case="scientific computing" gf_relation=competitor source="IEEE 754-1985"
+  fn binary64() -> str { return "binary64"; }
+
+  // CATALOG: id=binary128 name="binary128 (fp128, quad)" bits=128 s=1 e=15 m=112 bias=16383 phi_distance=0.484 storage=u128 cluster=Ieee754Binary status=Verified standard="IEEE 754-2008" use_case="high-precision simulations" gf_relation=competitor source="IEEE 754-2008"
+  fn binary128() -> str { return "binary128"; }
+
+  // CATALOG: id=binary256 name="binary256 (octuple)" bits=256 s=1 e=19 m=236 bias=262143 phi_distance=0.538 storage=u256_software cluster=Ieee754Binary status=Verified standard="IEEE 754-2008" use_case="astronomy, cryptography" gf_relation=competitor source="IEEE 754-2008"
+  fn binary256() -> str { return "binary256"; }
+
+  // ============================================================
+  // 12.2.2 IEEE 754 decimal (radix-10) -- phi_distance undefined
+  // ============================================================
+
+  // CATALOG: id=decimal32 name="decimal32" bits=32 s=1 e=11 m=20 bias=101 phi_distance=-1.0 storage=u32 cluster=Ieee754Decimal status=Verified standard="IEEE 754-2008 (DPD/BID)" use_case="banking, GAAP" gf_relation=orthogonal source="IEEE 754-2008"
+  fn decimal32() -> str { return "decimal32"; }
+
+  // CATALOG: id=decimal64 name="decimal64" bits=64 s=1 e=13 m=50 bias=398 phi_distance=-1.0 storage=u64 cluster=Ieee754Decimal status=Verified standard="IEEE 754-2008" use_case="financial databases" gf_relation=orthogonal source="IEEE 754-2008"
+  fn decimal64() -> str { return "decimal64"; }
+
+  // CATALOG: id=decimal128 name="decimal128" bits=128 s=1 e=17 m=110 bias=6176 phi_distance=-1.0 storage=u128 cluster=Ieee754Decimal status=Verified standard="IEEE 754-2008" use_case="audit ledgers" gf_relation=orthogonal source="IEEE 754-2008"
+  fn decimal128() -> str { return "decimal128"; }
+
+  // ============================================================
+  // 12.2.3 Extended / non-standard float
+  // ============================================================
+
+  // CATALOG: id=x87_fp80 name="x87 FP80" bits=80 s=1 e=15 m=64 bias=16383 phi_distance=-1.0 storage=u80_padded cluster=ExtendedFloat status=Historical standard="Intel x87 (explicit integer bit)" use_case="legacy long double on x86" gf_relation=orthogonal source="Intel SDM"
+  fn x87_fp80() -> str { return "x87_fp80"; }
+
+  // CATALOG: id=double_double name="double-double" bits=128 s=2 e=22 m=104 bias=0 phi_distance=-1.0 storage=two_u64 cluster=ExtendedFloat status=Verified standard="Bailey/Hida (software)" use_case="software extended precision" gf_relation=orthogonal source="Bailey-Hida 2001"
+  fn double_double() -> str { return "double_double"; }
+
+  // CATALOG: id=quad_double name="quad-double" bits=256 s=4 e=44 m=208 bias=0 phi_distance=-1.0 storage=four_u64 cluster=ExtendedFloat status=Verified standard="Bailey/Hida (software)" use_case="astrophysics, quad-precision sims" gf_relation=orthogonal source="Bailey-Hida 2001"
+  fn quad_double() -> str { return "quad_double"; }
+
+  // ============================================================
+  // 12.2.4 ML low-precision (E:M variants)
+  // ============================================================
+
+  // CATALOG: id=bfloat16 name="bfloat16 (BF16)" bits=16 s=1 e=8 m=7 bias=127 phi_distance=0.525 storage=u16 cluster=MlLowPrecision status=Verified standard="Google Brain" use_case="training (range > precision)" gf_relation=competitor source="Wang-Kanwar 2019"
+  fn bfloat16() -> str { return "bfloat16"; }
+
+  // CATALOG: id=tf32 name="TensorFloat-32 (TF32)" bits=19 s=1 e=8 m=10 bias=127 phi_distance=0.270 storage=u32_padded cluster=MlLowPrecision status=Verified standard="NVIDIA Ampere" use_case="A100/H100 mixed precision" gf_relation=competitor source="NVIDIA Ampere whitepaper"
+  fn tf32() -> str { return "tf32"; }
+
+  // CATALOG: id=fp8_e4m3 name="FP8 E4M3" bits=8 s=1 e=4 m=3 bias=7 phi_distance=0.715 storage=u8 cluster=MlLowPrecision status=Verified standard="OCP / NVIDIA / Arm / Intel" use_case="inference, gradient ranges" gf_relation=competitor source="Micikevicius 2022 (arXiv:2209.05433)"
+  fn fp8_e4m3() -> str { return "fp8_e4m3"; }
+
+  // CATALOG: id=fp8_e5m2 name="FP8 E5M2" bits=8 s=1 e=5 m=2 bias=15 phi_distance=1.882 storage=u8 cluster=MlLowPrecision status=Verified standard="OCP / NVIDIA" use_case="activations, wide range" gf_relation=competitor source="Micikevicius 2022"
+  fn fp8_e5m2() -> str { return "fp8_e5m2"; }
+
+  // CATALOG: id=fp6_e3m2 name="FP6 E3M2" bits=6 s=1 e=3 m=2 bias=3 phi_distance=0.882 storage=u8_packed cluster=MlLowPrecision status=Verified standard="OCP MX" use_case="aggressive quant inference" gf_relation=competitor source="OCP MX v1.0 (2023)"
+  fn fp6_e3m2() -> str { return "fp6_e3m2"; }
+
+  // CATALOG: id=fp6_e2m3 name="FP6 E2M3" bits=6 s=1 e=2 m=3 bias=1 phi_distance=0.049 storage=u8_packed cluster=MlLowPrecision status=Verified standard="OCP MX" use_case="mantissa-heavy quant" gf_relation=ally source="OCP MX v1.0 (2023)"
+  fn fp6_e2m3() -> str { return "fp6_e2m3"; }
+
+  // CATALOG: id=fp4_e2m1 name="FP4 E2M1" bits=4 s=1 e=2 m=1 bias=1 phi_distance=1.382 storage=u8_packed cluster=MlLowPrecision status=Verified standard="OCP MX" use_case="extreme quant inference" gf_relation=competitor source="OCP MX v1.0 (2023)"
+  fn fp4_e2m1() -> str { return "fp4_e2m1"; }
+
+  // ============================================================
+  // 12.2.5 Microscaling (OCP MX) -- block-shared exponent
+  // ============================================================
+
+  // CATALOG: id=mxfp8 name="MXFP8" bits=8 s=1 e=4 m=3 bias=7 phi_distance=0.715 storage=u8_plus_shared_e8m0 cluster=Microscaling status=Verified standard="OCP MX v1.0" use_case="LLM inference" gf_relation=ally source="Rouhani 2023 (arXiv:2310.10537)"
+  fn mxfp8() -> str { return "mxfp8"; }
+
+  // CATALOG: id=mxfp6 name="MXFP6" bits=6 s=1 e=3 m=2 bias=3 phi_distance=0.882 storage=u8_packed_plus_e8m0 cluster=Microscaling status=Verified standard="OCP MX v1.0" use_case="aggressive inference" gf_relation=ally source="Rouhani 2023"
+  fn mxfp6() -> str { return "mxfp6"; }
+
+  // CATALOG: id=mxfp4 name="MXFP4" bits=4 s=1 e=2 m=1 bias=1 phi_distance=1.382 storage=u8_packed_plus_e8m0 cluster=Microscaling status=Verified standard="OCP MX v1.0" use_case="extreme quant" gf_relation=ally source="Rouhani 2023"
+  fn mxfp4() -> str { return "mxfp4"; }
+
+  // ============================================================
+  // 12.2.6 Quantization-tuned non-uniform formats
+  // ============================================================
+
+  // CATALOG: id=nf4 name="NF4 (NormalFloat 4-bit)" bits=4 s=0 e=0 m=4 bias=0 phi_distance=-1.0 storage=u8_packed cluster=QuantTuned status=Verified standard="Dettmers 2023 (QLoRA)" use_case="LLM weight quantization (quantile-based on N(0,1))" gf_relation=orthogonal source="Dettmers 2023 (arXiv:2305.14314)"
+  fn nf4() -> str { return "nf4"; }
+
+  // CATALOG: id=afp name="AFP (Adaptive Floating-Point)" bits=16 s=1 e=8 m=7 bias=127 phi_distance=-1.0 storage=u16_plus_tensor_shift cluster=QuantTuned status=Verified standard="Tambe 2020" use_case="efficient training" gf_relation=orthogonal source="Tambe 2020 (DAC)"
+  fn afp() -> str { return "afp"; }
+
+  // ============================================================
+  // 12.2.7 Posit / unum III. es-schedule per ratified-2022 standard
+  //                          (es=2 for all widths).
+  // ============================================================
+
+  // CATALOG: id=posit8 name="Posit8" bits=8 s=1 e=2 m=0 bias=0 phi_distance=-1.0 storage=u8 cluster=PositUnumIII status=Verified standard="Posit Standard 2022 (es=2)" use_case="inference" gf_relation=ally source="Posit Standard 2022 (posithub.org)"
+  fn posit8() -> str { return "posit8"; }
+
+  // CATALOG: id=posit16 name="Posit16" bits=16 s=1 e=2 m=0 bias=0 phi_distance=-1.0 storage=u16 cluster=PositUnumIII status=Verified standard="Posit Standard 2022 (es=2)" use_case="mixed-precision training" gf_relation=ally source="Posit Standard 2022"
+  fn posit16() -> str { return "posit16"; }
+
+  // CATALOG: id=posit32 name="Posit32" bits=32 s=1 e=2 m=0 bias=0 phi_distance=-1.0 storage=u32 cluster=PositUnumIII status=Verified standard="Posit Standard 2022 (es=2)" use_case="f32 replacement" gf_relation=ally source="Posit Standard 2022"
+  fn posit32() -> str { return "posit32"; }
+
+  // CATALOG: id=posit64 name="Posit64" bits=64 s=1 e=2 m=0 bias=0 phi_distance=-1.0 storage=u64 cluster=PositUnumIII status=Verified standard="Posit Standard 2022 (es=2)" use_case="f64 replacement" gf_relation=ally source="Posit Standard 2022"
+  fn posit64() -> str { return "posit64"; }
+
+  // takum -- the strongest live counterexample to GF breadth-as-moat.
+
+  // CATALOG: id=takum8 name="takum8" bits=8 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u8 cluster=PositUnumIII status=Verified standard="Hunhold 2024 (tapered-precision)" use_case="IEEE-754 backward-compatible tapered" gf_relation=ally source="Hunhold 2024 (arXiv:2412.20273)"
+  fn takum8() -> str { return "takum8"; }
+
+  // CATALOG: id=takum16 name="takum16" bits=16 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u16 cluster=PositUnumIII status=Verified standard="Hunhold 2024" use_case="single-rule ladder counterexample" gf_relation=ally source="Hunhold 2024 (arXiv:2412.20273)"
+  fn takum16() -> str { return "takum16"; }
+
+  // CATALOG: id=takum32 name="takum32" bits=32 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u32 cluster=PositUnumIII status=Verified standard="Hunhold 2024" use_case="tapered fp32-class" gf_relation=ally source="Hunhold 2024"
+  fn takum32() -> str { return "takum32"; }
+
+  // CATALOG: id=takum64 name="takum64" bits=64 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=u64 cluster=PositUnumIII status=Verified standard="Hunhold 2024" use_case="tapered fp64-class" gf_relation=ally source="Hunhold 2024"
+  fn takum64() -> str { return "takum64"; }
+
+  // ============================================================
+  // 12.2.8 LNS -- Logarithmic Number System
+  // ============================================================
+
+  // CATALOG: id=lns8 name="LNS-8" bits=8 s=1 e=7 m=0 bias=0 phi_distance=-1.0 storage=u8 cluster=Lns status=Verified standard="Arnold 1990; LNS-Madam (2021)" use_case="DSP, signal processing" gf_relation=orthogonal source="Alam 2021 (arXiv:2106.13914)"
+  fn lns8() -> str { return "lns8"; }
+
+  // CATALOG: id=lns16 name="LNS-16" bits=16 s=1 e=15 m=0 bias=0 phi_distance=-1.0 storage=u16 cluster=Lns status=Verified standard="LNS-Madam (2021)" use_case="log-domain training (mul -> add)" gf_relation=orthogonal source="Alam 2021"
+  fn lns16() -> str { return "lns16"; }
+
+  // CATALOG: id=lns32 name="LNS-32" bits=32 s=1 e=31 m=0 bias=0 phi_distance=-1.0 storage=u32 cluster=Lns status=Verified standard="LNS-Madam (2021)" use_case="log-domain DSP" gf_relation=orthogonal source="Alam 2021"
+  fn lns32() -> str { return "lns32"; }
+
+  // CATALOG: id=lns64 name="LNS-64" bits=64 s=1 e=63 m=0 bias=0 phi_distance=-1.0 storage=u64 cluster=Lns status=Verified standard="LNS-Madam (2021)" use_case="scientific log-domain" gf_relation=orthogonal source="Alam 2021"
+  fn lns64() -> str { return "lns64"; }
+
+  // ============================================================
+  // 12.2.9 GoldenFloat family (this work)
+  //
+  // Rule: e = round((N-1) / phi^2). 9/9 verified across the realised
+  // ladder. Anchor: phi^2 + phi^-2 = 3 (Lucas L2, 1878). Verified.
+  // Moat (per-rung accuracy + toolchain coherence beating posit / takum
+  // / OCP-MX / LNS): Open conjecture, lives only in FL-002 with Fpath.
+  // ============================================================
+
+  // Realised rungs.
+
+  // CATALOG: id=gfternary name="GFTernary" bits=2 s=1 e=0 m=2 bias=0 phi_distance=0.000 storage=u2 cluster=GoldenFloat status=Verified standard="this work; {-phi, 0, +phi}" use_case="bulk layers (hybrid)" gf_relation=self source="BENCH-007"
+  fn gfternary() -> str { return "gfternary"; }
+
+  // CATALOG: id=gf4 name="GF4" bits=4 s=1 e=1 m=2 bias=0 phi_distance=0.118 storage=u8 cluster=GoldenFloat status=Experimental standard="this work; F0 minimal" use_case="proof-of-concept" gf_relation=self source="specs/numeric/gf4.t27"
+  fn gf4() -> str { return "gf4"; }
+
+  // CATALOG: id=gf8 name="GF8" bits=8 s=1 e=3 m=4 bias=3 phi_distance=0.132 storage=u8 cluster=GoldenFloat status=Verified standard="this work; L1 Lucas" use_case="edge / sensors" gf_relation=self source="BENCH-007 (specs/numeric/gf8.t27)"
+  fn gf8() -> str { return "gf8"; }
+
+  // CATALOG: id=gf12 name="GF12" bits=12 s=1 e=4 m=7 bias=7 phi_distance=0.047 storage=u16 cluster=GoldenFloat status=Verified standard="this work; L0/F3" use_case="mid-range / audio" gf_relation=self source="BENCH-007 (specs/numeric/gf12.t27)"
+  fn gf12() -> str { return "gf12"; }
+
+  // CATALOG: id=gf16 name="GF16" bits=16 s=1 e=6 m=9 bias=31 phi_distance=0.049 storage=u16 cluster=GoldenFloat status=Verified standard="this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7" use_case="training and inference (production)" gf_relation=self source="specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)"
+  fn gf16() -> str { return "gf16"; }
+
+  // CATALOG: id=gf20 name="GF20" bits=20 s=1 e=7 m=12 bias=63 phi_distance=0.035 storage=u32 cluster=GoldenFloat status=Experimental standard="this work; 17-squared empirical PHI_BIAS=289" use_case="high-precision edge" gf_relation=self source="specs/numeric/gf20.t27 (spec only)"
+  fn gf20() -> str { return "gf20"; }
+
+  // CATALOG: id=gf24 name="GF24" bits=24 s=1 e=9 m=14 bias=255 phi_distance=0.025 storage=u32 cluster=GoldenFloat status=Experimental standard="this work; L15 PHI_BIAS=1364" use_case="server inference" gf_relation=self source="specs/numeric/gf24.t27 (spec only)"
+  fn gf24() -> str { return "gf24"; }
+
+  // CATALOG: id=gf32 name="GF32" bits=32 s=1 e=12 m=19 bias=2047 phi_distance=0.014 storage=u32 cluster=GoldenFloat status=Verified standard="this work; F0 resolved" use_case="fp32 drop-in" gf_relation=self source="BENCH-012 (specs/numeric/gf32.t27)"
+  fn gf32() -> str { return "gf32"; }
+
+  // CATALOG: id=gf64 name="GF64" bits=64 s=1 e=24 m=39 bias=8388607 phi_distance=0.003 storage=u64 cluster=GoldenFloat status=Verified standard="this work; EXP_MAX - BIAS" use_case="scientific / double" gf_relation=self source="BENCH-007b (specs/numeric/gf64.t27)"
+  fn gf64() -> str { return "gf64"; }
+
+  // Experimental / predicted GF rungs (not yet specified or fabricated).
+
+  // CATALOG: id=gf6 name="GF6 (predicted)" bits=6 s=1 e=2 m=3 bias=1 phi_distance=0.05 storage=u8_packed cluster=GoldenFloat status=Experimental standard="this work; e=round(5/phi^2)=2, fills FP6 gap" use_case="OPEN R&D: bridge GF4-GF8; FP6 E2M3 hint" gf_relation=experimental source="section12.5"
+  fn gf6() -> str { return "gf6"; }
+
+  // CATALOG: id=gf128 name="GF128 (predicted)" bits=128 s=1 e=48 m=79 bias=0 phi_distance=0.008 storage=u128 cluster=GoldenFloat status=Experimental standard="this work; e=round(127/phi^2)=48 (Open: bias TBD)" use_case="OPEN R&D: phi-aligned binary128 alternative" gf_relation=experimental source="section12.5"
+  fn gf128() -> str { return "gf128"; }
+
+  // CATALOG: id=gf256 name="GF256 (predicted)" bits=256 s=1 e=97 m=158 bias=0 phi_distance=0.005 storage=u256_software cluster=GoldenFloat status=Experimental standard="this work; e=round(255/phi^2)=97 (Open: bias ~2^71 unconfirmed)" use_case="OPEN R&D: phi-aligned binary256 alternative" gf_relation=experimental source="section12.5; bias Open per skill"
+  fn gf256() -> str { return "gf256"; }
+
+  // GF hybrids / experimental compositions (Section 12.5).
+
+  // CATALOG: id=gf8_bfp name="GF8-BFP (block FP atop GF8)" bits=8 s=1 e=3 m=4 bias=3 phi_distance=0.132 storage=u8_plus_shared_exp cluster=GoldenFloat status=Experimental standard="this work; per-tile shared exponent" use_case="OPEN R&D: LLM-quantization-friendly GF8" gf_relation=experimental source="section12.5"
+  fn gf8_bfp() -> str { return "gf8_bfp"; }
+
+  // CATALOG: id=gf_lns_hybrid name="GF + LNS hybrid (dual-space)" bits=16 s=1 e=6 m=9 bias=31 phi_distance=0.049 storage=u16_plus_lns_path cluster=GoldenFloat status=Experimental standard="this work; mul in log-space, accumulate Lucas-closed" use_case="OPEN R&D: dual-space arithmetic" gf_relation=experimental source="section12.5"
+  fn gf_lns_hybrid() -> str { return "gf_lns_hybrid"; }
+
+  // CATALOG: id=mxgf6 name="MXGF6 (microscaling GF6)" bits=6 s=1 e=2 m=3 bias=1 phi_distance=0.05 storage=u8_packed_plus_e8m0 cluster=GoldenFloat status=Experimental standard="this work; OCP MX block + GF6" use_case="OPEN R&D: phi-aligned MX-6 candidate" gf_relation=experimental source="section12.5"
+  fn mxgf6() -> str { return "mxgf6"; }
+
+  // CATALOG: id=mxgf4 name="MXGF4 (microscaling GF4)" bits=4 s=1 e=1 m=2 bias=0 phi_distance=0.118 storage=u8_packed_plus_e8m0 cluster=GoldenFloat status=Experimental standard="this work; OCP MX block + GF4" use_case="OPEN R&D: phi-aligned MX-4 candidate" gf_relation=experimental source="section12.5"
+  fn mxgf4() -> str { return "mxgf4"; }
+
+  // ============================================================
+  // 12.2.10 Integer / fixed-point
+  // ============================================================
+
+  // CATALOG: id=int4 name="INT4 / UINT4" bits=4 s=1 e=0 m=3 bias=0 phi_distance=-1.0 storage=u8_packed cluster=IntegerFixed status=Verified standard="two complement" use_case="aggressive quantization" gf_relation=competitor source="ISO/IEC 9899"
+  fn int4() -> str { return "int4"; }
+
+  // CATALOG: id=int8 name="INT8 / UINT8" bits=8 s=1 e=0 m=7 bias=0 phi_distance=-1.0 storage=u8 cluster=IntegerFixed status=Verified standard="two complement" use_case="INT8 inference, per-channel scale" gf_relation=competitor source="ISO/IEC 9899"
+  fn int8() -> str { return "int8"; }
+
+  // CATALOG: id=int16 name="INT16 / UINT16" bits=16 s=1 e=0 m=15 bias=0 phi_distance=-1.0 storage=u16 cluster=IntegerFixed status=Verified standard="two complement" use_case="DSP, embedded ML" gf_relation=competitor source="ISO/IEC 9899"
+  fn int16() -> str { return "int16"; }
+
+  // CATALOG: id=int32 name="INT32 / UINT32" bits=32 s=1 e=0 m=31 bias=0 phi_distance=-1.0 storage=u32 cluster=IntegerFixed status=Verified standard="two complement" use_case="general CPU integer" gf_relation=competitor source="ISO/IEC 9899"
+  fn int32() -> str { return "int32"; }
+
+  // CATALOG: id=int64 name="INT64 / UINT64" bits=64 s=1 e=0 m=63 bias=0 phi_distance=-1.0 storage=u64 cluster=IntegerFixed status=Verified standard="two complement" use_case="databases, timestamps" gf_relation=competitor source="ISO/IEC 9899"
+  fn int64() -> str { return "int64"; }
+
+  // CATALOG: id=int128 name="INT128 / UINT128" bits=128 s=1 e=0 m=127 bias=0 phi_distance=-1.0 storage=u128 cluster=IntegerFixed status=Verified standard="two complement" use_case="crypto, big-int" gf_relation=competitor source="Rust/Clang u128"
+  fn int128() -> str { return "int128"; }
+
+  // CATALOG: id=q_format name="Q-format (Qm.n)" bits=0 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=IntegerFixed status=Verified standard="TI fixed-point" use_case="audio DSP, fixed-point ML" gf_relation=orthogonal source="TI SPRA704"
+  fn q_format() -> str { return "q_format"; }
+
+  // CATALOG: id=bcd name="BCD (binary-coded decimal)" bits=0 s=0 e=0 m=0 bias=0 phi_distance=-1.0 storage=u4_per_digit cluster=IntegerFixed status=Historical standard="IBM 1959" use_case="calculators, GAAP" gf_relation=orthogonal source="ISO/IEC 8859"
+  fn bcd() -> str { return "bcd"; }
+
+  // ============================================================
+  // 12.2.11 Historical / vendor
+  // ============================================================
+
+  // CATALOG: id=ibm_hfp32 name="IBM HFP (single)" bits=32 s=1 e=7 m=24 bias=64 phi_distance=-1.0 storage=u32 cluster=HistoricalVendor status=Historical standard="IBM System/360 (1964); base-16 exponent" use_case="legacy mainframe" gf_relation=orthogonal source="IBM POO"
+  fn ibm_hfp32() -> str { return "ibm_hfp32"; }
+
+  // CATALOG: id=ibm_hfp64 name="IBM HFP (double)" bits=64 s=1 e=7 m=56 bias=64 phi_distance=-1.0 storage=u64 cluster=HistoricalVendor status=Historical standard="IBM System/360 (1964)" use_case="legacy mainframe" gf_relation=orthogonal source="IBM POO"
+  fn ibm_hfp64() -> str { return "ibm_hfp64"; }
+
+  // CATALOG: id=ibm_hfp128 name="IBM HFP (extended)" bits=128 s=1 e=7 m=120 bias=64 phi_distance=-1.0 storage=u128 cluster=HistoricalVendor status=Historical standard="IBM z/Architecture" use_case="legacy mainframe" gf_relation=orthogonal source="IBM POO"
+  fn ibm_hfp128() -> str { return "ibm_hfp128"; }
+
+  // CATALOG: id=ms_mbf32 name="Microsoft MBF (single)" bits=32 s=1 e=8 m=23 bias=129 phi_distance=-1.0 storage=u32 cluster=HistoricalVendor status=Historical standard="MS BASIC / MS-DOS (pre-IEEE)" use_case="MS BASIC legacy" gf_relation=orthogonal source="MS-DOS docs"
+  fn ms_mbf32() -> str { return "ms_mbf32"; }
+
+  // CATALOG: id=ms_mbf64 name="Microsoft MBF (double)" bits=64 s=1 e=8 m=55 bias=129 phi_distance=-1.0 storage=u64 cluster=HistoricalVendor status=Historical standard="MS BASIC" use_case="MS BASIC legacy" gf_relation=orthogonal source="MS-DOS docs"
+  fn ms_mbf64() -> str { return "ms_mbf64"; }
+
+  // CATALOG: id=vax_f name="VAX F-float" bits=32 s=1 e=8 m=23 bias=128 phi_distance=-1.0 storage=u32 cluster=HistoricalVendor status=Historical standard="DEC VAX" use_case="DEC legacy" gf_relation=orthogonal source="VAX Architecture Reference"
+  fn vax_f() -> str { return "vax_f"; }
+
+  // CATALOG: id=vax_d name="VAX D-float" bits=64 s=1 e=8 m=55 bias=128 phi_distance=-1.0 storage=u64 cluster=HistoricalVendor status=Historical standard="DEC VAX" use_case="DEC legacy double" gf_relation=orthogonal source="VAX Architecture Reference"
+  fn vax_d() -> str { return "vax_d"; }
+
+  // CATALOG: id=vax_g name="VAX G-float" bits=64 s=1 e=11 m=52 bias=1024 phi_distance=-1.0 storage=u64 cluster=HistoricalVendor status=Historical standard="DEC VAX (IEEE-like)" use_case="DEC legacy" gf_relation=orthogonal source="VAX Architecture Reference"
+  fn vax_g() -> str { return "vax_g"; }
+
+  // CATALOG: id=vax_h name="VAX H-float" bits=128 s=1 e=15 m=112 bias=16384 phi_distance=-1.0 storage=u128 cluster=HistoricalVendor status=Historical standard="DEC VAX" use_case="DEC quad" gf_relation=orthogonal source="VAX Architecture Reference"
+  fn vax_h() -> str { return "vax_h"; }
+
+  // CATALOG: id=cray_float name="Cray float" bits=64 s=1 e=15 m=48 bias=16384 phi_distance=-1.0 storage=u64 cluster=HistoricalVendor status=Historical standard="Cray-1 (1976); no NaN/Inf, unrounded mul" use_case="Cray legacy" gf_relation=orthogonal source="Cray-1 Hardware Reference"
+  fn cray_float() -> str { return "cray_float"; }
+
+  // ============================================================
+  // 12.2.12 Theoretical / parametric frameworks
+  // ============================================================
+
+  // CATALOG: id=minifloat name="minifloat (arbitrary E:M, <=16 bits)" bits=0 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=Theoretical status=Experimental standard="parametric framework" use_case="design space of GF4/GF8/GF12/GF16" gf_relation=ally source="Higham 1996"
+  fn minifloat() -> str { return "minifloat"; }
+
+  // CATALOG: id=unum_i name="Unum I (tapered + ubound)" bits=0 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=Theoretical status=Experimental standard="Gustafson 2015 (predecessor to posit)" use_case="interval arithmetic" gf_relation=ally source="Gustafson 2015 (The End of Error)"
+  fn unum_i() -> str { return "unum_i"; }
+
+  // CATALOG: id=unum_ii name="Unum II (SORN projective)" bits=0 s=0 e=0 m=0 bias=0 phi_distance=-1.0 storage=lookup_table cluster=Theoretical status=Experimental standard="Gustafson 2016" use_case="lookup-table real arithmetic; not GF-comparable" gf_relation=orthogonal source="Gustafson 2016"
+  fn unum_ii() -> str { return "unum_ii"; }
+
+  // CATALOG: id=tapered_fp name="tapered floating point" bits=0 s=1 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=Theoretical status=Experimental standard="Morris 1971; posit ancestor" use_case="variable mantissa via regime bits" gf_relation=ally source="Morris 1971 (IEEE TC)"
+  fn tapered_fp() -> str { return "tapered_fp"; }
+
+  // ============================================================
+  // 12.2.13 Compression / quantization tricks (apply atop a base format)
+  // ============================================================
+
+  // CATALOG: id=block_fp name="block floating point (BFP)" bits=0 s=0 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=CompressionTrick status=Verified standard="Wilkinson 1965; modern revivals" use_case="per-tile shared exponent" gf_relation=ally source="Darvish-Rouhani 2020"
+  fn block_fp() -> str { return "block_fp"; }
+
+  // CATALOG: id=shared_exp name="shared-exponent formats" bits=0 s=0 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=CompressionTrick status=Verified standard="generalised BFP" use_case="LLM quantization" gf_relation=ally source="Darvish-Rouhani 2020"
+  fn shared_exp() -> str { return "shared_exp"; }
+
+  // CATALOG: id=per_channel_scale name="INT8 with per-channel scale" bits=8 s=1 e=0 m=7 bias=0 phi_distance=-1.0 storage=u8_plus_fp32_scale cluster=CompressionTrick status=Verified standard="Jacob 2018 (TFLite)" use_case="standard quant inference" gf_relation=competitor source="Jacob 2018 (CVPR)"
+  fn per_channel_scale() -> str { return "per_channel_scale"; }
+
+  // CATALOG: id=stochastic_rounding name="stochastic rounding (technique)" bits=0 s=0 e=0 m=0 bias=0 phi_distance=-1.0 storage=varies cluster=CompressionTrick status=Verified standard="Gupta 2015" use_case="training small networks at low precision" gf_relation=ally source="Gupta 2015 (ICML)"
+  fn stochastic_rounding() -> str { return "stochastic_rounding"; }
+
+}
+
+// EOF formats_catalog.t27
