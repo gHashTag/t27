@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-01
+Last updated: 2026-06-02
+
+## funding-json-drips -- add FUNDING.json for Drips Protocol passive donations (Closes #1050)
+
+- **WHERE** (repository root metadata): new `FUNDING.json` at the top of the tree declares the Ethereum mainnet recipient `0x0A91540efd651E8fbeb91FA5c6c31D7c20897C18` under the standard `drips.ethereum.ownedBy` schema consumed by [Drips Protocol](https://www.drips.network/). No code paths, no specs, no generated artefacts, no conformance files are touched. After merge the project is claimed via wallet signature at https://www.drips.network/app/claim-project so the repository becomes eligible for passive donation flows and for Drips Wave issue rewards.
+- **Why**: makes the public OSS work in this repository discoverable to the Drips passive-donation flow alongside `gHashTag/claim-audit-lab` and `gHashTag/trios-mcp`, which received identical metadata-only PRs (claim-audit-lab#1 merged, trios-mcp#6 merged). The file is informational only; it does not commit the project to any obligation and does not affect the L5 phi identities or any [Verified] claim. L6 untouched (gf16 SSOT and conformance JSON unchanged); L2 untouched (no `gen/` edits); L4 not applicable (metadata file, not a `.t27` spec). Closes #1050.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## fix-gen-verilog-typealias -- type aliases emitted as comments, not invalid params (Closes #1027 Refs #979)
 
