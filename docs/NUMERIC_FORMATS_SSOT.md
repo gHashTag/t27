@@ -11,30 +11,78 @@ Anchor identity: **φ² + φ⁻² = 3** (Trinity). Design rule: choose the
 exponent:mantissa split so **E/M → 1/φ ≈ 0.6180339887** (see
 [`phi_ratio.t27`](../specs/numeric/phi_ratio.t27)).
 
+**Normative closed-form rule (v1.2):**
+
+```
+e = round((N - 1) / φ²)        // exponent width
+m = N - 1 - e                  // mantissa width
+bias = 2^(e - 1) - 1           // for e >= 1
+exp_max = 2^e - 1
+```
+
+Applicability: `N ≥ 4` (binary ladder). `N = 2` is reserved for **GFTernary**
+(2-bit `{-φ, 0, +φ}` code, no E/M split). The rule is the single closed law
+across the entire 4-to-1024-bit ladder; it is what `conformance/FORMAT-SPEC-001.json`
+v1.2 promotes to normative.
+
+**Frozen-silicon anchor:** **GF16 = 1+6+9, bias 31** is the layout literally
+used by the fabricated GF16 multiplier in
+[`tt-trinity-gamma/src/gf16_v2_mul.v`](../../tt-trinity-gamma/src/gf16_v2_mul.v)
+(TTSKY26b TT4913 Gamma). Quoting the RTL header verbatim:
+
+```
+// GoldenFloat16 Multiplication Unit -- [S(1) | E(6) | M(9)], bias 2^(E-1)-1.
+//   wire [5:0] exp_a  = a[14:9];
+//   wire [8:0] mant_a = a[8:0];
+//   localparam [5:0] EXP_MAX = 63;
+//   localparam signed [7:0] BIAS_S = 8'sd31;
+```
+
+Any artefact disagreeing with this layout (notably `tt-trinity-corona/tools/gen_rom.py`
+CATALOG cluster 3, which records `GF16 = 1+5+10` and 5 other rungs off-rule) is a
+bug against this SSOT — see
+[`gHashTag/claim-audit-lab` CASE-09](https://github.com/gHashTag/claim-audit-lab)
+for the public self-audit.
+
 ---
 
 ## 1. Verified family constants
 
 These four columns are mathematically exact and independently re-derived.
 
-| Format | S+E+M | Bits | BIAS = 2^(E−1)−1 | EXP_MAX = 2^E−1 | E/M | φ-distance \|E/M−1/φ\| | Spec |
-|---|---|---|---|---|---|---|---|
-| GF4  | 1+1+2  | 4  | 0       | 1        | 0.500 | 0.118 | [`gf4.t27`](../specs/numeric/gf4.t27) |
-| GF8  | 1+3+4  | 8  | 3       | 7        | 0.750 | 0.132 | [`gf8.t27`](../specs/numeric/gf8.t27) |
-| GF12 | 1+4+7  | 12 | 7       | 15       | 0.571 | 0.047 | [`gf12.t27`](../specs/numeric/gf12.t27) |
-| GF16 | 1+6+9  | 16 | 31      | 63       | 0.667 | 0.049 | [`gf16.t27`](../specs/numeric/gf16.t27) |
-| GF20 | 1+7+12 | 20 | 63      | 127      | 0.583 | 0.035 | [`gf20.t27`](../specs/numeric/gf20.t27) |
-| GF24 | 1+9+14 | 24 | 255     | 511      | 0.643 | 0.025 | [`gf24.t27`](../specs/numeric/gf24.t27) |
-| GF32 | 1+12+19| 32 | 2047    | 4095     | 0.632 | 0.014 | [`gf32.t27`](../specs/numeric/gf32.t27) |
-| GF64 | 1+24+39| 64 | 8388607 | 16777215 | 0.615 | 0.003 | [`gf64.t27`](../specs/numeric/gf64.t27) |
-| GF256| 1+97+158|256| 2⁹⁶−1 †  | 2⁹⁷−1 †  | 0.614 | 0.004 | *gamma; bias OPEN* |
-| TF3  | 1+3+4  | 8  | 3       | 7        | 0.750 | 0.132 | [`tf3.t27`](../specs/numeric/tf3.t27) |
-| GFTernary | 2-bit code | 2 | — | — | — | 0.000 | [`gfternary.t27`](../specs/numeric/gfternary.t27) |
+| Format | S+E+M | Bits | BIAS = 2^(E−1)−1 | EXP_MAX = 2^E−1 | E/M | φ-distance \|E/M−1/φ\| | Claim | Spec |
+|---|---|---|---|---|---|---|---|---|
+| GFTernary | 2-bit code | 2 | — | — | — | 0.000 | Conj | [`gfternary.t27`](../specs/numeric/gfternary.t27) |
+| GF4   | 1+1+2   | 4    | 0                  | 1                  | 0.500 | 0.118 | Verified | [`gf4.t27`](../specs/numeric/gf4.t27) |
+| GF6   | 1+2+3   | 6    | 1                  | 3                  | 0.667 | 0.049 | Conj | [`gf6.t27`](../specs/numeric/gf6.t27) ‡ |
+| GF8   | 1+3+4   | 8    | 3                  | 7                  | 0.750 | 0.132 | Verified | [`gf8.t27`](../specs/numeric/gf8.t27) |
+| GF10  | 1+3+6   | 10   | 3                  | 7                  | 0.500 | 0.118 | Conj | [`gf10.t27`](../specs/numeric/gf10.t27) ‡ |
+| GF12  | 1+4+7   | 12   | 7                  | 15                 | 0.571 | 0.047 | Verified | [`gf12.t27`](../specs/numeric/gf12.t27) |
+| GF14  | 1+5+8   | 14   | 15                 | 31                 | 0.625 | 0.007 | Conj | [`gf14.t27`](../specs/numeric/gf14.t27) ‡ |
+| **GF16 (primary, frozen silicon)** | **1+6+9** | **16** | **31** | **63** | **0.667** | **0.049** | **Verified** | [`gf16.t27`](../specs/numeric/gf16.t27) |
+| GF20  | 1+7+12  | 20   | 63                 | 127                | 0.583 | 0.035 | Verified | [`gf20.t27`](../specs/numeric/gf20.t27) |
+| GF24  | 1+9+14  | 24   | 255                | 511                | 0.643 | 0.025 | Verified | [`gf24.t27`](../specs/numeric/gf24.t27) |
+| GF32  | 1+12+19 | 32   | 2047               | 4095               | 0.632 | 0.014 | Verified | [`gf32.t27`](../specs/numeric/gf32.t27) |
+| GF48  | 1+18+29 | 48   | 131071             | 262143             | 0.621 | 0.003 | Conj | [`gf48.t27`](../specs/numeric/gf48.t27) ‡ |
+| GF64  | 1+24+39 | 64   | 8388607            | 16777215           | 0.615 | 0.003 | Verified | [`gf64.t27`](../specs/numeric/gf64.t27) |
+| GF96  | 1+36+59 | 96   | 2³⁵−1 = 34359738367 | 2³⁶−1             | 0.610 | 0.008 | Conj | [`gf96.t27`](../specs/numeric/gf96.t27) ‡ |
+| GF128 | 1+49+78 | 128  | 2⁴⁸−1              | 2⁴⁹−1              | 0.628 | 0.010 | Conj | [`gf128.t27`](../specs/numeric/gf128.t27) ‡ |
+| GF256 | 1+97+158| 256  | 2⁹⁶−1 †             | 2⁹⁷−1 †            | 0.614 | 0.004 | Conj | [`gf256.t27`](../specs/numeric/gf256.t27) ‡ |
+| GF512 | 1+195+316 | 512 | 2¹⁹⁴−1             | 2¹⁹⁵−1             | 0.617 | 0.0009 | Conj | [`gf512.t27`](../specs/numeric/gf512.t27) ‡ |
+| GF1024| 1+391+632 | 1024 | 2³⁹⁰−1            | 2³⁹¹−1             | 0.619 | 0.0006 | Conj | [`gf1024.t27`](../specs/numeric/gf1024.t27) ‡ |
+| TF3   | 1+3+4   | 8    | 3                  | 7                  | 0.750 | 0.132 | Conj | [`tf3.t27`](../specs/numeric/tf3.t27) |
 
-† **GF256 caveat.** Its *stored* exponent-bias constant (≈ 2⁷¹) is unreconciled
-with `2^(E−1)−1 = 2⁹⁶−1`, so the bias is **OPEN** (see §3); only its geometry
-(97/158 split, φ-distance 0.004) is verified. The spec lives in
-`tt-trinity-gamma/specs/fpga/gf256.t27`, **not** this repo.
+‡ **New in v1.2** (added 2026-06-07). Spec only — no validated RTL.
+GF96/GF128/GF256 spec-level; GF512/GF1024 extrapolated (no RTL planned).
+All new rungs carry claim status `Conj` with falsification path = the closed-form rule
+`e = round((N−1)/φ²)` must reproduce the values above; any RTL or external
+implementation deviating from these splits falsifies the rung.
+
+† **GF256 caveat.** Its *stored* exponent-bias constant in gamma RTL (≈ 2⁷¹) is
+unreconciled with `2^(E−1)−1 = 2⁹⁶−1`, so the bias is **OPEN** (see §3); only its
+geometry (97/158 split, φ-distance 0.004) is verified. The canonical spec now
+lives at [`gf256.t27`](../specs/numeric/gf256.t27) in this repo as of v1.2; the
+RTL stub remains at `tt-trinity-gamma/specs/fpga/gf256.t27`.
 
 The last two rows are **not** float-ladder rungs: **TF3** is an 8-bit
 ternary-weight container reusing GF8's 1:3:4 geometry (so it shares GF8's
@@ -42,10 +90,13 @@ constants); **GFTernary** is the 2-bit {−φ, 0, +φ} limit — no exponent/man
 split (columns N/A), φ-distance 0 by construction.
 
 Family base: [`goldenfloat_family.t27`](../specs/numeric/goldenfloat_family.t27).
-Closest *split* to 1/φ is GF64 (0.003), then GF256 (0.004); GF12 (0.047) is best
-among ≤16-bit. (GFTernary's 0.000 is by construction, not an E/M split.)
-GF64 carries `PHI_BIAS = 8388608` — the one format where it coincides with
-`EXP_MAX − BIAS = 2²³`.
+Closest *split* to 1/φ in the ≤256-bit range is **GF64 (0.0026)**, then
+**GF48 (0.0027)**, then GF256 (0.004). Among ≤16-bit: GF14 (0.007) is best,
+then GF20 (0.035), then GF12 (0.047). GFTernary's 0.000 is by construction.
+The **extrapolated extension** GF512 (0.0009) and GF1024 (0.0006) push closer
+to 1/φ as N → ∞ — by design, since `round((N−1)/φ²) / (N−1−round(…)) → 1/φ`
+as N grows. GF64 carries `PHI_BIAS = 8388608` — the one format where it
+coincides with `EXP_MAX − BIAS = 2²³`.
 
 ## 2. PHI_BIAS — empirical per format (H_E), NOT a closed-form law
 
@@ -64,6 +115,7 @@ Lucas-indexed) reproduces all values. PHI_BIAS is defined **per format**:
 | GF24 | 1364    | empirical (coincides Lucas L₁₅) |
 | GF32 | 0       | empirical (minimises MSE vs round-to-nearest-even) |
 | GF64 | 8388608 | empirical (equals EXP_MAX − BIAS for this format only) |
+| **GF6, GF10, GF14, GF48, GF96, GF128, GF256, GF512, GF1024** | **OPEN** | not yet defined; v1.2 explicitly refuses to invent values via Fibonacci/Lucas/square coincidence |
 
 Fibonacci/Lucas/square coincidences are **descriptive, not prescriptive** —
 do not use them to generate PHI_BIAS for new formats.
@@ -101,16 +153,42 @@ The whitepaper's latest family table matches the canonical splits above.
 
 ## 6. Implementation status (claim discipline)
 
-- **GF16 — VERIFIED.** Production Rust (`trios-trainer-igla`) + C codegen
-  ([`../gen/c/numeric/gf16.c`](../gen/c/numeric/gf16.c)); benchmarked
-  (97.67% MNIST MLP, 0.00% accuracy gap vs f32).
-- **GF32 — claimed; three historical layouts** (12:19 canonical).
-- **GF4/8/12/20/24 — ROADMAP** (spec / extract-only).
-- **GF64 — ROADMAP** (spec present: [`gf64.t27`](../specs/numeric/gf64.t27), #916; C codegen still missing).
-- **GF256 float — ROADMAP** (bias OPEN). **GF236 — does not exist (resolved).** `236` is the *mantissa width* of
+- **GF16 — VERIFIED + FROZEN SILICON.** Production Rust (`trios-trainer-igla`) +
+  C codegen ([`../gen/c/numeric/gf16.c`](../gen/c/numeric/gf16.c)) + RTL
+  ([`tt-trinity-gamma/src/gf16_v2_mul.v`](../../tt-trinity-gamma/src/gf16_v2_mul.v)
+  and `gf16_v2_add.v`); 35/35 FPGA testbench @ 323 MHz Artix-7; benchmarked
+  (97.67% MNIST MLP, 0.00% accuracy gap vs f32); fabricated in TTSKY26b TT4913 Gamma.
+- **GF4/8/12/20/24/32 — Verified.** Spec + Verilog RTL in `tt-trinity-gamma/src/`.
+- **GF64 — Verified.** Spec ([`gf64.t27`](../specs/numeric/gf64.t27), #916) +
+  Verilog RTL in gamma; C codegen pending.
+- **GF6/10/14 (NEW v1.2) — Conj.** Spec only. Falsification path: the closed-form
+  rule above must reproduce the splits 1+2+3 / 1+3+6 / 1+5+8.
+- **GF48/96/128 (NEW v1.2) — Conj.** Spec only. Useful as cross-format anchors;
+  no RTL planned in this repo (gamma may add).
+- **GF256 (NEW v1.2 here; existed at gamma) — Conj.** Spec promoted into this
+  repo as `gf256.t27`; geometry 97/158 verified; bias constant remains OPEN.
+- **GF512 / GF1024 (NEW v1.2 — extrapolated) — Conj.** Spec only. No RTL.
+  These exist to demonstrate that the closed-form rule has no upper bound and
+  the φ-distance continues to decrease (0.0009 and 0.0006 respectively). Any
+  matched-substrate benchmark must be normalised to in-range regimes
+  (`φ^512` / `φ^1024` overflows the dynamic range of `binary{N}` long before
+  it overflows the GF rung itself).
+
+**GF236 — does not exist (resolved).** `236` is the *mantissa width* of
 IEEE **binary256** (1 + 19 + 236 = 256 bits), not a GoldenFloat format. The
 name "GF236" conflated that mantissa count with a format label. The canonical
 256-bit GoldenFloat is **GF256** (see §3); there is no GF236.
+
+**Corona ROM CATALOG bug (cross-repo).** As of 2026-06-07, `tt-trinity-corona/tools/gen_rom.py`
+cluster 3 (`CL_GOLDENFLOAT`) records six rungs with splits that violate this
+SSOT's closed-form rule: GF16=1+5+10 (should be 1+6+9), GF24=1+8+15 (should be
+1+9+14), GF32=1+11+20 (should be 1+12+19), GF48=1+16+31 (should be 1+18+29),
+GF64=1+22+41 (should be 1+24+39), GF96=1+33+62 (should be 1+36+59),
+GF128=1+44+83 (should be 1+49+78), GF256=1+88+167 (should be 1+97+158). Corona
+is a registry chip; the on-die arithmetic for GF formats lives in Gamma
+(per `tt-trinity-corona/docs/goldenfloat_ladder_crossreference.md`), and
+Gamma's frozen silicon implements 1+6+9 for GF16. The CATALOG bug is tracked
+in [`gHashTag/claim-audit-lab` CASE-09](https://github.com/gHashTag/claim-audit-lab).
 
 ## 7. Measured comparison (IGLA RACE v2 format sweep)
 
@@ -138,13 +216,21 @@ under each numeric format (`trios-trainer-igla`; 30-log frozen snapshot,
 because this is from-scratch *training*, not post-training weight-quant. A
 **bounded** empirical result, not a universal optimum.
 
-## 8. Uniqueness (defensible claim)
+## 8. Uniqueness (defensible claim, Conj)
 
-GoldenFloat is the only published float family whose E:M split across the
-4-to-256-bit ladder is generated by one closed rule (E/M → 1/φ from
-φ²+φ⁻²=3), with Lucas-closure-exact accumulators (φ²ⁿ+φ⁻²ⁿ ∈ ℤ). This is a
-methodology claim, not a performance claim: optimality is OPEN, and
-throughput/accuracy are measured only for GF16.
+We are not aware of another published float family whose E:M split across a
+4-to-1024-bit ladder is generated by **one closed rule**
+(`e = round((N−1)/φ²)`, `m = N−1−e`, anchored on φ²+φ⁻²=3), paired with
+**Lucas-closure-exact accumulators** (φ²ⁿ+φ⁻²ⁿ ∈ ℤ). This is a
+**methodology claim** (`Conj`), not a performance claim: optimality is OPEN,
+and throughput/accuracy are measured only for GF16. Posit (Gustafson 2017),
+OCP-MX (Rouhani 2023), LNS (Arnold/Parhami), and takum (Hunhold 2024,
+[arXiv:2412.20273](https://arxiv.org/abs/2412.20273)) are **allies and
+falsification targets**, not competitors crushed. The honest shield is
+**multiplier-free at the anchor** (φ² = φ + 1 collapses gain to unity), not
+uniqueness of φ as a base — Daubechies et al. (Golden Ratio Encoder,
+[IEEE TIT 56(10) 2010](https://arxiv.org/abs/0809.1257)) establish that
+other β values also yield robust encoders.
 
 ---
 
