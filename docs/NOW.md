@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-02
+Last updated: 2026-06-07
+
+## feat-gf-ladder-expansion-v1.2 -- GF ladder expansion v1.2 closed-form rule + Corona ROM CATALOG fix (Closes #1052)
+
+- **WHERE** (numeric specs + conformance + codegen): `specs/numeric/goldenfloat_family.t27` extended from 9 rungs (GF4..GF256) to 17 binary rungs (GF4..GF1024) using the single closed-form rule `e = round((N-1)/phi^2)`, all field widths verified at 50 digits with mpmath. Nine new per-rung spec files `specs/numeric/gf{6,10,14,48,96,128,256,512,1024}.t27`. `conformance/FORMAT-SPEC-001.json` bumped to v1.2 with `frozen_silicon_anchor` for GF16. `docs/NUMERIC_FORMATS_SSOT.md` updated to 18-rung table (GFTernary + 17 binary + TF3 container). `specs/numeric/formats_catalog.t27` GF128 typo fixed, 8 rule-derived entries added. Corona ROM CATALOG: 8 corrections to broken rung entries in `tools/gen_rom.py` CATALOG cluster 3 (GF16/24/32/48/64/96/128/256), RECORD_COUNT expanded 80->82 for GF512/GF1024.
+- **Why**: one closed-form rule `e = round((N-1)/phi^2)` reproduces field widths for all 17 binary rungs (verified arithmetic, not a quality claim). GF128 was emitting wrong field widths (49/78, was 48/79) -- corrected. All new rungs are Conj (no RTL, no external DOI); GF16 stays the only Verified end-to-end rung (FPGA 35/35 @ 323 MHz). PHI_BIAS values per-format remain OPEN. Uniqueness claim softened to epistemic. Companion PRs: tt-trinity-corona PR #3, tt-trinity-gamma PR #118, goldenfloat-preprint PR #2, ARITH PR #1, claim-audit-lab PR #2. L6 gf16 SSOT untouched. Closes #1052.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 
 ## funding-json-drips -- add FUNDING.json for Drips Protocol passive donations (Closes #1050)
 
