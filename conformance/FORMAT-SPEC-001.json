@@ -1,12 +1,27 @@
 {
   "format_family": "GoldenFloat",
-  "version": "1.1",
-  "canonical_reference": "THM-009 (phi_ratio optimality) — see specs/numeric/phi_ratio.t27 and docs/nona-02-organism/NUMERIC-STANDARD-001.md",
-  "normative_markdown": "docs/nona-02-organism/NUMERIC-STANDARD-001.md",
+  "version": "1.2",
+  "version_history": {
+    "1.0": "Initial GF4..GF64 (8 rungs)",
+    "1.1": "GF16 primary marker, phi_identity Ring 45 reference",
+    "1.2": "Ladder expansion: +GF6, GF10, GF14, GF48, GF96, GF128, GF256, GF512, GF1024, GFTernary, TF3. Closed-form rule promoted to normative. Frozen-silicon anchor recorded."
+  },
+  "canonical_reference": "THM-009 (phi_ratio optimality) -- see specs/numeric/phi_ratio.t27 and docs/NUMERIC_FORMATS_SSOT.md",
+  "normative_markdown": "docs/NUMERIC_FORMATS_SSOT.md",
   "value_formula": "(-1)^S * 2^(E - bias) * (1 + M / 2^mant_bits)",
+  "closed_form_rule": {
+    "normative": true,
+    "exp_bits": "e = round((N - 1) / phi^2)",
+    "mant_bits": "m = N - 1 - e",
+    "bias": "bias = 2^(e - 1) - 1   for e >= 1",
+    "exp_max": "exp_max = 2^e - 1",
+    "applicability": "N >= 4 (binary ladder). N = 2 reserved for GFTernary special case (2-bit code, no E/M split).",
+    "phi_target": "E/M -> 1/phi ~= 0.6180339887",
+    "rationale": "Single closed law across the entire 4-to-1024-bit ladder. Anchor identity phi^2 + phi^-2 = 3 = L_2."
+  },
   "phi_identity": {
     "theorem": "phi_squared_equals_phi_plus_one",
-    "statement": "φ² = φ + 1 (exact in f64, Ring 45 proven)",
+    "statement": "phi^2 = phi + 1 (exact in f64, Ring 45 proven)",
     "phi_f64_hex": "0x1.9E3779B97F4A8p+0",
     "phi_sq_f64_hex": "0x1.4F1BBCDCBFA54p+1",
     "phi_plus_one_f64_hex": "0x1.4F1BBCDCBFA54p+1",
@@ -16,26 +31,74 @@
     "ring_proven": 45,
     "reference": "Kernel/Phi.v (L5 IDENTITY proof)"
   },
-  "formats": {
-    "GF4": { "bits": 4, "sign": 1, "exp": 1, "mant": 2, "bias": 0, "phi_dist": 0.118 },
-    "GF8": { "bits": 8, "sign": 1, "exp": 3, "mant": 4, "bias": 3, "phi_dist": 0.132 },
-    "GF12": { "bits": 12, "sign": 1, "exp": 4, "mant": 7, "bias": 7, "phi_dist": 0.047 },
-    "GF16": {
-      "bits": 16,
-      "sign": 1,
-      "exp": 6,
-      "mant": 9,
-      "bias": 31,
-      "phi_dist": 0.0486326415435630,
-      "primary": true
+  "frozen_silicon_anchor": {
+    "format": "GF16",
+    "rtl_path": "gHashTag/tt-trinity-gamma/src/gf16_v2_mul.v",
+    "tapeout": "TTSKY26b TT4913 Gamma",
+    "layout_verbatim": "[S(1) | E(6) | M(9)], bias 2^(E-1)-1 = 31",
+    "verilog_constants": {
+      "exp_msb_lsb": "[14:9]",
+      "mant_msb_lsb": "[8:0]",
+      "EXP_MAX": 63,
+      "BIAS": 31
     },
-    "GF20": { "bits": 20, "sign": 1, "exp": 7, "mant": 12, "bias": 63, "phi_dist": 0.035 },
-    "GF24": { "bits": 24, "sign": 1, "exp": 9, "mant": 14, "bias": 255, "phi_dist": 0.025 },
-    "GF32": { "bits": 32, "sign": 1, "exp": 12, "mant": 19, "bias": 2047, "phi_dist": 0.014 },
-    "GF64": { "bits": 64, "sign": 1, "exp": 24, "mant": 39, "bias": 8388607, "phi_dist": 0.00265, "extension": true }
+    "rounding_mode": "ties-to-zero (frozen); ties-to-even variant staged in gf16_v3_mul.v",
+    "rounding_audit": "tt-trinity-corona/docs/GF16_ROUNDING_CONFORMANCE.md"
+  },
+  "formats": {
+    "GFTernary": {
+      "bits": 2, "sign": 1, "exp": 0, "mant": 1, "bias": "N/A", "exp_max": "N/A",
+      "em_ratio": "N/A", "phi_dist": 0.0,
+      "rule_status": "special_case",
+      "claim_status": "Conj",
+      "note": "2-bit code {-phi, 0, +phi}. phi-distance 0 by construction (the nonzero magnitude IS phi). Not a float-ladder rung.",
+      "spec": "specs/numeric/gfternary.t27"
+    },
+    "GF4":   { "bits": 4,   "sign": 1, "exp": 1,   "mant": 2,   "bias": 0,                  "exp_max": 1,                  "em_ratio": 0.500000, "phi_dist": 0.118034, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf4.t27" },
+    "GF6":   { "bits": 6,   "sign": 1, "exp": 2,   "mant": 3,   "bias": 1,                  "exp_max": 3,                  "em_ratio": 0.666667, "phi_dist": 0.048633, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf6.t27",   "note": "NEW v1.2" },
+    "GF8":   { "bits": 8,   "sign": 1, "exp": 3,   "mant": 4,   "bias": 3,                  "exp_max": 7,                  "em_ratio": 0.750000, "phi_dist": 0.131966, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf8.t27" },
+    "GF10":  { "bits": 10,  "sign": 1, "exp": 3,   "mant": 6,   "bias": 3,                  "exp_max": 7,                  "em_ratio": 0.500000, "phi_dist": 0.118034, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf10.t27",  "note": "NEW v1.2" },
+    "GF12":  { "bits": 12,  "sign": 1, "exp": 4,   "mant": 7,   "bias": 7,                  "exp_max": 15,                 "em_ratio": 0.571429, "phi_dist": 0.046605, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf12.t27" },
+    "GF14":  { "bits": 14,  "sign": 1, "exp": 5,   "mant": 8,   "bias": 15,                 "exp_max": 31,                 "em_ratio": 0.625000, "phi_dist": 0.006966, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf14.t27",  "note": "NEW v1.2" },
+    "GF16":  { "bits": 16,  "sign": 1, "exp": 6,   "mant": 9,   "bias": 31,                 "exp_max": 63,                 "em_ratio": 0.666667, "phi_dist": 0.048633, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf16.t27", "primary": true,    "phi_bias": 60, "phi_bias_status": "normative_production" },
+    "GF20":  { "bits": 20,  "sign": 1, "exp": 7,   "mant": 12,  "bias": 63,                 "exp_max": 127,                "em_ratio": 0.583333, "phi_dist": 0.034701, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf20.t27" },
+    "GF24":  { "bits": 24,  "sign": 1, "exp": 9,   "mant": 14,  "bias": 255,                "exp_max": 511,                "em_ratio": 0.642857, "phi_dist": 0.024823, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf24.t27" },
+    "GF32":  { "bits": 32,  "sign": 1, "exp": 12,  "mant": 19,  "bias": 2047,               "exp_max": 4095,               "em_ratio": 0.631579, "phi_dist": 0.013545, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf32.t27" },
+    "GF48":  { "bits": 48,  "sign": 1, "exp": 18,  "mant": 29,  "bias": 131071,             "exp_max": 262143,             "em_ratio": 0.620690, "phi_dist": 0.002656, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf48.t27",  "note": "NEW v1.2" },
+    "GF64":  { "bits": 64,  "sign": 1, "exp": 24,  "mant": 39,  "bias": 8388607,            "exp_max": 16777215,           "em_ratio": 0.615385, "phi_dist": 0.002649, "rule_status": "matches", "claim_status": "Verified", "spec": "specs/numeric/gf64.t27", "extension": true, "phi_bias": 8388608, "phi_bias_status": "empirical_coincidence" },
+    "GF96":  { "bits": 96,  "sign": 1, "exp": 36,  "mant": 59,  "bias": 34359738367,        "exp_max": 68719476735,        "em_ratio": 0.610169, "phi_dist": 0.007864, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf96.t27",  "note": "NEW v1.2" },
+    "GF128": { "bits": 128, "sign": 1, "exp": 49,  "mant": 78,  "bias": 281474976710655,    "exp_max": 562949953421311,    "em_ratio": 0.628205, "phi_dist": 0.010171, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf128.t27", "note": "NEW v1.2" },
+    "GF256": { "bits": 256, "sign": 1, "exp": 97,  "mant": 158, "bias": "2^96 - 1",         "exp_max": "2^97 - 1",         "em_ratio": 0.613924, "phi_dist": 0.004110, "rule_status": "matches", "claim_status": "Conj",     "spec": "tt-trinity-gamma/specs/fpga/gf256.t27", "bias_caveat": "stored constant in gamma RTL (~2^71) UNRECONCILED with closed-form 2^96-1; bias OPEN" },
+    "GF512": { "bits": 512, "sign": 1, "exp": 195, "mant": 316, "bias": "2^194 - 1",        "exp_max": "2^195 - 1",        "em_ratio": 0.617089, "phi_dist": 0.000945, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf512.t27",  "note": "NEW v1.2 (extrapolated; no RTL)" },
+    "GF1024":{ "bits": 1024,"sign": 1, "exp": 391, "mant": 632, "bias": "2^390 - 1",        "exp_max": "2^391 - 1",        "em_ratio": 0.618671, "phi_dist": 0.000637, "rule_status": "matches", "claim_status": "Conj",     "spec": "specs/numeric/gf1024.t27", "note": "NEW v1.2 (extrapolated; no RTL)" },
+    "TF3":   { "bits": 8,   "sign": 1, "exp": 3,   "mant": 4,   "bias": 3,                  "exp_max": 7,                  "em_ratio": 0.750000, "phi_dist": 0.131966, "rule_status": "container", "claim_status": "Conj",   "spec": "specs/numeric/tf3.t27", "note": "8-bit ternary-weight container; reuses GF8 1:3:4 geometry. NOT a float-ladder rung." }
+  },
+  "phi_bias_policy": {
+    "status": "empirical per format",
+    "retracted_closed_form": "PHI_BIAS = EXP_MAX - BIAS reproduces GF64 only; RETRACTED as a general law",
+    "values": {
+      "GF4": 0, "GF8": 1, "GF12": 2, "GF16": 60, "GF20": 289, "GF24": 1364, "GF32": 0, "GF64": 8388608
+    },
+    "values_open_for_new_rungs": ["GF6", "GF10", "GF14", "GF48", "GF96", "GF128", "GF256", "GF512", "GF1024"],
+    "fibonacci_lucas_coincidences": "descriptive, NOT prescriptive -- do not use to generate PHI_BIAS for new formats"
   },
   "sacred_constants": {
     "PHI": { "value": 1.6180339887498948482, "tolerance": 1e-15 },
-    "TRINITY": { "value": 3.0, "tolerance": 0.0 }
-  }
+    "TRINITY": { "value": 3.0, "tolerance": 0.0, "identity": "phi^2 + phi^-2 = 3 = L_2 (Lucas)" }
+  },
+  "claim_status_legend": {
+    "Verified": "machine-checked math, our own audit, or faithful transcription of an external standard",
+    "Conj": "open conjecture; structural claim without proof; carries falsification path",
+    "Efit": "empirical fit (numeric match, no derivation)",
+    "Risk": "high-risk (likely to fail external test)",
+    "Retr": "retracted"
+  },
+  "cross_repo_consumers": [
+    "gHashTag/tt-trinity-gamma -- RTL for GF4..GF256 (frozen silicon for GF16)",
+    "gHashTag/tt-trinity-corona -- ROM records for all 80 formats; GF cluster routed via D2D to Gamma",
+    "gHashTag/goldenfloat-preprint -- arXiv cs.AR (Hunhold endorsed, code QFHDTL)",
+    "gHashTag/arith2027-goldenfloat -- ARITH 2027 submission",
+    "gHashTag/trinity-s3ai -- Coq proofs, claims.yaml ledger",
+    "gHashTag/claim-audit-lab -- public self-audit ledger"
+  ]
 }
