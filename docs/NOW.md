@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-07
+Last updated: 2026-06-08
+
+## ci-bot-bypass -- bypass L1/Issue/NOW gates for trusted bots (Closes #1059)
+
+- **WHERE** (CI only): three workflow files gain a job-level guard `if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'` -- `.github/workflows/l1-traceability.yml`, `.github/workflows/issue-gate.yml`, `.github/workflows/now-sync-gate.yml`. The L1 summary job gains an explicit `skipped` branch that prints `Skipped (trusted bot actor)` so the run page reads cleanly. No source, no specs, no codegen, no conformance JSON, no `gen/` artefacts touched.
+- **Why**: Dependabot opened #1057 (rusqlite 0.40.1) and #1058 (chrono 0.4.45). Both PRs failed all three gates simultaneously because bots cannot reference issues with `Closes #N` and do not update `docs/NOW.md` for routine dependency bumps. The failures were structural, not substantive. After this PR merges, trusted-bot PRs SKIP the three gates (not FAIL); human PRs remain fully gated by Constitutional Law L1. L6 untouched (gf16 SSOT and conformance JSON unchanged); L5 untouched (no silicon impact); L4 not applicable (workflow YAML, not a `.t27` spec). Acceptance: rerun #1057 and #1058 after merge -- all three gates show `skipped`.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## feat-gf-ladder-expansion-v1.2 -- GF ladder expansion v1.2 closed-form rule + Corona ROM CATALOG fix (Closes #1052)
 
