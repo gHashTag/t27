@@ -2,6 +2,12 @@
 
 Last updated: 2026-06-08
 
+## funding-json-trinity-s3ai -- maintainer block + ORCID + project_info anchor (Closes #1062)
+
+- **WHERE** (repository root metadata): `FUNDING.json` at the top of the tree is replaced with a fuller block. Existing `drips.ethereum.ownedBy = 0x0A91540efd651E8fbeb91FA5c6c31D7c20897C18` is preserved unchanged. New `maintainer` block adds `name = Vasilev Daniel`, `affiliation = Trinity S^3 AI`, `email = admin@t27.ai`, `github = gHashTag`, `orcid = 0009-0008-4294-6159`. New `project_info` block adds `anchor_identity = phi^2 + 1/phi^2 = 3` and `anchor_paper_arxiv = 2606.05017`. No code paths, no specs, no `gen/` artefacts, no conformance JSON touched. SHA-256 of payload: `55cfb9216592cab591c979ee09f85aeb41281b2ff7d3bd59ea7e251f6756d251`.
+- **Why**: aligns this repo with companion OSS repos `gHashTag/claim-audit-lab` (PR #6) and `gHashTag/trios-mcp-rag` (PR #9), which carry the identical maintainer + anchor + arXiv id block. Makes ORCID and Trinity S^3 AI affiliation discoverable from a single canonical metadata file across the three repos. ASCII-only (`Trinity S^3 AI`). L6 untouched (gf16 SSOT and conformance JSON unchanged); L2 untouched (no `gen/` edits); L4 not applicable (metadata file, not a `.t27` spec). Closes #1062.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## ci-bot-bypass -- bypass L1/Issue/NOW gates for trusted bots (Closes #1059)
 
 - **WHERE** (CI only): three workflow files gain a job-level guard `if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'` -- `.github/workflows/l1-traceability.yml`, `.github/workflows/issue-gate.yml`, `.github/workflows/now-sync-gate.yml`. The L1 summary job gains an explicit `skipped` branch that prints `Skipped (trusted bot actor)` so the run page reads cleanly. No source, no specs, no codegen, no conformance JSON, no `gen/` artefacts touched.
