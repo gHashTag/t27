@@ -3,5 +3,16 @@
     "ethereum": {
       "ownedBy": "0x0A91540efd651E8fbeb91FA5c6c31D7c20897C18"
     }
+  },
+  "maintainer": {
+    "name": "Dmitrii Vasilev",
+    "affiliation": "Trinity S^3 AI",
+    "email": "admin@t27.ai",
+    "github": "gHashTag",
+    "orcid": "0009-0008-4294-6159"
+  },
+  "project_info": {
+    "anchor_identity": "phi^2 + 1/phi^2 = 3",
+    "anchor_paper_arxiv": "2606.05017"
   }
 }
