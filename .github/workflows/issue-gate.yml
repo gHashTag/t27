@@ -12,6 +12,8 @@ permissions:
 jobs:
   check-linked-issue:
     runs-on: ubuntu-latest
+    # Closes #1059: bypass Issue Gate for trusted bots (Dependabot opens dep PRs without issues)
+    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
     steps:
       - name: Check for linked issues in PR
         env:
