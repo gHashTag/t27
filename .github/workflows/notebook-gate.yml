@@ -21,7 +21,7 @@ jobs:
     name: 🔒 NotebookLM notebook required
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check for .notebook_id
         id: check

@@ -16,7 +16,7 @@ jobs:
     container:
       image: coqorg/coq:8.19-ocaml-4.14-flambda
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Flocq (opam)
         run: |
