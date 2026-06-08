@@ -8,6 +8,8 @@ jobs:
   check-traceability:
     name: Check L1 TRACEABILITY
     runs-on: ubuntu-latest
+    # Closes #1059: bypass L1 gate for trusted bots (Dependabot maintains deps, not features)
+    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -138,6 +140,8 @@ jobs:
           echo "### L1 TRACEABILITY Check Results" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.check-traceability.result }}" = "success" ]; then
             echo "✅ All commits comply with L1 TRACEABILITY" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.check-traceability.result }}" = "skipped" ]; then
+            echo "⏭️ L1 TRACEABILITY check skipped (trusted bot actor)" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ L1 TRACEABILITY violations detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
