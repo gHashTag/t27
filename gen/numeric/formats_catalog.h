@@ -24,7 +24,7 @@ typedef struct {
     const char *source;
 } t27_format_t;
 
-#define T27_FORMAT_COUNT 77
+#define T27_FORMAT_COUNT 83
 
 static const t27_format_t T27_FORMATS[T27_FORMAT_COUNT] = {
     { "binary16", "binary16 (fp16, half)", 16u, 1u, 5u, 10u, 15, 0.118, "u16", "Ieee754Binary", "Verified", "IEEE 754-2008", "GPU activations, inference", "competitor", "IEEE 754-2008" },
@@ -68,12 +68,18 @@ static const t27_format_t T27_FORMATS[T27_FORMAT_COUNT] = {
     { "gf12", "GF12", 12u, 1u, 4u, 7u, 7, 0.047, "u16", "GoldenFloat", "Verified", "this work; L0/F3", "mid-range / audio", "self", "BENCH-007 (specs/numeric/gf12.t27)" },
     { "gf16", "GF16", 16u, 1u, 6u, 9u, 31, 0.049, "u16", "GoldenFloat", "Verified", "this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7", "training and inference (production)", "self", "specs/numeric/gf16.t27; zenodo 10.5281/zenodo.19227877 (HW archive)" },
     { "gf20", "GF20", 20u, 1u, 7u, 12u, 63, 0.035, "u32", "GoldenFloat", "Experimental", "this work; 17-squared empirical PHI_BIAS=289", "high-precision edge", "self", "specs/numeric/gf20.t27 (spec only)" },
-    { "gf24", "GF24", 24u, 1u, 9u, 14u, 255, 0.025, "u32", "GoldenFloat", "Experimental", "this work; L15 PHI_BIAS=1364", "server inference", "self", "specs/numeric/gf24.t27 (spec only)" },
+    { "gf24", "GF24", 24u, 1u, 9u, 14u, 255, 0.025, "u32", "GoldenFloat", "Experimental", "this work; rule e=round(23/phi^2)=9; normative bias=2^(e-1)-1=255; empirical PHI_BIAS=1364 (=L15) OPEN", "server inference", "self", "specs/numeric/gf24.t27 (spec only)" },
     { "gf32", "GF32", 32u, 1u, 12u, 19u, 2047, 0.014, "u32", "GoldenFloat", "Verified", "this work; F0 resolved", "fp32 drop-in", "self", "BENCH-012 (specs/numeric/gf32.t27)" },
     { "gf64", "GF64", 64u, 1u, 24u, 39u, 8388607, 0.003, "u64", "GoldenFloat", "Verified", "this work; EXP_MAX - BIAS", "scientific / double", "self", "BENCH-007b (specs/numeric/gf64.t27)" },
-    { "gf6", "GF6 (predicted)", 6u, 1u, 2u, 3u, 1, 0.05, "u8_packed", "GoldenFloat", "Experimental", "this work; e=round(5/phi^2)=2, fills FP6 gap", "OPEN R&D: bridge GF4-GF8; FP6 E2M3 hint", "experimental", "section12.5" },
-    { "gf128", "GF128 (predicted)", 128u, 1u, 48u, 79u, 0, 0.008, "u128", "GoldenFloat", "Experimental", "this work; e=round(127/phi^2)=48 (Open: bias TBD)", "OPEN R&D: phi-aligned binary128 alternative", "experimental", "section12.5" },
-    { "gf256", "GF256 (predicted)", 256u, 1u, 97u, 158u, 0, 0.005, "u256_software", "GoldenFloat", "Experimental", "this work; e=round(255/phi^2)=97 (Open: bias ~2^71 unconfirmed)", "OPEN R&D: phi-aligned binary256 alternative", "experimental", "section12.5; bias Open per skill" },
+    { "gf6", "GF6 (rule-derived)", 6u, 1u, 2u, 3u, 1, 0.049, "u8_packed", "GoldenFloat", "Open", "this work; rule e=round(5/phi^2)=2; FP6 E2M3 bridge", "OPEN R&D: bridge GF4-GF8; FP6 E2M3 hint", "experimental", "specs/numeric/gf6.t27" },
+    { "gf10", "GF10 (rule-derived)", 10u, 1u, 3u, 6u, 3, 0.118, "u16", "GoldenFloat", "Open", "this work; rule e=round(9/phi^2)=3; bridge GF8-GF12", "OPEN R&D: tight-precision activations", "experimental", "specs/numeric/gf10.t27" },
+    { "gf14", "GF14 (rule-derived)", 14u, 1u, 5u, 8u, 15, 0.007, "u16", "GoldenFloat", "Open", "this work; rule e=round(13/phi^2)=5; bridge GF12-GF16; lowest phi-dist below GF48", "OPEN R&D: drop-in for fp16 with tighter phi alignment", "experimental", "specs/numeric/gf14.t27" },
+    { "gf48", "GF48 (rule-derived)", 48u, 1u, 18u, 29u, 131071, 0.003, "u64_padded", "GoldenFloat", "Open", "this work; rule e=round(47/phi^2)=18", "OPEN R&D: between GF32 and GF64; tightest phi-dist of the wide rungs", "experimental", "specs/numeric/gf48.t27" },
+    { "gf96", "GF96 (rule-derived)", 96u, 1u, 36u, 59u, 34359738367, 0.008, "u128_padded", "GoldenFloat", "Open", "this work; rule e=round(95/phi^2)=36", "OPEN R&D: between GF64 and GF128 (phi-aligned extended)", "experimental", "specs/numeric/gf96.t27" },
+    { "gf128", "GF128 (rule-derived)", 128u, 1u, 49u, 78u, 281474976710655, 0.01, "u128", "GoldenFloat", "Open", "this work; rule e=round(127/phi^2)=49 (corrects v1.1 typo e=48)", "OPEN R&D: phi-aligned binary128 alternative", "experimental", "specs/numeric/gf128.t27" },
+    { "gf256", "GF256 (rule-derived)", 256u, 1u, 97u, 158u, 79228162514264337593543950335, 0.004, "u256_software", "GoldenFloat", "Open", "this work; rule e=round(255/phi^2)=97; normative bias=2^96-1", "OPEN R&D: phi-aligned binary256 alternative", "experimental", "specs/numeric/gf256.t27" },
+    { "gf512", "GF512 (rule-derived)", 512u, 1u, 195u, 316u, -2, 0.0009, "u512_software", "GoldenFloat", "Open", "this work; rule e=round(511/phi^2)=195", "OPEN R&D: ultra-wide phi-aligned (extrapolation, no RTL)", "experimental", "specs/numeric/gf512.t27" },
+    { "gf1024", "GF1024 (rule-derived)", 1024u, 1u, 391u, 632u, -2, 0.0006, "u1024_software", "GoldenFloat", "Open", "this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder", "OPEN R&D: limit-of-ladder phi alignment (extrapolation, no RTL)", "experimental", "specs/numeric/gf1024.t27" },
     { "gf8_bfp", "GF8-BFP (block FP atop GF8)", 8u, 1u, 3u, 4u, 3, 0.132, "u8_plus_shared_exp", "GoldenFloat", "Experimental", "this work; per-tile shared exponent", "OPEN R&D: LLM-quantization-friendly GF8", "experimental", "section12.5" },
     { "gf_lns_hybrid", "GF + LNS hybrid (dual-space)", 16u, 1u, 6u, 9u, 31, 0.049, "u16_plus_lns_path", "GoldenFloat", "Experimental", "this work; mul in log-space, accumulate Lucas-closed", "OPEN R&D: dual-space arithmetic", "experimental", "section12.5" },
     { "mxgf6", "MXGF6 (microscaling GF6)", 6u, 1u, 2u, 3u, 1, 0.05, "u8_packed_plus_e8m0", "GoldenFloat", "Experimental", "this work; OCP MX block + GF6", "OPEN R&D: phi-aligned MX-6 candidate", "experimental", "section12.5" },

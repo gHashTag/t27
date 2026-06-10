@@ -6,7 +6,7 @@
 `ifndef T27_FORMATS_CATALOG_VH
 `define T27_FORMATS_CATALOG_VH
 
-`define T27_FORMAT_COUNT 77
+`define T27_FORMAT_COUNT 83
 
 `define T27_FMT_BINARY16_BITS  16
 `define T27_FMT_BINARY16_S     1
@@ -233,16 +233,46 @@
 `define T27_FMT_GF6_E     2
 `define T27_FMT_GF6_M     3
 `define T27_FMT_GF6_BIAS  1
+`define T27_FMT_GF10_BITS  10
+`define T27_FMT_GF10_S     1
+`define T27_FMT_GF10_E     3
+`define T27_FMT_GF10_M     6
+`define T27_FMT_GF10_BIAS  3
+`define T27_FMT_GF14_BITS  14
+`define T27_FMT_GF14_S     1
+`define T27_FMT_GF14_E     5
+`define T27_FMT_GF14_M     8
+`define T27_FMT_GF14_BIAS  15
+`define T27_FMT_GF48_BITS  48
+`define T27_FMT_GF48_S     1
+`define T27_FMT_GF48_E     18
+`define T27_FMT_GF48_M     29
+`define T27_FMT_GF48_BIAS  131071
+`define T27_FMT_GF96_BITS  96
+`define T27_FMT_GF96_S     1
+`define T27_FMT_GF96_E     36
+`define T27_FMT_GF96_M     59
+`define T27_FMT_GF96_BIAS  34359738367
 `define T27_FMT_GF128_BITS  128
 `define T27_FMT_GF128_S     1
-`define T27_FMT_GF128_E     48
-`define T27_FMT_GF128_M     79
-`define T27_FMT_GF128_BIAS  0
+`define T27_FMT_GF128_E     49
+`define T27_FMT_GF128_M     78
+`define T27_FMT_GF128_BIAS  281474976710655
 `define T27_FMT_GF256_BITS  256
 `define T27_FMT_GF256_S     1
 `define T27_FMT_GF256_E     97
 `define T27_FMT_GF256_M     158
-`define T27_FMT_GF256_BIAS  0
+`define T27_FMT_GF256_BIAS  79228162514264337593543950335
+`define T27_FMT_GF512_BITS  512
+`define T27_FMT_GF512_S     1
+`define T27_FMT_GF512_E     195
+`define T27_FMT_GF512_M     316
+`define T27_FMT_GF512_BIAS  -2
+`define T27_FMT_GF1024_BITS  1024
+`define T27_FMT_GF1024_S     1
+`define T27_FMT_GF1024_E     391
+`define T27_FMT_GF1024_M     632
+`define T27_FMT_GF1024_BIAS  -2
 `define T27_FMT_GF8_BFP_BITS  8
 `define T27_FMT_GF8_BFP_S     1
 `define T27_FMT_GF8_BFP_E     3
