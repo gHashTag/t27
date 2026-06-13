@@ -2,6 +2,12 @@
 
 Last updated: 2026-06-13
 
+## docs-hf-cross-links -- add HuggingFace datasets section to README (Closes #1068)
+
+- **WHERE** (docs only): adds an "HuggingFace mirror" section to `README.md`. Lists the two HF datasets (`playra/numeric-format-catalog`, `playra/numeric-conformance-packs`) and the HF paper page (arXiv:2606.09686). Stresses GitHub remains primary source of truth. No code, no specs, no `gen/` edits, no conformance JSON touched.
+- **Why**: per Niels Rogge feedback in #1063. Makes published artefacts discoverable from the canonical entry point. Closes #1068.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## fix-parser-bias-formula -- handle bias formulas in numeric format SSOT (Closes #1064)
 
 - **WHERE** (codegen only): `tools/gen_formats_catalog.py` parser extended to handle bias formulas like `2^N-1` (gf512, gf1024) which were previously dropped on `int(s)` cast. No `specs/` edits, no `gen/` edits in this PR (codegen runs auto-regenerate on master post-merge). The fix raises live regen output from 81 to 83 rows, matching the SSOT raw-line count at HEAD `6ecad30`.
