@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-08
+Last updated: 2026-06-13
+
+## fix-parser-bias-formula -- handle bias formulas in numeric format SSOT (Closes #1064)
+
+- **WHERE** (codegen only): `tools/gen_formats_catalog.py` parser extended to handle bias formulas like `2^N-1` (gf512, gf1024) which were previously dropped on `int(s)` cast. No `specs/` edits, no `gen/` edits in this PR (codegen runs auto-regenerate on master post-merge). The fix raises live regen output from 81 to 83 rows, matching the SSOT raw-line count at HEAD `6ecad30`.
+- **Why**: count-drift audit (#1064) showed four divergent counts across the catalog pipeline -- paper 84 / SSOT 83 / regen 81 / shipped gen 77. Root cause for the 83 -> 81 drop was a parser that treated bias as `int(value)` and silently dropped two rows on `2^N-1`. After this fix lands and codegen reruns, gen/ artefacts and the HF mirror at `playra/numeric-format-catalog` converge on 83. The paper-84 vs SSOT-83 difference is the historical paper expansion plan recorded as a separate row that was never materialised in the SSOT; treated as an honest documentation note in arXiv:2606.09686 §11. L6 gf16 SSOT untouched. L2 gen/ untouched in this PR (will auto-regen). Closes #1064.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## funding-json-trinity-s3ai -- maintainer block + ORCID + project_info anchor (Closes #1062)
 
