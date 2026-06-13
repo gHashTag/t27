@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Trinity ring-104 — Telemetry Bus (bounded, lossy ring buffer for chip-side counters). Wave 12 / Track C / spec-first scaffolding."
-authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+authors = ["Trinity Project <admin@t27.ai>"]
 repository = "https://github.com/gHashTag/t27"
 
 [lib]
