@@ -7,7 +7,7 @@ Status labels: Verified | EmpiricalFit | Open | Risk | Retracted |
 Experimental | Historical. phi_distance: lower = more phi-aligned;
 -1 sentinel = undefined (non-radix-2 or non-FP).
 
-Total formats: 83.
+Total formats: 77.
 
 | ID | Bits | S:E:M | Bias | phi_dist | Storage | Cluster | Status | Standard | Use case | GF rel. |
 |----|-----:|------|-----:|--------:|---------|---------|--------|----------|----------|---------|
@@ -52,18 +52,12 @@ Total formats: 83.
 | gf12 | 12 | 1:4:7 | 7 | 0.047 | u16 | GoldenFloat | Verified | this work; L0/F3 | mid-range / audio | self |
 | gf16 | 16 | 1:6:9 | 31 | 0.049 | u16 | GoldenFloat | Verified | this work; PHI_BIAS=60; FPGA 35/35 at 323 MHz Artix-7 | training and inference (production) | self |
 | gf20 | 20 | 1:7:12 | 63 | 0.035 | u32 | GoldenFloat | Experimental | this work; 17-squared empirical PHI_BIAS=289 | high-precision edge | self |
-| gf24 | 24 | 1:9:14 | 255 | 0.025 | u32 | GoldenFloat | Experimental | this work; rule e=round(23/phi^2)=9; normative bias=2^(e-1)-1=255; empirical PHI_BIAS=1364 (=L15) OPEN | server inference | self |
+| gf24 | 24 | 1:9:14 | 255 | 0.025 | u32 | GoldenFloat | Experimental | this work; L15 PHI_BIAS=1364 | server inference | self |
 | gf32 | 32 | 1:12:19 | 2047 | 0.014 | u32 | GoldenFloat | Verified | this work; F0 resolved | fp32 drop-in | self |
 | gf64 | 64 | 1:24:39 | 8388607 | 0.003 | u64 | GoldenFloat | Verified | this work; EXP_MAX - BIAS | scientific / double | self |
-| gf6 | 6 | 1:2:3 | 1 | 0.049 | u8_packed | GoldenFloat | Open | this work; rule e=round(5/phi^2)=2; FP6 E2M3 bridge | OPEN R&D: bridge GF4-GF8; FP6 E2M3 hint | experimental |
-| gf10 | 10 | 1:3:6 | 3 | 0.118 | u16 | GoldenFloat | Open | this work; rule e=round(9/phi^2)=3; bridge GF8-GF12 | OPEN R&D: tight-precision activations | experimental |
-| gf14 | 14 | 1:5:8 | 15 | 0.007 | u16 | GoldenFloat | Open | this work; rule e=round(13/phi^2)=5; bridge GF12-GF16; lowest phi-dist below GF48 | OPEN R&D: drop-in for fp16 with tighter phi alignment | experimental |
-| gf48 | 48 | 1:18:29 | 131071 | 0.003 | u64_padded | GoldenFloat | Open | this work; rule e=round(47/phi^2)=18 | OPEN R&D: between GF32 and GF64; tightest phi-dist of the wide rungs | experimental |
-| gf96 | 96 | 1:36:59 | 34359738367 | 0.008 | u128_padded | GoldenFloat | Open | this work; rule e=round(95/phi^2)=36 | OPEN R&D: between GF64 and GF128 (phi-aligned extended) | experimental |
-| gf128 | 128 | 1:49:78 | 281474976710655 | 0.010 | u128 | GoldenFloat | Open | this work; rule e=round(127/phi^2)=49 (corrects v1.1 typo e=48) | OPEN R&D: phi-aligned binary128 alternative | experimental |
-| gf256 | 256 | 1:97:158 | 79228162514264337593543950335 | 0.004 | u256_software | GoldenFloat | Open | this work; rule e=round(255/phi^2)=97; normative bias=2^96-1 | OPEN R&D: phi-aligned binary256 alternative | experimental |
-| gf512 | 512 | 1:195:316 | -2 | 0.001 | u512_software | GoldenFloat | Open | this work; rule e=round(511/phi^2)=195 | OPEN R&D: ultra-wide phi-aligned (extrapolation, no RTL) | experimental |
-| gf1024 | 1024 | 1:391:632 | -2 | 0.001 | u1024_software | GoldenFloat | Open | this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder | OPEN R&D: limit-of-ladder phi alignment (extrapolation, no RTL) | experimental |
+| gf6 | 6 | 1:2:3 | 1 | 0.050 | u8_packed | GoldenFloat | Experimental | this work; e=round(5/phi^2)=2, fills FP6 gap | OPEN R&D: bridge GF4-GF8; FP6 E2M3 hint | experimental |
+| gf128 | 128 | 1:48:79 | 0 | 0.008 | u128 | GoldenFloat | Experimental | this work; e=round(127/phi^2)=48 (Open: bias TBD) | OPEN R&D: phi-aligned binary128 alternative | experimental |
+| gf256 | 256 | 1:97:158 | 0 | 0.005 | u256_software | GoldenFloat | Experimental | this work; e=round(255/phi^2)=97 (Open: bias ~2^71 unconfirmed) | OPEN R&D: phi-aligned binary256 alternative | experimental |
 | gf8_bfp | 8 | 1:3:4 | 3 | 0.132 | u8_plus_shared_exp | GoldenFloat | Experimental | this work; per-tile shared exponent | OPEN R&D: LLM-quantization-friendly GF8 | experimental |
 | gf_lns_hybrid | 16 | 1:6:9 | 31 | 0.049 | u16_plus_lns_path | GoldenFloat | Experimental | this work; mul in log-space, accumulate Lucas-closed | OPEN R&D: dual-space arithmetic | experimental |
 | mxgf6 | 6 | 1:2:3 | 1 | 0.050 | u8_packed_plus_e8m0 | GoldenFloat | Experimental | this work; OCP MX block + GF6 | OPEN R&D: phi-aligned MX-6 candidate | experimental |
