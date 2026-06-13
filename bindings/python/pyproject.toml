@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [
-    { name = "Trinity S3AI", email = "t27@trinity.ai" }
+    { name = "Trinity S3AI", email = "admin@t27.ai" }
 ]
 keywords = ["golden-float", "phi", "floating-point", "ml", "numpy"]
 classifiers = [

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Trinity ring-089 -- balanced-ternary core ISA: 27 registers x 27 trits, full trit-level add/sub, 9-opcode minimum instruction set, deterministic single-step CPU model. Second honestly-imported Wave-11 crate (Wave 16)."
-authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+authors = ["Trinity Project <admin@t27.ai>"]
 repository = "https://github.com/gHashTag/t27"
 readme = "README.md"
 

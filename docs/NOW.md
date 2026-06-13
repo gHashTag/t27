@@ -2,6 +2,12 @@
 
 Last updated: 2026-06-13
 
+## ops-unify-email -- consolidate contact emails to admin@t27.ai (Closes #1067)
+
+- **WHERE** (metadata only): consolidates 7 ring-NN-rust Cargo.toml `authors` fields (rings 088, 089, 100..104), `bindings/python/pyproject.toml` `authors`, and `.github/workflows/brain-seal-refresh.yml` `user.email`/`user.name` from legacy addresses (`t27@trinity.ai`, `t27-bot@trinity.ai`, `dev@trinity-s3ai.local`) to the single canonical `admin@t27.ai`. No code changes, no spec edits, no `gen/` edits, no conformance JSON touched.
+- **Why**: per ops directive 2026-06-10, `admin@t27.ai` is the only allowed contact surface for this corpus. Other addresses (gmail, trinity.ai placeholders, .local) are deprecated and were either inactive or were placeholders that never resolved. Pure metadata cleanup. L6 untouched. L2 untouched. Closes #1067.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## docs-hf-cross-links -- add HuggingFace datasets section to README (Closes #1068)
 
 - **WHERE** (docs only): adds an "HuggingFace mirror" section to `README.md`. Lists the two HF datasets (`playra/numeric-format-catalog`, `playra/numeric-conformance-packs`) and the HF paper page (arXiv:2606.09686). Stresses GitHub remains primary source of truth. No code, no specs, no `gen/` edits, no conformance JSON touched.
