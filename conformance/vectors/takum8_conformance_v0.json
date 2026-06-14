@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "TAKUM8",
+  "format_name": "takum8",
+  "bitexact": false,
+  "format_notes": "takum8 -- Hunhold 2024 (tapered-precision)",
+  "catalog": {
+    "id": "takum8",
+    "bits": 8,
+    "s": 1,
+    "e": 0,
+    "m": 0,
+    "bias": 0,
+    "storage": "u8",
+    "cluster": "PositUnumIII",
+    "status": "Verified",
+    "standard": "Hunhold 2024 (tapered-precision)",
+    "use_case": "IEEE-754 backward-compatible tapered",
+    "gf_relation": "ally",
+    "source": "Hunhold 2024 (arXiv:2412.20273)",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "Takum (Hunhold 2024) is a tapered LOGARITHMIC format; its decode is not a plain S:E:M field. It is the live FL-002 counterexample and is recorded structurally pending a dedicated logarithmic decoder.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

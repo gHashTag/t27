@@ -44,23 +44,23 @@ Until filled, treat numeric behavior as **implementation-defined** outside confo
 | L1 | **Exhaustive** encode/decode + op table | GF4 (and GF8 if feasible) | TBD |
 | L2 | **Conformance JSON** — existing `conformance/gf*_vectors.json` | GF4–GF32 as covered | partial |
 | L3 | **Property-based / randomized** boundaries | GF16+ | TBD |
-| L4 | **Differential** vs reference (Python `decimal`, or MPFR) | GF16 primary | TBD — P1 |
-| L5 | **Comparative** vs IEEE fp16 / fp32 / bfloat16 on same corpus | GF16 vs fp16/bf16 | TBD |
+| L4 | **Differential** vs reference (round-trip oracle) | GF16 primary | **measured (host, unsealed)** — `repro/numerics/` |
+| L5 | **Comparative** vs IEEE fp16 / bfloat16 on same corpus | GF16 vs fp16/bf16 | **measured (host, unsealed)** — `repro/numerics/nmse_manifest.json` |
 | L6 | **Optional** posit reference (where tooling exists) | TBD | TBD |
 
 ---
 
 ## 5. Differential oracle — skeleton results table
 
-*Replace `TBD` with versioned runs; one row per (format, operation, corpus slice).*
+*Measured runs (host, unsealed). Reference oracle = f64 round-trip `real -> format -> real`. Seed 2718281, 2,000,000 samples/distribution. Reproduce: `python repro/numerics/nmse_gf16.py`.*
 
 | Run ID | Format | Operation | Corpus | Reference oracle | Max abs err | ULP-like metric | Pass? | Artifact |
 |--------|--------|-----------|--------|------------------|-------------|-----------------|-------|----------|
-| TBD | GF16 | add | conformance subset | Python `decimal` | TBD | TBD | TBD | `repro/numerics/` (future) |
-| TBD | GF16 | mul | … | … | TBD | TBD | TBD | … |
-| TBD | GF32 | add | … | … | TBD | TBD | TBD | … |
+| nmse-2718281-D_NORM | GF16 | round-trip | D_NORM (N(0,1)) | f64 | 3.90e-03 | 3.53e-04 | yes | `repro/numerics/nmse_manifest.json` |
+| nmse-2718281-D_LOG | GF16 | round-trip | D_LOG (log2\|x\|~U(-10,10)) | f64 | (see manifest) | (see manifest) | yes | `repro/numerics/nmse_manifest.json` |
+| nmse-2718281-D_WIDE | GF16 | round-trip | D_WIDE (log2\|x\|~U(-28,28)) | f64 | (see manifest) | (see manifest) | yes | `repro/numerics/nmse_manifest.json` |
 
-**Falsification:** any cell exceeds stated envelope once §2 is normative → **fail CI** or **downgrade claim** in `RESEARCH_CLAIMS.md`.
+**Falsification:** any cell exceeds stated envelope once §2 is normative → **fail CI** or **downgrade claim** in `RESEARCH_CLAIMS.md`. The runner already aborts non-zero if the L5 identity witness fails or any NMSE < 0.
 
 ---
 
@@ -68,11 +68,15 @@ Until filled, treat numeric behavior as **implementation-defined** outside confo
 
 Same inputs as §5 where bit patterns map sensibly; document **non-comparable** cases explicitly.
 
-| Metric | GF16 | IEEE fp16 | bfloat16 | IEEE fp32 | Notes |
-|--------|------|-----------|----------|-----------|-------|
-| Dynamic range (stated) | TBD | TBD | TBD | TBD | From spec / measured |
-| MSE on N(0,1) sample | TBD | TBD | TBD | TBD | Trinity Phase-1 style table may be ported |
-| Add latency (soft impl) | TBD | TBD | — | TBD | Host-only; not FPGA |
+*Measured, host, unsealed (`repro/numerics/nmse_manifest.json`). Non-comparable cases noted.*
+
+| Metric | GF16 | IEEE fp16 | bfloat16 | Notes |
+|--------|------|-----------|----------|-------|
+| Mantissa / exponent bits | 9 / 6 | 10 / 5 | 7 / 8 | bit split |
+| Max finite magnitude | ~4.29e9 | ~6.55e4 | ~3.39e38 | dynamic range |
+| NMSE on N(0,1) (D_NORM) | 1.73e-07 | 4.30e-08 | 2.76e-06 | GF16 ~16x better than bf16; fp16 ~4x better than GF16 |
+| Overflow rate on D_WIDE (log2\|x\|~U(-28,28)) | 0.0000 | 0.2144 | 0.0000 | fp16 saturates; GF16/bf16 do not |
+| Add latency (soft impl) | n/a | n/a | n/a | host-only round-trip study; latency out of scope (see protocol §1) |
 
 ---
 
@@ -110,8 +114,10 @@ Constant comparisons (if any) must cite **year and revision** and uncertainty; d
 ## 11. Reproduction
 
 - **Smoke:** `make -C repro repro-numerics` (JSON validity).  
-- **Future:** `make repro-numerics-diff` (pinned Python + lockfile) — add in `repro/Makefile` when L4 exists.
+- **L4/L5 oracle (measured):** `python repro/numerics/nmse_gf16.py` — round-trip NMSE/ULP of GF16 vs bf16/fp16 over the protocol distributions; writes `repro/numerics/nmse_manifest.json` (rich) and `repro/numerics/nmse_manifest_protocol_v1.json` (certifying). Host, unsealed.
+- **Certifying manifest:** `make -C repro repro-numerics-certify` (or `python repro/numerics/validate_manifest.py`) validates `repro/numerics/nmse_manifest_protocol_v1.json` against `schemas/nmse-protocol-v1.json` and enforces the seal-hash honesty rule.
+- **Sealed run:** `python repro/numerics/nmse_gf16.py --seal` sets `seal_hash` to the `bootstrap/stage0/FROZEN_HASH` digest **only** if the live seal source matches it under a pinned toolchain; otherwise it stays `unsealed`. As committed the manifest is `unsealed` (host, unpinned) — informational, not a silicon certifying claim (protocol section 8).
 
 ---
 
-*Without differential oracles, GoldenFloat will face predictable skepticism — this file is the contract to close that gap.*
+*The L4/L5 differential/comparative oracle is now MEASURED (host, unsealed) in `repro/numerics/` — the predictable-skepticism gap is closed at the host level; the remaining step is a sealed-toolchain certifying run.*
