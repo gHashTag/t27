@@ -8,15 +8,25 @@ on:
 jobs:
   check-now-freshness:
     runs-on: ubuntu-latest
-    # Closes #1059: bypass NOW Sync Gate for trusted bots (deps PRs don't touch docs/NOW.md)
-    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+    # Closes #1031: trusted bots (Dependabot) PASS this required gate as a no-op
+    # instead of SKIPPING it (a skipped required check never satisfies branch
+    # protection). Detect bot via trigger actor AND PR author login (survives a
+    # human 'Update branch'); short-circuit the substantive steps. push events
+    # keep their existing behavior because pull_request is null there.
+    env:
+      IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'github-actions[bot]' || github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'github-actions[bot]') && 'true' || 'false' }}
     steps:
+      - name: Trusted-bot bypass (no-op pass)
+        if: env.IS_BOT == 'true'
+        run: echo "Trusted bot PR -- Dependabot or github-actions -- NOW Sync Gate passes as no-op (Closes #1031)."
+
       - uses: actions/checkout@v4
+        if: env.IS_BOT != 'true'
         with:
           fetch-depth: 0
 
       - name: Check docs/NOW.md is updated (pull_request)
-        if: github.event_name == 'pull_request'
+        if: env.IS_BOT != 'true' && github.event_name == 'pull_request'
         env:
           GITHUB_EVENT_NAME: pull_request
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -24,7 +34,7 @@ jobs:
         run: bash scripts/ci/now-sync-gate-diff.sh
 
       - name: Check docs/NOW.md is updated (push)
-        if: github.event_name == 'push'
+        if: env.IS_BOT != 'true' && github.event_name == 'push'
         env:
           GITHUB_EVENT_NAME: push
           PUSH_BEFORE: ${{ github.event.before }}
@@ -32,6 +42,7 @@ jobs:
         run: bash scripts/ci/now-sync-gate-diff.sh
 
       - name: Validate NOW.md date is today or recent
+        if: env.IS_BOT != 'true'
         run: |
           set -euo pipefail
           TODAY=$(date -u +%Y-%m-%d)
@@ -48,6 +59,7 @@ jobs:
           echo "✅ NOW.md freshness check passed: $LAST (UTC window: $YESTERDAY .. $TODAY)"
 
       - name: Check agent sync JSON exists
+        if: env.IS_BOT != 'true'
         run: |
           if [ ! -f ".trinity/state/github-sync.json" ]; then
             echo "::warning::Agent sync file missing: .trinity/state/github-sync.json"

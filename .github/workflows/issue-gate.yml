@@ -12,10 +12,19 @@ permissions:
 jobs:
   check-linked-issue:
     runs-on: ubuntu-latest
-    # Closes #1059: bypass Issue Gate for trusted bots (Dependabot opens dep PRs without issues)
-    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+    # Closes #1031: trusted bots (Dependabot) PASS this required gate as a no-op
+    # instead of SKIPPING it (a skipped required check never satisfies branch
+    # protection). Detect bot via trigger actor AND PR author login (survives a
+    # human 'Update branch'); short-circuit the substantive step.
+    env:
+      IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'github-actions[bot]' || github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'github-actions[bot]') && 'true' || 'false' }}
     steps:
+      - name: Trusted-bot bypass (no-op pass)
+        if: env.IS_BOT == 'true'
+        run: echo "Trusted bot PR -- Dependabot or github-actions -- Issue Gate passes as no-op (Closes #1031)."
+
       - name: Check for linked issues in PR
+        if: env.IS_BOT != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_TITLE: ${{ github.event.pull_request.title }}
