@@ -19,6 +19,8 @@ mod jwt;
 mod proxy;
 mod formula_eval;
 mod math_compare;
+mod math_bayes;
+mod notebook;
 mod chimera_engine;
 mod sensitivity;
 mod runtime;
@@ -1251,6 +1253,12 @@ enum Commands {
     Math {
         #[command(subcommand)]
         cmd: math_compare::MathCommands,
+    },
+
+    /// Notebook: NotebookLM lifecycle (populate from issues, dashboard, sync, presentations)
+    Notebook {
+        #[command(subcommand)]
+        cmd: notebook::NbCommands,
     },
 }
 
@@ -8261,6 +8269,10 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              math_compare::run_math_command(cmd, &repo_root)?;
          }
+         Commands::Notebook { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             notebook::run_nb(cmd, &repo_root)?;
+         }
          Commands::TernaryEncode { value } => {
             use crate::ternary::encode_trits;
             let encoded = encode_trits(value);
@@ -8512,6 +8524,10 @@ fn main() -> anyhow::Result<()> {
          Commands::Math { cmd } => {
              let repo_root = std::env::current_dir()?;
              math_compare::run_math_command(cmd, &repo_root)?;
+         }
+         Commands::Notebook { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             notebook::run_nb(cmd, &repo_root)?;
          }
         Commands::TernaryEncode { value } => {
             use crate::ternary::encode_trits;

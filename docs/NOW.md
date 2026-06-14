@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## connect-notebook-bayes -- wire up notebook + math_bayes, close dead-code #969 remainder (Closes #1097)
+
+- **WHERE**: `bootstrap/src/main.rs` (`mod notebook;` + `mod math_bayes;` registered; new top-level `Notebook` command wired into both CLI dispatch sites), `bootstrap/src/math_compare.rs` (added `Bayes` variant to the `Math` subcommand group + dispatch), `bootstrap/src/math_bayes.rs` (fixed 7 latent compile errors that had never been built).
+- **WHAT**: final slice of the #969 dead-code audit, after #1090 connected `math_compare`. Two modules were compiled-but-unreachable: (a) `notebook.rs` exposes `NbCommands` (Populate/Enrich/Dashboard/Sync/Presentations/ListTopics) and `run_nb` -- a SUPERSET of the live `enrichment` module (which only wires Enrich/audio), so it is NOT a duplicate; registered as a new top-level `notebook` command rather than deleted. (b) `math_bayes.rs` is a self-contained `tri math bayes` (Compute/Verify) distinct from `math_compare`; registered as a `math bayes` subcommand. Building it for the first time surfaced 7 latent errors (two `n_obs` int-width mismatches needing `usize`, a borrow-of-temporary in an `unwrap_or`, and a missing trailing `Ok(())`), all fixed.
+- **Why**: dead code that never compiles hides real defects (here, 7 errors that had never executed) and inflates the tree. The conservative connect-don't-delete choice preserves working functionality flagged for follow-up in #1090. Verified: `tri math bayes compute --k 38 --n 9` runs, `notebook --help` + `math --help` list the new commands, full suite 1442 passed / 0 failed / 2 ignored, 0 new regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1097.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## docs-validation-sealed-state -- reflect sealed manifest state in NUMERICS_VALIDATION (Closes #1095)
 
 - **WHERE**: `docs/NUMERICS_VALIDATION.md` (validation-ladder rows L4/L5, the section 5 and section 6 captions, the section 11 reproduction notes, and the closing summary line).
