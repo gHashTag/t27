@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## compiler-expr-characterization -- expression-level positive/characterization tests (Closes #1137)
+
+- **WHERE**: bootstrap/src/compiler.rs (mod tests_compiler_rejects)
+- **WHAT**: Added 5 expression-level characterization tests (tests_compiler_rejects 21 -> 26), each empirically observed before asserting: binop add lowering, left-assoc chained binop, redundant-paren-to-operand, identity-cast-to-operand, and the let-binding TODO fallback (documents a current GAP). Test-only block; build warnings unchanged at 623.
+- **Why**: mirrors the declaration-parser positive set in #1126/#1133 at the expression level, pinning current lowering behavior as a regression net; characterizations document current behavior, NOT an endorsement, and the let-binding test records an existing gap honestly. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1137.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## verify-reseal-prev -- add [5/5] reseal-prev advisory sub-check to verify.sh (Closes #1136)
 
 - **WHERE**: scripts/verify.sh, Makefile
