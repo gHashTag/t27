@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## ci-checkout6-container-root -- fix checkout@v6 EACCES inside container jobs (Closes #1031)
+
+- **WHERE** (CI only): `.github/workflows/coq-kernel.yml`, `.github/workflows/coq-proofs.yml`, `.github/workflows/rings-rust.yml`. Added `options: --user root` to each `container:` block. `actions/checkout@v6` runs on Node 24; inside container jobs the runner-injected `_temp/_runner_file_commands/save_state_*` files are root-owned but the action ran as a non-root container user, so the Post-checkout `save_state` failed with `EACCES: permission denied`, failing the job. Running the container as root lets the action write those state files. `vivado-synth.yml` already had `options: --user 0`; `build-vivado-image.yml` has no real container job. No source/specs/codegen/conformance/`gen/` touched.
+- **Why**: completes the actions/checkout 4->6 bump (#1044). Required gates unaffected; container build/proof jobs (coq, rings-rust) no longer fail on the EACCES Post step. Human PRs remain fully gated. L6/L5 untouched; L4 not applicable (workflow YAML). Closes #1031.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## conformance: catalog-count CI gate + WP-18 corpus-integrity gate + P3109 4-param cross-walk (this PR)
 
 - **WHAT**: the count-drift follow-up to #1064. The #1064 parser fix landed; this PR adds the CI guards that keep the catalog count and the conformance corpus honest going forward, plus the P3109 re-anchor docs. Per the repo constitution (L2 GENERATION), gen/ is DERIVED and is NOT hand-committed here; the count-gate regenerates fresh against the SSOT instead of diffing committed gen/.
