@@ -1,0 +1,74 @@
+name: Seal Staleness Warning
+
+# Variant F (advisory, NON-blocking): when a PR touches the stage0 compiler or
+# the NMSE manifest, recompute sha256(bootstrap/src/compiler.rs) and compare it
+# against the digest the manifest was sealed with. If they diverge, the sealed
+# NMSE numbers were certified against an OLDER compiler and are therefore stale
+# for this branch -- the seal must be deliberately refrozen (a reviewed action).
+#
+# This job is intentionally advisory: it emits a GitHub ::warning:: annotation
+# and ALWAYS exits 0, so it never blocks merge. It is NOT in the required-check
+# set (check-now-freshness / validate / check / check-linked-issue). Honesty
+# rule: we never auto-reseal here; refreezing is an explicit human/PR step.
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'bootstrap/src/compiler.rs'
+      - 'bootstrap/stage0/FROZEN_HASH'
+      - 'repro/numerics/nmse_manifest.json'
+
+# Least-privilege: this advisory job only needs to read the checked-out tree.
+permissions:
+  contents: read
+
+jobs:
+  warn-if-seal-stale:
+    runs-on: ubuntu-latest
+    name: Warn if NMSE seal is stale vs compiler.rs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Compare manifest seal against live sha256(compiler.rs)
+        shell: bash
+        run: |
+          set -uo pipefail
+          MANIFEST="repro/numerics/nmse_manifest.json"
+          SRC="bootstrap/src/compiler.rs"
+          FROZEN="bootstrap/stage0/FROZEN_HASH"
+
+          # Live digest of the stage0 compiler on this branch.
+          LIVE="$(sha256sum "$SRC" | awk '{print $1}')"
+
+          # Digest the certifying manifest was sealed with. An "unsealed" or
+          # missing value means there is no certification to be stale against.
+          SEAL="$(python3 -c "import json,sys; print(json.load(open('$MANIFEST')).get('seal',''))" 2>/dev/null || echo '')"
+
+          # Digest pinned in FROZEN_HASH (the value compute_seal() certifies to).
+          FROZEN_DIGEST="$(awk '{print $1}' "$FROZEN" 2>/dev/null | head -n1)"
+
+          echo "live  sha256(compiler.rs) = $LIVE"
+          echo "manifest seal            = $SEAL"
+          echo "FROZEN_HASH digest       = $FROZEN_DIGEST"
+
+          if [ -z "$SEAL" ] || [ "$SEAL" = "unsealed" ]; then
+            echo "::notice title=Seal advisory::Manifest is unsealed; nothing to compare. No staleness possible."
+            exit 0
+          fi
+
+          if [ "$LIVE" = "$SEAL" ]; then
+            echo "::notice title=Seal fresh::sha256(compiler.rs) matches the manifest seal. Certification is current."
+            exit 0
+          fi
+
+          # Divergence: the sealed NMSE was certified against a different compiler.
+          echo "::warning title=Stale NMSE seal::sha256(bootstrap/src/compiler.rs)=${LIVE:0:12} does NOT match the manifest seal=${SEAL:0:12}. The sealed NMSE numbers in ${MANIFEST} were certified against an older compiler. Re-run 'python repro/numerics/nmse_gf16.py --seal' after refreezing bootstrap/stage0/FROZEN_HASH to recertify. This warning is advisory and does not block merge."
+
+          if [ -n "$FROZEN_DIGEST" ] && [ "$LIVE" != "$FROZEN_DIGEST" ]; then
+            echo "::warning title=FROZEN_HASH drift::sha256(compiler.rs)=${LIVE:0:12} also differs from FROZEN_HASH=${FROZEN_DIGEST:0:12}; a future sealed run will report 'unsealed' until FROZEN_HASH is updated to the new compiler."
+          fi
+
+          # Advisory only -- never fail the build.
+          exit 0
