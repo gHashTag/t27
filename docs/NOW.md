@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## verify-reseal-prev -- add [5/5] reseal-prev advisory sub-check to verify.sh (Closes #1136)
+
+- **WHERE**: scripts/verify.sh, Makefile
+- **WHAT**: Extended `make verify` from 4 to 5 advisory sub-checks; renumbered [1/4..4/4] -> [1/5..4/5] and added [5/5] reseal-prev, which reuses the [1/5] seal verdict and diffs the base ref for bootstrap/src/compiler.rs: OK if compiler.rs not in diff or seal fresh, REMINDER (exit 0) if compiler.rs changed while seal stale/unsealed. VERIFY_SKIP_RESEAL=1 disables it.
+- **Why**: gives a local heads-up to re-seal IF a compiler.rs edit was numeric, without judging whether the edit is numeric and without ever resealing or gating CI; advisory only, exit 0. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1136.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## host-dma-protocol-deadcode -- module-scoped allow(dead_code) on host/dma.rs + host/protocol.rs (Closes #1135)
 
 - **WHERE**: bootstrap/src/host/dma.rs, bootstrap/src/host/protocol.rs, scripts/warnings-baseline.sh

@@ -21,9 +21,10 @@ help:
 	@echo "  make warnings-baseline  Count non-test build warnings vs the recorded"
 	@echo "                      baseline and list the top files (advisory; #969)."
 	@echo "  make verify         Run all advisory pre-PR checks at once (seal-check"
-	@echo "                      + warnings-baseline + quick test + gate-preview);"
-	@echo "                      never blocks. VERIFY_SKIP_GATES=1 skips the"
-	@echo "                      gate-preview; VERIFY_SKIP_TEST=1 skips the test."
+	@echo "                      + warnings-baseline + quick test + gate-preview"
+	@echo "                      + reseal-preview); never blocks. Skip flags:"
+	@echo "                      VERIFY_SKIP_TEST / VERIFY_SKIP_GATES /"
+	@echo "                      VERIFY_SKIP_RESEAL =1."
 
 # Advisory umbrella: run the seal-freshness, warnings-baseline, and a quick test
 # back-to-back and print one compact summary. Never edits code, never reseals,
