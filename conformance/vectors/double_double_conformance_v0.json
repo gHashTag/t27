@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "DOUBLE_DOUBLE",
+  "format_name": "double-double",
+  "bitexact": false,
+  "format_notes": "double-double -- Bailey/Hida (software)",
+  "catalog": {
+    "id": "double_double",
+    "bits": 128,
+    "s": 2,
+    "e": 22,
+    "m": 104,
+    "bias": 0,
+    "storage": "two_u64",
+    "cluster": "ExtendedFloat",
+    "status": "Verified",
+    "standard": "Bailey/Hida (software)",
+    "use_case": "software extended precision",
+    "gf_relation": "orthogonal",
+    "source": "Bailey-Hida 2001",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

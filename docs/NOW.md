@@ -1,6 +1,12 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-13
+Last updated: 2026-06-14
+
+## conformance-vectors-all-83-formats -- catalog-wide conformance packs, 49 bit-exact + 34 structural (Closes #1071)
+
+- **WHERE** (conformance vectors): extends the v0 packs (#1055, five Tier-1 packs) to full catalog coverage under `conformance/vectors/`. Adds 78 new `*_conformance_v0.json` packs so that all 83 formats in the numeric catalog SSOT have exactly one pack each, no gaps. 49 packs are bit-exact (fixed radix-2 S:E:M layout, full encode->decode->f64 round-trip with honest abs_error) and 34 are structural (formats without a fixed radix-2 S:E:M layout -- parametric, table-based, radix-16, tapered-log, extended-precision, or open-R&D-parameter -- marked `bitexact: false` with a `structural_reason` field and no round-trip rows). New `INDEX_all_formats.json` (`total_packs=83, bitexact_packs=49, structural_packs=34`) and new master generator `gen_all_formats.py` reading the catalog SSOT. `README.md` rewritten to document all 83 packs: coverage policy, 49-pack bit-exact index, 34-pack structural index with reasons, full SHA-256 block, schema, provenance. The five pre-existing hand-curated generators are kept.
+- **Why**: gives the t27 numeric SSOT a citable conformance reference for every catalog format, not just the FP8/MXFP4/bf16 Tier-1 subset. Anchor identity phi^2 + 1/phi^2 = 3 lands exactly on grid for 43 of 49 bit-exact packs; the six exceptions (LNS-8/16/32/64, GF4, MXGF4) honestly record the nearest representable value and true abs_error -- log2(3) is not representable in LNS and the 4-bit grids are too coarse, so these are expected, not bugs. The six ml_dtypes-0.5.4-cross-checked packs (GF16, MXFP4 element, BF16, FP8 E4M3, FP8 E5M2, E8M0) remain a deeply-validated Tier-1 reference subset; absence of a pack is never a quality claim. Coverage policy: formats <=8-bit get exhaustive enumeration, >8-bit get curated named vectors, non-S:E:M get structural packs. ASCII-only. These are conformance data + reproduction scripts, not a quality claim; no [Verified] silicon claim is asserted beyond the existing GF16 rung. L6 gf16 SSOT untouched; L4 not applicable (data files, not specs); L2 (`gen/`) untouched. Context preprint: arXiv:2606.05017. Closes #1071.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## ops-unify-email -- consolidate contact emails to admin@t27.ai (Closes #1067)
 

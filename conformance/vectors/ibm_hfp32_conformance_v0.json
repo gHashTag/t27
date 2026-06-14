@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "IBM_HFP32",
+  "format_name": "IBM HFP (single)",
+  "bitexact": false,
+  "format_notes": "IBM HFP (single) -- IBM System/360 (1964); base-16 exponent",
+  "catalog": {
+    "id": "ibm_hfp32",
+    "bits": 32,
+    "s": 1,
+    "e": 7,
+    "m": 24,
+    "bias": 64,
+    "storage": "u32",
+    "cluster": "HistoricalVendor",
+    "status": "Historical",
+    "standard": "IBM System/360 (1964); base-16 exponent",
+    "use_case": "legacy mainframe",
+    "gf_relation": "orthogonal",
+    "source": "IBM POO",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "IBM Hexadecimal Floating Point uses a base-16 exponent (not base-2), so the radix-2 S:E:M decoder does not apply. 3.0 is exactly representable; recorded structurally.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

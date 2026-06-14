@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GFTERNARY",
+  "format_name": "GFTernary",
+  "bitexact": false,
+  "format_notes": "GFTernary -- this work; {-phi, 0, +phi}",
+  "catalog": {
+    "id": "gfternary",
+    "bits": 2,
+    "s": 1,
+    "e": 0,
+    "m": 2,
+    "bias": 0,
+    "storage": "u2",
+    "cluster": "GoldenFloat",
+    "status": "Verified",
+    "standard": "this work; {-phi, 0, +phi}",
+    "use_case": "bulk layers (hybrid)",
+    "gf_relation": "self",
+    "source": "BENCH-007",
+    "phi_distance": 0.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "GFTernary is a 2-bit discrete set {-phi, 0, +phi}; the three values are recorded directly rather than via an S:E:M decode.",
+  "anchor_note": "Anchor 3.0 arises as phi^2 + 1/phi^2 = 3 from the two nonzero codes +phi and... see GF16 pack; not a single code here.",
+  "n_vectors": 0,
+  "vectors": []
+}
