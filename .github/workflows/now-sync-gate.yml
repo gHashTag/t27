@@ -9,7 +9,10 @@ jobs:
   check-now-freshness:
     runs-on: ubuntu-latest
     # Closes #1059: bypass NOW Sync Gate for trusted bots (deps PRs don't touch docs/NOW.md)
-    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+    if: >-
+      github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
         with:
