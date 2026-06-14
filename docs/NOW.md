@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## sealed-nmse-cert -- freeze FROZEN_HASH to current compiler.rs, seal NMSE manifests (Closes #1093)
+
+- **WHERE**: `bootstrap/stage0/FROZEN_HASH` (re-frozen to the live compiler.rs digest with a portable relative path), `repro/numerics/nmse_gf16.py` (thread `do_seal` into `run()` so the rich manifest reflects the real seal state), `repro/numerics/nmse_manifest.json` + `repro/numerics/nmse_manifest_protocol_v1.json` (regenerated sealed at protocol-default 2M samples, seed 2718281).
+- **WHAT**: the NMSE certification protocol seals a run only when `--seal` is passed AND `sha256(bootstrap/src/compiler.rs)` equals the digest in FROZEN_HASH (`compute_seal()` never fabricates a seal). FROZEN_HASH held a stale digest with an absolute machine path, so every run stayed `unsealed`. Re-froze it to the current digest `49e55df6...` with a portable `bootstrap/src/compiler.rs` path. Also fixed an honesty inconsistency: the rich manifest hardcoded `seal: unsealed` even on a successful `--seal` because `run()` never received `do_seal`; it now calls `compute_seal(do_seal)` like the schema-conforming `build_protocol_v1_manifest()` does, so both manifests agree.
+- **Why**: a sealed manifest binds the host-measured NMSE numbers to an exact compiler.rs revision, making the certification reproducible and tamper-evident. Both manifests now carry `seal_hash = 49e55df6...` and conform to `schemas/nmse-protocol-v1.json`. This stays a host-only measurement, NOT a silicon certifying claim (protocol section 8). Toolchain: Python 3.12.8, numpy 2.4.6, ml_dtypes 0.5.4. Headline unchanged: GF16/BF16 ~0.06 (GF16 closer to fp64 reference). L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1093.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## connect-deadcode-math -- register math_compare, fix codegen_python masquerade (Closes #1090)
 
 - **WHERE**: `bootstrap/src/main.rs` (`mod math_compare;` + `Math` subcommand wired into both CLI dispatch sites), `bootstrap/src/math_compare.rs` (`test_hybrid_v2_plateau` tolerance), rename `bootstrap/src/codegen_python.rs` -> `bootstrap/src/codegen_python.t27`.

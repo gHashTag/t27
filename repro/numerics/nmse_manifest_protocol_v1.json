@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "protocol_version": "1.0",
-  "seal_hash": "unsealed",
+  "seal_hash": "49e55df6d444db18186f7e096b73ff56f77ae07d47547f1e5e64682a4999034d",
   "rng": {
     "family": "pcg64",
     "seed": "0x297a49"
@@ -43,9 +43,9 @@
     "host_arch": "x86_64-linux",
     "compiler": "cpython 3.12.8"
   },
-  "timestamp": "2026-06-14T11:47:38.903013+00:00",
+  "timestamp": "2026-06-14T15:26:40.774789+00:00",
   "x_extension": {
-    "seal_note": "seal not requested; host-only informational run",
+    "seal_note": "live seal source matches FROZEN_HASH; sealed run",
     "producer": "repro/numerics/nmse_gf16.py",
     "codec_gf16": "conformance/gf16_ref.py (E6M9, BIAS=31, EXP_BITS=6, MANT_BITS=9)",
     "note": "D_WIDE intentionally excluded (not a schema result key); see the rich manifest nmse_manifest.json for the full dynamic-range study."

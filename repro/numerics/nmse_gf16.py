@@ -201,7 +201,7 @@ def sample_distribution(tag, n, rng):
 DISTRIBUTIONS = ["D_NORM", "D_LOG", "D_RELU", "D_PHI", "D_DEEP", "D_WIDE"]
 
 
-def run(samples, seed):
+def run(samples, seed, do_seal=False):
     ok, w1, w2 = identity_witness()
     if not ok:
         print(f"L5 IDENTITY WITNESS FAILED: w1={w1:.3e} w2={w2:.3e}")
@@ -265,6 +265,8 @@ def run(samples, seed):
         print(f"{tag:8} {r['overflow_rate_GF16']:10.4f} "
               f"{r['overflow_rate_BF16']:10.4f} {r['overflow_rate_FP16']:10.4f}")
 
+    rich_seal_hash, rich_seal_note = compute_seal(do_seal)
+
     manifest = {
         "protocol_version": PROTOCOL_VERSION,
         "representable_max": {"GF16": GF16_MAX, "BF16": BF16_MAX, "FP16": FP16_MAX},
@@ -276,8 +278,8 @@ def run(samples, seed):
         "bf16_subnormal_policy": "ieee",
         "bf16_impl": f"ml_dtypes.bfloat16 {getattr(ml_dtypes, '__version__', '?')}",
         "fp16_impl": f"numpy.float16 {np.__version__}",
-        "seal": "unsealed",
-        "seal_note": "host-only measurement; informational, NOT a silicon certifying claim (protocol section 8)",
+        "seal": rich_seal_hash,
+        "seal_note": rich_seal_note + "; host-only measurement, NOT a silicon certifying claim (protocol section 8)",
         "L5_identity_witness": {"phi2_eq_phi_plus_1": w1, "phi2_plus_inv_eq_3": w2, "passed": True},
         "runner": {
             "host_arch": platform.machine(),
@@ -382,7 +384,7 @@ def main():
                          "the live seal source matches it; else stays 'unsealed'")
     args = ap.parse_args()
 
-    manifest, results, witness = run(args.samples, args.seed)
+    manifest, results, witness = run(args.samples, args.seed, args.seal)
     with open(args.out, "w") as f:
         json.dump(manifest, f, indent=2)
     print(f"\nrich manifest written: {args.out}")
