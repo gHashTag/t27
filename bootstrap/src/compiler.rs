@@ -10239,7 +10239,10 @@ impl VcdChange {
 
     pub fn format_binary(&self) -> String {
         if self.bit_width == 1 {
-            format!("{}", self.value & 1)
+            // VCD scalar value change is `<value><ident>` with no separator
+            // (IEEE 1364 VCD). The ident was previously dropped, producing an
+            // invalid dump line. Fix for #969.
+            format!("{}{}", self.value & 1, self.ident)
         } else {
             format!(
                 "b{:0width$b} {}",
@@ -17739,8 +17742,11 @@ mod tests_hir_vcd_trace {
 
     #[test]
     fn test_format_binary_single_bit() {
+        // #969: scalar change must carry the signal ident (`<value><ident>`).
         let c = VcdChange::new(0, "!", 1, 1);
-        assert_eq!(c.format_binary(), "1");
+        assert_eq!(c.format_binary(), "1!");
+        let c0 = VcdChange::new(0, "#", 0, 1);
+        assert_eq!(c0.format_binary(), "0#");
     }
 
     #[test]

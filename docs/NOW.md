@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## sva-vcd-chimera-correctness -- fix 3 confirmed correctness defects (Closes #969)
+
+- **WHERE**: `bootstrap/src/behavior_sva_v2.rs` (`remove_delay_phrase`), `bootstrap/src/compiler.rs` (`VcdChange::format_binary`), `bootstrap/src/chimera_engine.rs` (`chimera_search` expr rendering).
+- **WHAT** (#969 was a 10-item grab-bag; this PR fixes the 3 sub-items confirmed by current code, leaving stale/obsolete items as-is): (item 3) SVA delay-phrase removal had an off-by-one -- for `after N cycles` the space between `after` and `N` was not counted, so the slice cut one char short and left a stray `s` in the consequent (e.g. `after 3 cycles done` -> `s done`); now the phrase is anchored on the `cycles` keyword end. (item 5) VCD scalar value change dropped the signal ident, emitting `0` instead of the IEEE-1364 `<value><ident>` form (`0!`), producing invalid dumps; the single-bit path now appends the ident. (item 2) chimera unary ops (sin/cos/ln/exp) compute from f1 only but were rendered as binary `f1 op f2`, so the printed expression did not match the computed value; unary ops now render as `op(f1)`.
+- **Why**: each defect silently produced wrong output (malformed SVA text, invalid VCD, mislabeled formula). New regression tests: `remove_delay_phrase_no_stray_s_969`, `test_format_binary_single_bit` (now asserts the ident), `tests_969::{unary_ops_render_as_function_call, binary_ops_keep_infix_form}`. Full suite 1426 passed, only the 6 pre-existing failures remain, 0 new regressions. math_compare dead-module item left untouched (not compiled). L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #969.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## bitnet-engine-top-wiring -- emit multilayer_sequencer + wire all 9 RTL modules (Closes #926)
 
 - **WHERE**: `bootstrap/src/bitnet_pipeline.rs` (new `build_multilayer_sequencer`), `bootstrap/src/bitnet_bundle.rs` (bundle now emits 11 SV files + manifest), `bootstrap/src/bitnet_top.rs` (`build_bitnet_engine_top` structural datapath).
