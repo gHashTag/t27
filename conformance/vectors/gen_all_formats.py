@@ -159,6 +159,173 @@ def make_lns_decoder(e_bits, total_bits):
     return decode
 
 # ---------------------------------------------------------------------------
+# IBM Hexadecimal Floating Point (base-16 exponent), System/360 (1964).
+#   layout: S(1) : E(7, excess-64) : M(m_bits fractional hex digits)
+#   value  = (-1)^S * 0.M(base16) * 16^(E - 64)
+#   no inf/nan; zero is all-zero (true zero). Mantissa is an unsigned binary
+#   fraction read in groups of 4 bits (hex digits); the radix point sits before
+#   the most significant fraction bit. Bit-exact for values whose binary
+#   expansion fits in m_bits and whose magnitude lies in the hex-exponent range.
+# ---------------------------------------------------------------------------
+def make_ibm_hfp_decoder(m_bits, e_bits=7, bias=64):
+    e_max = (1 << e_bits) - 1
+    def decode(bits, total_bits):
+        s = (bits >> (e_bits + m_bits)) & 1
+        e = (bits >> m_bits) & e_max
+        m = bits & ((1 << m_bits) - 1)
+        sign = -1.0 if s else 1.0
+        if e == 0 and m == 0:
+            return (sign * 0.0, "zero")
+        # fraction value 0.M in base 2 (m_bits fractional bits)
+        frac = m / float(1 << m_bits)
+        val = sign * frac * (16.0 ** (e - bias))
+        return (val, "normal")
+    return decode
+
+def ibm_hfp_encode_exact(m_bits, value, e_bits=7, bias=64):
+    """Encode value into IBM HFP. Returns int bits, or None if not exactly
+    representable in m_bits of binary fraction within the hex-exponent range.
+    Uses the normalized convention: leading hex digit of the fraction nonzero."""
+    if value == 0.0:
+        return 0
+    s = 1 if value < 0 else 0
+    a = abs(value)
+    # find hex exponent E such that 1/16 <= a / 16^(E-bias) < 1
+    E = bias
+    # scale up
+    while a / (16.0 ** (E - bias)) >= 1.0:
+        E += 1
+    while a / (16.0 ** (E - bias)) < (1.0 / 16.0):
+        E -= 1
+    e_max = (1 << e_bits) - 1
+    if E <= 0 or E >= e_max:
+        return None
+    frac = a / (16.0 ** (E - bias))      # in [1/16, 1)
+    scaled = frac * (1 << m_bits)
+    m_field = round(scaled)
+    if m_field >= (1 << m_bits):
+        # carried into next hex exponent
+        E += 1
+        if E >= e_max:
+            return None
+        frac = a / (16.0 ** (E - bias))
+        scaled = frac * (1 << m_bits)
+        m_field = round(scaled)
+    if abs(scaled - m_field) > 1e-9:
+        return None                      # not exactly representable
+    if m_field == 0:
+        return None
+    return (s << (e_bits + m_bits)) | (E << m_bits) | m_field
+
+# ---------------------------------------------------------------------------
+# Intel x87 80-bit extended (double extended). Explicit integer bit.
+#   layout: S(1) : E(15, bias 16383) : SIG(64)
+#   The 64-bit significand field holds the EXPLICIT integer bit as its MSB
+#   (bit 63 of the field) followed by 63 fraction bits. The catalog records
+#   this as m=64 (the full significand width including the integer bit), so
+#   1 + 15 + 64 = 80 bits exactly.
+#   value = (-1)^S * (SIG / 2^63) * 2^(E - 16383)  [SIG = integer.fraction]
+#   For normalized numbers the integer bit = 1. E = max -> inf/nan.
+# ---------------------------------------------------------------------------
+def make_x87_decoder(bias=16383, e_bits=15, sig_bits=64):
+    e_max = (1 << e_bits) - 1
+    int_bit_pos = sig_bits - 1            # position of the explicit integer bit
+    def decode(bits, total_bits):
+        s = (bits >> (e_bits + sig_bits)) & 1
+        e = (bits >> sig_bits) & e_max
+        sig = bits & ((1 << sig_bits) - 1)
+        j = (sig >> int_bit_pos) & 1
+        f = sig & ((1 << int_bit_pos) - 1)
+        sign = -1.0 if s else 1.0
+        if e == e_max:
+            if j == 1 and f == 0:
+                return (sign * math.inf, "inf")
+            return (math.nan, "nan")
+        if e == 0 and sig == 0:
+            return (sign * 0.0, "zero")
+        significand = sig / float(1 << int_bit_pos)   # integer.fraction
+        val = sign * significand * (2.0 ** (e - bias))
+        return (val, "normal")
+    return decode
+
+def x87_encode_exact(value, bias=16383, e_bits=15, sig_bits=64):
+    """Encode value into x87 80-bit with explicit integer bit (MSB of the
+    64-bit significand field). Returns int bits or None if not exactly
+    representable in the 63 fraction bits within the exponent range."""
+    if value == 0.0:
+        return 0
+    s = 1 if value < 0 else 0
+    a = abs(value)
+    int_bit_pos = sig_bits - 1            # 63 fraction bits below the integer bit
+    mant, exp = math.frexp(a)            # a = mant * 2^exp, 0.5<=mant<1
+    E_unbiased = exp - 1                  # significand 1.f * 2^(E_unbiased)
+    frac = a / (2.0 ** E_unbiased) - 1.0  # in [0,1)
+    e_field = E_unbiased + bias
+    e_max = (1 << e_bits) - 1
+    if e_field <= 0 or e_field >= e_max:
+        return None
+    f_field = round(frac * (1 << int_bit_pos))
+    if f_field == (1 << int_bit_pos):
+        f_field = 0; e_field += 1
+    if abs(frac * (1 << int_bit_pos) - f_field) > 1e-6:
+        return None
+    if e_field >= e_max:
+        return None
+    sig = (1 << int_bit_pos) | f_field    # explicit integer bit set + fraction
+    return (s << (e_bits + sig_bits)) | (e_field << sig_bits) | sig
+
+# ---------------------------------------------------------------------------
+# NF4 (NormalFloat 4-bit), QLoRA (Dettmers 2023). 16-entry quantile table
+# fitted to N(0,1), normalized so the table spans [-1, 1]. The 4-bit code is
+# an index into this fixed table; the decode is the table lookup. Bit-exact:
+# every 4-bit code maps to exactly one table value, round-trip is the index.
+# Reference table from bitsandbytes (the canonical QLoRA NF4 levels).
+# ---------------------------------------------------------------------------
+NF4_TABLE = [
+    -1.0,
+    -0.6961928009986877,
+    -0.5250730514526367,
+    -0.39491748809814453,
+    -0.28444138169288635,
+    -0.18477343022823334,
+    -0.09105003625154495,
+    0.0,
+    0.07958029955625534,
+    0.16093020141124725,
+    0.24611230194568634,
+    0.33791524171829224,
+    0.44070982933044434,
+    0.5626170039176941,
+    0.7229568362236023,
+    1.0,
+]
+def make_nf4_decoder():
+    def decode(bits, total_bits):
+        idx = bits & 0xF
+        v = NF4_TABLE[idx]
+        cat = "zero" if v == 0.0 else "normal"
+        return (v, cat)
+    return decode
+
+# ---------------------------------------------------------------------------
+# GFTernary: 2-bit discrete set {-phi, 0, +phi}. Four 2-bit codes; one is a
+# spare (we map it to the same +phi for completeness / documented as reserved).
+# Anchor 3.0 is NOT a single code (it arises as phi^2 + 1/phi^2 = 3 over the
+# nonzero codes), so it is recorded in anchor_note, not as a vector.
+# ---------------------------------------------------------------------------
+def make_gfternary_decoder():
+    def decode(bits, total_bits):
+        c = bits & 0x3
+        if c == 0:
+            return (0.0, "zero")
+        if c == 1:
+            return (PHI, "normal")
+        if c == 2:
+            return (-PHI, "normal")
+        return (PHI, "reserved")  # code 3: reserved/spare -> documented duplicate
+    return decode
+
+# ---------------------------------------------------------------------------
 # Vector selection
 # ---------------------------------------------------------------------------
 def f64_repr(val):
@@ -365,7 +532,11 @@ def build_decodable(rec):
     # discrete set) -> structural; skip gf16 (existing).
     if cluster == "GoldenFloat":
         if cid == "gfternary":
-            return None
+            # 2-bit discrete set {-phi, 0, +phi}: enumerate all 4 codes bit-exactly.
+            return (make_gfternary_decoder(),
+                    "GFTernary 2-bit discrete set {-phi, 0, +phi}; codes 00=0, "
+                    "01=+phi, 10=-phi, 11=reserved (duplicate +phi)",
+                    "no inf/nan; discrete ternary levels")
         if e > 0 and m > 0 and bits in (4, 6, 8, 12, 16, 20, 24, 32, 64):
             dec = make_ieee_decoder(e, m, bias, has_inf=True, has_nan=True)
             return (dec, f"GoldenFloat phi-aligned radix-2 float S{1}E{e}M{m}, bias {bias}",
@@ -410,7 +581,12 @@ def build_decodable(rec):
     # ones precisely, flag base-16 ones as structural).
     if cluster == "HistoricalVendor" and e > 0 and m > 0:
         if cid.startswith("ibm_hfp"):
-            return None  # base-16 exponent, different decode -> structural w/ note
+            # base-16 exponent: dedicated HFP decoder (S1E7M<m>, bias 64).
+            return (make_ibm_hfp_decoder(m, e_bits=e, bias=bias),
+                    f"IBM Hexadecimal Floating Point S1E{e}M{m}, excess-{bias} "
+                    f"base-16 exponent: value = 0.M(2) * 16^(E-{bias})",
+                    "no inf/nan; true zero is all-zero; "
+                    + ("named small values exact (mantissa exceeds f64 for the full grid)" if m > 52 else "exact for the named set"))
         if cid == "cray_float":
             # Cray: no NaN/Inf
             dec = make_ieee_decoder(e, m, bias, has_inf=False, has_nan=False)
@@ -419,8 +595,25 @@ def build_decodable(rec):
         return (dec, f"vendor radix-2 float S1E{e}M{m}, bias {bias} ({rec['standard']})",
                 "vendor-specific specials")
 
-    # ExtendedFloat (x87 explicit integer bit, double-double, quad-double):
-    # non-trivial layouts -> structural.
+    # ExtendedFloat: x87 has a single fixed S:E:J:F layout with an explicit
+    # integer bit -> bit-exact. double-double / quad-double are composite
+    # multi-double components (no single S:E:M) -> remain structural.
+    if cluster == "ExtendedFloat":
+        if cid == "x87_fp80":
+            return (make_x87_decoder(bias=bias, e_bits=e, sig_bits=m),
+                    f"Intel x87 80-bit extended S1E{e}+SIG{m} (explicit integer "
+                    f"bit as MSB of the {m}-bit significand), bias {bias}: "
+                    f"value = (SIG/2^{m-1}) * 2^(E-{bias})",
+                    "inf at max exp (int=1, frac=0); nan otherwise at max exp")
+        return None  # double_double / quad_double -> structural
+
+    # QuantTuned: NF4 is a fixed 16-entry quantile table -> bit-exact lookup.
+    if cluster == "QuantTuned" and cid == "nf4":
+        return (make_nf4_decoder(),
+                "NF4 (NormalFloat 4-bit, QLoRA/bitsandbytes): 4-bit code indexes "
+                "a fixed 16-entry quantile table fitted to N(0,1), span [-1,1]",
+                "no inf/nan; code is a table index; round-trip is the index")
+
     return None
 
 # ---------------------------------------------------------------------------
@@ -546,8 +739,12 @@ def build_bitexact_pack(rec, decode, notes, specials_desc):
     encoder = None
     if cluster in ("Ieee754Binary", "MlLowPrecision", "Microscaling", "GoldenFloat") and e > 0 and m > 0:
         encoder = lambda val, _e=e, _m=m, _b=bias: ieee_encode_exact(_e, _m, _b, val)
-    elif cluster == "HistoricalVendor" and e > 0 and m > 0 and not cid.startswith("ibm_hfp"):
+    elif cluster == "HistoricalVendor" and cid.startswith("ibm_hfp"):
+        encoder = lambda val, _m=m, _e=e, _b=bias: ibm_hfp_encode_exact(_m, val, e_bits=_e, bias=_b)
+    elif cluster == "HistoricalVendor" and e > 0 and m > 0:
         encoder = lambda val, _e=e, _m=m, _b=bias: ieee_encode_exact(_e, _m, _b, val)
+    elif cluster == "ExtendedFloat" and cid == "x87_fp80":
+        encoder = lambda val, _e=e, _m=m, _b=bias: x87_encode_exact(val, bias=_b, e_bits=_e, sig_bits=_m)
     elif cluster == "IntegerFixed" and cid.startswith("int"):
         encoder = lambda val, _tb=bits: int_encode(val, _tb)
     elif cluster == "PositUnumIII" and cid.startswith("posit"):
