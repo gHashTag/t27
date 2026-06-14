@@ -2,6 +2,15 @@
 
 Last updated: 2026-06-14
 
+## typecheck-axi-soundness -- reject f64->f32 narrowing + cross-sign int assign; AXI clear-before-accept (Closes #920, #925)
+
+- **WHERE**: `bootstrap/src/compiler.rs` `types_compatible()` and `bootstrap/src/bitnet_axi.rs` `build_axi_lite_slave()`.
+- **TYPECHECKER** (#920): removed the inverted rule that allowed narrowing f64->f32 (silent precision loss); widening f32->f64 still permitted by the rank check. Added a cross-sign integer guard: equal-rank signed vs unsigned assignment (e.g. i32 <-> u32) is now rejected via new `is_integer_type` and `is_signed_int` helpers, so `0xFFFFFFFF` no longer silently becomes -1. Two unit tests added in `tests_typecheck_soundness_920`.
+- **AXI** (#925): the AXI-Lite handshake clear `bvalid<=0` / `rvalid<=0` now emits BEFORE the accept block that raises `bvalid<=1` / `rvalid<=1`, so on a same-cycle accept + BREADY/RREADY race the accept NBA wins and the B/R response is not silently dropped. This removes the protocol deadlock where an ARM Cortex-M master could hang forever. New regression test `axi_clear_precedes_accept_no_deadlock` asserts the ordering.
+- **Why**: two CRITICAL soundness/protocol defects from the deep code audit. Generated Verilog is now deadlock-free on the B/R channels and the typechecker rejects two classes of unsound implicit conversions. L6 gf16 SSOT untouched; `specs/numeric/formats_catalog.t27` untouched (still 83); no gen/ edits; ASCII-only; no quality claim added. Closes #920, #925.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## ci-checkout6-container-root -- fix checkout@v6 EACCES inside container jobs (Closes #1031)
 
 - **WHERE** (CI only): `.github/workflows/coq-kernel.yml`, `.github/workflows/coq-proofs.yml`, `.github/workflows/rings-rust.yml`. Added `options: --user root` to each `container:` block. `actions/checkout@v6` runs on Node 24; inside container jobs the runner-injected `_temp/_runner_file_commands/save_state_*` files are root-owned but the action ran as a non-root container user, so the Post-checkout `save_state` failed with `EACCES: permission denied`, failing the job. Running the container as root lets the action write those state files. `vivado-synth.yml` already had `options: --user 0`; `build-vivado-image.yml` has no real container job. No source/specs/codegen/conformance/`gen/` touched.
