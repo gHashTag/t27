@@ -21,7 +21,8 @@ jobs:
     steps:
       - name: Trusted-bot bypass (no-op pass)
         if: env.IS_BOT == 'true'
-        run: echo "Trusted bot PR -- Dependabot or github-actions -- Issue Gate passes as no-op (Closes #1031)."
+        run: |
+          echo "Trusted bot PR -- gate passes as no-op. Closes 1031."
 
       - name: Check for linked issues in PR
         if: env.IS_BOT != 'true'
