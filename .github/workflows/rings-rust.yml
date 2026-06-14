@@ -41,7 +41,7 @@ jobs:
       count: ${{ steps.gen.outputs.count }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Generate matrix
         id: gen
         run: |
@@ -59,13 +59,14 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: rust:1.83-bookworm
+      options: --user root
     continue-on-error: true
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Show toolchain
         run: |

@@ -21,7 +21,7 @@ jobs:
         run: |
           echo "Trusted bot PR -- gate passes as no-op. Closes 1031."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: env.IS_BOT != 'true'
         with:
           fetch-depth: 0

@@ -39,7 +39,7 @@ jobs:
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Vivado installer from release asset
         env:
