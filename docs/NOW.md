@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## typecheck-local-propagation -- body locals visible to sibling statements (Closes #920)
+
+- **WHERE**: `bootstrap/src/compiler.rs` `check_stmt()` and the FnDecl body loop in `typecheck_ast()`.
+- **WHAT** (#920 bug 2, the follow-up to #1083 which fixed bugs 1 and 3): `StmtLocal` built a local symbol vector that was immediately discarded, so a local declared in a function body was invisible to subsequent sibling statements and later references resolved to `Unknown` (type checks silently no-op'd). `check_stmt` now threads an accumulating `&mut Vec<SymbolEntry>` scope; a `StmtLocal` checks its initializer against the pre-declaration scope, then registers itself for following siblings. Block constructs (if/while/for/forrange/module) get a child scope clone so locals do not leak out of the block (lexical scoping).
+- **Why**: completes the #920 typechecker-soundness work. Before, a genuine cross-type assignment to a previously-declared local was missed; now it is caught. New tests `tests_local_scope_920_bug2` assert both visibility and that a real cross-sign mismatch between two locals is detected. No false positives on same-type assignment. L6 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only; no quality claim added. Closes #920.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## typecheck-axi-soundness -- reject f64->f32 narrowing + cross-sign int assign; AXI clear-before-accept (Closes #920, #925)
 
 - **WHERE**: `bootstrap/src/compiler.rs` `types_compatible()` and `bootstrap/src/bitnet_axi.rs` `build_axi_lite_slave()`.

@@ -6885,8 +6885,11 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
                     is_mutable: true,
                 });
             }
+            // #920 bug 2: thread an accumulating scope so a StmtLocal declared in
+            // the body is visible to subsequent sibling statements (it was being
+            // discarded, causing later references to resolve to Unknown).
             for body_child in &child.children {
-                check_stmt(body_child, &fn_symbols, &fns, &mut result);
+                check_stmt(body_child, &mut fn_symbols, &fns, &mut result);
             }
 
             let mut found_return = false;
@@ -7012,7 +7015,7 @@ pub fn typecheck_ast(ast: &Node) -> TypeCheckResult {
     result
 }
 
-fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mut TypeCheckResult) {
+fn check_stmt(node: &Node, symbols: &mut Vec<SymbolEntry>, fns: &[FnEntry], result: &mut TypeCheckResult) {
     match node.kind {
         NodeKind::StmtLocal => {
             let t = if node.extra_type.is_empty() {
@@ -7024,15 +7027,18 @@ fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
             } else {
                 resolve_type_str(&node.extra_type)
             };
-            let mut syms = symbols.to_vec();
-            syms.push(SymbolEntry {
+            // Check the initializer expression against the scope as it stands
+            // BEFORE this local is registered (a local cannot reference itself).
+            for child in &node.children {
+                check_expr(child, symbols, fns, result);
+            }
+            // #920 bug 2: register the local in the CURRENT scope so subsequent
+            // sibling statements can resolve it (was previously discarded).
+            symbols.push(SymbolEntry {
                 name: node.name.clone(),
                 type_info: t,
                 is_mutable: node.extra_mutable,
             });
-            for child in &node.children {
-                check_expr(child, &syms, fns, result);
-            }
         }
         NodeKind::StmtAssign => {
             if !node.children.is_empty() {
@@ -7077,24 +7083,28 @@ fn check_stmt(node: &Node, symbols: &[SymbolEntry], fns: &[FnEntry], result: &mu
             }
         }
         NodeKind::StmtIf | NodeKind::StmtWhile => {
+            // Block-scoped: locals declared inside do not leak to outer siblings.
+            let mut inner = symbols.clone();
             for child in &node.children {
-                check_stmt(child, symbols, fns, result);
+                check_stmt(child, &mut inner, fns, result);
             }
         }
         NodeKind::StmtFor => {
+            let mut inner = symbols.clone();
             for child in &node.children {
-                check_stmt(child, symbols, fns, result);
+                check_stmt(child, &mut inner, fns, result);
             }
         }
         NodeKind::StmtForRange => {
+            let mut inner = symbols.clone();
             for child in &node.children {
-                check_stmt(child, symbols, fns, result);
+                check_stmt(child, &mut inner, fns, result);
             }
         }
         NodeKind::Module => {
-            let syms = symbols.to_vec();
+            let mut inner = symbols.clone();
             for child in &node.children {
-                check_stmt(child, &syms, fns, result);
+                check_stmt(child, &mut inner, fns, result);
             }
         }
         NodeKind::ExprReturn => {
@@ -22347,5 +22357,38 @@ mod tests_typecheck_soundness_920 {
         // widening within same sign still allowed (rank check)
         assert!(types_compatible(&TypeInfo::I64, &TypeInfo::I32));
         assert!(types_compatible(&TypeInfo::U64, &TypeInfo::U32));
+    }
+}
+
+#[cfg(test)]
+mod tests_local_scope_920_bug2 {
+    use super::*;
+
+    // #920 bug 2: a local declared in a function body must be visible to
+    // subsequent sibling statements. Before the fix the local was discarded and
+    // a later reference resolved to Unknown (silently no-op'd type checking).
+    // Here a same-type assignment between two declared locals must type-check
+    // cleanly (no spurious "type mismatch" / no Unknown swallowing).
+    #[test]
+    fn local_visible_to_following_sibling_ok() {
+        let src = "module M { pub fn f() -> void { var a: i32 = 1 var b: i32 = 2 a = b } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let mismatches: Vec<&String> = r
+            .errors
+            .iter()
+            .filter(|e| e.contains("type mismatch"))
+            .collect();
+        assert!(mismatches.is_empty(), "unexpected type errors: {:?}", mismatches);
+    }
+
+    // Now that locals propagate, a genuine cross-sign mismatch using a
+    // previously-declared local is actually CAUGHT (regression in the other
+    // direction: the fix must not just silence errors, it must enable them).
+    #[test]
+    fn local_sign_mismatch_is_caught_after_propagation() {
+        let src = "module M { pub fn f() -> void { var a: i32 = 1 var b: u32 = 2 a = b } }";
+        let r = Compiler::typecheck(src).expect("typecheck should parse");
+        let caught = r.errors.iter().any(|e| e.contains("type mismatch"));
+        assert!(caught, "cross-sign assignment between locals must be caught; errors: {:?}", r.errors);
     }
 }
