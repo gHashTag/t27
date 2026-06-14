@@ -2227,6 +2227,9 @@ impl Parser {
 
     /// Consume the type that follows an `as` cast, e.g. `u32`, `i8`, or an
     /// array form like `u8[4]`. Returns the textual type for diagnostics.
+    /// The base type name is validated against the known scalar type set so
+    /// that a typo like `x as u3` or `x as banana` is rejected at parse time
+    /// instead of silently lowering to a 32-bit default.
     fn parse_cast_target_type(&mut self) -> Result<String, String> {
         if self.current.kind != TokenKind::Ident {
             return Err(format!(
@@ -2234,7 +2237,17 @@ impl Parser {
                 self.current.kind
             ));
         }
-        let mut ty = self.current.lexeme.clone();
+        let base = self.current.lexeme.clone();
+        const VALID_CAST_TYPES: &[&str] = &[
+            "bool", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "usize",
+        ];
+        if !VALID_CAST_TYPES.contains(&base.as_str()) {
+            return Err(format!(
+                "unknown cast target type `{}`; expected one of {:?}",
+                base, VALID_CAST_TYPES
+            ));
+        }
+        let mut ty = base;
         self.advance();
         // Optional array suffix: `[N]`.
         if self.current.kind == TokenKind::LBracket {
@@ -3597,6 +3610,11 @@ pub struct VerilogCodegen {
     indent: u32,
     module_name: String,
     current_fn_name: String,
+    // Width of the parameters of the function currently being lowered, keyed by
+    // parameter name. Populated in `gen_verilog_fn`. Used by `ExprCast` lowering
+    // to skip a redundant truncation mask when the operand is a parameter that is
+    // no wider than the cast target (a widening or same-width cast).
+    param_widths: std::collections::HashMap<String, usize>,
 }
 
 impl VerilogCodegen {
@@ -3606,6 +3624,7 @@ impl VerilogCodegen {
             indent: 0,
             module_name: String::new(),
             current_fn_name: String::new(),
+            param_widths: std::collections::HashMap::new(),
         }
     }
 
@@ -4207,6 +4226,11 @@ impl VerilogCodegen {
 
     fn gen_verilog_fn(&mut self, node: &Node) {
         self.current_fn_name = node.name.clone();
+        self.param_widths.clear();
+        for (pname, ptype) in &node.params {
+            self.param_widths
+                .insert(pname.clone(), Self::type_to_width(ptype) as usize);
+        }
         self.write_line("");
         self.write_indent();
         self.write_line(&format!("// function: {}", node.name));
@@ -4293,6 +4317,7 @@ impl VerilogCodegen {
             self.write_line("endfunction");
         }
         self.current_fn_name.clear();
+        self.param_widths.clear();
     }
 
     fn gen_verilog_test(&mut self, node: &Node) {
@@ -4809,8 +4834,48 @@ impl VerilogCodegen {
                 self.write(")");
             }
             NodeKind::ExprCast => {
-                if !node.children.is_empty() {
-                    self.gen_verilog_expr(&node.children[0]);
+                // Width-correct cast lowering. `extra_type` holds the target type
+                // (possibly with a trailing `[N]` array suffix). We derive the
+                // target bit width and signedness and emit a Verilog form that is
+                // valid regardless of the operand's source width:
+                //   * signed target -> `$signed(op)` so the value sign-extends
+                //     when it feeds a wider expression context;
+                //   * unsigned scalar target of width W < 64 -> `(op & {W{1'b1}})`
+                //     which truncates a wider operand to exactly W bits and is a
+                //     no-op on a narrower operand (zero-extension on assignment);
+                //   * 64-bit / array / unknown -> emit the operand verbatim.
+                if node.children.is_empty() {
+                    return;
+                }
+                let base_ty = node
+                    .extra_type
+                    .split('[')
+                    .next()
+                    .unwrap_or("")
+                    .to_string();
+                let signed = Self::type_is_signed(&base_ty);
+                let width = Self::type_to_width(&base_ty) as usize;
+                let is_array = node.extra_type.contains('[');
+                // If the operand is a parameter we know the width of, we can tell
+                // whether this cast widens (or keeps the same width). A widening
+                // unsigned cast needs no truncation mask: the value already fits.
+                let operand = &node.children[0];
+                let operand_width = if operand.kind == NodeKind::ExprIdentifier {
+                    self.param_widths.get(&operand.name).copied()
+                } else {
+                    None
+                };
+                let is_widening = operand_width.map(|ow| ow <= width).unwrap_or(false);
+                if signed {
+                    self.write("$signed(");
+                    self.gen_verilog_expr(operand);
+                    self.write(")");
+                } else if !is_array && width >= 1 && width < 64 && !is_widening {
+                    self.write("(");
+                    self.gen_verilog_expr(operand);
+                    self.write(&format!(" & {{{}{{1'b1}}}})", width));
+                } else {
+                    self.gen_verilog_expr(operand);
                 }
             }
             _ => {
@@ -19433,6 +19498,83 @@ mod tests_hir_pipeline_parity {
         assert!(
             v.contains("cast_it = x;"),
             "cast should assign the inner operand verbatim, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_verilog_cast_width_correct() {
+        // Variant E: width-correct cast lowering.
+        //  * narrowing unsigned (u32 -> u8) truncates with a mask;
+        //  * widening unsigned of a known-width parameter (u8 -> u32) emits the
+        //    operand verbatim (no redundant mask);
+        //  * signed target (u8 -> i16) sign-extends via $signed.
+        let src = r#"module CastWidth {
+    pub fn narrow(x: u32) -> u8 {
+        return x as u8
+    }
+    pub fn widen(x: u8) -> u32 {
+        return x as u32
+    }
+    pub fn signedcast(x: u8) -> i16 {
+        return x as i16
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        // narrowing keeps an 8-bit truncation mask
+        assert!(
+            v.contains("narrow = (x & {8{1'b1}});"),
+            "narrowing u32->u8 should truncate to 8 bits, got:\n{}",
+            v
+        );
+        // widening a u8 parameter to u32 needs no mask
+        assert!(
+            v.contains("widen = x;"),
+            "widening u8->u32 should emit operand verbatim, got:\n{}",
+            v
+        );
+        // signed target sign-extends
+        assert!(
+            v.contains("signedcast = $signed(x);"),
+            "signed cast u8->i16 should use $signed, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("function signed [15:0] signedcast;"),
+            "i16 return should declare a signed 16-bit function, got:\n{}",
+            v
+        );
+    }
+
+    #[test]
+    fn test_parser_rejects_unknown_cast_type() {
+        // Variant E: `parse_cast_target_type` validates the base type so a typo
+        // like `x as widget` cannot silently lower to a 32-bit default cast.
+        // The function-body parser uses statement-level error recovery
+        // (`recover_to_stmt_boundary`), so the offending `return` is dropped
+        // rather than aborting the whole compile. The observable guarantee is
+        // therefore: the bogus type never reaches codegen -- no `widget` token
+        // and no cast assignment leak into the emitted Verilog; the body is left
+        // unimplemented instead.
+        let src = r#"module BadCast {
+    pub fn f(x: u8) -> u8 {
+        return x as widget
+    }
+}"#;
+        let v = Compiler::compile_verilog(src).unwrap();
+        assert!(
+            !v.contains("widget"),
+            "unknown cast type `widget` must never reach codegen, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("f = "),
+            "the rejected cast statement must be dropped, not lowered, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("// TODO: implement"),
+            "the recovered body should be left unimplemented, got:\n{}",
             v
         );
     }
