@@ -17,8 +17,8 @@ ships **83 conformance packs — one per format**, with no gaps:
 
 | Class | Packs | Meaning |
 |---|---|---|
-| **Bit-precise** | **49** | Native bits decode to f64 exactly; `abs_error = 0` by construction for every representable value. Values not exactly representable in a format report a nonzero `abs_error` **honestly** (e.g. 0.1 in bf16) — nothing is hidden. |
-| **Structural** | **34** | The format has no single fixed radix-2 S:E:M round-trip (parametric / lookup / base-16 / tapered-logarithmic / extended-precision / open-R&D). These packs carry full catalog metadata plus an explicit `structural_reason` and are marked `bitexact: false`. They are honest placeholders, **not** bit-exact claims. |
+| **Bit-precise** | **55** | Native bits decode to f64 exactly; `abs_error = 0` by construction for every representable value. Values not exactly representable in a format report a nonzero `abs_error` **honestly** (e.g. 0.1 in bf16) — nothing is hidden. |
+| **Structural** | **28** | The format has no single fixed radix-2 S:E:M round-trip (parametric / lookup / open-R&D / multi-double composite). These packs carry full catalog metadata plus an explicit `structural_reason` and are marked `bitexact: false`. They are honest placeholders, **not** bit-exact claims. |
 | **Total** | **83** | One pack per catalog format. |
 
 Coverage policy (deterministic, reproducible):
@@ -29,17 +29,34 @@ Coverage policy (deterministic, reproducible):
   no brute force, no multi-megabyte files;
 - non-S:E:M formats → **structural** pack with a documented reason.
 
-Of the 49 bit-precise packs, 43 hit the 3.0 anchor **exactly**. The six that do
-not — `lns8/16/32/64`, `gf4`, `mxgf4` — are honest: log2(3) is not exactly
-representable in a logarithmic number system, and the 4-bit GoldenFloat grids
-are too coarse to place 3.0 on a grid point. Each such pack records the nearest
-representable value and its true `abs_error`.
+Six formats were promoted from structural to **bit-precise** with dedicated
+reference codecs (see the changelog at the end): the three IBM HFP base-16
+floats (`ibm_hfp32/64/128`), Intel `x87_fp80` (explicit integer bit), the NF4
+16-entry quantile table (`nf4`), and the 2-bit `gfternary` set. Each carries an
+explicit decoder + reference encoder and `abs_error = 0` for every recorded
+vector.
 
-## Index — bit-precise packs (49)
+Of the 55 bit-precise packs, the IBM HFP and x87 packs hit the 3.0 anchor
+**exactly** (3.0 = 0.1875 x 16^1 in HFP; 3.0 = 1.5 x 2^1 in x87). The packs
+that do **not** place 3.0 on a grid point — `lns8/16/32/64`, `gf4`, `mxgf4`,
+and now `gfternary` and `nf4` — are honest about it: log2(3) is not exactly
+representable in a logarithmic number system, the 4-bit GoldenFloat grids are
+too coarse, the `gfternary` levels are only {-phi, 0, +phi} (3.0 arises as
+phi^2 + phi^-2 = 3, not as a single code), and the NF4 table spans [-1, 1].
+Each such pack records the nearest representable value (or a null anchor with a
+note) and its true `abs_error`.
+
+## Index — bit-precise packs (55)
 
 | Pack | Format | Vectors | Round-trip |
 |---|---|---|---|
 | `bf16_golden_conformance_v0.json` | BFLOAT16 | 8+golden | ✔ (предсуществующий) |
+| `gfternary_conformance_v0.json` | GFTERNARY | 4 | ✔ (2-bit {-phi,0,+phi}, exhaustive) |
+| `ibm_hfp128_conformance_v0.json` | IBM_HFP128 | 8 | ✔ (base-16, named small values) |
+| `ibm_hfp32_conformance_v0.json` | IBM_HFP32 | 8 | ✔ (base-16 exponent) |
+| `ibm_hfp64_conformance_v0.json` | IBM_HFP64 | 8 | ✔ (base-16 exponent) |
+| `nf4_conformance_v0.json` | NF4 | 16 | ✔ (16-entry quantile table) |
+| `x87_fp80_conformance_v0.json` | X87_FP80 | 8 | ✔ (explicit integer bit) |
 | `binary128_conformance_v0.json` | BINARY128 | 8 | ✔ |
 | `binary16_conformance_v0.json` | BINARY16 | 8 | ✔ |
 | `binary256_conformance_v0.json` | BINARY256 | 8 | ✔ |
@@ -92,7 +109,7 @@ representable value and its true `abs_error`.
 `+golden` denotes an attached `golden_accumulation` section (bf16 reduction
 reference for tt-mlir #6252).
 
-## Index — structural packs (34)
+## Index — structural packs (28)
 
 | Pack | Format | Why structural (not bit-exact) |
 |---|---|---|
@@ -111,12 +128,7 @@ reference for tt-mlir #6252).
 | `gf48_conformance_v0.json` | GF48 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `gf512_conformance_v0.json` | GF512 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
 | `gf96_conformance_v0.json` | GF96 | No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata. |
-| `gfternary_conformance_v0.json` | GFTERNARY | GFTernary is a 2-bit discrete set {-phi, 0, +phi}; the three values are recorded directly rather than via an S:E:M decode. |
-| `ibm_hfp128_conformance_v0.json` | IBM_HFP128 | IBM Hexadecimal Floating Point uses a base-16 exponent (not base-2), so the radix-2 S:E:M decoder does not apply. |
-| `ibm_hfp32_conformance_v0.json` | IBM_HFP32 | IBM Hexadecimal Floating Point uses a base-16 exponent (not base-2), so the radix-2 S:E:M decoder does not apply. |
-| `ibm_hfp64_conformance_v0.json` | IBM_HFP64 | IBM Hexadecimal Floating Point uses a base-16 exponent (not base-2), so the radix-2 S:E:M decoder does not apply. |
 | `minifloat_conformance_v0.json` | MINIFLOAT | This format has no single fixed bit layout (parametric / technique / variable-width). |
-| `nf4_conformance_v0.json` | NF4 | NF4 is a 16-entry quantile lookup table fitted to N(0,1); values are table entries, not an S:E:M layout. |
 | `per_channel_scale_conformance_v0.json` | PER_CHANNEL_SCALE | INT8 payload with an external per-channel fp32 scale; the decoded value depends on the scale tensor, so a standalone round-trip table is not defined. |
 | `q_format_conformance_v0.json` | Q_FORMAT | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `quad_double_conformance_v0.json` | QUAD_DOUBLE | Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally. |
@@ -129,7 +141,6 @@ reference for tt-mlir #6252).
 | `tapered_fp_conformance_v0.json` | TAPERED_FP | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `unum_i_conformance_v0.json` | UNUM_I | This format has no single fixed bit layout (parametric / technique / variable-width). |
 | `unum_ii_conformance_v0.json` | UNUM_II | This format has no single fixed bit layout (parametric / technique / variable-width). |
-| `x87_fp80_conformance_v0.json` | X87_FP80 | Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally. |
 
 The four `takum*` packs double as the **live FL-002 counterexample**: a tapered
 logarithmic format whose decode is not a plain S:E:M field, recorded as an open
@@ -162,8 +173,8 @@ round-trips.
 ## Machine-readable index
 
 `INDEX_all_formats.json` lists all 83 packs with totals
-(`total_formats: 83`, `total_packs: 83`, `bitexact_packs: 49`,
-`structural_packs: 34`), the anchor identity, the SSOT path, and the preprint.
+(`total_formats: 83`, `total_packs: 83`, `bitexact_packs: 55`,
+`structural_packs: 28`), the anchor identity, the SSOT path, and the preprint.
 
 ## SHA-256
 
@@ -206,10 +217,10 @@ fe600234cab0e589b69d84e673d74729cff153f9e4e63e871e285fa82ad2cc70  gf8_bfp_confor
 6dccbc6628cbc051e06a006a0731499970c1d99e65fc0d42d9007d8f0ed1402d  gf8_conformance_v0.json
 786f9d144243db2e6c4dba2ddbef4ae2975d045f1ad370cd462eb61cc70dd3d5  gf96_conformance_v0.json
 eb7c946281fb6ed6fadd9c63c7e7fa186412480910c9fedcb25fbc056c1bd34a  gf_lns_hybrid_conformance_v0.json
-0e0eb87fc7d90d7bc231581348ea2c7da258d7e93fd2861f32ff1c9317969cf9  gfternary_conformance_v0.json
-712c060613f0e4934b53dbc98debcb0149af304e90dbfcdbbd3d4ead5d74bb4c  ibm_hfp128_conformance_v0.json
-954fe16b6c6b4faab44dcc2b4299f356d7571fe789e3823d630c87301b9ce46e  ibm_hfp32_conformance_v0.json
-893833a6d3efa9dcfa73d0c04e48f94e5ee77185438cadfab7bee8744cd104fe  ibm_hfp64_conformance_v0.json
+9f246d24511fbff6fb9e83e60e1bedfce401052537f7c8929fe205d0f6e57b81  gfternary_conformance_v0.json
+2f02899d621a8a7aebfdf2a69a2484d7616c61ac7cebdc483f643e8109c4e31f  ibm_hfp128_conformance_v0.json
+8e35040e30d3a0091ecca5fdb08d1dd1ce98031e5d655239c7196bc667fc3876  ibm_hfp32_conformance_v0.json
+fbe42a167c13f226fe8eaf876c9e17109fb32dbddd76d3a677cc0b9aef2626a1  ibm_hfp64_conformance_v0.json
 df77519366e4c59888dcfafa66c20db4389e162f7dae96767684f46d8427d9fc  int128_conformance_v0.json
 a14f51cd6b29bef2215573bc7f1d299559d5d34af36fd0ffceb513f0659765b9  int16_conformance_v0.json
 e7f8ddbc4f8606a83febb5c8836f38a143c28f650d73330af5650ea698d91570  int32_conformance_v0.json
@@ -228,7 +239,7 @@ b5795fed0c0f2b580174b443d2c54519c4953916525237bb7ea7d6831f14fde7  mxfp4_e2m1_con
 16eedca7e82c4e6753f8248dce0000ba9a50ba09bab9be747b0dcac3efc21b6b  mxfp8_conformance_v0.json
 5e8d03fe80c59b458dc4bbd3fba3213dbc00626d8bc73b2cfcc09836539e89fb  mxgf4_conformance_v0.json
 9d77d8be5522942e9276b723915b3223123b7741a076a1bfd819cc73ab29f1ec  mxgf6_conformance_v0.json
-3778cc540acb6891d72dc2e063541dec35b26356638e5ce3731def3431025138  nf4_conformance_v0.json
+723ddd4237153c7c0cc6a9c3436ba071f8affcef8ad0c384070a3e1a3bf13f45  nf4_conformance_v0.json
 300f176150f74952183199befd9c9972473a1dfbd0206f2726e93bcf7b2d4957  per_channel_scale_conformance_v0.json
 7cc2edfeb0f52769b1a536dcbe04945a301cdcc3799a23267380b0c4fb0b82d5  posit16_conformance_v0.json
 aee6cc72691a0ae211e39bf6315ac68a5fe74e87190e0c27088871c6ccc87f52  posit32_conformance_v0.json
@@ -250,7 +261,7 @@ b87494ddee38fe68f77dd8082e8a9811530cc346526b80e59c81b17665677792  vax_d_conforma
 a7f45aec8da42931da5ad9f24c3ee369419ec58a783abe657a275210ae9b1e4d  vax_f_conformance_v0.json
 9a6372bbf85a50457e0b66db8849845333582e3fef28934047963e89dd95e65a  vax_g_conformance_v0.json
 eaaa44e4ce2e5454da2cc83571bf3261a84a1b6fabb0dc8064c04cd71fa581f0  vax_h_conformance_v0.json
-454055246c19a6eebabd51d63a1a8b642a71143c96db610a7a952ea940e09e2e  x87_fp80_conformance_v0.json
+e9be37c939c7108081bd2190e949f4d01be7ad12511d82bb8849f337c94e7e0c  x87_fp80_conformance_v0.json
 ```
 
 ## Provenance
@@ -279,3 +290,19 @@ python3 gen_all_formats.py
 ```
 
 All packs are ASCII-only. Apache-2.0, consistent with the t27 repository.
+
+## Changelog
+
+- **2026-06-14** — promoted 6 packs from structural to **bit-precise** by adding
+  dedicated reference codecs to `gen_all_formats.py`
+  (bit-precise 49 -> 55, structural 34 -> 28):
+  - `ibm_hfp32/64/128` — IBM Hexadecimal Floating Point, base-16 exponent
+    (S1 : E7 excess-64 : M), `value = 0.M(2) * 16^(E-64)`. 3.0 = 0.1875 x 16^1.
+  - `x87_fp80` — Intel 80-bit extended with the explicit integer bit as the MSB
+    of the 64-bit significand field (S1 : E15 : SIG64), bias 16383.
+  - `nf4` — QLoRA/bitsandbytes NF4 16-entry quantile table over [-1, 1];
+    exhaustive over all 16 codes.
+  - `gfternary` — 2-bit {-phi, 0, +phi}; exhaustive over all 4 codes (3.0 arises
+    as phi^2 + phi^-2 = 3, not as a single code, recorded in the anchor note).
+  Remaining `ExtendedFloat` entries `double_double` / `quad_double` stay
+  structural (composite multi-double, no single S:E:M field).
