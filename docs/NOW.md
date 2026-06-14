@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## make-verify-umbrella -- single advisory pre-PR umbrella (make verify) (Closes #1124)
+
+- **WHERE**: new `scripts/verify.sh` and the top-level `Makefile` (new `verify` target + `make help` entry).
+- **WHAT**: the repo has accumulated several small read-only developer checks, each with its own entry point -- the NMSE seal-freshness reporter (`make seal-check` / #1106), the #969 dead-code warning meter (`make warnings-baseline` / #1119), and the test suite. Before opening a PR a contributor wants to glance at all of them at once. `scripts/verify.sh` runs three best-effort sub-checks back-to-back -- (1) `scripts/reseal-check.sh --quiet` (seal freshness), (2) `scripts/warnings-baseline.sh --quiet` (#969 meter), (3) a quick `cargo test --bin t27c tests_compiler_rejects` (the negative-test gate from K/M/Q; `VERIFY_FULL_TEST=1` runs the whole suite, `VERIFY_SKIP_TEST=1` skips the test step) -- then prints one compact `verify: ...` summary line. Supports `--quiet`. A missing sub-script is reported as SKIP, never an error. A `verify` target wraps it (continuing the thin #1109 Makefile) and is listed in `make help`.
+- **Why** a memorable pre-PR convenience that surfaces all advisory checks in one place. It is advisory only -- never edits code, never reseals, and ALWAYS exits 0, so it is safe to wire into a pre-push habit without ever blocking a push; the actual gate stays the four required CI checks (check-now-freshness / validate / check / check-linked-issue). Verified: `make verify` runs all three sub-checks and prints a single summary (seal STALE advisory, warnings OK <= 655, test PASS) at exit 0; `scripts/verify.sh --quiet` prints only the summary line; `VERIFY_SKIP_TEST=1` and `VERIFY_FULL_TEST=1` behave as documented; `make help` lists the new target. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1124.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## decl-level-negative-tests -- extend the negative-test gate to module/declaration level (Closes #1123)
 
 - **WHERE**: `bootstrap/src/compiler.rs` (`mod tests_compiler_rejects`: new `assert_decl_dropped` helper + six tests).
