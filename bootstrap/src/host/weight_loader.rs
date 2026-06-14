@@ -199,6 +199,14 @@ const fn make_table() -> [u32; 256] {
     t
 }
 
+/// Serialize host words to the little-endian byte stream the loader consumes.
+///
+/// Intentional public API and the exact inverse of [`load_words`]: it is the
+/// encode half of the loader's round-trip contract and is exercised by the
+/// round-trip tests below. Production only ever loads pre-built weight blobs,
+/// so the encoder is dead in non-test builds; the annotation documents that
+/// without removing the symbol or breaking the round-trip tests.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn encode_words(words: &[u64]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(words.len() * 8);
     for &word in words {
@@ -207,6 +215,11 @@ pub fn encode_words(words: &[u64]) -> Vec<u8> {
     buf
 }
 
+/// Serialize host words with a trailing CRC32, matching the loader's checksum
+/// format. Intentional public API: the CRC-aware inverse of [`load_words`]
+/// under [`LoadConfig::with_checksum`], exercised by the round-trip tests.
+/// Dead in non-test builds (production only loads); annotated, not removed.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn encode_with_crc(words: &[u64]) -> Vec<u8> {
     let crc = crc32_checksum(words);
     let mut buf = encode_words(words);
