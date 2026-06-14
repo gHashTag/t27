@@ -2,6 +2,12 @@
 
 Last updated: 2026-06-14
 
+## ci-fix-bypass-echo -- fix no-op bypass step shell parse error (Closes #1031)
+
+- **WHERE** (CI only): `.github/workflows/l1-traceability.yml`, `.github/workflows/issue-gate.yml`, `.github/workflows/now-sync-gate.yml`. The trusted-bot no-op step used an inline `run: echo "... (Closes #1031)."`; the `#` opened a YAML/shell comment that truncated the command and the unbalanced parenthesis made the shell exit 2, so the gate job concluded `failure` for bots even though IS_BOT was correctly true and all substantive steps skipped. Switched to a block scalar (`run: |`) with a plain ASCII echo (no `#`, no parentheses). No source/specs/codegen/conformance/`gen/` touched.
+- **Why**: completes #1081 so trusted-bot PRs report the required gates as `success`. Verified on dep PRs #1043/#1045/#1047/#1048/#1057/#1058. Human PRs remain fully gated. L6/L5 untouched; L4 not applicable (workflow YAML). Closes #1031.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## ci-bot-gate-pass-not-skip -- trusted-bot gates PASS as no-op instead of SKIP (Closes #1031)
 
 - **WHERE** (CI only): `.github/workflows/l1-traceability.yml`, `.github/workflows/issue-gate.yml`, `.github/workflows/now-sync-gate.yml`. Replaces the job-level `if:` bot-skip with a job-level `env.IS_BOT` flag (true when `github.actor` OR `github.event.pull_request.user.login` is `dependabot[bot]`/`github-actions[bot]`). The job now always RUNS; a leading no-op step passes for bots and every substantive step is guarded with `if: env.IS_BOT != 'true'`. No source, specs, codegen, conformance JSON, or `gen/` artefacts touched.
