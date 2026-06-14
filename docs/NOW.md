@@ -55,6 +55,13 @@ Last updated: 2026-06-14
 - **Why**: Dependabot opened #1057 (rusqlite 0.40.1) and #1058 (chrono 0.4.45). Both PRs failed all three gates simultaneously because bots cannot reference issues with `Closes #N` and do not update `docs/NOW.md` for routine dependency bumps. The failures were structural, not substantive. After this PR merges, trusted-bot PRs SKIP the three gates (not FAIL); human PRs remain fully gated by Constitutional Law L1. L6 untouched (gf16 SSOT and conformance JSON unchanged); L5 untouched (no silicon impact); L4 not applicable (workflow YAML, not a `.t27` spec). Acceptance: rerun #1057 and #1058 after merge -- all three gates show `skipped`.
 - **Anchor**: phi^2 + phi^-2 = 3
 
+## chore-arxiv-id-propagation -- replace QFHDTL endorsement code with live arXiv ID (Closes #1056)
+
+- **WHERE** (conformance metadata): `conformance/FORMAT-SPEC-001.json` line 99 -- the internal QFHDTL endorsement code is replaced by the live arXiv anchor `arXiv:2606.05017` (cs.AR, 2026-06-03). One-line metadata change; no schema, no field widths, no claim-status row touched. The internal workflow code predates the live preprint and should not appear in committed public artefacts now that the canonical anchor exists.
+- **Why**: track-D arXiv ID propagation. The GoldenFloat preprint is live and citable; the public conformance contract now references the canonical anchor instead of an opaque internal code. No L5/L6 surface, no codegen, no spec change. Companion sync to `docs/NUMERIC_FORMATS_SSOT.md` follows in a separate PR once this lands. Closes #1056.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## feat-gf-ladder-expansion-v1.2 -- GF ladder expansion v1.2 closed-form rule + Corona ROM CATALOG fix (Closes #1052)
 
 - **WHERE** (numeric specs + conformance + codegen): `specs/numeric/goldenfloat_family.t27` extended from 9 rungs (GF4..GF256) to 17 binary rungs (GF4..GF1024) using the single closed-form rule `e = round((N-1)/phi^2)`, all field widths verified at 50 digits with mpmath. Nine new per-rung spec files `specs/numeric/gf{6,10,14,48,96,128,256,512,1024}.t27`. `conformance/FORMAT-SPEC-001.json` bumped to v1.2 with `frozen_silicon_anchor` for GF16. `docs/NUMERIC_FORMATS_SSOT.md` updated to 18-rung table (GFTernary + 17 binary + TF3 container). `specs/numeric/formats_catalog.t27` GF128 typo fixed, 8 rule-derived entries added. Corona ROM CATALOG: 8 corrections to broken rung entries in `tools/gen_rom.py` CATALOG cluster 3 (GF16/24/32/48/64/96/128/256), RECORD_COUNT expanded 80->82 for GF512/GF1024.
