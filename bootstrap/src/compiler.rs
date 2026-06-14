@@ -19759,6 +19759,114 @@ mod tests_compiler_rejects {
             v
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Variant K: extend the contract beyond casts. The parser/codegen reacts to
+    // malformed input in three distinct, empirically-observed ways; each is
+    // pinned here so a future change that alters the behavior fails loudly.
+    //
+    //   (a) DROP-TO-TODO   -- an expression that fails mid-parse triggers
+    //                         statement-level recovery; the statement is dropped
+    //                         and the body is left `// TODO: implement`.
+    //   (b) HARD ERROR     -- a malformation the *module* parser cannot recover
+    //                         from (unterminated module, value-less const)
+    //                         aborts the whole compile with Err.
+    //   (c) SILENT LEAK    -- a stray token that still lexes as an identifier is
+    //                         accepted as a bare no-op statement and leaks into
+    //                         codegen. This is a KNOWN GAP, not a guarantee; the
+    //                         test characterizes the current behavior so the gap
+    //                         is visible and a future fix is detected.
+    // -----------------------------------------------------------------------
+
+    /// Helper: compile and return Ok(verilog) or the Err string, without
+    /// panicking, so module-level hard errors can be asserted directly.
+    fn try_emit(src: &str) -> Result<String, String> {
+        Compiler::compile_verilog(src)
+    }
+
+    // (a) Unclosed parenthesis in a return expression -> drop-to-TODO.
+    #[test]
+    fn rejects_unclosed_paren() {
+        let v = emit(
+            r#"module RejUnclosedParen {
+    pub fn f(x: u8) -> u8 {
+        return (x + 1
+    }
+}"#,
+        );
+        assert_dropped(&v, "f", &[]);
+    }
+
+    // (a) Malformed binary expression (`x + * 2`) -> drop-to-TODO.
+    #[test]
+    fn rejects_malformed_binop() {
+        let v = emit(
+            r#"module RejBadBinop {
+    pub fn g(x: u8) -> u8 {
+        return x + * 2
+    }
+}"#,
+        );
+        assert_dropped(&v, "g", &[]);
+    }
+
+    // (b) Unterminated module (missing closing brace) -> HARD compile error.
+    #[test]
+    fn rejects_unterminated_module() {
+        let r = try_emit(
+            r#"module RejUnterminated {
+    pub fn f(x: u8) -> u8 {
+        return x
+    }"#,
+        );
+        assert!(
+            r.is_err(),
+            "an unterminated module must fail to compile, got Ok:\n{:?}",
+            r
+        );
+    }
+
+    // (b) Const declaration with no value (`const W : u32 =`) -> HARD error.
+    #[test]
+    fn rejects_const_without_value() {
+        let r = try_emit(r#"module RejBadConst { pub const W : u32 = }"#);
+        assert!(
+            r.is_err(),
+            "a value-less const must fail to compile, got Ok:\n{:?}",
+            r
+        );
+    }
+
+    // (c) KNOWN GAP characterization: a stray token that still lexes as an
+    // identifier (`frobnicate`) is currently accepted as a bare no-op statement
+    // and LEAKS into codegen as `frobnicate;`, and the following `return` still
+    // lowers. This is NOT the desired contract -- it is pinned so the leak is
+    // visible and any future hardening of the parser is detected by this test
+    // failing (at which point it should be converted to an `assert_dropped`).
+    #[test]
+    fn characterizes_stray_ident_leak_known_gap() {
+        let v = emit(
+            r#"module GapStrayIdent {
+    pub fn k(x: u8) -> u8 {
+        frobnicate x
+        return x
+    }
+}"#,
+        );
+        // Current (undesired) behavior: the stray identifier leaks as a no-op
+        // statement and the body is NOT dropped.
+        assert!(
+            v.contains("frobnicate;"),
+            "KNOWN GAP changed: stray ident no longer leaks as `frobnicate;`. \
+             If the parser now rejects it, convert this test to assert_dropped. Got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "KNOWN GAP changed: body is now dropped; update this characterization. Got:\n{}",
+            v
+        );
+    }
 }
 
 #[cfg(test)]

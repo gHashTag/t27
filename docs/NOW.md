@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## compiler-negative-tests-ext -- extend the parser negative-tests gate beyond casts (Closes #1110)
+
+- **WHERE**: `bootstrap/src/compiler.rs` (`#[cfg(test)] mod tests_compiler_rejects`: new helper `try_emit` + five tests appended after `accepts_valid_cast_as_control`).
+- **WHAT**: #1104 added the negative-tests gate but it only covered `as`-casts. This pass extends it with cases empirically grouped by the three distinct, observed reactions to malformed input. (a) DROP-TO-TODO: an unclosed paren in a return expr (`return (x + 1`) and a malformed binop (`x + * 2`) trigger statement-level recovery -- the statement is dropped and the body left `// TODO: implement` (asserted via `assert_dropped`). (b) HARD ERROR: an unterminated module (missing closing brace) and a value-less const (`const W : u32 =`) abort the whole compile with `Err` (asserted via the new `try_emit` helper + `.is_err()`). (c) KNOWN GAP characterization: a stray token that still lexes as an identifier (`frobnicate x`) currently LEAKS into codegen as `frobnicate;` and does NOT drop the body -- pinned as a characterization test, honestly documented as undesired current behavior, so the gap is visible and any future hardening of the parser is detected (at which point it is converted to an `assert_dropped`).
+- **Why** statement-level recovery is deliberate but makes parser rejections invisible, and a single cast-only gate under-specifies the contract; pinning all three observed outcome classes (including the honest gap) means a future change that lets malformed input leak into Verilog, or that silently changes recovery behavior, fails loudly. Tests-only, no production code change. Full suite passes with the five new tests (`tests_compiler_rejects` module: 10 passed / 0 failed), 0 regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1110.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## seal-pre-push-hook -- advisory seal-staleness check at push time + make seal-check (Closes #1109)
 
 - **WHERE**: new top-level `Makefile` and `scripts/install-git-hooks.sh` (the installed L4 pre-push hook).
