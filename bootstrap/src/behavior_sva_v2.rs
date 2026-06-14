@@ -301,12 +301,18 @@ fn extract_delay_cycles(then: &str) -> Option<usize> {
 fn remove_delay_phrase(then: &str) -> String {
     let lower = then.to_ascii_lowercase();
     if let Some(pos) = lower.find("after") {
-        let rest = &lower[pos + 5..].trim();
+        let rest = &lower[pos + 5..].trim_start();
         if let Some(n) = rest.split_whitespace().next() {
             if n.parse::<usize>().is_ok() {
-                let phrase = &then[pos..pos + 5 + n.len() + " cycles".len().min(rest.len())];
-                let cleaned = then.replace(phrase.trim(), "");
-                return cleaned.trim().to_string();
+                // Span from `after` through the end of the `cycles` keyword so
+                // we never leave a stray trailing `s`. Anchoring on the keyword
+                // is robust to the variable space between `after` and `N`.
+                if let Some(kw_rel) = lower[pos..].find("cycles") {
+                    let phrase_end = pos + kw_rel + "cycles".len();
+                    let phrase = &then[pos..phrase_end];
+                    let cleaned = then.replace(phrase, "");
+                    return cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+                }
             }
         }
     }
@@ -731,6 +737,22 @@ mod tests {
     #[test]
     fn extract_delay_hash_hash() {
         assert_eq!(extract_delay_cycles("##5 valid_out"), Some(5));
+    }
+
+    #[test]
+    fn remove_delay_phrase_no_stray_s_969() {
+        // Regression for #969 item 3: off-by-one left a trailing `s` because the
+        // space between `after` and `N` was not counted in the removed slice.
+        assert_eq!(remove_delay_phrase("after 3 cycles done"), "done");
+        assert_eq!(remove_delay_phrase("after 10 cycles busy"), "busy");
+        assert_eq!(
+            remove_delay_phrase("after 2 cycles increment count"),
+            "increment count"
+        );
+        // Phrase placed after the expression must also be removed cleanly.
+        assert_eq!(remove_delay_phrase("done after 5 cycles"), "done");
+        // `##N` form must remain intact.
+        assert_eq!(remove_delay_phrase("##5 valid_out"), "valid_out");
     }
 
     #[test]

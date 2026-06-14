@@ -85,8 +85,19 @@ pub fn chimera_search(
                             "FOUND"
                         };
 
+                        // #969: unary ops (sin/cos/ln/exp) operate on f1 only;
+                        // render them as `op(f1)` so the printed expression
+                        // matches the value actually computed above. Binary ops
+                        // keep the `f1 op f2` infix form.
+                        let expr = match op {
+                            ChimeraOp::Sin
+                            | ChimeraOp::Cos
+                            | ChimeraOp::Log
+                            | ChimeraOp::Exp => format!("{}({})", op_str, f1_id),
+                            _ => format!("{} {} {}", f1_id, op_str, f2_id),
+                        };
                         results.push(ChimeraCandidate {
-                            expr: format!("{} {} {}", f1_id, op_str, f2_id),
+                            expr,
                             target_name: target_name.clone(),
                             target_value: *target_val,
                             chimera_value: chimera_val,
@@ -164,4 +175,36 @@ pub fn generate_basis(max_pow: i32) -> Vec<(String, f64)> {
     }
 
     basis
+}
+
+#[cfg(test)]
+mod tests_969 {
+    use super::*;
+
+    // #969 item 2: unary chimera ops must render as `op(f1)`, matching the
+    // value computed from f1 alone, not as a spurious binary `f1 op f2`.
+    #[test]
+    fn unary_ops_render_as_function_call() {
+        let base: Vec<(&str, f64)> = vec![("f1", 0.5_f64), ("f2", 2.0_f64)];
+        // sin(0.5) ~= 0.4794255386 -> aim a target right at it.
+        let mut targets = HashMap::new();
+        targets.insert("t_sin".to_string(), 0.5_f64.sin());
+        let ops = vec![ChimeraOp::Sin];
+        let res = chimera_search(&base, &ops, &targets, 1.0);
+        assert!(!res.is_empty(), "sin candidate should be found");
+        let c = &res[0];
+        assert_eq!(c.expr, "sin(f1)");
+        assert!(!c.expr.contains("f2"), "unary expr must not mention f2");
+    }
+
+    #[test]
+    fn binary_ops_keep_infix_form() {
+        let base: Vec<(&str, f64)> = vec![("a", 3.0_f64), ("b", 4.0_f64)];
+        let mut targets = HashMap::new();
+        targets.insert("t_sum".to_string(), 7.0_f64);
+        let ops = vec![ChimeraOp::Add];
+        let res = chimera_search(&base, &ops, &targets, 1.0);
+        assert!(!res.is_empty(), "add candidate should be found");
+        assert_eq!(res[0].expr, "a + b");
+    }
 }
