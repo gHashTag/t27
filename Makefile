@@ -7,7 +7,7 @@
 #
 # Anchor: phi^2 + phi^-2 = 3
 
-.PHONY: help seal-check seal install-hooks warnings-baseline
+.PHONY: help verify seal-check seal install-hooks warnings-baseline
 
 # Default target: list what is available.
 help:
@@ -20,6 +20,15 @@ help:
 	@echo "                      pre-push seal-staleness warning)."
 	@echo "  make warnings-baseline  Count non-test build warnings vs the recorded"
 	@echo "                      baseline and list the top files (advisory; #969)."
+	@echo "  make verify         Run all advisory pre-PR checks at once (seal-check"
+	@echo "                      + warnings-baseline + quick test); never blocks."
+
+# Advisory umbrella: run the seal-freshness, warnings-baseline, and a quick test
+# back-to-back and print one compact summary. Never edits code, never reseals,
+# always exits 0 -- a convenience entry point for a pre-PR glance. The real gate
+# stays the four required CI checks.
+verify:
+	@scripts/verify.sh
 
 # Advisory: report NMSE seal freshness. Exit 0 fresh / 2 stale / 3 unsealed.
 # Never reseals; refreezing stays an explicit reviewed step.
