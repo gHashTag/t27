@@ -18,6 +18,7 @@ mod railway;
 mod jwt;
 mod proxy;
 mod formula_eval;
+mod math_compare;
 mod chimera_engine;
 mod sensitivity;
 mod runtime;
@@ -1244,6 +1245,12 @@ enum Commands {
         /// Number of points
         #[arg(long, default_value = "30")]
         n: usize,
+    },
+
+    /// Math: compare L5 anchors against physical-constant references (Issue #277)
+    Math {
+        #[command(subcommand)]
+        cmd: math_compare::MathCommands,
     },
 }
 
@@ -8250,6 +8257,10 @@ async fn main() -> anyhow::Result<()> {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
          }
+         Commands::Math { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             math_compare::run_math_command(cmd, &repo_root)?;
+         }
          Commands::TernaryEncode { value } => {
             use crate::ternary::encode_trits;
             let encoded = encode_trits(value);
@@ -8497,6 +8508,10 @@ fn main() -> anyhow::Result<()> {
          Commands::Sensitivity { id, param, min, max, n } => {
              let repo_root = std::env::current_dir()?;
              run_sensitivity(&repo_root, &id, &param, min, max, n)?;
+         }
+         Commands::Math { cmd } => {
+             let repo_root = std::env::current_dir()?;
+             math_compare::run_math_command(cmd, &repo_root)?;
          }
         Commands::TernaryEncode { value } => {
             use crate::ternary::encode_trits;
