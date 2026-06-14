@@ -170,6 +170,10 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("            s_axi_rdata <= {DATA_WIDTH{1'b0}};\n");
     s.push_str("        end else begin\n");
     s.push_str("            // ---- Write channel --------------------------------------------\n");
+    s.push_str("            // #925 fix: clear handshakes BEFORE accept so a same-cycle\n");
+    s.push_str("            // (accept + BREADY/RREADY) race lets the accept NBA win; the\n");
+    s.push_str("            // response is never silently dropped and the master never hangs.\n");
+    s.push_str("            if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;\n");
     s.push_str("            if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin\n");
     s.push_str("                case (s_axi_awaddr[5:2])\n");
     s.push_str("                    4'h0: reg_ctrl                 <= s_axi_wdata[31:0];\n");
@@ -188,8 +192,8 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                endcase\n");
     s.push_str("                s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;\n");
     s.push_str("            end\n");
-    s.push_str("            if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;\n");
     s.push_str("            // ---- Read channel ---------------------------------------------\n");
+    s.push_str("            if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;\n");
     s.push_str("            if (s_axi_arvalid && s_axi_arready) begin\n");
     s.push_str("                case (s_axi_araddr[5:2])\n");
     s.push_str("                    4'h0: s_axi_rdata <= reg_ctrl;\n");
@@ -212,7 +216,6 @@ pub fn build_axi_lite_slave(module_name: &str, addr_width: u32, data_width: u32)
     s.push_str("                endcase\n");
     s.push_str("                s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;\n");
     s.push_str("            end\n");
-    s.push_str("            if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;\n");
     s.push_str("        end\n");
     s.push_str("    end\n");
     s.push_str("\n");
@@ -385,6 +388,20 @@ mod tests {
         let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
         assert!(v.contains("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;"));
         assert!(v.contains("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;"));
+    }
+
+    // Regression for #925: the handshake clear must come BEFORE the accept that
+    // raises bvalid/rvalid, so on a same-cycle (accept + BREADY/RREADY) race the
+    // accept NBA wins and the response is not silently dropped (master deadlock).
+    #[test]
+    fn axi_clear_precedes_accept_no_deadlock() {
+        let v = build_axi_lite_slave(DEFAULT_AXI_LITE_SLAVE_NAME, 8, 32);
+        let b_clear = v.find("if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;").unwrap();
+        let b_accept = v.find("s_axi_bvalid <= 1'b1; s_axi_bresp <= 2'b00;").unwrap();
+        assert!(b_clear < b_accept, "B-channel clear must precede accept (#925)");
+        let r_clear = v.find("if (s_axi_rvalid && s_axi_rready) s_axi_rvalid <= 1'b0;").unwrap();
+        let r_accept = v.find("s_axi_rvalid <= 1'b1; s_axi_rresp <= 2'b00;").unwrap();
+        assert!(r_clear < r_accept, "R-channel clear must precede accept (#925)");
     }
 
     #[test]

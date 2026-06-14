@@ -7287,13 +7287,32 @@ fn types_compatible(target: &TypeInfo, value: &TypeInfo) -> bool {
     if target == value {
         return true;
     }
-    if *target == TypeInfo::F32 && *value == TypeInfo::F64 {
-        return true;
-    }
+    // Reject narrowing f64 -> f32 (precision loss). Widening f32 -> f64 is still
+    // permitted by the rank check below. Fixes #920 (typechecker unsoundness, bug 1).
     if *target == TypeInfo::GF16 && (*value == TypeInfo::F32 || *value == TypeInfo::F64) {
         return true;
     }
+    // Reject implicit cross-sign integer assignment of equal rank (e.g. i32 <-> u32):
+    // 0xFFFFFFFF would silently become -1. Fixes #920 (typechecker unsoundness, bug 3).
+    if is_integer_type(target) && is_integer_type(value)
+        && type_rank(target) == type_rank(value)
+        && is_signed_int(target) != is_signed_int(value)
+    {
+        return false;
+    }
     type_rank(target) >= type_rank(value)
+}
+
+fn is_integer_type(t: &TypeInfo) -> bool {
+    matches!(
+        t,
+        TypeInfo::I8 | TypeInfo::I16 | TypeInfo::I32 | TypeInfo::I64
+            | TypeInfo::U8 | TypeInfo::U16 | TypeInfo::U32 | TypeInfo::U64
+    )
+}
+
+fn is_signed_int(t: &TypeInfo) -> bool {
+    matches!(t, TypeInfo::I8 | TypeInfo::I16 | TypeInfo::I32 | TypeInfo::I64)
 }
 
 fn resolve_type_str(s: &str) -> TypeInfo {
@@ -22293,5 +22312,40 @@ mod tests_phase40_coverage {
         assert_eq!(stmts.len(), 1, "truly unused uninit local must still be dropped");
         assert_eq!(stmts[0].kind, NodeKind::ExprReturn);
         assert!(stats.dead_removed >= 1);
+    }
+}
+
+#[cfg(test)]
+mod tests_typecheck_soundness_920 {
+    use super::*;
+
+    // #920 bug 1: narrowing f64 -> f32 must be rejected (precision loss);
+    // widening f32 -> f64 must still be allowed.
+    #[test]
+    fn no_f64_to_f32_narrowing() {
+        assert!(!types_compatible(&TypeInfo::F32, &TypeInfo::F64),
+            "f64 -> f32 narrowing must be rejected");
+        assert!(types_compatible(&TypeInfo::F64, &TypeInfo::F32),
+            "f32 -> f64 widening must be allowed");
+        assert!(types_compatible(&TypeInfo::F32, &TypeInfo::F32));
+        assert!(types_compatible(&TypeInfo::F64, &TypeInfo::F64));
+    }
+
+    // #920 bug 3: implicit cross-sign integer assignment of equal rank must be
+    // rejected in both directions (0xFFFFFFFF would silently become -1).
+    #[test]
+    fn no_implicit_sign_mix() {
+        assert!(!types_compatible(&TypeInfo::I32, &TypeInfo::U32),
+            "u32 -> i32 must be rejected");
+        assert!(!types_compatible(&TypeInfo::U32, &TypeInfo::I32),
+            "i32 -> u32 must be rejected");
+        assert!(!types_compatible(&TypeInfo::I8, &TypeInfo::U8));
+        assert!(!types_compatible(&TypeInfo::U64, &TypeInfo::I64));
+        // same-sign same-type still compatible
+        assert!(types_compatible(&TypeInfo::I32, &TypeInfo::I32));
+        assert!(types_compatible(&TypeInfo::U32, &TypeInfo::U32));
+        // widening within same sign still allowed (rank check)
+        assert!(types_compatible(&TypeInfo::I64, &TypeInfo::I32));
+        assert!(types_compatible(&TypeInfo::U64, &TypeInfo::U32));
     }
 }
