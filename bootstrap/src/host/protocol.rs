@@ -1,3 +1,18 @@
+// Variant V (#969 dead-code audit, host/protocol.rs layer). This module is a
+// self-contained, intentional public API: the host/device wire protocol (Cmd
+// and RespCode enums with from_u8/has_payload/expects_response/is_ok, the
+// CMD_HEADER_SIZE / RESP_HEADER_SIZE / PROTOCOL_VERSION constants, CmdPacket and
+// RespPacket with their encode/decode/builder methods, and ProtocolError). It
+// is fully exercised by this module's own test suite (opcode round-trip,
+// header sizing, packet encode/decode, error paths) but is not yet wired into
+// production host code, so every symbol emits a `dead_code` warning (12 in
+// total) in the non-test build. These are deliberate public surface, not dead
+// code -- a single module-scoped allow documents that without removing or
+// weakening any symbol. Scoped to `not(test)` so the test build still flags
+// genuinely unused items, exactly as in the #1105 / #1111 / #1129 slices of
+// this audit (same pattern as the host/errors.rs slice in #1125).
+#![cfg_attr(not(test), allow(dead_code))]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Cmd {
