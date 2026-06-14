@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## compiler-negative-tests -- dedicated negative-tests gate for the parser/cast contract (Closes #1104)
+
+- **WHERE**: `bootstrap/src/compiler.rs` (new `#[cfg(test)] mod tests_compiler_rejects` with helper `emit` + `assert_dropped` and five tests).
+- **WHAT**: the function-body parser uses statement-level error recovery (`recover_to_stmt_boundary`): a malformed statement (e.g. a bad `as` cast) is DROPPED and the body left `// TODO: implement` rather than aborting the compile. #1098 added base-type validation in `parse_cast_target_type`, but that rejection was silent -- no explicit contract that malformed casts never reach codegen. The new module documents the recovery and turns it into a checked `source -> expected outcome` matrix. For each malformed source it asserts the bogus token NEVER reaches codegen and the offending statement is dropped (body left unimplemented) -- NOT that the compile fails: (1) unknown cast type `x as widget`, (2) `as` with no type `x as`, (3) invalid width `x as u3`, (4) nested cast with inner error `(x as widget) as u8`, plus (5) a positive control proving a valid `x as u32` still lowers (guards against over-rejection).
+- **Why** statement-level recovery is deliberate but makes parser rejections invisible; this pins the observable guarantee so a future change that lets a malformed cast leak into Verilog fails loudly. Tests-only, no production code change. Full suite 1447 passed / 0 failed / 2 ignored (five new tests), 0 regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1104.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## seal-dashboard -- surface NMSE seal staleness in the PR dashboard + local reseal-check.sh (Closes #1103)
 
 - **WHERE**: `.github/workflows/pr-dashboard.yml` (new `## Seal Status` section in the generated dashboard markdown) and `scripts/reseal-check.sh` (new read-only local reporter).
