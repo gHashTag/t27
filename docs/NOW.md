@@ -23,6 +23,25 @@ Last updated: 2026-08-06
 
 ### Что легло
 - Three new workflow files (+242/-0, no existing workflow modified): `.github/workflows/scorecard.yml` — OpenSSF Scorecard, continuous scoring of repository security posture published as SARIF; `.github/workflows/sbom.yml` — a bill of materials per build so consumers can audit the dependency graph against advisories; `.github/workflows/sign-release.yml` — Sigstore keyless signing via OIDC, so release artifacts carry verifiable provenance without long-lived signing keys. `sign-release.yml` is `workflow_dispatch`-triggered, defaults to `contents: read`, and elevates to `contents: write` + `id-token: write` only inside the signing job, using `secrets.GITHUB_TOKEN` alone — no third-party secrets. Moves the repo toward the reproducible-builds / SLSA-provenance direction already named in [FROZEN.md](../FROZEN.md) section 1.3, beyond today's source-hash seal. CI only — no source change.
+
+---
+
+# NOW — fix(gen): untrack stale gen/numeric catalog artifacts that drift against SSOT (2026-08-06)
+
+Last updated: 2026-08-06
+
+## fix(gen): untrack stale `gen/numeric/` catalog artifacts (Closes #1120)
+
+- Branch: `fix/untrack-stale-gen-numeric-catalog-1120`
+
+### Что легло
+- Deletes the 16 tracked codegen artifacts under `gen/numeric/` (`formats_catalog.{md,json,py,rs,h,hpp,ts,go,zig,swift,kt,vh,ml}` + `FormatsCatalog.{hs,java,jl}`). No spec, tool, or test file is changed.
+- Issue #1120 reported that the committed `gen/numeric/formats_catalog.json` declared 77 formats while the SSOT `specs/numeric/formats_catalog.t27` carries 83 (`grep -c '// CATALOG:'` == 83), a delta of 6 (GoldenFloat rungs `gf10/gf14/gf48/gf96/gf512/gf1024`) plus 15 field mismatches, including a substantive numeric one: gf128 stored `e_bits=48/m_bits=79` in the stale committed file vs the SSOT-correct `e_bits=49/m_bits=78` (the SSOT line annotates "corrects v1.1 typo e=48").
+- Root cause: the committed artifacts are a pre-correction codegen snapshot that was never refreshed, and the repo constitution (L2 GENERATION) treats `gen/` as DERIVED and never hand-committed — `gen/` is in `.gitignore`, and the catalog-count gate regenerates fresh into a temp dir rather than diffing the committed file. The 16 artifacts were historically force-added into tracking. This PR removes them from tracking (status D, which the L2 gate permits — it blocks only M under `gen/`). After this change, a fresh `python3 tools/gen_formats_catalog.py specs/numeric/formats_catalog.t27 <out>` is the single source of these files, so the 83-vs-77 drift class can no longer exist.
+- Nothing reads the committed `gen/numeric/formats_catalog.json` at build, test, or CI time (only the codegen tool references its own output path in a comment), so deletion is non-breaking.
+
+---
+
 # NOW — chore: align license metadata to Apache-2.0 (2026-08-06)
 
 Last updated: 2026-08-06
