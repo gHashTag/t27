@@ -1,0 +1,63 @@
+# WP-18 conformance-corpus integrity gate (CI).
+#
+# Sibling to catalog-count-gate.yml: that gate locks the SSOT catalog COUNT (==83);
+# this gate locks the conformance CORPUS against silent drift and undisclosed error.
+# Runs on every push / PR touching the SSOT, the vector corpus, or the gate itself.
+#
+# stdlib-only Python, no third-party deps, no network. The self-test runs FIRST and
+# must prove the gate is still falsifiable (every check FAIL-reachable) before the gate
+# is trusted against the live corpus.
+name: conformance-integrity-gate
+
+on:
+  push:
+    paths:
+      - "specs/numeric/formats_catalog.t27"
+      - "conformance/vectors/**"
+      - "tools/wp18_conformance_gate.py"
+      - "tools/wp18_selftest_gate.py"
+      - ".github/workflows/conformance-integrity-gate.yml"
+  pull_request:
+    paths:
+      - "specs/numeric/formats_catalog.t27"
+      - "conformance/vectors/**"
+      - "tools/wp18_conformance_gate.py"
+      - "tools/wp18_selftest_gate.py"
+      - ".github/workflows/conformance-integrity-gate.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  integrity-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Self-test (gate must be falsifiable)
+        # If any planted mutant is NOT killed, the gate is not trustworthy -> fail here.
+        working-directory: tools
+        run: python3 wp18_selftest_gate.py
+
+      - name: Run integrity gate against live corpus
+        run: |
+          python3 tools/wp18_conformance_gate.py \
+            --ssot specs/numeric/formats_catalog.t27 \
+            --vectors conformance/vectors \
+            --allowlist conformance/vectors/abs_error_allowlist.json \
+            --json wp18_report.json
+
+      - name: Upload integrity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wp18-conformance-report
+          path: wp18_report.json
+          if-no-files-found: warn

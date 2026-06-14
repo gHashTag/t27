@@ -1,0 +1,20 @@
+{
+  "fixture": "gf16_phi_mislabeled_abs_error",
+  "kind": "finite_value_row",
+  "expectation": "Check D MUST flag: stored abs_error 0.0 but abs(decoded-input) is nonzero.",
+  "pack_id": "gf16",
+  "row": {
+    "name": "phi",
+    "input_f64": 1.618033988749895,
+    "input_f64_hex": "0x3FF9E3779B97F4A8",
+    "gf16_bits_hex": "0x3F3C",
+    "gf16_bits_int": 16188,
+    "decoded_f64": 1.6171875,
+    "decoded_f64_hex": "0x3FF9E00000000000",
+    "abs_error": 0.0,
+    "category": "phi_anchor"
+  },
+  "rederived_abs_error": 0.0008464887498949025,
+  "severity": "Risk",
+  "note": "gf16 decode of phi rounds to 1.6171875; the 8.46e-04 error was stored as 0.0. Anchor identity phi^2+1/phi^2=3 still holds in f64; only the per-row abs_error label is wrong."
+}
