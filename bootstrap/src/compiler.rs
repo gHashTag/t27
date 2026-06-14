@@ -19622,6 +19622,145 @@ mod tests_hir_pipeline_parity {
     }
 }
 
+/// Dedicated negative-tests gate for the parser/cast contract.
+///
+/// `parse_cast_target_type` validates the base type of an `as` cast, and the
+/// function-body parser uses statement-level error recovery
+/// (`recover_to_stmt_boundary`): a malformed statement is DROPPED and the body
+/// is left `// TODO: implement` rather than aborting the whole compile. That
+/// recovery is deliberate, but it makes parser rejections silent. These tests
+/// turn the silent recovery into an explicit, checked contract: for each
+/// malformed source we assert the bogus token NEVER reaches codegen and the
+/// offending statement is dropped (body left unimplemented) -- not that the
+/// compile fails. Each case is documented as `source -> expected outcome`.
+#[cfg(test)]
+mod tests_compiler_rejects {
+    use super::*;
+
+    /// Helper: compile and return the emitted Verilog. Recovery means the
+    /// compile still succeeds even for malformed bodies, so `unwrap()` is safe
+    /// and lets us inspect exactly what (did not) reach codegen.
+    fn emit(src: &str) -> String {
+        Compiler::compile_verilog(src)
+            .unwrap_or_else(|e| panic!("compile_verilog failed unexpectedly: {}", e))
+    }
+
+    /// Assert the recovered function body is left unimplemented and the bogus
+    /// token never leaked into codegen.
+    fn assert_dropped(v: &str, fn_name: &str, bogus_tokens: &[&str]) {
+        assert!(
+            v.contains("// TODO: implement"),
+            "recovered body should be left unimplemented, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains(&format!("{} = ", fn_name)),
+            "the rejected statement must be dropped, not lowered (no `{} = `), got:\n{}",
+            fn_name,
+            v
+        );
+        for tok in bogus_tokens {
+            assert!(
+                !v.contains(tok),
+                "bogus token `{}` must never reach codegen, got:\n{}",
+                tok,
+                v
+            );
+        }
+    }
+
+    // Case 1: unknown cast type. `x as widget` -> the type is not in
+    // VALID_CAST_TYPES, so the statement is dropped; `widget` never emitted.
+    #[test]
+    fn rejects_unknown_cast_type() {
+        let v = emit(
+            r#"module RejUnknownCast {
+    pub fn f(x: u8) -> u8 {
+        return x as widget
+    }
+}"#,
+        );
+        assert_dropped(&v, "f", &["widget"]);
+    }
+
+    // Case 2: `as` with no type at all. `x as` (followed by `}`) -> the cast
+    // parser hits a non-identifier and errors; statement dropped.
+    #[test]
+    fn rejects_cast_with_no_type() {
+        let v = emit(
+            r#"module RejNoType {
+    pub fn g(x: u8) -> u8 {
+        return x as
+    }
+}"#,
+        );
+        // Body must be left unimplemented; the operand assignment must not leak.
+        assert!(
+            v.contains("// TODO: implement"),
+            "missing-type cast should drop the body, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("g = x"),
+            "a typeless cast must not lower to a bare assignment, got:\n{}",
+            v
+        );
+    }
+
+    // Case 3: invalid width. `u3` is not a real integer width and is not in
+    // VALID_CAST_TYPES -> rejected; `u3` never reaches codegen.
+    #[test]
+    fn rejects_invalid_width_u3() {
+        let v = emit(
+            r#"module RejBadWidth {
+    pub fn h(x: u8) -> u8 {
+        return x as u3
+    }
+}"#,
+        );
+        assert_dropped(&v, "h", &["u3"]);
+    }
+
+    // Case 4: nested cast where the inner target is invalid. `(x as widget) as
+    // u8` -> the inner `widget` is rejected, so the whole statement is dropped;
+    // neither `widget` nor a lowered assignment may appear.
+    #[test]
+    fn rejects_nested_cast_with_inner_error() {
+        let v = emit(
+            r#"module RejNestedCast {
+    pub fn k(x: u8) -> u8 {
+        return (x as widget) as u8
+    }
+}"#,
+        );
+        assert_dropped(&v, "k", &["widget"]);
+    }
+
+    // Case 5 (contrast / guard against over-rejection): a VALID cast still
+    // lowers correctly, proving the gate rejects only malformed input and does
+    // not regress the happy path.
+    #[test]
+    fn accepts_valid_cast_as_control() {
+        let v = emit(
+            r#"module AcceptValidCast {
+    pub fn ok(x: u8) -> u32 {
+        return x as u32
+    }
+}"#,
+        );
+        assert!(
+            v.contains("ok = x;"),
+            "valid widening cast must still lower to the operand, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "valid cast body must NOT be dropped, got:\n{}",
+            v
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests_hir_partition {
     use super::*;
