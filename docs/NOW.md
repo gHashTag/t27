@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## fix-stray-ident-leak -- close the stray-identifier parser leak (#1110 known-gap -> fix) (Closes #1115)
+
+- **WHERE**: `bootstrap/src/compiler.rs` (`parse_body_stmt` bare-expression branch; the #1110 characterization test renamed `characterizes_stray_ident_leak_known_gap` -> `rejects_stray_ident` and switched to `assert_dropped`).
+- **WHAT**: #1110 pinned a known gap -- a stray token that still lexes as an identifier (`frobnicate x`) was accepted as a bare no-op statement and LEAKED into codegen as `frobnicate;`, body NOT dropped. Root cause: after parsing a bare expression, `parse_body_stmt` silently ignored whatever token followed, leaving the dangling `x` for the next loop iteration instead of rejecting the malformed statement. Fix: after a bare expression the next token must be a valid statement boundary -- `;` (consumed), or `}` / EOF (final expression of a block); any other token is now a syntax error, so the malformed statement triggers the existing statement-level recovery (`recover_to_stmt_boundary`) and the body is dropped to `// TODO: implement`, consistent with how unclosed parens and malformed binops are already handled. The bogus ident never reaches codegen. The characterization test is promoted to a rejection assertion.
+- **Why** this is a real production-parser change (stricter), so it was validated against the full suite: 1452 passed / 0 failed / 2 ignored, 0 regressions -- confirming the previous lenient behavior was a genuine gap, not relied upon by any test or fixture. The honest #1110 framing pays off: the documented gap is now closed and the test converted exactly as that entry promised. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1115.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## deadcode-annotate-host-mod -- #969 next layer: annotate the host/mod.rs re-export facade (Closes #1111)
 
 - **WHERE**: `bootstrap/src/host/mod.rs` (one module-scoped inner attribute + explanatory comment, after the header comment, before the `pub mod` declarations).

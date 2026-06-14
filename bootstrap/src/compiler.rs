@@ -1745,9 +1745,31 @@ impl Parser {
             return Ok(assign);
         }
 
-        // Bare expression statement
-        if self.current.kind == TokenKind::Semicolon {
-            self.advance();
+        // Bare expression statement. A well-formed bare expression is
+        // terminated by a semicolon, or sits as the final expression directly
+        // before the block's closing brace (or EOF). Any OTHER token here means
+        // the statement did not end where it should -- e.g. `frobnicate x`,
+        // where `frobnicate` parses as a bare ident expression and the stray
+        // `x` is left dangling. Previously such a leftover token was silently
+        // ignored and the bare expression accepted, letting malformed input
+        // leak into codegen (the #1110 known-gap characterization). Treat the
+        // dangling token as a syntax error so the caller's statement-level
+        // recovery (`recover_to_stmt_boundary`) drops the malformed statement,
+        // consistent with how other malformed statements are handled.
+        match self.current.kind {
+            TokenKind::Semicolon => {
+                self.advance();
+            }
+            TokenKind::RBrace | TokenKind::Eof => {
+                // Final expression of a block, or end of input: no terminator
+                // required.
+            }
+            _ => {
+                return Err(format!(
+                    "unexpected token after expression statement: {:?}",
+                    self.current.kind
+                ));
+            }
         }
         let mut stmt = Node::new(NodeKind::StmtExpr);
         stmt.children.push(expr);
@@ -19837,14 +19859,16 @@ mod tests_compiler_rejects {
         );
     }
 
-    // (c) KNOWN GAP characterization: a stray token that still lexes as an
-    // identifier (`frobnicate`) is currently accepted as a bare no-op statement
-    // and LEAKS into codegen as `frobnicate;`, and the following `return` still
-    // lowers. This is NOT the desired contract -- it is pinned so the leak is
-    // visible and any future hardening of the parser is detected by this test
-    // failing (at which point it should be converted to an `assert_dropped`).
+    // (c) GAP CLOSED (#1110 -> #1115): a stray token that still lexes as an
+    // identifier (`frobnicate x`) used to be accepted as a bare no-op statement
+    // and LEAK into codegen as `frobnicate;`. The bare-expression branch in
+    // `parse_body_stmt` now rejects a dangling token after an expression, so the
+    // malformed statement triggers statement-level recovery and the body is
+    // dropped to `// TODO: implement` -- the bogus `frobnicate` never reaches
+    // codegen. This was a characterization test for the known gap; with the gap
+    // closed it is now a rejection assertion (renamed accordingly).
     #[test]
-    fn characterizes_stray_ident_leak_known_gap() {
+    fn rejects_stray_ident() {
         let v = emit(
             r#"module GapStrayIdent {
     pub fn k(x: u8) -> u8 {
@@ -19853,19 +19877,8 @@ mod tests_compiler_rejects {
     }
 }"#,
         );
-        // Current (undesired) behavior: the stray identifier leaks as a no-op
-        // statement and the body is NOT dropped.
-        assert!(
-            v.contains("frobnicate;"),
-            "KNOWN GAP changed: stray ident no longer leaks as `frobnicate;`. \
-             If the parser now rejects it, convert this test to assert_dropped. Got:\n{}",
-            v
-        );
-        assert!(
-            !v.contains("// TODO: implement"),
-            "KNOWN GAP changed: body is now dropped; update this characterization. Got:\n{}",
-            v
-        );
+        // The malformed statement is dropped; the bogus ident never leaks.
+        assert_dropped(&v, "k", &["frobnicate"]);
     }
 }
 
