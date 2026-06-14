@@ -18,7 +18,8 @@ jobs:
     steps:
       - name: Trusted-bot bypass (no-op pass)
         if: env.IS_BOT == 'true'
-        run: echo "Trusted bot PR -- Dependabot or github-actions -- L1 TRACEABILITY gate passes as no-op (Closes #1031)."
+        run: |
+          echo "Trusted bot PR -- gate passes as no-op. Closes 1031."
 
       - name: Checkout repository
         if: env.IS_BOT != 'true'
