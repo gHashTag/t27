@@ -9,7 +9,10 @@ jobs:
     name: Check L1 TRACEABILITY
     runs-on: ubuntu-latest
     # Closes #1059: bypass L1 gate for trusted bots (Dependabot maintains deps, not features)
-    if: github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+    if: >-
+      github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+      && github.event.pull_request.user.login != 'github-actions[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
