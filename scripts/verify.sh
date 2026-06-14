@@ -64,10 +64,10 @@ if [ -x scripts/reseal-check.sh ]; then
         3) SEAL_VERDICT="seal:UNSEALED (advisory)" ;;
         *) SEAL_VERDICT="seal:UNKNOWN (exit $SEAL_CODE)" ;;
     esac
-    log " [1/3] seal-check  -> ${SEAL_OUT:-$SEAL_VERDICT}"
+    log " [1/4] seal-check  -> ${SEAL_OUT:-$SEAL_VERDICT}"
 else
     SEAL_VERDICT="seal:SKIP (script missing)"
-    log " [1/3] seal-check  -> SKIP (scripts/reseal-check.sh not found)"
+    log " [1/4] seal-check  -> SKIP (scripts/reseal-check.sh not found)"
 fi
 add_summary "$SEAL_VERDICT"
 
@@ -83,10 +83,10 @@ if [ -x scripts/warnings-baseline.sh ]; then
         2) WARN_VERDICT="warnings:BUILD-FAILED" ;;
         *) WARN_VERDICT="warnings:UNKNOWN (exit $WARN_CODE)" ;;
     esac
-    log " [2/3] warnings    -> ${WARN_OUT:-$WARN_VERDICT}"
+    log " [2/4] warnings    -> ${WARN_OUT:-$WARN_VERDICT}"
 else
     WARN_VERDICT="warnings:SKIP (script missing)"
-    log " [2/3] warnings    -> SKIP (scripts/warnings-baseline.sh not found)"
+    log " [2/4] warnings    -> SKIP (scripts/warnings-baseline.sh not found)"
 fi
 add_summary "$WARN_VERDICT"
 
@@ -97,7 +97,7 @@ add_summary "$WARN_VERDICT"
 # ----------------------------------------------------------------------------
 if [ "${VERIFY_SKIP_TEST:-0}" = "1" ]; then
     TEST_VERDICT="test:SKIP (VERIFY_SKIP_TEST=1)"
-    log " [3/3] test        -> SKIP (VERIFY_SKIP_TEST=1)"
+    log " [3/4] test        -> SKIP (VERIFY_SKIP_TEST=1)"
 else
     if [ "${VERIFY_FULL_TEST:-0}" = "1" ]; then
         TEST_DESC="full binary test suite"
@@ -108,13 +108,85 @@ else
     fi
     if "$CARGO_BIN" test --bin t27c $TEST_FILTER >/dev/null 2>&1; then
         TEST_VERDICT="test:PASS ($TEST_DESC)"
-        log " [3/3] test        -> PASS ($TEST_DESC)"
+        log " [3/4] test        -> PASS ($TEST_DESC)"
     else
         TEST_VERDICT="test:FAIL ($TEST_DESC) -- advisory, inspect with 'cargo test'"
-        log " [3/3] test        -> FAIL ($TEST_DESC) (advisory; re-run 'cargo test --bin t27c' for detail)"
+        log " [3/4] test        -> FAIL ($TEST_DESC) (advisory; re-run 'cargo test --bin t27c' for detail)"
     fi
 fi
 add_summary "$TEST_VERDICT"
+
+# ----------------------------------------------------------------------------
+# 4. Pre-PR gate preview (variant U). Locally reproduce the cheap parts of two
+#    required CI gates so the author sees a likely failure BEFORE pushing:
+#      - NOW Sync Gate: docs/NOW.md must appear in the diff vs master, and its
+#        `Last updated:` date must be today or yesterday (UTC).
+#      - L3 PURITY: added lines in the diff vs master must be ASCII-only.
+#    This is a best-effort PREVIEW, not the gate itself: it diffs against the
+#    local `origin/master` (or `master`) ref, so it is only as fresh as the
+#    last fetch, and it never blocks. Skipped automatically outside a git work
+#    tree or when no base ref is found. Disable with VERIFY_SKIP_GATES=1.
+# ----------------------------------------------------------------------------
+if [ "${VERIFY_SKIP_GATES:-0}" = "1" ]; then
+    GATES_VERDICT="gates:SKIP (VERIFY_SKIP_GATES=1)"
+    log " [4/4] gate-preview-> SKIP (VERIFY_SKIP_GATES=1)"
+elif ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    GATES_VERDICT="gates:SKIP (not a git work tree)"
+    log " [4/4] gate-preview-> SKIP (not a git work tree)"
+else
+    # Pick a base ref to diff against: prefer origin/master, fall back to master.
+    BASE_REF=""
+    if git rev-parse --verify -q origin/master >/dev/null 2>&1; then
+        BASE_REF="origin/master"
+    elif git rev-parse --verify -q master >/dev/null 2>&1; then
+        BASE_REF="master"
+    fi
+    if [ -z "$BASE_REF" ]; then
+        GATES_VERDICT="gates:SKIP (no master base ref; fetch first)"
+        log " [4/4] gate-preview-> SKIP (no origin/master or master ref found)"
+    else
+        GATE_ISSUES=""
+        # (a) NOW.md present in the diff vs base.
+        if git diff --name-only "$BASE_REF"...HEAD 2>/dev/null | grep -qx 'docs/NOW.md'; then
+            NOW_IN_DIFF="now-in-diff:yes"
+        else
+            NOW_IN_DIFF="now-in-diff:NO"
+            GATE_ISSUES="${GATE_ISSUES} NOW.md-not-in-diff"
+        fi
+        # (b) NOW.md `Last updated:` date is today or yesterday (UTC).
+        TODAY="$(date -u +%Y-%m-%d)"
+        YESTERDAY="$(date -u -d yesterday +%Y-%m-%d 2>/dev/null || true)"
+        LAST="$(grep -m1 'Last updated:' docs/NOW.md 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1 || true)"
+        if [ "$LAST" = "$TODAY" ] || { [ -n "$YESTERDAY" ] && [ "$LAST" = "$YESTERDAY" ]; }; then
+            NOW_DATE="now-date:fresh ($LAST)"
+        else
+            NOW_DATE="now-date:STALE ($LAST)"
+            GATE_ISSUES="${GATE_ISSUES} NOW.md-date-stale"
+        fi
+        # (c) Added lines in the diff vs base are ASCII-only (L3 PURITY preview).
+        NONASCII="$(git diff "$BASE_REF"...HEAD 2>/dev/null | grep -n '^+' | grep -P '[^\x00-\x7F]' | head -5 || true)"
+        if [ -z "$NONASCII" ]; then
+            ASCII="ascii:clean"
+        else
+            ASCII="ascii:NON-ASCII-in-added-lines"
+            GATE_ISSUES="${GATE_ISSUES} non-ascii-added-lines"
+        fi
+        if [ -z "$GATE_ISSUES" ]; then
+            GATES_VERDICT="gates:OK ($NOW_IN_DIFF, $NOW_DATE, $ASCII)"
+            log " [4/4] gate-preview-> OK ($NOW_IN_DIFF | $NOW_DATE | $ASCII) [base $BASE_REF]"
+        else
+            GATES_VERDICT="gates:WARN ($NOW_IN_DIFF, $NOW_DATE, $ASCII) -- advisory"
+            log " [4/4] gate-preview-> WARN [base $BASE_REF]:"
+            log "        $NOW_IN_DIFF | $NOW_DATE | $ASCII"
+            log "        likely CI-gate issue(s):$GATE_ISSUES (advisory; fix before push)"
+            if [ -n "$NONASCII" ]; then
+                log "        first non-ASCII added line(s):"
+                printf '%s\n' "$NONASCII" | while IFS= read -r ln; do log "          $ln"; done
+            fi
+        fi
+    fi
+fi
+add_summary "$GATES_VERDICT"
 
 log "----------------------------------------------------------------"
 log " advisory only: never edits code, never reseals, never gates CI."

@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## loop9-u-gate-preview -- verify.sh [4/4] gate-preview advisory sub-check (Closes #1131)
+
+- **WHERE**: scripts/verify.sh (new [4/4] sub-check), Makefile (make help text).
+- **WHAT**: extended the advisory verify umbrella (#1124) with a 4th sub-check that locally previews the cheap parts of two required CI gates -- NOW Sync (docs/NOW.md present in diff + Last-updated date today/yesterday UTC) and L3 PURITY (added lines ASCII-only); renumbered [1/3..3/3] -> [1/4..4/4].
+- **Why** turn a push-wait-red-fix-repush loop into a one-line local glance; always exits 0, never edits code, never reseals, never blocks; the four required CI checks stay the real gate. Skips outside a git tree / with no base ref; VERIFY_SKIP_GATES=1 disables just this sub-check. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1131.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## loop9-t-decl-positive-tests -- positive-control tests for the declaration parser (Closes #1130)
 
 - **WHERE**: bootstrap/src/compiler.rs, mod tests_compiler_rejects (test-only additions).
