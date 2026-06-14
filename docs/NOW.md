@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## warnings-baseline-meter -- advisory non-test build-warning meter for the #969 audit (Closes #1116)
+
+- **WHERE**: new `scripts/warnings-baseline.sh` and the top-level `Makefile` (new `warnings-baseline` target).
+- **WHAT**: the #969 dead-code audit removes/annotates build warnings one conservative slice at a time (#1105, #1111, ...), but there was no memorable, repeatable way to see the current count or pick the next slice. `scripts/warnings-baseline.sh` builds the binary crate with `--message-format=json`, counts the non-test compiler warnings, compares the count to a recorded baseline, and prints the top offending source files; `--quiet` prints a one-line verdict. A `make warnings-baseline` target wraps it (continuing the thin #1109 Makefile). It is advisory only -- never edits code, never reseals, NOT wired into CI (required checks stay check-now-freshness / validate / check / check-linked-issue); informational exit codes (0 <= baseline, 1 > baseline, 2 build failed) are never used to fail a required check.
+- **Why** the audit needs a progress meter so each conservative slice is easy to pick and regressions are visible. Baseline correctness: the structured primary-span count on master is 683 (measured from the JSON diagnostics) -- earlier NOW.md entries quoted ~685/726 from the cargo summary line, which rounds differently, so the script documents that the JSON primary-span count is the canonical meter and pins BASELINE=683; it suggests updating BASELINE when a reviewed slice legitimately lowers it. Verified: `make warnings-baseline` reports 683 == baseline 683, verdict OK, exit 0, with the top files (compiler.rs 248, host/errors.rs 28, ...). L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1116.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## fix-stray-ident-leak -- close the stray-identifier parser leak (#1110 known-gap -> fix) (Closes #1115)
 
 - **WHERE**: `bootstrap/src/compiler.rs` (`parse_body_stmt` bare-expression branch; the #1110 characterization test renamed `characterizes_stray_ident_leak_known_gap` -> `rejects_stray_ident` and switched to `assert_dropped`).
