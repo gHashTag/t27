@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GF128",
+  "format_name": "GF128 (rule-derived)",
+  "bitexact": false,
+  "format_notes": "GF128 (rule-derived) -- this work; rule e=round(127/phi^2)=49 (corrects v1.1 typo e=48)",
+  "catalog": {
+    "id": "gf128",
+    "bits": 128,
+    "s": 1,
+    "e": 49,
+    "m": 78,
+    "bias": 281474976710655,
+    "storage": "u128",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; rule e=round(127/phi^2)=49 (corrects v1.1 typo e=48)",
+    "use_case": "OPEN R&D: phi-aligned binary128 alternative",
+    "gf_relation": "experimental",
+    "source": "specs/numeric/gf128.t27",
+    "phi_distance": 0.01
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "Bias is an OPEN R&D parameter for this width (see catalog status Experimental); a bit-precise pack is deferred until the bias is fixed. Recorded structurally with the proposed layout.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

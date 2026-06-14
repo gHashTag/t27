@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "protocol_version": "1.0",
+  "seal_hash": "unsealed",
+  "rng": {
+    "family": "pcg64",
+    "seed": "0x297a49"
+  },
+  "samples_per_distribution": 2000000,
+  "bf16_subnormal_policy": "ieee",
+  "results": {
+    "D_NORM": {
+      "nmse_gf16": 1.7308965991785073e-07,
+      "nmse_bf16": 2.7641385183122016e-06,
+      "ratio": 0.06261974889143408
+    },
+    "D_LOG": {
+      "nmse_gf16": 1.476049303052953e-07,
+      "nmse_bf16": 2.351736425281605e-06,
+      "ratio": 0.06276423187501574
+    },
+    "D_RELU": {
+      "nmse_gf16": 1.7304317234439273e-07,
+      "nmse_bf16": 2.7642329105471395e-06,
+      "ratio": 0.06260079303886927
+    },
+    "D_PHI": {
+      "nmse_gf16": 1.7817398485573813e-07,
+      "nmse_bf16": 2.8478564272536918e-06,
+      "ratio": 0.06256424416295411
+    },
+    "D_DEEP": {
+      "nmse_gf16": 1.475567206889314e-07,
+      "nmse_bf16": 2.3698851004608678e-06,
+      "ratio": 0.06226323827270625
+    }
+  },
+  "identity_witness": {
+    "phi_squared_residual_f64": 0.0,
+    "trinity_residual_f64": 0.0
+  },
+  "runner": {
+    "host_arch": "x86_64-linux",
+    "compiler": "cpython 3.12.8"
+  },
+  "timestamp": "2026-06-14T11:47:38.903013+00:00",
+  "x_extension": {
+    "seal_note": "seal not requested; host-only informational run",
+    "producer": "repro/numerics/nmse_gf16.py",
+    "codec_gf16": "conformance/gf16_ref.py (E6M9, BIAS=31, EXP_BITS=6, MANT_BITS=9)",
+    "note": "D_WIDE intentionally excluded (not a schema result key); see the rich manifest nmse_manifest.json for the full dynamic-range study."
+  }
+}
