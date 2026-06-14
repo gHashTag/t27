@@ -114,8 +114,9 @@ Constant comparisons (if any) must cite **year and revision** and uncertainty; d
 ## 11. Reproduction
 
 - **Smoke:** `make -C repro repro-numerics` (JSON validity).  
-- **L4/L5 oracle (measured):** `python repro/numerics/nmse_gf16.py` — round-trip NMSE/ULP of GF16 vs bf16/fp16 over the protocol distributions; writes `repro/numerics/nmse_manifest.json`. Host, unsealed.
-- **Future:** pinned-toolchain sealed run (`make repro-numerics-diff` with lockfile) for a *certifying* manifest.
+- **L4/L5 oracle (measured):** `python repro/numerics/nmse_gf16.py` — round-trip NMSE/ULP of GF16 vs bf16/fp16 over the protocol distributions; writes `repro/numerics/nmse_manifest.json` (rich) and `repro/numerics/nmse_manifest_protocol_v1.json` (certifying). Host, unsealed.
+- **Certifying manifest:** `make -C repro repro-numerics-certify` (or `python repro/numerics/validate_manifest.py`) validates `repro/numerics/nmse_manifest_protocol_v1.json` against `schemas/nmse-protocol-v1.json` and enforces the seal-hash honesty rule.
+- **Sealed run:** `python repro/numerics/nmse_gf16.py --seal` sets `seal_hash` to the `bootstrap/stage0/FROZEN_HASH` digest **only** if the live seal source matches it under a pinned toolchain; otherwise it stays `unsealed`. As committed the manifest is `unsealed` (host, unpinned) — informational, not a silicon certifying claim (protocol section 8).
 
 ---
 

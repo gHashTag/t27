@@ -18,6 +18,7 @@ Run:  python repro/numerics/nmse_gf16.py [--samples N] [--seed S] [--out FILE]
 Exit non-zero if the L5 identity witness fails or any NMSE is negative.
 """
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -42,7 +43,57 @@ except Exception as exc:  # pragma: no cover
     sys.exit(2)
 
 PROTOCOL_VERSION = "1.0.0"
+# Schema-facing protocol_version must match pattern ^[0-9]+\.[0-9]+$ in
+# schemas/nmse-protocol-v1.json; the schema is intentionally coarser than the
+# implementation's semantic version.
+PROTOCOL_VERSION_SCHEMA = "1.0"
+SCHEMA_VERSION = "1.0"
 PHI = (1.0 + math.sqrt(5.0)) / 2.0
+
+# Seal source: the stage0 compiler whose SHA-256 is frozen in
+# bootstrap/stage0/FROZEN_HASH. A run is "sealed" only if the live file hashes
+# to exactly that digest under a pinned toolchain.
+SEAL_SOURCE_REL = os.path.join("bootstrap", "src", "compiler.rs")
+FROZEN_HASH_REL = os.path.join("bootstrap", "stage0", "FROZEN_HASH")
+# Only these distributions are schema result keys (D_WIDE is a rich-manifest
+# extension, deliberately excluded from the certifying manifest).
+SCHEMA_DISTRIBUTIONS = ["D_NORM", "D_LOG", "D_RELU", "D_PHI", "D_DEEP"]
+
+
+def frozen_digest():
+    """Return the 64-hex digest recorded in FROZEN_HASH, or None if unreadable."""
+    try:
+        with open(os.path.join(REPO, FROZEN_HASH_REL)) as f:
+            tok = f.read().split()[0].strip()
+        if len(tok) == 64 and all(c in "0123456789abcdef" for c in tok):
+            return tok
+    except Exception:
+        pass
+    return None
+
+
+def compute_seal(do_seal):
+    """Return (seal_hash_value, note).
+
+    HONESTY: seal_hash is the FROZEN_HASH digest ONLY when --seal is passed AND
+    the live seal source hashes to exactly that digest. In every other case it
+    is the literal "unsealed" -- we never fabricate a seal.
+    """
+    if not do_seal:
+        return "unsealed", "seal not requested; host-only informational run"
+    expected = frozen_digest()
+    if expected is None:
+        return "unsealed", "FROZEN_HASH unreadable; cannot verify seal"
+    src = os.path.join(REPO, SEAL_SOURCE_REL)
+    if not os.path.exists(src):
+        return "unsealed", "seal source missing; cannot verify seal"
+    with open(src, "rb") as f:
+        live = hashlib.sha256(f.read()).hexdigest()
+    if live == expected:
+        return expected, "live seal source matches FROZEN_HASH; sealed run"
+    return "unsealed", (
+        "live seal source (" + live[:12] + ") != FROZEN_HASH ("
+        + expected[:12] + "); NOT sealed")
 
 # --- L5 identity witness (protocol section 5) -------------------------------
 def identity_witness():
@@ -237,7 +288,82 @@ def run(samples, seed):
         "headline": "ratio_GF16_over_BF16 is the protocol headline; <1 means GF16 closer to reference.",
         "results": results,
     }
+    return manifest, results, (w1, w2)
+
+
+def build_protocol_v1_manifest(results, witness, samples, seed, do_seal):
+    """Build a manifest that STRICTLY conforms to schemas/nmse-protocol-v1.json.
+
+    Only the five schema distributions are emitted (D_WIDE is excluded); each
+    result carries exactly nmse_gf16, nmse_bf16 and ratio. seal_hash obeys the
+    honesty rule in compute_seal(). additionalProperties is false everywhere in
+    the schema, so this object carries only schema-allowed keys (plus the
+    reserved x_extension namespace for the seal note).
+    """
+    seal_hash, seal_note = compute_seal(do_seal)
+    w1, w2 = witness
+
+    schema_results = {}
+    for tag in SCHEMA_DISTRIBUTIONS:
+        r = results[tag]
+        ng = r["NMSE_GF16"]
+        nb = r["NMSE_BF16"]
+        entry = {"nmse_gf16": float(ng), "nmse_bf16": float(nb)}
+        # ratio must be > 0 per schema (exclusiveMinimum 0); only emit when
+        # both terms are finite and the denominator is positive.
+        if nb > 0 and math.isfinite(ng) and math.isfinite(nb):
+            entry["ratio"] = float(ng / nb)
+        schema_results[tag] = entry
+
+    manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "protocol_version": PROTOCOL_VERSION_SCHEMA,
+        "seal_hash": seal_hash,
+        "rng": {
+            # numpy.random.default_rng uses PCG64; seed encoded as hex string.
+            "family": "pcg64",
+            "seed": "0x" + format(int(seed) & 0xFFFFFFFFFFFFFFFF, "x"),
+        },
+        "samples_per_distribution": int(samples),
+        "bf16_subnormal_policy": "ieee",
+        "results": schema_results,
+        "identity_witness": {
+            "phi_squared_residual_f64": float(w1),
+            "trinity_residual_f64": float(w2),
+        },
+        "runner": {
+            "host_arch": platform.machine() + "-" + platform.system().lower(),
+            "compiler": "cpython " + platform.python_version(),
+        },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "x_extension": {
+            "seal_note": seal_note,
+            "producer": "repro/numerics/nmse_gf16.py",
+            "codec_gf16": "conformance/gf16_ref.py (E6M9, BIAS=31, EXP_BITS=6, MANT_BITS=9)",
+            "note": (
+                "D_WIDE intentionally excluded (not a schema result key); see the "
+                "rich manifest nmse_manifest.json for the full dynamic-range study."
+            ),
+        },
+    }
     return manifest
+
+
+def validate_against_schema(manifest):
+    """Validate in-process; return (ok, message). No-op-friendly if jsonschema
+    is unavailable, but the dedicated validate_manifest.py is the CI gate."""
+    try:
+        import jsonschema
+    except Exception as exc:
+        return False, "jsonschema unavailable: " + str(exc)
+    schema_path = os.path.join(REPO, "schemas", "nmse-protocol-v1.json")
+    with open(schema_path) as f:
+        schema = json.load(f)
+    try:
+        jsonschema.validate(instance=manifest, schema=schema)
+    except jsonschema.ValidationError as err:
+        return False, "SCHEMA VIOLATION at " + str(list(err.absolute_path)) + ": " + err.message
+    return True, "conforms to schemas/nmse-protocol-v1.json"
 
 
 def main():
@@ -246,12 +372,32 @@ def main():
                     help="samples per distribution (protocol default 10M; host default 2M)")
     ap.add_argument("--seed", type=int, default=2718281)
     ap.add_argument("--out", default=os.path.join(HERE, "nmse_manifest.json"))
+    ap.add_argument("--protocol-out",
+                    default=os.path.join(HERE, "nmse_manifest_protocol_v1.json"),
+                    help="path for the schema-conforming certifying manifest")
+    ap.add_argument("--no-protocol-v1", action="store_true",
+                    help="skip emitting the schema-conforming manifest")
+    ap.add_argument("--seal", action="store_true",
+                    help="attempt to seal: set seal_hash to FROZEN_HASH ONLY if "
+                         "the live seal source matches it; else stays 'unsealed'")
     args = ap.parse_args()
 
-    manifest = run(args.samples, args.seed)
+    manifest, results, witness = run(args.samples, args.seed)
     with open(args.out, "w") as f:
         json.dump(manifest, f, indent=2)
-    print(f"\nmanifest written: {args.out}")
+    print(f"\nrich manifest written: {args.out}")
+
+    if not args.no_protocol_v1:
+        pv1 = build_protocol_v1_manifest(results, witness, args.samples,
+                                         args.seed, args.seal)
+        ok, msg = validate_against_schema(pv1)
+        if not ok:
+            print("CERTIFYING MANIFEST INVALID:", msg)
+            sys.exit(1)
+        with open(args.protocol_out, "w") as f:
+            json.dump(pv1, f, indent=2)
+        print(f"certifying manifest written: {args.protocol_out}")
+        print("  seal_hash:", pv1["seal_hash"], "--", msg)
 
 
 if __name__ == "__main__":

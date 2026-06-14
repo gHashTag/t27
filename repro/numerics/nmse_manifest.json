@@ -25,7 +25,7 @@
     "python": "3.12.8",
     "platform": "Linux-6.1.158+-x86_64-with-glibc2.41"
   },
-  "timestamp": "2026-06-14T11:32:13.412081+00:00",
+  "timestamp": "2026-06-14T11:47:38.901895+00:00",
   "headline": "ratio_GF16_over_BF16 is the protocol headline; <1 means GF16 closer to reference.",
   "results": {
     "D_NORM": {

@@ -24,7 +24,36 @@ python repro/numerics/nmse_gf16.py --samples 10000000 --seed 2718281
 - bf16: `ml_dtypes.bfloat16`; fp16: `numpy.float16`.
 - The run aborts non-zero if the L5 identity witness
   (`|phi^2-(phi+1)|<1e-15`, `|phi^2+phi^-2-3|<1e-15`) fails or any NMSE < 0.
-- Output manifest: `nmse_manifest.json` (fields per protocol section 6).
+- Output manifests:
+  - `nmse_manifest.json` -- the **rich** manifest (fields per protocol section 6:
+    all six distributions including `D_WIDE`, ULP-like metric, overflow rates,
+    representable-max table). Intentionally NOT schema-bound.
+  - `nmse_manifest_protocol_v1.json` -- the **certifying** manifest, strictly
+    conforming to `schemas/nmse-protocol-v1.json` (`additionalProperties:false`;
+    only the five schema distributions `D_NORM/D_LOG/D_RELU/D_PHI/D_DEEP`; each
+    result is `nmse_gf16`/`nmse_bf16`/`ratio`). `D_WIDE` is deliberately absent.
+
+## Sealing and the certifying manifest (R5-HONEST)
+
+The certifying manifest carries a `seal_hash` field. It is set to the 64-hex
+SHA-256 in `bootstrap/stage0/FROZEN_HASH` **only** when `--seal` is passed AND
+the live seal source (`bootstrap/src/compiler.rs`) hashes to exactly that
+digest under a pinned toolchain. In every other case it stays the literal
+`"unsealed"`. The script never fabricates a seal: a host run on an unpinned
+tree is honestly `unsealed` and informational only.
+
+```
+python repro/numerics/nmse_gf16.py --seal          # seals iff source matches FROZEN_HASH
+python repro/numerics/validate_manifest.py         # re-validate the committed manifest
+make -C repro repro-numerics-certify               # CI-facing validation step
+```
+
+`validate_manifest.py` validates the manifest against the schema AND enforces
+the honesty rule: a non-`unsealed` `seal_hash` must equal the FROZEN_HASH
+digest, or it exits non-zero. As committed, `seal_hash = "unsealed"` because
+this manifest was produced on an unpinned host (the live compiler source does
+not match the frozen digest) -- exactly the state protocol section 8 calls
+informational, not a silicon certifying claim.
 
 ## Measured results (seed 2718281, 2,000,000 samples/distribution, unsealed host)
 
