@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## host-dma-protocol-deadcode -- module-scoped allow(dead_code) on host/dma.rs + host/protocol.rs (Closes #1135)
+
+- **WHERE**: bootstrap/src/host/dma.rs, bootstrap/src/host/protocol.rs, scripts/warnings-baseline.sh
+- **WHAT**: Prepended one documented `#![cfg_attr(not(test), allow(dead_code))]` inner attribute to each host module (continuation of the #969 dead-code slice), removing 24 dead_code warnings total; lowered BASELINE 647 -> 623.
+- **Why**: continues the host-module slice started in #1125 (host/errors.rs); `not(test)` scoping keeps genuine unused symbols flagged in test builds; both modules have `#[cfg(test)] mod tests` exercising every symbol. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1135.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## loop9-u-gate-preview -- verify.sh [4/4] gate-preview advisory sub-check (Closes #1131)
 
 - **WHERE**: scripts/verify.sh (new [4/4] sub-check), Makefile (make help text).

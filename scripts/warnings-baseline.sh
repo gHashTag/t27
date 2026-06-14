@@ -31,10 +31,11 @@ set -uo pipefail
 # meter keeps tracking real progress. Measured precisely from the structured
 # JSON diagnostics on master. History: 683 after the host/mod.rs facade slice
 # (#1111); 655 after the host/errors.rs catalog slice (variant P, issue #1122);
-# 647 after the HIR/FPGA grammar-enum slice (variant S). (Earlier NOW.md entries
+# 647 after the HIR/FPGA grammar-enum slice (variant S); 623 after the
+# host/dma.rs + host/protocol.rs slice (variant V). (Earlier NOW.md entries
 # quoted ~685/726 from the cargo summary line, which rounds differently; this
 # script's primary-span count is the canonical meter.)
-BASELINE=647
+BASELINE=623
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
