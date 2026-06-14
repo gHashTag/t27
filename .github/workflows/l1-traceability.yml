@@ -8,18 +8,26 @@ jobs:
   check-traceability:
     name: Check L1 TRACEABILITY
     runs-on: ubuntu-latest
-    # Closes #1059: bypass L1 gate for trusted bots (Dependabot maintains deps, not features)
-    if: >-
-      github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
-      && github.event.pull_request.user.login != 'dependabot[bot]'
-      && github.event.pull_request.user.login != 'github-actions[bot]'
+    # Closes #1031: trusted bots (Dependabot) PASS this required gate as a no-op
+    # instead of SKIPPING it. A skipped required check never satisfies branch
+    # protection, so the job must RUN and conclude success. We detect the bot via
+    # both the trigger actor and the PR author login (the latter survives a human
+    # 'Update branch') and short-circuit the substantive steps.
+    env:
+      IS_BOT: ${{ (github.actor == 'dependabot[bot]' || github.actor == 'github-actions[bot]' || github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'github-actions[bot]') && 'true' || 'false' }}
     steps:
+      - name: Trusted-bot bypass (no-op pass)
+        if: env.IS_BOT == 'true'
+        run: echo "Trusted bot PR -- Dependabot or github-actions -- L1 TRACEABILITY gate passes as no-op (Closes #1031)."
+
       - name: Checkout repository
+        if: env.IS_BOT != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Check for Closes #N in commits
+        if: env.IS_BOT != 'true'
         id: check-commits
         run: |
           set -e
@@ -86,6 +94,7 @@ jobs:
           fi
 
       - name: Check L2 GENERATION (gen/ edits forbidden)
+        if: env.IS_BOT != 'true'
         id: check-generation
         run: |
           set -e
@@ -116,6 +125,7 @@ jobs:
           echo "  ✓ No gen/ edits detected (new files allowed)"
 
       - name: Check L3 PURITY (ASCII-only identifiers)
+        if: env.IS_BOT != 'true'
         id: check-purity
         run: |
           set -e

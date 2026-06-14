@@ -2,6 +2,12 @@
 
 Last updated: 2026-06-14
 
+## ci-bot-gate-pass-not-skip -- trusted-bot gates PASS as no-op instead of SKIP (Closes #1031)
+
+- **WHERE** (CI only): `.github/workflows/l1-traceability.yml`, `.github/workflows/issue-gate.yml`, `.github/workflows/now-sync-gate.yml`. Replaces the job-level `if:` bot-skip with a job-level `env.IS_BOT` flag (true when `github.actor` OR `github.event.pull_request.user.login` is `dependabot[bot]`/`github-actions[bot]`). The job now always RUNS; a leading no-op step passes for bots and every substantive step is guarded with `if: env.IS_BOT != 'true'`. No source, specs, codegen, conformance JSON, or `gen/` artefacts touched.
+- **Why**: `check-now-freshness`, `validate`, `check`, `check-linked-issue` are REQUIRED status checks in ruleset `t27-master-protection`. The earlier author-guard fix made the gate jobs SKIP for Dependabot, but a SKIPPED required check never satisfies branch protection (`N of N required status checks are expected`), so dep PRs #1043/#1047/#1048/#1057/#1058 (and earlier #1045) stayed unmergeable even with admin. Making the job RUN and conclude `success` (all substantive steps skipped, the required context still reports green) satisfies the ruleset while keeping human PRs fully gated by Constitutional Law L1. `push` events keep their existing now-sync behavior (`pull_request` null => IS_BOT false unless a bot actor pushes). L6 untouched; L5 untouched (no silicon impact); L4 not applicable (workflow YAML). Closes #1031.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## ci-bot-bypass-author-guard -- harden trusted-bot gate bypass against human branch-updates (Closes #1031)
 
 - **WHERE** (CI only): `.github/workflows/l1-traceability.yml`, `.github/workflows/issue-gate.yml`, `.github/workflows/now-sync-gate.yml`. Each gate job's `if:` guard is extended from the actor-only check (`github.actor != 'dependabot[bot]' && != 'github-actions[bot]'`) to ALSO require `github.event.pull_request.user.login != 'dependabot[bot]'` and `!= 'github-actions[bot]'`. No source, no specs, no codegen, no conformance JSON, no `gen/` artefacts touched.
