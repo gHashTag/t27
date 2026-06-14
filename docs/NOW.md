@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## deadcode-annotate-host-api -- #969 next layer: annotate intentional host/manifest public API (Closes #1105)
+
+- **WHERE**: `bootstrap/src/host/weight_loader.rs` (`encode_words`, `encode_with_crc`) and `bootstrap/src/tt_manifest.rs` (`TtChip::submodule_path`).
+- **WHAT**: next conservative slice of the #969 dead-code audit. The non-test build emits ~730 warnings, most `dead_code`. Three named symbols are real, intentional public API exercised by tests but not yet wired into production: `encode_words`/`encode_with_crc` are the encode half of the weight-loader round-trip (`load_words` is the inverse; production only loads pre-built blobs, so the encoder is dead in non-test builds) and `submodule_path` is the chip -> repo-subtree helper exercised by `chip_submodule_path`. Each is annotated `#[cfg_attr(not(test), allow(dead_code))]` with a doc comment explaining the intent -- silencing the non-test warning WITHOUT removing the symbol or breaking the round-trip / path tests. Connect-or-annotate, not delete; only the three named symbols were touched this pass.
+- **Why** mass-suppression hides real defects (see #1097, where building dead code surfaced 7 latent errors), so the audit stays conservative and per-symbol: annotate only genuine public API, leave everything else for explicit follow-up. Non-test build warnings drop 732 -> 726 (the three definitions are clean; the broad `host/mod.rs` re-export hub stays untouched as out-of-scope this pass). Full suite 1447 passed / 0 failed / 2 ignored, 0 regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1105.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## compiler-negative-tests -- dedicated negative-tests gate for the parser/cast contract (Closes #1104)
 
 - **WHERE**: `bootstrap/src/compiler.rs` (new `#[cfg(test)] mod tests_compiler_rejects` with helper `emit` + `assert_dropped` and five tests).

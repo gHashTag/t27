@@ -54,6 +54,12 @@ impl TtChip {
     }
 
     /// Submodule path under `chips/<slug>` in the t27 repo root.
+    ///
+    /// Intentional public API: exercised by `chip_submodule_path` and consumed
+    /// by tooling that resolves a chip to its repo subtree. Production paths do
+    /// not call it yet, so it is dead only in non-test builds; the annotation
+    /// keeps it warning-free without dropping the symbol.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn submodule_path(&self) -> String {
         format!("chips/{}", self.slug())
     }
