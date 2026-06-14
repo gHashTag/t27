@@ -29,10 +29,12 @@ set -uo pipefail
 # Recorded baseline of non-test build warnings on master. Update this number
 # (in the same PR) whenever a reviewed slice legitimately lowers it, so the
 # meter keeps tracking real progress. Measured precisely from the structured
-# JSON diagnostics on master after the host/mod.rs facade slice (#1111): 683.
-# (Earlier NOW.md entries quoted ~685/726 from the cargo summary line, which
-# rounds differently; this script's primary-span count is the canonical meter.)
-BASELINE=683
+# JSON diagnostics on master. History: 683 after the host/mod.rs facade slice
+# (#1111); 655 after the host/errors.rs catalog slice (variant P, issue #1122)
+# annotated its 28 dead_code symbols. (Earlier NOW.md entries quoted ~685/726
+# from the cargo summary line, which rounds differently; this script's
+# primary-span count is the canonical meter.)
+BASELINE=655
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

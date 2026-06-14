@@ -1,3 +1,16 @@
+// Variant P (#969 dead-code audit, host/errors.rs layer). This module is a
+// self-contained, intentional public API: a structured catalog of host-driver
+// error codes (Severity, ErrorDomain, ErrorCode, the ERR_* constants, and the
+// CATALOG lookup helpers). It is fully exercised by this module's own test
+// suite (domain decoding, raw round-trip, catalog lookup/filter, severity
+// ordering, display) but is not yet wired into production host code, so every
+// symbol emits a `dead_code` warning (28 in total) in the non-test build.
+// These are deliberate public surface, not dead code -- a single module-scoped
+// allow documents that without removing or weakening any symbol. Scoped to
+// `not(test)` so the test build still flags genuinely unused items, exactly as
+// in the #1105 / #1111 slices of this audit.
+#![cfg_attr(not(test), allow(dead_code))]
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
     Info = 0,

@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## deadcode-annotate-host-errors -- #969 next slice: annotate the host/errors.rs catalog (Closes #1122)
+
+- **WHERE**: `bootstrap/src/host/errors.rs` (new module-scoped inner attribute at the top of the file) and `scripts/warnings-baseline.sh` (BASELINE 683 -> 655 + history comment).
+- **WHAT**: continues the #969 dead-code audit one conservative slice at a time (after #1105 / #1111 host facade). The structured host-error catalog in `errors.rs` -- `Severity`, `ErrorDomain`, `ErrorCode`, the `ERR_*` consts, `CATALOG`, and the `lookup` / `by_domain` / `by_severity` accessors -- is intentional public API exercised by tests but not yet wired to a production caller, so it emitted 28 `dead_code` warnings in non-test builds. Adds `#![cfg_attr(not(test), allow(dead_code))]` as a module-scoped inner attribute at the top of the file with a comment explaining it is intentional public API kept for the host bring-up surface; same conservative annotate-not-delete pattern as the host facade slices. No code deleted, no public item removed. The advisory `warnings-baseline.sh` meter (#1116) is bumped 683 -> 655 in the same change so it keeps tracking real progress.
+- **Why** this removes 28 warnings with zero behavior change and zero deletion of the public catalog, the next safe step of #969. Verified: `cargo build --bin t27c` clean; non-test warning count 683 -> 655 (measured from JSON primary-span diagnostics); the 12 errors.rs unit tests still pass; `make warnings-baseline` reports OK (655 <= baseline 655). Advisory only; the four required CI checks remain the gate. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1122.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## reseal-apply-cmd -- explicit reviewed reseal entry point (make seal) (Closes #1117)
 
 - **WHERE**: new `scripts/reseal-apply.sh` and the top-level `Makefile` (new `seal` target).
