@@ -7,7 +7,7 @@
 #
 # Anchor: phi^2 + phi^-2 = 3
 
-.PHONY: help seal-check install-hooks
+.PHONY: help seal-check install-hooks warnings-baseline
 
 # Default target: list what is available.
 help:
@@ -16,6 +16,8 @@ help:
 	@echo "                      vs sha256(bootstrap/src/compiler.rs) (advisory)."
 	@echo "  make install-hooks  Install the local git hooks (incl. the advisory"
 	@echo "                      pre-push seal-staleness warning)."
+	@echo "  make warnings-baseline  Count non-test build warnings vs the recorded"
+	@echo "                      baseline and list the top files (advisory; #969)."
 
 # Advisory: report NMSE seal freshness. Exit 0 fresh / 2 stale / 3 unsealed.
 # Never reseals; refreezing stays an explicit reviewed step.
@@ -25,3 +27,8 @@ seal-check:
 # Install the local git hooks (advisory pre-push includes the seal check).
 install-hooks:
 	@scripts/install-git-hooks.sh
+
+# Advisory: count non-test build warnings vs the recorded baseline and list the
+# top offending files, to track #969 dead-code progress. Never edits code.
+warnings-baseline:
+	@scripts/warnings-baseline.sh
