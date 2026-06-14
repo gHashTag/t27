@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## docs-validation-sealed-state -- reflect sealed manifest state in NUMERICS_VALIDATION (Closes #1095)
+
+- **WHERE**: `docs/NUMERICS_VALIDATION.md` (validation-ladder rows L4/L5, the section 5 and section 6 captions, the section 11 reproduction notes, and the closing summary line).
+- **WHAT**: after PR #1094 sealed the committed NMSE manifests, this doc still described the L4/L5 oracle runs as `unsealed` in five places, contradicting the committed `repro/numerics/nmse_manifest.json` which carries `seal = 49e55df6...`. Updated those statements to read host-sealed against `compiler.rs 49e55df6` (reproduce with `python repro/numerics/nmse_gf16.py --seal`) and recorded the pinned toolchain (Python 3.12.8, numpy 2.4.6, ml_dtypes 0.5.4).
+- **Why**: keep the validation contract consistent with the committed sealed manifests so reviewers are not misled. Documentation-only: no numeric, claim, catalog, or SSOT changes; the remaining silicon-sealed FPGA certifying run stays explicitly future work. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines. Closes #1095.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## sealed-nmse-cert -- freeze FROZEN_HASH to current compiler.rs, seal NMSE manifests (Closes #1093)
 
 - **WHERE**: `bootstrap/stage0/FROZEN_HASH` (re-frozen to the live compiler.rs digest with a portable relative path), `repro/numerics/nmse_gf16.py` (thread `do_seal` into `run()` so the rich manifest reflects the real seal state), `repro/numerics/nmse_manifest.json` + `repro/numerics/nmse_manifest_protocol_v1.json` (regenerated sealed at protocol-default 2M samples, seed 2718281).

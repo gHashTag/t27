@@ -44,15 +44,15 @@ Until filled, treat numeric behavior as **implementation-defined** outside confo
 | L1 | **Exhaustive** encode/decode + op table | GF4 (and GF8 if feasible) | TBD |
 | L2 | **Conformance JSON** — existing `conformance/gf*_vectors.json` | GF4–GF32 as covered | partial |
 | L3 | **Property-based / randomized** boundaries | GF16+ | TBD |
-| L4 | **Differential** vs reference (round-trip oracle) | GF16 primary | **measured (host, unsealed)** — `repro/numerics/` |
-| L5 | **Comparative** vs IEEE fp16 / bfloat16 on same corpus | GF16 vs fp16/bf16 | **measured (host, unsealed)** — `repro/numerics/nmse_manifest.json` |
+| L4 | **Differential** vs reference (round-trip oracle) | GF16 primary | **measured (host, sealed vs compiler.rs `49e55df6`)** — `repro/numerics/` |
+| L5 | **Comparative** vs IEEE fp16 / bfloat16 on same corpus | GF16 vs fp16/bf16 | **measured (host, sealed vs compiler.rs `49e55df6`)** — `repro/numerics/nmse_manifest.json` |
 | L6 | **Optional** posit reference (where tooling exists) | TBD | TBD |
 
 ---
 
 ## 5. Differential oracle — skeleton results table
 
-*Measured runs (host, unsealed). Reference oracle = f64 round-trip `real -> format -> real`. Seed 2718281, 2,000,000 samples/distribution. Reproduce: `python repro/numerics/nmse_gf16.py`.*
+*Measured runs (host, sealed against the frozen codec revision `49e55df6` in `bootstrap/stage0/FROZEN_HASH`). Reference oracle = f64 round-trip `real -> format -> real`. Seed 2718281, 2,000,000 samples/distribution. Reproduce: `python repro/numerics/nmse_gf16.py --seal`.*
 
 | Run ID | Format | Operation | Corpus | Reference oracle | Max abs err | ULP-like metric | Pass? | Artifact |
 |--------|--------|-----------|--------|------------------|-------------|-----------------|-------|----------|
@@ -68,7 +68,7 @@ Until filled, treat numeric behavior as **implementation-defined** outside confo
 
 Same inputs as §5 where bit patterns map sensibly; document **non-comparable** cases explicitly.
 
-*Measured, host, unsealed (`repro/numerics/nmse_manifest.json`). Non-comparable cases noted.*
+*Measured, host, sealed vs compiler.rs `49e55df6` (`repro/numerics/nmse_manifest.json`). Non-comparable cases noted.*
 
 | Metric | GF16 | IEEE fp16 | bfloat16 | Notes |
 |--------|------|-----------|----------|-------|
@@ -114,10 +114,10 @@ Constant comparisons (if any) must cite **year and revision** and uncertainty; d
 ## 11. Reproduction
 
 - **Smoke:** `make -C repro repro-numerics` (JSON validity).  
-- **L4/L5 oracle (measured):** `python repro/numerics/nmse_gf16.py` — round-trip NMSE/ULP of GF16 vs bf16/fp16 over the protocol distributions; writes `repro/numerics/nmse_manifest.json` (rich) and `repro/numerics/nmse_manifest_protocol_v1.json` (certifying). Host, unsealed.
+- **L4/L5 oracle (measured):** `python repro/numerics/nmse_gf16.py` — round-trip NMSE/ULP of GF16 vs bf16/fp16 over the protocol distributions; writes `repro/numerics/nmse_manifest.json` (rich) and `repro/numerics/nmse_manifest_protocol_v1.json` (certifying). Host; pass `--seal` to bind the run to the frozen compiler.rs digest.
 - **Certifying manifest:** `make -C repro repro-numerics-certify` (or `python repro/numerics/validate_manifest.py`) validates `repro/numerics/nmse_manifest_protocol_v1.json` against `schemas/nmse-protocol-v1.json` and enforces the seal-hash honesty rule.
-- **Sealed run:** `python repro/numerics/nmse_gf16.py --seal` sets `seal_hash` to the `bootstrap/stage0/FROZEN_HASH` digest **only** if the live seal source matches it under a pinned toolchain; otherwise it stays `unsealed`. As committed the manifest is `unsealed` (host, unpinned) — informational, not a silicon certifying claim (protocol section 8).
+- **Sealed run:** `python repro/numerics/nmse_gf16.py --seal` sets `seal_hash` to the `bootstrap/stage0/FROZEN_HASH` digest **only** if the live seal source matches it; otherwise it stays `unsealed`. As committed the manifest is **sealed** against compiler.rs `49e55df6` (host) — informational, NOT a silicon certifying claim (protocol section 8). Toolchain: Python 3.12.8, numpy 2.4.6, ml_dtypes 0.5.4.
 
 ---
 
-*The L4/L5 differential/comparative oracle is now MEASURED (host, unsealed) in `repro/numerics/` — the predictable-skepticism gap is closed at the host level; the remaining step is a sealed-toolchain certifying run.*
+*The L4/L5 differential/comparative oracle is now MEASURED and SEALED at the host level (sealed vs compiler.rs `49e55df6` in `repro/numerics/`) — the predictable-skepticism gap is closed at the host level; the remaining step is a silicon-sealed certifying run under a pinned FPGA toolchain.*
