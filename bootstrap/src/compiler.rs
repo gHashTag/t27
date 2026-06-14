@@ -20119,6 +20119,85 @@ mod tests_compiler_rejects {
             v
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Variant X (#969 audit, expression/cast layer). Where #1123 (Q) pinned
+    // declaration-level rejection and #1130 (T) pinned declaration-level
+    // acceptance, this set pins EXPRESSION-LEVEL lowering: the exact Verilog a
+    // valid return-expression lowers to. Each assertion was written by first
+    // observing the current generator output, then locking it in -- so a future
+    // change to expression codegen fails loudly rather than silently. These
+    // characterize CURRENT behavior, they do not endorse or prescribe it.
+    // -----------------------------------------------------------------------
+
+    // A single binary add lowers to a parenthesized Verilog expression.
+    #[test]
+    fn lowers_binop_add_characterization() {
+        let v = emit(r#"module XBin { pub fn add(x: u8) -> u8 { return x + 1 } }"#);
+        assert!(
+            v.contains("add = (x + 1);"),
+            "a binary add should lower to `add = (x + 1);`, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "a valid binop body must not be dropped, got:\n{}",
+            v
+        );
+    }
+
+    // A chained add is left-associative and fully parenthesized.
+    #[test]
+    fn lowers_chained_binop_left_assoc_characterization() {
+        let v = emit(r#"module XChain { pub fn f(x: u8) -> u8 { return x + 1 + 2 } }"#);
+        assert!(
+            v.contains("f = ((x + 1) + 2);"),
+            "a chained add should lower left-associatively to `((x + 1) + 2)`, got:\n{}",
+            v
+        );
+    }
+
+    // A redundant parenthesis around a bare operand is stripped on lowering.
+    #[test]
+    fn lowers_redundant_paren_to_operand_characterization() {
+        let v = emit(r#"module XParen { pub fn f(x: u8) -> u8 { return (x) } }"#);
+        assert!(
+            v.contains("f = x;"),
+            "`return (x)` should lower to the bare operand `f = x;`, got:\n{}",
+            v
+        );
+    }
+
+    // An identity-width cast (`x as u8` for a u8) lowers to the operand with no
+    // width-change machinery and no dropped body.
+    #[test]
+    fn lowers_identity_cast_to_operand_characterization() {
+        let v = emit(r#"module XIdc { pub fn f(x: u8) -> u8 { return x as u8 } }"#);
+        assert!(
+            v.contains("f = x;"),
+            "an identity cast should lower to the operand `f = x;`, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "an identity cast must not drop the body, got:\n{}",
+            v
+        );
+    }
+
+    // CHARACTERIZATION of a current GAP: a `let` binding before the return is
+    // not yet lowered -- the body falls back to the unimplemented stub. This is
+    // a known limitation pinned so the gap is visible; if `let` lowering is
+    // added later this test must be updated deliberately.
+    #[test]
+    fn let_binding_falls_back_to_todo_characterization() {
+        let v = emit(r#"module XLet { pub fn f(x: u8) -> u8 { let y = x return y } }"#);
+        assert!(
+            v.contains("// TODO: implement"),
+            "a `let` binding currently falls back to the unimplemented stub, got:\n{}",
+            v
+        );
+    }
 }
 
 #[cfg(test)]
