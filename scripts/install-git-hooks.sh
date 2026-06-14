@@ -112,6 +112,18 @@ if [ -n "$T27_FILES" ]; then
     echo "$T27_FILES"
 fi
 
+# Advisory NMSE seal-staleness check (variant J). Non-blocking: if the
+# committed NMSE manifest was certified against an older compiler.rs, warn the
+# author at push time. Mirrors scripts/reseal-check.sh and seal-staleness-warn.yml.
+# It NEVER reseals and NEVER blocks the push (always falls through to exit 0).
+ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -x "$ROOT_DIR/scripts/reseal-check.sh" ]; then
+    if ! "$ROOT_DIR/scripts/reseal-check.sh" --quiet >/dev/null 2>&1; then
+        echo -e "${YELLOW}WARNING: NMSE seal is stale or unsealed vs compiler.rs (advisory).${NC}"
+        echo "Run 'scripts/reseal-check.sh' for the reseal command. Push not blocked."
+    fi
+fi
+
 exit 0
 EOF
 
