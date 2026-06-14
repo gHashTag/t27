@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GF48",
+  "format_name": "GF48 (rule-derived)",
+  "bitexact": false,
+  "format_notes": "GF48 (rule-derived) -- this work; rule e=round(47/phi^2)=18",
+  "catalog": {
+    "id": "gf48",
+    "bits": 48,
+    "s": 1,
+    "e": 18,
+    "m": 29,
+    "bias": 131071,
+    "storage": "u64_padded",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; rule e=round(47/phi^2)=18",
+    "use_case": "OPEN R&D: between GF32 and GF64; tightest phi-dist of the wide rungs",
+    "gf_relation": "experimental",
+    "source": "specs/numeric/gf48.t27",
+    "phi_distance": 0.003
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GF1024",
+  "format_name": "GF1024 (rule-derived)",
+  "bitexact": false,
+  "format_notes": "GF1024 (rule-derived) -- this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder",
+  "catalog": {
+    "id": "gf1024",
+    "bits": 1024,
+    "s": 1,
+    "e": 391,
+    "m": 632,
+    "bias": 2521728396569246669585858566409191283525103313309788586748690777871726193375821479130513040312634601011624191379636223,
+    "storage": "u1024_software",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; rule e=round(1023/phi^2)=391; lowest phi-distance in the ladder",
+    "use_case": "OPEN R&D: limit-of-ladder phi alignment (extrapolation, no RTL)",
+    "gf_relation": "experimental",
+    "source": "specs/numeric/gf1024.t27",
+    "phi_distance": 0.0006
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

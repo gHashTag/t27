@@ -47,7 +47,8 @@ class Format:
     s_bits: int
     e_bits: int
     m_bits: int
-    bias: int
+    bias: int  # -2 sentinel = value exceeds int64, see bias_formula
+    bias_formula: str  # raw SSOT bias string (literal int or formula like '2^194-1')
     phi_distance: float  # -1.0 == undefined
     storage: str
     cluster: str
@@ -70,11 +71,43 @@ def parse_kv_line(line: str) -> dict[str, str]:
     return out
 
 
+def parse_bias(s: str) -> tuple[int, str]:
+    """Parse a bias field.
+
+    Returns (bias_int, bias_formula). bias_formula is the raw SSOT string
+    (e.g. '2^194-1' for gf512); bias_int is the int() of s when possible,
+    else -1 sentinel meaning 'see bias_formula'. This lets the int-typed
+    bias field stay backwards-compatible with all downstream emitters
+    (Rust i64, C int64_t, TS number) while preserving the rule-derived
+    formulas for the limit-of-ladder GF rungs (gf512 bias 2^194-1,
+    gf1024 bias 2^390-1) that were added by PR #1051. See issue #1064.
+    """
+    try:
+        return int(s), s
+    except ValueError:
+        # Try to evaluate simple 2^N-1 / 2^N+1 / 2^N forms; if the
+        # exponent stays within range, return the literal int.
+        m = re.match(r"^2\^(\d+)([+-]\d+)?$", s.strip())
+        if m:
+            exp = int(m.group(1))
+            off = int(m.group(2)) if m.group(2) else 0
+            if exp <= 1024:  # python int is arbitrary precision but i64 isn't
+                val = (1 << exp) + off
+                # Only return as int if it fits signed 64-bit; otherwise
+                # downstream emitters (Rust i64, C int64_t) overflow.
+                if -(1 << 63) <= val < (1 << 63):
+                    return val, s
+        # Cannot lift to int; record formula, use sentinel -2 meaning
+        # "value lives in bias_formula field, exceeds int64".
+        return -2, s
+
+
 def parse_t27(text: str) -> list[Format]:
     formats: list[Format] = []
     for m in CATALOG_LINE.finditer(text):
         fields = parse_kv_line(m.group(1))
         try:
+            bias_int, bias_formula = parse_bias(fields["bias"])
             fmt = Format(
                 id=fields["id"],
                 name=fields["name"],
@@ -82,7 +115,8 @@ def parse_t27(text: str) -> list[Format]:
                 s_bits=int(fields["s"]),
                 e_bits=int(fields["e"]),
                 m_bits=int(fields["m"]),
-                bias=int(fields["bias"]),
+                bias=bias_int,
+                bias_formula=bias_formula,
                 phi_distance=float(fields["phi_distance"]),
                 storage=fields["storage"],
                 cluster=fields["cluster"],

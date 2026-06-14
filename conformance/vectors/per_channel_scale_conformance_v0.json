@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "PER_CHANNEL_SCALE",
+  "format_name": "INT8 with per-channel scale",
+  "bitexact": false,
+  "format_notes": "INT8 with per-channel scale -- Jacob 2018 (TFLite)",
+  "catalog": {
+    "id": "per_channel_scale",
+    "bits": 8,
+    "s": 1,
+    "e": 0,
+    "m": 7,
+    "bias": 0,
+    "storage": "u8_plus_fp32_scale",
+    "cluster": "CompressionTrick",
+    "status": "Verified",
+    "standard": "Jacob 2018 (TFLite)",
+    "use_case": "standard quant inference",
+    "gf_relation": "competitor",
+    "source": "Jacob 2018 (CVPR)",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "INT8 payload with an external per-channel fp32 scale; the decoded value depends on the scale tensor, so a standalone round-trip table is not defined. Recorded structurally.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

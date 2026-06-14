@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Trinity ring-088 -- GF16 numeric codec + multiply-accumulate kernel. First honestly-imported Wave-11 crate (Wave 15)."
-authors = ["Trinity Project <dev@trinity-s3ai.local>"]
+authors = ["Trinity Project <admin@t27.ai>"]
 repository = "https://github.com/gHashTag/t27"
 readme = "README.md"
 

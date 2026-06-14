@@ -38,6 +38,15 @@ inspectable artefacts at every step.
   commercial NPUs on TOPS or SDK breadth; we own the inspectable open silicon
   and formal / assurance corner. Benchmark policy: [`BENCHMARKS.md`](BENCHMARKS.md).
 - **CLARA traceability:** [`CLARA_TRACEABILITY.md`](CLARA_TRACEABILITY.md).
+## HuggingFace mirror
+
+Discoverability mirror of the numeric corpus. GitHub remains the primary source of truth (one-way flow GitHub -> Zenodo -> Hugging Face).
+
+- **Catalog dataset:** [playra/numeric-format-catalog](https://huggingface.co/datasets/playra/numeric-format-catalog) -- the 83-format SSOT
+- **Conformance packs:** [playra/numeric-conformance-packs](https://huggingface.co/datasets/playra/numeric-conformance-packs) -- bit-exact JSON vectors (10 configs across GF4..GF32 + phi-identity)
+- **Paper page:** [arXiv:2606.09686 on HF](https://huggingface.co/papers/2606.09686)
+
+
 
 ---
 
