@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## loop9-s-hir-deadcode-slice -- per-enum allow(dead_code) for HIR/FPGA grammar enums (Closes #1129)
+
+- **WHERE**: bootstrap/src/compiler.rs (HIR/FPGA grammar enums), scripts/warnings-baseline.sh.
+- **WHAT**: added a scoped #[allow(dead_code)] to 8 spec-complete HIR/FPGA grammar enums (HwType, HwResetKind, HwResetPolarity, HwEdge, HirAlwaysStmtKind, HwMemKind, HwCrossStrategy, HwFifoKind) and lowered the warnings baseline 655 -> 647.
+- **Why** a targeted #969 slice: these variants are an intentionally spec-complete AST surface, not accidental dead code; per-enum suppression (not file-level) keeps it reviewable, same pattern as #1111/#1122. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1129.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## make-verify-umbrella -- single advisory pre-PR umbrella (make verify) (Closes #1124)
 
 - **WHERE**: new `scripts/verify.sh` and the top-level `Makefile` (new `verify` target + `make help` entry).
