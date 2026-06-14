@@ -50,6 +50,10 @@ pub enum MathCommands {
         #[arg(long)]
         sensitivity: bool,
     },
+
+    /// Bayes factor analysis for Sacred Formula vs null model (Issue #969 follow-up).
+    #[command(subcommand)]
+    Bayes(crate::math_bayes::BayesCommands),
 }
 
 pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<()> {
@@ -74,6 +78,7 @@ pub fn run_math_command(cmd: MathCommands, repo_root: &Path) -> anyhow::Result<(
                 sensitivity,
             },
         ),
+        MathCommands::Bayes(cmd) => crate::math_bayes::run_bayes_command(cmd, repo_root),
     }
 }
 
