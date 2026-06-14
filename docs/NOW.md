@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## seal-dashboard -- surface NMSE seal staleness in the PR dashboard + local reseal-check.sh (Closes #1103)
+
+- **WHERE**: `.github/workflows/pr-dashboard.yml` (new `## Seal Status` section in the generated dashboard markdown) and `scripts/reseal-check.sh` (new read-only local reporter).
+- **WHAT**: follow-up to the advisory #1099 CI job, which only fires on PRs touching `compiler.rs`/`FROZEN_HASH`/manifest and only as a transient annotation. Two persistent surfaces added. (a) `pr-dashboard.yml` now recomputes `sha256(bootstrap/src/compiler.rs)`, reads the manifest `seal`, and renders a fresh / STALE / UNSEALED badge in the dashboard report (posted as a PR comment and on the hourly run); it mirrors the CI logic and is advisory only -- it does NOT gate a merge. (b) `scripts/reseal-check.sh` is a one-shot read-only reporter (exit 0 fresh / 2 stale / 3 unsealed, `--quiet` flag) that prints the live/seal/FROZEN digests and, when stale, the exact two-step reseal command; it never rewrites any seal.
+- **Why** the seal model is honest-by-construction (`compute_seal()` in `repro/numerics/nmse_gf16.py` seals only when `--seal` is passed AND the live compiler hashes to FROZEN_HASH), but staleness was only visible as a transient annotation. These two surfaces make it visible at review time and before push, without ever blocking work or auto-resealing -- refreezing stays an explicit reviewed step. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1103.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## seal-staleness-warn -- advisory CI warning when NMSE seal is stale vs compiler.rs (Closes #1099)
 
 - **WHERE**: `.github/workflows/seal-staleness-warn.yml` (new advisory, NON-blocking workflow).

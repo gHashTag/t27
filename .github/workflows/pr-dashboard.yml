@@ -61,6 +61,32 @@ jobs:
           echo "| FAILING | $FAILING |" >> /tmp/pr_dashboard.md
           echo "| PENDING | $PENDING |" >> /tmp/pr_dashboard.md
 
+          # Seal Status (advisory, non-blocking). The certifying NMSE manifest is
+          # sealed against sha256(bootstrap/src/compiler.rs); when the compiler
+          # changes the committed numbers were certified against an older compiler.
+          # This mirrors scripts/reseal-check.sh and seal-staleness-warn.yml so the
+          # dashboard surfaces staleness without ever gating a merge.
+          echo "" >> /tmp/pr_dashboard.md
+          echo "## Seal Status" >> /tmp/pr_dashboard.md
+          echo "" >> /tmp/pr_dashboard.md
+          MANIFEST="repro/numerics/nmse_manifest.json"
+          SRC="bootstrap/src/compiler.rs"
+          if [ ! -f "$SRC" ]; then
+            echo "- :grey_question: seal source missing ($SRC); cannot verify." >> /tmp/pr_dashboard.md
+          else
+            LIVE=$(sha256sum "$SRC" | awk '{print $1}')
+            SEAL=$(python3 -c "import json; print(json.load(open('$MANIFEST')).get('seal',''))" 2>/dev/null || echo "")
+            if [ -z "$SEAL" ] || [ "$SEAL" = "unsealed" ]; then
+              echo "- :grey_question: **UNSEALED** -- manifest carries no seal; nothing to compare." >> /tmp/pr_dashboard.md
+            elif [ "$LIVE" = "$SEAL" ]; then
+              echo "- :white_check_mark: **fresh** -- sha256(compiler.rs)=\`${LIVE:0:12}\` matches the manifest seal. Certification is current." >> /tmp/pr_dashboard.md
+            else
+              echo "- :warning: **STALE** -- sha256(compiler.rs)=\`${LIVE:0:12}\` != manifest seal=\`${SEAL:0:12}\`." >> /tmp/pr_dashboard.md
+              echo "  The committed NMSE numbers were certified against an older compiler.rs." >> /tmp/pr_dashboard.md
+              echo "  Run \`scripts/reseal-check.sh\` locally for the two-step reseal command (advisory; not a merge gate)." >> /tmp/pr_dashboard.md
+            fi
+          fi
+
       - name: Post PR Comment
         if: github.event_name == 'pull_request'
         env:
