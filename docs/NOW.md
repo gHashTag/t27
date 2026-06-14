@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## seal-staleness-warn -- advisory CI warning when NMSE seal is stale vs compiler.rs (Closes #1099)
+
+- **WHERE**: `.github/workflows/seal-staleness-warn.yml` (new advisory, NON-blocking workflow).
+- **WHAT**: the certifying NMSE manifest (`repro/numerics/nmse_manifest.json`) is sealed against `sha256(bootstrap/src/compiler.rs)` via `bootstrap/stage0/FROZEN_HASH` (see `compute_seal()` in `repro/numerics/nmse_gf16.py`). When the stage0 compiler changes, the manifest seal silently becomes stale -- the sealed numbers were certified against an older compiler -- with no CI signal. The new workflow triggers on PRs touching `compiler.rs`, `FROZEN_HASH`, or the manifest; it recomputes `sha256(compiler.rs)`, compares it to the manifest `seal`, and emits a GitHub `::warning::` annotation if they diverge (plus a secondary warning if it also diverges from FROZEN_HASH). It ALWAYS exits 0 and runs with `contents: read` only.
+- **Why**: makes seal staleness visible at review time without blocking work. It is deliberately advisory: NOT in the required-check set (check-now-freshness / validate / check / check-linked-issue), and it never auto-reseals -- refreezing stays an explicit reviewed step (`python repro/numerics/nmse_gf16.py --seal` after updating FROZEN_HASH). Honesty: the job reports divergence, it does not fabricate or rewrite any seal. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1099.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## cast-width-correct -- width-correct Verilog cast lowering + cast-type validation (Closes #1098)
 
 - **WHERE**: `bootstrap/src/compiler.rs` (`parse_cast_target_type` base-type validation; `ExprCast` lowering rewrite in `gen_verilog_expr`; new `param_widths` map on `VerilogCodegen` populated in `gen_verilog_fn`; new tests `test_verilog_cast_width_correct` + `test_parser_rejects_unknown_cast_type`).
