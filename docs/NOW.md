@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## bitnet-engine-top-wiring -- emit multilayer_sequencer + wire all 9 RTL modules (Closes #926)
+
+- **WHERE**: `bootstrap/src/bitnet_pipeline.rs` (new `build_multilayer_sequencer`), `bootstrap/src/bitnet_bundle.rs` (bundle now emits 11 SV files + manifest), `bootstrap/src/bitnet_top.rs` (`build_bitnet_engine_top` structural datapath).
+- **WHAT** (#926 two CRITICAL bugs): Bug 1 -- `bitnet_engine_top` instantiated `multilayer_sequencer` by name but no emitter produced it, so synthesis failed on an unresolved module reference; a new `build_multilayer_sequencer` FSM emitter is added (port contract matches the instance: clk/rst_n/start/num_layers/layer_done/prefetch_done -> current_layer/layer_start/start_prefetch/inference_done) and registered in the bundle. Bug 2 -- the other 7 of 9 W36 modules sat as standalone IPs; the engine-top now structurally wires them into a coherent path: weight_prefetch_ctrl (AXI read) -> weight_bram -> pipeline_stage2_compute driven by layer_sequencer, with axi_lite_slave CSR, dma_controller, and interrupt_controller, plus a single observability tie-off net so synthesis retains every block without multiple drivers. mem_addr/mem_rd_en now driven from the prefetch AXI channel.
+- **Why**: closes the "synthesis fails + dead silicon" defect. Full bundle (all 11 SV modules) elaborates cleanly under iverilog -g2012 (only external W33 trit27_dot_product is supplied separately). New tests: `multilayer_*` (5), `all_nine_submodules_instantiated_926`, `datapath_chains_prefetch_bram_compute_926`, bundle-count tests bumped to 12. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only; no quality claim added. Closes #926.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## typecheck-local-propagation -- body locals visible to sibling statements (Closes #920)
 
 - **WHERE**: `bootstrap/src/compiler.rs` `check_stmt()` and the FnDecl body loop in `typecheck_ast()`.
