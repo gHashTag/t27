@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## cast-width-correct -- width-correct Verilog cast lowering + cast-type validation (Closes #1098)
+
+- **WHERE**: `bootstrap/src/compiler.rs` (`parse_cast_target_type` base-type validation; `ExprCast` lowering rewrite in `gen_verilog_expr`; new `param_widths` map on `VerilogCodegen` populated in `gen_verilog_fn`; new tests `test_verilog_cast_width_correct` + `test_parser_rejects_unknown_cast_type`).
+- **WHAT**: follow-up to #1089, which made `as` parse into an `ExprCast` but lowered it to just the inner operand (correct only for same-width casts). Now: (a) `parse_cast_target_type` validates the base type against the known scalar set (bool, u8/i8, u16/i16, u32/i32, u64/i64, usize) so a typo like `x as widget` cannot silently lower to a 32-bit default -- the function-body parser's statement-level error recovery drops the offending statement, so the bogus type never reaches codegen. (b) `ExprCast` lowering is width-correct: signed target -> `$signed(op)`; narrowing unsigned target of width W<64 -> `(op & {W{1'b1}})`; widening unsigned cast of a known-width parameter -> operand verbatim (no redundant mask, via a per-function param-width map); 64-bit/array/unknown -> verbatim. Cast chains (`x as u16 as u32`) fold and lower per-step.
+- **Why**: the Verilog backend now models truncation and sign-extension instead of dropping the cast, so narrowing and signed casts are correct, not just no-op widenings. Verified with a differential iverilog (-g2012) test for truncation, chain, and signed cases (incl. `200 as i16 = -56`); existing `test_verilog_cast_no_as_keyword` still green. Full suite 1442 passed / 0 failed / 2 ignored, 0 new regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1098.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## connect-notebook-bayes -- wire up notebook + math_bayes, close dead-code #969 remainder (Closes #1097)
 
 - **WHERE**: `bootstrap/src/main.rs` (`mod notebook;` + `mod math_bayes;` registered; new top-level `Notebook` command wired into both CLI dispatch sites), `bootstrap/src/math_compare.rs` (added `Bayes` variant to the `Math` subcommand group + dispatch), `bootstrap/src/math_bayes.rs` (fixed 7 latent compile errors that had never been built).
