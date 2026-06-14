@@ -19880,6 +19880,128 @@ mod tests_compiler_rejects {
         // The malformed statement is dropped; the bogus ident never leaks.
         assert_dropped(&v, "k", &["frobnicate"]);
     }
+    // -----------------------------------------------------------------------
+    // Variant Q: extend the negative-test contract from the statement level
+    // (variants K/M, inside function bodies) UP to the module/declaration
+    // level. The top-level declaration parser reacts to malformed input in the
+    // SAME three empirically-observed ways as the statement parser, so the
+    // contract is symmetric and pinned here:
+    //
+    //   (a) DROP-RECOVERY  -- a malformed top-level item that still lexes as
+    //                         identifiers (an unknown leading token, or a `fn`
+    //                         with no body) is skipped by
+    //                         `skip_to_next_top_level()`; the parser RESYNCS to
+    //                         the next valid declaration and the module still
+    //                         compiles. The bogus tokens never reach codegen,
+    //                         and a VALID declaration that follows is still
+    //                         parsed -- proving recovery, not truncation.
+    //   (b) HARD ERROR     -- garbage that does NOT lex as a skippable
+    //                         declaration token (a stray `@` between decls)
+    //                         cannot be resynced; it propagates to the module's
+    //                         closing-brace expectation and aborts the whole
+    //                         compile with Err.
+    //   (c) PERMISSIVE     -- the declaration parser intentionally accepts some
+    //                         shapes WITHOUT error: an empty module body, and
+    //                         two modules that share a name (no dedup check).
+    //                         These are characterized, not asserted-against, so
+    //                         that if a future change adds rejection the test
+    //                         fails loudly and the decision is made on purpose.
+    //
+    // All outcomes below were observed empirically before being asserted.
+    // -----------------------------------------------------------------------
+
+    /// Helper: assert a bogus top-level token was dropped during recovery and
+    /// never leaked into codegen, while the module skeleton still emitted.
+    fn assert_decl_dropped(v: &str, module_name: &str, bogus_tokens: &[&str]) {
+        assert!(
+            v.contains(&format!("module {} (", module_name)),
+            "the module skeleton must still emit after declaration recovery, got:\n{}",
+            v
+        );
+        for tok in bogus_tokens {
+            assert!(
+                !v.contains(tok),
+                "bogus top-level token `{}` must never reach codegen, got:\n{}",
+                tok,
+                v
+            );
+        }
+    }
+
+    // (a) Unknown leading top-level token (`gibberish foo`) -> the declaration
+    // parser errors, `skip_to_next_top_level()` drops the bogus tokens, and the
+    // module still compiles. Neither bogus identifier reaches codegen.
+    #[test]
+    fn rejects_unknown_top_level_token() {
+        let v = emit(r#"module QUnknownDecl { gibberish foo }"#);
+        assert_decl_dropped(&v, "QUnknownDecl", &["gibberish", "foo"]);
+    }
+
+    // (a) DROP-RECOVERY that RESYNCS: a bogus leading token is dropped, then a
+    // VALID `const` declaration that follows it is still parsed and lowered.
+    // This proves `skip_to_next_top_level()` resynchronizes rather than aborts
+    // or truncates the rest of the module.
+    #[test]
+    fn recovers_to_next_decl_after_unknown_token() {
+        let v = emit(r#"module QResync { zzzbogus pub const KEEP : u32 = 99 }"#);
+        assert_decl_dropped(&v, "QResync", &["zzzbogus"]);
+        assert!(
+            v.contains("KEEP = 99"),
+            "the valid const after the dropped token must still lower, got:\n{}",
+            v
+        );
+    }
+
+    // (a) A `fn` declaration with no body (`pub fn f(x: u8) -> u8` with no
+    // `{ ... }`) is dropped at the declaration level; the function name never
+    // reaches codegen and the module skeleton still emits.
+    #[test]
+    fn rejects_fn_declaration_without_body() {
+        let v = emit(r#"module QNoBody { pub fn weirdfn(x: u8) -> u8 }"#);
+        assert_decl_dropped(&v, "QNoBody", &["weirdfn"]);
+    }
+
+    // (b) A stray token that does not lex as a skippable declaration start
+    // (`@` between two consts) cannot be resynced and aborts the whole compile
+    // with a HARD error -- the same class as an unterminated module.
+    #[test]
+    fn rejects_unrecoverable_garbage_between_decls() {
+        let r = try_emit(r#"module QGarbage { pub const A : u32 = 1 @ pub const B : u32 = 2 }"#);
+        assert!(
+            r.is_err(),
+            "unrecoverable garbage between declarations must fail to compile, got Ok:\n{:?}",
+            r
+        );
+    }
+
+    // (c) PERMISSIVE characterization: an empty module body compiles without
+    // error and emits a valid (port-only) skeleton. Pinned so that adding a
+    // "modules must be non-empty" rule later is a deliberate, test-visible
+    // decision rather than a silent change.
+    #[test]
+    fn accepts_empty_module_body_characterization() {
+        let v = emit(r#"module QEmpty { }"#);
+        assert!(
+            v.contains("module QEmpty ("),
+            "an empty module is currently accepted and must still emit, got:\n{}",
+            v
+        );
+    }
+
+    // (c) PERMISSIVE characterization: two modules sharing the same name are
+    // both accepted today (there is no duplicate-name check). Pinned as current
+    // behavior, not endorsed -- a future dedup pass should flip this test.
+    #[test]
+    fn accepts_duplicate_module_names_characterization() {
+        let r = try_emit(
+            r#"module QDup { pub const A : u32 = 1 } module QDup { pub const B : u32 = 2 }"#,
+        );
+        assert!(
+            r.is_ok(),
+            "duplicate module names are currently accepted (no dedup check), got Err:\n{:?}",
+            r
+        );
+    }
 }
 
 #[cfg(test)]
