@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "X87_FP80",
+  "format_name": "x87 FP80",
+  "bitexact": false,
+  "format_notes": "x87 FP80 -- Intel x87 (explicit integer bit)",
+  "catalog": {
+    "id": "x87_fp80",
+    "bits": 80,
+    "s": 1,
+    "e": 15,
+    "m": 64,
+    "bias": 16383,
+    "storage": "u80_padded",
+    "cluster": "ExtendedFloat",
+    "status": "Historical",
+    "standard": "Intel x87 (explicit integer bit)",
+    "use_case": "legacy long double on x86",
+    "gf_relation": "orthogonal",
+    "source": "Intel SDM",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

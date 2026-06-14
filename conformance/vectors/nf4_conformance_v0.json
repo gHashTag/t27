@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "NF4",
+  "format_name": "NF4 (NormalFloat 4-bit)",
+  "bitexact": false,
+  "format_notes": "NF4 (NormalFloat 4-bit) -- Dettmers 2023 (QLoRA)",
+  "catalog": {
+    "id": "nf4",
+    "bits": 4,
+    "s": 0,
+    "e": 0,
+    "m": 4,
+    "bias": 0,
+    "storage": "u8_packed",
+    "cluster": "QuantTuned",
+    "status": "Verified",
+    "standard": "Dettmers 2023 (QLoRA)",
+    "use_case": "LLM weight quantization (quantile-based on N(0,1))",
+    "gf_relation": "orthogonal",
+    "source": "Dettmers 2023 (arXiv:2305.14314)",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "NF4 is a 16-entry quantile lookup table fitted to N(0,1); values are table entries, not an S:E:M layout. The 16-entry table defines the round-trip, recorded structurally.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}
