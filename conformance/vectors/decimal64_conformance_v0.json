@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "DECIMAL64",
+  "format_name": "decimal64",
+  "bitexact": false,
+  "format_notes": "decimal64 -- IEEE 754-2008",
+  "catalog": {
+    "id": "decimal64",
+    "bits": 64,
+    "s": 1,
+    "e": 13,
+    "m": 50,
+    "bias": 398,
+    "storage": "u64",
+    "cluster": "Ieee754Decimal",
+    "status": "Verified",
+    "standard": "IEEE 754-2008",
+    "use_case": "financial databases",
+    "gf_relation": "orthogonal",
+    "source": "IEEE 754-2008",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "IEEE 754 decimal (DPD/BID) encodes coefficients in a packed decimal field; round-trip is exact for decimal values but the bit layout is not a plain radix-2 S:E:M. Recorded structurally with the exact decimal anchor 3.0.",
+  "anchor_note": "3.0 is exactly representable (decimal coefficient 3, exponent 0).",
+  "n_vectors": 0,
+  "vectors": []
+}

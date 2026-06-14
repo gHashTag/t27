@@ -96,7 +96,7 @@
   "cross_repo_consumers": [
     "gHashTag/tt-trinity-gamma -- RTL for GF4..GF256 (frozen silicon for GF16)",
     "gHashTag/tt-trinity-corona -- ROM records for all 80 formats; GF cluster routed via D2D to Gamma",
-    "gHashTag/goldenfloat-preprint -- arXiv cs.AR (Hunhold endorsed, code QFHDTL)",
+    "gHashTag/goldenfloat-preprint -- arXiv:2606.05017 (cs.AR, live 2026-06-03)",
     "gHashTag/arith2027-goldenfloat -- ARITH 2027 submission",
     "gHashTag/trinity-s3ai -- Coq proofs, claims.yaml ledger",
     "gHashTag/claim-audit-lab -- public self-audit ledger"

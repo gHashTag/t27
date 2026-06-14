@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GF96",
+  "format_name": "GF96 (rule-derived)",
+  "bitexact": false,
+  "format_notes": "GF96 (rule-derived) -- this work; rule e=round(95/phi^2)=36",
+  "catalog": {
+    "id": "gf96",
+    "bits": 96,
+    "s": 1,
+    "e": 36,
+    "m": 59,
+    "bias": 34359738367,
+    "storage": "u128_padded",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; rule e=round(95/phi^2)=36",
+    "use_case": "OPEN R&D: between GF64 and GF128 (phi-aligned extended)",
+    "gf_relation": "experimental",
+    "source": "specs/numeric/gf96.t27",
+    "phi_distance": 0.008
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}

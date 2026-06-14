@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "QUAD_DOUBLE",
+  "format_name": "quad-double",
+  "bitexact": false,
+  "format_notes": "quad-double -- Bailey/Hida (software)",
+  "catalog": {
+    "id": "quad_double",
+    "bits": 256,
+    "s": 4,
+    "e": 44,
+    "m": 208,
+    "bias": 0,
+    "storage": "four_u64",
+    "cluster": "ExtendedFloat",
+    "status": "Verified",
+    "standard": "Bailey/Hida (software)",
+    "use_case": "astrophysics, quad-precision sims",
+    "gf_relation": "orthogonal",
+    "source": "Bailey-Hida 2001",
+    "phi_distance": -1.0
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "Extended-precision layout (explicit integer bit / multi-double components) is not a single S:E:M field; recorded structurally.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}
