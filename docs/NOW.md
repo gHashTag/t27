@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## deadcode-annotate-host-mod -- #969 next layer: annotate the host/mod.rs re-export facade (Closes #1111)
+
+- **WHERE**: `bootstrap/src/host/mod.rs` (one module-scoped inner attribute + explanatory comment, after the header comment, before the `pub mod` declarations).
+- **WHAT**: next conservative slice of the #969 dead-code audit, the re-export-hub layer. After #1105 the non-test build still emits ~726 warnings; 42 of them are `unused_imports` on the crate-root `pub use` lines in `host/mod.rs`. These lines re-export the host-driver API for external consumers (`use t27c::host::{BitnetDriver, MockMmio, DriverError};`), but the binary crate's own non-test build does not consume them, so each emits an unused-import warning. This module is an intentional public API facade, not dead code -- a single module-scoped `#![cfg_attr(not(test), allow(unused_imports))]` documents that and silences the 42 warnings WITHOUT removing any export or touching the API. It is scoped to `not(test)` so the test build still flags genuinely unused test imports.
+- **Why** mass-suppression hides real defects (see #1097, where building dead code surfaced 7 latent errors), so the audit stays conservative and per-surface: this pass annotates only the one re-export facade, leaving everything else for explicit follow-up. Non-test build warnings drop 726 -> 685 (the 42 facade re-exports); full suite stays green with 0 regressions; `not(test)` scope preserves test-build flagging. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1111.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## compiler-negative-tests-ext -- extend the parser negative-tests gate beyond casts (Closes #1110)
 
 - **WHERE**: `bootstrap/src/compiler.rs` (`#[cfg(test)] mod tests_compiler_rejects`: new helper `try_emit` + five tests appended after `accepts_valid_cast_as_control`).

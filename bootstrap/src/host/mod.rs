@@ -13,6 +13,15 @@
 // write `use t27c::host::{BitnetDriver, MockMmio, DriverError};`.
 // ============================================================================
 
+// Variant L (#969 dead-code audit, re-export-hub layer). This module is an
+// intentional public API facade: every `pub use` below re-exports a host-driver
+// type for external consumers. The binary crate's own non-test build does not
+// consume them, so each line emits an `unused_imports` warning (42 in total).
+// They are deliberate public surface, not dead code -- a single module-scoped
+// allow documents that without removing any export or touching the API. Scoped
+// to `not(test)` so the test build still flags genuinely unused test imports.
+#![cfg_attr(not(test), allow(unused_imports))]
+
 pub mod addrmap;
 pub mod bitmask;
 pub mod bitstream;
