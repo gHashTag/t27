@@ -8096,6 +8096,17 @@ impl RustCodegen {
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq)]
+// Variant S (#969 dead-code audit, HIR/FPGA grammar layer): the Hardware IR
+// node-kind enums below model the full target HDL/FPGA grammar surface
+// (clock/reset kinds, edge sensitivity, always-block statement kinds, memory
+// kinds, clock-domain-crossing and FIFO strategies). Several variants are not
+// yet constructed by the current lowering passes, so each emits a
+// `never constructed` dead_code warning -- but they are an intentional,
+// spec-complete AST surface kept for the Phase-0 FPGA foundation, not dead
+// code. A targeted per-enum allow documents that without removing any variant
+// or weakening the type; same conservative annotate-not-delete pattern as the
+// #1111 / #1122 host slices. Scoped narrowly to these enums (NOT the file).
+#[allow(dead_code)]
 pub enum HwType {
     Bits(u32),
     UInt(u32),
@@ -8110,12 +8121,14 @@ pub enum HwType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwResetKind {
     Async,
     Sync,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwResetPolarity {
     ActiveHigh,
     ActiveLow,
@@ -8208,6 +8221,7 @@ pub struct HirAssign {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwEdge {
     Posedge,
     Negedge,
@@ -8223,6 +8237,7 @@ pub struct HirAlwaysBlock {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HirAlwaysStmtKind {
     BlockingAssign,
     NonBlockingAssign,
@@ -8250,6 +8265,7 @@ pub struct HirInstance {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwMemKind {
     Bram,
     Dram,
@@ -8429,6 +8445,7 @@ impl HirClockDomain {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwCrossStrategy {
     TwoFlop,
     FifoAsync,
@@ -8444,6 +8461,7 @@ pub struct HirClockCrossing {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum HwFifoKind {
     Sync,
     Async,
