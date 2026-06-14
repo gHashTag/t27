@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## decl-level-negative-tests -- extend the negative-test gate to module/declaration level (Closes #1123)
+
+- **WHERE**: `bootstrap/src/compiler.rs` (`mod tests_compiler_rejects`: new `assert_decl_dropped` helper + six tests).
+- **WHAT**: variants K (#1110) and M (#1115) pinned the negative-test contract for malformed input INSIDE function bodies (statement-level recovery, hard errors, a now-closed silent-leak gap). The top-level declaration parser (`parse_module_body` / `parse_top_level_decl` / `skip_to_next_top_level`) has the SAME three reaction classes but they were never pinned. This extends the contract UP to the module/declaration level, each outcome observed empirically with a temporary probe BEFORE being asserted: (a) DROP-RECOVERY -- an unknown leading top-level token (`gibberish foo`) and a `fn` declaration with no body are skipped by `skip_to_next_top_level()`; the module still compiles and the bogus tokens never reach codegen (`rejects_unknown_top_level_token`, `rejects_fn_declaration_without_body`), and `recovers_to_next_decl_after_unknown_token` proves recovery RESYNCS -- a valid `const KEEP = 99` after a dropped token is still parsed and lowered, not truncated. (b) HARD ERROR -- a stray `@` between declarations cannot be resynced and aborts the whole compile with Err, the same class as an unterminated module (`rejects_unrecoverable_garbage_between_decls`). (c) PERMISSIVE characterization -- an empty module body and two modules sharing a name are currently accepted with no error; pinned as current behavior so any future rejection is a deliberate, test-visible decision (`accepts_empty_module_body_characterization`, `accepts_duplicate_module_names_characterization`).
+- **Why** makes the parser's declaration-level error behavior an explicit, regression-safe contract symmetric with the statement-level gate -- honest empirical grouping (facts observed before asserted), no production behavior change (tests only). Verified: `cargo test --bin t27c tests_compiler_rejects` -> 16 passed (10 prior + 6 new); full suite 1458 passed / 0 failed / 2 ignored (was 1452), 0 regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1123.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## deadcode-annotate-host-errors -- #969 next slice: annotate the host/errors.rs catalog (Closes #1122)
 
 - **WHERE**: `bootstrap/src/host/errors.rs` (new module-scoped inner attribute at the top of the file) and `scripts/warnings-baseline.sh` (BASELINE 683 -> 655 + history comment).
