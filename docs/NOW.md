@@ -2,6 +2,13 @@
 
 Last updated: 2026-06-14
 
+## loop9-t-decl-positive-tests -- positive-control tests for the declaration parser (Closes #1130)
+
+- **WHERE**: bootstrap/src/compiler.rs, mod tests_compiler_rejects (test-only additions).
+- **WHAT**: added 5 positive-control tests pinning what the declaration parser ACCEPTS and lowers (accepts_multiple_consts, accepts_fn_with_body, accepts_mixed_const_and_fn, accepts_struct_declaration, lowers_only_first_of_two_modules_characterization); count 16 -> 21.
+- **Why** the mirror of #1123: #1123 pinned rejections/recovery; this pins acceptance/lowering so a regression that silently stopped lowering a valid construct is caught. Each test was written by empirically observing current behavior first; the two-module test is a named characterization, not an endorsement. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1130.
+- **Anchor**: phi^2 + phi^-2 = 3
+
 ## loop9-s-hir-deadcode-slice -- per-enum allow(dead_code) for HIR/FPGA grammar enums (Closes #1129)
 
 - **WHERE**: bootstrap/src/compiler.rs (HIR/FPGA grammar enums), scripts/warnings-baseline.sh.

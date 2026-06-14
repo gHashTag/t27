@@ -20020,6 +20020,105 @@ mod tests_compiler_rejects {
             r
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Variant T: positive control set, the mirror of variants K/M/Q. Those
+    // pin what the parser REJECTS or recovers from; this pins what it ACCEPTS
+    // and lowers, so the negative gate cannot silently start over-rejecting
+    // valid input (the same role `accepts_valid_cast_as_control` plays for the
+    // cast tests, lifted to the module/declaration level). Every assertion was
+    // confirmed empirically against the current lowering before being written.
+    // -----------------------------------------------------------------------
+
+    // (T) Multiple `const` declarations in one module all lower to parameters.
+    #[test]
+    fn accepts_multiple_consts() {
+        let v = emit(r#"module TMultiConst { pub const A : u32 = 7 pub const B : u32 = 9 }"#);
+        assert!(
+            v.contains("A = 7") && v.contains("B = 9"),
+            "both consts must lower to parameters, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "a valid module must not be dropped, got:\n{}",
+            v
+        );
+    }
+
+    // (T) A `fn` WITH a body lowers its operand (contrast with variant Q's
+    // `rejects_fn_declaration_without_body`, where the body-less form is dropped).
+    #[test]
+    fn accepts_fn_with_body() {
+        let v = emit(r#"module TFnBody { pub fn id(x: u8) -> u8 { return x } }"#);
+        assert!(
+            v.contains("id = x"),
+            "a function with a body must lower its operand, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "a valid function body must not be dropped, got:\n{}",
+            v
+        );
+    }
+
+    // (T) A module mixing a `const` and a `fn` lowers both -- declaration kinds
+    // do not interfere with each other on the happy path.
+    #[test]
+    fn accepts_mixed_const_and_fn() {
+        let v = emit(r#"module TMixed { pub const W : u32 = 4 pub fn id(x: u8) -> u8 { return x } }"#);
+        assert!(
+            v.contains("W = 4") && v.contains("id = x"),
+            "both the const and the fn must lower, got:\n{}",
+            v
+        );
+    }
+
+    // (T) A `struct` declaration is accepted without error and without dropping
+    // the module (it is metadata, not a Verilog assign, so we assert acceptance
+    // and a clean -- non-TODO -- emit rather than a specific lowered token).
+    #[test]
+    fn accepts_struct_declaration() {
+        let v = emit(r#"module TStruct { pub struct Pt { x: u8, y: u8 } }"#);
+        assert!(
+            v.contains("module TStruct ("),
+            "a module with a struct decl must still emit, got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("// TODO: implement"),
+            "a valid struct decl must not drop the module, got:\n{}",
+            v
+        );
+    }
+
+    // (T) CHARACTERIZATION of the multi-module surface. Variant Q pinned that two
+    // top-level modules compile WITHOUT error; this records the *lowering* side of
+    // that fact: only the FIRST module is emitted to Verilog (exactly one `module`
+    // keyword, the second module's body does not appear). This is current
+    // behavior, not an endorsement -- if multi-module emission is added later this
+    // test must be updated deliberately.
+    #[test]
+    fn lowers_only_first_of_two_modules_characterization() {
+        let v = emit(r#"module TFirst { pub const A : u32 = 1 } module TSecond { pub const B : u32 = 2 }"#);
+        assert!(
+            v.contains("module TFirst ("),
+            "the first module must be emitted, got:\n{}",
+            v
+        );
+        assert_eq!(
+            v.matches("module ").count(),
+            1,
+            "only the first module is currently lowered (one `module` keyword), got:\n{}",
+            v
+        );
+        assert!(
+            !v.contains("TSecond"),
+            "the second module is not currently lowered, got:\n{}",
+            v
+        );
+    }
 }
 
 #[cfg(test)]
