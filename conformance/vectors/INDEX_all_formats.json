@@ -321,7 +321,7 @@
       "file": "gf16_conformance_v0.json",
       "kind": "bitexact",
       "source": "hand-curated (pre-existing)",
-      "sha256": "7aea5b9e86ea71a54ae0c1601cea13e2d90d95fecaf2ae969eac1349cf7a2b42"
+      "sha256": "d1c0eb5bd66247b3c5db9a00a95e29cf4359653aec56f2f9e6827f96898d1509"
     },
     {
       "id": "gf20",

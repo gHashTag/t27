@@ -87,7 +87,7 @@
       "gf16_bits_int": 16188,
       "decoded_f64": 1.6171875,
       "decoded_f64_hex": "0x3FF9E00000000000",
-      "abs_error": 0.0,
+      "abs_error": 0.0008464887498949025,
       "category": "phi_anchor"
     },
     {
@@ -98,7 +98,7 @@
       "gf16_bits_int": 15481,
       "decoded_f64": 0.6181640625,
       "decoded_f64_hex": "0x3FE3C80000000000",
-      "abs_error": 0.0,
+      "abs_error": 0.0001300737501052085,
       "category": "phi_anchor"
     },
     {
@@ -109,7 +109,7 @@
       "gf16_bits_int": 16542,
       "decoded_f64": 2.6171875,
       "decoded_f64_hex": "0x4004F00000000000",
-      "abs_error": 0.0,
+      "abs_error": 0.0008464887498949025,
       "category": "phi_anchor"
     },
     {
@@ -120,7 +120,7 @@
       "gf16_bits_int": 15118,
       "decoded_f64": 0.3818359375,
       "decoded_f64_hex": "0x3FD8700000000000",
-      "abs_error": 0.0,
+      "abs_error": 0.00013007375010509747,
       "category": "phi_anchor"
     },
     {
@@ -230,7 +230,7 @@
       "gf16_bits_int": 16568,
       "decoded_f64": 2.71875,
       "decoded_f64_hex": "0x4005C00000000000",
-      "abs_error": 0.0,
+      "abs_error": 0.0004681715409549092,
       "category": "normal"
     },
     {
@@ -241,7 +241,7 @@
       "gf16_bits_int": 16676,
       "decoded_f64": 3.140625,
       "decoded_f64_hex": "0x4009200000000000",
-      "abs_error": 0.0,
+      "abs_error": 0.000967653589793116,
       "category": "normal"
     }
   ]

@@ -1,0 +1,19 @@
+{
+  "fixture": "fp8_e5m2_pos_inf_special_roundtrip",
+  "kind": "special_value_row",
+  "expectation": "Check D2 MUST pass: +inf encodes and decodes to +inf; abs_error is a placeholder, not an arithmetic error; exempt from D and E.",
+  "pack_id": "fp8_e5m2",
+  "row": {
+    "name": "pos_inf",
+    "input_f64": "Inf",
+    "input_f64_hex": "0x7FF0000000000000",
+    "fp8_bits_hex": "0x7C",
+    "fp8_bits_int": 124,
+    "decoded_f64": "Inf",
+    "decoded_f64_hex": "0x7FF0000000000000",
+    "abs_error": 0.0,
+    "category": "inf"
+  },
+  "severity": "none",
+  "note": "Same-class round-trip inf->inf. The v1 gate wrongly flagged this as a nan-mismatch (gate handling gap); v2 D2 validates it correctly."
+}

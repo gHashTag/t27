@@ -1,0 +1,37 @@
+name: Catalog Count Invariant (CI-01)
+
+# Kills the count-drift bug class. Enforces SSOT == fresh regenerated codegen
+# on every PR touching the numeric catalog or its codegen path. The canonical
+# number is the count of `// CATALOG:` lines in the SSOT; codegen run fresh
+# against it must reproduce that number exactly (catches the parser-bug class
+# that silently dropped formula-bias rows). Paper-count divergence
+# (arXiv:2606.09686 says 84; SSOT canonical is 83) is surfaced as a WARN that
+# requires an erratum, not a silent edit.
+#
+# NOTE: per the repo constitution (L2 GENERATION), gen/ is DERIVED and is never
+# hand-committed in a PR. This gate therefore regenerates into a temp dir and
+# checks that against the SSOT; it does NOT diff committed gen/.
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "specs/numeric/formats_catalog.t27"
+      - "tools/gen_formats_catalog.py"
+      - "tools/check_catalog_count.py"
+      - ".github/workflows/catalog-count-gate.yml"
+  workflow_dispatch:
+
+jobs:
+  count-invariant:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Enforce SSOT == fresh regen (canonical count)
+        run: |
+          python3 tools/check_catalog_count.py
