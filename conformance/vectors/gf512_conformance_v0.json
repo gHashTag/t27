@@ -1,0 +1,30 @@
+{
+  "schema": "t27-conformance/v0.1",
+  "format": "GF512",
+  "format_name": "GF512 (rule-derived)",
+  "bitexact": false,
+  "format_notes": "GF512 (rule-derived) -- this work; rule e=round(511/phi^2)=195",
+  "catalog": {
+    "id": "gf512",
+    "bits": 512,
+    "s": 1,
+    "e": 195,
+    "m": 316,
+    "bias": 25108406941546723055343157692830665664409421777856138051583,
+    "storage": "u512_software",
+    "cluster": "GoldenFloat",
+    "status": "Open",
+    "standard": "this work; rule e=round(511/phi^2)=195",
+    "use_case": "OPEN R&D: ultra-wide phi-aligned (extrapolation, no RTL)",
+    "gf_relation": "experimental",
+    "source": "specs/numeric/gf512.t27",
+    "phi_distance": 0.0009
+  },
+  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
+  "preprint": "https://arxiv.org/abs/2606.05017",
+  "anchor_identity": "phi^2 + 1/phi^2 = 3",
+  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
+  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
+  "n_vectors": 0,
+  "vectors": []
+}
