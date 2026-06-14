@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## cast-parser-fix -- recognize `as` casts, stop emitting stray type token (Closes #1089)
+
+- **WHERE**: `bootstrap/src/compiler.rs` (`parse_expr_unary` cast rule + new `parse_cast_target_type`; un-ignore `tests_hir_pipeline_parity::test_verilog_cast_no_as_keyword`).
+- **WHAT**: `as` is lexed as a bare identifier (not a reserved keyword), so `return x as u32` parsed as three statements -- `return x`, `as`, `u32` -- and Verilog codegen emitted stray `as;` and `u32;` lines. `ExprCast` existed in the AST with a correct lowering rule but no parser path ever produced it. Added a left-associative cast rule after the postfix expression (binds looser than unary/postfix, tighter than binary, matching Rust) that folds `expr as Type` into an `ExprCast`; `parse_cast_target_type` consumes `u32`, `i8`, and array forms `u8[N]`. The lowering keeps only the inner operand, so `cast_it = x;` is emitted with no type token.
+- **Why**: the cast was one of the 3 tests quarantined under #1087; it was a genuine codegen bug, not a stale expectation. The fix is at the parser, so all backends (Verilog/C/Rust) benefit. Removed the `#[ignore]` and added positive assertions: the cast adopts its declared return width (`function [31:0] cast_it;`) and assigns the inner operand verbatim. Suite 1430 passed, 0 failed, 2 ignored (the other 2 from #1087 untouched), 0 new regressions. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1089.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## green-baseline-jwt-fix-quarantine -- fix jwt crypto provider, quarantine 3 stale failures (Closes #1087)
 
 - **WHERE**: `bootstrap/Cargo.toml` (jsonwebtoken feature pin), `bootstrap/src/compiler.rs` + `bootstrap/src/ternary/mod.rs` + `bootstrap/src/trit_stdlib.rs` (3 `#[ignore]` annotations), `Cargo.lock`.

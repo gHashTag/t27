@@ -2208,7 +2208,50 @@ impl Parser {
                 ..Default::default()
             });
         }
-        self.parse_expr_postfix()
+        let mut expr = self.parse_expr_postfix()?;
+        // Cast operator `expr as Type`. `as` is lexed as an identifier (it is not
+        // a reserved keyword), so we match on the lexeme. The target type is
+        // recorded for diagnostics but the lowering keeps only the inner operand
+        // (Verilog/C/Rust backends rely on width inference, not on a textual
+        // cast token). Casts left-associate and bind looser than unary/postfix.
+        while self.current.kind == TokenKind::Ident && self.current.lexeme == "as" {
+            self.advance(); // consume `as`
+            let target_type = self.parse_cast_target_type()?;
+            let mut cast = Node::new(NodeKind::ExprCast);
+            cast.extra_type = target_type;
+            cast.children.push(expr);
+            expr = cast;
+        }
+        Ok(expr)
+    }
+
+    /// Consume the type that follows an `as` cast, e.g. `u32`, `i8`, or an
+    /// array form like `u8[4]`. Returns the textual type for diagnostics.
+    fn parse_cast_target_type(&mut self) -> Result<String, String> {
+        if self.current.kind != TokenKind::Ident {
+            return Err(format!(
+                "expected a type after `as`, found {:?}",
+                self.current.kind
+            ));
+        }
+        let mut ty = self.current.lexeme.clone();
+        self.advance();
+        // Optional array suffix: `[N]`.
+        if self.current.kind == TokenKind::LBracket {
+            ty.push('[');
+            self.advance();
+            while self.current.kind != TokenKind::RBracket
+                && self.current.kind != TokenKind::Eof
+            {
+                ty.push_str(&self.current.lexeme);
+                self.advance();
+            }
+            if self.current.kind == TokenKind::RBracket {
+                ty.push(']');
+                self.advance();
+            }
+        }
+        Ok(ty)
     }
 
     /// Parse postfix expressions: field access (.field), deref (.*), indexing ([i]), call (f(args))
@@ -19367,7 +19410,6 @@ mod tests_hir_pipeline_parity {
     }
 
     #[test]
-    #[ignore = "pre-existing failure: HIR cast lowering emits bare type name; tracked in #1087"]
     fn test_verilog_cast_no_as_keyword() {
         let src = r#"module CastTest {
     pub fn cast_it(x: u8) -> u32 {
@@ -19376,7 +19418,23 @@ mod tests_hir_pipeline_parity {
 }"#;
         let v = Compiler::compile_verilog(src).unwrap();
         assert!(!v.contains(" as "), "cast should not emit 'as' keyword in Verilog");
+        // Regression #1087: `as` was lexed as a bare identifier, so the cast
+        // target leaked out as stray statements `as;` and `u32;`. The parser now
+        // folds `x as u32` into an ExprCast that lowers to just the operand.
         assert!(!v.contains("u32;"), "cast should not emit bare type name");
+        assert!(!v.contains("as;"), "cast should not emit a stray `as` statement");
+        // Positive check: the function adopts its declared return width (u32 -> 32
+        // bits) and assigns the inner operand directly.
+        assert!(
+            v.contains("function [31:0] cast_it;"),
+            "cast target u32 should drive a 32-bit function result, got:\n{}",
+            v
+        );
+        assert!(
+            v.contains("cast_it = x;"),
+            "cast should assign the inner operand verbatim, got:\n{}",
+            v
+        );
     }
 
     #[test]
