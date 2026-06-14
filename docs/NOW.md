@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## seal-pre-push-hook -- advisory seal-staleness check at push time + make seal-check (Closes #1109)
+
+- **WHERE**: new top-level `Makefile` and `scripts/install-git-hooks.sh` (the installed L4 pre-push hook).
+- **WHAT**: #1103 added `scripts/reseal-check.sh` and a dashboard badge, but the reporter was still manual with no memorable entry point and nothing surfaced seal staleness at push time. Two thin additions. (a) A minimal top-level `Makefile` with `make seal-check` (wraps `scripts/reseal-check.sh`), `make install-hooks` (wraps `scripts/install-git-hooks.sh`), and a `help` default that lists them. It is intentionally thin -- it only wraps existing scripts, adds no build logic, and is NOT wired into CI (required checks stay check-now-freshness / validate / check / check-linked-issue). (b) The advisory pre-push hook installed by `scripts/install-git-hooks.sh` now also runs `reseal-check.sh --quiet` and prints a YELLOW warning when the seal is stale or unsealed vs `compiler.rs`. It always falls through to `exit 0` -- it NEVER blocks the push and NEVER reseals.
+- **Why** the seal model is honest-by-construction but staleness was only visible via the manual reporter or a transient CI annotation; this gives a memorable local entry point and a push-time nudge without ever gating work or auto-resealing -- refreezing stays an explicit reviewed step. Hook verified `bash -n` clean and `make seal-check` reports STALE (exit 2) as expected. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1109.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## deadcode-annotate-host-api -- #969 next layer: annotate intentional host/manifest public API (Closes #1105)
 
 - **WHERE**: `bootstrap/src/host/weight_loader.rs` (`encode_words`, `encode_with_crc`) and `bootstrap/src/tt_manifest.rs` (`TtChip::submodule_path`).
