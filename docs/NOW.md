@@ -2,6 +2,14 @@
 
 Last updated: 2026-06-14
 
+## reseal-apply-cmd -- explicit reviewed reseal entry point (make seal) (Closes #1117)
+
+- **WHERE**: new `scripts/reseal-apply.sh` and the top-level `Makefile` (new `seal` target).
+- **WHAT**: #1103 added the read-only `scripts/reseal-check.sh` and #1109 surfaced staleness at push time, but there was no single safe command to actually PERFORM a reseal -- the author had to copy/paste the two-step command the reporter prints. `scripts/reseal-apply.sh` is the deliberate "yes, recertify now" companion: it (1) reports current status via `reseal-check.sh`, (2) exits early if already fresh, (3) requires explicit confirmation -- an interactive `yes` prompt, or `RESEAL_YES=1` for non-interactive author use; with no TTY and no env override it aborts WITHOUT resealing, (4) performs exactly the two documented steps (refreeze FROZEN_HASH, then `python repro/numerics/nmse_gf16.py --seal`), (5) re-verifies and refuses to leave a half-applied reseal. A `make seal` target wraps it.
+- **Why** this closes the last mile of the seal workflow without weakening the honest-by-design model: regeneration still goes through `nmse_gf16.py --seal`, which only seals when the live compiler hashes to FROZEN_HASH (`compute_seal()` never fabricates), so the script makes resealing one-command and auditable but NOT automatic. Not wired into CI; never run by any required check. Verified: the no-TTY, env-not-set, and typed-not-`yes` paths all abort with FROZEN_HASH and the manifest byte-for-byte unchanged (confirmed via sha256 before/after). L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1117.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+
 ## warnings-baseline-meter -- advisory non-test build-warning meter for the #969 audit (Closes #1116)
 
 - **WHERE**: new `scripts/warnings-baseline.sh` and the top-level `Makefile` (new `warnings-baseline` target).
