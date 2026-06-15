@@ -1,0 +1,66 @@
+# OpenSSF Scorecard — automated supply-chain security posture scoring.
+#
+# Why: produces a public, vendor-neutral 0–10 score across ~18 checks
+# (Branch-Protection, Token-Permissions, Pinned-Dependencies, Signed-Releases,
+# Dangerous-Workflow, SAST, Vulnerabilities, ...). The badge + score is a
+# concrete "доверенность" (trustworthiness) artefact for grant applications
+# (ФСИ / Сколково) and aligns with ГОСТ Р 56939-2024 РБПО expectations.
+#
+# Results are published to the OpenSSF REST API and (optionally) to the
+# GitHub Security tab as SARIF. Zero cost; runs on a schedule + on push to the
+# default branch.
+#
+# Badge (add to README):
+#   [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/gHashTag/t27/badge)](https://scorecard.dev/viewer/?uri=github.com/gHashTag/t27)
+
+name: OpenSSF Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    # Weekly, Monday 06:17 UTC
+    - cron: '17 6 * * 1'
+  push:
+    branches: [master]
+
+# Top-level token is read-only; jobs elevate only what they need.
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # Needed to upload SARIF results to the code-scanning dashboard.
+      security-events: write
+      # Needed for GitHub OIDC token used to publish the public results.
+      id-token: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publish results to the public OpenSSF API so the badge resolves
+          # and others can audit the score. Set to false to keep private.
+          publish_results: true
+
+      - name: Upload artifact (retained 5 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code-scanning dashboard
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
