@@ -1,0 +1,84 @@
+# Sigstore keyless signing of release artifacts (Signed-Releases).
+#
+# Why: Sigstore (cosign keyless via GitHub OIDC) cryptographically signs every
+# release artifact WITHOUT long-lived private keys — the identity is the
+# GitHub Actions workflow itself, recorded in the public Rekor transparency
+# log. This satisfies the OpenSSF Scorecard "Signed-Releases" check and gives
+# downstream users a verifiable chain of custody for Trinity binaries/wheels.
+#
+# It also produces a signed SLSA build-provenance attestation (in-toto) for
+# every artifact, raising the supply-chain assurance level. Zero key
+# management; zero cost.
+#
+# Verify a downloaded artifact:
+#   cosign verify-blob <file> \
+#     --bundle <file>.sigstore.json \
+#     --certificate-identity-regexp 'https://github.com/gHashTag/t27/.github/workflows/sign-release.yml@.*' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+name: Sign Release (Sigstore)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    name: Sign + attest release assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # upload signatures/bundles to the release
+      id-token: write       # OIDC token for keyless signing
+      attestations: write   # build-provenance attestation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          if [ -n "${TAG:-}" ]; then
+            gh release download "$TAG" --dir dist --repo "$GITHUB_REPOSITORY" || true
+          fi
+          # If no assets were attached, sign the source tarball as a fallback.
+          if [ -z "$(ls -A dist 2>/dev/null)" ]; then
+            git archive --format=tar.gz -o "dist/source-${TAG:-snapshot}.tar.gz" HEAD
+          fi
+          ls -la dist/
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Keyless-sign every artifact
+        env:
+          COSIGN_YES: "true"
+        run: |
+          set -euo pipefail
+          for f in dist/*; do
+            [ -f "$f" ] || continue
+            echo "Signing $f"
+            cosign sign-blob --yes \
+              --bundle "${f}.sigstore.json" \
+              "$f"
+          done
+          ls -la dist/
+
+      - name: Generate SLSA build provenance attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'dist/*'
+
+      - name: Upload signatures to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.sigstore.json
