@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
+
+## conformance-gf14-vectors -- add 14 bit-exact GF14 vectors, second-oracle coverage 52 -> 53 (Closes #1120)
+
+- **WHERE**: conformance/vectors/gf14_conformance_v0.json, conformance/vectors/INDEX_all_formats.json
+- **WHAT**: Replaced the n_vectors:0 structural stub for GF14 with 14 bit-exact conformance vectors (layout S1/E5/M8 bias15, rule e=round(13/phi^2)=5, matches catalog). Vectors emitted by the from-spec encoder and confirmed by an independent decoder; verified 14/14 on a fresh clone. INDEX_all_formats.json gf14 entry synced (kind structural -> bitexact, n_vectors 0 -> 14, sha256 refreshed); aggregates bitexact_packs 55 -> 56, structural_packs 28 -> 27. Second-oracle coverage moves 52 -> 53 of 83.
+- **Why**: closes one structural stub with real round-trippable vectors so the integrity gate recounts cleanly; de-risked against the Corona GF decode law (14/14 agree, FAIL-reachable cross-check). L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1120.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## compiler-expr-characterization -- expression-level positive/characterization tests (Closes #1137)
 
