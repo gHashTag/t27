@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-14
+Last updated: 2026-06-16
 
 ## compiler-expr-characterization -- expression-level positive/characterization tests (Closes #1137)
 
