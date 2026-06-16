@@ -49,6 +49,22 @@ EXISTING = {
     "bfloat16": "bf16_golden_conformance_v0.json",
 }
 
+# Externally-generated, dyadic-exact packs that re-derive under ONE decode law
+# and carry honest abs_error, but have NO independent second witness (so they are
+# NOT promoted to the stronger "bitexact" label -- only gf16 has a silicon oracle).
+# These files are produced by the wide-rung GoldenFloat oracle (WP-29/WP-30), kept
+# verbatim here, and listed in the index with kind="bitexact_selfconsistent". This
+# registry exists so a re-run of this generator PRESERVES the self-consistent tier
+# instead of re-deriving these wide rungs as plain structural stubs.
+SELFCONSISTENT = {
+    "gf14": "gf14_conformance_v0.json",
+    "gf48": "gf48_conformance_v0.json",
+    "gf96": "gf96_conformance_v0.json",
+    "gf128": "gf128_conformance_v0.json",
+    "gf512": "gf512_conformance_v0.json",
+    "gf1024": "gf1024_conformance_v0.json",
+}
+
 def f64_hex(x):
     return "0x" + struct.pack(">d", x).hex().upper()
 
@@ -828,6 +844,15 @@ def main():
                           "source": "hand-curated (pre-existing)"})
             continue
 
+        if cid in SELFCONSISTENT:
+            # externally-generated wide-rung pack kept verbatim; NOT regenerated,
+            # NOT promoted to bitexact (no independent second witness).
+            sc_file = SELFCONSISTENT[cid]
+            index.append({"id": cid, "file": sc_file, "kind": "bitexact_selfconsistent",
+                          "source": "wide-rung GoldenFloat oracle (single decode law, "
+                                    "dyadic-exact, no independent second witness)"})
+            continue
+
         # posit/takum cluster
         if rec["cluster"] == "PositUnumIII":
             if cid.startswith("posit"):
@@ -878,6 +903,7 @@ def main():
         "total_formats": len(recs),
         "total_packs": len(index),
         "bitexact_packs": sum(1 for e in index if e["kind"] == "bitexact"),
+        "selfconsistent_packs": sum(1 for e in index if e["kind"] == "bitexact_selfconsistent"),
         "structural_packs": sum(1 for e in index if e["kind"] == "structural"),
         "packs": index,
     }
@@ -887,7 +913,8 @@ def main():
     print(f"formats: {len(recs)}")
     print(f"written new packs: {written}  (bitexact={bitexact}, structural={structural})")
     print(f"existing kept: {len(EXISTING)}")
-    print(f"index packs: {len(index)}  bitexact={idx['bitexact_packs']}  structural={idx['structural_packs']}")
+    print(f"index packs: {len(index)}  bitexact={idx['bitexact_packs']}  "
+          f"selfconsistent={idx['selfconsistent_packs']}  structural={idx['structural_packs']}")
 
 if __name__ == "__main__":
     main()
