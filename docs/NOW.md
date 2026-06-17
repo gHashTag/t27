@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
+
+## wp18-gate-third-kind -- Check B tri-state bitexact_selfconsistent (Closes #1182)
+
+- **WHERE**: tools/wp18_conformance_gate.py, tools/wp18_gate_selfconsistent_selftest.py (new), conformance/vectors/gen_all_formats.py
+- **WHAT**: Check B recount changed from a binary model (bitexact unless structural) to a tri-state recount counting bitexact / bitexact_selfconsistent / structural separately. The INDEX summary key selfconsistent_packs is OPTIONAL and defaults to 0, so a legacy 2-kind INDEX recounts unchanged (backward compatible). An unknown kind is flagged as drift and is never folded into bitexact. gen_all_formats.py gains a SELFCONSISTENT registry (mirrors the EXISTING pattern) that keeps the affected packs verbatim under the new kind and emits the summary key.
+- **Why**: the wide GoldenFloat rungs (gf48/gf96/gf128/gf512/gf1024) are bit-exact by construction but only gf16 has an independent silicon oracle (Corona ROM); the third kind records the honest, strictly-weaker status so their vectors can enter the INDEX without overstating evidence. Gate-side prerequisite for the INDEX-sync (#1146). New self-test 13 checks, 6 FAIL-reachable controls; the existing wp18_selftest_gate.py stays 15/15; patched gate on the UNCHANGED tree exits 0 with recount [83, 55, 0, 28]. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1182.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## compiler-expr-characterization -- expression-level positive/characterization tests (Closes #1137)
 

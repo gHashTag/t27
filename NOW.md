@@ -1,19 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-16
-
-## ci(conformance) -- wp18 gate third kind bitexact_selfconsistent (this PR, Closes #1182)
-
-- **CHANGED** `tools/wp18_conformance_gate.py`: Check B recount is now TRI-STATE
-  (bitexact / bitexact_selfconsistent / structural) instead of binary; INDEX key
-  `selfconsistent_packs` OPTIONAL (defaults 0) so a legacy 2-kind INDEX stays green;
-  unknown kind -> drift (never folded into bitexact).
-- **CHANGED** `conformance/vectors/gen_all_formats.py`: SELFCONSISTENT registry keeps
-  the affected packs verbatim + emits the `selfconsistent_packs` summary key.
-- **NEW** `tools/wp18_gate_selfconsistent_selftest.py`: 13 checks, 6 FAIL-reachable
-  controls. Patched gate on UNCHANGED tree: exit 0, recount [83,55,0,28].
-- catalog stays 83; ASCII-only; gate-side prerequisite for the INDEX-sync (#1146).
-- Closes #1182
+Last updated: 2026-05-24
 
 ## docs(TRI-NET) -- cross-line package P0/P1/P2 (this PR, Closes #696)
 
