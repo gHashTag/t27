@@ -1,12 +1,19 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 ## wp18-gate-third-kind -- Check B tri-state bitexact_selfconsistent (Closes #1182)
 
 - **WHERE**: tools/wp18_conformance_gate.py, tools/wp18_gate_selfconsistent_selftest.py (new), conformance/vectors/gen_all_formats.py
 - **WHAT**: Check B recount changed from a binary model (bitexact unless structural) to a tri-state recount counting bitexact / bitexact_selfconsistent / structural separately. The INDEX summary key selfconsistent_packs is OPTIONAL and defaults to 0, so a legacy 2-kind INDEX recounts unchanged (backward compatible). An unknown kind is flagged as drift and is never folded into bitexact. gen_all_formats.py gains a SELFCONSISTENT registry (mirrors the EXISTING pattern) that keeps the affected packs verbatim under the new kind and emits the summary key.
 - **Why**: the wide GoldenFloat rungs (gf48/gf96/gf128/gf512/gf1024) are bit-exact by construction but only gf16 has an independent silicon oracle (Corona ROM); the third kind records the honest, strictly-weaker status so their vectors can enter the INDEX without overstating evidence. Gate-side prerequisite for the INDEX-sync (#1146). New self-test 13 checks, 6 FAIL-reachable controls; the existing wp18_selftest_gate.py stays 15/15; patched gate on the UNCHANGED tree exits 0 with recount [83, 55, 0, 28]. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1182.
+- **Anchor**: phi^2 + phi^-2 = 3
+
+## wp18-index-sync -- promote 6 wide GF rungs to bitexact_selfconsistent (Closes #1146)
+
+- **WHERE**: conformance/vectors/INDEX_all_formats.json, conformance/vectors/gf14_conformance_v0.json, gf48_conformance_v0.json, gf96_conformance_v0.json, gf128_conformance_v0.json, gf512_conformance_v0.json, gf1024_conformance_v0.json
+- **WHAT**: gf14/gf48/gf96/gf128/gf512/gf1024 move from structural (n_vectors:0 stubs) to the bitexact_selfconsistent kind with their bit-exact vector packs (gf14 14 vectors, the others 15 each; abs_error "0" by construction; dyadic, single decode law). INDEX summary: total 83, bitexact 55 (UNCHANGED, no false promotion), selfconsistent 6, structural 22 (28-6).
+- **Why**: requires the tri-state Check B from #1182 (PR #1183), which must merge first. These rungs are bitexact_selfconsistent, NOT bitexact: only gf16 has an independent silicon oracle (Corona ROM); gf48 is cross-checked vs GF14; gf96/128/512/1024 have no second witness. With the patched gate the conformance gate is CLEAN, Check B recount [83, 55, 6, 22]. No per-rung superiority claim; Takum (Hunhold arXiv:2412.20273) preserved as the standing counterexample. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1146.
 - **Anchor**: phi^2 + phi^-2 = 3
 
 ## compiler-expr-characterization -- expression-level positive/characterization tests (Closes #1137)

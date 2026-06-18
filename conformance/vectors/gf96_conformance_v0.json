@@ -1,30 +1,163 @@
 {
-  "schema": "t27-conformance/v0.1",
-  "format": "GF96",
-  "format_name": "GF96 (rule-derived)",
-  "bitexact": false,
-  "format_notes": "GF96 (rule-derived) -- this work; rule e=round(95/phi^2)=36",
-  "catalog": {
-    "id": "gf96",
-    "bits": 96,
-    "s": 1,
-    "e": 36,
-    "m": 59,
-    "bias": 34359738367,
-    "storage": "u128_padded",
-    "cluster": "GoldenFloat",
-    "status": "Open",
-    "standard": "this work; rule e=round(95/phi^2)=36",
-    "use_case": "OPEN R&D: between GF64 and GF128 (phi-aligned extended)",
-    "gf_relation": "experimental",
-    "source": "specs/numeric/gf96.t27",
-    "phi_distance": 0.008
-  },
-  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
-  "preprint": "https://arxiv.org/abs/2606.05017",
   "anchor_identity": "phi^2 + 1/phi^2 = 3",
-  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
-  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
-  "n_vectors": 0,
-  "vectors": []
+  "anchor_note": "3.0 is exactly representable in this rung; it decodes to exactly 3 with no rounding error.",
+  "bitexact": true,
+  "catalog": {
+    "bias": 34359738367,
+    "bias_expr": "34359738367",
+    "bits": 96,
+    "cluster": "GoldenFloat",
+    "e": 36,
+    "gf_relation": "experimental",
+    "id": "gf96",
+    "m": 59,
+    "phi_distance": 0.007864497224,
+    "s": 1,
+    "source": "specs/numeric/gf96.t27",
+    "standard": "this work; rule e=round((N-1)/phi^2)",
+    "status": "Conj",
+    "storage": "u128_padded"
+  },
+  "format": "gf96",
+  "format_name": "GoldenFloat96",
+  "format_notes": "S1 E36 M59, BIAS=34359738367 (=2^(E-1)-1, IEC 60559 interchange bias). Storage word: u128_padded; vectors use the FORMAT bit-width 96, not the storage word. Decode law shared across all five rungs and validated 14/14 against committed GF14 vectors. PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
+  "governing_sentence": "The GoldenFloat ladder earns its place through breadth and toolchain coherence, NOT through per-rung superiority over any competitor format. Takum (Hunhold 2024, arXiv:2412.20273) is the standing counterexample and is not suppressed.",
+  "n_vectors": 15,
+  "preprint": "arXiv:2606.05017 (GoldenFloat)",
+  "schema": "t27-conformance/v0.1",
+  "ssot": "gHashTag/t27 specs/numeric/formats_catalog.t27",
+  "vectors": [
+    {
+      "abs_error": "0",
+      "bits": 0,
+      "category": "zero",
+      "hex": "0x000000000000000000000000",
+      "label": "pos_zero",
+      "value": "0",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 39614081257132168796771975168,
+      "category": "zero",
+      "hex": "0x800000000000000000000000",
+      "label": "neg_zero",
+      "value": "0",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 39614081256555708044468551680,
+      "category": "inf",
+      "hex": "0x7FFFFFFFF800000000000000",
+      "label": "pos_inf",
+      "value": "INF(+)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 79228162513687876841240526848,
+      "category": "inf",
+      "hex": "0xFFFFFFFFF800000000000000",
+      "label": "neg_inf",
+      "value": "INF(-)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 39614081256555708044468551681,
+      "category": "nan",
+      "hex": "0x7FFFFFFFF800000000000001",
+      "label": "nan",
+      "value": "NAN(+)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 1,
+      "category": "subnormal",
+      "hex": "0x000000000000000000000001",
+      "label": "smallest_subnormal",
+      "value": "1p-34359738425",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 576460752303423487,
+      "category": "subnormal",
+      "hex": "0x0000000007FFFFFFFFFFFFFF",
+      "label": "largest_subnormal",
+      "value": "576460752303423487p-34359738425",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 576460752303423488,
+      "category": "normal",
+      "hex": "0x000000000800000000000000",
+      "label": "smallest_normal",
+      "value": "1p-34359738366",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 19807040627989623646082564096,
+      "category": "normal",
+      "hex": "0x3FFFFFFFF800000000000000",
+      "label": "one",
+      "value": "1",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 19807040628566084398385987584,
+      "category": "normal",
+      "hex": "0x400000000000000000000000",
+      "label": "two",
+      "value": "2",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 19807040628854314774537699328,
+      "category": "normal",
+      "hex": "0x400000000400000000000000",
+      "label": "anchor_three",
+      "value": "3",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 59421121885121792442854539264,
+      "category": "normal",
+      "hex": "0xBFFFFFFFF800000000000000",
+      "label": "neg_one",
+      "value": "-1",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 19807040628277854022234275840,
+      "category": "normal",
+      "hex": "0x3FFFFFFFFC00000000000000",
+      "label": "one_point_five",
+      "value": "1.5",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 39614081256555708044468551679,
+      "category": "normal",
+      "hex": "0x7FFFFFFFF7FFFFFFFFFFFFFF",
+      "label": "largest_normal",
+      "value": "1152921504606846975p34359738308",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 79228162513687876841240526847,
+      "category": "normal",
+      "hex": "0xFFFFFFFFF7FFFFFFFFFFFFFF",
+      "label": "neg_largest_normal",
+      "value": "-1152921504606846975p34359738308",
+      "value_encoding": "dyadic"
+    }
+  ]
 }
