@@ -1,6 +1,13 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-18
+Last updated: 2026-06-19
+
+## wp34-gf10-gf256 -- promote gf10/gf256 to bitexact_selfconsistent (Closes #1215)
+
+- **WHERE**: conformance/vectors/INDEX_all_formats.json, conformance/vectors/gf10_conformance_v0.json, gf256_conformance_v0.json
+- **WHAT**: gf10 (S1/E3/M6, bias=3) and gf256 (S1/E97/M158, bias=2^96-1) move from structural (n_vectors:0 stubs) to bitexact_selfconsistent with 15 vectors each (abs_error "0" by construction; dyadic, single decode law from the shared 7-rung interchange). INDEX summary: total 83, bitexact 55 (UNCHANGED, no false promotion), selfconsistent 6 -> 8, structural 22 -> 20.
+- **Why**: extends the wide GoldenFloat rung family (#1146) with the front (gf10) and far (gf256) rungs. These are bitexact_selfconsistent, NOT bitexact: one decode oracle, no independent second witness; gf256 bias stays Open (W-3), no canonical-bias claim. Integrity gate CLEAN on the synced tree (recount [83, 55, 8, 20]); gate self-test 6/6; WP-34 pack self-test 49/0 with negative controls. anchor 3.0 decodes to exactly 3 (bias+1 control fails); D-1 GF14 gate 14/14. Strictly weaker than gf16 (Corona ROM); Takum (Hunhold arXiv:2412.20273) preserved as the standing counterexample. L6 gf16 SSOT untouched; catalog stays 83; no gen/ edits; ASCII-only added lines; no quality claim added. Closes #1215.
+- **Anchor**: phi^2 + phi^-2 = 3
 
 ## wp18-gate-third-kind -- Check B tri-state bitexact_selfconsistent (Closes #1182)
 

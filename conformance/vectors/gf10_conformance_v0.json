@@ -1,30 +1,163 @@
 {
-  "schema": "t27-conformance/v0.1",
-  "format": "GF10",
-  "format_name": "GF10 (rule-derived)",
-  "bitexact": false,
-  "format_notes": "GF10 (rule-derived) -- this work; rule e=round(9/phi^2)=3; bridge GF8-GF12",
-  "catalog": {
-    "id": "gf10",
-    "bits": 10,
-    "s": 1,
-    "e": 3,
-    "m": 6,
-    "bias": 3,
-    "storage": "u16",
-    "cluster": "GoldenFloat",
-    "status": "Open",
-    "standard": "this work; rule e=round(9/phi^2)=3; bridge GF8-GF12",
-    "use_case": "OPEN R&D: tight-precision activations",
-    "gf_relation": "experimental",
-    "source": "specs/numeric/gf10.t27",
-    "phi_distance": 0.118
-  },
-  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
-  "preprint": "https://arxiv.org/abs/2606.05017",
   "anchor_identity": "phi^2 + 1/phi^2 = 3",
-  "structural_reason": "No fixed bit-precise round-trip is defined for this entry; recorded structurally with catalog metadata.",
-  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
-  "n_vectors": 0,
-  "vectors": []
+  "anchor_note": "3.0 is exactly representable in this rung; it decodes to exactly 3 with no rounding error.",
+  "bitexact": true,
+  "catalog": {
+    "bias": 3,
+    "bias_expr": "3",
+    "bits": 10,
+    "cluster": "GoldenFloat",
+    "e": 3,
+    "gf_relation": "experimental",
+    "id": "gf10",
+    "m": 6,
+    "phi_distance": 0.118,
+    "s": 1,
+    "source": "specs/numeric/gf10.t27",
+    "standard": "this work; rule e=round((N-1)/phi^2)",
+    "status": "Conj",
+    "storage": "u16"
+  },
+  "format": "gf10",
+  "format_name": "GoldenFloat10",
+  "format_notes": "S1 E3 M6, BIAS=3 (=2^(E-1)-1, IEC 60559 interchange bias). Storage word: u16; vectors use the FORMAT bit-width 10, not the storage word. Decode law shared across the GF ladder and validated 14/14 against committed GF14 vectors. TIER bitexact_selfconsistent: bit-exact by construction under a single decode law, but NO independent second witness for this rung (only gf16 has the Corona ROM silicon oracle; gf48 is cross-checked vs GF14). PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
+  "governing_sentence": "The GoldenFloat ladder earns its place through breadth and toolchain coherence, NOT through per-rung superiority over any competitor format. Takum (Hunhold 2024, arXiv:2412.20273) is the standing counterexample and is not suppressed.",
+  "n_vectors": 15,
+  "preprint": "arXiv:2606.05017 (GoldenFloat)",
+  "schema": "t27-conformance/v0.1",
+  "ssot": "gHashTag/t27 specs/numeric/formats_catalog.t27",
+  "vectors": [
+    {
+      "abs_error": "0",
+      "bits": 0,
+      "category": "zero",
+      "hex": "0x000",
+      "label": "pos_zero",
+      "value": "0",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 512,
+      "category": "zero",
+      "hex": "0x200",
+      "label": "neg_zero",
+      "value": "0",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 448,
+      "category": "inf",
+      "hex": "0x1C0",
+      "label": "pos_inf",
+      "value": "INF(+)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 960,
+      "category": "inf",
+      "hex": "0x3C0",
+      "label": "neg_inf",
+      "value": "INF(-)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 449,
+      "category": "nan",
+      "hex": "0x1C1",
+      "label": "nan",
+      "value": "NAN(+)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 1,
+      "category": "subnormal",
+      "hex": "0x001",
+      "label": "smallest_subnormal",
+      "value": "0.00390625",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 63,
+      "category": "subnormal",
+      "hex": "0x03F",
+      "label": "largest_subnormal",
+      "value": "0.24609375",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 64,
+      "category": "normal",
+      "hex": "0x040",
+      "label": "smallest_normal",
+      "value": "0.25",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 192,
+      "category": "normal",
+      "hex": "0x0C0",
+      "label": "one",
+      "value": "1",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 256,
+      "category": "normal",
+      "hex": "0x100",
+      "label": "two",
+      "value": "2",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 288,
+      "category": "normal",
+      "hex": "0x120",
+      "label": "anchor_three",
+      "value": "3",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 704,
+      "category": "normal",
+      "hex": "0x2C0",
+      "label": "neg_one",
+      "value": "-1",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 224,
+      "category": "normal",
+      "hex": "0x0E0",
+      "label": "one_point_five",
+      "value": "1.5",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 447,
+      "category": "normal",
+      "hex": "0x1BF",
+      "label": "largest_normal",
+      "value": "15.875",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 959,
+      "category": "normal",
+      "hex": "0x3BF",
+      "label": "neg_largest_normal",
+      "value": "-15.875",
+      "value_encoding": "decimal"
+    }
+  ]
 }

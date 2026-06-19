@@ -1,30 +1,163 @@
 {
-  "schema": "t27-conformance/v0.1",
-  "format": "GF256",
-  "format_name": "GF256 (rule-derived)",
-  "bitexact": false,
-  "format_notes": "GF256 (rule-derived) -- this work; rule e=round(255/phi^2)=97; normative bias=2^96-1",
-  "catalog": {
-    "id": "gf256",
-    "bits": 256,
-    "s": 1,
-    "e": 97,
-    "m": 158,
-    "bias": 79228162514264337593543950335,
-    "storage": "u256_software",
-    "cluster": "GoldenFloat",
-    "status": "Open",
-    "standard": "this work; rule e=round(255/phi^2)=97; normative bias=2^96-1",
-    "use_case": "OPEN R&D: phi-aligned binary256 alternative",
-    "gf_relation": "experimental",
-    "source": "specs/numeric/gf256.t27",
-    "phi_distance": 0.004
-  },
-  "ssot": "https://github.com/gHashTag/t27/blob/master/conformance/FORMAT-SPEC-001.json",
-  "preprint": "https://arxiv.org/abs/2606.05017",
   "anchor_identity": "phi^2 + 1/phi^2 = 3",
-  "structural_reason": "Bias is an OPEN R&D parameter for this width (see catalog status Experimental); a bit-precise pack is deferred until the bias is fixed. Recorded structurally with the proposed layout.",
-  "anchor_note": "Anchor identity phi^2 + 1/phi^2 = 3 recorded per shared schema.",
-  "n_vectors": 0,
-  "vectors": []
+  "anchor_note": "3.0 is exactly representable in this rung; it decodes to exactly 3 with no rounding error.",
+  "bitexact": true,
+  "catalog": {
+    "bias": 79228162514264337593543950335,
+    "bias_expr": "2^96-1",
+    "bits": 256,
+    "cluster": "GoldenFloat",
+    "e": 97,
+    "gf_relation": "experimental",
+    "id": "gf256",
+    "m": 158,
+    "phi_distance": 0.004,
+    "s": 1,
+    "source": "specs/numeric/gf256.t27",
+    "standard": "this work; rule e=round((N-1)/phi^2)",
+    "status": "Conj",
+    "storage": "u256_software"
+  },
+  "format": "gf256",
+  "format_name": "GoldenFloat256",
+  "format_notes": "S1 E97 M158, BIAS=79228162514264337593543950335 (parsed from catalog string bias '2^96-1' via the safe regex parser (no eval); equals 2^(E-1)-1). Storage word: u256_software; vectors use the FORMAT bit-width 256, not the storage word. Decode law shared across the GF ladder and validated 14/14 against committed GF14 vectors. TIER bitexact_selfconsistent: bit-exact by construction under a single decode law, but NO independent second witness for this rung (only gf16 has the Corona ROM silicon oracle; gf48 is cross-checked vs GF14). PHI_BIAS is OPEN/RETRACTED per the spec and is NOT emitted; phi_distance is descriptive metadata only, never used in decode.",
+  "governing_sentence": "The GoldenFloat ladder earns its place through breadth and toolchain coherence, NOT through per-rung superiority over any competitor format. Takum (Hunhold 2024, arXiv:2412.20273) is the standing counterexample and is not suppressed.",
+  "n_vectors": 15,
+  "preprint": "arXiv:2606.05017 (GoldenFloat)",
+  "schema": "t27-conformance/v0.1",
+  "ssot": "gHashTag/t27 specs/numeric/formats_catalog.t27",
+  "vectors": [
+    {
+      "abs_error": "0",
+      "bits": 0,
+      "category": "zero",
+      "hex": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "label": "pos_zero",
+      "value": "0",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 57896044618658097711785492504343953926634992332820282019728792003956564819968,
+      "category": "zero",
+      "hex": "0x8000000000000000000000000000000000000000000000000000000000000000",
+      "label": "neg_zero",
+      "value": "0",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 57896044618658097711785492503978578517302266603269360811549721249042581684224,
+      "category": "inf",
+      "hex": "0x7FFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000000",
+      "label": "pos_inf",
+      "value": "INF(+)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 115792089237316195423570985008322532443937258936089642831278513252999146504192,
+      "category": "inf",
+      "hex": "0xFFFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000000",
+      "label": "neg_inf",
+      "value": "INF(-)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 57896044618658097711785492503978578517302266603269360811549721249042581684225,
+      "category": "nan",
+      "hex": "0x7FFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000001",
+      "label": "nan",
+      "value": "NAN(+)"
+    },
+    {
+      "abs_error": "0",
+      "bits": 1,
+      "category": "subnormal",
+      "hex": "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "label": "smallest_subnormal",
+      "value": "1p-79228162514264337593543950492",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 365375409332725729550921208179070754913983135743,
+      "category": "subnormal",
+      "hex": "0x0000000000000000000000003FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+      "label": "largest_subnormal",
+      "value": "365375409332725729550921208179070754913983135743p-79228162514264337593543950492",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 365375409332725729550921208179070754913983135744,
+      "category": "normal",
+      "hex": "0x0000000000000000000000004000000000000000000000000000000000000000",
+      "label": "smallest_normal",
+      "value": "1p-79228162514264337593543950334",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 28948022309329048855892746251806601553984770436859219801685325247064299274240,
+      "category": "normal",
+      "hex": "0x3FFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000000",
+      "label": "one",
+      "value": "1",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 28948022309329048855892746252171976963317496166410141009864396001978282409984,
+      "category": "normal",
+      "hex": "0x4000000000000000000000000000000000000000000000000000000000000000",
+      "label": "two",
+      "value": "2",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 28948022309329048855892746252354664667983859031185601613953931379435273977856,
+      "category": "normal",
+      "hex": "0x4000000000000000000000002000000000000000000000000000000000000000",
+      "label": "anchor_three",
+      "value": "3",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 86844066927987146567678238756150555480619762769679501821414117251020864094208,
+      "category": "normal",
+      "hex": "0xBFFFFFFFFFFFFFFFFFFFFFFFC000000000000000000000000000000000000000",
+      "label": "neg_one",
+      "value": "-1",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 28948022309329048855892746251989289258651133301634680405774860624521290842112,
+      "category": "normal",
+      "hex": "0x3FFFFFFFFFFFFFFFFFFFFFFFE000000000000000000000000000000000000000",
+      "label": "one_point_five",
+      "value": "1.5",
+      "value_encoding": "decimal"
+    },
+    {
+      "abs_error": "0",
+      "bits": 57896044618658097711785492503978578517302266603269360811549721249042581684223,
+      "category": "normal",
+      "hex": "0x7FFFFFFFFFFFFFFFFFFFFFFFBFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+      "label": "largest_normal",
+      "value": "730750818665451459101842416358141509827966271487p79228162514264337593543950177",
+      "value_encoding": "dyadic"
+    },
+    {
+      "abs_error": "0",
+      "bits": 115792089237316195423570985008322532443937258936089642831278513252999146504191,
+      "category": "normal",
+      "hex": "0xFFFFFFFFFFFFFFFFFFFFFFFFBFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+      "label": "neg_largest_normal",
+      "value": "-730750818665451459101842416358141509827966271487p79228162514264337593543950177",
+      "value_encoding": "dyadic"
+    }
+  ]
 }
