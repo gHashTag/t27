@@ -40,6 +40,7 @@ mod bitnet_irq;
 mod bitnet_top;
 mod bitnet_bundle;
 mod host;
+mod tt_debug;
 mod tt_manifest;
 mod tt_profile;
 // mod runtime_minimal;
@@ -354,6 +355,27 @@ enum Commands {
         /// If set, also print the verdict JSON to stdout.
         #[arg(long, default_value_t = false)]
         verbose: bool,
+    },
+
+    /// Emit a SystemVerilog `tt_debug` wrapper around `bitnet_engine_top`.
+    ///
+    /// Wave 49 (R-TT-3): adds Tiny Tapeout debug aperture [0x40, 0x60) with
+    /// version CSR, error counters (AXI / DMA / IRQ / CSR), and self-test
+    /// trigger / result registers.  Reads `--manifest` JSON for chip-slug and
+    /// commit hash.  If `--output` is omitted or `-`, prints to stdout.
+    #[command(name = "gen-tt-debug-wrapper")]
+    GenTtDebugWrapper {
+        /// Path to a TtManifest JSON (as emitted by `tt-manifest`).
+        #[arg(long)]
+        manifest: String,
+
+        /// Inner module name (default: `bitnet_engine_top`).
+        #[arg(long)]
+        inner: Option<String>,
+
+        /// Output path; `-` or omitted -> stdout.
+        #[arg(long)]
+        output: Option<String>,
     },
 
     /// Emit a deterministic Tiny Tapeout manifest for one of the three
@@ -3324,6 +3346,24 @@ fn run_tt_conform(profile_path: &str, manifest_path: &str, verbose: bool) -> any
         std::process::exit(1);
     }
     Ok(())
+}
+
+fn run_gen_tt_debug_wrapper(
+    manifest_path: &str,
+    inner: Option<&str>,
+    output: Option<&str>,
+) -> anyhow::Result<()> {
+    use tt_debug::TtDebugWrapper;
+    use tt_manifest::TtManifest;
+
+    let m_text = std::fs::read_to_string(manifest_path)
+        .with_context(|| format!("reading manifest {}", manifest_path))?;
+    let manifest = TtManifest::from_json(&m_text)
+        .map_err(|e| anyhow::anyhow!("manifest parse error: {}", e))?;
+    let inner_name = inner.unwrap_or("bitnet_engine_top");
+    let wrapper = TtDebugWrapper::new(inner_name, &manifest);
+    let verilog = wrapper.emit();
+    write_verilog_to_output(&verilog, output, "tt_debug_wrapper")
 }
 
 fn run_gen_layer_sequencer(
@@ -8146,6 +8186,9 @@ async fn main() -> anyhow::Result<()> {
         Commands::TtConform { profile, manifest, verbose } => {
             run_tt_conform(&profile, &manifest, verbose)?
         }
+        Commands::GenTtDebugWrapper { manifest, inner, output } => {
+            run_gen_tt_debug_wrapper(&manifest, inner.as_deref(), output.as_deref())?
+        }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
             run_gen_testbench(&input, period_ns, max_cycles, output.as_deref())?
@@ -8403,6 +8446,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::TtConform { profile, manifest, verbose } => {
             run_tt_conform(&profile, &manifest, verbose)?
+        }
+        Commands::GenTtDebugWrapper { manifest, inner, output } => {
+            run_gen_tt_debug_wrapper(&manifest, inner.as_deref(), output.as_deref())?
         }
         Commands::Asm { input, output, format } => run_asm(&input, output.as_deref(), &format)?,
         Commands::GenTestbench { input, period_ns, max_cycles, output } => {
