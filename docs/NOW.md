@@ -1,6 +1,6 @@
 # NOW -- Trinity t27 sync
 
-Last updated: 2026-06-18
+Last updated: 2026-06-22
 
 ## wp18-gate-third-kind -- Check B tri-state bitexact_selfconsistent (Closes #1182)
 
@@ -608,6 +608,17 @@ Last updated: 2026-06-18
 ## wave-86 -- host latency histogram (R-HS-34, Closes #885)
 
 - **WHERE** (host-only, additive): new `bootstrap/src/host/histogram.rs` with `Histogram` (10 fixed bins 0–50ms+, record/percentile/p50/p99/mean/min/max/merge/reset), `HistogramSummary`; 12 inline tests. All pass. 828 total.
+
+## wave-49 -- tt-debug wrapper around bitnet_engine_top (R-TT-3, Closes #1217)
+
+- **WHERE** (bootstrap-only, additive): new file `bootstrap/src/tt_debug.rs` (530 lines: `offsets` module with `VERSION=0x40, ERR_AXI=0x44, ERR_DMA=0x48, ERR_IRQ=0x4C, ERR_CSR=0x50, ST_TRIG=0x54, ST_RES=0x58`; `TtDebugErrorClass` enum with `AxiProtocol / DmaUnderrun / IrqStuck / CsrBadOffset` + `slug / csr_offset / all`; `TtDebugVersion { t27_commit_lo16, chip_slug_hash8, phi_invariant_lo8 }` + `from_manifest / pack_u32 / verilog_literal`; `TtDebugWrapper<'a> { inner_module, manifest }` + `new / emit()` emitting a SystemVerilog wrapper named `<inner>_tt_debug`; helpers `lo16_from_hex`, `lo8_from_hex_tail`, `sha256_lo_byte`; 22 inline unit tests).  Updated `bootstrap/src/main.rs`: `mod tt_debug;` declaration, one new CLI subcommand `Commands::GenTtDebugWrapper { manifest, inner, output }` + helper `run_gen_tt_debug_wrapper(...)` dispatched in **both** HTTP-server and CLI match arms.  New test file `bootstrap/tests/tt_debug.rs` (24 integration tests via `CARGO_BIN_EXE_t27c`).  **Zero** edits under `gen/`, `coq/`, `trios-coq/`, `proofs/`, `specs/`, `conformance/`, `architecture/`, `rings/`, root `Cargo.toml`, `.gitmodules`, or `chips/`.
+- **Why** (R-TT-3): W42 (R-TT-1) pinned each tape-out to a TtManifest, W45 (R-TT-2) added the PDK profile + conformance gate.  W49 adds the **third reproducibility surface**: an additive TT-debug aperture extending the W36d CSR map by [0x40, 0x60).  This gives the host CPU four monotonic error counters (AXI / DMA / IRQ / CSR), one version-CSR word that bakes-in `(t27_commit_lo16, chip_slug_hash8, phi_invariant_lo8 = 0x6b)` at generate-time, and a self-test trigger/result pair -- without touching the inner `bitnet_engine_top` RTL.  The W42 AXI manifest invariants (data=32, addr=32, csr_aperture=64) remain intact; the debug aperture only extends into the next 32 bytes.  Together with W42 + W45 this closes 3/4 of the R-TT track and is the natural prerequisite for W50 (R-TT-4) `tt_lockfile`.
+- **What changed**: one new subcommand.
+  - `t27c gen-tt-debug-wrapper --manifest <m.json> [--inner <name>] [--output <path>|-]` reads a TtManifest JSON, emits a SystemVerilog `<inner>_tt_debug` wrapper module with the debug CSR aperture + monotonic error counters + self-test trigger/result.  Identical inputs produce byte-identical bytes.  `--inner` defaults to `bitnet_engine_top` and falls back safely on invalid Verilog identifiers.  `--output -` or omitted -> stdout; with a path the file is written and `tt_debug_wrapper written to <path> (<N> bytes)` to stderr.
+- **Tests**: wave 24/24 integration + 22/22 new inline (`tt_debug::tests`) + regression 20 suites green (`behavior_sva` 8, `behavior_sva_v2` 32, `bitnet_axi` 18, `bitnet_buffers` 22, `bitnet_bundle` 21, `bitnet_dma` 22, `bitnet_irq` 16, `bitnet_pipeline` 20, `bitnet_top` 17, `host_driver` 25, `host_irq` 25, `phi_selfcheck` 11, `trit_stdlib` 14, `verilog_array_literal_expr` 2, `verilog_const_array` 1/2 -- pre-existing `r_ca_1_emitter_on_real_mac_spec` fail, **not** introduced by this wave, `verilog_initial_decl` 2, `verilog_r_si_1` 2, `verilog_translate_off` 2, `weight_bram` 13, `tt_manifest` 23, `tt_profile` 25) + total **345/346** integration with the one pre-existing failure carried over from before W37.
+- **Source**: reproducibility wave -- 0 lines of vibee-lang ported (`tt_debug` is a t27-native debug-aperture emitter).  Co-author: Dmitrii Vasilev (kernel invariant + ternary architecture + chip variant lineage).
+- **Status**: implementation complete, all required gates expected green, `phi^2 + 1/phi^2 = 3` kernel reaffirmed (zero kernel edits; phi-invariant SHA-256 byte 0x6b is only **read** into the version CSR literal).  The W42 L2 boundary (`bootstrap/`, `docs/NOW.md`, `.gitmodules`, `chips/`) is untouched in this wave -- W49 lives entirely inside `bootstrap/`.
+- **Roadmap to next wave**: W50 (R-TT-4) `tt_lockfile.rs` emitting `tt.lock` `(chip_hash, t27_commit, profile_name, manifest_hash, verdict_ok, debug_wrapper_hash)` -- the final R-TT wave closing the reproducibility chain.
 
 ## docs-readme-bitnet-rtt -- README.md aligned with post-W45 state (doc-only, Closes #805)
 
